@@ -3,6 +3,8 @@ import type { CameraPaintPlan, CameraPaintPlans } from '../../cp-workspace/folde
 import type { CameraSpreadLift } from '../../cp-workspace/folded/cameraSpreadLift';
 import type { CameraSpreadOptions } from '../../cp-workspace/folded/cameraSpreadScene';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
+import { transposeMat3 } from '@treemaker/origami-simulator';
+import { cameraSpreadTransform } from '../../cp-workspace/folded/cameraSpreadCamera';
 
 const VERTEX = `#version 300 es
 precision highp float;
@@ -11,17 +13,13 @@ in vec3 other;
 in float side;
 in vec3 paint;
 flat out vec3 style;
-uniform float amount, angle, tilt, mode, aspect, zoom, layerLock, slots, showWire;
+uniform float amount, mode, aspect, zoom, layerLock, slots, showWire;
+uniform mat3 camera;
 uniform vec2 centre, pan, pixels;
 vec4 project(vec3 p) {
-  vec2 q=p.xy-centre;
-  vec2 u=vec2(cos(angle),sin(angle));
-  vec2 v=vec2(-u.y,u.x);
-  float along=dot(q,u), across=dot(q,v), z=p.z*amount;
-  float horizontal=along*cos(tilt)-z*sin(tilt);
-  float depth=along*sin(tilt)+z*cos(tilt);
-  if(mode<0.5) horizontal/=cos(tilt);
-  vec2 screen=u*horizontal+v*across;
+  vec3 view=camera*vec3(p.xy-centre,p.z*amount);
+  vec2 screen=view.xy;
+  float depth=view.z;
   float w=mode>1.5 ? (2.5-depth)/2.5 : 1.0;
   // Perspective depth must interpolate in reciprocal distance, not linearly in Z.
   float clipZ=mode>1.5 ? 1.020202*w-0.080808 : -depth/2.0;
@@ -148,14 +146,10 @@ export function createCameraRenderer(
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clearColor(1, 1, 1, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      const tilt =
-        ((options.projection === 'diagram' ? Math.min(80, options.inclinationDeg) : options.inclinationDeg) *
-          Math.PI) /
-        180;
-      const index = Math.cos(tilt) < 0 ? 1 : 0;
+      const frame = cameraSpreadTransform(options);
+      const index = frame[8] < 0 ? 1 : 0;
       uniform('amount', options.amount);
-      uniform('angle', (options.directionDeg * Math.PI) / 180);
-      uniform('tilt', tilt);
+      gl.uniformMatrix3fv(gl.getUniformLocation(program, 'camera'), false, transposeMat3(frame));
       uniform('mode', ['diagram', 'orthographic', 'perspective'].indexOf(options.projection));
       uniform('aspect', canvas.width / canvas.height);
       uniform('zoom', 1.45 * zoom);

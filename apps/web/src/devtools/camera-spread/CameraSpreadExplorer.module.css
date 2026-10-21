@@ -116,6 +116,21 @@
   width: 100%;
   height: 420px;
 }
+.canvas[data-orbitable='true'] {
+  cursor: grab;
+  touch-action: none;
+}
+.canvas[data-dragging='true'] {
+  cursor: grabbing;
+}
+.orbitHint {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid #edf0f3;
+  color: #607080;
+  text-align: center;
+  font-size: 11px;
+}
 .live {
   color: #2e8065;
   font-weight: 500;

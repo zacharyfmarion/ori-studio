@@ -72,8 +72,9 @@ prototype reproduces that application's algorithm.
    conjugate gradients use up to 70 iterations per global solve. These are soft
    contacts and an iteration budget, **not hard feasibility constraints**.
 6. Remove rigid Z translation, cap the unit-height range at one, and use
-   `z = amount * model_size * h`. Amount zero calls the exact original flat
-   PaperScene path. The model and fold solution are never edited.
+   `z = amount * model_size * h`. Amount zero in Diagram mode calls the exact
+   original flat PaperScene path; the two 3D modes retain camera rotation around
+   a zero-depth sheet. The model and fold solution are never edited.
 7. Evaluate separate inset-corner probes (80% triangle corner, 20% centroid) that
    were not used in fitting. Measure every mesh edge's relative 3D extension.
 
@@ -98,6 +99,16 @@ exactly top-down; perspective can produce modest separation through depth-scaled
 size. Rich top-down opening requires in-plane motion as well, hence a nonlinear
 shell refinement. Perspective uses a finite eye at 2.5 model extents and proper
 reciprocal depth interpolation for the GPU depth test.
+
+The two 3D previews support free orbit by dragging. Each drag composes a rotation
+around a screen-plane axis with the camera frame captured at pointer-down, using
+the simulator's CSS-pixel sensitivity. There are no polar clamps: the complete
+frame is converted back to direction, inclination and roll, preserving orientation
+through the top and bottom poles. Direction/inclination controls reflect the view;
+notes retain all three angles. CPU projection and the WebGL shader consume the
+same transform. Camera changes only update uniforms, never the cached lift or
+visibility plans. Presets reset roll. Diagram mode ignores roll and retains its
+original compensated camera.
 
 The live explorer now defaults to **Preserve layer order**. It lifts the existing
 flat diagram paint plan rather than trusting the approximate heights for
@@ -261,14 +272,19 @@ not claims that a fully collision-free general origami opening has been solved.
 
 ## Validation status
 
-- Eleven synthetic tests: identity-based connectivity, independent coincident
+- Synthetic geometry tests: identity-based connectivity, independent coincident
   layers, ordering, cache/purity, exact zero, view reversal/arbitrary cameras,
   malformed-topology refusal, deliberately inverted layers/hidden ink, woven
   crossings from both sides, bounded auxiliary ink on very thin triangles, and
-  nearly straight panel ink while opening a shared hinge.
-- Existing flat scene and spread tests run with them: 81 geometry tests passed
-  after the stiffness change. The prior clipping change also passed both
-  CSS-module ratchet files (89 tests total at that revision); styles are unchanged.
+  nearly straight panel ink while opening a shared hinge, rolled visibility,
+  and zero-depth 3D viewing independent of Diagram's exact zero path.
+- Free-orbit math and pointer lifecycle tests cover full revolutions, continuous
+  pole crossing, reversibility, repeated drags, touch/secondary-pointer isolation,
+  capture cancellation, mode changes and unmount. With existing flat/spread tests
+  and CSS-module ratchets, all 102 focused tests pass after the orbit change.
+- Browser verification on LDM: perspective dragging updates both angle controls,
+  passes to the underside at zero depth, keeps preparation cached, and resets
+  correctly. The preview is left in perspective mode for further visual review.
 - Web lint and typecheck run after rebuilding stale/missing local generated APIs.
 - No Rust behavior, native shell, production route or shipping bundle changed.
   Rust workspace/oracle, Tauri and production build validation are out of scope.

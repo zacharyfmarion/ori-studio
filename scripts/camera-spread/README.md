@@ -38,9 +38,14 @@ from the corpus is included in the production entry or committed.
 In the explorer:
 
 - Choose a model and compare against original, affine or depth spread.
-- Drag the direction dial or slider. Adjust amount; zero is the original path.
+- Drag the direction dial or slider. Adjust amount; zero uses the original
+  drawing in Diagram mode and flattens the paper in the two 3D modes.
 - Diagram camera compensates foreshortening; orthographic and perspective cameras
   allow top-down, side and underside views. Diagram inclination is capped at 80°.
+- Drag directly on either 3D preview with a mouse, pen or one finger to orbit
+  freely, including through both poles. Direction and inclination stay in sync;
+  full orientation (including roll) is saved with validation notes. Presets reset
+  roll, and Reset camera restores the initial Diagram settings. Zoom uses its slider.
 - Keep **Preserve layer order** selected to suppress buried faces and ink; switch
   to **Raw 3D depth** to compare the approximate fit at identical settings.
 - Enable the bending mesh to inspect interior degrees of freedom.
@@ -69,6 +74,8 @@ Validation:
 ```sh
 npx --workspace @treemaker/web vitest run \
   src/cp-workspace/folded/cameraSpread.test.ts \
+  src/cp-workspace/folded/cameraSpreadCamera.test.ts \
+  src/devtools/camera-spread/useCameraSpreadOrbit.test.tsx \
   src/cp-workspace/folded/foldedFlatScene.test.ts \
   src/cp-workspace/folded/foldedLayerSpread.test.ts
 npm run lint:web

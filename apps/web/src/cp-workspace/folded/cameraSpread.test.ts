@@ -105,22 +105,53 @@ describe('experimental connected camera lift', () => {
     expect(JSON.stringify(scene)).toBe(before);
     expect(cameraSpreadStrain(mesh, 0)).toEqual({ p95: 0, max: 0 });
   });
-  it('returns the exact original drawing at zero for every camera', () => {
+  it('returns the exact original diagram at zero, with independent orbit in 3D', () => {
     const kernel = stack(true);
     const original = foldedFlatPaperScene(kernel, {
       markHidden: false,
       toScenePx: (p) => [p.x, p.y],
       scale: 1,
     });
-    for (const projection of ['diagram', 'orthographic', 'perspective'] as const) {
-      expect(
-        cameraSpreadScene(kernel, {
+    expect(cameraSpreadScene(kernel, { ...options, amount: 0, inclinationDeg: 150 })).toEqual(original);
+    for (const projection of ['orthographic', 'perspective'] as const)
+      for (const visibility of ['layers', 'depth'] as const) {
+        const top = cameraSpreadScene(kernel, {
           ...options,
           amount: 0,
           projection,
-          inclinationDeg: 150,
-        })
-      ).toEqual(original);
+          visibility,
+          inclinationDeg: 0,
+        });
+        const below = cameraSpreadScene(kernel, {
+          ...options,
+          amount: 0,
+          projection,
+          visibility,
+          inclinationDeg: 180,
+        });
+        expect(visibleFace(top, 0.5, 0.5)).toBe(1);
+        expect(visibleFace(below, 0.5, 0.5)).toBe(0);
+        expect(Object.values(below.bounds).every(Number.isFinite)).toBe(true);
+      }
+  });
+  it('rotates the projected drawing without changing layer coverage when rolled', () => {
+    const kernel = stack();
+    for (const projection of ['orthographic', 'perspective'] as const) {
+      const camera = { ...options, projection, directionDeg: 32, inclinationDeg: 120 };
+      const before = cameraSpreadScene(kernel, camera);
+      const after = cameraSpreadScene(kernel, { ...camera, rollDeg: 90 });
+      const vertices = (scene: PaperScene) =>
+        scene.items.flatMap((item) =>
+          item.kind === 'face' ? item.rings.flat() : item.kind === 'line' ? [item.a, item.b] : []
+        );
+      const original = vertices(before);
+      const rotated = vertices(after);
+      expect(rotated).toHaveLength(original.length);
+      for (let i = 0; i < original.length; i++) {
+        expect(rotated[i]![0]).toBeCloseTo(1 - original[i]![1], 10);
+        expect(rotated[i]![1]).toBeCloseTo(original[i]![0], 10);
+      }
+      expect(visibleFace(after, 0.5, 0.5)).toBe(0);
     }
   });
   it('keeps the diagram order and reverses it from below', () => {

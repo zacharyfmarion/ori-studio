@@ -5,14 +5,11 @@ import type { PaperItem, PaperScene, ScenePoint } from '../../lib/paper/paperSce
 import { foldedFlatPaperScene } from './foldedFlatScene';
 import { cameraSpreadLift, liftWeights, type CameraSpreadLift } from './cameraSpreadLift';
 import { cameraPaintPlans } from './cameraSpreadVisibility';
+import { cameraSpreadTransform, type CameraSpreadPose } from './cameraSpreadCamera';
 
-export interface CameraSpreadOptions {
+export interface CameraSpreadOptions extends CameraSpreadPose {
   /** Total depth bound as a fraction of original folded extent. */
   amount: number;
-  /** Azimuth around the paper, degrees from screen right toward screen down. */
-  directionDeg: number;
-  /** 0 is top-down, 90 edge-on, 180 the underside. Diagram mode stops at 80. */
-  inclinationDeg: number;
   projection: 'diagram' | 'orthographic' | 'perspective';
   /** Authored diagram order by default; raw depth is an explicit diagnostic. */
   visibility?: 'layers' | 'depth';
@@ -144,26 +141,26 @@ export function cameraSpreadScene(
   options: CameraSpreadOptions
 ): PaperScene {
   const { amount, directionDeg, inclinationDeg, projection } = options;
-  if (![amount, directionDeg, inclinationDeg].every(Number.isFinite) || amount < 0 || amount > 0.2) {
+  if (
+    ![amount, directionDeg, inclinationDeg, options.rollDeg ?? 0].every(Number.isFinite) ||
+    amount < 0 ||
+    amount > 0.2
+  ) {
     throw new Error('Camera spread needs finite controls and amount in [0, 0.2]');
   }
   // Exact original path, including its handling of woven coplanar stacks.
-  if (amount === 0)
+  if (amount === 0 && projection === 'diagram')
     return foldedFlatPaperScene(kernel, {
       markHidden: false,
       toScenePx: (p) => [p.x, p.y],
       scale: 1,
     });
   const mesh = cameraSpreadLift(kernel);
-  const geometric = options.visibility === 'depth';
+  // At zero depth all sheets are coplanar: use authored order, without the
+  // inverse-height transform (which would put the BSP eye at infinity).
+  const geometric = options.visibility === 'depth' && amount > 0;
   const prepared = geometric ? drawing(mesh, kernel) : null;
-  const phi = (directionDeg * Math.PI) / 180;
-  const theta =
-    ((projection === 'diagram' ? Math.min(80, Math.max(0, inclinationDeg)) : inclinationDeg) * Math.PI) / 180;
-  const u = Math.cos(phi);
-  const v = Math.sin(phi);
-  const sin = Math.sin(theta);
-  const cos = Math.cos(theta);
+  const frame = cameraSpreadTransform(options);
   const xs = mesh.xy.map((p) => p.x),
     ys = mesh.xy.map((p) => p.y);
   const [cx, cy] = prepared?.centre ?? [
@@ -172,27 +169,25 @@ export function cameraSpreadScene(
   ];
   // Inverse of the depth scaling maps the eye into the cached BSP's frame.
   const distance = projection === 'perspective' ? 2.5 : 1e8;
-  const eye: Vec3 = [cx + distance * sin * u, cy + distance * sin * v, (distance * cos) / amount];
+  const eye: Vec3 = [
+    cx + distance * frame[6],
+    cy + distance * frame[7],
+    (distance * frame[8]) / (amount || 1),
+  ];
   const project = ([x, y, height]: Vec3): ScenePoint => {
     const px = x - cx;
     const py = y - cy;
     const z = height * amount;
-    const along = px * u + py * v;
-    const across = -px * v + py * u;
-    let horizontal = along * cos - z * sin;
-    let vertical = across;
-    if (projection === 'diagram') horizontal /= cos;
-    if (projection === 'perspective') {
-      const factor = distance / (distance - along * sin - z * cos);
-      horizontal *= factor;
-      vertical *= factor;
-    }
+    const horizontal = frame[0] * px + frame[1] * py + frame[2] * z;
+    const vertical = frame[3] * px + frame[4] * py + frame[5] * z;
+    const depth = frame[6] * px + frame[7] * py + frame[8] * z;
+    const factor = projection === 'perspective' ? distance / (distance - depth) : 1;
     return [
-      mesh.origin.x + mesh.size * (cx + horizontal * u - vertical * v),
-      mesh.origin.y + mesh.size * (cy + horizontal * v + vertical * u),
+      mesh.origin.x + mesh.size * (cx + horizontal * factor),
+      mesh.origin.y + mesh.size * (cy + vertical * factor),
     ];
   };
-  const plan = prepared ? null : cameraPaintPlans(mesh, kernel)[cos < 0 ? 'back' : 'front'];
+  const plan = prepared ? null : cameraPaintPlans(mesh, kernel)[frame[8] < 0 ? 'back' : 'front'];
   const ordered = prepared
     ? traverseBsp(prepared.tree, eye)
     : plan!.pieces.map((p, ref) => ({ kind: p.kind === 'face' ? 0 : 1, ref, points: p.points }));

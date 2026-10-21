@@ -9,6 +9,8 @@ import { foldedFlatPaperScene } from '../../cp-workspace/folded/foldedFlatScene'
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { createCameraRenderer } from './cameraRenderer';
+import { useCameraSpreadOrbit } from './useCameraSpreadOrbit';
+import type { CameraSpreadPose } from '../../cp-workspace/folded/cameraSpreadCamera';
 import { readJson, storageKey, writeJson } from '../../lib/storage';
 import styles from './CameraSpreadExplorer.module.css';
 
@@ -117,6 +119,7 @@ function CameraCanvas({
   zoom,
   wire,
   onTime,
+  onOrbit,
 }: {
   kernel: OristudioCpFoldedPaperScene;
   mesh: CameraSpreadLift;
@@ -125,10 +128,12 @@ function CameraCanvas({
   zoom: number;
   wire: boolean;
   onTime: (ms: number) => void;
+  onOrbit: (pose: CameraSpreadPose) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<ReturnType<typeof createCameraRenderer> | null>(null);
   const [error, setError] = useState('');
+  const orbit = useCameraSpreadOrbit(options, onOrbit);
   useEffect(() => {
     if (!canvas.current) return;
     try {
@@ -157,7 +162,10 @@ function CameraCanvas({
   return (
     <>
       {error && <p role="alert">{error}</p>}
-      <canvas ref={canvas} className={styles.canvas} aria-label="Camera distortion result" />
+      <canvas ref={canvas} className={styles.canvas} aria-label="Camera distortion result" {...orbit} />
+      {options.projection !== 'diagram' && (
+        <p className={styles.orbitHint}>Drag the model to orbit freely · use Zoom to move closer</p>
+      )}
     </>
   );
 }
@@ -365,7 +373,7 @@ function App() {
                 <span>02 / CAMERA LIFT</span>
                 <span className={styles.live}>{mesh ? 'Live · cached geometry' : 'Preparing mesh…'}</span>
               </div>
-              {kernel && options.amount === 0 ? (
+              {kernel && options.amount === 0 && options.projection === 'diagram' ? (
                 <FlatCanvas kernel={kernel} zoom={zoom} label="Camera distortion at zero" />
               ) : kernel && mesh && plans ? (
                 <CameraCanvas
@@ -376,6 +384,7 @@ function App() {
                   zoom={zoom}
                   wire={wire}
                   onTime={setFrameMs}
+                  onOrbit={(pose) => setOptions((o) => ({ ...o, ...pose }))}
                 />
               ) : (
                 <div className={styles.loading}>
@@ -422,7 +431,8 @@ function App() {
             <p>
               Try small amounts first. Rotate the direction and compare exposed edges. Look for slivers
               crossing enclosing folds, asymmetric flaps, and swollen panels. Diagram camera keeps the flat
-              outline; 3D cameras foreshorten it. At amount zero, both views use the exact original drawing.
+              outline; 3D cameras foreshorten it. At amount zero, Diagram uses the exact original drawing; 3D
+              cameras can still orbit the flattened paper.
             </p>
             <p>
               Top-down orthographic cannot reveal pure height differences. Top-down perspective can reveal
@@ -500,7 +510,7 @@ function App() {
                 type="number"
                 min="0"
                 max="360"
-                value={options.directionDeg}
+                value={Math.round(options.directionDeg) % 360}
                 onChange={(e) => set('directionDeg', Number(e.target.value))}
               />
               <span>degrees around the model</span>
@@ -526,6 +536,7 @@ function App() {
                   projection: e.target.value as CameraSpreadOptions['projection'],
                   inclinationDeg:
                     e.target.value === 'diagram' ? Math.min(80, o.inclinationDeg) : o.inclinationDeg,
+                  rollDeg: e.target.value === 'diagram' ? 0 : o.rollDeg,
                 }))
               }
             >
@@ -535,7 +546,7 @@ function App() {
             </select>
           </label>
           <label className={styles.slider}>
-            Inclination <output>{options.inclinationDeg}°</output>
+            Inclination <output>{Math.round(options.inclinationDeg)}°</output>
             <input
               aria-label="Camera inclination"
               type="range"
@@ -553,6 +564,7 @@ function App() {
                   ...o,
                   projection: 'perspective',
                   inclinationDeg: 0,
+                  rollDeg: 0,
                 }))
               }
             >
@@ -564,6 +576,7 @@ function App() {
                   ...o,
                   projection: 'orthographic',
                   inclinationDeg: 75,
+                  rollDeg: 0,
                 }))
               }
             >
@@ -575,6 +588,7 @@ function App() {
                   ...o,
                   projection: 'orthographic',
                   inclinationDeg: 150,
+                  rollDeg: 0,
                 }))
               }
             >

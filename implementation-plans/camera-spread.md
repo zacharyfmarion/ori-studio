@@ -14,7 +14,8 @@ for Zach to validate before making this the default diagram spread.
   freedom for bending. Fit small heights to the existing layer stacks, enforce
   sampled separation constraints, and cache topology and the unit-height solve.
 - Project the lifted mesh from a continuous direction and inclination. Amount zero
-  uses the original flat drawing exactly. Compare with existing depth/affine modes.
+  in Diagram mode uses the original flat drawing exactly; 3D cameras can orbit
+  the flattened paper. Compare with existing depth/affine modes.
 - Recompute ordering using the existing BSP renderer, including line splitting.
   Distinguish correct visibility from a physically valid, intersection-free lift.
 - Use a local-only explorer and generated artifacts. Never commit corpus files.
@@ -42,6 +43,8 @@ for Zach to validate before making this the default diagram spread.
 - [x] Add the supplied CP example without changing its source or committing private data.
 - [x] Validate the clipping regression, underside ordering, woven regions and live explorer.
 - [x] Reduce within-face bending and validate LDM auxiliary-line straightness.
+- [x] Add free orbit on the 3D preview, keeping camera controls and saved poses synchronized.
+- [x] Validate pole crossing, pointer cleanup, layer ordering and the live LDM interaction.
 
 ## Result and remaining product work
 
@@ -69,3 +72,11 @@ LDM's worst sampled auxiliary-line bow falls about 95%, and its worst mesh-edge
 stretch falls from 216.75% to 0.59%. All 33 examples still produce finite paint
 geometry; 81 focused geometry tests, web lint and typecheck pass. The unchanged
 style/native/production surfaces were not revalidated for this solver-only change.
+
+Orbit follow-up: both 3D modes accept a primary-pointer drag with continuous
+rotation through the poles. Camera angles and saved roll stay synchronized, with
+a shared CPU/GPU transform and no geometry recomputation. Zero-depth 3D paper
+remains orbitable; Diagram's exact zero path remains intact. All 102 focused
+geometry, pointer and style tests, web lint and typecheck pass. Browser checks
+cover the supplied LDM example; native/oracle/production checks remain outside
+this local preview change.
