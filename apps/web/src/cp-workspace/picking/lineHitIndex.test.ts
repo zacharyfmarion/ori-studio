@@ -101,4 +101,70 @@ describe('LineHitIndex', () => {
     // Huge tolerance would explode the grid neighbourhood → linear fallback.
     expect(index.query(0.9, 0, 1e9)).toBe(2);
   });
+
+  it('finds what a scan of every segment finds, on a dense grid and on a sparse one', () => {
+    // A cluster indexes on a dense grid; one far-off segment stretches the
+    // bounding box until a slot per cell would be wasteful, and the index keys
+    // its occupied cells instead. Both must answer as a full scan does.
+    let seed = 7;
+    const next = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    const cluster = Array.from({ length: 400 }, (_, i) => {
+      const x = next() * 100;
+      const y = next() * 100;
+      return { id: i + 1, a: { x, y }, b: { x: x + next() * 12 - 6, y: y + next() * 12 - 6 } };
+    });
+    const outlier = { id: 401, a: { x: 4e6, y: -3e6 }, b: { x: 4e6 + 5, y: -3e6 } };
+    for (const segments of [cluster, [...cluster, outlier]]) {
+      const index = new LineHitIndex(segments);
+      for (let q = 0; q < 300; q += 1) {
+        const x = next() * 120 - 10;
+        const y = next() * 120 - 10;
+        const tolerance = next() * 8;
+        let best = -1;
+        let bestDistance = tolerance;
+        for (const s of segments) {
+          const d = distanceToSegment(x, y, s.a, s.b);
+          if (d < bestDistance) {
+            bestDistance = d;
+            best = s.id;
+          }
+        }
+        expect(index.query(x, y, tolerance)).toBe(best);
+        const near = segments.filter((s) => distanceToSegment(x, y, s.a, s.b) <= tolerance);
+        expect(index.segmentsNear(x, y, tolerance).map((s) => s.id).sort((a, b) => a - b)).toEqual(
+          near.map((s) => s.id).sort((a, b) => a - b)
+        );
+      }
+    }
+  });
+
+  it('answers the same from packed endpoints as from the segments they pack', () => {
+    // The canvas indexes the geometry transport's endpoint array directly; the
+    // answers must be the ones the object index gave, ties included, through
+    // both the cell scan and the flat fallback.
+    const segments = Array.from({ length: 300 }, (_, i) => ({
+      id: i + 1,
+      a: { x: (i * 37) % 100, y: (i * 61) % 100 },
+      b: { x: ((i * 37) % 100) + (i % 3 === 0 ? 80 : 6), y: ((i * 61) % 100) + (i % 2 === 0 ? 5 : -30) },
+    }));
+    segments.push({ id: 301, a: { x: 10, y: 10 }, b: { x: 10, y: 10 } });
+    const packed = new LineHitIndex(
+      Float64Array.from(segments.flatMap(({ a, b }) => [a.x, a.y, b.x, b.y]))
+    );
+    const objects = new LineHitIndex(segments);
+    const ids = (found: { id: number }[]) => found.map((s) => s.id).sort((a, b) => a - b);
+    for (let qx = -20; qx <= 120; qx += 7.5) {
+      for (let qy = -40; qy <= 140; qy += 9.25) {
+        for (const tolerance of [0.5, 3, 30, 1e6]) {
+          expect(packed.query(qx, qy, tolerance)).toBe(objects.query(qx, qy, tolerance));
+          expect(ids(packed.segmentsNear(qx, qy, tolerance))).toEqual(
+            ids(objects.segmentsNear(qx, qy, tolerance))
+          );
+        }
+      }
+    }
+  });
 });

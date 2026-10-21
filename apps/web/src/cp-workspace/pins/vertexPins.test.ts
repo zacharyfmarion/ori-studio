@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { cpSegmentEndpoints } from '../../engine/oristudioCpGeometry';
 import { VERTEX_COINCIDENCE } from '../tools/vertexEndpoints';
 import {
   heldEndpointKeys,
@@ -63,6 +64,6 @@ describe('derived sets', () => {
     ];
     // The shared junction at (1,0) is segment 0's `b` (key 1) and segment 1's
     // `a` (key 2) — both must be held, or the crease tears at the pin.
-    expect([...heldEndpointKeys(segments, [AT(1, 0)])].sort()).toEqual([1, 2]);
+    expect([...heldEndpointKeys(cpSegmentEndpoints(segments), [AT(1, 0)])].sort()).toEqual([1, 2]);
   });
 });

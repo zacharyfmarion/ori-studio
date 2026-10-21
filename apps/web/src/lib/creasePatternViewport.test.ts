@@ -357,6 +357,59 @@ describe('crease pattern viewport helpers', () => {
     ).toBeNull();
   });
 
+  it('snaps to crease endpoints and interiors as the per-object scan did', () => {
+    // The scan reads packed endpoints and builds a target only for a winner;
+    // pinned against the object-per-candidate scan it replaced, on a dense
+    // pattern with shared endpoints, a zero-length crease and ties.
+    const lines = Array.from({ length: 120 }, (_, i) => ({
+      ...document.crease_pattern.line_segments[0],
+      a: { x: (i * 7) % 40, y: (i * 13) % 40 },
+      b: { x: ((i * 7) % 40) + (i % 4 === 0 ? 0 : (i % 9) - 4), y: ((i * 13) % 40) + (i % 5) - 2 },
+    }));
+    const dense: OristudioCpDocumentSnapshot = {
+      ...document,
+      crease_pattern: { ...document.crease_pattern, line_segments: lines, points: [] },
+    };
+    const bounds = getEditableCpModelBounds(dense);
+    const reference = (point: { x: number; y: number }, max: number, vertices: boolean, interiors: boolean) => {
+      let best: { kind: string; label: string; distance: number; point: { x: number; y: number } } | null = null;
+      const consider = (candidate: { x: number; y: number }, kind: string, label: string, within: number) => {
+        const distance = Math.hypot(candidate.x - point.x, candidate.y - point.y);
+        if (!(distance <= within)) return;
+        if (!best || distance < best.distance) best = { kind, label, distance, point: candidate };
+      };
+      if (vertices) {
+        lines.forEach((line, i) => {
+          consider(line.a, 'vertex', `line ${i + 1} start`, max * 1.75);
+          consider(line.b, 'vertex', `line ${i + 1} end`, max * 1.75);
+        });
+      }
+      if (interiors) {
+        lines.forEach((line, i) => {
+          const dx = line.b.x - line.a.x;
+          const dy = line.b.y - line.a.y;
+          const length = dx * dx + dy * dy;
+          const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - line.a.x) * dx + (point.y - line.a.y) * dy) / length));
+          consider(length === 0 ? line.a : { x: line.a.x + dx * t, y: line.a.y + dy * t }, 'line', `line ${i + 1}`, max);
+        });
+      }
+      return best;
+    };
+    for (let x = -3; x <= 43; x += 2.3) {
+      for (let y = -3; y <= 43; y += 3.1) {
+        for (const [vertices, interiors] of [[true, true], [true, false], [false, true]] as const) {
+          const options = { gridVisible: false, snapToGrid: false, snapToVertices: vertices, snapToLines: interiors };
+          expect(nearestCpSnapTarget(dense, { x, y }, bounds, options, 1.5)).toEqual(
+            reference({ x, y }, 1.5, vertices, interiors)
+          );
+        }
+        expect(
+          nearestOrieditaDrawPointTarget(dense, { x, y }, bounds, { gridVisible: false, snapToGrid: false, snapToVertices: true, snapToLines: true }, 1.5)
+        ).toEqual(reference({ x, y }, 1.5, true, false));
+      }
+    }
+  });
+
   it('ignores an endpoint with a non-finite coordinate instead of snapping to it', () => {
     // A crease copied with a coincident source pair once landed in the document
     // with NaN endpoints. Its NaN distance passed the `> max` rejection, became

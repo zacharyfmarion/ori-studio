@@ -30,6 +30,10 @@
  * For another file, run once with `--zoom-out N` and no boxes, and read the
  * coordinates off the `zoomed.png` it writes.
  *
+ * `--select-all` then times Select All and the Escape that clears it, the
+ * same way: every line selected at once, which is what shows a cost paid per
+ * selected line.
+ *
  * `--action <name>` (repeatable) then times the selection toolbar's verbs on
  * the sheet selected last, reselecting the first box whenever an earlier action
  * dismissed the toolbar. The clock runs from the click until its effect shows:
@@ -117,6 +121,7 @@ function parseArgs(argv) {
     actions: [],
     diagram: false,
     references: false,
+    selectAll: false,
     edits: 0,
     draw: null,
     out: null,
@@ -133,6 +138,7 @@ function parseArgs(argv) {
     else if (arg === '--draw') options.draw = argv[++i].split(',').map(Number);
     else if (arg === '--diagram') options.diagram = true;
     else if (arg === '--references') options.references = true;
+    else if (arg === '--select-all') options.selectAll = true;
     else if (arg === '--out') options.out = argv[++i];
     else if (arg === '--dist') options.dist = path.resolve(argv[++i]);
     else if (arg === '--trace') options.trace = true;
@@ -315,19 +321,32 @@ async function main() {
   await untilQuiet(Date.now());
   await page.screenshot({ path: path.join(options.out, 'zoomed.png') });
   /** Drag a box over `[x0, y0, x1, y1]` and time the selection, its toolbar, and quiet. */
-  const selectBox = async ([x0, y0, x1, y1]) => {
+  const selectBox = ([x0, y0, x1, y1]) =>
+    timeSelection(async () => {
+      await page.mouse.move(x0, y0);
+      await page.mouse.down();
+      for (let step = 1; step <= 8; step += 1) {
+        await page.mouse.move(x0 + ((x1 - x0) * step) / 8, y0 + ((y1 - y0) * step) / 8);
+      }
+      const released = Date.now();
+      await page.mouse.up();
+      return released;
+    });
+  /** Press a key and time the selection change it makes, as {@link selectBox} does. */
+  const selectByKey = (key) =>
+    timeSelection(async () => {
+      const pressed = Date.now();
+      await page.keyboard.press(key);
+      return pressed;
+    });
+  /** Make a selection with `gesture` (answering when it let go) and time it, its toolbar, and quiet. */
+  const timeSelection = async (gesture) => {
     const selectedBefore = (await readout()).selected;
     // A toolbar left from the previous selection stays mounted and moves to
     // the new sheet once that resolves, so "shown" means shown somewhere new.
     const toolbarBefore = JSON.stringify(await toolbarRect());
     const t0 = await page.evaluate(() => performance.now());
-    await page.mouse.move(x0, y0);
-    await page.mouse.down();
-    for (let step = 1; step <= 8; step += 1) {
-      await page.mouse.move(x0 + ((x1 - x0) * step) / 8, y0 + ((y1 - y0) * step) / 8);
-    }
-    const released = Date.now();
-    await page.mouse.up();
+    const released = await gesture();
     // One loop for all three, so a selection that never yields a toolbar
     // ends when the main thread goes quiet instead of at the phase limit.
     // Quiet is only counted once the selection has landed: the kernel runs
@@ -366,6 +385,21 @@ async function main() {
     log(name, JSON.stringify(result));
     await page.screenshot({ path: path.join(options.out, `${name}.png`) });
     results.selections.push(result);
+  }
+
+  // ---- Select All, then deselect -----------------------------------------------
+  if (options.selectAll) {
+    results.selectAll = {};
+    for (const [name, key] of [
+      ['select-all', 'ControlOrMeta+a'],
+      ['deselect-all', 'Escape'],
+    ]) {
+      const result = await traced(name, () => selectByKey(key));
+      Object.assign(result, await memory());
+      log(name, JSON.stringify(result));
+      await page.screenshot({ path: path.join(options.out, `${name}.png`) });
+      results.selectAll[name] = result;
+    }
   }
 
   // ---- The toolbar's verbs, on the first box's sheet ----------------------------

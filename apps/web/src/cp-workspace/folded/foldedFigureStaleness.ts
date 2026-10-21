@@ -5,6 +5,7 @@ import {
   type OristudioCpFoldedFigureEntry,
   type OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
+import { cpLineSegmentAt, forEachCpLine } from '../../engine/oristudioCpGeometry';
 import { isOrieditaFoldableLineColor } from '../../lib/creasePatternClipboard';
 import { keyDigest } from '../../lib/keyDigest';
 
@@ -142,12 +143,11 @@ export function reselectFoldableLineIds(
 ): number[] {
   if (!document || !bounds) return [];
   const ids: number[] = [];
-  const lines = document.crease_pattern.line_segments;
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (!line || !isOrieditaFoldableLineColor(line.color)) continue;
-    if (segmentOverlapsBounds(line, bounds)) ids.push(index + 1);
-  }
+  // Read without decoding the document: this runs again after every edit for
+  // each figure and inline simulation on the canvas.
+  forEachCpLine(document, (line, color, id) => {
+    if (isOrieditaFoldableLineColor(color) && segmentOverlapsBounds(line, bounds)) ids.push(id);
+  });
   return ids;
 }
 
@@ -172,11 +172,9 @@ export function reselectSourceLineIds(
 ): number[] {
   if (!document || !bounds) return [];
   const ids: number[] = [];
-  const lines = document.crease_pattern.line_segments;
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (line && segmentOverlapsBounds(line, bounds)) ids.push(index + 1);
-  }
+  forEachCpLine(document, (line, _color, id) => {
+    if (segmentOverlapsBounds(line, bounds)) ids.push(id);
+  });
   return ids;
 }
 
@@ -188,7 +186,7 @@ export function cpLinesByIds(
   if (!document) return [];
   const lines: OristudioCpLineSegment[] = [];
   for (const id of ids) {
-    const line = document.crease_pattern.line_segments[id - 1];
+    const line = cpLineSegmentAt(document, id);
     if (line) lines.push(line);
   }
   return lines;
@@ -295,7 +293,7 @@ export function foldedSourceFingerprint(lines: readonly OristudioCpLineSegment[]
  * # Why keying on document identity is safe
  *
  * It is the *same* key the `useMemo` already used, so this is no weaker: a
- * snapshot is decoded fresh per edit, and the one thing ever written into it in
+ * snapshot is read fresh per edit, and the one thing ever written into it in
  * place is the `selected` flags (`mirrorSelectedLines`), which no fingerprint
  * reads. Were that untrue the memo would already have been serving stale
  * answers. A `WeakMap`

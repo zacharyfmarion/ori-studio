@@ -8,45 +8,183 @@ export interface IndexedSegment {
 }
 
 /**
+ * Points as zero-length segments, packed for {@link LineHitIndex} — so the same
+ * distance query finds the nearest point (id = index + 1).
+ */
+export function pointsAsSegmentEndpoints(points: readonly ModelPoint[]): Float64Array {
+  const endpoints = new Float64Array(points.length * 4);
+  for (let i = 0; i < points.length; i += 1) {
+    const { x, y } = points[i]!;
+    endpoints[i * 4] = x;
+    endpoints[i * 4 + 1] = y;
+    endpoints[i * 4 + 2] = x;
+    endpoints[i * 4 + 3] = y;
+  }
+  return endpoints;
+}
+
+/** A dense grid is used up to this many cells whatever the entry count… */
+const DENSE_GRID_MIN_CELLS = 1 << 16;
+/** …and beyond it up to this many cells per (entry, cell) placement. */
+const DENSE_GRID_CELLS_PER_PAIR = 4;
+
+/**
  * Uniform-grid spatial index over line segments for pointer hit-testing.
  * Segments are binned into every grid cell their bounding box overlaps, so long
  * segments are found regardless of where along them the pointer lands.
  *
  * Query returns the nearest segment within `tolerance` (model units), or -1.
+ *
+ * Built from segment objects, or from packed endpoints — `[ax, ay, bx, by]` per
+ * segment, id = index + 1, the shape the crease-pattern geometry transport
+ * holds its lines in. Either way the index keeps coordinates in one typed array
+ * and its cells hold entry numbers, so indexing half a million creases makes no
+ * object per crease. The answers are the same for both: entries are inserted,
+ * scanned and compared in the same order with the same arithmetic.
  */
 export class LineHitIndex {
   private readonly cellSize: number;
   private readonly minX: number;
   private readonly minY: number;
-  private readonly cells = new Map<number, IndexedSegment[]>();
-  private readonly all: readonly IndexedSegment[];
+  /**
+   * Cells of a dense grid over the bounding box, `gridW` by `gridH`, slot
+   * `cx * gridH + cy` — or 0 by 0 when the grid would be too sparse to hold a
+   * slot per cell, and `cellSlots` names the occupied ones instead.
+   */
+  private readonly gridW: number = 0;
+  private readonly gridH: number = 0;
+  /** Cell key → the cell's slot, when the grid is not dense. */
+  private readonly cellSlots = new Map<number, number>();
+  /**
+   * The entries in each cell, cell by cell and in insertion order within one:
+   * slot `s` holds `cellEntries[cellStart[s] .. cellStart[s + 1])`. Packed
+   * rather than an array per cell, because a large canvas has several hundred
+   * thousand cells.
+   */
+  private readonly cellStart: Int32Array;
+  private readonly cellEntries: Int32Array;
+  /** `[ax, ay, bx, by]` per entry. */
+  private readonly coords: Float64Array;
+  private readonly count: number;
+  /** The objects this was built from, which `segmentsNear` hands back; null when packed. */
+  private readonly segments: readonly IndexedSegment[] | null;
 
-  constructor(segments: readonly IndexedSegment[], cellSize?: number) {
-    this.all = segments;
+  constructor(segments: readonly IndexedSegment[] | Float64Array, cellSize?: number) {
+    if (segments instanceof Float64Array) {
+      this.coords = segments;
+      this.segments = null;
+    } else {
+      this.coords = new Float64Array(segments.length * 4);
+      segments.forEach((s, i) => {
+        this.coords[i * 4] = s.a.x;
+        this.coords[i * 4 + 1] = s.a.y;
+        this.coords[i * 4 + 2] = s.b.x;
+        this.coords[i * 4 + 3] = s.b.y;
+      });
+      this.segments = segments;
+    }
+    const coords = this.coords;
+    this.count = coords.length / 4;
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
     let lenSum = 0;
-    for (const s of segments) {
-      minX = Math.min(minX, s.a.x, s.b.x);
-      minY = Math.min(minY, s.a.y, s.b.y);
-      maxX = Math.max(maxX, s.a.x, s.b.x);
-      maxY = Math.max(maxY, s.a.y, s.b.y);
-      lenSum += Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y);
+    for (let i = 0; i < this.count; i += 1) {
+      const ax = coords[i * 4]!;
+      const ay = coords[i * 4 + 1]!;
+      const bx = coords[i * 4 + 2]!;
+      const by = coords[i * 4 + 3]!;
+      minX = Math.min(minX, ax, bx);
+      minY = Math.min(minY, ay, by);
+      maxX = Math.max(maxX, ax, bx);
+      maxY = Math.max(maxY, ay, by);
+      lenSum += Math.hypot(bx - ax, by - ay);
     }
     // Cell ~ the mean segment length keeps buckets small without over-binning.
     // For a point cloud (zero-length segments, e.g. the vertex/point index)
     // meanLen is 0, so fall back to the mean spacing across the bounding box —
     // otherwise cellSize collapses toward 1e-6 and `query`'s reach explodes.
-    const meanLen = segments.length > 0 ? lenSum / segments.length : 0;
+    const meanLen = this.count > 0 ? lenSum / this.count : 0;
     const span = Math.max(maxX - minX, maxY - minY);
-    const spacing = span > 0 ? span / Math.max(1, Math.sqrt(segments.length)) : 1;
+    const spacing = span > 0 ? span / Math.max(1, Math.sqrt(this.count)) : 1;
     this.cellSize = Math.max(1e-6, cellSize ?? (meanLen > 1e-9 ? meanLen : spacing));
     this.minX = Number.isFinite(minX) ? minX : 0;
     this.minY = Number.isFinite(minY) ? minY : 0;
 
-    for (const s of segments) this.insert(s);
+    // Every entry goes into every cell its bounding box overlaps, in entry
+    // order. Counted first, then placed, so each cell's entries land packed
+    // and in the order they were inserted.
+    const range = new Float64Array(4);
+    const pairsOf = new Int32Array(this.count);
+    let pairs = 0;
+    for (let i = 0; i < this.count; i += 1) {
+      this.cellRange(i, range);
+      pairsOf[i] = (range[2]! - range[0]! + 1) * (range[3]! - range[1]! + 1);
+      pairs += pairsOf[i]!;
+    }
+
+    // A slot per cell of the bounding box when that is not many more cells
+    // than entries to put in them: a cell is then found by arithmetic rather
+    // than a hash lookup, which was most of what building the index cost.
+    const bounded = [minX, minY, maxX, maxY].every(Number.isFinite);
+    const gridW = bounded ? this.cellX(maxX) + 1 : 0;
+    const gridH = bounded ? this.cellY(maxY) + 1 : 0;
+    if (bounded && gridW * gridH <= Math.max(DENSE_GRID_MIN_CELLS, DENSE_GRID_CELLS_PER_PAIR * pairs)) {
+      this.gridW = gridW;
+      this.gridH = gridH;
+      const cells = gridW * gridH;
+      const start = new Int32Array(cells + 1);
+      for (let i = 0; i < this.count; i += 1) {
+        this.cellRange(i, range);
+        for (let cx = range[0]!; cx <= range[2]!; cx++) {
+          for (let cy = range[1]!; cy <= range[3]!; cy++) start[cx * gridH + cy + 1] += 1;
+        }
+      }
+      for (let c = 0; c < cells; c += 1) start[c + 1] += start[c]!;
+      this.cellEntries = new Int32Array(pairs);
+      // Placing advances each cell's start to the next cell's; shifted back after.
+      for (let i = 0; i < this.count; i += 1) {
+        this.cellRange(i, range);
+        for (let cx = range[0]!; cx <= range[2]!; cx++) {
+          for (let cy = range[1]!; cy <= range[3]!; cy++) this.cellEntries[start[cx * gridH + cy]!++] = i;
+        }
+      }
+      for (let c = cells; c > 0; c -= 1) start[c] = start[c - 1]!;
+      start[0] = 0;
+      this.cellStart = start;
+      return;
+    }
+
+    const slotOfPair = new Int32Array(pairs);
+    const countOfSlot = new Int32Array(pairs);
+    let slots = 0;
+    let pair = 0;
+    for (let i = 0; i < this.count; i += 1) {
+      this.cellRange(i, range);
+      const hiX = range[2]!;
+      const hiY = range[3]!;
+      for (let cx = range[0]!; cx <= hiX; cx++) {
+        for (let cy = range[1]!; cy <= hiY; cy++) {
+          const k = this.key(cx, cy);
+          let slot = this.cellSlots.get(k);
+          if (slot === undefined) {
+            slot = slots++;
+            this.cellSlots.set(k, slot);
+          }
+          countOfSlot[slot] += 1;
+          slotOfPair[pair++] = slot;
+        }
+      }
+    }
+    this.cellStart = new Int32Array(slots + 1);
+    for (let s = 0; s < slots; s += 1) this.cellStart[s + 1] = this.cellStart[s]! + countOfSlot[s]!;
+    const cursor = this.cellStart.slice(0, slots);
+    this.cellEntries = new Int32Array(pairs);
+    pair = 0;
+    for (let i = 0; i < this.count; i += 1) {
+      for (let k = 0; k < pairsOf[i]!; k += 1) this.cellEntries[cursor[slotOfPair[pair++]!]!++] = i;
+    }
   }
 
   private key(cx: number, cy: number): number {
@@ -54,55 +192,86 @@ export class LineHitIndex {
     return cx * 73856093 + cy * 19349663;
   }
 
-  private cellOf(x: number, y: number): { cx: number; cy: number } {
-    return {
-      cx: Math.floor((x - this.minX) / this.cellSize),
-      cy: Math.floor((y - this.minY) / this.cellSize),
-    };
+  private cellX(x: number): number {
+    return Math.floor((x - this.minX) / this.cellSize);
   }
 
-  private insert(s: IndexedSegment): void {
-    const lo = this.cellOf(Math.min(s.a.x, s.b.x), Math.min(s.a.y, s.b.y));
-    const hi = this.cellOf(Math.max(s.a.x, s.b.x), Math.max(s.a.y, s.b.y));
-    for (let cx = lo.cx; cx <= hi.cx; cx++) {
-      for (let cy = lo.cy; cy <= hi.cy; cy++) {
-        const k = this.key(cx, cy);
-        let bucket = this.cells.get(k);
-        if (!bucket) {
-          bucket = [];
-          this.cells.set(k, bucket);
-        }
-        bucket.push(s);
-      }
+  private cellY(y: number): number {
+    return Math.floor((y - this.minY) / this.cellSize);
+  }
+
+  /** The cells entry `entry`'s bounding box overlaps, into `out` as `[loX, loY, hiX, hiY]`. */
+  private cellRange(entry: number, out: Float64Array): void {
+    const c = this.coords;
+    const ax = c[entry * 4]!;
+    const ay = c[entry * 4 + 1]!;
+    const bx = c[entry * 4 + 2]!;
+    const by = c[entry * 4 + 3]!;
+    out[0] = this.cellX(Math.min(ax, bx));
+    out[1] = this.cellY(Math.min(ay, by));
+    out[2] = this.cellX(Math.max(ax, bx));
+    out[3] = this.cellY(Math.max(ay, by));
+  }
+
+  /** Visit the entries in the cell at `(cx, cy)`, in insertion order. */
+  private forEachInCell(cx: number, cy: number, visit: (entry: number) => void): void {
+    let slot: number | undefined;
+    if (this.gridW > 0) {
+      if (cx < 0 || cy < 0 || cx >= this.gridW || cy >= this.gridH) return;
+      slot = cx * this.gridH + cy;
+    } else {
+      slot = this.cellSlots.get(this.key(cx, cy));
+      if (slot === undefined) return;
     }
+    const end = this.cellStart[slot + 1]!;
+    for (let j = this.cellStart[slot]!; j < end; j += 1) visit(this.cellEntries[j]!);
+  }
+
+  private idOf(entry: number): number {
+    return this.segments ? this.segments[entry]!.id : entry + 1;
+  }
+
+  private distanceTo(entry: number, x: number, y: number): number {
+    const c = this.coords;
+    return distanceToSegmentCoords(x, y, c[entry * 4]!, c[entry * 4 + 1]!, c[entry * 4 + 2]!, c[entry * 4 + 3]!);
+  }
+
+  private segmentOf(entry: number): IndexedSegment {
+    if (this.segments) return this.segments[entry]!;
+    const c = this.coords;
+    return {
+      id: entry + 1,
+      a: { x: c[entry * 4]!, y: c[entry * 4 + 1]! },
+      b: { x: c[entry * 4 + 2]!, y: c[entry * 4 + 3]! },
+    };
   }
 
   /** Nearest segment id within `tolerance` model units of (x, y), or -1. */
   query(x: number, y: number, tolerance: number): number {
-    const { cx, cy } = this.cellOf(x, y);
+    const cx = this.cellX(x);
+    const cy = this.cellY(y);
     // Widen the search by the tolerance so near-cell-boundary hits are found.
     const reach = Math.max(1, Math.ceil(tolerance / this.cellSize));
     // When the tolerance dwarfs the cell size, the neighbourhood scan would
     // touch more cells than there are segments; a flat scan is both cheaper and
     // immune to the reach blowing up (a huge tolerance must never freeze).
     const cellsToScan = (2 * reach + 1) ** 2;
-    if (cellsToScan > this.all.length) return this.linearQuery(x, y, tolerance);
+    if (cellsToScan > this.count) return this.linearQuery(x, y, tolerance);
     let best = -1;
     let bestDist = tolerance;
     const seen = new Set<number>();
     for (let ox = -reach; ox <= reach; ox++) {
       for (let oy = -reach; oy <= reach; oy++) {
-        const bucket = this.cells.get(this.key(cx + ox, cy + oy));
-        if (!bucket) continue;
-        for (const s of bucket) {
-          if (seen.has(s.id)) continue;
-          seen.add(s.id);
-          const d = distanceToSegment(x, y, s.a, s.b);
+        this.forEachInCell(cx + ox, cy + oy, (entry) => {
+          const id = this.idOf(entry);
+          if (seen.has(id)) return;
+          seen.add(id);
+          const d = this.distanceTo(entry, x, y);
           if (d < bestDist) {
             bestDist = d;
-            best = s.id;
+            best = id;
           }
-        }
+        });
       }
     }
     return best;
@@ -114,23 +283,27 @@ export class LineHitIndex {
    * such as the crossings of segments the index holds unsplit.
    */
   segmentsNear(x: number, y: number, tolerance: number): IndexedSegment[] {
-    const { cx, cy } = this.cellOf(x, y);
+    const cx = this.cellX(x);
+    const cy = this.cellY(y);
     const reach = Math.max(1, Math.ceil(tolerance / this.cellSize));
     // As in `query`: past this many cells a flat scan is the cheaper one.
-    if ((2 * reach + 1) ** 2 > this.all.length) {
-      return this.all.filter((s) => distanceToSegment(x, y, s.a, s.b) <= tolerance);
+    if ((2 * reach + 1) ** 2 > this.count) {
+      const near: IndexedSegment[] = [];
+      for (let entry = 0; entry < this.count; entry += 1) {
+        if (this.distanceTo(entry, x, y) <= tolerance) near.push(this.segmentOf(entry));
+      }
+      return near;
     }
     const near: IndexedSegment[] = [];
     const seen = new Set<number>();
     for (let ox = -reach; ox <= reach; ox++) {
       for (let oy = -reach; oy <= reach; oy++) {
-        const bucket = this.cells.get(this.key(cx + ox, cy + oy));
-        if (!bucket) continue;
-        for (const s of bucket) {
-          if (seen.has(s.id)) continue;
-          seen.add(s.id);
-          if (distanceToSegment(x, y, s.a, s.b) <= tolerance) near.push(s);
-        }
+        this.forEachInCell(cx + ox, cy + oy, (entry) => {
+          const id = this.idOf(entry);
+          if (seen.has(id)) return;
+          seen.add(id);
+          if (this.distanceTo(entry, x, y) <= tolerance) near.push(this.segmentOf(entry));
+        });
       }
     }
     return near;
@@ -140,11 +313,11 @@ export class LineHitIndex {
   private linearQuery(x: number, y: number, tolerance: number): number {
     let best = -1;
     let bestDist = tolerance;
-    for (const s of this.all) {
-      const d = distanceToSegment(x, y, s.a, s.b);
+    for (let entry = 0; entry < this.count; entry += 1) {
+      const d = this.distanceTo(entry, x, y);
       if (d < bestDist) {
         bestDist = d;
-        best = s.id;
+        best = this.idOf(entry);
       }
     }
     return best;
@@ -161,10 +334,22 @@ export interface Aabb {
 
 /** Shortest distance from point (px, py) to segment a–b. */
 export function distanceToSegment(px: number, py: number, a: ModelPoint, b: ModelPoint): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
+  return distanceToSegmentCoords(px, py, a.x, a.y, b.x, b.y);
+}
+
+/** {@link distanceToSegment} over bare coordinates. */
+export function distanceToSegmentCoords(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number
+): number {
+  const dx = bx - ax;
+  const dy = by - ay;
   const len2 = dx * dx + dy * dy;
-  let t = len2 > 0 ? ((px - a.x) * dx + (py - a.y) * dy) / len2 : 0;
+  let t = len2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
   t = Math.max(0, Math.min(1, t));
-  return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }

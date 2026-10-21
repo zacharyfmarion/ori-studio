@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import golden from '../../../../../tests/fixtures/cp/vertex-move-match-golden.json';
-import {
-  VERTEX_COINCIDENCE,
-  endpointKey,
-  endpointKeys,
-  vertexEndpointsAt,
-  type VertexEndpointSegment,
-} from './vertexEndpoints';
+import { cpSegmentEndpoints } from '../../engine/oristudioCpGeometry';
+import type { ModelPoint } from '../renderer/types';
+import { VERTEX_COINCIDENCE, endpointKey, endpointKeys, vertexEndpointsAt } from './vertexEndpoints';
+
+interface VertexEndpointSegment {
+  a: ModelPoint;
+  b: ModelPoint;
+}
 
 interface GoldenCase {
   point: [number, number];
@@ -30,7 +31,7 @@ describe('vertexEndpoints golden parity with the kernel', () => {
   it.each((golden.cases as GoldenCase[]).map((c, i) => [i, c] as const))(
     'case %i matches the kernel, endpoint for endpoint',
     (_index, testCase) => {
-      const matched = vertexEndpointsAt(segments, {
+      const matched = vertexEndpointsAt(cpSegmentEndpoints(segments), {
         x: testCase.point[0],
         y: testCase.point[1],
       });
@@ -57,7 +58,9 @@ describe('vertexEndpointsAt', () => {
       { a: { x: VERTEX_COINCIDENCE * 0.5, y: 0 }, b: { x: 10, y: 0 } },
       { a: { x: VERTEX_COINCIDENCE * 2, y: 0 }, b: { x: 10, y: 10 } },
     ];
-    expect(vertexEndpointsAt(near, { x: 0, y: 0 })).toEqual([{ segment: 0, slot: 'a' }]);
+    expect(vertexEndpointsAt(cpSegmentEndpoints(near), { x: 0, y: 0 })).toEqual([
+      { segment: 0, slot: 'a' },
+    ]);
   });
 
   it('measures radially, not per axis', () => {
@@ -67,12 +70,12 @@ describe('vertexEndpointsAt', () => {
     const segments: VertexEndpointSegment[] = [
       { a: { x: diagonal, y: diagonal }, b: { x: 10, y: 0 } },
     ];
-    expect(vertexEndpointsAt(segments, { x: 0, y: 0 })).toEqual([]);
+    expect(vertexEndpointsAt(cpSegmentEndpoints(segments), { x: 0, y: 0 })).toEqual([]);
   });
 
   it('reports both ends of an already-degenerate crease', () => {
     const degenerate: VertexEndpointSegment[] = [{ a: { x: 5, y: 5 }, b: { x: 5, y: 5 } }];
-    expect(vertexEndpointsAt(degenerate, { x: 5, y: 5 })).toEqual([
+    expect(vertexEndpointsAt(cpSegmentEndpoints(degenerate), { x: 5, y: 5 })).toEqual([
       { segment: 0, slot: 'a' },
       { segment: 0, slot: 'b' },
     ]);

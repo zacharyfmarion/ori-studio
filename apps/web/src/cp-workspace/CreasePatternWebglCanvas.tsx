@@ -31,7 +31,7 @@ import {
 } from './renderer/camera';
 import { registerCpCamera, type CpCameraHandle } from './renderer/cpCameraRegistry';
 import { subscribeCpRegionFocus, takeCpRegionFocus } from './regions/regionFocusRequest';
-import { LineHitIndex } from './picking/lineHitIndex';
+import { LineHitIndex, pointsAsSegmentEndpoints } from './picking/lineHitIndex';
 import { registerCpSurfacePress } from './picking/cpSurfacePressRegistry';
 import { surfacePressClaim } from './picking/surfacePressClaim';
 import {
@@ -85,7 +85,12 @@ import {
   ghostBaseFromSegments,
   type CpTransformGhost,
 } from './tools/transformGhost';
-import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
+import {
+  cpSegmentEndpoints,
+  forEachPackedLine,
+  packedLineAt,
+  type CpGeometryTransport,
+} from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
 import type { CpSuppressionRegion } from './annotations/suppressionRegion';
 import {
@@ -108,7 +113,7 @@ import {
 } from './adapters/cpFoldedToScene';
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
-import { cpAuxLinesKey } from './folded/foldedAuxSource';
+import { cpAuxLinesKey, NO_AUX_LINES_KEY } from './folded/foldedAuxSource';
 import { useFoldedFlatAux } from './folded/useFoldedFlatAux';
 import { useObjectEdgePenWidth, useObjectPaperStyleOf } from './paper/objectPaperStyle';
 import { ptToDevicePx } from '../lib/paper/paperStyle';
@@ -168,6 +173,9 @@ export type StepKind = CpStepSnap;
  * than as the Transparent display style, which is a deliberate look a user picks.
  */
 const STALE_FOLDED_FIGURE_OPACITY = 0.45;
+
+/** A canvas given no fixture lines: one array, so memos keyed on it hold. */
+const NO_LINE_SEGMENTS: readonly CpLineSegmentInput[] = [];
 
 /**
  * Zoom factor for one press of a zoom button or chord. The wheel has its own
@@ -386,12 +394,17 @@ export interface CpBoxSelection {
 
 export interface CreasePatternWebglCanvasProps {
   className?: string;
-  /** Crease-pattern line segments in model coordinates. */
-  lineSegments: readonly CpLineSegmentInput[];
   /**
-   * Compact geometry transport for the same document. Crease strokes are built from
-   * this (typed arrays) when present — the default; `lineSegments` is used only as a
-   * fallback when it is absent, and for hit-testing / id lookups either way.
+   * Crease-pattern line segments in model coordinates, for a document that has
+   * no {@link geometry} (a fixture). Not read when `geometry` is given.
+   */
+  lineSegments?: readonly CpLineSegmentInput[];
+  /**
+   * Compact geometry transport for the document — what a kernel-backed document
+   * always has. Everything the canvas reads of its creases comes from these
+   * typed arrays: the strokes, the hit index, bounds, box selection. Passing
+   * line objects as well would ask the store to decode half a million of them
+   * on a large canvas for nothing.
    */
   geometry?: CpGeometryTransport | null;
   /**
@@ -851,7 +864,7 @@ export interface CreasePatternWebglCanvasProps {
  */
 export function CreasePatternWebglCanvas({
   className,
-  lineSegments,
+  lineSegments: fixtureLineSegments,
   geometry,
   cpDocumentHandle,
   images,
@@ -933,6 +946,15 @@ export function CreasePatternWebglCanvas({
   grid,
   gridVisible,
 }: CreasePatternWebglCanvasProps) {
+  // The creases as everything here reads them: `[ax, ay, bx, by]` per line in
+  // id order — the geometry's own array, or a fixture's lines packed once. The
+  // line objects themselves are only ever a fixture's, for the stroke and ghost
+  // builders when there is no geometry to build from.
+  const fixtureSegments = fixtureLineSegments ?? NO_LINE_SEGMENTS;
+  const lineEndpoints = useMemo(
+    () => geometry?.segEndpoints ?? cpSegmentEndpoints(fixtureSegments),
+    [geometry, fixtureSegments]
+  );
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // Drives the grab/grabbing cursor for every pan gesture — hand tool, middle
   // button, Cmd+drag. State rather than a direct style write, so a re-render
@@ -1182,21 +1204,22 @@ export function CreasePatternWebglCanvas({
   const vertexSpacingModel = useMemo(
     () =>
       cpVertexSpacingModel(
-        (i) => {
-          const seg = lineSegments[i];
-          return Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
-        },
-        lineSegments.length,
+        (i) =>
+          Math.hypot(
+            lineEndpoints[i * 4 + 2]! - lineEndpoints[i * 4]!,
+            lineEndpoints[i * 4 + 3]! - lineEndpoints[i * 4 + 1]!
+          ),
+        lineEndpoints.length / 4,
         grid ? getOrieditaGridBasis(grid).gridWidth : 0
       ),
-    [lineSegments, grid]
+    [lineEndpoints, grid]
   );
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
   const contentBounds = useMemo<UserBounds | null>(
-    () => cpContentBounds({ lineSegments, images, overlayBoxes, foldedFigures, modelToSvg }),
-    [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg]
+    () => cpContentBounds({ lineEndpoints, images, overlayBoxes, foldedFigures, modelToSvg }),
+    [lineEndpoints, images, overlayBoxes, foldedFigures, modelToSvg]
   );
   // What stroke/marker sizing measures against, which is deliberately *not*
   // `contentBounds` — see `cpSizingBounds`. Framing must include a far-flung
@@ -1209,8 +1232,8 @@ export function CreasePatternWebglCanvas({
   // ran it on every camera frame, which measured as ~45% of all JavaScript in a
   // zoom profile — see `implementation-plans/cp-sizing-bounds-zoom-cost.md`.
   const creaseSizingBounds = useMemo<UserBounds | null>(
-    () => cpTrimmedCreaseBounds(lineSegments, modelToSvg),
-    [lineSegments, modelToSvg]
+    () => cpTrimmedCreaseBounds(lineEndpoints, modelToSvg),
+    [lineEndpoints, modelToSvg]
   );
   const sizingBounds = useMemo<UserBounds | null>(
     () =>
@@ -1223,21 +1246,15 @@ export function CreasePatternWebglCanvas({
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
   // segments so the same distance query applies (id = index + 1).
-  const hitIndex = useMemo(
-    () => new LineHitIndex(lineSegments.map((s, i) => ({ id: i + 1, a: s.a, b: s.b }))),
-    [lineSegments]
-  );
-  const pointIndex = useMemo(
-    () => new LineHitIndex(points.map((p, i) => ({ id: i + 1, a: p, b: p }))),
-    [points]
-  );
+  const hitIndex = useMemo(() => new LineHitIndex(lineEndpoints), [lineEndpoints]);
+  const pointIndex = useMemo(() => new LineHitIndex(pointsAsSegmentEndpoints(points)), [points]);
   // Vertices are still not *selectable* — nothing puts one in the selection — but
   // Move Vertex makes them draggable, so they need an index of their own. Built
   // over the same derived dots the canvas draws, which is what makes the rule
   // "you can grab what you can see" rather than a second opinion about where the
   // junctions are.
   const vertexIndex = useMemo(
-    () => new LineHitIndex(vertices.map((v, i) => ({ id: i + 1, a: v, b: v }))),
+    () => new LineHitIndex(pointsAsSegmentEndpoints(vertices)),
     [vertices]
   );
   // Folded-figure pick boxes (SVG user coords) for cmd-drag move, in draw order.
@@ -1253,16 +1270,18 @@ export function CreasePatternWebglCanvas({
   );
   // Quantized ids of the endpoints of the selected lines. A derived vertex sits
   // on one of these iff it belongs to a moved line, so it should follow the drag.
+  // Read by id, so a selection costs its own size rather than a pass over every
+  // crease.
   const selectedEndpointKeys = useMemo(() => {
     const keys = new Set<string>();
-    lineSegments.forEach((s, i) => {
-      if (selectedLineSet.has(i + 1)) {
-        keys.add(cpVertexId(s.a));
-        keys.add(cpVertexId(s.b));
-      }
-    });
+    for (const id of selectedLineSet) {
+      const line = packedLineAt(lineEndpoints, id);
+      if (!line) continue;
+      keys.add(cpVertexId(line.a));
+      keys.add(cpVertexId(line.b));
+    }
     return keys;
-  }, [lineSegments, selectedLineSet]);
+  }, [lineEndpoints, selectedLineSet]);
 
   // Build the crease-stroke buffer, optionally with the selected lines shifted by
   // an in-progress move-drag. Shared by the scene memo (no move) and the drag
@@ -1316,7 +1335,7 @@ export function CreasePatternWebglCanvas({
         ).strokes;
       }
       return cpSnapshotToScene(
-        lineSegments,
+        fixtureSegments,
         appearanceFor,
         dashPatterns,
         selection,
@@ -1331,7 +1350,7 @@ export function CreasePatternWebglCanvas({
     // unrelated edit happens to invalidate this callback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      lineSegments,
+      fixtureSegments,
       geometry,
       mode,
       lineStyle,
@@ -1360,8 +1379,8 @@ export function CreasePatternWebglCanvas({
     [vertices, pinnedVertices]
   );
   const heldEndpoints = useMemo(
-    () => heldEndpointKeys(lineSegments, pinnedVertices),
-    [lineSegments, pinnedVertices]
+    () => heldEndpointKeys(lineEndpoints, pinnedVertices),
+    [lineEndpoints, pinnedVertices]
   );
   // Build the point buffer (crease points, derived vertices, circles). During a
   // move-drag or transform gesture the derived vertices of the moved lines follow
@@ -1428,12 +1447,12 @@ export function CreasePatternWebglCanvas({
       const style = { alpha: GHOST_ALPHA, widthMul: SELECTION_WIDTH_MUL };
       const base = geometry
         ? ghostBaseFromGeometry(geometry, ids, appearanceFor, style)
-        : ghostBaseFromSegments(lineSegments, ids, appearanceFor, style);
+        : ghostBaseFromSegments(fixtureSegments, ids, appearanceFor, style);
       return createTransformGhost(base, style, cpLineStyleDashPatterns(lineStyle));
     },
     // currentTheme drives DOM-resolved colours; rebuild on theme change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [geometry, lineSegments, mode, lineStyle, currentTheme]
+    [geometry, fixtureSegments, mode, lineStyle, currentTheme]
   );
 
   // Per-frame / per-interaction inputs the effect reads without re-subscribing.
@@ -1451,7 +1470,7 @@ export function CreasePatternWebglCanvas({
     hitIndex,
     pointIndex,
     vertexIndex,
-    lineSegments,
+    lineEndpoints,
     points,
     vertices,
     pinnedVertices,
@@ -1628,7 +1647,9 @@ export function CreasePatternWebglCanvas({
   // A flat figure's aux creases, in its aux pen, over its fills — fetched from
   // the kernel while the figure's style shows them, and again when the
   // document's aux lines change.
-  const foldedAuxKey = cpAuxLinesKey(geometry);
+  // Hashed only when there is a figure to draw them on: the hash walks every
+  // crease, and with no figure nothing reads it.
+  const foldedAuxKey = sceneFoldedFigures.length > 0 ? cpAuxLinesKey(geometry) : NO_AUX_LINES_KEY;
   const foldedAuxSource = useMemo(
     () => ({ documentHandle: cpDocumentHandle ?? null, auxKey: foldedAuxKey }),
     [cpDocumentHandle, foldedAuxKey]
@@ -2225,8 +2246,8 @@ export function CreasePatternWebglCanvas({
       const sets: CpBoxSelection = { lines: [], points: [], circles: [] };
       // Crossing marquee for lines/circle-rings; enclosed centres for points.
       // Vertices are derived, not selectable.
-      l.lineSegments.forEach((s, i) => {
-        if (segmentIntersectsConvexQuad(s.a, s.b, quad)) sets.lines.push(i + 1);
+      forEachPackedLine(l.lineEndpoints, (a, b, id) => {
+        if (segmentIntersectsConvexQuad(a, b, quad)) sets.lines.push(id);
       });
       l.points.forEach((p, i) => {
         if (pointInConvexQuad(p, quad)) sets.points.push(i + 1);
@@ -2764,7 +2785,7 @@ export function CreasePatternWebglCanvas({
               liveRef.current.resolveFirstPickKind(raw, tol, pointHitTolerance()) === 'line'
                 ? liveRef.current.hitIndex.query(raw.x, raw.y, tol)
                 : 0;
-            const seg = lineId > 0 ? liveRef.current.lineSegments[lineId - 1] : undefined;
+            const seg = lineId > 0 ? packedLineAt(liveRef.current.lineEndpoints, lineId) : undefined;
             if (seg) {
               convergingBaseRef.current = [
                 { x: seg.a.x, y: seg.a.y },
@@ -3051,8 +3072,8 @@ export function CreasePatternWebglCanvas({
           return hit > 0 ? [hit] : [];
         }
         const ids: number[] = [];
-        liveRef.current.lineSegments.forEach((s, i) => {
-          if (segmentsIntersect(a, b, s.a, s.b)) ids.push(i + 1);
+        forEachPackedLine(liveRef.current.lineEndpoints, (sa, sb, id) => {
+          if (segmentsIntersect(a, b, sa, sb)) ids.push(id);
         });
         return ids;
       };
@@ -3455,7 +3476,7 @@ export function CreasePatternWebglCanvas({
           // preview moves exactly the endpoints the commit will.
           vertexDrag = {
             anchor,
-            endpoints: endpointKeys(vertexEndpointsAt(liveRef.current.lineSegments, anchor)),
+            endpoints: endpointKeys(vertexEndpointsAt(liveRef.current.lineEndpoints, anchor)),
           };
           drawing = true;
           dragShift = e.shiftKey;
