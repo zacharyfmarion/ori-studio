@@ -40,14 +40,21 @@ In the explorer:
 - Choose a model and compare against original, affine or depth spread.
 - Drag the direction dial or slider. Adjust amount; zero uses the original
   drawing in Diagram mode and flattens the paper in the two 3D modes.
+- Amount now ranges to 50%, with a readout of the actual overall depth span.
+  It caps whole-model depth relative to the longest folded extent, not each
+  layer gap. Model tilt, connectivity and stiffness affect local separation.
 - Diagram camera compensates foreshortening; orthographic and perspective cameras
   allow top-down, side and underside views. Diagram inclination is capped at 80°.
 - Drag directly on either 3D preview with a mouse, pen or one finger to orbit
   freely, including through both poles. Direction and inclination stay in sync;
   full orientation (including roll) is saved with validation notes. Presets reset
   roll, and Reset camera restores the initial Diagram settings. Zoom uses its slider.
-- Keep **Preserve layer order** selected to suppress buried faces and ink; switch
-  to **Raw 3D depth** to compare the approximate fit at identical settings.
+- **Preserve layer order** suppresses buried faces and ink in Diagram mode.
+  In 3D the same preference becomes **3D depth · resolve layer ties**: actual
+  surfaces occlude each other, with only a small depth bias for near-coplanar
+  layers. **Raw 3D depth** removes that correction. A flat global order must not
+  force distant surfaces over nearer ones after orbiting; physical intersections
+  in the approximate lift can consequently remain visible in 3D.
 - Enable the bending mesh to inspect interior degrees of freedom.
 - Read edge extension and *withheld* layer-order sample failures. These are not a
   full triangle-intersection certificate; small residuals can also lie below the
@@ -61,7 +68,7 @@ The displayed timing is CPU draw submission, **not GPU completion or FPS**.
 The original/legacy comparison is drawn through the existing PaperScene producer.
 Front/back visibility plans also prepare in the worker, including local patches
 for woven folds and auxiliary ink split along bending triangles. The layer-ordered
-vector path uses the same pieces; raw BSP depth has a 2,000-triangle budget.
+vector path uses the same pieces; the 3D/raw BSP paths have a 2,000-triangle budget.
 These are research adapters, not production exports. The flat paint plan does
 not represent every buried order in a woven component, so newly exposed woven
 regions at large distortions still require visual review.

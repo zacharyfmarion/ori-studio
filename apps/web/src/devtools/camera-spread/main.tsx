@@ -3,7 +3,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import { cameraSpreadStrain, type CameraSpreadLift } from '../../cp-workspace/folded/cameraSpreadLift';
-import type { CameraSpreadOptions } from '../../cp-workspace/folded/cameraSpreadScene';
+import {
+  CAMERA_SPREAD_MAX_AMOUNT,
+  cameraSpreadVisibilityMode,
+  type CameraSpreadOptions,
+} from '../../cp-workspace/folded/cameraSpreadScene';
 import type { CameraPaintPlans } from '../../cp-workspace/folded/cameraSpreadVisibility';
 import { foldedFlatPaperScene } from '../../cp-workspace/folded/foldedFlatScene';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
@@ -214,6 +218,7 @@ function App() {
   const [visibilityMs, setVisibilityMs] = useState(0);
   const [error, setError] = useState('');
   const [options, setOptions] = useState(initial);
+  const visibilityMode = cameraSpreadVisibilityMode(options);
   const [comparison, setComparison] = useState('flat');
   const [zoom, setZoom] = useState(1);
   const [wire, setWire] = useState(false);
@@ -295,6 +300,16 @@ function App() {
     () => (mesh ? cameraSpreadStrain(mesh, options.amount) : null),
     [mesh, options.amount]
   );
+  const unitDepth = useMemo(() => {
+    if (!mesh) return 0;
+    let low = Infinity,
+      high = -Infinity;
+    for (const height of mesh.heights) {
+      low = Math.min(low, height);
+      high = Math.max(high, height);
+    }
+    return high - low;
+  }, [mesh]);
   const models = manifest?.models.filter((m) => m.status === 'solved') ?? [];
   const selected = manifest?.models.find((m) => m.id === model);
   const corpusCount = manifest?.models.filter((m) => m.source !== 'example').length;
@@ -420,11 +435,13 @@ function App() {
             </div>
           </div>
           <p className={styles.notice}>
-            {options.visibility === 'depth'
-              ? 'Raw 3D depth shows intersections in the approximate fit. Switch to Preserve layer order to hide buried faces and edges.'
-              : 'Layer order is locked to the solved diagram, including local patches for woven folds. Buried surfaces and ink stay behind their covering layers.'}{' '}
-            The connected mesh can still stretch and intersect; clipping improves the drawing, not the
-            physical fit.
+            {visibilityMode === 'depth'
+              ? 'Raw depth shows the approximate 3D surfaces without layer tie correction.'
+              : visibilityMode === 'ties'
+                ? '3D views follow surface depth. Layer order resolves nearly coplanar overlaps; it does not force distant surfaces in front of nearer ones.'
+                : 'Diagram views preserve the solved layer order, including local woven patches. Buried surfaces and ink stay behind their covering layers.'}{' '}
+            The connected mesh can still stretch and intersect. Those intersections remain visible in 3D;
+            strict diagram clipping does not repair the physical fit.
           </p>
           <details className={styles.details}>
             <summary>What to look for</summary>
@@ -485,7 +502,9 @@ function App() {
               value={options.visibility ?? 'layers'}
               onChange={(e) => set('visibility', e.target.value as 'layers' | 'depth')}
             >
-              <option value="layers">Preserve layer order</option>
+              <option value="layers">
+                {options.projection === 'diagram' ? 'Preserve layer order' : '3D depth · resolve layer ties'}
+              </option>
               <option value="depth">Raw 3D depth · diagnose crossings</option>
             </select>
           </label>
@@ -493,14 +512,19 @@ function App() {
             Amount <output>{(options.amount * 100).toFixed(1)}%</output>
             <input
               aria-label="Distortion amount"
+              aria-describedby="amount-description"
               type="range"
               min="0"
-              max=".15"
+              max={CAMERA_SPREAD_MAX_AMOUNT}
               step=".005"
               value={options.amount}
               onChange={(e) => set('amount', Number(e.target.value))}
             />
           </label>
+          <p id="amount-description" className={styles.amountHint}>
+            {mesh ? `Overall depth: ${(unitDepth * options.amount * 100).toFixed(1)}% of model size. ` : ''}
+            Amount sets a maximum depth, not a gap for each layer.
+          </p>
           <div className={styles.direction}>
             <Dial value={options.directionDeg} onChange={(v) => set('directionDeg', v)} />
             <label>

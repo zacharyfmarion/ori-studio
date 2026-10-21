@@ -11,6 +11,10 @@ const { cameraSpreadLift, cameraSpreadStrain, liftWeights } = await server.ssrLo
   '/src/cp-workspace/folded/cameraSpreadLift.ts'
 );
 const { cameraPaintPlans } = await server.ssrLoadModule('/src/cp-workspace/folded/cameraSpreadVisibility.ts');
+const { layerLevels } = await server.ssrLoadModule('/src/cp-workspace/folded/foldedLayerSpread.ts');
+const { CAMERA_SPREAD_MAX_AMOUNT } = await server.ssrLoadModule(
+  '/src/cp-workspace/folded/cameraSpreadScene.ts'
+);
 const manifest = JSON.parse(await readFile('artifacts/camera-spread/manifest.json', 'utf8'));
 const results = [];
 // Sample departure from each aux line's lifted endpoint chord. This measures
@@ -51,11 +55,22 @@ for (const model of manifest.models.filter((m) => m.status === 'solved')) {
     let outOfRangeHeights = 0;
     const low = Math.min(...mesh.heights),
       high = Math.max(...mesh.heights);
+    const { zMax } = layerLevels(scene.faces.length, scene.subfaces, mesh.order);
+    const cx = (Math.min(...mesh.xy.map((p) => p.x)) + Math.max(...mesh.xy.map((p) => p.x))) / 2;
+    const cy = (Math.min(...mesh.xy.map((p) => p.y)) + Math.max(...mesh.xy.map((p) => p.y))) / 2;
+    // A sphere bounds depth in every orbit orientation. The perspective eye is
+    // 2.5 extents from the centre and its near plane is 0.1; orthographic depth
+    // clips at +/-2. This checks the expanded range independently of camera pose.
+    let maxRadius = 0;
     for (const plan of [plans.front, plans.back])
       for (const piece of plan.pieces)
         for (const point of piece.points) {
           if (!point.every(Number.isFinite)) nonfinitePoints++;
           if (point[2] < low - 1e-6 || point[2] > high + 1e-6) outOfRangeHeights++;
+          maxRadius = Math.max(
+            maxRadius,
+            Math.hypot(point[0] - cx, point[1] - cy, point[2] * CAMERA_SPREAD_MAX_AMOUNT)
+          );
         }
     const result = {
       id: model.id,
@@ -68,9 +83,19 @@ for (const model of manifest.models.filter((m) => m.status === 'solved')) {
       wovenPatchTriangles: plans.front.pieces.filter((p) => p.patch && p.kind === 'face').length,
       nonfinitePoints,
       outOfRangeHeights,
+      layerLevels: zMax + 1,
+      maxLocalStack: Math.max(...scene.subfaces.map((cell) => cell.faces_top_to_bottom.length)),
+      unitDepthSpan: high - low,
+      depthSpanAt15Percent: 0.15 * (high - low),
+      maxAmount: CAMERA_SPREAD_MAX_AMOUNT,
+      maxRadiusAtMaxAmount: maxRadius,
+      allCameraDepthsInRangeAtMaxAmount: maxRadius < 2 && 2.5 - maxRadius > 0.1,
       ...mesh.diagnostics,
       strainAt3Percent: cameraSpreadStrain(mesh, 0.03),
       strainAt6Percent: cameraSpreadStrain(mesh, 0.06),
+      strainAt15Percent: cameraSpreadStrain(mesh, 0.15),
+      strainAt30Percent: cameraSpreadStrain(mesh, 0.3),
+      strainAtMaxAmount: cameraSpreadStrain(mesh, CAMERA_SPREAD_MAX_AMOUNT),
       sampledAuxBowAt6Percent: auxBow(mesh, scene, 0.06),
     };
     results.push(result);

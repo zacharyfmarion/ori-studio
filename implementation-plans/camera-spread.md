@@ -45,6 +45,9 @@ for Zach to validate before making this the default diagram spread.
 - [x] Reduce within-face bending and validate LDM auxiliary-line straightness.
 - [x] Add free orbit on the 3D preview, keeping camera controls and saved poses synchronized.
 - [x] Validate pole crossing, pointer cleanup, layer ordering and the live LDM interaction.
+- [x] Extend amount to 50%, expose actual depth span and evaluate all 33 examples.
+- [x] Explain model-dependent opening using local stack-depth measurements.
+- [x] Restrict strict flat ordering to Diagram; validate geometric 3D occlusion on the reported frog angle.
 
 ## Result and remaining product work
 
@@ -80,3 +83,13 @@ remains orbitable; Diagram's exact zero path remains intact. All 102 focused
 geometry, pointer and style tests, web lint and typecheck pass. Browser checks
 cover the supplied LDM example; native/oracle/production checks remain outside
 this local preview change.
+
+Amount/visibility follow-up: the range now reaches 50%, with an actual depth-span
+readout and unchanged stiffness. All 33 examples pass finite/height/depth-range
+checks at the maximum. Local overlap measurements explain why the supplied CP
+opens less than the frog despite similar overall depth. Strict flat-order slots
+were invalid for arbitrary 3D overlaps: they now apply only in Diagram. The 3D
+policy uses geometric depth and bounded layer tie correction, with a matching
+BSP vector path. This fixes the oblique forced-order artifact, while physical
+mesh crossings remain a documented limitation. All 103 focused tests, web lint
+and typecheck pass; native/oracle/production checks remain out of scope.

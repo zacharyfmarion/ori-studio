@@ -1,8 +1,9 @@
 /**
  * Lift the existing diagram paint plan, including its local woven patches.
- * Camera depth is deliberately subordinate to that plan: an approximate height
- * fit must not let a buried face (or its ink) punch through its covering face.
- * The two cached plans reverse the supplied stacks when viewed from below.
+ * Diagram views make camera depth subordinate to this plan. Orbit views use
+ * actual surface depth, with ranks only breaking near-coplanar ties: forcing a
+ * global flat order there can hide nearer surfaces at new projected overlaps.
+ * The two cached plans reverse nominal stacks when viewed from below.
  */
 import earcut from 'earcut';
 import type { Vec3 } from '@treemaker/origami-simulator';
@@ -15,7 +16,7 @@ export interface CameraPaintPiece {
   kind: 'face' | 'line';
   points: Vec3[];
   face: number;
-  /** One slot per diagram item, with geometric depth only within a slot. */
+  /** Diagram depth slot, or tie priority when viewing actual 3D surfaces. */
   rank: number;
   role?: 'edge' | 'aux';
   patch: boolean;

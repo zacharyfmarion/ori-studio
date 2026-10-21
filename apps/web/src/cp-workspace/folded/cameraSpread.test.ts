@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { OristudioCpFoldedPaperFace, OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { cameraSpreadLift, cameraSpreadStrain, liftWeights } from './cameraSpreadLift';
-import { cameraSpreadScene, type CameraSpreadOptions } from './cameraSpreadScene';
+import { CAMERA_SPREAD_MAX_AMOUNT, cameraSpreadScene, type CameraSpreadOptions } from './cameraSpreadScene';
 import { foldedFlatPaperScene } from './foldedFlatScene';
 import { cameraPaintPlans } from './cameraSpreadVisibility';
 
@@ -166,7 +166,7 @@ describe('experimental connected camera lift', () => {
     });
     expect(visibleFace(below, 0.5, 0.5)).toBe(0);
   });
-  it('hides a physically inverted lower layer and its ink, while raw depth exposes it', () => {
+  it('hides inverted layers and ink in Diagram, while 3D exposes the physical fit', () => {
     const kernel = stack();
     kernel.aux_lines = [{ from: { x: 0, y: 0.5 }, to: { x: 1, y: 0.5 }, face: 0 }];
     const mesh = cameraSpreadLift(kernel);
@@ -190,7 +190,29 @@ describe('experimental connected camera lift', () => {
         0.4,
         0.5
       )
-    ).toBe(0);
+    ).toBe(1);
+  });
+  it('uses surface depth for new oblique overlaps instead of forcing the flat draw order', () => {
+    const kernel = stack();
+    kernel.faces[0]!.outline.forEach((p) => {
+      p.x += 1.5;
+    });
+    kernel.subfaces = kernel.faces.map((face, i) => ({ polygon: face.outline, faces_top_to_bottom: [i] }));
+    const mesh = cameraSpreadLift(kernel);
+    // Two disconnected panels, disjoint in XY, become overlapping on screen
+    // near a side view. Face 0 is nearer, even though face 1 paints last flat.
+    for (const t of mesh.triangles) for (const v of t.vertices) mesh.heights[v] = t.face === 0 ? 0 : -0.24;
+    const plan = cameraPaintPlans(mesh, kernel).front;
+    expect(plan.pieces.find((p) => p.face === 1)!.rank).toBeGreaterThan(
+      plan.pieces.find((p) => p.face === 0)!.rank
+    );
+    for (const projection of ['orthographic', 'perspective'] as const) {
+      const view = { ...options, amount: 0.5, directionDeg: 0, inclinationDeg: 80, projection };
+      const layered = cameraSpreadScene(kernel, view);
+      const raw = cameraSpreadScene(kernel, { ...view, visibility: 'depth' });
+      expect(visibleFace(raw, 1.4, 0.5)).toBe(0);
+      expect(visibleFace(layered, 1.4, 0.5)).toBe(0);
+    }
   });
   it('keeps all four local over/under crossings of a woven cycle', () => {
     const rect = (x: number, y: number, w: number, h: number, f: number) => {
@@ -222,7 +244,14 @@ describe('experimental connected camera lift', () => {
       const scene = cameraSpreadScene(kernel, { ...options, inclinationDeg: angle });
       for (const [x, y, order] of cells) expect(visibleFace(scene, x + 0.5, y + 0.5)).toBe(order[0]);
     }
-    const below = cameraSpreadScene(kernel, { ...options, projection: 'orthographic', inclinationDeg: 180 });
+    // At zero thickness the 3D path still resolves the exact coplanar woven
+    // ties from below. At positive thickness, actual surfaces govern occlusion.
+    const below = cameraSpreadScene(kernel, {
+      ...options,
+      amount: 0,
+      projection: 'orthographic',
+      inclinationDeg: 180,
+    });
     for (const [x, y, order] of cells) expect(visibleFace(below, 5 - (x + 0.5), y + 0.5)).toBe(order[1]);
     expect(cameraPaintPlans(cameraSpreadLift(kernel), kernel)).toBe(plans);
   });
@@ -250,16 +279,18 @@ describe('experimental connected camera lift', () => {
     const kernel = stack(true);
     for (const projection of ['diagram', 'orthographic', 'perspective'] as const)
       for (const directionDeg of [0, 90, 247, 359])
-        for (const inclinationDeg of [0, 45, 90, 150]) {
-          const scene = cameraSpreadScene(kernel, {
-            ...options,
-            projection,
-            directionDeg,
-            inclinationDeg,
-          });
-          expect(Object.values(scene.bounds).every(Number.isFinite)).toBe(true);
-          expect(scene.items.length).toBeGreaterThan(0);
-        }
+        for (const inclinationDeg of [0, 45, 90, 150])
+          for (const amount of [options.amount, CAMERA_SPREAD_MAX_AMOUNT]) {
+            const scene = cameraSpreadScene(kernel, {
+              ...options,
+              amount,
+              projection,
+              directionDeg,
+              inclinationDeg,
+            });
+            expect(Object.values(scene.bounds).every(Number.isFinite)).toBe(true);
+            expect(scene.items.length).toBeGreaterThan(0);
+          }
   });
   it('refuses unnamed and inconsistent topology instead of separating independent face copies', () => {
     const old = stack();
@@ -269,5 +300,7 @@ describe('experimental connected camera lift', () => {
     torn.faces[1]!.outline[1]!.x += 0.2;
     expect(() => cameraSpreadLift(torn)).toThrow(/inconsistent folded coordinates/);
     expect(() => cameraSpreadScene(stack(), { ...options, amount: NaN })).toThrow(/finite controls/);
+    for (const amount of [-0.01, CAMERA_SPREAD_MAX_AMOUNT + 0.01, Infinity])
+      expect(() => cameraSpreadScene(stack(), { ...options, amount })).toThrow(/finite controls/);
   });
 });

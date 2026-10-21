@@ -1,7 +1,10 @@
 /** Camera geometry with authoritative diagram layers, including woven patches. */
 import type { CameraPaintPlan, CameraPaintPlans } from '../../cp-workspace/folded/cameraSpreadVisibility';
 import type { CameraSpreadLift } from '../../cp-workspace/folded/cameraSpreadLift';
-import type { CameraSpreadOptions } from '../../cp-workspace/folded/cameraSpreadScene';
+import {
+  cameraSpreadVisibilityMode,
+  type CameraSpreadOptions,
+} from '../../cp-workspace/folded/cameraSpreadScene';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import { transposeMat3 } from '@treemaker/origami-simulator';
 import { cameraSpreadTransform } from '../../cp-workspace/folded/cameraSpreadCamera';
@@ -13,7 +16,7 @@ in vec3 other;
 in float side;
 in vec3 paint;
 flat out vec3 style;
-uniform float amount, mode, aspect, zoom, layerLock, slots, showWire;
+uniform float amount, mode, aspect, zoom, layerMode, slots, showWire;
 uniform mat3 camera;
 uniform vec2 centre, pan, pixels;
 vec4 project(vec3 p) {
@@ -28,10 +31,13 @@ vec4 project(vec3 p) {
 void main(){
   vec4 p=project(position);
   style=paint;
-  if(layerLock>0.5) {
-    // Disjoint depth slots: geometric intersections cannot override the stack.
+  if(layerMode>1.5) {
+    // Diagram only: disjoint depth slots preserve the flat drawing's stack.
     float within=clamp(-p.z/p.w,-1.,1.)*.2;
     p.z=(1.-2.*(paint.x+.5+within)/slots)*p.w;
+  } else if(layerMode>.5) {
+    // Orbit views: a tiny tie bias, never entire layers overriding real depth.
+    p.z-=0.00001*(paint.x+.5)/slots*p.w;
   }
   if(paint.y>0.5){
     vec4 b=project(other);
@@ -39,17 +45,17 @@ void main(){
     float len=length(d);
     vec2 n=len>0.00001?vec2(-d.y,d.x)/len:vec2(0.0);
     p.xy+=n*side*(paint.y>1.5 && paint.y<2.5 ? .65 : 1.1)/pixels*p.w;
-    p.z-=(layerLock>.5 ? .05/slots : .0000001)*p.w;
+    p.z-=(layerMode>1.5 ? .05/slots : layerMode>.5 ? .000001/slots : .0000001)*p.w;
   }
   gl_Position=p;
 }`;
 const FRAGMENT = `#version 300 es
 precision highp float;
 flat in vec3 style;
-uniform float layerLock, showWire;
+uniform float layerMode, showWire;
 out vec4 color;
 void main(){
-  if(layerLock<.5 && style.z>.5) discard;
+  if(layerMode<.5 && style.z>.5) discard;
   if(style.y>2.5 && showWire<.5) discard;
   color=style.y>2.5 ? vec4(.65,.22,.50,1.) :
     style.y>1.5 ? vec4(.63,.65,.68,1.) :
@@ -153,7 +159,7 @@ export function createCameraRenderer(
       uniform('mode', ['diagram', 'orthographic', 'perspective'].indexOf(options.projection));
       uniform('aspect', canvas.width / canvas.height);
       uniform('zoom', 1.45 * zoom);
-      uniform('layerLock', options.visibility === 'depth' ? 0 : 1);
+      uniform('layerMode', { depth: 0, ties: 1, layers: 2 }[cameraSpreadVisibilityMode(options)]);
       uniform('slots', buffers[index]!.slots);
       uniform('showWire', Number(showWire));
       gl.uniform2f(gl.getUniformLocation(program, 'pixels'), canvas.width / 2, canvas.height / 2);

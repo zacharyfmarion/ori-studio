@@ -110,11 +110,11 @@ same transform. Camera changes only update uniforms, never the cached lift or
 visibility plans. Presets reset roll. Diagram mode ignores roll and retains its
 original compensated camera.
 
-The live explorer now defaults to **Preserve layer order**. It lifts the existing
-flat diagram paint plan rather than trusting the approximate heights for
+In **Diagram** mode, the explorer defaults to **Preserve layer order**. It lifts
+the existing flat paint plan rather than trusting approximate heights for
 visibility. Each paint item has a disjoint GPU depth interval; geometric depth
-only resolves triangles within that interval. Consequently an inverted buried
-face and its ink cannot win the depth test against a later covering item.
+only resolves triangles within that interval. An inverted buried face and its
+ink cannot win the depth test against a later covering item in this mode.
 Front and underside plans are prepared once in the worker; the underside plan
 reverses each supplied local stack. Camera controls still change only uniforms.
 
@@ -125,7 +125,17 @@ the artificial seams. Auxiliary lines and crease edges are split at the same
 triangulation and use their owner's paint order. Barycentric clipping tolerances
 prevent near-degenerate triangles from extrapolating ink into long spikes.
 
-This is **diagrammatic visibility**, not a repaired 3D surface. The inherited
+This is **diagrammatic visibility**, not a repaired 3D surface. Applying these
+global intervals in an arbitrary 3D view was incorrect: for the Gen Hagiwara frog
+at amount 50%, azimuth 143° and inclination 86°, farther panels overpainted nearer
+ones. Rotating creates overlaps that the original flat stacking order does not
+describe. The default 3D policy now uses real geometric depth, with a bounded
+1e-5 NDC bias for near-coplanar layer ties. It keeps the local woven patches for
+those ties; raw depth omits them. The UI names the policies separately rather
+than implying strict layer preservation throughout a free orbit. This repairs
+the forced-order artifact, **not physical crossings in the height fit**.
+
+The inherited
 flat paint plan guarantees its original visible stacks, but deliberately does
 not encode every buried order inside a woven component. New overlaps/exposures
 under large distortions and arbitrary cameras still need visual validation;
@@ -133,12 +143,42 @@ this is not a general proof of collision-free, layer-consistent 3D unfolding.
 The UI retains the physical inversion and strain diagnostics for that reason.
 
 **Raw 3D depth** is an explicit comparison mode showing the underlying fit's
-crossings. The separate BSP experiment also remains available through
-`visibility: 'depth'`; its unit-height tree is reusable for positive depth scales
-by transforming the eye inversely. That path refuses meshes over 2,000 triangles
+crossings without layer tie correction. The vector experiment uses the same
+clipped pieces as the GPU and BSP-orders them in both 3D policies; its unit-height
+trees are cached per front/back plan and reusable for positive depth scales by
+transforming the eye inversely. These paths refuse meshes over 2,000 triangles
 because splitting was expensive even on the 76-face frog (10,857 pieces in an
-initial probe). The layer-ordered vector experiment uses the same lifted paint
-pieces as the GPU. Neither path is wired into production SVG/PDF export.
+initial probe). Strict Diagram mode does not need a BSP. None of these paths
+are wired into production SVG/PDF export.
+
+### Amount range and perceived opening
+
+The slider and vector validator share a maximum of 50% (previously 15% in the
+UI and 20% in the validator). The default remains 6%; panel stiffness is unchanged.
+The displayed overall depth span is `amount * (max(h) - min(h))`. It includes
+tilt across the model, so it is not a measure of local gaps between layers.
+
+At 15% amount, the supplied `ldm_layer_issue.cp` and Gen Hagiwara frog both have
+about 12.1% overall depth. Sampling triangulated overlap-cell centroids gives:
+
+| Model | Median local stack depth, area weighted | Widest sampled stack |
+| --- | ---: | ---: |
+| Supplied CP example | 1.47% | 3.85% |
+| Gen Hagiwara frog | 1.89% | 11.30% |
+
+All figures are relative to the longest original folded extent. These are
+samples of the full local stack, not per-layer gaps or certified maxima. The
+example also has up to 72 faces overlapping locally. Its small apparent opening
+is therefore not explained by face count alone: much of its overall depth is
+panel tilt, and connectivity/stiffness keep local stacks comparatively thin.
+Raising amount scales both existing separation and residual bending/strain;
+it does not run a nonlinear unfolding solve. At 30% its worst mesh-edge stretch
+is 13.74%, and at 50% it is 34.75%.
+
+All 33 prepared examples remain finite and height-bounded. At the new maximum,
+the largest bounding radius is 0.759 normalized extents, inside the orthographic
+depth range and the perspective near/far limits for every orbit orientation.
+This verifies depth clipping, not horizontal/vertical framing or physical validity.
 
 ## Corpus evidence
 
@@ -281,10 +321,16 @@ not claims that a fully collision-free general origami opening has been solved.
 - Free-orbit math and pointer lifecycle tests cover full revolutions, continuous
   pole crossing, reversibility, repeated drags, touch/secondary-pointer isolation,
   capture cancellation, mode changes and unmount. With existing flat/spread tests
-  and CSS-module ratchets, all 102 focused tests pass after the orbit change.
+  and CSS-module ratchets, all 103 focused tests pass after the amount/visibility
+  follow-up. The added regression uses disjoint panels that overlap only after
+  rotation and asserts the nearer surface wins in both 3D projections.
 - Browser verification on LDM: perspective dragging updates both angle controls,
   passes to the underside at zero depth, keeps preparation cached, and resets
   correctly. The preview is left in perspective mode for further visual review.
+- Oblique frog follow-up: browser comparison at 143°/86° and 50% amount no
+  longer forces the flat stack through nearer surfaces. A 25×25 vector visibility
+  probe at inclinations 75°, 86° and 94° agrees with geometric depth at all sampled
+  occupied points (333, 313 and 297 respectively); this is sampling, not proof.
 - Web lint and typecheck run after rebuilding stale/missing local generated APIs.
 - No Rust behavior, native shell, production route or shipping bundle changed.
   Rust workspace/oracle, Tauri and production build validation are out of scope.

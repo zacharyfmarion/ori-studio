@@ -202,6 +202,11 @@
   color: #2e6e83;
   font-variant-numeric: tabular-nums;
 }
+.amountHint {
+  margin: -8px 0 16px;
+  font-size: 11px;
+  color: #607080;
+}
 .direction {
   display: flex;
   align-items: center;

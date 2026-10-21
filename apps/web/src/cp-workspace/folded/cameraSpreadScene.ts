@@ -3,16 +3,27 @@ import { buildBsp, traverseBsp, type BspItem, type Vec3 } from '@treemaker/origa
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import type { PaperItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import { foldedFlatPaperScene } from './foldedFlatScene';
-import { cameraSpreadLift, liftWeights, type CameraSpreadLift } from './cameraSpreadLift';
-import { cameraPaintPlans } from './cameraSpreadVisibility';
+import { cameraSpreadLift, type CameraSpreadLift } from './cameraSpreadLift';
+import { cameraPaintPlans, type CameraPaintPlan } from './cameraSpreadVisibility';
 import { cameraSpreadTransform, type CameraSpreadPose } from './cameraSpreadCamera';
+
+/** Research control range; not a physical paper-strain guarantee. */
+export const CAMERA_SPREAD_MAX_AMOUNT = 0.5;
 
 export interface CameraSpreadOptions extends CameraSpreadPose {
   /** Total depth bound as a fraction of original folded extent. */
   amount: number;
   projection: 'diagram' | 'orthographic' | 'perspective';
-  /** Authored diagram order by default; raw depth is an explicit diagnostic. */
+  /** Strict layers in Diagram; geometric depth with layer ties in 3D. */
   visibility?: 'layers' | 'depth';
+}
+
+/** A flat stacking order cannot override geometric occlusion during a 3D orbit. */
+export function cameraSpreadVisibilityMode(
+  options: Pick<CameraSpreadOptions, 'projection' | 'visibility'>
+): 'layers' | 'ties' | 'depth' {
+  if (options.visibility === 'depth') return 'depth';
+  return options.projection === 'diagram' ? 'layers' : 'ties';
 }
 interface FaceStyle {
   face: number;
@@ -28,10 +39,16 @@ interface PreparedDrawing {
   edges: EdgeStyle[];
   centre: ScenePoint;
 }
-const drawings = new WeakMap<CameraSpreadLift, PreparedDrawing>();
+const drawings = new WeakMap<CameraPaintPlan, Partial<Record<'ties' | 'depth', PreparedDrawing>>>();
 
-function drawing(mesh: CameraSpreadLift, kernel: OristudioCpFoldedPaperScene): PreparedDrawing {
-  const held = drawings.get(mesh);
+function drawing(
+  mesh: CameraSpreadLift,
+  kernel: OristudioCpFoldedPaperScene,
+  plan: CameraPaintPlan,
+  mode: 'ties' | 'depth'
+): PreparedDrawing {
+  const cached = drawings.get(plan) ?? {};
+  const held = cached[mode];
   if (held) return held;
   // Bent panels produce many BSP splits. The live explorer uses GPU visibility;
   // this experimental vector path refuses large meshes rather than freezing UI.
@@ -41,82 +58,21 @@ function drawing(mesh: CameraSpreadLift, kernel: OristudioCpFoldedPaperScene): P
   const items: BspItem[] = [];
   const faces: FaceStyle[] = [];
   const edges: EdgeStyle[] = [];
-  const rank = new Int32Array(kernel.faces.length);
-  mesh.order.forEach((f, i) => {
-    rank[f] = i;
-  });
-  const point = (v: number): Vec3 => [mesh.xy[v]!.x, mesh.xy[v]!.y, mesh.heights[v]!];
-  for (const { vertices, face } of mesh.triangles) {
-    const points = vertices.map(point);
-    const [a, b, c] = points as [Vec3, Vec3, Vec3];
-    faces.push({
-      face,
-      front: kernel.faces[face]!.front_up,
-      orientation: Math.sign(area(a, b, c)),
-    });
-    items.push({
-      kind: 0,
-      ref: faces.length - 1,
-      points,
-      order: rank[face]! * 2,
-    });
-  }
-  const edge = (points: Vec3[], face: number, role: EdgeStyle['role']) => {
-    edges.push({ role });
-    items.push({
-      kind: 1,
-      ref: edges.length - 1,
-      points,
-      order: rank[face]! * 2 + 1,
-    });
-  };
-  mesh.faceVertices.forEach((ring, f) => {
-    for (let i = 0; i < ring.length; i++)
-      edge(
-        [point(ring[i]!), point(ring[(i + 1) % ring.length]!)],
-        f,
-        kernel.faces[f]!.edges[i]?.kind === 'flat' ? 'aux' : 'edge'
-      );
-  });
-  // Auxiliary lines must be split at the lifted triangulation, since their
-  // height is piecewise linear. Clip them against each triangle in XY.
-  for (const line of kernel.aux_lines) {
-    const a = {
-      x: (line.from.x - mesh.origin.x) / mesh.size,
-      y: (line.from.y - mesh.origin.y) / mesh.size,
-    };
-    const b = {
-      x: (line.to.x - mesh.origin.x) / mesh.size,
-      y: (line.to.y - mesh.origin.y) / mesh.size,
-    };
-    for (const t of mesh.faceTriangles[line.face] ?? []) {
-      const ring = mesh.triangles[t]!.vertices.map((v) => mesh.xy[v]!);
-      let lo = 0;
-      let hi = 1;
-      const sign = Math.sign(
-        (ring[1]!.x - ring[0]!.x) * (ring[2]!.y - ring[0]!.y) -
-          (ring[1]!.y - ring[0]!.y) * (ring[2]!.x - ring[0]!.x)
-      );
-      for (let j = 0; j < 3; j++) {
-        const u = ring[j]!;
-        const v = ring[(j + 1) % 3]!;
-        const side = (p: typeof a) => sign * ((v.x - u.x) * (p.y - u.y) - (v.y - u.y) * (p.x - u.x));
-        const s = side(a);
-        const e = side(b);
-        if (s < 0 && e < 0) {
-          hi = -1;
-          break;
-        }
-        if (s < 0) lo = Math.max(lo, s / (s - e));
-        if (e < 0) hi = Math.min(hi, s / (s - e));
-      }
-      if (hi - lo < 1e-9) continue;
-      const points = [lo, hi].map((u): Vec3 => {
-        const p = { x: a.x + u * (b.x - a.x), y: a.y + u * (b.y - a.y) };
-        const w = liftWeights(mesh, line.face, p);
-        return [p.x, p.y, w?.reduce((sum, [v, weight]) => sum + weight * mesh.heights[v]!, 0) ?? 0];
+  // Reuse the GPU's clipped triangles/ink. Local woven patches only resolve
+  // coplanar ties here: a BSP orders separated pieces by their actual surface.
+  for (const piece of plan.pieces) {
+    if (mode === 'depth' && piece.patch) continue;
+    if (piece.kind === 'face') {
+      const [a, b, c] = piece.points as [Vec3, Vec3, Vec3];
+      faces.push({
+        face: piece.face,
+        front: kernel.faces[piece.face]!.front_up,
+        orientation: Math.sign(area(a, b, c)),
       });
-      edge(points, line.face, 'aux');
+      items.push({ kind: 0, ref: faces.length - 1, points: piece.points, order: piece.rank });
+    } else {
+      edges.push({ role: piece.role! });
+      items.push({ kind: 1, ref: edges.length - 1, points: piece.points, order: piece.rank });
     }
   }
   const xs = mesh.xy.map((p) => p.x);
@@ -131,7 +87,8 @@ function drawing(mesh: CameraSpreadLift, kernel: OristudioCpFoldedPaperScene): P
     edges,
     centre,
   };
-  drawings.set(mesh, result);
+  cached[mode] = result;
+  drawings.set(plan, cached);
   return result;
 }
 
@@ -144,9 +101,9 @@ export function cameraSpreadScene(
   if (
     ![amount, directionDeg, inclinationDeg, options.rollDeg ?? 0].every(Number.isFinite) ||
     amount < 0 ||
-    amount > 0.2
+    amount > CAMERA_SPREAD_MAX_AMOUNT
   ) {
-    throw new Error('Camera spread needs finite controls and amount in [0, 0.2]');
+    throw new Error(`Camera spread needs finite controls and amount in [0, ${CAMERA_SPREAD_MAX_AMOUNT}]`);
   }
   // Exact original path, including its handling of woven coplanar stacks.
   if (amount === 0 && projection === 'diagram')
@@ -158,9 +115,10 @@ export function cameraSpreadScene(
   const mesh = cameraSpreadLift(kernel);
   // At zero depth all sheets are coplanar: use authored order, without the
   // inverse-height transform (which would put the BSP eye at infinity).
-  const geometric = options.visibility === 'depth' && amount > 0;
-  const prepared = geometric ? drawing(mesh, kernel) : null;
   const frame = cameraSpreadTransform(options);
+  const mode = cameraSpreadVisibilityMode(options);
+  const plan = cameraPaintPlans(mesh, kernel)[frame[8] < 0 ? 'back' : 'front'];
+  const prepared = amount > 0 && mode !== 'layers' ? drawing(mesh, kernel, plan, mode) : null;
   const xs = mesh.xy.map((p) => p.x),
     ys = mesh.xy.map((p) => p.y);
   const [cx, cy] = prepared?.centre ?? [
@@ -187,7 +145,6 @@ export function cameraSpreadScene(
       mesh.origin.y + mesh.size * (cy + vertical * factor),
     ];
   };
-  const plan = prepared ? null : cameraPaintPlans(mesh, kernel)[frame[8] < 0 ? 'back' : 'front'];
   const ordered = prepared
     ? traverseBsp(prepared.tree, eye)
     : plan!.pieces.map((p, ref) => ({ kind: p.kind === 'face' ? 0 : 1, ref, points: p.points }));
