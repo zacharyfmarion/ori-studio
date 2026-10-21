@@ -1,0 +1,197 @@
+# Camera-based diagram distortion: research and corpus experiment
+
+2026-10-21. Implemented on `codex/camera-spread`. This is a research prototype
+for visual validation, not an approved replacement for the default spread.
+
+## Finding
+
+A connected 3D presentation mesh and arbitrary camera are practical. The existing
+Oriedita paper scene already provides the essential information: original paper
+vertex identities, folded face outlines, paper-side orientation, and local layer
+stacks. These should remain the canonical folding result.
+
+A height fit alone is **not sufficient for a safe default**. In the experiment,
+all 32 sampled patterns folded and lifted, but every lifted model had some layer
+order inversions at withheld samples. Shared vertices prevent cracks; they do
+not ensure nonintersection, rigid faces, or small stretch. A correct depth buffer
+then renders those incorrect intersections faithfully. Do not confuse a better
+visibility algorithm with a valid deformation.
+
+The reference screenshot establishes a useful interface and visual target. It
+does not establish the implementation behind it; no claim is made that this
+prototype reproduces that application's algorithm.
+
+## Sources and their implications
+
+- Bouaziz et al., [Projective Dynamics](https://users.cs.utah.edu/~ladislav/bouaziz14projective/bouaziz14projective.html)
+  (2014): separate local constraint projections from a global solve with a fixed
+  matrix. This motivates caching the matrix structure/preconditioner when topology
+  and weights stay fixed. The prototype is a static scalar least-squares fit
+  using this pattern, not an implementation of their physical integrator.
+- Macklin et al., [XPBD](https://matthias-research.github.io/pages/publications/XPBD.pdf)
+  (2016): explicit compliance addresses iteration/time-step dependent stiffness.
+  Appropriate for a nonlinear interactive refinement with membrane and hinge
+  constraints; an arbitrary number of ordinary PBD iterations is a poor contract
+  for persistent diagram settings.
+- Li et al., [Codimensional Incremental Potential Contact](https://arxiv.org/abs/2012.04457)
+  (2020): thin-structure contact, thickness offsets, strain limiting and continuous
+  collision detection are separate requirements. This is a strong reference for
+  the production collision/strain stage, not evidence that our lift has those
+  guarantees. Starting from a fully coincident flat stack requires a feasible
+  initialization; applying a positive-distance barrier directly is unsuitable.
+- [Origami Simulator](https://origamisimulator.org/) describes a displacement-based
+  simulation of crease forces starting from a flat sheet. Ori Studio already has
+  its port. Reusing its rendering infrastructure makes sense; solving all creases
+  again under that simulator does not automatically reproduce the chosen flat
+  layer solution or the intended diagram pose.
+- Local references read: `third_party/step-folder/src/distortionfolder/distortion.js`
+  for the existing affine alternative; the Oriedita paper-scene contract and
+  `PORTING.md`; `packages/origami-simulator/src/bsp.ts` for split-based vector
+  ordering. This work changes no upstream port or vendored code.
+
+## What the prototype actually solves
+
+1. Normalize the folded coordinates by the model's longest extent. Weld by
+   **paper vertex ID**, never by coincident folded coordinates.
+2. Triangulate each face, add a centre inside each triangle and connect it to the
+   corners. The centres provide a limited bending space. No artificial interior
+   edges are inked unless the mesh overlay is requested.
+3. Obtain face-level targets from the existing longest-chain layer levels. These
+   are an initial preference, not proof of a global ordering: cyclic local stacks
+   need spatially varying heights.
+4. Fit vertex/interior heights with target, smoothness and overlap rows. At each
+   triangulated overlap-cell centroid, barycentric interpolation gives a sparse
+   row `r` for upper height minus lower height. Its preferred minimum is
+   `g = 0.35 / max(1, deepest_level)`.
+5. Minimize target/smoothness energies plus
+   `30 * sum(max(0, g - r*h)^2)`. Local contact projection and a global normal
+   solve alternate 16 times. The normal matrix is constant; Jacobi-preconditioned
+   conjugate gradients use up to 70 iterations per global solve. These are soft
+   contacts and an iteration budget, **not hard feasibility constraints**.
+6. Remove rigid Z translation, cap the unit-height range at one, and use
+   `z = amount * model_size * h`. Amount zero calls the exact original flat
+   PaperScene path. The model and fold solution are never edited.
+7. Evaluate separate inset-corner probes (80% triangle corner, 20% centroid) that
+   were not used in fitting. Measure every mesh edge's relative 3D extension.
+
+The simple mesh has coarse bending triangles and no bending-energy or dihedral
+term. Sharp height gradients can therefore bulge and stretch. The current slider
+is a thickness bound; it does not claim a physical hinge-opening angle.
+
+## Camera and visibility
+
+The primary diagram camera is an orthographic view with planar foreshortening
+compensated. In direction `u=(cos(phi), sin(phi))`, inclination `theta`, its
+screen position is `p' = p - z*tan(theta)*u`. This is a genuine affine camera
+projection of the lifted surface, not an arbitrary per-face 2D offset. It keeps
+`z=0` unchanged for all directions. Inclination is capped at 80° because the
+compensation diverges at 90°.
+
+Uncompensated orthographic and perspective cameras allow top, oblique, side and
+underside views. A purely vertical lift has no separation in orthographic
+exactly top-down; perspective can produce modest separation through depth-scaled
+size. Rich top-down opening requires in-plane motion as well, hence a nonlinear
+shell refinement. Perspective uses a finite eye at 2.5 model extents and proper
+reciprocal depth interpolation for the GPU depth test.
+
+The live explorer uploads the connected mesh once and changes camera uniforms.
+Faces write a depth buffer and edges are depth-tested against it, so covered
+segments disappear at the current camera. Rendering excludes internal mesh edges.
+This is raster visibility; it does not generate vector clipping paths.
+
+The separate BSP experiment recomputes ordering geometrically and splits edges
+and faces. Its unit-height tree can be reused for every positive uniform depth
+scale by transforming the eye inversely. This was expensive even on the
+76-face frog (10,857 pieces in an initial probe), so the interactive explorer
+uses the GPU and the vector path refuses meshes over 2,000 triangles. Production
+SVG/PDF needs more careful clipping/merging and a worker, not a synchronous BSP
+call in the pose panel.
+
+## Corpus evidence
+
+Input: the supplied Cpoogle directory, 484 nonempty `truth.fold` files. Select 24
+fixed edge-count quantiles plus eight named prior spread regressions. No
+exactization, repair or input modifications. Two isolated fold processes,
+12-second limit each. **32/32 folds succeeded**, ranging from 16 to 4,722 faces.
+All 32 produced finite lifts. This is a selected sample, not full-corpus coverage.
+
+Single local run, Node/Vite module loading, wall times dependent on the machine:
+
+| Measurement | Median over models | Worst model |
+| --- | ---: | ---: |
+| Height solve | 330 ms | 12,180 ms |
+| Withheld probes with inverted layer order | 12.88% | 45.54% |
+| Edge extension, 95th percentile, amount 3% | 0.166% | 1.081% |
+| Largest edge extension, amount 3% | 1.239% | 31.549% |
+| Edge extension, 95th percentile, amount 6% | 0.664% | 4.257% |
+| Largest edge extension, amount 6% | 4.868% | 98.042% |
+
+Across all models, 81,780 of 491,124 withheld probes invert the supplied ordering.
+These are sample failures, not counts of intersecting triangles or failed folds.
+The numerical threshold is 1e-6 in the unit lift. Scaling amount down reduces the
+visible defect but does not remove its sign. Even 3% therefore cannot be called
+safe merely because most edge strains are small.
+
+Examples at 6%:
+
+| Model | Faces | Probe inversions | 95th / maximum edge extension |
+| --- | ---: | ---: | ---: |
+| Gen Hagiwara frog | 76 | 21 / 1,386 | 1.00% / 2.95% |
+| Jordan Langerak crane | 921 | 5,813 / 31,782 | 4.26% / 96.74% |
+
+The worker keeps model preparation off the UI thread. Browser checks covered the
+frog and crane, amount zero, changing direction, top-down perspective, side and
+underside, mesh overlay and model switching. Draw timing displayed in the UI is
+CPU submission time, not a claim of GPU frame rate. Timing does not include a
+new model's preparation. Private per-model reports remain in ignored
+`artifacts/camera-spread/evaluation.json`.
+
+## Recommended production implementation
+
+1. **Feasible height initialization.** Use local stack constraints at all vertices
+   of the overlap of the *render triangles*, not just cell centroids. For fixed
+   XY, height differences are affine on each triangle overlap: its vertices are
+   the places to certify the inequality. Common paper hinges have zero clearance;
+   unrelated layers need a gap. Treat cyclic stacks locally. Use a constrained
+   QP/active-set method or a converged projection method and report feasibility,
+   rather than silently breaking a cycle or accepting a soft penalty.
+2. **Nonlinear shell refinement.** Allow XYZ motion; enforce shared identity,
+   membrane strain limits, bending within faces and mild crease dihedral opening.
+   Anchor one chosen face/region. Use continuation from a feasible small lift,
+   not an unconstrained jump from coincidence. Bound requested displacement.
+   Cache topology, triangulation, sparse structure/preconditioner and collision
+   acceleration; warm-start nearby amounts. Use a worker with cancellation and
+   latest-request wins. Camera-only changes must never invoke this solve.
+3. **Validate contact and shape.** Add edge-edge and vertex-face collision
+   checks/continuous collision detection during nonlinear motion. Adaptive
+   subdivision near wrapped creases can provide needed bending degrees of freedom.
+   Measure residuals and strain; refuse or limit the requested amount when bounds
+   cannot be met. A valid projection can still be a bad diagram, so retain visual
+   corpus review.
+4. **One projected picture.** Reuse the product's paper style and renderer. Use GPU
+   depth testing during dragging; rebuild a vector PaperScene after release.
+   Clip hidden lines against the same deformed triangles. Preserve face identities
+   through split pieces for annotations and x-ray tools. Test front/back colours,
+   auxiliary lines, PDF/SVG and reopened documents against the preview.
+5. **Default integration only after those gates.** Add a `camera` spread kind to
+   `foldedLayerSpread.ts`, `diagramDocument.ts`, `diagramFile.ts` and the pose
+   controller/catalog. Store amount, direction, camera and anchor parameters;
+   retain old spread kinds and the exact zero path. Extend remembered poses,
+   refresh, turn-over, undo/redo, annotation carry and file forward-compatibility.
+   Add CSS-module controls to `DiagramSpreadRows`, translations and enum/bucketed
+   analytics through the existing pose event. Then select it in `SPREAD_KINDS`
+   and `DEFAULT_LAYER_SPREAD` for new poses, preserving saved diagrams.
+
+These are engineering recommendations inferred from the experiments and sources,
+not claims that a fully collision-free general origami opening has been solved.
+
+## Validation status
+
+- Seven new synthetic tests: identity-based connectivity, independent coincident
+  layers, ordering, cache/purity, exact zero, view reversal/arbitrary cameras,
+  malformed-topology refusal.
+- Existing flat scene, spread and CSS-module ratchet tests run with them: 86 tests passed.
+- Web lint and typecheck run after rebuilding stale/missing local generated APIs.
+- No Rust behavior, native shell, production route or shipping bundle changed.
+  Rust workspace/oracle, Tauri and production build validation are out of scope.
+- User visual acceptance and production default integration remain open.
