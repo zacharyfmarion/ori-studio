@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { peekStableId } from '../../analytics/stableId';
-import { initializeSentry } from '../bootstrap';
+import { initializeSentry, isIgnoredErrorMessage } from '../bootstrap';
 import { isMonitoringConsented, setMonitoringEnabled } from '../runtime';
 import type { SentryClientLike } from '../types';
 
@@ -107,6 +107,40 @@ describe('initializeSentry', () => {
 
     initializeSentry(client, { monitoringEnabled: true }, DSN_ENV);
     expect(isMonitoringConsented()).toBe(true);
+  });
+});
+
+describe('the ignore list', () => {
+  /** Whether Sentry drops a message: `ignoreErrors` matches a string anywhere, a pattern by `test`. */
+  function sentryDrops(client: ReturnType<typeof makeFakeClient>, message: string): boolean {
+    return (initConfig(client).ignoreErrors as Array<string | RegExp>).some((pattern) =>
+      typeof pattern === 'string' ? message.includes(pattern) : pattern.test(message)
+    );
+  }
+
+  // ORI-STUDIO-K: thrown by the logger an Android in-app browser injects
+  // (`iabjs://navigation_performance_logger_android`) once its host app has let
+  // go of the bridge it calls. The app has no Java bridge, so it is never ours.
+  it("drops an in-app browser's dead bridge, and keeps the app's own errors", () => {
+    const client = makeFakeClient();
+    initializeSentry(client, { monitoringEnabled: true }, DSN_ENV);
+
+    expect(sentryDrops(client, 'Error invoking postMessage: Java object is gone')).toBe(true);
+    expect(sentryDrops(client, "Cannot read properties of undefined (reading 'id')")).toBe(false);
+  });
+
+  it("answers the app's own global handler from the same list", () => {
+    const client = makeFakeClient();
+    initializeSentry(client, { monitoringEnabled: true }, DSN_ENV);
+
+    for (const message of [
+      'ResizeObserver loop completed with undelivered notifications.',
+      'ResizeObserver loop limit exceeded',
+      'Error invoking postMessage: Java object is gone',
+      "Cannot read properties of undefined (reading 'id')",
+    ]) {
+      expect(isIgnoredErrorMessage(message)).toBe(sentryDrops(client, message));
+    }
   });
 });
 

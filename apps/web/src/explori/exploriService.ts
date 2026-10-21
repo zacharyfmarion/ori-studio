@@ -127,6 +127,7 @@ async function postJson(path: string, body: unknown, signal?: AbortSignal): Prom
   const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
   const composed = signal ? AbortSignal.any([signal, timeout]) : timeout;
   let response: Response;
+  let text: string;
   try {
     response = await fetch(`${exploriApiBase()}${path}`, {
       method: 'POST',
@@ -134,30 +135,39 @@ async function postJson(path: string, body: unknown, signal?: AbortSignal): Prom
       body: JSON.stringify(body),
       signal: composed,
     });
+    // Read on the same clock: the proxy answers only once upstream has, so a
+    // slow search can run out of time with the body half downloaded. Read
+    // outside this `try`, that timeout escaped as the bare `AbortError` the
+    // browser fails the read with ("The user aborted a request." in Chrome),
+    // and reached Sentry as a defect and the user as a search that failed for
+    // no reason it could name (ORI-STUDIO-G).
+    text = await response.text();
   } catch (error) {
     if (timeout.aborted) throw new ExploriError('timeout', 'The search timed out.');
     if (signal?.aborted) throw error;
     throw new ExploriError('network', 'Could not reach the ExplOri search service.');
   }
-  return readResponse(response);
+  return readResponse(response, text);
 }
 
 async function getJson(path: string, signal?: AbortSignal): Promise<unknown> {
   const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
   const composed = signal ? AbortSignal.any([signal, timeout]) : timeout;
   let response: Response;
+  let text: string;
   try {
     response = await fetch(`${exploriApiBase()}${path}`, { signal: composed });
+    // On the same clock as the request, as in `postJson`.
+    text = await response.text();
   } catch (error) {
     if (timeout.aborted) throw new ExploriError('timeout', 'The request timed out.');
     if (signal?.aborted) throw error;
     throw new ExploriError('network', 'Could not reach the ExplOri search service.');
   }
-  return readResponse(response);
+  return readResponse(response, text);
 }
 
-async function readResponse(response: Response): Promise<unknown> {
-  const text = await response.text();
+function readResponse(response: Response, text: string): unknown {
   let payload: unknown;
   try {
     payload = text ? JSON.parse(text) : null;

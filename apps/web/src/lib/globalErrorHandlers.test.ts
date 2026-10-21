@@ -73,6 +73,28 @@ describe('installGlobalErrorHandlers', () => {
     expect(onError).toHaveBeenCalledTimes(1);
   });
 
+  it('drops the noise Sentry is told to ignore, without spending the rate limit on it', () => {
+    const target = harness();
+    const onError = vi.fn();
+    installGlobalErrorHandlers({ onError, target: target as unknown as EventTarget });
+
+    // The browser's ResizeObserver loop notice carries no error object, in today's
+    // wording or the older one; an in-app browser's dead bridge throws a real one.
+    target.dispatch('error', {
+      type: 'error',
+      error: null,
+      message: 'ResizeObserver loop completed with undelivered notifications.',
+    });
+    target.dispatch('error', { type: 'error', error: null, message: 'ResizeObserver loop limit exceeded' });
+    target.dispatch('error', errorEvent(new Error('Error invoking postMessage: Java object is gone')));
+    expect(onError).not.toHaveBeenCalled();
+
+    // Had those three counted against the default limit of three, this real
+    // error would be the one refused.
+    target.dispatch('error', errorEvent(new Error('boom')));
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
   it('suppresses the same error repeating inside the dedupe window', () => {
     const target = harness();
     const onError = vi.fn();

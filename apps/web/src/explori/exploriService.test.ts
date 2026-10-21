@@ -36,6 +36,7 @@ function documentWith(overrides: Partial<ExploriDocument> = {}): ExploriDocument
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('the query payload', () => {
@@ -133,6 +134,22 @@ describe('reading a response', () => {
     // Upstream answers a timeout with an error page rather than JSON, which its
     // own client special-cases too. "Invalid JSON" would name the symptom.
     stubFetch(null, { status: 502, text: '<!DOCTYPE html><html><body>Gateway</body></html>' });
+    await expect(queryExplori(documentWith())).rejects.toMatchObject({ code: 'timeout' });
+  });
+
+  it('reads a timeout that lands mid-download as the timeout it is', async () => {
+    // The proxy answers only once upstream has, so a slow search can run out
+    // of time with its body half downloaded. The browser fails that read with
+    // a bare `AbortError`, which escaped as one and reached Sentry as a defect
+    // (ORI-STUDIO-G).
+    const clock = new AbortController();
+    vi.spyOn(AbortSignal, 'timeout').mockReturnValue(clock.signal);
+    const response = new Response(JSON.stringify(fixture));
+    vi.spyOn(response, 'text').mockImplementation(async () => {
+      clock.abort();
+      throw new DOMException('The user aborted a request.', 'AbortError');
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => response));
     await expect(queryExplori(documentWith())).rejects.toMatchObject({ code: 'timeout' });
   });
 

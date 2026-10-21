@@ -63,10 +63,10 @@ export async function noteAddedCanvasImage(
   } catch (error) {
     if (!reportedFailure) {
       reportedFailure = true;
-      reportError(error instanceof Error ? error : new Error(String(error)), {
-        surface: 'cp-detect-suggestion',
-        handled: true,
-      });
+      // As caught: the worker rejects with a `{ code, message }` envelope, which
+      // `reportError` names by its code. Wrapped in `new Error(String(error))`
+      // it reached Sentry as "[object Object]" (ORI-STUDIO-J).
+      reportError(error, { surface: 'cp-detect-suggestion', handled: true });
     }
     return;
   }

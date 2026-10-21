@@ -1,3 +1,4 @@
+import { isIgnoredErrorMessage } from '../monitoring';
 import { describeError } from './errorReport';
 
 /**
@@ -80,6 +81,18 @@ export function isCrossOriginScriptError(event: ErrorEvent): boolean {
   return /^Script error\.?$/.test(event.message ?? '');
 }
 
+/**
+ * Whether a thrown value is noise Sentry is told to ignore, by the same list.
+ *
+ * Mostly the browser's ResizeObserver loop notice: a layout that settled a frame
+ * late, benign, and no `Error` at all. It made up most `app error` events, and
+ * each one raised a toast saying something had gone wrong in the background.
+ */
+function isIgnoredNoise(error: unknown): boolean {
+  if (error instanceof Error) return isIgnoredErrorMessage(error.message);
+  return typeof error === 'string' && isIgnoredErrorMessage(error);
+}
+
 export function installGlobalErrorHandlers(options: GlobalErrorHandlerOptions): () => void {
   const {
     onError,
@@ -110,6 +123,8 @@ export function installGlobalErrorHandlers(options: GlobalErrorHandlerOptions): 
   }
 
   function report(kind: GlobalErrorKind, error: unknown): void {
+    // Before the rate limit, so a burst of noise cannot spend a real error's turn.
+    if (isIgnoredNoise(error)) return;
     const key = globalErrorKey(kind, error);
     if (!shouldReport(key)) return;
     try {
