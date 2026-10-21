@@ -334,6 +334,26 @@ fn line_delete_commands_match_oriedita_foldlineset_oracle() {
     push_segment_args(&mut args, &box_segments);
     let rust_summary = format!("deleted|{deleted}\n{}", line_segment_set_summary(&model));
     assert_eq!(rust_summary, run_oracle(&oracle, &args));
+
+    // Picking the second of two identical lines: `LineSegment.equals` compares
+    // values, so upstream's `List.remove(Object)` takes the first copy, and the
+    // line left behind is the later one.
+    let duplicate_segments = vec![
+        segment(0.0, 0.0, 1.0, 0.0, LineColor::Red1),
+        segment(0.0, 1.0, 1.0, 1.0, LineColor::Blue2),
+        segment(0.0, 0.0, 1.0, 0.0, LineColor::Red1),
+        segment(0.0, 2.0, 1.0, 2.0, LineColor::Black0),
+    ];
+    let mut model = model_from_segments(&duplicate_segments);
+    let deleted = delete_line_segments_for_indices(&mut model, &[2, 3]);
+    let mut args = vec![
+        "foldline-delete-lines".to_string(),
+        "2,3".to_string(),
+        duplicate_segments.len().to_string(),
+    ];
+    push_segment_args(&mut args, &duplicate_segments);
+    let rust_summary = format!("deleted|{deleted}\n{}", line_segment_set_summary(&model));
+    assert_eq!(rust_summary, run_oracle(&oracle, &args));
 }
 
 #[test]

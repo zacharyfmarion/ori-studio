@@ -8,6 +8,7 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
@@ -127,9 +128,38 @@ import type {
   OristudioBpSheetKind,
 } from '../../engine/oristudioBpTypes';
 
+/**
+ * The crease pattern an undo entry puts back into the kernel.
+ *
+ * `geometry` is the compact typed arrays the store already holds beside its
+ * decoded snapshot (`OristudioCpDocumentState.geometry`), which the kernel
+ * restores from directly (`restore_from_compact`). On a canvas of 489k creases
+ * that is 26 MiB, where the decoded snapshot is an object graph several times
+ * that size (Phase 3 of `implementation-plans/large-document-open-and-select.md`).
+ * `snapshot` is for a state read without its geometry, which no load or
+ * refresh produces; only a test builds one.
+ *
+ * The arrays are the store's own, shared rather than copied, and nothing writes
+ * into them once an entry holds them: the one in-place writer, a selection
+ * (`mirrorSelectedLines`), writes only into the store's current state, and a
+ * state stops being current the moment an edit or undo that will keep it is
+ * asked for. Restoring copies them across to the kernel and never transfers
+ * them, so an entry can be restored again (undo, redo, undo).
+ */
+export type OristudioCpHistoryDocument =
+  | { geometry: CpGeometryTransport }
+  | { snapshot: OristudioCpDocumentSnapshot };
+
 export interface OristudioCpHistoryEntry {
   compoundId?: string;
-  document: OristudioCpDocumentSnapshot;
+  /**
+   * The crease pattern before the change, which undo or redo puts back. Only on
+   * an entry for a change to the document: an overlay entry (`overlayOnly`) or
+   * a selection entry (`selectedLines`) leaves the document alone and holds
+   * none, since keeping the store's snapshot there would keep it alive after
+   * an edit replaced it.
+   */
+  document?: OristudioCpHistoryDocument;
   selection: OristudioCpSelection;
   /** Annotation layer (images + text boxes) at the captured moment. */
   annotations: CanvasAnnotation[];
@@ -169,10 +199,9 @@ export interface OristudioCpHistoryEntry {
   /**
    * Set when the entry records a crease selection and nothing else: the
    * kernel's selected lines at the captured moment, which undo and redo put
-   * back together with `selection`. The document is left alone, so `document`
-   * is only the snapshot the selection was made on, shared with the store and
-   * never a copy. The entry then costs the selection, not the document (Phase
-   * 3 of `implementation-plans/large-document-open-and-select.md`).
+   * back together with `selection`. The document is left alone, so the entry
+   * has no `document` and costs the selection, not the document (Phase 3 of
+   * `implementation-plans/large-document-open-and-select.md`).
    */
   selectedLines?: OristudioCpSelectedLines;
   label: string;

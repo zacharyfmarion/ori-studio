@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   OristudioCpCommandPayload,
   OristudioCpDocumentSnapshot,
@@ -10,6 +10,8 @@ import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { createStep } from '../../diagram/document/diagramDocument';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
+import { MAX_CP_HISTORY } from './cpHistory';
+import type { OristudioCpHistoryEntry } from './types';
 
 /**
  * Selections through the store against the real CP kernel, in Node: the kernel
@@ -61,6 +63,30 @@ function answerLater<T>(call: () => T): Promise<T> {
   );
 }
 
+/**
+ * `geometry` as the worker receives it: a copy, which is what posting it
+ * without `transfer` makes. Copied array by array rather than with
+ * `structuredClone`, whose arrays come from another realm under jsdom and fail
+ * the bridge's `instanceof` checks.
+ */
+function posted(geometry: CpGeometryTransport): CpGeometryTransport {
+  return {
+    ...geometry,
+    segEndpoints: geometry.segEndpoints.slice(),
+    segAttr: geometry.segAttr.slice(),
+    segCustomColor: geometry.segCustomColor.slice(),
+    segFoldMagnitude: geometry.segFoldMagnitude?.slice(),
+    auxEndpoints: geometry.auxEndpoints.slice(),
+    auxAttr: geometry.auxAttr.slice(),
+    auxCustomColor: geometry.auxCustomColor.slice(),
+    pointCoords: geometry.pointCoords.slice(),
+    circleData: geometry.circleData.slice(),
+    circleAttr: geometry.circleAttr.slice(),
+    circleCustomColor: geometry.circleCustomColor.slice(),
+    tail: structuredClone(geometry.tail),
+  };
+}
+
 /** The worker's API, the parts a selection reaches, over the wasm calls the worker makes. */
 function inProcessClient(wasm: CpWasm) {
   return {
@@ -83,6 +109,8 @@ function inProcessClient(wasm: CpWasm) {
       answerLater(() => wasm.set_selected_lines(handle, lines.ids, lines.values)),
     restoreDocument: (handle: number, document: OristudioCpDocumentSnapshot) =>
       answerLater(() => wasm.restore_document(handle, document)),
+    restoreFromCompact: (handle: number, geometry: CpGeometryTransport) =>
+      answerLater(() => wasm.restore_from_compact(handle, posted(geometry))),
     appendDisjoint: (handle: number, parts: CpGeometryTransport[], replaceStarter: boolean) =>
       answerLater(() => wasm.append_disjoint(handle, parts, replaceStarter) as [number, number][]),
     freeDocument: (handle: number) => answerLater(() => wasm.free_document(handle)),
@@ -165,10 +193,10 @@ describe.skipIf(!wasmAvailable)('selection commands against the kernel', () => {
     expect(state().oristudioCpDocument?.geometry).toBe(before?.geometry);
     expect(state().foldArtifactRevision).toBe(artifactRevision);
     expect(state().dirty).toBe(true);
-    // One undo step, holding what it replaced rather than a document of its own.
+    // One undo step, holding what it replaced and no document at all.
     const entry = state().oristudioCpHistoryPast.at(-1);
     expect(entry?.label).toBe('CreaseSelect');
-    expect(entry?.document).toBe(before?.document);
+    expect(entry?.document).toBeUndefined();
     expect(Array.from(entry?.selectedLines?.ids ?? [-1])).toEqual([]);
   });
 
@@ -250,6 +278,64 @@ describe.skipIf(!wasmAvailable)('selection commands against the kernel', () => {
     expect(storeIds()).toEqual([]);
     expect(snapshotIds()).toEqual([]);
     expect(state().oristudioCpDocument?.document).toBe(document);
+  });
+
+  /**
+   * An edit's undo entry holds the compact geometry the store held, not the
+   * snapshot decoded from it, and undo and redo put it back with
+   * `restore_from_compact`. One entry is restored as often as the user goes
+   * back and forth over it, so each restore must leave it whole.
+   */
+  describe('compact undo entries', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const client = () => kernel.client as ReturnType<typeof inProcessClient>;
+    const colors = () =>
+      state().oristudioCpDocument?.document.crease_pattern.line_segments.map((line) => line.color);
+    const geometryOf = (entry: OristudioCpHistoryEntry | undefined) =>
+      entry?.document && 'geometry' in entry.document ? entry.document.geometry : null;
+
+    it('keeps the geometry the store held and restores from it each time', async () => {
+      const compact = vi.spyOn(client(), 'restoreFromCompact');
+      const structured = vi.spyOn(client(), 'restoreDocument');
+      await select(boxOver(0, 1));
+      const before = state().oristudioCpDocument;
+      await state().executeOristudioCpCommand('CreaseSetLineColor', {
+        line_ids: [1],
+        line_color: 'Cyan3',
+      });
+
+      // The very arrays the store held, with the selection written into them.
+      expect(geometryOf(state().oristudioCpHistoryPast.at(-1))).toBe(before?.geometry);
+
+      for (let round = 0; round < 3; round += 1) {
+        await state().undo();
+        expect(colors()).toEqual(['Red1', 'Red1', 'Red1', 'Red1']);
+        expect([storeIds(), kernelIds(), snapshotIds()]).toEqual([[1, 2], [1, 2], [1, 2]]);
+        await state().redo();
+        expect(colors()).toEqual(['Cyan3', 'Red1', 'Red1', 'Red1']);
+        expect([storeIds(), kernelIds(), snapshotIds()]).toEqual([[1, 2], [1, 2], [1, 2]]);
+      }
+      expect(compact).toHaveBeenCalledTimes(6);
+      expect(structured).not.toHaveBeenCalled();
+      expect(state().status).not.toBe('error');
+    });
+
+    it('keeps no document for an overlay step, either way', async () => {
+      const compact = vi.spyOn(client(), 'restoreFromCompact');
+      const document = state().oristudioCpDocument?.document;
+      state().recordAnnotationHistory([], 'Add text');
+      expect(state().oristudioCpHistoryPast.at(-1)).toMatchObject({ overlayOnly: true });
+      expect(state().oristudioCpHistoryPast.at(-1)?.document).toBeUndefined();
+
+      await state().undo();
+      expect(state().oristudioCpHistoryFuture[0]).toMatchObject({ overlayOnly: true });
+      expect(state().oristudioCpHistoryFuture[0]?.document).toBeUndefined();
+      expect(state().oristudioCpDocument?.document).toBe(document);
+      expect(compact).not.toHaveBeenCalled();
+    });
   });
 
   /** Let every call in flight land, and whatever its answer goes on to call. */
@@ -475,6 +561,73 @@ describe.skipIf(!wasmAvailable)('selection commands against the kernel', () => {
 
       await state().undo();
       expect([copies(), lineCount(), stepCount()]).toEqual([[[], [], []], 4, 0]);
+    });
+
+    describe('with compact undo entries', () => {
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      const client = () => kernel.client as ReturnType<typeof inProcessClient>;
+
+      it('puts the canvas back from the geometry before the import, both ways, every time', async () => {
+        const compact = vi.spyOn(client(), 'restoreFromCompact');
+        const structured = vi.spyOn(client(), 'restoreDocument');
+        const before = state().oristudioCpDocument;
+        await runImport();
+        const entry = state().oristudioCpHistoryPast.at(-1);
+        expect(entry?.compoundId).toBeDefined();
+        expect(entry?.document && 'geometry' in entry.document && entry.document.geometry).toBe(
+          before?.geometry
+        );
+
+        for (let round = 0; round < 2; round += 1) {
+          await state().undo();
+          expect([lineCount(), stepCount()]).toEqual([4, 0]);
+          await state().redo();
+          expect([lineCount(), stepCount()]).toEqual([8, 1]);
+        }
+        // One step in each history, travelling together.
+        expect(state().oristudioCpHistoryPast.map((each) => each.compoundId)).toEqual([
+          entry?.compoundId,
+        ]);
+        expect(state().diagramHistory.past.map((each) => each.compoundId)).toEqual([
+          entry?.compoundId,
+        ]);
+        expect(compact).toHaveBeenCalledTimes(4);
+        expect(structured).not.toHaveBeenCalled();
+      });
+
+      /**
+       * The cap drops the import's Edit half once enough edits follow it, and
+       * the compound history then drops its Diagram half too
+       * (`compoundHistory.ts`), so neither undoes half an import. The edits
+       * left still undo, from their compact geometry.
+       */
+      it('lets the cap take the import out of both histories', async () => {
+        await runImport();
+        const id = state().oristudioCpHistoryPast.at(-1)?.compoundId;
+        for (let edit = 0; edit < MAX_CP_HISTORY; edit += 1) {
+          await state().executeOristudioCpCommand('CreaseSetLineColor', {
+            line_ids: [1],
+            line_color: edit % 2 === 0 ? 'Cyan3' : 'Red1',
+          });
+        }
+        const past = state().oristudioCpHistoryPast;
+        expect(past).toHaveLength(MAX_CP_HISTORY);
+        expect(past.some((each) => each.compoundId === id)).toBe(false);
+        expect(state().diagramHistory.past.some((each) => each.compoundId === id)).toBe(false);
+        expect(past.every((each) => each.document && 'geometry' in each.document)).toBe(true);
+
+        for (let undo = 0; undo < MAX_CP_HISTORY; undo += 1) await state().undo();
+        expect(state().oristudioCpHistoryPast).toHaveLength(0);
+        // Back to just after the import, which stays: its undo went with the cap.
+        expect([lineCount(), stepCount()]).toEqual([8, 1]);
+        expect(state().oristudioCpDocument?.document.crease_pattern.line_segments[0]?.color).toBe(
+          'Red1'
+        );
+        expect(state().status).not.toBe('error');
+      });
     });
   });
 

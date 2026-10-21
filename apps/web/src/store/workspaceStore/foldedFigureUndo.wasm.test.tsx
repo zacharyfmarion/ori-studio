@@ -14,6 +14,7 @@ import type {
   OristudioCpLineSegment,
   OristudioCpSelectedLines,
 } from '../../engine/oristudioCpTypes';
+import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { FoldedFigureAuxStrokes } from '../../cp-workspace/adapters/cpFoldedToScene';
 import { endOpenCanvasSessions } from '../../cp-workspace/canvasObjects/canvasSessions';
 import { cpAuxLinesKey } from '../../cp-workspace/folded/foldedAuxSource';
@@ -117,6 +118,8 @@ function inProcessClient(wasm: CpWasm) {
       answerLater(() => wasm.load_document(document)),
     restoreDocument: (handle: number, document: OristudioCpDocumentSnapshot) =>
       answerLater(() => wasm.restore_document(handle, document)),
+    restoreFromCompact: (handle: number, geometry: CpGeometryTransport) =>
+      answerLater(() => wasm.restore_from_compact(handle, geometry as unknown as object)),
     documentGeometry: (handle: number) => answerLater(() => wasm.document_geometry(handle)),
     summary: (handle: number) => answerLater(() => wasm.document_summary(handle)),
     sheetIndex: (handle: number) => answerLater(() => wasm.sheet_index(handle)),
@@ -125,6 +128,11 @@ function inProcessClient(wasm: CpWasm) {
       operationId: OristudioCpOperationId,
       payload: OristudioCpCommandPayload = {}
     ) => answerLater(() => wasm.execute_cp_command(handle, operationId, payload)),
+    executeSelectionCommand: (
+      handle: number,
+      operationId: OristudioCpOperationId,
+      payload: OristudioCpCommandPayload = {}
+    ) => answerLater(() => wasm.execute_cp_selection_command(handle, operationId, payload)),
     setSelectedLines: (handle: number, lines: OristudioCpSelectedLines) =>
       answerLater(() => wasm.set_selected_lines(handle, lines.ids, lines.values)),
     freeDocument: (handle: number) => answerLater(() => wasm.free_document(handle)),
@@ -321,6 +329,28 @@ describe.skipIf(!wasmAvailable)('a folded figure through delete, refold, undo an
     await settle();
   }
 
+  /** A crease edit, whose entry holds the document: the valley made a mountain. */
+  async function editCreases(): Promise<void> {
+    await expect(
+      state().executeOristudioCpCommand('CreaseMakeMountain', { line_ids: [7] })
+    ).resolves.toBe(true);
+    await settle();
+  }
+
+  /** A box select over the whole sheet, whose entry holds only the lines it replaced. */
+  async function selectAll(): Promise<void> {
+    await expect(
+      state().executeOristudioCpCommand('CreaseSelect', {
+        points: [
+          { x: -250, y: -250 },
+          { x: 250, y: 250 },
+        ],
+        replace_selection: true,
+      })
+    ).resolves.toBe(true);
+    await settle();
+  }
+
   /** As Edit ▸ Undo: an open canvas edit ends first. */
   async function undo(): Promise<void> {
     endOpenCanvasSessions('history');
@@ -438,6 +468,26 @@ describe.skipIf(!wasmAvailable)('a folded figure through delete, refold, undo an
     expect(liveFigure(id).handle).toBe(folded);
     expect((await auxStrokes(id))?.segments.length).toBeGreaterThan(0);
     expectLedgerToMatchKernel();
+  });
+
+  it('keeps a figure through crease edits, selections and their undos', async () => {
+    // An entry of each kind holds the figures beside it: an overlay step, a
+    // crease edit holding the document, a selection holding its lines.
+    const id = await fold();
+    await editCreases();
+    await selectAll();
+    await remove(id);
+    expectLedgerToMatchKernel();
+
+    for (const step of [undo, undo, undo, redo, redo, redo, undo, undo, undo]) {
+      await step();
+      expectLedgerToMatchKernel();
+    }
+
+    expect(state().oristudioCpDocument?.document.crease_pattern.line_segments[6]?.color).toBe(
+      'Blue2'
+    );
+    expect((await auxStrokes(id))?.segments.length).toBeGreaterThan(0);
   });
 
   it('frees a figure once no undo can reach it, and not before', async () => {

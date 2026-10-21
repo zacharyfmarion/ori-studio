@@ -127,7 +127,10 @@ export interface PrecreaseComponent {
 
 /**
  * `crates/oristudio-precrease/src/components.rs`'s `Warning`, serialised
- * `#[serde(tag = "kind", rename_all = "snake_case")]`.
+ * `#[serde(tag = "kind", rename_all = "snake_case")]`, and one the sheet
+ * listing raises itself (`referencesFrames`): `non_finite_segments`, lines
+ * left out of every sheet for having no finite position, which the planner
+ * rejects as input.
  *
  * Kept exhaustive on purpose: a variant missing from this union does not fail a
  * build — every consumer matches on `kind` — it just makes the signal
@@ -139,7 +142,8 @@ export type PrecreaseWarning =
   | { kind: 'overlapping_sheets'; segments: number }
   | { kind: 'zero_length_segments'; count: number }
   | { kind: 'degenerate_border_segments'; count: number }
-  | { kind: 'unassigned_segments'; count: number };
+  | { kind: 'unassigned_segments'; count: number }
+  | { kind: 'non_finite_segments'; count: number };
 
 export interface SheetAnalysis {
   components: PrecreaseComponent[];

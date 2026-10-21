@@ -12,6 +12,7 @@ use crate::geometry::{
 };
 use crate::model::CreasePatternModel;
 use std::collections::{BTreeSet, HashMap};
+use std::hash::Hash;
 
 /// Oriedita sentinel used by `FoldLineSet.removeOverlappingLines()`.
 const DEFAULT_PRECISION_SENTINEL: f64 = -9999.9;
@@ -741,19 +742,66 @@ pub fn delete_line_segments_for_indices(
         .iter()
         .filter_map(|index| model.line_segments.get(*index).cloned())
         .collect();
-    let mut deleted = 0;
-    for line in lines {
-        let Some(index) = model
-            .line_segments
-            .iter()
-            .position(|candidate| candidate == &line)
-        else {
-            continue;
-        };
-        model.line_segments.remove(index);
-        deleted += 1;
+    remove_first_equal_copies(&mut model.line_segments, &lines, line_value_key)
+}
+
+/// For each of `targets` in turn, remove the first item still equal to it;
+/// answers how many were removed.
+///
+/// Upstream deletes a collected list one `List.remove(Object)` at a time, and
+/// Oriedita's `LineSegment.equals` compares values, so each call takes the
+/// *first* equal copy, not necessarily the line that was picked. Done that way
+/// literally it is a scan and a shift per target: minutes for a few hundred
+/// thousand creases. This is one pass with the same result. Taking the first
+/// remaining copy of one value never changes which copies of another value come
+/// first, so either way every value loses its first `min(times targeted,
+/// copies)` copies.
+///
+/// `key` must give equal items equal keys. It only narrows where `==` looks.
+pub(crate) fn remove_first_equal_copies<T: PartialEq, K: Hash + Eq>(
+    items: &mut Vec<T>,
+    targets: &[T],
+    key: impl Fn(&T) -> K,
+) -> usize {
+    if targets.is_empty() {
+        return 0;
     }
-    deleted
+    // Each distinct target value once, with how many times it is targeted.
+    let mut wanted: HashMap<K, Vec<(&T, usize)>> = HashMap::with_capacity(targets.len());
+    for target in targets {
+        let bucket = wanted.entry(key(target)).or_default();
+        match bucket.iter_mut().find(|(value, _)| *value == target) {
+            Some((_, count)) => *count += 1,
+            None => bucket.push((target, 1)),
+        }
+    }
+    let before = items.len();
+    items.retain(|item| {
+        let Some(bucket) = wanted.get_mut(&key(item)) else {
+            return true;
+        };
+        match bucket
+            .iter_mut()
+            .find(|(value, count)| *count > 0 && *value == item)
+        {
+            Some((_, count)) => {
+                *count -= 1;
+                false
+            }
+            None => true,
+        }
+    });
+    before - items.len()
+}
+
+/// A line's endpoints bit for bit, which is what `Point`'s equality compares.
+pub(crate) fn line_value_key(line: &LineSegment) -> [u64; 4] {
+    [
+        line.a.x.to_bits(),
+        line.a.y.to_bits(),
+        line.b.x.to_bits(),
+        line.b.y.to_bits(),
+    ]
 }
 
 /// Oriedita `FoldLineSet.del_V(Point, hikiyose, r)`.
@@ -1613,5 +1661,240 @@ mod import_add_tests {
             .find(|segment| (segment.a.x - model.circles[0].x).abs() < 1e-9)
             .expect("the imported segment should still start at the circle's centre");
         assert!((moved.a.y - model.circles[0].y).abs() < 1e-9);
+    }
+}
+
+#[cfg(test)]
+mod first_equal_copy_tests {
+    use super::*;
+    use crate::geometry::Circle;
+    use crate::model::CustomLineType;
+    use crate::operations::circle::delete_circles_for_indices;
+    use crate::operations::color::delete_line_type_for_indices;
+    use std::cell::Cell;
+
+    /// What the kernel did before: upstream's `List.remove(Object)` per target,
+    /// taken literally, a scan and a shift each.
+    fn one_remove_per_target<T: PartialEq>(items: &mut Vec<T>, targets: &[T]) -> usize {
+        let mut removed = 0;
+        for target in targets {
+            if let Some(index) = items.iter().position(|item| item == target) {
+                items.remove(index);
+                removed += 1;
+            }
+        }
+        removed
+    }
+
+    /// xorshift64, so every run draws the same documents.
+    struct Draw(u64);
+
+    impl Draw {
+        fn below(&mut self, bound: usize) -> usize {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            (self.0 % bound as u64) as usize
+        }
+
+        fn pick<T: Clone>(&mut self, pool: &[T]) -> T {
+            pool[self.below(pool.len())].clone()
+        }
+
+        fn items<T: Clone>(&mut self, pool: &[T]) -> Vec<T> {
+            let count = 1 + self.below(30);
+            (0..count).map(|_| self.pick(pool)).collect()
+        }
+
+        /// Ids with repeats and past the end: no caller sends those, but the
+        /// kernel takes them.
+        fn indices(&mut self, len: usize) -> Vec<usize> {
+            let count = self.below(len + 6);
+            (0..count).map(|_| self.below(len + 3)).collect()
+        }
+    }
+
+    /// Few distinct lines, so most have exact copies, and the rest differ only
+    /// in colour, in a selection flag, in the sign of a zero, or by a NaN.
+    fn line_pool() -> Vec<LineSegment> {
+        let mut pool = Vec::new();
+        for x in [0.0, -0.0, 1.0, f64::NAN] {
+            for color in [
+                LineColor::Black0,
+                LineColor::Red1,
+                LineColor::Blue2,
+                LineColor::Cyan3,
+            ] {
+                pool.push(LineSegment::with_color(
+                    Point::new(x, 0.0),
+                    Point::new(1.0, 2.0),
+                    color,
+                ));
+            }
+        }
+        pool.push(pool[1].with_selected(2));
+        pool
+    }
+
+    fn circle_pool() -> Vec<Circle> {
+        let mut pool = Vec::new();
+        for x in [0.0, -0.0, 1.0, f64::NAN] {
+            for r in [0.0, -0.0, 2.0] {
+                for color in [LineColor::Red1, LineColor::Blue2] {
+                    pool.push(Circle::new(x, 1.0, r, color));
+                }
+            }
+        }
+        pool
+    }
+
+    fn model_with(line_segments: Vec<LineSegment>, circles: Vec<Circle>) -> CreasePatternModel {
+        CreasePatternModel {
+            line_segments,
+            circles,
+            ..CreasePatternModel::default()
+        }
+    }
+
+    #[test]
+    fn deleting_lines_by_index_matches_one_remove_per_line() {
+        let pool = line_pool();
+        let mut draw = Draw(0x2545_f491_4f6c_dd1d);
+        for _ in 0..5_000 {
+            let lines = draw.items(&pool);
+            let indices = draw.indices(lines.len());
+            let targets: Vec<_> = indices
+                .iter()
+                .filter_map(|index| lines.get(*index).cloned())
+                .collect();
+            let mut expected = lines.clone();
+            let expected_count = one_remove_per_target(&mut expected, &targets);
+
+            let mut model = model_with(lines.clone(), Vec::new());
+            let count = delete_line_segments_for_indices(&mut model, &indices);
+            assert_eq!(
+                (count, &model.line_segments),
+                (expected_count, &expected),
+                "lines {lines:?}, indices {indices:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn deleting_a_line_type_matches_one_remove_per_line() {
+        let pool = line_pool();
+        let mut draw = Draw(0x9e37_79b9_7f4a_7c15);
+        let types = [
+            CustomLineType::Any,
+            CustomLineType::Edge,
+            CustomLineType::MountainAndValley,
+            CustomLineType::Mountain,
+            CustomLineType::Valley,
+            CustomLineType::Aux,
+        ];
+        for _ in 0..5_000 {
+            let lines = draw.items(&pool);
+            let indices = draw.indices(lines.len());
+            let line_type = draw.pick(&types);
+            let targets: Vec<_> = indices
+                .iter()
+                .filter_map(|index| lines.get(*index))
+                .filter(|line| line_type.matches(line.color))
+                .cloned()
+                .collect();
+            let mut expected = lines.clone();
+            let expected_count = one_remove_per_target(&mut expected, &targets);
+
+            let mut model = model_with(lines.clone(), Vec::new());
+            let count = delete_line_type_for_indices(&mut model, &indices, line_type);
+            assert_eq!(
+                (count, &model.line_segments),
+                (expected_count, &expected),
+                "{line_type:?}: lines {lines:?}, indices {indices:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn deleting_circles_by_index_matches_one_remove_per_circle() {
+        let pool = circle_pool();
+        let mut draw = Draw(0xd1b5_4a32_d192_ed03);
+        for _ in 0..5_000 {
+            let circles = draw.items(&pool);
+            let indices = draw.indices(circles.len());
+            let targets: Vec<_> = indices
+                .iter()
+                .filter_map(|index| circles.get(*index).copied())
+                .collect();
+            let mut expected = circles.clone();
+            let expected_count = one_remove_per_target(&mut expected, &targets);
+
+            let mut model = model_with(Vec::new(), circles.clone());
+            let count = delete_circles_for_indices(&mut model, &indices);
+            // Compared as text: a NaN circle is never `==` to itself, and the
+            // text tells the two zeros apart.
+            assert_eq!(
+                (count, format!("{:?}", model.circles)),
+                (expected_count, format!("{expected:?}")),
+                "circles {circles:?}, indices {indices:?}"
+            );
+        }
+    }
+
+    thread_local! {
+        static COMPARISONS: Cell<usize> = const { Cell::new(0) };
+    }
+
+    /// A value that counts every `==` asked of it.
+    struct Counted(usize);
+
+    impl PartialEq for Counted {
+        fn eq(&self, other: &Self) -> bool {
+            COMPARISONS.with(|count| count.set(count.get() + 1));
+            self.0 == other.0
+        }
+    }
+
+    /// Counted rather than timed, so a slow CI machine cannot fail it: the
+    /// old loop asks about a hundred thousand `==` per target here, ten billion
+    /// in all; this asks about one per item and per target.
+    #[test]
+    fn removing_many_items_compares_each_about_once() {
+        let len = 200_000;
+        for distinct in [len, 1] {
+            let mut items: Vec<_> = (0..len).map(|i| Counted(i % distinct)).collect();
+            let targets: Vec<_> = (0..len).step_by(2).map(|i| Counted(i % distinct)).collect();
+            COMPARISONS.with(|count| count.set(0));
+            let removed = remove_first_equal_copies(&mut items, &targets, |item| item.0);
+            let comparisons = COMPARISONS.with(Cell::get);
+            assert_eq!(removed, targets.len());
+            assert_eq!(items.len(), len - targets.len());
+            assert!(
+                comparisons <= 2 * (len + targets.len()),
+                "{comparisons} comparisons with {distinct} distinct values"
+            );
+        }
+    }
+
+    #[test]
+    fn deleting_half_of_a_large_pattern_keeps_the_other_half_in_order() {
+        let lines: Vec<_> = (0..200_000_i32)
+            .map(|i| LineSegment::from_coordinates(f64::from(i), 0.0, f64::from(i), 1.0))
+            .collect();
+        let mut model = model_with(lines, Vec::new());
+        let indices: Vec<usize> = (0..200_000).step_by(2).collect();
+
+        assert_eq!(
+            delete_line_segments_for_indices(&mut model, &indices),
+            100_000
+        );
+        assert_eq!(model.line_segments.len(), 100_000);
+        assert!(
+            model
+                .line_segments
+                .iter()
+                .zip((1..200_000_i32).step_by(2))
+                .all(|(line, i)| line.a.x == f64::from(i))
+        );
     }
 }

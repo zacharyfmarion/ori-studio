@@ -153,6 +153,10 @@ pub fn draw_crease_angle_restricted_3_candidates(
 }
 
 /// Oriedita `DRAW_CREASE_ANGLE_RESTRICTED_3_18` final add after a fan line is chosen.
+///
+/// A fan line with no length — its starting pair picked as one point — is
+/// refused. Upstream projects onto it and adds a crease from NaN (PORTING.md,
+/// "The angle-restricted tools refuse a base of one point").
 pub fn draw_crease_angle_restricted_3_to_point(
     model: &mut CreasePatternModel,
     pointer: Point,
@@ -161,6 +165,9 @@ pub fn draw_crease_angle_restricted_3_to_point(
     selection_distance: f64,
     color: LineColor,
 ) -> bool {
+    if !Epsilon::HIGH.gt0(selected_candidate.determine_length()) {
+        return false;
+    }
     if determine_line_segment_distance(pointer, selected_candidate) >= selection_distance {
         return false;
     }
@@ -231,12 +238,20 @@ pub fn angle_restricted_converging_candidates(
 }
 
 /// Oriedita `DRAW_CREASE_ANGLE_RESTRICTED_13` final add after a convergence point is chosen.
+///
+/// A base with no length — its end picked on its start — is refused. Upstream's
+/// fan from one point converges at NaN, and both creases end there (PORTING.md,
+/// "The angle-restricted tools refuse a base of one point").
 pub fn draw_crease_angle_restricted_converging(
     model: &mut CreasePatternModel,
     segment: &LineSegment,
     converge_point: Point,
     color: LineColor,
 ) -> usize {
+    if !Epsilon::HIGH.gt0(segment.determine_length()) {
+        return 0;
+    }
+
     let first = LineSegment::with_color(segment.a, converge_point, color);
     let second = LineSegment::with_color(segment.b, converge_point, color);
     add_line_segment_like_worker(model, &first);
@@ -533,7 +548,16 @@ pub fn angle_system_draw_to_destination(
 }
 
 /// Oriedita `DRAW_CREASE_SYMMETRIC_12` mutation after the mirror axis is known.
+///
+/// An axis with no length — its first point picked again — is refused and the
+/// selection kept. Upstream mirrors across it and writes every endpoint as NaN
+/// (PORTING.md, "Reflecting across a point is refused"). `gt0(NaN)` is false, so
+/// a non-finite axis is refused too.
 pub fn mirror_selected_lines(model: &mut CreasePatternModel, axis: &LineSegment) -> usize {
+    if !Epsilon::HIGH.gt0(axis.determine_length()) {
+        return 0;
+    }
+
     let selected: Vec<_> = model
         .line_segments
         .iter()

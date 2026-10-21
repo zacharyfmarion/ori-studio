@@ -2022,6 +2022,7 @@
     "warning": {
       "degenerateBorderSegments": "{{n}} Randlinie(n) haben zusammenfallende Enden und wurden ignoriert.",
       "noBorder": "Keine Randfalten: das Standardpapier wird als Bogen genommen.",
+      "nonFiniteSegments": "{{n}} Faltlinie(n) haben ungültige Koordinaten und werden ausgelassen.",
       "overlappingSheets": "{{n}} Faltlinie(n) liegen in mehr als einem Papier und wurden dem ersten zugeordnet.",
       "refusedSheets": "{{n}} Bogen/Bögen sind keine Rechtecke und werden ausgelassen.",
       "unassignedSegments": "{{n}} Faltlinie(n) liegen außerhalb jedes Papiers und werden ausgelassen.",

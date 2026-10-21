@@ -55,6 +55,21 @@
  * on the switch), then picks the rail's second sheet (which puts the
  * workspace back in Find) and asks for its sequence; timed the same way.
  *
+ * `--edits <n> --draw x0,y0,x1,y1` then times crease edits, last: it turns
+ * snapping off, arms the free Line tool and draws a horizontal line from x0 to
+ * x1 at a height between y0 and y1, a different one for each edit, so put the
+ * rectangle over empty canvas (on `bodo_large.osf` after `--zoom-out 3`, the
+ * gap between two rows of sheets: `--draw 440,715,850,820`). The first edit is
+ * timed with its undo and its redo, each until the readout's line count changes
+ * and then until quiet. The rest are drawn back to back to measure what undo
+ * holds: the memory is read every ten edits, so `n` past the undo cap (100)
+ * shows where it levels off. A tab that runs out of memory is recorded as the
+ * edit it crashed on.
+ *
+ * Memory is the JS heap (`heapMiB`) and, separately, the array buffers
+ * (`buffersMiB`): typed arrays live outside the heap, so the heap alone would
+ * not count memory held as compact geometry.
+ *
  * Options: `--out <dir>` (default `artifacts/large-osf-perf/<time>`, ignored by
  * git), `--dist <dir>` (a production build other than `apps/web/dist`, to time
  * two builds with one script), `--trace` (a Chrome trace per phase, for
@@ -102,6 +117,8 @@ function parseArgs(argv) {
     actions: [],
     diagram: false,
     references: false,
+    edits: 0,
+    draw: null,
     out: null,
     dist: path.join(repoRoot, 'apps/web/dist'),
     trace: false,
@@ -112,6 +129,8 @@ function parseArgs(argv) {
     if (arg === '--zoom-out') options.zoomOut = Number(argv[++i]);
     else if (arg === '--box') options.boxes.push(argv[++i].split(',').map(Number));
     else if (arg === '--action') options.actions.push(argv[++i]);
+    else if (arg === '--edits') options.edits = Number(argv[++i]);
+    else if (arg === '--draw') options.draw = argv[++i].split(',').map(Number);
     else if (arg === '--diagram') options.diagram = true;
     else if (arg === '--references') options.references = true;
     else if (arg === '--out') options.out = argv[++i];
@@ -128,6 +147,10 @@ function parseArgs(argv) {
   const unknown = options.actions.filter((action) => !ACTIONS[action]);
   if (unknown.length > 0) throw new Error(`unknown --action ${unknown.join(', ')}; one of ${Object.keys(ACTIONS).join(', ')}`);
   if (options.actions.length > 0 && options.boxes.length === 0) throw new Error('--action needs a --box to select');
+  if (!Number.isInteger(options.edits) || options.edits < 0) throw new Error('--edits takes a count');
+  if (options.edits > 0 && (options.draw?.length !== 4 || options.draw.some((n) => !Number.isFinite(n)))) {
+    throw new Error('--edits needs --draw x0,y0,x1,y1: empty canvas, in viewport pixels');
+  }
   options.out ??= path.join(repoRoot, 'artifacts/large-osf-perf', new Date().toISOString().replace(/[:.]/g, '-'));
   return options;
 }
@@ -223,10 +246,14 @@ async function main() {
         longestMs: Math.round(Math.max(0, ...tasks.map(([, duration]) => duration))),
       };
     }, since);
-  const heapMiB = async () => {
+  /** Retained memory after a forced collection: the JS heap, and the array buffers outside it. */
+  const memory = async () => {
     await cdp.send('HeapProfiler.collectGarbage');
-    const { usedSize } = await cdp.send('Runtime.getHeapUsage');
-    return Math.round(usedSize / 2 ** 20);
+    const { usedSize, backingStorageSize } = await cdp.send('Runtime.getHeapUsage');
+    return {
+      heapMiB: Math.round(usedSize / 2 ** 20),
+      buffersMiB: backingStorageSize === undefined ? null : Math.round(backingStorageSize / 2 ** 20),
+    };
   };
   const traced = async (name, run) => {
     if (!options.trace) return run();
@@ -244,7 +271,7 @@ async function main() {
   await page.evaluate(async (url) => {
     window.__osf = await (await fetch(url)).blob();
   }, osf.url);
-  const results = { file: path.basename(options.file), heapBeforeMiB: await heapMiB() };
+  const results = { file: path.basename(options.file), before: await memory() };
   const linesBefore = (await readout()).lines;
 
   // ---- Open, through the same drop the canvas takes -------------------------
@@ -276,7 +303,7 @@ async function main() {
     const quietMs = await untilQuiet(started);
     return { canvasMs, quietMs, lines: (await readout()).lines, longTasks: await longTasksSince(t0) };
   });
-  results.open.heapMiB = await heapMiB();
+  Object.assign(results.open, await memory());
   log('open', JSON.stringify(results.open));
   await page.screenshot({ path: path.join(options.out, 'open.png') });
 
@@ -335,7 +362,7 @@ async function main() {
   for (const [index, box] of options.boxes.entries()) {
     const name = `select-${index + 1}`;
     const result = await traced(name, () => selectBox(box));
-    result.heapMiB = await heapMiB();
+    Object.assign(result, await memory());
     log(name, JSON.stringify(result));
     await page.screenshot({ path: path.join(options.out, `${name}.png`) });
     results.selections.push(result);
@@ -375,7 +402,7 @@ async function main() {
       const quietMs = await untilQuiet(clicked);
       return { effectMs, quietMs, longTasks: await longTasksSince(t0) };
     });
-    result.heapMiB = await heapMiB();
+    Object.assign(result, await memory());
     log(action, JSON.stringify(result));
     await page.screenshot({ path: path.join(options.out, `${action}.png`) });
     if (close) await page.keyboard.press('Escape');
@@ -410,6 +437,94 @@ async function main() {
     return result;
   });
 
+  // A tab out of memory crashes, and whatever was waiting on it then waits for
+  // ever, so everything the edits wait on races this.
+  const crashed = new Promise((_, reject) => {
+    page.once('crash', () => reject(new Error('the tab crashed')));
+  });
+  crashed.catch(() => {});
+  const unlessCrashed = (promise) => Promise.race([promise, crashed]);
+  /** Ms from `since` until the readout's line count is no longer `before`. */
+  const untilLinesChange = async (before, since) => {
+    for (;;) {
+      const { lines } = await readout();
+      if (lines !== null && lines !== before) return Date.now() - since;
+      if (Date.now() - since > PHASE_LIMIT_MS) throw new Error('the line count never changed');
+      await page.waitForTimeout(10);
+    }
+  };
+  /** See `--edits` in the header. */
+  const editPhase = async () => {
+    const [x0, y0, x1, y1] = options.draw;
+    await page.keyboard.press('Escape');
+    // Snapping would pull neighbouring lines onto one grid point, and a line
+    // drawn twice is not an edit.
+    let snapping = page.getByRole('switch', { name: 'Snapping', exact: true });
+    if ((await snapping.count()) === 0) snapping = page.getByRole('checkbox', { name: 'Snapping', exact: true });
+    if (await snapping.isChecked()) await snapping.click();
+    await page.keyboard.press('z');
+    /** Draw edit `index`'s line; answers when the mouse was released. */
+    const draw = async (index) => {
+      const y = y0 + ((y1 - y0) * index) / Math.max(1, options.edits - 1);
+      await page.mouse.move(x0, y);
+      await page.mouse.down();
+      for (let step = 1; step <= 6; step += 1) await page.mouse.move(x0 + ((x1 - x0) * step) / 6, y);
+      const released = Date.now();
+      await page.mouse.up();
+      return released;
+    };
+    /** Act, then time it until the line count changes and until quiet. */
+    const timed = (name, act) =>
+      traced(name, async () => {
+        const t0 = await page.evaluate(() => performance.now());
+        const { lines } = await readout();
+        const pressed = Date.now();
+        const started = (await act()) ?? pressed;
+        const landedMs = await untilLinesChange(lines, started);
+        const quietMs = await untilQuiet(started);
+        const result = {
+          landedMs,
+          quietMs,
+          lines: (await readout()).lines,
+          longTasks: await longTasksSince(t0),
+          ...(await memory()),
+        };
+        log(name, JSON.stringify(result));
+        await page.screenshot({ path: path.join(options.out, `${name}.png`) });
+        return result;
+      });
+    const edits = { memory: [] };
+    let count = 0;
+    try {
+      edits.edit = await unlessCrashed(timed('edit', () => draw(0)));
+      count = 1;
+      edits.undo = await unlessCrashed(timed('undo', () => page.keyboard.press('ControlOrMeta+z')));
+      edits.redo = await unlessCrashed(
+        timed('redo', () => page.keyboard.press('ControlOrMeta+Shift+z'))
+      );
+      for (; count < options.edits; count += 1) {
+        await unlessCrashed(
+          (async () => {
+            const { lines } = await readout();
+            await untilLinesChange(lines, await draw(count));
+            if ((count + 1) % 10 === 0 || count + 1 === options.edits) {
+              await untilQuiet(Date.now(), 1000);
+              const sample = { edits: count + 1, ...(await memory()) };
+              log('edits', JSON.stringify(sample));
+              edits.memory.push(sample);
+            }
+          })()
+        );
+      }
+      await unlessCrashed(page.screenshot({ path: path.join(options.out, 'edits.png') }));
+    } catch (error) {
+      edits.stoppedAt = count + 1;
+      edits.error = error instanceof Error ? error.message : String(error);
+      log('edits', `stopped at edit ${count + 1}: ${edits.error}`);
+    }
+    return edits;
+  };
+
   // ---- The Diagram: every card's link status, a step, then the pattern picker ---
   if (options.diagram) {
     results.diagram = await (async () => ({
@@ -431,7 +546,7 @@ async function main() {
         [['shownMs', '[role="listbox"] [role="option"] svg']]
       ),
     }))();
-    results.diagram.heapMiB = await heapMiB();
+    Object.assign(results.diagram, await memory());
   }
 
   // ---- References: the sheet rail and the first sheet's sequence, then another sheet ---
@@ -462,7 +577,12 @@ async function main() {
         [['stepsMs', steps]]
       ),
     }))();
-    results.references.heapMiB = await heapMiB();
+    Object.assign(results.references, await memory());
+  }
+
+  // ---- Edits: one with its undo and redo, then enough to fill the undo stack ----
+  if (options.edits > 0) {
+    results.edits = await editPhase();
   }
 
   writeFileSync(path.join(options.out, 'results.json'), `${JSON.stringify(results, null, 2)}\n`);

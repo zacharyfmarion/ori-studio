@@ -9,11 +9,8 @@ import {
   statusFromSnapshot,
 } from '../engineRuntime';
 import { staleFoldArtifactResourceState } from '../foldArtifactResource';
-import {
-  oristudioCpError,
-  restoreOristudioCpDocumentInPlace,
-  setOristudioCpSelectedLines,
-} from '../oristudioCpRuntime';
+import { oristudioCpError, setOristudioCpSelectedLines } from '../oristudioCpRuntime';
+import { cpHistoryDocumentOf, restoreCpHistoryDocument } from '../cpHistory';
 import { documentStateAfterSelection } from '../cpSelectedLines';
 import {
   exportOristudioBpProjectAsSessionBps,
@@ -30,12 +27,12 @@ import {
 import type {
   HistoryEntry,
   HistorySlice,
+  OristudioCpHistoryDocument,
   OristudioCpHistoryEntry,
   WorkspaceSliceCreator,
 } from '../types';
 import type {
   OristudioCpCommandResult,
-  OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
   OristudioCpSelectedLines,
 } from '../../../engine/oristudioCpTypes';
@@ -58,24 +55,34 @@ function historyEntry(text: string, label = 'Edit'): HistoryEntry {
   };
 }
 
+/**
+ * What an entry records of the crease pattern: nothing for an overlay step,
+ * the selected lines for a selection step, which leave the document alone, and
+ * the document to put back (its compact geometry) for any other.
+ */
+type CpHistoryContent =
+  | { kind: 'overlay' }
+  | { kind: 'selection'; replacedLines: OristudioCpSelectedLines }
+  | { kind: 'document'; document: OristudioCpHistoryDocument };
+
 function cpHistoryEntry(
-  document: OristudioCpDocumentSnapshot,
+  content: CpHistoryContent,
   selection: OristudioCpSelection,
   annotations: CanvasAnnotation[],
   foldedFigures: OristudioCpFoldedFigureEntry[],
   activeFoldedFigureId: string | null,
   inlineSimulations: InlineSimulation[],
-  label = 'Edit',
-  overlayOnly = false
+  label = 'Edit'
 ): OristudioCpHistoryEntry {
   return {
-    document,
+    ...(content.kind === 'document' ? { document: content.document } : {}),
+    ...(content.kind === 'selection' ? { selectedLines: content.replacedLines } : {}),
     selection,
     annotations,
     foldedFigures,
     activeFoldedFigureId,
     inlineSimulations,
-    overlayOnly,
+    overlayOnly: content.kind === 'overlay',
     label,
     timestamp: new Date().toISOString(),
   };
@@ -146,9 +153,9 @@ function restoredAnnotationSelection(
  * A selection entry (`selectedLines`) changed nothing but which lines are
  * selected, so only those go back into the kernel, and the store keeps its
  * snapshot and geometry (`mirrorSelectedLines`). Any other entry restores its
- * whole document.
+ * whole document, from the compact geometry it holds.
  */
-async function restoreCpHistoryDocument(
+async function restoreEntryDocument(
   entry: OristudioCpHistoryEntry,
   current: OristudioCpDocumentState,
   live: () => OristudioCpDocumentState | null
@@ -157,8 +164,9 @@ async function restoreCpHistoryDocument(
   replacedLines: OristudioCpSelectedLines | undefined;
 }> {
   if (!entry.selectedLines) {
+    if (!entry.document) throw new Error(`The undo step "${entry.label}" holds no crease pattern`);
     return {
-      restored: await restoreOristudioCpDocumentInPlace(entry.document, current.source, null),
+      restored: await restoreCpHistoryDocument(entry.document, current.source, null),
       replacedLines: undefined,
     };
   }
@@ -175,12 +183,17 @@ async function restoreCpHistoryDocument(
   };
 }
 
-/** `entry` as a selection entry when `lines` are given; as it is otherwise. */
-function withSelectedLines(
-  entry: OristudioCpHistoryEntry,
-  lines: OristudioCpSelectedLines | undefined
-): OristudioCpHistoryEntry {
-  return lines ? { ...entry, selectedLines: lines } : entry;
+/**
+ * What the entry for the opposite direction records of `current`, once a
+ * document step has put back `replacedLines` (a selection) or a whole document.
+ */
+function oppositeContent(
+  current: OristudioCpDocumentState,
+  replacedLines: OristudioCpSelectedLines | undefined
+): CpHistoryContent {
+  return replacedLines
+    ? { kind: 'selection', replacedLines }
+    : { kind: 'document', document: cpHistoryDocumentOf(current) };
 }
 
 function setRestoredCreasePatternState(
@@ -366,14 +379,13 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             oristudioCpHistoryPast: past.slice(0, -1),
             oristudioCpHistoryFuture: [
               cpHistoryEntry(
-                current.document,
+                { kind: 'overlay' },
                 currentSelection,
                 currentAnnotations,
                 currentFoldedFigures,
                 currentActiveFoldedId,
                 currentInlineSimulations,
-                previous.label,
-                true
+                previous.label
               ),
               ...get().oristudioCpHistoryFuture,
             ].slice(0, MAX_HISTORY),
@@ -392,7 +404,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           void get().restoreOristudioCpInlineSimulationSources();
           return true;
         }
-        const { restored, replacedLines } = await restoreCpHistoryDocument(previous, current, () =>
+        const { restored, replacedLines } = await restoreEntryDocument(previous, current, () =>
           get().oristudioCpDocument
         );
         // Apply immediately; the always-on CAMV overlay recomputes off the critical
@@ -413,18 +425,14 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           ...restoredInlineSimulationState(previous),
           oristudioCpHistoryPast: past.slice(0, -1),
           oristudioCpHistoryFuture: [
-            withSelectedLines(
-              cpHistoryEntry(
-                current.document,
-                currentSelection,
-                currentAnnotations,
-                currentFoldedFigures,
-                currentActiveFoldedId,
-                currentInlineSimulations,
-                previous.label,
-                false
-              ),
-              replacedLines
+            cpHistoryEntry(
+              oppositeContent(current, replacedLines),
+              currentSelection,
+              currentAnnotations,
+              currentFoldedFigures,
+              currentActiveFoldedId,
+              currentInlineSimulations,
+              previous.label
             ),
             ...get().oristudioCpHistoryFuture,
           ].slice(0, MAX_HISTORY),
@@ -552,14 +560,13 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             oristudioCpHistoryPast: [
               ...get().oristudioCpHistoryPast,
               cpHistoryEntry(
-                current.document,
+                { kind: 'overlay' },
                 currentSelection,
                 currentAnnotations,
                 currentFoldedFigures,
                 currentActiveFoldedId,
                 currentInlineSimulations,
-                next.label,
-                true
+                next.label
               ),
             ].slice(-MAX_HISTORY),
             oristudioCpHistoryFuture: future.slice(1),
@@ -574,7 +581,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           void get().restoreOristudioCpInlineSimulationSources();
           return true;
         }
-        const { restored, replacedLines } = await restoreCpHistoryDocument(next, current, () =>
+        const { restored, replacedLines } = await restoreEntryDocument(next, current, () =>
           get().oristudioCpDocument
         );
         set({
@@ -589,18 +596,14 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           ...restoredInlineSimulationState(next),
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
-            withSelectedLines(
-              cpHistoryEntry(
-                current.document,
-                currentSelection,
-                currentAnnotations,
-                currentFoldedFigures,
-                currentActiveFoldedId,
-                currentInlineSimulations,
-                next.label,
-                false
-              ),
-              replacedLines
+            cpHistoryEntry(
+              oppositeContent(current, replacedLines),
+              currentSelection,
+              currentAnnotations,
+              currentFoldedFigures,
+              currentActiveFoldedId,
+              currentInlineSimulations,
+              next.label
             ),
           ].slice(-MAX_HISTORY),
           oristudioCpHistoryFuture: future.slice(1),

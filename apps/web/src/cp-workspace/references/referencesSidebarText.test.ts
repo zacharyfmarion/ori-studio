@@ -55,6 +55,12 @@ describe('referencesSidebarWarnings', () => {
     ]);
   });
 
+  it('says how many creases were left out for having no position', () => {
+    expect(referencesSidebarWarnings(t, analysis([{ kind: 'non_finite_segments', count: 2 }]))).toEqual([
+      '2 crease(s) have invalid coordinates and are left out.',
+    ]);
+  });
+
   it('surfaces every warning the planner can emit', () => {
     const warnings = referencesSidebarWarnings(
       t,
@@ -64,9 +70,10 @@ describe('referencesSidebarWarnings', () => {
         { kind: 'zero_length_segments', count: 3 },
         { kind: 'degenerate_border_segments', count: 4 },
         { kind: 'unassigned_segments', count: 5 },
+        { kind: 'non_finite_segments', count: 6 },
       ])
     );
-    expect(warnings).toHaveLength(5);
+    expect(warnings).toHaveLength(6);
     expect(warnings.every((w) => w.length > 0)).toBe(true);
   });
 

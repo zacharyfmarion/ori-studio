@@ -357,6 +357,39 @@ export async function restoreOristudioCpDocumentInPlace(
   return nextState;
 }
 
+/**
+ * {@link restoreOristudioCpDocumentInPlace} from the compact geometry a state
+ * carries, which is how undo and redo put a crease pattern back
+ * (`OristudioCpHistoryDocument`). The kernel decodes it itself
+ * (`restore_from_compact`), so nothing the size of the document is built on
+ * this thread to send it, and only typed arrays cross to the worker.
+ *
+ * They cross as a copy. `geometry` belongs to an undo entry that may be
+ * restored again — undo, redo, undo — and a transferred buffer is left empty
+ * on this side, so it must never be passed with `transfer`.
+ */
+export async function restoreOristudioCpGeometryInPlace(
+  geometry: CpGeometryTransport,
+  source?: OristudioCpDocumentState['source'],
+  lastCommandResult: OristudioCpCommandResult | null = null
+): Promise<OristudioCpDocumentState> {
+  if (handle === null) {
+    return restoreOristudioCpDocumentInPlace(
+      decodeCpGeometryToSnapshot(geometry),
+      source,
+      lastCommandResult
+    );
+  }
+  countDocumentChange();
+  const api = await getOristudioCpClient();
+  countDocumentChange();
+  await api.restoreFromCompact(handle, geometry);
+  const nextSource = source ?? currentSource ?? { format: 'cp', filename: 'Untitled.cp', path: null };
+  const nextState = await buildDocumentState(api, handle, nextSource, lastCommandResult);
+  currentSource = nextState.source;
+  return nextState;
+}
+
 export async function executeOristudioCpCommand(
   operationId: OristudioCpOperationId,
   payload: OristudioCpCommandPayload = {}

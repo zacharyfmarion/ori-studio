@@ -1966,6 +1966,7 @@
     "warning": {
       "degenerateBorderSegments": "{{n}} 本の端の線は両端が一致しているため、無視しました。",
       "noBorder": "端の線がないため、既定の用紙を用紙として使います。",
+      "nonFiniteSegments": "{{n}} 本の折り線は座標が無効なため除外されます。",
       "overlappingSheets": "{{n}} 本の折り線が複数の用紙に重なっているため、最初の用紙に割り当てました。",
       "refusedSheets": "{{n}} 枚の用紙は長方形ではないため除外されます。",
       "unassignedSegments": "{{n}} 本の折り線がどの用紙にも入らないため除外されます。",
