@@ -247,6 +247,14 @@ describe('crease-pattern clipboard geometry', () => {
         center: { x: 0, y: 0 },
       });
     });
+
+    it('frames it for a move-drag snap', () => {
+      const frame = cpLineSelectionFrame(lines);
+      expect(frame?.width).toBeCloseTo(200);
+      expect(frame?.height).toBeCloseTo(200);
+      expect(frame?.center.x).toBeCloseTo(0);
+      expect(frame?.center.y).toBeCloseTo(0);
+    }, 30_000);
   });
 
   it('propagates a NaN endpoint into the bounds, as the spread did', () => {

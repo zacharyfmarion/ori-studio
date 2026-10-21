@@ -318,10 +318,18 @@ function frameForAngle(points: readonly Point[], angleRadians: number): CpLineSe
     x: point.x * axisX.x + point.y * axisX.y,
     y: point.x * axisY.x + point.y * axisY.y,
   }));
-  const minX = Math.min(...localPoints.map((point) => point.x));
-  const maxX = Math.max(...localPoints.map((point) => point.x));
-  const minY = Math.min(...localPoints.map((point) => point.y));
-  const maxY = Math.max(...localPoints.map((point) => point.y));
+  // A loop, not a spread: a large selection's points overflow the argument
+  // limit.
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const point of localPoints) {
+    minX = Math.min(minX, point.x);
+    minY = Math.min(minY, point.y);
+    maxX = Math.max(maxX, point.x);
+    maxY = Math.max(maxY, point.y);
+  }
   const centerLocal = {
     x: (minX + maxX) / 2,
     y: (minY + maxY) / 2,
