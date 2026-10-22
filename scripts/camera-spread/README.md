@@ -49,12 +49,11 @@ In the explorer:
   freely, including through both poles. Direction and inclination stay in sync;
   full orientation (including roll) is saved with validation notes. Presets reset
   roll, and Reset camera restores the initial Diagram settings. Zoom uses its slider.
-- **Preserve layer order** suppresses buried faces and ink in Diagram mode.
-  In 3D the same preference becomes **3D depth · resolve layer ties**: actual
-  surfaces occlude each other, with only a small depth bias for near-coplanar
-  layers. **Raw 3D depth** removes that correction. A flat global order must not
-  force distant surfaces over nearer ones after orbiting; physical intersections
-  in the approximate lift can consequently remain visible in 3D.
+- **Preserve layer order** suppresses buried faces and ink in every camera mode.
+  In 3D, each lifted triangle selects the forward or reversed stack according
+  to its own facing. Known layer relationships stay authoritative; unrelated
+  stacks are ordered by camera depth. Opposite-facing protected surfaces then
+  occlude each other geometrically. **Raw 3D depth** disables this protection.
 - Enable the bending mesh to inspect interior degrees of freedom.
 - Read edge extension and *withheld* layer-order sample failures. These are not a
   full triangle-intersection certificate; small residuals can also lie below the
@@ -63,12 +62,14 @@ In the explorer:
   No telemetry or uploads are initialized by this standalone entry.
 
 Mesh preparation runs in a worker that is terminated when models change.
-Direction, camera and amount change WebGL uniforms; they do not rerun the solver.
+Direction, camera and amount update uniforms and a small paint-rank texture;
+they do not rebuild vertex buffers or rerun the solver. The ordering graph is cached.
 The displayed timing is CPU draw submission, **not GPU completion or FPS**.
 The original/legacy comparison is drawn through the existing PaperScene producer.
 Front/back visibility plans also prepare in the worker, including local patches
 for woven folds and auxiliary ink split along bending triangles. The layer-ordered
-vector path uses the same pieces; the 3D/raw BSP paths have a 2,000-triangle budget.
+vector path uses the same pieces and masks each facing group before BSP sorting;
+the 3D/raw BSP paths have a 2,000-triangle budget, plus a 50,000-fragment masking cap.
 These are research adapters, not production exports. The flat paint plan does
 not represent every buried order in a woven component, so newly exposed woven
 regions at large distortions still require visual review.

@@ -106,17 +106,17 @@ the simulator's CSS-pixel sensitivity. There are no polar clamps: the complete
 frame is converted back to direction, inclination and roll, preserving orientation
 through the top and bottom poles. Direction/inclination controls reflect the view;
 notes retain all three angles. CPU projection and the WebGL shader consume the
-same transform. Camera changes only update uniforms, never the cached lift or
-visibility plans. Presets reset roll. Diagram mode ignores roll and retains its
+same transform. Camera changes update uniforms and a small rank lookup, never
+the cached lift or vertex buffers. Presets reset roll. Diagram mode ignores roll and retains its
 original compensated camera.
 
-In **Diagram** mode, the explorer defaults to **Preserve layer order**. It lifts
+In every camera mode, the explorer defaults to **Preserve layer order**. It lifts
 the existing flat paint plan rather than trusting approximate heights for
 visibility. Each paint item has a disjoint GPU depth interval; geometric depth
 only resolves triangles within that interval. An inverted buried face and its
-ink cannot win the depth test against a later covering item in this mode.
+ink cannot win the depth test against a covering item in the same facing stack.
 Front and underside plans are prepared once in the worker; the underside plan
-reverses each supplied local stack. Camera controls still change only uniforms.
+reverses each supplied local stack.
 
 A global face sort alone would break woven folds. The adapter therefore carries
 the existing renderer's local overlap patches as well as whole faces. It clips
@@ -125,15 +125,34 @@ the artificial seams. Auxiliary lines and crease edges are split at the same
 triangulation and use their owner's paint order. Barycentric clipping tolerances
 prevent near-degenerate triangles from extrapolating ink into long spikes.
 
-This is **diagrammatic visibility**, not a repaired 3D surface. Applying these
-global intervals in an arbitrary 3D view was incorrect: for the Gen Hagiwara frog
-at amount 50%, azimuth 143° and inclination 86°, farther panels overpainted nearer
-ones. Rotating creates overlaps that the original flat stacking order does not
-describe. The default 3D policy now uses real geometric depth, with a bounded
-1e-5 NDC bias for near-coplanar layer ties. It keeps the local woven patches for
-those ties; raw depth omits them. The UI names the policies separately rather
-than implying strict layer preservation throughout a free orbit. This repairs
-the forced-order artifact, **not physical crossings in the height fit**.
+The 3D policy uses the source triangle's deformed plane to select the forward or
+reversed stack locally, including for its ink and woven patches. This is the
+normal relative to the original +Z stack direction, independent of paper colour;
+`front_up` still determines which material side is yellow. Perspective uses the
+finite eye-to-plane test; orthographic uses the view direction. A triangle can
+reverse before the camera crosses the original sheet's XY plane, and different
+parts of the model can use opposite stack directions simultaneously.
+
+Two depth-only GPU masks select the protected winners for those facing groups.
+A final geometric pass compares only those winners. A lower face within a
+group cannot reappear because its approximate height happens to be nearer.
+Opposite-facing groups do not share arbitrary rank priorities. The masks resize
+with the canvas and are reused across frames; no float-render-target extension
+is required. Lines use the source surface's plane rather than the line quad's
+raster winding.
+
+There is a separate issue at oblique angles: flat rendering arbitrarily orders
+faces with no authored over/under relationship. For the Gen Hagiwara frog at
+50%, 143°/86°, these new overlaps caused large grey panels to cover nearer yellow
+ones. A cached dependency graph now keeps all known layer relationships, using
+camera depth to choose among otherwise unordered paint blocks. Woven components
+and patch insertion spans move together. A small rank texture updates the GPU
+without rebuilding geometry. Centroid ordering of unrelated blocks is still an
+approximation, particularly for large intersecting or cyclic panels.
+
+This is **diagrammatic visibility**, not a repaired 3D surface. The earlier
+fallback to raw depth with a tiny tie bias removed the original buried-layer
+protection and was rejected; strict stack protection is restored in 3D.
 
 The inherited
 flat paint plan guarantees its original visible stacks, but deliberately does
@@ -143,13 +162,15 @@ this is not a general proof of collision-free, layer-consistent 3D unfolding.
 The UI retains the physical inversion and strain diagnostics for that reason.
 
 **Raw 3D depth** is an explicit comparison mode showing the underlying fit's
-crossings without layer tie correction. The vector experiment uses the same
-clipped pieces as the GPU and BSP-orders them in both 3D policies; its unit-height
-trees are cached per front/back plan and reusable for positive depth scales by
-transforming the eye inversely. These paths refuse meshes over 2,000 triangles
-because splitting was expensive even on the 76-face frog (10,857 pieces in an
-initial probe). Strict Diagram mode does not need a BSP. None of these paths
-are wired into production SVG/PDF export.
+crossings without layer protection. Its unit-height BSP trees remain cached per
+front/back plan. The protected vector experiment clips hidden geometry within
+each facing group before BSP-ordering the surviving pieces, matching the GPU's
+policy. Homogeneous clipping preserves perspective intersections; clipping in an
+unrolled camera frame avoids numerical changes when only roll changes. The 3D
+vector paths refuse meshes over 2,000 triangles and masking caps intermediate
+fragments at 50,000. Unlike the GPU, this research-only vector path performs
+view-dependent clipping. Diagram does not need a BSP. None of these paths are
+wired into production SVG/PDF export.
 
 ### Amount range and perceived opening
 
@@ -321,16 +342,23 @@ not claims that a fully collision-free general origami opening has been solved.
 - Free-orbit math and pointer lifecycle tests cover full revolutions, continuous
   pole crossing, reversibility, repeated drags, touch/secondary-pointer isolation,
   capture cancellation, mode changes and unmount. With existing flat/spread tests
-  and CSS-module ratchets, all 103 focused tests pass after the amount/visibility
-  follow-up. The added regression uses disjoint panels that overlap only after
-  rotation and asserts the nearer surface wins in both 3D projections.
+  and CSS-module ratchets, all 106 focused tests pass after the local-facing
+  correction. Regressions cover inverted layers and buried ink in every camera,
+  reversal before crossing the original sheet, simultaneous forward/backward
+  stacks, material-side independence and the finite perspective eye. Unrelated
+  panels that overlap only after rotation retain camera-depth ordering.
 - Browser verification on LDM: perspective dragging updates both angle controls,
   passes to the underside at zero depth, keeps preparation cached, and resets
   correctly. The preview is left in perspective mode for further visual review.
-- Oblique frog follow-up: browser comparison at 143°/86° and 50% amount no
-  longer forces the flat stack through nearer surfaces. A 25×25 vector visibility
-  probe at inclinations 75°, 86° and 94° agrees with geometric depth at all sampled
-  occupied points (333, 313 and 297 respectively); this is sampling, not proof.
+- Oblique frog follow-up: the protected browser view at 143°/86° and 50% amount
+  no longer shows the large grey overpainting regions. Matching raw depth at
+  every sample is no longer the acceptance criterion: known stack relationships
+  must remain authoritative even when the lift violates them.
+- The revised ordering passes all 33 examples at six inclinations on both side
+  plans: no nonfinite source planes, no changed authored stack relations. The
+  slowest warmed rank-map computation was 1.49 ms per side on this machine;
+  this does not measure GPU completion. Browser checks also cover the ordinary
+  frog 143°/45°/15% view and LDM's perspective and underside views.
 - Web lint and typecheck run after rebuilding stale/missing local generated APIs.
 - No Rust behavior, native shell, production route or shipping bundle changed.
   Rust workspace/oracle, Tauri and production build validation are out of scope.

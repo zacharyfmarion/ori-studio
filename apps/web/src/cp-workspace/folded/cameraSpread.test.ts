@@ -4,7 +4,8 @@ import type { PaperScene } from '../../lib/paper/paperScene';
 import { cameraSpreadLift, cameraSpreadStrain, liftWeights } from './cameraSpreadLift';
 import { CAMERA_SPREAD_MAX_AMOUNT, cameraSpreadScene, type CameraSpreadOptions } from './cameraSpreadScene';
 import { foldedFlatPaperScene } from './foldedFlatScene';
-import { cameraPaintPlans } from './cameraSpreadVisibility';
+import { cameraPaintPlans, cameraPaintBackFacing } from './cameraSpreadVisibility';
+import { cameraSpreadTransform } from './cameraSpreadCamera';
 
 function square(ids: number[], front = true): OristudioCpFoldedPaperFace {
   const outline = [
@@ -57,6 +58,19 @@ function visibleFace(scene: PaperScene, x: number, y: number): number | null {
     }
   }
   return face;
+}
+function auxAt(scene: PaperScene, x: number, y: number): boolean {
+  return scene.items.some((item) => {
+    if (item.kind !== 'line' || item.role !== 'aux') return false;
+    const dx = item.b[0] - item.a[0],
+      dy = item.b[1] - item.a[1];
+    const length = Math.hypot(dx, dy);
+    if (length < 1e-9) return false;
+    const along = ((x - item.a[0]) * dx + (y - item.a[1]) * dy) / length;
+    return (
+      along >= 0 && along <= length && Math.abs(dx * (y - item.a[1]) - dy * (x - item.a[0])) / length < 1e-8
+    );
+  });
 }
 
 describe('experimental connected camera lift', () => {
@@ -166,7 +180,7 @@ describe('experimental connected camera lift', () => {
     });
     expect(visibleFace(below, 0.5, 0.5)).toBe(0);
   });
-  it('hides inverted layers and ink in Diagram, while 3D exposes the physical fit', () => {
+  it('hides inverted layers and ink in every camera mode, reversing protection underneath', () => {
     const kernel = stack();
     kernel.aux_lines = [{ from: { x: 0, y: 0.5 }, to: { x: 1, y: 0.5 }, face: 0 }];
     const mesh = cameraSpreadLift(kernel);
@@ -184,13 +198,79 @@ describe('experimental connected camera lift', () => {
     );
     expect(lastAux).toBeGreaterThan(-1);
     expect(visibleFace({ ...locked, items: locked.items.slice(lastAux + 1) }, 0.4, 0.5)).toBe(1);
-    expect(
-      visibleFace(
-        cameraSpreadScene(kernel, { ...view, projection: 'orthographic', inclinationDeg: 180 }),
-        0.4,
-        0.5
-      )
-    ).toBe(1);
+    for (const projection of ['orthographic', 'perspective'] as const) {
+      const top = cameraSpreadScene(kernel, { ...view, projection });
+      expect(visibleFace(top, 0.4, 0.5)).toBe(1);
+      expect(auxAt(top, 0.4, 0.5)).toBe(false);
+      const below = cameraSpreadScene(kernel, { ...view, projection, inclinationDeg: 180 });
+      expect(visibleFace(below, 0.4, 0.5)).toBe(0);
+      expect(auxAt(below, 0.4, 0.5)).toBe(true);
+    }
+  });
+  it('reverses a tilted stack before the camera crosses the original sheet, regardless of paper colour', () => {
+    for (const front of [false, true]) {
+      const kernel = stack();
+      kernel.faces.forEach((f) => {
+        f.front_up = front;
+      });
+      kernel.aux_lines = [{ from: { x: 0, y: 0.5 }, to: { x: 1, y: 0.5 }, face: 1 }];
+      const mesh = cameraSpreadLift(kernel);
+      for (const t of mesh.triangles)
+        for (const v of t.vertices) mesh.heights[v] = 2 * mesh.xy[v]!.x + (t.face === 0 ? 0.1 : -0.1);
+      for (const projection of ['orthographic', 'perspective'] as const) {
+        const view = { ...options, amount: 0.5, projection, inclinationDeg: 60 };
+        const frame = cameraSpreadTransform(view);
+        expect(frame[8]).toBeGreaterThan(0);
+        const plans = cameraPaintPlans(mesh, kernel);
+        for (const piece of plans.front.pieces)
+          expect(cameraPaintBackFacing(piece.plane, view, frame, [0.5, 0.5])).toBe(true);
+        // Project the middle of the stack, where both faces overlap.
+        const w = projection === 'perspective' ? 1 - (0.5 * frame[8]) / 2.5 : 1;
+        const x = 0.5 + (0.5 * frame[2]) / w;
+        const locked = cameraSpreadScene(kernel, view);
+        expect(visibleFace(locked, x, 0.5)).toBe(0);
+        expect(visibleFace(cameraSpreadScene(kernel, { ...view, visibility: 'depth' }), x, 0.5)).toBe(1);
+        expect(auxAt(locked, x, 0.5)).toBe(false);
+      }
+    }
+  });
+  it('protects forward and reversed stacks simultaneously in one camera view', () => {
+    const kernel = stack();
+    kernel.faces.push(square([8, 9, 10, 11]), square([12, 13, 14, 15]));
+    kernel.faces.slice(2).forEach((f) =>
+      f.outline.forEach((p) => {
+        p.y += 2;
+      })
+    );
+    kernel.subfaces.push({ polygon: kernel.faces[2]!.outline, faces_top_to_bottom: [3, 2] });
+    const mesh = cameraSpreadLift(kernel);
+    for (const t of mesh.triangles)
+      for (const v of t.vertices)
+        mesh.heights[v] = (t.face < 2 ? 2 : -2) * mesh.xy[v]!.x + (t.face % 2 ? -0.01 : 0.01);
+    for (const projection of ['orthographic', 'perspective'] as const) {
+      const view = { ...options, amount: 0.5, projection, inclinationDeg: 60 };
+      const frame = cameraSpreadTransform(view);
+      const scene = cameraSpreadScene(kernel, view);
+      for (const [sign, y, expected] of [
+        [1, 1 / 6, 0],
+        [-1, 5 / 6, 3],
+      ]) {
+        const z = sign! / 6;
+        const w = projection === 'perspective' ? 1 - (frame[8] * z) / 2.5 : 1;
+        const x = mesh.size * (1 / 6 + (frame[2] * z) / w);
+        const sy = mesh.size * (0.5 + (y! - 0.5) / w);
+        expect(visibleFace(scene, x, sy)).toBe(expected);
+      }
+    }
+  });
+  it('uses the finite perspective eye for surface facing, independently of camera roll', () => {
+    const view = { ...options, amount: 0.5, inclinationDeg: 60, projection: 'orthographic' as const };
+    for (const rollDeg of [0, 91, 210]) {
+      const frame = cameraSpreadTransform({ ...view, rollDeg });
+      const plane: [number, number, number, number] = [-1, 0, 1, -0.5];
+      expect(cameraPaintBackFacing(plane, view, frame, [0, 0])).toBe(false);
+      expect(cameraPaintBackFacing(plane, { ...view, projection: 'perspective' }, frame, [0, 0])).toBe(true);
+    }
   });
   it('uses surface depth for new oblique overlaps instead of forcing the flat draw order', () => {
     const kernel = stack();
@@ -244,11 +324,10 @@ describe('experimental connected camera lift', () => {
       const scene = cameraSpreadScene(kernel, { ...options, inclinationDeg: angle });
       for (const [x, y, order] of cells) expect(visibleFace(scene, x + 0.5, y + 0.5)).toBe(order[0]);
     }
-    // At zero thickness the 3D path still resolves the exact coplanar woven
-    // ties from below. At positive thickness, actual surfaces govern occlusion.
+    // A positive lift must retain the reversed local woven stacks as well.
     const below = cameraSpreadScene(kernel, {
       ...options,
-      amount: 0,
+      amount: 0.06,
       projection: 'orthographic',
       inclinationDeg: 180,
     });

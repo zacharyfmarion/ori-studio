@@ -1,9 +1,8 @@
 /**
  * Lift the existing diagram paint plan, including its local woven patches.
- * Diagram views make camera depth subordinate to this plan. Orbit views use
- * actual surface depth, with ranks only breaking near-coplanar ties: forcing a
- * global flat order there can hide nearer surfaces at new projected overlaps.
- * The two cached plans reverse nominal stacks when viewed from below.
+ * Both diagram and orbit views protect buried surfaces and ink. In 3D each
+ * lifted triangle chooses its forward/reversed plan from its own plane facing,
+ * independently of the camera's side of the original flat XY sheet.
  */
 import earcut from 'earcut';
 import type { Vec3 } from '@treemaker/origami-simulator';
@@ -11,13 +10,17 @@ import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes'
 import type { ScenePoint } from '../../lib/paper/paperScene';
 import { foldedFlatPaperScene } from './foldedFlatScene';
 import type { CameraSpreadLift } from './cameraSpreadLift';
+import type { CameraSpreadOptions } from './cameraSpreadScene';
+import type { Mat3 } from '@treemaker/origami-simulator';
 
 export interface CameraPaintPiece {
   kind: 'face' | 'line';
   points: Vec3[];
   face: number;
-  /** Diagram depth slot, or tie priority when viewing actual 3D surfaces. */
+  /** Strict depth slot within this side's paint plan. */
   rank: number;
+  /** Unit-height source triangle plane, oriented toward original +Z. Ink inherits it. */
+  plane: [number, number, number, number];
   role?: 'edge' | 'aux';
   patch: boolean;
 }
@@ -32,6 +35,46 @@ export interface CameraPaintPlans {
 const cache = new WeakMap<CameraSpreadLift, CameraPaintPlans>();
 const cross = (a: readonly number[], b: readonly number[], c: readonly number[]) =>
   (b[0]! - a[0]!) * (c[1]! - a[1]!) - (b[1]! - a[1]!) * (c[0]! - a[0]!);
+
+function planeOf([a, b, c]: Vec3[]): CameraPaintPiece['plane'] {
+  const u = b!.map((v, i) => v - a![i]!);
+  const v = c!.map((v, i) => v - a![i]!);
+  const normal = [
+    u[1]! * v[2]! - u[2]! * v[1]!,
+    u[2]! * v[0]! - u[0]! * v[2]!,
+    u[0]! * v[1]! - u[1]! * v[0]!,
+  ];
+  const scale = Math.sign(normal[2]!) / Math.hypot(...normal);
+  const [nx, ny, nz] = normal.map((n) => n * scale) as Vec3;
+  return [nx, ny, nz, -(nx * a![0] + ny * a![1] + nz * a![2])];
+}
+
+/** This is geometric stack facing, independent of the paper's printed side. */
+export function cameraPaintBackFacing(
+  plane: CameraPaintPiece['plane'],
+  options: Pick<CameraSpreadOptions, 'amount' | 'projection'>,
+  camera: Mat3,
+  centre: ScenePoint
+): boolean {
+  if (options.projection === 'diagram') return false;
+  const [nx, ny, nz, d] = plane;
+  const normal = [nx * options.amount, ny * options.amount, nz];
+  let facing = normal[0]! * camera[6] + normal[1]! * camera[7] + normal[2]! * camera[8];
+  if (options.projection === 'perspective')
+    facing = 2.5 * facing + normal[0]! * centre[0] + normal[1]! * centre[1] + d * options.amount;
+  return facing < 0;
+}
+
+export function cameraPaintGroupsForView(
+  plans: CameraPaintPlans,
+  options: Pick<CameraSpreadOptions, 'amount' | 'projection'>,
+  camera: Mat3,
+  centre: ScenePoint
+): CameraPaintPiece[][] {
+  return [plans.front, plans.back].map((plan, side) =>
+    plan.pieces.filter((p) => cameraPaintBackFacing(p.plane, options, camera, centre) === !!side)
+  );
+}
 
 /** Clip a convex polygon to a triangle; the output carries interpolated height. */
 function clip(polygon: Vec3[], triangle: Vec3[]): Vec3[] {
@@ -96,6 +139,9 @@ export function cameraPaintPlans(
   if (held) return held;
   const point = (v: number): Vec3 => [mesh.xy[v]!.x, mesh.xy[v]!.y, mesh.heights[v]!];
   const triangles = mesh.triangles.map((t) => t.vertices.map(point));
+  const planes = new Map(
+    triangles.filter((t) => Math.abs(cross(t[0]!, t[1]!, t[2]!)) >= 1e-18).map((t) => [t, planeOf(t)])
+  );
   const normalized = (p: ScenePoint): Vec3 => [
     (p[0] - mesh.origin.x) / mesh.size,
     (p[1] - mesh.origin.y) / mesh.size,
@@ -125,14 +171,16 @@ export function cameraPaintPlans(
       const addLine = (a: ScenePoint, b: ScenePoint, role: 'edge' | 'aux') => {
         for (const triangle of source) {
           const points = clipLine(normalized(a), normalized(b), triangle);
-          if (points) pieces.push({ kind: 'line', points, face, rank, role, patch });
+          if (points)
+            pieces.push({ kind: 'line', points, face, rank, role, patch, plane: planes.get(triangle)! });
         }
       };
       if (item.kind === 'line') {
         addLine(item.a, item.b, item.role === 'aux' ? 'aux' : 'edge');
       } else {
         if (!patch) {
-          for (const points of source) pieces.push({ kind: 'face', points, face, rank, patch });
+          for (const points of source)
+            pieces.push({ kind: 'face', points, face, rank, patch, plane: planes.get(points)! });
         } else {
           for (const ring of item.rings) {
             const vertices = ring.map(normalized);
@@ -144,7 +192,7 @@ export function cameraPaintPlans(
                 for (let j = 1; j + 1 < polygon.length; j++) {
                   const points = [polygon[0]!, polygon[j]!, polygon[j + 1]!];
                   if (Math.abs(cross(...(points as [Vec3, Vec3, Vec3]))) > 1e-16)
-                    pieces.push({ kind: 'face', points, face, rank, patch });
+                    pieces.push({ kind: 'face', points, face, rank, patch, plane: planes.get(triangle)! });
                 }
               }
             }

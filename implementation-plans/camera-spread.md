@@ -16,7 +16,8 @@ for Zach to validate before making this the default diagram spread.
 - Project the lifted mesh from a continuous direction and inclination. Amount zero
   in Diagram mode uses the original flat drawing exactly; 3D cameras can orbit
   the flattened paper. Compare with existing depth/affine modes.
-- Recompute ordering using the existing BSP renderer, including line splitting.
+- Preserve authored stacks, reverse them using local deformed facing, and order
+  unrelated blocks by camera depth. Compare protected facing groups geometrically.
   Distinguish correct visibility from a physically valid, intersection-free lift.
 - Use a local-only explorer and generated artifacts. Never commit corpus files.
 - Record solver residuals, edge strain, timings, refusals and coverage. Recommend
@@ -47,7 +48,9 @@ for Zach to validate before making this the default diagram spread.
 - [x] Validate pole crossing, pointer cleanup, layer ordering and the live LDM interaction.
 - [x] Extend amount to 50%, expose actual depth span and evaluate all 33 examples.
 - [x] Explain model-dependent opening using local stack-depth measurements.
-- [x] Restrict strict flat ordering to Diagram; validate geometric 3D occlusion on the reported frog angle.
+- [x] Investigate the oblique frog artifact (the initial geometric-depth fallback was rejected).
+- [x] Restore strict 3D layer protection, choosing the forward/reversed plan from each deformed surface's facing.
+- [x] Validate buried ink, locally reversed stacks, the reported frog angles and the supplied CP in the live explorer.
 
 ## Result and remaining product work
 
@@ -87,9 +90,20 @@ this local preview change.
 Amount/visibility follow-up: the range now reaches 50%, with an actual depth-span
 readout and unchanged stiffness. All 33 examples pass finite/height/depth-range
 checks at the maximum. Local overlap measurements explain why the supplied CP
-opens less than the frog despite similar overall depth. Strict flat-order slots
-were invalid for arbitrary 3D overlaps: they now apply only in Diagram. The 3D
-policy uses geometric depth and bounded layer tie correction, with a matching
-BSP vector path. This fixes the oblique forced-order artifact, while physical
-mesh crossings remain a documented limitation. All 103 focused tests, web lint
-and typecheck pass; native/oracle/production checks remain out of scope.
+opens less than the frog despite similar overall depth. The initial change to
+raw depth with a bounded tie bias in 3D was rejected because it removed buried
+layer protection. The local-facing follow-up below replaces that policy.
+
+Local-facing follow-up: strict protection applies in both 3D cameras again.
+Source triangle planes choose forward/reversed masks, including for all ink.
+Camera-dependent topological ordering preserves known stacks while ordering
+unrelated blocks by depth. Woven/patch spans stay together; protected opposite
+facing groups use geometric occlusion. The matching vector experiment masks
+coverage before BSP sorting. Geometry and graph preparation stay cached.
+All 106 focused tests, web lint and typecheck pass. All 33 examples retain every
+tested stack relation across six camera inclinations and both side plans, with
+finite source planes and paint geometry. Maximum warmed rank-update time is
+1.49 ms per side on this machine (not a GPU frame-time measurement). Browser
+checks cover the frog at 143°/86°/50% and 143°/45°/15%, plus LDM in perspective
+and underneath. The preview remains available on port 5281. Native/oracle and
+production build checks remain unnecessary for this local renderer-only change.

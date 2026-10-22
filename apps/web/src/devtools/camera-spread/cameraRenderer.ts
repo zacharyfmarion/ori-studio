@@ -8,6 +8,9 @@ import {
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import { transposeMat3 } from '@treemaker/origami-simulator';
 import { cameraSpreadTransform } from '../../cp-workspace/folded/cameraSpreadCamera';
+import { createCameraDepthMask } from './cameraDepthMask';
+import { createCameraRankMap } from './cameraRankMap';
+import { cameraPaintRanks } from '../../cp-workspace/folded/cameraSpreadOrder';
 
 const VERTEX = `#version 300 es
 precision highp float;
@@ -15,10 +18,13 @@ in vec3 position;
 in vec3 other;
 in float side;
 in vec3 paint;
+in vec4 plane;
 flat out vec3 style;
+flat out float backFacing;
 uniform float amount, mode, aspect, zoom, layerMode, slots, showWire;
 uniform mat3 camera;
 uniform vec2 centre, pan, pixels;
+uniform sampler2D rankMap;
 vec4 project(vec3 p) {
   vec3 view=camera*vec3(p.xy-centre,p.z*amount);
   vec2 screen=view.xy;
@@ -31,13 +37,18 @@ vec4 project(vec3 p) {
 void main(){
   vec4 p=project(position);
   style=paint;
-  if(layerMode>1.5) {
-    // Diagram only: disjoint depth slots preserve the flat drawing's stack.
+  int item=int(paint.x);
+  style.x=texelFetch(rankMap,ivec2(item%256,item/256),0).r;
+  // Use the source surface's +Z plane, including for line quads and woven
+  // patches. gl_FrontFacing encodes paper colour, not the side of the stack.
+  vec3 normal=vec3(plane.xy*amount,plane.z);
+  float facing=dot(normal,vec3(camera[0][2],camera[1][2],camera[2][2]));
+  if(mode>1.5) facing=2.5*facing+dot(normal.xy,centre)+plane.w*amount;
+  backFacing=mode>.5 && facing<0. ? 1. : 0.;
+  if(layerMode>.5 && layerMode<1.5) {
+    // Disjoint slots protect layers even if the approximate lift intersects.
     float within=clamp(-p.z/p.w,-1.,1.)*.2;
-    p.z=(1.-2.*(paint.x+.5+within)/slots)*p.w;
-  } else if(layerMode>.5) {
-    // Orbit views: a tiny tie bias, never entire layers overriding real depth.
-    p.z-=0.00001*(paint.x+.5)/slots*p.w;
+    p.z=(1.-2.*(style.x+.5+within)/slots)*p.w;
   }
   if(paint.y>0.5){
     vec4 b=project(other);
@@ -45,17 +56,27 @@ void main(){
     float len=length(d);
     vec2 n=len>0.00001?vec2(-d.y,d.x)/len:vec2(0.0);
     p.xy+=n*side*(paint.y>1.5 && paint.y<2.5 ? .65 : 1.1)/pixels*p.w;
-    p.z-=(layerMode>1.5 ? .05/slots : layerMode>.5 ? .000001/slots : .0000001)*p.w;
+    p.z-=(layerMode>.5 && layerMode<1.5 ? .05/slots : .0000001)*p.w;
   }
   gl_Position=p;
 }`;
 const FRAGMENT = `#version 300 es
 precision highp float;
 flat in vec3 style;
-uniform float layerMode, showWire;
+flat in float backFacing;
+uniform float layerMode, showWire, backPlan, slots;
+uniform sampler2D layerMask;
 out vec4 color;
 void main(){
   if(layerMode<.5 && style.z>.5) discard;
+  if(layerMode>.5 && backFacing!=backPlan) discard;
+  if(layerMode>1.5) {
+    // Only the protected winner on this side may participate in the final
+    // geometric depth comparison with surfaces facing the opposite way.
+    float depth=texelFetch(layerMask,ivec2(gl_FragCoord.xy),0).r;
+    float rank=floor((1.-depth)*slots);
+    if(abs(rank-style.x)>.25) discard;
+  }
   if(style.y>2.5 && showWire<.5) discard;
   color=style.y>2.5 ? vec4(.65,.22,.50,1.) :
     style.y>1.5 ? vec4(.63,.65,.68,1.) :
@@ -92,7 +113,7 @@ export function createCameraRenderer(
   gl.useProgram(program);
   const buffer = (plan: CameraPaintPlan) => {
     const data: number[] = [];
-    const line = (a: number[], b: number[], rank: number, ink: number, patch: number) => {
+    const line = (a: number[], b: number[], rank: number, ink: number, patch: number, plane: number[]) => {
       for (const [end, sign] of [
         [0, 1],
         [1, -1],
@@ -101,37 +122,40 @@ export function createCameraRenderer(
         [1, -1],
         [1, 1],
       ])
-        data.push(...(end === 0 ? a : b), ...(end === 0 ? b : a), sign!, rank, ink, patch);
+        data.push(...(end === 0 ? a : b), ...(end === 0 ? b : a), sign!, rank, ink, patch, ...plane);
     };
     for (const piece of plan.pieces) {
-      const { rank, points, face } = piece;
+      const { rank, points, face, plane } = piece;
       const patch = Number(piece.patch);
       if (piece.kind === 'line') {
-        line(points[0]!, points[1]!, rank, piece.role === 'aux' ? 2 : 1, patch);
+        line(points[0]!, points[1]!, rank, piece.role === 'aux' ? 2 : 1, patch, plane);
       } else {
         const [a, b, c] = points;
         const cross = (b![0] - a![0]) * (c![1] - a![1]) - (b![1] - a![1]) * (c![0] - a![0]);
         const ordered = cross < 0 !== kernel.faces[face]!.front_up ? [a!, c!, b!] : points;
-        for (const p of ordered) data.push(...p, 0, 0, 0, 0, rank, 0, patch);
+        for (const p of ordered) data.push(...p, 0, 0, 0, 0, rank, 0, patch, ...plane);
         // Overlay remains in its face's depth slot, beneath every covering face.
-        for (let i = 0; i < 3; i++) line(points[i]!, points[(i + 1) % 3]!, rank, 3, patch);
+        for (let i = 0; i < 3; i++) line(points[i]!, points[(i + 1) % 3]!, rank, 3, patch, plane);
       }
     }
     const b = gl.createBuffer();
     if (!b) throw new Error('Could not allocate camera buffer');
     gl.bindBuffer(gl.ARRAY_BUFFER, b);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
-    return { buffer: b, count: data.length / 10, slots: plan.slots };
+    return { buffer: b, count: data.length / 14, slots: plan.slots };
   };
   const buffers = [buffer(plans.front), buffer(plans.back)];
-  const attributes = ['position', 'other', 'side', 'paint'].map((name) =>
+  const masks = [createCameraDepthMask(gl), createCameraDepthMask(gl)];
+  const rankMaps = buffers.map((b) => createCameraRankMap(gl, b.slots));
+  gl.uniform1i(gl.getUniformLocation(program, 'rankMap'), 1);
+  const attributes = ['position', 'other', 'side', 'paint', 'plane'].map((name) =>
     gl.getAttribLocation(program, name)
   );
   const bind = (index: number) => {
     gl.bindBuffer(gl.ARRAY_BUFFER, buffers[index]!.buffer);
-    [3, 3, 1, 3].forEach((size, i) => {
+    [3, 3, 1, 3, 4].forEach((size, i) => {
       gl.enableVertexAttribArray(attributes[i]!);
-      gl.vertexAttribPointer(attributes[i]!, size, gl.FLOAT, false, 40, [0, 12, 24, 28][i]!);
+      gl.vertexAttribPointer(attributes[i]!, size, gl.FLOAT, false, 56, [0, 12, 24, 28, 40][i]!);
     });
   };
   const uniform = (name: string, value: number) => gl.uniform1f(gl.getUniformLocation(program, name), value);
@@ -147,28 +171,62 @@ export function createCameraRenderer(
   return {
     draw(options: CameraSpreadOptions, zoom = 1, showWire = false, pan: [number, number] = [0, 0]) {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = Math.round(canvas.clientWidth * dpr);
-      canvas.height = Math.round(canvas.clientHeight * dpr);
+      const width = Math.round(canvas.clientWidth * dpr),
+        height = Math.round(canvas.clientHeight * dpr);
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clearColor(1, 1, 1, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       const frame = cameraSpreadTransform(options);
-      const index = frame[8] < 0 ? 1 : 0;
       uniform('amount', options.amount);
       gl.uniformMatrix3fv(gl.getUniformLocation(program, 'camera'), false, transposeMat3(frame));
       uniform('mode', ['diagram', 'orthographic', 'perspective'].indexOf(options.projection));
       uniform('aspect', canvas.width / canvas.height);
       uniform('zoom', 1.45 * zoom);
-      uniform('layerMode', { depth: 0, ties: 1, layers: 2 }[cameraSpreadVisibilityMode(options)]);
-      uniform('slots', buffers[index]!.slots);
+      const layers = cameraSpreadVisibilityMode(options) === 'layers';
+      [plans.front, plans.back].forEach((plan, index) => {
+        rankMaps[index]!.update(cameraPaintRanks(mesh, kernel, plan, !!index, options, frame));
+      });
+      uniform('layerMode', Number(layers));
+      uniform('slots', plans.front.slots);
       uniform('showWire', Number(showWire));
       gl.uniform2f(gl.getUniformLocation(program, 'pixels'), canvas.width / 2, canvas.height / 2);
       gl.uniform2f(gl.getUniformLocation(program, 'pan'), pan[0], pan[1]);
-      bind(index);
-      gl.drawArrays(gl.TRIANGLES, 0, buffers[index]!.count);
+      const drawPlan = (index: number) => {
+        rankMaps[index]!.bind();
+        uniform('slots', buffers[index]!.slots);
+        uniform('backPlan', index);
+        bind(index);
+        gl.drawArrays(gl.TRIANGLES, 0, buffers[index]!.count);
+      };
+      if (layers && options.projection !== 'diagram') {
+        // Protect each local-facing stack separately, then compare its winning
+        // surface geometrically with the opposite-facing stack. Interleaving
+        // unrelated front/back ranks would let a distant back face overpaint
+        // a near front face even after reversing it.
+        for (const index of [0, 1]) {
+          masks[index]!.bind(width, height);
+          gl.clear(gl.DEPTH_BUFFER_BIT);
+          drawPlan(index);
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        uniform('layerMode', 2);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.uniform1i(gl.getUniformLocation(program, 'layerMask'), 0);
+        for (const index of [0, 1]) {
+          gl.bindTexture(gl.TEXTURE_2D, masks[index]!.texture);
+          drawPlan(index);
+        }
+        gl.bindTexture(gl.TEXTURE_2D, null);
+      } else {
+        drawPlan(layers || frame[8] >= 0 ? 0 : 1);
+      }
     },
     dispose() {
       buffers.forEach((b) => gl.deleteBuffer(b.buffer));
+      masks.forEach((mask) => mask.dispose());
+      rankMaps.forEach((map) => map.dispose());
       gl.deleteProgram(program);
       gl.deleteShader(vs);
       gl.deleteShader(fs);

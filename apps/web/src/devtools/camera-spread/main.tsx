@@ -436,12 +436,10 @@ function App() {
           </div>
           <p className={styles.notice}>
             {visibilityMode === 'depth'
-              ? 'Raw depth shows the approximate 3D surfaces without layer tie correction.'
-              : visibilityMode === 'ties'
-                ? '3D views follow surface depth. Layer order resolves nearly coplanar overlaps; it does not force distant surfaces in front of nearer ones.'
-                : 'Diagram views preserve the solved layer order, including local woven patches. Buried surfaces and ink stay behind their covering layers.'}{' '}
-            The connected mesh can still stretch and intersect. Those intersections remain visible in 3D;
-            strict diagram clipping does not repair the physical fit.
+              ? 'Raw depth shows the approximate 3D surfaces without layer protection.'
+              : 'Buried surfaces and ink stay behind their covering layers. In 3D, each lifted surface reverses its stacking order when viewed from behind.'}{' '}
+            The connected mesh can still stretch and intersect; visibility clipping does not repair the
+            physical fit.
           </p>
           <details className={styles.details}>
             <summary>What to look for</summary>
@@ -502,9 +500,7 @@ function App() {
               value={options.visibility ?? 'layers'}
               onChange={(e) => set('visibility', e.target.value as 'layers' | 'depth')}
             >
-              <option value="layers">
-                {options.projection === 'diagram' ? 'Preserve layer order' : '3D depth · resolve layer ties'}
-              </option>
+              <option value="layers">Preserve layer order</option>
               <option value="depth">Raw 3D depth · diagnose crossings</option>
             </select>
           </label>

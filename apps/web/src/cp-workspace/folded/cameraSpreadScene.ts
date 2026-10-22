@@ -4,7 +4,14 @@ import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes'
 import type { PaperItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import { foldedFlatPaperScene } from './foldedFlatScene';
 import { cameraSpreadLift, type CameraSpreadLift } from './cameraSpreadLift';
-import { cameraPaintPlans, type CameraPaintPlan } from './cameraSpreadVisibility';
+import {
+  cameraPaintPlans,
+  cameraPaintGroupsForView,
+  type CameraPaintPiece,
+  type CameraPaintPlan,
+} from './cameraSpreadVisibility';
+import { maskCameraPaintGroup } from './cameraSpreadMask';
+import { cameraPaintRanks } from './cameraSpreadOrder';
 import { cameraSpreadTransform, type CameraSpreadPose } from './cameraSpreadCamera';
 
 /** Research control range; not a physical paper-strain guarantee. */
@@ -14,16 +21,15 @@ export interface CameraSpreadOptions extends CameraSpreadPose {
   /** Total depth bound as a fraction of original folded extent. */
   amount: number;
   projection: 'diagram' | 'orthographic' | 'perspective';
-  /** Strict layers in Diagram; geometric depth with layer ties in 3D. */
+  /** Strict layers with local facing reversal, or diagnostic geometric depth. */
   visibility?: 'layers' | 'depth';
 }
 
-/** A flat stacking order cannot override geometric occlusion during a 3D orbit. */
+/** Protect buried layers in every camera mode unless raw depth is requested. */
 export function cameraSpreadVisibilityMode(
   options: Pick<CameraSpreadOptions, 'projection' | 'visibility'>
-): 'layers' | 'ties' | 'depth' {
-  if (options.visibility === 'depth') return 'depth';
-  return options.projection === 'diagram' ? 'layers' : 'ties';
+): 'layers' | 'depth' {
+  return options.visibility ?? 'layers';
 }
 interface FaceStyle {
   face: number;
@@ -37,18 +43,16 @@ interface PreparedDrawing {
   tree: ReturnType<typeof buildBsp>;
   faces: FaceStyle[];
   edges: EdgeStyle[];
-  centre: ScenePoint;
 }
-const drawings = new WeakMap<CameraPaintPlan, Partial<Record<'ties' | 'depth', PreparedDrawing>>>();
+const drawings = new WeakMap<CameraPaintPlan, PreparedDrawing>();
 
 function drawing(
   mesh: CameraSpreadLift,
   kernel: OristudioCpFoldedPaperScene,
   plan: CameraPaintPlan,
-  mode: 'ties' | 'depth'
+  masked?: CameraPaintPiece[]
 ): PreparedDrawing {
-  const cached = drawings.get(plan) ?? {};
-  const held = cached[mode];
+  const held = masked ? undefined : drawings.get(plan);
   if (held) return held;
   // Bent panels produce many BSP splits. The live explorer uses GPU visibility;
   // this experimental vector path refuses large meshes rather than freezing UI.
@@ -58,16 +62,14 @@ function drawing(
   const items: BspItem[] = [];
   const faces: FaceStyle[] = [];
   const edges: EdgeStyle[] = [];
-  // Reuse the GPU's clipped triangles/ink. Local woven patches only resolve
-  // coplanar ties here: a BSP orders separated pieces by their actual surface.
-  for (const piece of plan.pieces) {
-    if (mode === 'depth' && piece.patch) continue;
+  // Diagnostic raw depth reuses the GPU's clipped triangles and ink.
+  for (const piece of masked ?? plan.pieces) {
+    if (!masked && piece.patch) continue;
     if (piece.kind === 'face') {
-      const [a, b, c] = piece.points as [Vec3, Vec3, Vec3];
       faces.push({
         face: piece.face,
         front: kernel.faces[piece.face]!.front_up,
-        orientation: Math.sign(area(a, b, c)),
+        orientation: Math.sign(polygonArea(piece.points.map((p) => [p[0], p[1]]))),
       });
       items.push({ kind: 0, ref: faces.length - 1, points: piece.points, order: piece.rank });
     } else {
@@ -75,20 +77,12 @@ function drawing(
       items.push({ kind: 1, ref: edges.length - 1, points: piece.points, order: piece.rank });
     }
   }
-  const xs = mesh.xy.map((p) => p.x);
-  const ys = mesh.xy.map((p) => p.y);
-  const centre: ScenePoint = [
-    (Math.min(...xs) + Math.max(...xs)) / 2,
-    (Math.min(...ys) + Math.max(...ys)) / 2,
-  ];
   const result = {
     tree: buildBsp(items, { coplanarEps: 1e-9, orderBeforeKind: true }),
     faces,
     edges,
-    centre,
   };
-  cached[mode] = result;
-  drawings.set(plan, cached);
+  if (!masked) drawings.set(plan, result);
   return result;
 }
 
@@ -117,14 +111,11 @@ export function cameraSpreadScene(
   // inverse-height transform (which would put the BSP eye at infinity).
   const frame = cameraSpreadTransform(options);
   const mode = cameraSpreadVisibilityMode(options);
-  const plan = cameraPaintPlans(mesh, kernel)[frame[8] < 0 ? 'back' : 'front'];
-  const prepared = amount > 0 && mode !== 'layers' ? drawing(mesh, kernel, plan, mode) : null;
+  const plans = cameraPaintPlans(mesh, kernel);
+  const plan = plans[frame[8] < 0 ? 'back' : 'front'];
   const xs = mesh.xy.map((p) => p.x),
     ys = mesh.xy.map((p) => p.y);
-  const [cx, cy] = prepared?.centre ?? [
-    (Math.min(...xs) + Math.max(...xs)) / 2,
-    (Math.min(...ys) + Math.max(...ys)) / 2,
-  ];
+  const [cx, cy] = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
   // Inverse of the depth scaling maps the eye into the cached BSP's frame.
   const distance = projection === 'perspective' ? 2.5 : 1e8;
   const eye: Vec3 = [
@@ -132,27 +123,53 @@ export function cameraSpreadScene(
     cy + distance * frame[7],
     (distance * frame[8]) / (amount || 1),
   ];
-  const project = ([x, y, height]: Vec3): ScenePoint => {
+  const homogeneous = ([x, y, height]: Vec3, basis = frame): Vec3 => {
     const px = x - cx;
     const py = y - cy;
     const z = height * amount;
-    const horizontal = frame[0] * px + frame[1] * py + frame[2] * z;
-    const vertical = frame[3] * px + frame[4] * py + frame[5] * z;
-    const depth = frame[6] * px + frame[7] * py + frame[8] * z;
-    const factor = projection === 'perspective' ? distance / (distance - depth) : 1;
+    const horizontal = basis[0] * px + basis[1] * py + basis[2] * z;
+    const vertical = basis[3] * px + basis[4] * py + basis[5] * z;
+    const depth = basis[6] * px + basis[7] * py + basis[8] * z;
+    return [horizontal, vertical, projection === 'perspective' ? (distance - depth) / distance : 1];
+  };
+  const project = (point: Vec3): ScenePoint => {
+    const [horizontal, vertical, w] = homogeneous(point);
     return [
-      mesh.origin.x + mesh.size * (cx + horizontal * factor),
-      mesh.origin.y + mesh.size * (cy + vertical * factor),
+      mesh.origin.x + mesh.size * (cx + horizontal / w),
+      mesh.origin.y + mesh.size * (cy + vertical / w),
     ];
   };
+  const groups = cameraPaintGroupsForView(plans, options, frame, [cx, cy]).map((pieces, i) => {
+    const ranks = cameraPaintRanks(mesh, kernel, i ? plans.back : plans.front, !!i, options, frame);
+    return pieces.map((piece) => ({ ...piece, rank: ranks[piece.rank]! })).sort((a, b) => a.rank - b.rank);
+  });
+  const pieces = groups.flat();
+  // Diagram keeps the original painter plan. For orbit views, mask each side's
+  // buried geometry first, then BSP-order only the protected survivors. Thus
+  // real depth can compare opposite-facing surfaces but cannot resurrect a
+  // lower layer in a stack. This mirrors the live GPU's two depth masks.
+  const unrolled = cameraSpreadTransform({ ...options, rollDeg: 0 });
+  if (amount > 0 && projection !== 'diagram' && mesh.triangles.length > 2000)
+    throw new Error('Experimental camera vector projection exceeds its 2,000-triangle budget');
+  const prepared =
+    amount > 0 && (mode === 'depth' || projection !== 'diagram')
+      ? drawing(
+          mesh,
+          kernel,
+          plan,
+          mode === 'layers'
+            ? groups.flatMap((group) => maskCameraPaintGroup(group, (p) => homogeneous(p, unrolled)))
+            : undefined
+        )
+      : null;
   const ordered = prepared
     ? traverseBsp(prepared.tree, eye)
-    : plan!.pieces.map((p, ref) => ({ kind: p.kind === 'face' ? 0 : 1, ref, points: p.points }));
+    : pieces.map((p, ref) => ({ kind: p.kind === 'face' ? 0 : 1, ref, points: p.points }));
   const items: PaperItem[] = [];
   for (const piece of ordered) {
     const points = piece.points.map(project);
     if (piece.kind === 0) {
-      const p = plan?.pieces[piece.ref];
+      const p = pieces[piece.ref];
       const style = prepared
         ? prepared.faces[piece.ref]!
         : {
@@ -174,7 +191,7 @@ export function cameraSpreadScene(
     } else {
       items.push({
         kind: 'line',
-        role: prepared ? prepared.edges[piece.ref]!.role : plan!.pieces[piece.ref]!.role!,
+        role: prepared ? prepared.edges[piece.ref]!.role : pieces[piece.ref]!.role!,
         a: points[0]!,
         b: points[1]!,
         onBoundary: [false, false],
