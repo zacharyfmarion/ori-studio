@@ -9,6 +9,7 @@ import {
 } from '../../analytics';
 import { handleMenuAction, type MenuActionId } from '../../commands/menuActions';
 import type { ContextMenuItem } from '../../components/ui/contextMenuTypes';
+import { isShortcutEditingTarget } from '../../keyboard/shortcutDispatcher';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { topmostModalDialog } from '../../components/ui/useModalDialog';
 import { focusCommandDialog } from '../../store/commandDialogStore';
@@ -136,6 +137,7 @@ export function useContextMenuController(
 ): ContextMenuController {
   const { t } = useTranslation();
   const [state, setState] = useState<ContextMenuState | null>(null);
+  const open = state !== null;
   const deferFocusRef = useRef(false);
   const returnFocusToRef = useRef(options.returnFocusTo);
   useEffect(() => {
@@ -144,6 +146,17 @@ export function useContextMenuController(
   // Subscribed, not read imperatively: a rebind has to change the hints on the
   // *next* menu, and the store is the only thing that says a rebind happened.
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
+
+  useEffect(() => {
+    if (!open) return;
+    // On Windows, contextmenu arrives after pointerup opens the menu. Radix's
+    // modal layer can retarget it to <html>, past the canvas's own listener.
+    const onContextMenu = (event: MouseEvent) => {
+      if (!isShortcutEditingTarget(event.target)) event.preventDefault();
+    };
+    document.addEventListener('contextmenu', onContextMenu, true);
+    return () => document.removeEventListener('contextmenu', onContextMenu, true);
+  }, [open]);
 
   const actionContext = useCallback(
     (): ContextMenuActionContext => ({
@@ -221,7 +234,7 @@ export function useContextMenuController(
 
   return useMemo(
     () => ({
-      open: state !== null,
+      open,
       x: state?.x ?? 0,
       y: state?.y ?? 0,
       items: state?.items ?? [],
@@ -232,6 +245,6 @@ export function useContextMenuController(
       onCloseAutoFocus,
       deferFocus,
     }),
-    [state, request, close, onOpenChange, actionContext, onCloseAutoFocus, deferFocus]
+    [open, state, request, close, onOpenChange, actionContext, onCloseAutoFocus, deferFocus]
   );
 }
