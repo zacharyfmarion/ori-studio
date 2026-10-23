@@ -18,6 +18,7 @@ import { IconButton } from '../components/ui/IconButton';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import { useSimulateSelection } from './inlineSimulation/useSimulateSelection';
+import { foldCreases } from './folded/foldedFigureVerbs';
 import { selectionCoversEntireCp, useOpenReferences } from './references/useOpenReferences';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
@@ -88,7 +89,6 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const { t } = useTranslation();
   const selection = useWorkspaceStore((s) => s.oristudioCpSelection);
   const cpDocument = useWorkspaceStore((s) => s.oristudioCpDocument?.document ?? null);
-  const foldOristudioCpDocument = useWorkspaceStore((s) => s.foldOristudioCpDocument);
   const exportSheet = useWorkspaceStore((s) => s.exportOristudioCpSheet);
   const simulateSheet = useWorkspaceStore((s) => s.simulateOristudioCpSheet);
   const shareSheet = useWorkspaceStore((s) => s.shareOristudioCpSheet);
@@ -178,9 +178,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         size="sm"
         variant="toolbar"
         title={t('panels:creasePattern.selectionToolbar.fold', 'Fold')}
-        onClick={() =>
-          runAndDismiss(() => void foldOristudioCpDocument({ lineIds: [...cpLineIds] }))
-        }
+        onClick={() => runAndDismiss(() => void foldCreases(cpLineIds, t))}
       >
         <Origami size={14} />
       </IconButton>
