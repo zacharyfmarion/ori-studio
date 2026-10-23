@@ -55,6 +55,9 @@ for Zach to validate before making this the default diagram spread.
 
 ## Result and remaining product work
 
+The production integration is specified in [Default camera spread in production](camera-spread-production.md),
+including the Default choice, shared 3D controls, persistence, vector capture and annotation mapping.
+
 32/32 sampled corpus folds succeeded; 86 targeted geometry/style tests, web
 lint and web typecheck passed. The interactive explorer is running on port 5281.
 The experiment found withheld layer-order failures in every sampled lift and
