@@ -23,7 +23,7 @@ try {
       const [{ cameraSpreadLift }, { cameraPaintPlans }, { createCameraRenderer }] = await Promise.all([
         import('/src/cp-workspace/folded/cameraSpreadLift.ts'),
         import('/src/cp-workspace/folded/cameraSpreadVisibility.ts'),
-        import('/src/devtools/camera-spread/cameraRenderer.ts'),
+        import('/src/cp-workspace/folded/cameraSpreadRenderer.ts'),
       ]);
       const outline = [[0, 0], [1, 0.2], [0.8, 1], [0.2, 0.8]].map(([x, y]) => ({ x, y }));
       const kernel = {

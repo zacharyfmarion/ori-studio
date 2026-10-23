@@ -1,9 +1,10 @@
-# Camera spread research explorer
+# Camera spread explorer and production validation
 
-A local, unshipped research entry, like `start-figure-tuner.html`. It compares
-Ori Studio's current flat/depth/affine drawings with a shared-vertex height lift
-and layer-ordered camera projection. It does **not** change Diagram's default.
-See `research/2026-10-21-camera-spread.md` for the findings and production design.
+The local research entry remains unshipped, like `start-figure-tuner.html`. Its
+renderer is now shared with production's **Default** Diagram spread. The explorer
+compares flat/depth/affine drawings with the connected lift and exposes diagnostics
+that production does not. See `implementation-plans/camera-spread-production.md`
+for integration decisions, validation and measured performance limits.
 
 From the worktree root:
 
@@ -72,9 +73,10 @@ The displayed timing is CPU draw submission, **not GPU completion or FPS**.
 The original/legacy comparison is drawn through the existing PaperScene producer.
 Front/back visibility plans also prepare in the worker, including local patches
 for woven folds and auxiliary ink split along bending triangles. The layer-ordered
-vector path uses the same pieces and masks each facing group before BSP sorting;
-positive-depth vector paths have a 2,000-triangle budget, plus a 50,000-fragment masking cap.
-These are research adapters, not production exports. The flat paint plan does
+vector path uses the same pieces and spatially indexed clipping for layer and
+geometric visibility. The production capture worker compacts clipped fragments
+and stores the full source mapping for annotations. Work is bounded to 30 million
+clipping operations and 250,000 fragments; failures retain the last saved picture. The flat paint plan does
 not represent every buried order in a woven component, so newly exposed woven
 regions at large distortions still require visual review.
 
@@ -119,3 +121,38 @@ npm --workspace @treemaker/web run typecheck --ignore-scripts
 
 The last command assumes all generated bindings have been rebuilt from the
 current checkout; use the ordinary typecheck entry with hooks on a fresh setup.
+
+
+Production capture and review (after preparing the ignored corpus above):
+
+```sh
+node scripts/camera-spread/check-capture.mjs
+node scripts/camera-spread/production-review.mjs
+CAMERA_SPREAD_DPR=2 node scripts/camera-spread/production-review.mjs
+# Rebuild only the gallery controls from existing captures:
+node scripts/camera-spread/production-gallery.mjs
+```
+
+Open `/src/generated/camera-spread/production/index.html`. It compares the live
+worker bitmap with the vector picture after storage and file reopening, with
+model/view/DPR filters, settings and SVG links. The historical before/after
+gallery is linked from it. `CAMERA_SPREAD_MODEL=<id-fragment>` and
+`CAMERA_SPREAD_VIEW=<view-id>` narrow a review run; a narrowed run replaces that
+DPR's report, so rerun without filters for the complete gallery.
+
+Benchmark the production worker separately from builds/tests to avoid resource
+contention. This records bitmap RPC completion and compositor presentation
+separately, cold preparation, available JS heap and a main-thread heartbeat.
+Presentation includes two animation frames; it is not hardware input-to-photon
+or a GPU timer measurement. Results go under ignored `performance/`.
+
+```sh
+CAMERA_SPREAD_BENCH=local node scripts/camera-spread/benchmark-production.mjs
+CAMERA_SPREAD_BENCH=local CAMERA_SPREAD_BROWSER=webkit node scripts/camera-spread/benchmark-production.mjs
+```
+
+Use the simulator package's camera tests and the full web suite for the shared
+orbit/pan/cube, persistence, capture, annotation and export contracts. Node 26
+needs `NODE_OPTIONS=--no-experimental-webstorage` when running Vitest without a
+storage file. Actual compositor pixel tests above remain necessary: jsdom does
+not supply a WebGL canvas.

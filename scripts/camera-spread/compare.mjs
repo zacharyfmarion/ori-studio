@@ -114,7 +114,7 @@ try {
       const [{ cameraSpreadLift }, { cameraPaintPlans }, { createCameraRenderer }] = await Promise.all([
         import('/src/cp-workspace/folded/cameraSpreadLift.ts'),
         import('/src/cp-workspace/folded/cameraSpreadVisibility.ts'),
-        import('/src/devtools/camera-spread/cameraRenderer.ts'),
+        import('/src/cp-workspace/folded/cameraSpreadRenderer.ts'),
       ]);
       window.captureRenderer?.dispose();
       const { scene } = await (await fetch(`/src/generated/camera-spread/${id}.json`)).json();
