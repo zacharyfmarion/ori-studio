@@ -20,13 +20,18 @@
 //! ordering and grouping passes ([`order`]) and the driver that runs them and
 //! emits the wire shape ([`planner`], [`sequence`]).
 //!
+//! The geometry under both halves — [`tol`], [`line`](mod@line), [`pointgrid`],
+//! [`frame`], [`sheet`], [`outline`] and [`construct`] — is
+//! `oristudio-geometry`'s, shared with the Fold engine and re-exported here.
+//!
 //! # Licensing tiers
 //!
-//! The crate is original work under `MIT OR Apache-2.0`. It has no dependency
-//! edge to the TreeMaker port (`treemaker-*`, GPL) and links no ReferenceFinder
-//! code; ReferenceFinder's answers reach the planner as JSON from a separate
-//! worker at runtime. Three tiers describe exactly what the crate takes from
-//! Robert J. Lang's ReferenceFinder (plan decision D3):
+//! The crate is original work under `MIT OR Apache-2.0`. Its one workspace
+//! dependency, `oristudio-geometry`, is original work under the same terms. It
+//! has no dependency edge to the TreeMaker port (`treemaker-*`, GPL) and links
+//! no ReferenceFinder code; ReferenceFinder's answers reach the planner as
+//! JSON from a separate worker at runtime. Three tiers describe exactly what
+//! the crate takes from Robert J. Lang's ReferenceFinder (plan decision D3):
 //!
 //! 1. **Behavioural constants and heuristic definitions adopted as facts**,
 //!    declared in [`constants`]: the crossing-angle conditioning floor
@@ -46,7 +51,9 @@
 //!    common-tangent cubic — written from the definitions, with their
 //!    validity filters re-derived from one principle (*a fold must align
 //!    in-paper material*), not from any implementation. [`construct`] states
-//!    each axiom as an alignment condition and solves it.
+//!    each axiom as an alignment condition and solves it; it now lives in
+//!    `oristudio-geometry` (re-exported here), and its header carries this
+//!    tier and the next for the constructions.
 //! 3. **No expression copied from ReferenceFinder's `src/core` or
 //!    `src/app`.** The author has read `refLine*.cpp`, so this is not a clean
 //!    room; the permissive claim rests on that discipline plus the Node
@@ -69,38 +76,37 @@
 //! One epsilon, [`tol::TOL`], in unit-sheet units for positions and in
 //! radians for directions, plus [`tol::SNAP_RADIUS`] for the exactness probe.
 //! Line equality resolves the `(n, d) ~ (−n, −d)` identification at compare
-//! time, never by snapping components. See [`tol`] and [`line`].
+//! time, never by snapping components. See [`tol`] and [`line`](mod@line).
 
 pub mod candidates;
 pub mod clock;
 pub mod closure;
 pub mod components;
 pub mod constants;
-pub mod construct;
 pub mod direction;
 pub mod drive;
 pub mod error;
 pub mod exactness;
 pub mod fixture_io;
-pub mod frame;
 pub mod grid;
 pub mod judge;
 pub mod lattice;
-pub mod line;
 pub mod marks;
 pub mod merge;
 pub mod order;
-pub mod outline;
 pub mod pinch;
 pub mod planner;
-pub mod pointgrid;
 pub mod predicates;
 pub mod quality;
 pub mod sequence;
-pub mod sheet;
 pub mod state;
 pub mod stuck;
-pub mod tol;
+
+// The planner's geometry lives in `oristudio-geometry`, shared with the Fold
+// engine (plan D9 of `implementation-plans/fold-workspace.md`). Re-exported as
+// modules, so every `crate::line::Line`-style path and every wire shape is
+// what it was when they lived here.
+pub use oristudio_geometry::{construct, frame, line, outline, pointgrid, sheet, tol};
 
 pub use clock::{Clock, Deadline, default_clock};
 pub use closure::{CloseOutcome, Closure, FoldOutcome, FoldedLine, Target};

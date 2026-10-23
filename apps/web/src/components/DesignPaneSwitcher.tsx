@@ -1,21 +1,20 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeftRight, Check, Columns2, X } from 'lucide-react';
+import { Check, Columns2, X } from 'lucide-react';
 import { useDesignPaneSwitcher, type DesignPaneOption } from '../hooks/useDesignPaneSwitcher';
 import { SheetPortal } from './SheetLayer';
-import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { PanePill, PaneToggle } from './ui/PaneToggle';
 import { useSheetEscape } from './ui/useSheetEscape';
+import styles from './DesignPaneSwitcher.module.css';
 
 /**
  * Moving between a design's panes, on a phone.
  *
  * Two shapes, because the kinds are two shapes. Box-pleat and ExplOri declare
- * exactly two panes, and for two the pill *is* the switch: it is labelled with
- * the one you are not looking at, so getting there is one tap and the label says
- * where it goes. TreeMaker declares four (its canvas plus the Inspector /
- * Diagnostics / Conditions column), which no toggle can express, so that one
- * opens a list.
+ * exactly two panes, and for two the pill *is* the switch ({@link PaneToggle}).
+ * TreeMaker declares four (its canvas plus the Inspector / Diagnostics /
+ * Conditions column), which no toggle can express, so that one opens a list.
  *
  * A pill in `CanvasPillLane` rather than a row of its own. A segmented control
  * under the design tab strip was the obvious answer and costs ~44pt of a screen
@@ -31,34 +30,21 @@ import { useSheetEscape } from './ui/useSheetEscape';
 export function DesignPaneSwitcher() {
   const { panes, active, floating, show } = useDesignPaneSwitcher();
   if (!floating || !panes || !active || panes.length < 2) return null;
-  if (panes.length === 2) return <PaneToggle panes={panes} active={active} show={show} />;
+  if (panes.length === 2) {
+    // Keyed by the panel component, which is what `show` and `activatePanel`
+    // are keyed on, rather than by the kind's own pane id.
+    return (
+      <PaneToggle
+        options={panes.map((pane) => ({ id: pane.component, title: pane.title }))}
+        active={active.component}
+        onShow={(component) => show(component, 'switcher')}
+      />
+    );
+  }
   return <PaneList panes={panes} active={active} show={show} />;
 }
 
 type Show = ReturnType<typeof useDesignPaneSwitcher>['show'];
-
-function PaneToggle({
-  panes,
-  active,
-  show,
-}: {
-  panes: DesignPaneOption[];
-  active: DesignPaneOption;
-  show: Show;
-}) {
-  const other = panes.find((pane) => pane.component !== active.component) ?? panes[0];
-  return (
-    <Button
-      size="md"
-      variant="secondary"
-      className="canvas-pill design-pane-switcher"
-      onClick={() => show(other.component, 'switcher')}
-    >
-      <ArrowLeftRight size={15} aria-hidden="true" />
-      {other.title}
-    </Button>
-  );
-}
 
 function PaneList({
   panes,
@@ -94,11 +80,8 @@ function PaneList({
 
   return (
     <>
-      <Button
+      <PanePill
         ref={triggerRef}
-        size="md"
-        variant="secondary"
-        className="canvas-pill design-pane-switcher"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={listId}
@@ -106,7 +89,7 @@ function PaneList({
       >
         <Columns2 size={15} aria-hidden="true" />
         {active.title}
-      </Button>
+      </PanePill>
       {/*
         Portaled for the reason every sheet in this lane is: the lane is
         `pointer-events: none` so the dock keeps taps that miss a pill, and it is
@@ -121,7 +104,7 @@ function PaneList({
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className="design-pane-sheet"
+            className={styles.backdrop}
             /* `click`, not `pointerdown`: dismissing on pointerdown unmounts the
                backdrop inside the same commit and the browser delivers the rest
                of the tap to whatever is newly underneath. Measured on an iPad —
@@ -132,11 +115,11 @@ function PaneList({
               ref={sheetRef}
               role="document"
               tabIndex={-1}
-              className="design-pane-sheet__sheet"
+              className={styles.sheet}
               onClick={(event) => event.stopPropagation()}
             >
-              <header className="design-pane-sheet__header">
-                <span className="design-pane-sheet__title">{title}</span>
+              <header className={styles.header}>
+                <span className={styles.title}>{title}</span>
                 <IconButton
                   size="sm"
                   aria-label={t('panels:design.paneSwitcher.close', 'Close pane list')}
@@ -145,12 +128,12 @@ function PaneList({
                   <X size={15} />
                 </IconButton>
               </header>
-              <ul className="design-pane-sheet__list">
+              <ul className={styles.list}>
                 {panes.map((pane) => (
                   <li key={pane.component}>
                     <button
                       type="button"
-                      className="design-pane-sheet__item"
+                      className={styles.item}
                       data-active={pane.component === active.component || undefined}
                       aria-current={pane.component === active.component ? 'true' : undefined}
                       onClick={() => {

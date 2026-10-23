@@ -1,0 +1,42 @@
+/*
+ * A modifier latch (LatchToggle.tsx): a touch stand-in for holding a key —
+ * Edit's Shift in the tool rail's touch header and the phone's tool sheet,
+ * Fold's Alt in its rail header and its phone header. It renders only under a
+ * coarse pointer, and its rules say so too.
+ *
+ * `button.latch`, not `.latch`: these override the shared `Button`'s global
+ * classes on the same element, and must win wherever the two stylesheets land
+ * in the cascade (docs/styling.md, "Moving a block into a module").
+ */
+@media (pointer: coarse) {
+  button.latch {
+    justify-content: flex-start;
+    gap: var(--space-2);
+    min-height: var(--touch-target);
+    padding-inline: var(--space-2);
+    text-align: left;
+  }
+
+  /* Across its row: a rail's touch header, a tool sheet. */
+  button.latch[data-fill] {
+    width: 100%;
+  }
+
+  /*
+   * The latch is a mode, and a mode that is on with nothing on screen saying so
+   * is how a user ends up adding to a selection they meant to replace. `ghost`
+   * gives `[data-active]` no fill of its own, so it gets one here — the accent
+   * edge and fill a pressed secondary button wears, which reads in the dark
+   * theme too, where a lighter fill vanished into the sheet.
+   *
+   * `:hover` too: a finger's tap leaves the button hovered, and the ghost
+   * button's hover fill (`.ui-button--ghost:hover:not(…)`, which outranks
+   * `button.latch[data-active]`) then hid the fill it had just turned on.
+   */
+  button.latch[data-active],
+  button.latch[data-active]:hover {
+    border-color: var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-tertiary));
+    color: var(--text-primary);
+  }
+}

@@ -1,0 +1,102 @@
+/*
+ * The list a design kind with more than two panes opens from its pill, on a
+ * phone (DesignPaneSwitcher.tsx; the pill is `ui/PaneToggle`'s `PanePill`).
+ * Every rule is under the coarse query, as the canvas lane's are — the
+ * switcher renders only in the phone layout, and the desktop stylesheet has
+ * nothing for it.
+ */
+@media (pointer: coarse) {
+  /*
+   * The pane list, for a kind with more than two. Bottom-anchored rather than
+   * centred: it is opened from a pill at the top of the screen with a thumb,
+   * and the rows should land where that thumb already is.
+   */
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+    background: var(--overlay-dim);
+    backdrop-filter: blur(4px);
+  }
+
+  .sheet {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-top: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-context-menu);
+    animation: sheetIn 0.18s ease-out;
+  }
+
+  .sheet:focus {
+    outline: none;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-primary);
+  }
+
+  .title {
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 750;
+  }
+
+  .list {
+    margin: 0;
+    padding: var(--space-2);
+    min-height: 0;
+    overflow-y: auto;
+    /* Reaching the end of the list must not start scrolling the app behind it. */
+    overscroll-behavior: contain;
+    list-style: none;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--touch-target);
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .item[data-active] {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+}
+
+@keyframes sheetIn {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* After the sheet's own rule, which it ties with. */
+@media (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: none;
+  }
+}

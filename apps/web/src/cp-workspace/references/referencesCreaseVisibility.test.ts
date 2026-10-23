@@ -12,7 +12,7 @@ import type { PrecreaseSequence, PrecreaseStep } from './precreaseSequence';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import type { StrokeGeometry } from '../renderer/types';
-import { canvasDiagramInk, canvasDiagramPens, diagramDashSlot } from './diagram/diagramInk';
+import { canvasDiagramInk, canvasDiagramPens, diagramDashSlot } from '../../lib/stepDiagram/diagramInk';
 import { applyCreaseVisibility } from './referencesViewGeometry';
 
 function step(id: number, cpLineIds: number[]): PrecreaseStep {

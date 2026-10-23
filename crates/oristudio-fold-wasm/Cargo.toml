@@ -1,0 +1,60 @@
+[package]
+name = "oristudio-fold-wasm"
+version.workspace = true
+publish.workspace = true
+edition.workspace = true
+# Not the workspace GPL default: this wrapper reaches `oristudio-fold` (with
+# its `kernel` feature), `oristudio-layer-order` and `oristudio-geometry`
+# (original work), and the ports `oristudio-cp` (Oriedita), `treemaker-flatfold`
+# (Flat-Folder) and `treemaker-fold`, all MIT OR Apache-2.0. Nothing it reaches
+# has a dependency edge to the TreeMaker port, so it carries the same
+# MIT OR Apache-2.0. See LICENSING.md.
+license = "MIT OR Apache-2.0"
+description = "wasm-bindgen package for Ori Studio's Fold workspace engine"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["origami", "folding", "wasm"]
+categories = ["wasm", "algorithms"]
+include = [
+    "Cargo.toml",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "README.md",
+    "src/**",
+    "tests/**",
+    "!pkg/**",
+]
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Plan D1: `oristudio-fold`'s `kernel` feature is on, so the browser reuses the
+# CP kernel's own loaders and writers — Import CP reads `.cp`, `.fold`, `.ori`
+# and `.orh` with them, and Send to Edit and the FOLD export write with them
+# (`src/io.rs`). README.md records what that costs against its budget.
+oristudio-fold = { path = "../oristudio-fold", features = ["kernel"] }
+# The order a held import's checking session shows (`io::imports`); also
+# the stacking cap `tests/stacking_corpus.rs` weighs real models against,
+# and the independent checker the session harness runs every order through.
+oristudio-layer-order = { path = "../oristudio-layer-order" }
+oristudio-cp.workspace = true
+oristudio-geometry = { path = "../oristudio-geometry" }
+treemaker-fold.workspace = true
+console_error_panic_hook.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde-wasm-bindgen.workspace = true
+thiserror.workspace = true
+wasm-bindgen.workspace = true
+
+[dev-dependencies]
+# `tests/io.rs`: the round trip through Send to Edit and Import CP over
+# seeded random states.
+oristudio-fold = { path = "../oristudio-fold", features = ["kernel", "random-sequences"] }
+serde_json.workspace = true
+wasm-bindgen-test.workspace = true

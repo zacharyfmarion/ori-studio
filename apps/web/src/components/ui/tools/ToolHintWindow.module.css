@@ -20,6 +20,12 @@
   transition: height var(--motion-duration) var(--motion-ease);
 }
 
+/* Capped: a third of the viewport, for a tool whose work is on the canvas
+   under it, so the paper stays in view while the window is open. */
+.window[data-height='capped'] {
+  max-height: min(36vh, 320px);
+}
+
 /* Collapsed the window is only its header, so a max-height meant for the open
    state would leave it able to grow. */
 .window[data-collapsed] {

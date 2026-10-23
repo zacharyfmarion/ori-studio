@@ -286,13 +286,981 @@
     "toolValleyArrow": "Seta de vale",
     "toolValleyLine": "Linha de vale",
     "toolWhiteArrow": "Seta branca",
-    "toolXRay": "Raio X"
+    "toolXRay": "Raio X",
+    "uncreasedLine": "Linha não vincada"
   },
   "divideMode": {
     "count": "Quantidade",
     "countTitle": "Dividir a linha em partes iguais",
     "ratio": "Proporção",
     "ratioTitle": "Dividir a linha por uma proporção"
+  },
+  "fold": {
+    "categoryLabel": "Espaço de dobra",
+    "chooser": {
+      "noKeys": {
+        "emergent": "Mais de um quarto vinco deixa estes vincos planos. Percorra-os.",
+        "opening": "A aba se abre de mais de um jeito: as camadas destacadas ficam juntas. Percorra-os.",
+        "order": "As camadas podem ficar empilhadas de mais de um jeito. Percorra-os.",
+        "pocket": "A ponta pode ser afundada em mais de um bolso entre suas camadas. Percorra-os.",
+        "ridge": "Qualquer uma das cristas deixa a dobra pivotante plana. Percorra-as.",
+        "root": "Este axioma dá mais de uma dobra aqui. Percorra-as.",
+        "target": "Mais de uma camada recebe o encaixe: a mais clara é a escolhida. Percorra-as."
+      },
+      "withKeys": {
+        "emergent": "Mais de um quarto vinco deixa estes vincos planos. Percorra-os ou pressione {{keys}}.",
+        "opening": "A aba se abre de mais de um jeito: as camadas destacadas ficam juntas. Percorra-os ou pressione {{keys}}.",
+        "order": "As camadas podem ficar empilhadas de mais de um jeito. Percorra-os ou pressione {{keys}}.",
+        "pocket": "A ponta pode ser afundada em mais de um bolso entre suas camadas. Percorra-os ou pressione {{keys}}.",
+        "ridge": "Qualquer uma das cristas deixa a dobra pivotante plana. Percorra-as ou pressione {{keys}}.",
+        "root": "Este axioma dá mais de uma dobra aqui. Percorra-as ou pressione {{keys}}.",
+        "target": "Mais de uma camada recebe o encaixe: a mais clara é a escolhida. Percorra-as ou pressione {{keys}}."
+      }
+    },
+    "crimp": {
+      "bothFit": "Os dois tipos de crimp cabem aqui: escolha para onde vai a ponta.",
+      "firstLine": "Primeira linha",
+      "firstLineAxiom": "A primeira linha é posicionada por {{mode}}, o modo de linha atual. Para desenhá-la, escolha Linha livre em Primeira linha.",
+      "introTurn": "Gira a ponta de uma aba para dentro ao longo de uma linha e de volta para fora ao longo de uma segunda.",
+      "secondLine": "Segunda linha"
+    },
+    "divide": {
+      "clear_one": "Apagar a marca feita aqui",
+      "clear_many": "Apagar as {{count}} marcas feitas aqui",
+      "clear_other": "Apagar as {{count}} marcas feitas aqui",
+      "computed": "Proporção calculada {{s}} : {{t}}",
+      "count": "Partes iguais",
+      "left": "Desde o início",
+      "mode": "Dividir",
+      "parts": "Partes",
+      "ratio": "Proporção",
+      "right": "Até o fim"
+    },
+    "extent": {
+      "commitPinch": "Beliscar",
+      "keyNote": "Pressione {{shortcut}} para alternar entre as extensões.",
+      "label": "Extensão",
+      "pinchHelp": "Vincar só uma marca curta, centrada em um ponto clicado ao longo da linha.",
+      "pinchHelpTouch": "Vincar só uma marca curta, centrada em um ponto tocado ao longo da linha.",
+      "segmentHelp": "Vincar a linha só entre dois pontos clicados ao longo dela.",
+      "segmentHelpTouch": "Vincar a linha só entre dois pontos tocados ao longo dela.",
+      "wholeHelp": "Vincar a linha de borda a borda."
+    },
+    "fix": {
+      "closedSinkInstead": "Afundamento fechado em vez disso",
+      "crimpFlap": "Fazer crimp só na aba {{number}}",
+      "crimpThisFlap": "Fazer crimp só nesta aba",
+      "foldOntoLine": "Dobrar a borda sobre a linha em vez disso",
+      "includeFlap": "Incluir a aba {{number}}",
+      "includeFlaps_one": "Incluir {{count}} aba",
+      "includeFlaps_many": "Incluir as {{count}} abas",
+      "includeFlaps_other": "Incluir as {{count}} abas",
+      "insideCrimpInstead": "Crimp interno em vez disso",
+      "insideInstead": "Dobra invertida interna em vez disso",
+      "mountainInstead": "Dobra montanha em vez disso",
+      "openSinkInstead": "Afundamento aberto em vez disso",
+      "outsideCrimpInstead": "Crimp externo em vez disso",
+      "outsideInstead": "Dobra invertida externa em vez disso",
+      "pickFlap": "Dobrar só a aba {{number}}",
+      "pickThisFlap": "Dobrar só esta aba",
+      "pinchInstead": "Beliscar ali em vez disso",
+      "precreaseOtherWay": "Pré-vincar no outro sentido",
+      "reverseCrossedFlaps": "Inverter só as abas que a linha cruza",
+      "reverseFlap": "Inverter só a aba {{number}}",
+      "reverseThisFlap": "Inverter só esta aba",
+      "sinkFlap": "Afundar só a aba {{number}}",
+      "sinkThisFlap": "Afundar só esta aba",
+      "slideToEdge": "Deslizar a linha até o ponto ficar na borda",
+      "swapInstead": "Trocar o lado que se move",
+      "throughAllLayers": "Vincar através de todas as camadas",
+      "tuckFlap": "Encaixar só a aba {{number}}",
+      "tuckOtherWay": "Encaixar no outro sentido",
+      "tuckOver": "Encaixar sobre a camada {{number}} da lista em vez disso",
+      "tuckOverAnother": "Encaixar sobre a camada que cabe em vez disso",
+      "tuckThisFlap": "Encaixar só esta aba",
+      "tuckUnder": "Encaixar sob a camada {{number}} da lista em vez disso",
+      "tuckUnderAnother": "Encaixar sob a camada que cabe em vez disso",
+      "turnToEdge": "Girar a linha até o ponto ficar na borda",
+      "useLine": "Usar a linha de referência",
+      "useMovingPoint": "Usar o ponto da aba que se move",
+      "useSquareLine": "Usar a linha perpendicular",
+      "useWholeLine": "Usar a linha inteira",
+      "valleyInstead": "Dobra vale em vez disso"
+    },
+    "flap": {
+      "chip_one": "Aba {{number}}, {{count}} camada",
+      "chip_many": "Aba {{number}}, {{count}} camadas",
+      "chip_other": "Aba {{number}}, {{count}} camadas",
+      "chipAdded_one": "Aba {{number}}, {{count}} camada, move-se com a dobra",
+      "chipAdded_many": "Aba {{number}}, {{count}} camadas, move-se com a dobra",
+      "chipAdded_other": "Aba {{number}}, {{count}} camadas, move-se com a dobra",
+      "groupLabel": "Abas a dobrar",
+      "layers_one": "{{count}} camada",
+      "layers_many": "{{count}} camadas",
+      "layers_other": "{{count}} camadas",
+      "name": "Aba {{number}}"
+    },
+    "group": {
+      "fold": "Dobrar",
+      "locate": "Localizar a linha",
+      "model": "Modelo",
+      "reference": "Pontos de referência",
+      "sequence": "Sequência",
+      "sink": "Afundamentos"
+    },
+    "key": {
+      "commit": "Fazer a dobra",
+      "cycleExtent": "Próxima extensão da pré-dobra",
+      "nextRoot": "Solução seguinte",
+      "previousRoot": "Solução anterior",
+      "swapSide": "Trocar o lado que se move"
+    },
+    "keys": {
+      "nextBranch": "Próximo ramo",
+      "nextStep": "Próximo passo",
+      "previousBranch": "Ramo anterior",
+      "previousStep": "Passo anterior"
+    },
+    "latch": {
+      "freePoint": "Ponto livre"
+    },
+    "line": {
+      "axiom": "Axioma {{number}}: {{phrase}}",
+      "axiom1Help": "A linha que passa por dois pontos.",
+      "axiom2Help": "A linha que leva um ponto sobre outro.",
+      "axiom3Help": "A linha que leva uma borda ou vinco sobre outro.",
+      "axiom4Help": "A linha que passa por um ponto, perpendicular a uma borda ou vinco.",
+      "axiom5Help": "A linha que passa por um pivô e leva um ponto sobre uma borda ou vinco.",
+      "axiom6Help": "A linha que leva ao mesmo tempo dois pontos sobre duas bordas ou vincos.",
+      "axiom7Help": "A linha que leva um ponto sobre uma borda ou vinco, perpendicular a outro.",
+      "crease": "Vinco existente",
+      "creaseHelp": "Um vinco ou borda dobrada que já existe: redobrar um pré-vinco ou desdobrar uma aba.",
+      "free": "Linha livre",
+      "freeHelp": "Uma linha traçada em qualquer lugar, sem referência."
+    },
+    "note": {
+      "acrossLayers": "Estes pontos ficam em camadas que a dobragem separou, então a linha passa por eles onde estão na forma dobrada. O padrão de vincos mostra os vincos que ela cria.",
+      "along": "Os pontos se ajustam onde a linha cruza vincos, bordas e marcas, aos pontos sobre ela e ao seu meio.",
+      "alongBack": "Esc desfaz o último ponto.",
+      "clear": "Esc limpa os pontos escolhidos.",
+      "closedSinkLine": "A linha que cruza a ponta define o quanto ela afunda.",
+      "crease": "Dobrar ao longo de um pré-vinco o redobra; ao longo de uma borda dobrada, desdobra a aba.",
+      "free": "Sem ajuste: a linha passa exatamente pelos pontos em que você clica.",
+      "freePoint": "Segure {{modifier}} para colocar um ponto em qualquer lugar, sem ajuste.",
+      "freeSnap": "Ajusta aos pontos próximos; caso contrário, usa exatamente o local onde você clicar.",
+      "freeSnapTouch": "Ajusta aos pontos próximos; caso contrário, usa exatamente o local onde você tocar.",
+      "freeTouch": "Sem ajuste: a linha passa exatamente pelos pontos em que você toca.",
+      "openSinkSquare": "A linha que cruza a ponta define o quanto ela afunda, e precisa ser exatamente perpendicular à sua linha central: o axioma 4 traça uma.",
+      "queued": "Dobrando assim que a prévia estiver pronta…",
+      "rotateCancel": "Esc larga a ferramenta Girar sem adicionar o giro.",
+      "rotatePreview": "O painel dobrado mostra o modelo girado como ficará.",
+      "rotateRefused": "Este giro não pode ser adicionado aqui.",
+      "severalSunk_one": "Há {{count}} ponta afundada aqui: a primeira é usada.",
+      "severalSunk_many": "Há {{count}} pontas afundadas aqui: a primeira é usada.",
+      "severalSunk_other": "Há {{count}} pontas afundadas aqui: a primeira é usada.",
+      "snap": "Os pontos se ajustam a cantos, marcas, cruzamentos de vincos, pontos médios e bordas.",
+      "unfoldCancel": "Esc larga a ferramenta Desdobrar até uma etapa sem adicionar o passo.",
+      "unfoldPreview": "A tela mostra o papel de volta nessa forma. Todos os vincos são mantidos.",
+      "unsinkRing": "A linha é um vinco do anel que o afundamento deixou, ao longo do topo da ponta afundada."
+    },
+    "op": {
+      "closedSink": "Afundamento fechado",
+      "crimp": "Pinça",
+      "openSink": "Afundamento aberto",
+      "outsideReverse": "Dobra invertida externa",
+      "petal": "Dobra pétala",
+      "pleat": "Dobra sanfona",
+      "rabbitEar": "Orelha de coelho",
+      "squash": "Dobra esmagada",
+      "swivel": "Dobra pivotante",
+      "tuck": "Encaixar",
+      "unsink": "Desfazer afundamento"
+    },
+    "order": {
+      "accept": "Usar esta ordem",
+      "acceptAll": "Usar ordens e adicionar etapa",
+      "acceptUpdate": "Usar ordens e atualizar etapa",
+      "back": "Voltar",
+      "choose": "Escolher ordem das camadas",
+      "count_one": "Ordem {{index}} de {{count}}",
+      "count_many": "Ordem {{index}} de {{count}}",
+      "count_other": "Ordem {{index}} de {{count}}",
+      "failed": "Não foi possível carregar a ordem. Volte e tente novamente ou escolha outra ordem.",
+      "found_one": "Ordem {{index}} de {{count}} encontradas",
+      "found_many": "Ordem {{index}} de {{count}} encontradas",
+      "found_other": "Ordem {{index}} de {{count}} encontradas",
+      "help": "Visualize as disposições e escolha a ordem desejada.",
+      "incomplete": "Busca incompleta. Pode haver mais ordens.",
+      "inspect": "Inspecionar camadas",
+      "loading": "Carregando ordem…",
+      "movingVaries": "Estas ordens movem camadas diferentes. Confira o papel destacado.",
+      "next": "Próxima ordem das camadas",
+      "noneFound": "Nenhuma ordem encontrada ainda",
+      "noOthers": "Busca concluída. Não há outras ordens.",
+      "previous": "Ordem das camadas anterior",
+      "region": "Região {{number}}",
+      "regions": "Regiões independentes",
+      "search": "Buscar mais ordens",
+      "searching": "Buscando mais ordens…",
+      "stack": "Região {{number}}: {{layers}}",
+      "stackHelp": "Selecione uma região para destacá-la. As camadas são listadas da frente para trás; as diferenças destacadas são relativas à primeira prévia.",
+      "stop": "Parar a busca"
+    },
+    "picker": {
+      "addFavorite": "Adicionar {{tool}} aos favoritos",
+      "close": "Fechar a lista de ferramentas",
+      "favorites": "Favoritos",
+      "favoritesHint": "Os primeiros {{limit}} favoritos daqui aparecem na barra inferior. Toque e segure e arraste para reordenar.",
+      "removeFavorite": "Remover {{tool}} dos favoritos",
+      "title": "Ferramentas de dobra",
+      "trigger": "Ferramentas"
+    },
+    "pleat": {
+      "blocked": "As duas dobras devem caber na aba selecionada sem mover outras partes do papel. Verifique as linhas e as camadas selecionadas.",
+      "intro": "Localize primeiro a linha de montanha e depois a de vale no modelo antes de dobrá-lo.",
+      "layers": "Escolha a aba para dobrar. A ponta além da linha de vale é dobrada de volta.",
+      "limit": "Há muitas disposições de camadas para resolver esta dobra. Selecione uma aba menor.",
+      "lines": "A linha de vale deve ficar além da linha de montanha, na direção da ponta que se move. Verifique as linhas ou pressione Inverter.",
+      "mountainInstruction": "Linha de montanha: {{instruction}}",
+      "mountainLine": "Linha de montanha",
+      "refusedTitle": "Não é possível fazer a dobra sanfona aqui",
+      "searching": "Calculando como as camadas da dobra sanfona podem se empilhar…",
+      "valleyInstruction": "Linha de vale: {{instruction}}",
+      "valleyLine": "Linha de vale"
+    },
+    "railLabel": "Ferramentas de dobra",
+    "readOnly": {
+      "locked": "Este passo é de uma versão mais nova do Ori Studio, então nada pode ser dobrado a partir dele.",
+      "newer": "Esta sequência é de uma versão mais nova do Ori Studio, então abre somente para leitura."
+    },
+    "refusal": {
+      "budget": {
+        "text": "Descobrir como as camadas se empilham demorou demais aqui, então não se sabe se esta dobra se encaixa. Dobre menos camadas ou dobre em outro lugar.",
+        "title": "A busca ficou sem tempo"
+      },
+      "choiceBroken": {
+        "text": "A abertura ou a ordem das camadas que este passo guardou não se encaixa mais no papel anterior, então ele não pode ser dobrado como está guardado.",
+        "title": "Uma escolha não se encaixa mais"
+      },
+      "chooseOpening": {
+        "text": "A aba se abre de mais de um jeito. Escolha um para dobrar.",
+        "title": "Escolha como ela se abre"
+      },
+      "chooseOrder": {
+        "text": "A dobra pode ficar com as camadas empilhadas de mais de um jeito. Escolha um para dobrar.",
+        "title": "Escolha como as camadas se empilham"
+      },
+      "choosePocket": {
+        "text": "A ponta pode ser afundada em mais de um bolso entre suas camadas. Escolha um para dobrar.",
+        "title": "Escolha um bolso"
+      },
+      "closureAddsFlaps": {
+        "textMany_one": "Dobrar estas camadas também move mais {{count}} aba.",
+        "textMany_many": "Dobrar estas camadas também move mais {{count}} abas.",
+        "textMany_other": "Dobrar estas camadas também move mais {{count}} abas.",
+        "textOne": "Dobrar estas camadas também move a aba {{number}}.",
+        "title": "Mais abas se moveriam"
+      },
+      "collision": {
+        "text": "As camadas que se movem atravessariam camadas no caminho.",
+        "title": "Colisão"
+      },
+      "crimpInsideInfeasible": {
+        "title": "Não dá para fazer crimp para dentro"
+      },
+      "crimpKindInfeasible": {
+        "neitherRedraw": "Nem o crimp interno nem o externo cabem nestas linhas: nenhum jeito de empilhar as camadas deixa a ponta virar nas duas. Pressione Esc e desenhe as linhas mais próximas de paralelas, ou faça o crimp em menos abas.",
+        "text": "Nenhum jeito de empilhar as camadas deixa a ponta virar para este lado nas duas linhas. O outro tipo de crimp talvez se encaixe."
+      },
+      "crimpLinesMeet": {
+        "redraw": "As duas linhas se cruzam, ou ficam próximas demais, sobre o papel que o crimp move. Pressione Esc e desenhe a segunda linha afastada da primeira, atravessando a aba inteira.",
+        "title": "As linhas se encontram"
+      },
+      "crimpMissesTip": {
+        "redraw": "A segunda linha não atravessa nenhum papel além da primeira, então nada voltaria para fora. Troque o lado da ponta se a ponta estiver na outra extremidade, ou pressione Esc e desenhe a segunda linha atravessando a aba, além da primeira.",
+        "title": "A segunda linha não pega a aba"
+      },
+      "crimpNoOpening": {
+        "noSpine": "Uma camada sozinha não tem borda dobrada ao longo da qual fazer o crimp. Faça o crimp em uma aba de camadas unidas por uma dobra.",
+        "text": "Suas camadas se separam na primeira linha, mas na segunda uma delas já terminou ou não tem onde virar. Mova a segunda linha ou faça crimp em outras abas.",
+        "title": "Esta aba não abre na segunda linha"
+      },
+      "crimpOutsideInfeasible": {
+        "title": "Não dá para fazer crimp por fora"
+      },
+      "crimpTipNotFree": {
+        "text": "Há outras camadas onde o papel do crimp viraria. Inclua as abas delas no crimp ou faça-o em outro lugar."
+      },
+      "emptySeed": {
+        "text": "Nenhuma camada foi escolhida. Escolha pelo menos uma aba para mover.",
+        "title": "Nada para dobrar"
+      },
+      "extentMissesLayers": {
+        "text": "Nenhuma das camadas por onde esta pré-dobra passa fica ao longo desse trecho da linha, ou a linha já está vincada ali. Clique em outros pontos ao longo da linha, ou vinque através de todas as camadas.",
+        "title": "Nenhuma camada para vincar ali"
+      },
+      "extentMissesPaper": {
+        "text": "Esse trecho da linha não passa sobre papel, então não há nada a vincar. Clique em pontos onde a linha cruza o papel.",
+        "title": "Não há papel ali"
+      },
+      "extentOffPaper": {
+        "text": "Um ponto a partir do qual o vinco é medido não está sobre o papel como ele está dobrado agora. Clique os pontos ao longo da linha, onde ela cruza o papel.",
+        "title": "Um ponto está fora do papel"
+      },
+      "extentTooShort": {
+        "pinch": "Este beliscão é curto demais para o papel pegar um vinco. Vinque uma parte maior da linha.",
+        "segment": "Os dois pontos estão perto demais ao longo da linha para vincar entre eles. Clique em dois pontos mais afastados, ou belisque ali em vez disso.",
+        "title": "Curto demais para vincar"
+      },
+      "insideInfeasible": {
+        "title": "Não dá para ir para dentro"
+      },
+      "invalid": {
+        "text": "Não resultaria em um modelo plano válido.",
+        "title": "Esta dobra não pode ser feita"
+      },
+      "kindInfeasible": {
+        "neither": "Nenhum tipo de dobra invertida cabe aqui: nenhum jeito de empilhar as camadas deixa a ponta virar. Mova a linha ou inverta outras abas.",
+        "text": "Nenhum jeito de empilhar as camadas deixa a ponta virar para este lado aqui. O outro tipo de dobra invertida talvez se encaixe."
+      },
+      "markOffSheet": {
+        "text": "Parte da marca ficaria fora da folha. Clique os pontos ao longo da linha, dentro do papel.",
+        "title": "A marca sairia do papel"
+      },
+      "markOnCrease": {
+        "text": "A marca ficaria ao longo de um vinco que já existe. Marque outro trecho da linha, ou dobre ao longo do próprio vinco.",
+        "title": "Já há um vinco ali"
+      },
+      "marksOverlap": {
+        "text": "A marca ficaria sobre parte de uma marca feita antes, de um jeito que o papel não aceita. Marque outro trecho da linha, ou vinque a linha inteira.",
+        "title": "As marcas se sobreporiam"
+      },
+      "markTooShort": {
+        "text": "Em uma de suas camadas, a marca seria curta demais para o papel pegar um vinco. Vinque uma parte maior da linha.",
+        "title": "Curto demais para vincar"
+      },
+      "moverStays": {
+        "text": "A camada que leva o ponto a mover não está entre as camadas que dobram. Inclua a aba dela ou dobre todas as camadas.",
+        "title": "O ponto ficaria parado"
+      },
+      "nearMiss": {
+        "text": "A linha passa logo ao lado de um ponto do papel: perto demais para dobrar com precisão, longe demais para passar por ele.",
+        "title": "Perto demais de um ponto"
+      },
+      "noMovingSide": {
+        "text": "Não há papel do lado da linha que se moveria. Troque o lado que se move ou leve a linha para cima do papel.",
+        "title": "Nada para dobrar"
+      },
+      "noRoot": {
+        "text": "Estas referências não dão nenhuma linha de dobra no papel como ele está dobrado. Escolha outras referências.",
+        "title": "Não há dobra aqui"
+      },
+      "noSide": {
+        "text": "Nada indica qual lado da linha se move. Escolha um ponto fora da linha, no lado que vai se mover.",
+        "title": "Qual lado se move?"
+      },
+      "nothingStays": {
+        "text": "Todas as camadas estão do lado que se move, então nada ficaria parado. Escolha uma aba para dobrar.",
+        "title": "Tudo se moveria"
+      },
+      "offPaper": {
+        "text": "Um ponto ou uma borda usado para posicionar a linha não está sobre o papel como ele está dobrado agora. Posicione a linha de novo.",
+        "title": "Uma referência não está sobre o papel"
+      },
+      "outsideInfeasible": {
+        "title": "Não dá para envolver por fora"
+      },
+      "pickAgain": {
+        "text": "Esse lugar não está dentro de uma camada do lado que se move. Escolha dentro de uma camada, longe dos vincos.",
+        "title": "Escolha de novo"
+      },
+      "pointsTooClose": {
+        "text": "Os dois pontos caem no mesmo lugar do papel dobrado, então não formam nenhuma linha. Escolha dois pontos mais afastados.",
+        "title": "Os pontos estão perto demais"
+      },
+      "precreaseUnfold": {
+        "text": "Desdobrá-lo moveria mais camadas do que dobrá-lo moveu.",
+        "title": "Este pré-vinco não pode ser desdobrado"
+      },
+      "reverseNoOpening": {
+        "bodiesCross": "Se a aba for separada ao longo das dobras, o papel em que cada metade se apoia cruzaria o da outra.",
+        "noBody": "Se a aba for separada ao longo das dobras, uma metade não se apoiaria em nada que fique parado na linha.",
+        "noSpine": "Uma camada sozinha não tem borda dobrada ao longo da qual se inverter. Inverta uma aba de camadas unidas por uma dobra.",
+        "noSplit": "Suas camadas não podem ser separadas ao longo de uma dobra sem que uma camada de baixo acabe sobre uma de cima.",
+        "title": "Esta aba não pode se abrir"
+      },
+      "sinkLineTilted": {
+        "text": "Um afundamento aberto precisa da linha exatamente perpendicular à linha central da ponta: inclinada só um pouco, a ponta não pode ser afundada aberta. A linha perpendicular na mesma profundidade pode.",
+        "title": "A linha não é perpendicular à ponta"
+      },
+      "sinkNoAxis": {
+        "text": "O contorno dela não segue dois lados retos, então não há linha central à qual a linha de um afundamento aberto possa ser perpendicular.",
+        "title": "A ponta não tem linha central"
+      },
+      "sinkNoOrder": {
+        "none": "Nenhum jeito de empilhar as camadas deixa afundar a ponta assim aqui. Mova a linha ou escolha outra ponta.",
+        "otherSink": "Nenhum jeito de empilhar as camadas deixa afundar a ponta assim aqui. O outro tipo de afundamento se encaixa.",
+        "title": "A ponta não pode ser afundada assim aqui",
+        "unsink": "Nenhum jeito de empilhar as camadas deixa a ponta afundada voltar para fora aqui.",
+        "unsinkTitle": "A ponta não pode voltar para fora aqui"
+      },
+      "sinkNoPocket": {
+        "text": "Nenhum espaço entre suas camadas dá a volta inteira no contorno para a extremidade entrar, então ela não pode ser afundada fechada.",
+        "title": "A ponta não tem bolso"
+      },
+      "sinkOutlineMixed": {
+        "text": "As bordas externas da ponta são dobras montanha e vale ao mesmo tempo: não há um único exterior para virar do avesso, então ela não pode ser afundada aberta.",
+        "title": "O exterior dela não é uma única dobra"
+      },
+      "sinkPointOpen": {
+        "text": "Bordas soltas chegam à extremidade: as camadas são cantos livres, não uma ponta fechada, então nada diz como afundariam. Afunde uma ponta cujas camadas se unem na extremidade.",
+        "title": "A ponta está aberta"
+      },
+      "sinkSeveralPoints": {
+        "text_one": "Há {{count}} ponta do lado da extremidade, e um afundamento usa só uma. Escolha a ponta a afundar.",
+        "text_many": "Há {{count}} pontas do lado da extremidade, e um afundamento usa só uma. Escolha a ponta a afundar.",
+        "text_other": "Há {{count}} pontas do lado da extremidade, e um afundamento usa só uma. Escolha a ponta a afundar.",
+        "title": "Escolha uma ponta"
+      },
+      "sliver": {
+        "text": "Um ponto das camadas que se movem cairia por um fio dentro da borda de outra camada.",
+        "title": "Um ponto cai logo dentro de uma borda"
+      },
+      "stackedTooDeep": {
+        "fold": "Esta dobra empilharia as camadas demais para que a ordem delas seja determinada: até {{deepest, number}} umas sobre as outras. Dobre menos camadas.",
+        "pattern": "Este padrão de vincos empilha suas camadas demais para que a ordem delas seja determinada: até {{deepest, number}} umas sobre as outras. Importe um padrão mais simples.",
+        "step": "Este passo empilha suas camadas demais para que a ordem delas seja determinada: até {{deepest, number}} umas sobre as outras. Ele e os passos seguintes só podem ser excluídos.",
+        "title": "Camadas empilhadas demais"
+      },
+      "tipNotFree": {
+        "text": "Há outras camadas onde a ponta viraria. Inclua as abas delas na dobra ou inverta em outro lugar.",
+        "title": "Há camadas no caminho"
+      },
+      "tooManyFaces": {
+        "fold": "Esta dobra daria {{faceCount, number}} faces, mais do que as {{limit, number}} que podem ser dobradas. Dobre menos camadas.",
+        "note": "{{faceCount, number}} faces, mais do que as {{limit, number}} que podem ser dobradas",
+        "pattern": "Este padrão de vincos tem {{faceCount, number}} faces, e só se dobram padrões de até {{limit, number}}. Importe um padrão mais simples.",
+        "step": "Este passo tem {{faceCount, number}} faces, mais do que as {{limit, number}} que podem ser dobradas. Ele e os passos seguintes só podem ser excluídos.",
+        "title": "Faces demais"
+      },
+      "tooSmall": {
+        "text": "A dobra deixaria um vinco ou uma tira de papel mais fina que o próprio papel.",
+        "title": "Pequeno demais para dobrar"
+      },
+      "tuckInfeasible": {
+        "none": "Nenhum jeito de empilhar as camadas deixa a aba bem junto dessa camada. Encaixe menos abas ou posicione outra linha.",
+        "text": "Nenhum jeito de empilhar as camadas deixa a aba bem junto dessa camada. Outra camada aqui a recebe.",
+        "titleOver": "Não dá para encaixar sobre essa camada",
+        "titleUnder": "Não dá para encaixar sob essa camada"
+      },
+      "tuckNoTarget": {
+        "over": "Nenhuma camada que fica parada recebe a aba por cima aqui. Dobre no outro sentido, troque o lado que se move ou posicione outra linha.",
+        "title": "Nenhuma camada recebe o encaixe aqui",
+        "under": "Nenhuma camada que fica parada recebe a aba por baixo aqui. Dobre no outro sentido, troque o lado que se move ou posicione outra linha."
+      },
+      "tuckTarget": {
+        "text": "Escolha uma camada que fique parada para encaixar a aba nela.",
+        "title": "A camada onde encaixar se moveria"
+      },
+      "unsinkNotSunk": {
+        "text": "Nada afundado fica dentro do papel ao longo desta linha. Localize o anel que um afundamento deixou e escolha a ponta afundada dentro dele.",
+        "title": "Nenhuma ponta afundada aqui"
+      },
+      "unsupported": {
+        "text": "Esta versão do Ori Studio não consegue dobrá-lo como está salvo.",
+        "title": "Este passo não pode ser dobrado"
+      },
+      "wrongCrease": {
+        "text": "Desdobre ao longo de uma borda dobrada e redobre ao longo de um vinco plano.",
+        "title": "Não é esse tipo de vinco"
+      }
+    },
+    "reverse": {
+      "auto": "Automático",
+      "bothFit": "Os dois tipos cabem aqui: escolha para onde vai a ponta.",
+      "inside": "Interna",
+      "intentHelp": "Automático usa o tipo viável. Um tipo escolhido permanece selecionado mesmo quando não é possível dobrar.",
+      "kind": "Tipo",
+      "next": "Próximo",
+      "ofCount": "{{index}} de {{total}}",
+      "opening": "Abertura",
+      "openingsTruncated": "Pode haver mais aberturas. Reduza as abas selecionadas para explorá-las.",
+      "order": "Ordem das camadas",
+      "outside": "Externa",
+      "previous": "Anterior",
+      "requestedKind": "Tipo de dobra reversa",
+      "tipSide": "Lado da ponta"
+    },
+    "rotate": {
+      "amount": "Quantidade",
+      "degrees": "Ângulo exato",
+      "direction": "Sentido",
+      "presetTooltip": "{{fraction}} de volta, {{degrees}}°"
+    },
+    "scopeLabel": "dobra",
+    "section": {
+      "label": "Camadas na linha de dobra, de cima para baixo",
+      "labelWoven": "Camadas na linha de dobra sob o ponteiro, de cima para baixo",
+      "row": "Camada {{layer}}, {{flap}}",
+      "rowAdded": "Camada {{layer}}, {{flap}}, move-se com a dobra",
+      "rowAddedBeside": "Camada {{layer}}, {{flap}}, move-se com a dobra, ao lado da camada {{above}}",
+      "rowBeside": "Camada {{layer}}, {{flap}}, ao lado da camada {{above}}",
+      "top": "Topo"
+    },
+    "sink": {
+      "bothFit": "Os dois afundamentos cabem aqui: o aberto vira cada camada do avesso, o fechado as mantém juntas.",
+      "closed": "Fechado",
+      "depth": "Profundidade",
+      "depthHelp": "A distância da linha até a extremidade da ponta ao longo da linha central, sendo 1 o lado do papel. Coloque a linha mais abaixo para afundar mais a ponta.",
+      "depthValue": "{{depth}} da extremidade",
+      "kind": "Afundamento",
+      "onlyClosed": "Aqui só cabe o afundamento fechado.",
+      "onlyOpen": "Aqui só cabe o afundamento aberto.",
+      "open": "Aberto",
+      "pocket": "Bolso",
+      "pocketBack": "Atrás",
+      "pocketFront": "Na frente",
+      "sunkSide": "Lado afundado"
+    },
+    "steps": {
+      "axiom1First": "Clique no primeiro ponto por onde a dobra passa.",
+      "axiom1FirstTouch": "Toque no primeiro ponto por onde a dobra passa.",
+      "axiom1Second": "Clique no segundo ponto.",
+      "axiom1SecondTouch": "Toque no segundo ponto.",
+      "axiom2Land": "Clique onde ele deve cair.",
+      "axiom2LandTouch": "Toque onde ele deve cair.",
+      "axiom3Move": "Clique na borda ou vinco a mover.",
+      "axiom3MoveTouch": "Toque na borda ou vinco a mover.",
+      "axiom3Onto": "Clique na borda ou vinco sobre o qual colocá-lo.",
+      "axiom3OntoTouch": "Toque na borda ou vinco sobre o qual colocá-lo.",
+      "axiom4Through": "Clique no ponto por onde a dobra passa.",
+      "axiom4ThroughTouch": "Toque no ponto por onde a dobra passa.",
+      "axiom5Pivot": "Clique no pivô por onde a dobra passa.",
+      "axiom5PivotTouch": "Toque no pivô por onde a dobra passa.",
+      "axiom6FirstPoint": "Clique no primeiro ponto a mover.",
+      "axiom6FirstPointTouch": "Toque no primeiro ponto a mover.",
+      "axiom6SecondLine": "Clique na borda ou vinco onde esse deve cair.",
+      "axiom6SecondLineTouch": "Toque na borda ou vinco onde esse deve cair.",
+      "axiom6SecondPoint": "Clique no segundo ponto a mover.",
+      "axiom6SecondPointTouch": "Toque no segundo ponto a mover.",
+      "commit": "Pressione Enter para dobrar.",
+      "commitOrClick": "Pressione Enter, ou clique em {{action}}, para dobrar.",
+      "commitTouch": "Toque em {{action}} para dobrar.",
+      "crease": "Clique no vinco ou borda dobrada ao longo do qual dobrar.",
+      "creaseTouch": "Toque no vinco ou borda dobrada ao longo do qual dobrar.",
+      "crimpFinish": "Escolha Interna ou Externa e pressione Enter.",
+      "crimpFinishTouch": "Escolha Interna ou Externa e toque em {{action}}.",
+      "crimpFirstCrease": "Clique no vinco ou na borda dobrada onde a aba se dobra para dentro.",
+      "crimpFirstCreaseTouch": "Toque no vinco ou na borda dobrada onde a aba se dobra para dentro.",
+      "crimpFirstStart": "Clique onde a primeira linha começa, mais perto do corpo: onde a aba se dobra para dentro.",
+      "crimpFirstStartTouch": "Toque onde a primeira linha começa, mais perto do corpo: onde a aba se dobra para dentro.",
+      "crimpKindBoth": "Escolha Interna para enfiar a ponta dentro da aba, ou Externa para envolvê-la por fora.",
+      "crimpLayers": "Em Camadas, tire as abas que não devem fazer o crimp.",
+      "crimpSecondCrease": "Clique no vinco ou na borda dobrada além da primeira linha, onde a aba volta para fora.",
+      "crimpSecondCreaseTouch": "Toque no vinco ou na borda dobrada além da primeira linha, onde a aba volta para fora.",
+      "crimpSecondStart": "Clique onde a segunda linha começa, além da primeira em direção à ponta: onde a aba volta para fora.",
+      "crimpSecondStartTouch": "Toque onde a segunda linha começa, além da primeira em direção à ponta: onde a aba volta para fora.",
+      "crimpTipEnd": "A extremidade além da segunda linha gira: se for a extremidade errada, pressione Trocar.",
+      "divide": "Clique em uma borda ou vinco para dividi-lo.",
+      "divideTouch": "Toque em uma borda ou vinco para dividi-lo.",
+      "divideUse": "Use os novos pontos como referências para qualquer dobra.",
+      "finish": "Escolha a dobra e as camadas e pressione Enter.",
+      "finishTouch": "Escolha a dobra e as camadas e toque em {{action}}.",
+      "freeEnd": "Clique onde ela termina.",
+      "freeEndTouch": "Toque onde ela termina.",
+      "freeStart": "Clique onde a linha de dobra começa.",
+      "freeStartTouch": "Toque onde a linha de dobra começa.",
+      "landOnLine": "Clique na borda ou vinco onde ele deve cair.",
+      "landOnLineTouch": "Toque na borda ou vinco onde ele deve cair.",
+      "perpendicularTo": "Clique na borda ou vinco ao qual a dobra é perpendicular.",
+      "perpendicularToTouch": "Toque na borda ou vinco ao qual a dobra é perpendicular.",
+      "pickFlapsToReverse": "Escolha quais abas se invertem.",
+      "pickFlapsToTuck": "Escolha quais abas se encaixam.",
+      "pickLayers": "Escolha quais camadas se movem.",
+      "pickPoint": "Escolha qual ponta afunda: um afundamento usa só uma.",
+      "pickSunkPoint": "A ponta afundada é encontrada para você: escolha outra nas camadas para puxar essa.",
+      "pickTuckTarget": "Escolha a camada onde encaixar.",
+      "pinchAt": "Clique ao longo da linha onde beliscar.",
+      "pinchAtTouch": "Toque ao longo da linha onde beliscar.",
+      "pointToMove": "Clique no ponto a mover.",
+      "pointToMoveTouch": "Toque no ponto a mover.",
+      "repeatAxes": "Aponte para um eixo de simetria desenhado no papel para pré-visualizá-lo, e clique nele para usá-lo — ou localize um com Localizar a linha, em qualquer um dos dois painéis.",
+      "repeatAxesTouch": "Toque em um eixo de simetria desenhado no papel, ou localize um com Localizar a linha, em qualquer um dos dois painéis.",
+      "repeatCommit": "Pressione Enter para adicionar as dobras repetidas.",
+      "repeatCommitTouch": "Toque em {{action}} para adicionar as dobras repetidas.",
+      "repeatStart": "Escolha o primeiro passo a repetir. O intervalo termina no passo mostrado na tela.",
+      "reverseFinish": "Escolha quais abas se invertem e pressione Enter.",
+      "reverseFinishTouch": "Escolha quais abas se invertem e toque em {{action}}.",
+      "rotateCommit": "Pressione Enter para adicionar o giro.",
+      "rotateCommitTouch": "Toque em {{action}} para adicionar o giro.",
+      "rotateDirection": "Escolha para que lado ele gira.",
+      "rotateHowFar": "Escolha quanto girar o modelo.",
+      "segmentFrom": "Clique ao longo da linha onde o vinco começa.",
+      "segmentFromTouch": "Toque ao longo da linha onde o vinco começa.",
+      "segmentTo": "Clique onde ele termina.",
+      "segmentToTouch": "Toque onde ele termina.",
+      "sinkFinish": "Escolha a ponta e pressione Enter.",
+      "sinkFinishTouch": "Escolha a ponta e toque em {{action}}.",
+      "tuckFinish": "Escolha as abas e a camada onde encaixar, e pressione Enter.",
+      "tuckFinishTouch": "Escolha as abas e a camada onde encaixar, e toque em {{action}}.",
+      "unfoldCommit": "Pressione Enter para adicionar o passo.",
+      "unfoldCommitTouch": "Toque em {{action}} para adicionar o passo.",
+      "unfoldTarget": "Escolha o passo para onde voltar."
+    },
+    "tool": {
+      "closedSinkHelp": "Empurrar a extremidade de uma ponta fechada para dentro de um bolso, mantendo as camadas juntas.",
+      "crimpHelp": "Dobrar uma aba para dentro ao longo de uma linha e de volta para fora ao longo de uma segunda, de modo que a ponta gire.",
+      "divideLine": "Dividir linha",
+      "divideLineHelp": "Marcar pontos que dividem uma borda ou um vinco em partes iguais.",
+      "insideReverse": "Dobra invertida interna",
+      "mountain": "Dobra montanha",
+      "mountainHelp": "Dobrar o lado que se move para longe de você, para que fique por baixo.",
+      "openSinkHelp": "Empurrar para dentro a extremidade de uma ponta fechada, virando cada camada do avesso.",
+      "pleatHelp": "Faça uma dobra sanfona: localize a linha de montanha e depois a de vale.",
+      "precrease": "Pré-vincar",
+      "precreaseHelp": "Dobrar e desdobrar, deixando um vinco para usar depois.",
+      "repeatAxisHelp": "Dobrar de novo uma sequência de etapas em relação a um eixo de simetria, do outro lado ou atrás, com pré-visualização, e adicioná-la como uma etapa.",
+      "reverse": "Dobra reversa",
+      "reverseHelp": "Inverta uma aba para dentro ou envolva-a por fora, invertendo seu vinco central.",
+      "rotateHelp": "Girar o modelo uma fração de volta ou um ângulo exato, primeiro em prévia e depois como um passo próprio.",
+      "tuckHelp": "Dobrar uma aba e deslizá-la por baixo, ou por cima, de uma camada que fica parada.",
+      "unfoldToHelp": "Voltar o papel à forma de um passo anterior, mantendo todos os vincos feitos desde então, primeiro em prévia e depois como um passo.",
+      "unsinkHelp": "Puxar de volta a extremidade de uma ponta afundada.",
+      "valley": "Dobra vale",
+      "valleyHelp": "Dobrar o lado que se move na sua direção, para que fique por cima."
+    },
+    "tuck": {
+      "alsoOver": "Dobrar também sobre a camada {{number}}",
+      "alsoUnder": "Dobrar também sob a camada {{number}}",
+      "noTargets": "Nenhuma camada aqui recebe o encaixe.",
+      "over": "Encaixar por cima",
+      "targetsOver_one": "Uma camada aqui recebe o encaixe por cima dela.",
+      "targetsOver_many": "{{count}} camadas aqui recebem o encaixe por cima delas: o papel dobrado destaca cada uma.",
+      "targetsOver_other": "{{count}} camadas aqui recebem o encaixe por cima delas: o papel dobrado destaca cada uma.",
+      "targetsUnder_one": "Uma camada aqui recebe o encaixe por baixo dela.",
+      "targetsUnder_many": "{{count}} camadas aqui recebem o encaixe por baixo delas: o papel dobrado destaca cada uma.",
+      "targetsUnder_other": "{{count}} camadas aqui recebem o encaixe por baixo delas: o papel dobrado destaca cada uma.",
+      "under": "Encaixar por baixo"
+    },
+    "verb": {
+      "turnOverHelp": "Virar o modelo de um lado para o outro, como um passo próprio."
+    },
+    "vertex": {
+      "direction": "Sentido",
+      "directionCannot": "Neste sentido não dá para dobrar plano aqui.",
+      "fix": {
+        "creaseKites": "Vincar a pipa ao dobrar",
+        "emergent": "Usar o quarto vinco que cabe",
+        "emergentNumber": "Usar o quarto vinco {{number}}",
+        "otherRidge": "Usar a outra crista",
+        "otherWay": "Dobrar no outro sentido",
+        "precreaseHinge": "Pré-vincar antes a dobradiça",
+        "precreaseKite": "Pré-vincar a pipa",
+        "resetTarget": "Levar a lombada à dobradiça"
+      },
+      "help": {
+        "petalHinge": "Levantar a ponta de baixo de uma aba ao longo de uma dobradiça enquanto os lados se dobram para dentro por dois vincos de pipa.",
+        "rabbitEar": "Dobrar os cantos de um triângulo ao longo das bissetrizes, para que uma ponta se levante.",
+        "squash": "Abrir uma aba de duas camadas e achatá-la, com a lombada sobre a dobradiça.",
+        "swivelEdge": "Girar uma borda sobre uma linha, pivotando em um ponto."
+      },
+      "hingeRegionBlocked": "Não é possível dobrar esta região de articulação com estas camadas. Clique em outra região ou altere as camadas.",
+      "hingeRegionBlockedTouch": "Não é possível dobrar esta região de articulação com estas camadas. Toque em outra região ou altere as camadas.",
+      "hingeRegionFits": "O vinco de articulação fica na região selecionada.",
+      "input": {
+        "edge": "Borda sobre linha",
+        "edgeHelp": "Escolher uma borda e a linha sobre a qual ela deve ficar",
+        "label": "Construir por",
+        "valleyMountain": "Vale e montanha",
+        "valleyMountainHelp": "Escolher o vale e a montanha na camada que você vê, que se encontram em uma borda dobrada; o vinco de trás decorre deles"
+      },
+      "intro": {
+        "petalLift": "Levanta a ponta de uma aba ao longo de uma dobradiça.",
+        "swivelSwing": "Gira uma borda do papel sobre uma linha."
+      },
+      "layers": "Camadas",
+      "layersAll_one": "Todas as {{count}}",
+      "layersAll_many": "Todas as {{count}}",
+      "layersAll_other": "Todas as {{count}}",
+      "layersBottom_one": "{{count}} de baixo de {{total}}",
+      "layersBottom_many": "{{count}} de baixo de {{total}}",
+      "layersBottom_other": "{{count}} de baixo de {{total}}",
+      "layersTop_one": "{{count}} de cima de {{total}}",
+      "layersTop_many": "{{count}} de cima de {{total}}",
+      "layersTop_other": "{{count}} de cima de {{total}}",
+      "lineBy": {
+        "creaseOrEdge": "Vinco ou borda",
+        "creaseOrEdgeHelp": "Clique em um vinco ou borda que já existe",
+        "hinge": "Dobradiça",
+        "hingeCrease": "Vinco da dobradiça",
+        "hingeCreaseHelp": "Clique em um pré-vinco que já atravessa a aba",
+        "target": "Pousa em",
+        "twoEndpoints": "Duas extremidades",
+        "twoEndpointsHelp": "Clique nas duas extremidades da dobradiça: a dobra a vinca",
+        "twoPoints": "Dois pontos",
+        "twoPointsHelp": "Clique em dois pontos da linha"
+      },
+      "mountain": "Montanha",
+      "mountainTitle": "Montanha: o papel gira para longe de você",
+      "note": {
+        "petalCreasesAll": "Enquanto a aba sobe, a dobra vinca a dobradiça na camada de cima e os dois vincos da pipa nas duas camadas de cima.",
+        "petalCreasesHinge": "Enquanto a aba sobe, a dobra vinca a dobradiça na camada de cima. Os vincos da pipa já existem.",
+        "petalCreasesHingeKite": "Enquanto a aba sobe, a dobra vinca a dobradiça na camada de cima e um vinco da pipa nas duas camadas de cima. O outro vinco da pipa já existe.",
+        "petalCreasesKite": "Enquanto a aba sobe, a dobra vinca um vinco da pipa nas duas camadas de cima. A dobradiça e o outro vinco da pipa já existem.",
+        "petalCreasesKites": "Enquanto a aba sobe, a dobra vinca os dois vincos da pipa nas duas camadas de cima. A dobradiça já existe.",
+        "petalRefolds": "Todo vinco que ela dobra já existe: ela redobra a dobradiça e os vincos da pipa.",
+        "rabbitEarMeet": "Os vincos se encontram no incentro do triângulo: um para cada canto, e um quarto ao longo do qual a orelha sobe.",
+        "snapOrFree": "Os pontos se ajustam a cantos, cruzamentos, marcas e pontos médios: segure {{modifier}} para colocar um em qualquer lugar.",
+        "snapOrFreeTouch": "Os pontos se ajustam a cantos, cruzamentos, marcas e pontos médios: ative Ponto livre para colocar um em qualquer lugar.",
+        "squashFlap": "Uma aba se achata quando suas duas camadas estão unidas só pela dobradiça e nada está por cima dela.",
+        "swivelPicture": "Os vincos se encontram no ponto, a borda pousa na linha grossa e o papel aceso se move.",
+        "swivelValleyMountainPicture": "Os vincos se encontram no ponto. O vinco pontilhado está na camada de trás e decorre do vale e da montanha; o papel aceso se move."
+      },
+      "refusal": {
+        "blocked": {
+          "steppers": "Um vinco esbarraria em papel que não dobra junto, ou o papel prenderia duas partes da dobra. Passe Camadas para dobrar mais camadas, ou Quarto vinco para outro.",
+          "swivelEdge": "Um vinco esbarraria em papel que não dobra junto, ou o papel prenderia duas partes da dobra. Escolha outro pivô, ou outra linha para a borda pousar.",
+          "swivelOnFold": "Um vinco esbarraria em uma dobra antes de chegar à borda do papel, ou o papel prenderia duas partes da dobra pivotante. Escolha outra borda dobrada, ou outra linha para a borda pousar.",
+          "swivelValleyMountain": "Um vinco esbarraria em uma dobra antes de chegar à borda do papel, ou o papel prenderia duas partes da dobra pivotante. Escolha outro vale ou outra montanha.",
+          "title": "Há papel no caminho"
+        },
+        "center": {
+          "textEar": "Os vincos do triângulo se encontram no incentro, que cai sobre um vinco ou fora das camadas. Escolha cantos que o deixem dentro das camadas, longe dos vincos delas.",
+          "textSwivelEdge": "Os vincos se encontram onde fica o pivô, levado para a linha a meio caminho entre a borda e a linha onde ela pousa, e isso cai sobre um vinco ou fora do papel. Pressione Esc e escolha outro pivô.",
+          "textSwivelStep": "O ponto onde os vincos se encontram está sobre um vinco ou fora do papel. Pressione Esc e posicione-o de novo como diz o passo 1: dentro do papel, longe de todo vinco.",
+          "title": "Os vincos não podem se encontrar ali"
+        },
+        "covered": {
+          "text": "Outras camadas cobrem a aba, ou estão dentro dela, do lado para onde ela se abre. Tire-as do caminho antes ou achate-a no outro sentido.",
+          "title": "A aba está coberta"
+        },
+        "fourthBesideStayer": {
+          "text": "A aba sobe ao longo do quarto vinco, então ele fica de frente para o papel que fica parado. Escolha outro quarto vinco ou outro papel que fique parado.",
+          "title": "O quarto vinco está ao lado do papel que fica"
+        },
+        "fourthCannotRise": {
+          "text": "O quarto vinco dobra no sentido oposto ao dos outros três, e os ângulos entre estes vincos não permitem isso. Escolha outro quarto vinco ou outros pontos.",
+          "title": "O quarto vinco não pode subir aqui"
+        },
+        "kite": {
+          "creaseOrPrecrease": "Sobre um vinco de dobradiça, a dobra pétala redobra vincos que já existem, e falta um vinco da pipa. Escolha a dobradiça pelas duas extremidades, e a dobra vinca a pipa sozinha; ou pré-vinque a pipa antes, com a ferramenta Pré-vincar no Axioma 3: uma borda de baixo da aba de cima sobre a linha central, sem as abas de trás.",
+          "titleMissing": "Faltam os vincos da pipa"
+        },
+        "line": {
+          "crease": "O vinco da dobradiça não atravessa todas as camadas abaixo dele que dobram. Pré-vinque a dobradiça através de todas as camadas; depois faça a dobra pétala.",
+          "ends": "A dobradiça cruza papel da segunda camada, que se dobra para dentro ao lado da pipa, e a dobra não consegue vincá-lo enquanto a aba sobe. Pré-vinque a dobradiça através de todas as camadas; depois faça a dobra pétala.",
+          "titleHinge": "Pré-vinque antes a dobradiça"
+        },
+        "lineMeeting": {
+          "textValleyMountain": "O vale e a montanha se encontram em um ponto de uma borda dobrada que você vê, longe das pontas dela. Escolha duas linhas que se cruzem ali.",
+          "titleValleyMountain": "As linhas não se encontram em uma borda dobrada"
+        },
+        "noFlap": {
+          "hingeOffSpine": "A linha da dobradiça precisa cruzar a borda dobrada da aba, com a ponta clicada de um lado dela.",
+          "noHinge": "A aba não se dobra sobre nenhuma dobradiça em nenhuma ponta da lombada, então não há contra o que achatá-la.",
+          "noSpine": "Estas camadas não estão unidas por uma única borda dobrada, então não há lombada para abrir. Uma aba fechada, unida por lados dobrados para dentro, ainda não pode ser achatada.",
+          "singleLayer": "Aqui há só uma camada. Clique numa aba de duas camadas unidas por uma borda dobrada.",
+          "title": "Não há aba para achatar aqui",
+          "upperNotHinged": "A camada de cima da aba está presa só pela lombada: achatada, o lado da dobradiça ficaria solto."
+        },
+        "noOrder": {
+          "none": "Nenhum jeito de empilhar as camadas deixa dobrar plano aqui. Escolha outros pontos ou afaste primeiro as camadas que estão no caminho.",
+          "otherWay": "Nenhum jeito de empilhar as camadas deixa dobrar plano neste sentido aqui. Dobrado no outro sentido, se encaixa.",
+          "petal": "Não dá para fazer a dobra pétala aqui",
+          "rabbitEar": "A orelha não fica plana aqui",
+          "squash": "Não dá para esmagar plano aqui",
+          "swivel": "A dobra giratória não fica plana aqui"
+        },
+        "noPetal": {
+          "missesFlap": "A aba clicada fica inteira de um lado da dobradiça. Clique na aba que a dobradiça atravessa, ou escolha uma dobradiça que vá de uma das bordas dobradas dela até a outra.",
+          "missesFlapTitle": "A dobradiça não passa pela aba",
+          "noCornerHinge": "Os vincos da pipa que saem das extremidades da dobradiça não se encontram abaixo dela, então não há ponta para levantar. Escolha uma dobradiça cujas extremidades fiquem onde os vincos da pipa encontram as bordas da aba.",
+          "noCornerTitle": "Não há ponta para levantar",
+          "noEndsHinge": "A dobradiça de uma dobra pétala atravessa a aba de uma borda dobrada até a outra, e esta cruza só uma delas, ou nenhuma. Escolha uma dobradiça cujas extremidades fiquem nas duas bordas dobradas da aba.",
+          "noEndsTitle": "A dobradiça não atravessa a aba",
+          "pastCorner": "Os vincos da pipa que saem das extremidades da dobradiça se encontram abaixo dela, mas a aba vai além de onde eles se encontram, e esse papel não dobraria de jeito nenhum. Afaste a dobradiça da ponta fechada da aba: suas extremidades onde os vincos da pipa encontram as bordas da aba.",
+          "pastCornerTitle": "A dobradiça está perto demais da ponta fechada"
+        },
+        "notFlat": {
+          "spread": "Nenhum quarto vinco deixa estes vincos planos: dois apontam na mesma direção, ou dois vizinhos estão a meia volta ou mais de distância. Pressione Esc e escolha pontos espalhados de forma mais uniforme em volta do ponto de encontro.",
+          "swivelEdge": "Nenhum vinco deixa a borda girar sobre essa linha e ficar plana a partir deste pivô. Pressione Esc e escolha outro pivô, ou outra linha.",
+          "title": "Não fica plano"
+        },
+        "notFree": {
+          "text": "A aba está unida a outro papel longe da dobradiça. Só uma aba presa apenas pela dobradiça se abre plana: desdobre antes o que a prende.",
+          "title": "A aba está presa em outro lugar"
+        },
+        "petalCovered": {
+          "text": "Outras camadas cobrem a aba do lado para onde ela sobe. Tire-as do caminho antes ou levante-a no outro sentido.",
+          "title": "A aba está coberta"
+        },
+        "ridgeBesideStayer": {
+          "pivot": "A aba sobe ao longo da crista, então ela deve ficar de frente para o papel que fica parado, e aqui não fica. Escolha outro pivô.",
+          "title": "A crista está ao lado do papel que fica"
+        },
+        "ridgeCannotRise": {
+          "pivot": "A crista dobra no sentido oposto aos outros três vincos, e os ângulos entre eles não permitem. Escolha outro pivô.",
+          "title": "A crista não pode subir aqui"
+        },
+        "stayer": {
+          "swivelEdge": "O papel ao lado da linha, que fica parado, não está unido a nenhuma parte da dobra. Escolha outro pivô, mais perto de onde a borda encontra a linha.",
+          "text": "O papel escolhido para ficar parado não está unido a nenhuma parte da dobra. Escolha papel que os vincos cortam, ou papel unido a ele.",
+          "title": "Qual papel fica?"
+        },
+        "swivelEdgeShort": {
+          "text": "Nenhuma parte da borda passa do ponto em ângulo reto abaixo do pivô, então nada dela giraria. Uma dobra simples ao longo da linha a meio caminho entre a borda e o destino dela a deixa lá.",
+          "title": "A borda termina antes de girar"
+        },
+        "swivelEdgeStays": {
+          "onFold": "Nenhuma das duas camadas que a borda dobrada une segura a borda que se move, então ela ficaria parada. Escolha uma borda dobrada da camada dessa borda, ou outra borda.",
+          "text": "O papel ao longo da borda ficaria parado, ou dobraria por cima da dobradiça, em vez de girar sobre a linha. Escolha um pivô mais perto da borda, ou outra borda.",
+          "title": "A borda ficaria parada"
+        },
+        "swivelFoldWide": {
+          "text": "Do lado da borda que se move, o vinco pivotante encontra a borda dobrada em ângulo reto ou maior, o que não deixa espaço para a outra camada dobrar. Escolha uma linha para a borda pousar que a gire mais, ou outra borda dobrada.",
+          "title": "O vinco pivotante encontra a borda íngreme demais"
+        },
+        "swivelInsideFree": {
+          "text": "Uma dobra giratória interna enfia sua faixa entre as duas camadas que uma borda dobrada une, e estes vincos se encontram longe de qualquer borda dobrada. Pressione Esc e clique em uma borda dobrada onde os vincos se encontrem.",
+          "title": "Uma dobra giratória interna precisa de uma borda dobrada"
+        },
+        "swivelMissesFold": {
+          "text": "A dobra pivotante segue a linha a meio caminho entre a borda e a linha onde ela pousa, e essa linha não cruza esta borda dobrada entre as pontas. Pressione Esc e escolha a borda dobrada que ela cruza, ou outra linha.",
+          "title": "Os vincos não podem se encontrar nessa borda"
+        },
+        "swivelNoFlap": {
+          "text": "O vale e a montanha saem da borda dobrada para dentro do papel, em duas direções, com a aba entre eles. Uma dessas linhas corre ao longo da borda dobrada, ou as duas estão numa mesma linha: escolha outra.",
+          "title": "Não há aba entre as linhas"
+        },
+        "swivelNotAFold": {
+          "text": "Os vincos só podem se encontrar em uma borda dobrada onde o papel está dobrado, e o ponto escolhido não fica em nenhuma dobra. Pressione Esc e clique de novo na borda dobrada.",
+          "title": "Isso não é uma borda dobrada"
+        },
+        "swivelNotAnEdge": {
+          "text": "Uma dobra pivotante move uma borda do papel ou uma borda dobrada, e a linha escolhida não é nenhuma das duas. Pressione Esc e escolha a borda de novo.",
+          "title": "Isso não é uma borda"
+        },
+        "swivelPivotOnEdge": {
+          "text": "Os vincos se encontram onde fica o pivô, levado para a linha a meio caminho entre a borda e a linha onde ela pousa, e aqui isso cai sobre a própria borda. Pressione Esc e escolha um pivô mais longe de onde a borda encontra a linha.",
+          "title": "Os vincos se encontrariam sobre a borda"
+        },
+        "swivelTargetParallel": {
+          "text": "Nenhum giro em torno de um ponto deixa uma borda sobre uma linha paralela a ela, ou sobre a própria linha dela. Escolha uma linha que encontre a linha da borda.",
+          "title": "A linha é paralela à borda"
+        },
+        "targetOutside": {
+          "text": "A lombada cai entre onde está e a dobradiça. Clique num ponto dentro da aba ou devolva-a à dobradiça.",
+          "title": "A lombada não pode cair ali"
+        }
+      },
+      "reset": "Voltar à dobradiça",
+      "ridge": "Crista",
+      "squashHinge": {
+        "folded": "Borda dobrada",
+        "foldedHelp": "A dobra em que a camada de baixo da aba vira: a aba inteira é esmagada",
+        "intro": "Desenhe a dobradiça atravessando a borda dobrada da aba. Só a ponta além dela é esmagada.",
+        "label": "Dobradiça",
+        "line": "Linha",
+        "lineHelp": "Uma linha que você desenha: só a ponta da aba além dela é esmagada",
+        "lineMode": "Linha da dobradiça",
+        "take": "Pressione Enter para usá-la como dobradiça.",
+        "takeTouch": "Toque em Usar como dobradiça.",
+        "use": "Usar como dobradiça"
+      },
+      "steps": {
+        "earChoose": "Escolha as camadas ou clique em outra região para o vinco de articulação.",
+        "earChooseTouch": "Escolha as camadas ou toque em outra região para o vinco de articulação.",
+        "earFinish": "Pressione Enter para dobrar.",
+        "earFinishTouch": "Toque em {{action}} para dobrar.",
+        "earFirstCorner": "Clique no primeiro canto do triângulo.",
+        "earFirstCornerTouch": "Toque no primeiro canto do triângulo.",
+        "earHingeRegion": "Clique na região onde deve ficar o vinco de articulação.",
+        "earHingeRegionTouch": "Toque na região onde deve ficar o vinco de articulação.",
+        "earSecondCorner": "Clique no segundo canto.",
+        "earSecondCornerTouch": "Toque no segundo canto.",
+        "earThirdCorner": "Clique no terceiro canto.",
+        "earThirdCornerTouch": "Toque no terceiro canto.",
+        "fixOrPickAgain": "Clique em uma correção abaixo, ou pressione Esc e escolha de novo.",
+        "fixOrPickAgainTouch": "Toque em uma correção abaixo, ou toque em Cancelar e escolha de novo.",
+        "petalFinish": "Escolha Vale ou Montanha e pressione Enter.",
+        "petalFinishTouch": "Escolha Vale ou Montanha e toque em {{action}}.",
+        "petalFlap": "Clique na aba que sobe, abaixo da dobradiça.",
+        "petalFlapTouch": "Toque na aba que sobe, abaixo da dobradiça.",
+        "petalHinge": "Clique na dobradiça: um pré-vinco que atravessa a aba.",
+        "petalHingeFirstEnd": "Clique em uma extremidade da dobradiça, onde um vinco da pipa encontra a borda da aba.",
+        "petalHingeFirstEndTouch": "Toque em uma extremidade da dobradiça, onde um vinco da pipa encontra a borda da aba.",
+        "petalHingeSecondEnd": "Clique na outra extremidade, onde o outro vinco da pipa encontra a borda.",
+        "petalHingeSecondEndTouch": "Toque na outra extremidade, onde o outro vinco da pipa encontra a borda.",
+        "petalHingeTouch": "Toque na dobradiça: um pré-vinco que atravessa a aba.",
+        "petalWay": "Escolha para que lado ela sobe, ou clique em outra aba para levantar essa.",
+        "petalWayTouch": "Escolha para que lado ela sobe, ou toque em outra aba para levantar essa.",
+        "pickAgainRead": "Pressione Esc e escolha de novo: o aviso abaixo diz o que mudar.",
+        "pickAgainReadTouch": "Toque em Cancelar e escolha de novo: o aviso abaixo diz o que mudar.",
+        "squashEnd": "Clique na ponta da aba a achatar, de um lado da linha.",
+        "squashEndTouch": "Toque na ponta da aba a achatar, de um lado da linha.",
+        "squashFlap": "Clique na aba a achatar.",
+        "squashFlapTouch": "Toque na aba a achatar.",
+        "squashSpine": "A lombada cai na linha grossa: clique no papel para que ela caia em outro lugar.",
+        "squashSpineTouch": "A lombada cai na linha grossa: toque no papel para que ela caia em outro lugar.",
+        "swivelLands": "Clique na linha onde ela pousa.",
+        "swivelLandsFirst": "Clique em um ponto da linha onde ela pousa.",
+        "swivelLandsFirstTouch": "Toque em um ponto da linha onde ela pousa.",
+        "swivelLandsTouch": "Toque na linha onde ela pousa.",
+        "swivelMeet": "Clique na borda dobrada onde os vincos se encontram, em qualquer ponto dela. Em papel plano, clique onde eles se encontram, ou segure {{modifier}} para qualquer ponto.",
+        "swivelMeetTouch": "Toque na borda dobrada onde os vincos se encontram, em qualquer ponto dela. Em papel plano, toque onde eles se encontram, ou ative Ponto livre para qualquer ponto.",
+        "swivelNothingSwings": "Nada pode girar a partir daí: clique em outro ponto.",
+        "swivelNothingSwingsTouch": "Nada pode girar a partir daí: toque em outro ponto.",
+        "swivelOntoSecond": "Clique em um segundo ponto dessa linha.",
+        "swivelOntoSecondTouch": "Toque em um segundo ponto dessa linha.",
+        "swivelSwing": "Clique na borda que vai girar sobre uma linha.",
+        "swivelSwingTouch": "Toque na borda que vai girar sobre uma linha."
+      },
+      "swivelInside": "Interna",
+      "swivelInsideHelp": "Dobra giratória interna: a faixa entra entre as camadas",
+      "swivelKind": "Tipo",
+      "swivelKindCannot": "Este tipo não fica plano aqui.",
+      "swivelOpen": "Aberta",
+      "swivelOpenHelp": "Dobra giratória aberta: a faixa dobra por cima",
+      "target": "A lombada cai em",
+      "targetHinge": "A linha da dobradiça",
+      "targetPoint": "O ponto clicado",
+      "valley": "Vale",
+      "valleyMountain": {
+        "mountainLine": "Linha de montanha",
+        "mountainStep": "Linha de montanha: {{instruction}}",
+        "pickMountain": "Escolha a linha de montanha, a partir do mesmo ponto na borda dobrada. O vinco na camada de trás decorre delas, pontilhado onde fica escondido.",
+        "pickValley": "Escolha a linha de vale: a dobradiça da aba, na camada que você vê, de um ponto numa borda dobrada para dentro do papel.",
+        "pickValleyInside": "Escolha a linha de vale: na camada que você vê, de um ponto numa borda dobrada para dentro do papel.",
+        "takeValley": "Pressione Enter para usá-la como vale.",
+        "takeValleyTouch": "Toque em Usar como vale.",
+        "useValley": "Usar como vale",
+        "valleyLine": "Linha de vale",
+        "valleyStep": "Linha de vale: {{instruction}}"
+      },
+      "valleyTitle": "Vale: o papel gira na sua direção"
+    },
+    "window": {
+      "cancel": "Cancelar",
+      "finding": "Procurando as camadas na linha…",
+      "instructions": "Instruções",
+      "kind": "Dobra",
+      "label": "Opções da ferramenta de dobra",
+      "layers": "Camadas",
+      "layersHelp": "Clique em uma camada para incluir ou excluir sua aba. Os colchetes mostram onde uma dobra une duas camadas.",
+      "layersHelpTouch": "Toque em uma camada para incluir ou excluir sua aba. Os colchetes mostram onde uma dobra une duas camadas.",
+      "layersHelpWoven": "Estas camadas se entrelaçam, então a pilha mostrada é a que está sob o ponteiro. Clique em uma camada para incluir ou excluir sua aba.",
+      "layersHelpWovenTouch": "Estas camadas se entrelaçam, então a pilha mostrada é a do ponto onde você tocou a linha por último. Toque em uma camada para incluir ou excluir sua aba.",
+      "layersMoving_one": "{{moving}} de {{count}} camada se movendo",
+      "layersMoving_many": "{{moving}} de {{count}} camadas se movendo",
+      "layersMoving_other": "{{moving}} de {{count}} camadas se movendo",
+      "lineMode": "Localizar a linha",
+      "movingSide": "Lado que se move",
+      "settings_one": "{{count}} ajuste",
+      "settings_many": "{{count}} ajustes",
+      "settings_other": "{{count}} ajustes",
+      "snapFreeLine": "Ajustar aos pontos",
+      "swap": "Trocar"
+    }
   },
   "foldAngleDisplay": {
     "color": "Cor",

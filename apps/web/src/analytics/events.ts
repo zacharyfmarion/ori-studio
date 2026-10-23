@@ -18,32 +18,161 @@ export type AnalyticsProperties = Record<string, AnalyticsPropertyValue>;
 
 /**
  * Where a diagram step's picture came from when it was added (D18 of the
- * Diagram plan). `empty` is a step added with nothing in it yet.
+ * Diagram plan). `empty` is a step added with nothing in it yet; `fold` a
+ * Fold step's state (the Fold plan's D17).
  */
 export type DiagramStepAddedSource =
   | 'empty'
   | 'references'
   | 'svg'
-  | 'raster';
+  | 'raster'
+  | 'fold';
+
+/**
+ * A Fold step's op, as `fold step added` names it (the document's `FoldOpKind`, without Import CP's,
+ * snake_case: the rabbit ear is `rabbit_ear`): the plain folds and turns, then the compound folds,
+ * one block per family.
+ */
+export type FoldStepAddedOpKind =
+  | 'valley'
+  | 'mountain'
+  | 'precrease'
+  | 'unfold'
+  | 'unfold_to'
+  | 'repeat'
+  | 'refold'
+  | 'turn'
+  | 'rotate'
+  // The reverse fold.
+  | 'inside_reverse'
+  | 'outside_reverse'
+  // The crimp and the tuck.
+  | 'crimp'
+  | 'pleat'
+  | 'tuck'
+  // The vertex folds.
+  | 'squash'
+  | 'petal'
+  | 'rabbit_ear'
+  | 'swivel'
+  // The sinks.
+  | 'open_sink'
+  | 'closed_sink'
+  | 'unsink';
+
+/**
+ * How much of the moving side a Fold step took: every layer, flaps picked, a
+ * depth at a point, or the top flap the tools take by default when the folder
+ * picked nothing (`top`, since 2026-10-13; stored as a flaps seed).
+ */
+export type FoldStepLayerScope = 'all' | 'flaps' | 'depth' | 'top';
+
+/** How a Fold step's line was located: an axiom, an existing crease, or a free line. */
+export type FoldStepVia = 'axiom' | 'crease' | 'free';
+
+/** How much of its line a Fold precrease creased: all of it, a segment between two points, or a pinch. */
+export type FoldStepExtent = 'whole' | 'segment' | 'pinch';
+
+/** How far a Fold rotation turned the model: its preset, or `other` for an exact angle (never the angle itself). */
+export type FoldStepRotationAmount = 'eighth' | 'quarter' | 'half' | 'other';
+
+/**
+ * How a Fold vertex fold named what it takes (`fold step added`, since
+ * 2026-10-12): a petal fold's hinge — a crease already there, or its two
+ * ends, which the fold creases (`hinge`) — and a swivel's form, by its edge
+ * at a free vertex, by its edge on a folded edge (`fold`, since 2026-10-12)
+ * by its valley and mountain (`valley_mountain`, since 2026-10-20) or by its
+ * rays (`swivel_form`), the edge forms' target a crease or edge, or the line
+ * through two points (`target`); and on a folded edge its kind, open or
+ * inside (`swivel_kind`, since 2026-10-12); and a squash's hinge, the
+ * folded edge it infers or a line drawn (`squash_hinge`, since 2026-10-21).
+ */
+export type FoldStepVertexForm =
+  | { hinge: 'crease' | 'points' }
+  | { squashHinge: 'folded' | 'line' }
+  | { swivelForm: 'edge'; target: 'crease' | 'free' }
+  | { swivelForm: 'fold'; target: 'crease' | 'free'; swivelKind: 'open' | 'inside' }
+  | { swivelForm: 'rays' }
+  | { swivelForm: 'valley_mountain'; swivelKind: 'open' | 'inside' };
+
+/**
+ * How the reader set a Fold step moving: Space, the Play button, or either on
+ * a step already played through (Replay).
+ */
+export type FoldStepPlayVia = 'space' | 'button' | 'replay';
+
+/**
+ * Which choice the Fold engine offered (`fold choice offered`'s
+ * `choice_kind`): the layer orders a valley or mountain fold can land in,
+ * when the folder reviews them (`placement`), an axiom's roots, the stacks a
+ * depth pick can take, the layer orders one part of an imported crease
+ * pattern folds to (Import CP's chooser), or a compound fold's: the ways a
+ * flap opens (`opening`), the orders its completion leaves (`order`), and
+ * the layers a tuck can go against (`tuck_target`); a rabbit ear's fourth
+ * crease (`emergent`), and a swivel's ridge — the crease of its four that
+ * folds the other way (`ridge`); the pockets a closed sink's point can go
+ * into (`pocket`). A rabbit ear's ridge was offered as `ridge` until its
+ * fourth crease became its ridge.
+ */
+export type FoldChoiceKind =
+  | 'placement'
+  | 'axiom_root'
+  | 'depth'
+  | 'import_order'
+  | 'opening'
+  | 'order'
+  | 'tuck_target'
+  // The vertex folds.
+  | 'emergent'
+  | 'ridge'
+  // The sinks.
+  | 'pocket';
+
+/** What a change of a Fold step's layer spread did (`fold spread changed`): the Diagram's spread verbs, by name. */
+export type FoldSpreadAction =
+  | 'spread_on'
+  | 'spread_off'
+  | 'spread_kind'
+  | 'spread_amount'
+  | 'spread_direction'
+  | 'spread_keep'
+  | 'spread_skew'
+  | 'spread_axis';
+
+/** Where a Fold step's spread was changed: the Step pane's Spread section, or the canvas bar's toggle. */
+export type FoldSpreadVia = 'step_pane' | 'canvas_bar';
+
+/** How the Divide line split the segment it marked (`fold mark added`): into equal parts, or at a ratio. */
+export type FoldMarkDivideMode = 'count' | 'ratio';
+
+/** Which of the sheet's settings a Fold sequence's Paper pane changed (`fold sheet changed`). */
+export type FoldSheetSetting = 'shape' | 'start_side';
+
+/** A Fold sheet's shape by kind, as the sequence document stores it: never a size, a proportion or a side count. */
+export type FoldSheetShape = 'square' | 'rectangle' | 'polygon';
 
 /**
  * Which control added a diagram step. `grid` is the Diagram workspace's own:
- * the header's Add step, the empty state, and Insert before / after.
+ * the header's Add step, the empty state, and Insert before / after. `fold`
+ * is a pull from Fold: the Diagram's From Fold… browser or Fold's Send to
+ * Diagram, which `fold step sent to diagram` tells apart.
  */
 export type DiagramStepAddedVia =
   | 'grid'
   | 'references'
   | 'drop'
-  | 'batch';
+  | 'batch'
+  | 'fold';
 
 /** What a turn between steps is (D22). */
 export type DiagramTurnAddedKind = 'turn_over' | 'rotate';
 
 /**
  * Where a turn between steps was made: Add step ▾ in the header, a step's
- * menu (Insert … After), or pulled from References with its turn-over card.
+ * menu (Insert … After), pulled from References with its turn-over card, or
+ * a Fold sequence's turn pulled from Fold.
  */
-export type DiagramTurnAddedVia = 'add_menu' | 'card_menu' | 'references' | 'empty_step';
+export type DiagramTurnAddedVia = 'add_menu' | 'card_menu' | 'references' | 'empty_step' | 'fold';
 
 /** What a rotation given an angle of its own is on: a turn between steps (D22), or a rotate mark on a step's picture. */
 export type DiagramRotationTarget = 'turn' | 'mark';
@@ -91,6 +220,8 @@ export type DiagramAnnotationTool =
   | 'valley_line'
   | 'mountain_line'
   | 'hidden_line'
+  // No tool draws it: a Fold step's mark, the rest of a pinch's line, which can be deleted.
+  | 'uncreased_line'
   | 'solid_line'
   | 'label'
   | 'circle'
@@ -382,8 +513,11 @@ export type DiagramShowAsName = 'crease_pattern' | 'folded' | 'simulated';
  */
 export type DiagramShowAsVia = 'pane' | 'picker' | 'card' | 'duplicate';
 
-/** The workspace a diagram step's Open in… went to: its pattern in Edit, or its sheet in References. */
-export type DiagramSourceWorkspace = 'edit' | 'references';
+/**
+ * The workspace a diagram step's Open in… went to: its pattern in Edit, its
+ * sheet in References, or its step in Fold.
+ */
+export type DiagramSourceWorkspace = 'edit' | 'references' | 'fold';
 
 /**
  * What became of a press on the empty Diagram's example: it opened, the
@@ -508,7 +642,7 @@ export type DiagramRepackVia = 'page_pane' | 'layers_pane' | 'context_menu';
 export type DiagramStyleChoiceName = 'default' | 'diagram' | 'export-style' | 'custom';
 
 /** The five top-level workspaces, plus the share screen. */
-export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'diagram' | 'share';
+export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'diagram' | 'fold' | 'share';
 /**
  * A Design workspace's method, for the events that describe *one* design.
  *
@@ -781,8 +915,10 @@ export type PaperPresetExportSource = 'button' | 'card';
 /**
  * Where an edit to the app-wide paper style was made: Settings ▸ Paper, the
  * Simulate options pane (docked, or in the touch View drawer — the name
- * `view drawer opened` gives it), or the Simulate viewport's own verbs, its
- * lighting key binding and context-menu row.
+ * `view drawer opened` gives it), the Simulate viewport's own verbs, or its
+ * lighting key binding and context-menu row. (The Fold workspace's Paper tab
+ * edited the colours until 2026-10-20, as `fold`; it picks a sequence's own
+ * style now, counted as `fold paper style changed`.)
  */
 export type PaperStyleEditSource = 'settings' | 'simulator-view-controls' | 'simulator';
 
@@ -820,7 +956,8 @@ export type PaperExportSurface =
   | 'inline-simulation'
   | 'folded-3d'
   | 'folded-flat'
-  | 'references';
+  | 'references'
+  | 'fold';
 
 /** A paper export's format — the file's kind only, never its name. */
 export type PaperImageExportFormat = 'svg' | 'png';
@@ -1006,7 +1143,8 @@ export type ContextMenuSurface =
   | 'design-tree'
   | 'simulator'
   | 'references'
-  | 'diagram';
+  | 'diagram'
+  | 'fold';
 
 /**
  * What the menu was raised *on*, coarsely.
@@ -1591,6 +1729,58 @@ export const ANALYTICS_EVENTS = {
    */
   diagramRotationCustomized: 'diagram rotation customized',
   /**
+   * The Fold workspace's canvas tools (plan D18). `fold step added` is a step
+   * committed from the canvas — a fold, a precrease, an unfold or refold, a
+   * turn, a crimp or a tuck — with how much it took (`layer_scope`) and how its line was located
+   * (`via`), and a rotation how far it turned (`amount`, a preset or `other`); never the axiom (per-step axiom codes would add up to the axiom
+   * histogram this document forbids). `fold refused` is a refusal shown to the
+   * folder, by the engine's stable `code`, once per fold asked for, and once
+   * per Import CP the dialog refused (an `import_*` code or the dialog's own,
+   * with `face_count_bucket` when it was over the face cap, and
+   * `stack_depth_bucket` when it stacked too deep); `fold
+   * choice offered` is the engine handing back more than one answer the folder
+   * then chooses between — an axiom's roots, or the stacks a depth pick can
+   * take — with how many, bucketed.
+   */
+  foldStepAdded: 'fold step added',
+  /** Explicit dependency refresh of a saved history return; no document content. */
+  foldUnfoldRebuilt: 'fold unfold rebuilt',
+  /** A saved Repeat updated from its source steps, as `fold unfold rebuilt` is an Unfold's: an update, not a step added. */
+  foldRepeatRebuilt: 'fold repeat rebuilt',
+  /** A refusal shown to the folder, by the engine's stable `code`; a Repeat's also says `op_kind: repeat`. */
+  foldRefused: 'fold refused',
+  /** More than one answer for the folder to choose between: `choice_kind`, and how many, bucketed. */
+  foldChoiceOffered: 'fold choice offered',
+  /** A layer-order review ended: accepted or cancelled, from a tool or Import CP's chooser, with how many orders, bucketed. */
+  foldOrderResolved: 'fold order resolved',
+  /** A press of Find more orders ended: finished, out of time or stopped, whether it found more, and the orders after it, bucketed. */
+  foldOrdersSearched: 'fold orders searched',
+  /** The Divide line marked a segment: how it divided it, never where or into how many parts. */
+  foldMarkAdded: 'fold mark added',
+  /** The Paper pane's sheet changed: which setting, and the sheet's shape and starting side after it. */
+  foldSheetChanged: 'fold sheet changed',
+  /**
+   * The Paper pane's Style picked another paper style for the sequence:
+   * `style` as the Diagram's Page pane names its choice — a built-in by id,
+   * the Settings export style, or `custom` for a saved preset, never its name.
+   */
+  foldPaperStyleChanged: 'fold paper style changed',
+  /**
+   * A Fold step's layer spread changed (Wave 5): turned on or off, its kind,
+   * or one of its values — from the Step pane's Spread section or the
+   * canvas bar's toggle (`via`). A change that leaves the layers spread also
+   * says how, in the Diagram's spread properties (kind, the amount bucketed,
+   * the direction or the layer held still, skew and axis bucketed); never a
+   * value itself. A slider's drag is one event, at its end.
+   */
+  foldSpreadChanged: 'fold spread changed',
+  foldFreeLineSnapChanged: 'fold free line snapping changed',
+  /**
+   * The Fold engine crashed and the session restarted it, or gave up: how
+   * often, why, and whether the steps came back (`trackFoldEngine.ts`).
+   */
+  foldEngineCrashed: 'fold engine crashed',
+  /**
    * One file of an upload into the Diagram, and what became of it: whether
    * people's own drawings survive the sanitizer, and how big they are.
    */
@@ -1710,6 +1900,27 @@ export const ANALYTICS_EVENTS = {
   exploriResultOpened: 'explori result opened',
   exploriSentToEdit: 'explori sent to edit',
   designSentToEdit: 'design sent to edit',
+  /**
+   * A crease pattern became a step of a Fold sequence (plan D16): a file, a
+   * sample, or Edit's folded figure, by the step's closed `origin` — never a
+   * name, a crease or an order. Whether Import CP is how people start in
+   * Fold, and from where.
+   */
+  foldCpImported: 'fold cp imported',
+  /**
+   * A Fold sequence's crease pattern reached the Edit canvas, its precreases
+   * as auxiliary lines. No property: there is one Send to Edit. Counted where
+   * Edit took it, since a send can be refused after the menu chokepoint
+   * counted the press.
+   */
+  foldSequenceSentToEdit: 'fold sequence sent to edit',
+  /**
+   * Fold steps became Diagram steps (fold-workspace plan D17): sent from
+   * Fold — the step on screen, or the active path up to it — or pulled by the
+   * Diagram's Fold browser, one or many. Whether the Diagram is where a Fold
+   * sequence ends up, and from which side the link is made.
+   */
+  foldStepSentToDiagram: 'fold step sent to diagram',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
   landingViewed: 'landing viewed',
@@ -1756,7 +1967,8 @@ export const ANALYTICS_EVENTS = {
    *
    * `pane` names which side pane the sheet opened on (`cp-view-controls`,
    * `cp-properties`, `simulator-view-controls`, the Diagram's `diagram-step`,
-   * `diagram-page` and `diagram-layers`) — an enum, never content.
+   * `diagram-page` and `diagram-layers`, Fold's `fold-step` and `fold-paper`)
+   * — an enum, never content.
    */
   viewDrawerOpened: 'view drawer opened',
   /**
@@ -1809,6 +2021,28 @@ export const ANALYTICS_EVENTS = {
    * evidence that anyone finds it.
    */
   cpToolFavoritesReordered: 'cp tool favorites reordered',
+  /**
+   * The phone layout's Fold tool sheet was opened, from the Tools pill in the
+   * Fold header that stands in for the rail there. Kept apart from Edit's
+   * `cp tool picker opened`, which dashboards compare across releases, as
+   * Simulate's is.
+   */
+  foldToolPickerOpened: 'fold tool picker opened',
+  /**
+   * A Fold tool was starred or un-starred, in the phone tool sheet. Edit's
+   * `cp tool favorited` for Fold's own list (`foldToolFavorites`), apart from
+   * it for the same reason as the picker's event, and both ways for the same
+   * reason as Edit's: whether the shipped defaults were the right ones.
+   *
+   * `tool` is a Fold rail item id — a tool, a line mode or a model verb — an
+   * enum from the shipped catalogue, never user content.
+   */
+  foldToolFavorited: 'fold tool favorited',
+  /**
+   * A Fold favorite was moved by long press and drag: once per completed
+   * gesture, as Edit's `cp tool favorites reordered` is.
+   */
+  foldToolFavoritesReordered: 'fold tool favorites reordered',
   /**
    * The phone layout moved between a design's panes.
    *
@@ -1895,6 +2129,30 @@ export const DIAGRAM_TITLE_BLOCK_CREDIT_BUCKETS = [0, 1, 2, 3, 5, 10] as const;
 export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;
 
 /**
+ * Threshold ladder for how many answers a Fold choice offered. An axiom gives
+ * at most three roots, and a depth pick one stack per layer under the point,
+ * so the question is "two, a few, or a deep stack" and the general ladder
+ * would put every choice in its first bucket.
+ */
+export const FOLD_CHOICE_COUNT_BUCKETS = [2, 3, 4, 8] as const;
+
+/**
+ * Threshold ladder for a face count Fold refused as over its cap (4,096,
+ * `fold refused`'s `face_count_bucket`): just over, a few times over, or far
+ * past anything Fold could fold.
+ */
+export const FOLD_FACE_COUNT_BUCKETS = [8192, 16384, 32768] as const;
+
+/**
+ * Threshold ladder for the deepest stack, in layers, of a crease pattern Fold
+ * refused as stacked too deep (`fold refused`'s `stack_depth_bucket`). The cap
+ * is on triples of overlapping layers, not on one stack, so a pattern of many
+ * stacks 150 deep can be refused as well as one stack of 300: real designs
+ * refused in the cpoogle corpus stacked 130–600 deep.
+ */
+export const FOLD_STACK_DEPTH_BUCKETS = [200, 300, 500] as const;
+
+/**
  * Threshold ladder for how many designs are open at once.
  *
  * Much tighter than {@link COUNT_BUCKETS}: the question is "does anyone use more
@@ -1920,6 +2178,14 @@ export const CP_FAVORITE_COUNT_BUCKETS = [0, 2, 5, 10, 20] as const;
 
 /** Which surface a favorite was starred or moved from. */
 export type CpFavoriteSurface = 'picker-sheet';
+
+/**
+ * Threshold ladder for how many Fold tools someone has starred: Edit's ladder
+ * (`CP_FAVORITE_COUNT_BUCKETS`) moved to straddle Fold's four defaults
+ * (`FOLD_DEFAULT_FAVORITE_IDS`), so pruned, as shipped and curating stay three
+ * answers.
+ */
+export const FOLD_FAVORITE_COUNT_BUCKETS = [0, 3, 4, 10, 20] as const;
 
 /**
  * Where a simulator tool was picked: Escape is the way back to Orbit, and the

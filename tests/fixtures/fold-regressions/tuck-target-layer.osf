@@ -1,0 +1,223 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Tuck against a layer a precrease splits",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-regression-tuck-target-layer",
+        "title": "Tuck against a layer a precrease splits",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-tuck-target-layer-1",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.3
+                  ],
+                  [
+                    0.3,
+                    0
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.02,
+                0.02
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:75134cbe35635f6d",
+            "note": "Precrease along a free line across the bottom-left corner, from (0, 0.3) to (0.3, 0)."
+          },
+          {
+            "id": "fstep-tuck-target-layer-2",
+            "parent": "fstep-tuck-target-layer-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5,
+                    0
+                  ],
+                  [
+                    0.5,
+                    1
+                  ]
+                ]
+              },
+              "moving": [
+                0.75,
+                0.5
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:c51e07fc8dc43145",
+            "note": "Valley fold the right half over the left: a book, its pocket open at the bottom left."
+          },
+          {
+            "id": "fstep-tuck-target-layer-3",
+            "parent": "fstep-tuck-target-layer-2",
+            "op": {
+              "kind": "mountain",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.3
+                  ],
+                  [
+                    0.3,
+                    0
+                  ]
+                ]
+              },
+              "moving": [
+                0.95,
+                0.05
+              ],
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.95,
+                    0.05
+                  ]
+                ]
+              },
+              "landing": {
+                "kind": "against",
+                "targets": [
+                  [
+                    0.2,
+                    0.2
+                  ]
+                ]
+              }
+            },
+            "expect": "fs1:bf0a17fd303319ae",
+            "note": "Mountain fold the top flap’s bottom-left corner along the precrease’s line, tucked into the pocket against the back layer. The precrease splits that layer on the fold line; it used to be refused as “More flaps would move”."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-regression-tuck-target-layer",
+        "cursor": "fstep-tuck-target-layer-3"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

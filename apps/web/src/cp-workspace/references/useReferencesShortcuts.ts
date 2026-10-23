@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { registerReferencesShortcutExecutor } from '../../keyboard/shortcutRuntime';
+import { registerConditionalScopeExecutor } from '../../keyboard/shortcutRuntime';
 import type { ReferencesShortcutId } from '../../keyboard/shortcuts';
 import { runReferencesShortcut, type ReferencesShortcutActions } from './referencesShortcuts';
 
@@ -26,7 +26,7 @@ export function useReferencesShortcuts(actions: ReferencesShortcutActions, activ
 
   useEffect(() => {
     if (!active) return;
-    return registerReferencesShortcutExecutor((id: ReferencesShortcutId) =>
+    return registerConditionalScopeExecutor('references', (id: ReferencesShortcutId) =>
       runReferencesShortcut(id, actionsRef.current)
     );
   }, [active]);

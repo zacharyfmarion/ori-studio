@@ -13,6 +13,10 @@ part of the planner that has to exist before any folding step is computed.
 - `outline` / `components` — border creases are chained into loops; a loop that
   is a rectangle in any orientation becomes a sheet frame, and every crease is
   assigned to the sheet that contains it. Non-rectangular loops are refused.
+
+`frame`, `line`, `outline`, `sheet`, `pointgrid`, `tol` and `construct` (the
+Huzita–Justin constructions) are `oristudio-geometry`'s, shared with the Fold
+engine; this crate re-exports them under the same paths.
 - `exactness` — the residual probe that classifies a component as `exact`,
   `snappable` (planned on a snapped copy) or `off_lattice`, and the snap itself.
 

@@ -1,12 +1,13 @@
 import {
+  spreadTracking,
   trackDiagramPicturePosed,
   type DiagramPoseAction as TrackedPoseAction,
-  type DiagramSpreadDirection,
-  type DiagramSpreadTracking,
 } from '../../analytics';
 import { ensureCpSheetIndex, peekCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
-import type { LayerSpreadOptions, SpreadDirection, SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { LayerSpreadOptions, SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { SpreadSlider } from '../../cp-workspace/folded/layerSpreadControls';
+import { withSpreadField } from '../../cp-workspace/folded/layerSpreadSettings';
 import {
   foldedFigureHandleEpoch,
   releaseFoldedFigureHandle,
@@ -54,7 +55,7 @@ import { creasesThumbnail } from './captureThumbnail';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus } from './linkStatus';
 import { lightingChanged } from '../pictures/lighting';
-import { poseLinkedStep, withSpreadField, type FlatSolutions, type LinkedPoseRequest } from './linkedPose';
+import { poseLinkedStep, type FlatSolutions, type LinkedPoseRequest } from './linkedPose';
 import { captureKind, sayCaptureOutcome } from './stepCaptureActions';
 
 /** How long the 3D view must rest before its camera is captured: one orbit, one undo step. */
@@ -107,9 +108,10 @@ const SPREAD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
  * direction or an affine one's layer held still, skew and axis (bucketed). A
  * turn-over says the side it left showing, and a crease pattern's paper side
  * the side whose colour it chose. Flip creases is counted as on or off by
- * what it left, as Spread Layers is.
+ * what it left, as Spread Layers is. A Fold step's pose is counted the same
+ * way (`foldStepActions.ts`), by the render it was captured in.
  */
-function trackPose(verb: LinkedPoseRequest['verb'], render: DiagramCpRender): void {
+export function trackPose(verb: LinkedPoseRequest['verb'], render: DiagramCpRender): void {
   const spread = render.mode === 'folded-flat' ? render.spread : undefined;
   const action =
     verb === 'spread-layers' && !spread
@@ -128,18 +130,8 @@ function renderSide(render: DiagramCpRender): 'front' | 'back' | undefined {
   return render.mode === 'simulated' || render.mode === 'defox' ? undefined : render.side;
 }
 
-function spreadTracking(spread: LayerSpreadOptions): DiagramSpreadTracking {
-  return spread.kind === 'depth'
-    ? { kind: 'depth', direction: trackedDirection(spread.toward), amount: spread.amount }
-    : { kind: 'affine', amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
-}
-
-function trackedDirection(toward: SpreadDirection): DiagramSpreadDirection {
-  return toward.replace('-', '_') as DiagramSpreadDirection;
-}
-
-/** The sliders a spread is dragged by: its amount, and an affine one's skew and axis. */
-export type SpreadSlider = 'amount' | 'skew' | 'axis';
+/** The sliders a spread is dragged by: its amount, and an affine one's skew and axis (`layerSpreadControls.ts`). */
+export type { SpreadSlider };
 
 /**
  * A slider at a value: what a drag shows before it is committed. An amount

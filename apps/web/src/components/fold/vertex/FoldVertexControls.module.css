@@ -1,0 +1,32 @@
+/*
+ * A vertex fold's controls in the Fold tool window (FoldVertexControls.tsx):
+ * its precondition and choice notes, and a squash's spine target. The
+ * window's sections and rows are its own (FoldToolWindow, FieldRow); the
+ * steppers are the reverse fold's (FoldChoiceStepperRow).
+ */
+
+/* What the fold needs of the paper, and what a choice says: the window's note voice. */
+.note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+/* A fan's fourth-crease note: two lines kept whatever it says, so the window
+   keeps its shape as the paper that stays changes. */
+.note[data-reserved] {
+  min-height: calc(2 * 1.35em);
+}
+
+/* "The hinge line", and the way back to it, on the row's right. */
+.target {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.value {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}

@@ -1,0 +1,563 @@
+{
+  "name": "kite-base",
+  "sheet": {
+    "shape": "square"
+  },
+  "start": "front",
+  "steps": [
+    [
+      {
+        "op": "precrease",
+        "fold": {
+          "line": {
+            "n": [
+              0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "d": -0.0
+          },
+          "side": "positive",
+          "direction": "valley",
+          "seed": {
+            "seed": "all"
+          },
+          "placement": {
+            "placement": "on_top"
+          },
+          "closure": "include"
+        }
+      },
+      {
+        "faces": 2,
+        "pairs": 0,
+        "moved": 1,
+        "creases": [
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "flat",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.0,
+              1.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "op": "fold",
+        "fold": {
+          "line": {
+            "n": [
+              0.3826834323650898,
+              -0.9238795325112867
+            ],
+            "d": -0.0
+          },
+          "side": "positive",
+          "direction": "valley",
+          "seed": {
+            "seed": "all"
+          },
+          "placement": {
+            "placement": "on_top"
+          },
+          "closure": "include"
+        }
+      },
+      {
+        "faces": 3,
+        "pairs": 1,
+        "moved": 1,
+        "creases": [
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.414213562
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 2
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "flat",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.0,
+              1.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.414213562
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.414213562
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "op": "fold",
+        "fold": {
+          "line": {
+            "n": [
+              0.9238795325112867,
+              -0.38268343236508984
+            ],
+            "d": -0.0
+          },
+          "side": "negative",
+          "direction": "valley",
+          "seed": {
+            "seed": "all"
+          },
+          "placement": {
+            "placement": "on_top"
+          },
+          "closure": "include"
+        }
+      },
+      {
+        "faces": 4,
+        "pairs": 2,
+        "moved": 1,
+        "creases": [
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.414213562,
+              1.0
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 3
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.414213562
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 2
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "flat",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.0,
+              1.0
+            ],
+            "to": [
+              0.414213562,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.414213562,
+              1.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.414213562
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.414213562
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "op": "fold",
+        "fold": {
+          "line": {
+            "n": [
+              0.3826834323650898,
+              -0.9238795325112867
+            ],
+            "d": -0.0
+          },
+          "side": "negative",
+          "direction": "valley",
+          "seed": {
+            "seed": "depth",
+            "at": [
+              0.8131727983645296,
+              0.17677669529663692
+            ],
+            "layers": 1
+          },
+          "placement": {
+            "placement": "on_top"
+          },
+          "closure": "include"
+        }
+      },
+      {
+        "faces": 4,
+        "pairs": 1,
+        "moved": 1,
+        "creases": [
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.414213562,
+              1.0
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 3
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.414213562
+            ],
+            "kind": {
+              "kind": "flat",
+              "letter": "valley"
+            },
+            "made_at": 2
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "flat",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.0,
+              1.0
+            ],
+            "to": [
+              0.414213562,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.414213562,
+              1.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.414213562
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.414213562
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          }
+        ]
+      }
+    ]
+  ]
+}

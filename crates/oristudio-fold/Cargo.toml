@@ -1,0 +1,65 @@
+[package]
+name = "oristudio-fold"
+version.workspace = true
+publish.workspace = true
+edition.workspace = true
+# Original work: the Fold workspace's engine. A flat folded state (crease
+# pattern, convex faces, isometries, pairwise layer order, view), the one
+# validating constructor, the plain fold with its precrease, refold, unfold,
+# turn-over and rotate, and the compound folds' pipeline with the reverse fold
+# and the vertex folds (squash, petal fold, rabbit ear, swivel).
+# The Fold spikes under artifacts/fold-spike (core, compound) were the
+# reference for behaviour; no code is ported from them, Beloch, Flat-Folder or
+# Oriedita. Completion calls Flat-Folder's search through treemaker-flatfold's
+# entry point; nothing of it is copied here.
+license = "MIT OR Apache-2.0"
+description = "The Fold workspace engine for Ori Studio: flat folded states, the plain fold and compound folds"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["origami", "folding", "layer-order"]
+categories = ["algorithms", "mathematics"]
+include = [
+    "Cargo.toml",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "README.md",
+    "src/**",
+    "tests/**",
+    "examples/**",
+]
+
+[lints]
+workspace = true
+
+[features]
+# The one conversion to the CP kernel's model and the FOLD sequence export
+# built on the kernel's own FOLD writer (plan D1, D10). Off by default so the
+# engine stays free of the kernel; `oristudio-fold-wasm` turns it on, and its
+# README records what that costs the browser. Both crates it adds are
+# MIT OR Apache-2.0.
+kernel = ["dep:oristudio-cp", "dep:treemaker-fold", "dep:serde_json"]
+# `oristudio_fold::random`: seeded random fold sequences, the draws the
+# property tests make, for crates that check the engine from outside it (the
+# oracles in crates/oracle-tests). Test support; nothing that ships enables it.
+random-sequences = []
+
+[dependencies]
+oristudio-geometry = { path = "../oristudio-geometry" }
+oristudio-layer-order = { path = "../oristudio-layer-order" }
+serde.workspace = true
+thiserror.workspace = true
+treemaker-flatfold.workspace = true
+oristudio-cp = { workspace = true, optional = true }
+treemaker-fold = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+[dev-dependencies]
+# The crate itself with `random-sequences`: every test and example draws from
+# `oristudio_fold::random`, the generator the oracles replay, rather than a
+# copy of it.
+oristudio-fold = { path = ".", features = ["random-sequences"] }
+serde_json.workspace = true
+# `tests/kernel_scene.rs`: the scene against the kernel's folded paper scene
+# of the same crease pattern, and read back as one.
+oristudio-cp = { path = "../oristudio-cp" }

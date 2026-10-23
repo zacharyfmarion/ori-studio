@@ -1,0 +1,298 @@
+{
+  "file_spec": 1.1,
+  "file_creator": "beloch 0.4.0",
+  "file_author": "Claude (Anthropic)",
+  "frame_classes": [ "creasePattern" ],
+  "frame_unit": "unit",
+  "vertices_coords": [
+    [ 1.0, 0.5 ],
+    [ 1.0, 1.0 ],
+    [ 0.0, 1.0 ],
+    [ 0.0, 0.5 ],
+    [ 0.0, 0.0 ],
+    [ 1.0, 0.0 ]
+  ],
+  "edges_vertices": [
+    [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ], [ 4, 5 ], [ 5, 0 ], [ 3, 4 ]
+  ],
+  "edges_assignment": [ "B", "B", "B", "M", "B", "B", "B" ],
+  "edges_foldAngle": [ 0.0, 0.0, 0.0, -180.0, 0.0, 0.0, 0.0 ],
+  "edges_faces": [ [ 0 ], [ 0 ], [ 0 ], [ 0, 1 ], [ 1 ], [ 1 ], [ 1 ] ],
+  "faces_vertices": [ [ 0, 1, 2, 3 ], [ 4, 5, 0, 3 ] ],
+  "beloch:edges": [
+    null,
+    null,
+    null,
+    {
+      "axiom": "axiom5",
+      "sources": [ "--cd", "--ab" ],
+      "span": "packages/render-2d/yr/test/fixtures/mountain.bel:7:1-37",
+      "statement": 0,
+      "name": null,
+      "crease_id": 0
+    },
+    null,
+    null,
+    null
+  ],
+  "beloch:inspect": {
+    "creases": {
+      "0": {
+        "name": null,
+        "axiom": "axiom5",
+        "sources": [ "--cd", "--ab" ],
+        "span": "packages/render-2d/yr/test/fixtures/mountain.bel:7:1-37",
+        "segments": [
+          {
+            "faces": [ 1, 0 ],
+            "paper": [ [ 1.0, 0.5 ], [ 0.0, 0.5 ] ],
+            "table": [ [ 1.0, 0.5 ], [ 0.0, 0.5 ] ],
+            "assignment": "M"
+          }
+        ]
+      }
+    },
+    "faces": {
+      "0": {
+        "vertices": [
+          [ 1.0, 0.5 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ], [ 0.0, 0.5 ]
+        ],
+        "flap": 0,
+        "rank": 0
+      },
+      "1": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 0.5 ], [ 0.0, 0.5 ]
+        ],
+        "flap": 1,
+        "rank": 1
+      }
+    },
+    "points": {
+      "a": { "face": 1, "flap": 1 },
+      "b": { "face": 1, "flap": 1 },
+      "c": { "face": 0, "flap": 0 },
+      "d": { "face": 0, "flap": 0 }
+    },
+    "edges": {
+      "da": {
+        "name": "da",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 0.0, 1.0 ], [ 0.0, 0.5 ] ],
+            "table": [ [ 0.0, 0.0 ], [ 0.0, 0.5 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 0.0, 0.5 ], [ 0.0, 0.0 ] ],
+            "table": [ [ 0.0, 0.5 ], [ 0.0, 0.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "ab": {
+        "name": "ab",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 0.0, 0.0 ], [ 1.0, 0.0 ] ],
+            "table": [ [ 0.0, 0.0 ], [ 1.0, 0.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "bc": {
+        "name": "bc",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 1.0, 0.5 ], [ 1.0, 1.0 ] ],
+            "table": [ [ 1.0, 0.5 ], [ 1.0, 0.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 1.0, 0.0 ], [ 1.0, 0.5 ] ],
+            "table": [ [ 1.0, 0.0 ], [ 1.0, 0.5 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "cd": {
+        "name": "cd",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.0, 1.0 ] ],
+            "table": [ [ 1.0, 0.0 ], [ 0.0, 0.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      }
+    }
+  },
+  "beloch:vertices_names": [ null, "c", "d", null, "a", "b" ],
+  "beloch:named_points": {
+    "a": {
+      "paper": [ 0.0, 0.0 ],
+      "table": [ 0.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "b": {
+      "paper": [ 1.0, 0.0 ],
+      "table": [ 1.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "c": {
+      "paper": [ 1.0, 1.0 ],
+      "table": [ 1.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "d": {
+      "paper": [ 0.0, 1.0 ],
+      "table": [ 0.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    }
+  },
+  "beloch:named_lines": {},
+  "beloch:named_lines_frame": "creasePattern",
+  "beloch:marks": [],
+  "beloch:free": {},
+  "beloch:statements": [
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 7,
+      "span": "packages/render-2d/yr/test/fixtures/mountain.bel:7:1-37",
+      "frame_index": 1,
+      "kept_marks": []
+    }
+  ],
+  "beloch:references": [
+    {
+      "span": "packages/render-2d/yr/test/fixtures/mountain.bel:7:11-15",
+      "edge": "cd"
+    },
+    {
+      "span": "packages/render-2d/yr/test/fixtures/mountain.bel:7:21-25",
+      "edge": "ab"
+    }
+  ],
+  "beloch:annotations": [
+    {
+      "key": "author",
+      "namespace": null,
+      "target": "program",
+      "frame_index": 0,
+      "source_line": 1,
+      "span": "packages/render-2d/yr/test/fixtures/mountain.bel:1:1-2:1",
+      "args": [
+        {
+          "text": "Claude (Anthropic)",
+          "span": "packages/render-2d/yr/test/fixtures/mountain.bel:1:9-29"
+        }
+      ]
+    },
+    {
+      "key": "say",
+      "namespace": null,
+      "target": [ 0, 0 ],
+      "frame_index": 0,
+      "source_line": 6,
+      "span": "packages/render-2d/yr/test/fixtures/mountain.bel:6:1-7:1",
+      "args": [
+        {
+          "text": "Mountain-fold the upper half behind.",
+          "span": "packages/render-2d/yr/test/fixtures/mountain.bel:6:6-44"
+        }
+      ]
+    },
+    {
+      "key": "say",
+      "namespace": null,
+      "target": null,
+      "frame_index": 1,
+      "source_line": 9,
+      "span": "packages/render-2d/yr/test/fixtures/mountain.bel:9:1-10:1",
+      "args": [
+        {
+          "text": "Folded in half.",
+          "span": "packages/render-2d/yr/test/fixtures/mountain.bel:9:6-23"
+        }
+      ]
+    }
+  ],
+  "file_frames": [
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [ [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ] ],
+      "edges_assignment": [ "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0 ], [ 0 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ] ],
+      "beloch:faces_matrix": [ [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ] ],
+      "faceOrders": [],
+      "beloch:source_line": null,
+      "beloch:edges": [ null, null, null, null ],
+      "beloch:vertices_names": [ "a", "b", "c", "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 0.5 ],
+        [ 1.0, 0.0 ],
+        [ 0.0, 0.0 ],
+        [ 0.0, 0.5 ],
+        [ 0.0, 0.0 ],
+        [ 1.0, 0.0 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ], [ 4, 5 ], [ 5, 0 ], [ 3, 4 ]
+      ],
+      "edges_assignment": [ "B", "B", "B", "M", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, -180.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0 ], [ 0, 1 ], [ 1 ], [ 1 ], [ 1 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ], [ 4, 5, 0, 3 ] ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 ], [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ]
+      ],
+      "faceOrders": [ [ 0, 1, -1 ] ],
+      "beloch:source_line": 7,
+      "beloch:edges": [
+        null,
+        null,
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--cd", "--ab" ],
+          "span": "packages/render-2d/yr/test/fixtures/mountain.bel:7:1-37",
+          "statement": 0,
+          "name": null,
+          "crease_id": 0
+        },
+        null,
+        null,
+        null
+      ],
+      "beloch:vertices_names": [ null, "c", "d", null, "a", "b" ]
+    }
+  ]
+}

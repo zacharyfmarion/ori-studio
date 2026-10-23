@@ -150,6 +150,21 @@ afterEach(() => {
 });
 
 describe('the menu bar on a phone', () => {
+  it('names no keyboard chord there, as the tool sheet names none', () => {
+    stubViewport(false);
+    let host = renderMenuBar();
+    openMenu(host, 'File');
+    expect(host.querySelectorAll('[data-menu-shortcut]').length).toBeGreaterThan(0);
+    act(() => root!.unmount());
+    container?.remove();
+
+    stubViewport(true);
+    host = renderMenuBar();
+    openMenu(host, 'File');
+    expect(host.querySelectorAll('[role="menuitem"]').length).toBeGreaterThan(0);
+    expect(host.querySelector('[data-menu-shortcut]')).toBeNull();
+  });
+
   it('expands a submenu in place, and says so', () => {
     stubViewport(true);
     const host = renderMenuBar();

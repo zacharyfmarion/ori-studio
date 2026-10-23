@@ -65,7 +65,7 @@
  * everything else: its construction is on blank paper.
  */
 import type { Pen } from '../../lib/paper/paperStyle';
-import { flipDirection } from './diagram/diagramModel';
+import { flipDirection } from '../../lib/stepDiagram/diagramModel';
 import type { PrecreaseDirection, PrecreaseStep } from './precreaseSequence';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
@@ -91,7 +91,7 @@ export const REFERENCES_ALL_CREASES: ReferencesCreaseVisibility = {
 export interface ReferencesVisibilityInput {
   /**
    * The reader is looking at the paper's back, so a crease's direction is named
-   * from that face — see `diagram/diagramModel.flipDirection`.
+   * from that face — see `lib/stepDiagram/diagramModel.flipDirection`.
    */
   mirrored?: boolean;
   /** The selected sheet's creases, border included; null draws the document. */
@@ -215,7 +215,7 @@ export function planVisibility(
         if (!borderLineIds?.has(id)) creased.add(id);
         if (made.direction !== 'unassigned') {
           // Named from the face the reader is on, like everything else in the
-          // picture — see `diagram/diagramModel.flipDirection`.
+          // picture — see `lib/stepDiagram/diagramModel.flipDirection`.
           directions.set(id, mirrored ? flipDirection(made.direction) : made.direction);
         }
       }

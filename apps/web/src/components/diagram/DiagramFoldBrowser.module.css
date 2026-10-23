@@ -1,0 +1,19 @@
+/*
+ * What the Fold browser (DiagramFoldBrowser.tsx) adds to the pull browser's
+ * frame: Merge symmetric precreases in the bar, a checkbox and its words as
+ * the footer's turn offer is, so the two options read alike.
+ */
+.merge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+/* Nothing on the path to merge: shown, so the remembered choice is there to see, but not to change. */
+.merge[data-disabled] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}

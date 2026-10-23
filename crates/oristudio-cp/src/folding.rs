@@ -3299,6 +3299,26 @@ fn overlap_enumerator_from_segments(
     enumerator
 }
 
+/// The closure step of [`overlap_enumerator_from_segments`], for a caller that
+/// assembles the enumerator from the public stages: Oriedita's setup-time
+/// `removeMode` AEA round over the reduced subfaces of `subfaces`. It closes
+/// `hierarchy` and prunes `conditions` in place; the closed hierarchy and the
+/// pruned conditions are what [`WorkerOverlapEnumerator::from_subfaces`] takes.
+///
+/// **Ori Studio native**, and additive: the seeded verification oracle for the
+/// Fold workspace (`crates/oracle-tests`, `implementation-plans/fold-workspace.md`
+/// D8) appends its own relations to [`initial_hierarchy_from_segments`], checks
+/// them with [`validate_initial_hierarchy`] (the table below keeps the first of
+/// two contradictory seeds silently), and then needs the closure the shipped
+/// path runs before its search. No flat or 3D caller goes through it.
+pub fn close_initial_hierarchy(
+    hierarchy: &InitialHierarchy,
+    subfaces: &SubFaceConfiguration,
+    conditions: &mut EquivalenceConditionSet,
+) -> Result<InitialHierarchy, AdditionalEstimationError> {
+    close_hierarchy_with_removal(hierarchy, reduced_subface_face_ids(subfaces), conditions)
+}
+
 fn two_colored_overlap_enumerator_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
@@ -6070,5 +6090,115 @@ mod shadow_region_tests {
             // back is a stack all the way to its rim.
             assert!(flipped || single > 0, "and single-sheet flap edges");
         }
+    }
+}
+
+#[cfg(test)]
+mod seeded_closure_tests {
+    use super::*;
+    use crate::io::fold::import_fold_document;
+
+    fn kabuto_segments() -> Vec<LineSegment> {
+        let document: treemaker_fold::FoldDocument = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/flat-folder/kabuto.fold"
+        ))
+        .expect("kabuto fold fixture");
+        import_fold_document(&document)
+            .expect("import")
+            .line_segments
+            .into_iter()
+            .filter(|segment| segment.color.is_folding_line())
+            .collect()
+    }
+
+    /// The public stages: the letters' hierarchy, the subfaces and the
+    /// condition candidates.
+    fn stages(
+        segments: &[LineSegment],
+    ) -> (
+        InitialHierarchy,
+        SubFaceConfiguration,
+        EquivalenceConditionSet,
+    ) {
+        let initial = initial_hierarchy_from_segments(segments, 1)
+            .expect("hierarchy")
+            .expect("faces");
+        let subfaces = configure_subfaces_from_segments(segments, 1)
+            .expect("subfaces")
+            .expect("a subface arrangement");
+        let conditions = equivalence_condition_candidates_from_segments(segments, 1)
+            .expect("conditions")
+            .expect("faces");
+        (initial, subfaces, conditions)
+    }
+
+    fn condition_count(conditions: &EquivalenceConditionSet) -> usize {
+        conditions.triple_conditions.len() + conditions.quadruple_conditions.len()
+    }
+
+    /// Assembled from the public stages with [`close_initial_hierarchy`], the
+    /// enumerator is the shipped one: it reaches the same first layer order.
+    #[test]
+    fn the_public_stages_and_the_closure_rebuild_the_shipped_search() {
+        let segments = kabuto_segments();
+        let (initial, subfaces, mut conditions) = stages(&segments);
+        assert_eq!(validate_initial_hierarchy(&initial), Ok(()));
+        let candidates = condition_count(&conditions);
+        let closed = close_initial_hierarchy(&initial, &subfaces, &mut conditions)
+            .expect("kabuto's letters close");
+        assert!(
+            closed.relations.len() > initial.relations.len(),
+            "the closure orders pairs the letters alone do not"
+        );
+        assert!(
+            condition_count(&conditions) < candidates,
+            "and prunes the conditions that fired"
+        );
+
+        let mut assembled = WorkerOverlapEnumerator::from_subfaces(
+            &subfaces.subfaces,
+            &subfaces.reduced_subface_indices,
+            &closed,
+            Some(&conditions),
+        )
+        .expect("enumerator");
+        let mut shipped = overlap_enumerator_from_segments(&segments, 1)
+            .expect("shipped enumerator")
+            .expect("faces");
+        let expected = shipped
+            .possible_overlapping_search(true)
+            .expect("shipped search");
+        assert!(expected.found, "kabuto has a layer order");
+        let found = assembled
+            .possible_overlapping_search(true)
+            .expect("assembled search");
+        assert_eq!(found.found, expected.found);
+        assert_eq!(found.hierarchy, expected.hierarchy);
+    }
+
+    /// A seed against a pair the closure derives passes validation, which only
+    /// sees the seeds, and is refused by the closure.
+    #[test]
+    fn a_seed_against_the_closure_is_a_contradiction() {
+        let segments = kabuto_segments();
+        let (initial, subfaces, conditions) = stages(&segments);
+        let closed = close_initial_hierarchy(&initial, &subfaces, &mut conditions.clone())
+            .expect("kabuto's letters close");
+        let derived = closed
+            .relations
+            .iter()
+            .find(|relation| !initial.relations.contains(relation))
+            .copied()
+            .expect("a derived pair");
+        let mut seeded = initial.clone();
+        seeded.relations.push(HierarchyRelation {
+            upper_face: derived.lower_face,
+            lower_face: derived.upper_face,
+        });
+        assert_eq!(validate_initial_hierarchy(&seeded), Ok(()));
+        assert!(matches!(
+            close_initial_hierarchy(&seeded, &subfaces, &mut conditions.clone()),
+            Err(AdditionalEstimationError::Contradiction { .. })
+        ));
     }
 }

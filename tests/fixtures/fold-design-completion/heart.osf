@@ -1,0 +1,606 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-13T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-13T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace-origami-heart",
+    "title": "Heart — completed flat sequence",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 1,
+        "id": "fold-trial-heart",
+        "title": "Heart — completed flat sequence",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "steps": [
+          {
+            "id": "fstep-heart-1",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5,
+                    0
+                  ],
+                  [
+                    0.5,
+                    1
+                  ]
+                ]
+              },
+              "moving": [
+                0.8,
+                0.4
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley"
+            },
+            "note": "1: vertical center precrease"
+          },
+          {
+            "id": "fstep-heart-2",
+            "parent": "fstep-heart-1",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.5
+                  ],
+                  [
+                    1,
+                    0.5
+                  ]
+                ]
+              },
+              "moving": [
+                0.4,
+                0.2
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley"
+            },
+            "note": "2: horizontal center precrease"
+          },
+          {
+            "id": "fstep-heart-3",
+            "parent": "fstep-heart-2",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0,
+                  1
+                ],
+                "d": 0.25
+              }
+            },
+            "note": "3: bottom edge to center"
+          },
+          {
+            "id": "fstep-heart-4",
+            "parent": "fstep-heart-3",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "note": "4: turn over"
+          },
+          {
+            "id": "fstep-heart-5",
+            "parent": "fstep-heart-4",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5,
+                    0.25
+                  ],
+                  [
+                    1,
+                    0.75
+                  ]
+                ]
+              },
+              "moving": [
+                0.9,
+                0.35
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "5a: left bottom edge to center"
+          },
+          {
+            "id": "fstep-heart-6",
+            "parent": "fstep-heart-5",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5,
+                    0.25
+                  ],
+                  [
+                    0,
+                    0.75
+                  ]
+                ]
+              },
+              "moving": [
+                0.1,
+                0.35
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "5b: right bottom edge to center"
+          },
+          {
+            "id": "fstep-heart-7",
+            "parent": "fstep-heart-6",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "note": "6: turn over"
+          },
+          {
+            "id": "fstep-heart-8",
+            "parent": "fstep-heart-7",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.125,
+                    0.625
+                  ],
+                  [
+                    0.5,
+                    1
+                  ]
+                ]
+              },
+              "moving": [
+                0.1,
+                0.9
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "7a: upper left edge inward"
+          },
+          {
+            "id": "fstep-heart-9",
+            "parent": "fstep-heart-8",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5,
+                    1
+                  ],
+                  [
+                    0.875,
+                    0.625
+                  ]
+                ]
+              },
+              "moving": [
+                0.9,
+                0.9
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "7b: upper right edge inward"
+          },
+          {
+            "id": "fstep-heart-10",
+            "parent": "fstep-heart-9",
+            "op": {
+              "kind": "tuck",
+              "direction": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.10000000000000005,
+                    0.6250000000000001
+                  ],
+                  [
+                    0.9000000000000001,
+                    0.6250000000000001
+                  ]
+                ]
+              },
+              "moving": [
+                0.4000000000000001,
+                0.98
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.4000000000000001,
+                  0.98
+                ],
+                "layers": 1
+              },
+              "target": [
+                0.05000000000000001,
+                0.6000000000000001
+              ],
+              "additionalTargets": [
+                [
+                  0.9500000000000002,
+                  0.6000000000000001
+                ]
+              ]
+            },
+            "choices": {
+              "completion": {
+                "faces": [
+                  [
+                    0.7499999999999999,
+                    0.875
+                  ],
+                  [
+                    0.5833333333333334,
+                    0.08333333333333334
+                  ],
+                  [
+                    0.625,
+                    0.75
+                  ],
+                  [
+                    0.375,
+                    0.75
+                  ],
+                  [
+                    0.41666666666666663,
+                    0.08333333333333333
+                  ],
+                  [
+                    0.25,
+                    0.875
+                  ]
+                ],
+                "orders": [
+                  [
+                    0,
+                    1,
+                    -1
+                  ],
+                  [
+                    2,
+                    1,
+                    -1
+                  ],
+                  [
+                    3,
+                    4,
+                    -1
+                  ],
+                  [
+                    5,
+                    4,
+                    -1
+                  ]
+                ]
+              }
+            },
+            "note": "8: lower the upper flap beneath both side triangles, above the bottom triangle"
+          },
+          {
+            "id": "fstep-heart-11",
+            "parent": "fstep-heart-10",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.25,
+                    0.75
+                  ],
+                  [
+                    0,
+                    0.5
+                  ]
+                ]
+              },
+              "moving": [
+                0.05000000000000001,
+                0.6000000000000001
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "9a: fold left side triangle inward"
+          },
+          {
+            "id": "fstep-heart-12",
+            "parent": "fstep-heart-11",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.75,
+                    0.75
+                  ],
+                  [
+                    1.0000000000000002,
+                    0.4999999999999999
+                  ]
+                ]
+              },
+              "moving": [
+                0.9500000000000002,
+                0.6000000000000001
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "9b: fold right side triangle inward"
+          },
+          {
+            "id": "fstep-heart-13",
+            "parent": "fstep-heart-12",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.12500000000000003,
+                    0.5
+                  ],
+                  [
+                    -2.7755575615628926e-17,
+                    0.375
+                  ]
+                ]
+              },
+              "moving": [
+                0.020000000000000028,
+                0.51
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "10a: fold outer left corner"
+          },
+          {
+            "id": "fstep-heart-14",
+            "parent": "fstep-heart-13",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    -1.6653345369377348e-16,
+                    0.12499999999999992
+                  ],
+                  [
+                    0.5,
+                    0.625
+                  ]
+                ]
+              },
+              "moving": [
+                0.019999999999999973,
+                0.25999999999999995
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.019999999999999973,
+                  0.25999999999999995
+                ],
+                "layers": 1
+              }
+            },
+            "note": "10b: fold inner left corner"
+          },
+          {
+            "id": "fstep-heart-15",
+            "parent": "fstep-heart-14",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5,
+                    0.625
+                  ],
+                  [
+                    1.0000000000000002,
+                    0.3749999999999999
+                  ]
+                ]
+              },
+              "moving": [
+                0.9800000000000001,
+                0.2599999999999999
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.9800000000000001,
+                  0.2599999999999999
+                ],
+                "layers": 1
+              }
+            },
+            "note": "10c: fold inner right corner"
+          },
+          {
+            "id": "fstep-heart-16",
+            "parent": "fstep-heart-15",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    1.0000000000000002,
+                    0.12500000000000025
+                  ],
+                  [
+                    0.8750000000000001,
+                    0.5000000000000002
+                  ]
+                ]
+              },
+              "moving": [
+                0.9800000000000001,
+                0.5100000000000003
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "10d: fold outer right corner"
+          },
+          {
+            "id": "fstep-heart-17",
+            "parent": "fstep-heart-16",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.04499999999999985,
+                    0.07999999999999988
+                  ],
+                  [
+                    0.045000000000000165,
+                    0.1699999999999999
+                  ]
+                ]
+              },
+              "moving": [
+                0.004999999999999847,
+                0.1099999999999999
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "11: fold down both top points"
+          },
+          {
+            "id": "fstep-heart-18",
+            "parent": "fstep-heart-17",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "note": "12: turn over the completed heart"
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-trial-heart",
+        "cursor": "fstep-heart-18",
+        "activeChild": {
+          "": "fstep-heart-1",
+          "fstep-heart-1": "fstep-heart-2",
+          "fstep-heart-2": "fstep-heart-3",
+          "fstep-heart-3": "fstep-heart-4",
+          "fstep-heart-4": "fstep-heart-5",
+          "fstep-heart-5": "fstep-heart-6",
+          "fstep-heart-6": "fstep-heart-7",
+          "fstep-heart-7": "fstep-heart-8",
+          "fstep-heart-8": "fstep-heart-9",
+          "fstep-heart-9": "fstep-heart-10",
+          "fstep-heart-10": "fstep-heart-11",
+          "fstep-heart-11": "fstep-heart-12",
+          "fstep-heart-12": "fstep-heart-13",
+          "fstep-heart-13": "fstep-heart-14",
+          "fstep-heart-14": "fstep-heart-15",
+          "fstep-heart-15": "fstep-heart-16",
+          "fstep-heart-16": "fstep-heart-17",
+          "fstep-heart-17": "fstep-heart-18"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

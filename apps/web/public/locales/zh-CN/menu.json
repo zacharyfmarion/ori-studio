@@ -105,6 +105,26 @@
     "saveAs": "另存为...",
     "settings": "设置"
   },
+  "fold": {
+    "delete-step": "删除步骤",
+    "exportFold": "导出 FOLD...",
+    "exportStep": "导出此步骤...",
+    "exportSteps": "导出步骤...",
+    "importCp": "导入 CP...",
+    "importSample": "导入示例",
+    "mountain": "山折",
+    "precrease": "预折",
+    "rotate": "旋转...",
+    "samplePleatInEighths": "八等分褶",
+    "samplePreliminaryBase": "正方基本形",
+    "sampleWaterbombBase": "水雷基本形",
+    "sendPathToDiagram": "将至此的步骤发送到图解",
+    "sendToDiagram": "将此步骤发送到图解",
+    "sendToEdit": "发送到编辑",
+    "startFromEditFigure": "从编辑中的折叠模型开始",
+    "turn-over": "翻面",
+    "valley": "谷折"
+  },
   "help": {
     "about": "关于 Ori Studio",
     "checkForUpdates": "检查更新…"
@@ -118,6 +138,7 @@
     "design": "设计",
     "edit": "编辑",
     "file": "文件",
+    "fold": "折叠",
     "help": "帮助",
     "insert": "插入",
     "view": "视图"
@@ -131,6 +152,7 @@
     "design": "设计",
     "diagram": "图解",
     "edit": "编辑",
+    "fold": "折叠",
     "properties": "属性",
     "references": "参考",
     "resetLayout": "重置布局",

@@ -7,7 +7,7 @@
  *
  * Pure: no DOM, no store.
  */
-import { canvasDiagramInk } from '../../cp-workspace/references/diagram/diagramInk';
+import { canvasDiagramInk } from '../../lib/stepDiagram/diagramInk';
 import { DEFAULT_ORISTUDIO_CP_LINE_WIDTH } from '../../lib/creasePatternViewport';
 import { DEFAULT_PAPER_SIZE_MM } from '../../lib/paper/paperPage';
 import { mmToCssPx, PT_PER_MM } from '../../lib/paper/paperSvg';

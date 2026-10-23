@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DIAGRAM_OWN_ARROWS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
+import { OWN_ARROWS_ATTRIBUTE } from '../../keyboard/arrowKeyOwners';
 import type {
   DiagramPatternSheet,
   DiagramPatternSheets,
@@ -9,7 +9,7 @@ import { showAsName } from '../../diagram/actions/diagramActions';
 import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../../diagram/document/diagramDocument';
 import { Button } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
-import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
+import { PatternThumbnail } from '../ui/PatternThumbnail';
 import styles from './DiagramPatternPicker.module.css';
 
 /**
@@ -88,7 +88,7 @@ export function DiagramPatternPicker({
           aria-label={t('panels:diagram.picker.label', 'Patterns')}
           aria-busy={busy || undefined}
           aria-orientation="horizontal"
-          {...{ [DIAGRAM_OWN_ARROWS_ATTRIBUTE]: '' }}
+          {...{ [OWN_ARROWS_ATTRIBUTE]: '' }}
           className={styles.grid}
           onKeyDown={onKeyDown}
         >
@@ -113,7 +113,7 @@ export function DiagramPatternPicker({
                 }}
               >
                 <span className={styles.thumb}>
-                  {sheet.thumbnail && <DiagramSheetThumbnail thumbnail={sheet.thumbnail} />}
+                  {sheet.thumbnail && <PatternThumbnail thumbnail={sheet.thumbnail} />}
                 </span>
                 <span className={styles.number} aria-hidden="true">
                   {index + 1}

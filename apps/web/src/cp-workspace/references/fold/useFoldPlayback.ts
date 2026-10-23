@@ -1,7 +1,19 @@
-import { useCallback, useEffect, useState, useSyncExternalStore, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type RefObject,
+} from 'react';
 import { ANALYTICS_EVENTS, track } from '../../../analytics';
+import {
+  FoldTransport,
+  type FoldPoseSink,
+  type FoldTransportStatus,
+} from '../../../lib/foldMotion/foldTransport';
 import type { FoldScene } from './foldScene';
-import { FoldTransport, type FoldPoseSink, type FoldTransportStatus } from './foldTransport';
+import { foldSceneProgramme, type FoldSceneProgramme } from './foldSceneProgramme';
 
 export interface FoldPlaybackController extends FoldTransportStatus {
   toggle: () => void;
@@ -17,16 +29,11 @@ export interface FoldPlaybackInput {
   autoPlay: boolean;
 }
 
-function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
 /**
  * The fold's transport, bound to a panel: one `FoldTransport` for the life of
- * the panel, fed the active card's fold and the auto-play preference, and
- * read through `useSyncExternalStore` so a frame never re-renders anything
- * and a transition re-renders exactly the button.
+ * the panel, fed the active card's programme and the auto-play preference,
+ * and read through `useSyncExternalStore` so a frame never re-renders
+ * anything and a transition re-renders exactly the button.
  */
 export function useFoldPlayback({
   view,
@@ -36,7 +43,7 @@ export function useFoldPlayback({
 }: FoldPlaybackInput): FoldPlaybackController {
   const [transport] = useState(
     () =>
-      new FoldTransport({
+      new FoldTransport<FoldSceneProgramme>({
         // One pose, every surface that draws the paper: the refs are read at
         // each push, since either may mount after the transport.
         sink: () => ({
@@ -45,8 +52,7 @@ export function useFoldPlayback({
             symbols?.current?.setFoldPose(pose);
           },
         }),
-        reducedMotion: prefersReducedMotion,
-        onPlay: (trigger, heading, kind, way) =>
+        onPlay: (trigger, heading, { kind, way }) =>
           track(ANALYTICS_EVENTS.referencesFoldPlayed, {
             trigger,
             direction: heading,
@@ -56,12 +62,15 @@ export function useFoldPlayback({
           }),
       })
   );
+  // One programme per scene: the transport tells a new card by its programme,
+  // so it must change exactly when the scene does.
+  const programme = useMemo(() => (scene ? foldSceneProgramme(scene) : null), [scene]);
   useEffect(() => {
     transport.setAutoPlay(autoPlay);
   }, [transport, autoPlay]);
   useEffect(() => {
-    transport.setScene(scene);
-  }, [transport, scene]);
+    transport.setProgramme(programme);
+  }, [transport, programme]);
   useEffect(() => () => transport.dispose(), [transport]);
   const status = useSyncExternalStore(transport.subscribe, transport.status, transport.status);
   const toggle = useCallback(() => transport.toggle(), [transport]);

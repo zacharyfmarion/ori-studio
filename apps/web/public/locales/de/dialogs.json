@@ -316,6 +316,144 @@
     "vertexUnassignedCrease": "Eine Falte an einem Knotenpunkt hat keine Faltung zugewiesen, daher lässt sich dieser Knotenpunkt nicht falten.",
     "vertexUnsplitJunction": "Falten treffen sich an einem Punkt, der kein Knotenpunkt ist, daher lässt sich dieser Knotenpunkt nicht falten."
   },
+  "foldExport": {
+    "title": "Faltfolge exportieren"
+  },
+  "foldImport": {
+    "browse": "oder zum Durchsuchen klicken",
+    "browseTouch": "oder zum Durchsuchen tippen",
+    "collapseTitle": "Aus CP zusammenfalten",
+    "drop": "Eine .cp-, .fold-, .ori- oder .orh-Datei hier ablegen",
+    "editFigure": "Gefaltetes Modell aus Bearbeiten",
+    "editFigureNote": "Das Faltmuster, das Bearbeiten gefaltet hat, mit der gefundenen Lagenfolge",
+    "fix": {
+      "searchLonger": "Länger suchen"
+    },
+    "fromEdit": "Aus Bearbeiten",
+    "pickTitle": "Faltmuster importieren",
+    "placement": {
+      "afterSheet": "Fügt nach dem flachen Blatt einen Schritt hinzu; sein gefalteter Zustand wird aus den Falten berechnet.",
+      "afterStep": "Fügt nach Schritt {{number}} einen Schritt hinzu; sein gefalteter Zustand wird aus den Falten berechnet.",
+      "branch": "Er beginnt einen neuen Zweig.",
+      "empty": "Beginnt die Folge auf dem Blatt des Faltmusters, entlang seiner Falten gefaltet. Nutze es, wenn sich ein Zustand nicht Faltung für Faltung erreichen lässt.",
+      "sheet": "Übernimmt den Umriss des Faltmusters als Blatt, mit dem die Folge beginnt: jede konvexe Form mit 3 bis 8 Seiten. Seine Falten werden nicht importiert; nutze „CP importieren“, um aus ihnen zu falten.",
+      "sheetStartsOver_one": "Die Folge beginnt von vorn: ihr {{count}} Schritt wird entfernt. Rückgängig holt ihn zurück.",
+      "sheetStartsOver_other": "Die Folge beginnt von vorn: ihre {{count}} Schritte werden entfernt. Rückgängig holt sie zurück.",
+      "update": "Aktualisiert diesen Zusammenfalten-Schritt. Spätere Schritte und Verzweigungen bleiben erhalten und werden erneut berechnet; betroffene Faltungen werden als geändert oder nicht mehr ausführbar markiert.",
+      "why": "Nutze es, wenn sich der nächste Zustand nicht Faltung für Faltung erreichen lässt."
+    },
+    "refusal": {
+      "budget": {
+        "text": "Herauszufinden, wie die Lagen übereinanderliegen, dauerte länger, als ein Import Zeit hat. Suche länger oder importiere ein einfacheres Muster.",
+        "title": "Die Suche dauerte zu lange"
+      },
+      "changed": {
+        "text": "Die Schritte haben sich während des Imports geändert. Importiere das Muster erneut.",
+        "title": "Die Folge hat sich geändert"
+      },
+      "creases": {
+        "text": "Eine Falte verlässt das Papier, liegt auf einer Falte anderer Art oder endet dort, wo nichts auf sie trifft. Jede Falte muss von einer Kante oder Falte zu einer Kante oder Falte verlaufen.",
+        "title": "Falten, die sich so nicht falten lassen"
+      },
+      "failed": {
+        "text": "Dieses Faltmuster konnte nicht importiert werden.",
+        "title": "Import nicht möglich"
+      },
+      "figureIncomplete": {
+        "text": "Das gefaltete Modell aus Bearbeiten sagt nicht, wie jede Lage liegt. Falte es in Bearbeiten erneut und gehe dann davon aus.",
+        "title": "Das gefaltete Modell ist unvollständig"
+      },
+      "foldedForm": {
+        "text": "Diese FOLD-Datei beschreibt bereits gefaltetes Papier. Importiere stattdessen das flache Faltmuster.",
+        "title": "Eine gefaltete Form, kein Faltmuster"
+      },
+      "noFigure": {
+        "text": "Falte das Faltmuster zuerst in Bearbeiten flach und gehe dann von seinem gefalteten Modell aus.",
+        "title": "Kein gefaltetes Modell in Bearbeiten"
+      },
+      "nonConvex": {
+        "text": "Eine Fläche des Musters knickt an einer Ecke nach innen ein. Gefaltet werden nur konvexe Flächen.",
+        "title": "Eine Fläche mit einspringender Ecke"
+      },
+      "noOrder": {
+        "text": "Bei den Berg- und Talfalten des Musters lassen sich die Lagen nicht stapeln, ohne einander zu durchdringen.",
+        "title": "Keine Lagenfolge passt"
+      },
+      "noProjectCp": {
+        "text": "Öffne oder erstelle das Quell-Faltmuster in Bearbeiten und versuche es erneut. Der gespeicherte Zusammenfalten-Schritt bleibt unverändert.",
+        "title": "Quell-CP nicht verfügbar"
+      },
+      "noState": {
+        "text": "Der angezeigte Schritt hat keinen gefalteten Zustand, daher lässt sich nichts danach hinzufügen. Gehe zu einem Schritt, der sich falten lässt.",
+        "title": "Dieser Schritt lässt sich nicht falten"
+      },
+      "notFlat": {
+        "text": "Entlang seiner Berg- und Talfalten gefaltet, liegt das Muster nicht flach.",
+        "title": "Lässt sich nicht flach falten"
+      },
+      "orderOpen": {
+        "text": "Das gefaltete Modell aus Bearbeiten lässt die Lagenfolge offen. Falte es in Bearbeiten zu einer Lösung und gehe dann erneut davon aus.",
+        "title": "Mehr als eine Lagenfolge"
+      },
+      "outline": {
+        "text": "Der Rand des Musters ist kein geschlossener Umriss um das Papier, also gibt es kein Blatt zum Falten.",
+        "title": "Kein Blatt gefunden"
+      },
+      "readOnly": {
+        "text": "Mit einem neueren Ori Studio erstellt: Diese Folge wird schreibgeschützt geöffnet.",
+        "title": "Schreibgeschützte Folge"
+      },
+      "shapeMismatch": {
+        "text": "Das Blatt des Musters hat nicht die Form des Blatts dieser Folge. Importiere es stattdessen in eine leere Folge.",
+        "textRatios": "Diese Folge faltet ein Blatt im Verhältnis {{expected}}, das Muster liegt auf einem Blatt im Verhältnis {{found}}. Importiere es stattdessen in eine leere Folge.",
+        "title": "Ein anderes Blatt"
+      },
+      "shapeUnsupported": {
+        "text": "Importiert werden Faltmuster auf einem quadratischen oder rechteckigen Blatt. Das Blatt dieses Musters hat eine andere Form.",
+        "title": "Nur quadratische und rechteckige Blätter"
+      },
+      "sheetNotConvex": {
+        "text": "Der Umriss des Faltmusters hat eine Ecke, die ins Papier zeigt. Falten beginnt mit Blättern, deren Ecken alle nach außen zeigen: ein Quadrat, ein Rechteck, ein regelmäßiges Vieleck oder jede andere konvexe Form.",
+        "title": "Das Blatt biegt sich nach innen"
+      },
+      "sheetSides": {
+        "text_one": "Falten beginnt mit Blättern mit 3 bis 8 Seiten. Dieser Umriss hat {{count}} Seite.",
+        "text_other": "Falten beginnt mit Blättern mit 3 bis 8 Seiten. Dieser Umriss hat {{count}} Seiten.",
+        "title": "Nur Blätter mit 3 bis 8 Seiten"
+      },
+      "sheetSideShort": {
+        "text": "Eine Seite des Umrisses ist zu kurz, als dass Falten ihre Ecken unterscheiden könnte. Begradige oder entferne sie und importiere das Blatt erneut.",
+        "title": "Eine Seite zu kurz zum Falten"
+      },
+      "unreadable": {
+        "text": "Die Datei konnte nicht als {{extension}}-Faltmuster gelesen werden.",
+        "title": "Kein Faltmuster"
+      },
+      "unreadableFile": {
+        "text": "{{name}} konnte nicht gelesen werden.",
+        "title": "Datei konnte nicht gelesen werden"
+      },
+      "unsupportedFile": {
+        "text": "{{name}} ist kein Faltmuster, das sich importieren lässt. Verwende eine .cp-, .fold-, .ori- oder .orh-Datei.",
+        "title": "Kein Faltmuster"
+      }
+    },
+    "sample": {
+      "pleatInEighths": "Plissee in Achteln",
+      "preliminaryBase": "Quadratische Grundform",
+      "waterbombBase": "Wasserbomben-Grundform"
+    },
+    "sheetTitle": "Startblatt importieren",
+    "title": "Faltmuster importieren",
+    "updateTitle": "Aus CP aktualisieren",
+    "working": {
+      "figure": "Gefaltetes Modell aus Bearbeiten wird importiert…",
+      "file": "{{name}} wird importiert…",
+      "projectCp": "Faltmuster des Projekts wird gelöst…",
+      "sample": "Beispiel wird importiert…",
+      "sheet": "Blatt wird gelesen…"
+    }
+  },
   "foldWarning": {
     "dontShowAgain": "Nicht mehr anzeigen",
     "message": "Fehler bei der Flachfaltbarkeit erkannt. Trotzdem falten?",
@@ -669,7 +807,7 @@
         "exportLinked": "Exportstil · verknüpft",
         "title": "Stil"
       },
-      "stepsHint": "Nur Referenzen",
+      "stepsHintFold": "Referenzen und Falten",
       "stepsTitle": "Schritte",
       "unsaved": {
         "custom": "Dieser Stil ist nicht als Voreinstellung gespeichert. Wenn du {{next}} anwendest, wird er ersetzt.",

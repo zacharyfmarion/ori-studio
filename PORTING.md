@@ -919,6 +919,277 @@ are unchanged:
   Note also that `$getVersionIndex` throws `"Unrecognized version"` on a version
   it does not know, so the `version` field must always be one upstream published.
 
+## Flat-Folder (`treemaker-flatfold`)
+
+The vendored reference is `third_party/flat-folder`; the oracle is
+`tools/flat-folder-oracle` (its README documents every command). `solve_flat_fold`
+is a stage-by-stage port pinned to that oracle by
+`crates/oracle-tests/tests/flat_folder_oracle.rs`: normalize, fold, arrangement,
+constraints and search, with the ε heuristic and its consequences below.
+
+### The arrangement depends on face numbering
+
+- The file importer sorts faces by area (`io.js` via `M.sort_faces`;
+  `conversion.rs` `sort_faces`), and the fold is projected from face 0
+  (`V_FV_EV_EA_2_Vf_Ff`). So the numbering sets the folded frame, and the
+  arrangement's ε is chosen by a heuristic in that frame (`L_2_V_EV_EL`: the
+  first ε, halving from the shortest folded edge, at which the point and
+  segment counts repeat three times).
+- The same crease pattern can therefore get a different ε, and a different
+  arrangement, under another numbering. At a coarse ε the arrangement can be
+  wrong while every cell area is right, which no area check sees.
+- The port keeps this: it is upstream behaviour, and the JS oracle reports the
+  same results. A caller that needs a trustworthy arrangement validates it,
+  as the oracle's `verify` does (an edge not covered by its segments, a cell
+  boundary that doubles back, a moved vertex image, cells that do not cover a
+  face), or does not use Flat-Folder's arrangement at all, as the completion
+  entry point below allows.
+- **Float parsing, fixed (2026-10-08):** FOLD numbers were parsed with
+  serde_json's default float parser, which is not correctly rounded. In
+  `tests/fixtures/flat-folder/r069-s07.fold` two coordinates came out one ULP
+  away from what JavaScript parses, two mirror-twin faces whose areas agree to
+  about 1e-16 swapped places in the area sort, and the port's face numbering
+  differed from upstream's: counts agreed, face-order hashes did not. The
+  workspace now enables serde_json's `float_roundtrip`, and the JS parity tests
+  cover r069-s07 (normalization, projection, overlap and solve hashes).
+
+### r271-s03: an arrangement that loses three taco-taco constraints
+
+`tests/fixtures/flat-folder/r271-s03.fold` (8 faces) has one flat-folded state.
+Flat-Folder, JS and Rust alike, reports two (`solution_counts` [1, 2]) with 5
+taco-taco constraints. That is pinned by
+`r271_s03_keeps_flat_folders_second_state`, and the JS parity test covers the
+same file.
+
+- The research attributed the loss to `ExE_fill_BT` (`conversion.js:603`). It
+  happens one stage earlier. Under Flat-Folder's numbering the heuristic picks
+  `eps_i` 3, and at that ε the sweep gives the overlap of four collinear creases
+  (the file's edges 15 to 18) to edge 15 alone. `ExE_fill_BT` pairs only edges
+  that share a segment, so it never pairs edge 15 with 16, 17 or 18, and the
+  three taco-taco constraints between those creases are never built. Every
+  pair it does see, it classifies as taco-taco under both numberings.
+- In the file's own numbering the heuristic picks `eps_i` 4 and finds 8
+  taco-taco constraints and one state.
+- `verify` rejects the `eps_i` 3 arrangement ("edge 16 is not covered by its
+  segments") and rebuilds it at `eps_i` 4. On the rebuilt arrangement the
+  extra state breaks a taco-taco (`flat_folder_verify.rs`).
+
+### r069-s07: the miss is constraint generation, not the search
+
+On `tests/fixtures/flat-folder/r069-s07.fold` (15 faces, 5 of its creases
+`F`) there are five valid orders. Oriedita enumerates all five, and the Fold
+spike's arrangement-free checker accepts all five. Flat-Folder, JS and Rust,
+finds four. The fifth is `r069-s07.missed-order.json`.
+
+- **Seeded alone into Flat-Folder's own constraints**, through
+  `flat_folder_completion_problem` and `complete_layer_order`, the missed order
+  conflicts on a taco-tortilla: the taco of the file's faces 5 and 3 around
+  face 0 (the mirror image, 9 and 11, under the misread numbering above).
+  Constraint generation rejects a valid state; the search is not at fault. `r069_s07_flat_folders_own_constraints_reject_an_order_it_misses`
+  pins it.
+- **The cause is again the arrangement.** Under Flat-Folder's numbering the
+  heuristic picks `eps_i` 3, whose arrangement doubles a cell boundary with
+  overlapping collinear segments. It yields 7 taco-taco and 44 taco-tortilla
+  constraints, against 13 and 32 at every `eps_i` from 4 up.
+- In the file's numbering (`eps_i` 7), and in Flat-Folder's once `verify` has
+  rebuilt the arrangement at `eps_i` 4, the missed order is valid
+  (`flat_folder_verify.rs`). At those ε, measured with the vendored JS,
+  Flat-Folder's search enumerates all five orders.
+- So on this evidence there is no third defect. Flat-Folder's count is the true
+  count when its arrangement is right.
+
+### The completion entry point: `complete_layer_order`
+
+An additive entry point for callers that build the problem themselves, such as
+Fold. It runs only upstream's propagation and search (`solver.js`
+`initial_assignment`, `get_components`, `guess_vars`) over:
+
+- **variables**: overlapping face pairs `[f, g]` with `f < g`;
+- **constraint buckets**: per variable, the taco-taco `[A, B, C, D]`,
+  taco-tortilla `[A, B, C]` and tortilla-tortilla `[A, B, C, D]` constraints it
+  reads, in upstream's conventions (`constraints.js` `pair_maps`). Each
+  constraint is listed under every variable it reads.
+- **the cell incidence**: `faces_cells` / `cells_faces`, consistent both ways,
+  with every two faces that share a cell a variable;
+- **fixed orders**, each tagged `Carried` or `Seed`.
+
+Its contract:
+
+- **Transitivity** is derived inside the search from the caller's cells,
+  exactly as upstream derives it from its own (`FC_CF_CC_Bf_2_Bt3`). That
+  includes dropping triples a taco-tortilla component already orders. No
+  triples are passed.
+- **Seeds are propagated** with everything they imply: upstream's first level,
+  in variable order.
+- **Carried pairs are assigned but never propagated.** A constraint whose
+  variables are all carried is never checked here, and the caller's checker is
+  the backstop. A variable that only carried pairs determine is left to the
+  search, and its component has one solution.
+- **Output**: `Completion::Solved` carries the forced orders and every
+  component's solutions, with an exact truncation flag (the search runs one
+  solution past the limit). `Completion::Conflict` is upstream's `[type, F, E]`,
+  with `E` from the port of `error_faces` and its parent pointers. Like
+  upstream, it does not expand orders implied in the level that conflicted.
+  `Completion::UnsatisfiedComponent` names the faces upstream's `compute.js`
+  reports.
+- **Budget**: `SearchBudget.max_nodes` counts search nodes (a guess and its
+  propagation). Its optional deadline is read through a caller-supplied clock,
+  since wasm32 has no `Instant`: before each search node, and every 32
+  variables the seeds' propagation visits (`BudgetMeter::TICKS_PER_READING`),
+  because on a deep stack that propagation is most of a completion. Either
+  limit returns `CompletionError::BudgetExceeded`, so a deadline that has
+  already passed can return `BudgetExceeded { limit: Deadline, nodes: 0 }`
+  before any search (`the_deadline_also_stops_the_propagation`). A seed
+  conflict the propagation reaches within its first 32 variables is still
+  reported as `Completion::Conflict`. Grouping into components always runs to
+  the end. The `solve_flat_fold` pipeline passes `Unmetered`, which never
+  stops.
+- A malformed problem is refused (`CompletionError::InvalidProblem`) before the
+  search can index out of range.
+
+`flat_folder_completion_problem` exports Flat-Folder's own problem, with the M/V
+letters as seeds, so that oracles can seed upstream's constraints with an order
+of their choosing.
+
+Changes this made to the ported search, each behaviour-preserving for
+`solve_flat_fold`:
+
+- the transitivity source is a parameter (`TransitivitySource`), and the
+  pipeline passes its own arrangement;
+- the first propagation level is a parameter;
+- each level is visited in insertion order, as upstream's `Map` is (the port
+  visited them in index order), which changes only which conflict is named
+  when several exist;
+- parent pointers are kept for `error_faces`, while the pipeline still returns
+  its existing `AssignmentConflict` message;
+- `guess_vars` asks a node meter, and the pipeline's never stops.
+
+The gate: `solve_flat_fold` output (counts, states, face orders, overlap graph
+and error messages) was identical before and after on 2,889 FOLD files, the
+2,855 Fold spike states and this repository's fixtures. Solving
+`flat_folder_completion_problem` with `complete_layer_order` reproduces it on
+the same files. On `bad_twist.fold` the conflict names what the JS oracle
+names: transitivity `[2, 3, 1]`, error faces `[0, 1, 2, 3]`.
+
+Fold's compound folds then reworked the propagation for speed, each change
+again behaviour-preserving for `solve_flat_fold`:
+
+- `ImplicationMaps` (upstream's `CON.implied`) is one table per constraint
+  family, indexed by the base-3 code of the assignment of its pairs, where
+  upstream keys it by the assignment's string. It is built once per process
+  (`ImplicationMaps::shared`, a `OnceLock`) instead of on every call, which
+  cost about 0.65 ms each.
+- The propagation and the search look a pair's variable up by its faces in a
+  `PairIndex` (per smaller face, its larger faces in sorted order) instead of
+  building a key into the `variable_index` `BTreeMap`. Constraint generation
+  still builds that map. (`PairIndex` has since given way to the face × face
+  table under "Performance-only divergences" below.)
+- `propagate_initial_assignments` ticks a `NodeMeter` once per variable it
+  visits; `complete_layer_order`'s meter reads the deadline on every 32nd tick
+  (the Budget item above), and the pipeline's `Unmetered` ignores them.
+- `transitivity_constraints` marks each face it has met as a candidate rather
+  than scanning the candidates met so far, and keeps them in the order upstream
+  meets them.
+
+The evidence is the one `crates/oristudio-fold/README.md` gives under "The
+completion's rework": `tests/compound_digest.rs` prints the same reverse
+campaign digest before and after, `fold_compound_oracle` still verifies every
+state, and this crate's parity and verify tests pass unchanged.
+
+### Performance-only divergences (2026-10-19)
+
+For the Layer order dialog the propagation, the split into components and
+the search were made about ten times faster on deep stacks (the 850-face
+iguana's completion 11.0 s → 1.04 s natively, back to back at load 5).
+Every change keeps the output identical; only how the solver finds what
+upstream finds changed (`implementation-plans/fold-solver-performance.md`):
+
+- **Tables** (`tables.rs`). Upstream's `BF` (each variable's faces), `BT`
+  (its constraints), `BI` (the variable of a pair) and `CC` (each face's
+  taco-tortilla components) are flat arrays instead of `Vec<u16>` keys, a
+  binary search per lookup and `BTreeMap`s: a face × face table of
+  variables and one of components (component numbers from 1, 0 for none,
+  as only their equality is read), dense up to `DENSE_FACE_LIMIT` (2,048
+  faces, 25 MB). Above it pairs are hashed (with SplitMix64's finalizer: a
+  bare multiply put every pair of a face in one probe chain, which made the
+  four cpoogle models past the limit slower than before until it was fixed) and
+  components are kept per face as upstream keeps them. A constraint's faces
+  are held inline, so no constraint, inference or transitivity triple
+  allocates.
+- **Transitivity** (`FC_CF_CC_Bf_2_Bt3`) marks the first face's cells and
+  the faces met in a reused scratch, in the order upstream meets them.
+- **`get_components`** (`variable_groups`) marks seen variables in a
+  `Vec<bool>`. A constraint none of whose pairs is an open variable not yet
+  reached adds nothing whatever it infers, so it is not inferred; and,
+  where nothing counts the triples (only `solve_flat_fold`'s summary does),
+  such a transitivity triple is not run through the taco-tortilla filter
+  either.
+- **`propagate`** (`propagate_assignment`, the search's propagation, which
+  names no constraint) does not filter or infer a transitivity triple whose
+  other two pairs are both open: every `x00` state of the family's table is
+  alive.
+- A transitivity triple's first pair is the visited variable, so its
+  inference does not look it up.
+- `complete_layer_order`'s validation checks pairs against the same table
+  rather than a `HashSet` and a `BTreeMap`, reporting the same first error.
+
+How identity is proven:
+
+- A differential harness (`crates/oristudio-fold-wasm/examples/solver_differential.rs`)
+  runs the same file against the code before (`ef1e1343e`) and after and
+  writes, per crease pattern through Import CP's own path, the forced pairs,
+  every component, its orders (one and 1,000 per component), counts,
+  search nodes and refusals at fixed node budgets. They are byte for byte
+  equal on the profile's ten fixtures and on all 484 crease patterns of the
+  local cpoogle benchmark (471 import; the other 13 are refused the same
+  way).
+- `solve_flat_fold` keeps its JS oracle parity: `flat_folder_oracle`,
+  `flat_folder_verify` and `flat_folder_controls` pass, and on the
+  synthetic `flat_folder_corpus` (13,999 files in four shards) 8,394 of
+  the 8,396 files the oracle answers agree; the other two differ in their
+  taco-tortilla counts by two, exactly as before the rework (591 against
+  593, 2,871 against 2,873). The JS oracle itself throws on 5,603 of the
+  files, and one more file's arrangement does not finish in 20 minutes
+  before or after, nor in the oracle, so the corpus test fails on that
+  corpus with any build.
+- Unit tests run `complete_layer_order` with dense and with hashed tables
+  and compare (`dense_and_hashed_tables_give_the_same_completions`).
+- `oristudio-fold`'s campaign digests (`tests/compound_digest.rs`,
+  `tests/random.rs`) print the same values before and after.
+
+### The completion session (an addition)
+
+`CompletionSession` (`session.rs`) is not a port: it answers many questions
+about one problem, each the problem's fixed orders plus a few seeds, without
+repeating what they share. The open propagates the problem's fixed orders
+once (keeping upstream's parent pointers), splits what is left as
+`get_components` does and finds a first order (upstream's search, one
+solution per component: the first order `complete_layer_order` lists). A
+check refuses a seed against a forced pair before any work, propagates the
+other seeds from the open's state, and searches only the components they
+reach, first with the seeds' pairs first and then in the open's order, each
+within a small node budget, preferring a given order's value at each guess
+and then again with upstream's values. If none answers, it runs exactly
+upstream's split and search over what is
+left, so it decides whenever a fresh `complete_layer_order` would within the
+same node budget; past that it answers "undecided", never "no order". Its
+verdicts are checked against completing from scratch with the seeds added
+(`solver_session_check`, the module's randomized unit test).
+
+The open also refuses (`InvalidProblem`) a problem with a constraint
+missing from the bucket of a variable it reads. `complete_layer_order`
+accepts such a problem and runs upstream's procedure over the buckets as
+given, as before; but the session's components are only independent when
+every constraint is listed by all of its variables, as upstream's
+`add_constraint` lists it. No product path builds such a problem; an
+independent review built them on purpose, and a session opened over them
+disagreed with completing from scratch. The check costs about 21 ms of the
+iguana's 1 s open.
+
+That caller-built constraints avoid both arrangement failures above is still
+**[derived]**: neither goes through Flat-Folder's arrangement. The `verify`
+oracle is the check.
+
 ## Origami Simulator (`packages/origami-simulator`)
 
 The vendored reference is `third_party/origami-simulator` at commit

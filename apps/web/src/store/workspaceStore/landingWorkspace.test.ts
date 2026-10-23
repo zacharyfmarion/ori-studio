@@ -3,16 +3,19 @@ import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImpor
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import type { DiagramDocument } from '../../diagram/document/diagramDocument';
 import { createDiagram } from '../../diagram/document/diagramDocument';
+import { createFoldSequence } from '../../fold/document/foldSequenceDocument';
 import type { DesignTab } from './designTabs';
+import type { FoldSequences } from './foldState';
 import { landingWorkspace } from './landingWorkspace';
 
 const cpDocument = {} as OristudioCpDocumentState;
 const importedDocument = {} as ImportedCreasePatternDocument;
 const diagram: DiagramDocument = createDiagram();
+const foldSequences: FoldSequences = [{ document: createFoldSequence(), readOnlyRaw: null }];
 const chooser = { kind: null } as DesignTab;
 const design = { kind: 'treemaker' } as DesignTab;
 /** Nothing but what a test names. */
-const base = { designTabs: [chooser], diagram: null };
+const base = { designTabs: [chooser], diagram: null, foldSequences: [] };
 
 describe('landingWorkspace', () => {
   it('lands in Edit when the open produced an editable crease pattern', () => {
@@ -50,10 +53,34 @@ describe('landingWorkspace', () => {
 
   it('lands where it always did when the diagram has company', () => {
     expect(
-      landingWorkspace({ oristudioCpDocument: cpDocument, importedCreasePattern: null, designTabs: [chooser], diagram })
+      landingWorkspace({ ...base, oristudioCpDocument: cpDocument, importedCreasePattern: null, designTabs: [chooser], diagram })
     ).toBe('edit');
     expect(
-      landingWorkspace({ oristudioCpDocument: null, importedCreasePattern: null, designTabs: [design], diagram })
+      landingWorkspace({ ...base, oristudioCpDocument: null, importedCreasePattern: null, designTabs: [design], diagram })
     ).toBe('design');
+  });
+
+  it('lands in Fold for a project that is only fold sequences', () => {
+    expect(
+      landingWorkspace({ ...base, oristudioCpDocument: null, importedCreasePattern: null, foldSequences })
+    ).toBe('fold');
+  });
+
+  it('opens a linked Collapse sequence in Fold while retaining its companion CP', () => {
+    const sequence = createFoldSequence();
+    sequence.steps = [{ id: 'collapse', parent: null, op: { kind: 'cp-jump', origin: 'project_cp',
+      cpJson: '{}', orderJson: '[]', source: { documentId: 'crease-pattern', revision: 'saved' } } }];
+    const linked = { ...base, oristudioCpDocument: cpDocument, importedCreasePattern: null,
+      foldSequences: [{ document: sequence, readOnlyRaw: null }] };
+    expect(landingWorkspace(linked)).toBe('fold');
+    expect(landingWorkspace({ ...linked, designTabs: [design] })).toBe('edit');
+    expect(landingWorkspace({ ...linked, diagram })).toBe('edit');
+  });
+
+  it('lands in the Diagram for a project of a diagram and fold sequences, and where it always did beside a design', () => {
+    const nothingElse = { ...base, oristudioCpDocument: null, importedCreasePattern: null };
+    expect(landingWorkspace({ ...nothingElse, diagram, foldSequences })).toBe('diagram');
+    expect(landingWorkspace({ ...nothingElse, designTabs: [design], foldSequences })).toBe('design');
+    expect(landingWorkspace({ ...nothingElse, oristudioCpDocument: cpDocument, foldSequences })).toBe('edit');
   });
 });

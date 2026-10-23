@@ -11,15 +11,18 @@ import {
   TITLE_BLOCK_ART_SIZE_RANGE,
   type DiagramCpSource,
   type DiagramDocument,
+  type DiagramFoldStepSource,
   type DiagramPageSetup,
 } from '../document/diagramDocument';
-import type { SheetStrokeRole, SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
+import type { SheetStroke, SheetStrokeRole, SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
+import type { PaperScene } from '../../lib/paper/paperScene';
 import { readDiagram, writeDiagram } from '../document/diagramFile';
 import { cpStep, referencesStep } from '../document/diagramSteps.fixtures';
 import { estimateTextSetter } from './estimateTextSetter';
 import {
   OTHER_PATTERN,
   emptyStep,
+  foldPatternStep,
   lockedStep,
   patternStep,
   titleBlockDiagram,
@@ -63,7 +66,7 @@ describe('resolveTitleBlock', () => {
     const document = titleBlockDiagram([cpStep('s1'), pattern, uploadStep('s3')]);
     expect(shown(document)).toEqual({ model: ['auto', 's3'], pattern: ['auto', 's2'] });
     // Shown folded, a link still names its pattern: the lines are its stored thumbnail's.
-    expect(resolveTitleBlock(document).pattern.scene).toEqual(patternScene((pattern.source as DiagramCpSource).thumbnail));
+    expect(resolveTitleBlock(document).pattern.scene).toEqual(patternScene(pattern.source as DiagramCpSource));
   });
 
   it('passes over turns, empty steps and a newer build’s steps, so a diagram ending in a turn still finds its model', () => {
@@ -138,23 +141,72 @@ describe('resolveTitleBlock', () => {
   it('gives the pattern’s lines as the painter draws them, none where it gives none', () => {
     const pattern = folded('s2');
     const { scene } = resolveTitleBlock(titleBlockDiagram([cpStep('s1'), pattern])).pattern;
-    expect(scene).toEqual(patternScene((pattern.source as DiagramCpSource).thumbnail));
+    expect(scene).toEqual(patternScene(pattern.source as DiagramCpSource));
     expect(resolveTitleBlock(titleBlockDiagram([cpStep('s1')], { pattern: { kind: 'none' } })).pattern.scene).toBeNull();
+  });
+
+  describe('from a Fold sequence', () => {
+    /** A third Fold step's state: a mountain added to the default's valley. */
+    const LATER: SheetStroke[] = [...OTHER_PATTERN, { x1: 0, y1: 100, x2: 100, y2: 0, role: 'mountain' }];
+
+    it('finds the last Fold step for the pattern by Auto, drawn from its state’s crease pattern', () => {
+      const last = foldPatternStep('f3', LATER, { step: 'fstep-3' });
+      const document = titleBlockDiagram([foldPatternStep('f1', OTHER_PATTERN, { step: 'fstep-1' }), foldPatternStep('f2'), last, turnOver('t1')]);
+      expect(shown(document)).toEqual({ model: ['auto', 'f3'], pattern: ['auto', 'f3'] });
+      expect(autoPatternStep(document)?.id).toBe('f3');
+      const { scene } = resolveTitleBlock(document).pattern;
+      expect(scene).toEqual(patternScene(last.source as DiagramFoldStepSource));
+      expect(scene?.items.map((item) => (item.kind === 'line' ? item.role : item.kind))).toEqual(['valley', 'mountain']);
+    });
+
+    it('shows a Fold step chosen for the pattern', () => {
+      const chosen = foldPatternStep('f1', OTHER_PATTERN, { step: 'fstep-1' });
+      const document = titleBlockDiagram([chosen, foldPatternStep('f2', LATER)], { pattern: { kind: 'step', stepId: 'f1' } });
+      expect(shown(document).pattern).toEqual(['step', 'f1']);
+      expect(resolveTitleBlock(document).pattern.scene).toEqual(patternScene(chosen.source as DiagramFoldStepSource));
+    });
+
+    it('draws a run of steps drawn as one from its thumbnail, the state its last step lands', () => {
+      // The capture keeps the run's last step's state as the thumbnail (`foldRunCapture`).
+      const run = foldPatternStep('f2', LATER, { step: 'fstep-2', through: 'fstep-3' });
+      const document = titleBlockDiagram([foldPatternStep('f1'), run]);
+      expect(shown(document).pattern).toEqual(['auto', 'f2']);
+      expect(resolveTitleBlock(document).pattern.scene).toEqual(patternScene(run.source as DiagramFoldStepSource));
+    });
+
+    it('passes over a Fold step whose capture found no line for Auto, and draws nothing for one chosen', () => {
+      const blank = foldPatternStep('f2', [], { step: 'fstep-3' });
+      expect(shown(titleBlockDiagram([foldPatternStep('f1'), blank])).pattern).toEqual(['auto', 'f1']);
+      expect(shown(titleBlockDiagram([blank])).pattern).toEqual(['auto', null]);
+      const chosen = resolveTitleBlock(titleBlockDiagram([foldPatternStep('f1'), blank], { pattern: { kind: 'step', stepId: 'f2' } })).pattern;
+      expect([chosen.from, chosen.step?.id, chosen.scene]).toEqual(['step', 'f2', null]);
+    });
+
+    it('takes the last of Edit’s links and Fold’s, whichever is later, and passes over a newer build’s Fold step', () => {
+      const lockedFold = { ...foldPatternStep('f9', LATER), unknown: { id: 'f9' } };
+      expect(shown(titleBlockDiagram([cpStep('s1'), foldPatternStep('f1'), lockedFold])).pattern).toEqual(['auto', 'f1']);
+      expect(shown(titleBlockDiagram([foldPatternStep('f1'), cpStep('s1'), uploadStep('s2')])).pattern).toEqual(['auto', 's1']);
+      // A References card between them is no pattern.
+      expect(shown(titleBlockDiagram([cpStep('s1'), foldPatternStep('f1'), referencesStep('r1')])).pattern).toEqual(['auto', 'f1']);
+    });
   });
 });
 
 describe('patternScene', () => {
   const stroke = (role: SheetStrokeRole, y: number) => ({ x1: 0, y1: y, x2: 100, y2: y, role });
+  const linked = (thumbnail: SheetThumbnail) => ({ kind: 'cp' as const, thumbnail });
+  const folded = (thumbnail: SheetThumbnail) => ({ kind: 'fold-step' as const, thumbnail });
+  const lines = (scene: PaperScene | null) => scene?.items.map((item) => (item.kind === 'line' ? [item.role, item.a, item.b] : item.kind));
 
   it('draws a thumbnail’s lines in the pattern’s own pens, an unassigned one as aux, and leaves its aux lines out', () => {
     const thumbnail: SheetThumbnail = {
       viewBox: '0 0 100 100',
       strokes: [stroke('aux', 10), stroke('unassigned', 20), stroke('mountain', 30), stroke('valley', 40), stroke('edge', 0)],
     };
-    const scene = patternScene(thumbnail)!;
+    const scene = patternScene(linked(thumbnail))!;
     expect(scene.bounds).toEqual({ minX: 0, minY: 0, maxX: 100, maxY: 100 });
     expect(scene.sheet).toBe(100);
-    expect(scene.items.map((item) => (item.kind === 'line' ? [item.role, item.a, item.b] : item.kind))).toEqual([
+    expect(lines(scene)).toEqual([
       ['aux', [0, 20], [100, 20]],
       ['mountain', [0, 30], [100, 30]],
       ['valley', [0, 40], [100, 40]],
@@ -164,10 +216,25 @@ describe('patternScene', () => {
     expect(scene.items.some((item) => item.kind === 'face')).toBe(false);
   });
 
+  it('draws a Fold state’s flat creases in the aux pen, as its Crease pattern picture does: they are creases, not construction lines', () => {
+    // A precrease lying flat, a valley folded, the sheet's edge: `foldStateFrame`'s pattern.
+    const thumbnail: SheetThumbnail = { viewBox: '0 0 100 100', strokes: [stroke('aux', 10), stroke('valley', 40), stroke('edge', 0)] };
+    expect(lines(patternScene(folded(thumbnail)))).toEqual([
+      ['aux', [0, 10], [100, 10]],
+      ['valley', [0, 40], [100, 40]],
+      ['edge', [0, 0], [100, 0]],
+    ]);
+    // A state of precreases only draws them.
+    expect(patternScene(folded({ viewBox: '0 0 100 100', strokes: [stroke('aux', 50)] }))).not.toBeNull();
+  });
+
   it('is none for a thumbnail with no line to draw', () => {
-    expect(patternScene({ viewBox: '0 0 100 100', strokes: [] })).toBeNull();
-    expect(patternScene({ viewBox: '0 0 100 100', strokes: [stroke('aux', 50)] })).toBeNull();
-    expect(patternScene({ viewBox: '0 0 0 0', strokes: [stroke('edge', 0)] })).toBeNull();
+    expect(patternScene(linked({ viewBox: '0 0 100 100', strokes: [] }))).toBeNull();
+    expect(patternScene(linked({ viewBox: '0 0 100 100', strokes: [stroke('aux', 50)] }))).toBeNull();
+    expect(patternScene(linked({ viewBox: '0 0 0 0', strokes: [stroke('edge', 0)] }))).toBeNull();
+    // A Fold capture that found no line keeps the empty thumbnail (`storedSheetThumbnail(null)`).
+    expect(patternScene(folded({ viewBox: '0 0 100 100', strokes: [] }))).toBeNull();
+    expect(patternScene(folded({ viewBox: '0 0 0 0', strokes: [stroke('valley', 0)] }))).toBeNull();
   });
 
   it('is drawn exactly where drawsPattern says a thumbnail draws: the one answer the pane and the page read', () => {
@@ -179,8 +246,9 @@ describe('patternScene', () => {
       { viewBox: 'none', strokes: [stroke('valley', 0)] },
       { viewBox: '-5 -5 110 110', strokes: [stroke('mountain', 0)] },
     ];
-    expect(thumbnails.map(drawsPattern)).toEqual([false, false, true, false, false, true]);
-    expect(thumbnails.map((thumbnail) => patternScene(thumbnail) !== null)).toEqual(thumbnails.map(drawsPattern));
+    const sources = [...thumbnails.map(linked), ...thumbnails.map(folded)];
+    expect(sources.map(drawsPattern)).toEqual([false, false, true, false, false, true, false, true, true, false, false, true]);
+    expect(sources.map((source) => patternScene(source) !== null)).toEqual(sources.map(drawsPattern));
   });
 });
 
@@ -303,6 +371,14 @@ describe('missingTitleBlockParts', () => {
     // The pattern alone missing: the model stands in its place, and its square says why there is no pattern.
     expect(missing(titleBlockDiagram([uploadStep('s1')]))).toEqual([['square', geometry.pattern, [['pattern', null, null]]]]);
     expect(missing(titleBlockDiagram([emptyStep('s1')], { pattern: { kind: 'none' } }))).toEqual([['square', geometry.pattern, [['model', null, null]]]]);
+  });
+
+  it('marks nothing for a diagram made from Fold, whose last step gives the pattern, and names a Fold step chosen that draws none', () => {
+    expect(missing(titleBlockDiagram([foldPatternStep('f1'), foldPatternStep('f2', OTHER_PATTERN, { step: 'fstep-3' })]))).toEqual([]);
+    const blank = titleBlockDiagram([foldPatternStep('f1'), foldPatternStep('f2', [], { step: 'fstep-3' })], {
+      pattern: { kind: 'step', stepId: 'f2' },
+    });
+    expect(missing(blank)).toEqual([['square', geometry.pattern, [['pattern', 'f2', 2]]]]);
   });
 
   it('marks no credit with an empty value, nor an empty note: an empty part is simply not drawn (Zach, 2026-10-15)', () => {

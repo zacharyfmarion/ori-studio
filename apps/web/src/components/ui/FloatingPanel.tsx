@@ -130,6 +130,20 @@ export const FloatingPanelBody = forwardRef<HTMLDivElement, FloatingPanelBodyPro
   }
 );
 
+/**
+ * The end of the body that stays in view while the rest of it scrolls:
+ * docked to the window's bottom edge, the rest passing under it. For what a
+ * window must never hide however much it holds above — Fold's refusal and
+ * its Cancel / fold buttons. The body's last child.
+ */
+export function FloatingPanelDock({ children, ...props }: Omit<HTMLAttributes<HTMLDivElement>, 'className'>) {
+  return (
+    <div className={styles.dock} {...props}>
+      {children}
+    </div>
+  );
+}
+
 /** A close button sized for the title bar, for {@link FloatingPanelHeaderProps.action}. */
 export function FloatingPanelClose({ label, onClick }: { label: string; onClick: () => void }) {
   return (

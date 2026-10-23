@@ -89,6 +89,7 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'solid-line':
     case 'label':
     case 'circle':

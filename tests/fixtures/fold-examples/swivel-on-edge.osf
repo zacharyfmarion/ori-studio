@@ -1,0 +1,292 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-12T20:41:02.051Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-12T20:41:02.051Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Untitled",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 1,
+        "id": "fold-aceffb3a-93c9-4f8b-aea1-603ef02e3d0e",
+        "title": "Swivel on a folded edge",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "steps": [
+          {
+            "id": "fstep-10c9fe20-62cc-4672-9c06-6ba25a0bdc37",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "moving": [
+                0.6666666666666666,
+                0.6666666666666666
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 0.7071067811865475
+              }
+            },
+            "expect": "fs1:e0afaec7d6c7cfa6",
+            "note": "Valley fold (V), Axiom 2: point onto point. Click the bottom-left corner, then the top-right corner; press Enter. The square folds on its diagonal."
+          },
+          {
+            "id": "fstep-80da52aa-aa82-428e-b4bc-df3dde8cbaf5",
+            "parent": "fstep-10c9fe20-62cc-4672-9c06-6ba25a0bdc37",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": 0
+              }
+            },
+            "expect": "fs1:0b8b59a42ab47d8d",
+            "note": "Precrease (P), Axiom 2. Click the bottom-right corner, then the top-left corner; press Enter: the other diagonal, creased and unfolded."
+          },
+          {
+            "id": "fstep-d119cb5d-2281-489f-adba-a5acf1914241",
+            "parent": "fstep-80da52aa-aa82-428e-b4bc-df3dde8cbaf5",
+            "op": {
+              "kind": "inside-reverse",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  1,
+                  -2.2204460492503136e-16
+                ],
+                "d": 0.5000000000000001
+              }
+            },
+            "expect": "fs1:018120ab8e2a3d4c",
+            "note": "Inside reverse fold, Axiom 2. Click the triangle’s bottom-right corner, then its right-angled corner (bottom left): the corner folds in between the layers onto it; press Enter."
+          },
+          {
+            "id": "fstep-23070f0c-e5b6-471b-bb75-980a3685261b",
+            "parent": "fstep-d119cb5d-2281-489f-adba-a5acf1914241",
+            "op": {
+              "kind": "inside-reverse",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  2.2204460492503136e-16,
+                  -1
+                ],
+                "d": -0.5000000000000001
+              }
+            },
+            "expect": "fs1:2a1415320fc4d2d7",
+            "note": "Inside reverse fold, Axiom 2. Click the top corner, then the right-angled corner (bottom left); press Enter. This is the preliminary base, its closed point the sheet’s centre."
+          },
+          {
+            "id": "fstep-0e1cc9cf-590e-48e0-b183-8bd1bd7d4a58",
+            "parent": "fstep-23070f0c-e5b6-471b-bb75-980a3685261b",
+            "op": {
+              "kind": "rotate",
+              "rotate": {
+                "amount": "eighth",
+                "direction": "ccw"
+              }
+            },
+            "expect": "fs1:f2d3e14b3bf010d4",
+            "note": "Rotate: 1/8 of a turn counter-clockwise, so the open corner points down.",
+            "spread": {
+              "kind": "affine",
+              "amount": 0.03,
+              "keep": "top",
+              "skew": 0.04,
+              "axisDeg": 62
+            }
+          },
+          {
+            "id": "fstep-91a484f2-9485-499d-9904-6bf2063915ca",
+            "parent": "fstep-0e1cc9cf-590e-48e0-b183-8bd1bd7d4a58",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.8521078475219173,
+                0.5697560410122267
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:ac25478bd59c8cfc",
+            "note": "Squash fold. Click the front flap on the right; press Enter: the flap opens into a kite on the centre line.",
+            "spread": {
+              "kind": "affine",
+              "amount": 0.025,
+              "keep": "top",
+              "skew": 0.63,
+              "axisDeg": 73
+            }
+          },
+          {
+            "id": "fstep-18068cf1-3413-4e5e-9880-642770591dcc",
+            "parent": "fstep-91a484f2-9485-499d-9904-6bf2063915ca",
+            "op": {
+              "kind": "swivel",
+              "via": "edge",
+              "fold": [
+                0.7250000003221826,
+                0.5931980516673988
+              ],
+              "edge": [
+                1,
+                0.8535533905932738
+              ],
+              "target": {
+                "via": "crease",
+                "at": [
+                  0.75,
+                  0.5000000000000001
+                ]
+              },
+              "direction": "valley"
+            },
+            "expect": "fs1:b7f7dcde068a2b89",
+            "note": "Swivel fold. Click the kite’s upper-left edge, a folded edge: it lights up under the pointer, and the creases will meet on it. Click the kite’s lower-left edge, the model’s lower-left edge: the edge that moves. Click the centre line: the line it lands on. The creases meet at the dot, where the line halfway between that edge and the centre line crosses the folded edge; only Valley folds flat. Press Enter."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-aceffb3a-93c9-4f8b-aea1-603ef02e3d0e",
+        "cursor": "fstep-18068cf1-3413-4e5e-9880-642770591dcc",
+        "activeChild": {
+          "": "fstep-10c9fe20-62cc-4672-9c06-6ba25a0bdc37",
+          "fstep-10c9fe20-62cc-4672-9c06-6ba25a0bdc37": "fstep-80da52aa-aa82-428e-b4bc-df3dde8cbaf5",
+          "fstep-80da52aa-aa82-428e-b4bc-df3dde8cbaf5": "fstep-d119cb5d-2281-489f-adba-a5acf1914241",
+          "fstep-d119cb5d-2281-489f-adba-a5acf1914241": "fstep-23070f0c-e5b6-471b-bb75-980a3685261b",
+          "fstep-23070f0c-e5b6-471b-bb75-980a3685261b": "fstep-0e1cc9cf-590e-48e0-b183-8bd1bd7d4a58",
+          "fstep-0e1cc9cf-590e-48e0-b183-8bd1bd7d4a58": "fstep-91a484f2-9485-499d-9904-6bf2063915ca",
+          "fstep-91a484f2-9485-499d-9904-6bf2063915ca": "fstep-18068cf1-3413-4e5e-9880-642770591dcc"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

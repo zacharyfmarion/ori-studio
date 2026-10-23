@@ -17,6 +17,7 @@ import {
   showAsOf,
   stepById,
   stepIndex,
+  posedRenderOf,
   type DiagramCpRender,
   type DiagramDocument,
   type DiagramLayerSpread,
@@ -390,12 +391,12 @@ export function firstLinkPose(
   spread?: DiagramLayerSpread
 ): DiagramCpRender | null {
   const step = stepById(document, stepId);
-  if (!step?.zoom || step.source?.kind === 'cp') return null;
+  // A Fold step's pose is a linked pattern's (`posedRenderOf`): either starts the run's turn.
+  if (!step?.zoom || posedRenderOf(step.source)) return null;
   const origin = runOrigin(document, stepId);
-  const source = origin?.step.source;
-  if (!origin || source?.kind !== 'cp') return null;
-  if ('zoom' in origin && showAsOf(source.render) !== way) return null;
-  const { render } = source;
+  const render = posedRenderOf(origin?.step.source);
+  if (!origin || !render) return null;
+  if ('zoom' in origin && showAsOf(render) !== way) return null;
   switch (render.mode) {
     case 'crease-pattern':
       // Its side and Flip creases too: a pattern turned over faces the other way.

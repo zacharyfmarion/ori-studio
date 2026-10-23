@@ -15,7 +15,18 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type { ScenePoint } from '../../lib/paper/paperScene';
+import { foldedDisplayLayers } from './foldedDisplayLayers';
 import { foldedPaintOrder, foldedSceneEpsilon, wovenDrawOrder } from './foldedFlatScene';
+import {
+  plainBook,
+  plainFlap,
+  precreasedBook,
+  precreasedFlap,
+  PLAIN_BOOK,
+  PLAIN_FLAP,
+  PRECREASED_BOOK,
+  PRECREASED_FLAP,
+} from './foldedPrecrease.fixtures';
 import {
   affineSpread,
   foldedModelSize,
@@ -509,5 +520,137 @@ describe('affine opening', () => {
     const older = affineSpread(bookFold(), OPEN, EPSILON);
     expect(older.anchor).toBeNull();
     expectMove(older.offset(OVER, point(0, 0)), [0, 0]);
+  });
+});
+
+/**
+ * A precrease is a fold and unfold: no fold. The faces it cuts a layer into
+ * lie in one piece of paper, so either spread must move every point of the
+ * precreased fold exactly as it moves that point of the plain one
+ * (`foldedPrecrease.fixtures.ts`).
+ */
+describe('a precrease', () => {
+  /** Whether `p` is inside or on a convex ring, either way round. */
+  const holds = (ring: readonly Point[], p: Point): boolean => {
+    let sign = 0;
+    for (let i = 0; i < ring.length; i += 1) {
+      const [a, b] = [ring[i]!, ring[(i + 1) % ring.length]!];
+      const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+      if (Math.abs(cross) <= 1e-12) continue;
+      if (sign !== 0 && Math.sign(cross) !== sign) return false;
+      sign = Math.sign(cross);
+    }
+    return true;
+  };
+
+  /** Points over a face: its corners, its edges' quarter points, and a grid inside. */
+  function samples(ring: readonly Point[]): Point[] {
+    const found: Point[] = [...ring];
+    ring.forEach((a, i) => {
+      const b = ring[(i + 1) % ring.length]!;
+      for (const t of [0.25, 0.5, 0.75]) found.push(point(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t));
+    });
+    const xs = ring.map(({ x }) => x);
+    const ys = ring.map(({ y }) => y);
+    for (let i = 1; i < 8; i += 1) {
+      for (let j = 1; j < 8; j += 1) {
+        const p = point(
+          Math.min(...xs) + ((Math.max(...xs) - Math.min(...xs)) * i) / 8,
+          Math.min(...ys) + ((Math.max(...ys) - Math.min(...ys)) * j) / 8
+        );
+        if (holds(ring, p)) found.push(p);
+      }
+    }
+    return found;
+  }
+
+  /**
+   * Every sampled point of every plain face moves as the same point of the
+   * precreased face of that layer holding it: `pieces` names, per plain face,
+   * the precreased faces it was cut into.
+   */
+  function expectSameField<T>(
+    plain: OristudioCpFoldedPaperScene,
+    precreased: OristudioCpFoldedPaperScene,
+    pieces: ReadonlyArray<readonly number[]>,
+    move: (kernel: OristudioCpFoldedPaperScene) => (face: number, p: Point) => T,
+    near: (a: T, b: T) => void
+  ): void {
+    const [before, after] = [move(plain), move(precreased)];
+    plain.faces.forEach(({ outline }, face) => {
+      for (const p of samples(outline)) {
+        const piece = pieces[face]!.find((each) => holds(precreased.faces[each]!.outline, p));
+        expect(piece, `face ${face} at (${p.x}, ${p.y})`).toBeDefined();
+        near(after(piece!, p), before(face, p));
+      }
+    });
+  }
+
+  const nearStep = (a: ScenePoint, b: ScenePoint) => expectStep(a, b);
+  const nearMove = (a: Point, b: Point) => {
+    expect(a.x).toBeCloseTo(b.x, 12);
+    expect(a.y).toBeCloseTo(b.y, 12);
+  };
+  const depth = (options: Pick<DepthSpreadOptions, 'amount' | 'toward'>) => (kernel: OristudioCpFoldedPaperScene) =>
+    layerSpread(kernel, foldedPaintOrder(kernel), options, FRAME).offset;
+  const affine = (options: Omit<AffineSpreadOptions, 'kind'>) => (kernel: OristudioCpFoldedPaperScene) =>
+    affineSpread(kernel, options, { epsilon: 1e-9 }).offset;
+
+  const BOOK_PIECES = [
+    [PRECREASED_BOOK.underLow, PRECREASED_BOOK.underHigh],
+    [PRECREASED_BOOK.overLow, PRECREASED_BOOK.overHigh],
+  ];
+  const FLAP_PIECES = [[PRECREASED_FLAP.left, PRECREASED_FLAP.right], [PRECREASED_FLAP.flap]];
+
+  it('gives the faces it cuts a layer into the layer’s one level', () => {
+    // The strip's left piece has nothing over it, its right piece the flap:
+    // as faces they would be levels 0 and 1, and the strip would bend.
+    const { levels, zMax } = spreadOf(precreasedFlap());
+    expect([...levels]).toEqual([1, 1, 0]);
+    expect(zMax).toBe(1);
+    const plain = spreadOf(plainFlap()).levels;
+    expect([plain[PLAIN_FLAP.strip], plain[PLAIN_FLAP.flap]]).toEqual([1, 0]);
+    // The book's leaves, each cut in two: one level per leaf, as the plain book's.
+    const { underHigh, underLow, overHigh, overLow } = PRECREASED_BOOK;
+    const cut = spreadOf(precreasedBook()).levels;
+    expect([cut[underHigh], cut[underLow], cut[overHigh], cut[overLow]]).toEqual([1, 1, 0, 0]);
+    const book = spreadOf(plainBook()).levels;
+    expect([book[PLAIN_BOOK.under], book[PLAIN_BOOK.over]]).toEqual([1, 0]);
+  });
+
+  it('keeps a level per face where the order draws a layer in pieces, as a woven one may', () => {
+    const kernel = precreasedFlap();
+    const layers = foldedDisplayLayers(kernel);
+    const { left, right, flap } = PRECREASED_FLAP;
+    expect([...layerLevels(3, kernel.subfaces, [left, right, flap], layers).levels]).toEqual([1, 1, 0]);
+    expect([...layerLevels(3, kernel.subfaces, [right, flap, left], layers).levels]).toEqual([0, 1, 0]);
+  });
+
+  it.each([
+    ['down', { amount: 0.05, toward: 'down' }],
+    ['up-left', { amount: 0.2, toward: 'up-left' }],
+  ] as const)('leaves a depth spread %s as it was', (_label, options) => {
+    expectSameField(plainBook(), precreasedBook(), BOOK_PIECES, depth(options), nearStep);
+    expectSameField(plainFlap(), precreasedFlap(), FLAP_PIECES, depth(options), nearStep);
+  });
+
+  it.each([
+    ['held at the top, skewed', { amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 }],
+    ['held at the bottom', { amount: 0.1, keep: 'bottom', skew: 0, axisDeg: 0 }],
+    ['held at the top, half skewed', { amount: 0.2, keep: 'top', skew: 0.5, axisDeg: 30 }],
+  ] as const)('leaves an affine spread %s as it was', (_label, options) => {
+    expectSameField(plainBook(), precreasedBook(), BOOK_PIECES, affine(options), nearMove);
+    expectSameField(plainFlap(), precreasedFlap(), FLAP_PIECES, affine(options), nearMove);
+  });
+
+  it('holds still the layer over the most area, not the largest piece of one', () => {
+    // Each piece of the strip shows 1 on top, the flap 1.5, the whole strip 2.
+    const plain = affineSpread({ ...plainFlap() }, { amount: 0.1, keep: 'top', skew: 0, axisDeg: 0 }, { epsilon: 1e-9 });
+    expect(plain.anchor).toBe(PLAIN_FLAP.strip);
+    const cut = affineSpread(precreasedFlap(), { amount: 0.1, keep: 'top', skew: 0, axisDeg: 0 }, { epsilon: 1e-9 });
+    expect(cut.anchor).toBe(PRECREASED_FLAP.left);
+    for (const face of [PRECREASED_FLAP.left, PRECREASED_FLAP.right]) {
+      for (const corner of precreasedFlap().faces[face]!.outline) nearMove(cut.offset(face, corner), point(0, 0));
+    }
   });
 });

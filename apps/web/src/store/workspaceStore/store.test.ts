@@ -39,6 +39,10 @@ import {
 } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
 import { DIAGRAM_SCOPED_KEYS, discardDiagramState, isDiagramAnnotating } from './diagramState';
+import { FOLD_SCOPED_KEYS, discardFoldState, pickFoldState } from './foldState';
+import { valleyAt, writtenSequence } from '../../fold/document/foldSequence.fixtures';
+import { FOLD_SEQUENCE_FORMAT_VERSION } from '../../fold/document/foldSequenceDocument';
+import { readFoldSequences } from '../../fold/document/foldSequenceFile';
 import { registerPendingEditFlush, resetPendingEditsForTests } from '../../lib/pendingEdits';
 import { readDiagram } from '../../diagram/document/diagramFile';
 import {
@@ -10220,7 +10224,7 @@ describe('the project diagram', () => {
     expect(writtenFile(again).file.workspace.creasePattern).not.toBeNull();
   });
 
-  it('still refuses a project with no design, no crease pattern and no diagram', async () => {
+  it('still refuses a project with no design, no crease pattern and no project document', async () => {
     // Written by the real writer, so the refusal is the loader's — not a format
     // check failing first on a hand-made file.
     const empty = serializeNativeProjectFile(
@@ -10241,7 +10245,7 @@ describe('the project diagram', () => {
     expect(state().status).toBe('error');
     expect(state().error).toMatchObject({
       code: 'project_file_damaged',
-      message: expect.stringContaining('neither a design, a crease pattern nor a diagram'),
+      message: expect.stringContaining('neither a design, a crease pattern, a diagram nor a fold sequence'),
     });
   });
 
@@ -10280,16 +10284,25 @@ describe('the project diagram', () => {
       'a box-pleat example',
       () => state().loadOristudioBpExample('valid-packing', { confirmDiscard: false }),
     ],
-  ])('%s replaces the diagram', async (_label, replace) => {
+  ])('%s replaces the diagram and the fold sequences', async (_label, replace) => {
     authorTwoSteps();
+    state().commitFoldStep({ parent: null, op: valleyAt(0.5) });
     // Saved, so no discard prompt stands between the action and the test.
     useWorkspaceStore.setState({ dirty: false });
     const before = state().diagramLoadId;
+    const foldBefore = state().foldLoadId;
 
     await replace();
 
     expect(state().status).not.toBe('error');
     expectNoDiagram(before);
+    // Every fold-scoped key is what a replacement leaves, bar the fresh load id.
+    const discarded = discardFoldState();
+    for (const key of FOLD_SCOPED_KEYS) {
+      if (key === 'foldLoadId') continue;
+      expect(state()[key], key).toEqual(discarded[key]);
+    }
+    expect(state().foldLoadId).not.toBe(foldBefore);
   });
 
   // And every one that only adds to the project, or rebuilds a part of it.
@@ -10305,16 +10318,20 @@ describe('the project diagram', () => {
       () => state().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true }),
     ],
     ['the engine finishing its boot', () => state().initEngine()],
-  ])('%s keeps the diagram and its unsaved state', async (_label, act) => {
+  ])('%s keeps the diagram, the fold sequences and their unsaved state', async (_label, act) => {
     authorTwoSteps();
+    state().commitFoldStep({ parent: null, op: valleyAt(0.5) });
     const diagram = state().diagram;
     const history = state().diagramHistory;
+    const fold = pickFoldState(state());
 
     await act();
 
     expect(state().status).not.toBe('error');
     expect(state().diagram).toBe(diagram);
     expect(state().diagramHistory).toBe(history);
+    expect(pickFoldState(state())).toEqual(fold);
+    expect(state().foldSequences).toBe(fold.foldSequences);
     expect(state().dirty).toBe(true);
   });
 
@@ -10683,5 +10700,173 @@ describe('the project diagram', () => {
       useWorkspaceStore.setState({ diagramReadOnly: true });
       expect(add(pic, ARROW)).toBe(false);
     });
+  });
+});
+
+describe('the project fold sequences', () => {
+  beforeEach(() => {
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+  });
+
+  const state = () => useWorkspaceStore.getState();
+
+  /** sheet → a → b, as the author folds it, the reader back on a. */
+  /**
+   * A valley as Fold's canvas commits one (`foldStepBuilder`): its landing
+   * said, as the file writes every valley — so a save and a reopen give back
+   * the step that was committed.
+   */
+  const canvasValley = (y: number) => ({ ...valleyAt(y), landing: { kind: 'outer' as const } });
+
+  function foldTwo() {
+    const a = state().commitFoldStep({ parent: null, op: canvasValley(0.5) })!;
+    const b = state().commitFoldStep({ parent: a, op: canvasValley(0.25) })!;
+    state().moveFoldCursor(a);
+    return { a, b };
+  }
+
+  /** The parts of a written `.osf` these tests read. */
+  interface WrittenProject {
+    minimumReaderSchemaVersion: number;
+    workspace: {
+      designs: unknown[];
+      creasePattern: unknown;
+      foldSequences?: { steps: unknown[] }[];
+      viewState: { fold?: { cursor: string | null } };
+    };
+  }
+
+  function writtenFile(fileService: ReturnType<typeof createFileService>) {
+    const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as SaveTextFileOptions;
+    return { options, file: JSON.parse(options.contents) as WrittenProject };
+  }
+
+  async function reopen(contents: string, name: string) {
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+    return state().openProject(createFileService({ text: contents, name, path: `/tmp/${name}` }));
+  }
+
+  it('saves and reopens a project that holds only fold sequences, on Fold, the reader where it was', async () => {
+    const { a } = foldTwo();
+    useWorkspaceStore.setState({ workspaceTitle: 'Crane' });
+    const saved = state().foldSequences.map((held) => held.document);
+    const reader = state().foldReader;
+    const fileService = createFileService();
+
+    await expect(state().saveProjectAs(fileService)).resolves.toBe(true);
+
+    const { options, file } = writtenFile(fileService);
+    expect(options.extensions).toEqual(['osf']);
+    // Fold sequences ask for reader 11: v0.6.0 reads the diagrams (10) but not these.
+    expect(file.minimumReaderSchemaVersion).toBe(11);
+    expect(file.workspace.designs).toEqual([]);
+    expect(file.workspace.creasePattern).toBeNull();
+    expect(file.workspace.foldSequences?.[0].steps).toHaveLength(2);
+    expect(file.workspace.viewState.fold?.cursor).toBe(a);
+    expect(state().dirty).toBe(false);
+
+    await expect(reopen(options.contents, 'crane.osf')).resolves.toBe(true);
+
+    expect(state().foldSequences.map((held) => held.document)).toEqual(saved);
+    expect(state().foldReader).toEqual(reader);
+    // Nothing but fold sequences: it opens on Fold, not Design's chooser.
+    expect(useLayoutStore.getState().activateWorkspace).toHaveBeenLastCalledWith('fold');
+    expect(state()).toMatchObject({ workspaceTitle: 'Crane', currentFileName: 'crane.osf', dirty: false, error: null });
+    expect(state().foldHistory).toEqual({ past: [], future: [] });
+  });
+
+  it('saves the sequences beside a crease pattern, and reopens both, on Edit', async () => {
+    await state().createNewCreasePattern();
+    foldTwo();
+    const saved = state().foldSequences.map((held) => held.document);
+    const fileService = createFileService();
+
+    await state().saveProjectAs(fileService);
+    const { options, file } = writtenFile(fileService);
+    expect(file.minimumReaderSchemaVersion).toBe(11);
+    expect(file.workspace.creasePattern).not.toBeNull();
+
+    await reopen(options.contents, 'both.osf');
+    expect(state().oristudioCpDocument).not.toBeNull();
+    expect(state().foldSequences.map((held) => held.document)).toEqual(saved);
+    expect(useLayoutStore.getState().activateWorkspace).toHaveBeenLastCalledWith('edit');
+    expect(state().dirty).toBe(false);
+  });
+
+  it('opens a development build’s file that stamped its sequences reader 10, and saves it as reader 11', async () => {
+    foldTwo();
+    useWorkspaceStore.setState({ workspaceTitle: 'Crane' });
+    const fileService = createFileService();
+    await state().saveProjectAs(fileService);
+    // As a development build wrote it, before fold sequences had a reader of their own.
+    const file = JSON.parse(writtenFile(fileService).options.contents);
+    file.minimumReaderSchemaVersion = 10;
+
+    await expect(reopen(JSON.stringify(file), 'crane.osf')).resolves.toBe(true);
+    expect(state().foldSequences.map((held) => held.document.id)).toEqual(
+      file.workspace.foldSequences.map((sequence: { id: string }) => sequence.id)
+    );
+    expect(state().foldSequences[0]!.document.steps).toHaveLength(2);
+
+    const again = createFileService();
+    await state().saveProject(again);
+    const written = writtenFile(again).file;
+    expect(written.minimumReaderSchemaVersion).toBe(11);
+    expect(written.workspace.foldSequences?.[0].steps).toHaveLength(2);
+  });
+
+  it('saves a crease pattern opened from an Oriedita file as .osf once it has fold sequences', async () => {
+    await state().openProject(
+      createFileService({
+        text: '{"@version":"v1.1","title":"native ori","lineSegments":[]}',
+        name: 'native.ori',
+        path: '/tmp/native.ori',
+      })
+    );
+    foldTwo();
+    const fileService = createFileService();
+
+    await state().saveProject(fileService);
+
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOri).not.toHaveBeenCalled();
+    const { options, file } = writtenFile(fileService);
+    // Never over the `.ori`, which has nowhere to put a sequence: a native target is asked for.
+    expect(options).toMatchObject({ extensions: ['osf'], path: null });
+    expect(file.workspace.foldSequences?.[0].steps).toHaveLength(2);
+  });
+
+  it('leaves the project unsaved when the sequences change while the save dialog is up, and not when the reader moves', async () => {
+    const { a } = foldTwo();
+    const fileService = createFileService();
+    fileService.saveTextFile.mockImplementationOnce(async (options: SaveTextFileOptions) => {
+      state().moveFoldCursor(null);
+      return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };
+    });
+    await state().saveProjectAs(fileService);
+    expect(state().dirty).toBe(false);
+
+    fileService.saveTextFile.mockImplementationOnce(async (options: SaveTextFileOptions) => {
+      state().commitFoldStep({ parent: a, op: valleyAt(0.75) });
+      return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };
+    });
+    await state().saveProjectAs(fileService);
+    expect(writtenFile(fileService).file.workspace.foldSequences?.[0].steps).toHaveLength(2);
+    expect(state().dirty).toBe(true);
+  });
+
+  it('writes a newer build’s sequence back as it came', async () => {
+    // Newer than this build writes, whatever that is now.
+    const raw = { ...writtenSequence(), formatVersion: FOLD_SEQUENCE_FORMAT_VERSION + 1, hologram: true };
+    useWorkspaceStore.setState({ ...singleDesignTab('treemaker') });
+    state().installFoldSequences(readFoldSequences([raw]), null);
+
+    expect(state().commitFoldStep({ parent: null, op: valleyAt(0.5) })).toBeNull();
+    const fileService = createFileService();
+    await state().saveProjectAs(fileService);
+    expect(writtenFile(fileService).file.workspace.foldSequences).toEqual([raw]);
   });
 });

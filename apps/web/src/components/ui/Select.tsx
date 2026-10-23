@@ -1,5 +1,5 @@
 import * as RadixSelect from '@radix-ui/react-select';
-import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { forwardRef, type ComponentPropsWithoutRef, type CSSProperties } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { CONTROL_RADIUS_CLASS } from './controlStyles';
 import styles from './Select.module.css';
@@ -35,15 +35,23 @@ export const SelectContent = forwardRef<
      * list ending in Custom… (`DiagramColorSelect`).
      */
     fit?: 'capped' | 'available';
+    /**
+     * The widest the list may grow, in CSS px: a list whose options carry a
+     * description line wraps it there rather than stretching across the
+     * window (`SelectRow` caps it at its row). Unset, it grows to its widest option.
+     */
+    maxWidth?: number;
   }
->(({ children, fit = 'capped', ...props }, ref) => (
+>(({ children, fit = 'capped', maxWidth, style, ...props }, ref) => (
   <RadixSelect.Portal>
     <RadixSelect.Content
       ref={ref}
       className={styles.content}
       data-fit={fit}
+      data-capped={maxWidth === undefined ? undefined : ''}
       position="popper"
       sideOffset={4}
+      style={maxWidth === undefined ? style : ({ ...style, '--select-max-width': `${maxWidth}px` } as CSSProperties)}
       {...props}
     >
       <RadixSelect.Viewport className={styles.viewport}>{children}</RadixSelect.Viewport>
@@ -55,15 +63,31 @@ SelectContent.displayName = 'SelectContent';
 
 export const SelectItem = forwardRef<
   HTMLDivElement,
-  Omit<ComponentPropsWithoutRef<typeof RadixSelect.Item>, 'className'>
->(({ children, ...props }, ref) => (
+  Omit<ComponentPropsWithoutRef<typeof RadixSelect.Item>, 'className'> & {
+    /**
+     * A line under the option in the list, never in the trigger: why a
+     * disabled option is offered as no choice, say.
+     */
+    description?: string;
+  }
+>(({ children, description, ...props }, ref) => (
   <RadixSelect.Item ref={ref} className={styles.item} {...props}>
     <span className={styles.indicator} aria-hidden>
       <RadixSelect.ItemIndicator>
         <Check size={12} />
       </RadixSelect.ItemIndicator>
     </span>
-    <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
+    {description ? (
+      <span className={styles.described}>
+        <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
+        {/* At most two lines, the rest behind an ellipsis: the whole of it in the tooltip. */}
+        <span className={styles.description} title={description}>
+          {description}
+        </span>
+      </span>
+    ) : (
+      <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
+    )}
   </RadixSelect.Item>
 ));
 

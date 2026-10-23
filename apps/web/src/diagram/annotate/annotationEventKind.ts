@@ -24,6 +24,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'valley-line': 'valley_line',
   'mountain-line': 'mountain_line',
   'hidden-line': 'hidden_line',
+  'uncreased-line': 'uncreased_line',
   'solid-line': 'solid_line',
   label: 'label',
   circle: 'circle',

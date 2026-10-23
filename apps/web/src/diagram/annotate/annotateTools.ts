@@ -68,7 +68,7 @@ type TurnSignKind = 'turn-over' | 'rotate';
  * not be a kind.
  */
 export type DrawingTool =
-  | Exclude<DiagramAnnotationKind, DiagramLineKind | TurnSignKind | 'zoom'>
+  | Exclude<DiagramAnnotationKind, DiagramLineKind | TurnSignKind | 'zoom' | 'uncreased-line'>
   | typeof LINE_TOOL
   | typeof ANGLE_BISECTOR
   | typeof SOLID_ARROW
@@ -416,6 +416,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolMountainLine', 'Mountain Line');
     case 'hidden-line':
       return t('tools:diagram.toolHiddenLine', 'Hidden Line');
+    case 'uncreased-line':
+      return t('tools:diagram.uncreasedLine', 'Uncreased Line');
     case 'solid-line':
       return t('tools:diagram.toolSolidLine', 'Solid Line');
     case 'label':

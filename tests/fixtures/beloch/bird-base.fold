@@ -1,0 +1,2241 @@
+{
+  "file_spec": 1.1,
+  "file_creator": "beloch 0.4.0",
+  "frame_classes": [ "creasePattern" ],
+  "frame_unit": "unit",
+  "vertices_coords": [
+    [ 1.0, 1.0 ],
+    [ 0.5, 0.7928932188134524 ],
+    [ 0.5, 0.5 ],
+    [ 0.7928932188134524, 0.5 ],
+    [ 0.0, 0.0 ],
+    [ 0.5, 0.20710678118654752 ],
+    [ 0.20710678118654752, 0.5 ],
+    [ 1.0, 0.0 ],
+    [ 0.0, 1.0 ],
+    [ 0.5, 0.0 ],
+    [ 0.0, 0.5 ],
+    [ 1.0, 0.5 ],
+    [ 0.5, 1.0 ]
+  ],
+  "edges_vertices": [
+    [ 0, 1 ],
+    [ 1, 2 ],
+    [ 2, 3 ],
+    [ 3, 0 ],
+    [ 4, 5 ],
+    [ 5, 2 ],
+    [ 2, 6 ],
+    [ 6, 4 ],
+    [ 7, 3 ],
+    [ 2, 7 ],
+    [ 5, 7 ],
+    [ 8, 2 ],
+    [ 1, 8 ],
+    [ 8, 6 ],
+    [ 9, 7 ],
+    [ 5, 9 ],
+    [ 4, 9 ],
+    [ 8, 10 ],
+    [ 10, 6 ],
+    [ 10, 4 ],
+    [ 11, 0 ],
+    [ 3, 11 ],
+    [ 7, 11 ],
+    [ 0, 12 ],
+    [ 12, 1 ],
+    [ 12, 8 ]
+  ],
+  "edges_assignment": [
+    "V", "V", "V", "V", "V", "V", "V", "V", "V", "M", "V", "M", "V", "V",
+    "B", "M", "B", "B", "M", "B", "B", "M", "B", "B", "M", "B"
+  ],
+  "edges_faces": [
+    [ 0, 12 ],
+    [ 0, 4 ],
+    [ 0, 2 ],
+    [ 0, 10 ],
+    [ 1, 7 ],
+    [ 1, 3 ],
+    [ 1, 5 ],
+    [ 1, 9 ],
+    [ 2, 11 ],
+    [ 2, 3 ],
+    [ 3, 6 ],
+    [ 4, 5 ],
+    [ 4, 13 ],
+    [ 5, 8 ],
+    [ 6 ],
+    [ 6, 7 ],
+    [ 7 ],
+    [ 8 ],
+    [ 8, 9 ],
+    [ 9 ],
+    [ 10 ],
+    [ 10, 11 ],
+    [ 11 ],
+    [ 12 ],
+    [ 12, 13 ],
+    [ 13 ]
+  ],
+  "faces_vertices": [
+    [ 0, 1, 2, 3 ],
+    [ 4, 5, 2, 6 ],
+    [ 7, 3, 2 ],
+    [ 7, 2, 5 ],
+    [ 8, 2, 1 ],
+    [ 2, 8, 6 ],
+    [ 9, 7, 5 ],
+    [ 4, 9, 5 ],
+    [ 8, 10, 6 ],
+    [ 4, 6, 10 ],
+    [ 11, 0, 3 ],
+    [ 7, 11, 3 ],
+    [ 0, 12, 1 ],
+    [ 12, 8, 1 ]
+  ],
+  "beloch:edges": [
+    {
+      "axiom": "axiom6",
+      "sources": [ ".bl", "--mid", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:35:1-40",
+      "statement": 12,
+      "name": null,
+      "crease_id": 6
+    },
+    {
+      "axiom": "axiom2",
+      "sources": [ ".d", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+      "statement": 2,
+      "name": "v",
+      "crease_id": 2
+    },
+    {
+      "axiom": "axiom2",
+      "sources": [ ".b", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+      "statement": 1,
+      "name": "h",
+      "crease_id": 1
+    },
+    {
+      "axiom": "axiom6",
+      "sources": [ ".br", "--mid", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:32:1-40",
+      "statement": 10,
+      "name": null,
+      "crease_id": 5
+    },
+    {
+      "axiom": "axiom6",
+      "sources": [ ".sr", "--mid", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+      "statement": 6,
+      "name": null,
+      "crease_id": 3
+    },
+    {
+      "axiom": "axiom2",
+      "sources": [ ".b", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+      "statement": 1,
+      "name": "h",
+      "crease_id": 1
+    },
+    {
+      "axiom": "axiom2",
+      "sources": [ ".d", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+      "statement": 2,
+      "name": "v",
+      "crease_id": 2
+    },
+    {
+      "axiom": "axiom6",
+      "sources": [ ".sl", "--mid", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+      "statement": 8,
+      "name": null,
+      "crease_id": 4
+    },
+    {
+      "axiom": "axiom6",
+      "sources": [ ".br", "--mid", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:32:1-40",
+      "statement": 10,
+      "name": null,
+      "crease_id": 5
+    },
+    {
+      "axiom": "axiom2",
+      "sources": [ ".a", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+      "statement": 0,
+      "name": "bd",
+      "crease_id": 0
+    },
+    {
+      "axiom": "axiom6",
+      "sources": [ ".sr", "--mid", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+      "statement": 6,
+      "name": null,
+      "crease_id": 3
+    },
+    {
+      "axiom": "axiom2",
+      "sources": [ ".a", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+      "statement": 0,
+      "name": "bd",
+      "crease_id": 0
+    },
+    {
+      "axiom": "axiom6",
+      "sources": [ ".bl", "--mid", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:35:1-40",
+      "statement": 12,
+      "name": null,
+      "crease_id": 6
+    },
+    {
+      "axiom": "axiom6",
+      "sources": [ ".sl", "--mid", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+      "statement": 8,
+      "name": null,
+      "crease_id": 4
+    },
+    null,
+    {
+      "axiom": "axiom2",
+      "sources": [ ".b", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+      "statement": 1,
+      "name": "h",
+      "crease_id": 1
+    },
+    null,
+    null,
+    {
+      "axiom": "axiom2",
+      "sources": [ ".d", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+      "statement": 2,
+      "name": "v",
+      "crease_id": 2
+    },
+    null,
+    null,
+    {
+      "axiom": "axiom2",
+      "sources": [ ".b", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+      "statement": 1,
+      "name": "h",
+      "crease_id": 1
+    },
+    null,
+    null,
+    {
+      "axiom": "axiom2",
+      "sources": [ ".d", ".c" ],
+      "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+      "statement": 2,
+      "name": "v",
+      "crease_id": 2
+    },
+    null
+  ],
+  "beloch:inspect": {
+    "creases": {
+      "1": {
+        "name": "h",
+        "axiom": "axiom2",
+        "sources": [ ".b", ".c" ],
+        "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+        "segments": [
+          {
+            "faces": [ 7, 6 ],
+            "paper": [ [ 0.5, 0.0 ], [ 0.5, 0.20710678118654752 ] ],
+            "table": [
+              [ 0.6464466094067263, 0.6464466094067263 ],
+              [ 0.7928932188134524, 0.5 ]
+            ],
+            "assignment": "M"
+          },
+          {
+            "faces": [ 1, 3 ],
+            "paper": [ [ 0.5, 0.20710678118654752 ], [ 0.5, 0.5 ] ],
+            "table": [ [ 0.7928932188134524, 0.5 ], [ 0.5, 0.5 ] ],
+            "assignment": "V"
+          },
+          {
+            "faces": [ 10, 11 ],
+            "paper": [ [ 1.0, 0.5 ], [ 0.7928932188134524, 0.5 ] ],
+            "table": [
+              [ 0.6464466094067263, 0.6464466094067263 ],
+              [ 0.7928932188134524, 0.5 ]
+            ],
+            "assignment": "M"
+          },
+          {
+            "faces": [ 0, 2 ],
+            "paper": [ [ 0.7928932188134524, 0.5 ], [ 0.5, 0.5 ] ],
+            "table": [ [ 0.7928932188134524, 0.5 ], [ 0.5, 0.5 ] ],
+            "assignment": "V"
+          }
+        ]
+      },
+      "0": {
+        "name": "bd",
+        "axiom": "axiom2",
+        "sources": [ ".a", ".c" ],
+        "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+        "segments": [
+          {
+            "faces": [ 2, 3 ],
+            "paper": [ [ 1.0, 0.0 ], [ 0.5, 0.5 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.5, 0.5 ] ],
+            "assignment": "M"
+          },
+          {
+            "faces": [ 4, 5 ],
+            "paper": [ [ 0.5, 0.5 ], [ 0.0, 1.0 ] ],
+            "table": [ [ 0.5, 0.5 ], [ 1.0, 1.0 ] ],
+            "assignment": "M"
+          }
+        ]
+      },
+      "5": {
+        "name": null,
+        "axiom": "axiom6",
+        "sources": [ ".br", "--mid", ".c" ],
+        "span": "packages/core/tests/cases/bases/bird-base.bel:32:1-40",
+        "segments": [
+          {
+            "faces": [ 2, 11 ],
+            "paper": [ [ 1.0, 0.0 ], [ 0.7928932188134524, 0.5 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.7928932188134524, 0.5 ] ],
+            "assignment": "V"
+          },
+          {
+            "faces": [ 0, 10 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.7928932188134524, 0.5 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.7928932188134524, 0.5 ] ],
+            "assignment": "V"
+          }
+        ]
+      },
+      "4": {
+        "name": null,
+        "axiom": "axiom6",
+        "sources": [ ".sl", "--mid", ".c" ],
+        "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+        "segments": [
+          {
+            "faces": [ 5, 8 ],
+            "paper": [ [ 0.20710678118654752, 0.5 ], [ 0.0, 1.0 ] ],
+            "table": [ [ 0.5, 0.7928932188134524 ], [ 1.0, 1.0 ] ],
+            "assignment": "V"
+          },
+          {
+            "faces": [ 1, 9 ],
+            "paper": [ [ 0.20710678118654752, 0.5 ], [ 0.0, 0.0 ] ],
+            "table": [ [ 0.5, 0.7928932188134524 ], [ 1.0, 1.0 ] ],
+            "assignment": "V"
+          }
+        ]
+      },
+      "3": {
+        "name": null,
+        "axiom": "axiom6",
+        "sources": [ ".sr", "--mid", ".c" ],
+        "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+        "segments": [
+          {
+            "faces": [ 3, 6 ],
+            "paper": [ [ 1.0, 0.0 ], [ 0.5, 0.20710678118654752 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.7928932188134524, 0.5 ] ],
+            "assignment": "V"
+          },
+          {
+            "faces": [ 1, 7 ],
+            "paper": [ [ 0.0, 0.0 ], [ 0.5, 0.20710678118654752 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.7928932188134524, 0.5 ] ],
+            "assignment": "V"
+          }
+        ]
+      },
+      "6": {
+        "name": null,
+        "axiom": "axiom6",
+        "sources": [ ".bl", "--mid", ".c" ],
+        "span": "packages/core/tests/cases/bases/bird-base.bel:35:1-40",
+        "segments": [
+          {
+            "faces": [ 4, 13 ],
+            "paper": [ [ 0.5, 0.7928932188134524 ], [ 0.0, 1.0 ] ],
+            "table": [ [ 0.5, 0.7928932188134524 ], [ 1.0, 1.0 ] ],
+            "assignment": "V"
+          },
+          {
+            "faces": [ 0, 12 ],
+            "paper": [ [ 0.5, 0.7928932188134524 ], [ 1.0, 1.0 ] ],
+            "table": [ [ 0.5, 0.7928932188134524 ], [ 1.0, 1.0 ] ],
+            "assignment": "V"
+          }
+        ]
+      },
+      "2": {
+        "name": "v",
+        "axiom": "axiom2",
+        "sources": [ ".d", ".c" ],
+        "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+        "segments": [
+          {
+            "faces": [ 9, 8 ],
+            "paper": [ [ 0.20710678118654752, 0.5 ], [ 0.0, 0.5 ] ],
+            "table": [
+              [ 0.5, 0.7928932188134524 ],
+              [ 0.6464466094067263, 0.6464466094067263 ]
+            ],
+            "assignment": "M"
+          },
+          {
+            "faces": [ 1, 5 ],
+            "paper": [ [ 0.5, 0.5 ], [ 0.20710678118654752, 0.5 ] ],
+            "table": [ [ 0.5, 0.5 ], [ 0.5, 0.7928932188134524 ] ],
+            "assignment": "V"
+          },
+          {
+            "faces": [ 12, 13 ],
+            "paper": [ [ 0.5, 0.7928932188134524 ], [ 0.5, 1.0 ] ],
+            "table": [
+              [ 0.5, 0.7928932188134524 ],
+              [ 0.6464466094067263, 0.6464466094067263 ]
+            ],
+            "assignment": "M"
+          },
+          {
+            "faces": [ 0, 4 ],
+            "paper": [ [ 0.5, 0.5 ], [ 0.5, 0.7928932188134524 ] ],
+            "table": [ [ 0.5, 0.5 ], [ 0.5, 0.7928932188134524 ] ],
+            "assignment": "V"
+          }
+        ]
+      }
+    },
+    "faces": {
+      "0": {
+        "vertices": [
+          [ 1.0, 1.0 ],
+          [ 0.5, 0.7928932188134524 ],
+          [ 0.5, 0.5 ],
+          [ 0.7928932188134524, 0.5 ]
+        ],
+        "flap": 0,
+        "rank": 0
+      },
+      "1": {
+        "vertices": [
+          [ 0.0, 0.0 ],
+          [ 0.5, 0.20710678118654752 ],
+          [ 0.5, 0.5 ],
+          [ 0.20710678118654752, 0.5 ]
+        ],
+        "flap": 1,
+        "rank": 13
+      },
+      "2": {
+        "vertices": [
+          [ 1.0, 0.0 ], [ 0.7928932188134524, 0.5 ], [ 0.5, 0.5 ]
+        ],
+        "flap": 2,
+        "rank": 6
+      },
+      "3": {
+        "vertices": [
+          [ 1.0, 0.0 ], [ 0.5, 0.5 ], [ 0.5, 0.20710678118654752 ]
+        ],
+        "flap": 3,
+        "rank": 7
+      },
+      "4": {
+        "vertices": [
+          [ 0.0, 1.0 ], [ 0.5, 0.5 ], [ 0.5, 0.7928932188134524 ]
+        ],
+        "flap": 4,
+        "rank": 4
+      },
+      "5": {
+        "vertices": [
+          [ 0.5, 0.5 ], [ 0.0, 1.0 ], [ 0.20710678118654752, 0.5 ]
+        ],
+        "flap": 5,
+        "rank": 9
+      },
+      "6": {
+        "vertices": [
+          [ 0.5, 0.0 ], [ 1.0, 0.0 ], [ 0.5, 0.20710678118654752 ]
+        ],
+        "flap": 6,
+        "rank": 8
+      },
+      "7": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 0.5, 0.0 ], [ 0.5, 0.20710678118654752 ]
+        ],
+        "flap": 7,
+        "rank": 11
+      },
+      "8": {
+        "vertices": [
+          [ 0.0, 1.0 ], [ 0.0, 0.5 ], [ 0.20710678118654752, 0.5 ]
+        ],
+        "flap": 8,
+        "rank": 10
+      },
+      "9": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 0.20710678118654752, 0.5 ], [ 0.0, 0.5 ]
+        ],
+        "flap": 9,
+        "rank": 12
+      },
+      "10": {
+        "vertices": [
+          [ 1.0, 0.5 ], [ 1.0, 1.0 ], [ 0.7928932188134524, 0.5 ]
+        ],
+        "flap": 10,
+        "rank": 2
+      },
+      "11": {
+        "vertices": [
+          [ 1.0, 0.0 ], [ 1.0, 0.5 ], [ 0.7928932188134524, 0.5 ]
+        ],
+        "flap": 11,
+        "rank": 5
+      },
+      "12": {
+        "vertices": [
+          [ 1.0, 1.0 ], [ 0.5, 1.0 ], [ 0.5, 0.7928932188134524 ]
+        ],
+        "flap": 12,
+        "rank": 1
+      },
+      "13": {
+        "vertices": [
+          [ 0.5, 1.0 ], [ 0.0, 1.0 ], [ 0.5, 0.7928932188134524 ]
+        ],
+        "flap": 13,
+        "rank": 3
+      }
+    },
+    "points": {
+      "a": { "face": null, "flap": null },
+      "b": { "face": null, "flap": null },
+      "bl": { "face": null, "flap": null },
+      "br": { "face": null, "flap": null },
+      "c": { "face": null, "flap": null },
+      "d": { "face": null, "flap": null },
+      "o": { "face": null, "flap": null },
+      "sl": { "face": null, "flap": null },
+      "sr": { "face": null, "flap": null }
+    },
+    "edges": {
+      "ab": {
+        "name": "ab",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 6 ],
+            "paper": [ [ 0.5, 0.0 ], [ 1.0, 0.0 ] ],
+            "table": [
+              [ 0.6464466094067263, 0.6464466094067263 ], [ 1.0, 1.0 ]
+            ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 7 ],
+            "paper": [ [ 0.0, 0.0 ], [ 0.5, 0.0 ] ],
+            "table": [
+              [ 1.0, 1.0 ], [ 0.6464466094067263, 0.6464466094067263 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "da": {
+        "name": "da",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 8 ],
+            "paper": [ [ 0.0, 1.0 ], [ 0.0, 0.5 ] ],
+            "table": [
+              [ 1.0, 1.0 ], [ 0.6464466094067263, 0.6464466094067263 ]
+            ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 9 ],
+            "paper": [ [ 0.0, 0.5 ], [ 0.0, 0.0 ] ],
+            "table": [
+              [ 0.6464466094067263, 0.6464466094067263 ], [ 1.0, 1.0 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "bc": {
+        "name": "bc",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 10 ],
+            "paper": [ [ 1.0, 0.5 ], [ 1.0, 1.0 ] ],
+            "table": [
+              [ 0.6464466094067263, 0.6464466094067263 ], [ 1.0, 1.0 ]
+            ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 11 ],
+            "paper": [ [ 1.0, 0.0 ], [ 1.0, 0.5 ] ],
+            "table": [
+              [ 1.0, 1.0 ], [ 0.6464466094067263, 0.6464466094067263 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "cd": {
+        "name": "cd",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 12 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.5, 1.0 ] ],
+            "table": [
+              [ 1.0, 1.0 ], [ 0.6464466094067263, 0.6464466094067263 ]
+            ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 13 ],
+            "paper": [ [ 0.5, 1.0 ], [ 0.0, 1.0 ] ],
+            "table": [
+              [ 0.6464466094067263, 0.6464466094067263 ], [ 1.0, 1.0 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      }
+    }
+  },
+  "beloch:vertices_names": [
+    "c", null, "o", null, "a", null, null, "b", "d", "sr", "sl", "br", "bl"
+  ],
+  "beloch:named_points": {
+    "a": {
+      "paper": [ 0.0, 0.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "b": {
+      "paper": [ 1.0, 0.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "bl": {
+      "paper": [ 0.5, 1.0 ],
+      "table": [ 0.6464466094067263, 0.6464466094067263 ],
+      "step": 6,
+      "statement": 11
+    },
+    "br": {
+      "paper": [ 1.0, 0.5 ],
+      "table": [ 0.6464466094067263, 0.6464466094067263 ],
+      "step": 5,
+      "statement": 9
+    },
+    "c": {
+      "paper": [ 1.0, 1.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "d": {
+      "paper": [ 0.0, 1.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "o": {
+      "paper": [ 0.5, 0.5 ],
+      "table": [ 0.5, 0.5 ],
+      "step": 3,
+      "statement": 3
+    },
+    "sl": {
+      "paper": [ 0.0, 0.5 ],
+      "table": [ 0.6464466094067263, 0.6464466094067263 ],
+      "step": 4,
+      "statement": 7
+    },
+    "sr": {
+      "paper": [ 0.5, 0.0 ],
+      "table": [ 0.6464466094067263, 0.6464466094067263 ],
+      "step": 3,
+      "statement": 5
+    }
+  },
+  "beloch:named_lines": {
+    "bd": { "coeffs": [ -0.5, 0.5, 0.0 ], "step": 1, "statement": 0 },
+    "mid": { "coeffs": [ -0.5, 0.5, 0.0 ], "step": 3, "statement": 4 }
+  },
+  "beloch:named_lines_frame": "creasePattern",
+  "beloch:marks": [],
+  "beloch:free": {},
+  "beloch:statements": [
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 18,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+      "frame_index": 1,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 19,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+      "frame_index": 2,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 20,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+      "frame_index": 3,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 22,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:22:1-15",
+      "frame_index": 3,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 23,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:23:1-24",
+      "frame_index": 3,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 25,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:25:1-17",
+      "frame_index": 3,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 26,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+      "frame_index": 4,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 28,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:28:1-17",
+      "frame_index": 4,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 29,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+      "frame_index": 5,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 31,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:31:1-17",
+      "frame_index": 5,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 32,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:32:1-40",
+      "frame_index": 6,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 34,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:34:1-17",
+      "frame_index": 6,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 35,
+      "span": "packages/core/tests/cases/bases/bird-base.bel:35:1-40",
+      "frame_index": 7,
+      "kept_marks": []
+    }
+  ],
+  "beloch:references": [
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:22:6-9", "crease_id": 1 },
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:22:12-15", "crease_id": 2 },
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:25:7-11", "edge": "ab" },
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:25:14-17", "crease_id": 1 },
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:28:7-11", "edge": "da" },
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:28:14-17", "crease_id": 2 },
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:31:7-11", "edge": "bc" },
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:31:14-17", "crease_id": 1 },
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:34:7-11", "edge": "cd" },
+    { "span": "packages/core/tests/cases/bases/bird-base.bel:34:14-17", "crease_id": 2 }
+  ],
+  "beloch:annotations": [],
+  "file_frames": [
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [ [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ] ],
+      "edges_assignment": [ "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0 ], [ 0 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ] ],
+      "beloch:faces_matrix": [ [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ] ],
+      "faceOrders": [],
+      "beloch:source_line": null,
+      "beloch:edges": [ null, null, null, null ],
+      "beloch:vertices_names": [ "a", "b", "c", "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ], [ 1.0, 1.0 ]
+      ],
+      "edges_vertices": [ [ 0, 1 ], [ 1, 2 ], [ 2, 0 ], [ 3, 0 ], [ 2, 3 ] ],
+      "edges_assignment": [ "B", "B", "V", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 180.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0, 1 ], [ 1 ], [ 1 ] ],
+      "faces_vertices": [ [ 0, 1, 2 ], [ 3, 0, 2 ] ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ], [ 0.0, -1.0, -1.0, 0.0, 1.0, 1.0 ]
+      ],
+      "faceOrders": [ [ 0, 1, 1 ] ],
+      "beloch:source_line": 18,
+      "beloch:edges": [
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        null,
+        null
+      ],
+      "beloch:vertices_names": [ "b", "c", "d", "a" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.0, 1.0 ],
+        [ 0.5, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 1.0, 0.5 ],
+        [ 1.0, 1.0 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 5 ],
+        [ 5, 3 ],
+        [ 2, 4 ],
+        [ 6, 0 ],
+        [ 3, 6 ],
+        [ 5, 6 ]
+      ],
+      "edges_assignment": [
+        "B", "B", "V", "V", "B", "V", "B", "B", "M", "B"
+      ],
+      "edges_foldAngle": [
+        0.0, 0.0, 180.0, 180.0, 0.0, 180.0, 0.0, 0.0, -180.0, 0.0
+      ],
+      "edges_faces": [
+        [ 0 ],
+        [ 0 ],
+        [ 0, 1 ],
+        [ 0, 2 ],
+        [ 1 ],
+        [ 1, 3 ],
+        [ 1 ],
+        [ 2 ],
+        [ 2, 3 ],
+        [ 3 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ], [ 4, 5, 3, 2 ], [ 6, 0, 3 ], [ 5, 6, 3 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 0.0, -1.0, -1.0, 0.0, 1.0, 1.0 ],
+        [ 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 ],
+        [ 0.0, -1.0, 1.0, 0.0, 1.0, 0.0 ]
+      ],
+      "faceOrders": [
+        [ 0, 1, 1 ],
+        [ 0, 2, 1 ],
+        [ 0, 3, -1 ],
+        [ 1, 2, -1 ],
+        [ 1, 3, 1 ],
+        [ 2, 3, -1 ]
+      ],
+      "beloch:source_line": 19,
+      "beloch:edges": [
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        null
+      ],
+      "beloch:vertices_names": [ "br", "c", "d", "o", "a", "sr", "b" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.5, 1.0 ],
+        [ 0.5, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 1.0, 0.5 ],
+        [ 0.5, 1.0 ],
+        [ 1.0, 1.0 ],
+        [ 1.0, 1.0 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 5 ],
+        [ 5, 3 ],
+        [ 3, 6 ],
+        [ 6, 4 ],
+        [ 7, 0 ],
+        [ 3, 7 ],
+        [ 5, 7 ],
+        [ 2, 8 ],
+        [ 8, 3 ],
+        [ 8, 6 ]
+      ],
+      "edges_assignment": [
+        "B", "B", "V", "V", "B", "V", "V", "B", "B", "M", "B", "B", "M", "B"
+      ],
+      "edges_foldAngle": [
+        0.0, 0.0, 180.0, 180.0, 0.0, 180.0, 180.0, 0.0, 0.0, -180.0, 0.0,
+        0.0, -180.0, 0.0
+      ],
+      "edges_faces": [
+        [ 0 ],
+        [ 0 ],
+        [ 0, 4 ],
+        [ 0, 2 ],
+        [ 1 ],
+        [ 1, 3 ],
+        [ 1, 5 ],
+        [ 1 ],
+        [ 2 ],
+        [ 2, 3 ],
+        [ 3 ],
+        [ 4 ],
+        [ 4, 5 ],
+        [ 5 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ],
+        [ 4, 5, 3, 6 ],
+        [ 7, 0, 3 ],
+        [ 5, 7, 3 ],
+        [ 2, 8, 3 ],
+        [ 3, 8, 6 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 0.0, -1.0, -1.0, 0.0, 1.0, 1.0 ],
+        [ 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 ],
+        [ 0.0, -1.0, 1.0, 0.0, 1.0, 0.0 ],
+        [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ],
+        [ 0.0, 1.0, -1.0, 0.0, 0.0, 1.0 ]
+      ],
+      "faceOrders": [
+        [ 0, 1, 1 ],
+        [ 0, 2, 1 ],
+        [ 0, 3, -1 ],
+        [ 0, 4, 1 ],
+        [ 0, 5, -1 ],
+        [ 1, 2, -1 ],
+        [ 1, 3, 1 ],
+        [ 1, 4, -1 ],
+        [ 1, 5, 1 ],
+        [ 2, 3, -1 ],
+        [ 4, 5, -1 ]
+      ],
+      "beloch:source_line": 20,
+      "beloch:edges": [
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        null
+      ],
+      "beloch:vertices_names": [
+        "br", "c", "bl", "o", "a", "sr", "sl", "b", "d"
+      ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.5, 1.0 ],
+        [ 0.5, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.7928932188134524, 0.5 ],
+        [ 0.5, 1.0 ],
+        [ 1.0, 1.0 ],
+        [ 1.0, 1.0 ],
+        [ 0.6464466094067263, 0.6464466094067263 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 5 ],
+        [ 5, 3 ],
+        [ 3, 6 ],
+        [ 6, 4 ],
+        [ 7, 0 ],
+        [ 3, 7 ],
+        [ 5, 7 ],
+        [ 2, 8 ],
+        [ 8, 3 ],
+        [ 8, 6 ],
+        [ 9, 7 ],
+        [ 5, 9 ],
+        [ 4, 9 ]
+      ],
+      "edges_assignment": [
+        "B", "B", "V", "V", "V", "V", "V", "B", "B", "M", "V", "B", "M", "B",
+        "B", "M", "B"
+      ],
+      "edges_foldAngle": [
+        0.0, 0.0, 180.0, 180.0, 180.0, 180.0, 180.0, 0.0, 0.0, -180.0, 180.0,
+        0.0, -180.0, 0.0, 0.0, -180.0, 0.0
+      ],
+      "edges_faces": [
+        [ 0 ],
+        [ 0 ],
+        [ 0, 4 ],
+        [ 0, 2 ],
+        [ 1, 7 ],
+        [ 1, 3 ],
+        [ 1, 5 ],
+        [ 1 ],
+        [ 2 ],
+        [ 2, 3 ],
+        [ 3, 6 ],
+        [ 4 ],
+        [ 4, 5 ],
+        [ 5 ],
+        [ 6 ],
+        [ 6, 7 ],
+        [ 7 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ],
+        [ 4, 5, 3, 6 ],
+        [ 7, 0, 3 ],
+        [ 7, 3, 5 ],
+        [ 2, 8, 3 ],
+        [ 3, 8, 6 ],
+        [ 9, 7, 5 ],
+        [ 4, 9, 5 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 0.0, -1.0, -1.0, 0.0, 1.0, 1.0 ],
+        [ 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 ],
+        [ 0.0, -1.0, 1.0, 0.0, 1.0, 0.0 ],
+        [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ],
+        [ 0.0, 1.0, -1.0, 0.0, 0.0, 1.0 ],
+        [
+          0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 0.2928932188134525, 0.2928932188134525
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, -0.7071067811865476,
+          -0.7071067811865476, 1.0, 1.0
+        ]
+      ],
+      "faceOrders": [
+        [ 0, 1, 1 ],
+        [ 0, 2, 1 ],
+        [ 0, 3, -1 ],
+        [ 0, 4, 1 ],
+        [ 0, 5, -1 ],
+        [ 0, 6, 1 ],
+        [ 0, 7, -1 ],
+        [ 1, 2, -1 ],
+        [ 1, 3, 1 ],
+        [ 1, 4, -1 ],
+        [ 1, 5, 1 ],
+        [ 1, 6, -1 ],
+        [ 1, 7, 1 ],
+        [ 2, 3, -1 ],
+        [ 2, 6, 1 ],
+        [ 2, 7, -1 ],
+        [ 3, 6, 1 ],
+        [ 3, 7, -1 ],
+        [ 4, 5, -1 ],
+        [ 6, 7, -1 ]
+      ],
+      "beloch:source_line": 26,
+      "beloch:edges": [
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sr", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+          "statement": 6,
+          "name": null,
+          "crease_id": 3
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sr", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+          "statement": 6,
+          "name": null,
+          "crease_id": 3
+        },
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        null
+      ],
+      "beloch:vertices_names": [
+        "br", "c", "bl", "o", "a", null, "sl", "b", "d", "sr"
+      ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.5, 1.0 ],
+        [ 0.5, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.7928932188134524, 0.5 ],
+        [ 0.5, 0.7928932188134524 ],
+        [ 1.0, 1.0 ],
+        [ 1.0, 1.0 ],
+        [ 0.6464466094067263, 0.6464466094067263 ],
+        [ 0.6464466094067263, 0.6464466094067263 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 5 ],
+        [ 5, 3 ],
+        [ 3, 6 ],
+        [ 6, 4 ],
+        [ 7, 0 ],
+        [ 3, 7 ],
+        [ 5, 7 ],
+        [ 2, 8 ],
+        [ 8, 3 ],
+        [ 8, 6 ],
+        [ 9, 7 ],
+        [ 5, 9 ],
+        [ 4, 9 ],
+        [ 8, 10 ],
+        [ 10, 6 ],
+        [ 10, 4 ]
+      ],
+      "edges_assignment": [
+        "B", "B", "V", "V", "V", "V", "V", "V", "B", "M", "V", "B", "M", "V",
+        "B", "M", "B", "B", "M", "B"
+      ],
+      "edges_foldAngle": [
+        0.0, 0.0, 180.0, 180.0, 180.0, 180.0, 180.0, 180.0, 0.0, -180.0,
+        180.0, 0.0, -180.0, 180.0, 0.0, -180.0, 0.0, 0.0, -180.0, 0.0
+      ],
+      "edges_faces": [
+        [ 0 ],
+        [ 0 ],
+        [ 0, 4 ],
+        [ 0, 2 ],
+        [ 1, 7 ],
+        [ 1, 3 ],
+        [ 1, 5 ],
+        [ 1, 9 ],
+        [ 2 ],
+        [ 2, 3 ],
+        [ 3, 6 ],
+        [ 4 ],
+        [ 4, 5 ],
+        [ 5, 8 ],
+        [ 6 ],
+        [ 6, 7 ],
+        [ 7 ],
+        [ 8 ],
+        [ 8, 9 ],
+        [ 9 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ],
+        [ 4, 5, 3, 6 ],
+        [ 7, 0, 3 ],
+        [ 7, 3, 5 ],
+        [ 2, 8, 3 ],
+        [ 3, 8, 6 ],
+        [ 9, 7, 5 ],
+        [ 4, 9, 5 ],
+        [ 8, 10, 6 ],
+        [ 4, 6, 10 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 0.0, -1.0, -1.0, 0.0, 1.0, 1.0 ],
+        [ 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 ],
+        [ 0.0, -1.0, 1.0, 0.0, 1.0, 0.0 ],
+        [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ],
+        [ 0.0, 1.0, -1.0, 0.0, 0.0, 1.0 ],
+        [
+          0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 0.2928932188134525, 0.2928932188134525
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, -0.7071067811865476,
+          -0.7071067811865476, 1.0, 1.0
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 0.2928932188134525, 0.2928932188134525
+        ],
+        [
+          -0.7071067811865476, -0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 1.0, 1.0
+        ]
+      ],
+      "faceOrders": [
+        [ 0, 1, 1 ],
+        [ 0, 2, 1 ],
+        [ 0, 3, -1 ],
+        [ 0, 4, 1 ],
+        [ 0, 5, -1 ],
+        [ 0, 6, 1 ],
+        [ 0, 7, -1 ],
+        [ 0, 8, 1 ],
+        [ 0, 9, -1 ],
+        [ 1, 2, -1 ],
+        [ 1, 3, 1 ],
+        [ 1, 4, -1 ],
+        [ 1, 5, 1 ],
+        [ 1, 6, -1 ],
+        [ 1, 7, 1 ],
+        [ 1, 8, -1 ],
+        [ 1, 9, 1 ],
+        [ 2, 3, -1 ],
+        [ 2, 6, 1 ],
+        [ 2, 7, -1 ],
+        [ 3, 6, 1 ],
+        [ 3, 7, -1 ],
+        [ 4, 5, -1 ],
+        [ 4, 8, 1 ],
+        [ 4, 9, -1 ],
+        [ 5, 8, 1 ],
+        [ 5, 9, -1 ],
+        [ 6, 7, -1 ],
+        [ 8, 9, -1 ]
+      ],
+      "beloch:source_line": 29,
+      "beloch:edges": [
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sr", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+          "statement": 6,
+          "name": null,
+          "crease_id": 3
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sl", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+          "statement": 8,
+          "name": null,
+          "crease_id": 4
+        },
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sr", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+          "statement": 6,
+          "name": null,
+          "crease_id": 3
+        },
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sl", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+          "statement": 8,
+          "name": null,
+          "crease_id": 4
+        },
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        null
+      ],
+      "beloch:vertices_names": [
+        "br", "c", "bl", "o", "a", null, null, "b", "d", "sr", "sl"
+      ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 1.0 ],
+        [ 0.5, 1.0 ],
+        [ 0.5, 0.5 ],
+        [ 0.7928932188134524, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.7928932188134524, 0.5 ],
+        [ 0.5, 0.7928932188134524 ],
+        [ 1.0, 1.0 ],
+        [ 1.0, 1.0 ],
+        [ 0.6464466094067263, 0.6464466094067263 ],
+        [ 0.6464466094067263, 0.6464466094067263 ],
+        [ 0.6464466094067263, 0.6464466094067263 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 5 ],
+        [ 5, 2 ],
+        [ 2, 6 ],
+        [ 6, 4 ],
+        [ 7, 3 ],
+        [ 2, 7 ],
+        [ 5, 7 ],
+        [ 1, 8 ],
+        [ 8, 2 ],
+        [ 8, 6 ],
+        [ 9, 7 ],
+        [ 5, 9 ],
+        [ 4, 9 ],
+        [ 8, 10 ],
+        [ 10, 6 ],
+        [ 10, 4 ],
+        [ 11, 0 ],
+        [ 3, 11 ],
+        [ 7, 11 ]
+      ],
+      "edges_assignment": [
+        "B", "V", "V", "V", "V", "V", "V", "V", "V", "M", "V", "B", "M", "V",
+        "B", "M", "B", "B", "M", "B", "B", "M", "B"
+      ],
+      "edges_foldAngle": [
+        0.0, 180.0, 180.0, 180.0, 180.0, 180.0, 180.0, 180.0, 180.0, -180.0,
+        180.0, 0.0, -180.0, 180.0, 0.0, -180.0, 0.0, 0.0, -180.0, 0.0, 0.0,
+        -180.0, 0.0
+      ],
+      "edges_faces": [
+        [ 0 ],
+        [ 0, 4 ],
+        [ 0, 2 ],
+        [ 0, 10 ],
+        [ 1, 7 ],
+        [ 1, 3 ],
+        [ 1, 5 ],
+        [ 1, 9 ],
+        [ 2, 11 ],
+        [ 2, 3 ],
+        [ 3, 6 ],
+        [ 4 ],
+        [ 4, 5 ],
+        [ 5, 8 ],
+        [ 6 ],
+        [ 6, 7 ],
+        [ 7 ],
+        [ 8 ],
+        [ 8, 9 ],
+        [ 9 ],
+        [ 10 ],
+        [ 10, 11 ],
+        [ 11 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ],
+        [ 4, 5, 2, 6 ],
+        [ 7, 3, 2 ],
+        [ 7, 2, 5 ],
+        [ 1, 8, 2 ],
+        [ 2, 8, 6 ],
+        [ 9, 7, 5 ],
+        [ 4, 9, 5 ],
+        [ 8, 10, 6 ],
+        [ 4, 6, 10 ],
+        [ 11, 0, 3 ],
+        [ 7, 11, 3 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 0.0, -1.0, -1.0, 0.0, 1.0, 1.0 ],
+        [ 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 ],
+        [ 0.0, -1.0, 1.0, 0.0, 1.0, 0.0 ],
+        [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ],
+        [ 0.0, 1.0, -1.0, 0.0, 0.0, 1.0 ],
+        [
+          0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 0.2928932188134525, 0.2928932188134525
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, -0.7071067811865476,
+          -0.7071067811865476, 1.0, 1.0
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 0.2928932188134525, 0.2928932188134525
+        ],
+        [
+          -0.7071067811865476, -0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 1.0, 1.0
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 1.0, -0.41421356237309503
+        ],
+        [
+          -0.7071067811865476, -0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 1.7071067811865475, 0.2928932188134525
+        ]
+      ],
+      "faceOrders": [
+        [ 0, 1, 1 ],
+        [ 0, 2, 1 ],
+        [ 0, 3, -1 ],
+        [ 0, 4, 1 ],
+        [ 0, 5, -1 ],
+        [ 0, 6, 1 ],
+        [ 0, 7, -1 ],
+        [ 0, 8, 1 ],
+        [ 0, 9, -1 ],
+        [ 0, 10, 1 ],
+        [ 0, 11, -1 ],
+        [ 1, 2, -1 ],
+        [ 1, 3, 1 ],
+        [ 1, 4, -1 ],
+        [ 1, 5, 1 ],
+        [ 1, 6, -1 ],
+        [ 1, 7, 1 ],
+        [ 1, 8, -1 ],
+        [ 1, 9, 1 ],
+        [ 1, 10, -1 ],
+        [ 1, 11, 1 ],
+        [ 2, 3, -1 ],
+        [ 2, 6, 1 ],
+        [ 2, 7, -1 ],
+        [ 2, 10, -1 ],
+        [ 2, 11, 1 ],
+        [ 3, 6, 1 ],
+        [ 3, 7, -1 ],
+        [ 3, 10, -1 ],
+        [ 3, 11, 1 ],
+        [ 4, 5, -1 ],
+        [ 4, 8, 1 ],
+        [ 4, 9, -1 ],
+        [ 5, 8, 1 ],
+        [ 5, 9, -1 ],
+        [ 6, 7, -1 ],
+        [ 6, 10, -1 ],
+        [ 6, 11, 1 ],
+        [ 7, 10, -1 ],
+        [ 7, 11, 1 ],
+        [ 8, 9, -1 ],
+        [ 10, 11, -1 ]
+      ],
+      "beloch:source_line": 32,
+      "beloch:edges": [
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".br", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:32:1-40",
+          "statement": 10,
+          "name": null,
+          "crease_id": 5
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sr", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+          "statement": 6,
+          "name": null,
+          "crease_id": 3
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sl", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+          "statement": 8,
+          "name": null,
+          "crease_id": 4
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".br", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:32:1-40",
+          "statement": 10,
+          "name": null,
+          "crease_id": 5
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sr", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+          "statement": 6,
+          "name": null,
+          "crease_id": 3
+        },
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sl", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+          "statement": 8,
+          "name": null,
+          "crease_id": 4
+        },
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        null
+      ],
+      "beloch:vertices_names": [
+        "c", "bl", "o", null, "a", null, null, "b", "d", "sr", "sl", "br"
+      ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 1.0 ],
+        [ 0.5, 0.7928932188134524 ],
+        [ 0.5, 0.5 ],
+        [ 0.7928932188134524, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.7928932188134524, 0.5 ],
+        [ 0.5, 0.7928932188134524 ],
+        [ 1.0, 1.0 ],
+        [ 1.0, 1.0 ],
+        [ 0.6464466094067263, 0.6464466094067263 ],
+        [ 0.6464466094067263, 0.6464466094067263 ],
+        [ 0.6464466094067263, 0.6464466094067263 ],
+        [ 0.6464466094067263, 0.6464466094067263 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 5 ],
+        [ 5, 2 ],
+        [ 2, 6 ],
+        [ 6, 4 ],
+        [ 7, 3 ],
+        [ 2, 7 ],
+        [ 5, 7 ],
+        [ 8, 2 ],
+        [ 1, 8 ],
+        [ 8, 6 ],
+        [ 9, 7 ],
+        [ 5, 9 ],
+        [ 4, 9 ],
+        [ 8, 10 ],
+        [ 10, 6 ],
+        [ 10, 4 ],
+        [ 11, 0 ],
+        [ 3, 11 ],
+        [ 7, 11 ],
+        [ 0, 12 ],
+        [ 12, 1 ],
+        [ 12, 8 ]
+      ],
+      "edges_assignment": [
+        "V", "V", "V", "V", "V", "V", "V", "V", "V", "M", "V", "M", "V", "V",
+        "B", "M", "B", "B", "M", "B", "B", "M", "B", "B", "M", "B"
+      ],
+      "edges_foldAngle": [
+        180.0, 180.0, 180.0, 180.0, 180.0, 180.0, 180.0, 180.0, 180.0,
+        -180.0, 180.0, -180.0, 180.0, 180.0, 0.0, -180.0, 0.0, 0.0, -180.0,
+        0.0, 0.0, -180.0, 0.0, 0.0, -180.0, 0.0
+      ],
+      "edges_faces": [
+        [ 0, 12 ],
+        [ 0, 4 ],
+        [ 0, 2 ],
+        [ 0, 10 ],
+        [ 1, 7 ],
+        [ 1, 3 ],
+        [ 1, 5 ],
+        [ 1, 9 ],
+        [ 2, 11 ],
+        [ 2, 3 ],
+        [ 3, 6 ],
+        [ 4, 5 ],
+        [ 4, 13 ],
+        [ 5, 8 ],
+        [ 6 ],
+        [ 6, 7 ],
+        [ 7 ],
+        [ 8 ],
+        [ 8, 9 ],
+        [ 9 ],
+        [ 10 ],
+        [ 10, 11 ],
+        [ 11 ],
+        [ 12 ],
+        [ 12, 13 ],
+        [ 13 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ],
+        [ 4, 5, 2, 6 ],
+        [ 7, 3, 2 ],
+        [ 7, 2, 5 ],
+        [ 8, 2, 1 ],
+        [ 2, 8, 6 ],
+        [ 9, 7, 5 ],
+        [ 4, 9, 5 ],
+        [ 8, 10, 6 ],
+        [ 4, 6, 10 ],
+        [ 11, 0, 3 ],
+        [ 7, 11, 3 ],
+        [ 0, 12, 1 ],
+        [ 12, 8, 1 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 0.0, -1.0, -1.0, 0.0, 1.0, 1.0 ],
+        [ 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 ],
+        [ 0.0, -1.0, 1.0, 0.0, 1.0, 0.0 ],
+        [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ],
+        [ 0.0, 1.0, -1.0, 0.0, 0.0, 1.0 ],
+        [
+          0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 0.2928932188134525, 0.2928932188134525
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, -0.7071067811865476,
+          -0.7071067811865476, 1.0, 1.0
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 0.2928932188134525, 0.2928932188134525
+        ],
+        [
+          -0.7071067811865476, -0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 1.0, 1.0
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 1.0, -0.41421356237309503
+        ],
+        [
+          -0.7071067811865476, -0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 1.7071067811865475, 0.2928932188134525
+        ],
+        [
+          0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, -0.41421356237309503, 1.0
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, -0.7071067811865476,
+          -0.7071067811865476, 0.2928932188134525, 1.7071067811865475
+        ]
+      ],
+      "faceOrders": [
+        [ 0, 1, 1 ],
+        [ 0, 2, 1 ],
+        [ 0, 3, -1 ],
+        [ 0, 4, 1 ],
+        [ 0, 5, -1 ],
+        [ 0, 6, 1 ],
+        [ 0, 7, -1 ],
+        [ 0, 8, 1 ],
+        [ 0, 9, -1 ],
+        [ 0, 10, 1 ],
+        [ 0, 11, -1 ],
+        [ 0, 12, 1 ],
+        [ 0, 13, -1 ],
+        [ 1, 2, -1 ],
+        [ 1, 3, 1 ],
+        [ 1, 4, -1 ],
+        [ 1, 5, 1 ],
+        [ 1, 6, -1 ],
+        [ 1, 7, 1 ],
+        [ 1, 8, -1 ],
+        [ 1, 9, 1 ],
+        [ 1, 10, -1 ],
+        [ 1, 11, 1 ],
+        [ 1, 12, -1 ],
+        [ 1, 13, 1 ],
+        [ 2, 3, -1 ],
+        [ 2, 6, 1 ],
+        [ 2, 7, -1 ],
+        [ 2, 10, -1 ],
+        [ 2, 11, 1 ],
+        [ 3, 6, 1 ],
+        [ 3, 7, -1 ],
+        [ 3, 10, -1 ],
+        [ 3, 11, 1 ],
+        [ 4, 5, -1 ],
+        [ 4, 8, 1 ],
+        [ 4, 9, -1 ],
+        [ 4, 12, -1 ],
+        [ 4, 13, 1 ],
+        [ 5, 8, 1 ],
+        [ 5, 9, -1 ],
+        [ 5, 12, -1 ],
+        [ 5, 13, 1 ],
+        [ 6, 7, -1 ],
+        [ 6, 10, -1 ],
+        [ 6, 11, 1 ],
+        [ 7, 10, -1 ],
+        [ 7, 11, 1 ],
+        [ 8, 9, -1 ],
+        [ 8, 12, -1 ],
+        [ 8, 13, 1 ],
+        [ 9, 12, -1 ],
+        [ 9, 13, 1 ],
+        [ 10, 11, -1 ],
+        [ 12, 13, -1 ]
+      ],
+      "beloch:source_line": 35,
+      "beloch:edges": [
+        {
+          "axiom": "axiom6",
+          "sources": [ ".bl", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:35:1-40",
+          "statement": 12,
+          "name": null,
+          "crease_id": 6
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".br", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:32:1-40",
+          "statement": 10,
+          "name": null,
+          "crease_id": 5
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sr", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+          "statement": 6,
+          "name": null,
+          "crease_id": 3
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sl", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+          "statement": 8,
+          "name": null,
+          "crease_id": 4
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".br", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:32:1-40",
+          "statement": 10,
+          "name": null,
+          "crease_id": 5
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sr", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:26:1-40",
+          "statement": 6,
+          "name": null,
+          "crease_id": 3
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:18:1-30",
+          "statement": 0,
+          "name": "bd",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".bl", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:35:1-40",
+          "statement": 12,
+          "name": null,
+          "crease_id": 6
+        },
+        {
+          "axiom": "axiom6",
+          "sources": [ ".sl", "--mid", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:29:1-40",
+          "statement": 8,
+          "name": null,
+          "crease_id": 4
+        },
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:19:1-32",
+          "statement": 1,
+          "name": "h",
+          "crease_id": 1
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".d", ".c" ],
+          "span": "packages/core/tests/cases/bases/bird-base.bel:20:1-32",
+          "statement": 2,
+          "name": "v",
+          "crease_id": 2
+        },
+        null
+      ],
+      "beloch:vertices_names": [
+        "c", null, "o", null, "a", null, null, "b", "d", "sr", "sl", "br",
+        "bl"
+      ]
+    }
+  ]
+}

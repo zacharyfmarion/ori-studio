@@ -5,6 +5,7 @@ import {
   FRAME_PADDING_CSS,
   toolOptionFrame,
   toolOptionHeaderOffset,
+  toolOptionInView,
 } from './toolOptionPlacement';
 import { boundsOfPoints } from './toolOptionWindow';
 
@@ -94,6 +95,44 @@ describe('toolOptionHeaderOffset', () => {
     expect(toolOptionHeaderOffset(near, HEADER, viewport)).toBe(
       toolOptionHeaderOffset(far, HEADER, viewport)
     );
+  });
+});
+
+describe('toolOptionInView', () => {
+  // A 375 px phone pane whose bottom 300 px a tool window covers.
+  const phone = { width: 375, height: 700 };
+  const COVERED = 300;
+  const header = { width: 266, height: 54 };
+  const note = { width: 320, height: 41 };
+
+  it('slides the header and the note right, off the left edge, from where they are pinned', () => {
+    // A small frame near the left edge: pinned to its right, both would start left of the screen.
+    const frame = { left: 171, top: 36, width: 68, height: 68 };
+    const placed = toolOptionInView(frame, header, note, phone, COVERED);
+    expect(frame.left + frame.width - header.width + placed.headerShift).toBe(8);
+    expect(frame.left + frame.width - note.width + placed.noteShift).toBe(8);
+    // No room above the frame: the header sits inside its top edge, as it would anyway; the note under the frame.
+    expect(placed.headerTop).toBe(0);
+    expect(placed.noteTop).toBe(frame.height + 6);
+  });
+
+  it('slides them left off the right edge, and leaves them pinned where they fit', () => {
+    const right = toolOptionInView({ left: 300, top: 200, width: 70, height: 70 }, header, note, phone, COVERED);
+    expect(300 + 70 - header.width + right.headerShift).toBe(375 - 8 - header.width);
+    const middle = toolOptionInView({ left: 40, top: 200, width: 300, height: 70 }, header, note, phone, COVERED);
+    expect(middle.headerShift).toBe(0);
+    expect(middle.noteShift).toBe(0);
+    expect(middle.headerTop).toBe(-header.height);
+  });
+
+  it('puts the note above the header where under the frame it would fall behind the covered bottom', () => {
+    // The frame reaches the window's top: a note under it would be covered.
+    const frame = { left: 40, top: 280, width: 300, height: 100 };
+    const placed = toolOptionInView(frame, header, note, phone, COVERED);
+    expect(placed.headerTop).toBe(-header.height);
+    expect(placed.noteTop).toBe(-header.height - 6 - note.height);
+    // Uncovered, it fits under the frame.
+    expect(toolOptionInView(frame, header, note, phone, 0).noteTop).toBe(frame.height + 6);
   });
 });
 

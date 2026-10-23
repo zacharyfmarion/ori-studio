@@ -27,10 +27,10 @@
  *
  * Pure: no store, no DOM.
  */
-import { seenFromTheBack } from '../../cp-workspace/references/diagram/diagramModel';
-import type { StepDiagramModel, StepDiagramPrimitive } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import { seenFromTheBack } from '../../lib/stepDiagram/diagramModel';
+import type { StepDiagramModel, StepDiagramPrimitive } from '../../lib/stepDiagram/stepDiagramModel';
 import { referencesStepDiagramMarks } from '../../cp-workspace/references/referencesStepExport';
-import { arcExtent, type DiagramArc } from '../../cp-workspace/references/stepDiagramGeometry';
+import { arcExtent, type DiagramArc } from '../../lib/stepDiagram/stepDiagramGeometry';
 import { DEFAULT_PAPER_SIZE_MM } from '../../lib/paper/paperPage';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { DEFAULT_PAPER_EXPORT_MARKS, type PaperExportMarks } from '../../lib/paperExportSettings';

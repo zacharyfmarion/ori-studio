@@ -1,0 +1,850 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-13T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-13T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace-origami-crane",
+    "title": "Crane — flat reverse-fold alternative",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 1,
+        "id": "fold-trial-crane",
+        "title": "Crane — flat reverse-fold alternative",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "steps": [
+          {
+            "id": "fstep-crane-1",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 0.7071067811865475
+              }
+            },
+            "note": "4a: diagonal fold to begin square base"
+          },
+          {
+            "id": "fstep-crane-2",
+            "parent": "fstep-crane-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": 0
+              }
+            },
+            "note": "4b: triangle in half"
+          },
+          {
+            "id": "fstep-crane-3",
+            "parent": "fstep-crane-2",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.5,
+                0.1
+              ],
+              "direction": "valley"
+            },
+            "note": "4c: squash front pocket"
+          },
+          {
+            "id": "fstep-crane-4",
+            "parent": "fstep-crane-3",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "note": "4d: turn over square-base preparation"
+          },
+          {
+            "id": "fstep-crane-5",
+            "parent": "fstep-crane-4",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.09629426024596952,
+                0.7078284734910991
+              ],
+              "direction": "valley"
+            },
+            "note": "4e: squash other pocket"
+          },
+          {
+            "id": "fstep-crane-6",
+            "parent": "fstep-crane-5",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0,
+                      1
+                    ],
+                    "b": [
+                      0,
+                      0.5
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5,
+                      0.5
+                    ],
+                    "b": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.06903559372884942,
+                    0.33333333333333287
+                  ]
+                ]
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.38268343236509067,
+                  -0.9238795325112864
+                ],
+                "d": 4.600608404473753e-16
+              }
+            },
+            "note": "5a: left petal precrease"
+          },
+          {
+            "id": "fstep-crane-7",
+            "parent": "fstep-crane-6",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5000000000000002,
+                      1
+                    ],
+                    "b": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5,
+                      0.5
+                    ],
+                    "b": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.6666666666666663,
+                    0.9309644062711501
+                  ]
+                ]
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.923879532511287,
+                  -0.38268343236508906
+                ],
+                "d": 7.004001889352352e-16
+              }
+            },
+            "note": "5b: right petal precrease"
+          },
+          {
+            "id": "fstep-crane-8",
+            "parent": "fstep-crane-7",
+            "op": {
+              "kind": "petal",
+              "ends": [
+                [
+                  0.2071067811865481,
+                  0.5
+                ],
+                [
+                  0.5000000000000001,
+                  0.7928932188134531
+                ]
+              ],
+              "petal": [
+                0.19999996289656102,
+                0.7400000667861883
+              ],
+              "direction": "valley"
+            },
+            "note": "6–8: lift the front petal over its hinge"
+          },
+          {
+            "id": "fstep-crane-9",
+            "parent": "fstep-crane-8",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "note": "9: turn over"
+          },
+          {
+            "id": "fstep-crane-10",
+            "parent": "fstep-crane-9",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5000000000000001,
+                      0
+                    ],
+                    "b": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      1,
+                      0
+                    ],
+                    "b": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.3826834323650902,
+                  -0.9238795325112866
+                ],
+                "d": 1.699455831017226e-16
+              }
+            },
+            "note": "10a: left petal precrease"
+          },
+          {
+            "id": "fstep-crane-11",
+            "parent": "fstep-crane-10",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      1,
+                      0
+                    ],
+                    "b": [
+                      1,
+                      0.5000000000000001
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      1,
+                      0
+                    ],
+                    "b": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.923879532511287,
+                  -0.38268343236508934
+                ],
+                "d": 4.102849315895826e-16
+              }
+            },
+            "note": "10b: right petal precrease"
+          },
+          {
+            "id": "fstep-crane-12",
+            "parent": "fstep-crane-11",
+            "op": {
+              "kind": "petal",
+              "ends": [
+                [
+                  0.792893218813453,
+                  0.5000000000000001
+                ],
+                [
+                  0.2071067811865481,
+                  0.5
+                ]
+              ],
+              "petal": [
+                0.7399999740275929,
+                0.19999996289656147
+              ],
+              "direction": "valley"
+            },
+            "note": "11: lift the back petal to finish bird base"
+          },
+          {
+            "id": "fstep-crane-13",
+            "parent": "fstep-crane-12",
+            "op": {
+              "kind": "rotate",
+              "rotate": {
+                "amount": "eighth",
+                "direction": "ccw"
+              }
+            },
+            "note": "Orient bird base with split points downward"
+          },
+          {
+            "id": "fstep-crane-14",
+            "parent": "fstep-crane-13",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    -2.815008122084297e-16,
+                    -3.2517679528325947e-17
+                  ],
+                  [
+                    0.9005438163101718,
+                    0.5
+                  ]
+                ]
+              },
+              "moving": [
+                0.8900000000000007,
+                0.6000000000000001
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.8900000000000007,
+                  0.6000000000000001
+                ],
+                "layers": 1
+              }
+            },
+            "note": "12a: narrow front left"
+          },
+          {
+            "id": "fstep-crane-15",
+            "parent": "fstep-crane-14",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    -2.637389952897904e-16,
+                    -3.6429798818371974e-16
+                  ],
+                  [
+                    0.4999999999999998,
+                    0.09945618368982989
+                  ]
+                ]
+              },
+              "moving": [
+                0.39999999999999974,
+                0.11000000000000067
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.39999999999999974,
+                  0.11000000000000067
+                ],
+                "layers": 1
+              }
+            },
+            "note": "12b: narrow front right"
+          },
+          {
+            "id": "fstep-crane-16",
+            "parent": "fstep-crane-15",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "note": "13: turn over"
+          },
+          {
+            "id": "fstep-crane-17",
+            "parent": "fstep-crane-16",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    -5.360630966617859e-16,
+                    -2.489831326801014e-16
+                  ],
+                  [
+                    0.09945618368982982,
+                    0.4999999999999997
+                  ]
+                ]
+              },
+              "moving": [
+                0.11000000000000057,
+                0.3999999999999997
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.11000000000000057,
+                  0.3999999999999997
+                ],
+                "layers": 1
+              }
+            },
+            "note": "14a: narrow back left"
+          },
+          {
+            "id": "fstep-crane-18",
+            "parent": "fstep-crane-17",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    1.0000000000000004,
+                    0.9999999999999998
+                  ],
+                  [
+                    0.49999999999999994,
+                    0.9005438163101717
+                  ]
+                ]
+              },
+              "moving": [
+                0.5999999999999999,
+                0.8900000000000005
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.5999999999999999,
+                  0.8900000000000005
+                ],
+                "layers": 1
+              }
+            },
+            "note": "14b: narrow back right"
+          },
+          {
+            "id": "fstep-crane-19",
+            "parent": "fstep-crane-18",
+            "op": {
+              "kind": "inside-reverse",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.24491739671365736,
+                    0.40836408572453053
+                  ],
+                  [
+                    0.19516855050619572,
+                    0.4581129319319923
+                  ]
+                ]
+              },
+              "moving": [
+                0.04565937949659855,
+                0.08932648579220794
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.04565937949659855,
+                  0.08932648579220794
+                ],
+                "layers": 1
+              }
+            },
+            "choices": {
+              "opening": [
+                {
+                  "upper": [
+                    [
+                      0.33333333333333337,
+                      0.1021876549587927
+                    ],
+                    [
+                      0.3333333333333334,
+                      0.033152061229943325
+                    ],
+                    [
+                      0.3333333333333334,
+                      0.18039870004873254
+                    ],
+                    [
+                      0.33333333333333337,
+                      0.27802977298654985
+                    ]
+                  ]
+                }
+              ]
+            },
+            "note": "Alternative 24: inside reverse using central spine opening"
+          },
+          {
+            "id": "fstep-crane-20",
+            "parent": "fstep-crane-19",
+            "op": {
+              "kind": "inside-reverse",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5418870680680076,
+                    0.8048314494938045
+                  ],
+                  [
+                    0.5916359142754692,
+                    0.7550826032863426
+                  ]
+                ]
+              },
+              "moving": [
+                0.9106735142077922,
+                0.9543406205034007
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.9106735142077922,
+                  0.9543406205034007
+                ],
+                "layers": 1
+              }
+            },
+            "choices": {
+              "opening": [
+                {
+                  "upper": [
+                    [
+                      0.8978123450412082,
+                      0.6666666666666669
+                    ],
+                    [
+                      0.9668479387700573,
+                      0.6666666666666667
+                    ],
+                    [
+                      0.8196012999512681,
+                      0.6666666666666669
+                    ],
+                    [
+                      0.7219702270134503,
+                      0.6666666666666667
+                    ]
+                  ]
+                }
+              ]
+            },
+            "note": "Alternative 25: inside reverse the right point"
+          },
+          {
+            "id": "fstep-crane-21",
+            "parent": "fstep-crane-20",
+            "op": {
+              "kind": "inside-reverse",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.04355339059327447,
+                    0.0635533905932721
+                  ],
+                  [
+                    0.06255339059327451,
+                    0.06355339059327215
+                  ]
+                ]
+              },
+              "moving": [
+                0.015553390593274555,
+                0.018553390593272052
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.015553390593274555,
+                  0.018553390593272052
+                ],
+                "layers": 1
+              }
+            },
+            "choices": {
+              "opening": [
+                {
+                  "upper": [
+                    [
+                      0.3079598441704285,
+                      0.0944090828917539
+                    ],
+                    [
+                      0.320646588751881,
+                      0.03062851083090555
+                    ],
+                    [
+                      0.2845177968644243,
+                      0.15100319142770097
+                    ],
+                    [
+                      0.24838900497696786,
+                      0.20507374956461039
+                    ]
+                  ]
+                }
+              ]
+            },
+            "note": "27: reverse the head down"
+          },
+          {
+            "id": "fstep-crane-22",
+            "parent": "fstep-crane-21",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.10000000000000113,
+                    0.6499999999999998
+                  ],
+                  [
+                    0.34999999999999976,
+                    0.9000000000000011
+                  ]
+                ]
+              },
+              "moving": [
+                0.09999999999999994,
+                0.9800000000000018
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.09999999999999994,
+                  0.9800000000000018
+                ],
+                "layers": 1
+              }
+            },
+            "note": "28a: fold first wing down flat"
+          },
+          {
+            "id": "fstep-crane-23",
+            "parent": "fstep-crane-22",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "note": "Turn over to the second wing"
+          },
+          {
+            "id": "fstep-crane-24",
+            "parent": "fstep-crane-23",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.900000000000001,
+                    0.3499999999999999
+                  ],
+                  [
+                    0.6499999999999998,
+                    0.10000000000000137
+                  ]
+                ]
+              },
+              "moving": [
+                0.9000000000000004,
+                0.02000000000000206
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.9000000000000004,
+                  0.02000000000000206
+                ],
+                "layers": 1
+              }
+            },
+            "note": "28b: fold second wing down flat"
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-trial-crane",
+        "cursor": "fstep-crane-24",
+        "activeChild": {
+          "": "fstep-crane-1",
+          "fstep-crane-1": "fstep-crane-2",
+          "fstep-crane-2": "fstep-crane-3",
+          "fstep-crane-3": "fstep-crane-4",
+          "fstep-crane-4": "fstep-crane-5",
+          "fstep-crane-5": "fstep-crane-6",
+          "fstep-crane-6": "fstep-crane-7",
+          "fstep-crane-7": "fstep-crane-8",
+          "fstep-crane-8": "fstep-crane-9",
+          "fstep-crane-9": "fstep-crane-10",
+          "fstep-crane-10": "fstep-crane-11",
+          "fstep-crane-11": "fstep-crane-12",
+          "fstep-crane-12": "fstep-crane-13",
+          "fstep-crane-13": "fstep-crane-14",
+          "fstep-crane-14": "fstep-crane-15",
+          "fstep-crane-15": "fstep-crane-16",
+          "fstep-crane-16": "fstep-crane-17",
+          "fstep-crane-17": "fstep-crane-18",
+          "fstep-crane-18": "fstep-crane-19",
+          "fstep-crane-19": "fstep-crane-20",
+          "fstep-crane-20": "fstep-crane-21",
+          "fstep-crane-21": "fstep-crane-22",
+          "fstep-crane-22": "fstep-crane-23",
+          "fstep-crane-23": "fstep-crane-24"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

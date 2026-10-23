@@ -1,0 +1,178 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-12T02:18:36.652Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-12T02:18:36.652Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Crimp",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 1,
+        "id": "fold-78eaa8b1-6a37-480f-9600-cc005aad509f",
+        "title": "Crimp",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "steps": [
+          {
+            "id": "fstep-6450ae7d-768e-46df-8a9f-e45c7b9e40fb",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0,
+                  1
+                ],
+                "d": 0.5
+              }
+            },
+            "expect": "fs1:c98c1a53f96922f8",
+            "note": "Valley fold tool (V), Axiom 2: point onto point. Click the top-left corner, then the bottom-left corner; press Enter. The book fold: a strip of two layers, the fold along its top."
+          },
+          {
+            "id": "fstep-b12c3165-5540-45b2-a785-d414a27d683f",
+            "parent": "fstep-6450ae7d-768e-46df-8a9f-e45c7b9e40fb",
+            "op": {
+              "kind": "crimp",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5200000036674276,
+                    0.55
+                  ],
+                  [
+                    0.6800000330068467,
+                    0.95
+                  ]
+                ]
+              },
+              "second": {
+                "via": "free",
+                "through": [
+                  [
+                    0.7999999413211658,
+                    0.55
+                  ],
+                  [
+                    0.7999999413211658,
+                    0.95
+                  ]
+                ]
+              },
+              "crimp": "inside",
+              "moving": [
+                0.7958333407827952,
+                0.7291666618913704
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:9dbd73031997e460",
+            "note": "Crimp tool, First line: Free line, Second line: Free line. Click the top folded edge at its middle, then the bottom edge 7/10 of the way along (the first line, where the strip turns in). Click the top edge 8/10 of the way along, then straight below it on the bottom edge (the second line, where it turns back out). The tip is the end beyond the second line. Kind: Inside, the only kind that fits; press Enter. The end turns down, its paper tucked between the layers: a bird’s head."
+          },
+          {
+            "id": "fstep-3a2e8fd9-99cc-48cc-a06c-43984b3d361e",
+            "parent": "fstep-6450ae7d-768e-46df-8a9f-e45c7b9e40fb",
+            "op": {
+              "kind": "crimp",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.6800000183371355,
+                    0.55
+                  ],
+                  [
+                    0.5199999889977163,
+                    0.95
+                  ]
+                ]
+              },
+              "second": {
+                "via": "free",
+                "through": [
+                  [
+                    0.7999999413211658,
+                    0.55
+                  ],
+                  [
+                    0.7999999413211658,
+                    0.95
+                  ]
+                ]
+              },
+              "crimp": "outside",
+              "moving": [
+                0.7958333336007493,
+                0.770833337344582
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:809b109690f5c31d",
+            "note": "Click the book fold’s card (1) first: a crimp from there starts a new branch. Crimp tool, both lines free. First line from the top edge 7/10 along down to the bottom edge’s middle; second line from the top edge 8/10 along straight down. Leaning this way only the outside crimp fits, so Kind is Outside; press Enter. The end turns up, its paper wrapped round the outside of the strip."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-78eaa8b1-6a37-480f-9600-cc005aad509f",
+        "cursor": "fstep-3a2e8fd9-99cc-48cc-a06c-43984b3d361e",
+        "activeChild": {
+          "": "fstep-6450ae7d-768e-46df-8a9f-e45c7b9e40fb",
+          "fstep-6450ae7d-768e-46df-8a9f-e45c7b9e40fb": "fstep-3a2e8fd9-99cc-48cc-a06c-43984b3d361e"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

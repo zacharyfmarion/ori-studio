@@ -11,8 +11,8 @@
  * Pure: no DOM, no store.
  */
 import { fitCubic, measurePath, nearestOnPath, type Cubic, type Vec2 } from '../../lib/cubicBezier';
-import { DIAGRAM_FOLD_RETURN_INK } from '../../cp-workspace/references/diagram/diagramInk';
-import { arcExtent, arcThroughPoints, pathReturn, returnStroke } from '../../cp-workspace/references/stepDiagramGeometry';
+import { DIAGRAM_FOLD_RETURN_INK } from '../../lib/stepDiagram/diagramInk';
+import { arcExtent, arcThroughPoints, pathReturn, returnStroke } from '../../lib/stepDiagram/stepDiagramGeometry';
 import type { DiagramPathNode } from '../document/diagramDocument';
 import { MAX_PATH_NODES, arrowApex, pathCubics, type PicturePoint } from './annotationModel';
 import { INK_UNITS } from './canvasInk';

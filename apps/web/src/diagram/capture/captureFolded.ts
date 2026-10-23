@@ -20,6 +20,7 @@ import type {
   OristudioCpFolded3dAuxLines,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureState,
+  OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
 import {
   defaultFolded3dCamera,
@@ -232,24 +233,38 @@ export function flatPicture(
   spread?: LayerSpreadOptions,
   { faces = true }: { faces?: boolean } = {}
 ): CapturedPicture {
-  if (scene && scene.faces.length > 0) {
-    const turn = turnClockwise(rotationDeg);
-    const toScenePx = (point: Point): ScenePoint => {
-      const turned = turn(point);
-      return [turned.x * CAPTURE_PX_PER_UNIT, turned.y * CAPTURE_PX_PER_UNIT];
-    };
-    const flat = foldedFlatPaperScene(scene, {
-      markHidden: !spread,
-      toScenePx,
-      scale: CAPTURE_PX_PER_UNIT,
-      ...(spread ? { spread } : {}),
-    });
-    const paperFaces = faces ? flatPaperFaces(scene, toScenePx, CAPTURE_PX_PER_UNIT) : null;
-    return storeScene(flat, CAPTURE_PX_PER_UNIT, null, paperFaces ?? undefined);
-  }
+  if (scene && scene.faces.length > 0) return flatScenePicture(scene, rotationDeg, spread, { faces });
   const page = foldedFigureExportDocument(snapshot, { showBackgroundColor: false, rotationDeg });
   if (!page) throw new Error('The folded figure produced nothing to draw');
   return { kind: 'picture', picture: fixedPicture(page.svg, env) };
+}
+
+/**
+ * A flat fold's paper scene as a step stores it, turned clockwise by
+ * `rotationDeg` at the capture scale, its layers spread when asked, with its
+ * faces on the paper unless `faces: false`. The kernel's own scene, or any in
+ * its shape and units — a Fold state's (`diagram/fold/foldStepPicture.ts`) —
+ * so every flat picture a step holds is drawn, measured and anchored alike.
+ */
+export function flatScenePicture(
+  scene: OristudioCpFoldedPaperScene,
+  rotationDeg: number,
+  spread?: LayerSpreadOptions,
+  { faces = true }: { faces?: boolean } = {}
+): CapturedPicture {
+  const turn = turnClockwise(rotationDeg);
+  const toScenePx = (point: Point): ScenePoint => {
+    const turned = turn(point);
+    return [turned.x * CAPTURE_PX_PER_UNIT, turned.y * CAPTURE_PX_PER_UNIT];
+  };
+  const flat = foldedFlatPaperScene(scene, {
+    markHidden: !spread,
+    toScenePx,
+    scale: CAPTURE_PX_PER_UNIT,
+    ...(spread ? { spread } : {}),
+  });
+  const paperFaces = faces ? flatPaperFaces(scene, toScenePx, CAPTURE_PX_PER_UNIT) : null;
+  return storeScene(flat, CAPTURE_PX_PER_UNIT, null, paperFaces ?? undefined);
 }
 
 /**

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { DIAGRAM_ACTION_ICONS } from '../../diagram/actions/diagramActionIcons';
-import { turnLabels, turnName, turnPlace } from '../../diagram/actions/diagramTurnActions';
+import { turnLabels } from '../../diagram/actions/diagramTurnActions';
+import { turnName, turnPlace } from '../../lib/steps/turnWords';
 import type { DiagramStepAction } from '../../diagram/actions/diagramActions';
 import { DEFAULT_ROTATION } from '../../diagram/annotate/annotationModel';
 import { isLockedTurn, type DiagramTurn, type DiagramTurnKind } from '../../diagram/document/diagramDocument';
@@ -73,7 +74,12 @@ export function DiagramTurnPane({
   );
 }
 
-/** What a turn is and how it turns, as controls: a turn-over's axis, a rotation's amount and direction. */
+/**
+ * What a turn is and how it turns, as controls: a turn-over's axis, a
+ * rotation's amount and direction. A rotation by an angle of its own — the
+ * author's, or a Fold rotation's pulled in — is Custom, its Angle under it; a
+ * preset replaces it.
+ */
 function TurnControls({
   turn,
   readOnly,

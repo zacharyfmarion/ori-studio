@@ -1,12 +1,10 @@
 import type { TFunction } from 'i18next';
+import type { SpreadDirection, SpreadKeep, SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
-  SPREAD_DIRECTIONS,
-  SPREAD_KEEPS,
-  SPREAD_KINDS,
-  type SpreadDirection,
-  type SpreadKeep,
-  type SpreadKind,
-} from '../../cp-workspace/folded/foldedLayerSpread';
+  layerSpreadControls,
+  type LayerSpreadChoice,
+  type LayerSpreadControls,
+} from '../../cp-workspace/folded/layerSpreadControls';
 import { defaultCaptureCamera } from '../capture/captureFolded';
 import {
   DEFAULT_SIMULATED_VIEW,
@@ -291,37 +289,16 @@ export function buildDiagramLinkedPoseActions(
 
 /**
  * One of a spread's choices, as the Step pane offers it: a kind, a direction
- * a depth spread's deeper layers step, or the layer an affine one holds still.
+ * a depth spread's deeper layers step, or the layer an affine one holds still
+ * — every flat picture's (`layerSpreadControls.ts`).
  */
-export interface DiagramSpreadChoice<T extends string> {
-  value: T;
-  label: string;
-  /** The one chosen now. */
-  pressed: boolean;
-  /** Held as the other verbs are: a read-only diagram, a picture with no layers, a capture running. */
-  disabled: boolean;
-  waiting: boolean;
-  hint?: string;
-  run: () => void;
-}
+export type DiagramSpreadChoice<T extends string> = LayerSpreadChoice<T>;
 
 /** One of the eight ways a depth spread's deeper layers can step. */
 export type DiagramSpreadDirectionAction = DiagramSpreadChoice<SpreadDirection>;
 
 /** A flat fold's spread, for the Step pane while it is on (Phase 13). */
-export interface DiagramSpreadControls {
-  /** The spread the picture shows — a drag's, while it is previewed. */
-  spread: DiagramLayerSpread;
-  /** Whether the spread can be changed, and if not, why. */
-  disabled: boolean;
-  hint?: string;
-  /** Depth or affine (13g). */
-  kinds: DiagramSpreadChoice<SpreadKind>[];
-  /** A depth spread's eight directions; none for an affine one. */
-  directions: DiagramSpreadDirectionAction[];
-  /** The layer an affine spread holds still, top or bottom; none for a depth one. */
-  keeps: DiagramSpreadChoice<SpreadKeep>[];
-}
+export type DiagramSpreadControls = LayerSpreadControls;
 
 /**
  * The spread's kind and settings (Phase 13), while a flat fold's layers are
@@ -342,75 +319,10 @@ export function buildDiagramSpreadControls(
   const { t } = deps;
   const stored = state.render.mode === 'folded-flat' ? state.render.spread : undefined;
   if (!stored) return null;
-  const spread = shown?.kind === stored.kind ? shown : stored;
   const hint = state.readOnly
     ? t('panels:diagram.actions.readOnlyHint', 'This diagram was made with a newer Ori Studio and opens read-only')
     : spreadBlocker(state, t);
-  const disabled = hint !== undefined;
-  const waiting = !disabled && state.busy;
-  const choice = <T extends string>(value: T, label: string, pressed: boolean, choose: (value: T) => void) => ({
-    value,
-    label,
-    pressed,
-    disabled,
-    waiting,
-    hint: hint ?? (waiting ? t('panels:diagram.actions.capturingHint', 'Its picture is being captured') : undefined),
-    run: () => {
-      if (!disabled && !waiting && !pressed) choose(value);
-    },
-  });
-  return {
-    spread,
-    disabled,
-    hint,
-    kinds: SPREAD_KINDS.map((kind) => choice(kind, spreadKindLabel(kind, t), kind === spread.kind, deps.kind)),
-    directions:
-      spread.kind === 'depth'
-        ? SPREAD_DIRECTIONS.map((toward) =>
-            choice(toward, spreadDirectionLabel(toward, t), toward === spread.toward, deps.direction)
-          )
-        : [],
-    keeps:
-      spread.kind === 'affine'
-        ? SPREAD_KEEPS.map((keep) => choice(keep, spreadKeepLabel(keep, t), keep === spread.keep, deps.keep))
-        : [],
-  };
-}
-
-/** A kind's name, as its segment says it. */
-export function spreadKindLabel(kind: SpreadKind, t: TFunction): string {
-  return kind === 'depth'
-    ? t('panels:diagram.pose.spreadKindDepth', 'Depth')
-    : t('panels:diagram.pose.spreadKindAffine', 'Affine');
-}
-
-/** A layer held still, as its segment says it. */
-export function spreadKeepLabel(keep: SpreadKeep, t: TFunction): string {
-  return keep === 'top'
-    ? t('panels:diagram.pose.spreadKeepTop', 'Top')
-    : t('panels:diagram.pose.spreadKeepBottom', 'Bottom');
-}
-
-/** A direction's name, as its button says it. */
-export function spreadDirectionLabel(toward: SpreadDirection, t: TFunction): string {
-  switch (toward) {
-    case 'up-left':
-      return t('panels:diagram.pose.spreadUpLeft', 'Deeper layers up and left');
-    case 'up':
-      return t('panels:diagram.pose.spreadUp', 'Deeper layers up');
-    case 'up-right':
-      return t('panels:diagram.pose.spreadUpRight', 'Deeper layers up and right');
-    case 'right':
-      return t('panels:diagram.pose.spreadRight', 'Deeper layers right');
-    case 'down-right':
-      return t('panels:diagram.pose.spreadDownRight', 'Deeper layers down and right');
-    case 'down':
-      return t('panels:diagram.pose.spreadDown', 'Deeper layers down');
-    case 'down-left':
-      return t('panels:diagram.pose.spreadDownLeft', 'Deeper layers down and left');
-    case 'left':
-      return t('panels:diagram.pose.spreadLeft', 'Deeper layers left');
-  }
+  return layerSpreadControls(shown?.kind === stored.kind ? shown : stored, { hint, busy: state.busy, ...deps });
 }
 
 /** The pose a render starts in: upright, from the front, the first layer order, Edit's camera. */

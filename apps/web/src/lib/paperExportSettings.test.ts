@@ -177,6 +177,7 @@ describe('paperExportKindOf', () => {
       'folded-3d': 'folded-figure',
       'folded-flat': 'folded-figure',
       references: 'step',
+      fold: 'step',
     };
     for (const [surface, kind] of Object.entries(kinds)) {
       expect(paperExportKindOf(surface as PaperExportSurface)).toBe(kind);

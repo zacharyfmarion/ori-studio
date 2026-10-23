@@ -207,8 +207,12 @@ choice moves to where the creases are.
 - [x] `useVertexSolve` supplies a descriptor; the stepper component is deleted
 - [x] Context panel no longer carries the choice
 - [x] `i18n:check` green
-- [ ] A second tool's descriptor sketched in a test — the honest check on whether
-      the abstraction is one
+- [x] A second tool's descriptor sketched in a test — the honest check on whether
+      the abstraction is one (`ToolOptionLayer.test.tsx`: a flap-opening chooser
+      whose answers are different regions, through a camera that is not Edit's.
+      Adopting the window took only that descriptor and the camera, which
+      `ToolOptionLayer` now takes as a prop; `CpToolOptionLayer` binds it to
+      `cpOverlayViewStore` for Edit)
 
 ## Non-goals
 

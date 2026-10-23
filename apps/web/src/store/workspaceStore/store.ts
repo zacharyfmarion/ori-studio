@@ -19,9 +19,11 @@ import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { createSimulatorSlice } from './slices/simulatorSlice';
 import { createReferencesSlice } from './slices/referencesSlice';
 import { createDiagramSlice } from './slices/diagramSlice';
+import { createFoldSlice } from './slices/foldSlice';
 import { resolveEditingContext } from '../../workspaces/editingContext';
 import { installFolded3dAuxLinesSync } from './folded3dAuxLinesSync';
 import { installFoldedFigurePaperMirror } from './foldedFigurePaperMirror';
+import { hasProjectDocument } from './projectDocuments';
 import { installCompoundHistory } from './compoundHistory';
 import type { WorkspaceState } from './types';
 
@@ -39,6 +41,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       ...createSimulatorSlice(...args),
       ...createReferencesSlice(...args),
       ...createDiagramSlice(...args),
+      ...createFoldSlice(...args),
     }),
     { name: 'treemaker-workspace' }
   )
@@ -90,8 +93,8 @@ useWorkspaceStore.subscribe((state) => {
 });
 
 // Mark a project as established (sticky for the session) as soon as a real
-// document appears: a crease pattern, a BP design, a diagram, or an
-// authored/loaded tree.
+// document appears: a crease pattern, a BP design, a project document (a
+// diagram, a fold sequence), or an authored/loaded tree.
 // A blank TreeMaker design picked from the chooser has no document content, so
 // `chooseDesignMethod` sets the flag directly. Deep-linked workspace routes read
 // this to redirect to /welcome when nothing has been established.
@@ -100,7 +103,7 @@ useWorkspaceStore.subscribe((state) => {
   const hasDocument =
     state.oristudioCpDocument !== null ||
     state.importedCreasePattern !== null ||
-    state.diagram !== null ||
+    hasProjectDocument(state) ||
     selectOristudioBpDocument(state) !== null ||
     selectProject(state).edges.length > 0;
   if (hasDocument) useWorkspaceStore.setState({ projectEstablished: true });

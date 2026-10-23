@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { removeStepPicture, setTitleBlockContent } from '../document/diagramDocument';
 import { cpStep } from '../document/diagramSteps.fixtures';
 import {
+  OTHER_PATTERN,
   emptyStep,
+  foldPatternStep,
   lockedStep,
   patternStep,
   titleBlockDiagram,
@@ -44,6 +46,24 @@ describe('titleBlockChoices', () => {
     // Chosen, it is listed as what the part is set to, marked as one that gives none.
     const chosen = setTitleBlockContent(document, { pattern: { kind: 'step', stepId: 's4' } });
     expect(offered(titleBlockChoices(chosen).pattern)).toEqual(['step:s4', 2, ['1', '2', '4!']]);
+  });
+
+  it('offers Fold steps for the pattern, one per state’s crease pattern, beside Edit’s links, and names Auto’s', () => {
+    const later = [...OTHER_PATTERN, { x1: 0, y1: 100, x2: 100, y2: 0, role: 'mountain' as const }];
+    // f1 and f2 land one pattern, as a step that adds no crease does; f3 another; s4 is Edit's, with f3's lines, and is its own.
+    const document = titleBlockDiagram([
+      foldPatternStep('f1', OTHER_PATTERN, { step: 'fstep-1' }),
+      foldPatternStep('f2'),
+      foldPatternStep('f3', later, { step: 'fstep-3' }),
+      patternStep('s4', later),
+      foldPatternStep('f5', [], { step: 'fstep-5' }),
+    ]);
+    expect(offered(titleBlockChoices(document).pattern)).toEqual(['auto', 4, ['2', '3', '4']]);
+    // Chosen, a Fold step is the part's value; one whose capture found no line is listed only as that, marked.
+    const chosen = setTitleBlockContent(document, { pattern: { kind: 'step', stepId: 'f3' } });
+    expect(offered(titleBlockChoices(chosen).pattern)).toEqual(['step:f3', 4, ['2', '3', '4']]);
+    const blank = setTitleBlockContent(document, { pattern: { kind: 'step', stepId: 'f5' } });
+    expect(offered(titleBlockChoices(blank).pattern)).toEqual(['step:f5', 4, ['2', '3', '4', '5!']]);
   });
 
   it('names a pattern by the step chosen for it, where that step links it', () => {

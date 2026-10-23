@@ -1,0 +1,549 @@
+{
+  "file_spec": 1.1,
+  "file_creator": "beloch 0.4.0",
+  "file_author": "Claude (Anthropic)",
+  "frame_classes": [ "creasePattern" ],
+  "frame_unit": "unit",
+  "vertices_coords": [
+    [ 0.0, 0.0 ],
+    [ 0.25, 0.0 ],
+    [ 0.25, 1.0 ],
+    [ 0.0, 1.0 ],
+    [ 0.75, 0.0 ],
+    [ 1.0, 0.0 ],
+    [ 1.0, 1.0 ],
+    [ 0.75, 1.0 ],
+    [ 0.5, 0.0 ],
+    [ 0.5, 1.0 ]
+  ],
+  "edges_vertices": [
+    [ 0, 1 ],
+    [ 1, 2 ],
+    [ 2, 3 ],
+    [ 3, 0 ],
+    [ 4, 5 ],
+    [ 5, 6 ],
+    [ 6, 7 ],
+    [ 7, 4 ],
+    [ 8, 4 ],
+    [ 7, 9 ],
+    [ 9, 8 ],
+    [ 1, 8 ],
+    [ 9, 2 ]
+  ],
+  "edges_assignment": [
+    "B", "V", "B", "B", "B", "B", "B", "M", "B", "B", "V", "B", "B"
+  ],
+  "edges_foldAngle": [
+    0.0, 180.0, 0.0, 0.0, 0.0, 0.0, 0.0, -180.0, 0.0, 0.0, 180.0, 0.0, 0.0
+  ],
+  "edges_faces": [
+    [ 0 ],
+    [ 0, 3 ],
+    [ 0 ],
+    [ 0 ],
+    [ 1 ],
+    [ 1 ],
+    [ 1 ],
+    [ 1, 2 ],
+    [ 2 ],
+    [ 2 ],
+    [ 2, 3 ],
+    [ 3 ],
+    [ 3 ]
+  ],
+  "faces_vertices": [
+    [ 0, 1, 2, 3 ], [ 4, 5, 6, 7 ], [ 8, 4, 7, 9 ], [ 1, 8, 9, 2 ]
+  ],
+  "beloch:edges": [
+    null,
+    {
+      "axiom": "axiom2",
+      "sources": [ ".m", ".a" ],
+      "span": "side-named.bel:5:1-22",
+      "statement": 2,
+      "name": null,
+      "crease_id": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "axiom": "axiom2",
+      "sources": [ ".m", ".a" ],
+      "span": "side-named.bel:5:1-22",
+      "statement": 2,
+      "name": null,
+      "crease_id": 1
+    },
+    null,
+    null,
+    {
+      "axiom": "axiom2",
+      "sources": [ ".b", ".a" ],
+      "span": "side-named.bel:3:1-29",
+      "statement": 0,
+      "name": "d",
+      "crease_id": 0
+    },
+    null,
+    null
+  ],
+  "beloch:inspect": {
+    "creases": {
+      "1": {
+        "name": null,
+        "axiom": "axiom2",
+        "sources": [ ".m", ".a" ],
+        "span": "side-named.bel:5:1-22",
+        "segments": [
+          {
+            "faces": [ 1, 2 ],
+            "paper": [ [ 0.75, 1.0 ], [ 0.75, 0.0 ] ],
+            "table": [ [ 0.25, 1.0 ], [ 0.25, 0.0 ] ],
+            "assignment": "M"
+          },
+          {
+            "faces": [ 0, 3 ],
+            "paper": [ [ 0.25, 1.0 ], [ 0.25, 0.0 ] ],
+            "table": [ [ 0.25, 1.0 ], [ 0.25, 0.0 ] ],
+            "assignment": "V"
+          }
+        ]
+      },
+      "0": {
+        "name": "d",
+        "axiom": "axiom2",
+        "sources": [ ".b", ".a" ],
+        "span": "side-named.bel:3:1-29",
+        "segments": [
+          {
+            "faces": [ 3, 2 ],
+            "paper": [ [ 0.5, 1.0 ], [ 0.5, 0.0 ] ],
+            "table": [ [ 0.0, 1.0 ], [ 0.0, 0.0 ] ],
+            "assignment": "V"
+          }
+        ]
+      }
+    },
+    "faces": {
+      "0": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 0.25, 0.0 ], [ 0.25, 1.0 ], [ 0.0, 1.0 ]
+        ],
+        "flap": 0,
+        "rank": 0
+      },
+      "1": {
+        "vertices": [
+          [ 0.75, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.75, 1.0 ]
+        ],
+        "flap": 1,
+        "rank": 1
+      },
+      "2": {
+        "vertices": [
+          [ 0.5, 0.0 ], [ 0.75, 0.0 ], [ 0.75, 1.0 ], [ 0.5, 1.0 ]
+        ],
+        "flap": 2,
+        "rank": 2
+      },
+      "3": {
+        "vertices": [
+          [ 0.25, 0.0 ], [ 0.5, 0.0 ], [ 0.5, 1.0 ], [ 0.25, 1.0 ]
+        ],
+        "flap": 3,
+        "rank": 3
+      }
+    },
+    "points": {
+      "a": { "face": 0, "flap": 0 },
+      "b": { "face": 1, "flap": 1 },
+      "c": { "face": 1, "flap": 1 },
+      "d": { "face": 0, "flap": 0 },
+      "e": { "face": 0, "flap": 0 },
+      "m": { "face": null, "flap": null }
+    },
+    "edges": {
+      "ab": {
+        "name": "ab",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 0.0, 0.0 ], [ 0.25, 0.0 ] ],
+            "table": [ [ 0.0, 0.0 ], [ 0.25, 0.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 0.75, 0.0 ], [ 1.0, 0.0 ] ],
+            "table": [ [ 0.25, 0.0 ], [ 0.0, 0.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 2 ],
+            "paper": [ [ 0.5, 0.0 ], [ 0.75, 0.0 ] ],
+            "table": [ [ 0.0, 0.0 ], [ 0.25, 0.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 3 ],
+            "paper": [ [ 0.25, 0.0 ], [ 0.5, 0.0 ] ],
+            "table": [ [ 0.25, 0.0 ], [ 0.0, 0.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "da": {
+        "name": "da",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 0.0, 1.0 ], [ 0.0, 0.0 ] ],
+            "table": [ [ 0.0, 1.0 ], [ 0.0, 0.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "cd": {
+        "name": "cd",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 0.25, 1.0 ], [ 0.0, 1.0 ] ],
+            "table": [ [ 0.25, 1.0 ], [ 0.0, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.75, 1.0 ] ],
+            "table": [ [ 0.0, 1.0 ], [ 0.25, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 2 ],
+            "paper": [ [ 0.75, 1.0 ], [ 0.5, 1.0 ] ],
+            "table": [ [ 0.25, 1.0 ], [ 0.0, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 3 ],
+            "paper": [ [ 0.5, 1.0 ], [ 0.25, 1.0 ] ],
+            "table": [ [ 0.0, 1.0 ], [ 0.25, 1.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "bc": {
+        "name": "bc",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 1.0, 0.0 ], [ 1.0, 1.0 ] ],
+            "table": [ [ 0.0, 0.0 ], [ 0.0, 1.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      }
+    }
+  },
+  "beloch:vertices_names": [
+    "a", null, null, "d", null, "b", "c", null, "m", null
+  ],
+  "beloch:named_points": {
+    "a": {
+      "paper": [ 0.0, 0.0 ],
+      "table": [ 0.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "b": {
+      "paper": [ 1.0, 0.0 ],
+      "table": [ 0.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "c": {
+      "paper": [ 1.0, 1.0 ],
+      "table": [ 0.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "d": {
+      "paper": [ 0.0, 1.0 ],
+      "table": [ 0.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "e": {
+      "paper": [ 0.0, 0.5 ],
+      "table": [ 0.0, 0.5 ],
+      "step": 2,
+      "statement": 3
+    },
+    "m": {
+      "paper": [ 0.5, 0.0 ],
+      "table": [ 0.0, 0.0 ],
+      "step": 1,
+      "statement": 1
+    }
+  },
+  "beloch:named_lines": {
+    "d": { "coeffs": [ -1.0, 0.0, 0.0 ], "step": 1, "statement": 0 },
+    "k": { "coeffs": [ 0.0, 1.0, 0.5 ], "step": 2, "statement": 4 }
+  },
+  "beloch:named_lines_frame": "creasePattern",
+  "beloch:marks": [],
+  "beloch:free": {
+    "e": {
+      "t": "1/2",
+      "endpoints": [ [ 0.0, 0.0 ], [ 0.0, 1.0 ] ],
+      "source_line": 6
+    }
+  },
+  "beloch:statements": [
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 3,
+      "span": "side-named.bel:3:1-29",
+      "frame_index": 1,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 4,
+      "span": "side-named.bel:4:1-16",
+      "frame_index": 1,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 5,
+      "span": "side-named.bel:5:1-22",
+      "frame_index": 2,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 6,
+      "span": "side-named.bel:6:1-33",
+      "frame_index": 2,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 7,
+      "span": "side-named.bel:7:1-29",
+      "frame_index": 2,
+      "kept_marks": []
+    }
+  ],
+  "beloch:references": [
+    { "span": "side-named.bel:4:6-9", "crease_id": 0 },
+    { "span": "side-named.bel:4:12-16", "edge": "ab" },
+    { "span": "side-named.bel:6:14-18", "edge": "da" },
+    { "span": "side-named.bel:7:13-17", "edge": "da" }
+  ],
+  "beloch:annotations": [
+    {
+      "key": "author",
+      "namespace": null,
+      "target": "program",
+      "frame_index": 0,
+      "source_line": 1,
+      "span": "side-named.bel:1:1-2:1",
+      "args": [
+        { "text": "Claude (Anthropic)", "span": "side-named.bel:1:9-29" }
+      ]
+    }
+  ],
+  "file_frames": [
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [ [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ] ],
+      "edges_assignment": [ "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0 ], [ 0 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ] ],
+      "beloch:faces_matrix": [ [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ] ],
+      "faceOrders": [],
+      "beloch:source_line": null,
+      "beloch:edges": [ null, null, null, null ],
+      "beloch:vertices_names": [ "a", "b", "c", "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ],
+        [ 0.5, 0.0 ],
+        [ 0.5, 1.0 ],
+        [ 0.0, 1.0 ],
+        [ 0.0, 0.0 ],
+        [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ], [ 1, 4 ], [ 4, 5 ], [ 5, 2 ]
+      ],
+      "edges_assignment": [ "B", "V", "B", "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 180.0, 0.0, 0.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0, 1 ], [ 0 ], [ 0 ], [ 1 ], [ 1 ], [ 1 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ], [ 1, 4, 5, 2 ] ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ], [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ]
+      ],
+      "faceOrders": [ [ 0, 1, 1 ] ],
+      "beloch:source_line": 3,
+      "beloch:edges": [
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".a" ],
+          "span": "side-named.bel:3:1-29",
+          "statement": 0,
+          "name": "d",
+          "crease_id": 0
+        },
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "beloch:vertices_names": [ "a", "m", null, "d", "b", "c" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ],
+        [ 0.25, 0.0 ],
+        [ 0.25, 1.0 ],
+        [ 0.0, 1.0 ],
+        [ 0.25, 0.0 ],
+        [ 0.0, 0.0 ],
+        [ 0.0, 1.0 ],
+        [ 0.25, 1.0 ],
+        [ 0.0, 0.0 ],
+        [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 5 ],
+        [ 5, 6 ],
+        [ 6, 7 ],
+        [ 7, 4 ],
+        [ 8, 4 ],
+        [ 7, 9 ],
+        [ 9, 8 ],
+        [ 1, 8 ],
+        [ 9, 2 ]
+      ],
+      "edges_assignment": [
+        "B", "V", "B", "B", "B", "B", "B", "M", "B", "B", "V", "B", "B"
+      ],
+      "edges_foldAngle": [
+        0.0, 180.0, 0.0, 0.0, 0.0, 0.0, 0.0, -180.0, 0.0, 0.0, 180.0, 0.0,
+        0.0
+      ],
+      "edges_faces": [
+        [ 0 ],
+        [ 0, 3 ],
+        [ 0 ],
+        [ 0 ],
+        [ 1 ],
+        [ 1 ],
+        [ 1 ],
+        [ 1, 2 ],
+        [ 2 ],
+        [ 2 ],
+        [ 2, 3 ],
+        [ 3 ],
+        [ 3 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ], [ 4, 5, 6, 7 ], [ 8, 4, 7, 9 ], [ 1, 8, 9, 2 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, -0.5, 0.0 ],
+        [ -1.0, 0.0, 0.0, 1.0, 0.5, 0.0 ]
+      ],
+      "faceOrders": [
+        [ 0, 1, 1 ],
+        [ 0, 2, -1 ],
+        [ 0, 3, 1 ],
+        [ 1, 2, -1 ],
+        [ 1, 3, 1 ],
+        [ 2, 3, 1 ]
+      ],
+      "beloch:source_line": 5,
+      "beloch:edges": [
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".m", ".a" ],
+          "span": "side-named.bel:5:1-22",
+          "statement": 2,
+          "name": null,
+          "crease_id": 1
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".m", ".a" ],
+          "span": "side-named.bel:5:1-22",
+          "statement": 2,
+          "name": null,
+          "crease_id": 1
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".b", ".a" ],
+          "span": "side-named.bel:3:1-29",
+          "statement": 0,
+          "name": "d",
+          "crease_id": 0
+        },
+        null,
+        null
+      ],
+      "beloch:vertices_names": [
+        "a", null, null, "d", null, "b", "c", null, "m", null
+      ]
+    }
+  ]
+}

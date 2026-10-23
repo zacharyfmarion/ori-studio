@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_PAGE, DEFAULT_PAPER_SIZE_MM, type PaperPage } from '../../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PT_PER_MM, mmToCssPx, pageMarginPt } from '../../lib/paper/paperSvg';
-import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel, StepDiagramPrimitive } from '../../lib/stepDiagram/stepDiagramModel';
 import { paperSceneToSvg } from '../../lib/paper/paperSvg';
 import {
   referencesStepDiagramMarks,
@@ -16,7 +16,7 @@ import {
   referencesStepsArchiveName,
   type ReferencesStepExportSubject,
 } from './referencesStepExport';
-import { DIAGRAM_PADDING } from './stepDiagramGeometry';
+import { DIAGRAM_PADDING } from '../../lib/stepDiagram/stepDiagramGeometry';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import { planFilmstrip } from './referencesFilmstrip';
 import type { ReferencesPlanVariant } from './referencesResults';

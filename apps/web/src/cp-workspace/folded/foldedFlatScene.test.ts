@@ -54,8 +54,10 @@ import type {
   ScenePoint,
 } from '../../lib/paper/paperScene';
 import { erodeLine, faceOutlineLines } from '../../lib/paper/paperSvg';
-import { faceComponents, foldedFlatPaperScene, wovenDrawOrder } from './foldedFlatScene';
+import { foldedDisplayLayers } from './foldedDisplayLayers';
+import { faceComponents, foldedFlatPaperScene, foldedPaintOrder, wovenDrawOrder } from './foldedFlatScene';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
+import { kernelFace, plainBook, precreasedBook, PLAIN_BOOK, PRECREASED_BOOK } from './foldedPrecrease.fixtures';
 
 const FIXTURES = resolve(process.cwd(), '../../tests/fixtures');
 const ORIEDITA_TEST_RESOURCES = resolve(
@@ -1365,6 +1367,100 @@ describe('with an affine spread', () => {
         expect(moved, label).toBe(true);
       }
     }
+  });
+});
+
+/**
+ * A precrease cuts each layer it crosses into faces that lie side by side, so
+ * no stack orders them against another layer's; drawn a face at a time, a
+ * lower layer's piece could go in after an upper layer's, and a spread would
+ * lay it over that paper. The precreased book is numbered to do exactly that
+ * (`foldedPrecrease.fixtures.ts`).
+ */
+describe('a precrease', () => {
+  const PX = 100;
+  const toScreen = (p: Point): ScenePoint => [p.x * PX, -p.y * PX];
+  const draw = (kernel: OristudioCpFoldedPaperScene, spread: LayerSpreadOptions) =>
+    foldedFlatPaperScene(kernel, { markHidden: false, toScenePx: toScreen, scale: PX, spread });
+
+  /** The face drawn last over a point of the screen: what the reader sees there. */
+  function shownAt(scene: PaperScene, [x, y]: ScenePoint): number | null {
+    for (let i = scene.items.length - 1; i >= 0; i -= 1) {
+      const item = scene.items[i]!;
+      if (item.kind !== 'face') continue;
+      const ring = item.rings[0]!;
+      let inside = false;
+      for (let k = 0, j = ring.length - 1; k < ring.length; j = k, k += 1) {
+        const [ax, ay] = ring[k]!;
+        const [bx, by] = ring[j]!;
+        if (ay > y !== by > y && x < ax + ((y - ay) / (by - ay)) * (bx - ax)) inside = !inside;
+      }
+      if (inside) return item.face;
+    }
+    return null;
+  }
+
+  it('draws each leaf’s two faces together, the leaf beneath first', () => {
+    const { underHigh, underLow, overHigh, overLow } = PRECREASED_BOOK;
+    expect(foldedPaintOrder(precreasedBook())).toEqual([underHigh, underLow, overHigh, overLow]);
+  });
+
+  it.each([
+    // The default's axis and its mirror, which opens the leaf beneath toward the other piece of the leaf over it.
+    ['the affine spread', { kind: 'affine', amount: 0.2, keep: 'top', skew: 1, axisDeg: 81 }],
+    ['the affine spread on its mirrored axis', { kind: 'affine', amount: 0.2, keep: 'top', skew: 1, axisDeg: 99 }],
+    ['an affine spread held at the bottom', { kind: 'affine', amount: 0.2, keep: 'bottom', skew: 1, axisDeg: 30 }],
+    ['a depth spread', { kind: 'depth', amount: 0.2, toward: 'up-left' }],
+    ['a depth spread down', { kind: 'depth', amount: 0.2, toward: 'down' }],
+  ] as const)('shows, with %s, the leaf the plain book shows at every point', (_label, spread) => {
+    const plain = draw(plainBook(), spread);
+    const cut = draw(precreasedBook(), spread);
+    const leafOf = (face: number | null) =>
+      face === null
+        ? null
+        : [PRECREASED_BOOK.underHigh, PRECREASED_BOOK.underLow].includes(face as 0 | 2)
+          ? PLAIN_BOOK.under
+          : PLAIN_BOOK.over;
+    let differs = 0;
+    let paper = 0;
+    // A grid over the picture, off any line a ring could have.
+    for (let i = 0; i <= 80; i += 1) {
+      for (let j = 0; j <= 80; j += 1) {
+        const at: ScenePoint = [-40 + i * 2.5 + 0.0123, -140 + j * 2.5 + 0.0171];
+        const seen = shownAt(plain, at);
+        if (seen !== null) paper += 1;
+        if (leafOf(shownAt(cut, at)) !== seen) differs += 1;
+      }
+    }
+    expect(paper).toBeGreaterThan(1000);
+    expect(differs).toBe(0);
+  });
+
+  it('draws a layer a woven stack threads a face at a time, as the stacks ask', () => {
+    // A1 over B, B over C, C over A2, where A1 and A2 are one strip cut by a
+    // precrease: no order of whole layers is right, and every face is drawn
+    // after what it lies on.
+    const [A1, A2, B, C] = [0, 1, 2, 3];
+    const kernel: OristudioCpFoldedPaperScene = {
+      schema_version: 3,
+      flipped: false,
+      sheet: 4,
+      faces: [
+        kernelFace([[0, 0], [1, 0], [1, 1], [0, 1]], [0, 1, 2, 3], ['border', 'flat', 'border', 'border']),
+        kernelFace([[1, 0], [2, 0], [2, 1], [1, 1]], [1, 4, 5, 2], ['border', 'border', 'border', 'flat']),
+        kernelFace([[0, 0], [2, 0], [2, 1], [0, 1]], [6, 7, 8, 9], ['border', 'border', 'border', 'border'], false),
+        kernelFace([[0, 0], [2, 0], [2, 1], [0, 1]], [10, 11, 12, 13], ['border', 'border', 'border', 'border']),
+      ],
+      subfaces: [
+        { polygon: [point(0, 0), point(0.5, 0), point(0.5, 1), point(0, 1)], faces_top_to_bottom: [A1, B] },
+        { polygon: [point(0.5, 0), point(1, 0), point(1, 1), point(0.5, 1)], faces_top_to_bottom: [B, C] },
+        { polygon: [point(1, 0), point(2, 0), point(2, 1), point(1, 1)], faces_top_to_bottom: [C, A2] },
+      ],
+      aux_lines: [],
+      sheet_points: [],
+    };
+    expect(foldedDisplayLayers(kernel).layers).toEqual([[A1, A2], [B], [C]]);
+    expect(foldedPaintOrder(kernel)).toEqual([A2, C, B, A1]);
   });
 });
 

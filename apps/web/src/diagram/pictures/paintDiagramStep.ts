@@ -21,15 +21,16 @@ import { DEFAULT_PAPER_SIZE_MM, type PaperPage, type PaperSizeMeasure } from '..
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { PT_PER_CSS_PX, pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import { readPaperScene } from '../../lib/paper/paperSceneValidate';
-import type {
-  DiagramAsset,
-  DiagramFixedPicture,
-  DiagramScenePicture,
-  DiagramStep,
-  DiagramStepDiagramPicture,
-  DiagramStyle,
-  KnownDiagramAsset,
-  QuarterTurns,
+import {
+  posedRenderOf,
+  type DiagramAsset,
+  type DiagramFixedPicture,
+  type DiagramScenePicture,
+  type DiagramStep,
+  type DiagramStepDiagramPicture,
+  type DiagramStyle,
+  type KnownDiagramAsset,
+  type QuarterTurns,
 } from '../document/diagramDocument';
 import { SVG_NS } from '../upload/svgSanitize';
 import { diagramScenePaintStyle } from './diagramPaperStyle';
@@ -158,8 +159,11 @@ export function stepPictureSource(
         pose: { rotationQuarterTurns: pose.rotationQuarterTurns, mirrored: pose.mirrored },
       };
     }
-    case 'scene':
-      return { kind: 'scene', picture, pattern: !(source?.kind === 'cp' && source.render.mode !== 'crease-pattern') };
+    case 'scene': {
+      // Measured as a pattern sheet unless its pose folds it.
+      const render = posedRenderOf(source);
+      return { kind: 'scene', picture, pattern: !(render && render.mode !== 'crease-pattern') };
+    }
     case 'fixed':
       return { kind: 'fixed', picture };
     case 'step-diagram':

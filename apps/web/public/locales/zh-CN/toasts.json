@@ -34,6 +34,16 @@
       "unknown": "折痕图尚未就绪。请稍后再试。"
     },
     "dropReadOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开，因此无法向其中添加图片。",
+    "fold": {
+      "locked": "该步骤由更新版本的 Ori Studio 创建。",
+      "missing": "该步骤已不在折叠序列中，或已无法折叠。",
+      "notShown": "折叠正显示另一个序列，因此现在无法采集此步骤。",
+      "openDiagram": "打开图解",
+      "sent_other": "已将 {{count}} 个步骤添加到图解",
+      "sequenceGone": "该折叠序列已不在此项目中。",
+      "someFailed_other": "有 {{count}} 个步骤无法从折叠采集，已略过。",
+      "stepGone": "该步骤已不在折叠序列中。"
+    },
     "import": {
       "otherWorkspaceFirst": "请先在另一个工作区中撤销或重做之后的编辑：此次导入同时更改了编辑和图解。",
       "restoreFailed": "无法恢复导入的步骤。"
@@ -84,6 +94,13 @@
   "foldedFigureExport": {
     "empty": "此折叠模型暂无可导出的内容",
     "failed": "无法导出此折叠模型"
+  },
+  "foldIo": {
+    "noStep": "还没有可导出的步骤。",
+    "pathBroken": "此序列中有步骤已无法折叠，因此无法发送或导出这些步骤。",
+    "sheetOnScreen": "请先转到一个步骤再导出。",
+    "tooLarge": "此序列太大，无法导出为单个 FOLD 文件。",
+    "unavailable": "折叠引擎在完成前停止了。请重试。"
   },
   "global": {
     "error": "Ori Studio 错误",

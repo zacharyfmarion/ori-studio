@@ -1,0 +1,347 @@
+{
+  "source": "https://origami.me/witch-hat/",
+  "paper": {
+    "shape": {
+      "kind": "square"
+    },
+    "startSide": "back"
+  },
+  "steps": [
+    {
+      "id": "fstep-witch-hat-1",
+      "parent": null,
+      "op": {
+        "kind": "rotate",
+        "rotate": {
+          "amount": "eighth",
+          "direction": "cw"
+        }
+      },
+      "note": "Set-up: white-side-up diamond. Source: https://origami.me/witch-hat/"
+    },
+    {
+      "id": "fstep-witch-hat-2",
+      "parent": "fstep-witch-hat-1",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1.0000000000000002
+            ]
+          ]
+        },
+        "moving": [
+          0.2828427124746189,
+          0.7071067811865475
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "1a: Precrease the vertical diagonal."
+    },
+    {
+      "id": "fstep-witch-hat-3",
+      "parent": "fstep-witch-hat-2",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              1,
+              1.1102230246251565e-16
+            ],
+            [
+              -1.1102230246251565e-16,
+              1
+            ]
+          ]
+        },
+        "moving": [
+          0.14142135623730945,
+          0.282842712474619
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "1b: Precrease the horizontal diagonal."
+    },
+    {
+      "id": "fstep-witch-hat-4",
+      "parent": "fstep-witch-hat-3",
+      "op": {
+        "kind": "valley",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              1,
+              1.0000000000000002
+            ],
+            [
+              0.5857864376269051,
+              0
+            ]
+          ]
+        },
+        "moving": [
+          0.8485281374238569,
+          0.14142135623730956
+        ],
+        "seed": {
+          "scope": "all"
+        }
+      },
+      "note": "2a: Fold the upper-left edge to the middle."
+    },
+    {
+      "id": "fstep-witch-hat-5",
+      "parent": "fstep-witch-hat-4",
+      "op": {
+        "kind": "valley",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              1,
+              1.0000000000000002
+            ],
+            [
+              0,
+              0.5857864376269051
+            ]
+          ]
+        },
+        "moving": [
+          0.1414213562373094,
+          0.848528137423857
+        ],
+        "seed": {
+          "scope": "all"
+        }
+      },
+      "note": "2b: Repeat on the right."
+    },
+    {
+      "id": "fstep-witch-hat-6",
+      "parent": "fstep-witch-hat-5",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              0.5857864376269052,
+              -3.646273558046584e-17
+            ],
+            [
+              1.1102230246251565e-16,
+              0.5857864376269046
+            ]
+          ]
+        },
+        "moving": [
+          0.028284271247461898,
+          0.042426406871192854
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "3a: Precrease at the boundary between colored and white paper."
+    },
+    {
+      "id": "fstep-witch-hat-7",
+      "parent": "fstep-witch-hat-6",
+      "op": {
+        "kind": "turn",
+        "axis": "vertical"
+      },
+      "note": "3b: Turn over."
+    },
+    {
+      "id": "fstep-witch-hat-8",
+      "parent": "fstep-witch-hat-7",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "axiom",
+          "axiom": 2,
+          "inputs": [
+            {
+              "kind": "point",
+              "at": [
+                0,
+                0
+              ]
+            },
+            {
+              "kind": "point",
+              "at": [
+                1,
+                1.0000000000000002
+              ]
+            }
+          ]
+        },
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "choices": {
+        "root": {
+          "n": [
+            0.7071067811865475,
+            0.7071067811865475
+          ],
+          "d": 0.7071067811865475
+        }
+      },
+      "note": "4: Precrease the lower tip onto the upper tip."
+    },
+    {
+      "id": "fstep-witch-hat-9",
+      "parent": "fstep-witch-hat-8",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              0.18431457505076201,
+              0.6085786437626906
+            ],
+            [
+              0.6085786437626906,
+              0.18431457505076215
+            ]
+          ]
+        },
+        "moving": [
+          0.3252691193458118,
+          0.311126983722081
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "5a: Precrease the lower reference onto the upper one."
+    },
+    {
+      "id": "fstep-witch-hat-10",
+      "parent": "fstep-witch-hat-9",
+      "op": {
+        "kind": "turn",
+        "axis": "vertical"
+      },
+      "note": "5b: Turn over."
+    },
+    {
+      "id": "fstep-witch-hat-11",
+      "parent": "fstep-witch-hat-10",
+      "op": {
+        "kind": "unfold",
+        "crease": [
+          0.7928932188134526,
+          0.5000000000000001
+        ],
+        "moving": [
+          0.9200000000000003,
+          0.385786437626905
+        ],
+        "seed": {
+          "scope": "flaps",
+          "at": [
+            [
+              0.9200000000000003,
+              0.385786437626905
+            ]
+          ]
+        },
+        "direction": "valley"
+      },
+      "note": "6a: Open the left long flap."
+    },
+    {
+      "id": "fstep-witch-hat-12",
+      "parent": "fstep-witch-hat-11",
+      "op": {
+        "kind": "unfold",
+        "crease": [
+          0.5000000000000001,
+          0.7928932188134524
+        ],
+        "moving": [
+          0.38578643762690495,
+          0.92
+        ],
+        "seed": {
+          "scope": "flaps",
+          "at": [
+            [
+              0.38578643762690495,
+              0.92
+            ]
+          ]
+        },
+        "direction": "valley"
+      },
+      "note": "6b: Open the right long flap."
+    }
+  ],
+  "op": {
+    "kind": "precrease",
+    "line": {
+      "via": "free",
+      "through": [
+        [
+          0.6464466094067263,
+          0.14644660940672632
+        ],
+        [
+          0.1464466094067262,
+          0.6464466094067265
+        ]
+      ]
+    },
+    "moving": [
+      0.35402020253553346,
+      0.3681623381592644
+    ],
+    "seed": {
+      "scope": "all"
+    },
+    "direction": "valley",
+    "extent": {
+      "kind": "segment",
+      "from": {
+        "kind": "point",
+        "at": [
+          0.6464466094067263,
+          0.14644660940672632
+        ]
+      },
+      "to": {
+        "kind": "point",
+        "at": [
+          0.1464466094067262,
+          0.6464466094067265
+        ]
+      }
+    }
+  }
+}

@@ -29,8 +29,18 @@ import { ViewportToolbarMenuRow } from './ViewportToolbarMenuRow';
  */
 export function ViewportToolbarOverflowMenu({
   groups,
+  label,
+  side = 'top',
 }: {
   groups: readonly ViewportToolbarOverflowGroup[];
+  /** The trigger's accessible name and tooltip; the viewport bar's own by default. */
+  label?: string;
+  /**
+   * Which way it opens: up from a bar on the canvas's bottom edge (the
+   * default), or down from a bar along the top — a phone's workspace header,
+   * which hands its verbs to this menu to keep to one row.
+   */
+  side?: 'top' | 'bottom';
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -51,7 +61,7 @@ export function ViewportToolbarOverflowMenu({
       }}
     >
       <MenuIconButton
-        label={t('tools:viewport.more', 'More view controls')}
+        label={label ?? t('tools:viewport.more', 'More view controls')}
         icon={<MoreHorizontal size={14} />}
         // Pressed while open, and while something it hides is in a state with
         // nothing else on screen to say so — a mode switched on, or a value away
@@ -59,9 +69,9 @@ export function ViewportToolbarOverflowMenu({
         isActive={open || hasUnseenActiveControl(groups)}
       />
       <MenuContent
-        // Upward, like every other menu on this bar — the bar sits on the
-        // bottom edge of the canvas, so there is nowhere below to open into.
-        side="top"
+        // Upward by default, like every other menu on this bar — the bar sits
+        // on the bottom edge of the canvas, so there is nowhere below to open into.
+        side={side}
         align="end"
         sideOffset={8}
         collisionPadding={8}

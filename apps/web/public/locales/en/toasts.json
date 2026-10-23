@@ -35,6 +35,18 @@
       "unknown": "The crease pattern isn’t ready yet. Try again in a moment."
     },
     "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
+    "fold": {
+      "locked": "That step was made with a newer Ori Studio.",
+      "missing": "That step isn’t in the Fold sequence any more, or no longer folds.",
+      "notShown": "Fold shows another sequence, so this step can’t be captured now.",
+      "openDiagram": "Open Diagram",
+      "sent_one": "Added a step to the Diagram",
+      "sent_other": "Added {{count}} steps to the Diagram",
+      "sequenceGone": "That Fold sequence isn’t in this project any more.",
+      "someFailed_one": "A step couldn’t be captured from Fold, so it was left out.",
+      "someFailed_other": "{{count}} steps couldn’t be captured from Fold, so they were left out.",
+      "stepGone": "That step isn’t in the Fold sequence any more."
+    },
     "import": {
       "otherWorkspaceFirst": "Undo or redo the later edits in the other workspace first: the import changed both Edit and Diagram.",
       "restoreFailed": "Couldn’t restore the imported steps."
@@ -95,6 +107,13 @@
   "foldedFigureExport": {
     "empty": "This folded model has nothing to export yet",
     "failed": "Could not export this folded model"
+  },
+  "foldIo": {
+    "noStep": "There is no step to export yet.",
+    "pathBroken": "A step of this sequence no longer folds, so the steps cannot be sent or exported.",
+    "sheetOnScreen": "Go to a step to export it.",
+    "tooLarge": "This sequence is too large to export as one FOLD file.",
+    "unavailable": "The fold engine stopped before it finished. Try again."
   },
   "global": {
     "error": "Ori Studio error",

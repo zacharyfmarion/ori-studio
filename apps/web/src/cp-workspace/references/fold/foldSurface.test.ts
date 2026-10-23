@@ -4,12 +4,12 @@ import {
   createFoldSurface,
   createRollOverSurface,
   creasedness,
-  rigidHinge,
   rowsThrough,
   strokeCuts,
   tessellateFlap,
   type FlatPoint,
 } from './foldSurface';
+import { rigidHinge } from '../../../lib/foldMotion/foldHinge';
 
 /** Twice the signed area of placed triangles, projected onto the paper. */
 function meshArea(vertices: { s: number; v: number }[]): number {

@@ -24,10 +24,17 @@ import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_LABEL_INK,
   DIAGRAM_MARK_INK,
-} from './diagram/diagramInk';
-import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
-import { referencesExportTarget } from './referencesExportTarget';
-import { ARROWHEAD_MIN_STROKES } from './stepDiagramGeometry';
+} from '../../lib/stepDiagram/diagramInk';
+import type { PaperExportTarget } from '../../paperExport/paperExportTarget';
+import { diagramScenePaintStyle } from './diagramToPaperScene';
+import type { StepDiagramModel, StepDiagramPrimitive } from '../../lib/stepDiagram/stepDiagramModel';
+import { referencesExportTarget, stepDiagramExportTarget } from './referencesExportTarget';
+import {
+  referencesStepDiagramMarks,
+  referencesStepSheetCssPx,
+  type StepDiagramPageInput,
+} from './referencesStepExport';
+import { ARROWHEAD_MIN_STROKES } from '../../lib/stepDiagram/stepDiagramGeometry';
 import { decodePlanModel, planModelPoints, planStepScene } from './referencesPlanGeometry';
 
 /**
@@ -502,6 +509,68 @@ describe('referencesExportTarget', () => {
       expect(each.widthPt).toBeCloseTo(alone.widthPt, 6);
       expect(sheetCorners(each.svg)).toEqual(sheetCorners(alone.svg));
     }
+  });
+});
+
+describe('stepDiagramExportTarget', () => {
+  // Any surface whose pages are step diagrams: its policy keys the scene and
+  // shapes the painter's style, and its own builder draws each page.
+  type Built = [StepDiagramModel, StepDiagramPageInput];
+  const EMPTY: PaperScene = { bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 }, sheet: 1, items: [] };
+  const exportOf = (surface: PaperExportTarget['surface'], built: Built[] = []) =>
+    stepDiagramExportTarget({
+      surface,
+      steps: [{ diagram: GLYPHS, mirrored: true, label: 'Step 1', entryStem: '1 step 1' }],
+      current: 0,
+      title: 'Export step 1',
+      fileStem: 'Crane step 1',
+      allTitle: 'Export all steps',
+      zipStem: 'Crane steps',
+      exportStyle: DEFAULT_PAPER_STYLE,
+      stepScene: (diagram, input) => {
+        built.push([diagram, input]);
+        return EMPTY;
+      },
+    });
+
+  it('is the surface it is made for, reading the style through that surface’s policy', () => {
+    const flat = exportOf('folded-flat');
+    expect(flat.surface).toBe('folded-flat');
+    const input = paperExportSceneInput(flat, DEFAULT_PAPER_STYLE, DEFAULT_PAPER_EXPORT_SETTINGS);
+    // An arrow pen is no field of a folded figure's, so it is not in that key; it is in a step's.
+    const arrows = { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, color: '#ff0000' } };
+    expect(flat.sceneKey({ ...input, style: arrows })).toBe(flat.sceneKey(input));
+    const step = exportOf('references');
+    expect(step.sceneKey({ ...input, style: arrows })).not.toBe(step.sceneKey(input));
+    // The painter's style is the surface's, with the aux switch on: the scene holds the aux lines the page carries.
+    const hidden = { ...arrows, auxCreases: { ...arrows.auxCreases, visible: false } };
+    expect(flat.paintStyle(hidden)).toEqual(diagramScenePaintStyle(hidden, 'folded-flat'));
+    expect(flat.paintStyle(hidden).auxCreases.visible).toBe(true);
+    expect(flat.paintStyle(hidden).arrows).toEqual(DEFAULT_PAPER_STYLE.arrows);
+  });
+
+  it('builds a page from its step with the marks it leaves out taken out, at the page’s sheet size', async () => {
+    const built: Built[] = [];
+    const exported = exportOf('references', built);
+    const input = paperExportSceneInput(exported, DEFAULT_PAPER_STYLE, {
+      ...DEFAULT_PAPER_EXPORT_SETTINGS,
+      background: '#123456',
+      marks: { letters: false, highlights: false },
+    });
+    await expect(exported.buildScene(input)).resolves.toBe(EMPTY);
+    expect(built).toEqual([
+      [
+        referencesStepDiagramMarks(GLYPHS, { letters: false, highlights: false }),
+        {
+          style: DEFAULT_PAPER_STYLE,
+          mirrored: true,
+          sheetCssPx: referencesStepSheetCssPx(DEFAULT_PAPER_EXPORT_SETTINGS.sheet),
+          background: '#123456',
+        },
+      ],
+    ]);
+    await expect(exported.buildScene({ ...input, page: 1 })).resolves.toBeNull();
+    expect(built).toHaveLength(1);
   });
 });
 

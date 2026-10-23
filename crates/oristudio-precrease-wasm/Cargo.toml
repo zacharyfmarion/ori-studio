@@ -3,9 +3,10 @@ name = "oristudio-precrease-wasm"
 version.workspace = true
 publish.workspace = true
 edition.workspace = true
-# Not the workspace GPL default: this wrapper reaches only `oristudio-precrease`,
-# original work with no dependency edge to the TreeMaker port and no code ported
-# from ReferenceFinder, so it carries the same MIT OR Apache-2.0. See LICENSING.md.
+# Not the workspace GPL default: this wrapper reaches only `oristudio-precrease`
+# and, through it, `oristudio-geometry` — original work with no dependency edge
+# to the TreeMaker port and no code ported from ReferenceFinder — so it carries
+# the same MIT OR Apache-2.0. See LICENSING.md.
 license = "MIT OR Apache-2.0"
 description = "wasm-bindgen package for Ori Studio's precrease planner geometry"
 repository.workspace = true

@@ -15,7 +15,7 @@
  * is ever recomputed on its own (plan: "never auto-recompute").
  */
 import type { Point } from '../../lib/geometry';
-import type { DiagramArc } from './stepDiagramGeometry';
+import type { DiagramArc } from '../../lib/stepDiagram/stepDiagramGeometry';
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { RawSolution, RfPoint } from './referenceFinder/solution';
 import type { PrecreasePlanResult } from './precreasePlan';

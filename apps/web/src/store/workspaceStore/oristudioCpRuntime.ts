@@ -1121,10 +1121,10 @@ export async function exportFoldFrameAsFormat(
  * and a second pattern's paper edge in the same FOLD would give the boundary
  * trace two loops to choose between. The subset is the region's own contents.
  *
- * Everything but the creases is dropped. Auxiliary lines are not creases and the
- * solver has no model for them; circles, points and texts are annotations that
- * would only ride along into the FOLD's extras. The grid is kept because it is
- * metadata the exporter expects, not geometry.
+ * The caller chooses the lines: the exact solver passes foldable lines; Fold
+ * imports also pass cyan precreases. Separate auxiliary annotations, circles,
+ * points and texts are dropped. The grid is kept because it is metadata the
+ * exporter expects, not geometry.
  */
 export async function exportOristudioCpCreasesAsFold(
   creasePattern: OristudioCpModel,

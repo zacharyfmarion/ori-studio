@@ -1,11 +1,17 @@
-export type WorkspaceId = 'design' | 'edit' | 'simulate' | 'references' | 'diagram';
+export type WorkspaceId = 'design' | 'edit' | 'simulate' | 'references' | 'diagram' | 'fold';
 
 export interface WorkspaceDefinition {
   id: WorkspaceId;
   label: string;
   tooltip: string;
-  commandId: 'view.design' | 'view.edit' | 'view.simulate' | 'view.references' | 'view.diagram';
-  primaryPanelId: 'design' | 'crease-pattern' | 'simulator' | 'references' | 'diagram';
+  commandId:
+    | 'view.design'
+    | 'view.edit'
+    | 'view.simulate'
+    | 'view.references'
+    | 'view.diagram'
+    | 'view.fold';
+  primaryPanelId: 'design' | 'crease-pattern' | 'simulator' | 'references' | 'diagram' | 'fold';
 }
 
 export const WORKSPACE_DEFINITIONS: WorkspaceDefinition[] = [
@@ -36,6 +42,13 @@ export const WORKSPACE_DEFINITIONS: WorkspaceDefinition[] = [
     tooltip: 'References workspace',
     commandId: 'view.references',
     primaryPanelId: 'references',
+  },
+  {
+    id: 'fold',
+    label: 'Fold',
+    tooltip: 'Fold workspace',
+    commandId: 'view.fold',
+    primaryPanelId: 'fold',
   },
   {
     id: 'diagram',
@@ -69,6 +82,9 @@ const WORKSPACE_BY_PANEL_ID: Record<string, WorkspaceId> = {
   'diagram-step': 'diagram',
   'diagram-page': 'diagram',
   'diagram-layers': 'diagram',
+  fold: 'fold',
+  'fold-step': 'fold',
+  'fold-paper': 'fold',
 };
 
 export function workspaceForPanelId(panelId: string): WorkspaceId | null {
@@ -104,6 +120,8 @@ export function workspaceForCommandId(commandId: string): WorkspaceId | null {
       return 'references';
     case 'view.diagram':
       return 'diagram';
+    case 'view.fold':
+      return 'fold';
     case 'view.conditions':
       return 'design';
     default:

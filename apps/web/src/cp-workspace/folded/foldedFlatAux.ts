@@ -23,7 +23,7 @@
  *
  * Erode comes first (D8): an endpoint on its face's outline retreats by the
  * style's fraction of the sheet, in the scene's own units, with the shared
- * rule (`auxLineOnBoundary`) and pull (`erodeSegment`); a cut a subface edge
+ * rule (`auxLineEnds`) and pull (`erodeSegment`); a cut a subface edge
  * makes afterwards is where the face goes under another and never retreats.
  *
  * Coordinates in and out are the render snapshot's, so the result maps onto
@@ -36,7 +36,8 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import { erodeSegment } from '../../lib/paper/paperSvg';
-import { auxLineOnBoundary, foldedSceneEpsilon } from './foldedFlatScene';
+import { auxLineEnds } from './foldedCreaseRuns';
+import { foldedSceneEpsilon } from './foldedFlatScene';
 
 /** One drawn piece of an aux crease, in the render snapshot's coordinates. */
 export interface FoldedFlatAuxSegment {
@@ -75,7 +76,7 @@ export function foldedFlatAuxSegments(
     const eroded = erodeSegment(
       [aux.from.x, aux.from.y],
       [aux.to.x, aux.to.y],
-      auxLineOnBoundary(kernel, aux, epsilon),
+      auxLineEnds(kernel, aux, epsilon),
       distance
     );
     if (!eroded) continue;

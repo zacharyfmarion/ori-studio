@@ -52,6 +52,7 @@ import type {
   DiagramExampleOutcome,
   DiagramShowAsName,
   DiagramShowAsVia,
+  DiagramSpreadDirection,
   DiagramSpreadTracking,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
@@ -68,6 +69,7 @@ import type {
   DiagramTitleBlockTextShown,
   DiagramView,
 } from './events';
+import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
 import { track } from './runtime';
 
 /**
@@ -247,8 +249,19 @@ export function trackDiagramPicturePosed(
   });
 }
 
-/** A spread's enum and bucketed properties. */
-function spreadProperties(spread: DiagramSpreadTracking): Record<string, string> {
+/**
+ * A flat picture's spread as the events that say how one is set count it —
+ * `diagram picture posed` and `fold spread changed` — its kind, amount and
+ * how it goes: values here, bucketed by {@link spreadProperties}.
+ */
+export function spreadTracking(spread: LayerSpreadOptions): DiagramSpreadTracking {
+  return spread.kind === 'depth'
+    ? { kind: 'depth', direction: spread.toward.replace('-', '_') as DiagramSpreadDirection, amount: spread.amount }
+    : { kind: 'affine', amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
+}
+
+/** A spread's enum and bucketed properties: never a value itself. */
+export function spreadProperties(spread: DiagramSpreadTracking): Record<string, string> {
   const percent = (fraction: number) => Math.round(fraction * 10_000) / 100;
   const common = {
     spread_kind: spread.kind,

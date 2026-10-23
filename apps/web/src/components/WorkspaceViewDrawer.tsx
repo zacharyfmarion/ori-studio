@@ -15,6 +15,7 @@ import { CpViewControlsPanel } from './panels/CpViewControlsPanel';
 import { DiagramLayersPanel } from './panels/DiagramLayersPanel';
 import { DiagramPagePanel } from './panels/DiagramPagePanel';
 import { DiagramStepPanel } from './panels/DiagramStepPanel';
+import { LazyFoldPaperPanel, LazyFoldStepPanel } from './fold/FoldGate';
 import { ReferencesViewControlsPanel } from './panels/ReferencesViewControlsPanel';
 import { SimulatorViewControlsPanel } from './panels/SimulatorViewControlsPanel';
 import { Button } from './ui/Button';
@@ -38,6 +39,9 @@ const VIEW_DRAWER_BODIES: Record<SidePaneId, ComponentType> = {
   'diagram-step': DiagramStepPanel,
   'diagram-page': DiagramPagePanel,
   'diagram-layers': DiagramLayersPanel,
+  // Fold's code, loaded as one mounts (`workspaces/foldGateway`).
+  'fold-step': LazyFoldStepPanel,
+  'fold-paper': LazyFoldPaperPanel,
 };
 
 /**

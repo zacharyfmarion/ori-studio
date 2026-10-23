@@ -1,0 +1,460 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-13T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-13T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace-origami-box",
+    "title": "Masu box — flat preparation only",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 1,
+        "id": "fold-trial-box",
+        "title": "Masu box — flat preparation only",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "steps": [
+          {
+            "id": "fstep-box-1",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5,
+                    0
+                  ],
+                  [
+                    0.5,
+                    1
+                  ]
+                ]
+              },
+              "moving": [
+                0.8,
+                0.3
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley"
+            },
+            "note": "1a: vertical center precrease"
+          },
+          {
+            "id": "fstep-box-2",
+            "parent": "fstep-box-1",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.5
+                  ],
+                  [
+                    1,
+                    0.5
+                  ]
+                ]
+              },
+              "moving": [
+                0.3,
+                0.2
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley"
+            },
+            "note": "1b: horizontal center precrease"
+          },
+          {
+            "id": "fstep-box-3",
+            "parent": "fstep-box-2",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 0.35355339059327373
+              }
+            },
+            "note": "2: first corner to center"
+          },
+          {
+            "id": "fstep-box-4",
+            "parent": "fstep-box-3",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": 0.35355339059327373
+              }
+            },
+            "note": "3a: second corner to center"
+          },
+          {
+            "id": "fstep-box-5",
+            "parent": "fstep-box-4",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 1.0606601717798212
+              }
+            },
+            "note": "3b: third corner to center"
+          },
+          {
+            "id": "fstep-box-6",
+            "parent": "fstep-box-5",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": -0.35355339059327373
+              }
+            },
+            "note": "3c: fourth corner to center"
+          },
+          {
+            "id": "fstep-box-7",
+            "parent": "fstep-box-6",
+            "op": {
+              "kind": "rotate",
+              "rotate": {
+                "amount": "eighth",
+                "direction": "ccw"
+              }
+            },
+            "note": "4: orient the blintz as a square"
+          },
+          {
+            "id": "fstep-box-8",
+            "parent": "fstep-box-7",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.3750000000000001,
+                    0.8750000000000001
+                  ],
+                  [
+                    0.8750000000000001,
+                    0.37499999999999994
+                  ]
+                ]
+              },
+              "moving": [
+                0.8565328291202415,
+                0.7151114728829321
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley"
+            },
+            "note": "4a: upper edge to center and unfold"
+          },
+          {
+            "id": "fstep-box-9",
+            "parent": "fstep-box-8",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.12500000000000008,
+                    0.625
+                  ],
+                  [
+                    0.6250000000000001,
+                    0.12500000000000006
+                  ]
+                ]
+              },
+              "moving": [
+                0.2878679656440357,
+                0.14644660940672627
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley"
+            },
+            "note": "4b: lower edge to center and unfold"
+          },
+          {
+            "id": "fstep-box-10",
+            "parent": "fstep-box-9",
+            "op": {
+              "kind": "unfold",
+              "crease": [
+                0.78,
+                0.72
+              ],
+              "direction": "valley",
+              "moving": [
+                0.8055555555555551,
+                0.805555555555555
+              ],
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.8055555555555551,
+                    0.805555555555555
+                  ]
+                ]
+              }
+            },
+            "note": "5: unfold one blintz flap"
+          },
+          {
+            "id": "fstep-box-11",
+            "parent": "fstep-box-10",
+            "op": {
+              "kind": "unfold",
+              "crease": [
+                0.28,
+                0.22
+              ],
+              "direction": "valley",
+              "moving": [
+                0.1944444444444444,
+                0.1944444444444444
+              ],
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.1944444444444444,
+                    0.1944444444444444
+                  ]
+                ]
+              }
+            },
+            "note": "5: unfold one blintz flap"
+          },
+          {
+            "id": "fstep-box-12",
+            "parent": "fstep-box-11",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.24976659402887016,
+                    0.49976659402887025
+                  ],
+                  [
+                    0.24725396744416184,
+                    0.9972539674441616
+                  ]
+                ]
+              },
+              "moving": [
+                0.21213203435596434,
+                0.7878679656440357
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley"
+            },
+            "note": "6a: left wall precrease"
+          },
+          {
+            "id": "fstep-box-13",
+            "parent": "fstep-box-12",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.49976659402887025,
+                    0.24976659402887025
+                  ],
+                  [
+                    0.9972539674441621,
+                    0.24725396744416184
+                  ]
+                ]
+              },
+              "moving": [
+                0.7878679656440359,
+                0.21213203435596428
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley"
+            },
+            "note": "6b: right wall precrease"
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-trial-box",
+        "cursor": "fstep-box-13",
+        "activeChild": {
+          "": "fstep-box-1",
+          "fstep-box-1": "fstep-box-2",
+          "fstep-box-2": "fstep-box-3",
+          "fstep-box-3": "fstep-box-4",
+          "fstep-box-4": "fstep-box-5",
+          "fstep-box-5": "fstep-box-6",
+          "fstep-box-6": "fstep-box-7",
+          "fstep-box-7": "fstep-box-8",
+          "fstep-box-8": "fstep-box-9",
+          "fstep-box-9": "fstep-box-10",
+          "fstep-box-10": "fstep-box-11",
+          "fstep-box-11": "fstep-box-12",
+          "fstep-box-12": "fstep-box-13"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

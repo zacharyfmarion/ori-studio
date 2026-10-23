@@ -8,7 +8,7 @@
  * Editable lifts them, as a fresh pull would (17e).
  */
 import { describe, expect, it } from 'vitest';
-import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import { MAX_STEP_ANNOTATIONS } from '../annotate/annotationModel';
 import { liftedCardPicture } from '../references/referencesCardMarks';
 import { framedCard, pointsCard } from '../references/referencesCardMarks.fixtures';

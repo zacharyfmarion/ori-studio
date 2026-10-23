@@ -10,6 +10,7 @@ import {
 import { stepCanBeAnnotated } from '../../diagram/pictures/pictureFrame';
 import { showsFrame } from '../../diagram/zoom/zoomActions';
 import { ZOOM_FRAME_ID } from '../../diagram/zoom/zoomModel';
+import { loadIdSequence, pickScopedState } from './projectDocumentHistory';
 import { emptySnapshotHistory, type SnapshotHistory } from './snapshotHistory';
 import type { DiagramAnchorPick, WorkspaceState } from './types';
 
@@ -46,6 +47,7 @@ export const DIAGRAM_SCOPED_KEYS = [
   'diagramPatternPicker',
   'diagramRefreshAll',
   'diagramReferencesBrowser',
+  'diagramFoldBrowser',
   'diagramAnchorPick',
   'diagramPaperFacesFetching',
   'diagramPlacesSettled',
@@ -259,17 +261,12 @@ export function selectedDiagramPathNode(
  */
 export type DiagramHistory = SnapshotHistory<DiagramDocument | null>;
 
-let lastDiagramLoadId = 0;
-
 /**
  * A new load id. Every replacement of the diagram takes one, so work started
  * against one diagram — an async capture, a pending text edit — can tell it
  * has been replaced before it writes into its successor.
  */
-export function nextDiagramLoadId(): number {
-  lastDiagramLoadId += 1;
-  return lastDiagramLoadId;
-}
+export const nextDiagramLoadId = loadIdSequence();
 
 /** Each diagram a layout's packed flow pages were adopted into (`adoptDiagramPageArrangements`), and the diagram it was before. */
 const adoptedFrom = new WeakMap<DiagramDocument, DiagramDocument>();
@@ -317,6 +314,7 @@ export function discardDiagramState(): DiagramScopedState {
     diagramPatternPicker: null,
     diagramRefreshAll: null,
     diagramReferencesBrowser: null,
+    diagramFoldBrowser: null,
     diagramAnchorPick: null,
     diagramPaperFacesFetching: {},
     diagramPlacesSettled: null,
@@ -327,7 +325,7 @@ export function discardDiagramState(): DiagramScopedState {
 
 /** The diagram-scoped state as it stands, to put back with one `set`. */
 export function pickDiagramState(state: WorkspaceState): DiagramScopedState {
-  return Object.fromEntries(DIAGRAM_SCOPED_KEYS.map((key) => [key, state[key]])) as DiagramScopedState;
+  return pickScopedState(state, DIAGRAM_SCOPED_KEYS);
 }
 
 /**

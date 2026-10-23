@@ -14,7 +14,7 @@
  * reader, per point: the face the reader is on until the paper turns past
  * edge-on, the other face after. Paper colour follows it, and so do the inks
  * and dashes that name a direction — a mountain seen from the back is a
- * valley (`diagram/diagramModel.flipDirection`), so a crease riding the flap
+ * valley (`lib/stepDiagram/diagramModel.flipDirection`), so a crease riding the flap
  * over swaps to the other face's naming where that face shows. A face is
  * shaded by how far it tilts from the reader, which is what makes the bend
  * read as a rounded ridge rather than a stripe.
@@ -23,10 +23,11 @@
  * both taken out (2026-09-16): from straight above they read as grey slabs
  * beside the paper, not as height.
  */
+import { tiltShade, type PlacedPoint } from '../../../lib/foldMotion/foldHinge';
+import type { FoldPose } from '../../../lib/foldMotion/foldPlayback';
 import { convexHull, type Point } from '../../../lib/geometry';
 import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../renderer/types';
 import { clipPolygonToSide } from '../diagram/plannerDiagram';
-import type { FoldPose } from './foldPlayback';
 import { chordFrame, fromChordFrame, inChordFrame, type FoldScene } from './foldScene';
 import type { FlapStrokes } from './foldSplit';
 import {
@@ -39,7 +40,6 @@ import {
   strokeCuts,
   tessellateFlap,
   type FlatPoint,
-  type PlacedPoint,
 } from './foldSurface';
 
 /**
@@ -76,18 +76,6 @@ export interface FoldPaint {
   /** Model space to the folded channel's user space: the view's own map, mirror included. */
   modelToUser: (p: Point) => Point;
 }
-
-/**
- * How a tilted face is shaded on screen: its own colour darkened toward black,
- * by up to a quarter where the paper is edge-on — less light reaches paper
- * turned away from the reader, so a bend reads as rounded in whatever colour
- * the paper is: a grey curl in white paper, a darker yellow in yellow.
- *
- * Black rather than a theme ink. The flap was once the theme's dark ground,
- * shaded toward its light text; the paper is the style's now, and the dark
- * theme's near-white text over light paper shaded nothing at all.
- */
-export const PAPER_TILT_SHADE: Rgba = [0, 0, 0, 0.25];
 
 /** The surface's sizes, as shares of the sheet's short side. */
 export interface FoldSurfaceShares {
@@ -192,7 +180,7 @@ function otherFace(
  */
 function shadedFace(paint: FoldPaint, face: 1 | -1, nz: number): Rgba {
   const paper = face > 0 ? paint.up : paint.other;
-  const k = paint.shade[3] * (1 - Math.min(1, Math.abs(nz)));
+  const k = tiltShade(nz, paint.shade[3]);
   if (k <= 0) return paper;
   return [
     paper[0] * (1 - k) + paint.shade[0] * k,

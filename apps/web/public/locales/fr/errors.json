@@ -74,6 +74,9 @@
   },
   "worker": {
     "cpDetect": "La détection de patron de plis s'est arrêtée de façon inattendue. Réessayez d'importer l'image.",
+    "foldSequence": "Le moteur de pliage s'est arrêté de façon inattendue. Vos étapes sont intactes ; si le pliage ne reprend pas, rechargez Ori Studio.",
+    "foldSequenceKeptStopping": "Le moteur de pliage s'est arrêté à plusieurs reprises, le pliage est donc en pause. Vos étapes sont intactes : annulez votre dernière modification ou rechargez Ori Studio.",
+    "foldSequenceLost": "Le moteur de pliage s'est arrêté avant d'avoir pu terminer cette étape. Refaites le pli.",
     "oristudioBp": "Le moteur de pliage en boîte s'est arrêté de façon inattendue. Rechargez Ori Studio pour continuer à travailler sur ce modèle.",
     "oristudioCp": "Le moteur de patrons de plis s'est arrêté de façon inattendue. Rechargez Ori Studio — les modifications postérieures à la dernière sauvegarde peuvent être perdues.",
     "precrease": "Le planificateur de pré-pliage s’est arrêté de façon inattendue. Rouvrez l’espace de travail Références pour le relancer.",

@@ -19,7 +19,7 @@
  * first point (`zoomOutlinePoints`): a circle's rightmost point, going
  * clockwise on the page; a rounded rectangle's top side's right end.
  */
-import { createOverlayProjector, ringPieces, sheetCorners } from '../../cp-workspace/references/stepDiagramGeometry';
+import { createOverlayProjector, ringPieces, sheetCorners } from '../../lib/stepDiagram/stepDiagramGeometry';
 import type { ScenePoint } from '../../lib/paper/paperScene';
 import type { PicturePoint } from '../annotate/annotationModel';
 import { piecesUnder } from '../annotate/behindFlaps';

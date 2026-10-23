@@ -325,6 +325,146 @@
     "vertexUnassignedCrease": "Um vinco de um vértice não tem dobra atribuída, então esse vértice não pode ser dobrado.",
     "vertexUnsplitJunction": "Os vincos se encontram num ponto que não é um vértice, então esse vértice não pode ser dobrado."
   },
+  "foldExport": {
+    "title": "Exportar sequência de dobras"
+  },
+  "foldImport": {
+    "browse": "ou clique para procurar",
+    "browseTouch": "ou toque para procurar",
+    "collapseTitle": "Colapsar a partir do CP",
+    "drop": "Solte um arquivo .cp, .fold, .ori ou .orh",
+    "editFigure": "Modelo dobrado da Edição",
+    "editFigureNote": "O padrão de vincos que a Edição dobrou, com a ordem de camadas que encontrou",
+    "fix": {
+      "searchLonger": "Procurar por mais tempo"
+    },
+    "fromEdit": "Da Edição",
+    "pickTitle": "Importar padrão de vincos",
+    "placement": {
+      "afterSheet": "Adiciona um passo depois da folha plana, com o estado dobrado calculado a partir dos vincos.",
+      "afterStep": "Adiciona um passo depois do passo {{number}}, com o estado dobrado calculado a partir dos vincos.",
+      "branch": "Ele começa um novo ramo.",
+      "empty": "Começa a sequência na folha do padrão de vincos, dobrada pelos seus vincos. Use quando um estado não puder ser alcançado uma dobra de cada vez.",
+      "sheet": "Usa o contorno do padrão como a folha com que a sequência começa: qualquer forma convexa de 3 a 8 lados. Seus vincos não são importados; use Importar CP para dobrar a partir deles.",
+      "sheetStartsOver_one": "A sequência recomeça: seu {{count}} passo é apagado. Desfazer o traz de volta.",
+      "sheetStartsOver_many": "A sequência recomeça: seus {{count}} passos são apagados. Desfazer os traz de volta.",
+      "sheetStartsOver_other": "A sequência recomeça: seus {{count}} passos são apagados. Desfazer os traz de volta.",
+      "update": "Atualiza este passo de colapso. Os passos seguintes e as ramificações são mantidos e recalculados; as dobras afetadas são marcadas como alteradas ou impossíveis de dobrar.",
+      "why": "Use quando o próximo estado não puder ser alcançado uma dobra de cada vez."
+    },
+    "refusal": {
+      "budget": {
+        "text": "Descobrir como as camadas se empilham levou mais tempo do que uma importação tem. Procure por mais tempo ou importe um padrão mais simples.",
+        "title": "A busca demorou demais"
+      },
+      "changed": {
+        "text": "Os passos mudaram enquanto o padrão era importado. Importe-o de novo.",
+        "title": "A sequência mudou"
+      },
+      "creases": {
+        "text": "Um vinco sai do papel, fica sobre outro de tipo diferente ou termina onde nada o encontra. Cada vinco deve ir de uma borda ou um vinco a uma borda ou um vinco.",
+        "title": "Vincos que não dá para seguir"
+      },
+      "failed": {
+        "text": "Não foi possível importar este padrão de vincos.",
+        "title": "Não foi possível importar"
+      },
+      "figureIncomplete": {
+        "text": "O modelo dobrado da Edição não diz como fica cada camada. Dobre-o de novo na Edição e depois comece a partir dele.",
+        "title": "O modelo dobrado está incompleto"
+      },
+      "foldedForm": {
+        "text": "Este arquivo FOLD descreve papel já dobrado. Importe o padrão de vincos plano em vez dele.",
+        "title": "Uma forma dobrada, não um padrão de vincos"
+      },
+      "noFigure": {
+        "text": "Dobre primeiro o padrão na Edição até ficar plano e depois comece a partir do modelo dobrado.",
+        "title": "Nenhum modelo dobrado na Edição"
+      },
+      "nonConvex": {
+        "text": "Uma das faces do padrão se dobra para dentro em um canto. Só se dobram faces convexas.",
+        "title": "Uma face com um canto reentrante"
+      },
+      "noOrder": {
+        "text": "Com as dobras montanha e vale do padrão, as camadas não podem ser empilhadas sem se atravessarem.",
+        "title": "Nenhuma ordem de camadas serve"
+      },
+      "noProjectCp": {
+        "text": "Abra ou crie o padrão de dobras de origem em Editar e tente novamente. O passo de colapso salvo permanece inalterado.",
+        "title": "CP de origem indisponível"
+      },
+      "noState": {
+        "text": "O passo na tela não tem estado dobrado, então nada pode ser adicionado depois dele. Vá para um passo que dobre.",
+        "title": "Este passo não dobra"
+      },
+      "notFlat": {
+        "text": "Dobrado pelas suas montanhas e vales, o padrão não fica plano.",
+        "title": "Não dobra plano"
+      },
+      "orderOpen": {
+        "text": "O modelo dobrado da Edição deixa a ordem de camadas em aberto. Dobre-o até uma única solução na Edição e comece a partir dele de novo.",
+        "title": "Mais de uma ordem de camadas"
+      },
+      "outline": {
+        "text": "A borda do padrão não é um contorno fechado em volta do papel, então não há folha para dobrar.",
+        "title": "Nenhuma folha encontrada"
+      },
+      "readOnly": {
+        "text": "Criada com uma versão mais recente do Ori Studio: esta sequência abre somente para leitura.",
+        "title": "Sequência somente para leitura"
+      },
+      "shapeMismatch": {
+        "text": "A folha do padrão não tem o formato da folha desta sequência. Importe-o em uma sequência vazia.",
+        "textRatios": "Esta sequência dobra uma folha de {{expected}}, e o padrão está em uma folha de {{found}}. Importe-o em uma sequência vazia.",
+        "title": "Uma folha diferente"
+      },
+      "shapeUnsupported": {
+        "text": "São importados padrões de vincos em folhas quadradas ou retangulares. A folha deste tem outro formato.",
+        "title": "Somente folhas quadradas e retangulares"
+      },
+      "sheetNotConvex": {
+        "text": "O contorno do padrão tem um canto que aponta para dentro do papel. Dobrar começa com folhas cujos cantos apontam todos para fora: um quadrado, um retângulo, um polígono regular ou qualquer outra forma convexa.",
+        "title": "A folha se curva para dentro"
+      },
+      "sheetSides": {
+        "text_one": "Dobrar começa com folhas de 3 a 8 lados. Este contorno tem {{count}} lado.",
+        "text_many": "Dobrar começa com folhas de 3 a 8 lados. Este contorno tem {{count}} lados.",
+        "text_other": "Dobrar começa com folhas de 3 a 8 lados. Este contorno tem {{count}} lados.",
+        "title": "Apenas folhas de 3 a 8 lados"
+      },
+      "sheetSideShort": {
+        "text": "Um lado do contorno do padrão é curto demais para Dobrar distinguir seus cantos. Endireite-o ou remova-o e importe a folha de novo.",
+        "title": "Um lado curto demais para dobrar"
+      },
+      "unreadable": {
+        "text": "Não foi possível ler o arquivo como um padrão de vincos {{extension}}.",
+        "title": "Não é um padrão de vincos"
+      },
+      "unreadableFile": {
+        "text": "Não foi possível ler {{name}}.",
+        "title": "Não foi possível ler o arquivo"
+      },
+      "unsupportedFile": {
+        "text": "{{name}} não é um padrão de vincos que possa ser importado. Use um arquivo .cp, .fold, .ori ou .orh.",
+        "title": "Não é um padrão de vincos"
+      }
+    },
+    "sample": {
+      "pleatInEighths": "Pregas em oitavos",
+      "preliminaryBase": "Base quadrada",
+      "waterbombBase": "Base da bomba d’água"
+    },
+    "sheetTitle": "Importar folha inicial",
+    "title": "Importar padrão de vincos",
+    "updateTitle": "Atualizar a partir do CP",
+    "working": {
+      "figure": "Importando o modelo dobrado da Edição…",
+      "file": "Importando {{name}}…",
+      "projectCp": "Resolvendo o padrão de dobras do projeto…",
+      "sample": "Importando o exemplo…",
+      "sheet": "Lendo a folha…"
+    }
+  },
   "foldWarning": {
     "dontShowAgain": "Não mostrar novamente",
     "message": "Foram detectados erros de dobradura plana. Continuar a dobrar?",
@@ -685,7 +825,7 @@
         "exportLinked": "Estilo de exportação · vinculado",
         "title": "Estilo"
       },
-      "stepsHint": "Apenas referências",
+      "stepsHintFold": "Referências e Dobrar",
       "stepsTitle": "Passos",
       "unsaved": {
         "custom": "Este estilo não está salvo como predefinição. Aplicar {{next}} o substitui.",

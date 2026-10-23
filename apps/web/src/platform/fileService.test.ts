@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/** The desktop dialogs, answered "cancelled": what a test reads is what they were asked. */
+const dialog = vi.hoisted(() => ({ open: vi.fn(async (_options: unknown) => null) }));
+vi.mock('@tauri-apps/plugin-dialog', () => ({ open: dialog.open }));
+
 import {
   createDroppedFileService,
   createFileService,
@@ -417,6 +422,22 @@ describe('what a browser open picker accepts', () => {
     });
 
     expect(accept.split(',')).toEqual(['.png', 'image/png']);
+  });
+});
+
+describe('what a desktop binary picker calls its filter', () => {
+  beforeEach(() => dialog.open.mockClear());
+
+  it('names it as the caller says, and a picture’s by default', async () => {
+    const service = createFileService('desktop');
+    await service.openBinaryFile({ title: 'Open image', extensions: ['png'] });
+    await service.openBinaryFile({ title: 'Import', extensions: ['cp', 'fold'], filterName: 'Ori Studio' });
+    await service.openBinaryFiles({ title: 'Open images', extensions: ['png'] });
+    expect(dialog.open.mock.calls.map(([options]) => (options as { filters: unknown }).filters)).toEqual([
+      [{ name: 'Image', extensions: ['png'] }],
+      [{ name: 'Ori Studio', extensions: ['cp', 'fold'] }],
+      [{ name: 'Image', extensions: ['png'] }],
+    ]);
   });
 });
 

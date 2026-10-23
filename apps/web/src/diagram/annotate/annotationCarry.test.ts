@@ -17,7 +17,15 @@ import {
 } from '../document/diagramDocument';
 import { storableScene } from '../capture/captureGeometry';
 import { storedSceneJson } from '../document/diagramFile';
-import { cpSource, cpStep, referencesStep, scenePicture, stepsIn } from '../document/diagramSteps.fixtures';
+import {
+  cpSource,
+  cpStep,
+  foldStepSource,
+  foldStepStep,
+  referencesStep,
+  scenePicture,
+  stepsIn,
+} from '../document/diagramSteps.fixtures';
 import { storedScene } from '../pictures/pictureFrame';
 import { face, sceneOf } from '../../lib/paper/paperScene.fixtures';
 import { poseMove } from './annotationCarry';
@@ -918,6 +926,30 @@ describe('a linked picture turned about its middle', () => {
     }).steps[0] as DiagramStep;
     expect(turnedRaster.annotations).toEqual([ARROW]);
     expect(annotationsOutOfStep(turnedRaster)).toBe(true);
+  });
+
+  it('turns a Fold step’s with its picture, as a linked pattern’s (D17), but not across another state', () => {
+    const before = scenePicture();
+    const after = { ...before, sceneJson: storedSceneJson(turned(storedScene(before)!, 90))!, key: 'scene-turned' };
+    const document = annotated(foldStepStep('step-1', { render: { mode: 'crease-pattern', rotationDeg: 0 } }));
+    const turn = (patch: Parameters<typeof foldStepSource>[0]) =>
+      setLinkedPicture(document, 'step-1', {
+        source: foldStepSource({ render: { mode: 'crease-pattern', rotationDeg: 90 }, ...patch }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+    const moved = turn({});
+    expect((moved.annotations[0] as KnownDiagramAnnotation).from).not.toEqual(ARROW.from);
+    expect(moved.annotatedPictureKey).toBe('scene-turned');
+    // Another state of the step — the sequence changed under it — is a new picture.
+    const restated = turn({ state: 'fs1:another' });
+    expect(restated.annotations).toEqual([ARROW]);
+    expect(annotationsOutOfStep(restated)).toBe(true);
+    // A linked pattern's capture in its place is a new picture too.
+    const relinked = setLinkedPicture(document, 'step-1', {
+      source: cpSource({ mode: 'crease-pattern', rotationDeg: 90 }),
+      picture: after,
+    }).steps[0] as DiagramStep;
+    expect(relinked.annotations).toEqual([ARROW]);
   });
 
   it('leaves them where they were for anything else: a refold, a new picture, one it cannot read', () => {

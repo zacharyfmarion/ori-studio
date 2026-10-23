@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { focusOwnsArrowKeys } from '../../diagram/actions/diagramShortcuts';
+import { focusOwnsArrowKeys } from '../../keyboard/arrowKeyOwners';
 import type { DiagramStepAction } from '../../diagram/actions/diagramActions';
 import type { DiagramPatternSheets } from '../../diagram/capture/useDiagramPatternSheets';
 import { createStep } from '../../diagram/document/diagramDocument';

@@ -171,6 +171,17 @@ describe('settingsStore', () => {
     localStorage.removeItem(key);
   });
 
+  it('merges symmetric precreases pulled from Fold until it is turned off, and remembers that', async () => {
+    const key = storageKey(STORAGE_KEYS.diagramFoldMergePrecreases);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().diagramFoldMergePrecreases).toBe(true);
+    useSettingsStore.getState().setDiagramFoldMergePrecreases(false);
+    expect((await freshSettingsStore()).getState().diagramFoldMergePrecreases).toBe(false);
+    // On again forgets the key: absent is on.
+    useSettingsStore.getState().setDiagramFoldMergePrecreases(true);
+    expect(localStorage.getItem(key)).toBeNull();
+  });
+
   it('sets the next label in today’s look until a Text Style is chosen, and remembers one option by option (17b)', async () => {
     const key = storageKey(STORAGE_KEYS.diagramAnnotateTextStyle);
     localStorage.removeItem(key);

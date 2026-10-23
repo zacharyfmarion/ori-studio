@@ -1,11 +1,12 @@
 # Precrease planner ↔ ReferenceFinder cross-check
 
-`oristudio-precrease` derives the seven Huzita–Justin constructors — including
-the O6 common-tangent cubic — from the axioms' own definitions, and their
-validity filters from one principle, *a fold must align in-paper material*.
-Nothing is transcribed from ReferenceFinder's `src/core` (plan decision D3),
-so the crate is `MIT OR Apache-2.0`. This harness is the evidence that the
-derivation is right, and it is deliberately **not** part of the crate:
+`oristudio-precrease` folds with the seven Huzita–Justin constructors of
+`oristudio-geometry` (`src/construct.rs`), which derives them — including the O6
+common-tangent cubic — from the axioms' own definitions, and their validity
+filters from one principle, *a fold must align in-paper material*. Nothing is
+transcribed from ReferenceFinder's `src/core` (plan decision D3), so both
+crates are `MIT OR Apache-2.0`. This harness is the evidence that the
+derivation is right, and it is deliberately **not** part of either crate:
 ReferenceFinder's answers are used here as an oracle, and the predicate that
 mimics its legibility rules lives in this file rather than in Rust.
 

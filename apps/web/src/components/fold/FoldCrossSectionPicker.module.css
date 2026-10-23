@@ -1,0 +1,156 @@
+/*
+ * The layers at the fold line (FoldCrossSectionPicker.tsx): a row per display
+ * layer, its bar where it meets the line, brackets where a fold joins two rows,
+ * its flap's name at the side. The rows have no gap between them, so the
+ * brackets' drawing can count in rows (`viewBox` height = the row count).
+ *
+ * Every line here is solid. On paper a dashed line is a valley fold and a
+ * dotted one a hidden edge, so a state drawn broken reads as a crease that is
+ * not there: a row is told by its ink — the accent, softer, or grey.
+ */
+.section {
+  --row-height: 18px;
+  --row-pad: 8px;
+  --tag-width: 52px;
+  /* Moving without being picked: the moving ink, a step softer. */
+  --moved-along: color-mix(in srgb, var(--accent-primary) 55%, var(--bg-primary));
+  /* Left behind: grey, and quieter than any row that moves. */
+  --left-behind: color-mix(in srgb, var(--text-muted) 60%, transparent);
+  display: grid;
+  gap: 2px;
+  padding: 6px 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+}
+
+/* "Top": which end of the stack is up, over the flap names' column. */
+.top {
+  padding: 0 var(--row-pad);
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.stack {
+  position: relative;
+}
+
+.rows {
+  display: grid;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--tag-width);
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--row-height);
+  padding: 0 var(--row-pad);
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--bg-surface);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.row[aria-disabled='true'] {
+  cursor: default;
+}
+
+.row[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.track {
+  position: relative;
+  height: 100%;
+}
+
+/* Not under the row above but beside it: a hairline where a stacked row has none. */
+.row[data-unordered] .track {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.bar {
+  position: absolute;
+  top: 50%;
+  height: 3px;
+  min-width: 3px;
+  border-radius: 999px;
+  background: var(--left-behind);
+  transform: translateY(-50%);
+}
+
+/* Its flap is picked: it moves. */
+.row[data-state='picked'] .bar {
+  background: var(--accent-primary);
+}
+
+/* Not picked, but moving anyway with what is. */
+.row[data-state='added'] .bar {
+  background: var(--moved-along);
+}
+
+/* Left behind: greyed out. */
+.row[data-state='excluded'] .bar {
+  background: var(--left-behind);
+}
+
+/* In the way of the fold asked for: the refusal's hue. */
+.row[data-needed] .bar {
+  background: var(--status-danger);
+}
+
+.tag {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row[data-state='picked'] .tag,
+.row[data-state='added'] .tag {
+  color: var(--text-secondary);
+}
+
+/* Over the bars' column only, so a bracket's x is the bar's. */
+.brackets {
+  position: absolute;
+  top: 0;
+  left: var(--row-pad);
+  width: calc(100% - 2 * var(--row-pad) - var(--tag-width) - var(--space-2));
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  /* In its rows' ink: `--border-strong` is a theme's active border, the
+     accent's own blue in the default themes, which drew a bracket left
+     behind as though it moved. */
+  stroke: var(--left-behind);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.brackets path[data-state='picked'] {
+  stroke: var(--accent-primary);
+}
+
+.brackets path[data-state='added'] {
+  stroke: var(--moved-along);
+}
+
+/* A finger needs rows it can land on; the chips under the picker are the full-size path. */
+@media (pointer: coarse) {
+  .section {
+    --row-height: 28px;
+  }
+}

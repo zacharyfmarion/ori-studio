@@ -14,7 +14,9 @@
  * Defaults to expanded. The instructions are the discoverable half of several
  * tools (the three-crease fold-angle solve is unusable without them), so a
  * collapsed first run would trade one discoverability problem for a worse one.
- * `readBoolean` gives that for free: anything but a stored `'true'` reads false.
+ * A surface whose window would hide what the tool works on can start it
+ * collapsed instead (`fallback`): the title bar still names the tool, and a
+ * tap opens it. Either way, a choice once made is the one read back.
  */
 import { useCallback, useState } from 'react';
 import { readBoolean, storageKey, writeBoolean } from '../../../lib/storage';
@@ -22,13 +24,20 @@ import { readBoolean, storageKey, writeBoolean } from '../../../lib/storage';
 /**
  * `name` is a `STORAGE_KEYS` entry: one per workspace's window, since each sits
  * over a different surface and is in the way of different things.
+ *
+ * `fallback` is the state before anyone has chosen: expanded, unless a surface
+ * has a reason it should not be — a phone's Fold canvas, where the open window
+ * would cover the paper the tool is picking points on.
  */
-export function readToolHintCollapsed(name: string): boolean {
-  return readBoolean(storageKey(name), false);
+export function readToolHintCollapsed(name: string, fallback = false): boolean {
+  return readBoolean(storageKey(name), fallback);
 }
 
-export function useToolHintCollapsed(name: string): [boolean, (collapsed: boolean) => void] {
-  const [collapsed, setCollapsedState] = useState(() => readToolHintCollapsed(name));
+export function useToolHintCollapsed(
+  name: string,
+  fallback = false
+): [boolean, (collapsed: boolean) => void] {
+  const [collapsed, setCollapsedState] = useState(() => readToolHintCollapsed(name, fallback));
 
   const setCollapsed = useCallback(
     (next: boolean) => {

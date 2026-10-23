@@ -14,7 +14,7 @@ import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_ROTATE_INK,
   DIAGRAM_TURN_OVER_INK,
-} from '../../cp-workspace/references/diagram/diagramInk';
+} from '../../lib/stepDiagram/diagramInk';
 import { useViewportSurface } from '../../hooks/useViewportSurface';
 import { readHeldModifiers, subscribeHeldModifiers } from '../../keyboard/heldModifiers';
 import { unionPlotRect, type PlotRect } from '../../lib/geometry';

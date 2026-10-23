@@ -415,9 +415,10 @@ describe('applyPaperStylePolicy', () => {
     expect(PAPER_STYLE_POLICIES.references.applies).not.toContain('foldsAsEdges');
   });
 
-  it('applies the diagram-crease pens on References alone, the one surface that draws an instruction', () => {
+  it('applies the diagram-crease pens on the step diagrams alone, the surfaces that draw an instruction', () => {
     for (const field of ['mountainDiagramCreases', 'valleyDiagramCreases'] as const) {
       expect(PAPER_STYLE_POLICIES.references.applies).toContain(field);
+      expect(PAPER_STYLE_POLICIES.fold.applies).toContain(field);
       for (const surface of ['simulator', 'inline-simulation', 'folded-3d', 'folded-flat'] as const) {
         expect(PAPER_STYLE_POLICIES[surface].applies, `${surface} ${field}`).not.toContain(field);
       }
@@ -429,6 +430,28 @@ describe('applyPaperStylePolicy', () => {
     expect(applyPaperStylePolicy(pinned, PAPER_STYLE_POLICIES.references).valleyDiagramCreases).toEqual(
       pinned.valleyDiagramCreases
     );
+  });
+
+  it('reads a Fold step as References reads one, field for field', () => {
+    const fold = PAPER_STYLE_POLICIES.fold;
+    expect(fold.surface).toBe('fold');
+    expect(fold.applies).toEqual(PAPER_STYLE_POLICIES.references.applies);
+    expect(fold.forced).toBeUndefined();
+    // So a style with every field moved off its default draws one step as the
+    // other: the fold pens, the instruction's, the arrow and the paper, and no
+    // light.
+    const custom: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      paper: { front: '#ffffff', back: '#123456' },
+      mountainFolds: { width: 2, color: '#aa0000', dash: [8, 2, 1, 2], cap: 'butt' },
+      valleyDiagramCreases: { width: 1.5, color: '#0000aa', dash: [4, 2], cap: 'round' },
+      arrows: { width: 2, color: '#ff00ff', dash: null, cap: 'round' },
+      light: { ...DEFAULT_PAPER_STYLE.light, enabled: false, azimuth: 10 },
+    };
+    expect(surfacePaperStyle(custom, fold)).toEqual(
+      surfacePaperStyle(custom, PAPER_STYLE_POLICIES.references)
+    );
+    expect(surfacePaperStyle(custom, fold).light).toEqual(DEFAULT_PAPER_STYLE.light);
   });
 });
 

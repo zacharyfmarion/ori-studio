@@ -7,7 +7,8 @@
  * Each part is Auto, a step chosen, or none. Auto is the last step that can
  * give the part ({@link givesModel}, {@link givesPattern}), so turns, empty
  * steps, a newer build's locked steps and a link whose pattern draws no line
- * are passed over, and a diagram with no linked step has no pattern. A
+ * are passed over, and a diagram with no step linked to a crease pattern — in
+ * Edit, or a Fold step's — has no pattern. A
  * chosen step that is gone — deleted, or now a newer build's — reads as
  * Auto; one that is there but can no longer give its part, its picture
  * removed or its link replaced, gives nothing, which the Pages view says. A
@@ -19,7 +20,8 @@
  * though it changes the picture a saved block shows.
  *
  * The pattern is drawn from its step's stored thumbnail, as a scene for the
- * shared painter ({@link patternScene}); the model in front of it, or in
+ * shared painter ({@link patternScene}): a linked region's, or a Fold step's
+ * state's, every crease made so far; the model in front of it, or in
  * the pattern's place where none is drawn ({@link modelRoom}). The words
  * the block prints of its own are read here too ({@link titleBlockLook}).
  * What prints nothing where it would show, the Pages view marks
@@ -39,9 +41,18 @@ import {
   titleBlockStepCount,
   type DiagramCpSource,
   type DiagramDocument,
+  type DiagramFoldStepSource,
   type DiagramStep,
   type DiagramTitleBlockSource,
 } from '../document/diagramDocument';
+
+/**
+ * A link whose stored thumbnail is a crease pattern the block can draw: a
+ * region of Edit's pattern, or a Fold step's state — a run's last step's
+ * (`lastFoldStepOf`) — as its Crease pattern picture draws it. A References
+ * card's sheet is not the model's pattern.
+ */
+export type TitleBlockPatternSource = DiagramCpSource | DiagramFoldStepSource;
 
 /** Where a part of the title block comes from: Auto, the step chosen, or none. */
 export type TitleBlockPartFrom = 'auto' | 'step' | 'none';
@@ -76,11 +87,13 @@ export function givesModel(step: DiagramStep): boolean {
 
 /**
  * Whether a step can give the block's crease pattern: one of this build's
- * linked to a crease pattern, whatever it is shown as, whose stored lines
- * draw something ({@link drawsPattern}).
+ * linked to a crease pattern — Edit's, or a Fold step's
+ * ({@link TitleBlockPatternSource}) — whatever it is shown as, whose stored
+ * lines draw something ({@link drawsPattern}).
  */
-export function givesPattern(step: DiagramStep): step is DiagramStep & { source: DiagramCpSource } {
-  return !isLockedStep(step) && step.source?.kind === 'cp' && drawsPattern(step.source.thumbnail);
+export function givesPattern(step: DiagramStep): step is DiagramStep & { source: TitleBlockPatternSource } {
+  const { source } = step;
+  return !isLockedStep(step) && (source?.kind === 'cp' || source?.kind === 'fold-step') && drawsPattern(source);
 }
 
 /** The step Auto finds for the model: the last that can give it; null where none can. */
@@ -88,7 +101,7 @@ export function autoModelStep(document: DiagramDocument): DiagramStep | null {
   return lastStep(document, givesModel);
 }
 
-/** The step Auto finds for the crease pattern: the last linked to one; null where no step is. */
+/** The step Auto finds for the crease pattern: the last linked to one, in Edit or Fold; null where no step is. */
 export function autoPatternStep(document: DiagramDocument): DiagramStep | null {
   return lastStep(document, givesPattern);
 }
@@ -107,7 +120,7 @@ export function resolveTitleBlock(document: DiagramDocument): ResolvedTitleBlock
   const numbers = stepNumbers(document);
   const model = resolvePart(document, numbers, content?.model, autoModelStep);
   const pattern = resolvePart(document, numbers, content?.pattern, autoPatternStep);
-  const scene = pattern.step && givesPattern(pattern.step) ? patternScene(pattern.step.source.thumbnail) : null;
+  const scene = pattern.step && givesPattern(pattern.step) ? patternScene(pattern.step.source) : null;
   return { model, pattern: { ...pattern, scene }, ...(content?.bandColor ? { bandColor: content.bandColor } : {}) };
 }
 
@@ -128,13 +141,15 @@ function resolvePart(
   return part('auto', auto(document));
 }
 
+type PatternRoles = Readonly<Record<SheetStrokeRole, PaperLineRole | null>>;
+
 /**
- * The pen each of a thumbnail's lines is drawn in (T-14 A): the pattern's
- * own — its folds in the fold pens, solid, its edge in the edge pen, a crease
- * with no direction yet in the aux pen where the style shows aux lines — and
- * an aux line not at all.
+ * The pen each of a linked region's thumbnail lines is drawn in (T-14 A): the
+ * pattern's own — its folds in the fold pens, solid, its edge in the edge pen,
+ * a crease with no direction yet in the aux pen where the style shows aux
+ * lines — and an aux line, Edit's construction line, not at all.
  */
-const PATTERN_ROLES: Readonly<Record<SheetStrokeRole, PaperLineRole | null>> = {
+const PATTERN_ROLES: PatternRoles = {
   edge: 'edge',
   mountain: 'mountain',
   valley: 'valley',
@@ -143,15 +158,32 @@ const PATTERN_ROLES: Readonly<Record<SheetStrokeRole, PaperLineRole | null>> = {
 };
 
 /**
- * A stored thumbnail as a scene for the shared painter (`paperSceneSvgBody`):
- * its lines in their roles, in its own units, its bounds its box. No paper is
- * filled, so the pattern sits on the page and the model in front covers it
- * with its own. Null where it has no line to draw.
+ * A Fold step's thumbnail (`foldStateFrame`'s pattern) in the same pens, but
+ * for its aux lines: there they are creases — a precrease, or a pinch's mark,
+ * lying flat — which the step's Crease pattern picture draws in the aux pen
+ * (`creasePatternPaperScene`), and so does the block.
  */
-export function patternScene(thumbnail: SheetThumbnail): PaperScene | null {
+const FOLD_PATTERN_ROLES: PatternRoles = { ...PATTERN_ROLES, aux: 'aux' };
+
+/** What a link's thumbnail is, line by line: an aux line is Edit's construction line, and a Fold state's flat crease. */
+function patternRoles(kind: TitleBlockPatternSource['kind']): PatternRoles {
+  return kind === 'fold-step' ? FOLD_PATTERN_ROLES : PATTERN_ROLES;
+}
+
+/** A link's stored pattern, as the block reads it: its thumbnail, and what kind of link it is. */
+export type TitleBlockPatternThumbnail = Pick<TitleBlockPatternSource, 'kind' | 'thumbnail'>;
+
+/**
+ * A link's stored thumbnail as a scene for the shared painter
+ * (`paperSceneSvgBody`): its lines in their roles, in its own units, its
+ * bounds its box. No paper is filled, so the pattern sits on the page and the
+ * model in front covers it with its own. Null where it has no line to draw.
+ */
+export function patternScene({ kind, thumbnail }: TitleBlockPatternThumbnail): PaperScene | null {
+  const roles = patternRoles(kind);
   const box = thumbnailBox(thumbnail);
   const items = thumbnail.strokes.flatMap((stroke): PaperLineItem[] => {
-    const role = PATTERN_ROLES[stroke.role];
+    const role = roles[stroke.role];
     return role
       ? [{ kind: 'line', role, a: [stroke.x1, stroke.y1], b: [stroke.x2, stroke.y2], onBoundary: [false, false], hidden: false }]
       : [];
@@ -162,13 +194,14 @@ export function patternScene(thumbnail: SheetThumbnail): PaperScene | null {
 }
 
 /**
- * Whether a thumbnail has a line the block draws, as {@link patternScene}
- * would: the one answer to "is there a pattern" for the page, the Pages
- * view's overlay and the Page pane's choices. A capture that found no line,
- * or only aux lines, has none.
+ * Whether a link's thumbnail has a line the block draws, as
+ * {@link patternScene} would: the one answer to "is there a pattern" for the
+ * page, the Pages view's overlay and the Page pane's choices. A capture that
+ * found no line, or a region with only aux lines, has none.
  */
-export function drawsPattern(thumbnail: SheetThumbnail): boolean {
-  return thumbnailBox(thumbnail) !== null && thumbnail.strokes.some((stroke) => PATTERN_ROLES[stroke.role] !== null);
+export function drawsPattern({ kind, thumbnail }: TitleBlockPatternThumbnail): boolean {
+  const roles = patternRoles(kind);
+  return thumbnailBox(thumbnail) !== null && thumbnail.strokes.some((stroke) => roles[stroke.role] !== null);
 }
 
 /** A thumbnail's view box, null where it has no size to fit. */

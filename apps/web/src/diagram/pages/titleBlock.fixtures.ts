@@ -8,11 +8,12 @@ import {
   type DiagramCpRender,
   type DiagramDocument,
   type DiagramEntry,
+  type DiagramFoldStepSource,
   type DiagramPageSetup,
   type DiagramStep,
   type DiagramTitleBlockContentPatch,
 } from '../document/diagramDocument';
-import { cpSource, cpStep } from '../document/diagramSteps.fixtures';
+import { cpSource, cpStep, foldStepStep } from '../document/diagramSteps.fixtures';
 import { titleBlockBand, titleBlockParts, type TitleBlockGeometry, type TitleBlockSizes } from './titleBlockGeometry';
 
 /**
@@ -48,6 +49,19 @@ export const OTHER_PATTERN: readonly SheetStroke[] = [{ x1: 0, y1: 0, x2: 100, y
  */
 export function patternStep(id: string, strokes: readonly SheetStroke[] = OTHER_PATTERN, render?: DiagramCpRender): DiagramStep {
   return { ...cpStep(id), source: { ...cpSource(render), thumbnail: { viewBox: '0 0 100 100', strokes: [...strokes] } } };
+}
+
+/**
+ * A step linked to a Fold step, its stored thumbnail — the crease pattern of
+ * the step's state — `strokes` in a 100-unit square: by default
+ * {@link OTHER_PATTERN}. `patch` makes it another step, or a run (`through`).
+ */
+export function foldPatternStep(
+  id: string,
+  strokes: readonly SheetStroke[] = OTHER_PATTERN,
+  patch: Partial<DiagramFoldStepSource> = {}
+): DiagramStep {
+  return foldStepStep(id, { thumbnail: { viewBox: '0 0 100 100', strokes: [...strokes] }, ...patch });
 }
 
 /** The band and its parts at once, as the layout takes them: `titleBlockBand`, then `titleBlockParts`. */

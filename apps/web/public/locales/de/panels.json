@@ -1068,6 +1068,82 @@
       "title": "Ein Diagramm beginnen",
       "tutorial": "Video-Einführung ansehen"
     },
+    "fold": {
+      "badgeCreasePattern": "{{origin}} · Faltmuster",
+      "badgeFolded": "{{origin}} · Gefaltet",
+      "card": "Schritt {{number}}",
+      "cardMissing": "Schritt fehlt",
+      "currentHint": "Zeigt seinen Schritt bereits so, wie er ist",
+      "empty": "Falte einen Schritt in Falten, dann erscheinen die Schritte der Folge hier.",
+      "finishedSentence": "Das Modell, wie die Schritte es hinterlassen.",
+      "fromFold": "Aus Falten…",
+      "instruction": {
+        "closedSink": "Geschlossenes Versenken.",
+        "collapse": "Zusammenfalten.",
+        "insideCrimp": "Innerer Crimp.",
+        "insideReverse": "Innerer Gegenbruch.",
+        "insideSwivel": "Innere Drehfalte.",
+        "insideSwivelBehind": "Innere Drehfalte hinten.",
+        "mountain": "Bergfalte.",
+        "mountainBothSides": "Bergfalte auf beiden Seiten.",
+        "mountainPrecrease": "Als Bergfalte falten und wieder öffnen.",
+        "mountainPrecreaseBothSides": "Auf beiden Seiten als Bergfalte falten und wieder öffnen.",
+        "openSink": "Offenes Versenken.",
+        "outsideCrimp": "Äußerer Crimp.",
+        "outsideReverse": "Äußerer Gegenbruch.",
+        "petal": "Blütenblattfalte.",
+        "petalBehind": "Blütenblattfalte hinten.",
+        "pinch": "Eine Markierung kneifen.",
+        "pinchBothSides": "Auf beiden Seiten eine Markierung kneifen.",
+        "pleat": "Stufenfalte.",
+        "precrease": "Falten und wieder öffnen.",
+        "precreaseBothSides": "Auf beiden Seiten falten und wieder öffnen.",
+        "rabbitEar": "Hasenohr.",
+        "rabbitEarBehind": "Hasenohr hinten.",
+        "repeat_one": "Auf der anderen Seite wiederholen.",
+        "repeat_other": "Die letzten {{count}} Schritte auf der anderen Seite wiederholen.",
+        "repeatBehind_one": "Hinten wiederholen.",
+        "repeatBehind_other": "Die letzten {{count}} Schritte hinten wiederholen.",
+        "squash": "Quetschfalte.",
+        "squashBehind": "Quetschfalte hinten.",
+        "squashEnd": "Quetschfalte am Ende.",
+        "squashEndBehind": "Quetschfalte am Ende hinten.",
+        "swivel": "Drehfalte.",
+        "swivelBehind": "Drehfalte hinten.",
+        "then": "{{first}} {{next}}",
+        "tuck": "Talfalte und einstecken.",
+        "tuckBehind": "Bergfalte und einstecken.",
+        "unfold": "Auffalten.",
+        "unfoldAll": "Vollständig auffalten.",
+        "unfoldToStep": "Bis Schritt {{number}} auffalten.",
+        "unsink": "Versenken aufheben.",
+        "valley": "Talfalte.",
+        "valleyBothSides": "Talfalte auf beiden Seiten."
+      },
+      "mergedCard": "Schritte {{first}}–{{last}}",
+      "mergePrecreases": "Symmetrische Vorfalten zusammenführen",
+      "mergePrecreasesHint": "Eine Vorfalte und ihr Spiegelbild werden ein Schritt, beide Falten auf einem Bild, wie ein Buch sie zeichnet.",
+      "mergePrecreasesNone": "Keine Vorfalte auf diesem Pfad hat ein Spiegelbild, mit dem sie zusammengeführt werden kann.",
+      "missing": "Schritt fehlt in Falten",
+      "missingHint": "Sein Schritt ist aus Falten verschwunden oder lässt sich nicht mehr falten",
+      "noStepsHint": "Falte einen Schritt in Falten, um ihn von dort zu übernehmen",
+      "notLanded": "Falten hat diesen Schritt noch nicht gefaltet, daher lässt er sich noch nicht hinzufügen.",
+      "openFold": "Falten öffnen",
+      "openInFold": "In Falten öffnen",
+      "repeatBottom": "Unten wiederholen",
+      "repeatHere": "Hier wiederholen",
+      "repeatLeft": "Auf der linken Seite wiederholen",
+      "repeatRight": "Auf der rechten Seite wiederholen",
+      "repeatTop": "Oben wiederholen",
+      "sourceAfter": "Ergebnis eines Falten-Schritts · {{shown}}",
+      "sourceBefore": "Ein Falten-Schritt · {{shown}}",
+      "stale": "Veraltet: die Falten-Folge hat sich geändert",
+      "steps": "Schritte",
+      "titleEnd": "Aus Falten hinzufügen",
+      "turnCard": "Drehen",
+      "unknown": "Noch nicht geprüft: Falten faltet seine Schritte noch",
+      "withTurn": "Mit der Drehung davor"
+    },
     "grid": {
       "addStep": "Schritt hinzufügen",
       "insertHere": "Hier einen Schritt hinzufügen",
@@ -1157,6 +1233,11 @@
       "separator": "Ziehen, um die Höhe der Liste zu ändern",
       "stepCount_one": "{{count}} Schritt",
       "stepCount_other": "{{count}} Schritte"
+    },
+    "link": {
+      "originEdit": "Bearbeiten",
+      "originFold": "Falten",
+      "originReferences": "Referenzen"
     },
     "packing": {
       "bands": "Bänder",
@@ -1606,14 +1687,15 @@
       "cardTurnOver": "Umdrehen",
       "chipLabel": "{{name}}, {{where}}",
       "custom": "Eigene",
+      "degrees": "{{degrees}}°",
       "delete": "Wendung löschen",
       "eighth": "1/8 Drehung",
       "firstHint": "Bereits zuerst",
       "half": "1/2 Drehung",
-      "howAngleClockwise": "{{angle}} im Uhrzeigersinn",
-      "howAngleCounterclockwise": "{{angle}} gegen den Uhrzeigersinn",
       "howClockwise": "{{fraction}} Drehung im Uhrzeigersinn",
       "howCounterclockwise": "{{fraction}} Drehung gegen den Uhrzeigersinn",
+      "howDegreesClockwise": "{{degrees}}° im Uhrzeigersinn",
+      "howDegreesCounterclockwise": "{{degrees}}° gegen den Uhrzeigersinn",
       "howSideToSide": "Seitlich",
       "howTopToBottom": "Von oben nach unten",
       "kind": "Bewegung",
@@ -1623,10 +1705,10 @@
       "note": "Wird zwischen den Schritten gedruckt, ohne eigene Nummer.",
       "quarter": "1/4 Drehung",
       "rotate": "Drehen",
-      "rotateAngleClockwise": "{{angle}} Drehung im Uhrzeigersinn",
-      "rotateAngleCounterclockwise": "{{angle}} Drehung gegen den Uhrzeigersinn",
       "rotateClockwise": "{{fraction}} Drehung im Uhrzeigersinn",
       "rotateCounterclockwise": "{{fraction}} Drehung gegen den Uhrzeigersinn",
+      "rotateDegreesClockwise": "Um {{degrees}}° im Uhrzeigersinn drehen",
+      "rotateDegreesCounterclockwise": "Um {{degrees}}° gegen den Uhrzeigersinn drehen",
       "turnOver": "Umdrehen",
       "turnOverSideToSide": "Seitlich umdrehen",
       "turnOverTopToBottom": "Von oben nach unten umdrehen"
@@ -1701,6 +1783,1178 @@
     "viewportControls": "Ansichtssteuerung des Suchbaums",
     "viewTree": "Baum",
     "viewTreeAndCp": "Baum und Faltmuster"
+  },
+  "fold": {
+    "actions": {
+      "brokenHint": "Dieser Schritt lässt sich nicht mehr falten.",
+      "deleteStep": "Diesen Schritt löschen",
+      "deleteStepAndFollowing": "Diesen Schritt und alle folgenden löschen",
+      "exportFold": "FOLD exportieren…",
+      "exportSteps": "Schritte exportieren…",
+      "foldKind": "Faltart",
+      "importCp": "CP importieren…",
+      "importPolygonHint": "Zum Importieren eines CP braucht es ein quadratisches oder rechteckiges Blatt.",
+      "lockedHint": "Dieser Schritt wurde mit einem neueren Ori Studio erstellt.",
+      "pathBrokenHint": "Ein Schritt auf diesem Pfad lässt sich nicht mehr falten.",
+      "pathLockedHint": "Ein Schritt auf diesem Pfad wurde mit einem neueren Ori Studio erstellt.",
+      "pathReplayingHint": "Die Schritte werden noch gefaltet.",
+      "precrease": "Vorfalte",
+      "readOnlyHint": "Mit einem neueren Ori Studio erstellt: Diese Folge wird schreibgeschützt geöffnet.",
+      "replayingHint": "Die Schritte davor werden noch gefaltet.",
+      "rotate": "Drehen…",
+      "sendToEditTitle": "Das Faltmuster der gezeigten Schritte an die Bearbeiten-Leinwand senden",
+      "sheetHint": "Beim flachen Blatt beginnen die Schritte: Hier gibt es keinen Schritt zu löschen.",
+      "startsBranch": "Beginnt einen neuen Zweig"
+    },
+    "canvas": {
+      "creasePattern": "Faltmuster",
+      "creasePatternLabel": "Das bisherige Faltmuster, Vorderseite oben. Klicke seine Punkte und Faltlinien an, um eine Faltung festzulegen.",
+      "flatCreases": "Flache Faltlinien",
+      "flatCreasesTitle": "Die flachen Faltlinien auf das Papier zeichnen: Vorfalten und wieder geöffnete Falten",
+      "folded": "Gefaltet",
+      "foldedLabel": "Die gefaltete Form. Klicke ihre Punkte und Faltlinien an, um eine Faltung festzulegen; ziehen zum Verschieben, scrollen zum Zoomen.",
+      "spreadLayers": "Lagen auffächern",
+      "spreadLayersTitle": "Die gefalteten Lagen auffächern, wie ein Diagramm sie zeichnet, in diesem Schritt und den folgenden",
+      "stepCreases": "Schritt-Faltlinien",
+      "stepCreasesTitle": "Die Faltlinien des gezeigten Schritts fett zeichnen, als dessen Anleitung",
+      "toolbar": "Faltansicht"
+    },
+    "collapse": {
+      "changed": "Aktualisierung verfügbar. Dieser Schritt verwendet weiterhin seine gespeicherte CP-Version.",
+      "openSource": "Quell-CP öffnen",
+      "replay": "Beim Aktualisieren werden spätere Faltungen erneut berechnet. Prüfe die Zeitleiste auf geänderte oder nicht mehr ausführbare Schritte, bevor du fortfährst.",
+      "saved": "Die gespeicherte CP-Version wird verwendet. Änderungen an der Quelle werden erst beim Aktualisieren übernommen.",
+      "unavailable": "Quell-CP nicht verfügbar. Der gespeicherte Stand lässt sich weiterhin wiedergeben.",
+      "update": "Aus CP aktualisieren"
+    },
+    "header": {
+      "moreExports": "Weitere Exportmöglichkeiten",
+      "moreVerbs": "Importieren, senden und exportieren",
+      "moreVerbsButExport": "Entfalten, importieren und senden"
+    },
+    "load": {
+      "failed": "Der Falten-Arbeitsbereich konnte nicht geladen werden",
+      "loading": "Falten-Arbeitsbereich wird geladen…",
+      "offline": "Der Falten-Arbeitsbereich wurde noch nicht heruntergeladen, und Sie sind offline. Verbinden Sie sich einmal, danach funktioniert er auch offline.",
+      "retry": "Erneut versuchen"
+    },
+    "paper": {
+      "backUp": "Rückseite oben",
+      "frontUp": "Vorderseite oben",
+      "importSheet": "Startblatt importieren…",
+      "keptStyle": "Der eigene Stil dieser Sequenz",
+      "look": "Aussehen",
+      "shape": "Form",
+      "sheet": "Blatt",
+      "sheetPolygon_one": "Vieleck, {{count}} Seite",
+      "sheetPolygon_other": "Vieleck, {{count}} Seiten",
+      "sheetRectangle": "Rechteck, 1 : {{ratio}}",
+      "sheetRegular_one": "Regelmäßiges Vieleck, {{count}} Seite",
+      "sheetRegular_other": "Regelmäßiges Vieleck, {{count}} Seiten",
+      "sheetSquare": "Quadrat",
+      "sheetStartsOver_one": "Ein neues Startblatt beginnt von vorn: der {{count}} Schritt der Folge wird entfernt. Rückgängig holt ihn zurück.",
+      "sheetStartsOver_other": "Ein neues Startblatt beginnt von vorn: die {{count}} Schritte der Folge werden entfernt. Rückgängig holt sie zurück.",
+      "start": "Beginn",
+      "startHelp": "Welche Seite des Papiers vor der ersten Faltung zu dir zeigt. Das Faltmuster wird immer von der Vorderseite gezeigt.",
+      "style": "Stil",
+      "styleHint": "Papier, Stifte und Diagrammfaltlinien, in denen diese Sequenz gezeichnet wird. Ein Stil aus den Einstellungen wird beim Auswählen in die Sequenz kopiert."
+    },
+    "repeat": {
+      "advice": {
+        "axis": "Versuche eine andere Achse oder falte die andere Seite mit den Werkzeugen.",
+        "axisOrLater": "Versuche eine andere Achse oder beginne den Bereich nach dieser Operation.",
+        "later": "Beginne den Bereich nach dieser Operation oder falte die andere Seite mit den Werkzeugen.",
+        "tools": "Falte die andere Seite stattdessen mit den Werkzeugen."
+      },
+      "ambiguous": "Die gespiegelte Operation landet auf zwei verschiedene Arten, die beide zum Original passen, daher ist nicht klar, welche gemeint ist.",
+      "axis": "Symmetrieachse",
+      "axisName": {
+        "angle": "Linie durch die Mitte bei {{degrees}}°",
+        "falling": "Diagonale, oben links nach unten rechts",
+        "horizontal": "Mittellinie, links nach rechts",
+        "rising": "Diagonale, unten links nach oben rechts",
+        "vertical": "Mittellinie, oben nach unten"
+      },
+      "axisStopsAt": "Hält bei Operation {{number}} an: {{reason}}",
+      "blockedAt": "Bei Quelloperation {{number}} angehalten: {{reason}}",
+      "choiceAt_one": "Quelloperation {{number}} hat {{count}} passende Lagenreihenfolgen. Wähle eine aus, um fortzufahren.",
+      "choiceAt_other": "Quelloperation {{number}} hat {{count}} passende Lagenreihenfolgen. Wähle eine aus, um fortzufahren.",
+      "chooseAxis": "Symmetrieachse wählen",
+      "commitBehind": "Hinten wiederholen",
+      "commitSame": "Auf der anderen Seite wiederholen",
+      "drawnAxisRefused": "Das Wiederholen an dieser Achse wird abgelehnt. {{reason}}",
+      "failureTitle": "Wiederholen nicht möglich",
+      "findingAxes": "Symmetrieachsen des Modells vor dem Bereich werden gesucht…",
+      "from": "Beginnen mit",
+      "goSource": "Zu den Quellschritten",
+      "groupCount_one": "{{count}} Operation als einen nummerierten Schritt wiederholen.",
+      "groupCount_other": "{{count}} Operationen bis zum aktuellen Schritt als einen nummerierten Schritt wiederholen.",
+      "groupCountBehind_one": "{{count}} Operation hinten wiederholen, als einen nummerierten Schritt.",
+      "groupCountBehind_other": "{{count}} Operationen bis zum aktuellen Schritt hinten wiederholen, als einen nummerierten Schritt.",
+      "groupCountSame_one": "{{count}} Operation auf der anderen Seite wiederholen, als einen nummerierten Schritt.",
+      "groupCountSame_other": "{{count}} Operationen bis zum aktuellen Schritt auf der anderen Seite wiederholen, als einen nummerierten Schritt.",
+      "headlineAdvice": "{{reason}}. {{advice}}",
+      "headlineReason": "{{reason}}.",
+      "individual": "Als einzelne Schritte anzeigen",
+      "individualCount_one": "{{count}} Operation als einzelnen Eintrag wiederholen.",
+      "individualCount_other": "{{count}} Operationen bis zum aktuellen Schritt als einzelne Einträge wiederholen.",
+      "individualCountBehind_one": "{{count}} Operation hinten wiederholen, als einzelnen Eintrag.",
+      "individualCountBehind_other": "{{count}} Operationen bis zum aktuellen Schritt hinten wiederholen, als einzelne Einträge.",
+      "individualCountSame_one": "{{count}} Operation auf der anderen Seite wiederholen, als einzelnen Eintrag.",
+      "individualCountSame_other": "{{count}} Operationen bis zum aktuellen Schritt auf der anderen Seite wiederholen, als einzelne Einträge.",
+      "invalidAxis": "Diese Linie verbindet im Ausgangsmodell keine übereinstimmenden Papierbereiche und Lagen.",
+      "label": "Wiederholen",
+      "limit": "Diese Wiederholung überschreitet das Suchlimit. Wähle einen kürzeren Bereich.",
+      "materialConflict": "Die Wiederholung würde weiteres Papier oder weitere Falten verändern. Die beiden Seiten lassen sich in diesem Bereich nicht unabhängig falten.",
+      "mirror": {
+        "budget": "Herauszufinden, wie sich die gespiegelten Lagen stapeln, hat zu lange gedauert, daher ist unbekannt, ob sie passen.",
+        "closureAddsFlaps": "Das Falten der gespiegelten Lagen würde auch andere Laschen bewegen.",
+        "emptySeed": "Die gespiegelte Faltung wählt keine Lage, die sich bewegen soll.",
+        "moverStays": "Die Lage, die den zu bewegenden Punkt trägt, ist nicht unter den Lagen, die die gespiegelte Faltung bewegt.",
+        "noMovingSide": "Auf der Seite der gespiegelten Linie, die sich bewegen würde, liegt kein Papier.",
+        "noRoot": "Die gespiegelten Bezüge ergeben auf dem Papier, wie es gefaltet ist, keine Faltlinie.",
+        "noSide": "Nichts legt fest, welche Seite der gespiegelten Linie sich bewegt.",
+        "nothingStays": "Jede Lage liegt auf der bewegten Seite der gespiegelten Linie, also bliebe nichts liegen.",
+        "offPaper": "Ein Punkt oder eine Kante, von der aus die gespiegelte Linie bestimmt wird, liegt nicht auf dem Papier, wie es jetzt gefaltet ist.",
+        "pickAgain": "Die Stelle, die die gespiegelte Faltung wählt, liegt in keiner Lage auf der bewegten Seite.",
+        "pointsTooClose": "Die beiden Punkte der gespiegelten Linie liegen auf dem gefalteten Papier an derselben Stelle und ergeben keine Linie.",
+        "wrongCrease": "Die gespiegelte Linie verläuft weder entlang einer gefalteten Kante zum Aufklappen noch entlang einer flachen Faltlinie zum Wiederfalten."
+      },
+      "noAxis": "Für dieses Ausgangsmodell wurde kein passendes Seitenpaar bestätigt. Wähle einen anderen Bereich.",
+      "noDrawnLine": "Diese Punkte ergeben hier keine Linie. Wähle erneut oder wähle eine Achse.",
+      "notAnAxis": "Keine Symmetrieachse",
+      "nothing": "Jede Operation im Bereich ist ihr eigenes Spiegelbild an dieser Achse, daher ändert das Wiederholen nichts. Wähle eine andere Achse oder einen anderen Bereich.",
+      "open": "Wiederholen…",
+      "orderConflict": "Die ursprünglichen Lagenbeziehungen lassen sich auf der anderen Seite nicht erhalten.",
+      "pleatBehind": "Von der anderen Seite gesehen tauschen Berg und Tal dieser Zickzackfalte die Plätze, was ein Zickzackfalten-Schritt nicht festhalten kann. Dreh das Modell um und mache die Zickzackfalte dort.",
+      "preparing": "Wiederholte Faltungen werden vorbereitet…",
+      "previewShown": "Die Arbeitsfläche zeigt die wiederholten Faltungen und die Falten, die sie hinzufügen.",
+      "reasonAdvice": "{{reason}} {{advice}}",
+      "rebuildRequired": "Die gespeicherte Wiederholung passt nicht mehr zu diesem Zustand. Aktualisiere sie aus den Quellschritten.",
+      "reference": "Eine Referenz hat auf der anderen Seite keinen passenden Punkt.",
+      "refusedPlain": "Die gespiegelte Operation lässt sich nicht falten. Es wurden keine Schritte hinzugefügt.",
+      "returnTarget": "Dieses Entfalten führt zu einem Schritt vor dem ausgewählten Bereich. Nimm diesen Teil der Folge in die Wiederholung auf.",
+      "savedCount_one": "Eine Operation, als Wiederholungsschritt gespeichert.",
+      "savedCount_other": "{{count}} Operationen, als ein Wiederholungsschritt gespeichert.",
+      "sentence_one": "Die vorherige Operation auf der anderen Seite wiederholen.",
+      "sentence_other": "Die vorherigen {{count}} Operationen auf der anderen Seite wiederholen.",
+      "sentenceBehind_one": "Die vorherige Operation hinten wiederholen.",
+      "sentenceBehind_other": "Die vorherigen {{count}} Operationen hinten wiederholen.",
+      "sourceChanged": "Die Quellschritte haben sich geändert. Aktualisiere die Wiederholung.",
+      "stop": "Anhalten",
+      "stopped": "Angehalten, bevor die Wiederholung bereit war. Es wurden keine Schritte hinzugefügt.",
+      "swivelBehind": "Auf der anderen Seite liegen Tal und Berg dieser Drehfalte auf der Lage dahinter. Dreh das Modell um und mache die Drehfalte dort.",
+      "unavailable": "Die Quellzustände sind nicht verfügbar oder wurden geändert. Warte auf die Wiedergabe und öffne Wiederholen erneut.",
+      "unsupported": "Dieser Bereich enthält ein Zusammenfalten oder eine weitere Wiederholung, die noch nicht gespiegelt werden kann. Wähle einen Bereich aus Faltoperationen.",
+      "update": "Aus Quellschritten aktualisieren",
+      "useNearest": "{{axis}} verwenden",
+      "viewAxis": "Dieser Bereich erfordert ein Umdrehen um eine schräge Achse. Wiederhole die Faltungen getrennt von dieser Ansichtsänderung.",
+      "waiting": "Warten, bis die Schritte fertig gefaltet sind…"
+    },
+    "return": {
+      "changed": "Frühere Faltungen wurden geändert. Berechne diese Entfaltung neu, um das neue Ergebnis zu prüfen.",
+      "empty": "Falte zuerst einen Schritt.",
+      "failureTitle": "Entfalten nicht möglich",
+      "invalidTarget": "Wähle einen früheren Schritt in diesem Zweig.",
+      "label": "Bis zu Schritt entfalten",
+      "last": "Letzten Schritt entfalten",
+      "limit": "Diese Faltenhistorie ist zu groß, um sie sicher wiederherzustellen.",
+      "loading": "Entfaltungsvorschau wird vorbereitet…",
+      "noop": "Das Papier hat bereits diese Form mit diesen Falten.",
+      "numberedSentence": "Kehre zu Schritt {{number}} zurück und behalte alle Falten bei.",
+      "open": "Bis zu Schritt entfalten…",
+      "rebuild": "Entfaltung neu berechnen",
+      "refused": "Die Engine konnte diese Form unter Beibehaltung der Faltenhistorie nicht wiederherstellen. Kein Schritt wurde geändert.",
+      "retain": "Zu einer früheren Form zurückkehren und alle Falten beibehalten.",
+      "sentence": "Kehre zur früheren gefalteten Form zurück und behalte alle Falten bei.",
+      "sheet": "Ausgangsblatt",
+      "sheetSentence": "Entfalte bis zum Ausgangsblatt und behalte alle Falten bei.",
+      "step": "Schritt {{number}}",
+      "target": "Zurück zu",
+      "turn": "Drehung nach Schritt {{number}}",
+      "unavailable": "Warte, bis die früheren Schritte vollständig wiedergegeben wurden, und versuche es erneut.",
+      "viewTarget": "Ziel anzeigen: {{target}}"
+    },
+    "sentence": {
+      "behind": {
+        "petal": "Falte die Klappe nach hinten als Blütenblattfalte.",
+        "petalScores": "Falte die Klappe nach hinten als Blütenblattfalte und falte dabei ihr Scharnier, während sie sich hebt.",
+        "rabbitEar": "Falte das Dreieck nach hinten als Hasenohr.",
+        "squash": "Falte die Klappe nach hinten als Quetschfalte.",
+        "squashEnd": "Falte das Ende der Lasche nach hinten als Quetschfalte und hebe es dabei entlang der Linie an.",
+        "swivel": "Drehe das Papier nach hinten mit einer Drehfalte um den Punkt.",
+        "swivelEdgeCrease": "Drehe die Kante nach hinten um den Punkt auf die Faltlinie.",
+        "swivelEdgeLine": "Drehe die Kante nach hinten um den Punkt auf die Linie.",
+        "swivelFoldCrease": "Drehe die Kante nach hinten auf die Faltlinie; die Faltlinien treffen sich auf der gefalteten Kante.",
+        "swivelFoldLine": "Drehe die Kante nach hinten auf die Linie; die Faltlinien treffen sich auf der gefalteten Kante.",
+        "swivelInsideCrease": "Drehe die Kante mit einer inneren Drehfalte nach hinten auf die Faltlinie; die Faltlinien treffen sich auf der gefalteten Kante.",
+        "swivelInsideLine": "Drehe die Kante mit einer inneren Drehfalte nach hinten auf die Linie; die Faltlinien treffen sich auf der gefalteten Kante."
+      },
+      "closedSink": "Versenke die Spitze geschlossen: Drücke sie hinein, ihre Lagen bleiben zusammen.",
+      "collapse": "Entlang des gespeicherten Faltmusters zusammenfalten.",
+      "cpJump": "Lege das Papier entlang des importierten Faltmusters zusammen.",
+      "crimp": {
+        "inside": {
+          "crease": {
+            "crease": {
+              "all": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "free": {
+            "crease": {
+              "all": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o1": {
+            "crease": {
+              "all": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o2": {
+            "crease": {
+              "all": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o3": {
+            "crease": {
+              "all": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o4": {
+            "crease": {
+              "all": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o5": {
+            "crease": {
+              "all": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o6": {
+            "crease": {
+              "all": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o7": {
+            "crease": {
+              "all": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen inneren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          }
+        },
+        "outside": {
+          "crease": {
+            "crease": {
+              "all": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst entlang der vorhandenen Faltlinie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "free": {
+            "crease": {
+              "all": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst entlang der eingezeichneten Linie, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o1": {
+            "crease": {
+              "all": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst entlang der Linie durch {{a}} und {{b}}, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o2": {
+            "crease": {
+              "all": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o3": {
+            "crease": {
+              "all": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o4": {
+            "crease": {
+              "all": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf sich selbst fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o5": {
+            "crease": {
+              "all": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst durch {{a}}, sodass {{b}} auf {{c}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o6": {
+            "crease": {
+              "all": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst so, dass {{a}} auf {{b}} und {{c}} auf {{d}} fällt, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          },
+          "o7": {
+            "crease": {
+              "all": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer vorhandenen Faltlinie dahinter, nur in den {{count}} gezeigten Klappen."
+            },
+            "free": {
+              "all": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, durch alle Lagen.",
+              "depth_one": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der obersten Lage.",
+              "depth_other": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den obersten {{count}} Lagen.",
+              "flaps_one": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in der gezeigten Klappe.",
+              "flaps_other": "Falte einen äußeren Crimp, zuerst so, dass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet, dann zurück entlang einer zweiten eingezeichneten Linie dahinter, nur in den {{count}} gezeigten Klappen."
+            }
+          }
+        }
+      },
+      "extent": {
+        "pinch": "{{sentence}} Kneife dabei nur eine kurze Markierung durch {{at}}.",
+        "segment": "{{sentence}} Falte dabei nur das Stück vor, das {{from}} und {{to}} begrenzen."
+      },
+      "insideReverse": {
+        "crease": {
+          "all": "Falte alle Lagen entlang der vorhandenen Faltlinie als inneren Gegenbruch.",
+          "depth_one": "Falte nur die oberste Lage entlang der vorhandenen Faltlinie als inneren Gegenbruch.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der vorhandenen Faltlinie als inneren Gegenbruch.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der vorhandenen Faltlinie als inneren Gegenbruch.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der vorhandenen Faltlinie als inneren Gegenbruch."
+        },
+        "free": {
+          "all": "Falte alle Lagen entlang der eingezeichneten Linie als inneren Gegenbruch.",
+          "depth_one": "Falte nur die oberste Lage entlang der eingezeichneten Linie als inneren Gegenbruch.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der eingezeichneten Linie als inneren Gegenbruch.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der eingezeichneten Linie als inneren Gegenbruch.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der eingezeichneten Linie als inneren Gegenbruch."
+        },
+        "o1": {
+          "all": "Falte alle Lagen entlang der Linie durch {{a}} und {{b}} als inneren Gegenbruch.",
+          "depth_one": "Falte nur die oberste Lage entlang der Linie durch {{a}} und {{b}} als inneren Gegenbruch.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der Linie durch {{a}} und {{b}} als inneren Gegenbruch.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der Linie durch {{a}} und {{b}} als inneren Gegenbruch.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der Linie durch {{a}} und {{b}} als inneren Gegenbruch."
+        },
+        "o2": {
+          "all": "Falte alle Lagen als inneren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als inneren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als inneren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als inneren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als inneren Gegenbruch und lege dabei {{a}} auf {{b}}."
+        },
+        "o3": {
+          "all": "Falte alle Lagen als inneren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als inneren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als inneren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als inneren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als inneren Gegenbruch und lege dabei {{a}} auf {{b}}."
+        },
+        "o4": {
+          "all": "Falte alle Lagen durch {{a}} als inneren Gegenbruch, sodass {{b}} auf sich selbst fällt.",
+          "depth_one": "Falte nur die oberste Lage durch {{a}} als inneren Gegenbruch, sodass {{b}} auf sich selbst fällt.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen durch {{a}} als inneren Gegenbruch, sodass {{b}} auf sich selbst fällt.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als inneren Gegenbruch, sodass {{b}} auf sich selbst fällt.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als inneren Gegenbruch, sodass {{b}} auf sich selbst fällt."
+        },
+        "o5": {
+          "all": "Falte alle Lagen durch {{a}} als inneren Gegenbruch und lege dabei {{b}} auf {{c}}.",
+          "depth_one": "Falte nur die oberste Lage durch {{a}} als inneren Gegenbruch und lege dabei {{b}} auf {{c}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen durch {{a}} als inneren Gegenbruch und lege dabei {{b}} auf {{c}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als inneren Gegenbruch und lege dabei {{b}} auf {{c}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als inneren Gegenbruch und lege dabei {{b}} auf {{c}}."
+        },
+        "o6": {
+          "all": "Falte alle Lagen als inneren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_one": "Falte nur die oberste Lage als inneren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als inneren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als inneren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als inneren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}."
+        },
+        "o7": {
+          "all": "Falte alle Lagen als inneren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_one": "Falte nur die oberste Lage als inneren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als inneren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_one": "Falte nur die gezeigte Klappe als inneren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als inneren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet."
+        }
+      },
+      "mountain": {
+        "crease": {
+          "all": "Falte alle Lagen entlang der vorhandenen Faltlinie als Bergfalte.",
+          "depth_one": "Falte nur die unterste Lage entlang der vorhandenen Faltlinie als Bergfalte.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen entlang der vorhandenen Faltlinie als Bergfalte.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der vorhandenen Faltlinie als Bergfalte.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der vorhandenen Faltlinie als Bergfalte."
+        },
+        "free": {
+          "all": "Falte alle Lagen entlang der eingezeichneten Linie als Bergfalte.",
+          "depth_one": "Falte nur die unterste Lage entlang der eingezeichneten Linie als Bergfalte.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen entlang der eingezeichneten Linie als Bergfalte.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der eingezeichneten Linie als Bergfalte.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der eingezeichneten Linie als Bergfalte."
+        },
+        "o1": {
+          "all": "Falte alle Lagen entlang der Linie durch {{a}} und {{b}} als Bergfalte.",
+          "depth_one": "Falte nur die unterste Lage entlang der Linie durch {{a}} und {{b}} als Bergfalte.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen entlang der Linie durch {{a}} und {{b}} als Bergfalte.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der Linie durch {{a}} und {{b}} als Bergfalte.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der Linie durch {{a}} und {{b}} als Bergfalte."
+        },
+        "o2": {
+          "all": "Falte alle Lagen als Bergfalte und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte und lege dabei {{a}} auf {{b}}."
+        },
+        "o2Half": {
+          "all": "Falte alle Lagen als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}."
+        },
+        "o3": {
+          "all": "Falte alle Lagen als Bergfalte und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte und lege dabei {{a}} auf {{b}}."
+        },
+        "o3Half": {
+          "all": "Falte alle Lagen als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte zur Hälfte und lege dabei {{a}} auf {{b}}."
+        },
+        "o4": {
+          "all": "Falte alle Lagen durch {{a}} als Bergfalte, sodass {{b}} auf sich selbst fällt.",
+          "depth_one": "Falte nur die unterste Lage durch {{a}} als Bergfalte, sodass {{b}} auf sich selbst fällt.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen durch {{a}} als Bergfalte, sodass {{b}} auf sich selbst fällt.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als Bergfalte, sodass {{b}} auf sich selbst fällt.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als Bergfalte, sodass {{b}} auf sich selbst fällt."
+        },
+        "o5": {
+          "all": "Falte alle Lagen durch {{a}} als Bergfalte und lege dabei {{b}} auf {{c}}.",
+          "depth_one": "Falte nur die unterste Lage durch {{a}} als Bergfalte und lege dabei {{b}} auf {{c}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen durch {{a}} als Bergfalte und lege dabei {{b}} auf {{c}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als Bergfalte und lege dabei {{b}} auf {{c}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als Bergfalte und lege dabei {{b}} auf {{c}}."
+        },
+        "o6": {
+          "all": "Falte alle Lagen als Bergfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}."
+        },
+        "o7": {
+          "all": "Falte alle Lagen als Bergfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet."
+        }
+      },
+      "mountainPrecrease": {
+        "crease": {
+          "all": "Falte alle Lagen entlang der vorhandenen Faltlinie als Bergfalte vor.",
+          "depth_one": "Falte nur die unterste Lage entlang der vorhandenen Faltlinie als Bergfalte vor.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen entlang der vorhandenen Faltlinie als Bergfalte vor.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der vorhandenen Faltlinie als Bergfalte vor.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der vorhandenen Faltlinie als Bergfalte vor."
+        },
+        "free": {
+          "all": "Falte alle Lagen entlang der eingezeichneten Linie als Bergfalte vor.",
+          "depth_one": "Falte nur die unterste Lage entlang der eingezeichneten Linie als Bergfalte vor.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen entlang der eingezeichneten Linie als Bergfalte vor.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der eingezeichneten Linie als Bergfalte vor.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der eingezeichneten Linie als Bergfalte vor."
+        },
+        "o1": {
+          "all": "Falte alle Lagen entlang der Linie durch {{a}} und {{b}} als Bergfalte vor.",
+          "depth_one": "Falte nur die unterste Lage entlang der Linie durch {{a}} und {{b}} als Bergfalte vor.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen entlang der Linie durch {{a}} und {{b}} als Bergfalte vor.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der Linie durch {{a}} und {{b}} als Bergfalte vor.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der Linie durch {{a}} und {{b}} als Bergfalte vor."
+        },
+        "o2": {
+          "all": "Falte alle Lagen als Bergfalte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte vor und lege dabei {{a}} auf {{b}}."
+        },
+        "o2Half": {
+          "all": "Falte alle Lagen als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}."
+        },
+        "o3": {
+          "all": "Falte alle Lagen als Bergfalte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte vor und lege dabei {{a}} auf {{b}}."
+        },
+        "o3Half": {
+          "all": "Falte alle Lagen als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}."
+        },
+        "o4": {
+          "all": "Falte alle Lagen durch {{a}} als Bergfalte vor, sodass {{b}} auf sich selbst fällt.",
+          "depth_one": "Falte nur die unterste Lage durch {{a}} als Bergfalte vor, sodass {{b}} auf sich selbst fällt.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen durch {{a}} als Bergfalte vor, sodass {{b}} auf sich selbst fällt.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als Bergfalte vor, sodass {{b}} auf sich selbst fällt.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als Bergfalte vor, sodass {{b}} auf sich selbst fällt."
+        },
+        "o5": {
+          "all": "Falte alle Lagen durch {{a}} als Bergfalte vor und lege dabei {{b}} auf {{c}}.",
+          "depth_one": "Falte nur die unterste Lage durch {{a}} als Bergfalte vor und lege dabei {{b}} auf {{c}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen durch {{a}} als Bergfalte vor und lege dabei {{b}} auf {{c}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als Bergfalte vor und lege dabei {{b}} auf {{c}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als Bergfalte vor und lege dabei {{b}} auf {{c}}."
+        },
+        "o6": {
+          "all": "Falte alle Lagen als Bergfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}."
+        },
+        "o7": {
+          "all": "Falte alle Lagen als Bergfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_one": "Falte nur die unterste Lage als Bergfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_other": "Falte nur die untersten {{count}} Lagen als Bergfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Bergfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Bergfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet."
+        }
+      },
+      "openSink": "Versenke die Spitze offen: Drücke sie hinein und stülpe dabei jede Lage um.",
+      "outsideReverse": {
+        "crease": {
+          "all": "Falte alle Lagen entlang der vorhandenen Faltlinie als äußeren Gegenbruch.",
+          "depth_one": "Falte nur die oberste Lage entlang der vorhandenen Faltlinie als äußeren Gegenbruch.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der vorhandenen Faltlinie als äußeren Gegenbruch.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der vorhandenen Faltlinie als äußeren Gegenbruch.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der vorhandenen Faltlinie als äußeren Gegenbruch."
+        },
+        "free": {
+          "all": "Falte alle Lagen entlang der eingezeichneten Linie als äußeren Gegenbruch.",
+          "depth_one": "Falte nur die oberste Lage entlang der eingezeichneten Linie als äußeren Gegenbruch.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der eingezeichneten Linie als äußeren Gegenbruch.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der eingezeichneten Linie als äußeren Gegenbruch.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der eingezeichneten Linie als äußeren Gegenbruch."
+        },
+        "o1": {
+          "all": "Falte alle Lagen entlang der Linie durch {{a}} und {{b}} als äußeren Gegenbruch.",
+          "depth_one": "Falte nur die oberste Lage entlang der Linie durch {{a}} und {{b}} als äußeren Gegenbruch.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der Linie durch {{a}} und {{b}} als äußeren Gegenbruch.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der Linie durch {{a}} und {{b}} als äußeren Gegenbruch.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der Linie durch {{a}} und {{b}} als äußeren Gegenbruch."
+        },
+        "o2": {
+          "all": "Falte alle Lagen als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}."
+        },
+        "o3": {
+          "all": "Falte alle Lagen als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als äußeren Gegenbruch und lege dabei {{a}} auf {{b}}."
+        },
+        "o4": {
+          "all": "Falte alle Lagen durch {{a}} als äußeren Gegenbruch, sodass {{b}} auf sich selbst fällt.",
+          "depth_one": "Falte nur die oberste Lage durch {{a}} als äußeren Gegenbruch, sodass {{b}} auf sich selbst fällt.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen durch {{a}} als äußeren Gegenbruch, sodass {{b}} auf sich selbst fällt.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als äußeren Gegenbruch, sodass {{b}} auf sich selbst fällt.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als äußeren Gegenbruch, sodass {{b}} auf sich selbst fällt."
+        },
+        "o5": {
+          "all": "Falte alle Lagen durch {{a}} als äußeren Gegenbruch und lege dabei {{b}} auf {{c}}.",
+          "depth_one": "Falte nur die oberste Lage durch {{a}} als äußeren Gegenbruch und lege dabei {{b}} auf {{c}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen durch {{a}} als äußeren Gegenbruch und lege dabei {{b}} auf {{c}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als äußeren Gegenbruch und lege dabei {{b}} auf {{c}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als äußeren Gegenbruch und lege dabei {{b}} auf {{c}}."
+        },
+        "o6": {
+          "all": "Falte alle Lagen als äußeren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_one": "Falte nur die oberste Lage als äußeren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als äußeren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als äußeren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als äußeren Gegenbruch und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}."
+        },
+        "o7": {
+          "all": "Falte alle Lagen als äußeren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_one": "Falte nur die oberste Lage als äußeren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als äußeren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_one": "Falte nur die gezeigte Klappe als äußeren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als äußeren Gegenbruch, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet."
+        }
+      },
+      "petal": "Falte die Klappe als Blütenblattfalte.",
+      "petalScores": "Falte die Klappe als Blütenblattfalte und falte dabei ihr Scharnier, während sie sich hebt.",
+      "pleat": "Entlang der beiden Linien falten: zuerst Berg, dann Tal.",
+      "rabbitEar": "Falte das Dreieck als Hasenohr.",
+      "squash": "Falte die Klappe als Quetschfalte.",
+      "squashEnd": "Falte das Ende der Lasche als Quetschfalte und hebe es dabei entlang der Linie an.",
+      "swivel": "Drehe das Papier mit einer Drehfalte um den Punkt.",
+      "swivelEdgeCrease": "Drehe die Kante um den Punkt auf die Faltlinie.",
+      "swivelEdgeLine": "Drehe die Kante um den Punkt auf die Linie.",
+      "swivelFoldCrease": "Drehe die Kante auf die Faltlinie; die Faltlinien treffen sich auf der gefalteten Kante.",
+      "swivelFoldLine": "Drehe die Kante auf die Linie; die Faltlinien treffen sich auf der gefalteten Kante.",
+      "swivelInsideCrease": "Drehe die Kante mit einer inneren Drehfalte auf die Faltlinie; die Faltlinien treffen sich auf der gefalteten Kante.",
+      "swivelInsideLine": "Drehe die Kante mit einer inneren Drehfalte auf die Linie; die Faltlinien treffen sich auf der gefalteten Kante.",
+      "swivelInsideValleyMountain": "Drehe die Klappe mit einer inneren Drehfalte entlang der Tal- und der Berglinie.",
+      "swivelValleyMountain": "Drehe die Klappe mit einer Drehfalte entlang der Tal- und der Berglinie.",
+      "tuckMountain": "Falte als Bergfalte und stecke die Lasche hinten über die gewählte Lage.",
+      "tuckValley": "Falte als Talfalte und stecke die Lasche unter die gewählte Lage.",
+      "turn": "{{turn}}.",
+      "unfold": {
+        "all": "Falte alle Lagen entlang der vorhandenen Faltlinie auf.",
+        "bottom_one": "Falte die unterste Lage auf.",
+        "bottom_other": "Falte die untersten {{count}} Lagen auf.",
+        "flaps_one": "Falte die gezeigte Klappe auf.",
+        "flaps_other": "Falte die {{count}} gezeigten Klappen auf.",
+        "top_one": "Falte die oberste Lage auf.",
+        "top_other": "Falte die obersten {{count}} Lagen auf."
+      },
+      "unknown": "Ein Schritt aus einem neueren Ori Studio.",
+      "unsink": "Hebe das Versenken auf: Ziehe die Spitze wieder heraus.",
+      "valley": {
+        "crease": {
+          "all": "Falte alle Lagen entlang der vorhandenen Faltlinie als Talfalte.",
+          "depth_one": "Falte nur die oberste Lage entlang der vorhandenen Faltlinie als Talfalte.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der vorhandenen Faltlinie als Talfalte.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der vorhandenen Faltlinie als Talfalte.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der vorhandenen Faltlinie als Talfalte."
+        },
+        "free": {
+          "all": "Falte alle Lagen entlang der eingezeichneten Linie als Talfalte.",
+          "depth_one": "Falte nur die oberste Lage entlang der eingezeichneten Linie als Talfalte.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der eingezeichneten Linie als Talfalte.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der eingezeichneten Linie als Talfalte.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der eingezeichneten Linie als Talfalte."
+        },
+        "o1": {
+          "all": "Falte alle Lagen entlang der Linie durch {{a}} und {{b}} als Talfalte.",
+          "depth_one": "Falte nur die oberste Lage entlang der Linie durch {{a}} und {{b}} als Talfalte.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der Linie durch {{a}} und {{b}} als Talfalte.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der Linie durch {{a}} und {{b}} als Talfalte.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der Linie durch {{a}} und {{b}} als Talfalte."
+        },
+        "o2": {
+          "all": "Falte alle Lagen als Talfalte und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte und lege dabei {{a}} auf {{b}}."
+        },
+        "o2Half": {
+          "all": "Falte alle Lagen als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}."
+        },
+        "o3": {
+          "all": "Falte alle Lagen als Talfalte und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte und lege dabei {{a}} auf {{b}}."
+        },
+        "o3Half": {
+          "all": "Falte alle Lagen als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte zur Hälfte und lege dabei {{a}} auf {{b}}."
+        },
+        "o4": {
+          "all": "Falte alle Lagen durch {{a}} als Talfalte, sodass {{b}} auf sich selbst fällt.",
+          "depth_one": "Falte nur die oberste Lage durch {{a}} als Talfalte, sodass {{b}} auf sich selbst fällt.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen durch {{a}} als Talfalte, sodass {{b}} auf sich selbst fällt.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als Talfalte, sodass {{b}} auf sich selbst fällt.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als Talfalte, sodass {{b}} auf sich selbst fällt."
+        },
+        "o5": {
+          "all": "Falte alle Lagen durch {{a}} als Talfalte und lege dabei {{b}} auf {{c}}.",
+          "depth_one": "Falte nur die oberste Lage durch {{a}} als Talfalte und lege dabei {{b}} auf {{c}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen durch {{a}} als Talfalte und lege dabei {{b}} auf {{c}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als Talfalte und lege dabei {{b}} auf {{c}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als Talfalte und lege dabei {{b}} auf {{c}}."
+        },
+        "o6": {
+          "all": "Falte alle Lagen als Talfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}."
+        },
+        "o7": {
+          "all": "Falte alle Lagen als Talfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet."
+        }
+      },
+      "valleyPrecrease": {
+        "crease": {
+          "all": "Falte alle Lagen entlang der vorhandenen Faltlinie als Talfalte vor.",
+          "depth_one": "Falte nur die oberste Lage entlang der vorhandenen Faltlinie als Talfalte vor.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der vorhandenen Faltlinie als Talfalte vor.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der vorhandenen Faltlinie als Talfalte vor.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der vorhandenen Faltlinie als Talfalte vor."
+        },
+        "free": {
+          "all": "Falte alle Lagen entlang der eingezeichneten Linie als Talfalte vor.",
+          "depth_one": "Falte nur die oberste Lage entlang der eingezeichneten Linie als Talfalte vor.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der eingezeichneten Linie als Talfalte vor.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der eingezeichneten Linie als Talfalte vor.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der eingezeichneten Linie als Talfalte vor."
+        },
+        "o1": {
+          "all": "Falte alle Lagen entlang der Linie durch {{a}} und {{b}} als Talfalte vor.",
+          "depth_one": "Falte nur die oberste Lage entlang der Linie durch {{a}} und {{b}} als Talfalte vor.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen entlang der Linie durch {{a}} und {{b}} als Talfalte vor.",
+          "flaps_one": "Falte nur die gezeigte Klappe entlang der Linie durch {{a}} und {{b}} als Talfalte vor.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen entlang der Linie durch {{a}} und {{b}} als Talfalte vor."
+        },
+        "o2": {
+          "all": "Falte alle Lagen als Talfalte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte vor und lege dabei {{a}} auf {{b}}."
+        },
+        "o2Half": {
+          "all": "Falte alle Lagen als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}."
+        },
+        "o3": {
+          "all": "Falte alle Lagen als Talfalte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte vor und lege dabei {{a}} auf {{b}}."
+        },
+        "o3Half": {
+          "all": "Falte alle Lagen als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte zur Hälfte vor und lege dabei {{a}} auf {{b}}."
+        },
+        "o4": {
+          "all": "Falte alle Lagen durch {{a}} als Talfalte vor, sodass {{b}} auf sich selbst fällt.",
+          "depth_one": "Falte nur die oberste Lage durch {{a}} als Talfalte vor, sodass {{b}} auf sich selbst fällt.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen durch {{a}} als Talfalte vor, sodass {{b}} auf sich selbst fällt.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als Talfalte vor, sodass {{b}} auf sich selbst fällt.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als Talfalte vor, sodass {{b}} auf sich selbst fällt."
+        },
+        "o5": {
+          "all": "Falte alle Lagen durch {{a}} als Talfalte vor und lege dabei {{b}} auf {{c}}.",
+          "depth_one": "Falte nur die oberste Lage durch {{a}} als Talfalte vor und lege dabei {{b}} auf {{c}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen durch {{a}} als Talfalte vor und lege dabei {{b}} auf {{c}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe durch {{a}} als Talfalte vor und lege dabei {{b}} auf {{c}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen durch {{a}} als Talfalte vor und lege dabei {{b}} auf {{c}}."
+        },
+        "o6": {
+          "all": "Falte alle Lagen als Talfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte vor und lege dabei {{a}} auf {{b}} und {{c}} auf {{d}}."
+        },
+        "o7": {
+          "all": "Falte alle Lagen als Talfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_one": "Falte nur die oberste Lage als Talfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "depth_other": "Falte nur die obersten {{count}} Lagen als Talfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_one": "Falte nur die gezeigte Klappe als Talfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet.",
+          "flaps_other": "Falte nur die {{count}} gezeigten Klappen als Talfalte vor, sodass {{self}} auf sich selbst fällt und {{a}} auf {{b}} landet."
+        }
+      }
+    },
+    "sequence": {
+      "badgeBlocked": "Blockiert",
+      "badgeBroken": "Defekt",
+      "badgeChanged": "Geändert",
+      "badgePreview": "Vorschau",
+      "badgeSheet": "Blatt",
+      "branch": "Zweig {{n}} von {{total}}",
+      "branchesLabel": "Zweige bei diesem Schritt",
+      "branchShort": "{{n}} / {{total}}",
+      "nextBranch": "Nächster Zweig",
+      "nextStep": "Nächster Schritt",
+      "noTools": "Nimm ein Faltwerkzeug auf der Arbeitsfläche, um seine Art zu wählen.",
+      "placeholder": "Falte das Blatt, um Schritt 1 zu erstellen.",
+      "previousBranch": "Vorheriger Zweig",
+      "previousStep": "Vorheriger Schritt",
+      "replayFailed": "Nicht alle Schritte ließen sich falten.",
+      "replaying": "Schritte werden gefaltet … {{done}} von {{total}}",
+      "retry": "Erneut versuchen",
+      "sheetIrregularBack_one": "Beginne mit einem Vieleck mit {{count}} Seite, Rückseite oben.",
+      "sheetIrregularBack_other": "Beginne mit einem Vieleck mit {{count}} Seiten, Rückseite oben.",
+      "sheetIrregularFront_one": "Beginne mit einem Vieleck mit {{count}} Seite, Vorderseite oben.",
+      "sheetIrregularFront_other": "Beginne mit einem Vieleck mit {{count}} Seiten, Vorderseite oben.",
+      "sheetPolygonBack_one": "Beginne mit einem regelmäßigen Vieleck mit {{count}} Seite, Rückseite oben.",
+      "sheetPolygonBack_other": "Beginne mit einem regelmäßigen Vieleck mit {{count}} Seiten, Rückseite oben.",
+      "sheetPolygonFront_one": "Beginne mit einem regelmäßigen Vieleck mit {{count}} Seite, Vorderseite oben.",
+      "sheetPolygonFront_other": "Beginne mit einem regelmäßigen Vieleck mit {{count}} Seiten, Vorderseite oben.",
+      "sheetRectangleBack": "Beginne mit einem Rechteck, Rückseite oben.",
+      "sheetRectangleFront": "Beginne mit einem Rechteck, Vorderseite oben.",
+      "sheetSquareBack": "Beginne mit einem Quadrat, Rückseite oben.",
+      "sheetSquareFront": "Beginne mit einem Quadrat, Vorderseite oben.",
+      "stepCount_one": "{{count}} Schritt",
+      "stepCount_other": "{{count}} Schritte",
+      "stripLabel": "Schritte",
+      "switchBranch": "Zweig wechseln",
+      "tagBranch": "Neuer Zweig",
+      "tagNext": "Nächster"
+    },
+    "step": {
+      "blocks": "Blöcke",
+      "blocksHelp": "Papierstapel, die sich als Ganzes drehen: der untere und der obere Teil jeder Öffnung und jede Klappe, die sich vollständig bewegt.",
+      "branchSheet": "Du bist beim flachen Blatt: Wenn du hier faltest, beginnt ein neuer Zweig.",
+      "branchStep": "Du bist bei Schritt {{at}} von {{total}}: Wenn du hier faltest, beginnt ein neuer Zweig.",
+      "broken": "Dieser Schritt lässt sich nicht mehr falten: Das, woraus er gemacht wurde, liegt vor ihm nicht mehr auf dem Papier. Er und die folgenden Schritte können nur noch gelöscht werden.",
+      "brokenAbove": "Ein früherer Schritt lässt sich nicht mehr falten, deshalb kann dieser nicht gezeigt werden.",
+      "changed": "Dieser Schritt faltet sich anders als beim Speichern. Prüfe seine Eingaben und die Schritte darüber.",
+      "changes": "Änderungen",
+      "chosen": "Aus mehreren gewählt",
+      "construction": "Konstruktion",
+      "creases": "Faltlinien",
+      "creasesBackUp": "Von der Vorderseite des Papiers aus gesehen, die anfangs unten liegt: Sie können umgekehrt zu den Falten wirken, die du siehst.",
+      "creasesFront": "Von der Vorderseite des Papiers aus gesehen.",
+      "creasesMeet": "Faltlinien treffen sich",
+      "creasesMeetHelp": "Dort, wo die Linie in der Mitte zwischen der Kante und der Linie, auf der sie landet, die gefaltete Kante kreuzt. Die andere Lage an dieser Kante faltet zusätzlich entlang einer zweiten Faltlinie.",
+      "extent": "Umfang",
+      "extentHelp": "Wie viel von der Linie die Vorfalte gefaltet hat: die ganze Linie, das Stück zwischen zwei Punkten oder einen kurzen Kniff.",
+      "firstLine": "Erste Linie",
+      "flat": "Flach",
+      "flatHelp": "Einmal gefaltet und wieder geöffnet: Sie liegen jetzt flach und merken sich, in welche Richtung sie gingen.",
+      "hinge": "Scharnier",
+      "hingeHelp": "Die Linie, entlang der sich die Klappe hebt: eine vorhandene Faltlinie oder die Linie durch zwei Punkte, die die Faltung durch die oberste Lage faltet.",
+      "imported": "Importiertes Faltmuster: Dieser Schritt ersetzt den gefalteten Zustand durch den des Musters.",
+      "landsOn": "Landet auf",
+      "layerOrder": "Lagenreihenfolge",
+      "layers": "Lagen",
+      "layersHelp": "Der tiefste Stapel entlang der Faltlinie. Lagen, die über eine Vorfalte hinweg flach liegen, zählen als eine.",
+      "line": "Linie",
+      "locked": "Dieser Schritt wurde mit einem neueren Ori Studio erstellt. Er kann hier gelöscht werden und wird genau so gespeichert, wie er war.",
+      "mountain": "Berg",
+      "onlyOne": "Die einzig mögliche",
+      "opening": "Öffnung",
+      "openingHelp": "Wo sich die Klappe teilt, um die Spitze durchzulassen: die Lagen, die darunter bleiben, und die darüber.",
+      "operation": "Vorgang",
+      "pending": "Geplante Faltung",
+      "pendingRefused": "Behebe das Problem im Werkzeugfenster, um die Faltlinien zu sehen, die dabei entstehen.",
+      "pocket": "Tasche",
+      "pocketHelp": "Die Lücke zwischen den Lagen der Spitze, in die ihr Ende versenkt wurde: Die Lagen darüber und die darunter bleiben zusammen.",
+      "previewSpread": "Prüfe diese Vorschau. Der gespeicherte Schritt beginnt ohne gespreizte Lagen.",
+      "ridge": "Grat",
+      "ridgeHelp": "Die Faltlinie, entlang der sich die Drehfalte aufrichtet, andersherum gefaltet als die anderen drei.",
+      "secondLine": "Zweite Linie",
+      "sheet": "Flaches Blatt",
+      "sheetNote": "Noch ist nichts gefaltet. Falte das Blatt, um Schritt 1 zu erstellen.",
+      "source": "Quelle",
+      "spread": "Auffächerung",
+      "spreadDefault": "Die Standard-Auffächerung. Eine Änderung hier gilt ab diesem Schritt.",
+      "spreadEarlier": "Wie ein früherer Schritt sie festlegt. Eine Änderung hier gilt ab diesem Schritt.",
+      "spreadOwn": "In diesem Schritt festgelegt. Die folgenden Schritte übernehmen sie auch.",
+      "squashHingeHelp": "Nur das Ende der Lasche jenseits der Linie wird gequetscht: entlang der Linie angehoben, geöffnet und flach gedrückt, seine gefaltete Kante auf der Linie.",
+      "swivelKind": "Art",
+      "swivelKindInsideHelp": "Der Streifen der anderen Lage faltet sich unter den Rest seiner Lage und steckt zwischen den beiden Lagen.",
+      "swivelKindOpenHelp": "Der Streifen der anderen Lage faltet sich über den Rest seiner Lage, seine Rückseite sichtbar.",
+      "title": "Schritt {{number}}",
+      "valley": "Tal",
+      "valleyMountainHelp": "Auf der sichtbaren Lage Tal und Berg, die die Klappe begrenzen und sich auf der gefalteten Kante treffen. Die Faltlinie auf der Lage dahinter ergibt sich aus ihnen.",
+      "vertex": {
+        "blocksHelp": "Papierstücke, die sich als Ganzes drehen: jedes dreht sich um dieselben Faltlinien, in derselben Reihenfolge, dorthin, wo es landet."
+      }
+    },
+    "toDiagram": {
+      "sendPath": "Schritte an Diagramm senden",
+      "sendStep": "Schritt an Diagramm senden",
+      "sheetHint": "Beim flachen Blatt beginnen die Schritte: Falte einen Schritt, um ihn zu senden."
+    },
+    "words": {
+      "adds_one": "Fügt {{count}} Faltlinie hinzu ({{mountain}} M, {{valley}} V)",
+      "adds_other": "Fügt {{count}} Faltlinien hinzu ({{mountain}} M, {{valley}} V)",
+      "addsCreaseMarks_one": "Fügt {{count}} Faltmarkierung hinzu",
+      "addsCreaseMarks_other": "Fügt {{count}} Faltmarkierungen hinzu",
+      "addsPinchMarks_one": "Fügt {{count}} Kniffmarkierung hinzu",
+      "addsPinchMarks_other": "Fügt {{count}} Kniffmarkierungen hinzu",
+      "addsPrecreases_one": "Fügt {{count}} Vorfalte hinzu",
+      "addsPrecreases_other": "Fügt {{count}} Vorfalten hinzu",
+      "axiomLine": "Axiom {{axiom}} · {{phrase}}",
+      "badgeCrimp": "Crimp",
+      "badgeImported": "Importiert",
+      "badgeInsideReverse": "Gegenbruch innen",
+      "badgeMountain": "Berg",
+      "badgeNewer": "Neuer",
+      "badgeOutsideReverse": "Gegenbruch außen",
+      "badgePetal": "Blütenblatt",
+      "badgePrecrease": "Vorfalte",
+      "badgeRabbitEar": "Hasenohr",
+      "badgeSquash": "Quetschen",
+      "badgeSwivel": "Drehen",
+      "badgeSwivelInside": "Drehen innen",
+      "badgeTuck": "Einstecken",
+      "badgeValley": "Tal",
+      "behind": {
+        "petal": "Blütenblattfalte nach hinten",
+        "rabbitEar": "Hasenohr nach hinten",
+        "squash": "Quetschfalte nach hinten",
+        "swivel": "Drehfalte nach hinten",
+        "swivelInside": "Innere Drehfalte nach hinten"
+      },
+      "closedSink": "Geschlossenes Versenken",
+      "collapse": "Zusammenfalten",
+      "cpJump": "Faltmuster importieren",
+      "crimpInside": "Innerer Crimp",
+      "crimpOutside": "Äußerer Crimp",
+      "existingCrease": "Vorhandene Faltlinie",
+      "extentPinch": "Kniff",
+      "extentSegment": "Stück",
+      "extentWhole": "Ganze Linie",
+      "freeLine": "Freie Linie",
+      "hingeCrease": "Vorhandene Faltlinie",
+      "hingePoints": "Zwei Punkte, von der Faltung gefaltet",
+      "insideReverse": "Innerer Gegenbruch",
+      "meetOnFold": "Auf einer gefalteten Kante",
+      "mountainFold": "Bergfalte",
+      "mountainPrecrease": "Bergfalte vorfalten",
+      "noChange": "Ändert keine Faltlinien",
+      "openSink": "Offenes Versenken",
+      "originCp": "CP-Datei",
+      "originEditFoldedFigure": "Gefaltete Figur aus Bearbeiten",
+      "originFold": "FOLD-Datei",
+      "originOrh": "ORH-Datei",
+      "originOri": "ORI-Datei",
+      "originProjectCp": "Faltmuster des Projekts",
+      "originSample": "Beispiel",
+      "outsideReverse": "Äußerer Gegenbruch",
+      "petal": "Blütenblattfalte",
+      "rabbitEar": "Hasenohr",
+      "refolds_one": "Faltet {{count}} Vorfalte wieder",
+      "refolds_other": "Faltet {{count}} Vorfalten wieder",
+      "reverses_one": "Faltet {{count}} Vorfalte andersherum wieder",
+      "reverses_other": "Faltet {{count}} Vorfalten andersherum wieder",
+      "ridgeEnd": "Zum Ende der Kante",
+      "ridgeFoot": "Rechtwinklig zur Kante",
+      "squash": "Quetschfalte",
+      "squashHingeLine": "Gezeichnete Linie",
+      "swivel": "Drehfalte",
+      "swivelInside": "Innere Drehfalte",
+      "swivelKindInside": "Innen",
+      "swivelKindOpen": "Offen",
+      "targetCrease": "Vorhandene Faltlinie oder Kante",
+      "targetLine": "Linie durch zwei Punkte",
+      "tuckMountain": "Bergfalte und einstecken",
+      "tuckValley": "Talfalte und einstecken",
+      "unfold": "Auffalten",
+      "unfolds_one": "Faltet {{count}} Faltlinie auf",
+      "unfolds_other": "Faltet {{count}} Faltlinien auf",
+      "unknown": "Aus einem neueren Ori Studio",
+      "unsink": "Versenken aufheben",
+      "valleyFold": "Talfalte",
+      "valleyMountain": "Tal und Berg",
+      "valleyPrecrease": "Talfalte vorfalten"
+    }
   },
   "fold3dVerdict": {
     "localCrossing_one": "Das Papier durchdringt sich an einem Knotenpunkt selbst.",
@@ -1816,16 +3070,6 @@
       "summary": "{{closure}} von {{lines}} Linien ergeben sich aus dem Blatt selbst; {{queried}} erforderten eine Suche.",
       "title": "Referenzanalyse",
       "unsolved": "keine Konstruktion gefunden"
-    },
-    "axiom": {
-      "free": "bereits auf dem Blatt",
-      "o1": "durch zwei Punkte",
-      "o2": "Punkt auf Punkt",
-      "o3": "Kante auf Kante",
-      "o4": "Senkrechte durch einen Punkt",
-      "o5": "Punkt auf eine Linie, durch einen Punkt",
-      "o6": "zwei Punkte auf zwei Linien",
-      "o7": "Punkt auf eine Linie, senkrecht"
     },
     "backToPattern": "Zurück zum ganzen Muster",
     "backToPatterns": "Muster",
@@ -1957,20 +3201,6 @@
       "querying": "{{done}} von {{total}} Linien werden durchsucht"
     },
     "recompute": "Neu berechnen",
-    "ref": {
-      "bottomEdge": "die untere Kante",
-      "cornerNe": "die obere rechte Ecke",
-      "cornerNw": "die obere linke Ecke",
-      "cornerSe": "die untere rechte Ecke",
-      "cornerSw": "die untere linke Ecke",
-      "diagonalNwSe": "die Diagonale von oben links nach unten rechts",
-      "diagonalSwNe": "die Diagonale von unten links nach oben rechts",
-      "leftEdge": "die linke Kante",
-      "line": "Linie {{name}}",
-      "point": "Punkt {{name}}",
-      "rightEdge": "die rechte Kante",
-      "topEdge": "die obere Kante"
-    },
     "refusedSheet": "Der Bogen um diese Auswahl konnte nicht als Rechteck gelesen werden.",
     "searching": "Referenzen werden gesucht…",
     "settings": {
@@ -2041,6 +3271,7 @@
   "sidePane": {
     "layers": "Ebenen",
     "page": "Seite",
+    "paper": "Papier",
     "properties": "Eigenschaften",
     "settings": "Einstellungen",
     "step": "Schritt",

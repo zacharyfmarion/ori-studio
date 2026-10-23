@@ -17,7 +17,7 @@ import {
 } from '../diagram/foldMotion';
 import type { Point as ModelPoint } from '../../../lib/geometry';
 import { clipPolygonToSide, sheetPolygon, sideOf } from '../diagram/plannerDiagram';
-import type { StepDiagramModel } from '../referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../../lib/stepDiagram/stepDiagramModel';
 import { rfSheetOfFrame, rfToModel } from '../referenceFinderStepInModel';
 import type { ReferencesCandidateStep } from '../referencesCandidateSteps';
 import type {
@@ -27,7 +27,7 @@ import type {
 } from '../referencesResults';
 import type { ReferencesViewStep } from '../referencesSequenceView';
 import { cardWays } from '../referencesWays';
-import { arcSamplePoints } from '../stepDiagramGeometry';
+import { arcSamplePoints } from '../../../lib/stepDiagram/stepDiagramGeometry';
 import type { PrecreaseFrame } from '../sheetFrames';
 
 export interface FoldFlapScene {

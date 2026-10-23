@@ -21,6 +21,7 @@ export function ToolsTriggerButton({
   pickerId,
   onOpen,
   triggerRef,
+  compact = false,
 }: {
   label: string;
   /** The active tool's mark; drawn in a fixed box so any glyph sits on the label's line. */
@@ -30,6 +31,11 @@ export function ToolsTriggerButton({
   pickerId: string;
   onOpen: () => void;
   triggerRef: RefObject<HTMLButtonElement | null>;
+  /**
+   * The glyph alone, for a row with no room for the word (Fold's phone header
+   * in a long locale): the label stays the button's name, read but not drawn.
+   */
+  compact?: boolean;
 }) {
   return (
     <Button
@@ -47,7 +53,10 @@ export function ToolsTriggerButton({
           {glyph}
         </span>
       )}
-      {label}
+      {/* Never dropped from the tree: compact, it is still what the button is called. */}
+      <span className={styles.label} data-compact={(compact && glyph) || undefined}>
+        {label}
+      </span>
     </Button>
   );
 }

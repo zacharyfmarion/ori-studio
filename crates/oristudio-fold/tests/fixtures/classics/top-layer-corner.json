@@ -1,0 +1,926 @@
+{
+  "name": "top-layer-corner",
+  "sheet": {
+    "shape": "square"
+  },
+  "start": "front",
+  "steps": [
+    [
+      {
+        "op": "fold",
+        "fold": {
+          "line": {
+            "n": [
+              1.0,
+              0.0
+            ],
+            "d": 0.5
+          },
+          "side": "positive",
+          "direction": "valley",
+          "seed": {
+            "seed": "all"
+          },
+          "placement": {
+            "placement": "on_top"
+          },
+          "closure": "include"
+        }
+      },
+      {
+        "faces": 2,
+        "pairs": 1,
+        "moved": 1,
+        "creases": [
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.5,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              1.0
+            ],
+            "to": [
+              0.5,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.5,
+              0.0
+            ],
+            "to": [
+              0.5,
+              1.0
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.5,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.5,
+              1.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "op": "fold",
+        "fold": {
+          "line": {
+            "n": [
+              0.0,
+              1.0
+            ],
+            "d": 0.5
+          },
+          "side": "positive",
+          "direction": "valley",
+          "seed": {
+            "seed": "all"
+          },
+          "placement": {
+            "placement": "on_top"
+          },
+          "closure": "include"
+        }
+      },
+      {
+        "faces": 4,
+        "pairs": 6,
+        "moved": 2,
+        "creases": [
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.0,
+              0.5
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.5,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.5
+            ],
+            "to": [
+              0.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.5
+            ],
+            "to": [
+              0.5,
+              0.5
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 2
+          },
+          {
+            "from": [
+              0.0,
+              1.0
+            ],
+            "to": [
+              0.5,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.5,
+              0.0
+            ],
+            "to": [
+              0.5,
+              0.5
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.5,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.5,
+              0.5
+            ],
+            "to": [
+              0.5,
+              1.0
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.5,
+              0.5
+            ],
+            "to": [
+              1.0,
+              0.5
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "mountain"
+            },
+            "made_at": 2
+          },
+          {
+            "from": [
+              0.5,
+              1.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.5
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.5
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "op": "fold",
+        "fold": {
+          "line": {
+            "n": [
+              0.7071067811865475,
+              0.7071067811865475
+            ],
+            "d": 0.10606601717798213
+          },
+          "side": "negative",
+          "direction": "valley",
+          "seed": {
+            "seed": "depth",
+            "at": [
+              0.03,
+              0.97
+            ],
+            "layers": 1
+          },
+          "placement": {
+            "placement": "on_top"
+          },
+          "closure": "include"
+        }
+      },
+      {
+        "faces": 5,
+        "pairs": 10,
+        "moved": 1,
+        "creases": [
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.0,
+              0.5
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.5,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.5
+            ],
+            "to": [
+              0.0,
+              0.85
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.5
+            ],
+            "to": [
+              0.5,
+              0.5
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 2
+          },
+          {
+            "from": [
+              0.0,
+              0.85
+            ],
+            "to": [
+              0.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.85
+            ],
+            "to": [
+              0.15,
+              1.0
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "mountain"
+            },
+            "made_at": 3
+          },
+          {
+            "from": [
+              0.0,
+              1.0
+            ],
+            "to": [
+              0.15,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.15,
+              1.0
+            ],
+            "to": [
+              0.5,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.5,
+              0.0
+            ],
+            "to": [
+              0.5,
+              0.5
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.5,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.5,
+              0.5
+            ],
+            "to": [
+              0.5,
+              1.0
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.5,
+              0.5
+            ],
+            "to": [
+              1.0,
+              0.5
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "mountain"
+            },
+            "made_at": 2
+          },
+          {
+            "from": [
+              0.5,
+              1.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.5
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.5
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "op": "fold",
+        "fold": {
+          "line": {
+            "n": [
+              0.7071067811865475,
+              0.7071067811865475
+            ],
+            "d": 0.21213203435596426
+          },
+          "side": "negative",
+          "direction": "mountain",
+          "seed": {
+            "seed": "depth",
+            "at": [
+              0.98,
+              0.98
+            ],
+            "layers": 2
+          },
+          "placement": {
+            "placement": "on_top"
+          },
+          "closure": "include"
+        }
+      },
+      {
+        "faces": 7,
+        "pairs": 17,
+        "moved": 2,
+        "creases": [
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.0,
+              0.3
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.0
+            ],
+            "to": [
+              0.3,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.3
+            ],
+            "to": [
+              0.0,
+              0.5
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.3
+            ],
+            "to": [
+              0.3,
+              0.0
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "mountain"
+            },
+            "made_at": 4
+          },
+          {
+            "from": [
+              0.0,
+              0.5
+            ],
+            "to": [
+              0.0,
+              0.85
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.5
+            ],
+            "to": [
+              0.5,
+              0.5
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 2
+          },
+          {
+            "from": [
+              0.0,
+              0.85
+            ],
+            "to": [
+              0.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.0,
+              0.85
+            ],
+            "to": [
+              0.15,
+              1.0
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "mountain"
+            },
+            "made_at": 3
+          },
+          {
+            "from": [
+              0.0,
+              1.0
+            ],
+            "to": [
+              0.15,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.15,
+              1.0
+            ],
+            "to": [
+              0.5,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.3,
+              0.0
+            ],
+            "to": [
+              0.5,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.5,
+              0.0
+            ],
+            "to": [
+              0.5,
+              0.5
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.5,
+              0.0
+            ],
+            "to": [
+              0.7,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.5,
+              0.5
+            ],
+            "to": [
+              0.5,
+              1.0
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 1
+          },
+          {
+            "from": [
+              0.5,
+              0.5
+            ],
+            "to": [
+              1.0,
+              0.5
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "mountain"
+            },
+            "made_at": 2
+          },
+          {
+            "from": [
+              0.5,
+              1.0
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.7,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              0.7,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.3
+            ],
+            "kind": {
+              "kind": "folded",
+              "letter": "valley"
+            },
+            "made_at": 4
+          },
+          {
+            "from": [
+              1.0,
+              0.0
+            ],
+            "to": [
+              1.0,
+              0.3
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.3
+            ],
+            "to": [
+              1.0,
+              0.5
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          },
+          {
+            "from": [
+              1.0,
+              0.5
+            ],
+            "to": [
+              1.0,
+              1.0
+            ],
+            "kind": {
+              "kind": "border"
+            },
+            "made_at": 0
+          }
+        ]
+      }
+    ]
+  ]
+}

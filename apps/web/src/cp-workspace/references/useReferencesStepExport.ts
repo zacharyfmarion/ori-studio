@@ -8,7 +8,7 @@ import type { PaperExportScope } from '../../paperExport/paperExportTarget';
 import { focusedElement, usePaperExportUiStore } from '../../store/paperExportUiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import {
   referencesExportSteps,
   type ReferencesExportStep,

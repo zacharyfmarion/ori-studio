@@ -21,13 +21,20 @@ import type {
   LayerSpreadOptions,
   SpreadKind,
 } from '../../cp-workspace/folded/foldedLayerSpread';
-import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
-import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
-import type { RotateFraction, WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
+import { spreadStartsAmong, type LayerSpreadStarts } from '../../cp-workspace/folded/layerSpreadSettings';
+import type { DiagramWhiteArrowWidth } from '../../lib/stepDiagram/diagramInk';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
+import type { WhiteArrowTail } from '../../lib/stepDiagram/stepDiagramGeometry';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
-import { builtInPaperPreset, type BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
-import type { PaperStyle } from '../../lib/paper/paperStyle';
+import { randomId, type IdFactory } from '../../lib/documentFile';
+import {
+  DEFAULT_DOCUMENT_PAPER_STYLE,
+  snapshotDocumentPaperStyle,
+  type DocumentPaperStyle,
+  type ResolvedDocumentPaperStyle,
+} from '../../lib/paper/documentPaperStyle';
+import { sameTurnKind, type TurnKind, type TurnRotation } from '../../lib/steps/turn';
 import { xmlText } from '../../lib/xmlEscape';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
 import { cleanAnnotation, MAX_STEP_ANNOTATIONS, sameAnnotation, withAnnotationReach } from '../annotate/annotationModel';
@@ -169,19 +176,18 @@ export {
 export { FLOW_BANDS_RANGE, FLOW_WEIGHT_RANGE };
 
 /**
- * The paper style every step is painted in. A built-in with its saved values,
- * or a resolved style: a user preset or the export slot is resolved when it is
- * chosen, so a printed diagram never depends on the viewer's own settings.
+ * The paper style every step is painted in: a document's own paper style
+ * (`lib/paper/documentPaperStyle`), as a Fold sequence keeps one too. A
+ * built-in with its saved values, or a resolved style: a user preset or the
+ * export slot is resolved when it is chosen, so a printed diagram never
+ * depends on the viewer's own settings.
  */
-export type ResolvedDiagramStyle = { preset: string; style: PaperStyle } | { style: PaperStyle };
+export type ResolvedDiagramStyle = ResolvedDocumentPaperStyle;
 /** The id-only form is accepted from pre-launch files and callers. */
-export type DiagramStyle = ResolvedDiagramStyle | { preset: BuiltInPaperPresetId; style?: never };
+export type DiagramStyle = DocumentPaperStyle;
 
 /** Freeze a legacy id-only style when saving or explicitly choosing it. */
-export function snapshotDiagramStyle(style: DiagramStyle): ResolvedDiagramStyle {
-  if (style.style) return style;
-  return { preset: style.preset, style: builtInPaperPreset(style.preset).style };
-}
+export const snapshotDiagramStyle: (style: DiagramStyle) => ResolvedDiagramStyle = snapshotDocumentPaperStyle;
 
 /** A quarter-turn count, clockwise. */
 export type QuarterTurns = 0 | 1 | 2 | 3;
@@ -277,73 +283,39 @@ export type DiagramLayerSpread = LayerSpreadOptions;
 export type DiagramDepthSpread = DepthSpreadOptions;
 export type DiagramAffineSpread = AffineSpreadOptions;
 
+// A spread's ranges, defaults and start rule are every flat picture's — a
+// Fold step's as well as a diagram step's — so they live beside the spread
+// itself (`layerSpreadSettings.ts`), and the Diagram names them from there.
+export {
+  SPREAD_AMOUNT_RANGE,
+  SPREAD_SKEW_RANGE,
+  SPREAD_AXIS_RANGE,
+  clampSpreadAmount,
+  clampSpreadSkew,
+  clampSpreadAxis,
+  DEFAULT_DEPTH_SPREAD,
+  DEFAULT_AFFINE_SPREAD,
+  DEFAULT_LAYER_SPREAD,
+  DEFAULT_SPREAD_STARTS,
+  sameSpread,
+} from '../../cp-workspace/folded/layerSpreadSettings';
+
 /**
- * How far a spread may go, by kind: a depth spread steps the deepest layer
- * 0.5% to 20% of the model; an affine one moves a point 0.5% to 25% of the
- * way back to the sheet along its axis (in every direction only at no skew).
+ * What a step's spread starts from: a new flat pose, or Spread Layers turned
+ * on (`any`), and either kind chosen (`depth`, `affine`) — each the nearest
+ * earlier step's, else its default.
  */
-export const SPREAD_AMOUNT_RANGE: Readonly<Record<SpreadKind, { readonly min: number; readonly max: number }>> = {
-  depth: { min: 0.005, max: 0.2 },
-  affine: { min: 0.005, max: 0.25 },
-};
+export type DiagramSpreadStarts = LayerSpreadStarts;
 
-/** An affine spread's skew: none (an even lerp toward the sheet) to all (about its axis). */
-export const SPREAD_SKEW_RANGE = { min: 0, max: 1 } as const;
-
-/** An affine spread's axis, in whole degrees: an axis at 180° is the one at 0°. */
-export const SPREAD_AXIS_RANGE = { min: 0, max: 179 } as const;
-
-/**
- * An amount a spread of `kind` may take: within {@link SPREAD_AMOUNT_RANGE},
- * to a hundredth of a percent, so a slider's float noise is not written.
- */
-export function clampSpreadAmount(kind: SpreadKind, amount: number): number {
-  const { min, max } = SPREAD_AMOUNT_RANGE[kind];
-  const fallback = kind === 'depth' ? DEFAULT_DEPTH_SPREAD.amount : DEFAULT_AFFINE_SPREAD.amount;
-  const within = Number.isFinite(amount) ? Math.min(max, Math.max(min, amount)) : fallback;
-  return Number(within.toFixed(4));
+/** The spreads of the flat folds before `stepId`, nearest first: turns and newer builds' steps are passed over. */
+function* earlierSpreads(document: DiagramDocument, stepId: string): Generator<DiagramLayerSpread> {
+  for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
+    const entry = document.steps[index]!;
+    if (isTurn(entry) || isLockedStep(entry)) continue;
+    const render = posedRenderOf(entry.source);
+    if (render?.mode === 'folded-flat' && render.spread) yield render.spread;
+  }
 }
-
-/** A skew an affine spread may take: 0 to 1, to a hundredth. */
-export function clampSpreadSkew(skew: number): number {
-  const within = Number.isFinite(skew) ? Math.min(1, Math.max(0, skew)) : DEFAULT_AFFINE_SPREAD.skew;
-  return Number(within.toFixed(2));
-}
-
-/** An axis an affine spread may take: whole degrees, 0 to 179, one half-turn being the same axis. */
-export function clampSpreadAxis(degrees: number): number {
-  if (!Number.isFinite(degrees)) return DEFAULT_AFFINE_SPREAD.axisDeg;
-  return ((Math.round(degrees) % 180) + 180) % 180;
-}
-
-/**
- * The depth spread Depth starts from when no earlier step has one — Zach,
- * 2026-10-04: "depth based ON for folded figures, set to down and 2.5%". It
- * was every new flat pose's until affine took its place (2026-10-05).
- */
-export const DEFAULT_DEPTH_SPREAD: DiagramDepthSpread = { kind: 'depth', amount: 0.025, toward: 'down' };
-
-/**
- * The affine spread Affine starts from when no earlier step has one: the
- * playground's bird base, DEFOX's angle 0.95 (φ = 162°, so θ = 81°), fully
- * skewed, 3%. Held still: the top as the front sees it — the playground drew
- * that fold from the side the kernel calls its back, so its bottom is the
- * front's top (`implementation-plans/diagram-distortion.md`, 13g).
- */
-export const DEFAULT_AFFINE_SPREAD: DiagramAffineSpread = {
-  kind: 'affine',
-  amount: 0.03,
-  keep: 'top',
-  skew: 1,
-  axisDeg: 81,
-};
-
-/**
- * The spread a folded-flat pose starts with when no earlier step has one, and
- * Spread Layers turned on takes then — Zach, 2026-10-05: "I want affine to be
- * the default option and the first displayed, and default to on".
- */
-export const DEFAULT_LAYER_SPREAD: DiagramLayerSpread = DEFAULT_AFFINE_SPREAD;
 
 /**
  * The spread of the nearest step before `stepId` whose flat fold has one —
@@ -356,68 +328,32 @@ export function nearestEarlierSpread(
   stepId: string,
   kind?: SpreadKind
 ): DiagramLayerSpread | null {
-  for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
-    const entry = document.steps[index]!;
-    if (isTurn(entry) || isLockedStep(entry) || entry.source?.kind !== 'cp') continue;
-    const { render } = entry.source;
-    if (render.mode === 'folded-flat' && render.spread && (kind === undefined || render.spread.kind === kind)) {
-      return render.spread;
-    }
+  for (const spread of earlierSpreads(document, stepId)) {
+    if (kind === undefined || spread.kind === kind) return spread;
   }
   return null;
 }
 
 /**
- * The way the nearest linked step before `stepId` shows its pattern (D19),
- * turns, uploads, References steps and a newer build's steps passed over:
- * what the pattern picker offers a step with no link (review fix 3), so a
- * step after a folded run links folded. Null when no step before it is
- * linked.
+ * The way the nearest posed step before `stepId` shows its pattern (D19) — a
+ * linked pattern or a Fold step — turns, uploads, References steps and a
+ * newer build's steps passed over: what the pattern picker offers a step with
+ * no link (review fix 3), so a step after a folded run links folded. Null when
+ * no step before it is posed.
  */
 export function nearestEarlierShowAs(document: DiagramDocument, stepId: string): DiagramShowAs | null {
   for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
     const entry = document.steps[index]!;
-    if (isTurn(entry) || isLockedStep(entry) || entry.source?.kind !== 'cp') continue;
-    return showAsOf(entry.source.render);
+    if (isTurn(entry) || isLockedStep(entry)) continue;
+    const render = posedRenderOf(entry.source);
+    if (render) return showAsOf(render);
   }
   return null;
 }
 
-/**
- * What a step's spread starts from: a new flat pose, or Spread Layers turned
- * on (`any`), and either kind chosen (`depth`, `affine`) — each the nearest
- * earlier step's, else its default.
- */
-export interface DiagramSpreadStarts {
-  any: DiagramLayerSpread;
-  depth: DiagramDepthSpread;
-  affine: DiagramAffineSpread;
-}
-
-/** The starts when there is no diagram to look in: the defaults. */
-export const DEFAULT_SPREAD_STARTS: DiagramSpreadStarts = {
-  any: DEFAULT_LAYER_SPREAD,
-  depth: DEFAULT_DEPTH_SPREAD,
-  affine: DEFAULT_AFFINE_SPREAD,
-};
-
-/** {@link DiagramSpreadStarts} for a step of `document`. */
+/** {@link DiagramSpreadStarts} for a step of `document`: the shared start rule over the steps before it. */
 export function spreadStartsFor(document: DiagramDocument, stepId: string): DiagramSpreadStarts {
-  const depth = nearestEarlierSpread(document, stepId, 'depth');
-  const affine = nearestEarlierSpread(document, stepId, 'affine');
-  return {
-    any: nearestEarlierSpread(document, stepId) ?? DEFAULT_LAYER_SPREAD,
-    depth: depth?.kind === 'depth' ? depth : DEFAULT_DEPTH_SPREAD,
-    affine: affine?.kind === 'affine' ? affine : DEFAULT_AFFINE_SPREAD,
-  };
-}
-
-/** Whether two spreads, or their absence, are one. */
-export function sameSpread(a: DiagramLayerSpread | undefined, b: DiagramLayerSpread | undefined): boolean {
-  if (a === b) return true;
-  if (a === undefined || b === undefined || a.kind !== b.kind || a.amount !== b.amount) return false;
-  if (a.kind === 'depth') return b.kind === 'depth' && a.toward === b.toward;
-  return b.kind === 'affine' && a.keep === b.keep && a.skew === b.skew && a.axisDeg === b.axisDeg;
+  return spreadStartsAmong(earlierSpreads(document, stepId));
 }
 
 /**
@@ -512,6 +448,105 @@ export interface DiagramCpSource {
 }
 
 /**
+ * Which state of a Fold step a picture shows (fold-workspace plan D17): the
+ * state the step folds from, with what the step does drawn on it, as a
+ * References card shows its step (`before`); or the state it lands, as the
+ * Finished card shows the end (`after`).
+ */
+export type DiagramFoldMoment = 'before' | 'after';
+
+export const DIAGRAM_FOLD_MOMENTS: readonly DiagramFoldMoment[] = ['before', 'after'];
+
+/**
+ * A step drawn from a step of a Fold sequence, and linked to it (plan D17).
+ *
+ * The link names the step by its ids, which the Fold document owns and never
+ * reassigns (its steps are an append-only tree), and remembers two digests,
+ * one role each: `path`, the step's `fh1:` — its path's identity — and
+ * `state`, the `fs1:` of the state the picture shows, which alone says whether
+ * the picture still shows it. `engine` is the Fold engine's version that
+ * captured it, for diagnostics only: a new engine that lands the same state
+ * leaves the link current.
+ *
+ * Its pose is a linked pattern's (`posedRenderOf`), in two of its ways: the
+ * crease pattern of the step, or its flat folded form — its layer order is
+ * the sequence's, never a choice, so `foldCase` is always 1. A fold's `side`
+ * is the paper's as Fold shows it: `front` is the model as the sequence's
+ * view has it, `back` the same model turned over.
+ *
+ * A link may name a run of steps drawn as one (`through`): precreases and
+ * their mirror images — a precrease and a Repeat of it on the other side, or
+ * two precreases that mirror each other — which a book draws on one picture
+ * (`diagram/fold/foldPrecreaseMerge.ts`). `step` is then the run's first
+ * step and `through` its last, always `before`: the picture is the state the
+ * first folds from, the marks every step's. `path` is the last step's `fh1`,
+ * which names every step above it, so a change to any of them is a change to
+ * the link; `state` is still the state shown. A single step has no
+ * `through`, and reads as it always did.
+ */
+export interface DiagramFoldStepSource {
+  kind: 'fold-step';
+  /** The sequence, `fold-<uuid>`. */
+  sequence: string;
+  /** The step whose fold the picture shows — a run's first — `fstep-<uuid>`. */
+  step: string;
+  /** A run's last step, when the picture draws more than one; absent for one step. */
+  through?: string;
+  moment: DiagramFoldMoment;
+  /** The step's path as captured — a run's last step's: `fh1:…`. */
+  path: string;
+  /** The state shown as captured: `fs1:…`. */
+  state: string;
+  /** The Fold engine's version that captured it; diagnostic only. */
+  engine: number;
+  /** The step's crease pattern as it was linked, for the card and a step whose sequence is gone. */
+  thumbnail: SheetThumbnail;
+  /** A crease pattern or a flat fold (`foldCase` 1), never 3D or simulated. */
+  render: DiagramCpRender;
+  /** The pose the other way of showing it last had, as a linked pattern's (D19); absent when empty. */
+  remembered?: Partial<Record<DiagramShowAs, DiagramCpRender>>;
+  /**
+   * The step's generated sentence as it was pulled (XML-clean): while the
+   * step's instruction still equals it the words are Fold's, and a refresh
+   * that words the step otherwise brings its own; edited, they are the
+   * reader's. Absent for a step whose fold says nothing (the flat sheet).
+   */
+  sentence?: string;
+}
+
+/** The last Fold step a link draws: a run's last (`through`), or its one step. */
+export function lastFoldStepOf(source: Pick<DiagramFoldStepSource, 'step' | 'through'>): string {
+  return source.through ?? source.step;
+}
+
+/** The ways a Fold step is shown: its crease pattern or its folded form, never simulated. */
+export const DIAGRAM_FOLD_SHOW_AS: readonly DiagramShowAs[] = ['crease-pattern', 'folded'];
+
+/**
+ * A source whose picture is captured in a pose (D5, D19): a linked pattern
+ * shown as its creases, folded or simulated, or a Fold step shown as its
+ * crease pattern or folded. Its `render` is the pose and `remembered` the one
+ * each other way last had, so every pose verb, Show as, the spread a new pose
+ * starts from, the carry of marks and how its picture is measured read one
+ * shape, whatever made the picture.
+ */
+export type DiagramPosedSource = DiagramCpSource | DiagramFoldStepSource;
+
+/** Whether a source is captured in a pose ({@link DiagramPosedSource}). */
+export function isPosedSource(source: DiagramStepSource | null | undefined): source is DiagramPosedSource {
+  return source?.kind === 'cp' || source?.kind === 'fold-step';
+}
+
+/**
+ * The pose a step's source is captured in: the one seam every pose reader
+ * goes through, so a source that is not a region of Edit's pattern shares
+ * them. Null for a source with no pose — an upload, a References card.
+ */
+export function posedRenderOf(source: DiagramStepSource | null | undefined): DiagramCpRender | null {
+  return isPosedSource(source) ? source.render : null;
+}
+
+/**
  * The pose to show a linked pattern in, as `way` (D19): the one it is shown in
  * now when that is the way, else the one that way last had, else that way's
  * start — a crease pattern or a flat fold lying as the step lies now, from the
@@ -525,7 +560,7 @@ export interface DiagramCpSource {
  * nearest earlier step's, `spreadStartsFor`); one remembered keeps its own.
  */
 export function renderToShowAs(
-  source: Pick<DiagramCpSource, 'render' | 'remembered'>,
+  source: Pick<DiagramPosedSource, 'render' | 'remembered'>,
   way: DiagramShowAs,
   spread?: DiagramLayerSpread
 ): DiagramCpRender {
@@ -556,15 +591,16 @@ export function renderToShowAs(
  * `after`, a new capture's source, keeping what the step's source before it
  * remembered and, when the way it is shown changes, the pose it had (D19).
  */
-export function withRememberedPoses(before: DiagramStepSource | null, after: DiagramCpSource): DiagramCpSource {
+export function withRememberedPoses<S extends DiagramPosedSource>(before: DiagramStepSource | null, after: S): S {
   const { remembered: _ignored, ...rest } = after;
-  const kept: Partial<Record<DiagramShowAs, DiagramCpRender>> =
-    before?.kind === 'cp' ? { ...before.remembered } : {};
-  if (before?.kind === 'cp' && showAsOf(before.render) !== showAsOf(after.render)) {
-    kept[showAsOf(before.render)] = before.render;
+  // Only a pose of the same kind of source is the same picture's other way.
+  const same = isPosedSource(before) && before.kind === after.kind ? before : null;
+  const kept: Partial<Record<DiagramShowAs, DiagramCpRender>> = same ? { ...same.remembered } : {};
+  if (same && showAsOf(same.render) !== showAsOf(after.render)) {
+    kept[showAsOf(same.render)] = same.render;
   }
   delete kept[showAsOf(after.render)];
-  return Object.keys(kept).length > 0 ? { ...rest, remembered: kept } : rest;
+  return (Object.keys(kept).length > 0 ? { ...rest, remembered: kept } : rest) as S;
 }
 
 /** The planner settings a References plan was made with (D6): what made its steps the ones they are. */
@@ -637,7 +673,11 @@ export interface DiagramReferencesSource {
  * build them, and a source this build does not know makes the step an
  * unknown, locked one (see {@link DiagramStep.unknown}).
  */
-export type DiagramStepSource = DiagramUploadSource | DiagramCpSource | DiagramReferencesSource;
+export type DiagramStepSource =
+  | DiagramUploadSource
+  | DiagramCpSource
+  | DiagramReferencesSource
+  | DiagramFoldStepSource;
 
 /**
  * A picture held in the assets table: an upload, or (from Phase 3) a capture
@@ -704,7 +744,7 @@ export interface DiagramPaperFaces {
    * order; empty for a face the kernel could not name on the paper.
    */
   rings: number[][];
-  /** Per face: the longest chain of faces stacked over it as the picture is seen (`layerLevels`); the greatest is backmost. */
+  /** Per face: the longest chain of display layers stacked over its own as the picture is seen (`layerLevels`); the greatest is backmost. */
   levels: number[];
 }
 
@@ -775,6 +815,12 @@ export type DiagramAnnotationKind =
   | 'valley-line'
   | 'mountain-line'
   | 'hidden-line'
+  /**
+   * The rest of a partial precrease's fold, not creased — a pinch's line across
+   * the paper it would fold — dotted, as diagrams draw it: a Fold step's mark,
+   * never a tool's.
+   */
+  | 'uncreased-line'
   | 'solid-line'
   | 'label'
   | 'circle'
@@ -942,20 +988,12 @@ export interface DiagramBehind {
   to?: number;
 }
 
-/** A rotation's preset: the fraction of a turn its glyph prints. */
-export type DiagramRotationAmount = RotateFraction;
-
 /**
- * How far, and which way, a rotate glyph turns the model: one of the
- * presets, written `{ amount, direction }` as every build has written one, or
- * an angle of the author's own, `{ degrees, direction }` — more than none,
- * less than a whole turn, to a tenth of a degree (`ROTATION_DEGREES`). Never
- * both: the shape a build without angles has no name for, so it carries one
- * whole and locked rather than dropping it.
+ * How far, and which way, a rotate glyph turns the model: a turn's rotation
+ * (`lib/steps/turn.ts`) — one of the presets, or an angle of the author's own
+ * (`diagramRotation.ts`), written `{ degrees, direction }` (`diagramFile.ts`).
  */
-export type DiagramRotation =
-  | { amount: DiagramRotationAmount; degrees?: undefined; direction: 'cw' | 'ccw' }
-  | { degrees: number; amount?: undefined; direction: 'cw' | 'ccw' };
+export type DiagramRotation = TurnRotation;
 
 /**
  * A node of a shaped arrow's path, in picture units like everything else an
@@ -1282,11 +1320,10 @@ export interface DiagramStep {
 
 /**
  * Turning the whole model between two steps (D22): over, about an axis, or
- * round by a part of a turn. What a turn is, without its id.
+ * round by a part of a turn. What a turn is, without its id — the turn every
+ * sequence of steps shares (`lib/steps/turn.ts`).
  */
-export type DiagramTurnKind =
-  | { kind: 'turn-over'; axis: 'vertical' | 'horizontal' }
-  | { kind: 'rotate'; rotate: DiagramRotation };
+export type DiagramTurnKind = TurnKind;
 
 /**
  * A turn in the diagram's order (D22): an entry beside the steps, selected,
@@ -1530,9 +1567,9 @@ export interface DiagramNewerFields {
   titleBlockContent?: Readonly<Record<string, unknown>>;
 }
 
-export type DiagramIdFactory = (prefix: 'diagram' | 'step' | 'turn' | 'annotation' | 'asset') => string;
+export type DiagramIdFactory = IdFactory<'diagram' | 'step' | 'turn' | 'annotation' | 'asset'>;
 
-export const randomDiagramId: DiagramIdFactory = (prefix) => `${prefix}-${crypto.randomUUID()}`;
+export const randomDiagramId: DiagramIdFactory = randomId;
 
 export const PAGE_MARGIN_MM_RANGE = { min: 0, max: 30 } as const;
 export const PAGE_COLUMNS_RANGE = { min: 2, max: 5 } as const;
@@ -1544,7 +1581,7 @@ export const FIRST_PAGE_NUMBER_RANGE = { min: 1, max: 9999 } as const;
 /** The flow band's width, mm: from a thin line to three times the default. */
 export const PATH_WIDTH_MM_RANGE = { min: 4, max: 60 } as const;
 
-export const DEFAULT_DIAGRAM_STYLE: DiagramStyle = snapshotDiagramStyle({ preset: 'diagram' });
+export const DEFAULT_DIAGRAM_STYLE: DiagramStyle = DEFAULT_DOCUMENT_PAPER_STYLE;
 
 /**
  * The Han style a new diagram starts in, from the author's interface language:
@@ -1881,7 +1918,7 @@ export function setStepPicture(
 
 /** A linked step's picture as a capture made it: its source, and the picture with any bitmap it is kept as. */
 export interface CapturedLink {
-  source: DiagramCpSource;
+  source: DiagramPosedSource;
   picture: DiagramPicture | null;
   /** The bitmap a picture too detailed to keep as vector is kept as; `picture` names it. */
   asset?: KnownDiagramAsset;
@@ -1927,6 +1964,92 @@ export function setLinkedPicture(
   );
 }
 
+/** A Fold step's capture: its source and picture, and the marks its fold brings (plan D17). */
+export interface CapturedFoldStep extends CapturedLink {
+  source: DiagramFoldStepSource;
+  /** The step's line and arrow, tagged as the source's, in the picture's units; empty when it brings none. */
+  marks: readonly KnownDiagramAnnotation[];
+}
+
+/**
+ * Link a step to a Fold step, or give a Fold step's step a new capture: its
+ * source and picture become the capture's, and it keeps its instruction and
+ * the author's marks — carried with a turn, as a linked pattern's are.
+ *
+ * The marks the fold brought are the source's (`isCardMark`): they follow the
+ * picture through a turn of the same state, and otherwise — another state
+ * after a change upstream, the other side, the other way of showing it — are
+ * swapped for the capture's own, edited ones too, as a References card's are
+ * on Replace (RM6); how many edited ones went is `replaced`. A capture that
+ * changes nothing is no edit, as {@link setLinkedPicture}'s.
+ */
+export function setFoldStepPicture(
+  document: DiagramDocument,
+  stepId: string,
+  link: CapturedFoldStep
+): { document: DiagramDocument; replaced: number } {
+  const step = stepById(document, stepId);
+  if (!step || isLockedStep(step)) return { document, replaced: 0 };
+  const source = withRememberedPoses(step.source, link.source);
+  if (
+    (step.picture?.key ?? null) === (link.picture?.key ?? null) &&
+    paperFacesOn(step.picture) === paperFacesOn(link.picture) &&
+    JSON.stringify(step.source) === JSON.stringify(source)
+  ) {
+    return { document, replaced: 0 };
+  }
+  const withAsset = withAssets(document, link.asset ? [link.asset] : []);
+  const was = step.source?.kind === 'fold-step' ? step.source : null;
+  // The same state, from the same side and shown the same way: only turned or spread, which the carry follows.
+  const posedOnly =
+    was !== null &&
+    was.sequence === source.sequence &&
+    was.step === source.step &&
+    was.through === source.through &&
+    was.moment === source.moment &&
+    was.state === source.state &&
+    showAsOf(was.render) === showAsOf(source.render) &&
+    renderSide(was.render) === renderSide(source.render);
+  let replaced = 0;
+  const next = updatePicture(withAsset, stepId, (current) => {
+    // Its words are Fold's while they are still the sentence it was captured with (D20's rule): they follow the step's.
+    const own = was?.sentence;
+    const text = own !== undefined && current.text === own ? xmlText(source.sentence ?? '') : current.text;
+    const captured: DiagramStep = {
+      ...current,
+      // An import's fold notice is about the picture this replaces.
+      importStatus: undefined,
+      source,
+      picture: link.picture,
+      text,
+      revision: current.revision + 1,
+    };
+    const carried = withCarriedAnnotations(current, captured, withAsset.assets);
+    if (posedOnly) {
+      // A Repeat's untouched callout names a screen direction. Recapture its
+      // wording and outside-paper box after a turn; an author's edits carry
+      // normally. Other imported marks retain their shaped geometry as before.
+      const callouts = link.marks.filter((mark) => mark.kind === 'callout');
+      let calloutIndex = 0;
+      return { ...carried, annotations: carried.annotations.map((mark) => {
+        if (!isKnownAnnotation(mark) || mark.kind !== 'callout' || !mark.imported) return mark;
+        const fresh = callouts[calloutIndex++];
+        return mark.imported === 'untouched' && fresh ? { ...fresh, id: mark.id } : mark;
+      }) };
+    }
+    const swapped = swapCardMarks(current, carried, link.marks, withAsset.assets);
+    replaced = editedCardMarksGone(current, swapped);
+    return swapped;
+  });
+  return { document: next, replaced };
+}
+
+/** The side of the paper a render shows: a flat fold's, or a crease pattern's paper colour; the front for a view that says none. */
+function renderSide(render: DiagramCpRender): 'front' | 'back' {
+  if (render.mode === 'crease-pattern') return creasePatternSide(render);
+  return render.mode === 'simulated' || render.mode === 'defox' ? 'front' : render.side;
+}
+
 /**
  * A picture's faces on the paper, as stored: a capture that adds them to a
  * picture drawn the same (its key unchanged) is still an edit, which keeps
@@ -1952,11 +2075,31 @@ export interface SentReferencesStep {
   text: string;
 }
 
-/** A References card split (17d): its sheet — the paper, as it stands — and its marks, lifted. */
-export interface LiftedCard {
-  picture: DiagramStepDiagramPicture;
+/**
+ * A References card split (17d): its sheet — the paper, as it stands — and
+ * its marks, lifted. A Fold step arrives split the same way, its state the
+ * picture and its fold's line and arrow the marks (`P` its picture's kind).
+ */
+export interface LiftedCard<P extends DiagramPicture = DiagramStepDiagramPicture> {
+  picture: P;
   annotations: KnownDiagramAnnotation[];
 }
+
+/**
+ * One Fold step, as a step is made from it (plan D17): its state's picture
+ * and the marks its fold brings, tagged as the source's — never past what a
+ * step holds, which a fold's line and arrow are not — and its sentence.
+ */
+export interface SentFoldStep {
+  source: DiagramFoldStepSource;
+  picture: DiagramScenePicture | DiagramAssetPicture;
+  lifted: LiftedCard<DiagramScenePicture | DiagramAssetPicture>;
+  /** The step's sentence (`source.sentence`), or none for the state after it. */
+  text: string;
+}
+
+/** A step a pull makes: from a References card, or from a Fold step. */
+export type SentDiagramStep = SentReferencesStep | SentFoldStep;
 
 /** What a pull did beyond making steps (17d): the steps a card was pulled baked into, and the edited marks a Replace swapped away. */
 export interface PulledMarks {
@@ -1982,25 +2125,29 @@ export type DiagramPullAnchor =
 /** What References sends: a card, made a step; or a turn-over card, made a turn (D22). */
 export type SentReferencesEntry = SentReferencesStep | DiagramTurnKind;
 
+/** What a pull sends: a References card or a Fold step, each made a step, or a turn between them (D22). */
+export type SentDiagramEntry = SentDiagramStep | DiagramTurnKind;
+
 /**
- * Cards pulled from References, placed by `anchor`, in order: each a step, a
- * turn-over card a turn (D22). An anchor whose step is gone, or can no longer
- * be filled or replaced (it got a picture, it is a newer build's), places the
- * cards after it, or at the end. A step filled or replaced takes the first
- * card that makes a step; turns sent before it go before it, never into it.
- * The steps the cards became, in order — a filled or replaced step first —
- * and the turns.
+ * Cards pulled from References — or steps from Fold (plan D17), which pull
+ * the same way — placed by `anchor`, in order: each a step, a turn-over card
+ * (a Fold turn or rotation) a turn (D22). An anchor whose step is gone, or
+ * can no longer be filled or replaced (it got a picture, it is a newer
+ * build's), places the cards after it, or at the end. A step filled or
+ * replaced takes the first card that makes a step; turns sent before it go
+ * before it, never into it. The steps the cards became, in order — a filled
+ * or replaced step first — and the turns.
  */
 export function pullReferencesSteps(
   document: DiagramDocument,
-  sent: readonly SentReferencesEntry[],
+  sent: readonly SentDiagramEntry[],
   anchor: DiagramPullAnchor,
   { newId = randomDiagramId }: { newId?: DiagramIdFactory } = {}
 ): { document: DiagramDocument; stepIds: string[]; turnIds: string[] } & PulledMarks {
   const baked: string[] = [];
   if (sent.length === 0) return { document, stepIds: [], turnIds: [], baked, replaced: 0 };
   /** The card as a new step: its marks lifted, in step with its sheet, when they fit (17d). */
-  const make = (card: SentReferencesEntry): DiagramEntry => {
+  const make = (card: SentDiagramEntry): DiagramEntry => {
     if ('kind' in card) return createTurn(card, newId);
     const step = createStep(newId);
     const lifted = card.lifted && card.lifted.annotations.length <= MAX_STEP_ANNOTATIONS ? card.lifted : null;
@@ -2014,7 +2161,7 @@ export function pullReferencesSteps(
       text: xmlText(card.text),
     };
   };
-  const insertAt = (index: number, cards: readonly SentReferencesEntry[], into = document) => {
+  const insertAt = (index: number, cards: readonly SentDiagramEntry[], into = document) => {
     const entries = cards.map(make);
     return {
       document: insertSteps(into, entries, index),
@@ -2032,20 +2179,20 @@ export function pullReferencesSteps(
     const before = target && firstStep < 0 && anchor.kind !== 'after' && anchorTakesCard(document, anchor);
     return { ...insertAt(at < 0 ? document.steps.length : before ? at : at + 1, sent), baked, replaced: 0 };
   }
-  const first = sent[firstStep] as SentReferencesStep;
+  const first = sent[firstStep] as SentDiagramStep;
   const leading = sent.slice(0, firstStep);
   const rest = sent.slice(firstStep + 1);
   const words = (step: DiagramStep): string => {
     if (anchor.kind === 'fill') return step.text.trim() === '' ? xmlText(first.text) : step.text;
     // Replaced: still the old card's words, they become the new card's; edited, they are the reader's.
-    const own = step.source?.kind === 'references-step' ? step.source.sentence : undefined;
+    const own = sourceSentenceOf(step.source);
     return own !== undefined && step.text === own ? xmlText(first.text) : step.text;
   };
   // The card's marks follow the card (RM6): every one the old card brought
   // goes, edited or not, the new card's arrive, and the author's stay.
   let replaced = 0;
   const taken = updateStep(document, target.id, (step) => {
-    const lifted = fits(step, first.lifted) ? first.lifted : null;
+    const lifted = fits<DiagramPicture>(step, first.lifted) ? first.lifted : null;
     if (!lifted && first.lifted !== undefined) baked.push(step.id);
     // A card never continues an enlarged run: an empty step it fills starts whole, before its marks arrive (review fix 3).
     const next = startsWhole(
@@ -2076,8 +2223,17 @@ export function pullReferencesSteps(
 }
 
 /** Whether a card's lifted marks fit on `step` beside the author's own (17d): a step holds no more than a file keeps. */
-function fits(step: DiagramStep, lifted: LiftedCard | null | undefined): lifted is LiftedCard {
+function fits<P extends DiagramPicture>(step: DiagramStep, lifted: LiftedCard<P> | null | undefined): lifted is LiftedCard<P> {
   return !!lifted && lifted.annotations.length + authorMarksOf(step).length <= MAX_STEP_ANNOTATIONS;
+}
+
+/**
+ * The words a source's step was pulled with: a References card's, or a Fold
+ * step's. While a step's instruction still equals them they are the
+ * source's, and a source that brings others replaces them.
+ */
+export function sourceSentenceOf(source: DiagramStepSource | null): string | undefined {
+  return source?.kind === 'references-step' || source?.kind === 'fold-step' ? source.sentence : undefined;
 }
 
 /**
@@ -2848,21 +3004,10 @@ export function stepToTurn(
 export function setTurn(document: DiagramDocument, turnId: string, kind: DiagramTurnKind): DiagramDocument {
   const index = stepIndex(document, turnId);
   const turn = document.steps[index];
-  if (!turn || !isTurn(turn) || isLockedTurn(turn) || sameTurn(turn, kind)) return document;
+  if (!turn || !isTurn(turn) || isLockedTurn(turn) || sameTurnKind(turn, kind)) return document;
   const steps = document.steps.slice();
   steps[index] = createTurn(kind, () => turn.id);
   return { ...document, steps };
-}
-
-/** Whether two turns turn the model the same way, field by field. */
-function sameTurn(a: DiagramTurnKind, b: DiagramTurnKind): boolean {
-  if (a.kind === 'turn-over') return b.kind === 'turn-over' && a.axis === b.axis;
-  return (
-    b.kind === 'rotate' &&
-    a.rotate.amount === b.rotate.amount &&
-    a.rotate.degrees === b.rotate.degrees &&
-    a.rotate.direction === b.rotate.direction
-  );
 }
 
 /**

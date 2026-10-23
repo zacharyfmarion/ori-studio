@@ -1,4 +1,4 @@
-import type { DiagramWhiteArrowFill } from '../../cp-workspace/references/diagram/diagramInk';
+import type { DiagramWhiteArrowFill } from '../../lib/stepDiagram/diagramInk';
 
 /**
  * A star's fill (Revision 3, R3-4 C, R3-5 A), as the rail's Fill and a star's

@@ -24,6 +24,12 @@ vi.mock('./panels/ReferencesViewControlsPanel', () => ({
 vi.mock('./panels/DiagramStepPanel', () => ({ DiagramStepPanel: () => <p>diagram step</p> }));
 vi.mock('./panels/DiagramPagePanel', () => ({ DiagramPagePanel: () => <p>diagram page</p> }));
 vi.mock('./panels/DiagramLayersPanel', () => ({ DiagramLayersPanel: () => <p>diagram layers</p> }));
+// Fold's panes are its code, loaded as they mount (`FoldGate`), and read its session and
+// the paper style; their sections are what the drawer seats.
+vi.mock('./fold/FoldGate', () => ({
+  LazyFoldStepPanel: () => <section aria-label="Step">fold step</section>,
+  LazyFoldPaperPanel: () => <section aria-label="Paper">fold paper</section>,
+}));
 
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
 
@@ -484,6 +490,24 @@ describe('the workspace View drawer', () => {
     expect(tab('Layers')?.getAttribute('aria-pressed')).toBe('true');
     expect(dialog()?.textContent).toContain('diagram layers');
     expect(analytics.track).toHaveBeenLastCalledWith('view drawer opened', { workspace: 'diagram', pane: 'diagram-layers' });
+  });
+
+  it('seats the Fold pill in its pane’s slot, on a sheet with its Step and Paper panes', () => {
+    // The Diagram's arrangement: the header offers the slot, and the sheet
+    // opens on the column's lead with the paper a tab beside it.
+    useLayoutStore.setState({ activeWorkspace: 'fold' });
+    render();
+    expect(container?.querySelector('.view-drawer__trigger')).toBeNull();
+
+    seatSlot();
+    expect(seated()?.textContent).toBe('Settings');
+    press(seated());
+
+    expect(tab('Step')?.getAttribute('aria-pressed')).toBe('true');
+    expect(dialog()?.querySelector('section[aria-label="Step"]')).not.toBeNull();
+    expect(analytics.track).toHaveBeenLastCalledWith('view drawer opened', { workspace: 'fold', pane: 'fold-step' });
+    press(tab('Paper'));
+    expect(dialog()?.querySelector('section[aria-label="Paper"]')).not.toBeNull();
   });
 
   it('steps aside while a pick it armed is made on the canvas under it, and comes back on Layers when it ends (18f)', () => {

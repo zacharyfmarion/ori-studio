@@ -68,6 +68,7 @@ export type WorkspaceCapabilityId =
   | 'view.simulator'
   | 'view.references'
   | 'view.diagram'
+  | 'view.fold'
   | 'view.conditions'
   | 'view.properties'
   | 'view.resetLayout'
@@ -114,7 +115,35 @@ export type WorkspaceCapabilityId =
   | 'cp.organizeCircles'
   | 'cp.setActiveCreaseAngle'
   | 'insert.image'
-  | 'insert.text';
+  | 'insert.text'
+  | FoldSequenceCapabilityId
+  | FoldIoCapabilityId;
+
+/** Fold's imports, hand-offs and exports: `fold.` and the action catalog's id where it has one. */
+export type FoldIoCapabilityId =
+  | 'fold.import-cp'
+  | 'fold.import-sample-preliminary-base'
+  | 'fold.import-sample-waterbomb-base'
+  | 'fold.import-sample-pleat-in-eighths'
+  | 'fold.start-from-edit-folded-figure'
+  | 'fold.send-to-edit'
+  | 'fold.send-to-diagram'
+  | 'fold.send-path-to-diagram'
+  | 'fold.export-fold'
+  | 'fold.export-step'
+  | 'fold.export-steps';
+
+/** The Fold sequence's verbs, by the action catalog's ids (`fold/foldActions`). */
+export type FoldSequenceCapabilityId =
+  | 'fold.valley'
+  | 'fold.mountain'
+  | 'fold.precrease'
+  | 'fold.turn-over'
+  | 'fold.rotate'
+  | 'fold.unfold-to'
+  | 'fold.unfold-last'
+  | 'fold.repeat'
+  | 'fold.delete-step';
 
 export interface WorkspaceCapability {
   enabled: boolean;
@@ -176,11 +205,12 @@ export interface WorkspaceCapabilityInput {
    */
   canSaveDesign: boolean;
   /**
-   * Whether the project has a diagram. A diagram is saved whatever else the
+   * Whether the project holds a project document — a diagram, fold sequences
+   * (`store/workspaceStore/projectDocuments`). One is saved whatever else the
    * project holds — alone, beside a crease pattern, or beside designs — and
    * from any workspace, so it makes the project savable by itself.
    */
-  hasDiagram: boolean;
+  hasProjectDocument: boolean;
   /** How many steps the diagram has: one is enough to export it. */
   diagramStepCount: number;
   /**
@@ -198,6 +228,8 @@ export interface WorkspaceCapabilityInput {
   canCopyDiagramAnnotation: boolean;
   /** Whether Paste has a step to put annotations on: the one open in Annotate, on a diagram that can change. */
   canPasteDiagramAnnotations: boolean;
+  /** The Fold reader is on a step, not the flat sheet: Delete Step has one. Absent reads as no. */
+  foldStepAtCursor?: boolean;
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -207,6 +239,17 @@ export interface WorkspaceCapabilityInput {
    * flag and the layout of the window this runs in; tests pass it.
    */
   cpDetectAvailable?: boolean;
+  /**
+   * The Fold sequence on screen, for its verbs, imports and hand-offs: how
+   * many steps it has, whether it folds a polygon sheet, whether it is a
+   * newer build's — shown and never changed (plan D7) — and whether a
+   * numbered step is at the reader or before it on its path — the page
+   * Export Step opens on; a turn before the first step has none. Absent reads
+   * as an empty square that can change.
+   */
+  foldSequence?: { stepCount: number; polygon: boolean; readOnly: boolean; pageAtCursor: boolean };
+  /** Whether Edit has a flat, solved folded figure a Fold sequence can start from. */
+  hasFoldStartingFigure?: boolean;
 }
 
 /** Whether this build and surface offer CP detection at all: the flag is on and this is not a phone. */
@@ -230,6 +273,10 @@ export function getWorkspaceCapabilities(
   const treeMode = input.activeEditingContext === 'treemaker-tree';
   const creasePatternMode = input.activeEditingContext === 'crease-pattern';
   const diagramMode = input.activeEditingContext === 'diagram';
+  const foldMode = input.activeEditingContext === 'fold';
+  // The workspaces whose undo stack belongs to them rather than to a design or
+  // the crease pattern.
+  const ownHistory = diagramMode || foldMode;
   const activeCpSurface =
     input.activeEditingContext === 'crease-pattern' && input.hasEditableCreasePattern;
   const isBusy = isWorkspaceBusy(input.status);
@@ -264,7 +311,7 @@ export function getWorkspaceCapabilities(
   // focus (`saveActiveProject`), so leaving Edit must not take it away.
   const canSaveEditableCreasePattern = input.hasEditableCreasePattern;
   const canSaveProject =
-    input.canSaveDesign || canSaveEditableCreasePattern || input.hasDiagram;
+    input.canSaveDesign || canSaveEditableCreasePattern || input.hasProjectDocument;
   // A box-pleat design saves as a native .osf (bundling its companion CP).
   const canExportEditableCp = input.hasEditableCreasePattern;
   const canExportCreasePattern = hasCreasePattern && !isBusy;
@@ -340,7 +387,7 @@ export function getWorkspaceCapabilities(
     'file.save': capability(
       canSaveProject && !isBusy,
       t('common:capability.save', 'Save'),
-      input.canSaveDesign || (input.hasDiagram && !canSaveEditableCreasePattern)
+      input.canSaveDesign || (input.hasProjectDocument && !canSaveEditableCreasePattern)
         ? busyOr(t('common:capability.saveProject', 'Save Ori Studio project'), input.status, t)
         : canSaveEditableCreasePattern
           ? busyOr(t('common:capability.saveEditableCpAsProject', 'Save editable crease pattern as an Ori Studio project'), input.status, t)
@@ -349,7 +396,7 @@ export function getWorkspaceCapabilities(
     'file.saveAs': capability(
       canSaveProject && !isBusy,
       t('common:capability.saveAs', 'Save As...'),
-      input.canSaveDesign || (input.hasDiagram && !canSaveEditableCreasePattern)
+      input.canSaveDesign || (input.hasProjectDocument && !canSaveEditableCreasePattern)
         ? busyOr(t('common:capability.saveProjectAsNewFile', 'Save Ori Studio project as a new file'), input.status, t)
         : canSaveEditableCreasePattern
           ? busyOr(t('common:capability.saveEditableCpAsNewProject', 'Save editable crease pattern as a new Ori Studio project'), input.status, t)
@@ -469,25 +516,29 @@ export function getWorkspaceCapabilities(
         ? t('common:capability.printDiagramHint', 'Print the diagram’s pages, as the PDF prints them')
         : t('common:capability.noDiagramToPrint', 'Add a step to the diagram to print it')
     ),
-    // The Diagram's history is its own: a TreeMaker build or optimize running
-    // in another workspace is no reason to hold its Undo back.
+    // The Diagram's and Fold's histories are their own: a TreeMaker build or
+    // optimize running in another workspace is no reason to hold their Undo back.
     'edit.undo': capability(
-      input.historyPastCount > 0 && (diagramMode || !isBusy),
+      input.historyPastCount > 0 && (ownHistory || !isBusy),
       t('common:capability.undo', 'Undo'),
       diagramMode
         ? t('common:capability.undoLastDiagramEdit', 'Undo the last diagram edit')
-        : activeCpSurface
-          ? t('common:capability.undoLastCpEdit', 'Undo the last crease-pattern edit')
-          : t('common:capability.undoLastTreeEdit', 'Undo the last tree edit')
+        : foldMode
+          ? t('common:capability.undoLastFoldEdit', 'Undo the last change to the fold sequence')
+          : activeCpSurface
+            ? t('common:capability.undoLastCpEdit', 'Undo the last crease-pattern edit')
+            : t('common:capability.undoLastTreeEdit', 'Undo the last tree edit')
     ),
     'edit.redo': capability(
-      input.historyFutureCount > 0 && (diagramMode || !isBusy),
+      input.historyFutureCount > 0 && (ownHistory || !isBusy),
       t('common:capability.redo', 'Redo'),
       diagramMode
         ? t('common:capability.redoNextDiagramEdit', 'Redo the next diagram edit')
-        : activeCpSurface
-          ? t('common:capability.redoNextCpEdit', 'Redo the next crease-pattern edit')
-          : t('common:capability.redoNextTreeEdit', 'Redo the next tree edit')
+        : foldMode
+          ? t('common:capability.redoNextFoldEdit', 'Redo the next change to the fold sequence')
+          : activeCpSurface
+            ? t('common:capability.redoNextCpEdit', 'Redo the next crease-pattern edit')
+            : t('common:capability.redoNextTreeEdit', 'Redo the next tree edit')
     ),
     // In the Diagram, Cut, Copy and Paste act on its annotations alone: a
     // selection or clipboard left in another workspace is not theirs.
@@ -755,6 +806,11 @@ export function getWorkspaceCapabilities(
       true,
       t('common:capability.diagram', 'Diagram'),
       t('common:capability.showDiagramWorkspace', 'Show the diagram workspace')
+    ),
+    'view.fold': capability(
+      true,
+      t('common:capability.fold', 'Fold'),
+      t('common:capability.showFoldWorkspace', 'Show the fold workspace')
     ),
     'view.conditions': capability(
       true,
@@ -1146,9 +1202,100 @@ export function getWorkspaceCapabilities(
           )
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
+    ...foldSequenceCapabilities(input, foldMode, t),
+    ...foldIoCapabilities(input, foldMode, t),
   };
 
   return maskCapabilitiesForContext(capabilities, input.activeEditingContext);
+}
+
+/**
+ * Fold's imports and hand-offs (plan D16, D10, D11): shown only while
+ * folding. An import adds a step, so a sequence a newer build wrote takes
+ * none, and a polygon sheet with steps takes none (V0 imports square and
+ * rectangle sheets; an empty sequence adopts the pattern's). What leaves the
+ * sequence needs a step to carry, and Export Step a page to open on: a
+ * numbered step at the reader or before it. Whether every step of the path
+ * still folds is the session's to say when the verb runs.
+ */
+function foldIoCapabilities(
+  input: WorkspaceCapabilityInput,
+  foldMode: boolean,
+  t: TFunction
+): Record<FoldIoCapabilityId, WorkspaceCapability> {
+  const sequence = input.foldSequence ?? { stepCount: 0, polygon: false, readOnly: false, pageAtCursor: false };
+  const importBlock = sequence.readOnly
+    ? t('common:capability.foldReadOnly', 'This sequence was made with a newer Ori Studio and opens read-only')
+    : sequence.polygon && sequence.stepCount > 0
+      ? t('common:capability.foldImportPolygon', 'Import CP needs a square or rectangle sheet.')
+      : null;
+  // Its reason is what it does, or why it cannot.
+  const fold = (label: string, reason: string, blocked: string | null) =>
+    commandCapability(foldMode && blocked === null, foldMode, label, blocked ?? reason);
+  const importing = (label: string, reason: string) => fold(label, reason, importBlock);
+  const figureBlock =
+    importBlock ??
+    (input.hasFoldStartingFigure
+      ? null
+      : t('common:capability.foldNoStartingFigure', 'Fold the crease pattern flat in Edit first'));
+  const outBlock =
+    sequence.stepCount > 0 ? null : t('common:capability.foldNoSteps', 'Fold a step first');
+  const out = (label: string, reason: string) => fold(label, reason, outBlock);
+  // The step on screen's page: none with the sheet on screen, or a turn before the first step.
+  const pageBlock =
+    outBlock ?? (sequence.pageAtCursor ? null : t('common:capability.foldGoToStep', 'Go to a step to export it'));
+  return {
+    'fold.import-cp': importing(
+      t('common:capability.foldImportCp', 'Import CP...'),
+      t('common:capability.foldImportCpHint', 'Add a step that collapses the paper into a crease pattern')
+    ),
+    'fold.import-sample-preliminary-base': importing(
+      t('common:capability.foldSamplePreliminaryBase', 'Square Base'),
+      t('common:capability.foldImportSampleHint', 'Add a step that collapses the paper into a sample crease pattern')
+    ),
+    'fold.import-sample-waterbomb-base': importing(
+      t('common:capability.foldSampleWaterbombBase', 'Waterbomb Base'),
+      t('common:capability.foldImportSampleHint', 'Add a step that collapses the paper into a sample crease pattern')
+    ),
+    'fold.import-sample-pleat-in-eighths': importing(
+      t('common:capability.foldSamplePleatInEighths', 'Pleat in Eighths'),
+      t('common:capability.foldImportSampleHint', 'Add a step that collapses the paper into a sample crease pattern')
+    ),
+    'fold.start-from-edit-folded-figure': fold(
+      t('common:capability.foldStartFromEditFigure', 'Start from Edit’s Folded Figure'),
+      t('common:capability.foldStartFromEditFigureHint', 'Add a step that collapses the paper into Edit’s folded figure'),
+      figureBlock
+    ),
+    'fold.send-to-edit': out(
+      t('common:capability.foldSendToEdit', 'Send to Edit'),
+      t('common:capability.foldSendToEditHint', 'Send the crease pattern of the steps shown to the Edit canvas')
+    ),
+    // A step on screen to send is the session's to say when the verb runs, as a path's steps folding is.
+    'fold.send-to-diagram': out(
+      t('common:capability.foldSendToDiagram', 'Send Step to Diagram'),
+      t('common:capability.foldSendToDiagramHint', 'Add the step on screen to the end of the diagram, linked to it')
+    ),
+    'fold.send-path-to-diagram': out(
+      t('common:capability.foldSendPathToDiagram', 'Send Steps to Diagram'),
+      t(
+        'common:capability.foldSendPathToDiagramHint',
+        'Add every step up to the one on screen to the end of the diagram, linked to them'
+      )
+    ),
+    'fold.export-fold': out(
+      t('common:capability.foldExportFold', 'Export FOLD...'),
+      t('common:capability.foldExportFoldHint', 'Export the steps shown as one FOLD file, a frame per step')
+    ),
+    'fold.export-step': fold(
+      t('common:capability.foldExportStep', 'Export Step...'),
+      t('common:capability.foldExportStepHint', 'Export the step on screen’s crease pattern as SVG or PNG'),
+      pageBlock
+    ),
+    'fold.export-steps': out(
+      t('common:capability.foldExportSteps', 'Export Steps...'),
+      t('common:capability.foldExportStepsHint', 'Export each step’s crease pattern, as one ZIP')
+    ),
+  };
 }
 
 // The per-design-kind capability sets that used to live here —
@@ -1184,6 +1331,23 @@ const DIAGRAM_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>([
   'edit.paste',
   'edit.delete',
 ]);
+
+/**
+ * What stays in the Edit menu while folding: undo and redo, live on the fold
+ * sequence's own stack. The rest of `edit.*` authors a tree or the crease
+ * pattern; a Fold verb that earns a row joins here.
+ */
+const FOLD_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit.redo']);
+
+/**
+ * The contexts that author a document of their own, neither the crease pattern
+ * nor a tree, by the `edit.*` verbs each keeps. They share one mask arm, as the
+ * read-only contexts do; a third joins here rather than growing another `if`.
+ */
+const OWN_DOCUMENT_VISIBLE_EDIT: Partial<Record<EditingContext, ReadonlySet<WorkspaceCapabilityId>>> = {
+  diagram: DIAGRAM_VISIBLE_EDIT,
+  fold: FOLD_VISIBLE_EDIT,
+};
 
 export function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,
@@ -1221,16 +1385,18 @@ export function maskCapabilitiesForContext(
     }
   }
 
-  if (context === 'diagram') {
-    // The Diagram authors its own document, not the crease pattern or a tree:
-    // only navigation, file operations and its own Edit verbs apply. It is not
-    // a read-only context — undo, redo and Delete act on the diagram.
+  const ownEdit = OWN_DOCUMENT_VISIBLE_EDIT[context];
+  if (ownEdit) {
+    // The Diagram and Fold author their own documents, not the crease pattern
+    // or a tree: only navigation, file operations and their own Edit verbs
+    // apply. Neither is a read-only context — undo and redo act on the diagram
+    // or the fold sequence.
     for (const id of ids) {
       const foreign =
         id.startsWith('cp.') ||
         id.startsWith('optimize.') ||
         id.startsWith('insert.') ||
-        (id.startsWith('edit.') && !DIAGRAM_VISIBLE_EDIT.has(id));
+        (id.startsWith('edit.') && !ownEdit.has(id));
       if (foreign) hide(id);
     }
     return masked;
@@ -1283,6 +1449,47 @@ export function isWorkspaceBusy(status: AppStatus): boolean {
 
 function capability(enabled: boolean, label: string, reason: string): WorkspaceCapability {
   return { enabled, visible: true, label, reason };
+}
+
+/**
+ * The Fold sequence's verbs (`fold/sequence/foldCommands`): shown only while
+ * folding, and enabled on a sequence this build may change — Delete Step
+ * also on a step to delete. Finer gating (a step still folding, or broken) is
+ * the action catalog's, asked when the verb runs, which toasts its reason when
+ * it turns one down (`runFoldMenuVerb`); the store does not know it.
+ */
+function foldSequenceCapabilities(
+  input: WorkspaceCapabilityInput,
+  foldMode: boolean,
+  t: TFunction
+): Record<FoldSequenceCapabilityId, WorkspaceCapability> {
+  const canChange = foldMode && input.foldSequence?.readOnly !== true;
+  const blocked = foldMode
+    ? t('common:capability.foldReadOnly', 'This sequence was made with a newer Ori Studio and opens read-only')
+    : t('common:capability.openFoldFirst', 'Open the Fold workspace first');
+  const verb = (enabled: boolean, label: string, reason: string, why = blocked): WorkspaceCapability => ({
+    enabled,
+    visible: foldMode,
+    label,
+    reason: enabled ? reason : why,
+  });
+  const canDelete = canChange && input.foldStepAtCursor === true;
+  return {
+    'fold.valley': verb(canChange, t('common:capability.foldValley', 'Valley Fold'), t('common:capability.armValleyFold', 'Fold the moving side toward you')),
+    'fold.mountain': verb(canChange, t('common:capability.foldMountain', 'Mountain Fold'), t('common:capability.armMountainFold', 'Fold the moving side away from you')),
+    'fold.precrease': verb(canChange, t('tools:fold.tool.precrease', 'Precrease'), t('tools:fold.tool.precreaseHelp', 'Fold and unfold, leaving a crease to use later.')),
+    'fold.turn-over': verb(canChange, t('common:capability.foldTurnOver', 'Turn Over'), t('common:capability.addTurnOver', 'Turn the model over, as a step of its own')),
+    'fold.unfold-to': verb(canDelete, t('panels:fold.return.open', 'Unfold to step…'), t('panels:fold.return.retain', 'Return to an earlier pose, keeping all creases.'), canChange ? t('panels:fold.return.empty', 'Fold a step first.') : blocked),
+    'fold.unfold-last': verb(canDelete, t('panels:fold.return.last', 'Unfold last step'), t('panels:fold.return.retain', 'Return to an earlier pose, keeping all creases.'), canChange ? t('panels:fold.return.empty', 'Fold a step first.') : blocked),
+    'fold.repeat': verb(canDelete, t('panels:fold.repeat.open', 'Repeat…'), t('common:capability.repeatOnOtherSide', 'Repeat the steps through this one across a symmetry axis, on the other side or behind'), canChange ? t('panels:fold.return.empty', 'Fold a step first.') : blocked),
+    'fold.rotate': verb(canChange, t('common:capability.foldRotate', 'Rotate'), t('common:capability.takeRotate', 'Take the Rotate tool: turn the model by a part of a turn or an exact angle, as a step of its own')),
+    'fold.delete-step': verb(
+      canDelete,
+      t('common:capability.foldDeleteStep', 'Delete Step'),
+      t('common:capability.deleteFoldStep', 'Delete the step on screen and every step that follows it'),
+      canChange ? t('common:capability.foldSheetNoStep', 'The flat sheet is where the steps start: there is no step to delete') : blocked
+    ),
+  };
 }
 
 function selectedCpLineCapability(

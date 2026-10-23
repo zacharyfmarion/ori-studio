@@ -398,9 +398,27 @@ jobs:
 
       # The Flat-Folder oracle is a Node script wrapping the vendored JS, so it
       # needs no build. The corpus suite is deliberately not run here: it takes
-      # over ten minutes locally, where flat_folder_oracle takes under a second.
+      # over ten minutes locally, where flat_folder_oracle takes under a second,
+      # flat_folder_verify (the oracle's `verify` command) about three, and
+      # fold_oracle (`verify` on the Fold engine's random states and their
+      # flips) about five, fold_compound_oracle (its reverse folds and the
+      # crane) about nine, fold_crimp_tuck_oracle (its outside reverse folds,
+      # crimps and tucks) about four, fold_vertex_oracle (its squashes, petal
+      # folds, rabbit ears and swivels) about three, and fold_sink_oracle (its
+      # sinks) about two. The fold oracles' seeded Oriedita tests need no
+      # oracle, so the workspace step runs them as well.
       - name: Flat-Folder oracle parity
         env:
           ORACLE_REQUIRED: FLATFOLDER_ORACLE
           FLATFOLDER_ORACLE: tools/flat-folder-oracle/oracle.mjs
-        run: RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" cargo test -p oracle-tests --test flat_folder_oracle --test oracle_env_guard
+        run: |
+          RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" \
+            cargo test -p oracle-tests \
+              --test flat_folder_oracle \
+              --test flat_folder_verify \
+              --test fold_oracle \
+              --test fold_compound_oracle \
+              --test fold_crimp_tuck_oracle \
+              --test fold_vertex_oracle \
+              --test fold_sink_oracle \
+              --test oracle_env_guard

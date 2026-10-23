@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { AppStatus, DocumentMode, Selection } from './sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
-import { getNextDocumentAction, getWorkspaceCapabilities } from './workspaceCapabilities';
+import { getMenuBarDef } from '../menus/menuDefinition';
+import { menuHasVisibleItems } from '../menus/menuVisibility';
+import { getNextDocumentAction, getWorkspaceCapabilities, type WorkspaceCapabilityInput } from './workspaceCapabilities';
 
 const treeSelection: Selection = { kind: 'tree' };
 
@@ -26,7 +28,7 @@ function capabilities({
   oristudioCpSolvablePatternCount = 0,
   hasDeletableDesignSelection = false,
   canSaveDesign = activeEditingContext !== 'crease-pattern',
-  hasDiagram = false,
+  hasProjectDocument = false,
   diagramStepCount = 0,
   hasDeletableDiagramSelection = false,
   diagramDeleteTarget = 'step',
@@ -37,6 +39,8 @@ function capabilities({
   clipboard = null,
   selection = treeSelection,
   cpDetectAvailable,
+  foldStepAtCursor,
+  foldSequence,
 }: {
   documentMode?: DocumentMode;
   activeEditingContext?: EditingContext;
@@ -58,7 +62,7 @@ function capabilities({
   oristudioCpSolvablePatternCount?: number;
   hasDeletableDesignSelection?: boolean;
   canSaveDesign?: boolean;
-  hasDiagram?: boolean;
+  hasProjectDocument?: boolean;
   diagramStepCount?: number;
   hasDeletableDiagramSelection?: boolean;
   diagramDeleteTarget?: 'step' | 'annotation' | 'node';
@@ -69,6 +73,8 @@ function capabilities({
   clipboard?: unknown | null;
   selection?: Selection;
   cpDetectAvailable?: boolean;
+  foldStepAtCursor?: boolean;
+  foldSequence?: WorkspaceCapabilityInput['foldSequence'];
 } = {}) {
   return getWorkspaceCapabilities({
     activeEditingContext,
@@ -91,7 +97,7 @@ function capabilities({
     oristudioCpSolvablePatternCount,
     hasDeletableDesignSelection,
     canSaveDesign,
-    hasDiagram,
+    hasProjectDocument,
     diagramStepCount,
     hasDeletableDiagramSelection,
     diagramDeleteTarget,
@@ -102,6 +108,8 @@ function capabilities({
     clipboard,
     selection,
     cpDetectAvailable,
+    foldStepAtCursor,
+    foldSequence,
   });
 }
 
@@ -299,7 +307,7 @@ describe('workspace capabilities', () => {
       activeEditingContext: 'diagram',
       status: 'optimizing',
       canSaveDesign: false,
-      hasDiagram: true,
+      hasProjectDocument: true,
       historyPastCount: 1,
       historyFutureCount: 1,
       hasDeletableDiagramSelection: true,
@@ -311,9 +319,124 @@ describe('workspace capabilities', () => {
     expect(busy['file.save'].enabled).toBe(false);
   });
 
-  it('saves a project that has a diagram from any workspace, whatever else it holds', () => {
-    for (const activeEditingContext of ['treemaker-tree', 'crease-pattern', 'bp-tree'] as const) {
-      const state = capabilities({ activeEditingContext, canSaveDesign: false, hasDiagram: true });
+  it('gives Fold its own live undo and redo, and nothing that authors a pattern or tree', () => {
+    const idle = capabilities({ activeEditingContext: 'fold', canSaveDesign: false });
+    expect(idle['edit.undo']).toMatchObject({
+      visible: true,
+      enabled: false,
+      reason: 'Undo the last change to the fold sequence',
+    });
+    expect(idle['edit.redo']).toMatchObject({
+      visible: true,
+      enabled: false,
+      reason: 'Redo the next change to the fold sequence',
+    });
+
+    // Not the read-only arm: undo and redo work, and a TreeMaker build or
+    // optimize running elsewhere does not hold them back, as the Diagram's.
+    const live = capabilities({
+      activeEditingContext: 'fold',
+      status: 'optimizing',
+      canSaveDesign: false,
+      historyPastCount: 2,
+      historyFutureCount: 1,
+      // Selections and a clipboard elsewhere that no Fold verb acts on.
+      hasEditableCreasePattern: true,
+      oristudioCpSelectedLineCount: 3,
+      hasDeletableDesignSelection: true,
+      clipboard: { kind: 'cp-lines', lines: [] },
+    });
+    expect(live['edit.undo']).toMatchObject({ visible: true, enabled: true });
+    expect(live['edit.redo']).toMatchObject({ visible: true, enabled: true });
+    for (const id of [
+      'edit.cut',
+      'edit.copy',
+      'edit.paste',
+      'edit.delete',
+      'edit.selectAll',
+      'edit.triangulateTree',
+      'cp.build',
+      'cp.checkCamv',
+      'cp.makeMountain',
+      'optimize.scale',
+      'insert.image',
+      'insert.text',
+    ] as const) {
+      expect(live[id], id).toMatchObject({ visible: false, enabled: false });
+    }
+    expect(live['view.fold']).toMatchObject({ visible: true, enabled: true, label: 'Fold' });
+    expect(live['view.edit'].visible).toBe(true);
+    expect(live['file.open'].visible).toBe(true);
+  });
+
+  it('offers the Fold sequence’s verbs only while folding, on a sequence this build may change', () => {
+    const verbs = [
+      'fold.valley',
+      'fold.mountain',
+      // Without its own capability the menu bar kept a Fold menu of Precrease alone everywhere else.
+      'fold.precrease',
+      'fold.turn-over',
+      'fold.rotate',
+      'fold.repeat',
+      'fold.delete-step',
+    ] as const;
+    for (const activeEditingContext of ['treemaker-tree', 'crease-pattern', 'diagram'] as const) {
+      const elsewhere = capabilities({ activeEditingContext, foldStepAtCursor: true });
+      for (const id of verbs) expect(elsewhere[id], `${activeEditingContext} ${id}`).toMatchObject({ visible: false, enabled: false });
+    }
+
+    const atSheet = capabilities({ activeEditingContext: 'fold' });
+    expect(atSheet['fold.turn-over']).toMatchObject({ visible: true, enabled: true, label: 'Turn Over' });
+    // The flat sheet has no step to delete.
+    expect(atSheet['fold.delete-step']).toMatchObject({
+      visible: true,
+      enabled: false,
+      reason: 'The flat sheet is where the steps start: there is no step to delete',
+    });
+    // Repeat mirrors the steps through the one on screen: the flat sheet has none.
+    expect(atSheet['fold.repeat']).toMatchObject({ visible: true, enabled: false, reason: 'Fold a step first.' });
+    expect(capabilities({ activeEditingContext: 'fold', foldStepAtCursor: true })['fold.delete-step'].enabled).toBe(true);
+    expect(capabilities({ activeEditingContext: 'fold', foldStepAtCursor: true })['fold.repeat']).toMatchObject({
+      visible: true,
+      enabled: true,
+      label: 'Repeat…',
+    });
+
+    const newer = capabilities({
+      activeEditingContext: 'fold',
+      foldStepAtCursor: true,
+      foldSequence: { stepCount: 1, polygon: false, readOnly: true, pageAtCursor: true },
+    });
+    for (const id of verbs) {
+      expect(newer[id], id).toMatchObject({
+        visible: true,
+        enabled: false,
+        reason: 'This sequence was made with a newer Ori Studio and opens read-only',
+      });
+    }
+  });
+
+  it('drops the whole Fold menu outside Fold, every row of it gated', () => {
+    const fold = getMenuBarDef().find((menu) => menu.label === 'Fold');
+    expect(fold).toBeDefined();
+    for (const activeEditingContext of ['treemaker-tree', 'crease-pattern', 'diagram'] as const) {
+      expect(menuHasVisibleItems(fold!, capabilities({ activeEditingContext })), activeEditingContext).toBe(false);
+    }
+    expect(menuHasVisibleItems(fold!, capabilities({ activeEditingContext: 'fold' }))).toBe(true);
+  });
+
+  it('shows the Fold workspace from every context', () => {
+    for (const activeEditingContext of ['treemaker-tree', 'crease-pattern', 'simulate', 'diagram', 'fold'] as const) {
+      expect(capabilities({ activeEditingContext })['view.fold'], activeEditingContext).toMatchObject({
+        visible: true,
+        enabled: true,
+      });
+    }
+  });
+
+  it('saves a project that has a project document — a diagram, fold sequences — from any workspace, whatever else it holds', () => {
+    for (const activeEditingContext of ['treemaker-tree', 'crease-pattern', 'bp-tree', 'fold'] as const) {
+      const state = capabilities({ activeEditingContext, canSaveDesign: false, hasProjectDocument: true });
       expect(state['file.save'], activeEditingContext).toMatchObject({
         enabled: true,
         reason: 'Save Ori Studio project',
@@ -327,34 +450,34 @@ describe('workspace capabilities', () => {
         documentMode: 'crease-pattern',
         hasEditableCreasePattern: true,
         canSaveDesign: false,
-        hasDiagram: true,
+        hasProjectDocument: true,
       })['file.save'].reason
     ).toBe('Save editable crease pattern as an Ori Studio project');
     // And a busy engine still holds it back.
     expect(
-      capabilities({ status: 'optimizing', canSaveDesign: false, hasDiagram: true })['file.save']
+      capabilities({ status: 'optimizing', canSaveDesign: false, hasProjectDocument: true })['file.save']
         .enabled
     ).toBe(false);
   });
 
   it('exports a diagram with a step from any workspace, while an engine works too', () => {
-    expect(capabilities({ hasDiagram: true, diagramStepCount: 0 })['file.exportDiagram']).toMatchObject({
+    expect(capabilities({ hasProjectDocument: true, diagramStepCount: 0 })['file.exportDiagram']).toMatchObject({
       enabled: false,
       reason: 'Add a step to the diagram to export it',
     });
     for (const activeEditingContext of ['diagram', 'treemaker-tree', 'crease-pattern'] as const) {
-      const state = capabilities({ activeEditingContext, status: 'optimizing', hasDiagram: true, diagramStepCount: 3 });
+      const state = capabilities({ activeEditingContext, status: 'optimizing', hasProjectDocument: true, diagramStepCount: 3 });
       expect(state['file.exportDiagram'].enabled, activeEditingContext).toBe(true);
     }
   });
 
   it('prints a diagram with a step from any workspace, as it exports one', () => {
-    expect(capabilities({ hasDiagram: true, diagramStepCount: 0 })['file.printDiagram']).toMatchObject({
+    expect(capabilities({ hasProjectDocument: true, diagramStepCount: 0 })['file.printDiagram']).toMatchObject({
       enabled: false,
       reason: 'Add a step to the diagram to print it',
     });
     for (const activeEditingContext of ['diagram', 'treemaker-tree', 'crease-pattern'] as const) {
-      const state = capabilities({ activeEditingContext, status: 'optimizing', hasDiagram: true, diagramStepCount: 3 });
+      const state = capabilities({ activeEditingContext, status: 'optimizing', hasProjectDocument: true, diagramStepCount: 3 });
       expect(state['file.printDiagram'].enabled, activeEditingContext).toBe(true);
     }
   });

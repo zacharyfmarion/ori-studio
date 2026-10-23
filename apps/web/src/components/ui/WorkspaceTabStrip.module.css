@@ -125,6 +125,15 @@
   text-overflow: ellipsis;
 }
 
+/* An icon-only tab (`iconOnly`): the title is still its name, out of sight. */
+.title[data-hidden] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 /* Lifted out of the row and floated over the trigger's reserved padding. As a
    flex sibling it was an 18px box in a 32px tab, so the strips directly above
    and below it fell through to the wrapper and swallowed the click; the trigger

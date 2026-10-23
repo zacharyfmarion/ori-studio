@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Rgba } from '../renderer/types';
-import { diagramDashSlot } from './diagram/diagramInk';
+import { diagramDashSlot } from '../../lib/stepDiagram/diagramInk';
 import {
   referencesFoldPaint,
   referencesOverlayColors,

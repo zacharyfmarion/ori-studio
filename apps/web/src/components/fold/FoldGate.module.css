@@ -1,0 +1,8 @@
+/* A Fold pane while its code comes, or after it could not: the dock panel filled,
+   so the loading and failure states centre in it as they do in a panel's own frame. */
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}

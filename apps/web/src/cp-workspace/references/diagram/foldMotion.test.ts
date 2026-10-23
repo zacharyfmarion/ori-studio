@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arcSamplePoints } from '../stepDiagramGeometry';
+import { arcSamplePoints } from '../../../lib/stepDiagram/stepDiagramGeometry';
 import { modelFrame, unitFrame, type DiagramFrame } from './diagramFrames';
 import { decodePlanModel, planModelPoints } from '../referencesPlanGeometry';
 import {

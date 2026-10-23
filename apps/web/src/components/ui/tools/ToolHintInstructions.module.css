@@ -34,3 +34,27 @@
 .list li {
   padding-left: 2px;
 }
+
+/* Numbered steps (`ordered`): a numeral needs more room than a bullet, as in
+   Edit's numbered list. */
+.list[data-ordered] {
+  padding-left: 1.25rem;
+}
+
+/*
+ * Progress through the steps (`current`). Those already taken recede, still
+ * readable; the one in hand stands out, its numeral in the accent; the rest
+ * keep the list's own colour.
+ */
+.list li[data-progress='done'] {
+  color: var(--text-tertiary);
+}
+
+.list li[data-progress='current'] {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.list li[data-progress='current']::marker {
+  color: var(--accent-primary);
+}

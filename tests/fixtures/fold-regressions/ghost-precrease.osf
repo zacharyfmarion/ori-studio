@@ -1,0 +1,283 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Precrease a flap corner shared with a layer that stays",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-regression-ghost-precrease",
+        "title": "Precrease a flap corner shared with a layer that stays",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-ghost-precrease-1",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.125,
+                    0
+                  ],
+                  [
+                    0.125,
+                    1
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.05,
+                0.5
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:2681859520c8ef08",
+            "note": "Precrease a narrow strip along the left edge, x = 1/8: the paper by the bottom-left corner is a face of its own, which still shows once a flap lies over the corner."
+          },
+          {
+            "id": "fstep-ghost-precrease-2",
+            "parent": "fstep-ghost-precrease-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0,
+                  1
+                ],
+                "d": 0.5
+              }
+            },
+            "expect": "fs1:7e71cc110d9f7f4c",
+            "note": "Valley fold, Axiom 2: the top-left corner onto the bottom-left. The top half folds down: a strip two layers thick."
+          },
+          {
+            "id": "fstep-ghost-precrease-3",
+            "parent": "fstep-ghost-precrease-2",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0.5
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.8944271909999159,
+                  0.4472135954999579
+                ],
+                "d": 0.5590169943749475
+              }
+            },
+            "expect": "fs1:193e0768bf56f89f",
+            "note": "Valley fold, Axiom 2: the strip’s top-right corner, on its fold, onto its bottom-left corner. The flap’s corner lands on the strip’s corner, the strip showing past it."
+          },
+          {
+            "id": "fstep-ghost-precrease-4",
+            "parent": "fstep-ghost-precrease-3",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0.5
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.25
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.9,
+                    0.45
+                  ]
+                ]
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.8944271909999159,
+                  0.44721359549995804
+                ],
+                "d": 0.2795084971874739
+              }
+            },
+            "expect": "fs1:758611973c977d32",
+            "note": "Precrease, Axiom 2, the top flap only: its corner (where it lies on the strip’s corner) onto the middle of its folded edge. Clicked on the folded pane, the corner used to resolve to the strip’s point under it, and the precrease was refused: the point would stay put."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-regression-ghost-precrease",
+        "cursor": "fstep-ghost-precrease-4"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

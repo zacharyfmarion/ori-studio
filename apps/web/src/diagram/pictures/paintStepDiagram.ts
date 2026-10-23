@@ -18,20 +18,21 @@
  *
  * Pure: no DOM, no store.
  */
-import { canvasDiagramInk, canvasDiagramPens } from '../../cp-workspace/references/diagram/diagramInk';
-import type { LabelPlacement } from '../../cp-workspace/references/diagram/labelLayout';
+import { canvasDiagramInk, canvasDiagramPens } from '../../lib/stepDiagram/diagramInk';
+import type { LabelPlacement } from '../../lib/stepDiagram/labelLayout';
 import {
   diagramLetterPlacements,
   diagramToPaperScene,
   type DiagramToPaperSceneOptions,
 } from '../../cp-workspace/references/diagramToPaperScene';
-import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import {
   createOverlayProjector,
   sheetCorners,
   sheetFrame,
   type DiagramProjector,
-} from '../../cp-workspace/references/stepDiagramGeometry';
+} from '../../lib/stepDiagram/stepDiagramGeometry';
+import { referencesMarkupTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import { STEP_DIAGRAM_LINE_WIDTH } from '../annotate/canvasInk';
 import type { PaperPage } from '../../lib/paper/paperPage';
 import type { PaperScene } from '../../lib/paper/paperScene';
@@ -122,9 +123,17 @@ function stepSceneOptions(
     canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH),
     canvasDiagramPens(STEP_DIAGRAM_LINE_WIDTH, drawn.arrows.width * PT_TO_CSS_PX)
   );
+  // A References step, read and inked as References reads and inks its own.
   // No ground: a diagram is printed, and a letter off the sheet stands on paper.
   // Its bounds hold its marks too: the arrow's pen is the author's, and the sheet may be small.
-  return { style: drawn, project, mirrored, marksInBounds: true };
+  return {
+    style: drawn,
+    surface: 'references',
+    project,
+    mirrored,
+    markupTokens: referencesMarkupTokens,
+    marksInBounds: true,
+  };
 }
 
 /**

@@ -13,12 +13,20 @@
  *
  * Either is a choice about the picture: the fold and its layer order are what
  * the kernel said, and the painter's order that `foldedFlatPaperScene` draws
- * in is not touched. The rest of this note is the depth spread's.
+ * in is not touched.
+ *
+ * # A flat crease is no fold
+ *
+ * Both spread *display layers* (`foldedDisplayLayers.ts`), not faces: the
+ * faces a precrease, or any flat crease, cuts a layer into lie in one physical
+ * layer with one isometry, so they take one level, one place in the order and
+ * one field, and the picture is the one the paper would give without the
+ * crease. The rest of this note is the depth spread's.
  *
  * # Depth is the layer count from the viewer
  *
- * A face's level is the longest chain of faces stacked over it as seen,
- * read from consecutive pairs of every subface's stack: a face nothing lies
+ * A layer's level is the longest chain of layers stacked over it as seen,
+ * read from consecutive pairs of every subface's stack: a layer nothing lies
  * on is 0 and every layer is one below the one on it, so symmetric parts of a
  * model step alike. A woven component has no such chain, so there the painter's
  * order decides: a pair whose upper face is not drawn after its lower one is
@@ -26,14 +34,16 @@
  *
  * # Vertices keep creases joined
  *
- * A sheet vertex steps by the mean level of the faces round it — the faces
- * whose outline names it (`OristudioCpFoldedPaperFace.points`) — so the two
- * faces of a crease move its ends alike and the crease kinks between their
- * depths, while the corners a fold lays on one place part. A point inside a
- * face, or along its edge, moves by mean value coordinates over the face's
- * vertex steps: linear along each edge, so a line ending on a crease stays on
- * it. A face whose outline the kernel could not name steps whole, by its own
- * level.
+ * A sheet vertex steps by the mean level of the layers round it — the layers
+ * whose outline names it (`OristudioCpFoldedPaperFace.points`), each once — so
+ * the two faces of a crease move its ends alike and the crease kinks between
+ * their depths, while the corners a fold lays on one place part. A point
+ * inside a layer, or along its edge, moves by mean value coordinates over the
+ * vertex steps round the layer's outline (`displayLayerOutlines`, which leaves
+ * out the points only a flat crease made): linear along each edge, so a line
+ * ending on a crease stays on it. A face whose outline the kernel could not
+ * name steps whole, by its own level; so does every face of a layer that
+ * cannot be outlined, by its own corners.
  *
  * # In scene px, on the screen
  *
@@ -52,6 +62,14 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type { ScenePoint } from '../../lib/paper/paperScene';
+import {
+  displayLayerOutlines,
+  foldedDisplayLayers,
+  namedFaces,
+  ringArea,
+  type FoldedDisplayLayers,
+  type FoldedLayerOutline,
+} from './foldedDisplayLayers';
 
 /** Where deeper layers step to, on the screen. */
 export type SpreadDirection =
@@ -116,7 +134,7 @@ export type LayerSpreadOptions = DepthSpreadOptions | AffineSpreadOptions;
 
 /** The spread of one picture. */
 export interface LayerSpread {
-  /** Per face, the longest chain of faces over it as seen: 0 for a face nothing lies on. */
+  /** Per face, its display layer's level: the longest chain of layers over it as seen, 0 for one nothing lies on. */
   readonly levels: Int32Array;
   /** The deepest level; 0 when nothing is stacked, and then nothing moves. */
   readonly zMax: number;
@@ -170,27 +188,35 @@ export function layerSpread(
   { amount, toward }: Pick<DepthSpreadOptions, 'amount' | 'toward'>,
   { scale, epsilon }: LayerSpreadFrame
 ): LayerSpread {
-  const { levels, zMax } = layerLevels(kernel.faces.length, kernel.subfaces, order);
+  const layers = foldedDisplayLayers(kernel);
+  const { levels, zMax } = layerLevels(kernel.faces.length, kernel.subfaces, order, layers);
   if (zMax === 0) return { levels, zMax, offset: () => [0, 0] };
   const [ux, uy] = spreadUnit(toward);
   const reach = (amount * foldedModelSize(kernel) * scale) / zMax;
   const step = (level: number): ScenePoint => [reach * level * ux, reach * level * uy];
   const isNamed = namedFaces(kernel);
-  const vertexLevel = meanVertexLevels(kernel, levels, isNamed);
+  // A layer drawn in pieces keeps a level per face (`layerLevels`), and its faces are read as they are.
+  const outlines = displayLayerOutlines(kernel, layers, epsilon).map((outline, layer) => {
+    const faces = layers.layers[layer]!;
+    return faces.every((face) => levels[face] === levels[faces[0]!]) ? outline : null;
+  });
+  const vertexLevel = meanVertexLevels(kernel, levels, layers, outlines, isNamed);
   const offset = (face: number, point: Point): ScenePoint => {
     const source = kernel.faces[face];
     if (!source) return [0, 0];
     if (!isNamed[face]) return step(levels[face]!);
-    const weights = meanValueWeights(source.outline, point, epsilon);
+    // The layer's outline when it has one: the face it would be without its flat creases.
+    const { points, outline } = outlines[layers.layerOf[face]!] ?? source;
+    const weights = meanValueWeights(outline, point, epsilon);
     let level = 0;
     if (weights) {
       weights.forEach((weight, corner) => {
-        level += weight * vertexLevel[source.points[corner]!]!;
+        level += weight * vertexLevel[points[corner]!]!;
       });
     } else {
       // A ring with no inside to speak of: its corners' mean.
-      for (const vertex of source.points) level += vertexLevel[vertex]!;
-      level /= source.points.length;
+      for (const vertex of points) level += vertexLevel[vertex]!;
+      level /= points.length;
     }
     return step(level);
   };
@@ -199,7 +225,10 @@ export function layerSpread(
 
 /** DEFOX's affine distortion of one picture. */
 export interface AffineSpread {
-  /** The face held still; null when none can be — no face is named on the sheet — and then nothing moves. */
+  /**
+   * The face held still, and with it every face of its display layer; null
+   * when none can be — no face is named on the sheet — and then nothing moves.
+   */
   readonly anchor: number | null;
   /**
    * The move of a point on a face, in the kernel's coordinates as the face's
@@ -222,13 +251,16 @@ const HELD: AffineSpread = { anchor: null, offset: () => NO_MOVE };
  * scene's by the face's own map from the sheet: `A_s = M A M⁻¹`, `M` that
  * map's linear part, which turns and mirrors the axis with the paper.
  *
- * The face held still is the one on top, or at the bottom, over the most of
- * the picture, as the front sees it: a back pass reads its stacks bottom-up,
- * so turning the model over keeps the same paper still and the picture is the
- * front's mirrored. It does not move (its `Vf` is its `C`). A sheet vertex
- * moves by the formula; a point inside a face by mean value coordinates over
- * its corners' moves, which is the formula itself there, the map being affine
- * on a face. A face the kernel could not name on the sheet does not move.
+ * The paper held still is the display layer on top, or at the bottom, over
+ * the most of the picture, as the front sees it: a back pass reads its stacks
+ * bottom-up, so turning the model over keeps the same paper still and the
+ * picture is the front's mirrored. It does not move (its `Vf` is its `C`),
+ * and nor does any face of it: a precrease across it changes nothing. A sheet
+ * vertex moves by the formula; a point inside a face by mean value
+ * coordinates over its corners' moves, which is the formula itself there, the
+ * map being affine on a face — and one map on a whole layer, whose faces
+ * share an isometry. A face the kernel could not name on the sheet does not
+ * move.
  */
 export function affineSpread(
   kernel: OristudioCpFoldedPaperScene,
@@ -236,7 +268,7 @@ export function affineSpread(
   { epsilon }: Pick<LayerSpreadFrame, 'epsilon'>
 ): AffineSpread {
   const onSheet = sheetNamedFaces(kernel);
-  const anchor = anchorFace(kernel, keep, onSheet);
+  const anchor = anchorFace(kernel, keep, onSheet, foldedDisplayLayers(kernel));
   if (anchor === null) return HELD;
   const still = kernel.faces[anchor]!;
   const toScene = fitAffine(
@@ -291,11 +323,18 @@ function sheetNamedFaces(kernel: OristudioCpFoldedPaperScene): boolean[] {
 }
 
 /**
- * The face an affine spread holds still: of the faces on top of their stacks
- * — or at the bottom — the one over the most area, as the front sees them; a
- * tie goes to the lower face index. Null when no named face is either.
+ * The face an affine spread holds still: of the display layers on top of
+ * their stacks — or at the bottom — the one over the most area, as the front
+ * sees them, a tie going to the layer with the lower least face; and of that
+ * layer's faces, the one over the most, the lower index on a tie. Null when no
+ * named face is on top, or at the bottom, anywhere.
  */
-function anchorFace(kernel: OristudioCpFoldedPaperScene, keep: SpreadKeep, onSheet: readonly boolean[]): number | null {
+function anchorFace(
+  kernel: OristudioCpFoldedPaperScene,
+  keep: SpreadKeep,
+  onSheet: readonly boolean[],
+  { layerOf, layers }: FoldedDisplayLayers
+): number | null {
   // A back pass reads its stacks bottom-up: its top is the front's bottom.
   const top = (keep === 'top') !== kernel.flipped;
   const area = new Float64Array(kernel.faces.length);
@@ -304,12 +343,20 @@ function anchorFace(kernel: OristudioCpFoldedPaperScene, keep: SpreadKeep, onShe
     if (face === undefined || face >= area.length || !onSheet[face]) continue;
     area[face] += Math.abs(ringArea(polygon));
   }
-  let best: number | null = null;
+  const layerArea = new Float64Array(layers.length);
   area.forEach((covered, face) => {
-    // Symmetric faces cover the same area to the last few bits: the lower index, every time.
-    if (covered > 0 && (best === null || covered > area[best]! * (1 + 1e-9))) best = face;
+    layerArea[layerOf[face]!] += covered;
   });
-  return best;
+  // Symmetric layers cover the same area to the last few bits: the lower index, every time.
+  const most = (covered: ArrayLike<number>, among: Iterable<number>): number | null => {
+    let best: number | null = null;
+    for (const at of among) {
+      if (covered[at]! > 0 && (best === null || covered[at]! > covered[best]! * (1 + 1e-9))) best = at;
+    }
+    return best;
+  };
+  const layer = most(layerArea, layers.keys());
+  return layer === null ? null : most(area, layers[layer]!);
 }
 
 /** A 2 × 2 matrix, row by row. */
@@ -374,32 +421,39 @@ function fitAffine(from: readonly Point[], to: readonly Point[]): Affine | null 
   return { linear, offset: { x: t.x - moved.x, y: t.y - moved.y } };
 }
 
-/** Shoelace: a closed ring's signed area. */
-function ringArea(ring: readonly Point[]): number {
-  let twice = 0;
-  ring.forEach(({ x, y }, i) => {
-    const next = ring[(i + 1) % ring.length]!;
-    twice += x * next.y - next.x * y;
-  });
-  return twice / 2;
-}
-
 /**
- * Per face, the longest chain of faces stacked over it as seen, and the
- * deepest of those. A pair whose upper face is not later in `order` than its
- * lower one is the pair a woven component's order broke, and is left out —
- * which leaves every pair pointing forward in `order`, so one pass from the
- * front settles each face after everything over it. Exported for the tests.
+ * Per face, its display layer's level — the longest chain of layers stacked
+ * over it as seen — and the deepest of those. A pair whose upper face is not
+ * later in `order` than its lower one is the pair a woven component's order
+ * broke, and is left out — which leaves every pair pointing forward in
+ * `order`, so one pass from the front settles each layer after everything
+ * over it.
+ *
+ * A layer counts as one only where `order` draws it in one run, as
+ * `foldedPaintOrder` does every layer outside a woven component: there no pair
+ * can run from one of its faces back to another. A layer drawn in pieces —
+ * one a woven component threads — keeps a level per face. Without `layers`
+ * every face is a layer of its own. Exported for the tests and the Diagram's
+ * captures.
  */
 export function layerLevels(
   faceCount: number,
   subfaces: readonly OristudioCpFoldedPaperSubface[],
-  order: readonly number[]
+  order: readonly number[],
+  layers?: FoldedDisplayLayers
 ): { levels: Int32Array; zMax: number } {
   const position = new Int32Array(faceCount).fill(-1);
   order.forEach((face, at) => {
     if (face >= 0 && face < faceCount) position[face] = at;
   });
+  // Each face's node: its layer's least face, when the layer is drawn in one run; else the face itself.
+  const node = Int32Array.from({ length: faceCount }, (_, face) => face);
+  for (const faces of layers?.layers ?? []) {
+    if (faces.length < 2) continue;
+    const at = faces.map((face) => (face < faceCount ? position[face]! : -1));
+    if (at.some((p) => p < 0) || Math.max(...at) - Math.min(...at) + 1 !== faces.length) continue;
+    for (const face of faces) node[face] = faces[0]!;
+  }
   const over: number[][] = Array.from({ length: faceCount }, () => []);
   for (const { faces_top_to_bottom: stack } of subfaces) {
     for (let i = 0; i + 1 < stack.length; i += 1) {
@@ -407,43 +461,37 @@ export function layerLevels(
       const lower = stack[i + 1]!;
       if (upper >= faceCount || lower >= faceCount) continue;
       if (position[lower]! < 0 || position[upper]! <= position[lower]!) continue;
-      over[lower]!.push(upper);
+      if (node[upper] === node[lower]) continue;
+      over[node[lower]!]!.push(node[upper]!);
     }
   }
-  const levels = new Int32Array(faceCount);
+  const nodeLevel = new Int32Array(faceCount).fill(-1);
   let zMax = 0;
+  // A node's faces are one run of `order`, so everything over it is settled by the first of them met from the front.
   for (let at = order.length - 1; at >= 0; at -= 1) {
     const face = order[at]!;
-    if (face < 0 || face >= faceCount) continue;
+    if (face < 0 || face >= faceCount || nodeLevel[node[face]!]! >= 0) continue;
     let level = 0;
-    for (const upper of over[face]!) level = Math.max(level, levels[upper]! + 1);
-    levels[face] = level;
+    for (const upper of over[node[face]!]!) level = Math.max(level, nodeLevel[upper]! + 1);
+    nodeLevel[node[face]!] = level;
     zMax = Math.max(zMax, level);
   }
+  const levels = Int32Array.from(node, (of) => Math.max(nodeLevel[of]!, 0));
   return { levels, zMax };
 }
 
 /**
- * Per face, whether its outline is named point for point (schema 2), so its
- * corners step by their vertices; a face that is not steps whole.
- */
-function namedFaces(kernel: OristudioCpFoldedPaperScene): boolean[] {
-  return kernel.faces.map(
-    ({ points, outline }) =>
-      points.length > 0 &&
-      points.length === outline.length &&
-      points.every((vertex) => Number.isInteger(vertex) && vertex >= 0)
-  );
-}
-
-/**
- * Per wireframe point, the mean level of the named faces whose outline names
- * it; 0 for a point none names. A face names a point once, however its ring
- * runs.
+ * Per wireframe point, the mean level of the display layers round it, each
+ * once: those whose outline (`displayLayerOutlines`) names it — or, for a
+ * layer that has none, any of whose named faces does. A point only a flat
+ * crease made is on no outline; it takes the mean of the layers whose faces
+ * name it, for the faces read as they are. 0 for a point nothing names.
  */
 function meanVertexLevels(
   kernel: OristudioCpFoldedPaperScene,
   levels: Int32Array,
+  { layers }: FoldedDisplayLayers,
+  outlines: readonly (FoldedLayerOutline | null)[],
   isNamed: readonly boolean[]
 ): Float64Array {
   let count = 0;
@@ -451,15 +499,30 @@ function meanVertexLevels(
     if (isNamed[face]) for (const vertex of points) count = Math.max(count, vertex + 1);
   });
   const sum = new Float64Array(count);
-  const faces = new Int32Array(count);
-  kernel.faces.forEach(({ points }, face) => {
-    if (!isNamed[face]) return;
-    for (const vertex of new Set(points)) {
-      sum[vertex] += levels[face]!;
-      faces[vertex] += 1;
+  const seen = new Int32Array(count);
+  const rawSum = new Float64Array(count);
+  const rawSeen = new Int32Array(count);
+  layers.forEach((faces, layer) => {
+    // A layer drawn in pieces keeps a level per face (`layerLevels`): each of its faces counts for itself.
+    const whole = faces.every((face) => levels[face] === levels[faces[0]!]);
+    for (const unit of whole ? [faces] : faces.map((face) => [face])) {
+      const level = levels[unit[0]!]!;
+      const named = new Set(unit.flatMap((face) => (isNamed[face] ? kernel.faces[face]!.points : [])));
+      for (const vertex of named) {
+        rawSum[vertex] += level;
+        rawSeen[vertex] += 1;
+      }
+      const outline = whole ? outlines[layer] : null;
+      for (const vertex of outline ? new Set(outline.points) : named) {
+        sum[vertex] += level;
+        seen[vertex] += 1;
+      }
     }
   });
-  return sum.map((total, vertex) => (faces[vertex]! > 0 ? total / faces[vertex]! : 0));
+  return sum.map((total, vertex) => {
+    if (seen[vertex]! > 0) return total / seen[vertex]!;
+    return rawSeen[vertex]! > 0 ? rawSum[vertex]! / rawSeen[vertex]! : 0;
+  });
 }
 
 /**

@@ -71,6 +71,15 @@ export type {
   FoldMode,
   FoldSimulationSource,
   FoldVerdict,
+  FoldChoiceKind,
+  FoldSpreadAction,
+  FoldSpreadVia,
+  FoldStepAddedOpKind,
+  FoldStepExtent,
+  FoldStepLayerScope,
+  FoldStepRotationAmount,
+  FoldStepVertexForm,
+  FoldStepVia,
   LandingCta,
   LandingFeatureId,
   LandingSectionId,
@@ -125,7 +134,10 @@ export type { AnalyticsApi, AnalyticsErrorContext } from './runtime';
 export {
   trackCpToolFavorited,
   trackCpToolFavoritesReordered,
-} from './trackCpToolFavorites';
+  trackFoldToolFavorited,
+  trackFoldToolFavoritesReordered,
+  trackFoldToolPickerOpened,
+} from './trackToolFavorites';
 export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 export {
@@ -154,11 +166,13 @@ export {
   trackDiagramPageSetupChanged,
   trackDiagramPagesRepacked,
   trackDiagramViewSwitched,
+  spreadTracking,
   trackDiagramExampleOpened,
   trackDiagramTutorialOpened,
 } from './trackDiagram';
 export { trackDiagramEnlargementChanged, trackDiagramStepEnlarged } from './trackDiagramZoom';
 export { trackDesktopDownload } from './trackDesktopDownload';
+export { trackFoldChoiceOffered, trackFoldRefused, trackFoldSpreadChanged, trackFoldStepAdded } from './trackFold';
 export { trackCreasePatternExported } from './trackCreasePatternExport';
 export {
   trackPaperExportDismissed,

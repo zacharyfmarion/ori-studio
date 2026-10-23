@@ -12,9 +12,15 @@ import { designKind, designKindForContext } from '../../designKinds';
 import { activeDesignTab } from './designTabs';
 import {
   cpSolvablePatternCount,
+  foldPageAtCursor as selectFoldPageAtCursor,
+  foldStepAtCursor as selectFoldStepAtCursor,
   hasDeletableDiagramSelection as selectHasDeletableDiagramSelection,
   historyCountForContext,
 } from './capabilities';
+import { isShownFoldSequenceReadOnly } from './foldState';
+import { hasProjectDocument as selectHasProjectDocument } from './projectDocuments';
+import { foldStartingFigure } from '../../fold/io/foldEditFigure';
+import { shownFoldSequence } from './foldState';
 import { useWorkspaceStore } from './store';
 
 export function useWorkspaceCapabilities() {
@@ -63,7 +69,7 @@ export function useWorkspaceCapabilities() {
   const canSaveDesign = useWorkspaceStore((state) =>
     state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false)
   );
-  const hasDiagram = useWorkspaceStore((state) => state.diagram !== null);
+  const hasProjectDocument = useWorkspaceStore(selectHasProjectDocument);
   const diagramStepCount = useWorkspaceStore((state) => state.diagram?.steps.length ?? 0);
   const hasDeletableDiagramSelection = useWorkspaceStore(selectHasDeletableDiagramSelection);
   const diagramDeleteTarget = useWorkspaceStore(diagramDeleteTargetOf);
@@ -73,6 +79,10 @@ export function useWorkspaceCapabilities() {
   const diagramHistoryFutureCount = useWorkspaceStore(
     (state) => state.diagramHistory.future.length
   );
+  const foldStepAtCursor = useWorkspaceStore(selectFoldStepAtCursor);
+  const foldReadOnly = useWorkspaceStore(isShownFoldSequenceReadOnly);
+  const foldHistoryPastCount = useWorkspaceStore((state) => state.foldHistory.past.length);
+  const foldHistoryFutureCount = useWorkspaceStore((state) => state.foldHistory.future.length);
   // Subscribed to the tab itself, which is what carries every design kind's
   // undo stack. An edit replaces the tab object, so this re-renders — the
   // per-kind history subscriptions this replaced were only ever reading the
@@ -80,12 +90,18 @@ export function useWorkspaceCapabilities() {
   const activeDesign = useWorkspaceStore(activeDesignTab);
   const clipboard = useWorkspaceStore((state) => state.clipboard);
   const selection = useWorkspaceStore((state) => selectSelection(state));
+  // Fold's imports and hand-offs: primitives, so an edit that changes none re-renders nothing.
+  const foldStepCount = useWorkspaceStore((state) => shownFoldSequence(state)?.document.steps.length ?? 0);
+  const foldPolygon = useWorkspaceStore((state) => shownFoldSequence(state)?.document.paper.shape.kind === 'polygon');
+  const foldPageAtCursor = useWorkspaceStore(selectFoldPageAtCursor);
+  const hasFoldStartingFigure = useWorkspaceStore((state) => foldStartingFigure(state) !== null);
   const historyPastCount = historyCountForContext(
     activeEditingContext,
     activeDesign,
     {
       cp: hasEditableCreasePattern ? cpHistoryPastCount : 0,
       diagram: diagramHistoryPastCount,
+      fold: foldHistoryPastCount,
     },
     'past'
   );
@@ -95,6 +111,7 @@ export function useWorkspaceCapabilities() {
     {
       cp: hasEditableCreasePattern ? cpHistoryFutureCount : 0,
       diagram: diagramHistoryFutureCount,
+      fold: foldHistoryFutureCount,
     },
     'future'
   );
@@ -123,20 +140,32 @@ export function useWorkspaceCapabilities() {
           oristudioCpSolvablePatternCount,
           hasDeletableDesignSelection,
           canSaveDesign,
-          hasDiagram,
+          hasProjectDocument,
           diagramStepCount,
           hasDeletableDiagramSelection,
           diagramDeleteTarget,
           canCopyDiagramAnnotation,
           canPasteDiagramAnnotations,
+          foldStepAtCursor,
           historyPastCount,
           historyFutureCount,
           clipboard,
           selection,
+          foldSequence: {
+            stepCount: foldStepCount,
+            polygon: foldPolygon,
+            readOnly: foldReadOnly,
+            pageAtCursor: foldPageAtCursor,
+          },
+          hasFoldStartingFigure,
         },
         t
       ),
     [
+      foldStepCount,
+      foldPolygon,
+      foldPageAtCursor,
+      hasFoldStartingFigure,
       clipboard,
       creaseCount,
       activeEditingContext,
@@ -157,12 +186,14 @@ export function useWorkspaceCapabilities() {
       oristudioCpSolvablePatternCount,
       hasDeletableDesignSelection,
       canSaveDesign,
-      hasDiagram,
+      hasProjectDocument,
       diagramStepCount,
       hasDeletableDiagramSelection,
       diagramDeleteTarget,
       canCopyDiagramAnnotation,
       canPasteDiagramAnnotations,
+      foldStepAtCursor,
+      foldReadOnly,
       historyFutureCount,
       historyPastCount,
       selection,

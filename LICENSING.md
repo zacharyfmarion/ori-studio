@@ -177,7 +177,7 @@ still permissive on its own terms; it is the combined binary that is GPL.
 | `treemaker-core` | `treemaker-fold` | `GPL-2.0-or-later` — the port |
 | `treemaker-cli` | `treemaker-core`, `oristudio-cp-compiler`, `oristudio-cp`, `treemaker-flatfold`, `treemaker-fold` | `GPL-2.0-or-later` |
 | `treemaker-wasm` | `treemaker-core`, `treemaker-flatfold`, `treemaker-fold` | `GPL-2.0-or-later` |
-| `oracle-tests` | none (dev-only: `treemaker-core`, `treemaker-flatfold`, `treemaker-fold`) | `GPL-2.0-or-later` — the edge is a dev-dependency, but the crate is nothing but tests and every test binary links `treemaker-core` |
+| `oracle-tests` | none (dev-only: `treemaker-core`, `treemaker-flatfold`, `treemaker-fold`, `oristudio-cp`, `oristudio-fold`, `oristudio-geometry`, `oristudio-layer-order`) | `GPL-2.0-or-later` — the edge is a dev-dependency, but the crate is nothing but tests and every test binary links `treemaker-core` |
 | `treemaker-fold` | none | MIT OR Apache-2.0 |
 | `treemaker-flatfold` | `treemaker-fold` | MIT OR Apache-2.0 |
 | `oristudio-cp` | `treemaker-fold` | MIT OR Apache-2.0 |
@@ -187,8 +187,12 @@ still permissive on its own terms; it is the combined binary that is GPL.
 | `oristudio-cp-detect` | `oristudio-cp-compiler`, `oristudio-cp-eval`, + their closure | MIT OR Apache-2.0 |
 | `oristudio-cp-detect-inspector` | `oristudio-cp-detect`, `oristudio-cp-compiler`, `oristudio-cp-eval` | MIT OR Apache-2.0 |
 | `oristudio-cp-detect-wasm` | `oristudio-cp-detect`, `oristudio-cp-detect-inspector`, + their closure | MIT OR Apache-2.0 |
-| `oristudio-precrease` | none | MIT OR Apache-2.0 — original precrease planner; consumes ReferenceFinder's output at runtime, links none of its code |
-| `oristudio-precrease-wasm` | `oristudio-precrease` | MIT OR Apache-2.0 |
+| `oristudio-precrease` | `oristudio-geometry` | MIT OR Apache-2.0 — original precrease planner; consumes ReferenceFinder's output at runtime, links none of its code |
+| `oristudio-precrease-wasm` | `oristudio-precrease`, `oristudio-geometry` | MIT OR Apache-2.0 |
+| `oristudio-geometry` | none | MIT OR Apache-2.0 — original: the shared tolerance, lines, frames, Huzita–Justin constructions and convex-polygon primitives |
+| `oristudio-layer-order` | `oristudio-geometry` | MIT OR Apache-2.0 — original: pairwise layer order, cell overlay, constraints and checker |
+| `oristudio-fold` | `oristudio-geometry`, `oristudio-layer-order`, `treemaker-flatfold`, `treemaker-fold`; with the `kernel` feature also `oristudio-cp` | MIT OR Apache-2.0 — original: the Fold workspace's engine (flat folded states and the plain fold); the Fold spike was its behavioural reference, and no Beloch, Flat-Folder or Oriedita code is ported (completion calls Flat-Folder's search through `treemaker-flatfold`) |
+| `oristudio-fold-wasm` | `oristudio-cp`, `oristudio-fold` (with `kernel`), `oristudio-geometry`, `oristudio-layer-order`, `treemaker-flatfold`, `treemaker-fold` | MIT OR Apache-2.0 — original: the Fold engine's wasm-bindgen bridge, which links the CP kernel for Import CP, Send to Edit and the FOLD export; nothing it reaches has an edge to `treemaker-core` |
 | `oristudio-pdf` | none | MIT OR Apache-2.0 — original: the Diagram's pages as one PDF, through krilla |
 | `oristudio-pdf-wasm` | `oristudio-pdf` | MIT OR Apache-2.0 |
 | `oristudio-bp` | none | MIT |
@@ -233,6 +237,8 @@ published on its own, give it the license text before it goes out.
 | `packages/origami-simulator` | MIT (Amanda Ghassaei + port) | TypeScript port of the Origami Simulator solver. Preserve `LICENSE` and `NOTICE`. |
 | `third_party/treemaker-5.0.1/Source/tmModel/wnlib` | Unrestricted per TreeMaker's bundled license notice | The TreeMaker license file says the `wnlib` directory may be distributed with no restrictions. |
 | `tests/fixtures` | GPL-compatible TreeMaker fixture data | Fixtures are copied or generated from the TreeMaker parity workflow; keep them with the GPL source distribution. |
+| `tests/fixtures/fold-samples` | MIT OR Apache-2.0 (original) | Three FOLD crease patterns of traditional bases (no known author), written for Ori Studio and bundled in the web app as the Fold workspace's Import CP samples. Provenance in `README.md` beside them. |
+| `tests/fixtures/beloch` | MIT (Christopher Mühl) | 56 FOLD fixture files copied unchanged from Beloch (`github.com/tophcodes/beloch`, commit `88bfcce`), test data for the Fold workspace's layer-order checker; no Beloch code is ported or run. Preserve `LICENSE.md` and the attribution in `README.md` beside them. |
 | `crates/*/testdata` | GPL-compatible TreeMaker fixture data | Small crate-local copies keep packaged crate tests self-contained. |
 | `tests/corpus` | Documentation only | Real-user corpora stay external unless redistribution permission is explicit. |
 | `crates/treemaker-wasm/LICENSE.txt` | GPL v2 text | Included so the generated wasm/npm package carries the license text. |

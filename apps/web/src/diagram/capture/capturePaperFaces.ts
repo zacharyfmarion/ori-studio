@@ -4,7 +4,8 @@
  * beside its stored scene. Each wireframe point once, with its place on the
  * paper and on the unspread picture (the pose's side, turn and case, no
  * spread), and each face, hidden ones included, as a ring of those points
- * with its level: the faces stacked over it as the picture is seen.
+ * with its level: the display layers stacked over it as the picture is seen,
+ * so the faces a precrease cuts one layer into share one.
  *
  * The drawn places are not kept: with a spread on, the stored scene holds
  * every face whole, one ring corner for corner with the face's own, and with
@@ -14,6 +15,7 @@
  * already read.
  */
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
+import { foldedDisplayLayers } from '../../cp-workspace/folded/foldedDisplayLayers';
 import { foldedPaintOrder } from '../../cp-workspace/folded/foldedFlatScene';
 import { layerLevels } from '../../cp-workspace/folded/foldedLayerSpread';
 import type { Point } from '../../lib/geometry';
@@ -31,7 +33,12 @@ const levelsOf = new WeakMap<OristudioCpFoldedPaperScene, Int32Array>();
 function faceLevels(kernel: OristudioCpFoldedPaperScene): Int32Array {
   let levels = levelsOf.get(kernel);
   if (!levels) {
-    levels = layerLevels(kernel.faces.length, kernel.subfaces, foldedPaintOrder(kernel)).levels;
+    levels = layerLevels(
+      kernel.faces.length,
+      kernel.subfaces,
+      foldedPaintOrder(kernel),
+      foldedDisplayLayers(kernel)
+    ).levels;
     levelsOf.set(kernel, levels);
   }
   return levels;

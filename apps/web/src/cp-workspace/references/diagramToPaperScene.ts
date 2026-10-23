@@ -8,12 +8,18 @@
  * sheet's edge, exactly as it does for a folded figure. Which of those lines
  * are on the page is decided here rather than by the painter's aux switch: the
  * creases an earlier step made always are, and the pattern's own aux lines
- * are when the References option says so (`referencesAuxCreases`). Everything the painter has no word for — the fold
- * arrow, the turn-over glyph, a band's wash, the rings and the letters — is
- * drawn by `diagramShapes`, the one implementation that draws them on
- * screen, into a markup item with its colours written in (D12, D13: the
- * References inks and paper through the `references` policy). No React state
- * and no store: a test hands it a model and reads the page.
+ * are when the caller's option says so — References' "Show auxiliary creases"
+ * (`referencesAuxCreases`) — or, without one, the style's switch. Everything
+ * the painter has no word for — the fold arrow, the turn-over glyph, a band's
+ * wash, the rings and the letters — is drawn by `diagramShapes`, the one
+ * implementation that draws them on screen, into a markup item with its
+ * colours written in.
+ *
+ * Nothing here is References' own. The caller names the surface whose policy
+ * the style is read through and the tokens the markup is inked from:
+ * References passes its `references` policy and its workspace tokens (D12,
+ * D13; `referencesMarkupTokens`). No React state and no store: a test hands
+ * it a model and reads the page.
  */
 import { renderToStaticMarkup } from 'react-dom/server';
 import type {
@@ -26,23 +32,27 @@ import type {
   ScenePoint,
 } from '../../lib/paper/paperScene';
 import { PT_TO_CSS_PX, type Hex, type PaperStyle } from '../../lib/paper/paperStyle';
-import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
-import { REFERENCE_COLORS } from '../../themes/applyTheme';
+import {
+  applyPaperStylePolicy,
+  PAPER_STYLE_POLICIES,
+  surfacePaperStyle,
+  type PaperSurface,
+} from '../../lib/paper/paperStyleResolve';
 import {
   createDiagramRenderContext,
   diagramShapes,
   type DiagramRenderContext,
-} from './diagram/DiagramPrimitives';
-import { diagramInlineInk, type DiagramInlineTokens } from './diagram/diagramColors';
-import { placeLabels, type LabelLayoutOptions, type LabelPlacement } from './diagram/labelLayout';
-import { penInk } from './diagram/diagramInk';
-import { isDiagramMark, markReach } from './diagram/markReach';
-import { seenFromTheBack } from './diagram/diagramModel';
+} from '../../lib/stepDiagram/DiagramPrimitives';
+import { diagramInlineInk, type DiagramMarkupTokens } from '../../lib/stepDiagram/diagramColors';
+import { placeLabels, type LabelLayoutOptions, type LabelPlacement } from '../../lib/stepDiagram/labelLayout';
+import { penInk } from '../../lib/stepDiagram/diagramInk';
+import { isDiagramMark, markReach } from '../../lib/stepDiagram/markReach';
+import { seenFromTheBack } from '../../lib/stepDiagram/diagramModel';
 import type {
   DiagramLineStyleName,
   StepDiagramModel,
   StepDiagramPrimitive,
-} from './referenceFinderDiagramToPrimitives';
+} from '../../lib/stepDiagram/stepDiagramModel';
 import {
   DIAGRAM_PADDING,
   arcExtremes,
@@ -52,13 +62,19 @@ import {
   withPens,
   type DiagramProjector,
   type SheetPoint,
-} from './stepDiagramGeometry';
-import { referencesShowsAux } from './referencesAuxCreases';
-import { referencesPaperTokens } from './usePaperStyleTokens';
+} from '../../lib/stepDiagram/stepDiagramGeometry';
 
 export interface DiagramToPaperSceneOptions {
-  /** The style the step is painted in; the `references` policy is applied here. */
+  /** The style the step is painted in, before the surface's policy. */
   style: PaperStyle;
+  /**
+   * The surface whose policy the style is read through
+   * (`PAPER_STYLE_POLICIES`): which of its fields the scene takes — the
+   * paper, the pens, the arrow — and so the switch the pattern's aux lines
+   * follow when `showAux` does not say. A References step passes
+   * `references`, on its own pages and on a Diagram's.
+   */
+  surface: PaperSurface;
   /**
    * Sheet units to scene px: the fit a card draws through, or the big view's
    * projector at the page's scale (`referencesStepScene`). Its `mirrored`
@@ -79,10 +95,19 @@ export interface DiagramToPaperSceneOptions {
    */
   mirrored?: boolean;
   /**
-   * The References "Show auxiliary creases" option: whether the pattern's aux
-   * lines are on the page. Absent or null follows the style's own switch.
+   * Whether the pattern's aux lines are on the page: the surface's own
+   * option, References' "Show auxiliary creases". Absent or null follows the
+   * style's switch as the surface reads it.
    */
   showAux?: boolean | null;
+  /**
+   * The colours the markup is written in, from the style as the surface
+   * reads it — its policy applied — by the names the card's classes read them
+   * by: the paper, the pens' inks, and the accent every letter is inked in.
+   * The ground is the page's, `ground`. References' are its workspace tokens
+   * (`referencesMarkupTokens`).
+   */
+  markupTokens: (seen: PaperStyle) => DiagramMarkupTokens;
   /**
    * The bounds grown to hold every mark as it is drawn — its arrows, glyphs
    * and rings (`markReach`), and its accent lines in their pens — not only
@@ -142,7 +167,7 @@ export function diagramToPaperScene(
   options: DiagramToPaperSceneOptions
 ): PaperScene {
   const { seen, project, mirrored, drawn } = sceneDrawing(model, options);
-  const showAux = referencesShowsAux(options.style, options.showAux ?? null);
+  const showAux = options.showAux ?? seen.auxCreases.visible;
   const sheet = model.sheet;
   const point = (p: SheetPoint): ScenePoint => {
     const { x, y } = project(p);
@@ -160,7 +185,10 @@ export function diagramToPaperScene(
     // the style's ink where that reads on it, black or white where it does
     // not (X11 of the paper export plan). The paper it is clipped to is the
     // face below, the sheet's own corners.
-    inline: diagramInlineInk(inlineTokens(seen, options.ground ?? DEFAULT_GROUND)),
+    inline: diagramInlineInk({
+      ...options.markupTokens(seen),
+      '--bg-primary': options.ground ?? DEFAULT_GROUND,
+    }),
     // The face below, which a letter on it is haloed in: the caller's word
     // over the projector's handedness, as for the face itself.
     back: mirrored,
@@ -235,8 +263,8 @@ export function diagramToPaperScene(
   // The paper's border. On screen it is drawn for us — the card strokes the
   // sheet rect, the big view has the document's own border creases under the
   // overlay — but a page carries only what the scene says, and a face is
-  // closed with a hairline in its own fill, never the edge pen. Without these
-  // four a light paper on a blank page is invisible but for its creases, where
+  // closed with a hairline in its own fill, never the edge pen. Without its
+  // sides a light paper on a blank page is invisible but for its creases, where
   // every other surface's export draws its outline. Over the step's lines, not
   // under them: a crease that ends on the edge, drawn after it, laid its own
   // grey across the outline and broke it into pieces.
@@ -249,6 +277,18 @@ export function diagramToPaperScene(
 }
 
 /**
+ * The style the painter draws a step's scene with: the style as the
+ * surface's renderers draw it — the policy applied, and every crease in its
+ * own pen (`surfacePaperStyle`), as the other surfaces hand theirs. Its aux
+ * switch stays on: the scene already holds exactly the aux-pen lines the page
+ * carries, and the creases an earlier step made are among them.
+ */
+export function diagramScenePaintStyle(style: PaperStyle, surface: PaperSurface): PaperStyle {
+  const painted = surfacePaperStyle(style, PAPER_STYLE_POLICIES[surface]);
+  return { ...painted, auxCreases: { ...painted.auxCreases, visible: true } };
+}
+
+/**
  * Where the letters may go on a step's page: no box to hold them in, as on
  * the big view. A card's bounds are its viewBox, and a page has no edge of
  * its own; charging a letter for leaving a box the reader never saw would
@@ -257,16 +297,16 @@ export function diagramToPaperScene(
  */
 const LETTER_LAYOUT: LabelLayoutOptions = {};
 
+/** What a step's drawing on its page is made from: its style read through its surface, and its projector. */
+type SceneDrawingOptions = Pick<DiagramToPaperSceneOptions, 'style' | 'surface' | 'project' | 'mirrored'>;
+
 /**
- * What a step is drawn through on its page: the style as References sees
+ * What a step is drawn through on its page: the style as the surface sees
  * it, the projector with the style's arrow pen and the accent at its weight,
  * the face it shows, and its primitives named from that face.
  */
-function sceneDrawing(
-  model: StepDiagramModel,
-  options: Pick<DiagramToPaperSceneOptions, 'style' | 'project' | 'mirrored'>
-) {
-  const seen = applyPaperStylePolicy(options.style, PAPER_STYLE_POLICIES.references);
+function sceneDrawing(model: StepDiagramModel, options: SceneDrawingOptions) {
+  const seen = applyPaperStylePolicy(options.style, PAPER_STYLE_POLICIES[options.surface]);
   const ink = options.project.ink;
   const markWidth = (seen.arrows.width * PT_TO_CSS_PX) / ink;
   const project = withPens(options.project, {
@@ -294,7 +334,7 @@ function sceneDrawing(
  */
 export function diagramLetterPlacements(
   model: StepDiagramModel,
-  options: Pick<DiagramToPaperSceneOptions, 'style' | 'project' | 'mirrored'>
+  options: SceneDrawingOptions
 ): { placements: ReadonlyMap<number, LabelPlacement>; project: DiagramProjector } {
   const { project, drawn } = sceneDrawing(model, options);
   return { placements: placeLabels(drawn, model.sheet, project, LETTER_LAYOUT), project };
@@ -336,20 +376,6 @@ function grownToMarks(
       for (const { x, y } of arcExtremes(primitive, project)) take(x, y, half);
     }
   }
-}
-
-/**
- * The tokens the card's classes read, as the style has them: those the
- * workspace root carries, the accent the light theme gives a reference (a
- * printed diagram is on light paper) — every letter's ink — and the page's
- * ground, for the halo of a letter off the paper and the ink of a mark off it.
- */
-function inlineTokens(seen: PaperStyle, ground: Hex): DiagramInlineTokens {
-  return {
-    ...referencesPaperTokens(seen),
-    '--cp-reference-input': REFERENCE_COLORS.light.input,
-    '--bg-primary': ground,
-  };
 }
 
 /**

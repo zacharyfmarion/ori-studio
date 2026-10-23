@@ -23,7 +23,7 @@
  *
  * Pure: no DOM, no store.
  */
-import { isDiagramMark, markReach } from '../../cp-workspace/references/diagram/markReach';
+import { isDiagramMark, markReach } from '../../lib/stepDiagram/markReach';
 import { mmToCssPx } from '../../lib/paper/paperSvg';
 import { arcToPath } from '../annotate/annotationPath';
 import { annotationDrawing } from '../annotate/annotationPrimitives';

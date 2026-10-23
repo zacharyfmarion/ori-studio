@@ -14,6 +14,7 @@ import {
 import { stepPageFits } from '../../diagram/pages/pageOverflow';
 import { useDiagramPages } from '../../diagram/pages/useDiagramPages';
 import { fillStepFromReferences, openReferencesBrowser } from '../../diagram/references/referencesBrowserActions';
+import { hasFoldSteps, openFoldBrowser } from '../../diagram/fold/foldBrowserActions';
 import { DIAGRAM_PAGE_PANE_ID, revealDiagramPane, useDiagramPaneReveal } from '../../diagram/useDiagramPaneReveal';
 import { refreshAllDiagramSteps, stopRefreshAll } from '../../diagram/capture/captureQueue';
 import { openDiagramPatternPicker } from '../../diagram/capture/stepCaptureActions';
@@ -126,6 +127,7 @@ export function DiagramPanel() {
   const { dropTarget, ...dropHandlers } = useStepPictureDrop();
   const links = useDiagramCardLinks(steps, style);
   const patternOpen = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
+  const foldSteps = useWorkspaceStore(hasFoldSteps);
   const refreshing = useWorkspaceStore((state) => state.diagramRefreshAll);
   const diagram = useWorkspaceStore((state) => state.diagram);
   const view = useWorkspaceStore((state) => state.diagramView);
@@ -215,6 +217,8 @@ export function DiagramPanel() {
         patternOpen={patternOpen}
         onLink={linkNewStep}
         onFromReferences={openReferencesBrowser}
+        foldSteps={foldSteps}
+        onFromFold={openFoldBrowser}
         onAddTurn={addTurn}
         staleCount={links.refreshable}
         poseAgainCount={links.poseAgain}

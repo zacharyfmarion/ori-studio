@@ -23,11 +23,8 @@
  * primitives onto a square viewBox, this projects them onto the pattern.
  */
 import type { RawSolution } from './referenceFinder/solution';
-import {
-  referenceFinderDiagramToPrimitives,
-  type StepDiagramModel,
-  type StepDiagramPrimitive,
-} from './referenceFinderDiagramToPrimitives';
+import { referenceFinderDiagramToPrimitives } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel, StepDiagramPrimitive } from '../../lib/stepDiagram/stepDiagramModel';
 import { candidateStepDiagram, type ReferencesCandidateRfStep } from './referencesCandidateSteps';
 import type { PrecreaseFrame } from './sheetFrames';
 import {
@@ -35,7 +32,7 @@ import {
   arcThroughPoints,
   dashRulerAlong,
   type DiagramArc,
-} from './stepDiagramGeometry';
+} from '../../lib/stepDiagram/stepDiagramGeometry';
 
 type Pair = readonly [number, number];
 

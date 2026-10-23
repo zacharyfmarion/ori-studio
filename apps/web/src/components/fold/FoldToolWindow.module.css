@@ -1,0 +1,62 @@
+/*
+ * The content of the Fold tool window (FoldToolWindow.tsx); the window itself
+ * is ToolHintWindow's, and its instructions ToolHintInstructions'. The section
+ * rhythm follows Simulate's window, so the windows read as one window.
+ */
+.section {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.section + .section {
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/*
+ * The last seed's refusal, in its place while this one's answer is on its
+ * way: dimmed only once the wait is long enough to notice, so a quick answer
+ * changes nothing on screen until it is in.
+ */
+.section[data-held] {
+  opacity: 0.55;
+  transition: opacity 120ms ease 150ms;
+}
+
+/* What snaps and the keys that change it, under the steps; and the layers' help. */
+.note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+/* "Layers" and "2 of 4 layers moving", on one line. */
+.layersHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* The instructions' heading, for the layers. */
+.heading {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.summary {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cancel and the fold, sharing the window's width. */
+.footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}

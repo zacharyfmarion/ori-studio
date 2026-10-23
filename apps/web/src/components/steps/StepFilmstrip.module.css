@@ -1,0 +1,402 @@
+/*
+  The step filmstrip (StepFilmstrip.tsx): a sequence read left to right, above
+  the pattern.
+
+  It replaced a scrubber and a transport strip along the bottom. A slider and a
+  "4 / 17" readout say where you are in a list; a row of numbered pictures says
+  what the folds *are*, which is what a diagram is for.
+*/
+.filmstrip {
+  /* One number for the card's box, because the strip is windowed: the cards
+     are positioned rather than laid out, so the track has to be told how tall
+     a row of them is, and a second literal would be a second thing to keep in
+     step. */
+  --card-size: 128px;
+
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+/* Smaller cards (`compact`): a phone's strip, over a canvas that needs the height. */
+.filmstrip[data-compact] {
+  --card-size: 88px;
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+/* The cards alone, without the chevrons: the phone (the `navigation` prop),
+   where the stepping sits on the caller's floating bar. */
+.strip[data-bare] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.list {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0;
+  padding: 2px;
+  scroll-behavior: smooth;
+}
+
+/* The strip is windowed, so its width is the virtualizer's total rather than
+   the sum of what happens to be mounted — otherwise the scrollbar would report
+   a dozen cards and the reader could not reach the rest. */
+.track {
+  position: relative;
+  height: var(--card-size);
+}
+
+/* The gap belongs to the item, not to the list: the cards are positioned by
+   the virtualizer rather than laid out by flex, so a `gap` would have nothing
+   to act on and each card must carry its own trailing space to be measured
+   with it. */
+.item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding-right: var(--space-2);
+}
+
+.card {
+  position: relative;
+  display: block;
+  width: var(--card-size);
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--bg-canvas, #0c0f12);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+/*
+ * Where a card stands (the `state` field). A frame and a tinted badge, quiet
+ * enough to sit in a strip of ordinary cards, and before the active card's
+ * rule so the selection still reads on the card the reader is on — which a
+ * preview usually is.
+ *
+ * A preview and a new branch are not part of the sequence yet: their card is
+ * tinted in their hue, frame and ground. Solid, never dashed — these states
+ * are Fold's, whose cards are paper, and a dashed line round paper is a
+ * valley fold. A blocked step's picture fades, since it shows a fold that
+ * will not happen.
+ */
+.card[data-state='preview'] {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent-primary) 9%, var(--bg-canvas, #0c0f12));
+}
+
+.card[data-state='new-branch'] {
+  border-color: var(--status-warning);
+  background: color-mix(in srgb, var(--status-warning) 9%, var(--bg-canvas, #0c0f12));
+}
+
+.card[data-state='blocked'] {
+  border-color: var(--status-danger);
+}
+
+.card[data-state='imported'] {
+  border-color: var(--status-info);
+}
+
+.card[data-state='preview'] .badge {
+  color: var(--accent-primary);
+}
+
+.card[data-state='new-branch'] .badge {
+  color: var(--status-warning);
+}
+
+.card[data-state='blocked'] .badge {
+  color: var(--status-danger);
+}
+
+.card[data-state='imported'] .badge {
+  color: var(--status-info);
+}
+
+.card[data-state='blocked'] .thumb {
+  opacity: 0.5;
+}
+
+/* Folds, but not to the state it was saved at: a warning, not an error. */
+.card[data-state='changed'] {
+  border-color: color-mix(in srgb, var(--status-warning) 70%, var(--border-subtle));
+}
+
+.card[data-state='changed'] .badge {
+  color: var(--status-warning);
+}
+
+/* A newer build's step: carried, never folded, so its frame and picture recede. */
+.card[data-state='locked'] {
+  border-color: var(--border-default);
+}
+
+.card[data-state='locked'] .badge {
+  color: var(--text-tertiary);
+}
+
+.card[data-state='locked'] .thumb,
+.card[data-state='pending'] .thumb {
+  opacity: 0.4;
+}
+
+/* The active card. Before the pointer and focus rules, which tie with it and
+   win: hovering the active card lightens its border, and the keyboard's ring
+   is the wider one. */
+.card[aria-current='step'] {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.card:hover {
+  border-color: var(--border-strong, var(--border-subtle));
+}
+
+/*
+ * The card owns its focus ring, or the user agent draws its own in its own
+ * colour — which, next to the active card's, reads as a second competing
+ * selection. `outline: none` is safe only because the shadow replaces it; the
+ * same trade `.ui-button` makes.
+ */
+.card:focus {
+  outline: none;
+}
+
+.card:focus-visible {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+/*
+ * A card that is not a fold. Turning the paper over is a step the folder
+ * performs, so it is a card like any other — but it makes no crease, so it is
+ * drawn dashed and carries a badge where a fold carries its number rather than
+ * leaving an unexplained gap in the numbering.
+ */
+.card[data-kind='turn-over'],
+.card[data-kind='done'] {
+  border-style: dashed;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Over the picture rather than beside it: the card is the diagram, and a
+   separate column for one or two digits would halve the drawing. A picture
+   that places letters keeps off these corners (`cardChromeRects` in
+   `StepDiagram.tsx` has their sizes). */
+.number {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.badge {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* A fold that needs a badge (approximate, a grid pleat) carries both: its
+   number where every fold's is, and the badge in the opposite corner — on one
+   line, short of the number: a long one ("Outside reverse" on a phone's
+   narrow card) ends in an ellipsis rather than running over it. */
+.card[data-kind='fold'] .badge {
+  left: auto;
+  right: 4px;
+  max-width: calc(100% - 1.75rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A phone's narrow card (`compact`): the badge a size smaller and unspaced, so
+   a one-word kind ("Precrease", "Collapse") fits whole beside the number, and
+   a two-word one ("Outside reverse") takes a second line rather than being cut
+   to "Outsi…". */
+.filmstrip[data-compact] .card[data-kind='fold'] .badge {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.56rem;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-align: right;
+  white-space: normal;
+}
+
+/* A card that offers more than one way: a dot per way along its foot, the one
+   it shows filled, so a card left on another way reads so in the strip before
+   its sentence does. */
+.dots {
+  position: absolute;
+  right: 0;
+  bottom: 3px;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--text-tertiary);
+  border-radius: 50%;
+}
+
+.dot[data-shown] {
+  border-color: var(--text-secondary);
+  background: var(--text-secondary);
+}
+
+.caption {
+  min-height: 2.6em;
+  margin: 0;
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.captionNumber {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.captionEmpty {
+  color: var(--text-tertiary);
+}
+
+/* The active card's tag ("Next", "Jump"), ahead of its number. */
+.captionTag {
+  margin-right: var(--space-1);
+}
+
+/* Its own line, because it qualifies the whole sequence rather than the step
+   the sentence above is about. */
+.note {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+}
+
+/* The active card's other ways, under its sentence: "Way 2 of 3" and a chevron
+   each way — up and down, as the keys step through the ways while left and
+   right step through the cards. */
+.ways {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-1);
+}
+
+.waysReadout {
+  margin-right: var(--space-1);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The phone's readout as its switch (`onCycleWay`): a pill, so it reads as one
+   to tap, with its target reaching past its edges so the row keeps its height. */
+button.waysReadout {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button.waysReadout::after {
+  content: '';
+  position: absolute;
+  inset: -8px -10px;
+}
+
+button.waysReadout:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* A vertical swipe switches a card's way (`useVerticalSwipe`), so the browser
+   must not take one for a scroll wherever a swipe means that: on a card that
+   offers ways, and under the active one's sentence and readout. `pan-x` keeps
+   the strip scrolling sideways under the same finger. */
+.card[data-ways],
+.filmstrip[data-ways] .caption,
+.ways {
+  touch-action: pan-x;
+}
+
+/* On the phone the swipe is the switcher, and the row is its readout alone.
+   The chevrons stay for a screen reader, which keeps swipes for its own
+   navigation and so cannot make this one, and are hidden from sight only. The
+   attribute outranks the icon buttons' own sizes, coarse-pointer minimums
+   included. */
+.ways[data-readout-only] > :not(.waysReadout) {
+  position: absolute;
+  width: 1px;
+  min-width: 0;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* One card at a time under a thumb: on a phone the strip snaps to a card's
+   centre. */
+@media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
+  .list {
+    scroll-snap-type: x proximity;
+  }
+
+  .item {
+    scroll-snap-align: center;
+  }
+}

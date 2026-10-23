@@ -19,6 +19,13 @@
   max-height: var(--radix-select-content-available-height);
 }
 
+/* A list held to a width (`maxWidth`): its options' description lines wrap there. */
+.content[data-capped] {
+  /* Set inline from `maxWidth`; no wider than the trigger until it is. */
+  --select-max-width: 0px;
+  max-width: max(var(--radix-select-trigger-width), var(--select-max-width));
+}
+
 .viewport {
   padding: 4px;
 }
@@ -41,6 +48,32 @@
 .item[data-highlighted] {
   background: var(--menu-highlight);
   color: var(--menu-highlight-text);
+}
+
+/* An option offered as no choice: there, dimmed, never highlighted. */
+.item[data-disabled] {
+  color: var(--text-tertiary);
+}
+
+/* An option with a line under it (`description`): the label, then why. */
+.described {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* At most two lines, then an ellipsis; the whole of it is the line's tooltip. */
+.description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* The current value's check, in a column every option keeps so the labels line

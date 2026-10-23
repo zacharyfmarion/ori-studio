@@ -1,0 +1,3 @@
+/* A saved Unfold to step step's facts and buttons, in the Step pane (FoldReturnControls.tsx). */
+.controls p { margin: 4px 0; color: var(--text-secondary); font-size: 12px; }
+.controls { display: flex; flex-direction: column; gap: 8px; padding: 12px; }

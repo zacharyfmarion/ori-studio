@@ -455,3 +455,36 @@ it.each(['undo', 'redo'] as const)('blocks ordinary Edit %s during batch publica
   expect(get().oristudioCpHistoryPast).toEqual([entry]);
   expect(get().oristudioCpHistoryFuture).toEqual([entry]);
 });
+
+// The Diagram's side of the same gate, through the project-document kit's `busy`.
+it("holds every Diagram edit, undo and redo while a batch import writes the diagram", () => {
+  get().installDiagram({ document: createDiagram(), readOnly: false, raw: {} });
+  expect(get().setDiagramTitle("Crane")).toBe(true);
+  const unchanged = () => {
+    const { diagram, diagramHistory } = get();
+    return () => {
+      expect(get().diagram).toBe(diagram);
+      expect(get().diagramHistory).toBe(diagramHistory);
+    };
+  };
+
+  useWorkspaceStore.setState({ diagramImportBusy: true });
+  let same = unchanged();
+  expect(get().setDiagramTitle("Swan")).toBe(false);
+  expect(get().addDiagramStep()).toBeNull();
+  expect(get().undoDiagram()).toBe(false);
+  same();
+
+  useWorkspaceStore.setState({ diagramImportBusy: false });
+  expect(get().undoDiagram()).toBe(true);
+  expect(get().diagram?.title).not.toBe("Crane");
+
+  useWorkspaceStore.setState({ diagramImportBusy: true });
+  same = unchanged();
+  expect(get().redoDiagram()).toBe(false);
+  same();
+
+  useWorkspaceStore.setState({ diagramImportBusy: false });
+  expect(get().redoDiagram()).toBe(true);
+  expect(get().diagram?.title).toBe("Crane");
+});

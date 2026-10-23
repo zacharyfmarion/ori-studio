@@ -1,0 +1,238 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Unfold to an Import CP",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-regression-unfold-to-after-import",
+        "title": "Unfold to an Import CP",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-unfold-after-import-1",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    1
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.25,
+                0.75
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:90e1e44c76b3127f",
+            "note": "Precrease the diagonal from the bottom-left corner to the top-right: fold and unfold."
+          },
+          {
+            "id": "fstep-unfold-after-import-2",
+            "parent": "fstep-unfold-after-import-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.5
+                  ],
+                  [
+                    1,
+                    0.5
+                  ]
+                ]
+              },
+              "moving": [
+                0.5,
+                0.25
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:19e0300ccd9e23f5",
+            "note": "Valley fold the bottom half up over the top along y = 1/2: a strip two layers thick, the diagonal precrease inside it."
+          },
+          {
+            "id": "fstep-unfold-after-import-3",
+            "parent": "fstep-unfold-after-import-2",
+            "op": {
+              "kind": "cp-jump",
+              "cpJson": "{\"file_spec\":1.1,\"file_creator\":\"Ori Studio (Fold)\",\"vertices_coords\":[[0.0,0.0],[1.0,0.0],[1.0,1.0],[0.0,1.0],[0.0,0.5],[1.0,0.5]],\"edges_vertices\":[[0,1],[1,2],[2,3],[3,0],[4,5]],\"edges_assignment\":[\"B\",\"B\",\"B\",\"B\",\"V\"]}",
+              "orderJson": "{\"faces\":[[0.5,0.25],[0.5,0.75]],\"orders\":[[0,1,1]]}",
+              "origin": "cp"
+            },
+            "expect": "fs1:802cf310aa03df3d",
+            "note": "Import CP: the square folded in half along y = 1/2, and nothing else. It replaces the model, so the diagonal precrease is gone."
+          },
+          {
+            "id": "fstep-unfold-after-import-4",
+            "parent": "fstep-unfold-after-import-3",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5,
+                    0.5
+                  ],
+                  [
+                    0.5,
+                    1
+                  ]
+                ]
+              },
+              "moving": [
+                0.75,
+                0.75
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:d08546bf0a51d330",
+            "note": "Valley fold the right half over the left along x = 1/2."
+          },
+          {
+            "id": "fstep-unfold-after-import-5",
+            "parent": "fstep-unfold-after-import-4",
+            "op": {
+              "kind": "unfold-to",
+              "target": "fstep-unfold-after-import-3",
+              "source": {
+                "path": "fh1:5e10516e4aabfa69",
+                "state": "fs1:d08546bf0a51d330",
+                "targetState": "fs1:802cf310aa03df3d"
+              }
+            },
+            "expect": "fs1:073b9c2f6a473e54",
+            "note": "Unfold to step 3, the import: only step 4’s fold opens. The diagonal precrease from before the import must not come back."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-regression-unfold-to-after-import",
+        "cursor": "fstep-unfold-after-import-5"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

@@ -19,7 +19,7 @@ import {
 } from './diagram/plannerDiagram';
 import { unitFrame } from './diagram/diagramFrames';
 import type { Diagram } from './referenceFinder/solution';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import {
   candidateStepDiagram,
   candidateViewSteps,

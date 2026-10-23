@@ -29,6 +29,10 @@ import type { ReferencesFilmstripStep } from './referencesFilmstrip';
  * The numbers are the stylesheet's: a card is 128px wide with an 8px gap after
  * it, and the viewport here is wide enough for every card in the fixture, so
  * the window is not what any assertion below turns on.
+ *
+ * Told apart by role, not class: the strip's classes are a CSS module's, and
+ * under Vitest those are names of Vitest's own. The track is the list, each
+ * card's slot a list item, and the scroller the element around the list.
  */
 const STRIP_VIEWPORT_PX = 600;
 const CARD_PX = 136;
@@ -36,11 +40,10 @@ const CARD_PX = 136;
 const realOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
 
 function widthFor(element: HTMLElement): number {
-  if (element.classList?.contains('references-filmstrip__list')) return STRIP_VIEWPORT_PX;
-  if (element.classList?.contains('references-filmstrip__item')) return CARD_PX;
-  if (element.classList?.contains('references-filmstrip__track')) {
-    return Number.parseFloat(element.style.width || '0');
-  }
+  const role = element.getAttribute?.('role');
+  if (role === 'listitem') return CARD_PX;
+  if (role === 'list') return Number.parseFloat(element.style.width || '0');
+  if (element.firstElementChild?.getAttribute('role') === 'list') return STRIP_VIEWPORT_PX;
   return 0;
 }
 
@@ -95,7 +98,11 @@ function show(activeStep: number, { navigation = true } = {}): void {
   });
 }
 
-const cards = () => [...(container?.querySelectorAll('button.references-card') ?? [])];
+const strip = () =>
+  container?.querySelector<HTMLElement>('[role="list"][aria-label="Folding steps"]') ?? null;
+const cards = () => [...(strip()?.querySelectorAll('[role="listitem"] > button') ?? [])];
+const waysRow = () =>
+  container?.querySelector('[role="group"][aria-label="Ways to fold this step"]') ?? null;
 
 beforeEach(() => {
   Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
@@ -134,7 +141,7 @@ describe('the active card', () => {
     expect(cards()[2].getAttribute('aria-current')).toBe('step');
     expect(cards()[0].getAttribute('aria-current')).toBeNull();
     // Exactly one card is marked, whichever way it was reached.
-    expect(cards().filter((c) => c.className.includes('references-card--selected'))).toHaveLength(1);
+    expect(cards().filter((c) => c.getAttribute('aria-current') === 'step')).toHaveLength(1);
   });
 
   // A fresh plan resets the active step to 0. Taking focus then would pull it
@@ -152,21 +159,17 @@ describe('the active card', () => {
 });
 
 describe('a card with other ways to fold it', () => {
-  const waysRow = () => container?.querySelector('.references-filmstrip__ways') ?? null;
-
   it('shows a dot per way on its card, the one it shows filled', () => {
     show(0);
-    const dots = cards()[1].querySelectorAll('.references-card__way');
-    expect(dots).toHaveLength(3);
-    expect([...dots].map((dot) => dot.classList.contains('references-card__way--shown'))).toEqual([
+    // Named in words, the way a screen reader reads the dots.
+    const dots = cards()[1].querySelector('[role="img"][aria-label="Way 2 of 3"]');
+    expect(dots?.children).toHaveLength(3);
+    expect([...(dots?.children ?? [])].map((dot) => dot.hasAttribute('data-shown'))).toEqual([
       false,
       true,
       false,
     ]);
-    expect(cards()[1].querySelector('.references-card__ways')?.getAttribute('aria-label')).toBe(
-      'Way 2 of 3'
-    );
-    expect(cards()[0].querySelector('.references-card__ways')).toBeNull();
+    expect(cards()[0].querySelector('[role="img"][aria-label^="Way "]')).toBeNull();
   });
 
   it('puts the switcher under its sentence only while it is the active card', () => {
@@ -208,14 +211,18 @@ function swipe(target: Element | null | undefined, from: number, to: number): vo
 describe('a swipe on the strip', () => {
   it('switches the card it lands on, selecting it first — up is the next way', () => {
     show(0);
-    swipe(cards()[1].querySelector('.references-card__thumb'), 100, 40);
+    // On the card's picture, inside it.
+    swipe(cards()[1].querySelector('svg'), 100, 40);
     expect(selections).toEqual([1]);
     expect(shifts).toEqual([[1, 1]]);
   });
 
   it('switches the active card from its sentence — down is the way before', () => {
     show(1);
-    swipe(container?.querySelector('.references-filmstrip__caption'), 40, 100);
+    const sentence = [...(container?.querySelectorAll('p') ?? [])].find((p) =>
+      p.textContent?.includes('step 2')
+    );
+    swipe(sentence, 40, 100);
     expect(selections).toEqual([]);
     expect(shifts).toEqual([[1, -1]]);
   });
@@ -250,27 +257,19 @@ describe('a swipe on the strip', () => {
 
   it('frees only the cards that offer ways from vertical scrolling', () => {
     show(1);
-    expect(cards().map((card) => card.classList.contains('references-card--ways'))).toEqual([
-      false,
-      true,
-      false,
-    ]);
+    expect(cards().map((card) => card.hasAttribute('data-ways'))).toEqual([false, true, false]);
   });
 
   // The phone's switcher is the swipe; the chevrons stay for a screen reader,
   // hidden from sight by the stylesheet.
   it('keeps the chevrons on the phone only for a screen reader', () => {
     show(1, { navigation: false });
-    const row = container?.querySelector('.references-filmstrip__ways');
-    expect(row?.classList.contains('references-filmstrip__ways--swipe')).toBe(true);
+    const row = waysRow();
+    expect(row?.hasAttribute('data-readout-only')).toBe(true);
     expect(row?.textContent).toContain('2 / 3');
     expect(row?.querySelectorAll('button')).toHaveLength(2);
     show(1);
-    expect(
-      container
-        ?.querySelector('.references-filmstrip__ways')
-        ?.classList.contains('references-filmstrip__ways--swipe')
-    ).toBe(false);
+    expect(waysRow()?.hasAttribute('data-readout-only')).toBe(false);
   });
 });
 
@@ -280,14 +279,12 @@ describe('the windowed strip', () => {
   // p99. Only what is in view is built.
   it('reports its whole length while mounting only what is in view', () => {
     show(0);
-    const cards = [...(container?.querySelectorAll('button.references-card') ?? [])];
-    expect(cards).toHaveLength(steps.length);
-    for (const [i, card] of cards.entries()) {
+    expect(cards()).toHaveLength(steps.length);
+    for (const [i, card] of cards().entries()) {
       expect(card.getAttribute('aria-posinset')).toBe(String(i + 1));
       expect(card.getAttribute('aria-setsize')).toBe(String(steps.length));
     }
     // The scrollbar is the plan's length, not the window's.
-    const track = container?.querySelector<HTMLElement>('.references-filmstrip__track');
-    expect(Number.parseFloat(track?.style.width ?? '0')).toBe(steps.length * CARD_PX);
+    expect(Number.parseFloat(strip()?.style.width ?? '0')).toBe(steps.length * CARD_PX);
   });
 });

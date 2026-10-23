@@ -109,7 +109,7 @@ describe('dashTableUniforms', () => {
 describe('the slots the program reads', () => {
   // Six: the References workspace draws a step's fold, the pattern under it,
   // a dotted line and an earlier crease under one table while a fold plays
-  // (`references/diagram/diagramInk`), and a slot the shader has no branch
+  // (`lib/stepDiagram/diagramInk`), and a slot the shader has no branch
   // for draws its pattern solid without a word.
   it('is six, each with its uniforms and a branch in the vertex stage', () => {
     expect(MAX_DASH_SLOTS).toBe(6);

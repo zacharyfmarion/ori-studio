@@ -17,6 +17,8 @@ import { DiagramPanel } from './DiagramPanel';
 import { DiagramStepPanel } from './DiagramStepPanel';
 import { DiagramPagePanel } from './DiagramPagePanel';
 import { DiagramLayersPanel } from './DiagramLayersPanel';
+// Fold's panes are its code, loaded as one mounts (`workspaces/foldGateway`).
+import { LazyFoldPanel, LazyFoldPaperPanel, LazyFoldStepPanel } from '../fold/FoldGate';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { withPanelErrorBoundary } from '../errors/withPanelErrorBoundary';
@@ -41,6 +43,9 @@ const panels: Record<string, FC<IDockviewPanelProps>> = {
   'diagram-step': DiagramStepPanel,
   'diagram-page': DiagramPagePanel,
   'diagram-layers': DiagramLayersPanel,
+  fold: LazyFoldPanel,
+  'fold-step': LazyFoldStepPanel,
+  'fold-paper': LazyFoldPaperPanel,
   diagnostics: DiagnosticsPanel,
   conditions: ConditionsPanel,
 };

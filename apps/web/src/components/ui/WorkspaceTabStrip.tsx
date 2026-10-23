@@ -109,6 +109,11 @@ export interface WorkspaceTabProps extends Omit<HTMLAttributes<HTMLDivElement>, 
   icon?: ReactNode;
   /** The trigger's tooltip. */
   hint?: string;
+  /**
+   * Its icon alone, the title kept as its accessible name: a phone header
+   * that has one row for its tabs and its verbs together.
+   */
+  iconOnly?: boolean;
   disabled?: boolean;
   /** Being dragged to a new place. */
   dragging?: boolean;
@@ -132,6 +137,7 @@ export function WorkspaceTab({
   title,
   icon,
   hint,
+  iconOnly = false,
   disabled,
   dragging = false,
   editor,
@@ -143,7 +149,9 @@ export function WorkspaceTab({
       {editor ?? (
         <Tabs.Trigger value={value} className={styles.trigger} title={hint} disabled={disabled}>
           {icon}
-          <span className={styles.title}>{title}</span>
+          <span className={styles.title} data-hidden={(iconOnly && icon !== undefined) || undefined}>
+            {title}
+          </span>
         </Tabs.Trigger>
       )}
       {close}

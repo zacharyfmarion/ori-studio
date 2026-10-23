@@ -1,6 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useRef, type ComponentPropsWithoutRef } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus } from 'lucide-react';
 import {
   isTurn,
   type DiagramAsset,
@@ -14,57 +13,20 @@ import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts'
 import type { DiagramCardLinks } from '../../diagram/capture/useCardLinks';
 import type { StepPageFit } from '../../diagram/pages/pageOverflow';
 import { enlargedChips } from '../../diagram/zoom/zoomActions';
+import { StepsGrid, type StepsGridDropTarget } from '../ui/steps/StepsGrid';
 import { DiagramStepCard, DiagramTurnCard } from './DiagramStepCard';
-import styles from './DiagramStepsGrid.module.css';
-import { useVirtualStepRows } from '../../diagram/useVirtualStepRows';
-
-type CardMount = (id: string, element: HTMLDivElement | null) => void;
-
-// Keep each card's ref stable across edits to other entries. Otherwise every
-// picture edit changes all refs, defeats memoization and remounts dense SVGs.
-const StepCard = memo(function StepCard({
-  onElement,
-  ...props
-}: ComponentPropsWithoutRef<typeof DiagramStepCard> & { onElement: CardMount }) {
-  const id = props.step.id;
-  const ref = useCallback((element: HTMLDivElement | null) => onElement(id, element), [id, onElement]);
-  return <DiagramStepCard {...props} ref={ref} />;
-});
-const TurnCard = memo(function TurnCard({
-  onElement,
-  ...props
-}: ComponentPropsWithoutRef<typeof DiagramTurnCard> & { onElement: CardMount }) {
-  const id = props.turn.id;
-  const ref = useCallback((element: HTMLDivElement | null) => onElement(id, element), [id, onElement]);
-  return <DiagramTurnCard {...props} ref={ref} />;
-});
 
 /**
- * Every step, in order, as a grid of cards that is one listbox.
+ * The Diagram's steps, in order, on the shared Steps grid (`ui/steps/StepsGrid`):
+ * one listbox of cards, the selection the store's (`diagramSelectedStepId`),
+ * a turn between two steps (D22) a card of its own in its place (D24) — its
+ * own entry, selected, walked to with the arrows, moved, inserted before and
+ * deleted as a step's is, but numbered none.
  *
- * The selection is the store's (`diagramSelectedStepId`); this only shows it
- * and reports clicks. Focus follows it — a roving tab stop on the selected
- * card — while focus is in the grid or nowhere at all, so a selection made from
- * a control elsewhere (the Step pane, Add step) never pulls focus out of it,
- * but deleting the focused card hands focus on to the card that took its place
- * rather than dropping it on the page. It scrolls the selected card into view,
- * wherever the selection came from.
- *
- * The listbox itself takes focus (not Tab) from a press on the space between
- * cards, so a press there keeps focus in the grid and the next arrow's
- * selection carries it back onto a card.
- *
- * After the last card, an empty card's outline adds a step at the end, and
- * the gap before every card — the first card's too — adds one there: on a
- * hover, a line and a "+" between the two cards. A listbox holds only its
- * options, so both are for a pointer alone — hidden from assistive tech and
- * never focused, the header's Add step and the card menu's Insert Before /
- * After being the way there from the keyboard. A press on either lands focus
- * on the listbox, so the new step's card takes it.
- *
- * A turn between two steps (D22) is a card of its own in its place (D24),
- * selected, walked to with the arrows, moved, inserted before and deleted as a
- * step's is — but numbered none: the cards either side read 3 and 4.
+ * What the Diagram adds to the grid: each step's card (`DiagramStepCard`) and
+ * turn's glyph, the steps grid's mark that the Diagram's Enter acts on, where
+ * a picture dragged in would land, and — on a diagram that can change — the
+ * gap before every card and the tile after the last that add an empty step.
  */
 export function DiagramStepsGrid({
   entries,
@@ -126,208 +88,60 @@ export function DiagramStepsGrid({
   onDelete: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const cards = useRef(new Map<string, HTMLDivElement>());
-
-  const rowIds = useMemo(
-    () => [...entries.map((entry) => `entry:${entry.id}`), ...(onAppend ? ['append'] : [])],
-    [entries, onAppend]
-  );
-  const pendingFocus = useRef<string | null>(null);
-  const selectedIndex = entries.findIndex((entry) => entry.id === selectedStepId);
-  // The tab stop's card stays mounted wherever the grid is scrolled.
-  const { columns, margin, measured, virtualizer } = useVirtualStepRows(
-    listRef,
-    rowIds,
-    Math.max(0, selectedIndex)
-  );
-  /** The selection last brought into view: only a new one is revealed. */
-  const revealed = useRef<string | null>(null);
-  useEffect(() => {
-    // A grid that mounts onto a selection (Back from step detail, Pages →
-    // Steps) runs this once before its columns are read, when the selection's
-    // row is a guess: wait for the real one.
-    if (!measured) return;
-    // Deleting or inserting another step, or a resize that changes the columns,
-    // moves the selection's row without changing the selection: the grid stays
-    // where the reader scrolled it.
-    if (selectedStepId === revealed.current) return;
-    pendingFocus.current = null;
-    revealed.current = selectedStepId;
-    if (selectedStepId === null) return;
-    if (selectedIndex < 0) {
-      // Not in this grid yet: reveal it once it is.
-      revealed.current = null;
-      return;
-    }
-    virtualizer.scrollToIndex(Math.floor(selectedIndex / columns), { align: 'auto' });
-    const card = cards.current.get(selectedStepId);
-    const active = document.activeElement;
-    const nowhere = active === null || active === document.body;
-    if (!(nowhere || listRef.current?.contains(active))) return;
-    if (!card) pendingFocus.current = selectedStepId;
-    else if (active !== card) card.focus({ preventScroll: true });
-  }, [measured, selectedStepId, selectedIndex, columns, virtualizer]);
-
-  const tabStop = selectedStepId ?? entries[0]?.id ?? null;
-  const slots = useMemo(() => slotsOf(entries), [entries]);
   // An enlarged step's chip names the step its area is on (Revision 2), and its well's whether it changed (review fix 4).
   const enlarged = useMemo(() => enlargedChips(entries), [entries]);
-  const keep = useCallback<CardMount>((id, element) => {
-    if (element) {
-      cards.current.set(id, element);
-      if (pendingFocus.current === id) {
-        pendingFocus.current = null;
-        const active = document.activeElement;
-        if (active === document.body || listRef.current?.contains(active))
-          element.focus({ preventScroll: true });
-      }
-    } else cards.current.delete(id);
-  }, []);
-  const rows = virtualizer.getVirtualItems();
+  const drop: StepsGridDropTarget | null =
+    dropTarget === null ? null : dropTarget === GRID_DROP_TARGET ? { kind: 'grid' } : { kind: 'card', id: dropTarget };
 
   return (
-    <div
-      ref={listRef}
-      role="listbox"
-      aria-label={t('panels:diagram.grid.label', 'Steps')}
-      tabIndex={rows.some((row) => row.index === Math.floor(Math.max(0, selectedIndex) / columns)) ? -1 : 0}
-      className={styles.grid}
-      {...{ [DIAGRAM_STEPS_ATTRIBUTE]: '' }}
-      data-drop-target={dropTarget === GRID_DROP_TARGET || undefined}
-      onClick={(event) => {
-        // A press between or below the cards drops the selection, as a press on
-        // empty canvas does elsewhere.
-        if (event.target === event.currentTarget) onSelect(null);
-      }}
-    >
-      <div
-        className={styles.canvas}
-        style={{ height: virtualizer.getTotalSize() }}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) onSelect(null);
-        }}
-      >
-        {rows.map((row) => (
-          <div
-            key={row.key}
-            data-index={row.index}
-            ref={virtualizer.measureElement}
-            className={styles.row}
-            style={{
-              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-              transform: `translateY(${row.start - margin}px)`,
-            }}
-            onClick={(event) => {
-              if (event.target === event.currentTarget) onSelect(null);
-            }}
-          >
-            {slots.slice(row.index * columns, (row.index + 1) * columns).map((slot, column) => (
-              // A slot, so the gap before the card is placed against it.
-              <div key={slot.entry.id} className={styles.slot}>
-                {onInsertBefore && (
-                  <div
-                    aria-hidden
-                    className={styles.insert}
-                    data-insert-before={slot.entry.id}
-                    title={t('panels:diagram.grid.insertHere', 'Add a step here')}
-                    onClick={() => onInsertBefore(slot.entry.id)}
-                  >
-                    <span className={styles.insertButton}>
-                      <Plus size={13} aria-hidden />
-                    </span>
-                  </div>
-                )}
-                {slot.kind === 'turn' ? (
-                  <TurnCard
-                    onElement={keep}
-                    position={row.index * columns + column + 1}
-                    total={entries.length}
-                    turn={slot.entry}
-                    between={slot.between}
-                    style={style}
-                    selected={slot.entry.id === selectedStepId}
-                    tabStop={slot.entry.id === tabStop}
-                    dropTarget={slot.entry.id === dropTarget}
-                    readOnly={readOnly}
-                    onSelect={onSelect}
-                    onDelete={onDelete}
-                  />
-                ) : (
-                  <StepCard
-                    onElement={keep}
-                    position={row.index * columns + column + 1}
-                    total={entries.length}
-                    step={slot.entry}
-                    assets={assets}
-                    style={style}
-                    number={slot.number}
-                    selected={slot.entry.id === selectedStepId}
-                    tabStop={slot.entry.id === tabStop}
-                    dropTarget={slot.entry.id === dropTarget}
-                    readOnly={readOnly}
-                    onSelect={onSelect}
-                    onOpen={onOpen}
-                    onUpload={onUpload}
-                    link={links.statuses.get(slot.entry.id) ?? null}
-                    pageFit={pageFits.get(slot.entry.id) ?? null}
-                    enlargedFrom={enlarged.get(slot.entry.id)?.from}
-                    areaChanged={enlarged.get(slot.entry.id)?.changed === true}
-                    capture={links.captures[slot.entry.id] ?? null}
-                    patternOpen={patternOpen}
-                    onLink={onLink}
-                    onStop={links.stop}
-                    onFromReferences={onFromReferences}
-                    onOpenIn={onOpenIn}
-                    onGoToEdit={onGoToEdit}
-                    onMakeTurn={onMakeTurn}
-                    onDelete={onDelete}
-                  />
-                )}
-              </div>
-            ))}
-            {onAppend && row.index === Math.floor(slots.length / columns) && (
-              // The place after the last card: the tile that adds a step there.
-              <div className={styles.slot} data-trailing="">
-                <div
-                  aria-hidden
-                  className={styles.addTile}
-                  data-add-step-tile=""
-                  // A double-click's second click, after a Delete moved this tile under the pointer, adds nothing.
-                  onClick={(event) => {
-                    if (event.detail <= 1) onAppend();
-                  }}
-                >
-                  <Plus size={18} aria-hidden />
-                  {t('panels:diagram.grid.addStep', 'Add step')}
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+    <StepsGrid<DiagramStep, DiagramTurn>
+      entries={entries}
+      isTurn={isTurn}
+      label={t('panels:diagram.grid.label', 'Steps')}
+      selectedId={selectedStepId}
+      onSelect={onSelect}
+      attributes={{ [DIAGRAM_STEPS_ATTRIBUTE]: '' }}
+      dropTarget={drop}
+      insert={onInsertBefore && { label: t('panels:diagram.grid.insertHere', 'Add a step here'), onInsertBefore }}
+      append={onAppend && { label: t('panels:diagram.grid.addStep', 'Add step'), onAppend }}
+      renderCard={(slot, card) =>
+        slot.kind === 'turn' ? (
+          <DiagramTurnCard
+            {...card}
+            turn={slot.entry}
+            between={slot.between}
+            style={style}
+            readOnly={readOnly}
+            onSelect={onSelect}
+            onDelete={onDelete}
+          />
+        ) : (
+          <DiagramStepCard
+            {...card}
+            step={slot.entry}
+            assets={assets}
+            style={style}
+            number={slot.number}
+            readOnly={readOnly}
+            onSelect={onSelect}
+            onOpen={onOpen}
+            onUpload={onUpload}
+            link={links.statuses.get(slot.entry.id) ?? null}
+            pageFit={pageFits.get(slot.entry.id) ?? null}
+            enlargedFrom={enlarged.get(slot.entry.id)?.from}
+            areaChanged={enlarged.get(slot.entry.id)?.changed === true}
+            capture={links.captures[slot.entry.id] ?? null}
+            patternOpen={patternOpen}
+            onLink={onLink}
+            onStop={links.stop}
+            onFromReferences={onFromReferences}
+            onOpenIn={onOpenIn}
+            onGoToEdit={onGoToEdit}
+            onMakeTurn={onMakeTurn}
+            onDelete={onDelete}
+          />
+        )
+      }
+    />
   );
-}
-
-type Slot =
-  | { kind: 'step'; entry: DiagramStep; number: number }
-  /** A turn, and the numbers of the steps either side of it; null at an end. */
-  | { kind: 'turn'; entry: DiagramTurn; between: { before: number | null; after: number | null } };
-
-/** Each entry in order: a step with its number, a turn with the numbers either side of it (D22). */
-function slotsOf(entries: readonly DiagramEntry[]): Slot[] {
-  const total = entries.filter((entry) => !isTurn(entry)).length;
-  let number = 0;
-  return entries.map((entry): Slot => {
-    if (isTurn(entry)) {
-      return {
-        kind: 'turn',
-        entry,
-        between: { before: number > 0 ? number : null, after: number < total ? number + 1 : null },
-      };
-    }
-    number += 1;
-    return { kind: 'step', entry, number };
-  });
 }

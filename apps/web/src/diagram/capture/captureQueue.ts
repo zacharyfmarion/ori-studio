@@ -6,10 +6,14 @@ import { requestConfirmation } from '../../store/commandDialogStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { stepById, stepsOf, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
+import type { CpSheetIndex } from '../../engine/oristudioCpSheetIndex';
+import { refreshDiagramFoldStep } from '../fold/foldStepActions';
 import { knownCreasesOf } from './captureCreases';
+import { diagramLinkStatus } from './diagramLinks';
 import { abandonOnEngineLoss } from './engineLoss';
-import { linkStatus, refreshKind } from './linkStatus';
+import { linkedSourceOf, refreshKind, type DiagramLinkContext } from './linkStatus';
 import { sayCaptureOutcome, trackCapture } from './stepCaptureActions';
+import { linkContextNow } from './useLinkStatus';
 
 /** The label Refresh all's one undo entry carries. */
 const REFRESH_ALL_LABEL = 'Refresh out-of-date steps';
@@ -19,13 +23,15 @@ let cancelRun: (() => void) | null = null;
 let refreshing: string | null = null;
 
 /**
- * Refresh all out-of-date steps (D4): every linked step whose pattern changed,
+ * Refresh all out-of-date steps (D4): every linked step whose pattern changed
+ * — and every step linked to a Fold step whose sequence changed (plan D17) —
  * captured again one at a time, as one undo entry for the whole run.
  *
  * - One at a time, yielding between steps, so the Diagram stays responsive and
  *   each card updates as its picture lands.
- * - It waits while Edit is the active workspace: the pattern being edited is
- *   the one being captured, and both fold on one kernel.
+ * - It waits while Edit is the active workspace before a step of Edit's
+ *   pattern: the pattern being edited is the one being captured, and both
+ *   fold on one kernel. A Fold step folds nothing, and does not wait.
  * - It asks first when a redo branch would be lost.
  * - A Stop on any of its folds, a replaced diagram or a lost engine ends it.
  *
@@ -36,9 +42,10 @@ export async function refreshAllDiagramSteps(): Promise<number> {
   if (cancelRun) return 0;
   const state = useWorkspaceStore.getState();
   const cp = state.oristudioCpDocument;
-  if (!state.diagram || !cp || state.diagramReadOnly) return 0;
+  if (!state.diagram || state.diagramReadOnly) return 0;
   const loadId = state.diagramLoadId;
-  const sheets = await abandonOnEngineLoss(ensureCpSheetIndex(cp.document)).catch(() => null);
+  // A diagram linked only to Fold steps needs no pattern: its sheets are none.
+  const sheets = cp ? await abandonOnEngineLoss(ensureCpSheetIndex(cp.document)).catch(() => null) : null;
   const current = useWorkspaceStore.getState().diagram;
   const stale = current ? outOfDate(stepsOf(current), current.style, sheets) : [];
   if (stale.length === 0) return 0;
@@ -69,6 +76,22 @@ export async function refreshAllDiagramSteps(): Promise<number> {
   try {
     for (const [index, stepId] of stale.entries()) {
       await nextTurn();
+      const waiting = useWorkspaceStore.getState();
+      const linked = waiting.diagram ? stepById(waiting.diagram, stepId) : null;
+      if (linked?.source?.kind === 'fold-step') {
+        if (cancelled || waiting.diagramLoadId !== loadId) break;
+        // Captured from Fold's replay: no kernel to share with Edit, and nothing to stop.
+        refreshing = stepId;
+        const outcome = await refreshDiagramFoldStep(stepId, { label: REFRESH_ALL_LABEL, joinEntry })?.finally(() => {
+          refreshing = null;
+        });
+        if (outcome?.status === 'captured' && outcome.changed) {
+          refreshed += 1;
+          joinEntry ??= useWorkspaceStore.getState().diagramHistory.past.at(-1);
+        }
+        useWorkspaceStore.setState({ diagramRefreshAll: { total: stale.length, done: index + 1 } });
+        continue;
+      }
       await whileEditIsActive(() => cancelled);
       const store = useWorkspaceStore.getState();
       if (cancelled || store.diagramLoadId !== loadId) break;
@@ -127,22 +150,26 @@ export function stopRefreshAll(): void {
 }
 
 /**
- * The linked steps whose pattern changed, or whose 3D picture was lit by
- * another style than the diagram's, in order.
+ * The linked steps whose pattern — or Fold step — changed, or whose 3D
+ * picture was lit by another style than the diagram's, in order.
  */
 export function outOfDate(
   steps: readonly DiagramStep[],
   style: DiagramStyle,
-  sheets: Parameters<typeof linkStatus>[2]
+  sheets: CpSheetIndex | null
 ): string[] {
-  const document = useWorkspaceStore.getState().oristudioCpDocument?.document ?? null;
+  const now = linkContextNow();
+  const context: DiagramLinkContext = { ...now, cp: { document: now.cp.document, sheets } };
   return steps
-    .filter(
-      (step) =>
-        step.source?.kind === 'cp' &&
-        // Folded part way in the simulator (`pose`): only Pose can capture it again (D19).
-        refreshKind(step, linkStatus(step.source, document, sheets), style) === 'refresh'
-    )
+    .filter((step) => {
+      const source = linkedSourceOf(step);
+      // A References step is never refreshed (D6); folded part way in the
+      // simulator (`pose`), only Pose can capture it again (D19).
+      return (
+        (source?.kind === 'cp' || source?.kind === 'fold-step') &&
+        refreshKind(step, diagramLinkStatus(source, context), style) === 'refresh'
+      );
+    })
     .map((step) => step.id);
 }
 

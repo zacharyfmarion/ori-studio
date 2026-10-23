@@ -4,12 +4,29 @@
 //! exposes a stage-oriented API so the Rust port can be validated against the
 //! original Flat-Folder implementation without substituting approximate
 //! algorithms while the port is in progress.
+//!
+//! [`solve_flat_fold`] runs the whole pipeline on a crease pattern.
+//! [`complete_layer_order`] runs only its propagation and search, over
+//! variables, constraints and cells the caller built.
 
 mod avl;
+mod completion;
 mod constraints;
 mod conversion;
 mod math;
+mod session;
+mod tables;
 
+pub use session::{
+    CheckFit, CheckNoOrder, CheckOptions, CheckOutcome, CheckStage, CompletionSession, SessionStart,
+};
+
+pub use completion::{
+    BudgetLimit, Completion, CompletionConflict, CompletionError, CompletionOptions,
+    CompletionProblem, CompletionSolution, ComponentSolutions, ConstraintKind, Deadline,
+    FixedAssignment, FixedKind, PairOrder, SearchBudget, UnsatisfiedComponent, VariableConstraints,
+    complete_layer_order, flat_folder_completion_problem,
+};
 use conversion::{build_overlap_graph, normalize_document, project_normalized};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

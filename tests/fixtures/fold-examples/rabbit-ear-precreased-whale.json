@@ -1,0 +1,267 @@
+{
+  "source": "Origami.me Whale, source step 5, first rabbit ear; F012 reproduction",
+  "paper": {
+    "shape": {
+      "kind": "square"
+    },
+    "startSide": "back"
+  },
+  "steps": [
+    {
+      "id": "fstep-whale-1",
+      "parent": null,
+      "op": {
+        "kind": "rotate",
+        "rotate": {
+          "amount": "eighth",
+          "direction": "cw"
+        }
+      },
+      "note": "Set-up: white-side-up diamond. Source: https://origami.me/whale/"
+    },
+    {
+      "id": "fstep-whale-2",
+      "parent": "fstep-whale-1",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1.0000000000000002
+            ]
+          ]
+        },
+        "moving": [
+          0.2828427124746189,
+          0.7071067811865475
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "1: Precrease the vertical diagonal."
+    },
+    {
+      "id": "fstep-whale-3",
+      "parent": "fstep-whale-2",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              1,
+              1.1102230246251565e-16
+            ],
+            [
+              -1.1102230246251565e-16,
+              1
+            ]
+          ]
+        },
+        "moving": [
+          0.14142135623730945,
+          0.282842712474619
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "2: Precrease the horizontal diagonal."
+    },
+    {
+      "id": "fstep-whale-4",
+      "parent": "fstep-whale-3",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              0.41421356237309503
+            ]
+          ]
+        },
+        "moving": [
+          0.8485281374238569,
+          0.14142135623730956
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "3a: Precrease lower-left edge to center."
+    },
+    {
+      "id": "fstep-whale-5",
+      "parent": "fstep-whale-4",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              0,
+              0
+            ],
+            [
+              0.4142135623730949,
+              1
+            ]
+          ]
+        },
+        "moving": [
+          0.1414213562373094,
+          0.848528137423857
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "3b: Repeat on the lower right."
+    },
+    {
+      "id": "fstep-whale-6",
+      "parent": "fstep-whale-5",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              1,
+              1.0000000000000002
+            ],
+            [
+              0.5857864376269051,
+              0
+            ]
+          ]
+        },
+        "moving": [
+          0.8485281374238569,
+          0.14142135623730956
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "4a: Precrease upper-left edge to center."
+    },
+    {
+      "id": "fstep-whale-7",
+      "parent": "fstep-whale-6",
+      "op": {
+        "kind": "precrease",
+        "line": {
+          "via": "free",
+          "through": [
+            [
+              1,
+              1.0000000000000002
+            ],
+            [
+              0,
+              0.5857864376269051
+            ]
+          ]
+        },
+        "moving": [
+          0.1414213562373094,
+          0.848528137423857
+        ],
+        "seed": {
+          "scope": "all"
+        },
+        "direction": "valley"
+      },
+      "note": "4b: Repeat on the upper right."
+    }
+  ],
+  "op": {
+    "kind": "rabbit-ear",
+    "corners": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1.0000000000000002
+      ],
+      [
+        1,
+        1.1102230246251565e-16
+      ]
+    ],
+    "emergent": [
+      1,
+      0
+    ],
+    "seed": {
+      "scope": "flaps",
+      "at": [
+        [
+          0.7071067811865475,
+          0.28284271247461906
+        ]
+      ]
+    },
+    "stayer": [
+      0.14142135623730945,
+      0.282842712474619
+    ],
+    "direction": "valley"
+  },
+  "second": {
+    "kind": "rabbit-ear",
+    "corners": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1.0000000000000002
+      ],
+      [
+        -1.1102230246251565e-16,
+        1
+      ]
+    ],
+    "emergent": [
+      0,
+      1
+    ],
+    "seed": {
+      "scope": "flaps",
+      "at": [
+        [
+          0.2828427124746189,
+          0.7071067811865475
+        ]
+      ]
+    },
+    "stayer": [
+      0.282842712474619,
+      0.1414213562373095
+    ],
+    "direction": "valley"
+  }
+}

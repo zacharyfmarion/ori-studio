@@ -37,6 +37,7 @@ import { rectangleAngle, type PicturePoint } from '../annotate/annotationModel';
 import { CAPTURE_PX_PER_UNIT, storedSceneStep } from '../capture/captureGeometry';
 import {
   creasesFlipped,
+  posedRenderOf,
   type DiagramScenePicture,
   type DiagramStep,
   type DiagramZoomOutline,
@@ -80,9 +81,10 @@ const memo = new WeakMap<DiagramScenePicture, { render: string; faces: StepFaces
  * capture made before it kept them, none at all). Read once per picture.
  */
 export function paperFacesOf(step: DiagramStep): StepFaces | null {
-  const { picture, source } = step;
-  if (picture?.kind !== 'scene' || source?.kind !== 'cp') return null;
-  const { render } = source;
+  const { picture } = step;
+  // A newer build's step that this build reads has faces as any other (decision 2 of the launch review).
+  const render = posedRenderOf(step.source);
+  if (picture?.kind !== 'scene' || !render) return null;
   if (render.mode !== 'folded-flat' && render.mode !== 'crease-pattern') return null;
   const key = JSON.stringify(render);
   const cached = memo.get(picture);

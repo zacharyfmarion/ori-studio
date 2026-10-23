@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DiagramAnnotation, KnownDiagramAnnotation } from '../document/diagramDocument';
-import { pathArrowGeometry } from '../../cp-workspace/references/stepDiagramGeometry';
+import { pathArrowGeometry } from '../../lib/stepDiagram/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { ARROW_BEND, arrowApex, calloutShape, flipAnnotationArc, pathCubics, rightAngleAt } from './annotationModel';
 import {

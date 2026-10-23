@@ -33,6 +33,8 @@ import type {
   WorkspaceState,
 } from '../store/workspaceStore/types';
 import type { EditingContext } from '../workspaces/editingContext';
+import type { FoldIoCommand } from '../fold/io/foldIoCommands';
+import { sendFoldStepsToDiagram, type FoldSendToDiagramScope } from '../diagram/fold/foldBrowserActions';
 import type {
 } from '../engine/oristudioBpTypes';
 import type { CreaseExportOptions } from '../lib/creaseExport';
@@ -41,6 +43,8 @@ import i18n from '../i18n';
 import { runUpdateCheck } from '../lib/updateController';
 import { announceUpdateCheck } from '../lib/updateFeedback';
 import { endOpenCanvasSessions } from '../cp-workspace/canvasObjects/canvasSessions';
+import type { FoldMenuVerb } from '../fold/sequence/foldCommands';
+import { loadFold } from '../workspaces/foldGateway';
 
 export const MENU_ACTION_IDS = [
   'file.importDiagramSteps',
@@ -100,6 +104,7 @@ export const MENU_ACTION_IDS = [
   'view.simulator',
   'view.references',
   'view.diagram',
+  'view.fold',
   'view.conditions',
   'view.properties',
   'view.resetLayout',
@@ -147,6 +152,30 @@ export const MENU_ACTION_IDS = [
   'cp.setActiveCreaseAngle',
   'insert.image',
   'insert.text',
+  // The Fold sequence's verbs, by the action catalog's ids (`fold/foldActions`).
+  'fold.valley',
+  'fold.mountain',
+  'fold.precrease',
+  'fold.turn-over',
+  // Rotate takes its tool in hand: how far and which way are its window's.
+  'fold.rotate',
+  'fold.repeat',
+  'fold.unfold-to',
+  'fold.unfold-last',
+  'fold.delete-step',
+  // Fold's imports and hand-offs (plan D16, D10, D11): `fold.` and the action
+  // catalog's command id (`fold/foldActions.ts`) where it has one.
+  'fold.import-cp',
+  'fold.import-sample-preliminary-base',
+  'fold.import-sample-waterbomb-base',
+  'fold.import-sample-pleat-in-eighths',
+  'fold.start-from-edit-folded-figure',
+  'fold.send-to-edit',
+  'fold.send-to-diagram',
+  'fold.send-path-to-diagram',
+  'fold.export-fold',
+  'fold.export-step',
+  'fold.export-steps',
   'help.about',
   'help.checkForUpdates',
 ] as const;
@@ -377,8 +406,56 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
   'view.simulator': 'simulator',
   'view.references': 'references',
   'view.diagram': 'diagram',
+  'view.fold': 'fold',
   'view.conditions': 'conditions',
   'view.properties': 'cp-properties',
+};
+
+/**
+ * The Fold sequence's verbs, by the catalog command or fold kind each runs.
+ * Run as the catalog offers them when they run (`runFoldMenuVerb`), so a
+ * verb the header shows disabled is a no-op from the menu bar or a key too.
+ * The catalog is Fold's code (`workspaces/foldGateway`), loaded already whenever
+ * Fold is on screen, which is the only time these are offered.
+ */
+const FOLD_SEQUENCE_ACTIONS: Partial<Record<MenuActionId, FoldMenuVerb>> = {
+  'fold.valley': { kind: 'fold-kind', id: 'valley' },
+  'fold.mountain': { kind: 'fold-kind', id: 'mountain' },
+  'fold.precrease': { kind: 'fold-kind', id: 'precrease' },
+  'fold.turn-over': { kind: 'command', id: 'turn-over' },
+  'fold.rotate': { kind: 'command', id: 'rotate' },
+  'fold.repeat': { kind: 'command', id: 'repeat' },
+  'fold.unfold-to': { kind: 'command', id: 'unfold-to' },
+  'fold.unfold-last': { kind: 'command', id: 'unfold-last' },
+  'fold.delete-step': { kind: 'command', id: 'delete-step' },
+};
+
+/**
+ * Fold's imports and hand-offs, by the verb each runs (`fold/io/foldIoCommands`,
+ * Fold's code, loaded through `workspaces/foldGateway` when one is first asked for:
+ * the engine bridge and the dialogs behind it stay out of the shell's chunk).
+ */
+const FOLD_IO_ACTIONS: Partial<Record<MenuActionId, FoldIoCommand>> = {
+  'fold.import-cp': { kind: 'import-cp' },
+  'fold.import-sample-preliminary-base': { kind: 'import-sample', sample: 'preliminary-base' },
+  'fold.import-sample-waterbomb-base': { kind: 'import-sample', sample: 'waterbomb-base' },
+  'fold.import-sample-pleat-in-eighths': { kind: 'import-sample', sample: 'pleat-in-eighths' },
+  'fold.start-from-edit-folded-figure': { kind: 'start-from-edit-folded-figure' },
+  'fold.send-to-edit': { kind: 'send-to-edit' },
+  'fold.export-fold': { kind: 'export-fold' },
+  'fold.export-step': { kind: 'export-steps', scope: 'this' },
+  'fold.export-steps': { kind: 'export-steps', scope: 'all' },
+};
+
+/**
+ * Fold's Send to Diagram, by what it sends: the Diagram's own pull run from
+ * Fold's side (plan D17, `diagram/fold/foldBrowserActions`). Dispatched here
+ * rather than through Fold's io verbs, so Fold names the verb by its menu id
+ * and never imports the Diagram.
+ */
+const FOLD_TO_DIAGRAM_ACTIONS: Partial<Record<MenuActionId, FoldSendToDiagramScope>> = {
+  'fold.send-to-diagram': 'step',
+  'fold.send-path-to-diagram': 'path',
 };
 
 export function isMenuActionId(id: string): id is MenuActionId {
@@ -530,11 +607,26 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       return deps.workspace.transformOristudioCpSelection(cpSelectionTransform);
     }
 
+    const foldVerb = FOLD_SEQUENCE_ACTIONS[id];
+    if (foldVerb) {
+      return (await loadFold()).runFoldMenuVerb(i18n.t.bind(i18n), foldVerb);
+    }
+
     const viewPanel = VIEW_PANEL_ACTIONS[id];
     if (viewPanel) {
       deps.layout.activatePanel(viewPanel);
       showWorkspace();
       return true;
+    }
+
+    const foldIo = FOLD_IO_ACTIONS[id];
+    if (foldIo) {
+      return (await loadFold()).runFoldIoCommand(foldIo, deps.fileService);
+    }
+
+    const toDiagram = FOLD_TO_DIAGRAM_ACTIONS[id];
+    if (toDiagram) {
+      return sendFoldStepsToDiagram(toDiagram);
     }
 
     switch (id) {

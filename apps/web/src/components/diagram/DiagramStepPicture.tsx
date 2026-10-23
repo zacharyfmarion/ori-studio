@@ -11,6 +11,7 @@ import type { DiagramLinkStatus } from '../../diagram/capture/linkStatus';
 import {
   creasesFlipped,
   type DiagramCpSource,
+  type DiagramFoldStepSource,
   type DiagramReferencesSource,
   type DiagramStep,
   type KnownDiagramAsset,
@@ -22,7 +23,7 @@ import { Button } from '../ui/Button';
 import { FieldRow } from '../ui/fieldRows';
 import { ActionList, type ActionListItem } from '../ui/ActionList';
 import { Notice } from '../ui/Notice';
-import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
+import { PatternThumbnail } from '../ui/PatternThumbnail';
 import styles from './DiagramStepPicture.module.css';
 
 /** The picture's verbs, by what they are about: its pattern, then the picture itself. */
@@ -36,10 +37,11 @@ const PATTERN_VERBS: readonly DiagramStepActionId[] = [
   // A step made before marks were lifted: its card's marks out of its picture (17e).
   'make-marks-editable',
   'open-in-references',
+  'open-in-fold',
 ];
 const FILE_VERBS: readonly DiagramStepActionId[] = ['upload-picture', 'export-picture', 'remove-picture'];
 /** An empty step's: the ways to give it a picture. */
-const WAYS_IN: readonly DiagramStepActionId[] = ['upload-picture', 'link-pattern', 'from-references'];
+const WAYS_IN: readonly DiagramStepActionId[] = ['upload-picture', 'link-pattern', 'from-references', 'from-fold'];
 /** Or to make it a turn instead (D24). */
 const TURN_INSTEAD: readonly DiagramStepActionId[] = ['make-turn-over', 'make-rotate'];
 
@@ -87,7 +89,10 @@ export function DiagramStepPicture({
   annotating: boolean;
 }) {
   const { t } = useTranslation();
-  const source = step.source?.kind === 'cp' || step.source?.kind === 'references-step' ? step.source : null;
+  const source =
+    step.source?.kind === 'cp' || step.source?.kind === 'references-step' || step.source?.kind === 'fold-step'
+      ? step.source
+      : null;
   // A pick or Cancel closes the picker under the focus: back to the verb
   // that opened it.
   const section = useRef<HTMLDivElement | null>(null);
@@ -119,11 +124,13 @@ export function DiagramStepPicture({
       <FieldRow label={t('panels:diagram.picture.source', 'Source')} kind="text">
         {source?.kind === 'references-step'
           ? describeSent(source, step.picture, t)
-          : source
-            ? describeLinked(source, step.picture !== null, t)
-            : asset
-            ? describeAsset(asset, t)
-            : t('panels:diagram.picture.none', 'No picture yet')}
+          : source?.kind === 'fold-step'
+            ? describeFoldStep(source, t)
+            : source
+              ? describeLinked(source, step.picture !== null, t)
+              : asset
+                ? describeAsset(asset, t)
+                : t('panels:diagram.picture.none', 'No picture yet')}
       </FieldRow>
       {source?.kind === 'cp' && source.render.mode === 'folded-3d' && step.picture !== null && (
         <FieldRow label={t('panels:diagram.picture.view', 'View')} kind="text">
@@ -134,14 +141,16 @@ export function DiagramStepPicture({
         <FieldRow label={t('panels:diagram.picture.pattern', 'Pattern')} kind="text">
           <span className={styles.pattern}>
             <span className={styles.patternThumb}>
-              <DiagramSheetThumbnail thumbnail={source.thumbnail} />
+              <PatternThumbnail thumbnail={source.thumbnail} />
             </span>
             <span data-link={capture ? 'capturing' : (link ?? undefined)}>
               {capture
                 ? t('panels:diagram.picture.capturing', 'Capturing…')
                 : source.kind === 'references-step'
                   ? sentSentence(link ?? 'unknown', patternOpen, t)
-                  : linkSentence(link ?? 'unknown', patternOpen, t)}
+                  : source.kind === 'fold-step'
+                    ? foldLinkSentence(link ?? 'unknown', t)
+                    : linkSentence(link ?? 'unknown', patternOpen, t)}
             </span>
           </span>
         </FieldRow>
@@ -239,6 +248,42 @@ function sentSentence(link: DiagramLinkStatus, patternOpen: boolean, t: TFunctio
       return patternOpen
         ? t('panels:diagram.picture.checking', 'Checking…')
         : t('panels:diagram.picture.unknown', 'Not checked: the crease pattern isn’t open');
+  }
+}
+
+/**
+ * What a step linked to a Fold step shows of it (plan D17): the state before
+ * the step, with what it does, or the state it leaves; as its crease pattern
+ * or folded, and from which side.
+ */
+function describeFoldStep(source: DiagramFoldStepSource, t: TFunction): string {
+  const { render } = source;
+  const shown =
+    render.mode === 'crease-pattern'
+      ? creasesFlipped(render)
+        ? t('panels:diagram.picture.linkedCreasePatternFlipped', 'Crease pattern, turned over')
+        : render.side === 'back'
+          ? t('panels:diagram.picture.linkedCreasePatternBack', 'Crease pattern, back color')
+          : t('panels:diagram.picture.linkedCreasePattern', 'Crease pattern')
+      : render.mode === 'folded-flat' && render.side === 'back'
+        ? t('panels:diagram.picture.linkedFoldedBack', 'Folded, from the back')
+        : t('panels:diagram.picture.linkedFolded', 'Folded');
+  return source.moment === 'after'
+    ? t('panels:diagram.fold.sourceAfter', 'A Fold step’s result · {{shown}}', { shown })
+    : t('panels:diagram.fold.sourceBefore', 'A Fold step · {{shown}}', { shown });
+}
+
+/** How a Fold step's link stands, in words: its step in the sequence, not a crease pattern. */
+function foldLinkSentence(link: DiagramLinkStatus, t: TFunction): string {
+  switch (link) {
+    case 'current':
+      return t('panels:diagram.picture.current', 'Up to date');
+    case 'stale':
+      return t('panels:diagram.fold.stale', 'Out of date: the Fold sequence changed');
+    case 'missing':
+      return t('panels:diagram.fold.missing', 'Step missing from Fold');
+    case 'unknown':
+      return t('panels:diagram.fold.unknown', 'Not checked yet: Fold is still folding its steps');
   }
 }
 

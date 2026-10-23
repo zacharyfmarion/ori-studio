@@ -7,12 +7,11 @@ import {
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
 import { simulatorColorModeLabel } from '../../i18n/enumLabels';
-import {
-  useSimulatorPaperStyle,
-  type SimulatorPenField,
-} from '../../simulator/useSimulatorPaperStyle';
+import type { PaperDisplayPen } from '../../lib/paper/usePaperDisplayStyle';
+import { useSimulatorPaperStyle } from '../../simulator/useSimulatorPaperStyle';
 import { useSimulationInHand } from '../../simulator/useSimulatorShortcuts';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { PaperColorRows } from '../paper/PaperColorRows';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { ColorField } from '../ui/ColorField';
 import { SegmentedRow, SliderRow, ToggleRow } from '../ui/fieldRows';
@@ -45,7 +44,7 @@ export function SimulatorViewControlsPanel() {
   // swatches stop doing anything; showing them live would promise an effect
   // they no longer have.
   const asEdges = paper.style.foldsAsEdges;
-  const penRow = (pen: SimulatorPenField, label: string, disabled = false, divider = true) => (
+  const penRow = (pen: PaperDisplayPen, label: string, disabled = false, divider = true) => (
     <ColorField
       label={label}
       layout="row"
@@ -150,22 +149,7 @@ export function SimulatorViewControlsPanel() {
           }
         >
           <div className="simulator-view-controls-panel__colors">
-            <ColorField
-              label={t('panels:simulatorViewControls.paperFront', 'Front')}
-              layout="row"
-              value={paper.style.paper.front}
-              onChange={(value) => paper.setPaperColor('paper.front', value)}
-              onCommit={paper.endAdjustment}
-            />
-            {/* The last of a group: the section ends it, so no rule of its own. */}
-            <ColorField
-              label={t('panels:simulatorViewControls.paperBack', 'Back')}
-              layout="row"
-              divider={false}
-              value={paper.style.paper.back}
-              onChange={(value) => paper.setPaperColor('paper.back', value)}
-              onCommit={paper.endAdjustment}
-            />
+            <PaperColorRows paper={paper} />
           </div>
         </CollapsibleSection>
 

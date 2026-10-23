@@ -1,5 +1,5 @@
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
-import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import {
   createStep,
   isTurn,
@@ -7,12 +7,13 @@ import {
   type DiagramCpSource,
   type DiagramEntry,
   type DiagramFixedPicture,
+  type DiagramFoldStepSource,
   type DiagramReferencesSource,
   type DiagramScenePicture,
   type DiagramStep,
   type DiagramStepDiagramPicture,
 } from './diagramDocument';
-import { storedSceneJson } from './diagramFile';
+import { storedFoldStepSource, storedSceneJson } from './diagramFile';
 
 /**
  * Hand-built linked steps for the Diagram's tests: a crease-pattern source
@@ -115,6 +116,39 @@ export function referencesSource(patch: Partial<DiagramReferencesSource> = {}): 
 
 export function stepDiagramPicture(mirrored = false, model = SENT_MODEL): DiagramStepDiagramPicture {
   return { kind: 'step-diagram', model, mirrored, key: mirrored ? 'steps-1-back' : 'steps-1' };
+}
+
+/**
+ * A link to the second step of a Fold sequence, as it stood: its digests made
+ * up, its thumbnail the square's. Through the file's own reader, so its fields
+ * are in the order a capture stores them.
+ */
+export function foldStepSource(patch: Partial<DiagramFoldStepSource> = {}): DiagramFoldStepSource {
+  const source = storedFoldStepSource({
+    kind: 'fold-step',
+    sequence: 'fold-1',
+    step: 'fstep-2',
+    moment: 'before',
+    path: 'fh1:0123456789abcdef',
+    state: 'fs1:fedcba9876543210',
+    engine: 1,
+    thumbnail: cpSource().thumbnail,
+    render: { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 },
+    sentence: 'Valley fold the bottom edge to the top.',
+    ...patch,
+  });
+  if (!source) throw new Error('a Fold step source the file reads');
+  return source;
+}
+
+/** A step linked to a Fold step: its source and, by default, its captured scene. */
+export function foldStepStep(
+  id: string,
+  patch: Partial<DiagramFoldStepSource> = {},
+  picture: DiagramStep['picture'] = scenePicture()
+): DiagramStep {
+  const source = foldStepSource(patch);
+  return { ...createStep(() => id), source, picture, text: source.sentence ?? '' };
 }
 
 /** A step sent from References: its card's picture and sentence. */

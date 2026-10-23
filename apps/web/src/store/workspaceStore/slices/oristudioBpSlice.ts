@@ -90,7 +90,7 @@ import type {
   OristudioBpSymmetryState,
   WorkspaceSliceCreator,
 } from '../types';
-import { discardDiagramState } from '../diagramState';
+import { discardProjectDocuments } from '../projectDocuments';
 import { flushPendingEdits } from '../../../lib/pendingEdits';
 
 /**
@@ -242,7 +242,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             ...staleFoldArtifactResourceState(get().foldArtifactRevision),
             // A replaced project's diagram goes with it. The chooser keeps it,
             // like the canvas: adding a design adds to the project.
-            ...discardDiagramState(),
+            ...discardProjectDocuments(),
           }),
       oristudioBpError: null,
       oristudioBpBusy: false,

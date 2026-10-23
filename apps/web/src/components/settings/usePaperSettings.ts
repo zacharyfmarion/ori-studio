@@ -1,8 +1,8 @@
 /**
  * Settings ▸ Paper's binding to the settings store: which slot is being
  * edited, the style it shows, the preset list with its verbs, and the field
- * writes — counted for analytics once per adjustment, the way the Simulate
- * pane's rows are (`useSimulatorPaperStyle`). Preferences, not document
+ * writes — counted for analytics once per adjustment, the way a workspace's
+ * display-style rows are (`usePaperDisplayStyle`). Preferences, not document
  * edits: nothing here opens a bracket or records undo.
  */
 import { useCallback, useMemo, useRef, useState } from 'react';

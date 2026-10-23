@@ -38,7 +38,7 @@
  * Pure: no DOM, no store.
  */
 import type { PaperScene } from '@treemaker/origami-simulator';
-import { INLINE_LABEL_FONT } from '../../cp-workspace/references/diagram/DiagramPrimitives';
+import { INLINE_LABEL_FONT } from '../../lib/stepDiagram/DiagramPrimitives';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import {
   PT_PER_CSS_PX,

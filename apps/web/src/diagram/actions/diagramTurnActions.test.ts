@@ -1,7 +1,8 @@
 import type { TFunction } from 'i18next';
 import { describe, expect, it, vi } from 'vitest';
 import { diagramStepMenuItems } from './diagramContextMenu';
-import { buildDiagramTurnActions, turnCardWords, turnName, type DiagramTurnActionState } from './diagramTurnActions';
+import { turnCardWords, turnName } from '../../lib/steps/turnWords';
+import { buildDiagramTurnActions, type DiagramTurnActionState } from './diagramTurnActions';
 
 const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
   fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name] ?? ''))) as unknown as TFunction;
@@ -55,6 +56,24 @@ describe('a turn’s verbs (D22)', () => {
     expect(deps.set).toHaveBeenCalledWith({ kind: 'rotate', rotate: { amount: 'half', direction: 'ccw' } });
   });
 
+  it('lists a rotation by an exact angle as its angle, chosen, beside the presets; a preset or a direction keeps the rest', () => {
+    const { actions, deps } = build({ turn: { kind: 'rotate', rotate: { amount: 'degrees', degrees: 30, direction: 'cw' } } });
+    const command = (id: string) => {
+      const found = actions.find((action) => action.kind === 'command' && action.id === id);
+      if (found?.kind !== 'command') throw new Error(`no ${id}`);
+      return found;
+    };
+    expect(command('rotate-custom')).toMatchObject({ label: '30°', checked: true });
+    for (const preset of ['rotate-eighth', 'rotate-quarter', 'rotate-half']) expect(command(preset).checked).toBe(false);
+    command('rotate-ccw').run();
+    expect(deps.set).toHaveBeenLastCalledWith({ kind: 'rotate', rotate: { amount: 'degrees', degrees: 30, direction: 'ccw' } });
+    command('rotate-half').run();
+    expect(deps.set).toHaveBeenLastCalledWith({ kind: 'rotate', rotate: { amount: 'half', direction: 'cw' } });
+    // A preset turn lists no angle of its own.
+    const preset = build({ turn: { kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } } }).actions;
+    expect(preset.some((action) => action.kind === 'command' && action.id === 'rotate-custom')).toBe(false);
+  });
+
   it('cannot move past either end, and changes nothing on a read-only diagram', () => {
     const first = build({ index: 0 }).actions;
     expect(first.find((action) => action.kind === 'command' && action.id === 'move-earlier')).toMatchObject({ disabled: true });
@@ -105,7 +124,7 @@ describe('a turn’s verbs (D22)', () => {
   });
 
   describe('an angle of its own', () => {
-    const angle = (degrees: number, direction: 'cw' | 'ccw' = 'cw') => ({ kind: 'rotate' as const, rotate: { degrees, direction } });
+    const angle = (degrees: number, direction: 'cw' | 'ccw' = 'cw') => ({ kind: 'rotate' as const, rotate: { amount: 'degrees' as const, degrees, direction } });
 
     it('names itself, and says how on its card, by its degrees', () => {
       expect(turnName(angle(135), t)).toBe('Rotate 135° clockwise');
@@ -143,7 +162,7 @@ describe('a turn’s verbs (D22)', () => {
       command('rotate-half').run();
       expect(deps.set).toHaveBeenLastCalledWith({ kind: 'rotate', rotate: { amount: 'half', direction: 'ccw' } });
       command('rotate-cw').run();
-      expect(deps.set).toHaveBeenLastCalledWith({ kind: 'rotate', rotate: { degrees: 135, direction: 'cw' } });
+      expect(deps.set).toHaveBeenLastCalledWith({ kind: 'rotate', rotate: { amount: 'degrees', degrees: 135, direction: 'cw' } });
     });
 
     it('has no such row while it is a preset', () => {

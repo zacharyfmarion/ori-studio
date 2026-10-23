@@ -17,6 +17,12 @@
   background: color-mix(in srgb, var(--status-warning) 8%, var(--bg-secondary));
 }
 
+/* A refusal: the warning's tint, in the danger hue. */
+.notice[data-tone='danger'] {
+  border-color: color-mix(in srgb, var(--status-danger) 40%, var(--border-subtle));
+  background: color-mix(in srgb, var(--status-danger) 8%, var(--bg-secondary));
+}
+
 .icon {
   flex: 0 0 auto;
   margin-top: 2px;
@@ -27,6 +33,18 @@
   color: var(--status-warning);
 }
 
+.notice[data-tone='danger'] .icon {
+  color: var(--status-danger);
+}
+
 .body {
   min-width: 0;
+}
+
+/* The fixes, under the sentence and aligned with it rather than the icon. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }

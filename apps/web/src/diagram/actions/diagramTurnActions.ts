@@ -1,8 +1,9 @@
 import type { TFunction } from 'i18next';
-import { rotateAmountLabel } from '../../cp-workspace/references/stepDiagramGeometry';
+import { TURN_DIRECTIONS, TURN_ROTATION_PRESETS, withTurnDirection, withTurnPreset } from '../../lib/steps/turn';
+import { turnDegreesLabel } from '../../lib/steps/turnWords';
 import { DEFAULT_ROTATION } from '../annotate/annotationModel';
 import type { DiagramRotation, DiagramTurnKind } from '../document/diagramDocument';
-import { isCustomRotation, withRotationAmount, withRotationDirection } from '../document/diagramRotation';
+import { isCustomRotation } from '../document/diagramRotation';
 import type { DiagramStepAction, DiagramStepCommand } from './diagramActions';
 
 /**
@@ -10,7 +11,8 @@ import type { DiagramStepAction, DiagramStepCommand } from './diagramActions';
  * shows them: what it is — a turn-over or a rotation — and how it turns, then
  * moving it and deleting it. The step verbs' shape (`diagramActions.ts`), so
  * the menu draws them the same way; the Step pane shows what a turn is as
- * controls of its own, from the same labels (`turnLabels`).
+ * controls of its own, from the same labels (`turnLabels`). What a turn says
+ * it is and where it stands are every sequence's (`lib/steps/turnWords.ts`).
  */
 export type DiagramTurnActionId =
   | 'turn-over'
@@ -20,6 +22,10 @@ export type DiagramTurnActionId =
   | 'rotate-eighth'
   | 'rotate-quarter'
   | 'rotate-half'
+  /**
+   * A rotation by an angle of its own — the author's (Custom, in the Step
+   * pane), or a Fold rotation's pulled in: its angle, chosen, beside the presets.
+   */
   | 'rotate-custom'
   | 'rotate-cw'
   | 'rotate-ccw';
@@ -67,101 +73,6 @@ export function turnLabels(t: TFunction) {
   } as const;
 }
 
-/** What a turn says it is, in a few words: "Turn over", "Rotate 1/4 turn clockwise", or "Rotate 135° clockwise". */
-export function turnName(turn: DiagramTurnKind & { unknown?: unknown }, t: TFunction): string {
-  if (turn.unknown !== undefined) return t('panels:diagram.turns.newer', 'Turn from a newer Ori Studio');
-  if (turn.kind === 'turn-over') {
-    return turn.axis === 'horizontal'
-      ? t('panels:diagram.turns.turnOverTopToBottom', 'Turn over, top to bottom')
-      : t('panels:diagram.turns.turnOverSideToSide', 'Turn over, side to side');
-  }
-  const { direction } = turn.rotate;
-  if (isCustomRotation(turn.rotate)) {
-    const angle = rotateAmountLabel(turn.rotate);
-    return direction === 'cw'
-      ? t('panels:diagram.turns.rotateAngleClockwise', 'Rotate {{angle}} clockwise', { angle })
-      : t('panels:diagram.turns.rotateAngleCounterclockwise', 'Rotate {{angle}} counterclockwise', { angle });
-  }
-  const fraction = rotateAmountLabel(turn.rotate);
-  return direction === 'cw'
-    ? t('panels:diagram.turns.rotateClockwise', 'Rotate {{fraction}} turn clockwise', { fraction })
-    : t('panels:diagram.turns.rotateCounterclockwise', 'Rotate {{fraction}} turn counterclockwise', { fraction });
-}
-
-/** The numbers of the steps either side of a turn; null at an end. */
-export interface TurnBetween {
-  before: number | null;
-  after: number | null;
-}
-
-/**
- * A turn's name for assistive tech, which says where it is as well as what it
- * is: "Turn over, side to side, between steps 3 and 4". The grid's chip and
- * the Pages view's glyph both read it.
- */
-export function turnLabel(turn: DiagramTurnKind & { unknown?: unknown }, between: TurnBetween, t: TFunction): string {
-  const name = turnName(turn, t);
-  const where =
-    between.before !== null && between.after !== null
-      ? t('panels:diagram.turns.between', 'between steps {{before}} and {{after}}', { ...between })
-      : between.after !== null
-        ? t('panels:diagram.turns.beforeFirst', 'before step {{after}}', { ...between })
-        : between.before !== null
-          ? t('panels:diagram.turns.afterLast', 'after step {{before}}', { ...between })
-          : '';
-  return where ? t('panels:diagram.turns.chipLabel', '{{name}}, {{where}}', { name, where }) : name;
-}
-
-/** Where a turn prints, as a line of its own: "Between steps 3 and 4", or before the first or after the last. */
-export function turnPlace(between: TurnBetween, t: TFunction): string | null {
-  if (between.before !== null && between.after !== null) {
-    return t('panels:diagram.turns.betweenSteps', 'Between steps {{before}} and {{after}}', { ...between });
-  }
-  if (between.after !== null) return t('panels:diagram.turns.beforeStep', 'Before step {{after}}', { ...between });
-  if (between.before !== null) return t('panels:diagram.turns.afterStep', 'After step {{before}}', { ...between });
-  return null;
-}
-
-/**
- * A turn's card's words (D24): its title, where a step has its number, and
- * how it turns — "Turn over" and "Side to side", "Rotate" and "1/4 turn
- * clockwise" or "135° clockwise". A newer build's says only that it is one.
- */
-export function turnCardWords(turn: DiagramTurnKind & { unknown?: unknown }, t: TFunction): { title: string; how: string } {
-  if (turn.unknown !== undefined) {
-    return { title: t('panels:diagram.turns.cardTurn', 'Turn'), how: turnName(turn, t) };
-  }
-  if (turn.kind === 'turn-over') {
-    return {
-      title: t('panels:diagram.turns.cardTurnOver', 'Turn over'),
-      how:
-        turn.axis === 'horizontal'
-          ? t('panels:diagram.turns.howTopToBottom', 'Top to bottom')
-          : t('panels:diagram.turns.howSideToSide', 'Side to side'),
-    };
-  }
-  const { direction } = turn.rotate;
-  const title = t('panels:diagram.turns.cardRotate', 'Rotate');
-  if (isCustomRotation(turn.rotate)) {
-    const angle = rotateAmountLabel(turn.rotate);
-    return {
-      title,
-      how:
-        direction === 'cw'
-          ? t('panels:diagram.turns.howAngleClockwise', '{{angle}} clockwise', { angle })
-          : t('panels:diagram.turns.howAngleCounterclockwise', '{{angle}} counterclockwise', { angle }),
-    };
-  }
-  const fraction = rotateAmountLabel(turn.rotate);
-  return {
-    title,
-    how:
-      direction === 'cw'
-        ? t('panels:diagram.turns.howClockwise', '{{fraction}} turn clockwise', { fraction })
-        : t('panels:diagram.turns.howCounterclockwise', '{{fraction}} turn counterclockwise', { fraction }),
-  };
-}
-
 export function buildDiagramTurnActions(
   state: DiagramTurnActionState,
   deps: DiagramTurnActionDeps
@@ -191,22 +102,22 @@ export function buildDiagramTurnActions(
           choose(`axis-${value}`, labels.axis[value], axis === value, { kind: 'turn-over', axis: value })
         )
       : [
-          ...(['eighth', 'quarter', 'half'] as const).map((amount) =>
+          ...TURN_ROTATION_PRESETS.map((amount) =>
             choose(`rotate-${amount}`, labels.amount[amount], rotation.amount === amount, {
               kind: 'rotate',
-              rotate: withRotationAmount(rotation, amount),
+              rotate: withTurnPreset(rotation, amount),
             })
           ),
-          // A menu takes no number: an angle of the author's own is shown as
-          // one more of the set, checked, and set in the Step pane.
+          // A menu takes no number: an angle of the turn's own is what it is already — listed, chosen,
+          // so the menu says how far it turns — and is set in the Step pane.
           ...(isCustomRotation(rotation)
-            ? [choose('rotate-custom', rotateAmountLabel(rotation), true, { kind: 'rotate', rotate: rotation })]
+            ? [choose('rotate-custom', turnDegreesLabel(rotation.degrees, t), true, { kind: 'rotate', rotate: rotation })]
             : []),
           { kind: 'separator', id: 'after-amount' },
-          ...(['cw', 'ccw'] as const).map((direction) =>
+          ...TURN_DIRECTIONS.map((direction) =>
             choose(`rotate-${direction}`, labels.direction[direction], rotation.direction === direction, {
               kind: 'rotate',
-              rotate: withRotationDirection(rotation, direction),
+              rotate: withTurnDirection(rotation, direction),
             })
           ),
         ];

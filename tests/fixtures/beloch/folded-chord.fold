@@ -1,0 +1,251 @@
+{
+  "file_spec": 1.1,
+  "file_creator": "beloch 0.4.0",
+  "frame_classes": [ "creasePattern" ],
+  "vertices_coords": [
+    [ 0.5, 0.0 ],
+    [ 1.0, 0.0 ],
+    [ 1.0, 1.0 ],
+    [ 0.5, 1.0 ],
+    [ 0.0, 0.0 ],
+    [ 0.0, 1.0 ]
+  ],
+  "edges_vertices": [
+    [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ], [ 4, 0 ], [ 3, 5 ], [ 5, 4 ]
+  ],
+  "edges_assignment": [ "B", "B", "B", "V", "B", "B", "B" ],
+  "faces_vertices": [ [ 0, 1, 2, 3 ], [ 4, 0, 3, 5 ] ],
+  "beloch:edges": [
+    null,
+    null,
+    null,
+    {
+      "axiom": "axiom2",
+      "sources": [ ".a", ".b" ],
+      "span": "chord.bel:2:1-22",
+      "statement": 0,
+      "name": null,
+      "crease_id": 0
+    },
+    null,
+    null,
+    null
+  ],
+  "beloch:inspect": {
+    "creases": {
+      "0": {
+        "name": null,
+        "axiom": "axiom2",
+        "sources": [ ".a", ".b" ],
+        "span": "chord.bel:2:1-22",
+        "segments": [
+          {
+            "faces": [ 0, 1 ],
+            "paper": [ [ 0.5, 0.0 ], [ 0.5, 1.0 ] ],
+            "table": [ [ 0.5, 0.0 ], [ 0.5, 1.0 ] ],
+            "assignment": "V"
+          }
+        ]
+      }
+    },
+    "faces": {
+      "0": {
+        "vertices": [
+          [ 0.5, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.5, 1.0 ]
+        ],
+        "flap": 0,
+        "rank": 0
+      },
+      "1": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 0.5, 0.0 ], [ 0.5, 1.0 ], [ 0.0, 1.0 ]
+        ],
+        "flap": 1,
+        "rank": 1
+      }
+    },
+    "points": {
+      "a": { "face": 1, "flap": 1 },
+      "b": { "face": 0, "flap": 0 },
+      "c": { "face": 0, "flap": 0 },
+      "d": { "face": 1, "flap": 1 }
+    },
+    "edges": {
+      "ab": {
+        "name": "ab",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 0.5, 0.0 ], [ 1.0, 0.0 ] ],
+            "table": [ [ 0.5, 0.0 ], [ 1.0, 0.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 0.0, 0.0 ], [ 0.5, 0.0 ] ],
+            "table": [ [ 1.0, 0.0 ], [ 0.5, 0.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "da": {
+        "name": "da",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 0.0, 1.0 ], [ 0.0, 0.0 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 1.0, 0.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "bc": {
+        "name": "bc",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 1.0, 0.0 ], [ 1.0, 1.0 ] ],
+            "table": [ [ 1.0, 0.0 ], [ 1.0, 1.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "cd": {
+        "name": "cd",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.5, 1.0 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.5, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 0.5, 1.0 ], [ 0.0, 1.0 ] ],
+            "table": [ [ 0.5, 1.0 ], [ 1.0, 1.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      }
+    }
+  },
+  "beloch:vertices_names": [ null, "b", "c", null, "a", "d" ],
+  "beloch:named_points": {
+    "a": {
+      "paper": [ 0.0, 0.0 ],
+      "table": [ 1.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "b": {
+      "paper": [ 1.0, 0.0 ],
+      "table": [ 1.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "c": {
+      "paper": [ 1.0, 1.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "d": {
+      "paper": [ 0.0, 1.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    }
+  },
+  "beloch:named_lines": {
+    "m": { "coeffs": [ 1.0, 0.0, 1.0 ], "step": 1, "statement": 1 }
+  },
+  "beloch:named_lines_frame": "creasePattern",
+  "beloch:marks": [],
+  "beloch:free": {},
+  "beloch:statements": [
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 2,
+      "span": "chord.bel:2:1-22",
+      "frame_index": 1,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 3,
+      "span": "chord.bel:3:1-22",
+      "frame_index": 1,
+      "kept_marks": []
+    }
+  ],
+  "beloch:references": [],
+  "beloch:annotations": [],
+  "file_frames": [
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [ [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ] ],
+      "edges_assignment": [ "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 0.0 ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ] ],
+      "beloch:faces_matrix": [ [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ] ],
+      "faceOrders": [],
+      "beloch:source_line": null,
+      "beloch:edges": [ null, null, null, null ],
+      "beloch:vertices_names": [ "a", "b", "c", "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.5, 0.0 ],
+        [ 1.0, 0.0 ],
+        [ 1.0, 1.0 ],
+        [ 0.5, 1.0 ],
+        [ 1.0, 0.0 ],
+        [ 1.0, 1.0 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ], [ 4, 0 ], [ 3, 5 ], [ 5, 4 ]
+      ],
+      "edges_assignment": [ "B", "B", "B", "V", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.0 ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ], [ 4, 0, 3, 5 ] ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ], [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ]
+      ],
+      "faceOrders": [ [ 0, 1, 1 ] ],
+      "beloch:source_line": 2,
+      "beloch:edges": [
+        null,
+        null,
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".b" ],
+          "span": "chord.bel:2:1-22",
+          "statement": 0,
+          "name": null,
+          "crease_id": 0
+        },
+        null,
+        null,
+        null
+      ],
+      "beloch:vertices_names": [ null, "b", "c", null, "a", "d" ]
+    }
+  ]
+}

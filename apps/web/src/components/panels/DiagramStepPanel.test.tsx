@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cpDocument } from '../../diagram/capture/capture.fixtures';
 import { createDiagram, type DiagramCpRender } from '../../diagram/document/diagramDocument';
-import { cpStep, referencesStep, SENT_MODEL, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+import { cpStep, foldStepStep, referencesStep, SENT_MODEL, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { MAX_STEP_ANNOTATIONS } from '../../diagram/annotate/annotationModel';
 import {
   buildDiagramLinkedPoseActions,
@@ -25,6 +25,19 @@ const side = vi.hoisted(() => ({
   creasePatternPaperShows: vi.fn(() => null),
 }));
 vi.mock('../../diagram/capture/creasePatternSide', () => side);
+
+// A Fold step's pose verbs capture through the Fold session: here, what they were asked.
+const foldPose = vi.hoisted(() => ({ spread: vi.fn(async () => true), rotate: vi.fn(async () => true) }));
+vi.mock('../../diagram/fold/foldStepActions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../diagram/fold/foldStepActions')>()),
+  spreadDiagramFoldStep: foldPose.spread,
+  rotateDiagramFoldStepTo: foldPose.rotate,
+}));
+// And its link is told against no replay: the session's worker is not this test's.
+vi.mock('../../diagram/fold/useFoldLinkContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../diagram/fold/useFoldLinkContext')>()),
+  useFoldLinkContext: () => ({ sequences: [], replay: null }),
+}));
 
 /**
  * The Step pane through the store: what it says with nothing selected, and
@@ -566,6 +579,44 @@ describe('DiagramStepPanel', () => {
       act(() => axis.dispatchEvent(new Event('change', { bubbles: true })));
       expect(verbs.commit).toHaveBeenCalledOnce();
       act(() => publishOpenLinkedPose(null, null));
+    });
+
+    it('poses a Fold step from the pane: its angle, and its layers spread as a linked pattern’s are (D17)', () => {
+      const depth = { kind: 'depth' as const, amount: 0.05, toward: 'down' as const };
+      const flat = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 30, foldCase: 1 };
+      act(() => {
+        useWorkspaceStore.setState({
+          diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [foldStepStep('step-k', { render: { ...flat, spread: depth } })] },
+        });
+        state().openDiagramStep('step-k');
+      });
+      const toggle = host!.querySelector<HTMLButtonElement>('button[role="switch"][aria-label="Spread layers"]')!;
+      expect(toggle.getAttribute('aria-checked')).toBe('true');
+      expect(host!.querySelector<HTMLInputElement>('input[type="range"][aria-label="Spread amount"]')!.value).toBe('5');
+      // Its layer order is the sequence's: no pager.
+      expect(host!.textContent).not.toContain('Layer order');
+      act(() => host!.querySelector<HTMLButtonElement>('button[aria-label="Deeper layers up"]')!.click());
+      expect(foldPose.spread).toHaveBeenLastCalledWith('step-k', { verb: 'spread-direction', toward: 'up' });
+      act(() => toggle.click());
+      expect(foldPose.spread).toHaveBeenLastCalledWith('step-k', { verb: 'spread-layers' });
+
+      const rotation = host!.querySelector<HTMLInputElement>('input[aria-label="Rotation"]')!;
+      expect(rotation.value).toBe('30');
+      act(() => rotation.focus());
+      setField(rotation, '157.54');
+      act(() => rotation.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+      expect(foldPose.rotate).toHaveBeenCalledWith('step-k', 157.5);
+
+      // Shown as its crease pattern: nothing to spread.
+      act(() =>
+        useWorkspaceStore.setState({
+          diagram: {
+            ...state().diagram!,
+            steps: [foldStepStep('step-k', { render: { mode: 'crease-pattern', rotationDeg: 0 } })],
+          },
+        })
+      );
+      expect(host!.querySelector('button[role="switch"][aria-label="Spread layers"]')).toBeNull();
     });
 
     it('says what the picture is, what sanitizing changed, and removes it', () => {

@@ -95,7 +95,7 @@ import {
   unionBounds,
 } from './cpContentBounds';
 import { cpDpr } from './cpDpr';
-import { cpSizingScales, cpVertexCrowding, cpVertexSpacingModel } from './cpSizingScales';
+import { cpCreaseStrokeWidthPx, cpSizingScales, cpVertexCrowding, cpVertexSpacingModel } from './cpSizingScales';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
 import { cpLineStyleDashPatterns } from '../lib/oristudioCpLineStyle';
@@ -202,9 +202,6 @@ const CANVAS_BG_VAR = '--bg-primary';
 
 /** Fallback if the CSS variable is missing (roughly a neutral dark panel). */
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
-
-/** SVG editable crease width: `calc(var(--cp-line-width) * 1.5px)` in user units. */
-const CREASE_WIDTH_FACTOR = 1.5;
 
 /** Point/vertex outline width in CSS px (SVG non-scaling stroke ~1.4). */
 const POINT_OUTLINE_CSS = 1.4;
@@ -1914,7 +1911,7 @@ export function CreasePatternWebglCanvas({
         userView,
         // Constant screen size (CSS px * dpr) times the gentle zoom boost. Circle
         // radii still scale fully with zoom via userScalePx — real geometry.
-        strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
+        strokeWidthPx: cpCreaseStrokeWidthPx(liveRef.current.lineWidth, { ratio, widthBoost }),
         // Device px per pt; each figure's stroke multiplier is its edge pen's
         // width in pt (`cpFoldedToScene`), so a folded edge is its pen at every
         // zoom — 0.9 pt is the 1.2 CSS px the kernel's Java2D stroke used to be.

@@ -144,6 +144,27 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:worker.precreaseLost',
         'The precrease planner stopped before it could answer. Try the search again.'
       );
+    // The Fold engine. The steps are the document's, not the worker's, and the
+    // session replays them into the next worker on its own
+    // (`fold/session/foldSession.ts`), so a crash loses nothing but time. Its
+    // loss envelope reaches a toast only for a commit the crash took with it.
+    case 'worker_fold_sequence':
+      return t(
+        'errors:worker.foldSequence',
+        "The fold engine stopped unexpectedly. Your steps are safe; if folding doesn't resume, reload Ori Studio."
+      );
+    case 'fold_sequence_client_lost':
+      return t(
+        'errors:worker.foldSequenceLost',
+        'The fold engine stopped before it could finish that step. Try the fold again.'
+      );
+    // The session stopped restarting an engine that crashed again on every
+    // replay. Reloading replays the same steps, so undoing comes first.
+    case 'fold_engine_kept_stopping':
+      return t(
+        'errors:worker.foldSequenceKeptStopping',
+        'The fold engine kept stopping, so folding is paused. Your steps are safe: undo your last change, or reload Ori Studio.'
+      );
     // Project files we read and rejected (see lib/projectFileError.ts). Their
     // own messages are precise but internal ("field workspace.documents must be
     // an array"); all the user can act on is which of these three it is.

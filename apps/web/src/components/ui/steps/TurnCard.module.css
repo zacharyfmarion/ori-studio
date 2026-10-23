@@ -1,0 +1,14 @@
+/* A turn's card (TurnCard.tsx): the step card, with a glyph for a picture. */
+
+/* A turn's glyph: as a page prints it, on the paper's white, or in the theme's ink on the well. */
+.turnGlyph {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+}
+
+/* Where a turn prints, under how it turns. */
+.where {
+  display: block;
+  color: var(--text-muted);
+}

@@ -34,6 +34,16 @@
       "unknown": "전개도가 아직 준비되지 않았습니다. 잠시 후 다시 시도하세요."
     },
     "dropReadOnly": "이 도해는 최신 Ori Studio에서 만들어져 읽기 전용으로 열리므로 그림을 추가할 수 없습니다.",
+    "fold": {
+      "locked": "그 단계는 최신 Ori Studio에서 만들어졌습니다.",
+      "missing": "그 단계는 접기 시퀀스에 더 이상 없거나 더 이상 접히지 않습니다.",
+      "notShown": "접기가 다른 시퀀스를 보여 주고 있어서 지금은 이 단계를 가져올 수 없습니다.",
+      "openDiagram": "도해 열기",
+      "sent_other": "단계 {{count}}개를 도해에 추가했습니다",
+      "sequenceGone": "그 접기 시퀀스는 이 프로젝트에 더 이상 없습니다.",
+      "someFailed_other": "단계 {{count}}개를 접기에서 가져오지 못해 제외했습니다.",
+      "stepGone": "그 단계는 접기 시퀀스에 더 이상 없습니다."
+    },
     "import": {
       "otherWorkspaceFirst": "먼저 다른 작업 공간에서 이후 편집을 실행 취소하거나 다시 실행하세요. 가져오기가 편집과 도해를 모두 바꿨습니다.",
       "restoreFailed": "가져온 단계를 복원하지 못했습니다."
@@ -84,6 +94,13 @@
   "foldedFigureExport": {
     "empty": "이 접힌 모델에는 아직 내보낼 것이 없습니다",
     "failed": "이 접힌 모델을 내보낼 수 없습니다"
+  },
+  "foldIo": {
+    "noStep": "아직 내보낼 단계가 없습니다.",
+    "pathBroken": "이 시퀀스의 단계가 더 이상 접히지 않아 단계를 보내거나 내보낼 수 없습니다.",
+    "sheetOnScreen": "내보낼 단계로 이동하세요.",
+    "tooLarge": "이 시퀀스는 너무 커서 FOLD 파일 하나로 내보낼 수 없습니다.",
+    "unavailable": "접기 엔진이 끝나기 전에 멈췄습니다. 다시 시도하세요."
   },
   "global": {
     "error": "Ori Studio 오류",

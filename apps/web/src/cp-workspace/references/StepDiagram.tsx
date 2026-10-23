@@ -1,13 +1,11 @@
 import { useId, useMemo } from 'react';
 import type { Diagram } from './referenceFinder/solution';
-import {
-  referenceFinderDiagramToPrimitives,
-  type StepDiagramModel,
-} from './referenceFinderDiagramToPrimitives';
-import { createDiagramRenderContext, diagramShapes } from './diagram/DiagramPrimitives';
-import { seenFromTheBack } from './diagram/diagramModel';
-import type { Rect } from './diagram/labelLayout';
-import { createDiagramProjector } from './stepDiagramGeometry';
+import { referenceFinderDiagramToPrimitives } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
+import { createDiagramRenderContext, diagramShapes } from '../../lib/stepDiagram/DiagramPrimitives';
+import { seenFromTheBack } from '../../lib/stepDiagram/diagramModel';
+import type { Rect } from '../../lib/stepDiagram/labelLayout';
+import { createDiagramProjector } from '../../lib/stepDiagram/stepDiagramGeometry';
 import { useReferencesCardInks } from './usePaperStyleTokens';
 
 /**
@@ -15,8 +13,8 @@ import { useReferencesCardInks } from './usePaperStyleTokens';
  * side. No letter goes there.
  *
  * The step number and the badge are DOM elements over the picture rather than
- * part of it (`.references-card__number`: 2 px down, 4 px in, 0.72 rem bold,
- * tabular digits; `.references-card__badge`: 0.62 rem, semibold, uppercase,
+ * part of it (`StepFilmstrip.module.css`'s `.number`: 2 px down, 4 px in,
+ * 0.72 rem bold, tabular digits; its `.badge`: 0.62 rem, semibold, uppercase,
  * in the number's place on a card that is not a fold and in the opposite
  * corner on one that is), so the drawing cannot see them and has to be told.
  * Estimated on a 128 px card, whose thumbnail is 118 px after the padding and

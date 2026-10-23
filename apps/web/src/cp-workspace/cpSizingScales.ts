@@ -7,6 +7,7 @@
  * drawn primitive at once, which is exactly what happened (see
  * {@link CP_MAX_WIDTH_BOOST}).
  */
+import { CP_CREASE_WIDTH_FACTOR } from '../lib/stepDiagram/diagramInk';
 import { VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
 
 /**
@@ -109,6 +110,19 @@ export function cpSizingScales({ camZoom, fitZoom, ratio }: CpSizingScalesInput)
     markerScalePx: safeRatio * widthBoost * markerShrink,
     pointScalePx: safeRatio * widthBoost * vertexShrink,
   };
+}
+
+/**
+ * Edit's crease width, in device px, for one frame: the view's line width
+ * setting through the editor's width law ({@link CP_CREASE_WIDTH_FACTOR} CSS
+ * px per unit), at the display's density, with the gentle zoom growth.
+ * Every canvas that draws a crease pattern as Edit does strokes it at this.
+ */
+export function cpCreaseStrokeWidthPx(
+  lineWidth: number,
+  { ratio, widthBoost }: { ratio: number; widthBoost: number }
+): number {
+  return CP_CREASE_WIDTH_FACTOR * lineWidth * ratio * widthBoost;
 }
 
 // ---------------------------------------------------------------------------

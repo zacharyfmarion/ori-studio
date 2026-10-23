@@ -270,13 +270,947 @@
     "toolValleyArrow": "谷折箭头",
     "toolValleyLine": "谷折线",
     "toolWhiteArrow": "空心箭头",
-    "toolXRay": "透视"
+    "toolXRay": "透视",
+    "uncreasedLine": "未压折的线"
   },
   "divideMode": {
     "count": "数量",
     "countTitle": "将线等分",
     "ratio": "比率",
     "ratioTitle": "按比率分割线"
+  },
+  "fold": {
+    "categoryLabel": "折叠工作区",
+    "chooser": {
+      "noKeys": {
+        "emergent": "不止一条第四折痕能让这些折痕放平。逐个查看。",
+        "opening": "翼片不止一种张开方式：高亮的层保持在一起。逐个查看。",
+        "order": "这些层不止一种叠放方式。逐个查看。",
+        "pocket": "这个角可以沉入层间不止一个夹层。逐个查看。",
+        "ridge": "两条脊线都能让旋转折放平。逐个查看。",
+        "root": "此公理在这里给出不止一种折法。逐个查看。",
+        "target": "不止一个层可以接受塞入：最亮的那层就是选中的。逐个查看。"
+      },
+      "withKeys": {
+        "emergent": "不止一条第四折痕能让这些折痕放平。逐个查看，或按 {{keys}}。",
+        "opening": "翼片不止一种张开方式：高亮的层保持在一起。逐个查看，或按 {{keys}}。",
+        "order": "这些层不止一种叠放方式。逐个查看，或按 {{keys}}。",
+        "pocket": "这个角可以沉入层间不止一个夹层。逐个查看，或按 {{keys}}。",
+        "ridge": "两条脊线都能让旋转折放平。逐个查看，或按 {{keys}}。",
+        "root": "此公理在这里给出不止一种折法。逐个查看，或按 {{keys}}。",
+        "target": "不止一个层可以接受塞入：最亮的那层就是选中的。逐个查看，或按 {{keys}}。"
+      }
+    },
+    "crimp": {
+      "bothFit": "两种压褶都可以：请选择尖端的朝向。",
+      "firstLine": "第一条折线",
+      "firstLineAxiom": "第一条折线按当前的定线方式“{{mode}}”确定。要自由画线，请在“第一条折线”中选择“自由线”。",
+      "introTurn": "沿一条线把翼片末端向内折，再沿第二条线向外折回。",
+      "secondLine": "第二条折线"
+    },
+    "divide": {
+      "clear_other": "清除在这里做的 {{count}} 个标记",
+      "computed": "计算比率 {{s}} : {{t}}",
+      "count": "等分",
+      "left": "从起点",
+      "mode": "等分方式",
+      "parts": "份数",
+      "ratio": "比率",
+      "right": "到终点"
+    },
+    "extent": {
+      "commitPinch": "捏折",
+      "keyNote": "按 {{shortcut}} 依次切换范围。",
+      "label": "范围",
+      "pinchHelp": "只在沿线单击的点处，捏出一小段印记。",
+      "pinchHelpTouch": "只在沿线轻点的点处，捏出一小段印记。",
+      "segmentHelp": "只在沿线单击的两点之间压出折痕。",
+      "segmentHelpTouch": "只在沿线轻点的两点之间压出折痕。",
+      "wholeHelp": "从一边到另一边压出整条折痕。"
+    },
+    "fix": {
+      "closedSinkInstead": "改为闭合沉折",
+      "crimpFlap": "只压褶翼片 {{number}}",
+      "crimpThisFlap": "只压褶这个翼片",
+      "foldOntoLine": "改为把边折到这条线上",
+      "includeFlap": "包含翼片 {{number}}",
+      "includeFlaps_other": "包含这 {{count}} 个翼片",
+      "insideCrimpInstead": "改为内翻阶梯折",
+      "insideInstead": "改为内翻折",
+      "mountainInstead": "改为山折",
+      "openSinkInstead": "改为开放沉折",
+      "outsideCrimpInstead": "改为外翻阶梯折",
+      "outsideInstead": "改为外翻折",
+      "pickFlap": "只折翼片 {{number}}",
+      "pickThisFlap": "只折这个翼片",
+      "pinchInstead": "改为在该处捏折",
+      "precreaseOtherWay": "向另一方向预折",
+      "reverseCrossedFlaps": "只翻折线条穿过的翼片",
+      "reverseFlap": "只翻折翼片 {{number}}",
+      "reverseThisFlap": "只翻折这个翼片",
+      "sinkFlap": "只沉折翼片 {{number}}",
+      "sinkThisFlap": "只沉折这个翼片",
+      "slideToEdge": "平移折线，让该点正好落在边上",
+      "swapInstead": "交换移动的一侧",
+      "throughAllLayers": "穿过所有层压出折痕",
+      "tuckFlap": "只塞入翼片 {{number}}",
+      "tuckOtherWay": "朝另一方向塞入",
+      "tuckOver": "改为塞到列出的第 {{number}} 层上面",
+      "tuckOverAnother": "改为塞到合适的层上面",
+      "tuckThisFlap": "只塞入这个翼片",
+      "tuckUnder": "改为塞到列出的第 {{number}} 层下面",
+      "tuckUnderAnother": "改为塞到合适的层下面",
+      "turnToEdge": "转动折线，让该点正好落在边上",
+      "useLine": "使用参考线",
+      "useMovingPoint": "使用移动翼片上的点",
+      "useSquareLine": "使用垂直线",
+      "useWholeLine": "使用整条线",
+      "valleyInstead": "改为谷折"
+    },
+    "flap": {
+      "chip_other": "翼片 {{number}}，{{count}} 层",
+      "chipAdded_other": "翼片 {{number}}，{{count}} 层，随折叠一起移动",
+      "groupLabel": "要折的翼片",
+      "layers_other": "{{count}} 层",
+      "name": "翼片 {{number}}"
+    },
+    "group": {
+      "fold": "折叠",
+      "locate": "确定折线",
+      "model": "模型",
+      "reference": "参考点",
+      "sequence": "序列",
+      "sink": "沉折"
+    },
+    "key": {
+      "commit": "完成折叠",
+      "cycleExtent": "切换预折范围",
+      "nextRoot": "下一个解",
+      "previousRoot": "上一个解",
+      "swapSide": "交换移动的一侧"
+    },
+    "keys": {
+      "nextBranch": "下一个分支",
+      "nextStep": "下一步",
+      "previousBranch": "上一个分支",
+      "previousStep": "上一步"
+    },
+    "latch": {
+      "freePoint": "自由点"
+    },
+    "line": {
+      "axiom": "公理 {{number}}：{{phrase}}",
+      "axiom1Help": "过两点的线。",
+      "axiom2Help": "把一点折到另一点上的线。",
+      "axiom3Help": "把一条边或折痕折到另一条上的线。",
+      "axiom4Help": "过一点且垂直于一条边或折痕的线。",
+      "axiom5Help": "过一个支点、把一点折到边或折痕上的线。",
+      "axiom6Help": "同时把两点折到两条边或折痕上的线。",
+      "axiom7Help": "把一点折到边或折痕上、且垂直于另一条的线。",
+      "crease": "已有折痕",
+      "creaseHelp": "已经存在的折痕或折边：重新折起预折痕，或展开一个翼片。",
+      "free": "自由线",
+      "freeHelp": "随处画出的线，没有参考。"
+    },
+    "note": {
+      "acrossLayers": "这些点位于被折叠分开的层上，因此折线经过它们在折叠形态中的位置。折痕图显示这次折叠产生的折痕。",
+      "along": "点会吸附到线与折痕、边和印记的交点、线上的点以及线的中点。",
+      "alongBack": "按 Esc 撤销最后一个点。",
+      "clear": "按 Esc 清除已选的点。",
+      "closedSinkLine": "横跨角的线决定沉折的深度。",
+      "crease": "沿预折痕折叠会把它重新折起；沿折边折叠会展开翼片。",
+      "free": "不吸附：折线正好经过你单击的点。",
+      "freePoint": "按住 {{modifier}} 可不吸附地把点放在任意位置。",
+      "freeSnap": "吸附到附近的目标点；附近没有目标点时，使用点击的位置。",
+      "freeSnapTouch": "吸附到附近的目标点；附近没有目标点时，使用轻点的位置。",
+      "freeTouch": "不吸附：折线正好经过你轻点的点。",
+      "openSinkSquare": "横跨角的线决定沉折的深度，并且必须与角的中线严格垂直：公理 4 可以画出这样的线。",
+      "queued": "预览就绪后立即折叠…",
+      "rotateCancel": "按 Esc 放下旋转工具，不添加这次旋转。",
+      "rotatePreview": "折叠窗格会显示旋转后的模型。",
+      "rotateRefused": "无法在此处添加这次旋转。",
+      "severalSunk_other": "这里有 {{count}} 个已沉入的角：使用第一个。",
+      "snap": "点会吸附到角、标记、折痕交点、中点和边。",
+      "unfoldCancel": "按 Esc 放下“展开到指定步骤”工具，不添加该步骤。",
+      "unfoldPreview": "画布会显示纸张回到那个形态。所有折痕都会保留。",
+      "unsinkRing": "这条线是沉折留下的环上的一条折痕，沿着已沉入角的顶边。"
+    },
+    "op": {
+      "closedSink": "闭合沉折",
+      "crimp": "压褶",
+      "openSink": "开放沉折",
+      "outsideReverse": "外翻折",
+      "petal": "花瓣折",
+      "pleat": "褶折",
+      "rabbitEar": "兔耳折",
+      "squash": "压平折",
+      "swivel": "旋转折",
+      "tuck": "塞入",
+      "unsink": "反沉折"
+    },
+    "order": {
+      "accept": "使用此顺序",
+      "acceptAll": "使用这些顺序并添加步骤",
+      "acceptUpdate": "使用这些顺序并更新步骤",
+      "back": "返回",
+      "choose": "选择层叠顺序",
+      "count_other": "第 {{index}} 个顺序，共 {{count}} 个",
+      "failed": "无法加载层叠顺序。请返回重试，或选择其他顺序。",
+      "found_other": "第 {{index}} 个顺序，已找到 {{count}} 个",
+      "help": "预览折叠结果，然后选择所需的层叠顺序。",
+      "incomplete": "搜索尚未完成，可能还有其他顺序。",
+      "inspect": "检查层叠结构",
+      "loading": "正在加载顺序…",
+      "movingVaries": "这些层叠顺序会移动不同的纸层。请检查高亮显示的纸张。",
+      "next": "下一个层叠顺序",
+      "noneFound": "尚未找到顺序",
+      "noOthers": "搜索已完成，没有其他顺序。",
+      "previous": "上一个层叠顺序",
+      "region": "区域 {{number}}",
+      "regions": "独立区域",
+      "search": "查找更多顺序",
+      "searching": "正在查找更多顺序…",
+      "stack": "区域 {{number}}：{{layers}}",
+      "stackHelp": "选择区域以高亮显示。各层按从前到后的顺序列出；高亮的差异是相对于首次预览的变化。",
+      "stop": "停止搜索"
+    },
+    "picker": {
+      "addFavorite": "将{{tool}}添加到收藏",
+      "close": "关闭工具列表",
+      "favorites": "收藏",
+      "favoritesHint": "这里的前 {{limit}} 个收藏会显示在底部工具栏中。长按并拖动即可重新排序。",
+      "removeFavorite": "从收藏中移除{{tool}}",
+      "title": "折叠工具",
+      "trigger": "工具"
+    },
+    "pleat": {
+      "blocked": "两次折叠都必须在所选纸瓣内完成，且不能带动其他纸张。请检查折线和所选纸层。",
+      "intro": "在折叠前的模型上，先确定山折线，再确定谷折线。",
+      "layers": "选择要褶折的纸瓣。谷折线外侧的末端会向回折。",
+      "limit": "纸层排列方案过多，无法确定此次褶折。请选择更小的纸瓣。",
+      "lines": "谷折线必须位于山折线朝向移动末端的一侧。请检查折线，或点击交换。",
+      "mountainInstruction": "山折线：{{instruction}}",
+      "mountainLine": "山折线",
+      "refusedTitle": "此处无法褶折",
+      "searching": "正在计算褶折各层的叠放方式…",
+      "valleyInstruction": "谷折线：{{instruction}}",
+      "valleyLine": "谷折线"
+    },
+    "railLabel": "折叠工具",
+    "readOnly": {
+      "locked": "此步骤来自更新版本的 Ori Studio，因此无法从这里继续折叠。",
+      "newer": "此序列来自更新版本的 Ori Studio，因此以只读方式打开。"
+    },
+    "refusal": {
+      "budget": {
+        "text": "在这里求解各层如何叠放耗时过长，因此无法确定这次折叠是否可行。请折更少的层，或换个位置折。",
+        "title": "搜索超时"
+      },
+      "choiceBroken": {
+        "text": "此步骤保存的张开方式或层序已与之前的纸不再吻合，因此无法按保存的样子折叠。",
+        "title": "某个选择已不再吻合"
+      },
+      "chooseOpening": {
+        "text": "翼片不止一种张开方式。请选择一种来折叠。",
+        "title": "选择张开方式"
+      },
+      "chooseOrder": {
+        "text": "这次折叠的层不止一种叠放方式。请选择一种来折叠。",
+        "title": "选择各层如何叠放"
+      },
+      "choosePocket": {
+        "text": "这个角可以沉入层间不止一个夹层。请选择一个来折叠。",
+        "title": "选择夹层"
+      },
+      "closureAddsFlaps": {
+        "textMany_other": "折叠这些层还会带动另外 {{count}} 个翼片。",
+        "textOne": "折叠这些层还会带动翼片 {{number}}。",
+        "title": "更多翼片会移动"
+      },
+      "collision": {
+        "text": "移动的层会穿过挡在路上的层。",
+        "title": "碰撞"
+      },
+      "crimpInsideInfeasible": {
+        "title": "无法向内压褶"
+      },
+      "crimpKindInfeasible": {
+        "neitherRedraw": "这两条线既不适合内翻阶梯折，也不适合外翻阶梯折：无论怎样叠放各层，尖端都无法在两条线上都翻转。按 Esc，把两条线画得更接近平行，或减少要压褶的翼片。",
+        "text": "无论各层如何叠放，尖端都无法在两条折线上都朝这个方向翻转。另一种压褶也许可行。"
+      },
+      "crimpLinesMeet": {
+        "redraw": "两条线在压褶移动的纸上相交或靠得太近。按 Esc，把第二条线画得离开第一条线，并完整横穿翼片。",
+        "title": "两条折线相碰"
+      },
+      "crimpMissesTip": {
+        "redraw": "第二条线没有穿过第一条线以外的任何纸，因此没有东西会折回。如果尖端在另一端，请交换尖端一侧；或者按 Esc，在第一条线之外重新画一条横穿翼片的第二条线。",
+        "title": "第二条折线没有穿过翼片"
+      },
+      "crimpNoOpening": {
+        "noSpine": "单独一层没有可供压褶的折边。请压褶由折痕相连的多层翼片。",
+        "text": "各层在第一条折线处分开，但在第二条折线处其中一层已经结束，或没有可以翻转的依托。请移动第二条折线，或压褶其他翼片。",
+        "title": "此翼片无法在第二条折线处张开"
+      },
+      "crimpOutsideInfeasible": {
+        "title": "无法从外侧压褶"
+      },
+      "crimpTipNotFree": {
+        "text": "压褶的纸要翻转的地方有其他层。请把它们的翼片加入压褶，或在别处压褶。"
+      },
+      "emptySeed": {
+        "text": "没有选中任何层。请至少选择一个要移动的翼片。",
+        "title": "没有可折的部分"
+      },
+      "extentMissesLayers": {
+        "text": "这次预折经过的层都不在线的那一段上，或者那里已经有折痕。请在线上的其他位置单击，或穿过所有层压出折痕。",
+        "title": "那里没有可压折痕的层"
+      },
+      "extentMissesPaper": {
+        "text": "线的那一段不经过纸，没有可压折痕的地方。请在线穿过纸的位置单击。",
+        "title": "那里没有纸"
+      },
+      "extentOffPaper": {
+        "text": "用来确定折痕范围的某个点，不在纸现在折好的样子上。请在线穿过纸的位置，沿线单击各点。",
+        "title": "有一个点不在纸上"
+      },
+      "extentTooShort": {
+        "pinch": "这个捏痕太短，纸上压不出折痕。请多折一段线。",
+        "segment": "这两个点沿线靠得太近，无法在它们之间压出折痕。请单击相距更远的两点，或改为在该处捏折。",
+        "title": "太短，无法压出折痕"
+      },
+      "insideInfeasible": {
+        "title": "无法向内翻折"
+      },
+      "invalid": {
+        "text": "它无法得到有效的平面模型。",
+        "title": "无法进行这次折叠"
+      },
+      "kindInfeasible": {
+        "neither": "这里两种翻折都不适用：无论各层如何叠放，尖端都无法翻转。请移动折线，或翻折其他翼片。",
+        "text": "无论各层如何叠放，尖端都无法在这里朝这个方向翻转。另一种翻折也许可行。"
+      },
+      "markOffSheet": {
+        "text": "印记的一部分会落在纸外。请在纸内沿线单击各点。",
+        "title": "印记会超出纸面"
+      },
+      "markOnCrease": {
+        "text": "印记会落在已有的折痕上。请在线的另一段做印记，或沿那条折痕本身折叠。",
+        "title": "那里已经有折痕"
+      },
+      "marksOverlap": {
+        "text": "印记会以纸无法承受的方式盖住之前做的印记的一部分。请在线的另一段做印记，或压出整条折痕。",
+        "title": "印记会重叠"
+      },
+      "markTooShort": {
+        "text": "在其中一层上，印记会短到纸上压不出折痕。请多折一段线。",
+        "title": "太短，无法压出折痕"
+      },
+      "moverStays": {
+        "text": "带着要移动的点的那一层不在要折的层里。请把它的翼片加进来，或折叠所有层。",
+        "title": "该点不会移动"
+      },
+      "nearMiss": {
+        "text": "折线紧挨着纸上的一个点经过：太近，无法折得干净；太远，又无法穿过它。",
+        "title": "离一个点太近"
+      },
+      "noMovingSide": {
+        "text": "折线会移动的那一侧没有纸。请交换移动的一侧，或把折线移到纸上。",
+        "title": "没有可折的部分"
+      },
+      "noRoot": {
+        "text": "在纸现在折好的样子上，这些参考得不出任何折线。请选择其他参考。",
+        "title": "这里没有折法"
+      },
+      "noSide": {
+        "text": "没有指明折线的哪一侧移动。请在要移动的一侧、折线以外选一个点。",
+        "title": "哪一侧移动？"
+      },
+      "nothingStays": {
+        "text": "所有层都在移动的一侧，没有任何部分会留在原处。请选择一个要折的翼片。",
+        "title": "所有部分都会移动"
+      },
+      "offPaper": {
+        "text": "用来确定折线的某个点或边，已不在纸现在折好的样子上。请重新确定折线。",
+        "title": "有参考不在纸上"
+      },
+      "outsideInfeasible": {
+        "title": "无法从外侧包住"
+      },
+      "pickAgain": {
+        "text": "该位置不在移动一侧的某一层内。请在层内选择，避开它的折痕。",
+        "title": "请重新选择"
+      },
+      "pointsTooClose": {
+        "text": "这两个点落在折好的纸上的同一位置，连不成线。请选两个相距更远的点。",
+        "title": "两点太近"
+      },
+      "precreaseUnfold": {
+        "text": "展开它会移动比折叠时更多的层。",
+        "title": "无法展开此预折痕"
+      },
+      "reverseNoOpening": {
+        "bodiesCross": "沿折痕分开后，两半各自所连的纸会相互交叉。",
+        "noBody": "沿折痕分开后，其中一半不会连在线上任何保持不动的纸上。",
+        "noSpine": "单独一层没有可供翻折的折边。请翻折由折痕相连的多层翼片。",
+        "noSplit": "这些层无法沿折痕分开，否则下层会跑到上层上面。",
+        "title": "这个翼片无法张开"
+      },
+      "sinkLineTilted": {
+        "text": "开放沉折需要线与角的中线严格垂直：哪怕稍有倾斜，这个角都无法开放沉折。同一深度的垂直线则可以。",
+        "title": "线与角不垂直"
+      },
+      "sinkNoAxis": {
+        "text": "它的外缘不是沿两条直边延伸，因此没有可供开放沉折的线与之垂直的中线。",
+        "title": "角没有中线"
+      },
+      "sinkNoOrder": {
+        "none": "无论各层如何叠放，这里都无法这样沉入这个角。请移动折线，或选择另一个角。",
+        "otherSink": "无论各层如何叠放，这里都无法这样沉入这个角。另一种沉折可行。",
+        "title": "这里无法这样沉入这个角",
+        "unsink": "无论各层如何叠放，这里都无法把沉入的角拉回来。",
+        "unsinkTitle": "这里无法把角拉出来"
+      },
+      "sinkNoPocket": {
+        "text": "层间没有绕外缘一整圈、能让尖端进入的空隙，因此无法闭合沉折。",
+        "title": "角没有夹层"
+      },
+      "sinkOutlineMixed": {
+        "text": "角的外缘既有山折也有谷折：没有一个统一的外侧可以向内翻，因此无法开放沉折。",
+        "title": "外侧不是同一种折"
+      },
+      "sinkPointOpen": {
+        "text": "纸边一直延伸到尖端：这些层是散开的角，而不是闭合的角，因此无法确定它们会怎样沉入。请沉折各层在尖端相连的角。",
+        "title": "角是开放的"
+      },
+      "sinkSeveralPoints": {
+        "text_other": "尖端一侧有 {{count}} 个角，而沉折只取一个。请选择要沉折的角。",
+        "title": "选择一个角"
+      },
+      "sliver": {
+        "text": "移动层上的一个点会落在另一层边缘内侧极近的位置。",
+        "title": "一个点落在边缘内侧"
+      },
+      "stackedTooDeep": {
+        "fold": "这次折叠会使层叠得太深，无法求出层的顺序：最多 {{deepest, number}} 层相互重叠。请折叠更少的层。",
+        "pattern": "此折痕图的层叠得太深，无法求出层的顺序：最多 {{deepest, number}} 层相互重叠。请导入更简单的折痕图。",
+        "step": "此步骤的层叠得太深，无法求出层的顺序：最多 {{deepest, number}} 层相互重叠。此步骤及之后的步骤只能删除。",
+        "title": "层叠得太深"
+      },
+      "tipNotFree": {
+        "text": "尖端要翻转的地方有其他层。请把它们的翼片加入折叠，或在别处翻折。",
+        "title": "有层挡住了"
+      },
+      "tooManyFaces": {
+        "fold": "这次折叠会产生 {{faceCount, number}} 个面，超过可折叠的 {{limit, number}} 个。请折叠更少的层。",
+        "note": "{{faceCount, number}} 个面，超过可折叠的 {{limit, number}} 个",
+        "pattern": "此折痕图有 {{faceCount, number}} 个面，只能折叠最多 {{limit, number}} 个面的折痕图。请导入更简单的折痕图。",
+        "step": "此步骤有 {{faceCount, number}} 个面，超过可折叠的 {{limit, number}} 个。此步骤及之后的步骤只能删除。",
+        "title": "面太多"
+      },
+      "tooSmall": {
+        "text": "这次折叠会留下比纸本身还细的折痕或纸条。",
+        "title": "太小，无法折叠"
+      },
+      "tuckInfeasible": {
+        "none": "无论各层如何叠放，都无法让翼片紧贴那一层。请少塞入一些翼片，或确定另一条折线。",
+        "text": "无论各层如何叠放，都无法让翼片紧贴那一层。此处另有一层可以接受它。",
+        "titleOver": "无法塞到那一层上面",
+        "titleUnder": "无法塞到那一层下面"
+      },
+      "tuckNoTarget": {
+        "over": "这里没有留在原处的层能让翼片塞到它上面。请朝另一方向折、交换移动的一侧，或确定另一条折线。",
+        "title": "这里没有可以塞入的层",
+        "under": "这里没有留在原处的层能让翼片塞到它下面。请朝另一方向折、交换移动的一侧，或确定另一条折线。"
+      },
+      "tuckTarget": {
+        "text": "请选择一个留在原处的层，把翼片塞到它那里。",
+        "title": "要塞入的层会移动"
+      },
+      "unsinkNotSunk": {
+        "text": "沿这条线，纸的内部没有沉入的部分。请定位沉折留下的环，并选择其中沉入的角。",
+        "title": "这里没有沉入的角"
+      },
+      "unsupported": {
+        "text": "此版本的 Ori Studio 无法按保存的样子折出这一步。",
+        "title": "这一步无法折叠"
+      },
+      "wrongCrease": {
+        "text": "展开要沿着折起的边，重新折叠要沿着平的折痕。",
+        "title": "折痕类型不对"
+      }
+    },
+    "reverse": {
+      "auto": "自动",
+      "bothFit": "两种都可以：请选择尖端的朝向。",
+      "inside": "向内",
+      "intentHelp": "自动模式会选择可行的类型。手动选择后，即使无法折叠也会保留该类型。",
+      "kind": "类型",
+      "next": "下一个",
+      "ofCount": "{{index}} / {{total}}",
+      "opening": "张开方式",
+      "openingsTruncated": "可能还有其他打开方式。请缩小所选折翼的范围以查看。",
+      "order": "层序",
+      "outside": "向外",
+      "previous": "上一个",
+      "requestedKind": "反折类型",
+      "tipSide": "尖端一侧"
+    },
+    "rotate": {
+      "amount": "旋转量",
+      "degrees": "精确角度",
+      "direction": "方向",
+      "presetTooltip": "{{fraction}} 圈，{{degrees}}°"
+    },
+    "scopeLabel": "折叠",
+    "section": {
+      "label": "折线处的层，从上到下",
+      "labelWoven": "指针下折线处的层，从上到下",
+      "row": "第 {{layer}} 层，{{flap}}",
+      "rowAdded": "第 {{layer}} 层，{{flap}}，随折叠一起移动",
+      "rowAddedBeside": "第 {{layer}} 层，{{flap}}，随折叠一起移动，在第 {{above}} 层旁边",
+      "rowBeside": "第 {{layer}} 层，{{flap}}，在第 {{above}} 层旁边",
+      "top": "顶部"
+    },
+    "sink": {
+      "bothFit": "两种沉折都可以：开放沉折把每一层翻转，闭合沉折让各层保持在一起。",
+      "closed": "闭合",
+      "depth": "深度",
+      "depthHelp": "沿角的中线，线到尖端的距离（以纸的边长为 1）。把线放得更低，角就沉得更深。",
+      "depthValue": "距尖端 {{depth}}",
+      "kind": "沉折",
+      "onlyClosed": "此处只适合闭合沉折。",
+      "onlyOpen": "此处只适合开放沉折。",
+      "open": "开放",
+      "pocket": "夹层",
+      "pocketBack": "后",
+      "pocketFront": "前",
+      "sunkSide": "沉入的一侧"
+    },
+    "steps": {
+      "axiom1First": "单击折线经过的第一个点。",
+      "axiom1FirstTouch": "轻点折线经过的第一个点。",
+      "axiom1Second": "单击第二个点。",
+      "axiom1SecondTouch": "轻点第二个点。",
+      "axiom2Land": "单击它要落到的位置。",
+      "axiom2LandTouch": "轻点它要落到的位置。",
+      "axiom3Move": "单击要移动的边或折痕。",
+      "axiom3MoveTouch": "轻点要移动的边或折痕。",
+      "axiom3Onto": "单击要把它放到其上的边或折痕。",
+      "axiom3OntoTouch": "轻点要把它放到其上的边或折痕。",
+      "axiom4Through": "单击折线经过的点。",
+      "axiom4ThroughTouch": "轻点折线经过的点。",
+      "axiom5Pivot": "单击折线经过的支点。",
+      "axiom5PivotTouch": "轻点折线经过的支点。",
+      "axiom6FirstPoint": "单击要移动的第一个点。",
+      "axiom6FirstPointTouch": "轻点要移动的第一个点。",
+      "axiom6SecondLine": "单击该点要落到的边或折痕。",
+      "axiom6SecondLineTouch": "轻点该点要落到的边或折痕。",
+      "axiom6SecondPoint": "单击要移动的第二个点。",
+      "axiom6SecondPointTouch": "轻点要移动的第二个点。",
+      "commit": "按 Enter 进行折叠。",
+      "commitOrClick": "按 Enter 或单击“{{action}}”进行折叠。",
+      "commitTouch": "轻点“{{action}}”进行折叠。",
+      "crease": "单击要沿其折叠的折痕或折边。",
+      "creaseTouch": "轻点要沿其折叠的折痕或折边。",
+      "crimpFinish": "选择“向内”或“向外”，然后按 Enter。",
+      "crimpFinishTouch": "选择“向内”或“向外”，然后轻点“{{action}}”。",
+      "crimpFirstCrease": "单击翼片向内折的那条折痕或折边。",
+      "crimpFirstCreaseTouch": "轻点翼片向内折的那条折痕或折边。",
+      "crimpFirstStart": "在靠近主体的一侧单击第一条线的起点：翼片在这里向内折。",
+      "crimpFirstStartTouch": "在靠近主体的一侧轻点第一条线的起点：翼片在这里向内折。",
+      "crimpKindBoth": "选择“向内”把末端塞进翼片内部，选择“向外”把它包在外面。",
+      "crimpLayers": "在“层”中去掉不需要压褶的翼片。",
+      "crimpSecondCrease": "单击第一条线之外、翼片向外折回的那条折痕或折边。",
+      "crimpSecondCreaseTouch": "轻点第一条线之外、翼片向外折回的那条折痕或折边。",
+      "crimpSecondStart": "在第一条线之外靠近尖端的一侧单击第二条线的起点：翼片在这里向外折回。",
+      "crimpSecondStartTouch": "在第一条线之外靠近尖端的一侧轻点第二条线的起点：翼片在这里向外折回。",
+      "crimpTipEnd": "第二条线以外的那一端会转向：如果端错了，请按“交换”。",
+      "divide": "单击要等分的边或折痕。",
+      "divideTouch": "轻点要等分的边或折痕。",
+      "divideUse": "新点可用作任何折叠的参考。",
+      "finish": "选择折法和层，然后按 Enter。",
+      "finishTouch": "选择折法和层，然后轻点“{{action}}”。",
+      "freeEnd": "单击折线结束的位置。",
+      "freeEndTouch": "轻点折线结束的位置。",
+      "freeStart": "单击折线开始的位置。",
+      "freeStartTouch": "轻点折线开始的位置。",
+      "landOnLine": "单击它要落到的边或折痕。",
+      "landOnLineTouch": "轻点它要落到的边或折痕。",
+      "perpendicularTo": "单击折线要垂直于的边或折痕。",
+      "perpendicularToTouch": "轻点折线要垂直于的边或折痕。",
+      "pickFlapsToReverse": "选择要翻折的翼片。",
+      "pickFlapsToTuck": "选择要塞入的翼片。",
+      "pickLayers": "选择要移动的层。",
+      "pickPoint": "选择要沉折的角：一次沉折只取一个。",
+      "pickSunkPoint": "已沉入的角会自动找到：在层中选择另一个，即可把它拉出。",
+      "pickTuckTarget": "选择要塞入的那一层。",
+      "pinchAt": "沿线单击要捏折的位置。",
+      "pinchAtTouch": "沿线轻点要捏折的位置。",
+      "pointToMove": "单击要移动的点。",
+      "pointToMoveTouch": "轻点要移动的点。",
+      "repeatAxes": "指向纸上画出的对称轴即可预览，点击即可采用；也可以用“确定折线”在任一窗格中确定一条轴。",
+      "repeatAxesTouch": "轻点纸上画出的对称轴，或用“确定折线”在任一窗格中确定一条轴。",
+      "repeatCommit": "按 Enter 添加重复的折叠。",
+      "repeatCommitTouch": "轻点“{{action}}”添加重复的折叠。",
+      "repeatStart": "选择要重复的第一个步骤。范围在屏幕上显示的步骤处结束。",
+      "reverseFinish": "选择要翻折的翼片，然后按 Enter。",
+      "reverseFinishTouch": "选择要翻折的翼片，然后轻点“{{action}}”。",
+      "rotateCommit": "按 Enter 添加这次旋转。",
+      "rotateCommitTouch": "轻点“{{action}}”添加这次旋转。",
+      "rotateDirection": "选择旋转方向。",
+      "rotateHowFar": "选择模型旋转多少。",
+      "segmentFrom": "沿线单击折痕开始的位置。",
+      "segmentFromTouch": "沿线轻点折痕开始的位置。",
+      "segmentTo": "单击它结束的位置。",
+      "segmentToTouch": "轻点它结束的位置。",
+      "sinkFinish": "选择角，然后按 Enter。",
+      "sinkFinishTouch": "选择角，然后轻点“{{action}}”。",
+      "tuckFinish": "选择要塞入的翼片和塞入的那一层，然后按 Enter。",
+      "tuckFinishTouch": "选择要塞入的翼片和塞入的那一层，然后轻点“{{action}}”。",
+      "unfoldCommit": "按 Enter 添加这一步。",
+      "unfoldCommitTouch": "轻点“{{action}}”添加这一步。",
+      "unfoldTarget": "选择要返回的步骤。"
+    },
+    "tool": {
+      "closedSinkHelp": "把闭合角的尖端推入夹层，各层保持在一起。",
+      "crimpHelp": "沿一条线把翼片向内折，再沿第二条线向外折回，使它的末端转向。",
+      "divideLine": "等分线",
+      "divideLineHelp": "标出把边或折痕等分的点。",
+      "insideReverse": "内翻折",
+      "mountain": "山折",
+      "mountainHelp": "把移动的一侧向远离你的方向折，使它落在下面。",
+      "openSinkHelp": "把闭合角的尖端推进去，并把它的每一层翻转。",
+      "pleatHelp": "进行褶折：先确定山折线，再确定谷折线。",
+      "precrease": "预折",
+      "precreaseHelp": "折起再展开，留下一条之后用的折痕。",
+      "repeatAxisHelp": "沿对称轴在另一侧或背面再折一遍一段步骤，先预览，再添加为一个步骤。",
+      "reverse": "反折",
+      "reverseHelp": "将折翼向内折入或向外包折，反转脊线折痕。",
+      "rotateHelp": "将模型旋转一部分圈数或精确角度，先预览，再作为单独的一步添加。",
+      "tuckHelp": "折叠翼片，并把它滑到留在原处的层下面或上面。",
+      "unfoldToHelp": "将纸张恢复到较早步骤的形态，并保留此后的所有折痕，先预览，再作为一步添加。",
+      "unsinkHelp": "把沉入的角的尖端拉回来。",
+      "valley": "谷折",
+      "valleyHelp": "把移动的一侧朝你折，使它落在上面。"
+    },
+    "tuck": {
+      "alsoOver": "同时折到第 {{number}} 层上方",
+      "alsoUnder": "同时折到第 {{number}} 层下方",
+      "noTargets": "这里没有可以塞入的层。",
+      "over": "塞到上面",
+      "targetsOver_other": "这里有 {{count}} 层可以让翼片塞到上面：折好的纸会逐一点亮它们。",
+      "targetsUnder_other": "这里有 {{count}} 层可以让翼片塞到下面：折好的纸会逐一点亮它们。",
+      "under": "塞到下面"
+    },
+    "verb": {
+      "turnOverHelp": "将模型左右翻面，作为单独的一步。"
+    },
+    "vertex": {
+      "direction": "方向",
+      "directionCannot": "朝这个方向，这里无法折平。",
+      "fix": {
+        "creaseKites": "折叠时压出风筝形折痕",
+        "emergent": "使用适用的第四折痕",
+        "emergentNumber": "使用第四折痕 {{number}}",
+        "otherRidge": "使用另一条脊线",
+        "otherWay": "反向折",
+        "precreaseHinge": "先预折铰链",
+        "precreaseKite": "预折风筝形",
+        "resetTarget": "把脊放回铰链上"
+      },
+      "help": {
+        "petalHinge": "沿铰链抬起翼片的下尖，同时沿两条风筝形折痕把两侧向内折。",
+        "rabbitEar": "沿角平分线把三角形的各角向内折，使一个尖立起来。",
+        "squash": "打开一个两层的翼片并压平，让它的脊落在铰链上。",
+        "swivelEdge": "以一点为支点，把一条边旋转到一条线上。"
+      },
+      "hingeRegionBlocked": "所选纸层无法在此区域形成铰链折痕。请点击其他区域或更改纸层。",
+      "hingeRegionBlockedTouch": "所选纸层无法在此区域形成铰链折痕。请轻触其他区域或更改纸层。",
+      "hingeRegionFits": "铰链折痕位于所选区域内。",
+      "input": {
+        "edge": "边对齐线",
+        "edgeHelp": "选择一条边及其要对齐的线",
+        "label": "构造方式",
+        "valleyMountain": "谷与山",
+        "valleyMountainHelp": "在可见的层上选择交于一条折边的谷与山；后面的折痕随之确定"
+      },
+      "intro": {
+        "petalLift": "沿铰链抬起翼片的尖端。",
+        "swivelSwing": "把纸的一条边旋转到一条线上。"
+      },
+      "layers": "层",
+      "layersAll_other": "全部 {{count}} 层",
+      "layersBottom_other": "底部 {{count}} / {{total}}",
+      "layersTop_other": "顶部 {{count}} / {{total}}",
+      "lineBy": {
+        "creaseOrEdge": "折痕或边",
+        "creaseOrEdgeHelp": "单击已有的折痕或边",
+        "hinge": "铰链",
+        "hingeCrease": "铰链折痕",
+        "hingeCreaseHelp": "单击已横跨翼片的预折痕",
+        "target": "落在",
+        "twoEndpoints": "两个端点",
+        "twoEndpointsHelp": "单击铰链的两个端点：折叠时会压出它",
+        "twoPoints": "两个点",
+        "twoPointsHelp": "单击这条线上的两个点"
+      },
+      "mountain": "山",
+      "mountainTitle": "山：纸朝远离你的方向转",
+      "note": {
+        "petalCreasesAll": "翼片抬起时，会在最上层压出铰链，并在最上面两层压出两条风筝形折痕。",
+        "petalCreasesHinge": "翼片抬起时，会在最上层压出铰链。风筝形折痕已经存在。",
+        "petalCreasesHingeKite": "翼片抬起时，会在最上层压出铰链，并在最上面两层压出一条风筝形折痕。另一条风筝形折痕已经存在。",
+        "petalCreasesKite": "翼片抬起时，会在最上面两层压出一条风筝形折痕。铰链和另一条风筝形折痕已经存在。",
+        "petalCreasesKites": "翼片抬起时，会在最上面两层压出两条风筝形折痕。铰链已经存在。",
+        "petalRefolds": "要折的折痕都已存在：它会重新折起铰链和风筝形折痕。",
+        "rabbitEarMeet": "折痕交于三角形的内心：每个角一条，另有一条第四折痕，兔耳沿它立起。",
+        "snapOrFree": "点会吸附到角、交点、标记和中点：按住 {{modifier}} 可把点放在任意位置。",
+        "snapOrFreeTouch": "点会吸附到角、交点、标记和中点：打开“自由点”可把点放在任意位置。",
+        "squashFlap": "翼片的两层只由铰链连着、且上面没有任何东西时，才能压平。",
+        "swivelPicture": "折痕交于圆点，边落在粗线上，高亮的纸会移动。",
+        "swivelValleyMountainPicture": "折痕交于圆点。虚线折痕位于后面一层，由谷与山决定；高亮的纸会移动。"
+      },
+      "refusal": {
+        "blocked": {
+          "steppers": "有一条折痕会碰到不随之折叠的纸，或者纸会把折叠的两部分连在一起。切换“层”以折更多层，或把“第四折痕”换成另一条。",
+          "swivelEdge": "有一条折痕会碰到不随之折叠的纸，或者纸会把折叠的两部分连在一起。请另选支点，或另选边要落到的线。",
+          "swivelOnFold": "有一条折痕在到达纸边之前会碰到折叠处，或者纸会把旋转折的两部分连在一起。请另选折边，或另选边要落到的线。",
+          "swivelValleyMountain": "有一条折痕在到达纸边之前会碰到折叠处，或者纸会把旋转折的两部分连在一起。请另选谷或另选山。",
+          "title": "有纸挡住"
+        },
+        "center": {
+          "textEar": "三角形的折痕交于内心，而内心落在折痕上或层外。请选择能让内心落在层内、远离折痕的角。",
+          "textSwivelEdge": "折痕交于支点移到边与目标线正中间那条线上的位置，而该位置在折痕上或在纸外。按 Esc，另选支点。",
+          "textSwivelStep": "折痕相交的点在折痕上或在纸外。按 Esc，按照第 1 步重新放置：在纸内，远离所有折痕。",
+          "title": "折痕无法在那里交汇"
+        },
+        "covered": {
+          "text": "在翼片张开的一侧，有其他层盖在翼片上或夹在其中。请先把它们移开，或反向压平。",
+          "title": "翼片被遮住"
+        },
+        "fourthBesideStayer": {
+          "text": "翼片沿第四折痕立起，所以第四折痕位于不动纸面的对面。请另选第四折痕，或另选不动的纸。",
+          "title": "第四折痕紧挨着不动的纸"
+        },
+        "fourthCannotRise": {
+          "text": "第四折痕要与另外三条朝相反方向折，而这些折痕之间的角度不允许这样。请另选第四折痕，或选择其他点。",
+          "title": "第四折痕在这里无法立起"
+        },
+        "kite": {
+          "creaseOrPrecrease": "以铰链折痕做花瓣折时，只会重新折起已有的折痕，而风筝形折痕还没有。请改用两个端点指定铰链，折叠时会自动压出风筝形折痕；或者先用“预折”工具的公理 3 预折它们：把上层翼片的一条下边折到中心线上，不含后面的翼片。",
+          "titleMissing": "缺少风筝形折痕"
+        },
+        "line": {
+          "crease": "铰链折痕没有穿过下方所有要折的层。请把铰链穿过所有层预折，然后做花瓣折。",
+          "ends": "铰链穿过第二层中在风筝形旁向内折的纸，翼片抬起时无法在那里压出折痕。请把铰链穿过所有层预折，然后做花瓣折。",
+          "titleHinge": "请先预折铰链"
+        },
+        "lineMeeting": {
+          "textValleyMountain": "谷与山交于一条可见折边上的一点，且远离折边两端。请选择在那里相交的两条线。",
+          "titleValleyMountain": "这些线没有交于折边"
+        },
+        "noFlap": {
+          "hingeOffSpine": "铰链线必须穿过翼片的折边，且你点击的末端位于其一侧。",
+          "noHinge": "翼片的脊两端都没有翻过铰链，因此没有可以压向的地方。",
+          "noSpine": "这些层没有通过同一条折边相连，因此没有可展开的脊线。通过向内折入的侧面相连的封闭翻片，目前还无法压平折。",
+          "singleLayer": "这里只有一层。请单击一个由折边相连的两层翼片。",
+          "title": "这里没有可压平的翼片",
+          "upperNotHinged": "翼片最上层只靠脊相连：压平后，它的铰链一侧会松开。"
+        },
+        "noOrder": {
+          "none": "无论各层如何叠放，这里都无法折平。请选择其他点，或先把挡路的层折开。",
+          "otherWay": "无论各层如何叠放，这里都无法朝这个方向折平。反向折则可行。",
+          "petal": "这里无法做花瓣折",
+          "rabbitEar": "这里无法把兔耳折平",
+          "squash": "这里无法压平",
+          "swivel": "这里无法把旋转折放平"
+        },
+        "noPetal": {
+          "missesFlap": "你单击的翼片完全在铰链的一侧。请单击铰链横跨的翼片，或选择一条从翼片一条折边通到另一条折边的铰链。",
+          "missesFlapTitle": "铰链没有经过翼片",
+          "noCornerHinge": "从铰链两端出发的风筝形折痕没有在铰链下方相交，因此没有可抬起的尖。请选择两端位于风筝形折痕与翼片边相交处的铰链。",
+          "noCornerTitle": "没有可抬起的尖",
+          "noEndsHinge": "花瓣折的铰链从翼片的一条折边横跨到另一条折边，而这条只穿过其中一条，或一条都没穿过。请选择两端都在翼片两条折边上的铰链。",
+          "noEndsTitle": "铰链没有横跨翼片",
+          "pastCorner": "从铰链两端出发的风筝形折痕在铰链下方相交，但翼片超出了交点，那部分纸无法折叠。请把铰链移得离翼片的闭合尖更远：两端位于风筝形折痕与翼片边相交处。",
+          "pastCornerTitle": "铰链离闭合的尖太近"
+        },
+        "notFlat": {
+          "spread": "没有第四折痕能让这些折痕放平：其中两条方向相同，或相邻两条之间相隔半圈或更多。按 Esc，选择在交点周围分布更均匀的点。",
+          "swivelEdge": "从这个支点出发，没有折痕能让这条边转到那条线上并放平。按 Esc，另选支点或另选线。",
+          "title": "无法折平"
+        },
+        "notFree": {
+          "text": "翼片在铰链以外的地方与其他纸相连。只有仅靠铰链相连的翼片才能平着打开：请先展开固定它的部分。",
+          "title": "翼片被别处固定"
+        },
+        "petalCovered": {
+          "text": "在翼片抬起的一侧，有其他层盖在翼片上。请先把它们移开，或反向抬起。",
+          "title": "翼片被遮住"
+        },
+        "ridgeBesideStayer": {
+          "pivot": "翼片沿脊线立起，所以脊线应位于不动纸面的对面，而这里不是。请另选支点。",
+          "title": "脊线紧挨着不动的纸"
+        },
+        "ridgeCannotRise": {
+          "pivot": "脊线的折向与其他三条折痕相反，而它们之间的角度不允许这样。请另选支点。",
+          "title": "脊线无法在这里立起"
+        },
+        "stayer": {
+          "swivelEdge": "线旁边不动的纸与折叠的任何部分都不相连。请另选支点，靠近边与线相交的地方。",
+          "text": "选作不动的纸与折叠的任何部分都不相连。请选择折痕穿过的纸，或与之相连的纸。",
+          "title": "哪部分纸不动？"
+        },
+        "swivelEdgeShort": {
+          "text": "边的任何部分都没有超过支点正下方的点，因此没有部分会旋转。改为沿边与目标正中间的线做普通折叠，即可把边放到那里。",
+          "title": "边在旋转之前就结束了"
+        },
+        "swivelEdgeStays": {
+          "onFold": "折边连接的两层都不含要移动的边，所以它会留在原处。请选择该边所在层上的折边，或另选一条边。",
+          "text": "沿边的纸会留在原处，或越过铰链折叠，而不是转到线上。请选择更靠近边的支点，或另选一条边。",
+          "title": "边会留在原处"
+        },
+        "swivelFoldWide": {
+          "text": "在移动边的一侧，旋转折痕与折边成直角或更大的角，另一层没有折叠的余地。请另选能让边转得更多的目标线，或另选一条折边。",
+          "title": "旋转折痕与边的夹角过陡"
+        },
+        "swivelInsideFree": {
+          "text": "内旋转折把窄条塞进折边所连的两层之间，而这些折痕交于远离任何折边的位置。按 Esc，点击一条让折痕相交的折边。",
+          "title": "内旋转折需要折边"
+        },
+        "swivelMissesFold": {
+          "text": "旋转折沿边与目标线正中间的那条线折叠，而这条线在这条折边的两端之间并不与其相交。按 Esc，选择这条线经过的折边，或另选一条线。",
+          "title": "折痕无法在这条边上相交"
+        },
+        "swivelNoFlap": {
+          "text": "谷与山从折边出发，朝两个方向伸入纸内，翼片夹在两者之间。其中一条沿着折边，或者两条在同一直线上：请另选一条。",
+          "title": "两线之间没有翼片"
+        },
+        "swivelNotAFold": {
+          "text": "折痕只能在纸被折叠之处的折边上相交，而所选的点不在任何折叠处。按 Esc，重新点击折边。",
+          "title": "那不是折边"
+        },
+        "swivelNotAnEdge": {
+          "text": "旋转折移动的是纸边或折边，而所选的线两者都不是。按 Esc，重新选择边。",
+          "title": "那不是边"
+        },
+        "swivelPivotOnEdge": {
+          "text": "折痕交于支点移到边与目标线正中间那条线上的位置，而这里该位置就在边上。按 Esc，选择离边与线交点更远的支点。",
+          "title": "折痕会交在边上"
+        },
+        "swivelTargetParallel": {
+          "text": "绕一点旋转无法把边放到与它平行的线上，或它自己所在的线上。请选择与边所在直线相交的线。",
+          "title": "这条线与边平行"
+        },
+        "targetOutside": {
+          "text": "脊会落在它当前位置与铰链之间。请单击翼片内的一点，或把它放回铰链。",
+          "title": "脊不能落在那里"
+        }
+      },
+      "reset": "放回铰链",
+      "ridge": "脊线",
+      "squashHinge": {
+        "folded": "折边",
+        "foldedHelp": "翼片下层翻折所沿的折痕：整个翼片被压折",
+        "intro": "横跨翼片的折边绘制铰链。只有其外侧的末端被压折。",
+        "label": "铰链",
+        "line": "线",
+        "lineHelp": "你绘制的线：只有其外侧的翼片末端被压折",
+        "lineMode": "铰链线",
+        "take": "按 Enter 键将其用作铰链。",
+        "takeTouch": "轻点“用作铰链”。",
+        "use": "用作铰链"
+      },
+      "steps": {
+        "earChoose": "选择纸层，或点击其他区域以放置铰链折痕。",
+        "earChooseTouch": "选择纸层，或轻触其他区域以放置铰链折痕。",
+        "earFinish": "按 Enter 键折叠。",
+        "earFinishTouch": "轻触{{action}}进行折叠。",
+        "earFirstCorner": "单击三角形的第一个角。",
+        "earFirstCornerTouch": "轻点三角形的第一个角。",
+        "earHingeRegion": "点击铰链折痕所在的区域。",
+        "earHingeRegionTouch": "轻触铰链折痕所在的区域。",
+        "earSecondCorner": "单击它的第二个角。",
+        "earSecondCornerTouch": "轻点它的第二个角。",
+        "earThirdCorner": "单击它的第三个角。",
+        "earThirdCornerTouch": "轻点它的第三个角。",
+        "fixOrPickAgain": "单击下面的修正，或按 Esc 后重新选择。",
+        "fixOrPickAgainTouch": "轻点下面的修正，或轻点“取消”后重新选择。",
+        "petalFinish": "选择“谷”或“山”，然后按 Enter。",
+        "petalFinishTouch": "选择“谷”或“山”，然后轻点“{{action}}”。",
+        "petalFlap": "单击铰链下方会抬起的翼片。",
+        "petalFlapTouch": "轻点铰链下方会抬起的翼片。",
+        "petalHinge": "单击铰链：一条横跨翼片的预折痕。",
+        "petalHingeFirstEnd": "单击铰链的一个端点，即风筝形折痕与翼片边相交处。",
+        "petalHingeFirstEndTouch": "轻点铰链的一个端点，即风筝形折痕与翼片边相交处。",
+        "petalHingeSecondEnd": "单击它的另一个端点，即另一条风筝形折痕与边相交处。",
+        "petalHingeSecondEndTouch": "轻点它的另一个端点，即另一条风筝形折痕与边相交处。",
+        "petalHingeTouch": "轻点铰链：一条横跨翼片的预折痕。",
+        "petalWay": "选择抬起的方向，或单击另一个翼片改为抬起它。",
+        "petalWayTouch": "选择抬起的方向，或轻点另一个翼片改为抬起它。",
+        "pickAgainRead": "按 Esc 后重新选择：下面的提示说明了要改什么。",
+        "pickAgainReadTouch": "轻点“取消”后重新选择：下面的提示说明了要改什么。",
+        "squashEnd": "单击线一侧要压平的翼片末端。",
+        "squashEndTouch": "轻点线一侧要压平的翼片末端。",
+        "squashFlap": "单击要压平的翼片。",
+        "squashFlapTouch": "轻点要压平的翼片。",
+        "squashSpine": "脊落在粗线上：单击纸可让它落在别处。",
+        "squashSpineTouch": "脊落在粗线上：轻点纸可让它落在别处。",
+        "swivelLands": "单击边要落到的线。",
+        "swivelLandsFirst": "单击边要落到的线上的一个点。",
+        "swivelLandsFirstTouch": "轻点边要落到的线上的一个点。",
+        "swivelLandsTouch": "轻点边要落到的线。",
+        "swivelMeet": "单击折痕相交的折边，边上任意位置均可。在平整的纸上，单击折痕相交的位置，或按住 {{modifier}} 选任意点。",
+        "swivelMeetTouch": "轻点折痕相交的折边，边上任意位置均可。在平整的纸上，轻点折痕相交的位置，或打开“自由点”选任意点。",
+        "swivelNothingSwings": "从那里没有边可以旋转：请单击另一个点。",
+        "swivelNothingSwingsTouch": "从那里没有边可以旋转：请轻点另一个点。",
+        "swivelOntoSecond": "单击这条线上的第二个点。",
+        "swivelOntoSecondTouch": "轻点这条线上的第二个点。",
+        "swivelSwing": "单击要旋转到一条线上的边。",
+        "swivelSwingTouch": "轻点要旋转到一条线上的边。"
+      },
+      "swivelInside": "向内",
+      "swivelInsideHelp": "内旋转折：窄条塞进两层之间",
+      "swivelKind": "类型",
+      "swivelKindCannot": "这种类型在这里无法折平。",
+      "swivelOpen": "敞开",
+      "swivelOpenHelp": "敞开旋转折：窄条折到上面",
+      "target": "脊落在",
+      "targetHinge": "铰链线",
+      "targetPoint": "单击的点",
+      "valley": "谷",
+      "valleyMountain": {
+        "mountainLine": "山线",
+        "mountainStep": "山线：{{instruction}}",
+        "pickMountain": "从折边上的同一点选择山线。后面一层的折痕随之确定，被遮住的部分以虚线显示。",
+        "pickValley": "选择谷线：翼片的铰链，位于可见的层上，从折边上的一点伸入纸内。",
+        "pickValleyInside": "选择谷线：位于可见的层上，从折边上的一点伸入纸内。",
+        "takeValley": "按 Enter 键将其用作谷。",
+        "takeValleyTouch": "轻点“用作谷”。",
+        "useValley": "用作谷",
+        "valleyLine": "谷线",
+        "valleyStep": "谷线：{{instruction}}"
+      },
+      "valleyTitle": "谷：纸朝你的方向转"
+    },
+    "window": {
+      "cancel": "取消",
+      "finding": "正在查找折线处的层…",
+      "instructions": "操作说明",
+      "kind": "折法",
+      "label": "折叠工具选项",
+      "layers": "层",
+      "layersHelp": "单击某一层可包含或排除它所在的翼片。括号表示折叠把两层连在一起的位置。",
+      "layersHelpTouch": "轻点某一层可包含或排除它所在的翼片。括号表示折叠把两层连在一起的位置。",
+      "layersHelpWoven": "这些层相互交织，因此显示的是指针下的层叠。单击某一层可包含或排除它所在的翼片。",
+      "layersHelpWovenTouch": "这些层相互交织，因此显示的是你最后触碰折线处的层叠。轻点某一层可包含或排除它所在的翼片。",
+      "layersMoving_other": "{{count}} 层中有 {{moving}} 层移动",
+      "lineMode": "确定折线",
+      "movingSide": "移动的一侧",
+      "settings_other": "{{count}} 项设置",
+      "snapFreeLine": "吸附到点",
+      "swap": "交换"
+    }
   },
   "foldAngleDisplay": {
     "color": "颜色",

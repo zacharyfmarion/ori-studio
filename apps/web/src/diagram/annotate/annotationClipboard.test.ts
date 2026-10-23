@@ -59,10 +59,10 @@ describe('annotations on the clipboard', () => {
       kind: 'rotate',
       from: [0.4, 0.4],
       to: [0.4, 0.4],
-      rotate: { degrees: 135, direction: 'ccw' },
+      rotate: { amount: 'degrees', degrees: 135, direction: 'ccw' },
     };
     const clipboard = annotationClipboard([rotate], 'step-1');
-    expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-1')[0]).toMatchObject({ rotate: { degrees: 135, direction: 'ccw' } });
+    expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-1')[0]).toMatchObject({ rotate: { amount: 'degrees', degrees: 135, direction: 'ccw' } });
     expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-2')[0]).toEqual({ ...rotate, id: 'annotation-2' });
   });
 

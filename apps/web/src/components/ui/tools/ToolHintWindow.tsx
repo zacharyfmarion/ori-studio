@@ -31,7 +31,7 @@
  * group does in Edit's window, and has to read as the same kind of thing.
  */
 import { createPortal } from 'react-dom';
-import type { ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useToolHintAnchor } from './useToolHintAnchor';
 import { useToolHintCollapsed } from './useToolHintCollapsed';
 import styles from './ToolHintWindow.module.css';
@@ -46,6 +46,12 @@ export function ToolHintWindow({
   ariaLabel,
   headerAction,
   inside = false,
+  startsCollapsed = false,
+  collapsible = true,
+  needsAttention = false,
+  height = 'default',
+  onFrame,
+  startKey,
   children,
 }: {
   /**
@@ -74,13 +80,72 @@ export function ToolHintWindow({
    * pane beyond has fields the overhang would cover (`toolHintPlacement`).
    */
   inside?: boolean;
+  /**
+   * Collapsed until someone opens it, rather than open until someone closes it
+   * (`useToolHintCollapsed`'s fallback): for a window that would otherwise
+   * cover what the tool works on.
+   */
+  startsCollapsed?: boolean;
+  /** Required decision surfaces remain open. */
+  collapsible?: boolean;
+  /**
+   * The tool has something to decide that is in the body — a fold ready to
+   * commit. A window collapsed by preference opens for it, and a toggle while
+   * it lasts opens or closes the window for this decision only, never the
+   * preference; once the need passes, the window is as the preference says.
+   */
+  needsAttention?: boolean;
+  /**
+   * How tall the open window may grow: `default`, most of the viewport;
+   * `capped`, about a third of it, the body scrolling — for a tool whose
+   * work is on the canvas beneath, so the paper stays in view while the
+   * window is open (a phone's Fold canvas).
+   */
+  height?: 'default' | 'capped';
+  /**
+   * Handed the window's frame as it mounts, and null as it goes: for a
+   * workspace that keeps what it draws out from under the window — Fold's
+   * phone pane fits its paper above it. Stable, or the frame is handed over
+   * again on every render.
+   */
+  onFrame?: (frame: HTMLElement | null) => void;
+  /**
+   * What the window is showing — Fold's tool and the step it is at. A new
+   * one, and the window opening, show the body from its top, its first
+   * instruction in view (`useAnimatedHeight`). Without one, a body that
+   * outgrows the window keeps its bottom in view, as it always has.
+   */
+  startKey?: string;
   children: ReactNode;
 }) {
-  const [collapsed, setCollapsed] = useToolHintCollapsed(collapseKey);
+  const [preferCollapsed, setPreferCollapsed] = useToolHintCollapsed(collapseKey, startsCollapsed);
+  // Closed again for the decision in hand; forgotten with it.
+  const [dismissed, setDismissed] = useState(false);
+  if (!needsAttention && dismissed) setDismissed(false);
+  const attending = needsAttention && preferCollapsed;
+  const collapsed = collapsible && (attending ? dismissed : preferCollapsed);
+  const setCollapsed = (next: boolean) => {
+    if (attending) {
+      setDismissed(next);
+      return;
+    }
+    setPreferCollapsed(next);
+    // Collapsed mid-decision from open: closed for this decision too, or the
+    // decision would open it again the moment the preference changed.
+    if (needsAttention) setDismissed(next);
+  };
   const placement = useToolHintAnchor(container, inside);
   const { attachFrame, attachContent, attachScroller, closing } = useAnimatedHeight({
     collapsed,
+    ...(startKey !== undefined ? { startKey } : {}),
   });
+  const frameRef = useCallback(
+    (frame: HTMLElement | null) => {
+      attachFrame(frame);
+      onFrame?.(frame);
+    },
+    [attachFrame, onFrame]
+  );
 
   // No rect yet, or a viewport that is laid out but not displayed. Rendering
   // unpositioned would park the window in the corner of the screen for a frame.
@@ -90,11 +155,12 @@ export function ToolHintWindow({
 
   return createPortal(
     <FloatingPanel
-      ref={attachFrame}
+      ref={frameRef}
       className={styles.window}
       // Pinned by its bottom edge, so it grows and shrinks at the top.
       pin="bottom"
       data-collapsed={collapsed || undefined}
+      data-height={height === 'default' ? undefined : height}
       style={{ left: placement.left, bottom: placement.bottom, width: placement.width }}
       aria-label={ariaLabel}
       // Portaled out of the panel, so these no longer shield the window from the
@@ -108,7 +174,7 @@ export function ToolHintWindow({
         meta={meta}
         action={headerAction}
         collapsed={collapsed}
-        onCollapsedChange={setCollapsed}
+        onCollapsedChange={collapsible ? setCollapsed : undefined}
       />
       {bodyMounted && (
         <FloatingPanelBody

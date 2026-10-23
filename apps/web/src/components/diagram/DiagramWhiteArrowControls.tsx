@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
-import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
+import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from '../../lib/stepDiagram/diagramInk';
+import type { WhiteArrowTail } from '../../lib/stepDiagram/stepDiagramGeometry';
 import { DEFAULT_WHITE_ARROW, type WhiteArrowLook } from '../../diagram/annotate/annotationModel';
 import type { KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { SegmentedControl } from '../ui/SegmentedControl';

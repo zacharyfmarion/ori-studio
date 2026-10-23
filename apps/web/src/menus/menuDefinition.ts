@@ -1,5 +1,5 @@
 import type { MenuActionId } from '../commands/menuActions';
-import { shortcutLabelForAction, type ShortcutResolutionInput } from '../keyboard/shortcuts';
+import { shortcutLabelForAction, type FoldShortcutId, type ShortcutResolutionInput } from '../keyboard/shortcuts';
 import { isDesktopRuntime } from '../platform/runtime';
 
 /**
@@ -50,6 +50,31 @@ export type MenuDef = {
 
 function shortcut(id: MenuActionId, resolution?: ShortcutResolutionInput): string | undefined {
   return shortcutLabelForAction(id, resolution);
+}
+
+/**
+ * The Fold menu's rows a key of the `fold` scope also runs — the same verb by
+ * another route (`fold/canvas/useFoldCanvasShortcuts`, `fold/sequence/foldKeys`):
+ * S, A and D take the fold in hand as the menu's kinds arm it, T adds the
+ * turn-over its row adds, R takes the Rotate tool as its row does, and
+ * Shift+E and Shift+R run Unfold to step and Repeat through their rows. Their hint is that key, as the user's layout
+ * resolves it. The hint only: the native menu reads its accelerators by the
+ * row's own id, which binds nothing, so a bare letter is never taken from a
+ * text field there.
+ */
+const FOLD_ROW_KEYS: Partial<Record<MenuActionId, FoldShortcutId>> = {
+  'fold.valley': 'fold.toolValley',
+  'fold.mountain': 'fold.toolMountain',
+  'fold.precrease': 'fold.toolPrecrease',
+  'fold.turn-over': 'fold.turnOver',
+  'fold.rotate': 'fold.rotate',
+  'fold.unfold-to': 'fold.toolUnfoldTo',
+  'fold.repeat': 'fold.toolRepeat',
+};
+
+function foldRowKey(id: MenuActionId, resolution?: ShortcutResolutionInput): string | undefined {
+  const key = FOLD_ROW_KEYS[id];
+  return key ? shortcutLabelForAction(key, resolution) : shortcut(id, resolution);
 }
 
 export function getMenuBarDef(
@@ -196,6 +221,7 @@ export function getMenuBarDef(
         { type: 'action', id: 'view.simulate', label: t('menu:view.simulate', 'Simulate') },
         { type: 'action', id: 'view.references', label: t('menu:view.references', 'References') },
         { type: 'action', id: 'view.diagram', label: t('menu:view.diagram', 'Diagram') },
+        { type: 'action', id: 'view.fold', label: t('menu:view.fold', 'Fold') },
         { type: 'separator' },
         { type: 'action', id: 'view.properties', label: t('menu:view.properties', 'Properties') },
         { type: 'separator' },
@@ -304,6 +330,63 @@ export function getMenuBarDef(
             { type: 'action', id: 'cp.organizeCircles', label: t('menu:cp.organizeCircles', 'Organize Circles') },
           ],
         },
+      ],
+    },
+    {
+      // The Fold sequence's verbs, in the action catalog's order
+      // (`fold/foldActions`), then its imports and hand-offs. Every item is
+      // visible only while folding, so `menuHasVisibleItems` drops the menu
+      // everywhere else.
+      label: t('menu:menubar.fold', 'Fold'),
+      items: [
+        { type: 'action', id: 'fold.valley', label: t('menu:fold.valley', 'Valley Fold'), shortcut: foldRowKey('fold.valley', resolution) },
+        { type: 'action', id: 'fold.mountain', label: t('menu:fold.mountain', 'Mountain Fold'), shortcut: foldRowKey('fold.mountain', resolution) },
+        { type: 'action', id: 'fold.precrease', label: t('menu:fold.precrease', 'Precrease'), shortcut: foldRowKey('fold.precrease', resolution) },
+        { type: 'separator' },
+        { type: 'action', id: 'fold.turn-over', label: t('menu:fold.turn-over', 'Turn Over'), shortcut: foldRowKey('fold.turn-over', resolution) },
+        { type: 'action', id: 'fold.rotate', label: t('menu:fold.rotate', 'Rotate...'), shortcut: foldRowKey('fold.rotate', resolution) },
+        { type: 'separator' },
+        { type: 'action', id: 'fold.unfold-last', label: t('panels:fold.return.last', 'Unfold last step') },
+        { type: 'action', id: 'fold.unfold-to', label: t('panels:fold.return.open', 'Unfold to step…'), shortcut: foldRowKey('fold.unfold-to', resolution) },
+        { type: 'action', id: 'fold.repeat', label: t('panels:fold.repeat.open', 'Repeat…'), shortcut: foldRowKey('fold.repeat', resolution) },
+        { type: 'separator' },
+        { type: 'action', id: 'fold.delete-step', label: t('menu:fold.delete-step', 'Delete Step'), shortcut: shortcut('fold.delete-step', resolution) },
+        { type: 'separator' },
+        { type: 'action', id: 'fold.import-cp', label: t('menu:fold.importCp', 'Import CP...') },
+        {
+          type: 'submenu',
+          label: t('menu:fold.importSample', 'Import Sample'),
+          items: [
+            {
+              type: 'action',
+              id: 'fold.import-sample-preliminary-base',
+              label: t('menu:fold.samplePreliminaryBase', 'Square Base'),
+            },
+            {
+              type: 'action',
+              id: 'fold.import-sample-waterbomb-base',
+              label: t('menu:fold.sampleWaterbombBase', 'Waterbomb Base'),
+            },
+            {
+              type: 'action',
+              id: 'fold.import-sample-pleat-in-eighths',
+              label: t('menu:fold.samplePleatInEighths', 'Pleat in Eighths'),
+            },
+          ],
+        },
+        {
+          type: 'action',
+          id: 'fold.start-from-edit-folded-figure',
+          label: t('menu:fold.startFromEditFigure', 'Start from Edit’s Folded Figure'),
+        },
+        { type: 'separator' },
+        { type: 'action', id: 'fold.send-to-edit', label: t('menu:fold.sendToEdit', 'Send to Edit') },
+        { type: 'action', id: 'fold.send-to-diagram', label: t('menu:fold.sendToDiagram', 'Send Step to Diagram') },
+        { type: 'action', id: 'fold.send-path-to-diagram', label: t('menu:fold.sendPathToDiagram', 'Send Steps to Diagram') },
+        { type: 'separator' },
+        { type: 'action', id: 'fold.export-fold', label: t('menu:fold.exportFold', 'Export FOLD...') },
+        { type: 'action', id: 'fold.export-step', label: t('menu:fold.exportStep', 'Export Step...') },
+        { type: 'action', id: 'fold.export-steps', label: t('menu:fold.exportSteps', 'Export Steps...') },
       ],
     },
     {

@@ -16,7 +16,7 @@
 import type { Point } from '../../lib/geometry';
 import { modelFrame, type DiagramSegment } from './diagram/diagramFrames';
 import { plannerStepDiagram, plannerTurnOverDiagram } from './diagram/plannerDiagram';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import type {
   ModelBounds,
 } from './referencesStepGeometry';

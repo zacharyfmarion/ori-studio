@@ -1,0 +1,403 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-13T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-13T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace-origami-cicada",
+    "title": "Cicada — completed flat sequence",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 1,
+        "id": "fold-trial-cicada",
+        "title": "Cicada — completed flat sequence",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "steps": [
+          {
+            "id": "fstep-cicada-1",
+            "parent": null,
+            "op": {
+              "kind": "rotate",
+              "rotate": {
+                "amount": "eighth",
+                "direction": "ccw"
+              }
+            },
+            "note": "Orientation: square to diamond"
+          },
+          {
+            "id": "fstep-cicada-2",
+            "parent": "fstep-cicada-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1.0000000000000002
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  0.7071067811865477
+                ],
+                "d": 0.7071067811865477
+              }
+            },
+            "note": "1: lower tip to upper tip"
+          },
+          {
+            "id": "fstep-cicada-3",
+            "parent": "fstep-cicada-2",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1.0000000000000002
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      -2.3551386880256634e-16,
+                      -7.850462293418878e-17
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  1,
+                  0
+                ],
+                "d": 0.49999999999999983
+              }
+            },
+            "note": "2a: left corner to peak"
+          },
+          {
+            "id": "fstep-cicada-4",
+            "parent": "fstep-cicada-3",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      -2.7755575615628914e-16,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  2.220446049250313e-16,
+                  1
+                ],
+                "d": 0.5000000000000002
+              }
+            },
+            "note": "2b: right corner to peak"
+          },
+          {
+            "id": "fstep-cicada-5",
+            "parent": "fstep-cicada-4",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.4999999999999997,
+                    1
+                  ],
+                  [
+                    0.2849999999999998,
+                    0.7149999999999999
+                  ]
+                ]
+              },
+              "moving": [
+                0.1565685424949234,
+                0.9565685424949238
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.1565685424949234,
+                  0.9565685424949238
+                ],
+                "layers": 1
+              }
+            },
+            "note": "3a: left wing folded down"
+          },
+          {
+            "id": "fstep-cicada-6",
+            "parent": "fstep-cicada-5",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.7149999999999999,
+                    0.28500000000000025
+                  ],
+                  [
+                    1.0000000000000002,
+                    0.5
+                  ]
+                ]
+              },
+              "moving": [
+                0.9565685424949237,
+                0.1565685424949237
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.9565685424949237,
+                  0.1565685424949237
+                ],
+                "layers": 1
+              }
+            },
+            "note": "3b: right wing folded down"
+          },
+          {
+            "id": "fstep-cicada-7",
+            "parent": "fstep-cicada-6",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.0015075759508250968,
+                    0.29849242404917475
+                  ],
+                  [
+                    0.29849242404917536,
+                    0.0015075759508249025
+                  ]
+                ]
+              },
+              "moving": [
+                0.050000000000000336,
+                0.04999999999999978
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.050000000000000336,
+                  0.04999999999999978
+                ],
+                "layers": 1
+              }
+            },
+            "note": "4: one top layer down"
+          },
+          {
+            "id": "fstep-cicada-8",
+            "parent": "fstep-cicada-7",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.00029437251522873586,
+                    0.3397056274847713
+                  ],
+                  [
+                    0.33970562748477184,
+                    0.0002943725152285971
+                  ]
+                ]
+              },
+              "moving": [
+                0.95,
+                0.9500000000000001
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "5: remaining tip down, leaving a band"
+          },
+          {
+            "id": "fstep-cicada-9",
+            "parent": "fstep-cicada-8",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.0735786437626905,
+                    0.3564213562373093
+                  ],
+                  [
+                    0.3564213562373098,
+                    0.07357864376269038
+                  ]
+                ]
+              },
+              "moving": [
+                0.835,
+                0.8350000000000001
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "6: fold upper band down"
+          },
+          {
+            "id": "fstep-cicada-10",
+            "parent": "fstep-cicada-9",
+            "op": {
+              "kind": "mountain",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.664791847198287,
+                    0.9052081528017133
+                  ],
+                  [
+                    0.009047796878308043,
+                    0.9748343229184555
+                  ]
+                ]
+              },
+              "moving": [
+                0.04454322574716803,
+                0.5712688703219579
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "7a: left side behind"
+          },
+          {
+            "id": "fstep-cicada-11",
+            "parent": "fstep-cicada-10",
+            "op": {
+              "kind": "mountain",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.9052081528017132,
+                    0.6647918471982872
+                  ],
+                  [
+                    0.9748343229184556,
+                    0.009047796878309198
+                  ]
+                ]
+              },
+              "moving": [
+                0.5712688703219583,
+                0.044543225747168035
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "note": "7b: right side behind"
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-trial-cicada",
+        "cursor": "fstep-cicada-11",
+        "activeChild": {
+          "": "fstep-cicada-1",
+          "fstep-cicada-1": "fstep-cicada-2",
+          "fstep-cicada-2": "fstep-cicada-3",
+          "fstep-cicada-3": "fstep-cicada-4",
+          "fstep-cicada-4": "fstep-cicada-5",
+          "fstep-cicada-5": "fstep-cicada-6",
+          "fstep-cicada-6": "fstep-cicada-7",
+          "fstep-cicada-7": "fstep-cicada-8",
+          "fstep-cicada-8": "fstep-cicada-9",
+          "fstep-cicada-9": "fstep-cicada-10",
+          "fstep-cicada-10": "fstep-cicada-11"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

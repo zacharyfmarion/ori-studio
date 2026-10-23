@@ -11,7 +11,9 @@ import type { WorkspaceId } from '../workspaces/workspaces';
  * looking at, so a pill over the 3D view would be an invitation to edit
  * something off-screen. Design has its own history per kind and will get pills
  * when its panes go one-at-a-time; adding them here first would put two new
- * controls over the design canvas at once.
+ * controls over the design canvas at once. The Diagram and Fold have histories
+ * of their own, but their panes open with a toolbar, which is where the lane
+ * would sit: theirs are in that toolbar (`TouchHistoryButtons`).
  */
 const HISTORY_PILL_WORKSPACES: readonly WorkspaceId[] = ['edit'];
 

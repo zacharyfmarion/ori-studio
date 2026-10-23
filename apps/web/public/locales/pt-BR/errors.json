@@ -74,6 +74,9 @@
   },
   "worker": {
     "cpDetect": "A detecção de padrão de vincos parou inesperadamente. Tente importar a imagem novamente.",
+    "foldSequence": "O motor de dobra parou inesperadamente. Seus passos estão seguros; se a dobra não for retomada, recarregue o Ori Studio.",
+    "foldSequenceKeptStopping": "O motor de dobra parou repetidas vezes, então a dobra está pausada. Seus passos estão seguros: desfaça sua última alteração ou recarregue o Ori Studio.",
+    "foldSequenceLost": "O motor de dobra parou antes de concluir esse passo. Tente a dobra novamente.",
     "oristudioBp": "O motor de box pleating parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando neste design.",
     "oristudioCp": "O motor de padrões de vincos parou inesperadamente. Recarregue o Ori Studio — as edições feitas após o último salvamento podem ser perdidas.",
     "precrease": "O planejador de pré-dobras parou inesperadamente. Reabra o workspace de referências para reiniciá-lo.",

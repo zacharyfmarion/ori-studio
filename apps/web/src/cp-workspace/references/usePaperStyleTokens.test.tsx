@@ -8,6 +8,7 @@ import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
 import { applyTheme, DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from '../../themes';
+import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import { referencesCreaseAlpha } from '../../themes/referencesInk';
 import { createCpLineAppearanceResolver } from '../adapters/cpLineStyle';
 import {
@@ -15,12 +16,13 @@ import {
   CP_CREASE_WIDTH_FACTOR,
   DIAGRAM_LINE_INK,
   REFERENCES_VIEW_FLOORS,
-} from './diagram/diagramInk';
+} from '../../lib/stepDiagram/diagramInk';
 import { useReferencesDiagramScene } from './useReferencesDiagramScene';
 import {
   REFERENCES_PAPER_TOKENS,
   referencesCanvasPens,
   referencesCardInks,
+  referencesMarkupTokens,
   referencesPaperTokens,
   usePaperStyleTokens,
   type ReferencesPaperStyle,
@@ -193,6 +195,17 @@ describe('referencesPaperTokens', () => {
     expect(Number(referencesPaperTokens(dark)['--references-crease-alpha'])).toBeLessThan(
       Number(referencesPaperTokens(light)['--references-crease-alpha'])
     );
+  });
+});
+
+describe('referencesMarkupTokens', () => {
+  it('is the workspace’s tokens and the light theme’s reference accent: a printed diagram is on light paper', () => {
+    const style = { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, color: '#405060' } };
+    expect(referencesMarkupTokens(style)).toEqual({
+      ...referencesPaperTokens(style),
+      '--cp-reference-input': REFERENCE_COLORS.light.input,
+    });
+    expect(REFERENCE_COLORS.light.input).not.toBe(REFERENCE_COLORS.dark.input);
   });
 });
 

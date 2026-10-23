@@ -13,7 +13,7 @@
  */
 import { folded3dSceneStyleKey } from '../../cp-workspace/folded/folded3dScene';
 import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
-import { isLockedStep, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
+import { isLockedStep, posedRenderOf, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
 import { diagramPaperStyle, diagramStyleKey } from './diagramPaperStyle';
 
 const keys = new WeakMap<DiagramStyle, { folded3d: string; simulated: string }>();
@@ -38,7 +38,7 @@ export function capturedStyleChange(step: DiagramStep, style: DiagramStyle): 'li
   if (isLockedStep(step)) return null;
   const picture = step.picture;
   if (picture?.kind === 'scene') {
-    const simulated = step.source?.kind === 'cp' && step.source.render.mode === 'simulated';
+    const simulated = posedRenderOf(step.source)?.mode === 'simulated';
     return picture.styleKey !== null && picture.styleKey !== lightKey(style, simulated) ? 'light' : null;
   }
   if (picture?.kind === 'asset' && picture.styleKey !== undefined) {

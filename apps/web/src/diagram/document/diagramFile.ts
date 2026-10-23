@@ -46,6 +46,10 @@
  *   placement; Fill, for an enlarged step's Size), a meaning that is never
  *   redefined; neither moves a page.
  *
+ * The rules' shared machinery — the newer-build sentinel, lists read by id —
+ * is `lib/documentFile`'s, for the project file's other documents to share;
+ * what each field reads as is this file's.
+ *
  * Every string a user typed passes through `xmlText` on the way in, so what is
  * stored can always be written into an SVG page. Every uploaded SVG is
  * sanitized again on the way in, and every uploaded bitmap's header checked
@@ -58,21 +62,15 @@
 
 import { ANGLE_RADIUS_MM } from '../annotate/angleMarkStyle';
 import { FOLDED_FIGURE_CAMERA_KEYS, readFoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
-import {
-  SPREAD_DIRECTIONS,
-  SPREAD_KEEPS,
-  SPREAD_KINDS,
-  type SpreadDirection,
-  type SpreadKeep,
-  type SpreadKind,
-} from '../../cp-workspace/folded/foldedLayerSpread';
-import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
-import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
+import { readLayerSpread } from '../../cp-workspace/folded/layerSpreadSettings';
+import type { DiagramWhiteArrowWidth } from '../../lib/stepDiagram/diagramInk';
+import type { WhiteArrowTail } from '../../lib/stepDiagram/stepDiagramGeometry';
 import { readRegionReference } from '../../cp-workspace/regions/regionReference';
 import { isNewerSheetThumbnail, readSheetThumbnail, type SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
-import { isBuiltInPaperPresetId } from '../../lib/paper/paperPresets';
+import { NEWER, finiteNumber, hasNewerKey, isRecord, readEntries } from '../../lib/documentFile';
+import { isNewerDocumentPaperStyle, readDocumentPaperStyle } from '../../lib/paper/documentPaperStyle';
 import { isNewerPaperScene, readPaperScene } from '../../lib/paper/paperSceneValidate';
-import { normalizePaperStyle } from '../../lib/paper/paperStyle';
+import { isTurnDegreesPrecise, readTurnRotation, TURN_DIRECTIONS, TURN_ROTATION_KEYS } from '../../lib/steps/turn';
 import { xmlText } from '../../lib/xmlEscape';
 import {
   PICTURE_REACH,
@@ -116,6 +114,8 @@ import {
 import {
   snapshotDiagramStyle,
   DEFAULT_DIAGRAM_STYLE,
+  DIAGRAM_FOLD_MOMENTS,
+  DIAGRAM_FOLD_SHOW_AS,
   DIAGRAM_FORMAT_VERSION,
   DIAGRAM_PAGE_SIDES,
   DIAGRAM_SHOW_AS,
@@ -128,9 +128,6 @@ import {
   PAGE_STEPS_RANGE,
   PAPER_SIZES,
   PATH_WIDTH_MM_RANGE,
-  SPREAD_AMOUNT_RANGE,
-  SPREAD_AXIS_RANGE,
-  SPREAD_SKEW_RANGE,
   STEPS_PER_PAGE_RANGE,
   TITLE_BLOCK_ART_SIZE_RANGE,
   TITLE_BLOCK_PARTS,
@@ -157,7 +154,6 @@ import {
   type DiagramPathNode,
   type DiagramPleatKinks,
   type DiagramRotation,
-  type DiagramRotationAmount,
   type KnownDiagramAnnotation,
   type DiagramAsset,
   type KnownDiagramAsset,
@@ -166,12 +162,13 @@ import {
   type DiagramCpSource,
   type DiagramDocument,
   type DiagramEntry,
+  type DiagramFoldMoment,
+  type DiagramFoldStepSource,
   type DiagramReferencesSource,
   type DiagramFixedPicture,
   type DiagramPicture,
   type DiagramHanStyle,
   type DiagramIdFactory,
-  type DiagramLayerSpread,
   type DiagramPageSetup,
   type DiagramRasterAsset,
   type DiagramShowAs,
@@ -231,17 +228,12 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
   const env = () => (sanitizeEnv ??= browserSanitizeEnv());
   const assets = readAssets(value.assets, env);
   const thumbnails = thumbnailTable(value.thumbnails);
-  const steps: DiagramEntry[] = [];
-  const seen = new Set<string>();
-  for (const entry of Array.isArray(value.steps) ? value.steps : []) {
-    const step = readEntry(entry, assets, env, thumbnails.resolve);
-    // Two steps with one id would make every edit by id ambiguous; the first
-    // one wins and the copy is malformed.
-    if (step && !seen.has(step.id)) {
-      seen.add(step.id);
-      steps.push(step);
-    }
-  }
+  // Two steps with one id would make every edit by id ambiguous; the first one wins.
+  const steps = readEntries<DiagramEntry>(
+    value.steps,
+    (id, entry) => readEntry(id, entry, assets, env, thumbnails.resolve),
+    lockedTurn
+  );
   const arranged = readPageArrangements(value.pageArrangements);
   const titleBlock = readTitleBlockContent(value.titleBlockContent);
   const newer = readNewerFields(value, arranged.newer, titleBlock.newer);
@@ -316,7 +308,6 @@ const PAGE_RANGES: Readonly<Record<string, { readonly min: number; readonly max:
 };
 const PAGE_NUMBERS_KEYS: ReadonlySet<string> = new Set(['enabled', 'first']);
 const TITLE_BLOCK_KEYS: ReadonlySet<string> = new Set(['enabled', 'heightShare']);
-const STYLE_KEYS: ReadonlySet<string> = new Set(['preset', 'style']);
 
 /**
  * What a newer build wrote at the document's level that this build cannot
@@ -341,7 +332,7 @@ function readNewerFields(
   const newer: DiagramNewerFields = {
     ...(Object.keys(fields).length > 0 ? { fields } : {}),
     ...(typeof value.hanStyle === 'string' && !HAN_STYLES.includes(value.hanStyle) ? { hanStyle: value.hanStyle } : {}),
-    ...(isRecord(value.style) && isNewerStyle(value.style) ? { style: value.style } : {}),
+    ...(isRecord(value.style) && isNewerDocumentPaperStyle(value.style) ? { style: value.style } : {}),
     ...(page ? { page } : {}),
     ...(Object.keys(pageArrangements).length > 0 ? { pageArrangements } : {}),
     ...(Object.keys(titleBlockContent).length > 0 ? { titleBlockContent } : {}),
@@ -349,17 +340,6 @@ function readNewerFields(
   return Object.keys(newer).length > 0 ? newer : undefined;
 }
 
-/**
- * A style a newer build wrote: with a field this build has no name for, a
- * preset it does not have, or a paper style it would write back other than
- * it came — a field, a pen or a light it does not read.
- */
-function isNewerStyle(value: Record<string, unknown>): boolean {
-  if (hasNewerKey(value, STYLE_KEYS)) return true;
-  // A complete snapshot is drawable even when its built-in name is from a newer build.
-  if (!isRecord(value.style)) return typeof value.preset === 'string' && !isBuiltInPaperPresetId(value.preset);
-  return !sameJson(JSON.parse(JSON.stringify(normalizePaperStyle(value.style))), value.style);
-}
 
 /** The page fields of {@link readNewerFields}, under their keys; none when every one reads. */
 function readNewerPage(value: unknown): Record<string, unknown> | undefined {
@@ -482,16 +462,6 @@ function isPastRange(value: unknown, range: { readonly min: number; readonly max
   return typeof value === 'number' && Number.isFinite(value) && (value < range.min || value > range.max);
 }
 
-/** Two JSON values alike, whatever the order of their keys. */
-function sameJson(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (Array.isArray(a) || Array.isArray(b)) {
-    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((entry, index) => sameJson(entry, b[index]));
-  }
-  if (!isRecord(a) || !isRecord(b)) return false;
-  const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && sameJson(a[key], b[key]));
-}
 
 const HAN_STYLES: readonly string[] = ['sc', 'tc', 'jp', 'kr'];
 
@@ -667,7 +637,8 @@ function writeStep(step: DiagramEntry, thumbnails: ThumbnailWriter): Record<stri
 
 /** A source as written: a link's thumbnail by its key in the table. */
 function writeSource(source: DiagramStepSource | null, thumbnails: ThumbnailWriter): unknown {
-  if (source?.kind !== 'cp' && source?.kind !== 'references-step') return source;
+  if (!source || source.kind === 'upload') return source;
+  // A linked pattern, a References card and a Fold step each name their thumbnail by its key in the table.
   return { ...source, thumbnail: thumbnails.keyOf(source.thumbnail) };
 }
 
@@ -834,7 +805,24 @@ const SOURCE_KEYS: Readonly<Record<DiagramStepSource['kind'], ReadonlySet<string
     'sentence',
     'marks',
   ]),
+  // In the order it is written (`readFoldStepSource` builds it so).
+  'fold-step': new Set([
+    'kind',
+    'sequence',
+    'step',
+    'through',
+    'moment',
+    'path',
+    'state',
+    'engine',
+    'thumbnail',
+    'render',
+    'sentence',
+    'remembered',
+  ]),
 };
+/** The render modes a Fold step is shown in (`DIAGRAM_FOLD_SHOW_AS`): any other is a newer build's. */
+const FOLD_RENDER_MODES: ReadonlySet<string> = new Set(['crease-pattern', 'folded-flat']);
 /** Within a crease-pattern source: the scopes this build reads, and their fields. */
 const CP_SCOPE_KEYS: Readonly<Record<DiagramCpScope['kind'], ReadonlySet<string>>> = {
   segment: new Set(['kind', 'region']),
@@ -892,21 +880,25 @@ interface StepPartRead<T> {
 /**
  * One entry in the order: a turn when it says what kind (D22) — a step never
  * does — and a step otherwise. A turn of a kind, or with a field or value,
- * this build does not know is a newer build's, carried whole as a locked turn:
- * it can be moved or deleted, never changed, and takes no number.
+ * this build does not know is a newer build's, carried whole as a locked turn
+ * ({@link lockedTurn}).
  */
 function readEntry(
-  value: unknown,
+  id: string,
+  value: Record<string, unknown>,
   assets: Record<string, DiagramAsset>,
   env: () => SanitizeEnv,
   thumbnail: ThumbnailResolver
-): DiagramEntry | null {
-  if (!isRecord(value) || !Object.hasOwn(value, 'kind')) return readStep(value, assets, env, thumbnail);
-  const id = value.id;
-  if (typeof id !== 'string' || id.length === 0) return null;
-  const turn = readTurn(id, value);
-  // The kind is a stand-in: a locked turn is never drawn or changed.
-  return turn === NEWER ? { id, kind: 'turn-over', axis: 'vertical', unknown: value } : turn;
+): DiagramEntry | typeof NEWER | null {
+  return Object.hasOwn(value, 'kind') ? readTurn(id, value) : readStep(id, value, assets, env, thumbnail);
+}
+
+/**
+ * A newer build's turn, carried whole: it can be moved or deleted, never
+ * changed, and takes no number. Its kind is a stand-in, never drawn.
+ */
+function lockedTurn(id: string, value: Record<string, unknown>): DiagramEntry {
+  return { id, kind: 'turn-over', axis: 'vertical', unknown: value };
 }
 
 /**
@@ -930,11 +922,6 @@ const STEP_KEYS: ReadonlySet<string> = new Set([
   'zoom',
   'place',
 ]);
-
-/** A record with a key outside `known`: a field a newer build wrote. */
-function hasNewerKey(value: Record<string, unknown>, known: ReadonlySet<string>): boolean {
-  return Object.keys(value).some((key) => !known.has(key));
-}
 
 /** A record, when `value` is one, with a key outside `known`. */
 function isNewerRecord(value: unknown, known: ReadonlySet<string>): boolean {
@@ -961,14 +948,12 @@ function isNewerWord(value: unknown, known: readonly string[]): boolean {
  * left out, and the step keeps its words.
  */
 function readStep(
-  value: unknown,
+  id: string,
+  value: Record<string, unknown>,
   assets: Record<string, DiagramAsset>,
   env: () => SanitizeEnv,
   thumbnail: ThumbnailResolver
-): DiagramStep | null {
-  if (!isRecord(value)) return null;
-  const id = value.id;
-  if (typeof id !== 'string' || id.length === 0) return null;
+): DiagramStep {
   const zoom = value.zoom === undefined ? undefined : readStepZoom(value.zoom);
   // An enlarged step's marks are in its window's units, and reach as far as its window's reach.
   const reach = zoom && zoom !== NEWER && zoom.frame ? windowReach(zoom.frame) : PICTURE_REACH;
@@ -1043,16 +1028,15 @@ function withPicture(
     // a scene, a fixed picture, or a capture too detailed to keep as vector,
     // kept as a bitmap asset. A flat fold's scene keeps its faces when they
     // agree with it.
-    const flat = source.render.mode === 'folded-flat' ? source.render : null;
-    const faces =
-      picture?.kind === 'scene' &&
-      flat &&
-      paperFaces &&
-      paperFaces !== NEWER_PAPER_FACES &&
-      paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined)
-        ? { ...picture, paperFaces: paperFaces.json }
-        : picture;
+    const faces = withFittingFaces(picture, source.render, paperFaces);
     return { ...step, source, picture: faces?.kind === 'step-diagram' ? null : faces };
+  }
+  if (source?.kind === 'fold-step') {
+    // A Fold step's picture is a scene of its state, or one too detailed to
+    // keep as vector, kept as a bitmap; every state it shows has a layer
+    // order, so there is no see-through development.
+    const faces = withFittingFaces(picture, source.render, paperFaces);
+    return { ...step, source, picture: faces?.kind === 'scene' || faces?.kind === 'asset' ? faces : null };
   }
   if (source?.kind === 'references-step') {
     // A References step's picture is its card's diagram, or none.
@@ -1060,6 +1044,51 @@ function withPicture(
   }
   // A picture with no source to say what it is of is left out.
   return step;
+}
+
+/**
+ * A posed picture with the faces on the paper it was read with, when they
+ * agree with its scene and its pose is a flat fold; else as it was read,
+ * without them.
+ */
+function withFittingFaces(
+  picture: DiagramPicture | null,
+  render: DiagramCpRender,
+  paperFaces: ReturnType<typeof readPaperFaces> | undefined
+): DiagramPicture | null {
+  const flat = render.mode === 'folded-flat' ? render : null;
+  return picture?.kind === 'scene' &&
+    flat &&
+    paperFaces &&
+    paperFaces !== NEWER_PAPER_FACES &&
+    paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined)
+    ? { ...picture, paperFaces: paperFaces.json }
+    : picture;
+}
+
+/**
+ * A Fold step's source a newer build wrote: a field this build has no name
+ * for, a moment it does not know, a thumbnail it cannot keep, or a render —
+ * shown, or remembered for the other way — of a mode a Fold step is not shown
+ * in here, or one a newer build wrote (`isNewerRender`). Read here, it would
+ * be written back without what this build cannot name, so the step is carried
+ * whole instead.
+ */
+function isNewerFoldSource(value: Record<string, unknown>): boolean {
+  if (
+    hasNewerKey(value, SOURCE_KEYS['fold-step']) ||
+    isNewerWord(value.moment, DIAGRAM_FOLD_MOMENTS) ||
+    isNewerSheetThumbnail(value.thumbnail)
+  ) {
+    return true;
+  }
+  const newerMode = (render: unknown) =>
+    isRecord(render) && typeof render.mode === 'string' && !FOLD_RENDER_MODES.has(render.mode);
+  if (newerMode(value.render) || isNewerRender(value.render)) return true;
+  if (!isRecord(value.remembered)) return false;
+  return Object.entries(value.remembered).some(
+    ([way, render]) => !(DIAGRAM_FOLD_SHOW_AS as readonly string[]).includes(way) || newerMode(render) || isNewerRender(render)
+  );
 }
 
 /**
@@ -1258,6 +1287,8 @@ function readSource(
       return { read: readCpSource(value), newer: isNewerCpSource(value) };
     case 'references-step':
       return { read: readReferencesSource(value), newer: isNewerReferencesSource(value) };
+    case 'fold-step':
+      return { read: readFoldStepSource(value), newer: isNewerFoldSource(value) };
     default:
       return { read: null, newer: typeof value.kind === 'string' };
   }
@@ -1317,6 +1348,67 @@ function readRememberedPoses(
     if (pose && showAsOf(pose) === way && way !== showAsOf(render)) remembered[way] = pose;
   }
   return Object.keys(remembered).length > 0 ? remembered : null;
+}
+
+/**
+ * A Fold step's source as a step stores it: through the file's own reader, as
+ * {@link storedCpSource} is, so what a capture writes is field for field what
+ * a load reads back. Null for one the reader refuses.
+ */
+export function storedFoldStepSource(source: DiagramFoldStepSource): DiagramFoldStepSource | null {
+  return readFoldStepSource(JSON.parse(JSON.stringify(source)) as Record<string, unknown>);
+}
+
+/**
+ * A Fold step's source, every field checked, in the order it is written;
+ * null when any does not read. A render a Fold step is not shown in — 3D,
+ * simulated, a flat fold at another layer order than the sequence's — is
+ * damage here: a newer build's mode made the step a newer build's before
+ * this was reached. A remembered pose that does not read is dropped alone,
+ * as a linked pattern's is; so is a sentence that is not a string. Its
+ * thumbnail is the table's entry the link names, read once
+ * (`readThumbnailOnce`), as a linked pattern's is. A run of steps names its
+ * last as `through`: another step than its first, shown before the first
+ * folds; one that is not is damage, as a step that does not read is.
+ */
+function readFoldStepSource(value: Record<string, unknown>): DiagramFoldStepSource | null {
+  const { sequence, step, through, moment, path, state } = value;
+  const ids = [sequence, step, path, state];
+  if (ids.some((id) => typeof id !== 'string' || id.length === 0)) return null;
+  if (typeof moment !== 'string' || !(DIAGRAM_FOLD_MOMENTS as readonly string[]).includes(moment)) return null;
+  if (through !== undefined && (typeof through !== 'string' || through.length === 0 || through === step || moment !== 'before')) {
+    return null;
+  }
+  const engine = wholeNumber(value.engine);
+  const thumbnail = readThumbnailOnce(value.thumbnail);
+  const render = readFoldStepRender(value.render);
+  if (engine === null || !thumbnail || !render) return null;
+  const remembered = readRememberedPoses(value.remembered, render);
+  const kept = remembered
+    ? Object.fromEntries(Object.entries(remembered).filter(([, pose]) => readFoldStepRender(pose) !== null))
+    : null;
+  return {
+    kind: 'fold-step',
+    sequence: sequence as string,
+    step: step as string,
+    ...(typeof through === 'string' ? { through } : {}),
+    moment: moment as DiagramFoldMoment,
+    path: path as string,
+    state: state as string,
+    engine,
+    thumbnail,
+    render,
+    ...(typeof value.sentence === 'string' ? { sentence: xmlText(value.sentence) } : {}),
+    // Last, where `withRememberedPoses` puts it: a load reads a step back key for key as a capture left it.
+    ...(kept && Object.keys(kept).length > 0 ? { remembered: kept } : {}),
+  };
+}
+
+/** A render a Fold step is shown in: a crease pattern, or a flat fold at the sequence's one layer order. */
+function readFoldStepRender(value: unknown): DiagramCpRender | null {
+  const render = readCpRender(value);
+  if (!render || !FOLD_RENDER_MODES.has(render.mode)) return null;
+  return render.mode === 'folded-flat' && render.foldCase !== 1 ? null : render;
 }
 
 /**
@@ -1479,60 +1571,17 @@ function readCpRender(value: unknown): DiagramCpRender | null {
   }
 }
 
-/** A spread's fields, by its kind: any other makes the step a newer build's. */
-const SPREAD_FIELDS: Readonly<Record<SpreadKind, ReadonlySet<string>>> = {
-  depth: new Set(['kind', 'amount', 'toward']),
-  affine: new Set(['kind', 'amount', 'keep', 'skew', 'axisDeg']),
-};
-
 /**
- * A flat fold's spread (Phase 13): undefined when it has none. One with no
- * `kind` is a depth spread, as every spread was before there were two (13g).
- * A kind, a field, a direction, a layer held still or a value past what this
- * build reads is a newer build's; one of the wrong type, or no step at all,
- * is damage.
+ * A flat fold's spread (Phase 13), by the reading every flat picture's spread
+ * shares (`readLayerSpread`): undefined when it has none, a newer build's
+ * making the step one, damage dropping it.
  */
-function readSpread(value: unknown): DiagramLayerSpread | undefined | typeof NEWER | null {
-  if (value === undefined) return undefined;
-  if (!isRecord(value)) return null;
-  const kind = value.kind === undefined ? 'depth' : value.kind;
-  if (typeof kind !== 'string') return null;
-  if (!(SPREAD_KINDS as readonly string[]).includes(kind)) return NEWER;
-  const known = kind as SpreadKind;
-  // A field it has no name for is news before a missing one is damage, as for an annotation.
-  if (Object.keys(value).some((key) => !SPREAD_FIELDS[known].has(key))) return NEWER;
-  const amount = finiteNumber(value.amount);
-  if (amount === null || amount <= 0) return null;
-  const past = amount > SPREAD_AMOUNT_RANGE[known].max;
-  if (known === 'depth') {
-    if (typeof value.toward !== 'string') return null;
-    if (past || !(SPREAD_DIRECTIONS as readonly string[]).includes(value.toward)) return NEWER;
-    return { kind: 'depth', amount, toward: value.toward as SpreadDirection };
-  }
-  const skew = finiteNumber(value.skew);
-  const axisDeg = finiteNumber(value.axisDeg);
-  if (typeof value.keep !== 'string' || skew === null || axisDeg === null) return null;
-  if (
-    past ||
-    !(SPREAD_KEEPS as readonly string[]).includes(value.keep) ||
-    skew < SPREAD_SKEW_RANGE.min ||
-    skew > SPREAD_SKEW_RANGE.max ||
-    axisDeg < SPREAD_AXIS_RANGE.min ||
-    axisDeg > SPREAD_AXIS_RANGE.max
-  ) {
-    return NEWER;
-  }
-  return { kind: 'affine', amount, keep: value.keep as SpreadKeep, skew, axisDeg };
-}
+const readSpread = readLayerSpread;
 
 /** An angle in [0, 360), so one rotation is written one way. */
 function normalizeDegrees(degrees: number): number {
   const turned = degrees % 360;
   return turned < 0 ? turned + 360 : turned;
-}
-
-function finiteNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function readPicture(
@@ -1697,6 +1746,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'valley-line': fields('behind'),
     'mountain-line': fields('behind'),
     'hidden-line': fields(),
+    'uncreased-line': fields(),
     'solid-line': fields('color', 'behind'),
     label: fields('text', 'color', 'bold', 'halo', 'sizePt', 'offsetPt'),
     circle: fields('behind', 'radius'),
@@ -1714,9 +1764,6 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
   };
 })();
 
-/** A newer build's value: well formed, but past what this build reads. */
-const NEWER = Symbol('newer');
-
 /** More annotations than a step of this build holds: a newer build's step, not one to cut short. */
 function tooManyAnnotations(value: unknown): boolean {
   return Array.isArray(value) && value.length > MAX_STEP_ANNOTATIONS;
@@ -1730,18 +1777,11 @@ function tooManyAnnotations(value: unknown): boolean {
  * read is dropped.
  */
 function readAnnotations(value: unknown, reach: AnnotationReach): DiagramAnnotation[] {
-  if (!Array.isArray(value)) return [];
-  const out: DiagramAnnotation[] = [];
-  const ids = new Set<string>();
-  for (const entry of value) {
-    if (!isRecord(entry) || typeof entry.id !== 'string' || entry.id.length === 0 || ids.has(entry.id)) continue;
-    const annotation = readAnnotation(entry.id, entry, reach);
-    if (annotation === NEWER) out.push({ id: entry.id, unknown: entry });
-    else if (annotation) out.push(annotation);
-    else continue;
-    ids.add(entry.id);
-  }
-  return out;
+  return readEntries<DiagramAnnotation>(
+    value,
+    (id, entry) => readAnnotation(id, entry, reach),
+    (id, unknown) => ({ id, unknown })
+  );
 }
 
 /**
@@ -1999,6 +2039,7 @@ function readAnnotationOfKind(
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
       return annotation;
     case 'circle': {
       const radius = entry.radius === undefined ? undefined : readCloseUpRadius(entry.radius, unitsPerFrame(reach));
@@ -2494,45 +2535,46 @@ function readPreset<T extends string>(value: unknown, known: readonly T[], fallb
   return (known as readonly string[]).includes(value) ? (value as T) : NEWER;
 }
 
-/** The fields a rotation is written with: a preset's `amount`, or an angle's `degrees`, and its `direction`. */
-const ROTATION_KEYS: ReadonlySet<string> = new Set(['amount', 'degrees', 'direction']);
-
 /**
  * How far and which way a rotation turns: a quarter clockwise when unsaid.
- * Shared by the glyph and the turn (D22). A preset, or an angle of the
- * author's own — never both. A build before angles had no name for
- * `degrees`, so it carries an angle's mark or turn whole and locked by the
- * first rule here; past a whole turn, or finer than a tenth, is news again.
+ * Shared by the glyph and the turn (D22). A preset (`lib/steps/turn`), or an
+ * angle — never both. An angle is written `{ degrees, direction }`; the Fold
+ * launch build's `amount: 'degrees'` beside it reads the same. It is the
+ * author's own as typed (`diagramRotation.ts`) or a Fold rotation's pulled in,
+ * so any angle above none and below a whole turn, to a millionth. A build
+ * before angles had no name for `degrees`, so it carries an angle's mark or
+ * turn whole and locked by the first rule here; a whole turn or more, or
+ * finer than a millionth, is news again.
  */
 function readRotation(value: unknown): DiagramRotation | typeof NEWER | null {
   if (value === undefined) return DEFAULT_ROTATION;
   if (!isRecord(value)) return null;
   // A field it has no name for is news before a missing one is damage, as for a whole annotation.
-  if (Object.keys(value).some((key) => !ROTATION_KEYS.has(key))) return NEWER;
-  if (typeof value.direction !== 'string' || (value.amount === undefined) === (value.degrees === undefined)) return null;
-  if (value.degrees !== undefined) {
-    const degrees = finiteNumber(value.degrees);
-    if (degrees === null || degrees <= 0) return null;
-    if (degrees >= 360 || !isTenth(degrees) || !['cw', 'ccw'].includes(value.direction)) return NEWER;
-    return { degrees, direction: value.direction as DiagramRotation['direction'] };
+  if (Object.keys(value).some((key) => !TURN_ROTATION_KEYS.has(key))) return NEWER;
+  if (typeof value.direction !== 'string') return null;
+  if (value.degrees === undefined) {
+    if (typeof value.amount !== 'string') return null;
+    // A preset, or an amount or direction this build has no name for: a newer build's.
+    return readTurnRotation(value) ?? NEWER;
   }
-  if (typeof value.amount !== 'string') return null;
-  if (!['eighth', 'quarter', 'half'].includes(value.amount) || !['cw', 'ccw'].includes(value.direction)) {
-    return NEWER;
-  }
-  return { amount: value.amount as DiagramRotationAmount, direction: value.direction as DiagramRotation['direction'] };
+  // Both a preset and an angle says two things at once: damage, not news.
+  if (value.amount !== undefined && value.amount !== 'degrees') return null;
+  const degrees = finiteNumber(value.degrees);
+  if (degrees === null || degrees <= 0) return null;
+  const direction = TURN_DIRECTIONS.find((known) => known === value.direction);
+  if (degrees >= 360 || !isTurnDegreesPrecise(degrees) || !direction) return NEWER;
+  return { amount: 'degrees', degrees, direction };
 }
 
-/** Whether an angle is to a tenth of a degree, as this build writes one. */
-function isTenth(degrees: number): boolean {
-  return Math.abs(degrees * 10 - Math.round(degrees * 10)) < 1e-6;
-}
-
-/** A rotation as it is written: a preset as every build has written one, `amount` first, or an angle. */
+/**
+ * A rotation as a diagram writes it: a preset as every build has written one,
+ * `amount` first, or an angle `{ degrees, direction }` — the shape a build
+ * before angles carries whole, rather than Fold's `amount: 'degrees'`.
+ */
 function writeRotation(rotation: DiagramRotation): Record<string, unknown> {
-  return rotation.degrees === undefined
-    ? { amount: rotation.amount, direction: rotation.direction }
-    : { degrees: rotation.degrees, direction: rotation.direction };
+  return rotation.amount === 'degrees'
+    ? { degrees: rotation.degrees, direction: rotation.direction }
+    : { amount: rotation.amount, direction: rotation.direction };
 }
 
 /** The axis a turn-over turns about: the vertical one, side to side, when unsaid. */
@@ -2662,21 +2704,11 @@ function readHanStyle(value: unknown): DiagramHanStyle {
 }
 
 function readStyle(value: unknown): DiagramStyle {
-  if (!isRecord(value)) return DEFAULT_DIAGRAM_STYLE;
-  if (isRecord(value.style)) {
-    const style = normalizePaperStyle(value.style);
-    return typeof value.preset === 'string' ? { preset: value.preset, style } : { style };
-  }
-  if (isBuiltInPaperPresetId(value.preset)) return snapshotDiagramStyle({ preset: value.preset });
-  return DEFAULT_DIAGRAM_STYLE;
+  return readDocumentPaperStyle(value, snapshotDiagramStyle(DEFAULT_DIAGRAM_STYLE));
 }
 
 function wholeNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function safeJson(text: string): unknown {

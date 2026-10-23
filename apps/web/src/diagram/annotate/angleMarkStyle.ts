@@ -1,4 +1,4 @@
-import { DIAGRAM_ANGLE_MARK_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { DIAGRAM_ANGLE_MARK_INK } from '../../lib/stepDiagram/diagramInk';
 import type { KnownDiagramAnnotation } from '../document/diagramDocument';
 import { ANNOTATION_INK_MM } from './canvasInk';
 

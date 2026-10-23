@@ -307,6 +307,142 @@
     "vertexUnassignedCrease": "某个顶点上的折线未指定折法，因此该顶点无法折叠。",
     "vertexUnsplitJunction": "折线相交于一个并非顶点的位置，因此该顶点无法折叠。"
   },
+  "foldExport": {
+    "title": "导出折叠序列"
+  },
+  "foldImport": {
+    "browse": "或点击浏览",
+    "browseTouch": "或轻点浏览",
+    "collapseTitle": "从展开图收拢",
+    "drop": "拖放 .cp、.fold、.ori 或 .orh 文件",
+    "editFigure": "编辑中的折叠模型",
+    "editFigureNote": "编辑折出的折痕图，以及它找到的层序",
+    "fix": {
+      "searchLonger": "继续搜索"
+    },
+    "fromEdit": "来自编辑",
+    "pickTitle": "导入折痕图",
+    "placement": {
+      "afterSheet": "在平整的纸之后添加一步，其折叠状态由折痕计算得出。",
+      "afterStep": "在第 {{number}} 步之后添加一步，其折叠状态由折痕计算得出。",
+      "branch": "它会开始一个新分支。",
+      "empty": "以折痕图的纸开始序列，并沿其折痕折叠。当某个状态无法一步一步折出时使用。",
+      "sheet": "将折痕图的外轮廓作为序列开始时的纸：任何 3 到 8 条边的凸形都可以。折痕不会被导入；要从折痕开始折叠，请使用“导入折痕图”。",
+      "sheetStartsOver_other": "序列将重新开始：它的 {{count}} 个步骤会被清除。撤销可以恢复它们。",
+      "update": "更新此收拢步骤。后续步骤和分支会保留并重新计算；受影响的折叠将标记为已更改或无法折叠。",
+      "why": "当下一个状态无法一步一步折出时使用。"
+    },
+    "refusal": {
+      "budget": {
+        "text": "找出各层如何叠放所用的时间超出了导入的时限。请继续搜索，或导入更简单的折痕图。",
+        "title": "搜索耗时过长"
+      },
+      "changed": {
+        "text": "导入折痕图期间步骤发生了变化。请重新导入。",
+        "title": "序列已更改"
+      },
+      "creases": {
+        "text": "有折痕超出纸外、与另一种类型的折痕重叠，或在无处相接的地方中断。每条折痕都必须从边缘或折痕延伸到边缘或折痕。",
+        "title": "无法遵循的折痕"
+      },
+      "failed": {
+        "text": "无法导入此折痕图。",
+        "title": "无法导入"
+      },
+      "figureIncomplete": {
+        "text": "编辑中的折叠模型没有说明每一层如何放置。请在编辑中重新折叠，然后从它开始。",
+        "title": "折叠模型不完整"
+      },
+      "foldedForm": {
+        "text": "此 FOLD 文件描述的是已经折好的纸。请改为导入平整的折痕图。",
+        "title": "是折叠形态，而不是折痕图"
+      },
+      "noFigure": {
+        "text": "请先在编辑中把折痕图折平，然后从它的折叠模型开始。",
+        "title": "编辑中没有折叠模型"
+      },
+      "nonConvex": {
+        "text": "折痕图的一个面在某个角向内凹。只能折叠凸面。",
+        "title": "有凹角的面"
+      },
+      "noOrder": {
+        "text": "按照折痕图的山折和谷折，各层无法在不相互穿透的情况下叠放。",
+        "title": "没有符合的层序"
+      },
+      "noProjectCp": {
+        "text": "请在编辑工作区打开或创建源展开图，然后重试。已保存的收拢步骤保持不变。",
+        "title": "源展开图不可用"
+      },
+      "noState": {
+        "text": "屏幕上的步骤没有折叠状态，因此无法在其后添加任何内容。请转到可以折叠的步骤。",
+        "title": "此步骤无法折叠"
+      },
+      "notFlat": {
+        "text": "沿其山折和谷折折叠后，折痕图无法平放。",
+        "title": "无法折平"
+      },
+      "orderOpen": {
+        "text": "编辑中的折叠模型没有确定层序。请在编辑中折到唯一一个解，然后再从它开始。",
+        "title": "不止一种层序"
+      },
+      "outline": {
+        "text": "折痕图的边缘不是围绕纸的一个闭合轮廓，因此没有可折的纸。",
+        "title": "未找到纸"
+      },
+      "readOnly": {
+        "text": "由更新版本的 Ori Studio 创建：此序列以只读方式打开。",
+        "title": "只读序列"
+      },
+      "shapeMismatch": {
+        "text": "折痕图的纸与此序列的纸形状不同。请改为导入到空序列中。",
+        "textRatios": "此序列折叠的是 {{expected}} 的纸，而折痕图位于 {{found}} 的纸上。请改为导入到空序列中。",
+        "title": "不同的纸"
+      },
+      "shapeUnsupported": {
+        "text": "只能导入正方形或长方形纸上的折痕图。此折痕图的纸是其他形状。",
+        "title": "仅限正方形和长方形纸"
+      },
+      "sheetNotConvex": {
+        "text": "折痕图的外轮廓有一个角指向纸的内部。折叠只能从每个角都朝外的纸开始：正方形、长方形、正多边形或其他任何凸形。",
+        "title": "纸向内凹"
+      },
+      "sheetSides": {
+        "text_other": "折叠只能从 3 到 8 条边的纸开始。此外轮廓有 {{count}} 条边。",
+        "title": "仅限 3 到 8 条边的纸"
+      },
+      "sheetSideShort": {
+        "text": "折痕图外轮廓的一条边太短，折叠无法区分它的两个角。请将其拉直或删除，然后重新导入这张纸。",
+        "title": "边太短，无法折叠"
+      },
+      "unreadable": {
+        "text": "无法将此文件读取为 {{extension}} 折痕图。",
+        "title": "不是折痕图"
+      },
+      "unreadableFile": {
+        "text": "无法读取 {{name}}。",
+        "title": "无法读取文件"
+      },
+      "unsupportedFile": {
+        "text": "{{name}} 不是可导入的折痕图。请使用 .cp、.fold、.ori 或 .orh 文件。",
+        "title": "不是折痕图"
+      }
+    },
+    "sample": {
+      "pleatInEighths": "八等分褶",
+      "preliminaryBase": "正方基本形",
+      "waterbombBase": "水雷基本形"
+    },
+    "sheetTitle": "导入起始纸张",
+    "title": "导入折痕图",
+    "updateTitle": "从展开图更新",
+    "working": {
+      "figure": "正在导入编辑中的折叠模型…",
+      "file": "正在导入 {{name}}…",
+      "projectCp": "正在求解项目展开图…",
+      "sample": "正在导入示例…",
+      "sheet": "正在读取纸张…"
+    }
+  },
   "foldWarning": {
     "dontShowAgain": "不再显示",
     "message": "检测到平折性错误。是否继续折叠？",
@@ -653,7 +789,7 @@
         "exportLinked": "导出样式 · 已关联",
         "title": "样式"
       },
-      "stepsHint": "仅参考",
+      "stepsHintFold": "参考和折叠",
       "stepsTitle": "步骤",
       "unsaved": {
         "custom": "此样式尚未保存为预设。应用“{{next}}”会替换它。",

@@ -1,0 +1,28 @@
+/*
+ * The reverse fold's controls in the Fold tool window (FoldReverseControls.tsx):
+ * its kind's note and the steppers through openings and layer orders. The
+ * window's sections and rows are its own (FoldToolWindow, FieldRow).
+ */
+
+/* What fits here, under the kind: the window's note voice. */
+.note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+/* ‹ 2 of 3 ›, on the row's right. */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.value {
+  min-width: 3.5em;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}

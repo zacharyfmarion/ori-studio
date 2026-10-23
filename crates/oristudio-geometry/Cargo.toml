@@ -1,0 +1,35 @@
+[package]
+name = "oristudio-geometry"
+version.workspace = true
+publish.workspace = true
+edition.workspace = true
+# Original work, shared by the precrease planner and the Fold engine: the
+# one tolerance, canonical lines, tolerance-aware indexes, sheet frames and
+# outlines, the seven Huzita–Justin constructions over a `Paper`, and the
+# convex-polygon primitives. No dependency edge reaches the TreeMaker port.
+# The licensing tiers for the constructions are stated in src/construct.rs.
+license = "MIT OR Apache-2.0"
+description = "Shared origami geometry for Ori Studio: tolerance, lines, frames, Huzita–Justin constructions and convex-polygon primitives"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["origami", "geometry", "folding"]
+categories = ["algorithms", "mathematics"]
+include = [
+    "Cargo.toml",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "README.md",
+    "src/**",
+    "tests/**",
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   cameraZoomForPercent,
   fitUserCamera,
+  fitUserCameraWithin,
   frameUserCameraOnBounds,
   modelViewFromCamera,
   normalizeCameraRotation,
   panUserCamera,
   projectModelPoint,
   unprojectDevicePoint,
+  userBoundsInView,
+  userBoundsVisibleShare,
   userCameraToView,
   userCamerasEqual,
   validateUserCamera,
@@ -94,6 +97,33 @@ describe('UserCamera', () => {
     const tl = projectModelPoint(view, 0, 0);
     expect(tl.y).toBeGreaterThanOrEqual(0);
     expect(tl.y).toBeLessThanOrEqual(vp.height);
+  });
+
+  it('fits within an inset: sized to the part that shows and centred on it', () => {
+    // A window over the bottom 300 px of the 600: the content fits the 800 × 300 above it.
+    const bounds = { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+    const cam = fitUserCameraWithin(bounds, vp, { top: 0, right: 0, bottom: 300, left: 0 }, 1);
+    expect(cam.zoom).toBeCloseTo(3);
+    const view = userCameraToView(cam, vp);
+    expect(projectModelPoint(view, 50, 50).x).toBeCloseTo(400);
+    expect(projectModelPoint(view, 50, 50).y).toBeCloseTo(150);
+    expect(projectModelPoint(view, 0, 0).y).toBeCloseTo(0);
+    expect(projectModelPoint(view, 100, 100).y).toBeCloseTo(300);
+    // No inset is the plain fit.
+    expect(fitUserCameraWithin(bounds, vp, { top: 0, right: 0, bottom: 0, left: 0 }, 1)).toEqual(fitUserCamera(bounds, vp, 1));
+  });
+
+  it('keeps a quarter of each axis however much an inset covers, through a turned view too', () => {
+    const bounds = { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+    // Asked to fit above a window taller than the viewport: it fits the top 150 px.
+    const covered = fitUserCameraWithin(bounds, vp, { top: 0, right: 0, bottom: 900, left: 0 }, 1);
+    expect(covered.zoom).toBeCloseTo(1.5);
+    expect(projectModelPoint(userCameraToView(covered, vp), 50, 50).y).toBeCloseTo(75);
+    // A quarter turn: the content's middle still lands at the shown part's middle.
+    const turned = fitUserCameraWithin(bounds, vp, { top: 0, right: 200, bottom: 0, left: 0 }, 1, Math.PI / 2);
+    const middle = projectModelPoint(userCameraToView(turned, vp), 50, 50);
+    expect(middle.x).toBeCloseTo(300);
+    expect(middle.y).toBeCloseTo(300);
   });
 
   it('composes model->device via modelToSvg', () => {
@@ -296,6 +326,65 @@ describe('frameUserCameraOnBounds', () => {
     const turned = camera({ rotation: Math.PI / 3 });
     const framed = frameUserCameraOnBounds(issue, vp, turned, documentBounds);
     expect(framed.rotation).toBe(turned.rotation);
+  });
+});
+
+describe('userBoundsInView', () => {
+  const viewport: Viewport = { width: 400, height: 400, dpr: 1 };
+  const square = { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+
+  it('holds what a fit shows, and nothing that runs past an edge', () => {
+    const fitted = fitUserCamera(square, viewport);
+    expect(userBoundsInView(square, fitted, viewport)).toBe(true);
+    // A fit with no padding touches the edges: still in view.
+    expect(userBoundsInView(square, fitUserCamera(square, viewport, 1), viewport)).toBe(true);
+    expect(userBoundsInView({ ...square, minX: -50 }, fitted, viewport)).toBe(false);
+    expect(userBoundsInView({ ...square, maxY: 150 }, fitted, viewport)).toBe(false);
+  });
+
+  it('holds only the part an inset leaves, as a fit within it fills', () => {
+    const covered = { top: 0, right: 0, bottom: 200, left: 0 };
+    const fitted = fitUserCameraWithin(square, viewport, covered);
+    expect(userBoundsInView(square, fitted, viewport, covered)).toBe(true);
+    // Fitted to the whole canvas, the square's lower part is under the window.
+    expect(userBoundsInView(square, fitUserCamera(square, viewport), viewport, covered)).toBe(false);
+  });
+
+  it('measures along the turned axes of a turned view', () => {
+    const turned = fitUserCamera(square, viewport, 0.7, Math.PI / 4);
+    expect(userBoundsInView(square, turned, viewport)).toBe(true);
+    // The unturned fit's zoom leaves the turned square's corners off the canvas.
+    expect(userBoundsInView(square, { ...fitUserCamera(square, viewport, 0.95), rotation: Math.PI / 4 }, viewport)).toBe(false);
+  });
+});
+
+describe('userBoundsVisibleShare', () => {
+  const viewport: Viewport = { width: 400, height: 400, dpr: 1 };
+  const square = { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+  const fitted = fitUserCamera(square, viewport);
+
+  it('is whole for bounds in view, and for bounds that fill the view', () => {
+    expect(userBoundsVisibleShare(square, fitted, viewport)).toBe(1);
+    // Zoomed in on the middle: the square covers the whole screen.
+    expect(userBoundsVisibleShare(square, { ...fitted, zoom: fitted.zoom * 10 }, viewport)).toBe(1);
+  });
+
+  it('is the share that shows of bounds slid part of the way off an edge, and none of bounds off it', () => {
+    // The fit shows x −21.4…121.4: a square from 71.4 to 171.4 is half on screen.
+    expect(userBoundsVisibleShare({ minX: 71.43, minY: 0, maxX: 171.43, maxY: 100 }, fitted, viewport)).toBeCloseTo(0.5, 2);
+    expect(userBoundsVisibleShare({ minX: 300, minY: 0, maxX: 400, maxY: 100 }, fitted, viewport)).toBe(0);
+  });
+
+  it('counts only the part an inset leaves', () => {
+    // A window over the lower half of the canvas: the fitted square (y 60…340 px) is half under it.
+    const covered = { top: 0, right: 0, bottom: 200, left: 0 };
+    expect(userBoundsVisibleShare(square, fitted, viewport, covered)).toBeCloseTo(0.5, 6);
+    expect(userBoundsVisibleShare(square, fitted, viewport, { ...covered, bottom: 300 })).toBeLessThan(0.5);
+  });
+
+  it('measures a turned view by the screen box round the bounds', () => {
+    const turned = fitUserCamera(square, viewport, 0.7, Math.PI / 4);
+    expect(userBoundsVisibleShare(square, turned, viewport)).toBe(1);
   });
 });
 

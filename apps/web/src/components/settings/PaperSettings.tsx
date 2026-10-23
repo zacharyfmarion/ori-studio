@@ -90,7 +90,7 @@ export function PaperSettings({ deps }: { deps?: PaperSettingsDeps } = {}) {
 
           <PaperSection
             title={t('dialogs:settings.paper.stepsTitle', 'Steps')}
-            hint={t('dialogs:settings.paper.stepsHint', 'References only')}
+            hint={t('dialogs:settings.paper.stepsHintFold', 'References and Fold')}
           >
             <PenCards paper={paper} fields={STEP_PENS} />
           </PaperSection>

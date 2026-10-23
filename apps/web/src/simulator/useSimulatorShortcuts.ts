@@ -1,7 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import {
   hasSimulatorExecutor,
-  registerSimulatorShortcutExecutor,
+  registerConditionalScopeExecutor,
   subscribeSimulatorExecutor,
 } from '../keyboard/shortcutRuntime';
 import type { SimulatorShortcutId } from '../keyboard/shortcuts';
@@ -187,7 +187,7 @@ export function useSimulatorShortcuts(options: {
 
   useEffect(() => {
     if (!active) return;
-    return registerSimulatorShortcutExecutor((id: SimulatorShortcutId) =>
+    return registerConditionalScopeExecutor('simulator', (id: SimulatorShortcutId) =>
       runSimulatorShortcut(id, handlersRef.current, stepRef.current)
     );
   }, [active]);

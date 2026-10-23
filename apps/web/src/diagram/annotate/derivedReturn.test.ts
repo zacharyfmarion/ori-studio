@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cubicPoint, measurePath, type Vec2 } from '../../lib/cubicBezier';
-import { DIAGRAM_FOLD_RETURN_INK } from '../../cp-workspace/references/diagram/diagramInk';
-import { arcThroughPoints, pathReturn, returnStroke } from '../../cp-workspace/references/stepDiagramGeometry';
+import { DIAGRAM_FOLD_RETURN_INK } from '../../lib/stepDiagram/diagramInk';
+import { arcThroughPoints, pathReturn, returnStroke } from '../../lib/stepDiagram/stepDiagramGeometry';
 import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { arcToPath } from './annotationPath';
 import { ARROW_BEND, MAX_PATH_NODES, arrowApex, pathCubics } from './annotationModel';

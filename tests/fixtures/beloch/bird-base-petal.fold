@@ -1,0 +1,7632 @@
+{
+ "file_spec": 1.1,
+ "file_creator": "beloch 0.3.0-dev",
+ "frame_classes": [
+  "creasePattern"
+ ],
+ "vertices_coords": [
+  [
+   1,
+   1
+  ],
+  [
+   0.5,
+   1
+  ],
+  [
+   0.5,
+   0.7928932188134524
+  ],
+  [
+   1,
+   0.5
+  ],
+  [
+   0.7928932188134524,
+   0.5
+  ],
+  [
+   0.5,
+   0.5
+  ],
+  [
+   0.5,
+   0.20710678118654752
+  ],
+  [
+   0.20710678118654752,
+   0.5
+  ],
+  [
+   1,
+   0
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   0.5,
+   0
+  ],
+  [
+   0,
+   0.5
+  ],
+  [
+   0,
+   0
+  ]
+ ],
+ "edges_vertices": [
+  [
+   0,
+   1
+  ],
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   3,
+   0
+  ],
+  [
+   0,
+   4
+  ],
+  [
+   4,
+   3
+  ],
+  [
+   2,
+   4
+  ],
+  [
+   2,
+   5
+  ],
+  [
+   5,
+   4
+  ],
+  [
+   6,
+   5
+  ],
+  [
+   5,
+   7
+  ],
+  [
+   7,
+   6
+  ],
+  [
+   8,
+   4
+  ],
+  [
+   5,
+   8
+  ],
+  [
+   6,
+   8
+  ],
+  [
+   9,
+   5
+  ],
+  [
+   2,
+   9
+  ],
+  [
+   9,
+   7
+  ],
+  [
+   10,
+   8
+  ],
+  [
+   6,
+   10
+  ],
+  [
+   9,
+   11
+  ],
+  [
+   11,
+   7
+  ],
+  [
+   8,
+   3
+  ],
+  [
+   1,
+   9
+  ],
+  [
+   12,
+   7
+  ],
+  [
+   11,
+   12
+  ],
+  [
+   12,
+   10
+  ],
+  [
+   6,
+   12
+  ]
+ ],
+ "edges_assignment": [
+  "B",
+  "F",
+  "V",
+  "B",
+  "V",
+  "F",
+  "M",
+  "V",
+  "V",
+  "V",
+  "V",
+  "M",
+  "V",
+  "M",
+  "V",
+  "M",
+  "V",
+  "V",
+  "B",
+  "F",
+  "B",
+  "F",
+  "B",
+  "B",
+  "V",
+  "B",
+  "B",
+  "V"
+ ],
+ "faces_vertices": [
+  [
+   0,
+   1,
+   2
+  ],
+  [
+   3,
+   0,
+   4
+  ],
+  [
+   0,
+   2,
+   4
+  ],
+  [
+   2,
+   5,
+   4
+  ],
+  [
+   6,
+   5,
+   7
+  ],
+  [
+   8,
+   4,
+   5
+  ],
+  [
+   8,
+   5,
+   6
+  ],
+  [
+   9,
+   5,
+   2
+  ],
+  [
+   5,
+   9,
+   7
+  ],
+  [
+   10,
+   8,
+   6
+  ],
+  [
+   9,
+   11,
+   7
+  ],
+  [
+   8,
+   3,
+   4
+  ],
+  [
+   1,
+   9,
+   2
+  ],
+  [
+   12,
+   7,
+   11
+  ],
+  [
+   12,
+   10,
+   6
+  ],
+  [
+   12,
+   6,
+   7
+  ]
+ ],
+ "beloch:edges": [
+  null,
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".d",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+   "statement": 2,
+   "name": "v",
+   "crease_id": 2
+  },
+  {
+   "axiom": "axiom6",
+   "sources": [
+    ".bl",
+    "--mid",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+   "statement": 12,
+   "name": null,
+   "crease_id": 6
+  },
+  null,
+  {
+   "axiom": "axiom6",
+   "sources": [
+    ".br",
+    "--mid",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+   "statement": 10,
+   "name": null,
+   "crease_id": 5
+  },
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".b",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+   "statement": 1,
+   "name": "h",
+   "crease_id": 1
+  },
+  {
+   "axiom": "axiom3",
+   "sources": [
+    ".sr",
+    "--mid"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:31:1-61",
+   "statement": 14,
+   "name": "pb",
+   "crease_id": 8
+  },
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".d",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+   "statement": 2,
+   "name": "v",
+   "crease_id": 2
+  },
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".b",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+   "statement": 1,
+   "name": "h",
+   "crease_id": 1
+  },
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".b",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+   "statement": 1,
+   "name": "h",
+   "crease_id": 1
+  },
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".d",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+   "statement": 2,
+   "name": "v",
+   "crease_id": 2
+  },
+  {
+   "axiom": "axiom3",
+   "sources": [
+    ".sr",
+    "--mid"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:30:1-50",
+   "statement": 13,
+   "name": "pf",
+   "crease_id": 7
+  },
+  {
+   "axiom": "axiom6",
+   "sources": [
+    ".br",
+    "--mid",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+   "statement": 10,
+   "name": null,
+   "crease_id": 5
+  },
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".a",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+   "statement": 0,
+   "name": "bd",
+   "crease_id": 0
+  },
+  {
+   "axiom": "axiom6",
+   "sources": [
+    ".sr",
+    "--mid",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+   "statement": 6,
+   "name": null,
+   "crease_id": 3
+  },
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".a",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+   "statement": 0,
+   "name": "bd",
+   "crease_id": 0
+  },
+  {
+   "axiom": "axiom6",
+   "sources": [
+    ".bl",
+    "--mid",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+   "statement": 12,
+   "name": null,
+   "crease_id": 6
+  },
+  {
+   "axiom": "axiom6",
+   "sources": [
+    ".sl",
+    "--mid",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+   "statement": 8,
+   "name": null,
+   "crease_id": 4
+  },
+  null,
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".b",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+   "statement": 1,
+   "name": "h",
+   "crease_id": 1
+  },
+  null,
+  {
+   "axiom": "axiom2",
+   "sources": [
+    ".d",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+   "statement": 2,
+   "name": "v",
+   "crease_id": 2
+  },
+  null,
+  null,
+  {
+   "axiom": "axiom6",
+   "sources": [
+    ".sl",
+    "--mid",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+   "statement": 8,
+   "name": null,
+   "crease_id": 4
+  },
+  null,
+  null,
+  {
+   "axiom": "axiom6",
+   "sources": [
+    ".sr",
+    "--mid",
+    ".c"
+   ],
+   "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+   "statement": 6,
+   "name": null,
+   "crease_id": 3
+  }
+ ],
+ "beloch:inspect": {
+  "creases": {
+   "0": {
+    "name": "bd",
+    "axiom": "axiom2",
+    "sources": [
+     ".a",
+     ".c"
+    ],
+    "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+    "segments": [
+     {
+      "faces": [
+       5,
+       6
+      ],
+      "paper": [
+       [
+        1,
+        0
+       ],
+       [
+        0.5,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        1,
+        1
+       ],
+       [
+        0.5,
+        0.5
+       ]
+      ],
+      "assignment": "M"
+     },
+     {
+      "faces": [
+       7,
+       8
+      ],
+      "paper": [
+       [
+        0.5,
+        0.5
+       ],
+       [
+        0,
+        1
+       ]
+      ],
+      "table": [
+       [
+        0.5,
+        0.5
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "assignment": "M"
+     }
+    ]
+   },
+   "1": {
+    "name": "h",
+    "axiom": "axiom2",
+    "sources": [
+     ".b",
+     ".c"
+    ],
+    "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+    "segments": [
+     {
+      "faces": [
+       14,
+       9
+      ],
+      "paper": [
+       [
+        0.5,
+        0
+       ],
+       [
+        0.5,
+        0.20710678118654752
+       ]
+      ],
+      "table": [
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ],
+       [
+        0.7928932188134524,
+        0.5
+       ]
+      ],
+      "assignment": "F"
+     },
+     {
+      "faces": [
+       4,
+       6
+      ],
+      "paper": [
+       [
+        0.5,
+        0.20710678118654752
+       ],
+       [
+        0.5,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        0.7928932188134524,
+        0.5
+       ],
+       [
+        0.5,
+        0.5
+       ]
+      ],
+      "assignment": "V"
+     },
+     {
+      "faces": [
+       1,
+       11
+      ],
+      "paper": [
+       [
+        1,
+        0.5
+       ],
+       [
+        0.7928932188134524,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ],
+       [
+        0.7928932188134524,
+        0.5
+       ]
+      ],
+      "assignment": "F"
+     },
+     {
+      "faces": [
+       3,
+       5
+      ],
+      "paper": [
+       [
+        0.7928932188134524,
+        0.5
+       ],
+       [
+        0.5,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        0.7928932188134524,
+        0.5
+       ],
+       [
+        0.5,
+        0.5
+       ]
+      ],
+      "assignment": "V"
+     }
+    ]
+   },
+   "2": {
+    "name": "v",
+    "axiom": "axiom2",
+    "sources": [
+     ".d",
+     ".c"
+    ],
+    "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+    "segments": [
+     {
+      "faces": [
+       13,
+       10
+      ],
+      "paper": [
+       [
+        0.20710678118654752,
+        0.5
+       ],
+       [
+        0,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        0.5,
+        0.7928932188134524
+       ],
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ]
+      ],
+      "assignment": "F"
+     },
+     {
+      "faces": [
+       4,
+       8
+      ],
+      "paper": [
+       [
+        0.5,
+        0.5
+       ],
+       [
+        0.20710678118654752,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        0.5,
+        0.5
+       ],
+       [
+        0.5,
+        0.7928932188134524
+       ]
+      ],
+      "assignment": "V"
+     },
+     {
+      "faces": [
+       0,
+       12
+      ],
+      "paper": [
+       [
+        0.5,
+        0.7928932188134524
+       ],
+       [
+        0.5,
+        1
+       ]
+      ],
+      "table": [
+       [
+        0.5,
+        0.7928932188134524
+       ],
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ]
+      ],
+      "assignment": "F"
+     },
+     {
+      "faces": [
+       3,
+       7
+      ],
+      "paper": [
+       [
+        0.5,
+        0.5
+       ],
+       [
+        0.5,
+        0.7928932188134524
+       ]
+      ],
+      "table": [
+       [
+        0.5,
+        0.5
+       ],
+       [
+        0.5,
+        0.7928932188134524
+       ]
+      ],
+      "assignment": "V"
+     }
+    ]
+   },
+   "3": {
+    "name": null,
+    "axiom": "axiom6",
+    "sources": [
+     ".sr",
+     "--mid",
+     ".c"
+    ],
+    "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+    "segments": [
+     {
+      "faces": [
+       6,
+       9
+      ],
+      "paper": [
+       [
+        1,
+        0
+       ],
+       [
+        0.5,
+        0.20710678118654752
+       ]
+      ],
+      "table": [
+       [
+        1,
+        1
+       ],
+       [
+        0.7928932188134524,
+        0.5
+       ]
+      ],
+      "assignment": "V"
+     },
+     {
+      "faces": [
+       15,
+       14
+      ],
+      "paper": [
+       [
+        0,
+        0
+       ],
+       [
+        0.5,
+        0.20710678118654752
+       ]
+      ],
+      "table": [
+       [
+        0.2928932188134525,
+        0.2928932188134525
+       ],
+       [
+        0.7928932188134524,
+        0.5
+       ]
+      ],
+      "assignment": "V"
+     }
+    ]
+   },
+   "4": {
+    "name": null,
+    "axiom": "axiom6",
+    "sources": [
+     ".sl",
+     "--mid",
+     ".c"
+    ],
+    "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+    "segments": [
+     {
+      "faces": [
+       8,
+       10
+      ],
+      "paper": [
+       [
+        0.20710678118654752,
+        0.5
+       ],
+       [
+        0,
+        1
+       ]
+      ],
+      "table": [
+       [
+        0.5,
+        0.7928932188134524
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "assignment": "V"
+     },
+     {
+      "faces": [
+       15,
+       13
+      ],
+      "paper": [
+       [
+        0.20710678118654752,
+        0.5
+       ],
+       [
+        0,
+        0
+       ]
+      ],
+      "table": [
+       [
+        0.5,
+        0.7928932188134524
+       ],
+       [
+        0.2928932188134525,
+        0.2928932188134525
+       ]
+      ],
+      "assignment": "V"
+     }
+    ]
+   },
+   "5": {
+    "name": null,
+    "axiom": "axiom6",
+    "sources": [
+     ".br",
+     "--mid",
+     ".c"
+    ],
+    "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+    "segments": [
+     {
+      "faces": [
+       5,
+       11
+      ],
+      "paper": [
+       [
+        1,
+        0
+       ],
+       [
+        0.7928932188134524,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        1,
+        1
+       ],
+       [
+        0.7928932188134524,
+        0.5
+       ]
+      ],
+      "assignment": "V"
+     },
+     {
+      "faces": [
+       2,
+       1
+      ],
+      "paper": [
+       [
+        1,
+        1
+       ],
+       [
+        0.7928932188134524,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        0.2928932188134525,
+        0.2928932188134525
+       ],
+       [
+        0.7928932188134524,
+        0.5
+       ]
+      ],
+      "assignment": "V"
+     }
+    ]
+   },
+   "6": {
+    "name": null,
+    "axiom": "axiom6",
+    "sources": [
+     ".bl",
+     "--mid",
+     ".c"
+    ],
+    "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+    "segments": [
+     {
+      "faces": [
+       7,
+       12
+      ],
+      "paper": [
+       [
+        0.5,
+        0.7928932188134524
+       ],
+       [
+        0,
+        1
+       ]
+      ],
+      "table": [
+       [
+        0.5,
+        0.7928932188134524
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "assignment": "V"
+     },
+     {
+      "faces": [
+       2,
+       0
+      ],
+      "paper": [
+       [
+        0.5,
+        0.7928932188134524
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "table": [
+       [
+        0.5,
+        0.7928932188134524
+       ],
+       [
+        0.2928932188134525,
+        0.2928932188134525
+       ]
+      ],
+      "assignment": "V"
+     }
+    ]
+   },
+   "7": {
+    "name": "pf",
+    "axiom": "axiom3",
+    "sources": [
+     ".sr",
+     "--mid"
+    ],
+    "span": "/tmp/beloch-6yZNug/snippet.bel:30:1-50",
+    "segments": [
+     {
+      "faces": [
+       4,
+       15
+      ],
+      "paper": [
+       [
+        0.5,
+        0.20710678118654752
+       ],
+       [
+        0.20710678118654752,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        0.7928932188134524,
+        0.5
+       ],
+       [
+        0.5,
+        0.7928932188134524
+       ]
+      ],
+      "assignment": "M"
+     }
+    ]
+   },
+   "8": {
+    "name": "pb",
+    "axiom": "axiom3",
+    "sources": [
+     ".sr",
+     "--mid"
+    ],
+    "span": "/tmp/beloch-6yZNug/snippet.bel:31:1-61",
+    "segments": [
+     {
+      "faces": [
+       3,
+       2
+      ],
+      "paper": [
+       [
+        0.7928932188134524,
+        0.5
+       ],
+       [
+        0.5,
+        0.7928932188134524
+       ]
+      ],
+      "table": [
+       [
+        0.7928932188134524,
+        0.5
+       ],
+       [
+        0.5,
+        0.7928932188134524
+       ]
+      ],
+      "assignment": "M"
+     }
+    ]
+   }
+  },
+  "faces": {
+   "0": {
+    "vertices": [
+     [
+      1,
+      1
+     ],
+     [
+      0.5,
+      1
+     ],
+     [
+      0.5,
+      0.7928932188134524
+     ]
+    ],
+    "flap": 12,
+    "rank": 1
+   },
+   "1": {
+    "vertices": [
+     [
+      1,
+      0.5
+     ],
+     [
+      1,
+      1
+     ],
+     [
+      0.7928932188134524,
+      0.5
+     ]
+    ],
+    "flap": 11,
+    "rank": 0
+   },
+   "2": {
+    "vertices": [
+     [
+      1,
+      1
+     ],
+     [
+      0.5,
+      0.7928932188134524
+     ],
+     [
+      0.7928932188134524,
+      0.5
+     ]
+    ],
+    "flap": 2,
+    "rank": 2
+   },
+   "3": {
+    "vertices": [
+     [
+      0.5,
+      0.7928932188134524
+     ],
+     [
+      0.5,
+      0.5
+     ],
+     [
+      0.7928932188134524,
+      0.5
+     ]
+    ],
+    "flap": 3,
+    "rank": 3
+   },
+   "4": {
+    "vertices": [
+     [
+      0.5,
+      0.20710678118654752
+     ],
+     [
+      0.5,
+      0.5
+     ],
+     [
+      0.20710678118654752,
+      0.5
+     ]
+    ],
+    "flap": 4,
+    "rank": 12
+   },
+   "5": {
+    "vertices": [
+     [
+      1,
+      0
+     ],
+     [
+      0.7928932188134524,
+      0.5
+     ],
+     [
+      0.5,
+      0.5
+     ]
+    ],
+    "flap": 5,
+    "rank": 7
+   },
+   "6": {
+    "vertices": [
+     [
+      1,
+      0
+     ],
+     [
+      0.5,
+      0.5
+     ],
+     [
+      0.5,
+      0.20710678118654752
+     ]
+    ],
+    "flap": 6,
+    "rank": 8
+   },
+   "7": {
+    "vertices": [
+     [
+      0,
+      1
+     ],
+     [
+      0.5,
+      0.5
+     ],
+     [
+      0.5,
+      0.7928932188134524
+     ]
+    ],
+    "flap": 7,
+    "rank": 5
+   },
+   "8": {
+    "vertices": [
+     [
+      0.5,
+      0.5
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      0.20710678118654752,
+      0.5
+     ]
+    ],
+    "flap": 8,
+    "rank": 10
+   },
+   "9": {
+    "vertices": [
+     [
+      0.5,
+      0
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      0.5,
+      0.20710678118654752
+     ]
+    ],
+    "flap": 9,
+    "rank": 9
+   },
+   "10": {
+    "vertices": [
+     [
+      0,
+      1
+     ],
+     [
+      0,
+      0.5
+     ],
+     [
+      0.20710678118654752,
+      0.5
+     ]
+    ],
+    "flap": 10,
+    "rank": 11
+   },
+   "11": {
+    "vertices": [
+     [
+      1,
+      0
+     ],
+     [
+      1,
+      0.5
+     ],
+     [
+      0.7928932188134524,
+      0.5
+     ]
+    ],
+    "flap": 11,
+    "rank": 6
+   },
+   "12": {
+    "vertices": [
+     [
+      0.5,
+      1
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      0.5,
+      0.7928932188134524
+     ]
+    ],
+    "flap": 12,
+    "rank": 4
+   },
+   "13": {
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      0.20710678118654752,
+      0.5
+     ],
+     [
+      0,
+      0.5
+     ]
+    ],
+    "flap": 10,
+    "rank": 14
+   },
+   "14": {
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      0.5,
+      0
+     ],
+     [
+      0.5,
+      0.20710678118654752
+     ]
+    ],
+    "flap": 9,
+    "rank": 15
+   },
+   "15": {
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      0.5,
+      0.20710678118654752
+     ],
+     [
+      0.20710678118654752,
+      0.5
+     ]
+    ],
+    "flap": 15,
+    "rank": 13
+   }
+  },
+  "points": {
+   "a": {
+    "face": null,
+    "flap": null
+   },
+   "b": {
+    "face": null,
+    "flap": null
+   },
+   "bl": {
+    "face": null,
+    "flap": null
+   },
+   "br": {
+    "face": null,
+    "flap": null
+   },
+   "c": {
+    "face": null,
+    "flap": null
+   },
+   "d": {
+    "face": null,
+    "flap": null
+   },
+   "o": {
+    "face": null,
+    "flap": null
+   },
+   "sl": {
+    "face": null,
+    "flap": null
+   },
+   "sr": {
+    "face": null,
+    "flap": null
+   }
+  },
+  "edges": {
+   "ab": {
+    "name": "ab",
+    "assignment": "B",
+    "segments": [
+     {
+      "faces": [
+       9
+      ],
+      "paper": [
+       [
+        0.5,
+        0
+       ],
+       [
+        1,
+        0
+       ]
+      ],
+      "table": [
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "assignment": "B"
+     },
+     {
+      "faces": [
+       14
+      ],
+      "paper": [
+       [
+        0,
+        0
+       ],
+       [
+        0.5,
+        0
+       ]
+      ],
+      "table": [
+       [
+        0.2928932188134525,
+        0.2928932188134525
+       ],
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ]
+      ],
+      "assignment": "B"
+     }
+    ]
+   },
+   "da": {
+    "name": "da",
+    "assignment": "B",
+    "segments": [
+     {
+      "faces": [
+       10
+      ],
+      "paper": [
+       [
+        0,
+        1
+       ],
+       [
+        0,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        1,
+        1
+       ],
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ]
+      ],
+      "assignment": "B"
+     },
+     {
+      "faces": [
+       13
+      ],
+      "paper": [
+       [
+        0,
+        0.5
+       ],
+       [
+        0,
+        0
+       ]
+      ],
+      "table": [
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ],
+       [
+        0.2928932188134525,
+        0.2928932188134525
+       ]
+      ],
+      "assignment": "B"
+     }
+    ]
+   },
+   "cd": {
+    "name": "cd",
+    "assignment": "B",
+    "segments": [
+     {
+      "faces": [
+       0
+      ],
+      "paper": [
+       [
+        1,
+        1
+       ],
+       [
+        0.5,
+        1
+       ]
+      ],
+      "table": [
+       [
+        0.2928932188134525,
+        0.2928932188134525
+       ],
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ]
+      ],
+      "assignment": "B"
+     },
+     {
+      "faces": [
+       12
+      ],
+      "paper": [
+       [
+        0.5,
+        1
+       ],
+       [
+        0,
+        1
+       ]
+      ],
+      "table": [
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "assignment": "B"
+     }
+    ]
+   },
+   "bc": {
+    "name": "bc",
+    "assignment": "B",
+    "segments": [
+     {
+      "faces": [
+       1
+      ],
+      "paper": [
+       [
+        1,
+        0.5
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "table": [
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ],
+       [
+        0.2928932188134525,
+        0.2928932188134525
+       ]
+      ],
+      "assignment": "B"
+     },
+     {
+      "faces": [
+       11
+      ],
+      "paper": [
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        0.5
+       ]
+      ],
+      "table": [
+       [
+        1,
+        1
+       ],
+       [
+        0.6464466094067263,
+        0.6464466094067263
+       ]
+      ],
+      "assignment": "B"
+     }
+    ]
+   }
+  }
+ },
+ "beloch:vertices_names": [
+  "c",
+  "bl",
+  null,
+  "br",
+  null,
+  "o",
+  null,
+  null,
+  "b",
+  "d",
+  "sr",
+  "sl",
+  "a"
+ ],
+ "beloch:named_points": {
+  "a": {
+   "paper": [
+    0,
+    0
+   ],
+   "table": [
+    0.2928932188134525,
+    0.2928932188134525
+   ],
+   "step": 0,
+   "statement": null
+  },
+  "b": {
+   "paper": [
+    1,
+    0
+   ],
+   "table": [
+    1,
+    1
+   ],
+   "step": 0,
+   "statement": null
+  },
+  "bl": {
+   "paper": [
+    0.5,
+    1
+   ],
+   "table": [
+    0.6464466094067263,
+    0.6464466094067263
+   ],
+   "step": 6,
+   "statement": 11
+  },
+  "br": {
+   "paper": [
+    1,
+    0.5
+   ],
+   "table": [
+    0.6464466094067263,
+    0.6464466094067263
+   ],
+   "step": 5,
+   "statement": 9
+  },
+  "c": {
+   "paper": [
+    1,
+    1
+   ],
+   "table": [
+    0.2928932188134525,
+    0.2928932188134525
+   ],
+   "step": 0,
+   "statement": null
+  },
+  "d": {
+   "paper": [
+    0,
+    1
+   ],
+   "table": [
+    1,
+    1
+   ],
+   "step": 0,
+   "statement": null
+  },
+  "o": {
+   "paper": [
+    0.5,
+    0.5
+   ],
+   "table": [
+    0.5,
+    0.5
+   ],
+   "step": 3,
+   "statement": 3
+  },
+  "sl": {
+   "paper": [
+    0,
+    0.5
+   ],
+   "table": [
+    0.6464466094067263,
+    0.6464466094067263
+   ],
+   "step": 4,
+   "statement": 7
+  },
+  "sr": {
+   "paper": [
+    0.5,
+    0
+   ],
+   "table": [
+    0.6464466094067263,
+    0.6464466094067263
+   ],
+   "step": 3,
+   "statement": 5
+  }
+ },
+ "beloch:named_lines": {
+  "bd": {
+   "coeffs": [
+    -0.5,
+    0.5,
+    0
+   ],
+   "step": 1,
+   "statement": 0
+  },
+  "mid": {
+   "coeffs": [
+    -0.5,
+    0.5,
+    0
+   ],
+   "step": 3,
+   "statement": 4
+  },
+  "pb": {
+   "coeffs": [
+    0.5,
+    0.5,
+    0.6464466094067263
+   ],
+   "step": 9,
+   "statement": 14
+  },
+  "pf": {
+   "coeffs": [
+    0.5,
+    0.5,
+    0.6464466094067263
+   ],
+   "step": 8,
+   "statement": 13
+  }
+ },
+ "beloch:named_lines_frame": "creasePattern",
+ "beloch:marks": [],
+ "beloch:free": {},
+ "beloch:statements": [
+  {
+   "mark": null,
+   "kind": "fold",
+   "source_line": 11,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+   "frame_index": 1,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "fold",
+   "source_line": 12,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+   "frame_index": 2,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "fold",
+   "source_line": 13,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+   "frame_index": 3,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "bind",
+   "source_line": 15,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:15:1-15",
+   "frame_index": 3,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "bind",
+   "source_line": 16,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:16:1-24",
+   "frame_index": 3,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "bind",
+   "source_line": 18,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:18:1-17",
+   "frame_index": 3,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "fold",
+   "source_line": 19,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+   "frame_index": 4,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "bind",
+   "source_line": 21,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:21:1-17",
+   "frame_index": 4,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "fold",
+   "source_line": 22,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+   "frame_index": 5,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "bind",
+   "source_line": 24,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:24:1-17",
+   "frame_index": 5,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "fold",
+   "source_line": 25,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+   "frame_index": 6,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "bind",
+   "source_line": 27,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:27:1-17",
+   "frame_index": 6,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "fold",
+   "source_line": 28,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+   "frame_index": 7,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "fold",
+   "source_line": 30,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:30:1-50",
+   "frame_index": 8,
+   "kept_marks": []
+  },
+  {
+   "mark": null,
+   "kind": "fold",
+   "source_line": 31,
+   "span": "/tmp/beloch-6yZNug/snippet.bel:31:1-61",
+   "frame_index": 9,
+   "kept_marks": []
+  }
+ ],
+ "beloch:references": [
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:15:6-9",
+   "crease_id": 1
+  },
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:15:12-15",
+   "crease_id": 2
+  },
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:18:7-11",
+   "edge": "ab"
+  },
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:18:14-17",
+   "crease_id": 1
+  },
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:21:7-11",
+   "edge": "da"
+  },
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:21:14-17",
+   "crease_id": 2
+  },
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:24:7-11",
+   "edge": "bc"
+  },
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:24:14-17",
+   "crease_id": 1
+  },
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:27:7-11",
+   "edge": "cd"
+  },
+  {
+   "span": "/tmp/beloch-6yZNug/snippet.bel:27:14-17",
+   "crease_id": 2
+  }
+ ],
+ "file_frames": [
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0,
+     1
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     0
+    ]
+   ],
+   "edges_assignment": [
+    "B",
+    "B",
+    "B",
+    "B"
+   ],
+   "edges_foldAngle": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2,
+     3
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ]
+   ],
+   "faceOrders": [],
+   "beloch:source_line": null,
+   "beloch:edges": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "beloch:vertices_names": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ]
+  },
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     1
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     0
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     2,
+     3
+    ]
+   ],
+   "edges_assignment": [
+    "B",
+    "B",
+    "V",
+    "B",
+    "B"
+   ],
+   "edges_foldAngle": [
+    0,
+    0,
+    180,
+    0,
+    0
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2
+    ],
+    [
+     3,
+     0,
+     2
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1,
+     1
+    ]
+   ],
+   "faceOrders": [
+    [
+     0,
+     1,
+     1
+    ]
+   ],
+   "beloch:source_line": 11,
+   "beloch:edges": [
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    null,
+    null
+   ],
+   "beloch:vertices_names": [
+    "b",
+    "c",
+    "d",
+    "a"
+   ]
+  },
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     1,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     0.5,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     0.5
+    ],
+    [
+     1,
+     1
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     2,
+     4
+    ],
+    [
+     6,
+     0
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     5,
+     6
+    ]
+   ],
+   "edges_assignment": [
+    "B",
+    "B",
+    "V",
+    "V",
+    "B",
+    "V",
+    "B",
+    "B",
+    "M",
+    "B"
+   ],
+   "edges_foldAngle": [
+    0,
+    0,
+    180,
+    180,
+    0,
+    180,
+    0,
+    0,
+    -180,
+    0
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2,
+     3
+    ],
+    [
+     4,
+     5,
+     3,
+     2
+    ],
+    [
+     6,
+     0,
+     3
+    ],
+    [
+     5,
+     6,
+     3
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1,
+     1
+    ],
+    [
+     1,
+     0,
+     0,
+     -1,
+     0,
+     1
+    ],
+    [
+     0,
+     -1,
+     1,
+     0,
+     1,
+     0
+    ]
+   ],
+   "faceOrders": [
+    [
+     0,
+     1,
+     1
+    ],
+    [
+     0,
+     2,
+     1
+    ],
+    [
+     0,
+     3,
+     -1
+    ],
+    [
+     1,
+     2,
+     -1
+    ],
+    [
+     1,
+     3,
+     1
+    ],
+    [
+     2,
+     3,
+     -1
+    ]
+   ],
+   "beloch:source_line": 12,
+   "beloch:edges": [
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    null
+   ],
+   "beloch:vertices_names": [
+    "br",
+    "c",
+    "d",
+    "o",
+    "a",
+    "sr",
+    "b"
+   ]
+  },
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     1,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.5,
+     1
+    ],
+    [
+     0.5,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     0.5
+    ],
+    [
+     0.5,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     1
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     7,
+     0
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     8,
+     3
+    ],
+    [
+     8,
+     6
+    ]
+   ],
+   "edges_assignment": [
+    "B",
+    "B",
+    "V",
+    "V",
+    "B",
+    "V",
+    "V",
+    "B",
+    "B",
+    "M",
+    "B",
+    "B",
+    "M",
+    "B"
+   ],
+   "edges_foldAngle": [
+    0,
+    0,
+    180,
+    180,
+    0,
+    180,
+    180,
+    0,
+    0,
+    -180,
+    0,
+    0,
+    -180,
+    0
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2,
+     3
+    ],
+    [
+     4,
+     5,
+     3,
+     6
+    ],
+    [
+     7,
+     0,
+     3
+    ],
+    [
+     5,
+     7,
+     3
+    ],
+    [
+     2,
+     8,
+     3
+    ],
+    [
+     3,
+     8,
+     6
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1,
+     1
+    ],
+    [
+     1,
+     0,
+     0,
+     -1,
+     0,
+     1
+    ],
+    [
+     0,
+     -1,
+     1,
+     0,
+     1,
+     0
+    ],
+    [
+     -1,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    [
+     0,
+     1,
+     -1,
+     0,
+     0,
+     1
+    ]
+   ],
+   "faceOrders": [
+    [
+     0,
+     1,
+     1
+    ],
+    [
+     0,
+     2,
+     1
+    ],
+    [
+     0,
+     3,
+     -1
+    ],
+    [
+     0,
+     4,
+     1
+    ],
+    [
+     0,
+     5,
+     -1
+    ],
+    [
+     1,
+     2,
+     -1
+    ],
+    [
+     1,
+     3,
+     1
+    ],
+    [
+     1,
+     4,
+     -1
+    ],
+    [
+     1,
+     5,
+     1
+    ],
+    [
+     2,
+     3,
+     -1
+    ],
+    [
+     4,
+     5,
+     -1
+    ]
+   ],
+   "beloch:source_line": 13,
+   "beloch:edges": [
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    null
+   ],
+   "beloch:vertices_names": [
+    "br",
+    "c",
+    "bl",
+    "o",
+    "a",
+    "sr",
+    "sl",
+    "b",
+    "d"
+   ]
+  },
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     1,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.5,
+     1
+    ],
+    [
+     0.5,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     0.5,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     7,
+     0
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     8,
+     3
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     9,
+     7
+    ],
+    [
+     5,
+     9
+    ],
+    [
+     4,
+     9
+    ]
+   ],
+   "edges_assignment": [
+    "B",
+    "B",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "B",
+    "B",
+    "M",
+    "V",
+    "B",
+    "M",
+    "B",
+    "B",
+    "M",
+    "B"
+   ],
+   "edges_foldAngle": [
+    0,
+    0,
+    180,
+    180,
+    180,
+    180,
+    180,
+    0,
+    0,
+    -180,
+    180,
+    0,
+    -180,
+    0,
+    0,
+    -180,
+    0
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2,
+     3
+    ],
+    [
+     4,
+     5,
+     3,
+     6
+    ],
+    [
+     7,
+     0,
+     3
+    ],
+    [
+     7,
+     3,
+     5
+    ],
+    [
+     2,
+     8,
+     3
+    ],
+    [
+     3,
+     8,
+     6
+    ],
+    [
+     9,
+     7,
+     5
+    ],
+    [
+     4,
+     9,
+     5
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1,
+     1
+    ],
+    [
+     1,
+     0,
+     0,
+     -1,
+     0,
+     1
+    ],
+    [
+     0,
+     -1,
+     1,
+     0,
+     1,
+     0
+    ],
+    [
+     -1,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    [
+     0,
+     1,
+     -1,
+     0,
+     0,
+     1
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.7071067811865476,
+     1,
+     1
+    ]
+   ],
+   "faceOrders": [
+    [
+     0,
+     1,
+     1
+    ],
+    [
+     0,
+     2,
+     1
+    ],
+    [
+     0,
+     3,
+     -1
+    ],
+    [
+     0,
+     4,
+     1
+    ],
+    [
+     0,
+     5,
+     -1
+    ],
+    [
+     0,
+     6,
+     1
+    ],
+    [
+     0,
+     7,
+     -1
+    ],
+    [
+     1,
+     2,
+     -1
+    ],
+    [
+     1,
+     3,
+     1
+    ],
+    [
+     1,
+     4,
+     -1
+    ],
+    [
+     1,
+     5,
+     1
+    ],
+    [
+     1,
+     6,
+     -1
+    ],
+    [
+     1,
+     7,
+     1
+    ],
+    [
+     2,
+     3,
+     -1
+    ],
+    [
+     2,
+     6,
+     1
+    ],
+    [
+     2,
+     7,
+     -1
+    ],
+    [
+     3,
+     6,
+     1
+    ],
+    [
+     3,
+     7,
+     -1
+    ],
+    [
+     4,
+     5,
+     -1
+    ],
+    [
+     6,
+     7,
+     -1
+    ]
+   ],
+   "beloch:source_line": 19,
+   "beloch:edges": [
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null
+   ],
+   "beloch:vertices_names": [
+    "br",
+    "c",
+    "bl",
+    "o",
+    "a",
+    null,
+    "sl",
+    "b",
+    "d",
+    "sr"
+   ]
+  },
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     1,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.5,
+     1
+    ],
+    [
+     0.5,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     0.5,
+     0.7928932188134524
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     7,
+     0
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     8,
+     3
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     9,
+     7
+    ],
+    [
+     5,
+     9
+    ],
+    [
+     4,
+     9
+    ],
+    [
+     8,
+     10
+    ],
+    [
+     10,
+     6
+    ],
+    [
+     10,
+     4
+    ]
+   ],
+   "edges_assignment": [
+    "B",
+    "B",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "B",
+    "M",
+    "V",
+    "B",
+    "M",
+    "V",
+    "B",
+    "M",
+    "B",
+    "B",
+    "M",
+    "B"
+   ],
+   "edges_foldAngle": [
+    0,
+    0,
+    180,
+    180,
+    180,
+    180,
+    180,
+    180,
+    0,
+    -180,
+    180,
+    0,
+    -180,
+    180,
+    0,
+    -180,
+    0,
+    0,
+    -180,
+    0
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2,
+     3
+    ],
+    [
+     4,
+     5,
+     3,
+     6
+    ],
+    [
+     7,
+     0,
+     3
+    ],
+    [
+     7,
+     3,
+     5
+    ],
+    [
+     2,
+     8,
+     3
+    ],
+    [
+     3,
+     8,
+     6
+    ],
+    [
+     9,
+     7,
+     5
+    ],
+    [
+     4,
+     9,
+     5
+    ],
+    [
+     8,
+     10,
+     6
+    ],
+    [
+     4,
+     6,
+     10
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1,
+     1
+    ],
+    [
+     1,
+     0,
+     0,
+     -1,
+     0,
+     1
+    ],
+    [
+     0,
+     -1,
+     1,
+     0,
+     1,
+     0
+    ],
+    [
+     -1,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    [
+     0,
+     1,
+     -1,
+     0,
+     0,
+     1
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.7071067811865476,
+     1,
+     1
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     1,
+     1
+    ]
+   ],
+   "faceOrders": [
+    [
+     0,
+     1,
+     1
+    ],
+    [
+     0,
+     2,
+     1
+    ],
+    [
+     0,
+     3,
+     -1
+    ],
+    [
+     0,
+     4,
+     1
+    ],
+    [
+     0,
+     5,
+     -1
+    ],
+    [
+     0,
+     6,
+     1
+    ],
+    [
+     0,
+     7,
+     -1
+    ],
+    [
+     0,
+     8,
+     1
+    ],
+    [
+     0,
+     9,
+     -1
+    ],
+    [
+     1,
+     2,
+     -1
+    ],
+    [
+     1,
+     3,
+     1
+    ],
+    [
+     1,
+     4,
+     -1
+    ],
+    [
+     1,
+     5,
+     1
+    ],
+    [
+     1,
+     6,
+     -1
+    ],
+    [
+     1,
+     7,
+     1
+    ],
+    [
+     1,
+     8,
+     -1
+    ],
+    [
+     1,
+     9,
+     1
+    ],
+    [
+     2,
+     3,
+     -1
+    ],
+    [
+     2,
+     6,
+     1
+    ],
+    [
+     2,
+     7,
+     -1
+    ],
+    [
+     3,
+     6,
+     1
+    ],
+    [
+     3,
+     7,
+     -1
+    ],
+    [
+     4,
+     5,
+     -1
+    ],
+    [
+     4,
+     8,
+     1
+    ],
+    [
+     4,
+     9,
+     -1
+    ],
+    [
+     5,
+     8,
+     1
+    ],
+    [
+     5,
+     9,
+     -1
+    ],
+    [
+     6,
+     7,
+     -1
+    ],
+    [
+     8,
+     9,
+     -1
+    ]
+   ],
+   "beloch:source_line": 22,
+   "beloch:edges": [
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    null
+   ],
+   "beloch:vertices_names": [
+    "br",
+    "c",
+    "bl",
+    "o",
+    "a",
+    null,
+    null,
+    "b",
+    "d",
+    "sr",
+    "sl"
+   ]
+  },
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     1,
+     1
+    ],
+    [
+     0.5,
+     1
+    ],
+    [
+     0.5,
+     0.5
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     0.5,
+     0.7928932188134524
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     2
+    ],
+    [
+     2,
+     6
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     7,
+     3
+    ],
+    [
+     2,
+     7
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     8,
+     2
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     9,
+     7
+    ],
+    [
+     5,
+     9
+    ],
+    [
+     4,
+     9
+    ],
+    [
+     8,
+     10
+    ],
+    [
+     10,
+     6
+    ],
+    [
+     10,
+     4
+    ],
+    [
+     11,
+     0
+    ],
+    [
+     3,
+     11
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "edges_assignment": [
+    "B",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "M",
+    "V",
+    "B",
+    "M",
+    "V",
+    "B",
+    "M",
+    "B",
+    "B",
+    "M",
+    "B",
+    "B",
+    "M",
+    "B"
+   ],
+   "edges_foldAngle": [
+    0,
+    180,
+    180,
+    180,
+    180,
+    180,
+    180,
+    180,
+    180,
+    -180,
+    180,
+    0,
+    -180,
+    180,
+    0,
+    -180,
+    0,
+    0,
+    -180,
+    0,
+    0,
+    -180,
+    0
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2,
+     3
+    ],
+    [
+     4,
+     5,
+     2,
+     6
+    ],
+    [
+     7,
+     3,
+     2
+    ],
+    [
+     7,
+     2,
+     5
+    ],
+    [
+     1,
+     8,
+     2
+    ],
+    [
+     2,
+     8,
+     6
+    ],
+    [
+     9,
+     7,
+     5
+    ],
+    [
+     4,
+     9,
+     5
+    ],
+    [
+     8,
+     10,
+     6
+    ],
+    [
+     4,
+     6,
+     10
+    ],
+    [
+     11,
+     0,
+     3
+    ],
+    [
+     7,
+     11,
+     3
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1,
+     1
+    ],
+    [
+     1,
+     0,
+     0,
+     -1,
+     0,
+     1
+    ],
+    [
+     0,
+     -1,
+     1,
+     0,
+     1,
+     0
+    ],
+    [
+     -1,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    [
+     0,
+     1,
+     -1,
+     0,
+     0,
+     1
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.7071067811865476,
+     1,
+     1
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     1,
+     1
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     1,
+     -0.41421356237309503
+    ],
+    [
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     1.7071067811865475,
+     0.2928932188134525
+    ]
+   ],
+   "faceOrders": [
+    [
+     0,
+     1,
+     1
+    ],
+    [
+     0,
+     2,
+     1
+    ],
+    [
+     0,
+     3,
+     -1
+    ],
+    [
+     0,
+     4,
+     1
+    ],
+    [
+     0,
+     5,
+     -1
+    ],
+    [
+     0,
+     6,
+     1
+    ],
+    [
+     0,
+     7,
+     -1
+    ],
+    [
+     0,
+     8,
+     1
+    ],
+    [
+     0,
+     9,
+     -1
+    ],
+    [
+     0,
+     10,
+     1
+    ],
+    [
+     0,
+     11,
+     -1
+    ],
+    [
+     1,
+     2,
+     -1
+    ],
+    [
+     1,
+     3,
+     1
+    ],
+    [
+     1,
+     4,
+     -1
+    ],
+    [
+     1,
+     5,
+     1
+    ],
+    [
+     1,
+     6,
+     -1
+    ],
+    [
+     1,
+     7,
+     1
+    ],
+    [
+     1,
+     8,
+     -1
+    ],
+    [
+     1,
+     9,
+     1
+    ],
+    [
+     1,
+     10,
+     -1
+    ],
+    [
+     1,
+     11,
+     1
+    ],
+    [
+     2,
+     3,
+     -1
+    ],
+    [
+     2,
+     6,
+     1
+    ],
+    [
+     2,
+     7,
+     -1
+    ],
+    [
+     2,
+     10,
+     -1
+    ],
+    [
+     2,
+     11,
+     1
+    ],
+    [
+     3,
+     6,
+     1
+    ],
+    [
+     3,
+     7,
+     -1
+    ],
+    [
+     3,
+     10,
+     -1
+    ],
+    [
+     3,
+     11,
+     1
+    ],
+    [
+     4,
+     5,
+     -1
+    ],
+    [
+     4,
+     8,
+     1
+    ],
+    [
+     4,
+     9,
+     -1
+    ],
+    [
+     5,
+     8,
+     1
+    ],
+    [
+     5,
+     9,
+     -1
+    ],
+    [
+     6,
+     7,
+     -1
+    ],
+    [
+     6,
+     10,
+     -1
+    ],
+    [
+     6,
+     11,
+     1
+    ],
+    [
+     7,
+     10,
+     -1
+    ],
+    [
+     7,
+     11,
+     1
+    ],
+    [
+     8,
+     9,
+     -1
+    ],
+    [
+     10,
+     11,
+     -1
+    ]
+   ],
+   "beloch:source_line": 25,
+   "beloch:edges": [
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".br",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+     "statement": 10,
+     "name": null,
+     "crease_id": 5
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".br",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+     "statement": 10,
+     "name": null,
+     "crease_id": 5
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null
+   ],
+   "beloch:vertices_names": [
+    "c",
+    "bl",
+    "o",
+    null,
+    "a",
+    null,
+    null,
+    "b",
+    "d",
+    "sr",
+    "sl",
+    "br"
+   ]
+  },
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     1,
+     1
+    ],
+    [
+     0.5,
+     0.7928932188134524
+    ],
+    [
+     0.5,
+     0.5
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     0.5,
+     0.7928932188134524
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     2
+    ],
+    [
+     2,
+     6
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     7,
+     3
+    ],
+    [
+     2,
+     7
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     8,
+     2
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     9,
+     7
+    ],
+    [
+     5,
+     9
+    ],
+    [
+     4,
+     9
+    ],
+    [
+     8,
+     10
+    ],
+    [
+     10,
+     6
+    ],
+    [
+     10,
+     4
+    ],
+    [
+     11,
+     0
+    ],
+    [
+     3,
+     11
+    ],
+    [
+     7,
+     11
+    ],
+    [
+     0,
+     12
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     12,
+     8
+    ]
+   ],
+   "edges_assignment": [
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "M",
+    "V",
+    "M",
+    "V",
+    "V",
+    "B",
+    "M",
+    "B",
+    "B",
+    "M",
+    "B",
+    "B",
+    "M",
+    "B",
+    "B",
+    "M",
+    "B"
+   ],
+   "edges_foldAngle": [
+    180,
+    180,
+    180,
+    180,
+    180,
+    180,
+    180,
+    180,
+    180,
+    -180,
+    180,
+    -180,
+    180,
+    180,
+    0,
+    -180,
+    0,
+    0,
+    -180,
+    0,
+    0,
+    -180,
+    0,
+    0,
+    -180,
+    0
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2,
+     3
+    ],
+    [
+     4,
+     5,
+     2,
+     6
+    ],
+    [
+     7,
+     3,
+     2
+    ],
+    [
+     7,
+     2,
+     5
+    ],
+    [
+     8,
+     2,
+     1
+    ],
+    [
+     2,
+     8,
+     6
+    ],
+    [
+     9,
+     7,
+     5
+    ],
+    [
+     4,
+     9,
+     5
+    ],
+    [
+     8,
+     10,
+     6
+    ],
+    [
+     4,
+     6,
+     10
+    ],
+    [
+     11,
+     0,
+     3
+    ],
+    [
+     7,
+     11,
+     3
+    ],
+    [
+     0,
+     12,
+     1
+    ],
+    [
+     12,
+     8,
+     1
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1,
+     1
+    ],
+    [
+     1,
+     0,
+     0,
+     -1,
+     0,
+     1
+    ],
+    [
+     0,
+     -1,
+     1,
+     0,
+     1,
+     0
+    ],
+    [
+     -1,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    [
+     0,
+     1,
+     -1,
+     0,
+     0,
+     1
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.7071067811865476,
+     1,
+     1
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     1,
+     1
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     1,
+     -0.41421356237309503
+    ],
+    [
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     1.7071067811865475,
+     0.2928932188134525
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.41421356237309503,
+     1
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     1.7071067811865475
+    ]
+   ],
+   "faceOrders": [
+    [
+     0,
+     1,
+     1
+    ],
+    [
+     0,
+     2,
+     1
+    ],
+    [
+     0,
+     3,
+     -1
+    ],
+    [
+     0,
+     4,
+     1
+    ],
+    [
+     0,
+     5,
+     -1
+    ],
+    [
+     0,
+     6,
+     1
+    ],
+    [
+     0,
+     7,
+     -1
+    ],
+    [
+     0,
+     8,
+     1
+    ],
+    [
+     0,
+     9,
+     -1
+    ],
+    [
+     0,
+     10,
+     1
+    ],
+    [
+     0,
+     11,
+     -1
+    ],
+    [
+     0,
+     12,
+     1
+    ],
+    [
+     0,
+     13,
+     -1
+    ],
+    [
+     1,
+     2,
+     -1
+    ],
+    [
+     1,
+     3,
+     1
+    ],
+    [
+     1,
+     4,
+     -1
+    ],
+    [
+     1,
+     5,
+     1
+    ],
+    [
+     1,
+     6,
+     -1
+    ],
+    [
+     1,
+     7,
+     1
+    ],
+    [
+     1,
+     8,
+     -1
+    ],
+    [
+     1,
+     9,
+     1
+    ],
+    [
+     1,
+     10,
+     -1
+    ],
+    [
+     1,
+     11,
+     1
+    ],
+    [
+     1,
+     12,
+     -1
+    ],
+    [
+     1,
+     13,
+     1
+    ],
+    [
+     2,
+     3,
+     -1
+    ],
+    [
+     2,
+     6,
+     1
+    ],
+    [
+     2,
+     7,
+     -1
+    ],
+    [
+     2,
+     10,
+     -1
+    ],
+    [
+     2,
+     11,
+     1
+    ],
+    [
+     3,
+     6,
+     1
+    ],
+    [
+     3,
+     7,
+     -1
+    ],
+    [
+     3,
+     10,
+     -1
+    ],
+    [
+     3,
+     11,
+     1
+    ],
+    [
+     4,
+     5,
+     -1
+    ],
+    [
+     4,
+     8,
+     1
+    ],
+    [
+     4,
+     9,
+     -1
+    ],
+    [
+     4,
+     12,
+     -1
+    ],
+    [
+     4,
+     13,
+     1
+    ],
+    [
+     5,
+     8,
+     1
+    ],
+    [
+     5,
+     9,
+     -1
+    ],
+    [
+     5,
+     12,
+     -1
+    ],
+    [
+     5,
+     13,
+     1
+    ],
+    [
+     6,
+     7,
+     -1
+    ],
+    [
+     6,
+     10,
+     -1
+    ],
+    [
+     6,
+     11,
+     1
+    ],
+    [
+     7,
+     10,
+     -1
+    ],
+    [
+     7,
+     11,
+     1
+    ],
+    [
+     8,
+     9,
+     -1
+    ],
+    [
+     8,
+     12,
+     -1
+    ],
+    [
+     8,
+     13,
+     1
+    ],
+    [
+     9,
+     12,
+     -1
+    ],
+    [
+     9,
+     13,
+     1
+    ],
+    [
+     10,
+     11,
+     -1
+    ],
+    [
+     12,
+     13,
+     -1
+    ]
+   ],
+   "beloch:source_line": 28,
+   "beloch:edges": [
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".bl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+     "statement": 12,
+     "name": null,
+     "crease_id": 6
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".br",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+     "statement": 10,
+     "name": null,
+     "crease_id": 5
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".br",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+     "statement": 10,
+     "name": null,
+     "crease_id": 5
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".bl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+     "statement": 12,
+     "name": null,
+     "crease_id": 6
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    null
+   ],
+   "beloch:vertices_names": [
+    "c",
+    null,
+    "o",
+    null,
+    "a",
+    null,
+    null,
+    "b",
+    "d",
+    "sr",
+    "sl",
+    "br",
+    "bl"
+   ]
+  },
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     1,
+     1
+    ],
+    [
+     0.5,
+     0.7928932188134524
+    ],
+    [
+     0.5,
+     0.5
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     0.5,
+     0.7928932188134524
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.2928932188134525,
+     0.2928932188134525
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     2
+    ],
+    [
+     2,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     6,
+     3
+    ],
+    [
+     2,
+     6
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     7,
+     2
+    ],
+    [
+     1,
+     7
+    ],
+    [
+     7,
+     5
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     4,
+     8
+    ],
+    [
+     7,
+     9
+    ],
+    [
+     9,
+     5
+    ],
+    [
+     10,
+     0
+    ],
+    [
+     3,
+     10
+    ],
+    [
+     6,
+     10
+    ],
+    [
+     0,
+     11
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     11,
+     7
+    ],
+    [
+     12,
+     5
+    ],
+    [
+     9,
+     12
+    ],
+    [
+     12,
+     8
+    ],
+    [
+     4,
+     12
+    ]
+   ],
+   "edges_assignment": [
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "V",
+    "M",
+    "V",
+    "M",
+    "V",
+    "M",
+    "V",
+    "V",
+    "B",
+    "F",
+    "B",
+    "F",
+    "B",
+    "M",
+    "B",
+    "B",
+    "M",
+    "B",
+    "V",
+    "B",
+    "B",
+    "V"
+   ],
+   "edges_foldAngle": [
+    180,
+    180,
+    180,
+    180,
+    180,
+    180,
+    -180,
+    180,
+    -180,
+    180,
+    -180,
+    180,
+    180,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -180,
+    0,
+    0,
+    -180,
+    0,
+    180,
+    0,
+    0,
+    180
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2,
+     3
+    ],
+    [
+     4,
+     2,
+     5
+    ],
+    [
+     6,
+     3,
+     2
+    ],
+    [
+     6,
+     2,
+     4
+    ],
+    [
+     7,
+     2,
+     1
+    ],
+    [
+     2,
+     7,
+     5
+    ],
+    [
+     8,
+     6,
+     4
+    ],
+    [
+     7,
+     9,
+     5
+    ],
+    [
+     10,
+     0,
+     3
+    ],
+    [
+     6,
+     10,
+     3
+    ],
+    [
+     0,
+     11,
+     1
+    ],
+    [
+     11,
+     7,
+     1
+    ],
+    [
+     12,
+     5,
+     9
+    ],
+    [
+     12,
+     8,
+     4
+    ],
+    [
+     12,
+     4,
+     5
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1,
+     1
+    ],
+    [
+     1,
+     0,
+     0,
+     -1,
+     0,
+     1
+    ],
+    [
+     0,
+     -1,
+     1,
+     0,
+     1,
+     0
+    ],
+    [
+     -1,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    [
+     0,
+     1,
+     -1,
+     0,
+     0,
+     1
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     1,
+     -0.41421356237309503
+    ],
+    [
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     1.7071067811865475,
+     0.2928932188134525
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.41421356237309503,
+     1
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     1.7071067811865475
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     1,
+     0,
+     0,
+     1,
+     0.2928932188134525,
+     0.2928932188134525
+    ]
+   ],
+   "faceOrders": [
+    [
+     0,
+     1,
+     1
+    ],
+    [
+     0,
+     2,
+     1
+    ],
+    [
+     0,
+     3,
+     -1
+    ],
+    [
+     0,
+     4,
+     1
+    ],
+    [
+     0,
+     5,
+     -1
+    ],
+    [
+     0,
+     6,
+     1
+    ],
+    [
+     0,
+     7,
+     1
+    ],
+    [
+     0,
+     8,
+     1
+    ],
+    [
+     0,
+     9,
+     -1
+    ],
+    [
+     0,
+     10,
+     1
+    ],
+    [
+     0,
+     11,
+     -1
+    ],
+    [
+     0,
+     12,
+     1
+    ],
+    [
+     0,
+     13,
+     1
+    ],
+    [
+     0,
+     14,
+     -1
+    ],
+    [
+     1,
+     2,
+     -1
+    ],
+    [
+     1,
+     3,
+     1
+    ],
+    [
+     1,
+     4,
+     -1
+    ],
+    [
+     1,
+     5,
+     1
+    ],
+    [
+     1,
+     12,
+     1
+    ],
+    [
+     1,
+     13,
+     1
+    ],
+    [
+     1,
+     14,
+     -1
+    ],
+    [
+     2,
+     3,
+     -1
+    ],
+    [
+     2,
+     6,
+     1
+    ],
+    [
+     2,
+     8,
+     -1
+    ],
+    [
+     2,
+     9,
+     1
+    ],
+    [
+     2,
+     13,
+     1
+    ],
+    [
+     2,
+     14,
+     -1
+    ],
+    [
+     3,
+     6,
+     1
+    ],
+    [
+     3,
+     8,
+     -1
+    ],
+    [
+     3,
+     9,
+     1
+    ],
+    [
+     3,
+     13,
+     1
+    ],
+    [
+     3,
+     14,
+     -1
+    ],
+    [
+     4,
+     5,
+     -1
+    ],
+    [
+     4,
+     7,
+     1
+    ],
+    [
+     4,
+     10,
+     -1
+    ],
+    [
+     4,
+     11,
+     1
+    ],
+    [
+     4,
+     12,
+     1
+    ],
+    [
+     4,
+     14,
+     -1
+    ],
+    [
+     5,
+     7,
+     1
+    ],
+    [
+     5,
+     10,
+     -1
+    ],
+    [
+     5,
+     11,
+     1
+    ],
+    [
+     5,
+     12,
+     1
+    ],
+    [
+     5,
+     14,
+     -1
+    ],
+    [
+     6,
+     8,
+     -1
+    ],
+    [
+     6,
+     9,
+     1
+    ],
+    [
+     7,
+     10,
+     -1
+    ],
+    [
+     7,
+     11,
+     1
+    ],
+    [
+     8,
+     9,
+     -1
+    ],
+    [
+     10,
+     11,
+     -1
+    ],
+    [
+     12,
+     14,
+     1
+    ],
+    [
+     13,
+     14,
+     1
+    ]
+   ],
+   "beloch:source_line": 30,
+   "beloch:edges": [
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".bl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+     "statement": 12,
+     "name": null,
+     "crease_id": 6
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".br",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+     "statement": 10,
+     "name": null,
+     "crease_id": 5
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom3",
+     "sources": [
+      ".sr",
+      "--mid"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:30:1-50",
+     "statement": 13,
+     "name": "pf",
+     "crease_id": 7
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".br",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+     "statement": 10,
+     "name": null,
+     "crease_id": 5
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".bl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+     "statement": 12,
+     "name": null,
+     "crease_id": 6
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    null,
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    }
+   ],
+   "beloch:vertices_names": [
+    "c",
+    null,
+    "o",
+    null,
+    null,
+    null,
+    "b",
+    "d",
+    "sr",
+    "sl",
+    "br",
+    "bl",
+    "a"
+   ]
+  },
+  {
+   "frame_classes": [
+    "foldedForm"
+   ],
+   "frame_parent": 0,
+   "frame_inherit": false,
+   "vertices_coords": [
+    [
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.5,
+     0.7928932188134524
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     0.5,
+     0.5
+    ],
+    [
+     0.7928932188134524,
+     0.5
+    ],
+    [
+     0.5,
+     0.7928932188134524
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.6464466094067263,
+     0.6464466094067263
+    ],
+    [
+     0.2928932188134525,
+     0.2928932188134525
+    ]
+   ],
+   "edges_vertices": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     0
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     0,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     2,
+     4
+    ],
+    [
+     2,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     6
+    ],
+    [
+     8,
+     4
+    ],
+    [
+     5,
+     8
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     9,
+     5
+    ],
+    [
+     2,
+     9
+    ],
+    [
+     9,
+     7
+    ],
+    [
+     10,
+     8
+    ],
+    [
+     6,
+     10
+    ],
+    [
+     9,
+     11
+    ],
+    [
+     11,
+     7
+    ],
+    [
+     8,
+     3
+    ],
+    [
+     1,
+     9
+    ],
+    [
+     12,
+     7
+    ],
+    [
+     11,
+     12
+    ],
+    [
+     12,
+     10
+    ],
+    [
+     6,
+     12
+    ]
+   ],
+   "edges_assignment": [
+    "B",
+    "F",
+    "V",
+    "B",
+    "V",
+    "F",
+    "M",
+    "V",
+    "V",
+    "V",
+    "V",
+    "M",
+    "V",
+    "M",
+    "V",
+    "M",
+    "V",
+    "V",
+    "B",
+    "F",
+    "B",
+    "F",
+    "B",
+    "B",
+    "V",
+    "B",
+    "B",
+    "V"
+   ],
+   "edges_foldAngle": [
+    0,
+    0,
+    180,
+    0,
+    180,
+    0,
+    -180,
+    180,
+    180,
+    180,
+    180,
+    -180,
+    180,
+    -180,
+    180,
+    -180,
+    180,
+    180,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    180,
+    0,
+    0,
+    180
+   ],
+   "faces_vertices": [
+    [
+     0,
+     1,
+     2
+    ],
+    [
+     3,
+     0,
+     4
+    ],
+    [
+     0,
+     2,
+     4
+    ],
+    [
+     2,
+     5,
+     4
+    ],
+    [
+     6,
+     5,
+     7
+    ],
+    [
+     8,
+     4,
+     5
+    ],
+    [
+     8,
+     5,
+     6
+    ],
+    [
+     9,
+     5,
+     2
+    ],
+    [
+     5,
+     9,
+     7
+    ],
+    [
+     10,
+     8,
+     6
+    ],
+    [
+     9,
+     11,
+     7
+    ],
+    [
+     8,
+     3,
+     4
+    ],
+    [
+     1,
+     9,
+     2
+    ],
+    [
+     12,
+     7,
+     11
+    ],
+    [
+     12,
+     10,
+     6
+    ],
+    [
+     12,
+     6,
+     7
+    ]
+   ],
+   "beloch:faces_matrix": [
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     1.7071067811865475
+    ],
+    [
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     1.7071067811865475,
+     0.2928932188134525
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1.2928932188134525,
+     1.2928932188134525
+    ],
+    [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     0,
+     -1,
+     -1,
+     0,
+     1,
+     1
+    ],
+    [
+     1,
+     0,
+     0,
+     -1,
+     0,
+     1
+    ],
+    [
+     0,
+     -1,
+     1,
+     0,
+     1,
+     0
+    ],
+    [
+     -1,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    [
+     0,
+     1,
+     -1,
+     0,
+     0,
+     1
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     1.7071067811865475,
+     0.2928932188134525
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     1.7071067811865475
+    ],
+    [
+     -0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     0.7071067811865476,
+     0.7071067811865476,
+     0.7071067811865476,
+     -0.7071067811865476,
+     0.2928932188134525,
+     0.2928932188134525
+    ],
+    [
+     1,
+     0,
+     0,
+     1,
+     0.2928932188134525,
+     0.2928932188134525
+    ]
+   ],
+   "faceOrders": [
+    [
+     0,
+     2,
+     1
+    ],
+    [
+     0,
+     3,
+     -1
+    ],
+    [
+     0,
+     4,
+     1
+    ],
+    [
+     0,
+     7,
+     1
+    ],
+    [
+     0,
+     8,
+     -1
+    ],
+    [
+     0,
+     13,
+     1
+    ],
+    [
+     0,
+     15,
+     -1
+    ],
+    [
+     1,
+     2,
+     1
+    ],
+    [
+     1,
+     3,
+     -1
+    ],
+    [
+     1,
+     4,
+     1
+    ],
+    [
+     1,
+     5,
+     1
+    ],
+    [
+     1,
+     6,
+     -1
+    ],
+    [
+     1,
+     14,
+     1
+    ],
+    [
+     1,
+     15,
+     -1
+    ],
+    [
+     2,
+     3,
+     -1
+    ],
+    [
+     2,
+     4,
+     1
+    ],
+    [
+     2,
+     5,
+     1
+    ],
+    [
+     2,
+     6,
+     -1
+    ],
+    [
+     2,
+     7,
+     1
+    ],
+    [
+     2,
+     8,
+     -1
+    ],
+    [
+     2,
+     13,
+     1
+    ],
+    [
+     2,
+     14,
+     1
+    ],
+    [
+     2,
+     15,
+     -1
+    ],
+    [
+     3,
+     4,
+     1
+    ],
+    [
+     3,
+     5,
+     1
+    ],
+    [
+     3,
+     6,
+     -1
+    ],
+    [
+     3,
+     7,
+     1
+    ],
+    [
+     3,
+     8,
+     -1
+    ],
+    [
+     3,
+     13,
+     1
+    ],
+    [
+     3,
+     14,
+     1
+    ],
+    [
+     3,
+     15,
+     -1
+    ],
+    [
+     4,
+     5,
+     -1
+    ],
+    [
+     4,
+     6,
+     1
+    ],
+    [
+     4,
+     7,
+     -1
+    ],
+    [
+     4,
+     8,
+     1
+    ],
+    [
+     4,
+     13,
+     1
+    ],
+    [
+     4,
+     14,
+     1
+    ],
+    [
+     4,
+     15,
+     -1
+    ],
+    [
+     5,
+     6,
+     -1
+    ],
+    [
+     5,
+     9,
+     1
+    ],
+    [
+     5,
+     11,
+     1
+    ],
+    [
+     5,
+     14,
+     1
+    ],
+    [
+     5,
+     15,
+     -1
+    ],
+    [
+     6,
+     9,
+     1
+    ],
+    [
+     6,
+     11,
+     1
+    ],
+    [
+     6,
+     14,
+     1
+    ],
+    [
+     6,
+     15,
+     -1
+    ],
+    [
+     7,
+     8,
+     -1
+    ],
+    [
+     7,
+     10,
+     1
+    ],
+    [
+     7,
+     12,
+     1
+    ],
+    [
+     7,
+     13,
+     1
+    ],
+    [
+     7,
+     15,
+     -1
+    ],
+    [
+     8,
+     10,
+     1
+    ],
+    [
+     8,
+     12,
+     1
+    ],
+    [
+     8,
+     13,
+     1
+    ],
+    [
+     8,
+     15,
+     -1
+    ],
+    [
+     9,
+     11,
+     1
+    ],
+    [
+     10,
+     12,
+     1
+    ],
+    [
+     13,
+     15,
+     1
+    ],
+    [
+     14,
+     15,
+     1
+    ]
+   ],
+   "beloch:source_line": 31,
+   "beloch:edges": [
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".bl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+     "statement": 12,
+     "name": null,
+     "crease_id": 6
+    },
+    null,
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".br",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+     "statement": 10,
+     "name": null,
+     "crease_id": 5
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom3",
+     "sources": [
+      ".sr",
+      "--mid"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:31:1-61",
+     "statement": 14,
+     "name": "pb",
+     "crease_id": 8
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    {
+     "axiom": "axiom3",
+     "sources": [
+      ".sr",
+      "--mid"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:30:1-50",
+     "statement": 13,
+     "name": "pf",
+     "crease_id": 7
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".br",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:25:1-40",
+     "statement": 10,
+     "name": null,
+     "crease_id": 5
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    },
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".a",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:11:1-30",
+     "statement": 0,
+     "name": "bd",
+     "crease_id": 0
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".bl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:28:1-40",
+     "statement": 12,
+     "name": null,
+     "crease_id": 6
+    },
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".b",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:12:1-32",
+     "statement": 1,
+     "name": "h",
+     "crease_id": 1
+    },
+    null,
+    {
+     "axiom": "axiom2",
+     "sources": [
+      ".d",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:13:1-32",
+     "statement": 2,
+     "name": "v",
+     "crease_id": 2
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sl",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:22:1-40",
+     "statement": 8,
+     "name": null,
+     "crease_id": 4
+    },
+    null,
+    null,
+    {
+     "axiom": "axiom6",
+     "sources": [
+      ".sr",
+      "--mid",
+      ".c"
+     ],
+     "span": "/tmp/beloch-6yZNug/snippet.bel:19:1-40",
+     "statement": 6,
+     "name": null,
+     "crease_id": 3
+    }
+   ],
+   "beloch:vertices_names": [
+    "c",
+    "bl",
+    null,
+    "br",
+    null,
+    "o",
+    null,
+    null,
+    "b",
+    "d",
+    "sr",
+    "sl",
+    "a"
+   ]
+  }
+ ]
+}

@@ -11,6 +11,7 @@ import type { Point } from '../../lib/geometry';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
+import type { DocumentPaperStyle } from '../../lib/paper/documentPaperStyle';
 import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
 import type { PinSet } from '../../simulator/tools/pinSet';
 import type {
@@ -63,6 +64,7 @@ import type {
   DiagramStepDiagramPicture,
   LiftedCard,
   PulledMarks,
+  SentDiagramEntry,
   SentReferencesEntry,
   DiagramDocument,
   DiagramHanStyle,
@@ -85,7 +87,17 @@ import type {
   DiagramCaptureRun,
   StepCaptureStart,
 } from './diagramCapture';
+import type { DiagramFoldCaptureOutcome, DiagramFoldCaptureRequest } from './diagramFoldCapture';
 import type { CapturedPicture } from '../../diagram/capture/captureFolded';
+import type { FoldReaderState } from '../../fold/document/foldReaderState';
+import type {
+  FoldMarkEntry,
+  FoldPaperShape,
+  FoldSpreadSetting,
+  FoldStartSide,
+} from '../../fold/document/foldSequenceDocument';
+import type { FoldStepDraft } from '../../fold/document/foldSequenceEdits';
+import type { FoldHistory, FoldSequences } from './foldState';
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
@@ -2048,6 +2060,12 @@ export interface DiagramSliceState {
    */
   diagramReferencesBrowser: DiagramReferencesBrowserState | null;
   /**
+   * The Fold browser, while it is open in the Diagram's centre
+   * (fold-workspace plan D17): where the steps it pulls from the shown Fold
+   * sequence go. Never open beside the References browser.
+   */
+  diagramFoldBrowser: DiagramFoldBrowserState | null;
+  /**
    * An anchor being picked on the Annotate canvas (Revision 2, the Anchor
    * row's Pick): the step, and the enlarge area's id there or the step's own
    * frame (`ZOOM_FRAME_ID`). Read through `activeAnchorPick`, which takes it
@@ -2148,6 +2166,13 @@ export interface DiagramReferencesBrowserState {
    * (`diagramReferencesMarks`).
    */
   marks?: PaperExportMarks;
+}
+
+/** The Fold browser (fold-workspace plan D17): where what it adds goes, fixed as it opens, and which opening it is. */
+export interface DiagramFoldBrowserState {
+  anchor: DiagramPullAnchor;
+  /** As the References browser's: a pull pressed in one that has closed since adds nothing. */
+  opening: number;
 }
 
 export interface DiagramSliceActions {
@@ -2333,6 +2358,13 @@ export interface DiagramSliceActions {
    * and Pose's Done. Resolves what happened, for the caller to say.
    */
   captureDiagramStep: (stepId: string, request: DiagramCaptureRequest) => Promise<DiagramCaptureOutcome>;
+  /**
+   * Capture a step's picture from a Fold step as it is now — linking it, or
+   * refreshing or re-posing a step linked to one (fold-workspace plan D17) —
+   * and commit it as one undo step, the fold's marks swapped for the
+   * capture's own (`setFoldStepPicture`).
+   */
+  captureDiagramFoldStep: (stepId: string, request: DiagramFoldCaptureRequest) => Promise<DiagramFoldCaptureOutcome>;
   /** Stop a step's capture, if it is folding. */
   stopDiagramCapture: (stepId: string) => boolean;
   /**
@@ -2392,6 +2424,25 @@ export interface DiagramSliceActions {
   makeDiagramStepMarksEditable: (stepId: string, lifted: LiftedCard, options?: { loadId?: number }) => boolean;
   pullReferencesDiagramSteps: (
     sent: readonly SentReferencesEntry[],
+    anchor: DiagramPullAnchor,
+    options: { loadId: number; label: string; opening?: number }
+  ) => ({ stepIds: string[]; turnIds: string[] } & PulledMarks) | null;
+  /**
+   * Open the Fold browser (plan D17) to add steps from the shown Fold
+   * sequence where `anchor` says; the References browser and the pattern
+   * picker close. False on a read-only diagram.
+   */
+  openDiagramFoldBrowser: (anchor: DiagramPullAnchor) => boolean;
+  closeDiagramFoldBrowser: () => void;
+  /**
+   * Add steps captured from Fold steps — and the turns between them — where
+   * `anchor` says, as one undo step, selecting the last, as a References pull
+   * does (`pullReferencesSteps`); the Fold browser closes. `opening` names the
+   * browser opening it was pressed in, when it was: one closed since adds
+   * nothing. Null when nothing was added.
+   */
+  pullFoldDiagramSteps: (
+    sent: readonly SentDiagramEntry[],
     anchor: DiagramPullAnchor,
     options: { loadId: number; label: string; opening?: number }
   ) => ({ stepIds: string[]; turnIds: string[] } & PulledMarks) | null;
@@ -2511,6 +2562,102 @@ export interface DiagramSliceActions {
 
 export type DiagramSlice = DiagramSliceState & DiagramSliceActions;
 
+export interface FoldSliceState {
+  /**
+   * The project's fold sequences (implementation-plans/fold-workspace.md, D7),
+   * each with the value a newer build's is written back as: saved as an array,
+   * one shown — the first (`shownFoldSequence`). Empty for none, and then the
+   * file holds no key; the first edit creates one.
+   */
+  foldSequences: FoldSequences;
+  /** Whole-array snapshots, its own stack under the `fold` context. */
+  foldHistory: FoldHistory;
+  /** Bumped on every replacement; see `nextFoldLoadId`. */
+  foldLoadId: number;
+  /**
+   * The reader's place in the shown sequence (D6): the step on screen and the
+   * branch each step continues along. Outside the document and outside undo —
+   * never history, never dirty — but saved, in `workspace.viewState.fold`, and
+   * reconciled after every undo, redo and delete. Null with no sequence.
+   */
+  foldReader: FoldReaderState | null;
+}
+
+export interface FoldSliceActions {
+  /**
+   * Install the sequences read from a file (or none) over an empty history,
+   * the reader state held to the one shown.
+   */
+  installFoldSequences: (sequences: FoldSequences, reader: FoldReaderState | null) => void;
+  /**
+   * Commit a step under `draft.parent` in the shown sequence — creating one
+   * for the first — as one undo step, the cursor moved onto it: append-only,
+   * so a parent with children gains a branch. Its id, or null for a parent
+   * that is no step there or is locked, a newer build's sequence, or a
+   * `loadId` the sequences have been replaced since (a preview that outlived
+   * them).
+   */
+  updateFoldReturn: (stepId: string,
+    expected: import('../../fold/document/foldSequenceDocument').FoldReturnOp,
+    op: import('../../fold/document/foldSequenceDocument').FoldReturnOp,
+    expect: string, loadId?: number) => boolean;
+  updateFoldCollapse: (stepId: string,
+    expected: import('../../fold/document/foldSequenceDocument').FoldCpJumpOp,
+    op: import('../../fold/document/foldSequenceDocument').FoldCpJumpOp,
+    expect: string, loadId: number) => boolean;
+  commitFoldSteps: (parent: string | null, entries: readonly (Omit<FoldStepDraft, 'parent' | 'adopt'> & { returnTo?: number })[], loadId: number) => string | null;
+  updateFoldRepeat: (stepId: string,
+    expected: import('../../fold/document/foldSequenceDocument').FoldRepeatOp,
+    op: import('../../fold/document/foldSequenceDocument').FoldRepeatOp, expect: string, loadId: number) => boolean;
+  commitFoldStep: (draft: FoldStepDraft, options?: { loadId?: number }) => string | null;
+  /**
+   * "Delete this step and what follows" (D6): the step and its subtree,
+   * locked or not, as one undo step. Whether it changed.
+   */
+  deleteFoldStep: (stepId: string) => boolean;
+  /**
+   * Set a step's own layer spread — a spread, or `'off'` — or, for null, let
+   * it take an earlier step's (`setFoldStepSpread` in `foldSequenceEdits`).
+   * Edits in one `session` at one step — a drag of a slider — are one undo
+   * step; `loadId` drops one that outlived its sequences. Whether it changed.
+   */
+  setFoldStepSpread: (
+    stepId: string,
+    spread: FoldSpreadSetting | null,
+    options?: { session?: number; loadId?: number }
+  ) => boolean;
+  /** Replace the marks made on a step, or on the flat sheet for null, as one undo step. Whether it changed. */
+  setFoldMarks: (stepId: string | null, marks: readonly FoldMarkEntry[]) => boolean;
+  /**
+   * Change the sheet's shape — the steps emptied with it (D7) — as one undo
+   * step, creating the sequence when there is none. Whether it changed.
+   */
+  setFoldPaperShape: (shape: FoldPaperShape) => boolean;
+  /**
+   * Draw the shown sequence in another paper style (the Paper tab's Style),
+   * keeping its steps, as one undo step, creating the sequence when there is
+   * none. Whether it changed.
+   */
+  setFoldPaperStyle: (style: DocumentPaperStyle) => boolean;
+  /** Rename the shown sequence, as one undo step, creating it when there is none. Whether it changed. */
+  setFoldSequenceTitle: (title: string) => boolean;
+  /**
+   * Turn the sheet over before the first step, keeping the steps (they fold
+   * their mirror image now), as one undo step, creating the sequence when
+   * there is none. Whether it changed.
+   */
+  setFoldStartSide: (startSide: FoldStartSide) => boolean;
+  /**
+   * Put the reader on a step of the shown sequence — the flat sheet for null —
+   * and the active path through it. View state. Whether it moved.
+   */
+  moveFoldCursor: (stepId: string | null) => boolean;
+  undoFold: () => boolean;
+  redoFold: () => boolean;
+}
+
+export type FoldSlice = FoldSliceState & FoldSliceActions;
+
 export type WorkspaceState =
   ProjectSlice &
   ExploriSlice &
@@ -2522,7 +2669,8 @@ export type WorkspaceState =
   OristudioBpSlice &
   SimulatorSlice &
   ReferencesSlice &
-  DiagramSlice;
+  DiagramSlice &
+  FoldSlice;
 
 export type WorkspaceSliceCreator<T> = StateCreator<
   WorkspaceState,

@@ -6,7 +6,7 @@ import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
 } from '../../cp-workspace/references/referencesShortcuts';
-import { registerReferencesShortcutExecutor } from '../../keyboard/shortcutRuntime';
+import { registerConditionalScopeExecutor } from '../../keyboard/shortcutRuntime';
 import i18n from '../../i18n';
 import { installAppKeyboardListener } from '../../lib/appKeyboard';
 import { builtInPaperPreset } from '../../lib/paper/paperPresets';
@@ -601,7 +601,7 @@ describe('PaperExportModal over the References workspace', () => {
         handleMenuAction: () => undefined,
         selectNone: () => undefined,
       }),
-      registerReferencesShortcutExecutor((id) => runReferencesShortcut(id, references)),
+      registerConditionalScopeExecutor('references', (id) => runReferencesShortcut(id, references)),
     ];
   });
 

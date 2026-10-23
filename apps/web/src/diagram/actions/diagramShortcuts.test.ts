@@ -2,8 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { SHORTCUT_DEFINITIONS } from '../../keyboard/shortcuts';
 import { NUDGE_STEP } from '../annotate/annotationActions';
 import {
-  DIAGRAM_OWN_ARROWS_ATTRIBUTE,
-  focusOwnsArrowKeys,
   runDiagramCancel,
   runDiagramShortcut,
   type DiagramKeyState,
@@ -430,38 +428,5 @@ describe('Edit Path’s keys', () => {
     }
     // The step keys themselves are untouched by Edit Path.
     expect(press('diagram.nextStep', editPath(1)).select).toHaveBeenCalledWith('b');
-  });
-});
-
-describe('focusOwnsArrowKeys', () => {
-  function inside(markup: string, selector: string) {
-    const host = document.createElement('div');
-    host.innerHTML = markup;
-    document.body.append(host);
-    const element = host.querySelector(selector);
-    const owns = focusOwnsArrowKeys(element);
-    host.remove();
-    return owns;
-  }
-
-  it('leaves the arrows to tab strips, radio groups and sliders, in a toolbar too', () => {
-    expect(inside('<div role="tablist"><button id="x">Steps</button></div>', '#x')).toBe(true);
-    expect(inside('<div role="radiogroup"><button id="x">A</button></div>', '#x')).toBe(true);
-    expect(inside('<span role="slider" id="x"></span>', '#x')).toBe(true);
-    expect(inside('<div role="toolbar"><span role="slider" id="x"></span></div>', '#x')).toBe(true);
-  });
-
-  it('leaves them to a list of the Diagram’s own that moves with them: the pattern picker', () => {
-    expect(
-      inside(`<div role="listbox" ${DIAGRAM_OWN_ARROWS_ATTRIBUTE}><button role="option" id="x"></button></div>`, '#x')
-    ).toBe(true);
-  });
-
-  it('takes them from a plain button, in a toolbar or not, a step card, or nothing', () => {
-    expect(inside('<button id="x">Add step</button>', '#x')).toBe(false);
-    // The pose toolbar's Rotate: the next step must still be a key away.
-    expect(inside('<div role="toolbar"><button id="x">Rotate</button></div>', '#x')).toBe(false);
-    expect(inside('<div role="listbox"><div role="option" id="x"></div></div>', '#x')).toBe(false);
-    expect(focusOwnsArrowKeys(null)).toBe(false);
   });
 });

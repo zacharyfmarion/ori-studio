@@ -36,6 +36,20 @@
       "unknown": "El patrón de pliegues aún no está listo. Inténtalo de nuevo en un momento."
     },
     "dropReadOnly": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en solo lectura, así que no se le pueden añadir imágenes.",
+    "fold": {
+      "locked": "Ese paso se creó con una versión más reciente de Ori Studio.",
+      "missing": "Ese paso ya no está en la secuencia de Plegar o ya no se puede plegar.",
+      "notShown": "Plegar muestra otra secuencia, así que este paso no se puede capturar ahora.",
+      "openDiagram": "Abrir Diagrama",
+      "sent_one": "Se añadió un paso al Diagrama",
+      "sent_many": "Se añadieron {{count}} pasos al Diagrama",
+      "sent_other": "Se añadieron {{count}} pasos al Diagrama",
+      "sequenceGone": "Esa secuencia de Plegar ya no está en este proyecto.",
+      "someFailed_one": "No se pudo capturar un paso desde Plegar, así que se omitió.",
+      "someFailed_many": "No se pudieron capturar {{count}} pasos desde Plegar, así que se omitieron.",
+      "someFailed_other": "No se pudieron capturar {{count}} pasos desde Plegar, así que se omitieron.",
+      "stepGone": "Ese paso ya no está en la secuencia de Plegar."
+    },
     "import": {
       "otherWorkspaceFirst": "Primero deshaz o rehaz las ediciones posteriores en el otro espacio de trabajo: la importación cambió Edición y Diagrama.",
       "restoreFailed": "No se pudieron restaurar los pasos importados."
@@ -106,6 +120,13 @@
   "foldedFigureExport": {
     "empty": "Esta figura plegada aún no tiene nada que exportar",
     "failed": "No se pudo exportar esta figura plegada"
+  },
+  "foldIo": {
+    "noStep": "Todavía no hay ningún paso que exportar.",
+    "pathBroken": "Un paso de esta secuencia ya no se puede plegar, así que los pasos no se pueden enviar ni exportar.",
+    "sheetOnScreen": "Ve a un paso para exportarlo.",
+    "tooLarge": "Esta secuencia es demasiado grande para exportarla como un solo archivo FOLD.",
+    "unavailable": "El motor de plegado se detuvo antes de terminar. Inténtalo de nuevo."
   },
   "global": {
     "error": "Error de Ori Studio",

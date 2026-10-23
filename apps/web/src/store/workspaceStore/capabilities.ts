@@ -23,6 +23,12 @@ import { isSuppressionRegionAnnotation } from '../../cp-workspace/annotations/an
 import { hasAttachedSolveInput } from '../../cp-workspace/annotations/suppressionRegion';
 import type { EditingContext } from '../../workspaces/editingContext';
 import { stepById, turnById } from '../../diagram/document/diagramDocument';
+import { hasProjectDocument } from './projectDocuments';
+import type { FoldStepNode } from '../../fold/document/foldSequenceDocument';
+import { foldStepTree, pathTo, type FoldStepTree } from '../../fold/document/foldStepTree';
+import { foldStartingFigure } from '../../fold/io/foldEditFigure';
+import { isTurnStep } from '../../fold/sequence/foldSequencePath';
+import { isShownFoldSequenceReadOnly, shownFoldSequence } from './foldState';
 import type { WorkspaceState } from './types';
 
 /**
@@ -33,13 +39,14 @@ export interface WorkspaceHistoryCounts {
   /** The crease-pattern editor's stack, or 0 with no editable crease pattern. */
   cp: number;
   diagram: number;
+  fold: number;
 }
 
 /**
  * How deep the active context's undo stack is.
  *
- * The crease-pattern editor and the Diagram answer for themselves — they are
- * workspaces, not design kinds — and every design kind answers through its
+ * The crease-pattern editor, the Diagram and Fold answer for themselves — they
+ * are workspaces, not design kinds — and every design kind answers through its
  * descriptor. This used to list the kinds it knew and return 0 for the rest,
  * which *disabled* Undo and Redo for a registered kind rather than merely
  * leaving them unwired, and made the dispatch behind them unreachable. Nothing
@@ -56,6 +63,7 @@ export function historyCountForContext(
 ): number {
   if (context === 'crease-pattern') return counts.cp;
   if (context === 'diagram') return counts.diagram;
+  if (context === 'fold') return counts.fold;
   const kind = kinds ? designKindRegistry(kinds).forContext(context) : designKindForContext(context);
   if (!kind) return 0;
   return kind.history(tab)[which];
@@ -118,6 +126,32 @@ export function cpSolvablePatternCount(state: WorkspaceState): number {
   return count;
 }
 
+/** Whether the Fold reader is on a step of the shown sequence, not its flat sheet. */
+export function foldStepAtCursor(state: Pick<WorkspaceState, 'foldReader' | 'foldSequences'>): boolean {
+  const cursor = state.foldReader?.cursor ?? null;
+  return cursor !== null && state.foldSequences[0]?.document.steps.some((node) => node.id === cursor) === true;
+}
+
+/** Each sequence's step tree, built once per edit: the selector below runs on every change to the store. */
+const foldTrees = new WeakMap<readonly FoldStepNode[], FoldStepTree>();
+
+/**
+ * Whether a numbered step is at the Fold reader's cursor or before it on its
+ * path: the page Export Step opens on. Not with the sheet on screen, nor on
+ * a turn before the first step, which takes no number and gets no page.
+ */
+export function foldPageAtCursor(state: Pick<WorkspaceState, 'foldReader' | 'foldSequences'>): boolean {
+  const cursor = state.foldReader?.cursor ?? null;
+  const steps = state.foldSequences[0]?.document.steps;
+  if (cursor === null || !steps) return false;
+  let tree = foldTrees.get(steps);
+  if (!tree) {
+    tree = foldStepTree(steps);
+    foldTrees.set(steps, tree);
+  }
+  return pathTo(tree, cursor)?.some((node) => !isTurnStep(node)) === true;
+}
+
 export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput {
   const context = state.activeEditingContext;
   const activeKind = designKindForContext(context);
@@ -130,6 +164,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     {
       cp: state.oristudioCpDocument ? state.oristudioCpHistoryPast.length : 0,
       diagram: state.diagramHistory.past.length,
+      fold: state.foldHistory.past.length,
     },
     'past'
   );
@@ -139,6 +174,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     {
       cp: state.oristudioCpDocument ? state.oristudioCpHistoryFuture.length : 0,
       diagram: state.diagramHistory.future.length,
+      fold: state.foldHistory.future.length,
     },
     'future'
   );
@@ -165,16 +201,30 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     hasDeletableDesignSelection:
       activeKind?.deletableTarget?.(activeDesignTab(state)) != null,
     canSaveDesign: anyDesignIsSavable(state),
-    hasDiagram: state.diagram !== null,
+    hasProjectDocument: hasProjectDocument(state),
     diagramStepCount: state.diagram?.steps.length ?? 0,
     hasDeletableDiagramSelection: hasDeletableDiagramSelection(state),
     diagramDeleteTarget: diagramDeleteTarget(state),
     canCopyDiagramAnnotation: canCopyDiagramAnnotation(state),
     canPasteDiagramAnnotations: canPasteDiagramAnnotations(state),
+    foldStepAtCursor: foldStepAtCursor(state),
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,
     selection: selectSelection(state),
+    foldSequence: foldSequenceCapabilityInput(state),
+    hasFoldStartingFigure: foldStartingFigure(state) !== null,
+  };
+}
+
+/** The Fold sequence on screen, as its imports and hand-offs are gated by it. */
+function foldSequenceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput['foldSequence'] {
+  const shown = shownFoldSequence(state);
+  return {
+    stepCount: shown?.document.steps.length ?? 0,
+    polygon: shown?.document.paper.shape.kind === 'polygon',
+    readOnly: isShownFoldSequenceReadOnly(state),
+    pageAtCursor: foldPageAtCursor(state),
   };
 }
 

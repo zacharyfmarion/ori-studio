@@ -726,12 +726,12 @@ describe('findShortcutShadowing', () => {
     // G and it answers G whenever a simulation is focused, while Folding
     // Estimate keeps answering G the rest of the time — the coexistence F, C, R
     // and L already ship. Reading it as hard made the capture UI offer to
-    // unbind a tool that was never in the way. (G, which only the crease
-    // pattern holds: M is Annotate's too, and the report names the claimant
-    // nearest the top.)
-    const chord = { key: 'g' };
+    // unbind a tool that was never in the way. (Shift+N, the angle readout,
+    // which only the crease pattern holds: the bare letters are Annotate's or
+    // Fold's too, and the report names the claimant nearest the top.)
+    const chord = { shift: true, key: 'n' };
     const shadowing = findShortcutShadowing('simulator.replay', chord);
-    expect(shadowing?.definition.id).toBe('cp.action.folding-estimate');
+    expect(shadowing?.definition.id).toBe('cp.action.display-angle-between-three-points1');
     expect(shadowing?.winnerId).toBe('simulator.replay');
     expect(shadowing?.kind).toBe('conditional');
 
@@ -743,7 +743,7 @@ describe('findShortcutShadowing', () => {
       'simulator.replay'
     );
     expect(dispatched(chord, ['viewport', 'crease-pattern', 'global'], overrides)).toBe(
-      'cp.action.folding-estimate'
+      'cp.action.display-angle-between-three-points1'
     );
   });
 

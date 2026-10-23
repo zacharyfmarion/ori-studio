@@ -3,6 +3,7 @@ import { createExploriDocument, type ExploriDocument } from '../../explori/docum
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
 import { workspaceCapabilityInput } from './capabilities';
 import { discardDiagramState } from './diagramState';
+import { discardFoldState } from './foldState';
 import { createExploriDesignState } from './designContent';
 import { singleDesignTab, type DesignTab } from './designTabs';
 import type { WorkspaceState } from './types';
@@ -54,11 +55,15 @@ function stateWith(tab: DesignTab): WorkspaceState {
     oristudioCpHistoryFuture: [],
     oristudioCpSelection: { lines: [], points: [], circles: [] },
     oristudioCpAnnotations: [],
+    // Whether Fold can start from one of Edit's folded figures.
+    oristudioCpFoldedFigures: [],
+    oristudioCpActiveFoldedFigureId: null,
     oristudioBpBusy: false,
     importedCreasePattern: null,
     foldArtifacts: null,
     clipboard: null,
     ...discardDiagramState(),
+    ...discardFoldState(),
   } as unknown as WorkspaceState;
 }
 

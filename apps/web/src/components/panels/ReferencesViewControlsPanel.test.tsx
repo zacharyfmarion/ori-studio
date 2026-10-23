@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearReferencesResults } from '../../cp-workspace/references/referencesResults';
-import { registerReferencesShortcutExecutor } from '../../keyboard/shortcutRuntime';
+import { registerConditionalScopeExecutor } from '../../keyboard/shortcutRuntime';
 import { DEFAULT_REFERENCES_SETTINGS } from '../../store/workspaceStore/slices/referencesSlice';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { usePaperExportUiStore } from '../../store/paperExportUiStore';
@@ -260,7 +260,7 @@ describe('ReferencesViewControlsPanel export action', () => {
 
   it('runs the References view’s export-all-steps command', () => {
     const references = vi.fn();
-    unregister = registerReferencesShortcutExecutor(references);
+    unregister = registerConditionalScopeExecutor('references', references);
     const rendered = render();
 
     press(buttonNamed(rendered, 'Export all steps…'));

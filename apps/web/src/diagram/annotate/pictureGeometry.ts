@@ -23,14 +23,15 @@
  */
 import type { PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import { distanceToSegment, LineHitIndex, type IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
-import { sheetCorners } from '../../cp-workspace/references/stepDiagramGeometry';
+import { sheetCorners } from '../../lib/stepDiagram/stepDiagramGeometry';
 import { referencesShowsAux } from '../../cp-workspace/references/referencesAuxCreases';
-import type {
-  DiagramAsset,
-  DiagramScenePicture,
-  DiagramStep,
-  DiagramStepDiagramPicture,
-  DiagramStyle,
+import {
+  posedRenderOf,
+  type DiagramAsset,
+  type DiagramScenePicture,
+  type DiagramStep,
+  type DiagramStepDiagramPicture,
+  type DiagramStyle,
 } from '../document/diagramDocument';
 import { diagramPaperStyle, diagramScenePaintStyle } from '../pictures/diagramPaperStyle';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
@@ -168,9 +169,9 @@ export function pictureGeometry(
  * lacks.
  */
 function sceneKind(step: DiagramStep, picture: DiagramScenePicture): 'crease-pattern' | 'flat-fold' | 'projected' {
-  const { source } = step;
-  if (source?.kind === 'cp') {
-    switch (source.render.mode) {
+  const render = posedRenderOf(step.source);
+  if (render) {
+    switch (render.mode) {
       case 'crease-pattern':
         return 'crease-pattern';
       case 'folded-flat':

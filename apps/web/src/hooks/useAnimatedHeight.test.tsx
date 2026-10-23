@@ -41,9 +41,10 @@ let reducedMotion = false;
 let container: HTMLDivElement;
 let root: Root;
 
-function Probe({ collapsed }: { collapsed: boolean }) {
+function Probe({ collapsed, startKey }: { collapsed: boolean; startKey?: string }) {
   const { attachFrame, attachContent, attachScroller, closing } = useAnimatedHeight({
     collapsed,
+    ...(startKey !== undefined ? { startKey } : {}),
   });
   return (
     <section ref={attachFrame} data-testid="frame">
@@ -72,9 +73,25 @@ function stubLayout() {
   if (part) part.getBoundingClientRect = () => ({ height: scrollerHeight }) as DOMRect;
 }
 
-function render(collapsed = false) {
-  act(() => root.render(<Probe collapsed={collapsed} />));
+function render(collapsed = false, startKey?: string) {
+  act(() => root.render(<Probe collapsed={collapsed} {...(startKey !== undefined ? { startKey } : {})} />));
   stubLayout();
+}
+
+/** A scroller whose content outgrows it, its scroll position kept as a browser keeps one. */
+function stubScrolling(): { top: () => number; scrollTo: (top: number) => void } {
+  const part = scroller()!;
+  let top = 0;
+  Object.defineProperty(part, 'scrollHeight', { configurable: true, get: () => 300 });
+  Object.defineProperty(part, 'clientHeight', { configurable: true, get: () => 100 });
+  Object.defineProperty(part, 'scrollTop', {
+    configurable: true,
+    get: () => top,
+    set: (value: number) => {
+      top = Math.max(0, Math.min(value, 200));
+    },
+  });
+  return { top: () => top, scrollTo: (value) => (part.scrollTop = value) };
 }
 
 /** The content's observer reports a change, as it would after a layout. */
@@ -140,6 +157,24 @@ describe('useAnimatedHeight', () => {
     expect(frame().dataset.resizing).toBeUndefined();
   });
 
+  it('holds the content at its width while the frame moves, so a scrollbar the move takes away cannot reflow it', () => {
+    render();
+    // Laid out beside a scrollbar: the frame was capped and scrolled.
+    content()!.getBoundingClientRect = () => ({ width: 262, height: 613 }) as DOMRect;
+    contentResized();
+
+    natural = 150;
+    contentResized();
+
+    // Pinned in the observer's own callback, before the frame stops scrolling.
+    expect(frame().dataset.resizing).toBe('');
+    expect(content()?.style.width).toBe('262px');
+
+    transitionEnded();
+
+    expect(content()?.style.width).toBe('');
+  });
+
   it('jumps under reduced motion', () => {
     reducedMotion = true;
     render();
@@ -184,6 +219,57 @@ describe('useAnimatedHeight', () => {
 
     expect(scroller()).toBeNull();
     expect(frame().style.height).toBe('');
+  });
+
+  it('keeps the pinned edge in view once a capped frame has moved, as a pressed control there stays put', () => {
+    render();
+    const scrolling = stubScrolling();
+    contentResized();
+    natural = 150;
+    contentResized();
+    transitionEnded();
+    expect(scrolling.top()).toBe(200);
+  });
+
+  it('shows content that started over from its top, and keeps the pinned edge for changes under one key', () => {
+    render(false, 'valley:locate');
+    const scrolling = stubScrolling();
+    contentResized();
+    scrolling.scrollTo(120);
+
+    // A new key: to the top at once, laid out from there while the frame moves, and left there.
+    render(false, 'valley:preview');
+    expect(scrolling.top()).toBe(0);
+    natural = 150;
+    contentResized();
+    expect(frame().dataset.resizing).toBe('start');
+    transitionEnded();
+    expect(scrolling.top()).toBe(0);
+
+    // A change under the same key keeps the pinned edge, as without a key.
+    natural = 180;
+    contentResized();
+    expect(frame().dataset.resizing).toBe('');
+    transitionEnded();
+    expect(scrolling.top()).toBe(200);
+  });
+
+  it('opens keyed content at its top', () => {
+    render(false, 'valley:preview');
+    contentResized();
+    // Collapsed to its header…
+    render(true, 'valley:preview');
+    natural = 100 - scrollerHeight;
+    transitionEnded();
+    expect(scroller()).toBeNull();
+    // …and opened again.
+    natural = 100;
+    render(false, 'valley:preview');
+    const scrolling = stubScrolling();
+    contentResized();
+    expect(frame().dataset.resizing).toBe('start');
+    transitionEnded();
+    expect(scrolling.top()).toBe(0);
   });
 
   it('collapses at once when nothing can move', () => {

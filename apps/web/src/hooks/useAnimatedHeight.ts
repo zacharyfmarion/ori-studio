@@ -36,7 +36,13 @@
  * notification the browser cannot deliver in the same frame — it reports
  * "ResizeObserver loop completed with undelivered notifications" as an error,
  * which the app's global handler turns into a toast. Setting the frame's height
- * never changes the content's size, so watching the content alone cannot loop.
+ * never changes the content's height. It can change the content's *width*: where
+ * scrollbars take room (WebKit with a mouse, Windows), a frame capped by its
+ * max-height scrolls, and pinning it lower or stopping it scrolling
+ * (`data-resizing`) takes the scrollbar away, widening the content under it. So
+ * while the frame moves, the content is held at the width it had when the move
+ * began, and let go when the frame is; watching the content alone then cannot
+ * loop.
  *
  * Nothing animates under `prefers-reduced-motion: reduce`, nor where there is no
  * `ResizeObserver` or no layout to measure (jsdom): there the frame just takes
@@ -85,7 +91,20 @@ export interface AnimatedHeight {
   closing: boolean;
 }
 
-export function useAnimatedHeight({ collapsed }: { collapsed: boolean }): AnimatedHeight {
+export function useAnimatedHeight({
+  collapsed,
+  startKey,
+}: {
+  collapsed: boolean;
+  /**
+   * What the content is, for content that starts over — a tool window's tool
+   * and the step it is at. Given one, a new key, and the scroller opening,
+   * show the content from its start: the scroller goes to its top, and the
+   * move the change sets off keeps the top in view rather than the pinned
+   * edge. Changes under one key keep the pinned edge, as without a key.
+   */
+  startKey?: string;
+}): AnimatedHeight {
   const frame = useRef<HTMLElement | null>(null);
   const content = useRef<HTMLElement | null>(null);
   const scroller = useRef<HTMLElement | null>(null);
@@ -94,6 +113,10 @@ export function useAnimatedHeight({ collapsed }: { collapsed: boolean }): Animat
   const restHeight = useRef<number | null>(null);
   const resizing = useRef(false);
   const settleTimer = useRef<number | undefined>(undefined);
+  /** The content started over (`startKey`): the change it sets off ends at the top. */
+  const toStart = useRef(false);
+  const keyed = startKey !== undefined;
+  const lastKey = useRef(startKey);
 
   // A collapse keeps the collapsing part mounted until it has closed, so the
   // closing has to start in the same render that collapses — not an effect
@@ -113,6 +136,9 @@ export function useAnimatedHeight({ collapsed }: { collapsed: boolean }): Animat
   const settle = useCallback(() => {
     window.clearTimeout(settleTimer.current);
     resizing.current = false;
+    // Outside the observer's callback now: a width the scrollbar's return
+    // changes is a resize like any other, delivered and measured.
+    if (content.current) content.current.style.width = '';
     const element = frame.current;
     if (element) {
       element.style.height = '';
@@ -120,12 +146,16 @@ export function useAnimatedHeight({ collapsed }: { collapsed: boolean }): Animat
       restHeight.current = element.getBoundingClientRect().height;
       // Clamped by its max-height, the content was laid out from the anchored
       // edge while it moved. Keep that edge in view rather than jumping back to
-      // the other one now the frame scrolls again.
+      // the other one now the frame scrolls again — unless the content started
+      // over, which it was laid out from the top for and shows from there.
       const scrolling = scroller.current;
-      if (scrolling && scrolling.scrollHeight > scrolling.clientHeight) {
+      if (scrolling && toStart.current) {
+        scrolling.scrollTop = 0;
+      } else if (scrolling && scrolling.scrollHeight > scrolling.clientHeight) {
         scrolling.scrollTop = scrolling.scrollHeight;
       }
     }
+    toStart.current = false;
     setClosing(false);
   }, []);
 
@@ -139,11 +169,17 @@ export function useAnimatedHeight({ collapsed }: { collapsed: boolean }): Animat
         if (resizing.current) settle();
         return false;
       }
+      // Held at the width it was laid out at, before the frame moves: see the
+      // note at the top on the scrollbar the move can take away.
+      const box = content.current;
+      const width = box?.getBoundingClientRect().width ?? 0;
+      if (box && width > 0) box.style.width = `${width}px`;
       element.style.transition = 'none';
       element.style.height = `${from}px`;
       void element.offsetHeight;
       element.style.transition = '';
-      element.dataset.resizing = '';
+      // `start`: laid out from the top, where the move ends (`startKey`).
+      element.dataset.resizing = toStart.current ? 'start' : '';
       element.style.height = `${to}px`;
       resizing.current = true;
       window.clearTimeout(settleTimer.current);
@@ -161,14 +197,21 @@ export function useAnimatedHeight({ collapsed }: { collapsed: boolean }): Animat
       const from = resizing.current ? element.getBoundingClientRect().height : restHeight.current;
       const to = naturalHeight(element);
       // The first measurement places the frame; it does not animate into place.
-      if (from === null) {
-        restHeight.current = to;
-        return;
-      }
-      animate(from, to);
+      if (from === null) restHeight.current = to;
+      else animate(from, to);
+      // Nothing moving: the start is already in view, and a later change keeps the pinned edge.
+      if (!resizing.current) toStart.current = false;
     },
     [animate]
   );
+
+  // The content started over: show it from the top, and keep it there once the frame has moved.
+  useLayoutEffect(() => {
+    if (lastKey.current === startKey) return;
+    lastKey.current = startKey;
+    toStart.current = true;
+    if (scroller.current) scroller.current.scrollTop = 0;
+  }, [startKey]);
 
   useLayoutEffect(() => {
     if (typeof ResizeObserver === 'undefined') return undefined;
@@ -245,9 +288,14 @@ export function useAnimatedHeight({ collapsed }: { collapsed: boolean }): Animat
     if (element) observer.current?.observe(element);
   }, []);
 
-  const attachScroller = useCallback((element: HTMLElement | null) => {
-    scroller.current = element;
-  }, []);
+  const attachScroller = useCallback(
+    (element: HTMLElement | null) => {
+      // Opened: keyed content shows from its start once the frame has opened over it.
+      if (keyed && element && element !== scroller.current) toStart.current = true;
+      scroller.current = element;
+    },
+    [keyed]
+  );
 
   return { attachFrame, attachContent, attachScroller, closing };
 }

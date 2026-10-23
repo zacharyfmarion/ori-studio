@@ -1,22 +1,40 @@
 import {
-  type DiagramShortcutId,
+  type ConditionalShortcutIds,
+  type ConditionalShortcutTarget,
   getResolvedShortcuts,
   keyChordEquals,
   keyChordFromKeyboardEvent,
   SHORTCUT_DEFINITIONS,
-  type ReferencesShortcutId,
   type ShortcutActionId,
   type ShortcutDefaultsSource,
   type ShortcutOverrides,
   type ShortcutScope,
   type ShortcutTarget,
-  type SimulatorShortcutId,
   type ViewportShortcutId,
 } from './shortcuts';
 import type { MenuActionId } from '../commands/menuActions';
 import type { OristudioCpActionId } from '../lib/oristudioCpActions';
 
-export interface ShortcutExecutors {
+/**
+ * A conditional surface's executor: `true` claims the chord, `false` declines
+ * it and dispatch continues to the next scope, as a viewport's does. Each
+ * surface's reason to decline, or never to, is in `CONDITIONAL_SHORTCUT_SCOPES`.
+ */
+export type ConditionalScopeExecutor<T extends ConditionalShortcutTarget> = (
+  id: ConditionalShortcutIds[T]
+) => boolean;
+
+/**
+ * One per conditional surface, present only while that surface owns the
+ * keyboard. Absent means its scopes resolve nothing and the chord falls through
+ * to the next scope, which is what keeps F, C, R, L and Space on the CP tools
+ * the rest of the time.
+ */
+export type ConditionalScopeExecutors = {
+  [T in ConditionalShortcutTarget]?: ConditionalScopeExecutor<T>;
+};
+
+export interface ShortcutExecutors extends ConditionalScopeExecutors {
   menu?: (id: MenuActionId) => unknown;
   cpAction?: (id: OristudioCpActionId) => unknown;
   /**
@@ -36,36 +54,12 @@ export interface ShortcutExecutors {
    * so Delete died on the BP and design canvases with nothing to show for it.
    * A required boolean makes that a compile error rather than a dead key.
    *
-   * Only the viewport, simulator and Diagram executors can decline, because
-   * only they are synchronous. A menu action returns a promise, so whether it
-   * handled the chord is not known until well after the keydown has to be
-   * preventDefault'd or not.
+   * Only the viewport and the conditional surfaces' executors can decline,
+   * because only they are synchronous. A menu action returns a promise, so
+   * whether it handled the chord is not known until well after the keydown has
+   * to be preventDefault'd or not.
    */
   viewport?: (id: ViewportShortcutId) => boolean;
-  /**
-   * Registered only while a simulation owns the keyboard. Absent means the
-   * `simulator` scope resolves nothing and the chord falls through to the next
-   * scope, which is what keeps F, C, R, L and Space on the CP tools the rest of
-   * the time.
-   *
-   * Present, it claims or declines like the viewport's. Declining is for the
-   * tool verbs: only the Simulate workspace has tools, and an inline simulation
-   * window on the Edit canvas registers this executor too — so without a
-   * decline its Escape would swallow `viewport.cancel` whenever the window held
-   * the keyboard, and O and P would go dead beneath it.
-   */
-  simulator?: (id: SimulatorShortcutId) => boolean;
-  /**
-   * Registered only while the References panel is mounted; absent, the
-   * `references` scope resolves nothing and the chord falls through.
-   */
-  references?: (id: ReferencesShortcutId) => unknown;
-  /**
-   * Registered only while the Diagram owns the keyboard. It may decline, as
-   * the viewport's and the simulator's may — synchronous for the same reason —
-   * so its arrows give way to a focused button or tab strip.
-   */
-  diagram?: (id: DiagramShortcutId) => boolean;
 }
 
 export interface ShortcutDispatchOptions {
@@ -198,8 +192,8 @@ export function handleShortcutKeyDown(
     if (!definition) continue;
     // A scope that does not claim the chord must not swallow it: fall through
     // and let a lower scope have it. Two ways that happens -- the scope's
-    // executor is not registered at all, or (viewport and simulator only) it ran
-    // and declined.
+    // executor is not registered at all, or (a viewport's or a conditional
+    // surface's only) it ran and declined.
     //
     // The first matters most for `simulator`, which shares Space, F, C and R
     // with the crease-pattern tools: a moment where the scope is in the stack
@@ -233,17 +227,19 @@ function executeShortcut(
       // scope, so the worst a mis-typed executor can do is fail to handle a
       // chord -- never silently eat one on the way past.
       return executors.viewport(id as ViewportShortcutId) === true;
-    case 'simulator':
-      if (!executors.simulator) return false;
-      // An explicit claim only, for the viewport's reason above.
-      return executors.simulator(id as SimulatorShortcutId) === true;
-    case 'references':
-      if (!executors.references) return false;
-      void executors.references(id as ReferencesShortcutId);
-      return true;
-    case 'diagram':
-      if (!executors.diagram) return false;
-      // As for a viewport: only an explicit claim counts.
-      return executors.diagram(id as DiagramShortcutId) === true;
+    default:
+      return executeConditionalShortcut(target, id, executors);
   }
+}
+
+function executeConditionalShortcut<T extends ConditionalShortcutTarget>(
+  target: T,
+  id: ShortcutActionId,
+  executors: ConditionalScopeExecutors
+): boolean {
+  const executor = executors[target];
+  if (!executor) return false;
+  // A binding's `target` is the surface whose ids it carries, so `id` is one
+  // this executor answers. An explicit claim only, for the viewport's reason.
+  return executor(id as ConditionalShortcutIds[T]) === true;
 }

@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
 import { MAX_STEP_ANNOTATIONS } from '../annotate/annotationModel';
 import type { DiagramLinkStatus } from '../capture/linkStatus';
-import { DIAGRAM_SHOW_AS, type DiagramShowAs, type DiagramStep } from '../document/diagramDocument';
+import { DIAGRAM_FOLD_SHOW_AS, DIAGRAM_SHOW_AS, type DiagramShowAs, type DiagramStep } from '../document/diagramDocument';
 import type { DiagramTurnActionId } from './diagramTurnActions';
 
 /**
@@ -37,6 +37,7 @@ export type DiagramStepActionId =
   | 'upload-picture'
   | 'link-pattern'
   | 'from-references'
+  | 'from-fold'
   | 'make-turn-over'
   | 'make-rotate'
   | 'refresh-picture'
@@ -44,6 +45,7 @@ export type DiagramStepActionId =
   | 'update-all-enlarged'
   | 'open-in-edit'
   | 'open-in-references'
+  | 'open-in-fold'
   | 'replace-from-references'
   | 'make-marks-editable'
   | 'adjust-pose'
@@ -137,10 +139,18 @@ export interface DiagramStepActionState {
   link: DiagramLinkStatus | null;
   /**
    * What the step is linked to: a pattern of the crease pattern (`cp`), which
-   * Refresh captures again, or the sheet it was sent from in References,
-   * which it never follows (D6). Null for a step that is not linked.
+   * Refresh captures again, the sheet it was sent from in References, which
+   * it never follows (D6), or a step of a Fold sequence (`fold`), which
+   * Refresh captures again from the sequence (fold-workspace plan D17). Null
+   * for a step that is not linked.
    */
-  linkKind: 'cp' | 'references' | null;
+  linkKind: 'cp' | 'references' | 'fold' | null;
+  /**
+   * The project's Fold sequence has steps to pull into the diagram: From
+   * Fold… is offered on an empty step only then — a project that never
+   * folded in Fold has no use for it. Absent, none.
+   */
+  foldSteps?: boolean;
   /** The step starts a new page ("Start a new page here"). */
   breakBefore: boolean;
   /** A 3D picture whose light is not the diagram's style's any more: Refresh relights it. */
@@ -242,8 +252,12 @@ export interface DiagramStepActionDeps {
   openInEdit: () => void;
   /** Show the sheet a References step was sent from, in References. */
   openInReferences: () => void;
+  /** Show a Fold step's step in Fold. */
+  openInFold: () => void;
   /** Fill an empty step from the References browser. */
   fromReferences: () => void;
+  /** Fill an empty step from the Fold browser. */
+  fromFold: () => void;
   /** Replace a References step's card from the References browser, its own card marked. */
   replaceFromReferences: () => void;
   /** Lift a References step's card's marks out of its picture into annotations (17e). */
@@ -266,6 +280,7 @@ const READ_ONLY_VERBS: ReadonlySet<DiagramStepActionId> = new Set([
   'export-picture',
   'open-in-edit',
   'open-in-references',
+  'open-in-fold',
 ]);
 
 /** The verbs that have a key of their own. */
@@ -313,15 +328,23 @@ export function buildDiagramStepActions(
     };
   };
 
+  // A Fold step is captured from its sequence: Edit's pattern has nothing to do with it.
+  const fold = state.linkKind === 'fold';
+  const patternReady = fold || state.patternOpen;
+  const missingHint = fold
+    ? t('panels:diagram.fold.missingHint', 'Its step is gone from Fold, or no longer folds')
+    : t('panels:diagram.actions.missingHint', 'Its pattern is gone: relink it to another');
   // A way to show the pattern needs a capture: the pattern open, the region there, no capture running.
-  const showBlocked = state.locked || !state.patternOpen || state.capturing || state.link === 'missing';
+  const showBlocked = state.locked || !patternReady || state.capturing || state.link === 'missing';
   const showHint = state.locked
     ? lockedEditHint
-    : !state.patternOpen
+    : !patternReady
       ? t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
       : state.capturing
         ? capturingHint
-        : t('panels:diagram.actions.missingHint', 'Its pattern is gone: relink it to another');
+        : missingHint;
+  // A Fold step is its crease pattern or its folded form, never simulated.
+  const ways = fold ? DIAGRAM_FOLD_SHOW_AS : DIAGRAM_SHOW_AS;
   const choice = (
     id: DiagramStepChoice['id'],
     label: string,
@@ -336,7 +359,7 @@ export function buildDiagramStepActions(
       label,
       disabled,
       ...(disabled ? { hint: gated ? readOnlyHint : showHint } : {}),
-      options: DIAGRAM_SHOW_AS.map((way) => ({
+      options: ways.map((way) => ({
         id: way,
         label: showAsName(way, t),
         ...(current === null ? {} : { checked: way === current }),
@@ -503,9 +526,9 @@ export function buildDiagramStepActions(
         ? t('panels:diagram.actions.noPatternHint', 'Open a crease pattern in Edit to link it')
         : capturingHint
   );
-  // An empty step's way to a picture from References: on a step with one,
-  // the cards would go after it, which the header's From References…
-  // already does.
+  // An empty step's way to a picture from References, or from Fold: on a
+  // step with one, the cards would go after it, which the header's From
+  // References… and From Fold… already do.
   const fromReferences = state.hasSource
     ? null
     : command(
@@ -519,6 +542,16 @@ export function buildDiagramStepActions(
             ? t('panels:diagram.actions.noPatternReferencesHint', 'Open a crease pattern in Edit to plan its folds')
             : capturingHint
       );
+  const fromFold =
+    state.hasSource || !state.foldSteps
+      ? null
+      : command(
+          'from-fold',
+          t('panels:diagram.fold.fromFold', 'From Fold…'),
+          deps.fromFold,
+          state.locked || state.capturing,
+          state.locked ? lockedEditHint : capturingHint
+        );
   // An empty step can be a turn instead (D24): the verbs are noise on any other.
   const makeTurn =
     state.hasSource || state.locked
@@ -527,8 +560,8 @@ export function buildDiagramStepActions(
           command('make-turn-over', t('panels:diagram.actions.makeTurnOver', 'Make Turn Over'), () => deps.makeTurn('turn-over'), false),
           command('make-rotate', t('panels:diagram.actions.makeRotate', 'Make Rotate'), () => deps.makeTurn('rotate'), false),
         ];
-  // Only a linked pattern can be refreshed: on any other step the verb is noise.
-  const patternLink = state.linkKind === 'cp' ? state.link : null;
+  // Only a linked pattern or a Fold step can be refreshed: on any other step the verb is noise.
+  const patternLink = state.linkKind === 'cp' || fold ? state.link : null;
   const refresh =
     patternLink === null
       ? null
@@ -538,11 +571,17 @@ export function buildDiagramStepActions(
             ? t('panels:diagram.actions.poseAgain', 'Pose Again')
             : t('panels:diagram.actions.refreshPicture', 'Refresh Picture'),
           deps.refreshPicture,
-          state.capturing || !refreshable(patternLink, stillBehind(state), state.patternOpen),
-          state.capturing ? capturingHint : refreshHint(patternLink, stillBehind(state), state.patternOpen, t)
+          state.capturing || !refreshable(patternLink, stillBehind(state), patternReady),
+          state.capturing
+            ? capturingHint
+            : fold && patternLink === 'missing'
+              ? missingHint
+              : fold && patternLink === 'current' && !stillBehind(state)
+                ? t('panels:diagram.fold.currentHint', 'Already shows its step as it is')
+                : refreshHint(patternLink, stillBehind(state), patternReady, t)
         );
   const openInEdit =
-    patternLink === null
+    patternLink === null || fold
       ? null
       : command(
           'open-in-edit',
@@ -551,6 +590,10 @@ export function buildDiagramStepActions(
           !state.patternOpen,
           t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
         );
+  const openInFold =
+    patternLink === null || !fold
+      ? null
+      : command('open-in-fold', t('panels:diagram.fold.openInFold', 'Open in Fold'), deps.openInFold, patternLink === 'missing', missingHint);
   // An enlarged step's frame placed again from its area as it is now, over any move made on it (review
   // fix 4): what "Step N's area changed" asks for, as Refresh Picture is what "the pattern changed" does,
   // and held, as that is, while there is nothing to bring up to date.
@@ -650,7 +693,7 @@ export function buildDiagramStepActions(
   const updateFirst = update !== null && !update.disabled && !update.waiting;
   // A step with a picture leads with what is done to it; an empty one with the
   // ways to give it one, or to make it a turn — what its Step pane offers.
-  const first = state.hasSource ? [adjustPose, annotate] : [upload, link, ...present(fromReferences), ...makeTurn];
+  const first = state.hasSource ? [adjustPose, annotate] : [upload, link, ...present(fromReferences, fromFold), ...makeTurn];
   const picture: DiagramStepGroup['items'] = [
     ...(state.hasSource ? [upload, link] : [adjustPose, annotate]),
     ...present(
@@ -660,6 +703,7 @@ export function buildDiagramStepActions(
       updateFirst ? null : update,
       updateAll,
       openInEdit,
+      openInFold,
       openInReferences
     ),
     { kind: 'separator', id: 'picture-file' },

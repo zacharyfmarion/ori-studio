@@ -35,7 +35,8 @@ describe('what snaps (decision 9)', () => {
   it('is a circle, a star, a right angle’s corner, a line’s ends, a callout’s point, an angle mark’s points and the ends equal divisions measure, never an arrow, a sign or a label', () => {
     const snapping = ANNOTATION_KINDS.filter(snapsWhenPlaced);
     expect([...snapping].sort()).toEqual(
-      ['angle-mark', 'callout', 'circle', 'star', 'divisions', 'right-angle', 'hidden-line', 'mountain-line', 'solid-line', 'valley-line'].sort()
+      // A pinch's uncreased rest, a Fold step's mark, snaps as a line's ends do when one is dragged.
+      ['angle-mark', 'callout', 'circle', 'star', 'divisions', 'right-angle', 'hidden-line', 'uncreased-line', 'mountain-line', 'solid-line', 'valley-line'].sort()
     );
     // An arrow is drawn where it is drawn (Zach, 2026-10-05).
     for (const arrow of ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'white-arrow'] as const) {

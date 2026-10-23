@@ -1,0 +1,253 @@
+/**
+ * DOM layer for the active tool's option window.
+ *
+ * A **transparent frame around the geometry being changed**, with its controls
+ * on the top edge. The content is the drawing itself — the creases are already
+ * stroked in the colour the chosen answer would give them and badged with their
+ * angles, so a list beside them would say the same thing twice while covering
+ * the canvas.
+ *
+ * # The camera is injected
+ *
+ * The layer is told how its surface projects model space to CSS pixels rather
+ * than finding a camera itself. Edit's canvas publishes its camera through
+ * `cpOverlayViewStore`, a singleton for the one Edit canvas there is, and
+ * {@link CpToolOptionLayer} binds the layer to that; a surface that draws with
+ * its own camera passes that camera's `view`, one layer per pane where there
+ * are several. Reading the singleton here would put the window over the wrong
+ * canvas without a type error to say so, because every camera is the same
+ * `CpOverlayView`.
+ *
+ * The frame scales with the camera and the controls do not; see
+ * {@link toolOptionPlacement}.
+ *
+ * The header is **attached** to the frame's top edge and pinned to its right,
+ * so the two read as one window rather than as a toolbar that happens to be
+ * nearby — which matters on a pattern with several vertices, where the only
+ * thing the controls say is *which* region they belong to.
+ *
+ * The layer and the frame are `pointer-events: none` — only the header takes
+ * them — so drawing a crease inside the framed region still works.
+ */
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+import type { CpOverlayView } from '../CreasePatternWebglCanvas';
+import { Button } from '../../components/ui/Button';
+import { IconButton } from '../../components/ui/IconButton';
+import type { CpToolOptionWindow } from './toolOptionWindow';
+import { toolOptionFrame, toolOptionHeaderOffset, toolOptionInView, type Size } from './toolOptionPlacement';
+import { Toolbar } from '../../components/ui/Toolbar';
+
+export interface ToolOptionLayerProps {
+  option: CpToolOptionWindow | null;
+  /**
+   * The surface's model → CSS-pixel affine, relative to the box this layer
+   * fills. `option.bounds` is in its model space. Null until the surface has
+   * drawn a frame, and the layer renders nothing until then.
+   */
+  view: CpOverlayView | null;
+  /**
+   * Keep the header and the note on screen (`toolOptionInView`): for a
+   * surface too narrow to let them hang off it, such as a phone's pane, with
+   * how many px of its bottom something covers (its tool window). Absent, the
+   * header stays pinned to its frame and pans off with it.
+   */
+  keepInView?: { coveredBottom: number };
+}
+
+/** The size of a measured element; `current` back when it has not changed, so state does not churn. */
+function measured(element: HTMLElement | null, current: Size | null): Size | null {
+  if (!element) return null;
+  const box = element.getBoundingClientRect();
+  return current && current.width === box.width && current.height === box.height
+    ? current
+    : { width: box.width, height: box.height };
+}
+
+export function ToolOptionLayer({ option, view, keepInView }: ToolOptionLayerProps) {
+  const { t } = useTranslation(['tools', 'common']);
+  const [layerRef, setLayerRef] = useState<HTMLDivElement | null>(null);
+  const chromeRef = useRef<HTMLDivElement | null>(null);
+  const noteRef = useRef<HTMLParagraphElement | null>(null);
+  const [chromeSize, setChromeSize] = useState<Size | null>(null);
+  const [noteSize, setNoteSize] = useState<Size | null>(null);
+  const [viewport, setViewport] = useState<Size | null>(null);
+
+  // Measured rather than assumed: the translated strings and the optional note
+  // both change the block, and guessing would put it through the frame's edge.
+  // A layout effect, so the corrected position is in place before the browser
+  // paints and the controls are never seen at the uncorrected one.
+  const chromeKey = option ? `${option.note ?? ''}:${option.count}:${option.title ?? ''}` : null;
+  useLayoutEffect(() => {
+    setChromeSize((current) => measured(chromeRef.current, current));
+    setNoteSize((current) => measured(noteRef.current, current));
+  }, [chromeKey]);
+
+  // The area the controls have to stay inside. Observed rather than read during
+  // render — a pane resize changes it without changing anything React knows
+  // about, so nothing else would trigger the re-place.
+  useEffect(() => {
+    if (!layerRef) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const box = entry.contentRect;
+      setViewport((current) =>
+        current && current.width === box.width && current.height === box.height
+          ? current
+          : { width: box.width, height: box.height }
+      );
+    });
+    observer.observe(layerRef);
+    return () => observer.disconnect();
+  }, [layerRef]);
+
+  if (!option || !view) return null;
+
+  const stepper = option.count > 1;
+  // Nothing on the header's left. The bar must then shrink-wrap instead of
+  // spanning the frame: `space-between` over a single child would push
+  // Apply/Cancel to the *left* edge of a wide frame, far from the window they
+  // belong to.
+  const actionsOnly = !stepper && !option.title;
+  const frame = toolOptionFrame(view, option.bounds);
+  const inView =
+    keepInView && chromeSize && viewport
+      ? toolOptionInView(frame, chromeSize, option.note ? noteSize : null, viewport, keepInView.coveredBottom)
+      : null;
+  const headerTop = inView
+    ? inView.headerTop
+    : chromeSize && viewport
+      ? toolOptionHeaderOffset(frame, chromeSize.height, viewport)
+      : null;
+
+  return (
+    <div
+      ref={setLayerRef}
+      className="cp-tool-option-layer"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        overflow: 'visible',
+        // Above the fold-angle badges, the measure layer, **and the foldability
+        // HUD** (12); below the annotation overlay's direct-manipulation
+        // handles (15).
+        //
+        // The HUD is why this is not 8. At 8 its summary sat over this layer's
+        // header, and `elementFromPoint` at either button's centre returned the
+        // HUD — so clicking Cancel expanded the diagnostics panel and left the
+        // draft untouched, which reads exactly like "Cancel does nothing". It
+        // bites the solve tools hardest because a pattern with unassigned or
+        // non-closing creases is *both* what raises a foldability warning and
+        // what you reach for these tools to fix, so the HUD is showing whenever
+        // they are in use.
+        //
+        // Raising the layer is safe rather than merely expedient: it is
+        // `pointer-events: none` and fully transparent, so the only thing that
+        // moves above the HUD is the header the user is being asked to click.
+        zIndex: 13,
+      }}
+    >
+      <div
+        className="cp-tool-option"
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: `${frame.width}px`,
+          height: `${frame.height}px`,
+          // Inline, alongside the layer's and the header's, because this is
+          // behaviour rather than styling: a frame that swallowed clicks would
+          // stop you drawing inside the very region it is drawing attention to.
+          pointerEvents: 'none',
+          transform: `translate(${frame.left}px, ${frame.top}px)`,
+        }}
+      >
+        <div className="cp-tool-option__frame" aria-hidden />
+        <Toolbar
+          ref={chromeRef}
+          // The shared toolbar chrome rather than a restatement of it: this is
+          // one of several floating controls over the canvas and they must not
+          // drift apart. Only its attachment to the frame is local.
+          tone="raised"
+          wrap="always"
+          attach="bottom"
+          className={`cp-tool-option__header${
+            actionsOnly ? ' cp-tool-option__header--actions-only' : ''
+          }`}
+          style={{
+            // `right: 0` in CSS pins it to the frame's right edge; this is the
+            // only part that varies. `-height` sits it on top of the frame,
+            // `0` just inside when there is no room above.
+            top: `${headerTop ?? 0}px`,
+            // Kept in view, it slides along the viewport's edge instead of leaving it.
+            ...(inView ? { right: `${-inView.headerShift}px` } : {}),
+            pointerEvents: 'auto',
+            // Hidden for the single frame before the measurement lands, so it
+            // is never seen at the unplaced offset.
+            visibility: headerTop == null ? 'hidden' : 'visible',
+          }}
+          role="group"
+          // A title when there is one, otherwise a generic name — a group with
+          // no accessible name is announced as an unlabelled region, and
+          // dropping the title must not cost the header its name.
+          aria-label={option.title ?? t('tools:cpToolOption.label', 'Tool options')}
+        >
+          {stepper ? (
+            <div className="cp-tool-option__stepper">
+              <IconButton
+                size="sm"
+                variant="toolbar"
+                aria-label={t('tools:cpToolOption.previous', 'Previous option')}
+                onClick={() => option.onStep(-1)}
+              >
+                <ChevronLeft size={14} aria-hidden />
+              </IconButton>
+              <span className="cp-tool-option__count">
+                {t('tools:cpToolOption.count', '{{index}} of {{total}}', {
+                  index: option.index + 1,
+                  total: option.count,
+                })}
+              </span>
+              <IconButton
+                size="sm"
+                variant="toolbar"
+                aria-label={t('tools:cpToolOption.next', 'Next option')}
+                onClick={() => option.onStep(1)}
+              >
+                <ChevronRight size={14} aria-hidden />
+              </IconButton>
+            </div>
+          ) : option.title ? (
+            <span className="cp-tool-option__title">{option.title}</span>
+          ) : null}
+          <div className="cp-tool-option__actions">
+            <Button size="sm" variant="primary" onClick={option.onApply}>
+              {t('tools:cpToolOption.apply', 'Apply')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={option.onCancel}>
+              {t('common:cancel', 'Cancel')}
+            </Button>
+          </div>
+        </Toolbar>
+        {option.note ? (
+          <p
+            ref={noteRef}
+            className="cp-tool-option__note"
+            style={
+              keepInView
+                ? inView
+                  ? { top: `${inView.noteTop}px`, right: `${-inView.noteShift}px`, marginTop: 0 }
+                  : // Not placed until it is measured, as the header is not.
+                    { visibility: 'hidden' }
+                : undefined
+            }
+          >
+            {option.note}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}

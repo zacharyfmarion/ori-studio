@@ -35,6 +35,18 @@
       "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal."
     },
     "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",
+    "fold": {
+      "locked": "Dieser Schritt wurde mit einem neueren Ori Studio erstellt.",
+      "missing": "Dieser Schritt ist nicht mehr in der Falten-Folge oder lässt sich nicht mehr falten.",
+      "notShown": "Falten zeigt eine andere Folge, daher lässt sich dieser Schritt jetzt nicht erfassen.",
+      "openDiagram": "Diagramm öffnen",
+      "sent_one": "Ein Schritt zum Diagramm hinzugefügt",
+      "sent_other": "{{count}} Schritte zum Diagramm hinzugefügt",
+      "sequenceGone": "Diese Falten-Folge ist nicht mehr in diesem Projekt.",
+      "someFailed_one": "Ein Schritt ließ sich nicht aus Falten erfassen und wurde ausgelassen.",
+      "someFailed_other": "{{count}} Schritte ließen sich nicht aus Falten erfassen und wurden ausgelassen.",
+      "stepGone": "Dieser Schritt ist nicht mehr in der Falten-Folge."
+    },
     "import": {
       "otherWorkspaceFirst": "Machen Sie zuerst die späteren Änderungen im anderen Arbeitsbereich rückgängig oder wiederholen Sie sie: Der Import hat Bearbeiten und Diagramm geändert.",
       "restoreFailed": "Die importierten Schritte konnten nicht wiederhergestellt werden."
@@ -95,6 +107,13 @@
   "foldedFigureExport": {
     "empty": "Dieses gefaltete Modell hat noch nichts zu exportieren",
     "failed": "Dieses gefaltete Modell konnte nicht exportiert werden"
+  },
+  "foldIo": {
+    "noStep": "Es gibt noch keinen Schritt zum Exportieren.",
+    "pathBroken": "Ein Schritt dieser Folge lässt sich nicht mehr falten, daher können die Schritte nicht gesendet oder exportiert werden.",
+    "sheetOnScreen": "Gehe zu einem Schritt, um ihn zu exportieren.",
+    "tooLarge": "Diese Folge ist zu groß, um als eine FOLD-Datei exportiert zu werden.",
+    "unavailable": "Die Falt-Engine hat angehalten, bevor sie fertig war. Versuche es erneut."
   },
   "global": {
     "error": "Ori Studio-Fehler",

@@ -29,7 +29,7 @@ import {
   sheetPolygon,
   sideOf,
 } from './plannerDiagram';
-import { arcSamplePoints, type DiagramArc } from '../stepDiagramGeometry';
+import { arcSamplePoints, type DiagramArc } from '../../../lib/stepDiagram/stepDiagramGeometry';
 import {
   chosenWitness,
   type PrecreaseSequence,

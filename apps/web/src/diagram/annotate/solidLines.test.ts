@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { canvasDiagramInk, DIAGRAM_LINE_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { canvasDiagramInk, DIAGRAM_LINE_INK } from '../../lib/stepDiagram/diagramInk';
 import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramStyle, type KnownDiagramAnnotation } from '../document/diagramDocument';

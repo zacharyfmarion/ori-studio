@@ -286,13 +286,981 @@
     "toolValleyArrow": "Flèche de pli vallée",
     "toolValleyLine": "Ligne vallée",
     "toolWhiteArrow": "Flèche blanche",
-    "toolXRay": "Rayons X"
+    "toolXRay": "Rayons X",
+    "uncreasedLine": "Ligne non marquée"
   },
   "divideMode": {
     "count": "Nombre",
     "countTitle": "Diviser la ligne en parts égales",
     "ratio": "Rapport",
     "ratioTitle": "Diviser la ligne selon un rapport"
+  },
+  "fold": {
+    "categoryLabel": "Espace de pliage",
+    "chooser": {
+      "noKeys": {
+        "emergent": "Plus d’un quatrième pli permet à ces plis de se poser à plat. Parcourez-les.",
+        "opening": "Le rabat s’ouvre de plus d’une façon : les couches en surbrillance restent ensemble. Parcourez-les.",
+        "order": "Les couches peuvent se poser empilées de plus d’une façon. Parcourez-les.",
+        "pocket": "La pointe peut s’enfoncer dans plus d’une poche entre ses couches. Parcourez-les.",
+        "ridge": "Les deux arêtes laissent le pli pivoté à plat. Parcourez-les.",
+        "root": "Cet axiome donne ici plus d’un pli. Parcourez-les.",
+        "target": "Plus d’une couche peut recevoir le rabat : la plus claire est celle retenue. Parcourez-les."
+      },
+      "withKeys": {
+        "emergent": "Plus d’un quatrième pli permet à ces plis de se poser à plat. Parcourez-les, ou appuyez sur {{keys}}.",
+        "opening": "Le rabat s’ouvre de plus d’une façon : les couches en surbrillance restent ensemble. Parcourez-les, ou appuyez sur {{keys}}.",
+        "order": "Les couches peuvent se poser empilées de plus d’une façon. Parcourez-les, ou appuyez sur {{keys}}.",
+        "pocket": "La pointe peut s’enfoncer dans plus d’une poche entre ses couches. Parcourez-les, ou appuyez sur {{keys}}.",
+        "ridge": "Les deux arêtes laissent le pli pivoté à plat. Parcourez-les, ou appuyez sur {{keys}}.",
+        "root": "Cet axiome donne ici plus d’un pli. Parcourez-les, ou appuyez sur {{keys}}.",
+        "target": "Plus d’une couche peut recevoir le rabat : la plus claire est celle retenue. Parcourez-les, ou appuyez sur {{keys}}."
+      }
+    },
+    "crimp": {
+      "bothFit": "Les deux types de crimp conviennent ici : choisissez de quel côté va la pointe.",
+      "firstLine": "Première ligne",
+      "firstLineAxiom": "La première ligne est placée par {{mode}}, le mode de ligne en cours. Pour la tracer, choisissez Ligne libre sous Première ligne.",
+      "introTurn": "Fait tourner l’extrémité d’un rabat vers l’intérieur le long d’une ligne, puis de nouveau vers l’extérieur le long d’une seconde.",
+      "secondLine": "Seconde ligne"
+    },
+    "divide": {
+      "clear_one": "Effacer la marque faite ici",
+      "clear_many": "Effacer les {{count}} marques faites ici",
+      "clear_other": "Effacer les {{count}} marques faites ici",
+      "computed": "Rapport calculé {{s}} : {{t}}",
+      "count": "Parts égales",
+      "left": "Depuis le début",
+      "mode": "Diviser",
+      "parts": "Parts",
+      "ratio": "Rapport",
+      "right": "Jusqu’à la fin"
+    },
+    "extent": {
+      "commitPinch": "Pincer",
+      "keyNote": "Appuyez sur {{shortcut}} pour passer d’une étendue à l’autre.",
+      "label": "Étendue",
+      "pinchHelp": "Ne marquer qu’un court repère, centré sur un point cliqué le long de la ligne.",
+      "pinchHelpTouch": "Ne marquer qu’un court repère, centré sur un point touché le long de la ligne.",
+      "segmentHelp": "Ne marquer la ligne qu’entre deux points cliqués le long de celle-ci.",
+      "segmentHelpTouch": "Ne marquer la ligne qu’entre deux points touchés le long de celle-ci.",
+      "wholeHelp": "Marquer la ligne d’un bord à l’autre."
+    },
+    "fix": {
+      "closedSinkInstead": "Plutôt un enfoncement fermé",
+      "crimpFlap": "Faire le crimp seulement sur le rabat {{number}}",
+      "crimpThisFlap": "Faire le crimp seulement sur ce rabat",
+      "foldOntoLine": "Plier plutôt le bord sur la ligne",
+      "includeFlap": "Inclure le rabat {{number}}",
+      "includeFlaps_one": "Inclure {{count}} rabat",
+      "includeFlaps_many": "Inclure les {{count}} rabats",
+      "includeFlaps_other": "Inclure les {{count}} rabats",
+      "insideCrimpInstead": "Plutôt un crimp intérieur",
+      "insideInstead": "Plutôt un pli inversé intérieur",
+      "mountainInstead": "Plutôt un pli montagne",
+      "openSinkInstead": "Plutôt un enfoncement ouvert",
+      "outsideCrimpInstead": "Plutôt un crimp extérieur",
+      "outsideInstead": "Plutôt un pli inversé extérieur",
+      "pickFlap": "Plier seulement le rabat {{number}}",
+      "pickThisFlap": "Plier seulement ce rabat",
+      "pinchInstead": "Pincer à cet endroit à la place",
+      "precreaseOtherWay": "Pré-plier dans l’autre sens",
+      "reverseCrossedFlaps": "Inverser seulement les rabats que la ligne traverse",
+      "reverseFlap": "Inverser seulement le rabat {{number}}",
+      "reverseThisFlap": "Inverser seulement ce rabat",
+      "sinkFlap": "Enfoncer seulement le rabat {{number}}",
+      "sinkThisFlap": "Enfoncer seulement ce rabat",
+      "slideToEdge": "Faire glisser la ligne pour poser le point sur le bord",
+      "swapInstead": "Inverser le côté qui bouge",
+      "throughAllLayers": "Marquer à travers toutes les couches",
+      "tuckFlap": "Rentrer seulement le rabat {{number}}",
+      "tuckOtherWay": "Rentrer dans l’autre sens",
+      "tuckOver": "Plutôt rentrer par-dessus la couche {{number}} de la liste",
+      "tuckOverAnother": "Plutôt rentrer par-dessus la couche qui convient",
+      "tuckThisFlap": "Rentrer seulement ce rabat",
+      "tuckUnder": "Plutôt rentrer sous la couche {{number}} de la liste",
+      "tuckUnderAnother": "Plutôt rentrer sous la couche qui convient",
+      "turnToEdge": "Faire pivoter la ligne pour poser le point sur le bord",
+      "useLine": "Utiliser la ligne de repère",
+      "useMovingPoint": "Utiliser le point du rabat qui bouge",
+      "useSquareLine": "Utiliser la ligne perpendiculaire",
+      "useWholeLine": "Utiliser toute la ligne",
+      "valleyInstead": "Plutôt un pli vallée"
+    },
+    "flap": {
+      "chip_one": "Rabat {{number}}, {{count}} couche",
+      "chip_many": "Rabat {{number}}, {{count}} couches",
+      "chip_other": "Rabat {{number}}, {{count}} couches",
+      "chipAdded_one": "Rabat {{number}}, {{count}} couche, bouge avec le pli",
+      "chipAdded_many": "Rabat {{number}}, {{count}} couches, bouge avec le pli",
+      "chipAdded_other": "Rabat {{number}}, {{count}} couches, bouge avec le pli",
+      "groupLabel": "Rabats à plier",
+      "layers_one": "{{count}} couche",
+      "layers_many": "{{count}} couches",
+      "layers_other": "{{count}} couches",
+      "name": "Rabat {{number}}"
+    },
+    "group": {
+      "fold": "Plier",
+      "locate": "Placer la ligne",
+      "model": "Modèle",
+      "reference": "Points de repère",
+      "sequence": "Séquence",
+      "sink": "Enfoncements"
+    },
+    "key": {
+      "commit": "Faire le pli",
+      "cycleExtent": "Étendue de pré-pliage suivante",
+      "nextRoot": "Solution suivante",
+      "previousRoot": "Solution précédente",
+      "swapSide": "Inverser le côté qui bouge"
+    },
+    "keys": {
+      "nextBranch": "Branche suivante",
+      "nextStep": "Étape suivante",
+      "previousBranch": "Branche précédente",
+      "previousStep": "Étape précédente"
+    },
+    "latch": {
+      "freePoint": "Point libre"
+    },
+    "line": {
+      "axiom": "Axiome {{number}} : {{phrase}}",
+      "axiom1Help": "La ligne qui passe par deux points.",
+      "axiom2Help": "La ligne qui amène un point sur un autre.",
+      "axiom3Help": "La ligne qui amène un bord ou un pli sur un autre.",
+      "axiom4Help": "La ligne qui passe par un point, perpendiculaire à un bord ou à un pli.",
+      "axiom5Help": "La ligne qui passe par un pivot et amène un point sur un bord ou un pli.",
+      "axiom6Help": "La ligne qui amène à la fois deux points sur deux bords ou plis.",
+      "axiom7Help": "La ligne qui amène un point sur un bord ou un pli, perpendiculaire à un autre.",
+      "crease": "Pli existant",
+      "creaseHelp": "Un pli ou un bord plié déjà là : replier un pré-pli, ou déplier un rabat.",
+      "free": "Ligne libre",
+      "freeHelp": "Une ligne tracée n’importe où, sans repère."
+    },
+    "note": {
+      "acrossLayers": "Ces points sont sur des couches que le pliage a écartées : la ligne passe par eux là où ils se trouvent dans la forme pliée. Le patron de plis montre les plis qu’elle crée.",
+      "along": "Les points s’accrochent là où la ligne croise des plis, des bords et des repères, aux points situés sur elle et à son milieu.",
+      "alongBack": "Échap annule le dernier point.",
+      "clear": "Échap efface les points choisis.",
+      "closedSinkLine": "La ligne en travers de la pointe fixe la profondeur de l’enfoncement.",
+      "crease": "Plier le long d’un pré-pli le replie ; le long d’un bord plié, cela déplie le rabat.",
+      "free": "Sans magnétisme : la ligne passe exactement par les points où vous cliquez.",
+      "freePoint": "Maintenez {{modifier}} pour poser un point n’importe où, sans magnétisme.",
+      "freeSnap": "S’accroche aux points proches ; sinon, utilise l’endroit exact où vous cliquez.",
+      "freeSnapTouch": "S’accroche aux points proches ; sinon, utilise l’endroit exact que vous touchez.",
+      "freeTouch": "Sans magnétisme : la ligne passe exactement par les points que vous touchez.",
+      "openSinkSquare": "La ligne en travers de la pointe fixe la profondeur de l’enfoncement, et doit être exactement perpendiculaire à sa ligne médiane : l’axiome 4 en trace une.",
+      "queued": "Pliage dès que l’aperçu est prêt…",
+      "rotateCancel": "Échap repose Tourner sans ajouter la rotation.",
+      "rotatePreview": "Le panneau plié montre le modèle tourné tel qu’il sera.",
+      "rotateRefused": "Cette rotation ne peut pas être ajoutée ici.",
+      "severalSunk_one": "{{count}} pointe enfoncée se trouve ici : la première est prise.",
+      "severalSunk_many": "{{count}} pointes enfoncées se trouvent ici : la première est prise.",
+      "severalSunk_other": "{{count}} pointes enfoncées se trouvent ici : la première est prise.",
+      "snap": "Les points s’accrochent aux coins, aux repères, aux croisements de plis, aux milieux et aux bords.",
+      "unfoldCancel": "Échap repose Déplier jusqu’à une étape sans ajouter l’étape.",
+      "unfoldPreview": "Le canevas montre le papier revenu dans cette forme. Tous les plis sont conservés.",
+      "unsinkRing": "La ligne est un pli de l’anneau laissé par l’enfoncement, le long du haut de la pointe enfoncée."
+    },
+    "op": {
+      "closedSink": "Enfoncement fermé",
+      "crimp": "Pli serti",
+      "openSink": "Enfoncement ouvert",
+      "outsideReverse": "Pli inversé extérieur",
+      "petal": "Pli pétale",
+      "pleat": "Pli en accordéon",
+      "rabbitEar": "Oreille de lapin",
+      "squash": "Pli écrasé",
+      "swivel": "Pli pivoté",
+      "tuck": "Rentrer",
+      "unsink": "Désenfoncer"
+    },
+    "order": {
+      "accept": "Utiliser cet ordre",
+      "acceptAll": "Utiliser les ordres et ajouter l’étape",
+      "acceptUpdate": "Utiliser les ordres et mettre à jour l’étape",
+      "back": "Retour",
+      "choose": "Choisir l’ordre des couches",
+      "count_one": "Ordre {{index}} sur {{count}}",
+      "count_many": "Ordre {{index}} sur {{count}}",
+      "count_other": "Ordre {{index}} sur {{count}}",
+      "failed": "Impossible de charger l’ordre. Revenez en arrière et réessayez, ou choisissez un autre ordre.",
+      "found_one": "Ordre {{index}} sur {{count}} trouvés",
+      "found_many": "Ordre {{index}} sur {{count}} trouvés",
+      "found_other": "Ordre {{index}} sur {{count}} trouvés",
+      "help": "Prévisualisez les dispositions, puis choisissez l’ordre souhaité.",
+      "incomplete": "Recherche incomplète. D’autres ordres peuvent exister.",
+      "inspect": "Inspecter les couches",
+      "loading": "Chargement de l’ordre…",
+      "movingVaries": "Ces ordres déplacent des couches différentes. Vérifiez le papier mis en évidence.",
+      "next": "Ordre des couches suivant",
+      "noneFound": "Aucun ordre trouvé pour le moment",
+      "noOthers": "Recherche terminée. Il n’y a pas d’autres ordres.",
+      "previous": "Ordre des couches précédent",
+      "region": "Région {{number}}",
+      "regions": "Régions indépendantes",
+      "search": "Rechercher d’autres ordres",
+      "searching": "Recherche d’autres ordres…",
+      "stack": "Région {{number}} : {{layers}}",
+      "stackHelp": "Sélectionnez une région pour la surligner. Les couches sont indiquées de l’avant vers l’arrière ; les différences sont comparées au premier aperçu.",
+      "stop": "Arrêter la recherche"
+    },
+    "picker": {
+      "addFavorite": "Ajouter {{tool}} aux favoris",
+      "close": "Fermer la liste des outils",
+      "favorites": "Favoris",
+      "favoritesHint": "Les {{limit}} premiers favoris de cette liste apparaissent dans la barre du bas. Appuyez longuement et faites glisser pour les réorganiser.",
+      "removeFavorite": "Retirer {{tool}} des favoris",
+      "title": "Outils de pliage",
+      "trigger": "Outils"
+    },
+    "pleat": {
+      "blocked": "Les deux plis doivent tenir dans le volet sélectionné sans déplacer le reste du papier. Vérifiez les lignes et les couches sélectionnées.",
+      "intro": "Placez d’abord la ligne montagne, puis la ligne vallée, sur le modèle avant le pliage.",
+      "layers": "Choisissez le volet à plier. L’extrémité au-delà de la ligne vallée se replie en sens inverse.",
+      "limit": "Il y a trop de dispositions de couches pour résoudre ce pli. Sélectionnez un volet plus petit.",
+      "lines": "La ligne vallée doit se trouver au-delà de la ligne montagne, vers l’extrémité mobile. Vérifiez les lignes ou appuyez sur Inverser.",
+      "mountainInstruction": "Ligne montagne : {{instruction}}",
+      "mountainLine": "Ligne montagne",
+      "refusedTitle": "Ce pli ne peut pas être réalisé ici",
+      "searching": "Recherche des façons dont les couches du pli peuvent s’empiler…",
+      "valleyInstruction": "Ligne vallée : {{instruction}}",
+      "valleyLine": "Ligne vallée"
+    },
+    "railLabel": "Outils de pliage",
+    "readOnly": {
+      "locked": "Cette étape vient d’une version plus récente d’Ori Studio : on ne peut rien plier à partir d’elle.",
+      "newer": "Cette séquence vient d’une version plus récente d’Ori Studio : elle s’ouvre en lecture seule."
+    },
+    "refusal": {
+      "budget": {
+        "text": "Déterminer comment les couches s’empilent a pris trop de temps ici : on ne sait donc pas si ce pli convient. Pliez moins de couches, ou pliez ailleurs.",
+        "title": "La recherche a manqué de temps"
+      },
+      "choiceBroken": {
+        "text": "L’ouverture ou l’ordre des couches que cette étape a enregistré ne correspond plus au papier qui la précède : elle ne peut donc pas être pliée telle qu’elle est enregistrée.",
+        "title": "Un choix ne correspond plus"
+      },
+      "chooseOpening": {
+        "text": "Le rabat s’ouvre de plus d’une façon. Choisissez-en une pour plier.",
+        "title": "Choisissez comment il s’ouvre"
+      },
+      "chooseOrder": {
+        "text": "Le pli peut se poser avec ses couches empilées de plus d’une façon. Choisissez-en une pour plier.",
+        "title": "Choisissez comment les couches s’empilent"
+      },
+      "choosePocket": {
+        "text": "La pointe peut s’enfoncer dans plus d’une poche entre ses couches. Choisissez-en une pour plier.",
+        "title": "Choisissez une poche"
+      },
+      "closureAddsFlaps": {
+        "textMany_one": "Plier ces couches déplace aussi {{count}} autre rabat.",
+        "textMany_many": "Plier ces couches déplace aussi {{count}} autres rabats.",
+        "textMany_other": "Plier ces couches déplace aussi {{count}} autres rabats.",
+        "textOne": "Plier ces couches déplace aussi le rabat {{number}}.",
+        "title": "D’autres rabats bougeraient"
+      },
+      "collision": {
+        "text": "Les couches qui bougent traverseraient des couches sur leur passage.",
+        "title": "Collision"
+      },
+      "crimpInsideInfeasible": {
+        "title": "Il ne peut pas faire de crimp à l’intérieur"
+      },
+      "crimpKindInfeasible": {
+        "neitherRedraw": "Ni le crimp intérieur ni le crimp extérieur ne conviennent à ces lignes : aucun empilement des couches ne laisse la pointe tourner sur les deux. Appuyez sur Échap et tracez des lignes plus proches de la parallèle, ou sertissez moins de rabats.",
+        "text": "Aucun empilement des couches ne permet à la pointe de tourner de ce côté sur les deux lignes. L’autre type de crimp conviendra peut-être."
+      },
+      "crimpLinesMeet": {
+        "redraw": "Les deux lignes se croisent, ou se rapprochent trop, sur le papier que le crimp déplace. Appuyez sur Échap et tracez la seconde ligne à l’écart de la première, d’un bord à l’autre du rabat.",
+        "title": "Les lignes se touchent"
+      },
+      "crimpMissesTip": {
+        "redraw": "La seconde ligne ne traverse aucun papier au-delà de la première : rien ne reviendrait. Inversez le côté de la pointe si la pointe est à l’autre bout, ou appuyez sur Échap et tracez la seconde ligne en travers du rabat, au-delà de la première.",
+        "title": "La seconde ligne manque le rabat"
+      },
+      "crimpNoOpening": {
+        "noSpine": "Une seule couche n’a pas de bord plié le long duquel faire le crimp. Faites le crimp sur un rabat de couches reliées par un pli.",
+        "text": "Ses couches s’écartent à la première ligne, mais à la seconde l’une d’elles s’est arrêtée, ou n’a rien sur quoi tourner. Déplacez la seconde ligne, ou faites le crimp sur d’autres rabats.",
+        "title": "Ce rabat ne peut pas s’ouvrir à la seconde ligne"
+      },
+      "crimpOutsideInfeasible": {
+        "title": "Il ne peut pas faire de crimp par l’extérieur"
+      },
+      "crimpTipNotFree": {
+        "text": "D’autres couches se trouvent là où tournerait le papier du crimp. Incluez leurs rabats dans le crimp, ou faites-le ailleurs."
+      },
+      "emptySeed": {
+        "text": "Aucune couche n’est choisie. Choisissez au moins un rabat à déplacer.",
+        "title": "Rien à plier"
+      },
+      "extentMissesLayers": {
+        "text": "Aucune des couches que traverse ce pré-pliage ne se trouve le long de ce tronçon de la ligne, ou la ligne y est déjà pliée. Cliquez ailleurs le long de la ligne, ou marquez à travers toutes les couches.",
+        "title": "Aucune couche à marquer ici"
+      },
+      "extentMissesPaper": {
+        "text": "Ce tronçon de la ligne ne passe sur aucun papier : il n’y a rien à marquer. Cliquez sur des points où la ligne traverse le papier.",
+        "title": "Pas de papier ici"
+      },
+      "extentOffPaper": {
+        "text": "Un point à partir duquel le pli est mesuré ne se trouve pas sur le papier tel qu’il est plié maintenant. Cliquez ses points le long de la ligne, là où elle traverse le papier.",
+        "title": "Un point est hors du papier"
+      },
+      "extentTooShort": {
+        "pinch": "Ce pincement est trop court pour que le papier prenne un pli. Marquez une plus grande partie de la ligne.",
+        "segment": "Les deux points sont trop proches le long de la ligne pour marquer entre eux. Cliquez deux points plus éloignés, ou pincez à cet endroit à la place.",
+        "title": "Trop court pour marquer"
+      },
+      "insideInfeasible": {
+        "title": "Il ne peut pas rentrer à l’intérieur"
+      },
+      "invalid": {
+        "text": "Il ne donnerait pas un modèle plat valide.",
+        "title": "Ce pli est impossible"
+      },
+      "kindInfeasible": {
+        "neither": "Aucun type de pli inversé ne convient ici : aucun empilement des couches ne permet à la pointe de tourner. Déplacez la ligne, ou inversez d’autres rabats.",
+        "text": "Aucun empilement des couches ne permet ici à la pointe de tourner de ce côté. L’autre type de pli inversé conviendra peut-être."
+      },
+      "markOffSheet": {
+        "text": "Une partie du repère se trouverait hors de la feuille. Cliquez ses points le long de la ligne, à l’intérieur du papier.",
+        "title": "Le repère sortirait du papier"
+      },
+      "markOnCrease": {
+        "text": "Le repère se trouverait le long d’un pli déjà présent. Marquez un autre tronçon de la ligne, ou pliez le long du pli lui-même.",
+        "title": "Déjà plié ici"
+      },
+      "marksOverlap": {
+        "text": "Le repère recouvrirait une partie d’un repère fait auparavant, d’une façon que le papier ne permet pas. Marquez un autre tronçon de la ligne, ou marquez toute la ligne.",
+        "title": "Les repères se chevaucheraient"
+      },
+      "markTooShort": {
+        "text": "Sur l’une de ses couches, le repère serait trop court pour que le papier prenne un pli. Marquez une plus grande partie de la ligne.",
+        "title": "Trop court pour marquer"
+      },
+      "moverStays": {
+        "text": "La couche qui porte le point à déplacer ne fait pas partie des couches qui se plient. Incluez son rabat, ou pliez toutes les couches.",
+        "title": "Le point ne bougerait pas"
+      },
+      "nearMiss": {
+        "text": "La ligne passe juste à côté d’un point du papier : trop près pour plier proprement, trop loin pour passer par lui.",
+        "title": "Trop près d’un point"
+      },
+      "noMovingSide": {
+        "text": "Aucun papier ne se trouve du côté de la ligne qui bougerait. Inversez le côté qui bouge, ou placez la ligne sur le papier.",
+        "title": "Rien à plier"
+      },
+      "noRoot": {
+        "text": "Ces repères ne donnent aucune ligne de pli sur le papier tel qu’il est plié. Choisissez d’autres repères.",
+        "title": "Aucun pli ici"
+      },
+      "noSide": {
+        "text": "Rien n’indique quel côté de la ligne bouge. Choisissez un point hors de la ligne, du côté à déplacer.",
+        "title": "Quel côté bouge ?"
+      },
+      "nothingStays": {
+        "text": "Toutes les couches sont du côté qui bouge : rien ne resterait en place. Choisissez un rabat à plier.",
+        "title": "Tout bougerait"
+      },
+      "offPaper": {
+        "text": "Un point ou un bord à partir duquel la ligne a été placée ne se trouve pas sur le papier tel qu’il est plié maintenant. Placez la ligne à nouveau.",
+        "title": "Un repère n’est pas sur le papier"
+      },
+      "outsideInfeasible": {
+        "title": "Il ne peut pas envelopper l’extérieur"
+      },
+      "pickAgain": {
+        "text": "Cet endroit n’est dans aucune couche du côté qui bouge. Choisissez à l’intérieur d’une couche, loin de ses plis.",
+        "title": "Choisissez à nouveau"
+      },
+      "pointsTooClose": {
+        "text": "Les deux points tombent au même endroit du papier plié, ils ne forment donc aucune ligne. Choisissez deux points plus éloignés.",
+        "title": "Les points sont trop proches"
+      },
+      "precreaseUnfold": {
+        "text": "Le déplier déplacerait plus de couches que le plier.",
+        "title": "Ce pré-pli ne peut pas se déplier"
+      },
+      "reverseNoOpening": {
+        "bodiesCross": "Une fois le rabat séparé le long de ses plis, le papier auquel tient chaque moitié croiserait celui de l’autre.",
+        "noBody": "Une fois le rabat séparé le long de ses plis, une moitié ne tiendrait à rien qui reste en place sur la ligne.",
+        "noSpine": "Une seule couche n’a pas de bord plié le long duquel s’inverser. Inversez un rabat de couches reliées par un pli.",
+        "noSplit": "Ses couches ne peuvent pas être séparées le long d’un pli sans qu’une couche du dessous passe au-dessus d’une couche du dessus.",
+        "title": "Ce rabat ne peut pas s’ouvrir"
+      },
+      "sinkLineTilted": {
+        "text": "Un enfoncement ouvert demande une ligne exactement perpendiculaire à la ligne médiane de la pointe : inclinée si peu que ce soit, la pointe ne peut pas s’enfoncer ouverte. La ligne perpendiculaire à la même profondeur le peut.",
+        "title": "La ligne n’est pas perpendiculaire à la pointe"
+      },
+      "sinkNoAxis": {
+        "text": "Son contour ne suit pas deux côtés droits : il n’y a pas de ligne médiane à laquelle la ligne d’un enfoncement ouvert puisse être perpendiculaire.",
+        "title": "La pointe n’a pas de ligne médiane"
+      },
+      "sinkNoOrder": {
+        "none": "Aucun empilement des couches ne permet ici à la pointe de s’enfoncer ainsi. Déplacez la ligne, ou choisissez une autre pointe.",
+        "otherSink": "Aucun empilement des couches ne permet ici à la pointe de s’enfoncer ainsi. L’autre type d’enfoncement convient.",
+        "title": "La pointe ne peut pas s’enfoncer ainsi ici",
+        "unsink": "Aucun empilement des couches ne permet ici à la pointe enfoncée de ressortir.",
+        "unsinkTitle": "La pointe ne peut pas ressortir ici"
+      },
+      "sinkNoPocket": {
+        "text": "Aucun espace entre ses couches ne fait tout le tour de son contour pour que l’extrémité y entre : elle ne peut pas s’enfoncer fermée.",
+        "title": "La pointe n’a pas de poche"
+      },
+      "sinkOutlineMixed": {
+        "text": "Les bords extérieurs de la pointe sont à la fois des plis montagne et des plis vallée : elle n’a pas un extérieur unique à retourner, elle ne peut donc pas s’enfoncer ouverte.",
+        "title": "Son extérieur n’est pas un seul pli"
+      },
+      "sinkPointOpen": {
+        "text": "Des bords libres atteignent son extrémité : ses couches sont des coins libres, pas une pointe fermée, donc rien ne dit comment elles s’enfonceraient. Enfoncez une pointe dont les couches sont jointes à l’extrémité.",
+        "title": "La pointe est ouverte"
+      },
+      "sinkSeveralPoints": {
+        "text_one": "{{count}} pointe se trouve du côté de l’extrémité, et un enfoncement n’en prend qu’une. Choisissez la pointe à enfoncer.",
+        "text_many": "{{count}} pointes se trouvent du côté de l’extrémité, et un enfoncement n’en prend qu’une. Choisissez la pointe à enfoncer.",
+        "text_other": "{{count}} pointes se trouvent du côté de l’extrémité, et un enfoncement n’en prend qu’une. Choisissez la pointe à enfoncer.",
+        "title": "Choisissez une pointe"
+      },
+      "sliver": {
+        "text": "Un point des couches qui bougent se poserait à un cheveu à l’intérieur du bord d’une autre couche.",
+        "title": "Un point tombe juste à l’intérieur d’un bord"
+      },
+      "stackedTooDeep": {
+        "fold": "Ce pli empilerait les couches trop profondément pour que leur ordre puisse être déterminé : jusqu’à {{deepest, number}} les unes sur les autres. Pliez moins de couches.",
+        "pattern": "Ce patron de plis empile ses couches trop profondément pour que leur ordre puisse être déterminé : jusqu’à {{deepest, number}} les unes sur les autres. Importez un patron plus simple.",
+        "step": "Cette étape empile ses couches trop profondément pour que leur ordre puisse être déterminé : jusqu’à {{deepest, number}} les unes sur les autres. Elle et les étapes suivantes ne peuvent qu’être supprimées.",
+        "title": "Couches trop empilées"
+      },
+      "tipNotFree": {
+        "text": "D’autres couches se trouvent là où la pointe tournerait. Incluez leurs rabats dans le pli, ou faites l’inversion ailleurs.",
+        "title": "Des couches gênent"
+      },
+      "tooManyFaces": {
+        "fold": "Ce pli donnerait {{faceCount, number}} faces, plus que les {{limit, number}} qui peuvent être pliées. Pliez moins de couches.",
+        "note": "{{faceCount, number}} faces, plus que les {{limit, number}} qui peuvent être pliées",
+        "pattern": "Ce patron de plis a {{faceCount, number}} faces, et seuls les patrons d’au plus {{limit, number}} faces se plient. Importez un patron plus simple.",
+        "step": "Cette étape a {{faceCount, number}} faces, plus que les {{limit, number}} qui peuvent être pliées. Elle et les étapes suivantes ne peuvent qu’être supprimées.",
+        "title": "Trop de faces"
+      },
+      "tooSmall": {
+        "text": "Le pli laisserait un pli ou une bande de papier plus fine que le papier lui-même.",
+        "title": "Trop petit pour être plié"
+      },
+      "tuckInfeasible": {
+        "none": "Aucun empilement des couches ne place le rabat juste contre cette couche. Rentrez moins de rabats, ou placez une autre ligne.",
+        "text": "Aucun empilement des couches ne place le rabat juste contre cette couche. Une autre couche ici le reçoit.",
+        "titleOver": "Il ne peut pas être rentré par-dessus cette couche",
+        "titleUnder": "Il ne peut pas être rentré sous cette couche"
+      },
+      "tuckNoTarget": {
+        "over": "Aucune couche qui reste en place ne peut recevoir le rabat par-dessus ici. Pliez dans l’autre sens, inversez le côté qui bouge, ou placez une autre ligne.",
+        "title": "Aucune couche ne reçoit le rabat ici",
+        "under": "Aucune couche qui reste en place ne peut recevoir le rabat dessous ici. Pliez dans l’autre sens, inversez le côté qui bouge, ou placez une autre ligne."
+      },
+      "tuckTarget": {
+        "text": "Choisissez une couche qui reste en place contre laquelle rentrer le rabat.",
+        "title": "La couche où rentrer bougerait"
+      },
+      "unsinkNotSunk": {
+        "text": "Rien d’enfoncé ne se trouve dans le papier le long de cette ligne. Repérez l’anneau laissé par un enfoncement, et choisissez la pointe enfoncée à l’intérieur.",
+        "title": "Aucune pointe enfoncée ici"
+      },
+      "unsupported": {
+        "text": "Cette version d’Ori Studio ne peut pas la plier telle qu’elle est enregistrée.",
+        "title": "Cette étape ne peut pas être pliée"
+      },
+      "wrongCrease": {
+        "text": "Dépliez le long d’un bord plié, et repliez le long d’un pli à plat.",
+        "title": "Ce n’est pas le bon type de pli"
+      }
+    },
+    "reverse": {
+      "auto": "Automatique",
+      "bothFit": "Les deux types conviennent ici : choisissez de quel côté va la pointe.",
+      "inside": "Intérieur",
+      "intentHelp": "Le mode automatique utilise le type réalisable. Un type choisi reste sélectionné même si le pli est impossible.",
+      "kind": "Type",
+      "next": "Suivant",
+      "ofCount": "{{index}} sur {{total}}",
+      "opening": "Ouverture",
+      "openingsTruncated": "D’autres ouvertures peuvent exister. Réduisez les rabats sélectionnés pour les explorer.",
+      "order": "Ordre des couches",
+      "outside": "Extérieur",
+      "previous": "Précédent",
+      "requestedKind": "Type de pli inversé",
+      "tipSide": "Côté de la pointe"
+    },
+    "rotate": {
+      "amount": "Quantité",
+      "degrees": "Angle exact",
+      "direction": "Sens",
+      "presetTooltip": "{{fraction}} de tour, {{degrees}}°"
+    },
+    "scopeLabel": "pliage",
+    "section": {
+      "label": "Couches sur la ligne de pli, de haut en bas",
+      "labelWoven": "Couches sur la ligne de pli sous le pointeur, de haut en bas",
+      "row": "Couche {{layer}}, {{flap}}",
+      "rowAdded": "Couche {{layer}}, {{flap}}, bouge avec le pli",
+      "rowAddedBeside": "Couche {{layer}}, {{flap}}, bouge avec le pli, à côté de la couche {{above}}",
+      "rowBeside": "Couche {{layer}}, {{flap}}, à côté de la couche {{above}}",
+      "top": "Haut"
+    },
+    "sink": {
+      "bothFit": "Les deux enfoncements conviennent ici : l’ouvert retourne chaque couche, le fermé les garde ensemble.",
+      "closed": "Fermé",
+      "depth": "Profondeur",
+      "depthHelp": "La distance de la ligne à l’extrémité de la pointe le long de sa ligne médiane, le côté du papier valant 1. Placez la ligne plus bas pour enfoncer la pointe plus profondément.",
+      "depthValue": "{{depth}} depuis l’extrémité",
+      "kind": "Enfoncement",
+      "onlyClosed": "Seul l’enfoncement fermé convient ici.",
+      "onlyOpen": "Seul l’enfoncement ouvert convient ici.",
+      "open": "Ouvert",
+      "pocket": "Poche",
+      "pocketBack": "Arrière",
+      "pocketFront": "Avant",
+      "sunkSide": "Côté enfoncé"
+    },
+    "steps": {
+      "axiom1First": "Cliquez sur le premier point par lequel passe le pli.",
+      "axiom1FirstTouch": "Touchez le premier point par lequel passe le pli.",
+      "axiom1Second": "Cliquez sur le second point.",
+      "axiom1SecondTouch": "Touchez le second point.",
+      "axiom2Land": "Cliquez là où il doit arriver.",
+      "axiom2LandTouch": "Touchez là où il doit arriver.",
+      "axiom3Move": "Cliquez sur le bord ou le pli à déplacer.",
+      "axiom3MoveTouch": "Touchez le bord ou le pli à déplacer.",
+      "axiom3Onto": "Cliquez sur le bord ou le pli sur lequel le poser.",
+      "axiom3OntoTouch": "Touchez le bord ou le pli sur lequel le poser.",
+      "axiom4Through": "Cliquez sur le point par lequel passe le pli.",
+      "axiom4ThroughTouch": "Touchez le point par lequel passe le pli.",
+      "axiom5Pivot": "Cliquez sur le pivot par lequel passe le pli.",
+      "axiom5PivotTouch": "Touchez le pivot par lequel passe le pli.",
+      "axiom6FirstPoint": "Cliquez sur le premier point à déplacer.",
+      "axiom6FirstPointTouch": "Touchez le premier point à déplacer.",
+      "axiom6SecondLine": "Cliquez sur le bord ou le pli sur lequel celui-ci doit arriver.",
+      "axiom6SecondLineTouch": "Touchez le bord ou le pli sur lequel celui-ci doit arriver.",
+      "axiom6SecondPoint": "Cliquez sur le second point à déplacer.",
+      "axiom6SecondPointTouch": "Touchez le second point à déplacer.",
+      "commit": "Appuyez sur Entrée pour plier.",
+      "commitOrClick": "Appuyez sur Entrée, ou cliquez sur {{action}}, pour plier.",
+      "commitTouch": "Touchez {{action}} pour plier.",
+      "crease": "Cliquez sur le pli ou le bord plié le long duquel plier.",
+      "creaseTouch": "Touchez le pli ou le bord plié le long duquel plier.",
+      "crimpFinish": "Choisissez Intérieur ou Extérieur, puis appuyez sur Entrée.",
+      "crimpFinishTouch": "Choisissez Intérieur ou Extérieur, puis touchez {{action}}.",
+      "crimpFirstCrease": "Cliquez sur le pli ou le bord plié où le rabat rentre vers l’intérieur.",
+      "crimpFirstCreaseTouch": "Touchez le pli ou le bord plié où le rabat rentre vers l’intérieur.",
+      "crimpFirstStart": "Cliquez là où commence la première ligne, côté corps : là où le rabat rentre vers l’intérieur.",
+      "crimpFirstStartTouch": "Touchez là où commence la première ligne, côté corps : là où le rabat rentre vers l’intérieur.",
+      "crimpKindBoth": "Choisissez Intérieur pour glisser l’extrémité dans le rabat, ou Extérieur pour l’enrouler autour.",
+      "crimpLayers": "Sous Couches, retirez les rabats qui ne doivent pas être sertis.",
+      "crimpSecondCrease": "Cliquez sur le pli ou le bord plié au-delà de la première ligne, là où le rabat ressort.",
+      "crimpSecondCreaseTouch": "Touchez le pli ou le bord plié au-delà de la première ligne, là où le rabat ressort.",
+      "crimpSecondStart": "Cliquez là où commence la seconde ligne, au-delà de la première vers la pointe : là où le rabat ressort.",
+      "crimpSecondStartTouch": "Touchez là où commence la seconde ligne, au-delà de la première vers la pointe : là où le rabat ressort.",
+      "crimpTipEnd": "L’extrémité au-delà de la seconde ligne tourne : si c’est la mauvaise, appuyez sur Inverser.",
+      "divide": "Cliquez sur un bord ou un pli pour le diviser.",
+      "divideTouch": "Touchez un bord ou un pli pour le diviser.",
+      "divideUse": "Utilisez les nouveaux points comme repères pour n’importe quel pli.",
+      "finish": "Choisissez le pli et les couches, puis appuyez sur Entrée.",
+      "finishTouch": "Choisissez le pli et les couches, puis touchez {{action}}.",
+      "freeEnd": "Cliquez là où elle se termine.",
+      "freeEndTouch": "Touchez là où elle se termine.",
+      "freeStart": "Cliquez là où commence la ligne de pli.",
+      "freeStartTouch": "Touchez là où commence la ligne de pli.",
+      "landOnLine": "Cliquez sur le bord ou le pli sur lequel il doit arriver.",
+      "landOnLineTouch": "Touchez le bord ou le pli sur lequel il doit arriver.",
+      "perpendicularTo": "Cliquez sur le bord ou le pli auquel le pli est perpendiculaire.",
+      "perpendicularToTouch": "Touchez le bord ou le pli auquel le pli est perpendiculaire.",
+      "pickFlapsToReverse": "Choisissez les rabats à inverser.",
+      "pickFlapsToTuck": "Choisissez les rabats à rentrer.",
+      "pickLayers": "Choisissez les couches qui bougent.",
+      "pickPoint": "Choisissez la pointe à enfoncer : un enfoncement n’en prend qu’une.",
+      "pickSunkPoint": "La pointe enfoncée est trouvée pour vous : choisissez-en une autre dans les couches pour sortir celle-là.",
+      "pickTuckTarget": "Choisissez la couche contre laquelle rentrer.",
+      "pinchAt": "Cliquez le long de la ligne là où pincer.",
+      "pinchAtTouch": "Touchez la ligne là où pincer.",
+      "pointToMove": "Cliquez sur le point à déplacer.",
+      "pointToMoveTouch": "Touchez le point à déplacer.",
+      "repeatAxes": "Pointez un axe de symétrie dessiné sur le papier pour le prévisualiser, et cliquez dessus pour le prendre — ou placez-en un avec Placer la ligne, dans l’un ou l’autre panneau.",
+      "repeatAxesTouch": "Touchez un axe de symétrie dessiné sur le papier, ou placez-en un avec Placer la ligne, dans l’un ou l’autre panneau.",
+      "repeatCommit": "Appuyez sur Entrée pour ajouter les plis répétés.",
+      "repeatCommitTouch": "Touchez {{action}} pour ajouter les plis répétés.",
+      "repeatStart": "Choisissez la première étape à répéter. La plage se termine à l’étape affichée.",
+      "reverseFinish": "Choisissez les rabats à inverser, puis appuyez sur Entrée.",
+      "reverseFinishTouch": "Choisissez les rabats à inverser, puis touchez {{action}}.",
+      "rotateCommit": "Appuyez sur Entrée pour ajouter la rotation.",
+      "rotateCommitTouch": "Touchez {{action}} pour ajouter la rotation.",
+      "rotateDirection": "Choisissez dans quel sens il tourne.",
+      "rotateHowFar": "Choisissez de combien tourner le modèle.",
+      "segmentFrom": "Cliquez le long de la ligne là où le pli commence.",
+      "segmentFromTouch": "Touchez la ligne là où le pli commence.",
+      "segmentTo": "Cliquez là où il se termine.",
+      "segmentToTouch": "Touchez là où il se termine.",
+      "sinkFinish": "Choisissez la pointe, puis appuyez sur Entrée.",
+      "sinkFinishTouch": "Choisissez la pointe, puis touchez {{action}}.",
+      "tuckFinish": "Choisissez les rabats et la couche contre laquelle rentrer, puis appuyez sur Entrée.",
+      "tuckFinishTouch": "Choisissez les rabats et la couche contre laquelle rentrer, puis touchez {{action}}.",
+      "unfoldCommit": "Appuyez sur Entrée pour ajouter l’étape.",
+      "unfoldCommitTouch": "Touchez {{action}} pour ajouter l’étape.",
+      "unfoldTarget": "Choisissez l’étape à laquelle revenir."
+    },
+    "tool": {
+      "closedSinkHelp": "Enfoncer l’extrémité d’une pointe fermée dans une poche, ses couches restant ensemble.",
+      "crimpHelp": "Plier un rabat vers l’intérieur le long d’une ligne et de nouveau vers l’extérieur le long d’une seconde, pour que son extrémité tourne.",
+      "divideLine": "Diviser une ligne",
+      "divideLineHelp": "Marquer des points qui divisent un bord ou un pli en parties égales.",
+      "insideReverse": "Pli inversé intérieur",
+      "mountain": "Pli montagne",
+      "mountainHelp": "Plier le côté qui bouge en l’éloignant de vous, pour qu’il passe dessous.",
+      "openSinkHelp": "Enfoncer l’extrémité d’une pointe fermée en retournant chacune de ses couches.",
+      "pleatHelp": "Réaliser un pli en accordéon : placer la ligne montagne, puis la ligne vallée.",
+      "precrease": "Pré-plier",
+      "precreaseHelp": "Plier et déplier, en laissant un pli pour plus tard.",
+      "repeatAxisHelp": "Plier à nouveau une suite d’étapes par rapport à un axe de symétrie, de l’autre côté ou derrière, en aperçu, puis l’ajouter comme une étape.",
+      "reverse": "Pli inversé",
+      "reverseHelp": "Inversez un rabat vers l’intérieur ou enveloppez-le par l’extérieur, en inversant son pli central.",
+      "rotateHelp": "Tourner le modèle d’une fraction de tour ou d’un angle exact, d’abord en aperçu, puis en une étape à part.",
+      "tuckHelp": "Plier un rabat et le glisser sous, ou sur, une couche qui reste en place.",
+      "unfoldToHelp": "Ramener le papier à la forme d’une étape antérieure, en conservant tous les plis faits depuis, d’abord en aperçu, puis en une étape.",
+      "unsinkHelp": "Ressortir l’extrémité d’une pointe enfoncée.",
+      "valley": "Pli vallée",
+      "valleyHelp": "Plier le côté qui bouge vers vous, pour qu’il passe dessus."
+    },
+    "tuck": {
+      "alsoOver": "Replier aussi au-dessus de la couche {{number}}",
+      "alsoUnder": "Replier aussi sous la couche {{number}}",
+      "noTargets": "Aucune couche ici ne reçoit le rabat.",
+      "over": "Rentrer par-dessus",
+      "targetsOver_one": "Une couche ici reçoit le rabat par-dessus elle.",
+      "targetsOver_many": "{{count}} couches ici reçoivent le rabat par-dessus elles : le papier plié éclaire chacune.",
+      "targetsOver_other": "{{count}} couches ici reçoivent le rabat par-dessus elles : le papier plié éclaire chacune.",
+      "targetsUnder_one": "Une couche ici reçoit le rabat sous elle.",
+      "targetsUnder_many": "{{count}} couches ici reçoivent le rabat sous elles : le papier plié éclaire chacune.",
+      "targetsUnder_other": "{{count}} couches ici reçoivent le rabat sous elles : le papier plié éclaire chacune.",
+      "under": "Rentrer dessous"
+    },
+    "verb": {
+      "turnOverHelp": "Retourner le modèle de gauche à droite, en une étape à part."
+    },
+    "vertex": {
+      "direction": "Sens",
+      "directionCannot": "Dans ce sens, il ne peut pas se plier à plat ici.",
+      "fix": {
+        "creaseKites": "Marquer les plis du cerf-volant en pliant",
+        "emergent": "Prendre le quatrième pli qui convient",
+        "emergentNumber": "Prendre le quatrième pli {{number}}",
+        "otherRidge": "Utiliser l’autre arête",
+        "otherWay": "Plier dans l’autre sens",
+        "precreaseHinge": "Pré-plier d’abord la charnière",
+        "precreaseKite": "Pré-plier le cerf-volant",
+        "resetTarget": "Poser le dos sur la charnière"
+      },
+      "help": {
+        "petalHinge": "Soulever la pointe inférieure d’un rabat le long d’une charnière pendant que ses côtés se replient le long de deux plis en cerf-volant.",
+        "rabbitEar": "Replier les coins d’un triangle le long de leurs bissectrices, pour qu’une pointe se dresse.",
+        "squash": "Ouvrir un rabat de deux couches et l’aplatir, son dos sur sa charnière.",
+        "swivelEdge": "Faire pivoter un bord sur une ligne, autour d’un point."
+      },
+      "hingeRegionBlocked": "Cette région de charnière ne peut pas se plier avec ces couches. Cliquez sur une autre région ou changez les couches.",
+      "hingeRegionBlockedTouch": "Cette région de charnière ne peut pas se plier avec ces couches. Touchez une autre région ou changez les couches.",
+      "hingeRegionFits": "Le pli de charnière se trouve dans la région sélectionnée.",
+      "input": {
+        "edge": "Bord sur ligne",
+        "edgeHelp": "Choisir un bord et la ligne sur laquelle il doit se poser",
+        "label": "Construire par",
+        "valleyMountain": "Vallée et montagne",
+        "valleyMountainHelp": "Choisir la vallée et la montagne sur la couche visible, qui se rejoignent sur un bord plié ; le pli de derrière en découle"
+      },
+      "intro": {
+        "petalLift": "Soulève la pointe d’un rabat le long d’une charnière.",
+        "swivelSwing": "Fait pivoter un bord du papier sur une ligne."
+      },
+      "layers": "Couches",
+      "layersAll_one": "Les {{count}}",
+      "layersAll_many": "Les {{count}}",
+      "layersAll_other": "Les {{count}}",
+      "layersBottom_one": "{{count}} du dessous sur {{total}}",
+      "layersBottom_many": "{{count}} du dessous sur {{total}}",
+      "layersBottom_other": "{{count}} du dessous sur {{total}}",
+      "layersTop_one": "{{count}} du dessus sur {{total}}",
+      "layersTop_many": "{{count}} du dessus sur {{total}}",
+      "layersTop_other": "{{count}} du dessus sur {{total}}",
+      "lineBy": {
+        "creaseOrEdge": "Pli ou bord",
+        "creaseOrEdgeHelp": "Cliquez sur un pli ou un bord déjà là",
+        "hinge": "Charnière",
+        "hingeCrease": "Pli de charnière",
+        "hingeCreaseHelp": "Cliquez sur un pré-pli qui traverse déjà le rabat",
+        "target": "Se pose sur",
+        "twoEndpoints": "Deux extrémités",
+        "twoEndpointsHelp": "Cliquez sur les deux extrémités de la charnière : le pliage la marque",
+        "twoPoints": "Deux points",
+        "twoPointsHelp": "Cliquez sur deux points de la ligne"
+      },
+      "mountain": "Montagne",
+      "mountainTitle": "Montagne : le papier tourne en s’éloignant de vous",
+      "note": {
+        "petalCreasesAll": "Pendant que le rabat se soulève, le pliage marque la charnière dans la couche du dessus et les deux plis du cerf-volant dans les deux couches du dessus.",
+        "petalCreasesHinge": "Pendant que le rabat se soulève, le pliage marque la charnière dans la couche du dessus. Les plis du cerf-volant sont déjà là.",
+        "petalCreasesHingeKite": "Pendant que le rabat se soulève, le pliage marque la charnière dans la couche du dessus et un pli du cerf-volant dans les deux couches du dessus. L’autre pli du cerf-volant est déjà là.",
+        "petalCreasesKite": "Pendant que le rabat se soulève, le pliage marque un pli du cerf-volant dans les deux couches du dessus. La charnière et l’autre pli du cerf-volant sont déjà là.",
+        "petalCreasesKites": "Pendant que le rabat se soulève, le pliage marque les deux plis du cerf-volant dans les deux couches du dessus. La charnière est déjà là.",
+        "petalRefolds": "Chaque pli qu’il fait est déjà là : il replie la charnière et les plis du cerf-volant.",
+        "rabbitEarMeet": "Les plis se rejoignent au centre du cercle inscrit du triangle : un vers chaque coin, et un quatrième le long duquel l’oreille se dresse.",
+        "snapOrFree": "Les points s’accrochent aux coins, aux croisements, aux repères et aux milieux : maintenez {{modifier}} pour en poser un n’importe où.",
+        "snapOrFreeTouch": "Les points s’accrochent aux coins, aux croisements, aux repères et aux milieux : activez Point libre pour en poser un n’importe où.",
+        "squashFlap": "Un rabat s’écrase quand ses deux couches ne sont reliées que par sa charnière et que rien ne repose dessus.",
+        "swivelPicture": "Les plis se rejoignent au point, le bord se pose sur le trait gras, et le papier éclairé bouge.",
+        "swivelValleyMountainPicture": "Les plis se rejoignent au point. Le pli en pointillé est sur la couche de derrière et découle de la vallée et de la montagne ; le papier éclairé bouge."
+      },
+      "refusal": {
+        "blocked": {
+          "steppers": "Un pli buterait sur du papier qui ne plie pas avec lui, ou le papier retiendrait ensemble deux parties du pliage. Faites défiler Couches pour plier plus de couches, ou Quatrième pli pour en prendre un autre.",
+          "swivelEdge": "Un pli buterait sur du papier qui ne plie pas avec lui, ou le papier retiendrait ensemble deux parties du pliage. Choisissez un autre pivot, ou une autre ligne où poser le bord.",
+          "swivelOnFold": "Un pli buterait sur une pliure avant d’atteindre le bord du papier, ou le papier retiendrait ensemble deux parties du pli pivoté. Choisissez un autre bord plié, ou une autre ligne où poser le bord.",
+          "swivelValleyMountain": "Un pli buterait sur une pliure avant d’atteindre le bord du papier, ou le papier retiendrait ensemble deux parties du pli pivoté. Choisissez une autre vallée ou une autre montagne.",
+          "title": "Du papier gêne"
+        },
+        "center": {
+          "textEar": "Les plis du triangle se rejoignent au centre de son cercle inscrit, qui tombe sur un pli ou hors des couches. Choisissez des coins qui le placent dans les couches, loin de leurs plis.",
+          "textSwivelEdge": "Les plis se rejoignent là où se trouve le pivot, ramené sur la ligne à mi-chemin entre le bord et la ligne où il se pose, et ce point tombe sur un pli ou hors du papier. Appuyez sur Échap et choisissez un autre pivot.",
+          "textSwivelStep": "Le point où les plis se rejoignent est sur un pli ou hors du papier. Appuyez sur Échap et replacez-le comme le dit l’étape 1 : dans le papier, loin de tout pli.",
+          "title": "Les plis ne peuvent pas se rejoindre là"
+        },
+        "covered": {
+          "text": "D’autres couches recouvrent le rabat, ou se trouvent dedans, du côté où il s’ouvre. Écartez-les d’abord, ou écrasez-le dans l’autre sens.",
+          "title": "Le rabat est recouvert"
+        },
+        "fourthBesideStayer": {
+          "text": "Le rabat se dresse le long du quatrième pli, qui se trouve donc en face du papier qui reste en place. Choisissez un autre quatrième pli, ou un autre papier qui reste en place.",
+          "title": "Le quatrième pli est à côté du papier qui reste"
+        },
+        "fourthCannotRise": {
+          "text": "Le quatrième pli se plie dans l’autre sens que les trois autres, et les angles entre ces plis ne le permettent pas. Choisissez un autre quatrième pli, ou d’autres points.",
+          "title": "Le quatrième pli ne peut pas se dresser ici"
+        },
+        "kite": {
+          "creaseOrPrecrease": "Sur un pli de charnière, un pli pétale replie des plis déjà là, et un pli du cerf-volant manque. Désignez plutôt la charnière par ses deux extrémités, et le pliage marque lui-même le cerf-volant ; ou pré-pliez-le d’abord, avec l’outil Pré-plier sur l’Axiome 3 : un bord inférieur du rabat du dessus sur sa ligne médiane, sans les rabats de derrière.",
+          "titleMissing": "Les plis du cerf-volant manquent"
+        },
+        "line": {
+          "crease": "Le pli de charnière ne traverse pas toutes les couches en dessous qui se plient. Pré-pliez la charnière à travers toutes les couches, puis faites le pli pétale.",
+          "ends": "La charnière traverse du papier de la deuxième couche, qui se replie à côté du cerf-volant, et le pliage ne peut pas le marquer pendant que le rabat se soulève. Pré-pliez la charnière à travers toutes les couches, puis faites le pli pétale.",
+          "titleHinge": "Pré-pliez d’abord la charnière"
+        },
+        "lineMeeting": {
+          "textValleyMountain": "La vallée et la montagne se rejoignent en un point d’un bord plié visible, loin de ses extrémités. Choisissez deux lignes qui s’y croisent.",
+          "titleValleyMountain": "Les lignes ne se rejoignent pas sur un bord plié"
+        },
+        "noFlap": {
+          "hingeOffSpine": "La ligne de charnière doit croiser le bord plié du rabat, l’extrémité cliquée d’un côté.",
+          "noHinge": "Le rabat ne se plie sur aucune charnière à l’une ou l’autre extrémité de son dos : rien contre quoi l’aplatir.",
+          "noSpine": "Ces couches ne sont pas reliées par un seul bord plié : il n’y a pas d’arête à ouvrir. Un rabat fermé, relié par des côtés repliés vers l’intérieur, ne peut pas encore être écrasé.",
+          "singleLayer": "Une seule couche ici. Cliquez sur un rabat de deux couches reliées par un bord plié.",
+          "title": "Aucun rabat à écraser ici",
+          "upperNotHinged": "La couche du dessus du rabat ne tient que par son dos : aplatie, son côté charnière resterait libre."
+        },
+        "noOrder": {
+          "none": "Aucun empilement des couches ne le laisse se plier à plat ici. Choisissez d’autres points, ou repliez d’abord les couches qui gênent.",
+          "otherWay": "Aucun empilement des couches ne le laisse se plier à plat dans ce sens ici. Plié dans l’autre sens, il convient.",
+          "petal": "Impossible de faire le pli pétale ici",
+          "rabbitEar": "L’oreille ne peut pas se plier à plat ici",
+          "squash": "Impossible de l’écraser à plat ici",
+          "swivel": "Le pli pivot ne peut pas se poser à plat ici"
+        },
+        "noPetal": {
+          "missesFlap": "Le rabat cliqué est entièrement d’un côté de la charnière. Cliquez sur le rabat que la charnière traverse, ou choisissez une charnière qui va d’un de ses bords pliés à l’autre.",
+          "missesFlapTitle": "La charnière manque le rabat",
+          "noCornerHinge": "Les plis du cerf-volant partant des extrémités de la charnière ne se rejoignent pas en dessous : aucune pointe à soulever. Choisissez une charnière dont les extrémités sont là où les plis du cerf-volant rencontrent les bords du rabat.",
+          "noCornerTitle": "Aucune pointe à soulever",
+          "noEndsHinge": "La charnière d’un pli pétale traverse le rabat d’un bord plié à l’autre, et celle-ci n’en croise qu’un, ou aucun. Choisissez une charnière dont les extrémités sont sur les deux bords pliés du rabat.",
+          "noEndsTitle": "La charnière ne traverse pas le rabat",
+          "pastCorner": "Les plis du cerf-volant partant des extrémités de la charnière se rejoignent en dessous, mais le rabat va au-delà de leur point de rencontre, et ce papier ne pourrait se plier d’aucune façon. Éloignez la charnière de la pointe fermée du rabat : ses extrémités là où les plis du cerf-volant rencontrent les bords du rabat.",
+          "pastCornerTitle": "La charnière est trop près de la pointe fermée"
+        },
+        "notFlat": {
+          "spread": "Aucun quatrième pli ne laisse ces plis à plat : deux pointent dans la même direction, ou deux voisins sont écartés d’un demi-tour ou plus. Appuyez sur Échap et choisissez des points mieux répartis autour du point de rencontre.",
+          "swivelEdge": "Aucun pli ne laisse le bord tourner sur cette ligne et rester à plat depuis ce pivot. Appuyez sur Échap et choisissez un autre pivot, ou une autre ligne.",
+          "title": "Impossible de plier à plat"
+        },
+        "notFree": {
+          "text": "Le rabat est relié à d’autre papier hors de sa charnière. Seul un rabat tenu par sa seule charnière s’ouvre à plat : dépliez d’abord ce qui le retient.",
+          "title": "Le rabat est retenu ailleurs"
+        },
+        "petalCovered": {
+          "text": "D’autres couches recouvrent le rabat du côté où il se soulève. Écartez-les d’abord, ou soulevez-le dans l’autre sens.",
+          "title": "Le rabat est recouvert"
+        },
+        "ridgeBesideStayer": {
+          "pivot": "Le rabat se dresse le long de l’arête, qui doit donc se trouver en face du papier qui reste en place, et ici ce n’est pas le cas. Choisissez un autre pivot.",
+          "title": "L’arête est à côté du papier qui reste"
+        },
+        "ridgeCannotRise": {
+          "pivot": "L’arête se plie dans l’autre sens que les trois autres plis, et les angles entre eux ne le permettent pas. Choisissez un autre pivot.",
+          "title": "L’arête ne peut pas se dresser ici"
+        },
+        "stayer": {
+          "swivelEdge": "Le papier à côté de la ligne, qui reste en place, n’est relié à aucune partie du pliage. Choisissez un autre pivot, plus près de l’endroit où le bord rencontre la ligne.",
+          "text": "Le papier choisi pour rester en place n’est relié à aucune partie du pliage. Choisissez du papier que les plis traversent, ou du papier qui y est relié.",
+          "title": "Quel papier reste en place ?"
+        },
+        "swivelEdgeShort": {
+          "text": "Aucune partie du bord ne dépasse le point à angle droit sous le pivot, donc rien ne pivoterait. Un simple pli le long de la ligne à mi-chemin entre le bord et sa cible l’y pose à la place.",
+          "title": "Le bord s’arrête avant de tourner"
+        },
+        "swivelEdgeStays": {
+          "onFold": "Aucune des deux couches que relie le bord plié ne porte le bord qui bouge : il resterait en place. Choisissez un bord plié de la couche de ce bord, ou un autre bord.",
+          "text": "Le papier le long du bord resterait en place, ou se plierait par-dessus la charnière, au lieu de tourner sur la ligne. Choisissez un pivot plus près du bord, ou un autre bord.",
+          "title": "Le bord resterait en place"
+        },
+        "swivelFoldWide": {
+          "text": "Du côté du bord qui bouge, le pli pivoté rencontre le bord plié à angle droit ou plus, ce qui ne laisse pas à l’autre couche la place de se plier. Choisissez une ligne où poser le bord qui le fasse tourner davantage, ou un autre bord plié.",
+          "title": "Le pli pivoté rencontre le bord trop à pic"
+        },
+        "swivelInsideFree": {
+          "text": "Un pli pivot intérieur glisse sa bande entre les deux couches que relie un bord plié, et ces plis se rejoignent loin de tout bord plié. Appuyez sur Échap et cliquez sur un bord plié où les plis se rejoindront.",
+          "title": "Un pli pivot intérieur demande un bord plié"
+        },
+        "swivelMissesFold": {
+          "text": "Le pli pivoté suit la ligne à mi-chemin entre le bord et la ligne où il se pose, et cette ligne ne croise pas ce bord plié entre ses extrémités. Appuyez sur Échap et choisissez le bord plié qu’elle croise, ou une autre ligne.",
+          "title": "Les plis ne peuvent pas se rejoindre sur ce bord"
+        },
+        "swivelNoFlap": {
+          "text": "La vallée et la montagne partent du bord plié vers l’intérieur du papier, dans deux directions, avec le rabat entre elles. L’une d’elles longe le bord plié, ou les deux sont sur une même ligne : choisissez-en une autre.",
+          "title": "Aucun rabat entre les lignes"
+        },
+        "swivelNotAFold": {
+          "text": "Les plis ne peuvent se rejoindre sur un bord plié que là où le papier est plié, et le point choisi n’est sur aucune pliure. Appuyez sur Échap et cliquez de nouveau sur le bord plié.",
+          "title": "Ce n’est pas un bord plié"
+        },
+        "swivelNotAnEdge": {
+          "text": "Un pli pivoté déplace un bord du papier ou un bord plié, et la ligne choisie n’est ni l’un ni l’autre. Appuyez sur Échap et choisissez de nouveau le bord.",
+          "title": "Ce n’est pas un bord"
+        },
+        "swivelPivotOnEdge": {
+          "text": "Les plis se rejoignent là où se trouve le pivot, ramené sur la ligne à mi-chemin entre le bord et la ligne où il se pose, et ici ce point est sur le bord lui-même. Appuyez sur Échap et choisissez un pivot plus loin de l’endroit où le bord rencontre la ligne.",
+          "title": "Les plis se rejoindraient sur le bord"
+        },
+        "swivelTargetParallel": {
+          "text": "Aucune rotation autour d’un point ne pose un bord sur une ligne qui lui est parallèle, ni sur sa propre ligne. Choisissez une ligne qui coupe celle du bord.",
+          "title": "La ligne est parallèle au bord"
+        },
+        "targetOutside": {
+          "text": "Le dos se pose entre l’endroit où il se trouve et la charnière. Cliquez sur un point dans le rabat, ou remettez-le sur la charnière.",
+          "title": "Le dos ne peut pas se poser là"
+        }
+      },
+      "reset": "Revenir à la charnière",
+      "ridge": "Arête",
+      "squashHinge": {
+        "folded": "Bord plié",
+        "foldedHelp": "Le pli autour duquel tourne la couche inférieure du rabat : tout le rabat est écrasé",
+        "intro": "Tracez la charnière en travers du bord plié du rabat. Seule l’extrémité au-delà est écrasée.",
+        "label": "Charnière",
+        "line": "Ligne",
+        "lineHelp": "Une ligne que vous tracez : seule l’extrémité du rabat au-delà est écrasée",
+        "lineMode": "Ligne de charnière",
+        "take": "Appuyez sur Entrée pour la prendre comme charnière.",
+        "takeTouch": "Touchez Utiliser comme charnière.",
+        "use": "Utiliser comme charnière"
+      },
+      "steps": {
+        "earChoose": "Choisissez les couches ou cliquez sur une autre région pour le pli de charnière.",
+        "earChooseTouch": "Choisissez les couches ou touchez une autre région pour le pli de charnière.",
+        "earFinish": "Appuyez sur Entrée pour plier.",
+        "earFinishTouch": "Touchez {{action}} pour plier.",
+        "earFirstCorner": "Cliquez sur le premier coin du triangle.",
+        "earFirstCornerTouch": "Touchez le premier coin du triangle.",
+        "earHingeRegion": "Cliquez sur la région où doit passer le pli de charnière.",
+        "earHingeRegionTouch": "Touchez la région où doit passer le pli de charnière.",
+        "earSecondCorner": "Cliquez sur son deuxième coin.",
+        "earSecondCornerTouch": "Touchez son deuxième coin.",
+        "earThirdCorner": "Cliquez sur son troisième coin.",
+        "earThirdCornerTouch": "Touchez son troisième coin.",
+        "fixOrPickAgain": "Cliquez sur une correction ci-dessous, ou appuyez sur Échap et choisissez de nouveau.",
+        "fixOrPickAgainTouch": "Touchez une correction ci-dessous, ou touchez Annuler et choisissez de nouveau.",
+        "petalFinish": "Choisissez Vallée ou Montagne, puis appuyez sur Entrée.",
+        "petalFinishTouch": "Choisissez Vallée ou Montagne, puis touchez {{action}}.",
+        "petalFlap": "Cliquez sur le rabat qui se soulève, sous la charnière.",
+        "petalFlapTouch": "Touchez le rabat qui se soulève, sous la charnière.",
+        "petalHinge": "Cliquez sur la charnière : un pré-pli qui traverse le rabat.",
+        "petalHingeFirstEnd": "Cliquez sur une extrémité de la charnière, là où un pli du cerf-volant rencontre le bord du rabat.",
+        "petalHingeFirstEndTouch": "Touchez une extrémité de la charnière, là où un pli du cerf-volant rencontre le bord du rabat.",
+        "petalHingeSecondEnd": "Cliquez sur son autre extrémité, là où l’autre pli du cerf-volant rencontre le bord.",
+        "petalHingeSecondEndTouch": "Touchez son autre extrémité, là où l’autre pli du cerf-volant rencontre le bord.",
+        "petalHingeTouch": "Touchez la charnière : un pré-pli qui traverse le rabat.",
+        "petalWay": "Choisissez de quel côté il se soulève, ou cliquez sur un autre rabat pour soulever celui-là.",
+        "petalWayTouch": "Choisissez de quel côté il se soulève, ou touchez un autre rabat pour soulever celui-là.",
+        "pickAgainRead": "Appuyez sur Échap et choisissez de nouveau : l’avis ci-dessous dit quoi changer.",
+        "pickAgainReadTouch": "Touchez Annuler et choisissez de nouveau : l’avis ci-dessous dit quoi changer.",
+        "squashEnd": "Cliquez sur l’extrémité du rabat à écraser, d’un côté de la ligne.",
+        "squashEndTouch": "Touchez l’extrémité du rabat à écraser, d’un côté de la ligne.",
+        "squashFlap": "Cliquez sur le rabat à écraser.",
+        "squashFlapTouch": "Touchez le rabat à écraser.",
+        "squashSpine": "Le dos se pose sur le trait gras : cliquez sur le papier pour le poser ailleurs.",
+        "squashSpineTouch": "Le dos se pose sur le trait gras : touchez le papier pour le poser ailleurs.",
+        "swivelLands": "Cliquez sur la ligne où il se pose.",
+        "swivelLandsFirst": "Cliquez sur un point de la ligne où il se pose.",
+        "swivelLandsFirstTouch": "Touchez un point de la ligne où il se pose.",
+        "swivelLandsTouch": "Touchez la ligne où il se pose.",
+        "swivelMeet": "Cliquez sur le bord plié où les plis se rejoignent, n’importe où le long de celui-ci. Sur du papier à plat, cliquez là où ils se rejoignent, ou maintenez {{modifier}} pour n’importe quel point.",
+        "swivelMeetTouch": "Touchez le bord plié où les plis se rejoignent, n’importe où le long de celui-ci. Sur du papier à plat, touchez là où ils se rejoignent, ou activez Point libre pour n’importe quel point.",
+        "swivelNothingSwings": "Rien ne peut pivoter depuis ce point : cliquez sur un autre point.",
+        "swivelNothingSwingsTouch": "Rien ne peut pivoter depuis ce point : touchez un autre point.",
+        "swivelOntoSecond": "Cliquez sur un deuxième point de cette ligne.",
+        "swivelOntoSecondTouch": "Touchez un deuxième point de cette ligne.",
+        "swivelSwing": "Cliquez sur le bord à faire pivoter sur une ligne.",
+        "swivelSwingTouch": "Touchez le bord à faire pivoter sur une ligne."
+      },
+      "swivelInside": "Intérieur",
+      "swivelInsideHelp": "Pli pivot intérieur : la bande se glisse entre les couches",
+      "swivelKind": "Type",
+      "swivelKindCannot": "Ce type ne peut pas se plier à plat ici.",
+      "swivelOpen": "Ouvert",
+      "swivelOpenHelp": "Pli pivot ouvert : la bande se replie par-dessus",
+      "target": "Le dos se pose sur",
+      "targetHinge": "La ligne de charnière",
+      "targetPoint": "Le point cliqué",
+      "valley": "Vallée",
+      "valleyMountain": {
+        "mountainLine": "Ligne de montagne",
+        "mountainStep": "Ligne de montagne : {{instruction}}",
+        "pickMountain": "Choisissez la ligne de montagne, depuis le même point du bord plié. Le pli sur la couche de derrière en découle, en pointillé là où il est caché.",
+        "pickValley": "Choisissez la ligne de vallée : la charnière du rabat, sur la couche visible, depuis un point d’un bord plié vers l’intérieur du papier.",
+        "pickValleyInside": "Choisissez la ligne de vallée : sur la couche visible, depuis un point d’un bord plié vers l’intérieur du papier.",
+        "takeValley": "Appuyez sur Entrée pour la prendre comme vallée.",
+        "takeValleyTouch": "Touchez Utiliser comme vallée.",
+        "useValley": "Utiliser comme vallée",
+        "valleyLine": "Ligne de vallée",
+        "valleyStep": "Ligne de vallée : {{instruction}}"
+      },
+      "valleyTitle": "Vallée : le papier tourne vers vous"
+    },
+    "window": {
+      "cancel": "Annuler",
+      "finding": "Recherche des couches sur la ligne…",
+      "instructions": "Instructions",
+      "kind": "Pli",
+      "label": "Options de l’outil de pliage",
+      "layers": "Couches",
+      "layersHelp": "Cliquez sur une couche pour inclure ou exclure son rabat. Les crochets montrent où un pli relie deux couches.",
+      "layersHelpTouch": "Touchez une couche pour inclure ou exclure son rabat. Les crochets montrent où un pli relie deux couches.",
+      "layersHelpWoven": "Ces couches s’entrecroisent : la pile affichée est celle sous le pointeur. Cliquez sur une couche pour inclure ou exclure son rabat.",
+      "layersHelpWovenTouch": "Ces couches s’entrecroisent : la pile affichée est celle de l’endroit où vous avez touché la ligne en dernier. Touchez une couche pour inclure ou exclure son rabat.",
+      "layersMoving_one": "{{moving}} sur {{count}} couche bouge",
+      "layersMoving_many": "{{moving}} sur {{count}} couches bougent",
+      "layersMoving_other": "{{moving}} sur {{count}} couches bougent",
+      "lineMode": "Placer la ligne",
+      "movingSide": "Côté qui bouge",
+      "settings_one": "{{count}} réglage",
+      "settings_many": "{{count}} réglages",
+      "settings_other": "{{count}} réglages",
+      "snapFreeLine": "Accrocher aux points",
+      "swap": "Inverser"
+    }
   },
   "foldAngleDisplay": {
     "color": "Couleur",

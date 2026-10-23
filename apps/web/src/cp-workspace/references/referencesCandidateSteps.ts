@@ -33,9 +33,10 @@ import {
   type ExtractedStep,
 } from './referenceFinder/extractor';
 import type { Diagram, OriginalMarkName, RawSolution } from './referenceFinder/solution';
-import { finalMarkDiagram, type StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import { finalMarkDiagram } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import { pinchNote, referenceName, stepSentence } from './referencesStepSentences';
-import { foldArrowArc } from './stepDiagramGeometry';
+import { foldArrowArc } from '../../lib/stepDiagram/stepDiagramGeometry';
 
 /** One of the sheet's two diagonals, by ReferenceFinder's name for it. */
 export type FreeDiagonal = ExtractedSolution['freeDiagonals'][number];

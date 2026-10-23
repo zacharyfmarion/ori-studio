@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { registerSimulatorShortcutExecutor } from '../../keyboard/shortcutRuntime';
+import { registerConditionalScopeExecutor } from '../../keyboard/shortcutRuntime';
 import { applyCreaseStyle, DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -414,7 +414,7 @@ describe('SimulatorViewControlsPanel actions', () => {
     // Registered after the first render, as a simulation that finishes loading
     // would: the rail must follow it without a render of its own.
     act(() => {
-      unregister = registerSimulatorShortcutExecutor(simulator);
+      unregister = registerConditionalScopeExecutor('simulator', simulator);
     });
     const [exportView, setUpright] = actions(rendered);
     expect(exportView?.disabled).toBe(false);

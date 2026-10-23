@@ -1,0 +1,1012 @@
+{
+  "file_spec": 1.1,
+  "file_creator": "beloch 0.4.0",
+  "file_author": "Claude (Anthropic)",
+  "frame_classes": [ "creasePattern" ],
+  "frame_unit": "unit",
+  "vertices_coords": [
+    [ 0.7071067811865476, 0.2928932188134525 ],
+    [ 1.0, 0.41421356237309503 ],
+    [ 1.0, 1.0 ],
+    [ 0.5, 0.5 ],
+    [ 0.0, 0.0 ],
+    [ 0.41421356237309503, 1.0 ],
+    [ 0.2928932188134525, 0.7071067811865476 ],
+    [ 0.0, 1.0 ],
+    [ 1.0, 0.0 ]
+  ],
+  "edges_vertices": [
+    [ 0, 1 ],
+    [ 1, 2 ],
+    [ 2, 3 ],
+    [ 3, 0 ],
+    [ 4, 0 ],
+    [ 3, 4 ],
+    [ 2, 5 ],
+    [ 5, 6 ],
+    [ 6, 3 ],
+    [ 6, 4 ],
+    [ 5, 7 ],
+    [ 7, 6 ],
+    [ 7, 4 ],
+    [ 8, 1 ],
+    [ 0, 8 ],
+    [ 4, 8 ]
+  ],
+  "edges_assignment": [
+    "V", "B", "F", "F", "V", "F", "B", "V", "F", "V", "B", "F", "B", "B",
+    "F", "B"
+  ],
+  "edges_foldAngle": [
+    180.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 180.0, 0.0, 180.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0
+  ],
+  "edges_faces": [
+    [ 0, 6 ],
+    [ 0 ],
+    [ 0, 2 ],
+    [ 0, 1 ],
+    [ 1, 7 ],
+    [ 1, 3 ],
+    [ 2 ],
+    [ 2, 4 ],
+    [ 2, 3 ],
+    [ 3, 5 ],
+    [ 4 ],
+    [ 4, 5 ],
+    [ 5 ],
+    [ 6 ],
+    [ 6, 7 ],
+    [ 7 ]
+  ],
+  "faces_vertices": [
+    [ 0, 1, 2, 3 ],
+    [ 4, 0, 3 ],
+    [ 3, 2, 5, 6 ],
+    [ 4, 3, 6 ],
+    [ 6, 5, 7 ],
+    [ 4, 6, 7 ],
+    [ 8, 1, 0 ],
+    [ 4, 8, 0 ]
+  ],
+  "beloch:edges": [
+    {
+      "axiom": "axiom5",
+      "sources": [ "--ab", "--ac" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:8:1-26",
+      "statement": 5,
+      "name": null,
+      "crease_id": 3
+    },
+    null,
+    {
+      "axiom": "axiom1",
+      "sources": [ ".a", ".c" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:3:1-29",
+      "statement": 0,
+      "name": "ac",
+      "crease_id": 0
+    },
+    {
+      "axiom": "axiom1",
+      "sources": [ ".b", ".d" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+      "statement": 1,
+      "name": "bd",
+      "crease_id": 1
+    },
+    {
+      "axiom": "axiom5",
+      "sources": [ "--ab", "--ac" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:8:1-26",
+      "statement": 5,
+      "name": null,
+      "crease_id": 3
+    },
+    {
+      "axiom": "axiom1",
+      "sources": [ ".a", ".c" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:3:1-29",
+      "statement": 0,
+      "name": "ac",
+      "crease_id": 0
+    },
+    null,
+    {
+      "axiom": "axiom5",
+      "sources": [ "--da", "--ac" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:1-26",
+      "statement": 4,
+      "name": null,
+      "crease_id": 2
+    },
+    {
+      "axiom": "axiom1",
+      "sources": [ ".b", ".d" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+      "statement": 1,
+      "name": "bd",
+      "crease_id": 1
+    },
+    {
+      "axiom": "axiom5",
+      "sources": [ "--da", "--ac" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:1-26",
+      "statement": 4,
+      "name": null,
+      "crease_id": 2
+    },
+    null,
+    {
+      "axiom": "axiom1",
+      "sources": [ ".b", ".d" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+      "statement": 1,
+      "name": "bd",
+      "crease_id": 1
+    },
+    null,
+    null,
+    {
+      "axiom": "axiom1",
+      "sources": [ ".b", ".d" ],
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+      "statement": 1,
+      "name": "bd",
+      "crease_id": 1
+    },
+    null
+  ],
+  "beloch:inspect": {
+    "creases": {
+      "1": {
+        "name": "bd",
+        "axiom": "axiom1",
+        "sources": [ ".b", ".d" ],
+        "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+        "segments": [
+          {
+            "faces": [ 6, 7 ],
+            "paper": [
+              [ 0.7071067811865476, 0.2928932188134525 ], [ 1.0, 0.0 ]
+            ],
+            "table": [
+              [ 0.7071067811865476, 0.2928932188134525 ],
+              [ 0.7071067811865476, 0.7071067811865476 ]
+            ],
+            "assignment": "F"
+          },
+          {
+            "faces": [ 4, 5 ],
+            "paper": [
+              [ 0.0, 1.0 ], [ 0.2928932188134525, 0.7071067811865476 ]
+            ],
+            "table": [
+              [ 0.7071067811865476, 0.7071067811865476 ],
+              [ 0.2928932188134525, 0.7071067811865476 ]
+            ],
+            "assignment": "F"
+          },
+          {
+            "faces": [ 2, 3 ],
+            "paper": [
+              [ 0.2928932188134525, 0.7071067811865476 ], [ 0.5, 0.5 ]
+            ],
+            "table": [
+              [ 0.2928932188134525, 0.7071067811865476 ], [ 0.5, 0.5 ]
+            ],
+            "assignment": "F"
+          },
+          {
+            "faces": [ 0, 1 ],
+            "paper": [
+              [ 0.5, 0.5 ], [ 0.7071067811865476, 0.2928932188134525 ]
+            ],
+            "table": [
+              [ 0.5, 0.5 ], [ 0.7071067811865476, 0.2928932188134525 ]
+            ],
+            "assignment": "F"
+          }
+        ]
+      },
+      "0": {
+        "name": "ac",
+        "axiom": "axiom1",
+        "sources": [ ".a", ".c" ],
+        "span": "packages/runtime/editor/test/fixtures/bindings.bel:3:1-29",
+        "segments": [
+          {
+            "faces": [ 1, 3 ],
+            "paper": [ [ 0.5, 0.5 ], [ 0.0, 0.0 ] ],
+            "table": [ [ 0.5, 0.5 ], [ 0.0, 0.0 ] ],
+            "assignment": "F"
+          },
+          {
+            "faces": [ 0, 2 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.5, 0.5 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.5, 0.5 ] ],
+            "assignment": "F"
+          }
+        ]
+      },
+      "3": {
+        "name": null,
+        "axiom": "axiom5",
+        "sources": [ "--ab", "--ac" ],
+        "span": "packages/runtime/editor/test/fixtures/bindings.bel:8:1-26",
+        "segments": [
+          {
+            "faces": [ 1, 7 ],
+            "paper": [
+              [ 0.0, 0.0 ], [ 0.7071067811865476, 0.2928932188134525 ]
+            ],
+            "table": [
+              [ 0.0, 0.0 ], [ 0.7071067811865476, 0.2928932188134525 ]
+            ],
+            "assignment": "V"
+          },
+          {
+            "faces": [ 0, 6 ],
+            "paper": [
+              [ 0.7071067811865476, 0.2928932188134525 ],
+              [ 1.0, 0.41421356237309503 ]
+            ],
+            "table": [
+              [ 0.7071067811865476, 0.2928932188134525 ],
+              [ 1.0, 0.41421356237309503 ]
+            ],
+            "assignment": "V"
+          }
+        ]
+      },
+      "2": {
+        "name": null,
+        "axiom": "axiom5",
+        "sources": [ "--da", "--ac" ],
+        "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:1-26",
+        "segments": [
+          {
+            "faces": [ 3, 5 ],
+            "paper": [
+              [ 0.2928932188134525, 0.7071067811865476 ], [ 0.0, 0.0 ]
+            ],
+            "table": [
+              [ 0.2928932188134525, 0.7071067811865476 ], [ 0.0, 0.0 ]
+            ],
+            "assignment": "V"
+          },
+          {
+            "faces": [ 2, 4 ],
+            "paper": [
+              [ 0.41421356237309503, 1.0 ],
+              [ 0.2928932188134525, 0.7071067811865476 ]
+            ],
+            "table": [
+              [ 0.41421356237309503, 1.0 ],
+              [ 0.2928932188134525, 0.7071067811865476 ]
+            ],
+            "assignment": "V"
+          }
+        ]
+      }
+    },
+    "faces": {
+      "0": {
+        "vertices": [
+          [ 0.7071067811865476, 0.2928932188134525 ],
+          [ 1.0, 0.41421356237309503 ],
+          [ 1.0, 1.0 ],
+          [ 0.5, 0.5 ]
+        ],
+        "flap": 3,
+        "rank": 0
+      },
+      "1": {
+        "vertices": [
+          [ 0.0, 0.0 ],
+          [ 0.7071067811865476, 0.2928932188134525 ],
+          [ 0.5, 0.5 ]
+        ],
+        "flap": 3,
+        "rank": 1
+      },
+      "2": {
+        "vertices": [
+          [ 0.5, 0.5 ],
+          [ 1.0, 1.0 ],
+          [ 0.41421356237309503, 1.0 ],
+          [ 0.2928932188134525, 0.7071067811865476 ]
+        ],
+        "flap": 3,
+        "rank": 2
+      },
+      "3": {
+        "vertices": [
+          [ 0.0, 0.0 ],
+          [ 0.5, 0.5 ],
+          [ 0.2928932188134525, 0.7071067811865476 ]
+        ],
+        "flap": 3,
+        "rank": 3
+      },
+      "4": {
+        "vertices": [
+          [ 0.2928932188134525, 0.7071067811865476 ],
+          [ 0.41421356237309503, 1.0 ],
+          [ 0.0, 1.0 ]
+        ],
+        "flap": 5,
+        "rank": 4
+      },
+      "5": {
+        "vertices": [
+          [ 0.0, 0.0 ],
+          [ 0.2928932188134525, 0.7071067811865476 ],
+          [ 0.0, 1.0 ]
+        ],
+        "flap": 5,
+        "rank": 5
+      },
+      "6": {
+        "vertices": [
+          [ 1.0, 0.0 ],
+          [ 1.0, 0.41421356237309503 ],
+          [ 0.7071067811865476, 0.2928932188134525 ]
+        ],
+        "flap": 7,
+        "rank": 6
+      },
+      "7": {
+        "vertices": [
+          [ 0.0, 0.0 ],
+          [ 1.0, 0.0 ],
+          [ 0.7071067811865476, 0.2928932188134525 ]
+        ],
+        "flap": 7,
+        "rank": 7
+      }
+    },
+    "points": {
+      "a": { "face": null, "flap": null },
+      "b": { "face": null, "flap": null },
+      "c": { "face": null, "flap": null },
+      "d": { "face": null, "flap": null },
+      "mid": { "face": null, "flap": null }
+    },
+    "edges": {
+      "da": {
+        "name": "da",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 5 ],
+            "paper": [ [ 0.0, 1.0 ], [ 0.0, 0.0 ] ],
+            "table": [
+              [ 0.7071067811865476, 0.7071067811865476 ], [ 0.0, 0.0 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "ab": {
+        "name": "ab",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 7 ],
+            "paper": [ [ 0.0, 0.0 ], [ 1.0, 0.0 ] ],
+            "table": [
+              [ 0.0, 0.0 ], [ 0.7071067811865476, 0.7071067811865476 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "bc": {
+        "name": "bc",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 1.0, 0.41421356237309503 ], [ 1.0, 1.0 ] ],
+            "table": [ [ 1.0, 0.41421356237309503 ], [ 1.0, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 6 ],
+            "paper": [ [ 1.0, 0.0 ], [ 1.0, 0.41421356237309503 ] ],
+            "table": [
+              [ 0.7071067811865476, 0.7071067811865476 ],
+              [ 1.0, 0.41421356237309503 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "cd": {
+        "name": "cd",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 2 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.41421356237309503, 1.0 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.41421356237309503, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 4 ],
+            "paper": [ [ 0.41421356237309503, 1.0 ], [ 0.0, 1.0 ] ],
+            "table": [
+              [ 0.41421356237309503, 1.0 ],
+              [ 0.7071067811865476, 0.7071067811865476 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      }
+    }
+  },
+  "beloch:vertices_names": [
+    null, null, "c", "mid", "a", null, null, "d", "b"
+  ],
+  "beloch:named_points": {
+    "a": {
+      "paper": [ 0.0, 0.0 ],
+      "table": [ 0.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "b": {
+      "paper": [ 1.0, 0.0 ],
+      "table": [ 0.7071067811865476, 0.7071067811865476 ],
+      "step": 0,
+      "statement": null
+    },
+    "c": {
+      "paper": [ 1.0, 1.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "d": {
+      "paper": [ 0.0, 1.0 ],
+      "table": [ 0.7071067811865476, 0.7071067811865476 ],
+      "step": 0,
+      "statement": null
+    },
+    "mid": {
+      "paper": [ 0.5, 0.5 ],
+      "table": [ 0.5, 0.5 ],
+      "step": 0,
+      "statement": 3
+    }
+  },
+  "beloch:named_lines": {
+    "ac": { "coeffs": [ 1.0, -1.0, 0.0 ], "step": 0, "statement": 0 },
+    "bd": { "coeffs": [ 1.0, 1.0, 1.0 ], "step": 0, "statement": 1 },
+    "vert": { "coeffs": [ 1.0, 0.0, 0.5 ], "step": 0, "statement": 2 }
+  },
+  "beloch:named_lines_frame": "creasePattern",
+  "beloch:marks": [],
+  "beloch:free": {},
+  "beloch:statements": [
+    {
+      "mark": {
+        "kind": "seg",
+        "a": [ 0.0, 0.0 ],
+        "b": [ 1.0, 1.0 ],
+        "line": [ 1.0, -1.0, 0.0 ],
+        "intent": "V",
+        "crease_id": 0
+      },
+      "kind": "mark",
+      "parent": null,
+      "source_line": 3,
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:3:1-29",
+      "frame_index": 0,
+      "kept_marks": [
+        {
+          "kind": "seg",
+          "a": [ 0.0, 0.0 ],
+          "b": [ 1.0, 1.0 ],
+          "line": [ 1.0, -1.0, 0.0 ],
+          "intent": "V",
+          "crease_id": 0
+        }
+      ]
+    },
+    {
+      "mark": {
+        "kind": "seg",
+        "a": [ 1.0, 0.0 ],
+        "b": [ 0.0, 1.0 ],
+        "line": [ 1.0, 1.0, 1.0 ],
+        "intent": "V",
+        "crease_id": 1
+      },
+      "kind": "mark",
+      "parent": null,
+      "source_line": 4,
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+      "frame_index": 0,
+      "kept_marks": [
+        {
+          "kind": "seg",
+          "a": [ 0.0, 0.0 ],
+          "b": [ 1.0, 1.0 ],
+          "line": [ 1.0, -1.0, 0.0 ],
+          "intent": "V",
+          "crease_id": 0
+        },
+        {
+          "kind": "seg",
+          "a": [ 1.0, 0.0 ],
+          "b": [ 0.0, 1.0 ],
+          "line": [ 1.0, 1.0, 1.0 ],
+          "intent": "V",
+          "crease_id": 1
+        }
+      ]
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 5,
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:5:1-26",
+      "frame_index": 0,
+      "kept_marks": [
+        {
+          "kind": "seg",
+          "a": [ 0.0, 0.0 ],
+          "b": [ 1.0, 1.0 ],
+          "line": [ 1.0, -1.0, 0.0 ],
+          "intent": "V",
+          "crease_id": 0
+        },
+        {
+          "kind": "seg",
+          "a": [ 1.0, 0.0 ],
+          "b": [ 0.0, 1.0 ],
+          "line": [ 1.0, 1.0, 1.0 ],
+          "intent": "V",
+          "crease_id": 1
+        }
+      ]
+    },
+    {
+      "mark": null,
+      "kind": "bind",
+      "parent": null,
+      "source_line": 6,
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:6:1-19",
+      "frame_index": 0,
+      "kept_marks": [
+        {
+          "kind": "seg",
+          "a": [ 0.0, 0.0 ],
+          "b": [ 1.0, 1.0 ],
+          "line": [ 1.0, -1.0, 0.0 ],
+          "intent": "V",
+          "crease_id": 0
+        },
+        {
+          "kind": "seg",
+          "a": [ 1.0, 0.0 ],
+          "b": [ 0.0, 1.0 ],
+          "line": [ 1.0, 1.0, 1.0 ],
+          "intent": "V",
+          "crease_id": 1
+        }
+      ]
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 7,
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:1-26",
+      "frame_index": 1,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 8,
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:8:1-26",
+      "frame_index": 2,
+      "kept_marks": []
+    }
+  ],
+  "beloch:references": [
+    {
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:6:8-12",
+      "crease_id": 0
+    },
+    {
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:6:15-19",
+      "crease_id": 1
+    },
+    {
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:11-15",
+      "edge": "da"
+    },
+    {
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:21-25",
+      "crease_id": 0
+    },
+    {
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:8:11-15",
+      "edge": "ab"
+    },
+    {
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:8:21-25",
+      "crease_id": 0
+    }
+  ],
+  "beloch:annotations": [
+    {
+      "key": "author",
+      "namespace": null,
+      "target": "program",
+      "frame_index": 0,
+      "source_line": 1,
+      "span": "packages/runtime/editor/test/fixtures/bindings.bel:1:1-2:1",
+      "args": [
+        {
+          "text": "Claude (Anthropic)",
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:1:9-29"
+        }
+      ]
+    }
+  ],
+  "file_frames": [
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [ [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ] ],
+      "edges_assignment": [ "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0 ], [ 0 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ] ],
+      "beloch:faces_matrix": [ [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ] ],
+      "faceOrders": [],
+      "beloch:source_line": null,
+      "beloch:edges": [ null, null, null, null ],
+      "beloch:vertices_names": [ "a", "b", "c", "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 0.0 ],
+        [ 1.0, 1.0 ],
+        [ 0.5, 0.5 ],
+        [ 0.0, 0.0 ],
+        [ 0.41421356237309503, 1.0 ],
+        [ 0.2928932188134525, 0.7071067811865476 ],
+        [ 0.7071067811865476, 0.7071067811865476 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 0 ],
+        [ 3, 0 ],
+        [ 2, 3 ],
+        [ 1, 4 ],
+        [ 4, 5 ],
+        [ 5, 2 ],
+        [ 5, 3 ],
+        [ 4, 6 ],
+        [ 6, 5 ],
+        [ 6, 3 ]
+      ],
+      "edges_assignment": [
+        "B", "F", "F", "B", "F", "B", "V", "F", "V", "B", "F", "B"
+      ],
+      "edges_foldAngle": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 180.0, 0.0, 0.0, 0.0
+      ],
+      "edges_faces": [
+        [ 0 ],
+        [ 0, 2 ],
+        [ 0, 1 ],
+        [ 1 ],
+        [ 1, 3 ],
+        [ 2 ],
+        [ 2, 4 ],
+        [ 2, 3 ],
+        [ 3, 5 ],
+        [ 4 ],
+        [ 4, 5 ],
+        [ 5 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2 ],
+        [ 3, 0, 2 ],
+        [ 2, 1, 4, 5 ],
+        [ 3, 2, 5 ],
+        [ 5, 4, 6 ],
+        [ 3, 5, 6 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 0.0, 0.0
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 0.0, 0.0
+        ]
+      ],
+      "faceOrders": [ [ 2, 4, 1 ], [ 2, 5, 1 ], [ 3, 5, 1 ] ],
+      "beloch:source_line": 7,
+      "beloch:edges": [
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:3:1-29",
+          "statement": 0,
+          "name": "ac",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom1",
+          "sources": [ ".b", ".d" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+          "statement": 1,
+          "name": "bd",
+          "crease_id": 1
+        },
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:3:1-29",
+          "statement": 0,
+          "name": "ac",
+          "crease_id": 0
+        },
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--da", "--ac" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:1-26",
+          "statement": 4,
+          "name": null,
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom1",
+          "sources": [ ".b", ".d" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+          "statement": 1,
+          "name": "bd",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom5",
+          "sources": [ "--da", "--ac" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:1-26",
+          "statement": 4,
+          "name": null,
+          "crease_id": 2
+        },
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".b", ".d" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+          "statement": 1,
+          "name": "bd",
+          "crease_id": 1
+        },
+        null
+      ],
+      "beloch:vertices_names": [ "b", "c", "mid", "a", null, null, "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.7071067811865476, 0.2928932188134525 ],
+        [ 1.0, 0.41421356237309503 ],
+        [ 1.0, 1.0 ],
+        [ 0.5, 0.5 ],
+        [ 0.0, 0.0 ],
+        [ 0.41421356237309503, 1.0 ],
+        [ 0.2928932188134525, 0.7071067811865476 ],
+        [ 0.7071067811865476, 0.7071067811865476 ],
+        [ 0.7071067811865476, 0.7071067811865476 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 0 ],
+        [ 3, 4 ],
+        [ 2, 5 ],
+        [ 5, 6 ],
+        [ 6, 3 ],
+        [ 6, 4 ],
+        [ 5, 7 ],
+        [ 7, 6 ],
+        [ 7, 4 ],
+        [ 8, 1 ],
+        [ 0, 8 ],
+        [ 4, 8 ]
+      ],
+      "edges_assignment": [
+        "V", "B", "F", "F", "V", "F", "B", "V", "F", "V", "B", "F", "B", "B",
+        "F", "B"
+      ],
+      "edges_foldAngle": [
+        180.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 180.0, 0.0, 180.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0
+      ],
+      "edges_faces": [
+        [ 0, 6 ],
+        [ 0 ],
+        [ 0, 2 ],
+        [ 0, 1 ],
+        [ 1, 7 ],
+        [ 1, 3 ],
+        [ 2 ],
+        [ 2, 4 ],
+        [ 2, 3 ],
+        [ 3, 5 ],
+        [ 4 ],
+        [ 4, 5 ],
+        [ 5 ],
+        [ 6 ],
+        [ 6, 7 ],
+        [ 7 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ],
+        [ 4, 0, 3 ],
+        [ 3, 2, 5, 6 ],
+        [ 4, 3, 6 ],
+        [ 6, 5, 7 ],
+        [ 4, 6, 7 ],
+        [ 8, 1, 0 ],
+        [ 4, 8, 0 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 0.0, 0.0
+        ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 0.0, 0.0
+        ],
+        [
+          0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 0.0, 0.0
+        ],
+        [
+          0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 0.0, 0.0
+        ]
+      ],
+      "faceOrders": [
+        [ 0, 6, 1 ],
+        [ 0, 7, 1 ],
+        [ 1, 7, 1 ],
+        [ 2, 4, 1 ],
+        [ 2, 5, 1 ],
+        [ 3, 5, 1 ]
+      ],
+      "beloch:source_line": 8,
+      "beloch:edges": [
+        {
+          "axiom": "axiom5",
+          "sources": [ "--ab", "--ac" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:8:1-26",
+          "statement": 5,
+          "name": null,
+          "crease_id": 3
+        },
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:3:1-29",
+          "statement": 0,
+          "name": "ac",
+          "crease_id": 0
+        },
+        {
+          "axiom": "axiom1",
+          "sources": [ ".b", ".d" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+          "statement": 1,
+          "name": "bd",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom5",
+          "sources": [ "--ab", "--ac" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:8:1-26",
+          "statement": 5,
+          "name": null,
+          "crease_id": 3
+        },
+        {
+          "axiom": "axiom1",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:3:1-29",
+          "statement": 0,
+          "name": "ac",
+          "crease_id": 0
+        },
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--da", "--ac" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:1-26",
+          "statement": 4,
+          "name": null,
+          "crease_id": 2
+        },
+        {
+          "axiom": "axiom1",
+          "sources": [ ".b", ".d" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+          "statement": 1,
+          "name": "bd",
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom5",
+          "sources": [ "--da", "--ac" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:7:1-26",
+          "statement": 4,
+          "name": null,
+          "crease_id": 2
+        },
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".b", ".d" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+          "statement": 1,
+          "name": "bd",
+          "crease_id": 1
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".b", ".d" ],
+          "span": "packages/runtime/editor/test/fixtures/bindings.bel:4:1-29",
+          "statement": 1,
+          "name": "bd",
+          "crease_id": 1
+        },
+        null
+      ],
+      "beloch:vertices_names": [
+        null, null, "c", "mid", "a", null, null, "d", "b"
+      ]
+    }
+  ]
+}

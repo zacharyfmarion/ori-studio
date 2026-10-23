@@ -27,7 +27,9 @@ export function FileDropOverlay({ visible, policy }: FileDropOverlayProps) {
         <span>
           {policy === 'open-or-import'
             ? t('common:fileDrop.openOrImport', 'Drop to open or import')
-            : t('common:fileDrop.open', 'Drop to open')}
+            : policy === 'import-crease-pattern'
+              ? t('common:fileDrop.importCreasePattern', 'Drop a crease pattern to import it')
+              : t('common:fileDrop.open', 'Drop to open')}
         </span>
       </div>
     </div>

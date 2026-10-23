@@ -38,7 +38,11 @@
  */
 import type { Point } from '../../lib/geometry';
 
-/** An axis-aligned region of crease-pattern model space. */
+/**
+ * An axis-aligned region of the model space the layer's camera projects from —
+ * crease-pattern model space on Edit's canvas, whatever space a surface with its
+ * own camera draws in.
+ */
 export interface CpToolOptionBounds {
   minX: number;
   minY: number;

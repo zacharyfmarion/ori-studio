@@ -121,6 +121,62 @@ export function isNewerSheetThumbnail(value: unknown): boolean {
 }
 
 /**
+ * The strokes a file will take back ({@link readSheetThumbnail} refuses more
+ * than {@link MAX_STORED_STROKES}), so a dense pattern can still be kept:
+ * first every stroke a snap shrank to a dot and every repeat goes — neither
+ * shows at a thumbnail's size — then, if that is not enough, the shortest
+ * creases, never the sheet's edge. Order is kept, so the roles still layer as
+ * fitted. What a Diagram step links and a Fold state's picture both keep.
+ */
+export function withinStoredBudget(strokes: readonly SheetStroke[]): SheetStroke[] {
+  if (strokes.length <= MAX_STORED_STROKES) return [...strokes];
+  const seen = new Set<string>();
+  const kept = strokes.filter((stroke) => {
+    if (stroke.x1 === stroke.x2 && stroke.y1 === stroke.y2) return false;
+    const key = `${stroke.role} ${stroke.x1} ${stroke.y1} ${stroke.x2} ${stroke.y2}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (kept.length <= MAX_STORED_STROKES) return kept;
+  const length = (stroke: SheetStroke) => Math.hypot(stroke.x2 - stroke.x1, stroke.y2 - stroke.y1);
+  const edges = kept.filter((stroke) => stroke.role === 'edge').length;
+  // The longest creases that fit beside the edge, ties to the earlier.
+  const creases = kept
+    .map((stroke, index) => ({ stroke, index }))
+    .filter(({ stroke }) => stroke.role !== 'edge')
+    .sort((a, b) => length(b.stroke) - length(a.stroke) || a.index - b.index)
+    .slice(0, Math.max(0, MAX_STORED_STROKES - edges));
+  const chosen = new Set(creases.map(({ index }) => index));
+  return kept
+    .filter((stroke, index) => stroke.role === 'edge' || chosen.has(index))
+    .slice(0, MAX_STORED_STROKES);
+}
+
+const EMPTY_THUMBNAIL: SheetThumbnail = { viewBox: '0 0 100 100', strokes: [] };
+
+/**
+ * A fitted thumbnail as a step keeps it, whatever drew it — a region of
+ * Edit's pattern, a Fold step's crease pattern: its strokes to a tenth of the
+ * 100-unit box — plenty for a corner, and short in the file — within what a
+ * file takes back ({@link withinStoredBudget}). An empty one for nothing
+ * drawable. What a Diagram step links and a Fold state's picture both keep.
+ */
+export function storedSheetThumbnail(thumbnail: SheetThumbnail | null): SheetThumbnail {
+  if (!thumbnail) return EMPTY_THUMBNAIL;
+  const snap = (value: number) => Math.round(value * 10) / 10 + 0;
+  const snapped = thumbnail.strokes.map((stroke) => ({
+    x1: snap(stroke.x1),
+    y1: snap(stroke.y1),
+    x2: snap(stroke.x2),
+    y2: snap(stroke.y2),
+    role: stroke.role,
+  }));
+  // Within what a file takes back, so a dense pattern can still be linked.
+  return { viewBox: thumbnail.viewBox, strokes: withinStoredBudget(snapped) };
+}
+
+/**
  * A thumbnail as a file holds it (a Diagram step keeps the one it was linked
  * with), or null: a numeric viewBox and finite strokes of known roles, every
  * one — a thumbnail missing lines is a different pattern.

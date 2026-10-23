@@ -316,33 +316,6 @@ export function runDiagramCancel(
   return false;
 }
 
-/**
- * Marks a control of the Diagram's own that moves with the arrow keys and
- * Home and End: the pattern picker's list. A listbox is not an owner by its
- * role, because the steps grid is one, and its arrows are the Diagram's.
- */
-export const DIAGRAM_OWN_ARROWS_ATTRIBUTE = 'data-own-arrows';
-
-/**
- * Controls that use the arrow keys themselves. The Diagram's arrows decline
- * while one of these has focus, so a tab strip, a segmented control or a
- * slider keeps its own navigation. A plain button is not one: its arrows do
- * nothing, and declining there would leave ← dead after a press on Add step.
- * Nor is a toolbar: none of the app's moves focus with the arrows, and a
- * slider or segmented control inside one declines through its own role.
- *
- * Fields and open menus are not listed: the dispatcher stands down for them
- * before any executor runs (`isShortcutEditingTarget`, `isOpenLayerTarget`).
- */
-const ARROW_OWNERS = [
-  '[role="tablist"]',
-  '[role="radiogroup"]',
-  '[role="menubar"]',
-  '[role="slider"]',
-  '[role="spinbutton"]',
-  `[${DIAGRAM_OWN_ARROWS_ATTRIBUTE}]`,
-].join(', ');
-
 /** Marks the steps grid: the surface where Enter acts on the selection, opening the step. */
 export const DIAGRAM_STEPS_ATTRIBUTE = 'data-diagram-steps';
 
@@ -356,9 +329,4 @@ export function focusLeavesEnterToSteps(element: Element | null): boolean {
   return element.matches(
     `[${DIAGRAM_STEPS_ATTRIBUTE}], [${DIAGRAM_STEPS_ATTRIBUTE}] [role="option"]`
   );
-}
-
-/** Whether the focused element keeps the arrow keys for itself. */
-export function focusOwnsArrowKeys(element: Element | null): boolean {
-  return element !== null && element.closest(ARROW_OWNERS) !== null;
 }

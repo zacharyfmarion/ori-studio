@@ -13,9 +13,23 @@
  *   the Finished card only from a plan that ran to its end.
  * - What is added is the selection in order. Turn-overs inside it come with
  *   it; the one just before its first card is offered with it.
+ *
+ * The rules are the pull browser's, whatever it pulls from: a References
+ * plan's cards, or a Fold sequence's steps (fold-workspace plan D17). Each is
+ * a {@link PullCard}: its row, whether it is a fold, a turn or the ending,
+ * and what pulling it adds — null when it cannot be added.
  */
 import type { BrowserCard } from './referencesBrowserPlans';
-import type { PulledCard } from './referencesPulledSteps';
+
+/** A card of a pull browser's list, as the selection reads it: `S` is what pulling it adds. */
+export interface PullCard<S = unknown> {
+  /** Its row: what a selection names. */
+  readonly index: number;
+  /** A fold, a turn between folds (`turn-over`: a References turn-over card, a Fold turn or rotation), or the ending. */
+  readonly kind: 'fold' | 'turn-over' | 'done';
+  /** What it adds; null when it cannot be added. */
+  readonly step: S | null;
+}
 
 export interface BrowserSelection {
   indices: ReadonlySet<number>;
@@ -29,7 +43,7 @@ export interface BrowserSelection {
 export type BrowserStep = 'previous' | 'next' | 'first' | 'last';
 
 /** Whether a card can be chosen: its picture reads, and an ending only ends a plan that ran to its end. */
-export function selectable(card: BrowserCard | undefined, finished: boolean): card is BrowserCard {
+export function selectable<C extends PullCard>(card: C | undefined, finished: boolean): card is C {
   return card !== undefined && card.step !== null && (card.kind !== 'done' || finished);
 }
 
@@ -53,7 +67,7 @@ export const browserSelection = {
    */
   press(
     selection: BrowserSelection,
-    cards: readonly BrowserCard[],
+    cards: readonly PullCard[],
     index: number,
     { range, finished }: { range: boolean; finished: boolean }
   ): BrowserSelection {
@@ -89,7 +103,7 @@ export const browserSelection = {
    * does not read, from one too (a press focuses it). From nothing, back
    * starts at the end and forward at the start. Null with no card to land on.
    */
-  step(cards: readonly BrowserCard[], from: number | null, to: BrowserStep): number | null {
+  step(cards: readonly PullCard[], from: number | null, to: BrowserStep): number | null {
     const open = cards.filter((card) => card.step).map((card) => card.index);
     if (open.length === 0) return null;
     const at = from === null ? -1 : open.indexOf(from);
@@ -112,7 +126,7 @@ export const browserSelection = {
   },
 
   /** Every card that can be chosen. */
-  all(cards: readonly BrowserCard[], finished: boolean): BrowserSelection {
+  all(cards: readonly PullCard[], finished: boolean): BrowserSelection {
     const chosen = cards.filter((card) => selectable(card, finished)).map((card) => card.index);
     const first = chosen[0] ?? null;
     return { indices: new Set(chosen), pivot: first, focus: first };
@@ -123,15 +137,15 @@ export const browserSelection = {
  * The cards a selection adds, in order, and the turn-over just before it that
  * is offered with it (null when there is none, or it is selected already).
  */
-export function pullableCards(
-  cards: readonly BrowserCard[],
+export function pullableCards<S>(
+  cards: readonly PullCard<S>[],
   indices: ReadonlySet<number>,
   { finished, withTurnOver }: { finished: boolean; withTurnOver: boolean }
-): { pullable: PulledCard[]; turnOverBefore: number | null } {
+): { pullable: S[]; turnOverBefore: number | null } {
   const kept = [...indices]
     .sort((a, b) => a - b)
     .map((index) => cards[index])
-    .filter((card): card is BrowserCard => selectable(card, finished));
+    .filter((card): card is PullCard<S> => selectable(card, finished));
   const first = kept[0];
   const before = first ? cards[first.index - 1] : undefined;
   const turnOverBefore =

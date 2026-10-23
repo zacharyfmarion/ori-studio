@@ -1,0 +1,155 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-12T16:26:08.529Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-12T16:26:08.529Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Swivel fold",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 1,
+        "id": "fold-067cb0b6-0dd7-4abc-a560-4846b1165bfe",
+        "title": "Swivel fold",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "steps": [
+          {
+            "id": "fstep-8749c890-3f8c-4dba-9095-0c1b3b271805",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": 0
+              }
+            },
+            "expect": "fs1:90e1e44c76b3127f",
+            "note": "Precrease tool (P), Axiom 2: point onto point. Click the top-left corner, then the bottom-right corner; press Enter. The diagonal from the bottom-left corner to the top-right corner: the line the edge will land on."
+          },
+          {
+            "id": "fstep-ff710632-63fc-4d65-8883-5b5c58430ee2",
+            "parent": "fstep-8749c890-3f8c-4dba-9095-0c1b3b271805",
+            "op": {
+              "kind": "swivel",
+              "via": "edge",
+              "pivot": [
+                0.8000000050243318,
+                0.2999999966504485
+              ],
+              "edge": [
+                0.5,
+                0
+              ],
+              "target": {
+                "via": "crease",
+                "at": [
+                  0.5,
+                  0.5
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley"
+            },
+            "expect": "fs1:10dbc13afa445d5d",
+            "note": "Swivel fold tool. Hold Option (Alt on Windows and Linux) and click about four fifths of the way across and a third of the way up: the pivot. Click the bottom edge: the edge that moves. Click the diagonal precrease: the line it lands on. The creases meet at the dot, where the pivot sits moved onto the line halfway between the bottom edge and the diagonal. Ridge: Square to the edge, the default; press Enter."
+          },
+          {
+            "id": "fstep-051ed80c-8b5c-44e4-8451-437b05296137",
+            "parent": "fstep-8749c890-3f8c-4dba-9095-0c1b3b271805",
+            "op": {
+              "kind": "swivel",
+              "via": "edge",
+              "pivot": [
+                0.8000000050243318,
+                0.2999999966504485
+              ],
+              "edge": [
+                0.5,
+                0
+              ],
+              "target": {
+                "via": "crease",
+                "at": [
+                  0.5,
+                  0.5
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "direction": "valley",
+              "ridge": [
+                0.5426124678942101,
+                -0.8399831603584411
+              ]
+            },
+            "expect": "fs1:70aa1f8c6226c12b",
+            "note": "Branch 2: click card 1 (the precrease) first. The same three clicks, then step Ridge with its › button to Toward the edge’s end, and click the Swivel fold button. The paper rises along the crease to the bottom-right corner instead of the one square to the edge."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-067cb0b6-0dd7-4abc-a560-4846b1165bfe",
+        "cursor": "fstep-051ed80c-8b5c-44e4-8451-437b05296137",
+        "activeChild": {
+          "": "fstep-8749c890-3f8c-4dba-9095-0c1b3b271805",
+          "fstep-8749c890-3f8c-4dba-9095-0c1b3b271805": "fstep-051ed80c-8b5c-44e4-8451-437b05296137"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

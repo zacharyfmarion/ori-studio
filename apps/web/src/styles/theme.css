@@ -6579,107 +6579,6 @@ button.cp-folded-figure-toolbar__notice:hover {
     box-shadow: var(--shadow-context-menu);
   }
 
-  /*
-   * The design pane switcher's label is a pane name, which the locale sets the
-   * length of ("Diagnostics", "Diagnostik", "Диагностика"). Capped and
-   * truncating, so it can never push the pills to its right off the row — the
-   * lane is anchored by its right edge, so an overflowing pill would take the
-   * others with it rather than spilling off the left.
-   */
-  .design-pane-switcher {
-    max-width: 40vw;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  /*
-   * The pane list, for a kind with more than two. Bottom-anchored rather than
-   * centred: it is opened from a pill at the top of the screen with a thumb, and
-   * the rows should land where that thumb already is.
-   */
-  .design-pane-sheet {
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-modal);
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
-    background: var(--overlay-dim);
-    backdrop-filter: blur(4px);
-  }
-
-  .design-pane-sheet__sheet {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    border-top: 1px solid var(--border-default);
-    background: var(--bg-secondary);
-    box-shadow: var(--shadow-context-menu);
-    animation: design-pane-sheet-in 0.18s ease-out;
-  }
-
-  .design-pane-sheet__sheet:focus {
-    outline: none;
-  }
-
-  .design-pane-sheet__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--border-default);
-    background: var(--bg-primary);
-  }
-
-  .design-pane-sheet__title {
-    color: var(--text-primary);
-    font-size: 0.85rem;
-    font-weight: 750;
-  }
-
-  .design-pane-sheet__list {
-    margin: 0;
-    padding: var(--space-2);
-    min-height: 0;
-    overflow-y: auto;
-    /* Reaching the end of the list must not start scrolling the app behind it. */
-    overscroll-behavior: contain;
-    list-style: none;
-  }
-
-  .design-pane-sheet__item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    width: 100%;
-    min-height: var(--touch-target);
-    padding: 0 var(--space-3);
-    border: 0;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font: inherit;
-    font-size: 0.85rem;
-    font-weight: 600;
-    text-align: left;
-  }
-
-  .design-pane-sheet__item[data-active] {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-  }
-
-  @keyframes design-pane-sheet-in {
-    from {
-      transform: translateY(100%);
-    }
-  }
-
   /* One pane, filling the design workspace's dock cell. */
   .design-pane-single {
     display: flex;
@@ -6780,8 +6679,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 @media (pointer: coarse) and (prefers-reduced-motion: reduce) {
-  .view-drawer__sheet,
-  .design-pane-sheet__sheet {
+  .view-drawer__sheet {
     animation: none;
   }
 }
@@ -7064,15 +6962,6 @@ button.cp-folded-figure-toolbar__notice:hover {
     order: 1;
   }
 
-  /* One card at a time under a thumb: the strip snaps to a card's centre. */
-  .references-workspace .references-filmstrip__list {
-    scroll-snap-type: x proximity;
-  }
-
-  .references-workspace .references-filmstrip__item {
-    scroll-snap-align: center;
-  }
-
 }
 
 /*
@@ -7252,132 +7141,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   line-height: 1.4;
 }
 
-/* One number for the card's box, because the strip is windowed: the cards are
-   positioned rather than laid out, so the track has to be told how tall a row
-   of them is, and a second literal would be a second thing to keep in step. */
-.references-filmstrip,
-.references-card {
-  --references-card-size: 128px;
-}
-
-.references-card {
-  position: relative;
-  display: block;
-  width: var(--references-card-size);
-  padding: var(--space-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius);
-  background: var(--bg-canvas, #0c0f12);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
-}
-
-.references-card:hover {
-  border-color: var(--border-strong, var(--border-subtle));
-}
-
-/*
- * The card owns its focus ring, or the user agent draws its own in its own
- * colour — which, next to the selected card's, reads as a second competing
- * selection. `outline: none` is safe only because the shadow replaces it; the
- * same trade `.ui-button` makes.
- */
-.references-card:focus {
-  outline: none;
-}
-
-.references-card:focus-visible {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px var(--accent-primary);
-}
-
-.references-card--selected {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 1px var(--accent-primary);
-}
-
-.references-card__thumb {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1 / 1;
-}
-
-/* Over the picture rather than beside it: the card is the diagram, and a
-   separate column for one or two digits would halve the drawing. */
-.references-card__number {
-  position: absolute;
-  top: 2px;
-  left: 4px;
-  color: var(--text-primary);
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-/*
- * A card that is not a fold. Turning the paper over is a step the folder
- * performs, so it is a card like any other — but it makes no crease, so it
- * carries a badge where a fold carries its number rather than leaving an
- * unexplained gap in the numbering.
- */
-.references-card__badge {
-  position: absolute;
-  top: 2px;
-  left: 4px;
-  color: var(--text-secondary);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-/* A card that can be folded more than one way: a dot per way along its foot,
-   the one it shows filled, so a card left on another way reads so in the strip
-   before its sentence does. */
-.references-card__ways {
-  position: absolute;
-  right: 0;
-  bottom: 3px;
-  left: 0;
-  display: flex;
-  justify-content: center;
-  gap: 3px;
-  pointer-events: none;
-}
-
-.references-card__way {
-  width: 5px;
-  height: 5px;
-  border: 1px solid var(--text-tertiary);
-  border-radius: 50%;
-}
-
-.references-card__way--shown {
-  border-color: var(--text-secondary);
-  background: var(--text-secondary);
-}
-
-/* A fold that is not exact carries both: its number where every fold's is,
-   and the badge in the opposite corner. */
-.references-card--fold .references-card__badge {
-  left: auto;
-  right: 4px;
-}
-
-.references-card--turn-over,
-.references-card--done {
-  border-style: dashed;
-}
-
-.references-card__thumb svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
 /*
  * Findings: the lines a plan cannot construct, the sheets it would not take,
  * and the CP-wide analysis. Not a sequence, so not a numbered list.
@@ -7450,135 +7213,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 .references-finding__meta {
   color: var(--text-tertiary);
   font-size: 0.66rem;
-}
-
-/*
-  The step filmstrip: the sequence read left to right, above the pattern.
-
-  It replaced a scrubber and a transport strip along the bottom. A slider and a
-  "4 / 17" readout say where you are in a list; a row of numbered pictures says
-  what the folds *are*, which is what a diagram is for.
-*/
-.references-filmstrip {
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-2) var(--space-1);
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-primary);
-}
-
-.references-filmstrip__strip {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--space-1);
-  align-items: center;
-}
-
-/* The cards alone, without the chevrons: the phone (see the filmstrip's
-   `navigation` prop), where the stepping sits on the floating bar. */
-.references-filmstrip__strip--bare {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.references-filmstrip__list {
-  min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  margin: 0;
-  padding: 2px;
-  scroll-behavior: smooth;
-}
-
-/* The strip is windowed, so its width is the virtualizer's total rather than
-   the sum of what happens to be mounted — otherwise the scrollbar would report
-   a dozen cards and the reader could not reach the rest. */
-.references-filmstrip__track {
-  position: relative;
-  height: var(--references-card-size);
-}
-
-/* The gap belongs to the item, not to the list: the cards are positioned by
-   the virtualizer rather than laid out by flex, so a `gap` would have nothing
-   to act on and each card must carry its own trailing space to be measured
-   with it. */
-.references-filmstrip__item {
-  position: absolute;
-  top: 0;
-  left: 0;
-  padding-right: var(--space-2);
-}
-
-.references-filmstrip__caption {
-  min-height: 2.6em;
-  margin: 0;
-  padding: 0 var(--space-2);
-  color: var(--text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.35;
-}
-
-.references-filmstrip__caption-number {
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.references-filmstrip__caption-empty {
-  color: var(--text-tertiary);
-}
-
-/* Its own line, because it qualifies the whole sequence rather than the step
-   the sentence above is about. */
-.references-filmstrip__note {
-  display: block;
-  color: var(--text-tertiary);
-  font-size: 0.7rem;
-}
-
-/* The active card's other ways to fold it, under its sentence: "Way 2 of 3"
-   and a chevron each way — up and down, as the keys step through the ways
-   while left and right step through the cards. */
-.references-filmstrip__ways {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-2) var(--space-1);
-}
-
-.references-filmstrip__ways-readout {
-  margin-right: var(--space-1);
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* A vertical swipe switches a card's way (`useVerticalSwipe`), so the browser
-   must not take one for a scroll wherever a swipe means that: on a card that
-   offers ways, and under the active one's sentence and readout. `pan-x` keeps
-   the strip scrolling sideways under the same finger. */
-.references-card--ways,
-.references-filmstrip--ways .references-filmstrip__caption,
-.references-filmstrip__ways {
-  touch-action: pan-x;
-}
-
-/* On the phone the swipe is the switcher, and the row is its readout alone.
-   The chevrons stay for a screen reader, which keeps swipes for its own
-   navigation and so cannot make this one, and are hidden from sight only. */
-.references-filmstrip__ways--swipe > :not(.references-filmstrip__ways-readout) {
-  position: absolute;
-  width: 1px;
-  min-width: 0;
-  height: 1px;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 /* The picked target, and the way back out of it: a row of its own under the
@@ -7666,7 +7300,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 /*
   Colour only, from here down.
 
-  Every weight, dash run and letter size is set by `diagram/diagramInk.ts` and
+  Every weight, dash run and letter size is set by `lib/stepDiagram/diagramInk.ts` and
   emitted as an attribute, because they all depend on how big the drawing is and
   a stylesheet cannot know that. They were `stroke-width` and `stroke-dasharray`
   here, under `vector-effect: non-scaling-stroke`, which pinned them to screen

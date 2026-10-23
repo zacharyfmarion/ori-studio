@@ -535,6 +535,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       get().undoDiagram();
       return;
     }
+    // Fold's own stack, for the same reason: the sequence is on screen.
+    if (context === 'fold') {
+      get().undoFold();
+      return;
+    }
     // Neither Simulate nor References has a history stack of its own, and
     // falling through would run the undo against a document that is not on
     // screen.
@@ -702,6 +707,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     // that is not.
     if (context === 'diagram') {
       get().redoDiagram();
+      return;
+    }
+    // Fold's own stack, for the same reason: the sequence is on screen.
+    if (context === 'fold') {
+      get().redoFold();
       return;
     }
     // Neither Simulate nor References has a history stack of its own, and

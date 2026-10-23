@@ -27,6 +27,14 @@ step links to a sheet of the crease pattern (shown as its crease pattern, folded
 in the simulator) or takes a card from References, gets fold arrows and symbols, and
 the steps are laid out on pages and exported as a PDF or a ZIP of pictures.
 
+The **Fold** workspace folds a sheet step by step, the way you would by hand:
+locate a line with the Huzita–Justin axioms or an existing crease, then make a
+valley, mountain or precrease fold, or a reverse, squash, petal, rabbit-ear,
+swivel, crimp, pleat or sink fold, through the layers you pick. After every step
+you see the flat folded form and its crease pattern. A sequence can start from a
+crease pattern, repeat a run of steps on the other side, unfold back to an
+earlier step, and send its steps to the Diagram as illustrated steps.
+
 Try the hosted app at [oristudio.dev](https://oristudio.dev/).
 Signed Apple Silicon DMGs are published from local notarized builds on
 [GitHub Releases](https://github.com/zacharyfmarion/ori-studio/releases) (other platforms
@@ -65,8 +73,8 @@ The main TreeMaker engine entry point is `treemaker_core::Tree`.
 
 ### Ori Studio workspace crates
 
-These crates power the Edit, box-pleating, and detection workflows and live in
-the workspace alongside the TreeMaker engine.
+These crates power the Edit, box-pleating, Fold, and detection workflows and
+live in the workspace alongside the TreeMaker engine.
 
 - `oristudio-cp`: the Oriedita-compatible crease-pattern editing kernel.
 - `oristudio-cp-wasm`: `wasm-bindgen` bindings for the crease-pattern kernel.
@@ -81,6 +89,13 @@ the workspace alongside the TreeMaker engine.
   compiler benchmarks.
 - `oristudio-cp-detect-inspector`: a local Rust API server backing the detection
   inspector app.
+- `oristudio-fold`: the Fold workspace engine: flat folded states, the plain
+  fold and compound folds.
+- `oristudio-fold-wasm`: `wasm-bindgen` bindings for the Fold engine.
+- `oristudio-layer-order`: layer order for flat folded states: pairwise order,
+  cell overlay, constraints and a checker.
+- `oristudio-geometry`: shared origami geometry: tolerance, lines, frames,
+  Huzita–Justin constructions and convex-polygon primitives.
 
 ### npm workspace packages
 
@@ -165,6 +180,9 @@ Ori Studio builds directly on origami tools created by the community:
 - [Brandon Wong and ExplOri 22.5](https://225.designorigami.net/) — the Search
   22.5° design method sends your tree to ExplOri, a searchable archive of 22.5°
   crease patterns, and shows the closest matches it returns.
+- [Jason S. Ku and Flat-Folder](https://github.com/origamimagiro/flat-folder)
+  — the Fold workspace searches for a layer order with `treemaker-flatfold`, a
+  Rust port of Flat-Folder's solver.
 - [Kei Morisue and DEFOX](https://kei-morisue.github.io/step-folder/)
   — the Diagram workspace’s affine layer spreading is based on Morisue’s
   affine distortion method in DEFOX.

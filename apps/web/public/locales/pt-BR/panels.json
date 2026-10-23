@@ -1102,6 +1102,84 @@
       "title": "Começar um diagrama",
       "tutorial": "Assistir ao vídeo explicativo"
     },
+    "fold": {
+      "badgeCreasePattern": "{{origin}} · Padrão de vincos",
+      "badgeFolded": "{{origin}} · Dobrado",
+      "card": "Passo {{number}}",
+      "cardMissing": "Passo ausente",
+      "currentHint": "Já mostra o passo como ele está",
+      "empty": "Dobre um passo em Dobrar e os passos da sequência aparecerão aqui.",
+      "finishedSentence": "O modelo como os passos o deixam.",
+      "fromFold": "De Dobrar…",
+      "instruction": {
+        "closedSink": "Afundamento fechado.",
+        "collapse": "Colapse.",
+        "insideCrimp": "Crimp interno.",
+        "insideReverse": "Dobra invertida interna.",
+        "insideSwivel": "Dobra giratória interna.",
+        "insideSwivelBehind": "Dobra giratória interna atrás.",
+        "mountain": "Dobra monte.",
+        "mountainBothSides": "Dobra monte dos dois lados.",
+        "mountainPrecrease": "Dobre em monte e desdobre.",
+        "mountainPrecreaseBothSides": "Dobre em monte e desdobre dos dois lados.",
+        "openSink": "Afundamento aberto.",
+        "outsideCrimp": "Crimp externo.",
+        "outsideReverse": "Dobra invertida externa.",
+        "petal": "Dobra pétala.",
+        "petalBehind": "Dobra pétala atrás.",
+        "pinch": "Marque um beliscão.",
+        "pinchBothSides": "Marque um beliscão dos dois lados.",
+        "pleat": "Dobra em degrau.",
+        "precrease": "Dobre e desdobre.",
+        "precreaseBothSides": "Dobre e desdobre dos dois lados.",
+        "rabbitEar": "Orelha de coelho.",
+        "rabbitEarBehind": "Orelha de coelho atrás.",
+        "repeat_one": "Repetir do outro lado.",
+        "repeat_many": "Repetir as últimas {{count}} etapas do outro lado.",
+        "repeat_other": "Repetir as últimas {{count}} etapas do outro lado.",
+        "repeatBehind_one": "Repita atrás.",
+        "repeatBehind_many": "Repetir atrás as últimas {{count}} etapas.",
+        "repeatBehind_other": "Repetir atrás as últimas {{count}} etapas.",
+        "squash": "Dobra esmagada.",
+        "squashBehind": "Dobra esmagada atrás.",
+        "squashEnd": "Dobra esmagada da ponta.",
+        "squashEndBehind": "Dobra esmagada da ponta atrás.",
+        "swivel": "Dobra giratória.",
+        "swivelBehind": "Dobra giratória atrás.",
+        "then": "{{first}} {{next}}",
+        "tuck": "Dobra vale e encaixe.",
+        "tuckBehind": "Dobra monte e encaixe.",
+        "unfold": "Desdobre.",
+        "unfoldAll": "Desdobre por completo.",
+        "unfoldToStep": "Desdobre até a etapa {{number}}.",
+        "unsink": "Desfazer afundamento.",
+        "valley": "Dobra vale.",
+        "valleyBothSides": "Dobra vale dos dois lados."
+      },
+      "mergedCard": "Passos {{first}}–{{last}}",
+      "mergePrecreases": "Juntar pré-dobras simétricas",
+      "mergePrecreasesHint": "Uma pré-dobra e sua imagem espelhada viram um só passo, os dois vincos no mesmo desenho, como um livro os desenha.",
+      "mergePrecreasesNone": "Nenhuma pré-dobra deste caminho tem uma imagem espelhada com a qual se juntar.",
+      "missing": "Passo ausente em Dobrar",
+      "missingHint": "O passo não está mais em Dobrar ou não dobra mais",
+      "noStepsHint": "Dobre um passo em Dobrar para trazê-lo de lá",
+      "notLanded": "Dobrar ainda não dobrou este passo, então ele ainda não pode ser adicionado.",
+      "openFold": "Abrir Dobrar",
+      "openInFold": "Abrir em Dobrar",
+      "repeatBottom": "Repetir embaixo",
+      "repeatHere": "Repetir aqui",
+      "repeatLeft": "Repetir à esquerda",
+      "repeatRight": "Repetir à direita",
+      "repeatTop": "Repetir em cima",
+      "sourceAfter": "Resultado de um passo de Dobrar · {{shown}}",
+      "sourceBefore": "Um passo de Dobrar · {{shown}}",
+      "stale": "Desatualizado: a sequência de Dobrar mudou",
+      "steps": "Passos",
+      "titleEnd": "Adicionar de Dobrar",
+      "turnCard": "Giro",
+      "unknown": "Ainda não verificado: Dobrar ainda está dobrando os passos",
+      "withTurn": "Com o giro anterior"
+    },
     "grid": {
       "addStep": "Adicionar passo",
       "insertHere": "Adicionar um passo aqui",
@@ -1194,6 +1272,11 @@
       "stepCount_one": "{{count}} passo",
       "stepCount_many": "{{count}} passos",
       "stepCount_other": "{{count}} passos"
+    },
+    "link": {
+      "originEdit": "Editar",
+      "originFold": "Dobrar",
+      "originReferences": "Referências"
     },
     "packing": {
       "bands": "Faixas",
@@ -1656,14 +1739,15 @@
       "cardTurnOver": "Virar",
       "chipLabel": "{{name}}, {{where}}",
       "custom": "Outro",
+      "degrees": "{{degrees}}°",
       "delete": "Excluir virada",
       "eighth": "1/8 de volta",
       "firstHint": "Já é o primeiro",
       "half": "1/2 volta",
-      "howAngleClockwise": "{{angle}} no sentido horário",
-      "howAngleCounterclockwise": "{{angle}} no sentido anti-horário",
       "howClockwise": "{{fraction}} de volta no sentido horário",
       "howCounterclockwise": "{{fraction}} de volta no sentido anti-horário",
+      "howDegreesClockwise": "{{degrees}}° no sentido horário",
+      "howDegreesCounterclockwise": "{{degrees}}° no sentido anti-horário",
       "howSideToSide": "De lado a lado",
       "howTopToBottom": "De cima para baixo",
       "kind": "Movimento",
@@ -1673,10 +1757,10 @@
       "note": "Impresso entre os passos, sem número próprio.",
       "quarter": "1/4 de volta",
       "rotate": "Girar",
-      "rotateAngleClockwise": "Girar {{angle}} no sentido horário",
-      "rotateAngleCounterclockwise": "Girar {{angle}} no sentido anti-horário",
       "rotateClockwise": "Girar {{fraction}} de volta no sentido horário",
       "rotateCounterclockwise": "Girar {{fraction}} de volta no sentido anti-horário",
+      "rotateDegreesClockwise": "Girar {{degrees}}° no sentido horário",
+      "rotateDegreesCounterclockwise": "Girar {{degrees}}° no sentido anti-horário",
       "turnOver": "Virar",
       "turnOverSideToSide": "Virar de lado a lado",
       "turnOverTopToBottom": "Virar de cima para baixo"
@@ -1753,6 +1837,1402 @@
     "viewportControls": "Controles de visualização da árvore de busca",
     "viewTree": "Árvore",
     "viewTreeAndCp": "Árvore e padrão de vincos"
+  },
+  "fold": {
+    "actions": {
+      "brokenHint": "Este passo não dobra mais.",
+      "deleteStep": "Excluir este passo",
+      "deleteStepAndFollowing": "Excluir este passo e os seguintes",
+      "exportFold": "Exportar FOLD…",
+      "exportSteps": "Exportar passos…",
+      "foldKind": "Dobra",
+      "importCp": "Importar CP…",
+      "importPolygonHint": "Importar um CP exige uma folha quadrada ou retangular.",
+      "lockedHint": "Este passo foi criado com uma versão mais recente do Ori Studio.",
+      "pathBrokenHint": "Um passo deste caminho não dobra mais.",
+      "pathLockedHint": "Um passo deste caminho foi criado com uma versão mais recente do Ori Studio.",
+      "pathReplayingHint": "Os passos ainda estão sendo dobrados.",
+      "precrease": "Pré-dobra",
+      "readOnlyHint": "Criada com uma versão mais recente do Ori Studio: esta sequência abre somente para leitura.",
+      "replayingHint": "Os passos anteriores ainda estão sendo dobrados.",
+      "rotate": "Girar…",
+      "sendToEditTitle": "Enviar o padrão de vincos dos passos mostrados para o canvas de Edição",
+      "sheetHint": "A folha plana é onde os passos começam: não há passo para excluir.",
+      "startsBranch": "Começa um novo ramo"
+    },
+    "canvas": {
+      "creasePattern": "Padrão de vincos",
+      "creasePatternLabel": "O padrão de vincos até agora, com a frente para cima. Clique em seus pontos e vincos para posicionar uma dobra.",
+      "flatCreases": "Vincos planos",
+      "flatCreasesTitle": "Desenhar os vincos planos no papel: pré-vincos e dobras desfeitas",
+      "folded": "Dobrado",
+      "foldedLabel": "A forma dobrada. Clique em seus pontos e vincos para posicionar uma dobra; arraste para mover, role para dar zoom.",
+      "spreadLayers": "Separar camadas",
+      "spreadLayersTitle": "Separa as camadas dobradas, como um diagrama as desenha, neste passo e nos seguintes",
+      "stepCreases": "Vincos do passo",
+      "stepCreasesTitle": "Desenhar em negrito os vincos feitos pelo passo mostrado, como sua instrução",
+      "toolbar": "Visualização da dobra"
+    },
+    "collapse": {
+      "changed": "Há uma atualização disponível. Este passo ainda usa a versão salva do CP.",
+      "openSource": "Abrir CP de origem",
+      "replay": "A atualização recalcula as dobras seguintes. Antes de continuar, confira na linha do tempo os passos alterados ou que não podem mais ser dobrados.",
+      "saved": "Usando a versão salva do CP. As edições na origem só são aplicadas ao atualizar.",
+      "unavailable": "CP de origem indisponível. A cópia salva continua sendo reproduzida.",
+      "update": "Atualizar a partir do CP"
+    },
+    "header": {
+      "moreExports": "Mais formas de exportar",
+      "moreVerbs": "Importar, enviar e exportar",
+      "moreVerbsButExport": "Desdobrar, importar e enviar"
+    },
+    "load": {
+      "failed": "O workspace de Dobra não carregou",
+      "loading": "Carregando o workspace de Dobra…",
+      "offline": "O workspace de Dobra ainda não foi baixado e você está off-line. Conecte-se uma vez e ele funcionará off-line a partir de então.",
+      "retry": "Tentar novamente"
+    },
+    "paper": {
+      "backUp": "Verso para cima",
+      "frontUp": "Frente para cima",
+      "importSheet": "Importar folha inicial…",
+      "keptStyle": "O estilo próprio desta sequência",
+      "look": "Aparência",
+      "shape": "Forma",
+      "sheet": "Folha",
+      "sheetPolygon_one": "Polígono, {{count}} lado",
+      "sheetPolygon_many": "Polígono, {{count}} lados",
+      "sheetPolygon_other": "Polígono, {{count}} lados",
+      "sheetRectangle": "Retângulo, 1 : {{ratio}}",
+      "sheetRegular_one": "Polígono regular, {{count}} lado",
+      "sheetRegular_many": "Polígono regular, {{count}} lados",
+      "sheetRegular_other": "Polígono regular, {{count}} lados",
+      "sheetSquare": "Quadrado",
+      "sheetStartsOver_one": "Uma nova folha inicial recomeça a sequência: seu {{count}} passo é apagado. Desfazer o traz de volta.",
+      "sheetStartsOver_many": "Uma nova folha inicial recomeça a sequência: seus {{count}} passos são apagados. Desfazer os traz de volta.",
+      "sheetStartsOver_other": "Uma nova folha inicial recomeça a sequência: seus {{count}} passos são apagados. Desfazer os traz de volta.",
+      "start": "Início",
+      "startHelp": "Qual lado do papel fica virado para você antes da primeira dobra. O padrão de vincos é sempre desenhado pela frente.",
+      "style": "Estilo",
+      "styleHint": "O papel, as canetas e os vincos de diagrama com que esta sequência é desenhada. Um estilo das Configurações é copiado para a sequência quando você o escolhe."
+    },
+    "repeat": {
+      "advice": {
+        "axis": "Tente outro eixo ou dobre o outro lado com as ferramentas.",
+        "axisOrLater": "Tente outro eixo ou comece o intervalo depois desta operação.",
+        "later": "Comece o intervalo depois desta operação ou dobre o outro lado com as ferramentas.",
+        "tools": "Em vez disso, dobre o outro lado com as ferramentas."
+      },
+      "ambiguous": "A operação espelhada cai de duas formas diferentes que correspondem ambas à original, então não se sabe qual é a pretendida.",
+      "axis": "Eixo de simetria",
+      "axisName": {
+        "angle": "Linha pelo centro a {{degrees}}°",
+        "falling": "Diagonal, de cima à esquerda para baixo à direita",
+        "horizontal": "Linha central, da esquerda para a direita",
+        "rising": "Diagonal, de baixo à esquerda para cima à direita",
+        "vertical": "Linha central, de cima para baixo"
+      },
+      "axisStopsAt": "Para na operação {{number}}: {{reason}}",
+      "blockedAt": "Parou na operação de origem {{number}}: {{reason}}",
+      "choiceAt_one": "A operação de origem {{number}} tem {{count}} ordens de camadas compatíveis. Escolha uma para continuar.",
+      "choiceAt_many": "A operação de origem {{number}} tem {{count}} ordens de camadas compatíveis. Escolha uma para continuar.",
+      "choiceAt_other": "A operação de origem {{number}} tem {{count}} ordens de camadas compatíveis. Escolha uma para continuar.",
+      "chooseAxis": "Escolher eixo de simetria",
+      "commitBehind": "Repetir atrás",
+      "commitSame": "Repetir do outro lado",
+      "drawnAxisRefused": "Não é possível repetir em relação a este eixo. {{reason}}",
+      "failureTitle": "Não é possível repetir",
+      "findingAxes": "Procurando os eixos de simetria do modelo antes do intervalo…",
+      "from": "Começar por",
+      "goSource": "Ir aos passos de origem",
+      "groupCount_one": "Repetir {{count}} operação como uma etapa numerada.",
+      "groupCount_many": "Repetir {{count}} operações até o passo atual como um único passo numerado.",
+      "groupCount_other": "Repetir {{count}} operações até o passo atual como um único passo numerado.",
+      "groupCountBehind_one": "Repetir {{count}} operação atrás, como uma etapa numerada.",
+      "groupCountBehind_many": "Repetir {{count}} operações até o passo atual atrás, como um único passo numerado.",
+      "groupCountBehind_other": "Repetir {{count}} operações até o passo atual atrás, como um único passo numerado.",
+      "groupCountSame_one": "Repetir {{count}} operação do outro lado, como uma etapa numerada.",
+      "groupCountSame_many": "Repetir {{count}} operações até o passo atual do outro lado, como um único passo numerado.",
+      "groupCountSame_other": "Repetir {{count}} operações até o passo atual do outro lado, como um único passo numerado.",
+      "headlineAdvice": "{{reason}}. {{advice}}",
+      "headlineReason": "{{reason}}.",
+      "individual": "Mostrar como passos individuais",
+      "individualCount_one": "Repetir {{count}} operação como uma entrada individual.",
+      "individualCount_many": "Repetir {{count}} operações até o passo atual como entradas individuais.",
+      "individualCount_other": "Repetir {{count}} operações até o passo atual como entradas individuais.",
+      "individualCountBehind_one": "Repetir {{count}} operação atrás, como uma entrada individual.",
+      "individualCountBehind_many": "Repetir {{count}} operações até o passo atual atrás, como entradas individuais.",
+      "individualCountBehind_other": "Repetir {{count}} operações até o passo atual atrás, como entradas individuais.",
+      "individualCountSame_one": "Repetir {{count}} operação do outro lado, como uma entrada individual.",
+      "individualCountSame_many": "Repetir {{count}} operações até o passo atual do outro lado, como entradas individuais.",
+      "individualCountSame_other": "Repetir {{count}} operações até o passo atual do outro lado, como entradas individuais.",
+      "invalidAxis": "Esta linha não associa regiões de papel e camadas correspondentes no modelo inicial.",
+      "label": "Repetir",
+      "limit": "Esta repetição excede o limite de busca. Tente um intervalo menor.",
+      "materialConflict": "A repetição alteraria mais papel ou vincos. Os dois lados não podem ser dobrados independentemente neste intervalo.",
+      "mirror": {
+        "budget": "Descobrir como as camadas espelhadas se empilham demorou demais, então não se sabe se elas se encaixam.",
+        "closureAddsFlaps": "Dobrar as camadas espelhadas também moveria outras abas.",
+        "emptySeed": "A dobra espelhada não escolhe nenhuma camada para mover.",
+        "moverStays": "A camada que leva o ponto a mover não está entre as camadas que a dobra espelhada move.",
+        "noMovingSide": "Não há papel do lado da linha espelhada que se moveria.",
+        "noRoot": "As referências espelhadas não dão nenhuma linha de dobra no papel como ele está dobrado.",
+        "noSide": "Nada indica qual lado da linha espelhada se move.",
+        "nothingStays": "Todas as camadas estão do lado da linha espelhada que se move, então nada ficaria parado.",
+        "offPaper": "Um ponto ou uma borda usado para posicionar a linha espelhada não está sobre o papel como ele está dobrado agora.",
+        "pickAgain": "O lugar que a dobra espelhada escolhe não está dentro de uma camada do lado que se move.",
+        "pointsTooClose": "Os dois pontos da linha espelhada caem no mesmo lugar do papel dobrado, então não formam nenhuma linha.",
+        "wrongCrease": "A linha espelhada não segue uma borda dobrada para desdobrar nem um vinco plano para redobrar."
+      },
+      "noAxis": "Não foi verificado um par de lados correspondentes neste modelo inicial. Escolha outro intervalo.",
+      "noDrawnLine": "Estes pontos não localizam nenhuma linha aqui. Escolha de novo, ou escolha um eixo.",
+      "notAnAxis": "Não é um eixo de simetria",
+      "nothing": "Cada operação do intervalo é o próprio reflexo em relação a este eixo, então repeti-la não muda nada. Escolha outro eixo ou outro intervalo.",
+      "open": "Repetir…",
+      "orderConflict": "As relações originais entre as camadas não podem ser preservadas do outro lado.",
+      "pleatBehind": "Vistos do outro lado, a montanha e o vale desta dobra sanfona trocam de lugar, o que uma etapa de dobra sanfona não consegue registrar. Vire o modelo e faça a dobra lá.",
+      "preparing": "Preparando as dobras repetidas…",
+      "previewShown": "A tela mostra as dobras repetidas e os vincos que elas adicionam.",
+      "reasonAdvice": "{{reason}} {{advice}}",
+      "rebuildRequired": "A repetição salva não corresponde mais a este estado. Atualize-a a partir dos passos de origem.",
+      "reference": "Uma referência não tem um ponto correspondente do outro lado.",
+      "refusedPlain": "A operação espelhada não pode ser dobrada. Nenhum passo foi adicionado.",
+      "returnTarget": "Este desdobramento retorna a um passo anterior ao intervalo selecionado. Inclua essa parte da sequência na repetição.",
+      "savedCount_one": "Uma operação salva como um passo de repetição.",
+      "savedCount_many": "{{count}} operações salvas como um único passo de repetição.",
+      "savedCount_other": "{{count}} operações salvas como um único passo de repetição.",
+      "sentence_one": "Repetir a operação anterior do outro lado.",
+      "sentence_many": "Repetir as {{count}} operações anteriores do outro lado.",
+      "sentence_other": "Repetir as {{count}} operações anteriores do outro lado.",
+      "sentenceBehind_one": "Repetir atrás a operação anterior.",
+      "sentenceBehind_many": "Repetir atrás as {{count}} operações anteriores.",
+      "sentenceBehind_other": "Repetir atrás as {{count}} operações anteriores.",
+      "sourceChanged": "Os passos de origem mudaram. Atualize esta repetição.",
+      "stop": "Parar",
+      "stopped": "Parou antes de a repetição ficar pronta. Nenhum passo foi adicionado.",
+      "swivelBehind": "Do outro lado, o vale e a montanha desta dobra giratória ficam na camada de trás. Vire o modelo e faça a dobra giratória lá.",
+      "unavailable": "Os estados de origem estão indisponíveis ou mudaram. Aguarde a reprodução e abra Repetir novamente.",
+      "unsupported": "Este intervalo contém um colapso ou outra repetição que ainda não pode ser espelhada. Escolha um intervalo de operações de dobra.",
+      "update": "Atualizar a partir dos passos de origem",
+      "useNearest": "Usar {{axis}}",
+      "viewAxis": "Este intervalo exige virar o modelo em torno de um eixo oblíquo. Repita as dobras separadamente dessa mudança de vista.",
+      "waiting": "Aguardando os passos terminarem de dobrar…"
+    },
+    "return": {
+      "changed": "As dobras anteriores mudaram. Reconstrua este desdobramento para conferir o novo resultado.",
+      "empty": "Faça uma dobra primeiro.",
+      "failureTitle": "Não é possível desdobrar",
+      "invalidTarget": "Escolha uma etapa anterior neste ramo.",
+      "label": "Desdobrar até uma etapa",
+      "last": "Desdobrar a última etapa",
+      "limit": "O histórico de vincos é grande demais para ser restaurado com segurança.",
+      "loading": "Preparando a prévia do desdobramento…",
+      "noop": "O papel já está nesta forma com estes vincos.",
+      "numberedSentence": "Volte à etapa {{number}}, mantendo todos os vincos.",
+      "open": "Desdobrar até uma etapa…",
+      "rebuild": "Reconstruir desdobramento",
+      "refused": "O mecanismo não conseguiu restaurar esta forma mantendo o histórico de vincos. Nenhuma etapa foi alterada.",
+      "retain": "Voltar a uma forma anterior, mantendo todos os vincos.",
+      "sentence": "Volte à forma dobrada anterior, mantendo todos os vincos.",
+      "sheet": "Folha inicial",
+      "sheetSentence": "Desdobre até a folha inicial, mantendo todos os vincos.",
+      "step": "Etapa {{number}}",
+      "target": "Voltar para",
+      "turn": "Giro após a etapa {{number}}",
+      "unavailable": "Aguarde a reprodução das etapas anteriores e tente novamente.",
+      "viewTarget": "Ver destino: {{target}}"
+    },
+    "sentence": {
+      "behind": {
+        "petal": "Faça uma dobra pétala com a aba, por trás.",
+        "petalScores": "Faça uma dobra pétala com a aba, por trás, vincando a dobradiça enquanto ela sobe.",
+        "rabbitEar": "Faça uma orelha de coelho com o triângulo, por trás.",
+        "squash": "Faça uma dobra esmagada com a aba, por trás.",
+        "squashEnd": "Faça uma dobra esmagada com a ponta da aba, por trás, levantando-a ao longo da linha.",
+        "swivel": "Gire o papel por trás em torno do ponto com uma dobra giratória.",
+        "swivelEdgeCrease": "Gire a borda por trás sobre o vinco, pivotando no ponto.",
+        "swivelEdgeLine": "Gire a borda por trás sobre a linha, pivotando no ponto.",
+        "swivelFoldCrease": "Gire a borda por trás sobre o vinco, com os vincos se encontrando na borda dobrada.",
+        "swivelFoldLine": "Gire a borda por trás sobre a linha, com os vincos se encontrando na borda dobrada.",
+        "swivelInsideCrease": "Gire a borda por trás sobre o vinco com um giro interno, com os vincos se encontrando na borda dobrada.",
+        "swivelInsideLine": "Gire a borda por trás sobre a linha com um giro interno, com os vincos se encontrando na borda dobrada."
+      },
+      "closedSink": "Afunde a ponta em afundamento fechado: empurre-a para dentro com as camadas juntas.",
+      "collapse": "Colapse seguindo o padrão de dobras salvo.",
+      "cpJump": "Dobre o papel segundo o padrão de vincos importado.",
+      "crimp": {
+        "inside": {
+          "crease": {
+            "crease": {
+              "all": "Faça um crimp interno pelo vinco existente, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno pelo vinco existente, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno pelo vinco existente, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno pelo vinco existente, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno pelo vinco existente, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno pelo vinco existente, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno pelo vinco existente, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp interno pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "free": {
+            "crease": {
+              "all": "Faça um crimp interno pela linha marcada, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno pela linha marcada, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno pela linha marcada, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno pela linha marcada, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno pela linha marcada, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno pela linha marcada, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno pela linha marcada, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp interno pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o1": {
+            "crease": {
+              "all": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o2": {
+            "crease": {
+              "all": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o3": {
+            "crease": {
+              "all": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o4": {
+            "crease": {
+              "all": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o5": {
+            "crease": {
+              "all": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o6": {
+            "crease": {
+              "all": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o7": {
+            "crease": {
+              "all": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp interno de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          }
+        },
+        "outside": {
+          "crease": {
+            "crease": {
+              "all": "Faça um crimp externo pelo vinco existente, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo pelo vinco existente, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo pelo vinco existente, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo pelo vinco existente, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo pelo vinco existente, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo pelo vinco existente, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo pelo vinco existente, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp externo pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo pelo vinco existente, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "free": {
+            "crease": {
+              "all": "Faça um crimp externo pela linha marcada, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo pela linha marcada, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo pela linha marcada, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo pela linha marcada, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo pela linha marcada, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo pela linha marcada, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo pela linha marcada, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp externo pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo pela linha marcada, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o1": {
+            "crease": {
+              "all": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo pela linha que liga {{a}} e {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o2": {
+            "crease": {
+              "all": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o3": {
+            "crease": {
+              "all": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo levando {{a}} sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o4": {
+            "crease": {
+              "all": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o5": {
+            "crease": {
+              "all": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo com {{a}} como pivô, levando {{b}} sobre {{c}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o6": {
+            "crease": {
+              "all": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          },
+          "o7": {
+            "crease": {
+              "all": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por um vinco existente mais adiante, só nas {{count}} abas indicadas."
+            },
+            "free": {
+              "all": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, em todas as camadas.",
+              "depth_one": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na camada de cima.",
+              "depth_many": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "depth_other": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} camadas de cima.",
+              "flaps_one": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só na aba indicada.",
+              "flaps_many": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas.",
+              "flaps_other": "Faça um crimp externo de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e depois volte por uma segunda linha marcada mais adiante, só nas {{count}} abas indicadas."
+            }
+          }
+        }
+      },
+      "extent": {
+        "pinch": "{{sentence}} Vinque só um beliscão curto sobre {{at}}.",
+        "segment": "{{sentence}} Vinque só o trecho entre {{from}} e {{to}}."
+      },
+      "insideReverse": {
+        "crease": {
+          "all": "Dobre todas as camadas com uma dobra invertida interna pelo vinco existente.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida interna pelo vinco existente.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna pelo vinco existente.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna pelo vinco existente.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida interna pelo vinco existente.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna pelo vinco existente.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna pelo vinco existente."
+        },
+        "free": {
+          "all": "Dobre todas as camadas com uma dobra invertida interna pela linha marcada.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida interna pela linha marcada.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna pela linha marcada.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna pela linha marcada.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida interna pela linha marcada.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna pela linha marcada.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna pela linha marcada."
+        },
+        "o1": {
+          "all": "Dobre todas as camadas com uma dobra invertida interna pela linha que liga {{a}} e {{b}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida interna pela linha que liga {{a}} e {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna pela linha que liga {{a}} e {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna pela linha que liga {{a}} e {{b}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida interna pela linha que liga {{a}} e {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna pela linha que liga {{a}} e {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna pela linha que liga {{a}} e {{b}}."
+        },
+        "o2": {
+          "all": "Dobre todas as camadas com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, levando {{a}} sobre {{b}}."
+        },
+        "o3": {
+          "all": "Dobre todas as camadas com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, levando {{a}} sobre {{b}}."
+        },
+        "o4": {
+          "all": "Dobre todas as camadas com uma dobra invertida interna, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida interna, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida interna, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha."
+        },
+        "o5": {
+          "all": "Dobre todas as camadas com uma dobra invertida interna, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida interna, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida interna, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, com {{a}} como pivô, levando {{b}} sobre {{c}}."
+        },
+        "o6": {
+          "all": "Dobre todas as camadas com uma dobra invertida interna, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida interna, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida interna, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}."
+        },
+        "o7": {
+          "all": "Dobre todas as camadas com uma dobra invertida interna de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida interna de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida interna de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida interna de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida interna de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}."
+        }
+      },
+      "mountain": {
+        "crease": {
+          "all": "Dobre todas as camadas em monte pelo vinco existente.",
+          "depth_one": "Dobre só a camada de baixo em monte pelo vinco existente.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte pelo vinco existente.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte pelo vinco existente.",
+          "flaps_one": "Dobre só a aba indicada em monte pelo vinco existente.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte pelo vinco existente.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte pelo vinco existente."
+        },
+        "free": {
+          "all": "Dobre todas as camadas em monte pela linha marcada.",
+          "depth_one": "Dobre só a camada de baixo em monte pela linha marcada.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte pela linha marcada.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte pela linha marcada.",
+          "flaps_one": "Dobre só a aba indicada em monte pela linha marcada.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte pela linha marcada.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte pela linha marcada."
+        },
+        "o1": {
+          "all": "Dobre todas as camadas em monte pela linha que liga {{a}} e {{b}}.",
+          "depth_one": "Dobre só a camada de baixo em monte pela linha que liga {{a}} e {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte pela linha que liga {{a}} e {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte pela linha que liga {{a}} e {{b}}.",
+          "flaps_one": "Dobre só a aba indicada em monte pela linha que liga {{a}} e {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte pela linha que liga {{a}} e {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte pela linha que liga {{a}} e {{b}}."
+        },
+        "o2": {
+          "all": "Dobre todas as camadas em monte, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de baixo em monte, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada em monte, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}}."
+        },
+        "o2Half": {
+          "all": "Dobre todas as camadas ao meio em monte, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de baixo ao meio em monte, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo ao meio em monte, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo ao meio em monte, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada ao meio em monte, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas ao meio em monte, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas ao meio em monte, levando {{a}} sobre {{b}}."
+        },
+        "o3": {
+          "all": "Dobre todas as camadas em monte, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de baixo em monte, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada em monte, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}}."
+        },
+        "o3Half": {
+          "all": "Dobre todas as camadas ao meio em monte, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de baixo ao meio em monte, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo ao meio em monte, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo ao meio em monte, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada ao meio em monte, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas ao meio em monte, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas ao meio em monte, levando {{a}} sobre {{b}}."
+        },
+        "o4": {
+          "all": "Dobre todas as camadas em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_one": "Dobre só a camada de baixo em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_one": "Dobre só a aba indicada em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha."
+        },
+        "o5": {
+          "all": "Dobre todas as camadas em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_one": "Dobre só a camada de baixo em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_one": "Dobre só a aba indicada em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}."
+        },
+        "o6": {
+          "all": "Dobre todas as camadas em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_one": "Dobre só a camada de baixo em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_one": "Dobre só a aba indicada em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}."
+        },
+        "o7": {
+          "all": "Dobre todas as camadas em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_one": "Dobre só a camada de baixo em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}."
+        }
+      },
+      "mountainPrecrease": {
+        "crease": {
+          "all": "Dobre todas as camadas em monte pelo vinco existente e desdobre.",
+          "depth_one": "Dobre só a camada de baixo em monte pelo vinco existente e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte pelo vinco existente e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte pelo vinco existente e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em monte pelo vinco existente e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte pelo vinco existente e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte pelo vinco existente e desdobre."
+        },
+        "free": {
+          "all": "Dobre todas as camadas em monte pela linha marcada e desdobre.",
+          "depth_one": "Dobre só a camada de baixo em monte pela linha marcada e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte pela linha marcada e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte pela linha marcada e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em monte pela linha marcada e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte pela linha marcada e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte pela linha marcada e desdobre."
+        },
+        "o1": {
+          "all": "Dobre todas as camadas em monte pela linha que liga {{a}} e {{b}} e desdobre.",
+          "depth_one": "Dobre só a camada de baixo em monte pela linha que liga {{a}} e {{b}} e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte pela linha que liga {{a}} e {{b}} e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte pela linha que liga {{a}} e {{b}} e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em monte pela linha que liga {{a}} e {{b}} e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte pela linha que liga {{a}} e {{b}} e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte pela linha que liga {{a}} e {{b}} e desdobre."
+        },
+        "o2": {
+          "all": "Dobre todas as camadas em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de baixo em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}}, e desdobre."
+        },
+        "o2Half": {
+          "all": "Dobre todas as camadas ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de baixo ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas ao meio em monte, levando {{a}} sobre {{b}}, e desdobre."
+        },
+        "o3": {
+          "all": "Dobre todas as camadas em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de baixo em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}}, e desdobre."
+        },
+        "o3Half": {
+          "all": "Dobre todas as camadas ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de baixo ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas ao meio em monte, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas ao meio em monte, levando {{a}} sobre {{b}}, e desdobre."
+        },
+        "o4": {
+          "all": "Dobre todas as camadas em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "depth_one": "Dobre só a camada de baixo em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre."
+        },
+        "o5": {
+          "all": "Dobre todas as camadas em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "depth_one": "Dobre só a camada de baixo em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre."
+        },
+        "o6": {
+          "all": "Dobre todas as camadas em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "depth_one": "Dobre só a camada de baixo em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre."
+        },
+        "o7": {
+          "all": "Dobre todas as camadas em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de baixo em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de baixo em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de baixo em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em monte de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre."
+        }
+      },
+      "openSink": "Afunde a ponta em afundamento aberto: empurre-a para dentro, virando cada camada do avesso.",
+      "outsideReverse": {
+        "crease": {
+          "all": "Dobre todas as camadas com uma dobra invertida externa pelo vinco existente.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida externa pelo vinco existente.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa pelo vinco existente.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa pelo vinco existente.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida externa pelo vinco existente.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa pelo vinco existente.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa pelo vinco existente."
+        },
+        "free": {
+          "all": "Dobre todas as camadas com uma dobra invertida externa pela linha marcada.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida externa pela linha marcada.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa pela linha marcada.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa pela linha marcada.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida externa pela linha marcada.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa pela linha marcada.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa pela linha marcada."
+        },
+        "o1": {
+          "all": "Dobre todas as camadas com uma dobra invertida externa pela linha que liga {{a}} e {{b}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida externa pela linha que liga {{a}} e {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa pela linha que liga {{a}} e {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa pela linha que liga {{a}} e {{b}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida externa pela linha que liga {{a}} e {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa pela linha que liga {{a}} e {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa pela linha que liga {{a}} e {{b}}."
+        },
+        "o2": {
+          "all": "Dobre todas as camadas com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, levando {{a}} sobre {{b}}."
+        },
+        "o3": {
+          "all": "Dobre todas as camadas com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, levando {{a}} sobre {{b}}."
+        },
+        "o4": {
+          "all": "Dobre todas as camadas com uma dobra invertida externa, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida externa, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida externa, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha."
+        },
+        "o5": {
+          "all": "Dobre todas as camadas com uma dobra invertida externa, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida externa, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida externa, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, com {{a}} como pivô, levando {{b}} sobre {{c}}."
+        },
+        "o6": {
+          "all": "Dobre todas as camadas com uma dobra invertida externa, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida externa, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida externa, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}."
+        },
+        "o7": {
+          "all": "Dobre todas as camadas com uma dobra invertida externa de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima com uma dobra invertida externa de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima com uma dobra invertida externa de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada com uma dobra invertida externa de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas com uma dobra invertida externa de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}."
+        }
+      },
+      "petal": "Faça uma dobra pétala com a aba.",
+      "petalScores": "Faça uma dobra pétala com a aba, vincando a dobradiça enquanto ela sobe.",
+      "pleat": "Dobre ao longo das duas linhas: primeiro montanha, depois vale.",
+      "rabbitEar": "Faça uma orelha de coelho com o triângulo.",
+      "squash": "Faça uma dobra esmagada com a aba.",
+      "squashEnd": "Faça uma dobra esmagada com a ponta da aba, levantando-a ao longo da linha.",
+      "swivel": "Gire o papel em torno do ponto com uma dobra giratória.",
+      "swivelEdgeCrease": "Gire a borda sobre o vinco, pivotando no ponto.",
+      "swivelEdgeLine": "Gire a borda sobre a linha, pivotando no ponto.",
+      "swivelFoldCrease": "Gire a borda sobre o vinco, com os vincos se encontrando na borda dobrada.",
+      "swivelFoldLine": "Gire a borda sobre a linha, com os vincos se encontrando na borda dobrada.",
+      "swivelInsideCrease": "Gire a borda sobre o vinco com um giro interno, com os vincos se encontrando na borda dobrada.",
+      "swivelInsideLine": "Gire a borda sobre a linha com um giro interno, com os vincos se encontrando na borda dobrada.",
+      "swivelInsideValleyMountain": "Gire a aba com um giro interno ao longo do vale e da montanha.",
+      "swivelValleyMountain": "Gire a aba com uma dobra giratória ao longo do vale e da montanha.",
+      "tuckMountain": "Dobre em monte e encaixe a aba por trás, sobre a camada escolhida.",
+      "tuckValley": "Dobre em vale e encaixe a aba sob a camada escolhida.",
+      "turn": "{{turn}}.",
+      "unfold": {
+        "all": "Desdobre todas as camadas pelo vinco existente.",
+        "bottom_one": "Desdobre a camada de baixo.",
+        "bottom_many": "Desdobre as {{count}} camadas de baixo.",
+        "bottom_other": "Desdobre as {{count}} camadas de baixo.",
+        "flaps_one": "Desdobre a aba indicada.",
+        "flaps_many": "Desdobre as {{count}} abas indicadas.",
+        "flaps_other": "Desdobre as {{count}} abas indicadas.",
+        "top_one": "Desdobre a camada de cima.",
+        "top_many": "Desdobre as {{count}} camadas de cima.",
+        "top_other": "Desdobre as {{count}} camadas de cima."
+      },
+      "unknown": "Um passo criado com uma versão mais recente do Ori Studio.",
+      "unsink": "Desfaça o afundamento: puxe a ponta de volta para fora.",
+      "valley": {
+        "crease": {
+          "all": "Dobre todas as camadas em vale pelo vinco existente.",
+          "depth_one": "Dobre só a camada de cima em vale pelo vinco existente.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale pelo vinco existente.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale pelo vinco existente.",
+          "flaps_one": "Dobre só a aba indicada em vale pelo vinco existente.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale pelo vinco existente.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale pelo vinco existente."
+        },
+        "free": {
+          "all": "Dobre todas as camadas em vale pela linha marcada.",
+          "depth_one": "Dobre só a camada de cima em vale pela linha marcada.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale pela linha marcada.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale pela linha marcada.",
+          "flaps_one": "Dobre só a aba indicada em vale pela linha marcada.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale pela linha marcada.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale pela linha marcada."
+        },
+        "o1": {
+          "all": "Dobre todas as camadas em vale pela linha que liga {{a}} e {{b}}.",
+          "depth_one": "Dobre só a camada de cima em vale pela linha que liga {{a}} e {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale pela linha que liga {{a}} e {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale pela linha que liga {{a}} e {{b}}.",
+          "flaps_one": "Dobre só a aba indicada em vale pela linha que liga {{a}} e {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale pela linha que liga {{a}} e {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale pela linha que liga {{a}} e {{b}}."
+        },
+        "o2": {
+          "all": "Dobre todas as camadas em vale, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima em vale, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada em vale, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}}."
+        },
+        "o2Half": {
+          "all": "Dobre todas as camadas ao meio em vale, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima ao meio em vale, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima ao meio em vale, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima ao meio em vale, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada ao meio em vale, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas ao meio em vale, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas ao meio em vale, levando {{a}} sobre {{b}}."
+        },
+        "o3": {
+          "all": "Dobre todas as camadas em vale, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima em vale, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada em vale, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}}."
+        },
+        "o3Half": {
+          "all": "Dobre todas as camadas ao meio em vale, levando {{a}} sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima ao meio em vale, levando {{a}} sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima ao meio em vale, levando {{a}} sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima ao meio em vale, levando {{a}} sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada ao meio em vale, levando {{a}} sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas ao meio em vale, levando {{a}} sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas ao meio em vale, levando {{a}} sobre {{b}}."
+        },
+        "o4": {
+          "all": "Dobre todas as camadas em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_one": "Dobre só a camada de cima em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_one": "Dobre só a aba indicada em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha."
+        },
+        "o5": {
+          "all": "Dobre todas as camadas em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_one": "Dobre só a camada de cima em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_one": "Dobre só a aba indicada em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}."
+        },
+        "o6": {
+          "all": "Dobre todas as camadas em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_one": "Dobre só a camada de cima em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_one": "Dobre só a aba indicada em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}."
+        },
+        "o7": {
+          "all": "Dobre todas as camadas em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_one": "Dobre só a camada de cima em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_one": "Dobre só a aba indicada em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}."
+        }
+      },
+      "valleyPrecrease": {
+        "crease": {
+          "all": "Dobre todas as camadas em vale pelo vinco existente e desdobre.",
+          "depth_one": "Dobre só a camada de cima em vale pelo vinco existente e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale pelo vinco existente e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale pelo vinco existente e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em vale pelo vinco existente e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale pelo vinco existente e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale pelo vinco existente e desdobre."
+        },
+        "free": {
+          "all": "Dobre todas as camadas em vale pela linha marcada e desdobre.",
+          "depth_one": "Dobre só a camada de cima em vale pela linha marcada e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale pela linha marcada e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale pela linha marcada e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em vale pela linha marcada e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale pela linha marcada e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale pela linha marcada e desdobre."
+        },
+        "o1": {
+          "all": "Dobre todas as camadas em vale pela linha que liga {{a}} e {{b}} e desdobre.",
+          "depth_one": "Dobre só a camada de cima em vale pela linha que liga {{a}} e {{b}} e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale pela linha que liga {{a}} e {{b}} e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale pela linha que liga {{a}} e {{b}} e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em vale pela linha que liga {{a}} e {{b}} e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale pela linha que liga {{a}} e {{b}} e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale pela linha que liga {{a}} e {{b}} e desdobre."
+        },
+        "o2": {
+          "all": "Dobre todas as camadas em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de cima em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}}, e desdobre."
+        },
+        "o2Half": {
+          "all": "Dobre todas as camadas ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de cima ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas ao meio em vale, levando {{a}} sobre {{b}}, e desdobre."
+        },
+        "o3": {
+          "all": "Dobre todas as camadas em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de cima em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}}, e desdobre."
+        },
+        "o3Half": {
+          "all": "Dobre todas as camadas ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de cima ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas ao meio em vale, levando {{a}} sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas ao meio em vale, levando {{a}} sobre {{b}}, e desdobre."
+        },
+        "o4": {
+          "all": "Dobre todas as camadas em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "depth_one": "Dobre só a camada de cima em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, com {{a}} como pivô, de modo que {{b}} caia sobre sua própria linha, e desdobre."
+        },
+        "o5": {
+          "all": "Dobre todas as camadas em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "depth_one": "Dobre só a camada de cima em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, com {{a}} como pivô, levando {{b}} sobre {{c}}, e desdobre."
+        },
+        "o6": {
+          "all": "Dobre todas as camadas em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "depth_one": "Dobre só a camada de cima em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale, levando {{a}} sobre {{b}} e {{c}} sobre {{d}}, e desdobre."
+        },
+        "o7": {
+          "all": "Dobre todas as camadas em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "depth_one": "Dobre só a camada de cima em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "depth_many": "Dobre só as {{count}} camadas de cima em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "depth_other": "Dobre só as {{count}} camadas de cima em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "flaps_one": "Dobre só a aba indicada em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "flaps_many": "Dobre só as {{count}} abas indicadas em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre.",
+          "flaps_other": "Dobre só as {{count}} abas indicadas em vale de modo que {{self}} caia sobre sua própria linha e {{a}} caia sobre {{b}}, e desdobre."
+        }
+      }
+    },
+    "sequence": {
+      "badgeBlocked": "Bloqueado",
+      "badgeBroken": "Quebrado",
+      "badgeChanged": "Alterado",
+      "badgePreview": "Prévia",
+      "badgeSheet": "Folha",
+      "branch": "Ramo {{n}} de {{total}}",
+      "branchesLabel": "Ramos neste passo",
+      "branchShort": "{{n}} / {{total}}",
+      "nextBranch": "Próximo ramo",
+      "nextStep": "Próximo passo",
+      "noTools": "Pegue uma ferramenta de dobra na tela para escolher o tipo.",
+      "placeholder": "Dobre a folha para criar o passo 1.",
+      "previousBranch": "Ramo anterior",
+      "previousStep": "Passo anterior",
+      "replayFailed": "Não foi possível dobrar todos os passos.",
+      "replaying": "Dobrando os passos… {{done}} de {{total}}",
+      "retry": "Tentar novamente",
+      "sheetIrregularBack_one": "Comece com um polígono de {{count}} lado, verso para cima.",
+      "sheetIrregularBack_many": "Comece com um polígono de {{count}} lados, verso para cima.",
+      "sheetIrregularBack_other": "Comece com um polígono de {{count}} lados, verso para cima.",
+      "sheetIrregularFront_one": "Comece com um polígono de {{count}} lado, frente para cima.",
+      "sheetIrregularFront_many": "Comece com um polígono de {{count}} lados, frente para cima.",
+      "sheetIrregularFront_other": "Comece com um polígono de {{count}} lados, frente para cima.",
+      "sheetPolygonBack_one": "Comece com um polígono regular de {{count}} lado, verso para cima.",
+      "sheetPolygonBack_many": "Comece com um polígono regular de {{count}} lados, verso para cima.",
+      "sheetPolygonBack_other": "Comece com um polígono regular de {{count}} lados, verso para cima.",
+      "sheetPolygonFront_one": "Comece com um polígono regular de {{count}} lado, frente para cima.",
+      "sheetPolygonFront_many": "Comece com um polígono regular de {{count}} lados, frente para cima.",
+      "sheetPolygonFront_other": "Comece com um polígono regular de {{count}} lados, frente para cima.",
+      "sheetRectangleBack": "Comece com um retângulo, verso para cima.",
+      "sheetRectangleFront": "Comece com um retângulo, frente para cima.",
+      "sheetSquareBack": "Comece com um quadrado, verso para cima.",
+      "sheetSquareFront": "Comece com um quadrado, frente para cima.",
+      "stepCount_one": "{{count}} passo",
+      "stepCount_many": "{{count}} passos",
+      "stepCount_other": "{{count}} passos",
+      "stripLabel": "Passos",
+      "switchBranch": "Trocar de ramo",
+      "tagBranch": "Novo ramo",
+      "tagNext": "Próximo"
+    },
+    "step": {
+      "blocks": "Blocos",
+      "blocksHelp": "Pilhas de papel que giram juntas: a parte de baixo e a de cima de cada abertura, e cada aba que se move inteira.",
+      "branchSheet": "Você está na folha plana: dobrar aqui começa um novo ramo.",
+      "branchStep": "Você está no passo {{at}} de {{total}}: dobrar aqui começa um novo ramo.",
+      "broken": "Este passo não dobra mais: aquilo de que ele foi feito não está mais no papel antes dele. Ele e os passos seguintes só podem ser excluídos.",
+      "brokenAbove": "Um passo anterior não dobra mais, por isso este não pode ser mostrado.",
+      "changed": "Este passo dobra de forma diferente de quando foi salvo. Confira suas entradas e os passos anteriores.",
+      "changes": "Alterações",
+      "chosen": "Escolha entre várias",
+      "construction": "Construção",
+      "creases": "Vincos",
+      "creasesBackUp": "Vistos pela frente do papel, que começa virada para baixo: podem aparecer ao contrário das dobras que você vê.",
+      "creasesFront": "Vistos pela frente do papel.",
+      "creasesMeet": "Os vincos se encontram",
+      "creasesMeetHelp": "Onde a linha a meio caminho entre a borda e a linha onde ela pousa cruza a borda dobrada. A outra camada dessa borda também dobra ao longo de um segundo vinco.",
+      "extent": "Extensão",
+      "extentHelp": "Quanto da linha a pré-dobra vincou: a linha toda, o trecho entre dois pontos ou um beliscão curto.",
+      "firstLine": "Primeira linha",
+      "flat": "Planos",
+      "flatHelp": "Dobrados uma vez e desdobrados: agora estão planos e lembram para que lado foram dobrados.",
+      "hinge": "Dobradiça",
+      "hingeHelp": "A linha ao longo da qual a aba sobe: um vinco que já existe, ou a linha por dois pontos, que a dobra vinca na camada de cima.",
+      "imported": "Padrão de vincos importado: este passo substitui o estado dobrado pelo do padrão.",
+      "landsOn": "Pousa em",
+      "layerOrder": "Ordem das camadas",
+      "layers": "Camadas",
+      "layersHelp": "A pilha mais espessa ao longo da linha de dobra. Camadas que ficam planas dos dois lados de uma pré-dobra contam como uma.",
+      "line": "Linha",
+      "locked": "Este passo foi criado com uma versão mais recente do Ori Studio. Aqui você pode excluí-lo, e ele é salvo exatamente como veio.",
+      "mountain": "Monte",
+      "onlyOne": "A única possível",
+      "opening": "Abertura",
+      "openingHelp": "Onde a aba se separa para deixar a ponta passar: as camadas que ficam embaixo e as de cima.",
+      "operation": "Operação",
+      "pending": "Dobra pendente",
+      "pendingRefused": "Resolva o problema na janela da ferramenta para ver os vincos que ela cria.",
+      "pocket": "Bolso",
+      "pocketHelp": "O espaço entre as camadas da ponta em que sua extremidade foi afundada: as camadas acima e as de baixo ficam juntas.",
+      "previewSpread": "Inspecione esta prévia. A etapa salva começa com a separação das camadas desativada.",
+      "ridge": "Crista",
+      "ridgeHelp": "O vinco ao longo do qual a dobra giratória sobe, dobrado no sentido oposto aos outros três.",
+      "secondLine": "Segunda linha",
+      "sheet": "Folha plana",
+      "sheetNote": "Nada foi dobrado ainda. Dobre a folha para criar o passo 1.",
+      "source": "Origem",
+      "spread": "Separação",
+      "spreadDefault": "A separação padrão. Uma alteração aqui vale a partir deste passo.",
+      "spreadEarlier": "Como um passo anterior a define. Uma alteração aqui vale a partir deste passo.",
+      "spreadOwn": "Definida neste passo. Os passos seguintes também a seguem.",
+      "squashHingeHelp": "Só a ponta da aba além da linha é esmagada: levantada ao longo dela, aberta e achatada, com a borda dobrada sobre a linha.",
+      "swivelKind": "Tipo",
+      "swivelKindInsideHelp": "A faixa da outra camada dobra por baixo do resto da sua camada, enfiada entre as duas camadas.",
+      "swivelKindOpenHelp": "A faixa da outra camada dobra por cima do resto da sua camada, com o verso à mostra.",
+      "title": "Passo {{number}}",
+      "valley": "Vale",
+      "valleyMountainHelp": "Na camada que você vê, o vale e a montanha que delimitam a aba e se encontram na borda dobrada. O vinco na camada de trás decorre deles.",
+      "vertex": {
+        "blocksHelp": "Pedaços de papel que giram juntos: cada um gira em torno dos mesmos vincos, na mesma ordem, até onde pousa."
+      }
+    },
+    "toDiagram": {
+      "sendPath": "Enviar passos para o Diagrama",
+      "sendStep": "Enviar passo para o Diagrama",
+      "sheetHint": "A folha plana é onde os passos começam: dobre um passo para enviá-lo."
+    },
+    "words": {
+      "adds_one": "Adiciona {{count}} vinco ({{mountain}} M, {{valley}} V)",
+      "adds_many": "Adiciona {{count}} vincos ({{mountain}} M, {{valley}} V)",
+      "adds_other": "Adiciona {{count}} vincos ({{mountain}} M, {{valley}} V)",
+      "addsCreaseMarks_one": "Adiciona {{count}} marca de vinco",
+      "addsCreaseMarks_many": "Adiciona {{count}} marcas de vinco",
+      "addsCreaseMarks_other": "Adiciona {{count}} marcas de vinco",
+      "addsPinchMarks_one": "Adiciona {{count}} marca de beliscão",
+      "addsPinchMarks_many": "Adiciona {{count}} marcas de beliscão",
+      "addsPinchMarks_other": "Adiciona {{count}} marcas de beliscão",
+      "addsPrecreases_one": "Adiciona {{count}} pré-dobra",
+      "addsPrecreases_many": "Adiciona {{count}} pré-dobras",
+      "addsPrecreases_other": "Adiciona {{count}} pré-dobras",
+      "axiomLine": "Axioma {{axiom}} · {{phrase}}",
+      "badgeCrimp": "Crimp",
+      "badgeImported": "Importado",
+      "badgeInsideReverse": "Invertida interna",
+      "badgeMountain": "Monte",
+      "badgeNewer": "Mais recente",
+      "badgeOutsideReverse": "Invertida externa",
+      "badgePetal": "Pétala",
+      "badgePrecrease": "Pré-dobra",
+      "badgeRabbitEar": "Orelha de coelho",
+      "badgeSquash": "Esmagada",
+      "badgeSwivel": "Giro",
+      "badgeSwivelInside": "Giro interno",
+      "badgeTuck": "Encaixe",
+      "badgeValley": "Vale",
+      "behind": {
+        "petal": "Dobra pétala por trás",
+        "rabbitEar": "Orelha de coelho por trás",
+        "squash": "Dobra esmagada por trás",
+        "swivel": "Dobra giratória por trás",
+        "swivelInside": "Dobra giratória interna por trás"
+      },
+      "closedSink": "Afundamento fechado",
+      "collapse": "Colapsar",
+      "cpJump": "Importar padrão de vincos",
+      "crimpInside": "Crimp interno",
+      "crimpOutside": "Crimp externo",
+      "existingCrease": "Vinco existente",
+      "extentPinch": "Beliscão",
+      "extentSegment": "Trecho",
+      "extentWhole": "Linha inteira",
+      "freeLine": "Linha livre",
+      "hingeCrease": "Vinco existente",
+      "hingePoints": "Dois pontos, vincados pela dobra",
+      "insideReverse": "Dobra invertida interna",
+      "meetOnFold": "Em uma borda dobrada",
+      "mountainFold": "Dobra monte",
+      "mountainPrecrease": "Dobra monte e desdobra",
+      "noChange": "Não altera nenhum vinco",
+      "openSink": "Afundamento aberto",
+      "originCp": "Arquivo CP",
+      "originEditFoldedFigure": "Figura dobrada do Editar",
+      "originFold": "Arquivo FOLD",
+      "originOrh": "Arquivo ORH",
+      "originOri": "Arquivo ORI",
+      "originProjectCp": "Padrão de dobras do projeto",
+      "originSample": "Exemplo",
+      "outsideReverse": "Dobra invertida externa",
+      "petal": "Dobra pétala",
+      "rabbitEar": "Orelha de coelho",
+      "refolds_one": "Redobra {{count}} pré-dobra",
+      "refolds_many": "Redobra {{count}} pré-dobras",
+      "refolds_other": "Redobra {{count}} pré-dobras",
+      "reverses_one": "Redobra {{count}} pré-dobra ao contrário",
+      "reverses_many": "Redobra {{count}} pré-dobras ao contrário",
+      "reverses_other": "Redobra {{count}} pré-dobras ao contrário",
+      "ridgeEnd": "Rumo à extremidade da borda",
+      "ridgeFoot": "Perpendicular à borda",
+      "squash": "Dobra esmagada",
+      "squashHingeLine": "Linha desenhada",
+      "swivel": "Dobra giratória",
+      "swivelInside": "Dobra giratória interna",
+      "swivelKindInside": "Interna",
+      "swivelKindOpen": "Aberta",
+      "targetCrease": "Vinco ou borda existente",
+      "targetLine": "Linha por dois pontos",
+      "tuckMountain": "Dobra monte e encaixar",
+      "tuckValley": "Dobra vale e encaixar",
+      "unfold": "Desdobrar",
+      "unfolds_one": "Desdobra {{count}} vinco",
+      "unfolds_many": "Desdobra {{count}} vincos",
+      "unfolds_other": "Desdobra {{count}} vincos",
+      "unknown": "De uma versão mais recente do Ori Studio",
+      "unsink": "Desfazer afundamento",
+      "valleyFold": "Dobra vale",
+      "valleyMountain": "Vale e montanha",
+      "valleyPrecrease": "Dobra vale e desdobra"
+    }
   },
   "fold3dVerdict": {
     "localCrossing_one": "O papel atravessa a si mesmo em um vértice.",
@@ -1870,16 +3350,6 @@
       "summary": "{{closure}} de {{lines}} linhas saem da própria folha; {{queried}} exigiram uma busca.",
       "title": "Análise de referências",
       "unsolved": "nenhuma construção encontrada"
-    },
-    "axiom": {
-      "free": "já está na folha",
-      "o1": "por dois pontos",
-      "o2": "ponto sobre ponto",
-      "o3": "borda sobre borda",
-      "o4": "perpendicular por um ponto",
-      "o5": "ponto sobre uma linha, por um ponto",
-      "o6": "dois pontos sobre duas linhas",
-      "o7": "ponto sobre uma linha, perpendicular"
     },
     "backToPattern": "Voltar ao padrão inteiro",
     "backToPatterns": "Padrões",
@@ -2016,20 +3486,6 @@
       "querying": "Buscando {{done}} de {{total}} linhas"
     },
     "recompute": "Recalcular",
-    "ref": {
-      "bottomEdge": "a borda inferior",
-      "cornerNe": "o canto superior direito",
-      "cornerNw": "o canto superior esquerdo",
-      "cornerSe": "o canto inferior direito",
-      "cornerSw": "o canto inferior esquerdo",
-      "diagonalNwSe": "a diagonal do canto superior esquerdo ao inferior direito",
-      "diagonalSwNe": "a diagonal do canto inferior esquerdo ao superior direito",
-      "leftEdge": "a borda esquerda",
-      "line": "a linha {{name}}",
-      "point": "o ponto {{name}}",
-      "rightEdge": "a borda direita",
-      "topEdge": "a borda superior"
-    },
     "refusedSheet": "A folha ao redor desta seleção não pôde ser lida como um retângulo.",
     "searching": "Procurando referências…",
     "settings": {
@@ -2101,6 +3557,7 @@
   "sidePane": {
     "layers": "Camadas",
     "page": "Página",
+    "paper": "Papel",
     "properties": "Propriedades",
     "settings": "Configurações",
     "step": "Passo",

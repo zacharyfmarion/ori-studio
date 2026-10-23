@@ -12,6 +12,15 @@ import { NOTE } from "../../third_party/flat-folder/src/note.js";
 NOTE.show = false;
 CON.build();
 
+// verify's arrangement checks (see verify below).
+// The finest ε a rejected arrangement is retried at.
+const VERIFY_MIN_EPS = 1e-13;
+// A vertex image may move by this times the folded extent.
+const VERIFY_SNAP = 1e-8;
+// Lengths and areas agree to this times the folded extent or the paper area;
+// a boundary turn this flat counts as straight.
+const VERIFY_MEASURE = 1e-9;
+
 const command = process.argv[2];
 const file = process.argv[3];
 const args = process.argv.slice(4);
@@ -28,6 +37,15 @@ try {
     process.stdout.write(`${stableStringify(result)}\n`);
     process.exit(0);
   }
+  if (command === "verify") {
+    if (!args[0]) {
+      usage();
+      process.exit(2);
+    }
+    const result = verify(file, args[0]);
+    process.stdout.write(`${stableStringify(result)}\n`);
+    process.exit(0);
+  }
   const doc = readFileSync(file, "utf8");
   const limit = parseLimit(args);
   const result = run(command, file, doc, limit);
@@ -39,7 +57,8 @@ try {
 
 function usage() {
   process.stderr.write(
-    "usage: oracle.mjs <normalize|project|overlap|constraints|solve|run-corpus> <file-or-dir> [--limit <n|all>]\n",
+    "usage: oracle.mjs <normalize|project|overlap|constraints|solve|run-corpus> <file-or-dir> [--limit <n|all>]\n" +
+      "       oracle.mjs verify <fold> <order.json>\n",
   );
 }
 
@@ -239,6 +258,284 @@ function buildPipeline(doc, type, side, limit, command) {
   } catch (error) {
     return { status: "oracle-error", error: String(error?.message ?? error) };
   }
+}
+
+// verify: check a complete layer order against Flat-Folder's own constraints,
+// on an arrangement that has been validated first.
+//
+// The FOLD's face numbering is kept, since the order's face indices refer to
+// it: the file importer (io.js) would re-sort faces by area. Flat-Folder folds
+// from face 0 (V_FV_EV_EA_2_Vf_Ff) and builds its arrangement at the ε its
+// heuristic picks (L_2_V_EV_EL). On thin features that ε can give a wrong
+// arrangement, so a candidate is checked and, when rejected, rebuilt at
+// halved ε until ε would drop below VERIFY_MIN_EPS.
+function verify(file, orderFile) {
+  const common = { command: "verify", file: basename(file), order: basename(orderFile) };
+  const input = verifyInput(JSON.parse(readFileSync(file, "utf8")));
+  if (input.error) {
+    return { ...common, status: "invalid-input", error: input.error };
+  }
+  const order = readOrder(JSON.parse(readFileSync(orderFile, "utf8")), input.FV.length);
+  if (order.error) {
+    return { ...common, status: "invalid-input", error: order.error };
+  }
+  const built = validatedArrangement(input);
+  const arrangement = {
+    eps_i: built.ok ? built.eps_i : null,
+    retries: built.retries,
+    rejected: built.rejected,
+  };
+  if (!built.ok) {
+    return { ...common, status: "precision-error", arrangement };
+  }
+  const seeded = seedOrder(input, built, order.triples);
+  if (seeded.error) {
+    return { ...common, status: "invalid-input", arrangement, error: seeded.error };
+  }
+  return { ...common, status: "ok", arrangement, verify: seeded };
+}
+
+function verifyInput(doc) {
+  for (const key of ["vertices_coords", "edges_vertices", "faces_vertices"]) {
+    if (!Array.isArray(doc[key]) || doc[key].length === 0) {
+      return { error: `verify needs ${key}` };
+    }
+  }
+  const V = doc.vertices_coords.map(([x, y]) => [x, y]);
+  const EV = doc.edges_vertices.map(([a, b]) => (a < b ? [a, b] : [b, a]));
+  const EA = Array.isArray(doc.edges_assignment)
+    ? doc.edges_assignment.slice()
+    : EV.map(() => "U");
+  const FV = doc.faces_vertices.map((F) => F.slice());
+  for (const [f, F] of FV.entries()) {
+    // FOLD face orders are relative to each face's normal, which its winding
+    // sets; io.js would reverse every face, so refuse rather than guess.
+    if (!(M.polygon_area2(M.expand(F, V)) > 0)) {
+      return { error: `face ${f} is not counter-clockwise` };
+    }
+  }
+  let EF;
+  try {
+    [EF] = X.EV_FV_2_EF_FE(EV, FV);
+  } catch {
+    return { error: "faces_vertices uses an edge that edges_vertices does not list" };
+  }
+  for (const [e, F] of EF.entries()) {
+    if (F.length === 1) {
+      EA[e] = "B"; // io.js's boundary rule
+    }
+  }
+  return { V, EV, EA, FV, EF };
+}
+
+function readOrder(json, faceCount) {
+  const triples = Array.isArray(json) ? json : json?.faceOrders;
+  if (!Array.isArray(triples)) {
+    return { error: "the order must be an array of [f, g, s] face orders, or an object with faceOrders" };
+  }
+  for (const triple of triples) {
+    const valid =
+      Array.isArray(triple) &&
+      triple.length === 3 &&
+      triple.slice(0, 2).every((f) => Number.isInteger(f) && f >= 0 && f < faceCount) &&
+      triple[0] !== triple[1] &&
+      (triple[2] === 1 || triple[2] === -1);
+    if (!valid) {
+      return { error: `bad face order ${JSON.stringify(triple)}` };
+    }
+  }
+  return { triples };
+}
+
+function validatedArrangement(input) {
+  const [Vf, Ff] = X.V_FV_EV_EA_2_Vf_Ff(input.V, input.FV, input.EV, input.EA);
+  const L = input.EV.map((e) => M.expand(e, Vf));
+  const measures = arrangementMeasures(input, Vf);
+  const d = M.min_line_length(L);
+  const attempt = (build) => {
+    try {
+      const [P, SP, SE] = build();
+      return P.length === 0
+        ? { bad: "no folded edge graph" }
+        : checkArrangement(input, Vf, L, P, SP, SE, measures);
+    } catch (error) {
+      return { bad: `exception: ${error?.message ?? error}` };
+    }
+  };
+  let eps_i;
+  let result = attempt(() => {
+    const [P, SP, SE, i] = X.L_2_V_EV_EL(L);
+    eps_i = i;
+    return [P, SP, SE];
+  });
+  const rejected = [];
+  let retries = 0;
+  while (result.bad) {
+    rejected.push(`${eps_i ?? "heuristic"}: ${result.bad}`);
+    if (eps_i === undefined || d / 2 ** (eps_i + 1) < VERIFY_MIN_EPS) {
+      return { ok: false, retries, rejected };
+    }
+    eps_i += 1;
+    retries += 1;
+    const eps = d / 2 ** eps_i;
+    result = attempt(() => X.L_eps_2_V_EV_EL(L, eps));
+  }
+  return { ok: true, eps_i, retries, rejected, Ff, ...result };
+}
+
+function arrangementMeasures(input, Vf) {
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [x, y] of Vf) {
+    [minX, minY, maxX, maxY] = [Math.min(minX, x), Math.min(minY, y), Math.max(maxX, x), Math.max(maxY, y)];
+  }
+  const faceAreas = input.FV.map((F) => Math.abs(M.polygon_area2(M.expand(F, input.V))) / 2);
+  return {
+    extent: Math.max(maxX - minX, maxY - minY),
+    faceAreas,
+    paperArea: faceAreas.reduce((sum, area) => sum + area, 0),
+  };
+}
+
+// Returns the arrangement and Flat-Folder's constraints on it, or { bad } with
+// the first reason it is wrong.
+function checkArrangement({ FV, EF }, Vf, L, P, SP, SE, { extent, faceAreas, paperArea }) {
+  // No vertex image moved: merging points within a coarse ε can drag one.
+  const snap = VERIFY_SNAP * extent;
+  const byX = P.slice().sort((a, b) => a[0] - b[0]);
+  for (const [v, p] of Vf.entries()) {
+    if (!hasPointNear(byX, p, snap)) {
+      return { bad: `vertex ${v}'s image moved` };
+    }
+  }
+  // Every edge is covered by its segments: a coarse ε can hand the overlap of
+  // two creases to one of them, and ExE_fill_BT, which pairs edges sharing a
+  // segment, then never sees the pair.
+  const covered = L.map(() => 0);
+  for (const [s, [a, b]] of SP.entries()) {
+    const length = M.mag(M.sub(P[b], P[a]));
+    for (const e of SE[s]) {
+      covered[e] += length;
+    }
+  }
+  for (const [e, [p, q]] of L.entries()) {
+    const length = M.mag(M.sub(q, p));
+    if (Math.abs(covered[e] - length) > VERIFY_MEASURE * extent) {
+      return { bad: `edge ${e} is not covered by its segments (${covered[e]} of ${length})` };
+    }
+  }
+  const [, CP] = X.V_EV_2_VV_FV(P, SP);
+  const [SC] = X.EV_FV_2_EF_FE(SP, CP);
+  const [CF, FC] = X.EF_FV_P_SP_SE_CP_SC_2_CF_FC(EF, FV, P, SP, SE, CP, SC);
+  // No cell boundary doubles back, which overlapping collinear segments leave
+  // and no area test can see.
+  for (const [c, C] of CP.entries()) {
+    for (let i = 0; i < C.length; i += 1) {
+      const a = P[C[(i + C.length - 1) % C.length]];
+      const b = P[C[i]];
+      const n = P[C[(i + 1) % C.length]];
+      const u = M.sub(b, a);
+      const w = M.sub(n, b);
+      const cross = u[0] * w[1] - u[1] * w[0];
+      if (Math.abs(cross) <= VERIFY_MEASURE * M.mag(u) * M.mag(w) && M.dot(u, w) < 0) {
+        return { bad: `cell ${c}'s boundary doubles back` };
+      }
+    }
+  }
+  // The cells cover each face once.
+  const cellAreas = CP.map((C) => Math.abs(M.polygon_area2(M.expand(C, P))) / 2);
+  for (const [f, C] of FC.entries()) {
+    const area = C.reduce((sum, c) => sum + cellAreas[c], 0);
+    if (C.length === 0 || Math.abs(area - faceAreas[f]) > VERIFY_MEASURE * paperArea) {
+      return { bad: `the cells of face ${f} cover ${area}, not its area ${faceAreas[f]}` };
+    }
+  }
+  const BF = X.EF_SP_SE_CP_CF_2_BF(EF, SP, SE, CP, CF);
+  const BI = new Map(BF.map((k, i) => [k, i]));
+  const BT = X.BF_BI_EF_SE_CF_SC_2_BT(BF, BI, EF, SE, CF, SC);
+  const CC = X.FC_BF_BI_BT_2_CC(FC, BF, BI, BT);
+  return { CF, FC, BF, BI, BT, CC };
+}
+
+function hasPointNear(byX, [x, y], tolerance) {
+  let lo = 0;
+  let hi = byX.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (byX[mid][0] < x - tolerance) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  for (let i = lo; i < byX.length && byX[i][0] <= x + tolerance; i += 1) {
+    if (Math.abs(byX[i][1] - y) <= tolerance) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Seeds every variable the order covers, then propagates through Flat-Folder's
+// constraints: a complete, valid order assigns everything without a conflict.
+function seedOrder({ EA, EF }, { Ff, CF, FC, BF, BI, BT, CC }, triples) {
+  const BA = BF.map(() => 0);
+  let extra = 0;
+  for (const [f, g, s] of triples) {
+    const i = BI.get(M.encode_order_pair([f, g]));
+    if (i === undefined) {
+      extra += 1;
+      continue;
+    }
+    // The inverse of edges_Ff_2_FO: [f, g, Ff[g] ? 1 : -1] puts f over g.
+    const fOverG = s === (Ff[g] ? 1 : -1);
+    const a = (f < g) === fOverG ? 1 : 2;
+    if (BA[i] !== 0 && BA[i] !== a) {
+      return { error: `the order puts faces ${f} and ${g} both ways` };
+    }
+    BA[i] = a;
+  }
+  let letterDisagreements = 0;
+  let lettersWithoutVariable = 0;
+  for (const [e, assignment] of EA.entries()) {
+    if ((assignment !== "M" && assignment !== "V") || EF[e].length !== 2) {
+      continue;
+    }
+    const k = M.encode_order_pair(EF[e]);
+    const i = BI.get(k);
+    if (i === undefined) {
+      lettersWithoutVariable += 1;
+      continue;
+    }
+    // SOLVER.EF_EA_Ff_BF_BI_2_BA0's rule.
+    const [f1] = M.decode(k);
+    const o = (!Ff[f1] && assignment === "M") || (Ff[f1] && assignment === "V") ? 2 : 1;
+    if (BA[i] !== 0 && BA[i] !== o) {
+      letterDisagreements += 1;
+    }
+  }
+  const record = {
+    variables: BF.length,
+    order_pairs: triples.length,
+    missing_pairs: BA.filter((a) => a === 0).length,
+    extra_pairs: extra,
+    letter_disagreements: letterDisagreements,
+    letters_without_variable: lettersWithoutVariable,
+  };
+  const out = SOLVER.initial_assignment(BA.slice(), BF, BT, BI, FC, CF, CC, { all: 0, reduced: 0 });
+  if (out.length === 3 && Array.isArray(out[1])) {
+    const [type, faces, conflictFaces] = out;
+    return {
+      ...record,
+      verdict: "conflict",
+      conflict: { constraint_type: CON.names[type], faces, conflict_faces: conflictFaces },
+    };
+  }
+  const unassigned = out.filter((a) => a === 0).length;
+  return {
+    ...record,
+    unassigned,
+    verdict: letterDisagreements > 0 ? "letter-conflict" : unassigned > 0 ? "incomplete" : "valid",
+  };
 }
 
 function normalizeRecord(p) {

@@ -171,7 +171,7 @@ function pressAndSee(event: KeyboardEvent): ShortcutActionId | null {
     scopeStack: shortcutScopeStackForContext({
       activeEditingContext: 'crease-pattern',
       activeViewportSurface: 'crease-pattern',
-      simulatorFocused: false,
+      registeredExecutors: { simulator: false },
     }),
     overrides: useShortcutStore.getState().overrides,
     // The dialog plans against the active layout, so the check on what actually

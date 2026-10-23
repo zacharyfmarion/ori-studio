@@ -313,6 +313,33 @@ describe('SelectRow and SegmentedRow', () => {
     expect(nestedOf('Model')).toBe(false);
     expect(nestedOf('Crease pattern')).toBe(true);
   });
+
+  it('hold a list whose options carry a description to the row, the line clamped and the whole in its tooltip', () => {
+    Element.prototype.scrollIntoView ??= () => {};
+    const view = render(
+      <SelectRow
+        label="Symmetry axis"
+        value="b"
+        options={[
+          { id: 'a', label: 'Diagonal', disabled: true, description: 'Stops at operation 1: a long reason that runs on and on.' },
+          { id: 'b', label: 'Center line' },
+        ]}
+        onChange={() => {}}
+      />
+    );
+    const row = view.querySelector('[data-field-row]')!;
+    row.getBoundingClientRect = () => ({ width: 280 }) as DOMRect;
+    const trigger = view.querySelector<HTMLButtonElement>('button[aria-label="Symmetry axis"]')!;
+    act(() => {
+      trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    const list = document.querySelector<HTMLElement>('[role="listbox"]')!;
+    expect(list.hasAttribute('data-capped')).toBe(true);
+    expect(list.style.getPropertyValue('--select-max-width')).toBe('280px');
+    const disabled = [...list.querySelectorAll('[role="option"]')].find((option) => option.textContent?.startsWith('Diagonal'))!;
+    expect(disabled.getAttribute('aria-disabled')).toBe('true');
+    expect(disabled.querySelector('[title]')?.getAttribute('title')).toBe('Stops at operation 1: a long reason that runs on and on.');
+  });
 });
 
 describe('SliderRow', () => {

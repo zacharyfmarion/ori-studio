@@ -1,0 +1,26 @@
+{
+  "file_spec": 1.1,
+  "file_creator": "Ori Studio",
+  "file_author": "Traditional",
+  "file_title": "Preliminary base",
+  "file_description": "The preliminary (square) base, a traditional base. The four midline halves are mountains, the side quadrants' half-diagonals valleys, and the front and back quadrants' half-diagonals precreases remembering valley (unassigned, with the oristudio:edges_fold_direction_hint extension). Hand-assigned in the Ori Studio Fold workspace research (sink spike); y down, as Ori Studio reads FOLD.",
+  "file_classes": ["singleModel"],
+  "frame_classes": ["creasePattern"],
+  "frame_attributes": ["2D"],
+  "vertices_coords": [
+    [0.5, 0.5],
+    [0, 1], [0, 0.5], [0, 0], [0.5, 0], [1, 0], [1, 0.5], [1, 1], [0.5, 1]
+  ],
+  "edges_vertices": [
+    [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 1],
+    [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [0, 8]
+  ],
+  "edges_assignment": [
+    "B", "B", "B", "B", "B", "B", "B", "B",
+    "U", "M", "V", "M", "U", "M", "V", "M"
+  ],
+  "oristudio:edges_fold_direction_hint": [
+    0, 0, 0, 0, 0, 0, 0, 0,
+    2, 0, 0, 0, 2, 0, 0, 0
+  ]
+}

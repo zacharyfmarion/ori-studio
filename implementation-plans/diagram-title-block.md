@@ -710,6 +710,12 @@ The block's pattern comes from `titleBlockContent.pattern`:
   whatever it is shown as (T-12 A). Shown folded or in 3D, its link still
   names a region of the crease pattern. With no linked step, the pattern is
   empty, as Zach asked.
+- **A step from Fold is linked too** (Fold launch, 2026-10-20). Its link
+  keeps the crease pattern of the step's state — every crease made so far,
+  a merged run's last step's — as its thumbnail (`foldStateFrame`'s
+  `pattern`), so Auto and the list take Fold steps as they take Edit's links,
+  and the last of either wins. What Auto finds is a look, so a saved
+  diagram made from Fold gains its pattern on opening; nothing stored moves.
 - **`{ kind: 'step', stepId }`**: a chosen step's pattern. This is "set it
   separately" in the first cut (T-13 A). The Page pane lists each distinct
   pattern the steps link once, named by the last step that links it.
@@ -735,7 +741,9 @@ widths and dashes are `penForRole`'s and nothing is drawn by new pen code
   `valleyFolds`;
 - `edge` to `edge`: the edge pen;
 - `unassigned` to `aux`: the aux pen, when the style shows aux lines;
-- `aux` strokes left out.
+- `aux` strokes left out — but a Fold step's: there they are its flat
+  creases and crease marks, real creases, which its Crease pattern picture
+  draws in the aux pen, and so does the block.
 
 The paper is not filled, so the pattern sits on the page. The model, in
 front, covers it with its own paper. The thumbnail is in the pattern's own

@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createCpSuppressionRegion } from '../../cp-workspace/annotations/suppressionRegion';
 import {
   cpSolvablePatternCount,
+  foldPageAtCursor,
   hasDeletableDiagramSelection,
   historyCountForContext,
 } from './capabilities';
+import { initialFoldReaderState } from '../../fold/document/foldReaderState';
+import { sequenceOf, step, valleyAt } from '../../fold/document/foldSequence.fixtures';
 import { createDiagram, createStep, insertSteps } from '../../diagram/document/diagramDocument';
 import { discardDiagramState } from './diagramState';
 import type { WorkspaceState } from './types';
@@ -42,36 +45,41 @@ describe('historyCountForContext', () => {
     return base;
   }
 
+  /** Only the crease-pattern editor has a history among the workspaces. */
+  const cpOnly = { cp, diagram: 0, fold: 0 };
+
   it('asks the active design kind for its own depth', () => {
-    expect(historyCountForContext('treemaker-tree', tabWith('treemaker', 3, 1), { cp, diagram: 0 }, 'past')).toBe(3);
-    expect(historyCountForContext('bp-tree', tabWith('box-pleat', 5, 2), { cp, diagram: 0 }, 'past')).toBe(5);
-    expect(historyCountForContext('bp-packing', tabWith('box-pleat', 5, 2), { cp, diagram: 0 }, 'future')).toBe(2);
+    expect(historyCountForContext('treemaker-tree', tabWith('treemaker', 3, 1), cpOnly, 'past')).toBe(3);
+    expect(historyCountForContext('bp-tree', tabWith('box-pleat', 5, 2), cpOnly, 'past')).toBe(5);
+    expect(historyCountForContext('bp-packing', tabWith('box-pleat', 5, 2), cpOnly, 'future')).toBe(2);
     // The one the old switch could not answer, which is the whole point.
-    expect(historyCountForContext('explori-tree', tabWith('explori', 7, 0), { cp, diagram: 0 }, 'past')).toBe(7);
-    expect(historyCountForContext('explori-results', tabWith('explori', 7, 4), { cp, diagram: 0 }, 'future')).toBe(4);
+    expect(historyCountForContext('explori-tree', tabWith('explori', 7, 0), cpOnly, 'past')).toBe(7);
+    expect(historyCountForContext('explori-results', tabWith('explori', 7, 4), cpOnly, 'future')).toBe(4);
   });
 
-  it('lets the crease-pattern editor and the Diagram answer for themselves', () => {
-    // Workspaces rather than design kinds, so neither is in the registry.
-    const counts = { cp, diagram: 6 };
+  it('lets the crease-pattern editor, the Diagram and Fold answer for themselves', () => {
+    // Workspaces rather than design kinds, so none is in the registry.
+    const counts = { cp, diagram: 6, fold: 2 };
     expect(historyCountForContext('crease-pattern', tabWith('treemaker', 3, 3), counts, 'past')).toBe(cp);
     expect(historyCountForContext('diagram', tabWith('treemaker', 3, 3), counts, 'past')).toBe(6);
-    // And neither answers for the other.
-    expect(historyCountForContext('crease-pattern', tabWith('treemaker', 3, 3), { cp: 0, diagram: 6 }, 'past')).toBe(0);
+    expect(historyCountForContext('fold', tabWith('treemaker', 3, 3), counts, 'past')).toBe(2);
+    // And none answers for another.
+    expect(historyCountForContext('crease-pattern', tabWith('treemaker', 3, 3), { cp: 0, diagram: 6, fold: 2 }, 'past')).toBe(0);
+    expect(historyCountForContext('fold', tabWith('treemaker', 3, 3), cpOnly, 'past')).toBe(0);
   });
 
   it('reports zero for read-only/consumer contexts so undo stays inert', () => {
     // Simulate consumes the folded model and has no history of its own; the NUX
     // chooser predates any editable document.
-    expect(historyCountForContext('simulate', tabWith('treemaker', 3, 3), { cp, diagram: 0 }, 'past')).toBe(0);
-    expect(historyCountForContext('design-nux', tabWith('treemaker', 3, 3), { cp, diagram: 0 }, 'past')).toBe(0);
+    expect(historyCountForContext('simulate', tabWith('treemaker', 3, 3), cpOnly, 'past')).toBe(0);
+    expect(historyCountForContext('design-nux', tabWith('treemaker', 3, 3), cpOnly, 'past')).toBe(0);
   });
 
   it('reports zero when the tab is of a different kind than the context', () => {
     // A transient state on a tab switch: the context still names the outgoing
     // design's pane. Answering with the *incoming* tab's history would enable
     // undo against a stack that is not there.
-    expect(historyCountForContext('bp-tree', tabWith('explori', 9, 9), { cp, diagram: 0 }, 'past')).toBe(0);
+    expect(historyCountForContext('bp-tree', tabWith('explori', 9, 9), cpOnly, 'past')).toBe(0);
   });
 });
 
@@ -138,5 +146,35 @@ describe('hasDeletableDiagramSelection', () => {
     expect(hasDeletableDiagramSelection(state({ diagramSelectedStepId: 'gone' }))).toBe(false);
     expect(hasDeletableDiagramSelection(state({ diagramReadOnly: true }))).toBe(false);
     expect(hasDeletableDiagramSelection(state({ diagram: null }))).toBe(false);
+  });
+});
+
+/**
+ * Export Step opens on the step on screen, or the numbered step before it: a
+ * turn takes no number and gets no page, so a turn before the first step has
+ * nothing to open on, as the sheet has not.
+ */
+describe('foldPageAtCursor', () => {
+  const document = sequenceOf([
+    step('t', null, { kind: 'turn', axis: 'vertical' }),
+    step('a', 't', valleyAt(0.5)),
+    step('r', 'a', { kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } }),
+  ]);
+  const at = (cursor: string | null) =>
+    foldPageAtCursor({
+      foldSequences: [{ document, readOnlyRaw: null }],
+      foldReader: { ...initialFoldReaderState(document.id), cursor },
+    });
+
+  it('is a numbered step at the reader or before it on its path', () => {
+    expect(at('a')).toBe(true);
+    // A turn after a step: that step's page.
+    expect(at('r')).toBe(true);
+  });
+
+  it('is none on the sheet, on a turn before the first step, or with no sequence', () => {
+    expect(at(null)).toBe(false);
+    expect(at('t')).toBe(false);
+    expect(foldPageAtCursor({ foldSequences: [], foldReader: null })).toBe(false);
   });
 });

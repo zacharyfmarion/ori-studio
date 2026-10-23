@@ -21,4 +21,17 @@
     font-weight: 750;
     line-height: 1;
   }
+
+  /*
+   * Compact: the word is read, not drawn. Out of the flow, so the pill closes
+   * round the glyph and the button's gap does not keep a place for it.
+   */
+  .label[data-compact] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }

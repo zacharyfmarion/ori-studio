@@ -269,7 +269,9 @@ it('lands in Find with the lead where the filmstrip goes, and plans only when th
   expect(useWorkspaceStore.getState().referencesView.mode).toBe('find');
   expect(query('.references-lead')?.textContent).toContain('Tap a vertex or crease');
   expect(query('.references-lead__link')?.textContent).toContain('plan the whole precreasing');
-  expect(query('.references-filmstrip')).toBeNull();
+  // The step strip, by its role and name: its classes are a CSS module's.
+  const filmstrip = '[role="list"][aria-label="Folding steps"]';
+  expect(query(filmstrip)).toBeNull();
   expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
 
   // The lead's own link is a way into the sequence…
@@ -293,7 +295,7 @@ it('lands in Find with the lead where the filmstrip goes, and plans only when th
   expect(useWorkspaceStore.getState().referencesView.mode).toBe('sequence');
   expect(useWorkspaceStore.getState().referencesRun.status).toBe('running');
   expect(query('.references-lead')?.textContent).toContain('Working out the precreasing sequence');
-  expect(query('.references-filmstrip')).toBeNull();
+  expect(query(filmstrip)).toBeNull();
 
   // A new document lands in Find again.
   act(() => useWorkspaceStore.setState({ oristudioCpDocument: cpDocument(2) } as never));

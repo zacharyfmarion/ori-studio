@@ -1,0 +1,6 @@
+/* A pattern drawn small (PatternThumbnail.tsx): its strokes are painted on the canvas. */
+.thumbnail {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

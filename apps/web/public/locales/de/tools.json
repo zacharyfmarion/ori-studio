@@ -278,13 +278,964 @@
     "toolValleyArrow": "Talfaltpfeil",
     "toolValleyLine": "Talfaltlinie",
     "toolWhiteArrow": "Weißer Pfeil",
-    "toolXRay": "Röntgen"
+    "toolXRay": "Röntgen",
+    "uncreasedLine": "Ungefalzte Linie"
   },
   "divideMode": {
     "count": "Anzahl",
     "countTitle": "Die Linie in gleiche Teile teilen",
     "ratio": "Verhältnis",
     "ratioTitle": "Die Linie nach einem Verhältnis teilen"
+  },
+  "fold": {
+    "categoryLabel": "Falt-Arbeitsbereich",
+    "chooser": {
+      "noKeys": {
+        "emergent": "Mehr als eine vierte Faltlinie lässt diese Faltlinien flach liegen. Blättere durch sie.",
+        "opening": "Die Lasche lässt sich auf mehr als eine Weise öffnen: Die hervorgehobenen Lagen bleiben zusammen. Blättere durch sie.",
+        "order": "Die Lagen können auf mehr als eine Weise gestapelt landen. Blättere durch sie.",
+        "pocket": "Die Spitze kann in mehr als eine Tasche zwischen ihren Lagen versenkt werden. Blättere durch sie.",
+        "ridge": "Mit beiden Graten liegt die Schwenkfalte flach. Blättere durch sie.",
+        "root": "Dieses Axiom ergibt hier mehr als eine Faltung. Blättere durch sie.",
+        "target": "Mehr als eine Lage nimmt die Lasche auf: Die hellste ist die gewählte. Blättere durch sie."
+      },
+      "withKeys": {
+        "emergent": "Mehr als eine vierte Faltlinie lässt diese Faltlinien flach liegen. Blättere durch sie oder drücke {{keys}}.",
+        "opening": "Die Lasche lässt sich auf mehr als eine Weise öffnen: Die hervorgehobenen Lagen bleiben zusammen. Blättere durch sie oder drücke {{keys}}.",
+        "order": "Die Lagen können auf mehr als eine Weise gestapelt landen. Blättere durch sie oder drücke {{keys}}.",
+        "pocket": "Die Spitze kann in mehr als eine Tasche zwischen ihren Lagen versenkt werden. Blättere durch sie oder drücke {{keys}}.",
+        "ridge": "Mit beiden Graten liegt die Schwenkfalte flach. Blättere durch sie oder drücke {{keys}}.",
+        "root": "Dieses Axiom ergibt hier mehr als eine Faltung. Blättere durch sie oder drücke {{keys}}.",
+        "target": "Mehr als eine Lage nimmt die Lasche auf: Die hellste ist die gewählte. Blättere durch sie oder drücke {{keys}}."
+      }
+    },
+    "crimp": {
+      "bothFit": "Hier passen beide Arten von Crimp: Wähle, wohin die Spitze geht.",
+      "firstLine": "Erste Linie",
+      "firstLineAxiom": "Die erste Linie wird mit {{mode}} bestimmt, der gewählten Linienart. Um sie zu zeichnen, wähle unter Erste Linie die Option Freie Linie.",
+      "introTurn": "Dreht das Ende einer Lasche entlang einer Linie hinein und entlang einer zweiten wieder heraus.",
+      "secondLine": "Zweite Linie"
+    },
+    "divide": {
+      "clear_one": "Die hier gesetzte Markierung entfernen",
+      "clear_other": "Die {{count}} hier gesetzten Markierungen entfernen",
+      "computed": "Berechnetes Verhältnis {{s}} : {{t}}",
+      "count": "Gleiche Teile",
+      "left": "Vom Anfang",
+      "mode": "Teilen",
+      "parts": "Teile",
+      "ratio": "Verhältnis",
+      "right": "Bis zum Ende"
+    },
+    "extent": {
+      "commitPinch": "Kneifen",
+      "keyNote": "Drücke {{shortcut}}, um den Umfang der Reihe nach zu wechseln.",
+      "label": "Umfang",
+      "pinchHelp": "Nur eine kurze Markierung kneifen, mittig auf einem Punkt, den du entlang der Linie anklickst.",
+      "pinchHelpTouch": "Nur eine kurze Markierung kneifen, mittig auf einem Punkt, den du entlang der Linie antippst.",
+      "segmentHelp": "Die Linie nur zwischen zwei Punkten vorfalten, die du entlang der Linie anklickst.",
+      "segmentHelpTouch": "Die Linie nur zwischen zwei Punkten vorfalten, die du entlang der Linie antippst.",
+      "wholeHelp": "Die Linie von Kante zu Kante vorfalten."
+    },
+    "fix": {
+      "closedSinkInstead": "Stattdessen geschlossen versenken",
+      "crimpFlap": "Nur Lasche {{number}} crimpen",
+      "crimpThisFlap": "Nur diese Lasche crimpen",
+      "foldOntoLine": "Stattdessen die Kante auf die Linie falten",
+      "includeFlap": "Lasche {{number}} einbeziehen",
+      "includeFlaps_one": "Die {{count}} Lasche einbeziehen",
+      "includeFlaps_other": "Die {{count}} Laschen einbeziehen",
+      "insideCrimpInstead": "Stattdessen innerer Crimp",
+      "insideInstead": "Stattdessen innerer Gegenbruch",
+      "mountainInstead": "Stattdessen Bergfalte",
+      "openSinkInstead": "Stattdessen offen versenken",
+      "outsideCrimpInstead": "Stattdessen äußerer Crimp",
+      "outsideInstead": "Stattdessen äußerer Gegenbruch",
+      "pickFlap": "Nur Lasche {{number}} falten",
+      "pickThisFlap": "Nur diese Lasche falten",
+      "pinchInstead": "Stattdessen dort kneifen",
+      "precreaseOtherWay": "Andersherum vorfalten",
+      "reverseCrossedFlaps": "Nur die Laschen als Gegenbruch falten, die die Linie kreuzt",
+      "reverseFlap": "Nur Lasche {{number}} als Gegenbruch falten",
+      "reverseThisFlap": "Nur diese Lasche als Gegenbruch falten",
+      "sinkFlap": "Nur Lasche {{number}} versenken",
+      "sinkThisFlap": "Nur diese Lasche versenken",
+      "slideToEdge": "Die Linie verschieben, bis der Punkt auf der Kante liegt",
+      "swapInstead": "Die bewegte Seite tauschen",
+      "throughAllLayers": "Durch alle Lagen vorfalten",
+      "tuckFlap": "Nur Lasche {{number}} einstecken",
+      "tuckOtherWay": "Andersherum einstecken",
+      "tuckOver": "Stattdessen über die gelistete Lage {{number}} stecken",
+      "tuckOverAnother": "Stattdessen über die passende Lage stecken",
+      "tuckThisFlap": "Nur diese Lasche einstecken",
+      "tuckUnder": "Stattdessen unter die gelistete Lage {{number}} stecken",
+      "tuckUnderAnother": "Stattdessen unter die passende Lage stecken",
+      "turnToEdge": "Die Linie drehen, bis der Punkt auf der Kante liegt",
+      "useLine": "Die Bezugslinie verwenden",
+      "useMovingPoint": "Den Punkt auf der beweglichen Lasche verwenden",
+      "useSquareLine": "Die rechtwinklige Linie verwenden",
+      "useWholeLine": "Die ganze Linie verwenden",
+      "valleyInstead": "Stattdessen Talfalte"
+    },
+    "flap": {
+      "chip_one": "Lasche {{number}}, {{count}} Lage",
+      "chip_other": "Lasche {{number}}, {{count}} Lagen",
+      "chipAdded_one": "Lasche {{number}}, {{count}} Lage, wird mitgefaltet",
+      "chipAdded_other": "Lasche {{number}}, {{count}} Lagen, wird mitgefaltet",
+      "groupLabel": "Zu faltende Laschen",
+      "layers_one": "{{count}} Lage",
+      "layers_other": "{{count}} Lagen",
+      "name": "Lasche {{number}}"
+    },
+    "group": {
+      "fold": "Falten",
+      "locate": "Linie bestimmen",
+      "model": "Modell",
+      "reference": "Bezugspunkte",
+      "sequence": "Abfolge",
+      "sink": "Versenken"
+    },
+    "key": {
+      "commit": "Faltung ausführen",
+      "cycleExtent": "Nächster Umfang der Vorfalte",
+      "nextRoot": "Nächste Lösung",
+      "previousRoot": "Vorherige Lösung",
+      "swapSide": "Bewegte Seite tauschen"
+    },
+    "keys": {
+      "nextBranch": "Nächster Zweig",
+      "nextStep": "Nächster Schritt",
+      "previousBranch": "Vorheriger Zweig",
+      "previousStep": "Vorheriger Schritt"
+    },
+    "latch": {
+      "freePoint": "Freier Punkt"
+    },
+    "line": {
+      "axiom": "Axiom {{number}}: {{phrase}}",
+      "axiom1Help": "Die Linie durch zwei Punkte.",
+      "axiom2Help": "Die Linie, die einen Punkt auf einen anderen faltet.",
+      "axiom3Help": "Die Linie, die eine Kante oder Faltlinie auf eine andere faltet.",
+      "axiom4Help": "Die Linie durch einen Punkt, senkrecht zu einer Kante oder Faltlinie.",
+      "axiom5Help": "Die Linie durch einen Drehpunkt, die einen Punkt auf eine Kante oder Faltlinie faltet.",
+      "axiom6Help": "Die Linie, die zwei Punkte zugleich auf zwei Kanten oder Faltlinien faltet.",
+      "axiom7Help": "Die Linie, die einen Punkt auf eine Kante oder Faltlinie faltet, senkrecht zu einer anderen.",
+      "crease": "Vorhandene Faltlinie",
+      "creaseHelp": "Eine Faltlinie oder gefaltete Kante, die schon da ist: eine Vorfaltung wieder falten oder eine Lasche aufklappen.",
+      "free": "Freie Linie",
+      "freeHelp": "Eine beliebig gezogene Linie, ohne Bezug."
+    },
+    "note": {
+      "acrossLayers": "Diese Punkte liegen auf Lagen, die durch das Falten auseinanderliegen, daher verläuft die Linie durch sie dort, wo sie in der gefalteten Form liegen. Das Faltmuster zeigt die Faltlinien, die dabei entstehen.",
+      "along": "Punkte rasten dort ein, wo die Linie Faltlinien, Kanten und Markierungen kreuzt, an Punkten auf ihr und in ihrer Mitte.",
+      "alongBack": "Esc nimmt den letzten Punkt zurück.",
+      "clear": "Esc verwirft die gewählten Punkte.",
+      "closedSinkLine": "Die Linie quer über die Spitze legt fest, wie tief sie versenkt wird.",
+      "crease": "Entlang einer Vorfaltung wird sie wieder gefaltet; entlang einer gefalteten Kante wird die Lasche aufgeklappt.",
+      "free": "Kein Einrasten: Die Linie verläuft genau durch die Punkte, die du anklickst.",
+      "freePoint": "Halte {{modifier}} gedrückt, um einen Punkt ohne Einrasten frei zu setzen.",
+      "freeSnap": "Rastet an nahen Zielpunkten ein; andernfalls wird genau die angeklickte Position verwendet.",
+      "freeSnapTouch": "Rastet an nahen Zielpunkten ein; andernfalls wird genau die angetippte Position verwendet.",
+      "freeTouch": "Kein Einrasten: Die Linie verläuft genau durch die Punkte, die du antippst.",
+      "openSinkSquare": "Die Linie quer über die Spitze legt fest, wie tief sie versenkt wird, und muss genau rechtwinklig zu ihrer Mittellinie liegen: Axiom 4 zieht eine solche.",
+      "queued": "Wird gefaltet, sobald die Vorschau bereit ist…",
+      "rotateCancel": "Esc legt das Drehen-Werkzeug weg, ohne die Drehung hinzuzufügen.",
+      "rotatePreview": "Die gefaltete Ansicht zeigt das Modell so gedreht, wie es sein wird.",
+      "rotateRefused": "Diese Drehung kann hier nicht hinzugefügt werden.",
+      "severalSunk_one": "Hier liegt {{count}} versenkte Spitze: Die erste wird genommen.",
+      "severalSunk_other": "Hier liegen {{count}} versenkte Spitzen: Die erste wird genommen.",
+      "snap": "Punkte rasten an Ecken, Markierungen, Kreuzungen von Faltlinien, Mittelpunkten und Kanten ein.",
+      "unfoldCancel": "Esc legt das Werkzeug „Bis zu Schritt entfalten“ weg, ohne den Schritt hinzuzufügen.",
+      "unfoldPreview": "Die Arbeitsfläche zeigt das Papier wieder in dieser Form. Alle Falten bleiben erhalten.",
+      "unsinkRing": "Die Linie ist eine Faltlinie des Rings, den das Versenken hinterlassen hat, entlang der Oberkante der versenkten Spitze."
+    },
+    "op": {
+      "closedSink": "Geschlossenes Versenken",
+      "crimp": "Stauchfalte",
+      "openSink": "Offenes Versenken",
+      "outsideReverse": "Äußerer Gegenbruch",
+      "petal": "Blütenblattfalte",
+      "pleat": "Zickzackfalte",
+      "rabbitEar": "Hasenohr",
+      "squash": "Quetschfalte",
+      "swivel": "Schwenkfalte",
+      "tuck": "Einstecken",
+      "unsink": "Versenken aufheben"
+    },
+    "order": {
+      "accept": "Diese Reihenfolge verwenden",
+      "acceptAll": "Reihenfolgen verwenden und Schritt hinzufügen",
+      "acceptUpdate": "Reihenfolgen verwenden und Schritt aktualisieren",
+      "back": "Zurück",
+      "choose": "Lagenreihenfolge wählen",
+      "count_one": "Reihenfolge {{index}} von {{count}}",
+      "count_other": "Reihenfolge {{index}} von {{count}}",
+      "failed": "Die Reihenfolge konnte nicht geladen werden. Gehe zurück und versuche es erneut oder wähle eine andere Reihenfolge.",
+      "found_one": "Reihenfolge {{index}} von {{count}} gefundenen",
+      "found_other": "Reihenfolge {{index}} von {{count}} gefundenen",
+      "help": "Sieh dir die Anordnungen an und wähle die gewünschte Reihenfolge.",
+      "incomplete": "Suche unvollständig. Es kann weitere Reihenfolgen geben.",
+      "inspect": "Lagenstapel prüfen",
+      "loading": "Reihenfolge wird geladen…",
+      "movingVaries": "Bei diesen Reihenfolgen werden unterschiedliche Lagen bewegt. Prüfe das hervorgehobene Papier.",
+      "next": "Nächste Lagenreihenfolge",
+      "noneFound": "Noch keine Reihenfolge gefunden",
+      "noOthers": "Suche abgeschlossen. Es gibt keine weiteren Reihenfolgen.",
+      "previous": "Vorherige Lagenreihenfolge",
+      "region": "Bereich {{number}}",
+      "regions": "Unabhängige Bereiche",
+      "search": "Weitere Reihenfolgen suchen",
+      "searching": "Weitere Reihenfolgen werden gesucht…",
+      "stack": "Bereich {{number}}: {{layers}}",
+      "stackHelp": "Wähle einen Bereich zum Hervorheben. Die Lagen sind von vorne nach hinten aufgelistet; hervorgehobene Unterschiede beziehen sich auf die erste Vorschau.",
+      "stop": "Suche beenden"
+    },
+    "picker": {
+      "addFavorite": "{{tool}} zu Favoriten hinzufügen",
+      "close": "Werkzeugliste schließen",
+      "favorites": "Favoriten",
+      "favoritesHint": "Die ersten {{limit}} Favoriten hier werden in der unteren Symbolleiste angezeigt. Zum Umsortieren lange drücken und ziehen.",
+      "removeFavorite": "{{tool}} aus Favoriten entfernen",
+      "title": "Falt-Werkzeuge",
+      "trigger": "Werkzeuge"
+    },
+    "pleat": {
+      "blocked": "Beide Faltungen müssen in die ausgewählte Klappe passen, ohne anderes Papier zu bewegen. Prüfe die Linien und ausgewählten Lagen.",
+      "intro": "Lege am noch ungefalteten Modell zuerst die Berglinie und dann die Tallinie fest.",
+      "layers": "Wähle die zu faltende Klappe. Das Ende hinter der Tallinie wird zurückgefaltet.",
+      "limit": "Es gibt zu viele Lagenanordnungen für diese Zickzackfalte. Wähle eine kleinere Klappe.",
+      "lines": "Die Tallinie muss hinter der Berglinie zum bewegten Ende hin liegen. Prüfe die Linien oder drücke Tauschen.",
+      "mountainInstruction": "Berglinie: {{instruction}}",
+      "mountainLine": "Berglinie",
+      "refusedTitle": "Hier lässt sich die Zickzackfalte nicht falten",
+      "searching": "Es wird ermittelt, wie sich die Lagen der Zickzackfalte stapeln können…",
+      "valleyInstruction": "Tallinie: {{instruction}}",
+      "valleyLine": "Tallinie"
+    },
+    "railLabel": "Falt-Werkzeuge",
+    "readOnly": {
+      "locked": "Dieser Schritt stammt aus einer neueren Version von Ori Studio, daher lässt sich von ihm aus nichts falten.",
+      "newer": "Diese Sequenz stammt aus einer neueren Version von Ori Studio und wird daher schreibgeschützt geöffnet."
+    },
+    "refusal": {
+      "budget": {
+        "text": "Herauszufinden, wie sich die Lagen stapeln, hat hier zu lange gedauert, daher ist unbekannt, ob diese Faltung passt. Falte weniger Lagen oder falte an anderer Stelle.",
+        "title": "Die Suche hat zu lange gedauert"
+      },
+      "choiceBroken": {
+        "text": "Die Öffnung oder die Lagenreihenfolge, die dieser Schritt gespeichert hat, passt nicht mehr zum Papier davor. So, wie er gespeichert ist, lässt er sich deshalb nicht falten.",
+        "title": "Eine Wahl passt nicht mehr"
+      },
+      "chooseOpening": {
+        "text": "Die Lasche lässt sich auf mehr als eine Weise öffnen. Wähle eine aus, um zu falten.",
+        "title": "Wähle, wie sie sich öffnet"
+      },
+      "chooseOrder": {
+        "text": "Die Lagen der Faltung können auf mehr als eine Weise gestapelt landen. Wähle eine aus, um zu falten.",
+        "title": "Wähle, wie die Lagen liegen"
+      },
+      "choosePocket": {
+        "text": "Die Spitze kann in mehr als eine Tasche zwischen ihren Lagen versenkt werden. Wähle eine aus, um zu falten.",
+        "title": "Wähle eine Tasche"
+      },
+      "closureAddsFlaps": {
+        "textMany_one": "Das Falten dieser Lagen bewegt auch {{count}} weitere Lasche.",
+        "textMany_other": "Das Falten dieser Lagen bewegt auch {{count}} weitere Laschen.",
+        "textOne": "Das Falten dieser Lagen bewegt auch Lasche {{number}}.",
+        "title": "Weitere Laschen würden sich bewegen"
+      },
+      "collision": {
+        "text": "Die bewegten Lagen würden durch Lagen hindurchgehen, die ihnen im Weg sind.",
+        "title": "Kollision"
+      },
+      "crimpInsideInfeasible": {
+        "title": "Ein innerer Crimp geht nicht"
+      },
+      "crimpKindInfeasible": {
+        "neitherRedraw": "Weder ein innerer noch ein äußerer Crimp passt zu diesen Linien: Keine Lagenfolge lässt die Spitze an beiden umschlagen. Drücke Esc und zeichne die Linien paralleler, oder crimpe weniger Laschen.",
+        "text": "Bei keiner Stapelung der Lagen kann die Spitze an beiden Linien in diese Richtung umschlagen. Die andere Art von Crimp passt vielleicht."
+      },
+      "crimpLinesMeet": {
+        "redraw": "Die beiden Linien kreuzen sich oder kommen sich zu nahe über dem Papier, das der Crimp bewegt. Drücke Esc und zeichne die zweite Linie mit Abstand zur ersten, ganz quer über die Lasche.",
+        "title": "Die Linien treffen sich"
+      },
+      "crimpMissesTip": {
+        "redraw": "Die zweite Linie kreuzt kein Papier jenseits der ersten, also würde nichts zurückschlagen. Tausche die Seite der Spitze, wenn die Spitze am anderen Ende ist, oder drücke Esc und zeichne die zweite Linie quer über die Lasche, jenseits der ersten.",
+        "title": "Die zweite Linie verfehlt die Lasche"
+      },
+      "crimpNoOpening": {
+        "noSpine": "Eine einzelne Lage hat keine gefaltete Kante, an der sie sich crimpen ließe. Crimpe eine Lasche aus Lagen, die durch eine Falte verbunden sind.",
+        "text": "Ihre Lagen teilen sich an der ersten Linie, doch an der zweiten ist eine von ihnen schon zu Ende oder hat nichts, um das sie umschlagen kann. Verschiebe die zweite Linie oder crimpe andere Laschen.",
+        "title": "Diese Lasche lässt sich an der zweiten Linie nicht öffnen"
+      },
+      "crimpOutsideInfeasible": {
+        "title": "Ein äußerer Crimp geht nicht"
+      },
+      "crimpTipNotFree": {
+        "text": "Wo das gecrimpte Papier umschlagen würde, liegen andere Lagen. Nimm ihre Laschen in den Crimp auf oder crimpe an einer anderen Stelle."
+      },
+      "emptySeed": {
+        "text": "Keine Lage ist gewählt. Wähle mindestens eine Lasche, die sich bewegen soll.",
+        "title": "Nichts zu falten"
+      },
+      "extentMissesLayers": {
+        "text": "Keine der Lagen, durch die diese Vorfalte geht, liegt an diesem Stück der Linie, oder die Linie ist dort schon gefaltet. Klicke andere Punkte entlang der Linie an, oder falte durch alle Lagen vor.",
+        "title": "Dort ist keine Lage zum Vorfalten"
+      },
+      "extentMissesPaper": {
+        "text": "Dieses Stück der Linie verläuft über kein Papier, es gibt also nichts vorzufalten. Klicke Punkte an, wo die Linie das Papier kreuzt.",
+        "title": "Dort ist kein Papier"
+      },
+      "extentOffPaper": {
+        "text": "Ein Punkt, von dem aus die Faltlinie bemessen wird, liegt nicht auf dem Papier, wie es jetzt gefaltet ist. Klicke ihre Punkte entlang der Linie dort an, wo die Linie das Papier kreuzt.",
+        "title": "Ein Punkt liegt nicht auf dem Papier"
+      },
+      "extentTooShort": {
+        "pinch": "Dieser Kniff ist zu kurz, als dass das Papier eine Faltlinie annimmt. Falte mehr von der Linie vor.",
+        "segment": "Die beiden Punkte liegen entlang der Linie zu dicht beieinander, um dazwischen vorzufalten. Klicke zwei weiter auseinanderliegende Punkte an, oder kneife stattdessen dort.",
+        "title": "Zu kurz zum Vorfalten"
+      },
+      "insideInfeasible": {
+        "title": "Nach innen geht es nicht"
+      },
+      "invalid": {
+        "text": "Sie ergäbe kein gültiges flaches Modell.",
+        "title": "Diese Faltung ist nicht möglich"
+      },
+      "kindInfeasible": {
+        "neither": "Hier passt keine Art von Gegenbruch: Bei keiner Stapelung der Lagen kann die Spitze umschlagen. Verschiebe die Linie oder kehre andere Laschen um.",
+        "text": "Bei keiner Stapelung der Lagen kann die Spitze hier in diese Richtung umschlagen. Die andere Art von Gegenbruch passt vielleicht."
+      },
+      "markOffSheet": {
+        "text": "Ein Teil der Markierung läge außerhalb des Blatts. Klicke ihre Punkte entlang der Linie innerhalb des Papiers an.",
+        "title": "Die Markierung würde das Papier verlassen"
+      },
+      "markOnCrease": {
+        "text": "Die Markierung läge entlang einer Faltlinie, die schon da ist. Markiere ein anderes Stück der Linie, oder falte entlang der Faltlinie selbst.",
+        "title": "Dort ist schon gefaltet"
+      },
+      "marksOverlap": {
+        "text": "Die Markierung läge über einem Teil einer früheren Markierung, auf eine Weise, die das Papier nicht zulässt. Markiere ein anderes Stück der Linie, oder falte die ganze Linie vor.",
+        "title": "Die Markierungen würden sich überlappen"
+      },
+      "markTooShort": {
+        "text": "Auf einer ihrer Lagen wäre die Markierung zu kurz, als dass das Papier eine Faltlinie annimmt. Falte mehr von der Linie vor.",
+        "title": "Zu kurz zum Vorfalten"
+      },
+      "moverStays": {
+        "text": "Die Lage, die den zu bewegenden Punkt trägt, ist nicht unter den Lagen, die gefaltet werden. Nimm ihre Lasche hinzu oder falte alle Lagen.",
+        "title": "Der Punkt bliebe liegen"
+      },
+      "nearMiss": {
+        "text": "Die Linie verläuft knapp neben einem Punkt des Papiers: zu nah, um sauber zu falten, zu weit weg, um durch ihn zu gehen.",
+        "title": "Zu nah an einem Punkt"
+      },
+      "noMovingSide": {
+        "text": "Auf der Seite der Linie, die sich bewegen würde, liegt kein Papier. Tausche die bewegte Seite oder lege die Linie aufs Papier.",
+        "title": "Nichts zu falten"
+      },
+      "noRoot": {
+        "text": "Diese Bezüge ergeben auf dem Papier, wie es gefaltet ist, keine Faltlinie. Wähle andere Bezüge.",
+        "title": "Hier gibt es keine Faltung"
+      },
+      "noSide": {
+        "text": "Nichts legt fest, welche Seite der Linie sich bewegt. Wähle einen Punkt neben der Linie, auf der Seite, die sich bewegen soll.",
+        "title": "Welche Seite bewegt sich?"
+      },
+      "nothingStays": {
+        "text": "Jede Lage liegt auf der bewegten Seite, also bliebe nichts liegen. Wähle eine Lasche zum Falten.",
+        "title": "Alles würde sich bewegen"
+      },
+      "offPaper": {
+        "text": "Ein Punkt oder eine Kante, von der aus die Linie bestimmt wurde, liegt nicht auf dem Papier, wie es jetzt gefaltet ist. Bestimme die Linie neu.",
+        "title": "Ein Bezug liegt nicht auf dem Papier"
+      },
+      "outsideInfeasible": {
+        "title": "Außen herum geht es nicht"
+      },
+      "pickAgain": {
+        "text": "Diese Stelle liegt in keiner Lage auf der bewegten Seite. Wähle innerhalb einer Lage, abseits ihrer Faltlinien.",
+        "title": "Erneut wählen"
+      },
+      "pointsTooClose": {
+        "text": "Die beiden Punkte liegen auf dem gefalteten Papier an derselben Stelle und ergeben keine Linie. Wähle zwei Punkte, die weiter auseinanderliegen.",
+        "title": "Die Punkte liegen zu nah beieinander"
+      },
+      "precreaseUnfold": {
+        "text": "Das Aufklappen würde mehr Lagen bewegen als das Falten.",
+        "title": "Diese Vorfaltung lässt sich nicht aufklappen"
+      },
+      "reverseNoOpening": {
+        "bodiesCross": "Entlang ihrer Falten geteilt, würde das Papier, an dem jede Hälfte hängt, das der anderen kreuzen.",
+        "noBody": "Entlang ihrer Falten geteilt, hinge eine Hälfte an nichts, das an der Linie liegen bleibt.",
+        "noSpine": "Eine einzelne Lage hat keine gefaltete Kante, an der sie sich umkehren ließe. Falte eine Lasche aus Lagen, die durch eine Falte verbunden sind, als Gegenbruch.",
+        "noSplit": "Ihre Lagen lassen sich nicht entlang einer Falte teilen, ohne dass eine untere Lage über eine obere gerät.",
+        "title": "Diese Lasche lässt sich nicht öffnen"
+      },
+      "sinkLineTilted": {
+        "text": "Offenes Versenken braucht eine Linie genau rechtwinklig zur Mittellinie der Spitze: Schon leicht gekippt lässt sich die Spitze nicht offen versenken. Die rechtwinklige Linie in derselben Tiefe geht.",
+        "title": "Die Linie steht nicht rechtwinklig zur Spitze"
+      },
+      "sinkNoAxis": {
+        "text": "Ihre Außenseite verläuft nicht entlang zweier gerader Seiten, also gibt es keine Mittellinie, zu der die Linie beim offenen Versenken rechtwinklig sein könnte.",
+        "title": "Die Spitze hat keine Mittellinie"
+      },
+      "sinkNoOrder": {
+        "none": "Bei keiner Stapelung der Lagen lässt sich die Spitze hier so versenken. Verschiebe die Linie oder wähle eine andere Spitze.",
+        "otherSink": "Bei keiner Stapelung der Lagen lässt sich die Spitze hier so versenken. Die andere Art des Versenkens passt.",
+        "title": "Die Spitze lässt sich hier nicht so versenken",
+        "unsink": "Bei keiner Stapelung der Lagen kommt die versenkte Spitze hier wieder heraus.",
+        "unsinkTitle": "Die Spitze lässt sich hier nicht herausziehen"
+      },
+      "sinkNoPocket": {
+        "text": "Keine Lücke zwischen ihren Lagen läuft ganz um ihre Außenseite herum, in die das Ende gehen könnte, also lässt sie sich nicht geschlossen versenken.",
+        "title": "Die Spitze hat keine Tasche"
+      },
+      "sinkOutlineMixed": {
+        "text": "Die Außenkanten der Spitze sind teils Berg-, teils Talfalten: Sie hat keine einheitliche Außenseite, die sich nach innen stülpen ließe, also lässt sie sich nicht offen versenken.",
+        "title": "Ihre Außenseite ist nicht eine Faltung"
+      },
+      "sinkPointOpen": {
+        "text": "Offene Kanten reichen bis an ihr Ende: Ihre Lagen sind freie Ecken, keine geschlossene Spitze, also sagt nichts, wie sie versenkt würden. Versenke eine Spitze, deren Lagen am Ende verbunden sind.",
+        "title": "Die Spitze ist offen"
+      },
+      "sinkSeveralPoints": {
+        "text_one": "Auf der Seite des Endes liegt {{count}} Spitze, und Versenken nimmt nur eine. Wähle die Spitze, die versenkt wird.",
+        "text_other": "Auf der Seite des Endes liegen {{count}} Spitzen, und Versenken nimmt nur eine. Wähle die Spitze, die versenkt wird.",
+        "title": "Wähle eine Spitze"
+      },
+      "sliver": {
+        "text": "Ein Punkt der bewegten Lagen käme um Haaresbreite innerhalb der Kante einer anderen Lage zu liegen.",
+        "title": "Ein Punkt landet knapp innerhalb einer Kante"
+      },
+      "stackedTooDeep": {
+        "fold": "Diese Faltung würde die Lagen zu tief stapeln, als dass sich ihre Reihenfolge bestimmen ließe: bis zu {{deepest, number}} übereinander. Falte weniger Lagen.",
+        "pattern": "Dieses Faltmuster stapelt seine Lagen zu tief, als dass sich ihre Reihenfolge bestimmen ließe: bis zu {{deepest, number}} übereinander. Importiere ein einfacheres Muster.",
+        "step": "Dieser Schritt stapelt seine Lagen zu tief, als dass sich ihre Reihenfolge bestimmen ließe: bis zu {{deepest, number}} übereinander. Er und die folgenden Schritte können nur noch gelöscht werden.",
+        "title": "Lagen zu tief gestapelt"
+      },
+      "tipNotFree": {
+        "text": "Wo die Spitze umschlagen würde, liegen andere Lagen. Nimm ihre Laschen in die Faltung auf oder setze den Gegenbruch an einer anderen Stelle.",
+        "title": "Lagen sind im Weg"
+      },
+      "tooManyFaces": {
+        "fold": "Diese Faltung ergäbe {{faceCount, number}} Flächen, mehr als die {{limit, number}}, die gefaltet werden können. Falte weniger Lagen.",
+        "note": "{{faceCount, number}} Flächen, mehr als die {{limit, number}}, die gefaltet werden können",
+        "pattern": "Dieses Faltmuster hat {{faceCount, number}} Flächen; gefaltet werden Muster mit bis zu {{limit, number}}. Importiere ein einfacheres Muster.",
+        "step": "Dieser Schritt hat {{faceCount, number}} Flächen, mehr als die {{limit, number}}, die gefaltet werden können. Er und die folgenden Schritte können nur noch gelöscht werden.",
+        "title": "Zu viele Flächen"
+      },
+      "tooSmall": {
+        "text": "Die Faltung hinterließe eine Faltlinie oder einen Papierstreifen, der dünner ist als das Papier selbst.",
+        "title": "Zu klein zum Falten"
+      },
+      "tuckInfeasible": {
+        "none": "Bei keiner Stapelung der Lagen liegt die Lasche direkt an dieser Lage. Stecke weniger Laschen ein oder bestimme eine andere Linie.",
+        "text": "Bei keiner Stapelung der Lagen liegt die Lasche direkt an dieser Lage. Eine andere Lage hier nimmt sie auf.",
+        "titleOver": "Über diese Lage lässt sie sich nicht stecken",
+        "titleUnder": "Unter diese Lage lässt sie sich nicht stecken"
+      },
+      "tuckNoTarget": {
+        "over": "Keine liegen bleibende Lage kann die Lasche hier über sich aufnehmen. Falte andersherum, tausche die bewegte Seite oder bestimme eine andere Linie.",
+        "title": "Keine Lage nimmt die Lasche hier auf",
+        "under": "Keine liegen bleibende Lage kann die Lasche hier unter sich aufnehmen. Falte andersherum, tausche die bewegte Seite oder bestimme eine andere Linie."
+      },
+      "tuckTarget": {
+        "text": "Wähle eine Lage, die liegen bleibt, an der die Lasche eingesteckt werden soll.",
+        "title": "Die Lage zum Einstecken würde sich bewegen"
+      },
+      "unsinkNotSunk": {
+        "text": "Entlang dieser Linie liegt nichts Versenktes im Papier. Lege die Linie auf den Ring, den ein Versenken hinterlassen hat, und wähle die versenkte Spitze darin.",
+        "title": "Hier ist keine Spitze versenkt"
+      },
+      "unsupported": {
+        "text": "Diese Version von Ori Studio kann ihn so, wie er gespeichert ist, nicht falten.",
+        "title": "Dieser Schritt lässt sich nicht falten"
+      },
+      "wrongCrease": {
+        "text": "Klappe entlang einer gefalteten Kante auf und falte entlang einer flachen Faltlinie wieder.",
+        "title": "Nicht diese Art von Faltlinie"
+      }
+    },
+    "reverse": {
+      "auto": "Automatisch",
+      "bothFit": "Hier passen beide Arten: Wähle, wohin die Spitze geht.",
+      "inside": "Innen",
+      "intentHelp": "Automatisch verwendet die mögliche Faltart. Eine gewählte Art bleibt ausgewählt, auch wenn die Faltung nicht möglich ist.",
+      "kind": "Art",
+      "next": "Weiter",
+      "ofCount": "{{index}} von {{total}}",
+      "opening": "Öffnung",
+      "openingsTruncated": "Weitere Öffnungen sind möglicherweise vorhanden. Wähle weniger Klappen aus, um sie zu erkunden.",
+      "order": "Lagenreihenfolge",
+      "outside": "Außen",
+      "previous": "Zurück",
+      "requestedKind": "Art der Umkehrfaltung",
+      "tipSide": "Seite der Spitze"
+    },
+    "rotate": {
+      "amount": "Drehung",
+      "degrees": "Genauer Winkel",
+      "direction": "Richtung",
+      "presetTooltip": "{{fraction}} Drehung, {{degrees}}°"
+    },
+    "scopeLabel": "falten",
+    "section": {
+      "label": "Lagen an der Faltlinie, von oben nach unten",
+      "labelWoven": "Lagen an der Faltlinie unter dem Zeiger, von oben nach unten",
+      "row": "Lage {{layer}}, {{flap}}",
+      "rowAdded": "Lage {{layer}}, {{flap}}, wird mitgefaltet",
+      "rowAddedBeside": "Lage {{layer}}, {{flap}}, wird mitgefaltet, neben Lage {{above}}",
+      "rowBeside": "Lage {{layer}}, {{flap}}, neben Lage {{above}}",
+      "top": "Oben"
+    },
+    "sink": {
+      "bothFit": "Hier passen beide: Offenes Versenken stülpt jede Lage um, geschlossenes hält sie zusammen.",
+      "closed": "Geschlossen",
+      "depth": "Tiefe",
+      "depthHelp": "Wie weit die Linie vom Ende der Spitze entlang ihrer Mittellinie liegt, wobei die Papierseite 1 ist. Lege die Linie weiter unten an, um die Spitze tiefer zu versenken.",
+      "depthValue": "{{depth}} vom Ende",
+      "kind": "Versenken",
+      "onlyClosed": "Hier passt nur geschlossenes Versenken.",
+      "onlyOpen": "Hier passt nur offenes Versenken.",
+      "open": "Offen",
+      "pocket": "Tasche",
+      "pocketBack": "Hinten",
+      "pocketFront": "Vorne",
+      "sunkSide": "Seite der versenkten Spitze"
+    },
+    "steps": {
+      "axiom1First": "Klicke auf den ersten Punkt, durch den die Faltung verläuft.",
+      "axiom1FirstTouch": "Tippe auf den ersten Punkt, durch den die Faltung verläuft.",
+      "axiom1Second": "Klicke auf den zweiten Punkt.",
+      "axiom1SecondTouch": "Tippe auf den zweiten Punkt.",
+      "axiom2Land": "Klicke dorthin, wo er landen soll.",
+      "axiom2LandTouch": "Tippe dorthin, wo er landen soll.",
+      "axiom3Move": "Klicke auf die Kante oder Faltlinie, die bewegt werden soll.",
+      "axiom3MoveTouch": "Tippe auf die Kante oder Faltlinie, die bewegt werden soll.",
+      "axiom3Onto": "Klicke auf die Kante oder Faltlinie, auf die sie gelegt werden soll.",
+      "axiom3OntoTouch": "Tippe auf die Kante oder Faltlinie, auf die sie gelegt werden soll.",
+      "axiom4Through": "Klicke auf den Punkt, durch den die Faltung verläuft.",
+      "axiom4ThroughTouch": "Tippe auf den Punkt, durch den die Faltung verläuft.",
+      "axiom5Pivot": "Klicke auf den Drehpunkt, durch den die Faltung verläuft.",
+      "axiom5PivotTouch": "Tippe auf den Drehpunkt, durch den die Faltung verläuft.",
+      "axiom6FirstPoint": "Klicke auf den ersten Punkt, der bewegt werden soll.",
+      "axiom6FirstPointTouch": "Tippe auf den ersten Punkt, der bewegt werden soll.",
+      "axiom6SecondLine": "Klicke auf die Kante oder Faltlinie, auf der dieser landen soll.",
+      "axiom6SecondLineTouch": "Tippe auf die Kante oder Faltlinie, auf der dieser landen soll.",
+      "axiom6SecondPoint": "Klicke auf den zweiten Punkt, der bewegt werden soll.",
+      "axiom6SecondPointTouch": "Tippe auf den zweiten Punkt, der bewegt werden soll.",
+      "commit": "Drücke die Eingabetaste, um zu falten.",
+      "commitOrClick": "Drücke die Eingabetaste oder klicke auf {{action}}, um zu falten.",
+      "commitTouch": "Tippe auf {{action}}, um zu falten.",
+      "crease": "Klicke auf die Faltlinie oder gefaltete Kante, entlang der gefaltet werden soll.",
+      "creaseTouch": "Tippe auf die Faltlinie oder gefaltete Kante, entlang der gefaltet werden soll.",
+      "crimpFinish": "Wähle Innen oder Außen, dann drücke die Eingabetaste.",
+      "crimpFinishTouch": "Wähle Innen oder Außen, dann tippe auf {{action}}.",
+      "crimpFirstCrease": "Klicke auf die Faltlinie oder gefaltete Kante, an der die Lasche nach innen umschlägt.",
+      "crimpFirstCreaseTouch": "Tippe auf die Faltlinie oder gefaltete Kante, an der die Lasche nach innen umschlägt.",
+      "crimpFirstStart": "Klicke dorthin, wo die erste Linie beginnt, näher am Körper: wo die Lasche nach innen umschlägt.",
+      "crimpFirstStartTouch": "Tippe dorthin, wo die erste Linie beginnt, näher am Körper: wo die Lasche nach innen umschlägt.",
+      "crimpKindBoth": "Wähle Innen, um das Ende in die Lasche zu stecken, oder Außen, um es herumzulegen.",
+      "crimpLayers": "Nimm unter Lagen jede Lasche heraus, die nicht gecrimpt werden soll.",
+      "crimpSecondCrease": "Klicke auf die Faltlinie oder gefaltete Kante jenseits der ersten Linie, an der die Lasche wieder nach außen umschlägt.",
+      "crimpSecondCreaseTouch": "Tippe auf die Faltlinie oder gefaltete Kante jenseits der ersten Linie, an der die Lasche wieder nach außen umschlägt.",
+      "crimpSecondStart": "Klicke dorthin, wo die zweite Linie beginnt, jenseits der ersten zur Spitze hin: wo die Lasche wieder nach außen umschlägt.",
+      "crimpSecondStartTouch": "Tippe dorthin, wo die zweite Linie beginnt, jenseits der ersten zur Spitze hin: wo die Lasche wieder nach außen umschlägt.",
+      "crimpTipEnd": "Das Ende jenseits der zweiten Linie dreht sich: Ist es das falsche Ende, drücke Tauschen.",
+      "divide": "Klicke auf eine Kante oder Faltlinie, um sie zu teilen.",
+      "divideTouch": "Tippe auf eine Kante oder Faltlinie, um sie zu teilen.",
+      "divideUse": "Verwende die neuen Punkte als Bezug für jede Faltung.",
+      "finish": "Wähle die Faltung und die Lagen, dann drücke die Eingabetaste.",
+      "finishTouch": "Wähle die Faltung und die Lagen, dann tippe auf {{action}}.",
+      "freeEnd": "Klicke dorthin, wo sie endet.",
+      "freeEndTouch": "Tippe dorthin, wo sie endet.",
+      "freeStart": "Klicke dorthin, wo die Faltlinie beginnt.",
+      "freeStartTouch": "Tippe dorthin, wo die Faltlinie beginnt.",
+      "landOnLine": "Klicke auf die Kante oder Faltlinie, auf der er landen soll.",
+      "landOnLineTouch": "Tippe auf die Kante oder Faltlinie, auf der er landen soll.",
+      "perpendicularTo": "Klicke auf die Kante oder Faltlinie, zu der die Faltung senkrecht steht.",
+      "perpendicularToTouch": "Tippe auf die Kante oder Faltlinie, zu der die Faltung senkrecht steht.",
+      "pickFlapsToReverse": "Wähle die Laschen für den Gegenbruch.",
+      "pickFlapsToTuck": "Wähle die Laschen zum Einstecken.",
+      "pickLayers": "Wähle, welche Lagen sich bewegen.",
+      "pickPoint": "Wähle die Spitze, die versenkt wird: Versenken nimmt nur eine.",
+      "pickSunkPoint": "Die versenkte Spitze wird für dich gefunden: Wähle in den Lagen eine andere, um diese herauszuziehen.",
+      "pickTuckTarget": "Wähle die Lage, an der eingesteckt wird.",
+      "pinchAt": "Klicke entlang der Linie dorthin, wo gekniffen werden soll.",
+      "pinchAtTouch": "Tippe entlang der Linie dorthin, wo gekniffen werden soll.",
+      "pointToMove": "Klicke auf den Punkt, der bewegt werden soll.",
+      "pointToMoveTouch": "Tippe auf den Punkt, der bewegt werden soll.",
+      "repeatAxes": "Zeige auf eine auf dem Papier gezeichnete Symmetrieachse, um sie in der Vorschau zu sehen, und klicke sie an, um sie zu übernehmen – oder bestimme eine mit „Linie bestimmen“, in einer der beiden Ansichten.",
+      "repeatAxesTouch": "Tippe auf eine auf dem Papier gezeichnete Symmetrieachse oder bestimme eine mit „Linie bestimmen“, in einer der beiden Ansichten.",
+      "repeatCommit": "Drücke die Eingabetaste, um die wiederholten Faltungen hinzuzufügen.",
+      "repeatCommitTouch": "Tippe auf {{action}}, um die wiederholten Faltungen hinzuzufügen.",
+      "repeatStart": "Wähle den ersten Schritt, der wiederholt wird. Der Bereich endet beim angezeigten Schritt.",
+      "reverseFinish": "Wähle die Laschen für den Gegenbruch, dann drücke die Eingabetaste.",
+      "reverseFinishTouch": "Wähle die Laschen für den Gegenbruch, dann tippe auf {{action}}.",
+      "rotateCommit": "Drücke die Eingabetaste, um die Drehung hinzuzufügen.",
+      "rotateCommitTouch": "Tippe auf {{action}}, um die Drehung hinzuzufügen.",
+      "rotateDirection": "Wähle, in welche Richtung es sich dreht.",
+      "rotateHowFar": "Wähle, wie weit das Modell gedreht wird.",
+      "segmentFrom": "Klicke entlang der Linie dorthin, wo die Faltlinie beginnt.",
+      "segmentFromTouch": "Tippe entlang der Linie dorthin, wo die Faltlinie beginnt.",
+      "segmentTo": "Klicke dorthin, wo sie endet.",
+      "segmentToTouch": "Tippe dorthin, wo sie endet.",
+      "sinkFinish": "Wähle die Spitze, dann drücke die Eingabetaste.",
+      "sinkFinishTouch": "Wähle die Spitze, dann tippe auf {{action}}.",
+      "tuckFinish": "Wähle die Laschen und die Lage, an der eingesteckt wird, dann drücke die Eingabetaste.",
+      "tuckFinishTouch": "Wähle die Laschen und die Lage, an der eingesteckt wird, dann tippe auf {{action}}.",
+      "unfoldCommit": "Drücke die Eingabetaste, um den Schritt hinzuzufügen.",
+      "unfoldCommitTouch": "Tippe auf {{action}}, um den Schritt hinzuzufügen.",
+      "unfoldTarget": "Wähle den Schritt, zu dem zurückgekehrt wird."
+    },
+    "tool": {
+      "closedSinkHelp": "Das Ende einer geschlossenen Spitze in eine Tasche drücken, ihre Lagen bleiben zusammen.",
+      "crimpHelp": "Eine Lasche entlang einer Linie hinein- und entlang einer zweiten wieder herausfalten, sodass sich ihr Ende dreht.",
+      "divideLine": "Linie teilen",
+      "divideLineHelp": "Punkte markieren, die eine Kante oder Faltlinie in gleiche Teile teilen.",
+      "insideReverse": "Innerer Gegenbruch",
+      "mountain": "Bergfalte",
+      "mountainHelp": "Die bewegte Seite von dir weg falten, sodass sie unten landet.",
+      "openSinkHelp": "Das Ende einer geschlossenen Spitze hineindrücken und dabei jede ihrer Lagen umstülpen.",
+      "pleatHelp": "Eine Zickzackfalte erstellen: zuerst die Berglinie, dann die Tallinie festlegen.",
+      "precrease": "Vorfalten",
+      "precreaseHelp": "Falten und wieder öffnen: eine Faltlinie für später.",
+      "repeatAxisHelp": "Eine Folge von Schritten an einer Symmetrieachse erneut falten, auf der anderen Seite oder hinten: erst als Vorschau, dann als Schritt.",
+      "reverse": "Umkehrfaltung",
+      "reverseHelp": "Falte eine Klappe nach innen oder stülpe sie nach außen um und kehre dabei ihre Rückenkante um.",
+      "rotateHelp": "Das Modell um einen Teil einer Umdrehung oder einen genauen Winkel drehen: erst als Vorschau, dann als eigener Schritt.",
+      "tuckHelp": "Eine Lasche falten und unter oder über eine liegen bleibende Lage stecken.",
+      "unfoldToHelp": "Das Papier in die Form eines früheren Schritts zurückbringen und alle seither entstandenen Falten behalten: erst als Vorschau, dann als Schritt.",
+      "unsinkHelp": "Das Ende einer versenkten Spitze wieder herausziehen.",
+      "valley": "Talfalte",
+      "valleyHelp": "Die bewegte Seite zu dir hin falten, sodass sie oben landet."
+    },
+    "tuck": {
+      "alsoOver": "Auch über Schicht {{number}} falten",
+      "alsoUnder": "Auch unter Schicht {{number}} falten",
+      "noTargets": "Keine Lage hier nimmt die Lasche auf.",
+      "over": "Darüber stecken",
+      "targetsOver_one": "Eine Lage hier nimmt die Lasche über sich auf.",
+      "targetsOver_other": "{{count}} Lagen hier nehmen die Lasche über sich auf: Das gefaltete Papier hebt jede hervor.",
+      "targetsUnder_one": "Eine Lage hier nimmt die Lasche unter sich auf.",
+      "targetsUnder_other": "{{count}} Lagen hier nehmen die Lasche unter sich auf: Das gefaltete Papier hebt jede hervor.",
+      "under": "Darunter stecken"
+    },
+    "verb": {
+      "turnOverHelp": "Das Modell seitlich umdrehen, als eigener Schritt."
+    },
+    "vertex": {
+      "direction": "Richtung",
+      "directionCannot": "In diese Richtung lässt es sich hier nicht flach falten.",
+      "fix": {
+        "creaseKites": "Die Drachenlinien beim Falten mitfalten",
+        "emergent": "Die vierte Faltlinie nehmen, die passt",
+        "emergentNumber": "Vierte Faltlinie {{number}} nehmen",
+        "otherRidge": "Den anderen Grat nehmen",
+        "otherWay": "Andersherum falten",
+        "precreaseHinge": "Zuerst das Scharnier vorfalten",
+        "precreaseKite": "Den Drachen vorfalten",
+        "resetTarget": "Den Rücken auf das Scharnier legen"
+      },
+      "help": {
+        "petalHinge": "Die untere Spitze einer Lasche entlang eines Scharniers anheben, während sich ihre Seiten entlang zweier Drachenlinien einfalten.",
+        "rabbitEar": "Die Ecken eines Dreiecks entlang ihrer Winkelhalbierenden einfalten, sodass sich eine Spitze aufstellt.",
+        "squash": "Eine zweilagige Lasche öffnen und flach drücken, ihren Rücken auf ihr Scharnier.",
+        "swivelEdge": "Eine Kante um einen Drehpunkt auf eine Linie schwenken."
+      },
+      "hingeRegionBlocked": "Dieser Scharnierbereich lässt sich mit diesen Lagen nicht falten. Klicke auf einen anderen Bereich oder ändere die Lagen.",
+      "hingeRegionBlockedTouch": "Dieser Scharnierbereich lässt sich mit diesen Lagen nicht falten. Tippe auf einen anderen Bereich oder ändere die Lagen.",
+      "hingeRegionFits": "Der Scharnierfalz liegt im gewählten Bereich.",
+      "input": {
+        "edge": "Kante auf Linie",
+        "edgeHelp": "Eine Kante und die Linie wählen, auf der sie landen soll",
+        "label": "Konstruieren über",
+        "valleyMountain": "Tal und Berg",
+        "valleyMountainHelp": "Tal und Berg auf der sichtbaren Lage wählen, die sich auf einer gefalteten Kante treffen; die Faltlinie dahinter ergibt sich daraus"
+      },
+      "intro": {
+        "petalLift": "Hebt die Spitze einer Lasche entlang eines Scharniers an.",
+        "swivelSwing": "Schwenkt eine Kante des Papiers auf eine Linie."
+      },
+      "layers": "Lagen",
+      "layersAll_one": "Alle {{count}}",
+      "layersAll_other": "Alle {{count}}",
+      "layersBottom_one": "Untere {{count}} von {{total}}",
+      "layersBottom_other": "Untere {{count}} von {{total}}",
+      "layersTop_one": "Obere {{count}} von {{total}}",
+      "layersTop_other": "Obere {{count}} von {{total}}",
+      "lineBy": {
+        "creaseOrEdge": "Faltlinie oder Kante",
+        "creaseOrEdgeHelp": "Klicke auf eine vorhandene Faltlinie oder Kante",
+        "hinge": "Scharnier",
+        "hingeCrease": "Scharnierlinie",
+        "hingeCreaseHelp": "Klicke auf eine Vorfaltung, die schon über die Lasche läuft",
+        "target": "Landet auf",
+        "twoEndpoints": "Zwei Endpunkte",
+        "twoEndpointsHelp": "Klicke auf die beiden Enden des Scharniers: Die Faltung faltet es mit",
+        "twoPoints": "Zwei Punkte",
+        "twoPointsHelp": "Klicke auf zwei Punkte der Linie"
+      },
+      "mountain": "Berg",
+      "mountainTitle": "Berg: das Papier dreht sich von dir weg",
+      "note": {
+        "petalCreasesAll": "Die Faltung faltet beim Anheben der Lasche das Scharnier durch die oberste Lage und beide Drachenlinien durch die beiden obersten Lagen.",
+        "petalCreasesHinge": "Die Faltung faltet beim Anheben der Lasche das Scharnier durch die oberste Lage. Die Drachenlinien sind schon da.",
+        "petalCreasesHingeKite": "Die Faltung faltet beim Anheben der Lasche das Scharnier durch die oberste Lage und eine Drachenlinie durch die beiden obersten Lagen. Die andere Drachenlinie ist schon da.",
+        "petalCreasesKite": "Die Faltung faltet beim Anheben der Lasche eine Drachenlinie durch die beiden obersten Lagen. Das Scharnier und die andere Drachenlinie sind schon da.",
+        "petalCreasesKites": "Die Faltung faltet beim Anheben der Lasche beide Drachenlinien durch die beiden obersten Lagen. Das Scharnier ist schon da.",
+        "petalRefolds": "Jede Faltlinie, die sie faltet, ist schon da: Sie faltet das Scharnier und die Drachenlinien nach.",
+        "rabbitEarMeet": "Die Faltlinien treffen sich im Inkreismittelpunkt des Dreiecks: eine zu jeder Ecke und eine vierte, an der sich das Ohr aufrichtet.",
+        "snapOrFree": "Punkte rasten an Ecken, Kreuzungen, Markierungen und Mittelpunkten ein: Halte {{modifier}} gedrückt, um einen beliebig zu setzen.",
+        "snapOrFreeTouch": "Punkte rasten an Ecken, Kreuzungen, Markierungen und Mittelpunkten ein: Schalte Freier Punkt ein, um einen beliebig zu setzen.",
+        "squashFlap": "Eine Lasche lässt sich quetschen, wenn ihre beiden Lagen nur an ihrem Scharnier verbunden sind und nichts auf ihr liegt.",
+        "swivelPicture": "Die Faltlinien treffen sich am Punkt, die Kante landet auf der fetten Linie, und das hervorgehobene Papier bewegt sich.",
+        "swivelValleyMountainPicture": "Die Faltlinien treffen sich am Punkt. Die gepunktete Faltlinie liegt auf der Lage dahinter und ergibt sich aus Tal und Berg; das hervorgehobene Papier bewegt sich."
+      },
+      "refusal": {
+        "blocked": {
+          "steppers": "Eine Faltlinie würde auf Papier treffen, das nicht mitfaltet, oder Papier würde zwei Teile der Faltung zusammenhalten. Blättere bei Lagen, um mehr Lagen zu falten, oder bei Vierte Faltlinie zu einer anderen.",
+          "swivelEdge": "Eine Faltlinie würde auf Papier treffen, das nicht mitfaltet, oder Papier würde zwei Teile der Faltung zusammenhalten. Wähle einen anderen Drehpunkt oder eine andere Linie, auf der die Kante landen soll.",
+          "swivelOnFold": "Eine Faltlinie würde auf eine Faltung treffen, bevor sie die Papierkante erreicht, oder Papier würde zwei Teile der Schwenkfalte zusammenhalten. Wähle eine andere gefaltete Kante oder eine andere Linie, auf der die Kante landen soll.",
+          "swivelValleyMountain": "Eine Faltlinie würde auf eine Faltung treffen, bevor sie die Papierkante erreicht, oder Papier würde zwei Teile der Schwenkfalte zusammenhalten. Wähle eine andere Tallinie oder eine andere Berglinie.",
+          "title": "Papier ist im Weg"
+        },
+        "center": {
+          "textEar": "Die Faltlinien des Dreiecks treffen sich in seinem Inkreismittelpunkt, der auf einer Faltlinie oder außerhalb der Lagen liegt. Wähle Ecken, die ihn in die Lagen legen, abseits ihrer Faltlinien.",
+          "textSwivelEdge": "Die Faltlinien treffen sich dort, wo der Drehpunkt liegt, verschoben auf die Linie in der Mitte zwischen der Kante und der Linie, auf der sie landet, und das ist auf einer Faltlinie oder außerhalb des Papiers. Drücke Esc und wähle einen anderen Drehpunkt.",
+          "textSwivelStep": "Der Punkt, an dem sich die Faltlinien treffen, liegt auf einer Faltlinie oder außerhalb des Papiers. Drücke Esc und setze ihn neu, wie Schritt 1 sagt: im Papier, abseits jeder Faltlinie.",
+          "title": "Die Faltlinien können sich dort nicht treffen"
+        },
+        "covered": {
+          "text": "Andere Lagen liegen über der Lasche oder in ihr, auf der Seite, zu der sie sich öffnet. Falte sie zuerst aus dem Weg oder quetsche sie andersherum.",
+          "title": "Die Lasche ist bedeckt"
+        },
+        "fourthBesideStayer": {
+          "text": "Die Lasche richtet sich entlang der vierten Faltlinie auf, daher liegt diese gegenüber dem Papier, das liegen bleibt. Wähle eine andere vierte Faltlinie oder anderes Papier, das liegen bleibt.",
+          "title": "Die vierte Faltlinie liegt neben dem liegenbleibenden Papier"
+        },
+        "fourthCannotRise": {
+          "text": "Die vierte Faltlinie wird andersherum gefaltet als die anderen drei, und die Winkel zwischen diesen Faltlinien lassen das nicht zu. Wähle eine andere vierte Faltlinie oder andere Punkte.",
+          "title": "Die vierte Faltlinie kann sich hier nicht aufrichten"
+        },
+        "kite": {
+          "creaseOrPrecrease": "Über einer Scharnierlinie faltet eine Blütenblattfalte vorhandene Faltlinien nach, und eine Drachenlinie ist noch nicht da. Nenne das Scharnier stattdessen über seine beiden Enden, dann faltet die Faltung die Drachenlinien selbst; oder falte sie zuerst vor, mit dem Werkzeug Vorfalten auf Axiom 3: eine untere Kante der oberen Lasche auf ihre Mittellinie, die Laschen dahinter herausgenommen.",
+          "titleMissing": "Die Drachenlinien fehlen"
+        },
+        "line": {
+          "crease": "Die Scharnierlinie läuft nicht durch jede Lage darunter, die mitfaltet. Falte das Scharnier durch alle Lagen vor, dann die Blütenblattfalte.",
+          "ends": "Das Scharnier kreuzt Papier der zweiten Lage, das sich neben dem Drachen einfaltet, und die Faltung kann es beim Anheben der Lasche nicht falten. Falte das Scharnier durch alle Lagen vor, dann die Blütenblattfalte.",
+          "titleHinge": "Zuerst das Scharnier vorfalten"
+        },
+        "lineMeeting": {
+          "textValleyMountain": "Tal und Berg treffen sich an einem Punkt einer sichtbaren gefalteten Kante, abseits ihrer Enden. Wähle zwei Linien, die sich dort kreuzen.",
+          "titleValleyMountain": "Die Linien treffen sich nicht auf einer gefalteten Kante"
+        },
+        "noFlap": {
+          "hingeOffSpine": "Die Scharnierlinie muss die gefaltete Kante der Lasche kreuzen, mit dem angeklickten Ende auf einer Seite.",
+          "noHinge": "Die Lasche faltet sich an keinem Ende ihres Rückens über ein Scharnier, also gibt es nichts, wogegen sie flach gedrückt werden kann.",
+          "noSpine": "Diese Lagen sind nicht durch eine einzige Faltkante verbunden, daher gibt es keinen Rücken zum Öffnen. Eine geschlossene Klappe, die über eingefaltete Seiten verbunden ist, lässt sich noch nicht quetschen.",
+          "singleLayer": "Hier liegt nur eine Lage. Klicke auf eine Lasche aus zwei Lagen, die an einer gefalteten Kante verbunden sind.",
+          "title": "Hier ist keine Lasche zum Quetschen",
+          "upperNotHinged": "Die oberste Lage der Lasche hängt nur an ihrem Rücken: flach gedrückt, läge ihre Scharnierseite lose."
+        },
+        "noOrder": {
+          "none": "Bei keiner Stapelung der Lagen lässt sie sich hier flach falten. Wähle andere Punkte oder falte zuerst die Lagen weg, die im Weg liegen.",
+          "otherWay": "Bei keiner Stapelung der Lagen lässt sie sich hier so flach falten. Andersherum gefaltet passt sie.",
+          "petal": "Hier ist keine Blütenblattfalte möglich",
+          "rabbitEar": "Das Ohr lässt sich hier nicht flach falten",
+          "squash": "Sie lässt sich hier nicht flach quetschen",
+          "swivel": "Die Drehfalte lässt sich hier nicht flach legen"
+        },
+        "noPetal": {
+          "missesFlap": "Die angeklickte Lasche liegt ganz auf einer Seite des Scharniers. Klicke auf die Lasche, über die das Scharnier läuft, oder wähle ein Scharnier von einer ihrer gefalteten Kanten zur anderen.",
+          "missesFlapTitle": "Das Scharnier verfehlt die Lasche",
+          "noCornerHinge": "Die Drachenlinien von den Enden des Scharniers treffen sich nicht darunter, also gibt es keine Spitze zum Anheben. Wähle ein Scharnier, dessen Enden dort liegen, wo die Drachenlinien die Kanten der Lasche treffen.",
+          "noCornerTitle": "Keine Spitze zum Anheben",
+          "noEndsHinge": "Das Scharnier einer Blütenblattfalte läuft von einer gefalteten Kante der Lasche zur anderen, und dieses kreuzt nur eine davon oder keine. Wähle ein Scharnier, dessen Enden auf den beiden gefalteten Kanten der Lasche liegen.",
+          "noEndsTitle": "Das Scharnier kreuzt die Lasche nicht",
+          "pastCorner": "Die Drachenlinien von den Enden des Scharniers treffen sich darunter, aber die Lasche reicht über ihren Treffpunkt hinaus, und dieses Papier ließe sich auf keine Weise falten. Lege das Scharnier weiter weg von der geschlossenen Spitze der Lasche: seine Enden dort, wo die Drachenlinien die Kanten der Lasche treffen.",
+          "pastCornerTitle": "Das Scharnier liegt zu nah an der geschlossenen Spitze"
+        },
+        "notFlat": {
+          "spread": "Keine vierte Faltlinie lässt diese Faltlinien flach liegen: Zwei zeigen in dieselbe Richtung, oder zwei Nachbarn liegen eine halbe Drehung oder mehr auseinander. Drücke Esc und wähle Punkte, die gleichmäßiger um den Treffpunkt verteilt sind.",
+          "swivelEdge": "Keine Faltlinie lässt die Kante von diesem Drehpunkt aus auf diese Linie drehen und flach liegen. Drücke Esc und wähle einen anderen Drehpunkt oder eine andere Linie.",
+          "title": "Es lässt sich nicht flach falten"
+        },
+        "notFree": {
+          "text": "Die Lasche ist abseits ihres Scharniers mit anderem Papier verbunden. Nur eine Lasche, die allein an ihrem Scharnier gehalten wird, öffnet sich flach: falte zuerst auf, was sie hält.",
+          "title": "Die Lasche wird anderswo gehalten"
+        },
+        "petalCovered": {
+          "text": "Andere Lagen liegen über der Lasche auf der Seite, zu der sie sich hebt. Falte sie zuerst aus dem Weg oder hebe sie andersherum an.",
+          "title": "Die Lasche ist bedeckt"
+        },
+        "ridgeBesideStayer": {
+          "pivot": "Die Lasche richtet sich entlang des Grats auf, daher muss er gegenüber dem Papier liegen, das liegen bleibt, und hier tut er das nicht. Wähle einen anderen Drehpunkt.",
+          "title": "Der Grat liegt neben dem liegenbleibenden Papier"
+        },
+        "ridgeCannotRise": {
+          "pivot": "Der Grat faltet andersherum als die anderen drei Faltlinien, und die Winkel zwischen ihnen lassen das nicht zu. Wähle einen anderen Drehpunkt.",
+          "title": "Der Grat kann sich hier nicht aufrichten"
+        },
+        "stayer": {
+          "swivelEdge": "Das Papier neben der Linie, das liegen bleibt, hängt an keinem Teil der Faltung. Wähle einen anderen Drehpunkt, näher an der Stelle, wo die Kante die Linie trifft.",
+          "text": "Das Papier, das liegen bleiben soll, hängt an keinem Teil der Faltung. Wähle Papier, das die Faltlinien schneiden, oder Papier, das daran hängt.",
+          "title": "Welches Papier bleibt liegen?"
+        },
+        "swivelEdgeShort": {
+          "text": "Kein Teil der Kante liegt jenseits des Punkts rechtwinklig unter dem Drehpunkt, also würde sich nichts davon schwenken. Eine einfache Faltung entlang der Linie in der Mitte zwischen der Kante und ihrem Ziel legt sie stattdessen dorthin.",
+          "title": "Die Kante endet, bevor sie sich drehen würde"
+        },
+        "swivelEdgeStays": {
+          "onFold": "Keine der beiden Lagen, die die gefaltete Kante verbindet, trägt die Kante, die sich bewegt, also bliebe sie liegen. Wähle eine gefaltete Kante in der Lage dieser Kante oder eine andere Kante.",
+          "text": "Das Papier entlang der Kante würde liegen bleiben oder über das Scharnier falten, statt sich auf die Linie zu drehen. Wähle einen Drehpunkt näher an der Kante oder eine andere Kante.",
+          "title": "Die Kante würde liegen bleiben"
+        },
+        "swivelFoldWide": {
+          "text": "Auf der Seite der bewegten Kante trifft die Schwenkfaltlinie die gefaltete Kante in einem rechten oder stumpfen Winkel, sodass der anderen Lage kein Platz zum Falten bleibt. Wähle eine Linie für die Kante, die sie weiter dreht, oder eine andere gefaltete Kante.",
+          "title": "Die Schwenkfaltlinie trifft die Kante zu steil"
+        },
+        "swivelInsideFree": {
+          "text": "Eine innere Drehfalte steckt ihren Streifen zwischen die beiden Lagen, die eine gefaltete Kante verbindet, und diese Faltlinien treffen sich abseits jeder gefalteten Kante. Drücke Esc und klicke auf eine gefaltete Kante, auf der sich die Faltlinien treffen.",
+          "title": "Eine innere Drehfalte braucht eine gefaltete Kante"
+        },
+        "swivelMissesFold": {
+          "text": "Die Schwenkfalte faltet entlang der Linie in der Mitte zwischen der Kante und der Linie, auf der sie landet, und diese Linie kreuzt diese gefaltete Kante nicht zwischen ihren Enden. Drücke Esc und wähle die gefaltete Kante, die sie kreuzt, oder eine andere Linie.",
+          "title": "Die Faltlinien können sich auf dieser Kante nicht treffen"
+        },
+        "swivelNoFlap": {
+          "text": "Tal und Berg verlaufen von der gefalteten Kante aus ins Papier, in zwei Richtungen, mit der Lasche dazwischen. Eine davon läuft entlang der gefalteten Kante, oder beide liegen auf einer Linie: Wähle eine andere.",
+          "title": "Keine Lasche zwischen den Linien"
+        },
+        "swivelNotAFold": {
+          "text": "Die Faltlinien können sich nur dort auf einer gefalteten Kante treffen, wo das Papier gefaltet ist, und der gewählte Punkt liegt auf keiner Faltung. Drücke Esc und klicke erneut auf die gefaltete Kante.",
+          "title": "Das ist keine gefaltete Kante"
+        },
+        "swivelNotAnEdge": {
+          "text": "Eine Schwenkfalte bewegt eine Papierkante oder eine gefaltete Kante, und die gewählte Linie ist keins von beiden. Drücke Esc und wähle die Kante neu.",
+          "title": "Das ist keine Kante"
+        },
+        "swivelPivotOnEdge": {
+          "text": "Die Faltlinien treffen sich dort, wo der Drehpunkt liegt, verschoben auf die Linie in der Mitte zwischen der Kante und der Linie, auf der sie landet, und hier ist das auf der Kante selbst. Drücke Esc und wähle einen Drehpunkt weiter weg von der Stelle, wo die Kante die Linie trifft.",
+          "title": "Die Faltlinien würden sich auf der Kante treffen"
+        },
+        "swivelTargetParallel": {
+          "text": "Keine Drehung um einen Punkt legt eine Kante auf eine Linie, die zu ihr parallel ist, oder auf ihre eigene Linie. Wähle eine Linie, die die Linie der Kante trifft.",
+          "title": "Die Linie läuft parallel zur Kante"
+        },
+        "targetOutside": {
+          "text": "Der Rücken landet zwischen der Stelle, an der er liegt, und dem Scharnier. Klicke auf einen Punkt in der Lasche oder lege ihn zurück auf das Scharnier.",
+          "title": "Der Rücken kann dort nicht landen"
+        }
+      },
+      "reset": "Zurück auf das Scharnier",
+      "ridge": "Grat",
+      "squashHinge": {
+        "folded": "Gefaltete Kante",
+        "foldedHelp": "Die Falte, um die die untere Lage der Lasche umschlägt: die ganze Lasche wird gequetscht",
+        "intro": "Zeichne das Scharnier quer über die gefaltete Kante der Lasche. Nur das Ende jenseits davon wird gequetscht.",
+        "label": "Scharnier",
+        "line": "Linie",
+        "lineHelp": "Eine gezeichnete Linie: nur das Ende der Lasche jenseits davon wird gequetscht",
+        "lineMode": "Scharnierlinie",
+        "take": "Drücke Enter, um sie als Scharnier zu übernehmen.",
+        "takeTouch": "Tippe auf Als Scharnier verwenden.",
+        "use": "Als Scharnier verwenden"
+      },
+      "steps": {
+        "earChoose": "Wähle die Lagen oder klicke auf einen anderen Bereich für den Scharnierfalz.",
+        "earChooseTouch": "Wähle die Lagen oder tippe auf einen anderen Bereich für den Scharnierfalz.",
+        "earFinish": "Drücke Enter zum Falten.",
+        "earFinishTouch": "Tippe auf {{action}} zum Falten.",
+        "earFirstCorner": "Klicke auf die erste Ecke des Dreiecks.",
+        "earFirstCornerTouch": "Tippe auf die erste Ecke des Dreiecks.",
+        "earHingeRegion": "Klicke auf den Bereich, in dem der Scharnierfalz liegen soll.",
+        "earHingeRegionTouch": "Tippe auf den Bereich, in dem der Scharnierfalz liegen soll.",
+        "earSecondCorner": "Klicke auf seine zweite Ecke.",
+        "earSecondCornerTouch": "Tippe auf seine zweite Ecke.",
+        "earThirdCorner": "Klicke auf seine dritte Ecke.",
+        "earThirdCornerTouch": "Tippe auf seine dritte Ecke.",
+        "fixOrPickAgain": "Klicke unten auf eine Lösung, oder drücke Esc und wähle neu.",
+        "fixOrPickAgainTouch": "Tippe unten auf eine Lösung, oder tippe auf Abbrechen und wähle neu.",
+        "petalFinish": "Wähle Tal oder Berg, dann drücke die Eingabetaste.",
+        "petalFinishTouch": "Wähle Tal oder Berg, dann tippe auf {{action}}.",
+        "petalFlap": "Klicke auf die Lasche, die sich hebt, unter dem Scharnier.",
+        "petalFlapTouch": "Tippe auf die Lasche, die sich hebt, unter dem Scharnier.",
+        "petalHinge": "Klicke auf das Scharnier: eine Vorfaltung quer über die Lasche.",
+        "petalHingeFirstEnd": "Klicke auf ein Ende des Scharniers, wo eine Drachenlinie die Kante der Lasche trifft.",
+        "petalHingeFirstEndTouch": "Tippe auf ein Ende des Scharniers, wo eine Drachenlinie die Kante der Lasche trifft.",
+        "petalHingeSecondEnd": "Klicke auf sein anderes Ende, wo die andere Drachenlinie die Kante trifft.",
+        "petalHingeSecondEndTouch": "Tippe auf sein anderes Ende, wo die andere Drachenlinie die Kante trifft.",
+        "petalHingeTouch": "Tippe auf das Scharnier: eine Vorfaltung quer über die Lasche.",
+        "petalWay": "Wähle, in welche Richtung sie sich hebt, oder klicke auf eine andere Lasche, um diese anzuheben.",
+        "petalWayTouch": "Wähle, in welche Richtung sie sich hebt, oder tippe auf eine andere Lasche, um diese anzuheben.",
+        "pickAgainRead": "Drücke Esc und wähle neu: Der Hinweis unten sagt, was zu ändern ist.",
+        "pickAgainReadTouch": "Tippe auf Abbrechen und wähle neu: Der Hinweis unten sagt, was zu ändern ist.",
+        "squashEnd": "Klicke auf das Ende der Lasche, das gequetscht werden soll, auf einer Seite der Linie.",
+        "squashEndTouch": "Tippe auf das Ende der Lasche, das gequetscht werden soll, auf einer Seite der Linie.",
+        "squashFlap": "Klicke auf die Lasche, die gequetscht werden soll.",
+        "squashFlapTouch": "Tippe auf die Lasche, die gequetscht werden soll.",
+        "squashSpine": "Der Rücken landet auf der fetten Linie: Klicke auf das Papier, um ihn woanders landen zu lassen.",
+        "squashSpineTouch": "Der Rücken landet auf der fetten Linie: Tippe auf das Papier, um ihn woanders landen zu lassen.",
+        "swivelLands": "Klicke auf die Linie, auf der sie landet.",
+        "swivelLandsFirst": "Klicke auf einen Punkt der Linie, auf der sie landet.",
+        "swivelLandsFirstTouch": "Tippe auf einen Punkt der Linie, auf der sie landet.",
+        "swivelLandsTouch": "Tippe auf die Linie, auf der sie landet.",
+        "swivelMeet": "Klicke auf die gefaltete Kante, auf der sich die Faltlinien treffen, an einer beliebigen Stelle. Auf flachem Papier klicke dorthin, wo sie sich treffen, oder halte {{modifier}} gedrückt für einen beliebigen Punkt.",
+        "swivelMeetTouch": "Tippe auf die gefaltete Kante, auf der sich die Faltlinien treffen, an einer beliebigen Stelle. Auf flachem Papier tippe dorthin, wo sie sich treffen, oder schalte Freier Punkt ein für einen beliebigen Punkt.",
+        "swivelNothingSwings": "Von dort lässt sich nichts schwenken: Klicke auf einen anderen Punkt.",
+        "swivelNothingSwingsTouch": "Von dort lässt sich nichts schwenken: Tippe auf einen anderen Punkt.",
+        "swivelOntoSecond": "Klicke auf einen zweiten Punkt dieser Linie.",
+        "swivelOntoSecondTouch": "Tippe auf einen zweiten Punkt dieser Linie.",
+        "swivelSwing": "Klicke auf die Kante, die auf eine Linie geschwenkt wird.",
+        "swivelSwingTouch": "Tippe auf die Kante, die auf eine Linie geschwenkt wird."
+      },
+      "swivelInside": "Innen",
+      "swivelInsideHelp": "Innere Drehfalte: der Streifen steckt zwischen den Lagen",
+      "swivelKind": "Art",
+      "swivelKindCannot": "Diese Art lässt sich hier nicht flach falten.",
+      "swivelOpen": "Offen",
+      "swivelOpenHelp": "Offene Drehfalte: der Streifen faltet sich obenauf",
+      "target": "Rücken landet auf",
+      "targetHinge": "Der Scharnierlinie",
+      "targetPoint": "Dem geklickten Punkt",
+      "valley": "Tal",
+      "valleyMountain": {
+        "mountainLine": "Berglinie",
+        "mountainStep": "Berglinie: {{instruction}}",
+        "pickMountain": "Wähle die Berglinie, vom selben Punkt auf der gefalteten Kante aus. Die Faltlinie auf der Lage dahinter ergibt sich daraus, gepunktet, wo sie verdeckt ist.",
+        "pickValley": "Wähle die Tallinie: das Scharnier der Lasche, auf der sichtbaren Lage, von einem Punkt auf einer gefalteten Kante ins Papier.",
+        "pickValleyInside": "Wähle die Tallinie: auf der sichtbaren Lage, von einem Punkt auf einer gefalteten Kante ins Papier.",
+        "takeValley": "Drücke Enter, um sie als Tal zu übernehmen.",
+        "takeValleyTouch": "Tippe auf Als Tal verwenden.",
+        "useValley": "Als Tal verwenden",
+        "valleyLine": "Tallinie",
+        "valleyStep": "Tallinie: {{instruction}}"
+      },
+      "valleyTitle": "Tal: das Papier dreht sich zu dir hin"
+    },
+    "window": {
+      "cancel": "Abbrechen",
+      "finding": "Lagen an der Linie werden ermittelt …",
+      "instructions": "Anleitung",
+      "kind": "Faltung",
+      "label": "Optionen des Falt-Werkzeugs",
+      "layers": "Lagen",
+      "layersHelp": "Klicke auf eine Lage, um ihre Lasche ein- oder auszuschließen. Klammern zeigen, wo eine Faltung zwei Lagen verbindet.",
+      "layersHelpTouch": "Tippe auf eine Lage, um ihre Lasche ein- oder auszuschließen. Klammern zeigen, wo eine Faltung zwei Lagen verbindet.",
+      "layersHelpWoven": "Diese Lagen sind ineinander verflochten, daher wird der Stapel unter dem Zeiger gezeigt. Klicke auf eine Lage, um ihre Lasche ein- oder auszuschließen.",
+      "layersHelpWovenTouch": "Diese Lagen sind ineinander verflochten, daher wird der Stapel dort gezeigt, wo du die Linie zuletzt berührt hast. Tippe auf eine Lage, um ihre Lasche ein- oder auszuschließen.",
+      "layersMoving_one": "{{moving}} von {{count}} Lage bewegt sich",
+      "layersMoving_other": "{{moving}} von {{count}} Lagen bewegen sich",
+      "lineMode": "Linie bestimmen",
+      "movingSide": "Bewegte Seite",
+      "settings_one": "{{count}} Einstellung",
+      "settings_other": "{{count}} Einstellungen",
+      "snapFreeLine": "An Punkten einrasten",
+      "swap": "Tauschen"
+    }
   },
   "foldAngleDisplay": {
     "color": "Farbe",

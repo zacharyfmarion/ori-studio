@@ -14,7 +14,7 @@
  *
  * Pure: no DOM, no store, no React.
  */
-import { DIAGRAM_EYE_INK, DIAGRAM_STAR_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { DIAGRAM_EYE_INK, DIAGRAM_STAR_INK } from '../../lib/stepDiagram/diagramInk';
 import type { KnownDiagramAnnotation } from '../document/diagramDocument';
 import {
   TRANSFORM_HANDLE_SIZES,
@@ -115,6 +115,7 @@ export function boxedMarkOf(annotation: KnownDiagramAnnotation, ink: number = IN
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'solid-line':
     case 'label':
     case 'circle':

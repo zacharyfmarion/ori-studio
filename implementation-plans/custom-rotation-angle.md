@@ -75,3 +75,24 @@ picture.
 - [x] i18n extract, translations, stamp, check
 - [x] Unit and component tests; typecheck, lint
 - [x] Browser check: glyph, card, Pages view, controls (light and dark), menu, save and reopen, PDF
+
+## Merged with the Fold launch (2026-10-21)
+
+The Fold launch branch had its own exact angle: the shared `TurnRotation`
+(`lib/steps/turn.ts`) gained `{ amount: 'degrees', degrees, direction }`, normalised
+to at most 180° and never a preset's angle, for Fold's Rotate tool and pulled
+Fold turns. The merge keeps one in-memory type, that one, and this plan's
+behaviour on top of it:
+
+- A Diagram angle is `TurnRotation`'s `amount: 'degrees'` form, kept as typed: 270°
+  clockwise stays so and 90° stays an angle (`diagramRotation.ts`). Only Fold's
+  Rotate tool, file and wire normalise; a Diagram turn never goes back to Fold.
+- The Diagram file still writes `{ degrees, direction }`, as this plan shipped
+  it. It also reads the launch build's `amount: 'degrees'` spelling. An angle is
+  read to a millionth (a pulled Fold angle) rather than a tenth; finer, or a
+  whole turn or more, is a newer build's. Preset plus angle, or none above 0,
+  is dropped.
+- Words, glyph text and the menu row come from the shared `lib/steps/turnWords.ts`
+  and `turnRotationGlyphText`; the glyph keeps this plan's `rotateLabelScale` fit.
+  The menu row is `rotate-custom`. The Step pane and Layers pane use
+  `DiagramRotationControls`, which replaced the launch's extra angle segment.

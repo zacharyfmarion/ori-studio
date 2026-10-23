@@ -23,8 +23,9 @@ import type {
   DiagramPointStyleName,
   StepDiagramModel,
   StepDiagramPrimitive,
-} from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
-import type { DiagramArc, DiagramSheet } from '../../cp-workspace/references/stepDiagramGeometry';
+} from '../../lib/stepDiagram/stepDiagramModel';
+import type { DiagramArc, DiagramSheet } from '../../lib/stepDiagram/stepDiagramGeometry';
+import { readTurnRotation, TURN_DIRECTIONS, TURN_ROTATION_PRESETS } from '../../lib/steps/turn';
 import { xmlText } from '../../lib/xmlEscape';
 
 /** More than any card draws: a dense sheet's last step carries a few thousand. */
@@ -81,7 +82,7 @@ const PRIMITIVE_KINDS: ReadonlySet<string> = new Set<StepDiagramPrimitive['kind'
 /** The values each enumerated field of a primitive takes; another is a newer build's. */
 const PRIMITIVE_ENUMS: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
   'one-way-arrow': { fold: ['valley', 'mountain'] },
-  rotate: { amount: ['eighth', 'quarter', 'half'], direction: ['cw', 'ccw'] },
+  rotate: { amount: [...TURN_ROTATION_PRESETS, 'degrees'], direction: TURN_DIRECTIONS },
   'turn-over': { axis: ['vertical', 'horizontal'] },
 };
 
@@ -158,7 +159,8 @@ const PRIMITIVE_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
   'fold-arrow': new Set(['kind', 'out']),
   'one-way-arrow': new Set(['kind', 'out', 'fold']),
   'push-arrow': new Set(['kind', 'from', 'to']),
-  rotate: new Set(['kind', 'at', 'amount', 'direction']),
+  // A part of a turn, or an exact angle (`degrees`, with `amount: 'degrees'`).
+  rotate: new Set(['kind', 'at', 'amount', 'degrees', 'direction']),
   'turn-over': new Set(['kind', 'at', 'axis']),
   region: new Set(['kind', 'corners']),
   point: new Set(['kind', 'at', 'style']),
@@ -187,6 +189,9 @@ function isNewerPrimitive(value: unknown): boolean {
   const arc = value.kind === 'fold-arrow' || value.kind === 'one-way-arrow' ? value.out : null;
   if (isRecord(arc) && hasOtherKey(arc, ARC_KEYS)) return true;
   if (value.kind === 'label' && typeof value.text === 'string' && value.text.length > STEP_DIAGRAM_MAX_LABEL) return true;
+  // An angle as a diagram file writes a mark's, `degrees` with no `amount`: no stored model names one (References
+  // emits presets, a turn's exact angle is `amount: 'degrees'`), so it is a newer build's.
+  if (value.kind === 'rotate' && value.degrees !== undefined && value.amount === undefined) return true;
   const enums = PRIMITIVE_ENUMS[value.kind];
   if (enums) {
     for (const [field, values] of Object.entries(enums)) {
@@ -264,11 +269,10 @@ function readPrimitive(value: unknown): StepDiagramPrimitive | null {
       return from && to ? { kind: 'push-arrow', from, to } : null;
     }
     case 'rotate': {
+      // A part of a turn, or an exact angle: the rotation's own fields, as a turn reads them.
       const at = readPoint(value.at);
-      const amount =
-        value.amount === 'eighth' || value.amount === 'quarter' || value.amount === 'half' ? value.amount : null;
-      const direction = value.direction === 'cw' || value.direction === 'ccw' ? value.direction : null;
-      return at && amount && direction ? { kind: 'rotate', at, amount, direction } : null;
+      const rotation = readTurnRotation(value);
+      return at && rotation ? { kind: 'rotate', at, ...rotation } : null;
     }
     case 'turn-over': {
       const at = readPoint(value.at);

@@ -107,6 +107,7 @@ const DIAGRAM_ANNOTATE_TEXT_STYLE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateT
 const DIAGRAM_ANNOTATE_CIRCLE_MODE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateCircleMode);
 const DIAGRAM_ANNOTATE_STAR_FILL_KEY = storageKey(STORAGE_KEYS.diagramAnnotateStarFill);
 const DIAGRAM_REFERENCES_MARKS_KEY = storageKey(STORAGE_KEYS.diagramReferencesMarks);
+const DIAGRAM_FOLD_MERGE_PRECREASES_KEY = storageKey(STORAGE_KEYS.diagramFoldMergePrecreases);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -374,6 +375,13 @@ interface SettingsState {
    * pulled. Kept as you left it.
    */
   diagramReferencesMarks: PaperExportMarks;
+  /**
+   * Whether a pull from Fold makes a precrease and its mirror image one
+   * Diagram step (`diagram/fold/foldPrecreaseMerge.ts`): the From Fold…
+   * browser's Merge symmetric precreases, which Send steps to Diagram follows
+   * too. On until it is turned off; kept as you left it.
+   */
+  diagramFoldMergePrecreases: boolean;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -394,6 +402,7 @@ interface SettingsState {
   setDiagramAnnotateCircleMode: (value: CircleDrawingMode) => void;
   setDiagramAnnotateStarFill: (value: DiagramStarFill) => void;
   setDiagramReferencesMarks: (value: PaperExportMarks) => void;
+  setDiagramFoldMergePrecreases: (value: boolean) => void;
   /** `null` hands the choice back to the paper style. */
   setReferencesShowAuxCreases: (value: boolean | null) => void;
   /** Write one field of a slot's style. Editing export while it follows display detaches it. */
@@ -465,6 +474,7 @@ export const useSettingsStore = create<SettingsState>()(
       diagramAnnotateStarFill: readDiagramAnnotateStarFill(),
       diagramAnnotateCircleMode: circleDrawingMode(readString(DIAGRAM_ANNOTATE_CIRCLE_MODE_KEY)),
       diagramReferencesMarks: normalizePaperExportMarks(readJson<unknown>(DIAGRAM_REFERENCES_MARKS_KEY, null)),
+      diagramFoldMergePrecreases: readBoolean(DIAGRAM_FOLD_MERGE_PRECREASES_KEY, true),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -575,6 +585,14 @@ export const useSettingsStore = create<SettingsState>()(
         } else writeJson(DIAGRAM_REFERENCES_MARKS_KEY, next);
         // No event: what is pulled under it is counted (`diagram steps pulled from references`' `letters` and `reference_lines`).
         set({ diagramReferencesMarks: next });
+      },
+      setDiagramFoldMergePrecreases: (value) => {
+        if (get().diagramFoldMergePrecreases === value) return;
+        // Absent means on: only the choice away from it is kept.
+        if (value) removeKey(DIAGRAM_FOLD_MERGE_PRECREASES_KEY);
+        else writeBoolean(DIAGRAM_FOLD_MERGE_PRECREASES_KEY, value);
+        // No event: each pull says whether it merged (`fold step sent to diagram`'s `merge_precreases`).
+        set({ diagramFoldMergePrecreases: value });
       },
       setReferencesShowAuxCreases: (value) => {
         if (get().referencesShowAuxCreases === value) return;

@@ -101,8 +101,24 @@ export const STORAGE_KEYS = {
    * marks are (`normalizePaperExportMarks`). Absent, both.
    */
   diagramReferencesMarks: 'diagram-references-marks',
+  /**
+   * Whether a pull from Fold — the Diagram's From Fold… browser, or Fold's
+   * Send steps to Diagram — makes a precrease and its mirror image one step
+   * (`diagram/fold/foldPrecreaseMerge.ts`). Absent, it does.
+   */
+  diagramFoldMergePrecreases: 'diagram-fold-merge-precreases',
   /** Whether Annotate's tool window is collapsed to its header (`ToolHintWindow`). */
   diagramToolHintCollapsed: 'diagram-tool-hint-collapsed',
+  /** Whether the Fold workspace's tool window is collapsed to its header (`ToolHintWindow`). */
+  foldToolHintCollapsed: 'fold-tool-hint-collapsed',
+  /** Which of the Fold rail's groups are open — the Planned folds' among them (`ToolRail`). */
+  foldToolRailGroups: 'fold-tool-rail-groups',
+  /**
+   * Which Fold tools are starred, in the user's order: Edit's `cpToolFavorites`
+   * for Fold's tools, under a key of its own. Absent means the shipped defaults
+   * (`foldToolFavorites`).
+   */
+  foldToolFavorites: 'fold-tool-favorites',
   /** Play a step's fold on arriving at its card in the References workspace. */
   referencesAutoPlayFolds: 'references-auto-play-folds',
   /**

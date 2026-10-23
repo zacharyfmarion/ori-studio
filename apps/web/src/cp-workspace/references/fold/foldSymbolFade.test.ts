@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { StepDiagramPrimitive } from '../referenceFinderDiagramToPrimitives';
-import { foldArrowArc } from '../stepDiagramGeometry';
+import type { StepDiagramPrimitive } from '../../../lib/stepDiagram/stepDiagramModel';
+import { foldArrowArc } from '../../../lib/stepDiagram/stepDiagramGeometry';
 import type { FoldScene } from './foldScene';
 import { SYMBOL_FADE_ANGLE, symbolAnchor, symbolFlaps, symbolOpacity } from './foldSymbolFade';
 

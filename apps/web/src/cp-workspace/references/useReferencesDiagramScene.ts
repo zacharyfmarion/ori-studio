@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
-import { diagramGroundInk, diagramInkColors } from './diagram/diagramColors';
-import { diagramToScene, type DiagramScene } from './diagram/diagramToScene';
-import { canvasDiagramInk } from './diagram/diagramInk';
-import { seenFromTheBack } from './diagram/diagramModel';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
+import { diagramGroundInk, diagramInkColors } from '../../lib/stepDiagram/diagramColors';
+import { diagramToScene, type DiagramScene } from '../../lib/stepDiagram/diagramToScene';
+import { canvasDiagramInk } from '../../lib/stepDiagram/diagramInk';
+import { seenFromTheBack } from '../../lib/stepDiagram/diagramModel';
 import { sheetOutline } from './referencesViewGeometry';
-import type { SheetPoint } from './stepDiagramGeometry';
+import type { SheetPoint } from '../../lib/stepDiagram/stepDiagramGeometry';
 import type { ReferencesPaperStyle } from './usePaperStyleTokens';
 
 /**

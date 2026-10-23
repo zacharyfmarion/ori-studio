@@ -1,0 +1,451 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-12T16:24:09.585Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.5.2",
+    "savedAt": "2026-10-12T16:24:09.585Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Petal fold",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 1,
+        "id": "fold-47a022dc-2d12-40d2-80fa-4b81ca257e93",
+        "title": "Petal fold",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "steps": [
+          {
+            "id": "fstep-de17830d-4ffa-4533-9a17-895bbf90825b",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 0.7071067811865475
+              }
+            },
+            "expect": "fs1:e0afaec7d6c7cfa6",
+            "note": "Valley fold tool (V), Axiom 2: point onto point. Click the top-right corner, then the bottom-left corner; press Enter. The square folds in half along its diagonal."
+          },
+          {
+            "id": "fstep-c3a7acd3-770c-4cbd-8deb-2a6d9f756a68",
+            "parent": "fstep-de17830d-4ffa-4533-9a17-895bbf90825b",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": 0
+              }
+            },
+            "expect": "fs1:fafa43c84fe12609",
+            "note": "Valley fold, Axiom 2 again. Click the triangle’s bottom-right corner, then its top-left corner; press Enter. The triangle folds in half: four layers."
+          },
+          {
+            "id": "fstep-2a0e10e0-5813-4be8-95bc-c130822d7d92",
+            "parent": "fstep-c3a7acd3-770c-4cbd-8deb-2a6d9f756a68",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.49999999999999967,
+                0.09999995599087405
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:08cce08a1cde7b1d",
+            "note": "Squash fold tool. Click anywhere on the top flap (the two layers that just folded over); its spine lands on the hinge line by default. Press Enter: the flap opens and presses flat into a square."
+          },
+          {
+            "id": "fstep-d08db2e1-f45c-470c-a78d-4ac27083518f",
+            "parent": "fstep-2a0e10e0-5813-4be8-95bc-c130822d7d92",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "expect": "fs1:f3988ac3e7345fae",
+            "note": "Turn over (Model group on the rail)."
+          },
+          {
+            "id": "fstep-d46193ff-f93d-409b-91ad-3b86d0387a0e",
+            "parent": "fstep-d08db2e1-f45c-470c-a78d-4ac27083518f",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.09629426024596952,
+                0.7078284734910991
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:6764a7961af48aad",
+            "note": "Squash fold. Click the flap now on top and press Enter: the preliminary base."
+          },
+          {
+            "id": "fstep-ef00fdb7-a7b9-4ee5-8dca-3becd2ec61a4",
+            "parent": "fstep-d46193ff-f93d-409b-91ad-3b86d0387a0e",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0,
+                      1
+                    ],
+                    "b": [
+                      0,
+                      0.5
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5,
+                      0.5
+                    ],
+                    "b": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.06903559372884942,
+                    0.33333333333333287
+                  ]
+                ]
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.38268343236509067,
+                  -0.9238795325112864
+                ],
+                "d": 4.600608404473753e-16
+              }
+            },
+            "expect": "fs1:5d5e573206d6770b",
+            "note": "Precrease tool (P), Axiom 3: edge onto edge. Click the bottom edge (the flap’s lower edge, a raw edge), then the diagonal crease in the middle (the centre line). Under Layers click the Flap 2 chip so only the top flap (Flap 1) folds. Press Enter: the first kite crease."
+          },
+          {
+            "id": "fstep-6d95dd2c-50d8-4c2d-977c-446dda79a18f",
+            "parent": "fstep-ef00fdb7-a7b9-4ee5-8dca-3becd2ec61a4",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5000000000000002,
+                      1
+                    ],
+                    "b": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5,
+                      0.5
+                    ],
+                    "b": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.6666666666666663,
+                    0.9309644062711501
+                  ]
+                ]
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.923879532511287,
+                  -0.38268343236508906
+                ],
+                "d": 7.004001889352352e-16
+              }
+            },
+            "expect": "fs1:12ddb4b4760cd33f",
+            "note": "Precrease, Axiom 3. Click the right edge, then the centre line; leave out Flap 2 again; press Enter: the second kite crease."
+          },
+          {
+            "id": "fstep-028e5e48-b9d2-405d-84ba-45ce2411f470",
+            "parent": "fstep-6d95dd2c-50d8-4c2d-977c-446dda79a18f",
+            "op": {
+              "kind": "petal",
+              "ends": [
+                [
+                  0.2071067811865481,
+                  0.5
+                ],
+                [
+                  0.5000000000000001,
+                  0.7928932188134531
+                ]
+              ],
+              "petal": [
+                0.19999996289656102,
+                0.7400000667861883
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:50f7fea679a8ee51",
+            "note": "Petal fold tool. Under Hinge choose Two endpoints. Click where the first kite crease meets the left edge, then where the second meets the top edge: the hinge, which the fold creases through the top layer, so it needs no precrease. Then click the kite between the two kite creases below it, the part that lifts: it lights up under the pointer. Direction Valley; press Enter. The flap lifts along the hinge as its sides fold in along the kite creases."
+          },
+          {
+            "id": "fstep-32345fd5-5045-4550-9763-0b489a64796d",
+            "parent": "fstep-028e5e48-b9d2-405d-84ba-45ce2411f470",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "expect": "fs1:589803ff504a8822",
+            "note": "Turn over (Model group on the rail): the other flap comes on top."
+          },
+          {
+            "id": "fstep-5a14b20d-a2fb-4cf1-a9cb-f43480b41d92",
+            "parent": "fstep-32345fd5-5045-4550-9763-0b489a64796d",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5000000000000001,
+                      0
+                    ],
+                    "b": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      1,
+                      0
+                    ],
+                    "b": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.3826834323650902,
+                  -0.9238795325112866
+                ],
+                "d": 1.699455831017226e-16
+              }
+            },
+            "expect": "fs1:9aedbbcb21e524b8",
+            "note": "Precrease, Axiom 3. Click the bottom edge, then the centre line, and press Enter. Only the top flap lies at this line, so every layer listed folds: a kite crease on this side."
+          },
+          {
+            "id": "fstep-3c38495a-907a-4465-a75d-775f5f83ebd0",
+            "parent": "fstep-5a14b20d-a2fb-4cf1-a9cb-f43480b41d92",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      1,
+                      0
+                    ],
+                    "b": [
+                      1,
+                      0.5000000000000001
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      1,
+                      0
+                    ],
+                    "b": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.923879532511287,
+                  -0.38268343236508934
+                ],
+                "d": 4.102849315895826e-16
+              }
+            },
+            "expect": "fs1:d2b87ce38c095d8a",
+            "note": "Precrease, Axiom 3. Click the left edge, then the centre line, and press Enter: the other kite crease."
+          },
+          {
+            "id": "fstep-7493097d-ad9d-417c-ab08-fe1b4feff92d",
+            "parent": "fstep-3c38495a-907a-4465-a75d-775f5f83ebd0",
+            "op": {
+              "kind": "petal",
+              "ends": [
+                [
+                  0.792893218813453,
+                  0.5000000000000001
+                ],
+                [
+                  0.2071067811865481,
+                  0.5
+                ]
+              ],
+              "petal": [
+                0.7399999740275929,
+                0.19999996289656147
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:215bdd6e3cbda1b9",
+            "note": "Petal fold, Two endpoints (the Hinge control keeps it). Click where the first kite crease meets its edge, then where the second meets the other edge: the hinge. Click the kite below it; Valley; press Enter. Both petals lifted: the bird base."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-47a022dc-2d12-40d2-80fa-4b81ca257e93",
+        "cursor": "fstep-7493097d-ad9d-417c-ab08-fe1b4feff92d",
+        "activeChild": {
+          "": "fstep-de17830d-4ffa-4533-9a17-895bbf90825b",
+          "fstep-de17830d-4ffa-4533-9a17-895bbf90825b": "fstep-c3a7acd3-770c-4cbd-8deb-2a6d9f756a68",
+          "fstep-c3a7acd3-770c-4cbd-8deb-2a6d9f756a68": "fstep-2a0e10e0-5813-4be8-95bc-c130822d7d92",
+          "fstep-2a0e10e0-5813-4be8-95bc-c130822d7d92": "fstep-d08db2e1-f45c-470c-a78d-4ac27083518f",
+          "fstep-d08db2e1-f45c-470c-a78d-4ac27083518f": "fstep-d46193ff-f93d-409b-91ad-3b86d0387a0e",
+          "fstep-d46193ff-f93d-409b-91ad-3b86d0387a0e": "fstep-ef00fdb7-a7b9-4ee5-8dca-3becd2ec61a4",
+          "fstep-ef00fdb7-a7b9-4ee5-8dca-3becd2ec61a4": "fstep-6d95dd2c-50d8-4c2d-977c-446dda79a18f",
+          "fstep-6d95dd2c-50d8-4c2d-977c-446dda79a18f": "fstep-028e5e48-b9d2-405d-84ba-45ce2411f470",
+          "fstep-028e5e48-b9d2-405d-84ba-45ce2411f470": "fstep-32345fd5-5045-4550-9763-0b489a64796d",
+          "fstep-32345fd5-5045-4550-9763-0b489a64796d": "fstep-5a14b20d-a2fb-4cf1-a9cb-f43480b41d92",
+          "fstep-5a14b20d-a2fb-4cf1-a9cb-f43480b41d92": "fstep-3c38495a-907a-4465-a75d-775f5f83ebd0",
+          "fstep-3c38495a-907a-4465-a75d-775f5f83ebd0": "fstep-7493097d-ad9d-417c-ab08-fe1b4feff92d"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

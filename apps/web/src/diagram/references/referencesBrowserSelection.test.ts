@@ -17,7 +17,7 @@ function strip(): BrowserCard[] {
   });
   return [card(0, 'fold'), card(1, 'fold'), card(2, 'turn-over'), card(3, 'fold'), card(4, 'fold', false), card(5, 'done')];
 }
-const indices = (pulled: ReturnType<typeof pullableCards>['pullable']) =>
+const indices = (pulled: readonly NonNullable<BrowserCard['step']>[]) =>
   pulled.map((step) => (step.card as unknown as { card: number }).card);
 
 describe('the browser’s selection', () => {

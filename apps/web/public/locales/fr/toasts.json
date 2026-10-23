@@ -36,6 +36,20 @@
       "unknown": "Le patron de plis n’est pas encore prêt. Réessayez dans un instant."
     },
     "dropReadOnly": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule\u00a0: on ne peut pas y ajouter d’images.",
+    "fold": {
+      "locked": "Cette étape a été créée avec une version plus récente d’Ori Studio.",
+      "missing": "Cette étape n’est plus dans la séquence de Plier, ou ne se plie plus.",
+      "notShown": "Plier affiche une autre séquence : cette étape ne peut pas être capturée maintenant.",
+      "openDiagram": "Ouvrir Diagramme",
+      "sent_one": "Une étape ajoutée au Diagramme",
+      "sent_many": "{{count}} étapes ajoutées au Diagramme",
+      "sent_other": "{{count}} étapes ajoutées au Diagramme",
+      "sequenceGone": "Cette séquence de Plier n’est plus dans ce projet.",
+      "someFailed_one": "Une étape n’a pas pu être capturée depuis Plier et a été omise.",
+      "someFailed_many": "{{count}} étapes n’ont pas pu être capturées depuis Plier et ont été omises.",
+      "someFailed_other": "{{count}} étapes n’ont pas pu être capturées depuis Plier et ont été omises.",
+      "stepGone": "Cette étape n’est plus dans la séquence de Plier."
+    },
     "import": {
       "otherWorkspaceFirst": "Annulez ou rétablissez d’abord les modifications suivantes dans l’autre espace de travail\u00a0: l’importation a modifié Édition et Diagramme.",
       "restoreFailed": "Impossible de restaurer les étapes importées."
@@ -106,6 +120,13 @@
   "foldedFigureExport": {
     "empty": "Ce modèle plié n'a encore rien à exporter",
     "failed": "Impossible d'exporter ce modèle plié"
+  },
+  "foldIo": {
+    "noStep": "Il n’y a encore aucune étape à exporter.",
+    "pathBroken": "Une étape de cette séquence ne se plie plus\u00a0: les étapes ne peuvent être ni envoyées ni exportées.",
+    "sheetOnScreen": "Allez à une étape pour l’exporter.",
+    "tooLarge": "Cette séquence est trop grande pour être exportée dans un seul fichier FOLD.",
+    "unavailable": "Le moteur de pliage s’est arrêté avant d’avoir fini. Réessayez."
   },
   "global": {
     "error": "Erreur Ori Studio",

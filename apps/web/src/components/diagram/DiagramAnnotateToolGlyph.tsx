@@ -8,7 +8,7 @@ import {
   eyeShape,
   polygonPathData,
   starPoints,
-} from '../../cp-workspace/references/stepDiagramGeometry';
+} from '../../lib/stepDiagram/stepDiagramGeometry';
 import {
   ANGLE_BISECTOR,
   EDIT_PATH,
@@ -237,6 +237,7 @@ export function DiagramAnnotationGlyph({
         </Glyph>
       );
     case 'hidden-line':
+    case 'uncreased-line':
       return (
         <Glyph>
           <path d="M3 17 L17 3" strokeDasharray="0.9 1.9" strokeLinecap="butt" />

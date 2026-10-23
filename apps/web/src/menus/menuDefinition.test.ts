@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { isMenuActionId } from '../commands/menuActions';
+import { FOLD_MODEL_TURNS, FOLD_MODEL_VERB_SHORTCUTS, FOLD_TOOL_SHORTCUTS } from '../fold/tools/foldToolCatalog';
+import type { WorkspaceCapabilities } from '../lib/workspaceCapabilities';
 import { getMenuBarDef, type MenuItemDef } from './menuDefinition';
+import { nativeMenuOptions } from './nativeMenu';
 
 function actionIdsFor(items: MenuItemDef[]) {
   return items.flatMap((item): string[] => {
@@ -25,6 +28,53 @@ describe('web menu definition', () => {
     const save = fileMenu?.items.find((item) => item.type === 'action' && item.id === 'file.save');
 
     expect(save && 'shortcut' in save ? save.shortcut : '').toMatch(/(Alt|Option)\+S/u);
+  });
+
+  it('names the Fold scope’s key beside each Fold row it also runs, as the user has it bound', () => {
+    const rows = (resolution?: Parameters<typeof getMenuBarDef>[0]) => {
+      const fold = getMenuBarDef(resolution).find((menu) => menu.label === 'Fold');
+      return Object.fromEntries(
+        (fold?.items ?? []).flatMap((item) => (item.type === 'action' ? [[item.id, item.shortcut]] : []))
+      );
+    };
+    expect(rows()).toMatchObject({
+      // The rail's order: A valley, S mountain; D the precrease.
+      'fold.valley': 'A',
+      'fold.mountain': 'S',
+      'fold.precrease': 'D',
+      'fold.turn-over': 'T',
+      // Rotate takes its tool in hand, as R does.
+      'fold.rotate': 'R',
+      // The sequence verbs, through their rows.
+      'fold.unfold-to': 'Shift+E',
+      'fold.repeat': 'Shift+R',
+    });
+    // The quarter turns done at once are gone: Rotate's window sets how far and which way.
+    expect(rows()['fold.rotate-cw']).toBeUndefined();
+    expect(rows()['fold.rotate-ccw']).toBeUndefined();
+    // The keys the canvas runs are the ones the rail and the window name.
+    expect([FOLD_TOOL_SHORTCUTS.valley, FOLD_TOOL_SHORTCUTS.mountain, FOLD_TOOL_SHORTCUTS.precrease]).toEqual([
+      'fold.toolValley',
+      'fold.toolMountain',
+      'fold.toolPrecrease',
+    ]);
+    expect(FOLD_TOOL_SHORTCUTS.rotate).toBe('fold.rotate');
+    expect(FOLD_MODEL_VERB_SHORTCUTS).toEqual({ 'turn-over': 'fold.turnOver' });
+    expect(FOLD_MODEL_TURNS).toEqual({ 'turn-over': { kind: 'turn-over', axis: 'vertical' } });
+    // Rebound, the hint follows.
+    expect(rows({ 'fold.toolValley': [{ key: 'w' }] })['fold.valley']).toBe('W');
+  });
+
+  it('gives the Fold rows no native accelerator: a bare letter would be taken from every text field', () => {
+    const fold = getMenuBarDef().filter((menu) => menu.label === 'Fold');
+    const options = nativeMenuOptions(fold, {} as WorkspaceCapabilities, undefined);
+    const items = options.flatMap((menu) => ('items' in menu ? (menu.items ?? []) : []));
+    const row = (id: string) =>
+      items.find((item) => typeof item === 'object' && 'id' in item && item.id === id) as { accelerator?: string } | undefined;
+    expect(row('fold.valley')).toBeDefined();
+    expect(row('fold.valley')?.accelerator).toBeUndefined();
+    expect(row('fold.turn-over')).toBeDefined();
+    expect(row('fold.turn-over')?.accelerator).toBeUndefined();
   });
 
   it('keeps quit out of the web menu surface', () => {
@@ -56,6 +106,7 @@ describe('web menu definition', () => {
       'Simulate',
       'References',
       'Diagram',
+      'Fold',
       'Properties',
       'Reset Layout',
     ]);
@@ -65,6 +116,7 @@ describe('web menu definition', () => {
       'view.simulate',
       'view.references',
       'view.diagram',
+      'view.fold',
       'view.properties',
       'view.resetLayout',
     ]);

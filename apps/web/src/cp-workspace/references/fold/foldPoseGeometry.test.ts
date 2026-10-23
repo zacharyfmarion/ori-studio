@@ -5,14 +5,14 @@ import {
   foldPoseGeometry,
   foldPoseOutline,
   foldPosePaper,
-  PAPER_TILT_SHADE,
   type FoldPaint,
   type FoldSurfaceShares,
 } from './foldPoseGeometry';
+import { PAPER_TILT_SHADE } from '../../../lib/foldMotion/foldHinge';
 import type { FoldScene } from './foldScene';
 import type { FlapStrokes } from './foldSplit';
 import { DEFAULT_PAPER_STYLE } from '../../../lib/paper/paperStyle';
-import { cardDiagramPens, diagramDashPatterns, diagramDashSlot } from '../diagram/diagramInk';
+import { cardDiagramPens, diagramDashPatterns, diagramDashSlot } from '../../../lib/stepDiagram/diagramInk';
 
 const UP: Rgba = [1, 1, 1, 1];
 const OTHER: Rgba = [0.2, 0.2, 0.2, 1];

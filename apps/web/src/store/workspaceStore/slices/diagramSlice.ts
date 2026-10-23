@@ -38,6 +38,9 @@ import {
   stepNumber,
   turnById,
   type DiagramEntry,
+  type DiagramPullAnchor,
+  type PulledMarks,
+  type SentDiagramEntry,
   setReferencesWay,
   makeCardMarksEditable,
 } from '../../../diagram/document/diagramDocument';
@@ -48,6 +51,7 @@ import { annotationEventKind } from '../../../diagram/annotate/annotationEventKi
 import { cardMarkEdits } from '../../../diagram/document/cardMarks';
 import { requestConfirmation } from '../../commandDialogStore';
 import { commitStepCapture, runDiagramCapture, stopDiagramCapture } from '../diagramCapture';
+import { runDiagramFoldCapture } from '../diagramFoldCapture';
 import { discardDiagramState, noteAdoptedPacking, selectedDiagramAnnotation, trimDiagramHistory } from '../diagramState';
 import { pathNodesOf } from '../../../diagram/annotate/annotationPath';
 import { showsFrame } from '../../../diagram/zoom/zoomActions';
@@ -68,14 +72,8 @@ import { noteTitleBlockEdit } from '../../../diagram/pages/titleBlockEdits';
 import { retainPageCounts, setPageSteps } from '../../../diagram/pages/pageCounts';
 import { flushPlacementNudge } from '../../../diagram/pages/placementGestures';
 import { cellSlots, settlePlaces } from '../../../diagram/pages/stepPlaces';
-import {
-  emptySnapshotHistory,
-  recordSnapshot,
-  redoSnapshot,
-  snapshotEntry,
-  undoSnapshot,
-} from '../snapshotHistory';
-import type { DiagramSlice, WorkspaceSliceCreator } from '../types';
+import { createProjectDocumentHistory } from '../projectDocumentHistory';
+import type { DiagramSlice, WorkspaceSliceCreator, WorkspaceState } from '../types';
 
 /**
  * What is selected after a delete: the entry that took the first deleted one's
@@ -101,40 +99,19 @@ function hasAnnotation(document: DiagramDocument | null, stepId: string | null, 
 /**
  * The Diagram workspace's document and view state.
  *
- * Every document edit goes through {@link commit}: it creates the diagram on
- * first use, records one undo entry, and marks the project dirty — and does
- * nothing at all for an edit that changes nothing, so a no-op never costs an
- * undo step. View state (which view, which step is selected) is set directly:
- * it is neither history nor a reason to save.
+ * Every document edit goes through {@link commit} (the project-document kit's,
+ * `projectDocumentHistory`): it creates the diagram on first use, records one
+ * undo entry, and marks the project dirty — and does nothing at all for an
+ * edit that changes nothing, so a no-op never costs an undo step. View state
+ * (which view, which step is selected) is set directly: it is neither history
+ * nor a reason to save.
  */
 export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get) => {
-  /**
-   * The edit session whose undo entry is the newest one, if any: a sitting at
-   * an instruction's field, or a label's. `key` names the field. Every other
-   * recorded edit, undo, redo and install clears it, so a session only ever
-   * extends the entry it made itself.
-   */
-  let openSession: { key: string; session: number; loadId: number } | null = null;
-
   /** The References browser's openings, counted: what a pull names its browser by. */
   let browserOpenings = 0;
 
   /** The edits and adoptions that sent frames moved by hand home, counted: `diagramPlacesSettled`'s nonce. */
   let placesSettled = 0;
-
-  /** Whether an edit in `session` at `key` extends the newest entry, and the session to remember after it. */
-  const sessionFor = (key: string, session: number | undefined) => {
-    // Before the newest entry is read: a nudge in its pause is newer (`flushPlacementNudge`).
-    flushPlacementNudge();
-    const loadId = get().diagramLoadId;
-    const extend =
-      session !== undefined &&
-      openSession !== null &&
-      openSession.key === key &&
-      openSession.session === session &&
-      openSession.loadId === loadId;
-    return { extend, remember: () => (openSession = session === undefined ? null : { key, session, loadId }) };
-  };
 
   /**
    * The reflow notice for `added` frames sent home now, with the undo entry
@@ -148,63 +125,6 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     const shown = get().diagramPlacesSettled;
     const count = entry !== null && shown?.entry === entry ? shown.count + added : added;
     return { count, added, nonce: (placesSettled += 1), entry };
-  };
-
-  /**
-   * Apply one edit. Returns the new diagram, or `null` when nothing changed or
-   * the diagram is read-only. `extend` folds the edit into the newest undo
-   * entry instead of recording one.
-   */
-  const commit = (
-    label: string,
-    edit: (document: DiagramDocument) => DiagramDocument,
-    extend = false
-  ): DiagramDocument | null => {
-    // A keyboard nudge on the Pages view still in its pause lands first, in an
-    // undo step of its own, so this edit comes after it as the screen showed
-    // them (`flushPlacementNudge`).
-    flushPlacementNudge();
-    const state = get();
-    if (state.diagramReadOnly || state.diagramImportBusy) return null;
-    const before = state.diagram;
-    const base = before ?? newDiagram();
-    const edited = edit(base);
-    // An edit that changed nothing records nothing — and does not bring a
-    // diagram into being just to leave it empty.
-    if (edited === base) return null;
-    // A page with its own count gains the steps the edit put on it and loses
-    // those it took away, so later pages stay where they were
-    // (`diagram-flow-pages.md`): one rule, here, whatever the edit was.
-    const counted = retainPageCounts(base, edited);
-    // Each flow page's arrangement follows its page, in the same undo step
-    // (`diagram-flow-packing.md`): one the page no longer holds is kept for
-    // where its steps were until the layout packs the page afresh, and one no
-    // page keeps goes, so the file never carries it.
-    const followed = followPageArrangements(base, counted);
-    // A frame moved by hand whose step the edit took out of its cell — in the
-    // flow, off its page — goes home, in this edit's undo step (Decision 1A;
-    // a flow step's band and place along it are judged as its page's packing
-    // is adopted, Zach 2026-10-15): one rule, here, whatever the edit was, so
-    // no verb can forget it.
-    const { document: settled, settled: count } = settlePlaces(base, followed);
-    // An asset nothing refers to any more goes as the edit lands. Each undo
-    // snapshot keeps its own assets table, so undo still has the picture a
-    // replace took away; and with the current diagram no longer holding it,
-    // the history byte cap (`trimDiagramHistory`) sees what only history keeps.
-    const next = withReferencedAssets(settled);
-    // Where the edit changed the title block's words, the next layout measures the room they need (Zach, 2026-10-15).
-    noteTitleBlockEdit(before, next);
-    if (!extend) openSession = null;
-    const history = extend
-      ? state.diagramHistory
-      : trimDiagramHistory(recordSnapshot(state.diagramHistory, snapshotEntry(before, label)), next);
-    set({
-      diagram: next,
-      diagramHistory: history,
-      dirty: true,
-      ...(count > 0 ? { diagramPlacesSettled: placesSettledNotice(count, history) } : {}),
-    });
-    return next;
   };
 
   /**
@@ -247,31 +167,68 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     return stepIndex(document, selected) >= 0 ? selected : null;
   };
 
+  /** The diagram's commit, sessions, undo and install: the project-document kit, with the Diagram's own steps. */
+  const documentHistory = createProjectDocumentHistory<WorkspaceState, DiagramDocument | null, DiagramDocument>({
+    get,
+    set,
+    keys: { document: 'diagram', history: 'diagramHistory', readOnly: 'diagramReadOnly', loadId: 'diagramLoadId' },
+    base: (stored) => stored ?? newDiagram(),
+    discard: discardDiagramState,
+    // An import writing the diagram holds every edit, an undo and a redo until it is done.
+    busy: (state) => state.diagramImportBusy,
+    // A keyboard nudge on the Pages view still in its pause lands first, in an
+    // undo step of its own, so an edit comes after it as the screen showed
+    // them, and an undo takes it back as it would one committed.
+    flush: flushPlacementNudge,
+    beforeCommit: (base, edited, before) => {
+      // A page with its own count gains the steps the edit put on it and loses
+      // those it took away, so later pages stay where they were
+      // (`diagram-flow-pages.md`): one rule, here, whatever the edit was.
+      const counted = retainPageCounts(base, edited);
+      // Each flow page's arrangement follows its page, in the same undo step
+      // (`diagram-flow-packing.md`): one the page no longer holds is kept for
+      // where its steps were until the layout packs the page afresh, and one no
+      // page keeps goes, so the file never carries it.
+      const followed = followPageArrangements(base, counted);
+      // A frame moved by hand whose step the edit took out of its cell — in the
+      // flow, off its page — goes home, in this edit's undo step (Decision 1A;
+      // a flow step's band and place along it are judged as its page's packing
+      // is adopted, Zach 2026-10-15): one rule, here, whatever the edit was, so
+      // no verb can forget it.
+      const { document: settled, settled: count } = settlePlaces(base, followed);
+      // An asset nothing refers to any more goes as the edit lands. Each undo
+      // snapshot keeps its own assets table, so undo still has the picture a
+      // replace took away; and with the current diagram no longer holding it,
+      // the history byte cap (`trimDiagramHistory`) sees what only history keeps.
+      const next = withReferencedAssets(settled);
+      // Where the edit changed the title block's words, the next layout measures the room they need (Zach, 2026-10-15).
+      noteTitleBlockEdit(before, next);
+      return {
+        document: next,
+        alongside: (history) => (count > 0 ? { diagramPlacesSettled: placesSettledNotice(count, history) } : {}),
+      };
+    },
+    trim: trimDiagramHistory,
+    // An undo or a redo keeps the selection only while the step it names is in what it restores.
+    reconcile: (restored) => selection(reconciledSelection(restored)),
+  });
+  const { commit, session: sessionFor } = documentHistory;
+
   const travel = (direction: 'undo' | 'redo'): boolean => {
     // An undo takes back a nudge in its pause as it would one committed.
     flushPlacementNudge();
     const state = get();
     if (state.diagramReadOnly || state.diagramImportBusy) return false;
+    // An import that changed Edit and the Diagram is one entry in each: it travels in both or in neither.
     const head = direction === 'undo' ? state.diagramHistory.past.at(-1) : state.diagramHistory.future[0];
-    if (head?.compoundId) { void compoundImportTravel(direction); return true; }
-    openSession = null;
-    const current = snapshotEntry(state.diagram, direction);
-    const result =
-      direction === 'undo'
-        ? undoSnapshot(state.diagramHistory, current)
-        : redoSnapshot(state.diagramHistory, current);
-    if (!result) return false;
-    const restored = result.restore.snapshot;
-    const stepId = reconciledSelection(restored);
-    set({
-      diagram: restored,
-      diagramHistory: result.history,
-      ...selection(stepId),
-      dirty: true,
-    });
+    if (head?.compoundId) {
+      void compoundImportTravel(direction);
+      return true;
+    }
+    if (!documentHistory.travel(direction)) return false;
     // The selected annotation, while it is still on the selected step.
-    const annotationId = get().diagramSelectedAnnotationId;
-    if (annotationId !== null && !hasAnnotation(restored, stepId, annotationId)) {
+    const { diagram, diagramSelectedStepId: stepId, diagramSelectedAnnotationId: annotationId } = get();
+    if (annotationId !== null && !hasAnnotation(diagram, stepId, annotationId)) {
       set({ diagramSelectedAnnotationId: null });
     }
     return true;
@@ -298,6 +255,31 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     return entry.id;
   };
 
+  /**
+   * Steps pulled where `anchor` says — References cards or Fold steps, and
+   * the turns between them — as one undo step through {@link commit}, so the
+   * pages' counts, arrangements and hand-moved places follow them as they do
+   * any edit; the last selected and either browser closed. Null when nothing
+   * was added. A pull never continues an enlarged run: the steps it makes,
+   * and an empty one it fills, start whole (review fix 3).
+   */
+  const pull = (
+    sent: readonly SentDiagramEntry[],
+    anchor: DiagramPullAnchor,
+    label: string
+  ): ({ stepIds: string[]; turnIds: string[] } & PulledMarks) | null => {
+    let pulled: { stepIds: string[]; turnIds: string[] } & PulledMarks = { stepIds: [], turnIds: [], baked: [], replaced: 0 };
+    const next = commit(label, (document) => {
+      const { document: pulledInto, ...ids } = pullReferencesSteps(document, sent, anchor);
+      pulled = ids;
+      return pulledInto;
+    });
+    const last = pulled.stepIds.at(-1) ?? pulled.turnIds.at(-1);
+    if (!next || last === undefined) return null;
+    set({ ...selection(last), diagramReferencesBrowser: null, diagramFoldBrowser: null });
+    return pulled;
+  };
+
   /** Where an add beside an entry lands, or where an add lands at all (after the selection, or at the end). */
   const besideOrSelection = (at?: { stepId: string; where: 'before' | 'after' }) => (document: DiagramDocument) => {
     if (!at) return insertionIndex(document, get().diagramSelectedStepId);
@@ -319,17 +301,13 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
   return {
     ...discardDiagramState(),
 
-    installDiagram: (read, others = []) => {
-      openSession = null;
-      set({
-        ...discardDiagramState(),
+    installDiagram: (read, others = []) =>
+      documentHistory.install({
         diagram: read?.document ?? null,
         diagramReadOnly: read?.readOnly ?? false,
         diagramRaw: read?.readOnly ? read.raw : null,
         diagramOthers: others,
-        diagramHistory: emptySnapshotHistory(),
-      });
-    },
+      }),
 
     addDiagramStep: () =>
       addAt((document) => insertionIndex(document, get().diagramSelectedStepId)),
@@ -647,8 +625,10 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
           opening: (browserOpenings += 1),
         },
         // A modal over the Diagram: a step's detail stays open behind it; the
-        // pattern picker, the other way to give a step its picture, closes.
+        // pattern picker, the other way to give a step its picture, closes,
+        // and so does the Fold browser: one browser at a time.
         diagramPatternPicker: null,
+        diagramFoldBrowser: null,
       });
       return true;
     },
@@ -666,22 +646,30 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (loadId !== get().diagramLoadId || sent.length === 0) return null;
       // Pressed in a browser that has closed since: it adds nothing, and closes nothing.
       if (opening !== undefined && get().diagramReferencesBrowser?.opening !== opening) return null;
-      let pulled: { stepIds: string[]; turnIds: string[]; baked: string[]; replaced: number } = {
-        stepIds: [],
-        turnIds: [],
-        baked: [],
-        replaced: 0,
-      };
-      // A card never continues an enlarged run: the steps it makes, and an empty one it fills, start whole (review fix 3).
-      const next = commit(label, (document) => {
-        const { document: pulledInto, ...ids } = pullReferencesSteps(document, sent, anchor);
-        pulled = ids;
-        return pulledInto;
+      return pull(sent, anchor, label);
+    },
+
+    openDiagramFoldBrowser: (anchor) => {
+      const { diagram, diagramReadOnly } = get();
+      if (diagramReadOnly) return false;
+      set({
+        ...(anchor.kind !== 'end' && diagram && stepIndex(diagram, anchor.stepId) >= 0 ? selection(anchor.stepId) : {}),
+        diagramFoldBrowser: { anchor, opening: (browserOpenings += 1) },
+        // One browser at a time, and the pattern picker closes, as for References.
+        diagramReferencesBrowser: null,
+        diagramPatternPicker: null,
       });
-      const last = pulled.stepIds.at(-1) ?? pulled.turnIds.at(-1);
-      if (!next || last === undefined) return null;
-      set({ ...selection(last), diagramReferencesBrowser: null });
-      return pulled;
+      return true;
+    },
+
+    closeDiagramFoldBrowser: () => {
+      if (get().diagramFoldBrowser !== null) set({ diagramFoldBrowser: null });
+    },
+
+    pullFoldDiagramSteps: (sent, anchor, { loadId, label, opening }) => {
+      if (loadId !== get().diagramLoadId || sent.length === 0) return null;
+      if (opening !== undefined && get().diagramFoldBrowser?.opening !== opening) return null;
+      return pull(sent, anchor, label);
     },
 
     openDiagramStep: (stepId, mode = 'pose') => {
@@ -696,6 +684,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
         ...selection(stepId),
         diagramDetail: mode,
         diagramReferencesBrowser: null,
+        diagramFoldBrowser: null,
         ...(opening ? { diagramAnnotateTool: null } : {}),
       });
       return true;
@@ -716,6 +705,8 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     captureDiagramStep: (stepId, request) =>
       runDiagramCapture({ get, set }, commit, stepId, request),
+
+    captureDiagramFoldStep: (stepId, request) => runDiagramFoldCapture({ get, set }, commit, stepId, request),
 
     stopDiagramCapture: (stepId) => stopDiagramCapture({ get, set }, stepId),
 

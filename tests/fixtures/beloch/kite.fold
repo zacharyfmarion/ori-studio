@@ -1,0 +1,556 @@
+{
+  "file_spec": 1.1,
+  "file_creator": "beloch 0.4.0",
+  "file_author": "Claude (Anthropic)",
+  "frame_classes": [ "creasePattern" ],
+  "frame_unit": "unit",
+  "vertices_coords": [
+    [ 0.0, 0.0 ],
+    [ 1.0, 0.41421356237309503 ],
+    [ 1.0, 1.0 ],
+    [ 0.41421356237309503, 1.0 ],
+    [ 0.0, 1.0 ],
+    [ 1.0, 0.0 ]
+  ],
+  "edges_vertices": [
+    [ 0, 1 ],
+    [ 1, 2 ],
+    [ 2, 0 ],
+    [ 2, 3 ],
+    [ 3, 0 ],
+    [ 3, 4 ],
+    [ 4, 0 ],
+    [ 0, 5 ],
+    [ 5, 1 ]
+  ],
+  "edges_assignment": [ "V", "B", "F", "B", "V", "B", "B", "B", "B" ],
+  "edges_foldAngle": [ 180.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.0, 0.0 ],
+  "edges_faces": [
+    [ 0, 3 ], [ 0 ], [ 0, 1 ], [ 1 ], [ 1, 2 ], [ 2 ], [ 2 ], [ 3 ], [ 3 ]
+  ],
+  "faces_vertices": [ [ 0, 1, 2 ], [ 0, 2, 3 ], [ 0, 3, 4 ], [ 0, 5, 1 ] ],
+  "beloch:edges": [
+    {
+      "axiom": "axiom5",
+      "sources": [ "--ab", "--ac" ],
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:13:1-26",
+      "statement": 2,
+      "name": null,
+      "crease_id": 2
+    },
+    null,
+    {
+      "axiom": "axiom1",
+      "sources": [ ".a", ".c" ],
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:9:1-29",
+      "statement": 0,
+      "name": "ac",
+      "crease_id": 0
+    },
+    null,
+    {
+      "axiom": "axiom5",
+      "sources": [ "--da", "--ac" ],
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:12:1-26",
+      "statement": 1,
+      "name": null,
+      "crease_id": 1
+    },
+    null,
+    null,
+    null,
+    null
+  ],
+  "beloch:inspect": {
+    "creases": {
+      "1": {
+        "name": null,
+        "axiom": "axiom5",
+        "sources": [ "--da", "--ac" ],
+        "span": "packages/render-2d/yr/test/fixtures/kite.bel:12:1-26",
+        "segments": [
+          {
+            "faces": [ 1, 2 ],
+            "paper": [ [ 0.41421356237309503, 1.0 ], [ 0.0, 0.0 ] ],
+            "table": [ [ 0.41421356237309503, 1.0 ], [ 0.0, 0.0 ] ],
+            "assignment": "V"
+          }
+        ]
+      },
+      "0": {
+        "name": "ac",
+        "axiom": "axiom1",
+        "sources": [ ".a", ".c" ],
+        "span": "packages/render-2d/yr/test/fixtures/kite.bel:9:1-29",
+        "segments": [
+          {
+            "faces": [ 0, 1 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.0, 0.0 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.0, 0.0 ] ],
+            "assignment": "F"
+          }
+        ]
+      },
+      "2": {
+        "name": null,
+        "axiom": "axiom5",
+        "sources": [ "--ab", "--ac" ],
+        "span": "packages/render-2d/yr/test/fixtures/kite.bel:13:1-26",
+        "segments": [
+          {
+            "faces": [ 0, 3 ],
+            "paper": [ [ 0.0, 0.0 ], [ 1.0, 0.41421356237309503 ] ],
+            "table": [ [ 0.0, 0.0 ], [ 1.0, 0.41421356237309503 ] ],
+            "assignment": "V"
+          }
+        ]
+      }
+    },
+    "faces": {
+      "0": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 1.0, 0.41421356237309503 ], [ 1.0, 1.0 ]
+        ],
+        "flap": 1,
+        "rank": 0
+      },
+      "1": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 1.0, 1.0 ], [ 0.41421356237309503, 1.0 ]
+        ],
+        "flap": 1,
+        "rank": 1
+      },
+      "2": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 0.41421356237309503, 1.0 ], [ 0.0, 1.0 ]
+        ],
+        "flap": 2,
+        "rank": 2
+      },
+      "3": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 0.41421356237309503 ]
+        ],
+        "flap": 3,
+        "rank": 3
+      }
+    },
+    "points": {
+      "a": { "face": null, "flap": null },
+      "b": { "face": 3, "flap": 3 },
+      "c": { "face": null, "flap": null },
+      "d": { "face": 2, "flap": 2 }
+    },
+    "edges": {
+      "da": {
+        "name": "da",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 2 ],
+            "paper": [ [ 0.0, 1.0 ], [ 0.0, 0.0 ] ],
+            "table": [
+              [ 0.7071067811865476, 0.7071067811865476 ], [ 0.0, 0.0 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "ab": {
+        "name": "ab",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 3 ],
+            "paper": [ [ 0.0, 0.0 ], [ 1.0, 0.0 ] ],
+            "table": [
+              [ 0.0, 0.0 ], [ 0.7071067811865476, 0.7071067811865476 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "bc": {
+        "name": "bc",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 1.0, 0.41421356237309503 ], [ 1.0, 1.0 ] ],
+            "table": [ [ 1.0, 0.41421356237309503 ], [ 1.0, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 3 ],
+            "paper": [ [ 1.0, 0.0 ], [ 1.0, 0.41421356237309503 ] ],
+            "table": [
+              [ 0.7071067811865476, 0.7071067811865476 ],
+              [ 1.0, 0.41421356237309503 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "cd": {
+        "name": "cd",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.41421356237309503, 1.0 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.41421356237309503, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 2 ],
+            "paper": [ [ 0.41421356237309503, 1.0 ], [ 0.0, 1.0 ] ],
+            "table": [
+              [ 0.41421356237309503, 1.0 ],
+              [ 0.7071067811865476, 0.7071067811865476 ]
+            ],
+            "assignment": "B"
+          }
+        ]
+      }
+    }
+  },
+  "beloch:vertices_names": [ "a", null, "c", null, "d", "b" ],
+  "beloch:named_points": {
+    "a": {
+      "paper": [ 0.0, 0.0 ],
+      "table": [ 0.0, 0.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "b": {
+      "paper": [ 1.0, 0.0 ],
+      "table": [ 0.7071067811865476, 0.7071067811865476 ],
+      "step": 0,
+      "statement": null
+    },
+    "c": {
+      "paper": [ 1.0, 1.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "d": {
+      "paper": [ 0.0, 1.0 ],
+      "table": [ 0.7071067811865476, 0.7071067811865476 ],
+      "step": 0,
+      "statement": null
+    }
+  },
+  "beloch:named_lines": {
+    "ac": { "coeffs": [ 1.0, -1.0, 0.0 ], "step": 0, "statement": 0 }
+  },
+  "beloch:named_lines_frame": "creasePattern",
+  "beloch:marks": [],
+  "beloch:free": {},
+  "beloch:statements": [
+    {
+      "mark": {
+        "kind": "seg",
+        "a": [ 0.0, 0.0 ],
+        "b": [ 1.0, 1.0 ],
+        "line": [ 1.0, -1.0, 0.0 ],
+        "intent": "V",
+        "crease_id": 0
+      },
+      "kind": "mark",
+      "parent": null,
+      "source_line": 9,
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:9:1-29",
+      "frame_index": 0,
+      "kept_marks": [
+        {
+          "kind": "seg",
+          "a": [ 0.0, 0.0 ],
+          "b": [ 1.0, 1.0 ],
+          "line": [ 1.0, -1.0, 0.0 ],
+          "intent": "V",
+          "crease_id": 0
+        }
+      ]
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 12,
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:12:1-26",
+      "frame_index": 1,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 13,
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:13:1-26",
+      "frame_index": 2,
+      "kept_marks": []
+    }
+  ],
+  "beloch:references": [
+    {
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:12:11-15",
+      "edge": "da"
+    },
+    {
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:12:21-25",
+      "crease_id": 0
+    },
+    {
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:13:11-15",
+      "edge": "ab"
+    },
+    {
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:13:21-25",
+      "crease_id": 0
+    }
+  ],
+  "beloch:annotations": [
+    {
+      "key": "author",
+      "namespace": null,
+      "target": "program",
+      "frame_index": 0,
+      "source_line": 1,
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:1:1-2:1",
+      "args": [
+        {
+          "text": "Claude (Anthropic)",
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:1:9-29"
+        }
+      ]
+    },
+    {
+      "key": "orient",
+      "namespace": null,
+      "target": [ 0, 0 ],
+      "frame_index": 0,
+      "source_line": 7,
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:7:1-8:1",
+      "args": [
+        {
+          "point": { "paper": [ 0.0, 0.0 ], "table": [ 0.0, 0.0 ] },
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:7:9-11"
+        },
+        {
+          "point": { "paper": [ 1.0, 1.0 ], "table": [ 1.0, 1.0 ] },
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:7:12-14"
+        },
+        {
+          "word": "up",
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:7:15-17"
+        }
+      ]
+    },
+    {
+      "key": "step",
+      "namespace": null,
+      "target": [ 0, 0 ],
+      "frame_index": 0,
+      "source_line": 8,
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:8:1-9:1",
+      "args": [
+        {
+          "text": "Fold in half along the diagonal and unfold.",
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:8:7-52"
+        }
+      ]
+    },
+    {
+      "key": "step",
+      "namespace": null,
+      "target": [ 1, 2 ],
+      "frame_index": 0,
+      "source_line": 11,
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:11:1-12:1",
+      "args": [
+        {
+          "text": "Fold both lower edges to the center line.",
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:11:7-50"
+        }
+      ]
+    },
+    {
+      "key": "say",
+      "namespace": null,
+      "target": null,
+      "frame_index": 2,
+      "source_line": 15,
+      "span": "packages/render-2d/yr/test/fixtures/kite.bel:15:1-16:1",
+      "args": [
+        {
+          "text": "The kite base.",
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:15:6-22"
+        }
+      ]
+    }
+  ],
+  "file_frames": [
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [ [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ] ],
+      "edges_assignment": [ "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0 ], [ 0 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ] ],
+      "beloch:faces_matrix": [ [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ] ],
+      "faceOrders": [],
+      "beloch:source_line": null,
+      "beloch:edges": [ null, null, null, null ],
+      "beloch:vertices_names": [ "a", "b", "c", "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ],
+        [ 1.0, 0.0 ],
+        [ 1.0, 1.0 ],
+        [ 0.41421356237309503, 1.0 ],
+        [ 0.7071067811865476, 0.7071067811865476 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ], [ 1, 2 ], [ 2, 0 ], [ 2, 3 ], [ 3, 0 ], [ 3, 4 ], [ 4, 0 ]
+      ],
+      "edges_assignment": [ "B", "B", "F", "B", "V", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0 ],
+      "edges_faces": [
+        [ 0 ], [ 0 ], [ 0, 1 ], [ 1 ], [ 1, 2 ], [ 2 ], [ 2 ]
+      ],
+      "faces_vertices": [ [ 0, 1, 2 ], [ 0, 2, 3 ], [ 0, 3, 4 ] ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 0.0, 0.0
+        ]
+      ],
+      "faceOrders": [ [ 1, 2, 1 ] ],
+      "beloch:source_line": 12,
+      "beloch:edges": [
+        null,
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:9:1-29",
+          "statement": 0,
+          "name": "ac",
+          "crease_id": 0
+        },
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--da", "--ac" ],
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:12:1-26",
+          "statement": 1,
+          "name": null,
+          "crease_id": 1
+        },
+        null,
+        null
+      ],
+      "beloch:vertices_names": [ "a", "b", "c", null, "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ],
+        [ 1.0, 0.41421356237309503 ],
+        [ 1.0, 1.0 ],
+        [ 0.41421356237309503, 1.0 ],
+        [ 0.7071067811865476, 0.7071067811865476 ],
+        [ 0.7071067811865476, 0.7071067811865476 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 0 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 3, 4 ],
+        [ 4, 0 ],
+        [ 0, 5 ],
+        [ 5, 1 ]
+      ],
+      "edges_assignment": [ "V", "B", "F", "B", "V", "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 180.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [
+        [ 0, 3 ],
+        [ 0 ],
+        [ 0, 1 ],
+        [ 1 ],
+        [ 1, 2 ],
+        [ 2 ],
+        [ 2 ],
+        [ 3 ],
+        [ 3 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2 ], [ 0, 2, 3 ], [ 0, 3, 4 ], [ 0, 5, 1 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [
+          -0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          0.7071067811865476, 0.0, 0.0
+        ],
+        [
+          0.7071067811865476, 0.7071067811865476, 0.7071067811865476,
+          -0.7071067811865476, 0.0, 0.0
+        ]
+      ],
+      "faceOrders": [ [ 0, 3, 1 ], [ 1, 2, 1 ] ],
+      "beloch:source_line": 13,
+      "beloch:edges": [
+        {
+          "axiom": "axiom5",
+          "sources": [ "--ab", "--ac" ],
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:13:1-26",
+          "statement": 2,
+          "name": null,
+          "crease_id": 2
+        },
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".a", ".c" ],
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:9:1-29",
+          "statement": 0,
+          "name": "ac",
+          "crease_id": 0
+        },
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--da", "--ac" ],
+          "span": "packages/render-2d/yr/test/fixtures/kite.bel:12:1-26",
+          "statement": 1,
+          "name": null,
+          "crease_id": 1
+        },
+        null,
+        null,
+        null,
+        null
+      ],
+      "beloch:vertices_names": [ "a", null, "c", null, "d", "b" ]
+    }
+  ]
+}

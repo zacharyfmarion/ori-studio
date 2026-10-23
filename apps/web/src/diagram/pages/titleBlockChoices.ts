@@ -6,8 +6,9 @@
  * every choice is one the block can show.
  *
  * The model's steps are the steps with a picture. The pattern's are one per
- * distinct pattern the steps link, told apart as the file's thumbnail table
- * tells them (`thumbnailJson`), each named by the last step that links it, or
+ * distinct pattern the steps link — a region of Edit's, or a Fold step's
+ * state — told apart as the file's thumbnail table tells them
+ * (`thumbnailJson`), each named by the last step that links it, or
  * by the step chosen where that one links it: fifty steps on one sheet are
  * one choice. Whether a step gives a part is the page's own answer
  * (`givesModel`, `givesPattern`), so nothing offered prints nothing. A step
@@ -88,13 +89,15 @@ export function titleBlockChoices(document: DiagramDocument): TitleBlockChoices 
 
 /**
  * One step for each distinct pattern the steps link: the step chosen for the
- * block where it links that pattern, else the last that does.
+ * block where it links that pattern, else the last that does. A region of
+ * Edit's and a Fold step's state are never one pattern: their aux lines are
+ * read apart (`patternScene`).
  */
 function distinctPatterns(steps: readonly DiagramStep[], chosen: TitleBlockPart): ReadonlySet<DiagramStep> {
   const named = new Map<string, DiagramStep>();
   for (const step of steps) {
     if (!givesPattern(step)) continue;
-    const pattern = thumbnailJson(step.source.thumbnail);
+    const pattern = `${step.source.kind} ${thumbnailJson(step.source.thumbnail)}`;
     if (chosen.from !== 'step' || named.get(pattern) !== chosen.step) named.set(pattern, step);
   }
   return new Set(named.values());

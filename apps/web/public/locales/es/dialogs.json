@@ -325,6 +325,146 @@
     "vertexUnassignedCrease": "Un pliegue de un vértice no tiene asignado ningún plegado, así que ese vértice no se puede plegar.",
     "vertexUnsplitJunction": "Los pliegues se cruzan en un punto que no es un vértice, así que ese vértice no se puede plegar."
   },
+  "foldExport": {
+    "title": "Exportar secuencia de plegado"
+  },
+  "foldImport": {
+    "browse": "o haz clic para buscar",
+    "browseTouch": "o toca para buscar",
+    "collapseTitle": "Colapsar desde CP",
+    "drop": "Suelta un archivo .cp, .fold, .ori u .orh",
+    "editFigure": "Figura plegada de Editar",
+    "editFigureNote": "El patrón de pliegues que plegó Editar, con el orden de capas que encontró",
+    "fix": {
+      "searchLonger": "Buscar más tiempo"
+    },
+    "fromEdit": "Desde Editar",
+    "pickTitle": "Importar patrón de pliegues",
+    "placement": {
+      "afterSheet": "Añade un paso después de la hoja plana, con su estado plegado calculado a partir de los pliegues.",
+      "afterStep": "Añade un paso después del paso {{number}}, con su estado plegado calculado a partir de los pliegues.",
+      "branch": "Empieza una rama nueva.",
+      "empty": "Empieza la secuencia en la hoja del patrón de pliegues, plegada por sus pliegues. Úsalo cuando un estado no se pueda alcanzar pliegue a pliegue.",
+      "sheet": "Toma el contorno del patrón como la hoja con la que empieza la secuencia: cualquier forma convexa de 3 a 8 lados. Sus pliegues no se importan; usa Importar CP para plegar a partir de ellos.",
+      "sheetStartsOver_one": "La secuencia vuelve a empezar: se borra su {{count}} paso. Deshacer lo recupera.",
+      "sheetStartsOver_many": "La secuencia vuelve a empezar: se borran sus {{count}} pasos. Deshacer los recupera.",
+      "sheetStartsOver_other": "La secuencia vuelve a empezar: se borran sus {{count}} pasos. Deshacer los recupera.",
+      "update": "Actualiza este paso de colapso. Los pasos posteriores y las ramas se conservan y se vuelven a calcular; los pliegues afectados se marcan como modificados o imposibles de plegar.",
+      "why": "Úsalo cuando el siguiente estado no se pueda alcanzar pliegue a pliegue."
+    },
+    "refusal": {
+      "budget": {
+        "text": "Averiguar cómo se apilan las capas llevó más tiempo del que tiene una importación. Busca más tiempo o importa un patrón más sencillo.",
+        "title": "La búsqueda se alargó"
+      },
+      "changed": {
+        "text": "Los pasos cambiaron mientras se importaba el patrón. Vuelve a importarlo.",
+        "title": "La secuencia cambió"
+      },
+      "creases": {
+        "text": "Un pliegue sale del papel, se superpone a otro de distinto tipo o termina donde nada lo alcanza. Cada pliegue debe ir de un borde o un pliegue a un borde o un pliegue.",
+        "title": "Pliegues que no se pueden seguir"
+      },
+      "failed": {
+        "text": "No se pudo importar este patrón de pliegues.",
+        "title": "No se pudo importar"
+      },
+      "figureIncomplete": {
+        "text": "La figura plegada de Editar no indica cómo queda cada capa. Vuelve a plegarla en Editar y empieza desde ella.",
+        "title": "La figura plegada está incompleta"
+      },
+      "foldedForm": {
+        "text": "Este archivo FOLD describe papel ya plegado. Importa en su lugar el patrón de pliegues plano.",
+        "title": "Una forma plegada, no un patrón de pliegues"
+      },
+      "noFigure": {
+        "text": "Pliega primero en plano el patrón en Editar y luego empieza desde su figura plegada.",
+        "title": "No hay figura plegada en Editar"
+      },
+      "nonConvex": {
+        "text": "Una de las caras del patrón se dobla hacia dentro en una esquina. Solo se pliegan caras convexas.",
+        "title": "Una cara con una esquina entrante"
+      },
+      "noOrder": {
+        "text": "Con los montes y valles del patrón, las capas no se pueden apilar sin atravesarse.",
+        "title": "Ningún orden de capas encaja"
+      },
+      "noProjectCp": {
+        "text": "Abre o crea el patrón de pliegues de origen en Editar e inténtalo de nuevo. El paso de colapso guardado no cambia.",
+        "title": "CP de origen no disponible"
+      },
+      "noState": {
+        "text": "El paso en pantalla no tiene estado plegado, así que no se puede añadir nada después. Ve a un paso que se pliegue.",
+        "title": "Este paso no se pliega"
+      },
+      "notFlat": {
+        "text": "Plegado por sus montes y valles, el patrón no queda plano.",
+        "title": "No se pliega en plano"
+      },
+      "orderOpen": {
+        "text": "La figura plegada de Editar deja abierto el orden de capas. Pliégala hasta una sola solución en Editar y vuelve a empezar desde ella.",
+        "title": "Más de un orden de capas"
+      },
+      "outline": {
+        "text": "El borde del patrón no es un contorno cerrado alrededor del papel, así que no hay hoja que plegar.",
+        "title": "No se encontró la hoja"
+      },
+      "readOnly": {
+        "text": "Creada con una versión más reciente de Ori Studio: esta secuencia se abre en modo de solo lectura.",
+        "title": "Secuencia de solo lectura"
+      },
+      "shapeMismatch": {
+        "text": "La hoja del patrón no tiene la forma de la de esta secuencia. Impórtalo en una secuencia vacía.",
+        "textRatios": "Esta secuencia pliega una hoja de {{expected}} y el patrón está en una hoja de {{found}}. Impórtalo en una secuencia vacía.",
+        "title": "Otra hoja"
+      },
+      "shapeUnsupported": {
+        "text": "Se importan patrones de pliegues en hojas cuadradas o rectangulares. La hoja de este tiene otra forma.",
+        "title": "Solo hojas cuadradas y rectangulares"
+      },
+      "sheetNotConvex": {
+        "text": "El contorno del patrón tiene una esquina que apunta hacia dentro del papel. Plegar empieza con hojas cuyas esquinas apuntan todas hacia fuera: un cuadrado, un rectángulo, un polígono regular o cualquier otra forma convexa.",
+        "title": "La hoja se curva hacia dentro"
+      },
+      "sheetSides": {
+        "text_one": "Plegar empieza con hojas de 3 a 8 lados. Este contorno tiene {{count}} lado.",
+        "text_many": "Plegar empieza con hojas de 3 a 8 lados. Este contorno tiene {{count}} lados.",
+        "text_other": "Plegar empieza con hojas de 3 a 8 lados. Este contorno tiene {{count}} lados.",
+        "title": "Solo hojas de 3 a 8 lados"
+      },
+      "sheetSideShort": {
+        "text": "Un lado del contorno del patrón es demasiado corto para que Plegar distinga sus esquinas. Enderézalo o quítalo y vuelve a importar la hoja.",
+        "title": "Un lado demasiado corto para plegar"
+      },
+      "unreadable": {
+        "text": "No se pudo leer el archivo como un patrón de pliegues {{extension}}.",
+        "title": "No es un patrón de pliegues"
+      },
+      "unreadableFile": {
+        "text": "No se pudo leer {{name}}.",
+        "title": "No se pudo leer el archivo"
+      },
+      "unsupportedFile": {
+        "text": "{{name}} no es un patrón de pliegues que se pueda importar. Usa un archivo .cp, .fold, .ori u .orh.",
+        "title": "No es un patrón de pliegues"
+      }
+    },
+    "sample": {
+      "pleatInEighths": "Plisado en octavos",
+      "preliminaryBase": "Base cuadrada",
+      "waterbombBase": "Base de bomba de agua"
+    },
+    "sheetTitle": "Importar hoja inicial",
+    "title": "Importar patrón de pliegues",
+    "updateTitle": "Actualizar desde CP",
+    "working": {
+      "figure": "Importando la figura plegada de Editar…",
+      "file": "Importando {{name}}…",
+      "projectCp": "Resolviendo el patrón de pliegues del proyecto…",
+      "sample": "Importando el ejemplo…",
+      "sheet": "Leyendo la hoja…"
+    }
+  },
   "foldWarning": {
     "dontShowAgain": "No volver a mostrar",
     "message": "Se detectaron errores de plegabilidad plana. ¿Continuar con el plegado?",
@@ -685,7 +825,7 @@
         "exportLinked": "Estilo de exportación · vinculado",
         "title": "Estilo"
       },
-      "stepsHint": "Solo referencias",
+      "stepsHintFold": "Referencias y Plegar",
       "stepsTitle": "Pasos",
       "unsaved": {
         "custom": "Este estilo no está guardado como predefinido. Aplicar {{next}} lo reemplaza.",

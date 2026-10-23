@@ -1,4 +1,4 @@
-import { builtInPaperPreset } from '../../lib/paper/paperPresets';
+import { documentPaperStyleOf } from '../../lib/paper/documentPaperStyle';
 import { PAPER_STYLE_FIELDS, getPaperStyleField, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
 import type { DiagramStyle } from '../document/diagramDocument';
@@ -13,7 +13,7 @@ export const DIAGRAM_STYLE_POLICY = PAPER_STYLE_POLICIES['diagram-workspace'];
  * was chosen, so nothing here depends on the viewer's machine.
  */
 export function diagramPaperStyle(style: DiagramStyle): PaperStyle {
-  return style.style ?? builtInPaperPreset(style.preset).style;
+  return documentPaperStyleOf(style);
 }
 
 /** The style as the Diagram's painters draw it: {@link diagramPaperStyle} through its policy. */

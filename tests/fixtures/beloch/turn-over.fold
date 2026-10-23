@@ -1,0 +1,634 @@
+{
+  "file_spec": 1.1,
+  "file_creator": "beloch 0.4.0",
+  "file_author": "Claude (Anthropic)",
+  "frame_classes": [ "creasePattern" ],
+  "frame_unit": "unit",
+  "vertices_coords": [
+    [ 0.0, 0.0 ],
+    [ 0.5, 0.0 ],
+    [ 0.5, 0.5 ],
+    [ 0.0, 0.5 ],
+    [ 0.5, 1.0 ],
+    [ 0.0, 1.0 ],
+    [ 1.0, 0.5 ],
+    [ 1.0, 1.0 ],
+    [ 1.0, 0.0 ]
+  ],
+  "edges_vertices": [
+    [ 0, 1 ],
+    [ 1, 2 ],
+    [ 2, 3 ],
+    [ 3, 0 ],
+    [ 4, 5 ],
+    [ 5, 3 ],
+    [ 2, 4 ],
+    [ 6, 7 ],
+    [ 7, 4 ],
+    [ 2, 6 ],
+    [ 1, 8 ],
+    [ 8, 6 ]
+  ],
+  "edges_assignment": [
+    "B", "V", "V", "B", "B", "B", "M", "B", "B", "V", "B", "B"
+  ],
+  "edges_foldAngle": [
+    0.0, 180.0, 180.0, 0.0, 0.0, 0.0, -180.0, 0.0, 0.0, 180.0, 0.0, 0.0
+  ],
+  "edges_faces": [
+    [ 0 ],
+    [ 0, 3 ],
+    [ 0, 1 ],
+    [ 0 ],
+    [ 1 ],
+    [ 1 ],
+    [ 1, 2 ],
+    [ 2 ],
+    [ 2 ],
+    [ 2, 3 ],
+    [ 3 ],
+    [ 3 ]
+  ],
+  "faces_vertices": [
+    [ 0, 1, 2, 3 ], [ 4, 5, 3, 2 ], [ 6, 7, 4, 2 ], [ 1, 8, 6, 2 ]
+  ],
+  "beloch:edges": [
+    null,
+    {
+      "axiom": "axiom5",
+      "sources": [ "--bc", "--da" ],
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:15:1-26",
+      "statement": 2,
+      "name": null,
+      "crease_id": 1
+    },
+    {
+      "axiom": "axiom5",
+      "sources": [ "--ab", "--cd" ],
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:1-26",
+      "statement": 0,
+      "name": null,
+      "crease_id": 0
+    },
+    null,
+    null,
+    null,
+    {
+      "axiom": "axiom5",
+      "sources": [ "--bc", "--da" ],
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:15:1-26",
+      "statement": 2,
+      "name": null,
+      "crease_id": 1
+    },
+    null,
+    null,
+    {
+      "axiom": "axiom5",
+      "sources": [ "--ab", "--cd" ],
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:1-26",
+      "statement": 0,
+      "name": null,
+      "crease_id": 0
+    },
+    null,
+    null
+  ],
+  "beloch:inspect": {
+    "creases": {
+      "1": {
+        "name": null,
+        "axiom": "axiom5",
+        "sources": [ "--bc", "--da" ],
+        "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:15:1-26",
+        "segments": [
+          {
+            "faces": [ 1, 2 ],
+            "paper": [ [ 0.5, 1.0 ], [ 0.5, 0.5 ] ],
+            "table": [ [ 0.5, 1.0 ], [ 0.5, 0.5 ] ],
+            "assignment": "M"
+          },
+          {
+            "faces": [ 0, 3 ],
+            "paper": [ [ 0.5, 0.0 ], [ 0.5, 0.5 ] ],
+            "table": [ [ 0.5, 1.0 ], [ 0.5, 0.5 ] ],
+            "assignment": "V"
+          }
+        ]
+      },
+      "0": {
+        "name": null,
+        "axiom": "axiom5",
+        "sources": [ "--ab", "--cd" ],
+        "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:1-26",
+        "segments": [
+          {
+            "faces": [ 2, 3 ],
+            "paper": [ [ 0.5, 0.5 ], [ 1.0, 0.5 ] ],
+            "table": [ [ 0.5, 0.5 ], [ 1.0, 0.5 ] ],
+            "assignment": "V"
+          },
+          {
+            "faces": [ 1, 0 ],
+            "paper": [ [ 0.0, 0.5 ], [ 0.5, 0.5 ] ],
+            "table": [ [ 1.0, 0.5 ], [ 0.5, 0.5 ] ],
+            "assignment": "V"
+          }
+        ]
+      }
+    },
+    "faces": {
+      "0": {
+        "vertices": [
+          [ 0.0, 0.0 ], [ 0.5, 0.0 ], [ 0.5, 0.5 ], [ 0.0, 0.5 ]
+        ],
+        "flap": 0,
+        "rank": 0
+      },
+      "1": {
+        "vertices": [
+          [ 0.5, 1.0 ], [ 0.0, 1.0 ], [ 0.0, 0.5 ], [ 0.5, 0.5 ]
+        ],
+        "flap": 1,
+        "rank": 1
+      },
+      "2": {
+        "vertices": [
+          [ 1.0, 0.5 ], [ 1.0, 1.0 ], [ 0.5, 1.0 ], [ 0.5, 0.5 ]
+        ],
+        "flap": 2,
+        "rank": 2
+      },
+      "3": {
+        "vertices": [
+          [ 0.5, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 0.5 ], [ 0.5, 0.5 ]
+        ],
+        "flap": 3,
+        "rank": 3
+      }
+    },
+    "points": {
+      "a": { "face": 0, "flap": 0 },
+      "b": { "face": 3, "flap": 3 },
+      "c": { "face": 2, "flap": 2 },
+      "d": { "face": 1, "flap": 1 }
+    },
+    "edges": {
+      "ab": {
+        "name": "ab",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 0.0, 0.0 ], [ 0.5, 0.0 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.5, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 3 ],
+            "paper": [ [ 0.5, 0.0 ], [ 1.0, 0.0 ] ],
+            "table": [ [ 0.5, 1.0 ], [ 1.0, 1.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "da": {
+        "name": "da",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 0 ],
+            "paper": [ [ 0.0, 0.5 ], [ 0.0, 0.0 ] ],
+            "table": [ [ 1.0, 0.5 ], [ 1.0, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 0.0, 1.0 ], [ 0.0, 0.5 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 1.0, 0.5 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "cd": {
+        "name": "cd",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 1 ],
+            "paper": [ [ 0.5, 1.0 ], [ 0.0, 1.0 ] ],
+            "table": [ [ 0.5, 1.0 ], [ 1.0, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 2 ],
+            "paper": [ [ 1.0, 1.0 ], [ 0.5, 1.0 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 0.5, 1.0 ] ],
+            "assignment": "B"
+          }
+        ]
+      },
+      "bc": {
+        "name": "bc",
+        "assignment": "B",
+        "segments": [
+          {
+            "faces": [ 2 ],
+            "paper": [ [ 1.0, 0.5 ], [ 1.0, 1.0 ] ],
+            "table": [ [ 1.0, 0.5 ], [ 1.0, 1.0 ] ],
+            "assignment": "B"
+          },
+          {
+            "faces": [ 3 ],
+            "paper": [ [ 1.0, 0.0 ], [ 1.0, 0.5 ] ],
+            "table": [ [ 1.0, 1.0 ], [ 1.0, 0.5 ] ],
+            "assignment": "B"
+          }
+        ]
+      }
+    }
+  },
+  "beloch:vertices_names": [
+    "a", null, null, null, null, "d", null, "c", "b"
+  ],
+  "beloch:named_points": {
+    "a": {
+      "paper": [ 0.0, 0.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "b": {
+      "paper": [ 1.0, 0.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "c": {
+      "paper": [ 1.0, 1.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    },
+    "d": {
+      "paper": [ 0.0, 1.0 ],
+      "table": [ 1.0, 1.0 ],
+      "step": 0,
+      "statement": null
+    }
+  },
+  "beloch:named_lines": {},
+  "beloch:named_lines_frame": "creasePattern",
+  "beloch:marks": [],
+  "beloch:free": {},
+  "beloch:statements": [
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 10,
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:1-26",
+      "frame_index": 1,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 12,
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:12:1-5",
+      "frame_index": 2,
+      "kept_marks": []
+    },
+    {
+      "mark": null,
+      "kind": "fold",
+      "parent": null,
+      "source_line": 15,
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:15:1-26",
+      "frame_index": 3,
+      "kept_marks": []
+    }
+  ],
+  "beloch:references": [
+    {
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:11-15",
+      "edge": "ab"
+    },
+    {
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:21-25",
+      "edge": "cd"
+    },
+    {
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:15:11-15",
+      "edge": "bc"
+    },
+    {
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:15:21-25",
+      "edge": "da"
+    }
+  ],
+  "beloch:annotations": [
+    {
+      "key": "author",
+      "namespace": null,
+      "target": "program",
+      "frame_index": 0,
+      "source_line": 1,
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:1:1-2:1",
+      "args": [
+        {
+          "text": "Claude (Anthropic)",
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:1:9-29"
+        }
+      ]
+    },
+    {
+      "key": "step",
+      "namespace": null,
+      "target": [ 0, 1 ],
+      "frame_index": 0,
+      "source_line": 8,
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:8:1-9:1",
+      "args": [
+        {
+          "text": "Fold in half upward, then turn the model over.",
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:8:7-55"
+        }
+      ]
+    },
+    {
+      "key": "say",
+      "namespace": null,
+      "target": [ 0, 0 ],
+      "frame_index": 0,
+      "source_line": 9,
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:9:1-10:1",
+      "args": [
+        {
+          "text": "Fold in half upward.",
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:9:6-28"
+        }
+      ]
+    },
+    {
+      "key": "say",
+      "namespace": null,
+      "target": [ 1, 1 ],
+      "frame_index": 1,
+      "source_line": 11,
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:11:1-12:1",
+      "args": [
+        {
+          "text": "Turn the model over.",
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:11:6-28"
+        }
+      ]
+    },
+    {
+      "key": "step",
+      "namespace": null,
+      "target": [ 2, 2 ],
+      "frame_index": 2,
+      "source_line": 14,
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:14:1-15:1",
+      "args": [
+        {
+          "text": "Fold in half from left to right.",
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:14:7-41"
+        }
+      ]
+    },
+    {
+      "key": "say",
+      "namespace": null,
+      "target": null,
+      "frame_index": 3,
+      "source_line": 17,
+      "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:17:1-18:1",
+      "args": [
+        {
+          "text": "Done.",
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:17:6-13"
+        }
+      ]
+    }
+  ],
+  "file_frames": [
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [ [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ] ],
+      "edges_assignment": [ "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0 ], [ 0 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ] ],
+      "beloch:faces_matrix": [ [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ] ],
+      "faceOrders": [],
+      "beloch:source_line": null,
+      "beloch:edges": [ null, null, null, null ],
+      "beloch:vertices_names": [ "a", "b", "c", "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.0, 1.0 ],
+        [ 0.0, 0.5 ],
+        [ 0.0, 1.0 ],
+        [ 1.0, 1.0 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ], [ 4, 5 ], [ 5, 0 ], [ 3, 4 ]
+      ],
+      "edges_assignment": [ "B", "B", "B", "V", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0 ], [ 0, 1 ], [ 1 ], [ 1 ], [ 1 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ], [ 4, 5, 0, 3 ] ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ], [ 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 ]
+      ],
+      "faceOrders": [ [ 0, 1, 1 ] ],
+      "beloch:source_line": 10,
+      "beloch:edges": [
+        null,
+        null,
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--ab", "--cd" ],
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:1-26",
+          "statement": 0,
+          "name": null,
+          "crease_id": 0
+        },
+        null,
+        null,
+        null
+      ],
+      "beloch:vertices_names": [ null, "c", "d", null, "a", "b" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 1.0 ],
+        [ 0.0, 1.0 ],
+        [ 0.0, 0.5 ],
+        [ 1.0, 0.5 ],
+        [ 0.0, 1.0 ],
+        [ 1.0, 1.0 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ], [ 2, 4 ], [ 4, 5 ], [ 5, 3 ]
+      ],
+      "edges_assignment": [ "B", "B", "V", "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 180.0, 0.0, 0.0, 0.0, 0.0 ],
+      "edges_faces": [ [ 0 ], [ 0 ], [ 0, 1 ], [ 0 ], [ 1 ], [ 1 ], [ 1 ] ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ], [ 2, 4, 5, 3 ] ],
+      "beloch:faces_matrix": [
+        [ -1.0, 0.0, 0.0, -1.0, 1.0, 1.0 ], [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ]
+      ],
+      "faceOrders": [ [ 0, 1, 1 ] ],
+      "beloch:source_line": 12,
+      "beloch:edges": [
+        null,
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--ab", "--cd" ],
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:1-26",
+          "statement": 0,
+          "name": null,
+          "crease_id": 0
+        },
+        null,
+        null,
+        null,
+        null
+      ],
+      "beloch:vertices_names": [ "a", "b", null, null, "c", "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 1.0, 1.0 ],
+        [ 0.5, 1.0 ],
+        [ 0.5, 0.5 ],
+        [ 1.0, 0.5 ],
+        [ 0.5, 1.0 ],
+        [ 1.0, 1.0 ],
+        [ 1.0, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 1.0, 1.0 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 5 ],
+        [ 5, 3 ],
+        [ 2, 4 ],
+        [ 6, 7 ],
+        [ 7, 4 ],
+        [ 2, 6 ],
+        [ 1, 8 ],
+        [ 8, 6 ]
+      ],
+      "edges_assignment": [
+        "B", "V", "V", "B", "B", "B", "M", "B", "B", "V", "B", "B"
+      ],
+      "edges_foldAngle": [
+        0.0, 180.0, 180.0, 0.0, 0.0, 0.0, -180.0, 0.0, 0.0, 180.0, 0.0, 0.0
+      ],
+      "edges_faces": [
+        [ 0 ],
+        [ 0, 3 ],
+        [ 0, 1 ],
+        [ 0 ],
+        [ 1 ],
+        [ 1 ],
+        [ 1, 2 ],
+        [ 2 ],
+        [ 2 ],
+        [ 2, 3 ],
+        [ 3 ],
+        [ 3 ]
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ], [ 4, 5, 3, 2 ], [ 6, 7, 4, 2 ], [ 1, 8, 6, 2 ]
+      ],
+      "beloch:faces_matrix": [
+        [ -1.0, 0.0, 0.0, -1.0, 1.0, 1.0 ],
+        [ -1.0, 0.0, 0.0, 1.0, 1.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 ]
+      ],
+      "faceOrders": [
+        [ 0, 1, 1 ],
+        [ 0, 2, -1 ],
+        [ 0, 3, 1 ],
+        [ 1, 2, -1 ],
+        [ 1, 3, 1 ],
+        [ 2, 3, 1 ]
+      ],
+      "beloch:source_line": 15,
+      "beloch:edges": [
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--bc", "--da" ],
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:15:1-26",
+          "statement": 2,
+          "name": null,
+          "crease_id": 1
+        },
+        {
+          "axiom": "axiom5",
+          "sources": [ "--ab", "--cd" ],
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:1-26",
+          "statement": 0,
+          "name": null,
+          "crease_id": 0
+        },
+        null,
+        null,
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--bc", "--da" ],
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:15:1-26",
+          "statement": 2,
+          "name": null,
+          "crease_id": 1
+        },
+        null,
+        null,
+        {
+          "axiom": "axiom5",
+          "sources": [ "--ab", "--cd" ],
+          "span": "packages/render-2d/yr/test/fixtures/turn-over.bel:10:1-26",
+          "statement": 0,
+          "name": null,
+          "crease_id": 0
+        },
+        null,
+        null
+      ],
+      "beloch:vertices_names": [
+        "a", null, null, null, null, "d", null, "c", "b"
+      ]
+    }
+  ]
+}

@@ -25,6 +25,7 @@ import {
   type DiagramStepActionState,
 } from './actions/diagramActions';
 import {
+  buildDiagramFoldStepPoseActions,
   buildDiagramPoseActions,
   buildDiagramReferencesPoseActions,
   type DiagramPoseAction,
@@ -33,6 +34,7 @@ import {
 import {
   isLockedStep,
   poseBlocker,
+  posedRenderOf,
   showAsOf,
   stepAsset,
   stepHasPicture,
@@ -52,11 +54,18 @@ import {
   captureKind,
   duplicateLinkedStepAs,
   openDiagramPatternPicker,
-  openDiagramStepInEdit,
   refreshDiagramStep,
   showLinkedStepAs,
 } from './capture/stepCaptureActions';
-import { openDiagramStepInReferences } from './capture/referencesStepActions';
+import { linkDescriptorOf } from './capture/diagramLinks';
+import { linkedSourceOf } from './capture/linkStatus';
+import { fillStepFromFold, hasFoldSteps } from './fold/foldBrowserActions';
+import {
+  duplicateFoldStepAs,
+  poseDiagramFoldStep,
+  refreshDiagramFoldStep,
+  showFoldStepAs,
+} from './fold/foldStepActions';
 import { fillStepFromReferences, replaceStepFromReferences } from './references/referencesBrowserActions';
 import { makeStepMarksEditable } from './references/makeMarksEditable';
 import { editableCardMarks } from './references/referencesCardMarks';
@@ -171,7 +180,8 @@ const TRACKED_POSE_ACTIONS: Record<DiagramPoseActionId, TrackedPoseAction> = {
  * where it is now.
  */
 export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAction[] {
-  const { diagram, diagramReadOnly, diagramCaptures, oristudioCpDocument } = useWorkspaceStore.getState();
+  const state = useWorkspaceStore.getState();
+  const { diagram, diagramReadOnly, diagramCaptures, oristudioCpDocument } = state;
   if (!diagram) return [];
   const turn = turnById(diagram, stepId);
   if (turn) return bindTurnActions(turn, stepIndex(diagram, stepId), diagram.steps.length, diagramReadOnly, t);
@@ -190,6 +200,7 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       hasSource: stepHasPicture(step),
       link: linkStatusNow(step),
       linkKind: linkKindOf(step),
+      foldSteps: hasFoldSteps(state),
       breakBefore: step.breakBefore,
       lightingChanged: lightingChanged(step, diagram.style),
       facesMissing: lacksPaperFaces(step),
@@ -232,17 +243,43 @@ function cardMarksGate(step: DiagramStep, style: DiagramDocument['style']): Diag
   return marks && { lifted: marks.lifted, total: marks.total, fits: marks.fits };
 }
 
-/** How a step linked to the pattern shows it, for Show as; null for any other step. */
+/**
+ * How a posed step — a linked pattern, a Fold step — shows it, for Show as;
+ * null for any other step, `'none'` for a saved Defox view.
+ */
 function showAsOfStep(step: DiagramStep | undefined): DiagramShowAs | 'none' | null {
-  if (!step || isLockedStep(step) || step.source?.kind !== 'cp') return null;
-  return step.source.render.mode === 'defox' ? 'none' : showAsOf(step.source.render);
+  const render = step && !isLockedStep(step) ? posedRenderOf(step.source) : null;
+  if (!render) return null;
+  return render.mode === 'defox' ? 'none' : showAsOf(render);
 }
 
 /** What a step is linked to, for the verbs that follow a link. */
 function linkKindOf(step: DiagramStep | undefined): DiagramStepActionState['linkKind'] {
   if (!step || isLockedStep(step)) return null;
-  if (step.source?.kind === 'cp') return 'cp';
-  return step.source?.kind === 'references-step' ? 'references' : null;
+  switch (step.source?.kind) {
+    case 'cp':
+      return 'cp';
+    case 'references-step':
+      return 'references';
+    case 'fold-step':
+      return 'fold';
+    default:
+      return null;
+  }
+}
+
+/** Go back to what a linked step was made from, by its link's descriptor (`diagramLinks.ts`). */
+function openLinkedSource(stepId: string): void {
+  const { diagram } = useWorkspaceStore.getState();
+  const step = diagram ? stepById(diagram, stepId) : null;
+  const source = step ? linkedSourceOf(step) : null;
+  if (source) linkDescriptorOf(source).openSource(stepId);
+}
+
+/** Whether a step is linked to a Fold step: its verbs capture from Fold, not from Edit. */
+function linksFold(stepId: string): boolean {
+  const { diagram } = useWorkspaceStore.getState();
+  return (diagram ? stepById(diagram, stepId) : null)?.source?.kind === 'fold-step';
 }
 
 function hasDrawablePicture(step: DiagramStep, assets: Parameters<typeof stepPictureSource>[1]): boolean {
@@ -251,7 +288,8 @@ function hasDrawablePicture(step: DiagramStep, assets: Parameters<typeof stepPic
 
 /** What a step's picture is, for analytics: an upload by its asset, a link by how it shows its pattern. */
 function pictureKind(diagram: DiagramDocument, step: DiagramStep): DiagramPictureKind | null {
-  if (step.source?.kind === 'cp') return captureKind(step.source.render);
+  const render = posedRenderOf(step.source);
+  if (render) return captureKind(render);
   if (step.source?.kind === 'references-step') return 'references';
   return stepAsset(diagram, step)?.kind ?? null;
 }
@@ -307,6 +345,8 @@ function bindStepActions(
         // the model comes up.
         if (step && needsPose(step)) {
           if (!simulatedRestNow(stepId)) openDiagramStep(stepId, 'pose_again');
+        } else if (step?.source?.kind === 'fold-step') {
+          void refreshDiagramFoldStep(stepId);
         } else {
           void refreshDiagramStep(stepId);
         }
@@ -322,18 +362,23 @@ function bindStepActions(
         const held = diagram ? stepAreas(diagram, stepId) : null;
         if (held) void runEnlargedUpdate({ areaIds: held.areaIds }, t);
       },
-      openInEdit: () => openDiagramStepInEdit(stepId),
-      openInReferences: () => openDiagramStepInReferences(stepId),
+      // Each by the step's link's own descriptor.
+      openInEdit: () => openLinkedSource(stepId),
+      openInReferences: () => openLinkedSource(stepId),
+      openInFold: () => openLinkedSource(stepId),
       fromReferences: () => fillStepFromReferences(stepId),
+      fromFold: () => fillStepFromFold(stepId),
       replaceFromReferences: () => replaceStepFromReferences(stepId),
       makeMarksEditable: () => {
         makeStepMarksEditable(stepId, via === 'card' ? 'card_menu' : 'step_pane');
       },
       showAs: (way) => {
-        void showLinkedStepAs(stepId, way, via);
+        if (linksFold(stepId)) void showFoldStepAs(stepId, way);
+        else void showLinkedStepAs(stepId, way, via);
       },
       duplicateAs: (way) => {
-        void duplicateLinkedStepAs(stepId, way);
+        if (linksFold(stepId)) void duplicateFoldStepAs(stepId, way);
+        else void duplicateLinkedStepAs(stepId, way);
       },
       adjustPose: () => {
         openDiagramStep(stepId, 'command');
@@ -390,6 +435,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
     stepId === null ? false : Object.hasOwn(state.diagramCaptures, stepId)
   );
   const patternOpen = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
+  const foldSteps = useWorkspaceStore(hasFoldSteps);
   const breakBefore = step?.breakBefore ?? false;
   const relight = useWorkspaceStore((state) =>
     step && state.diagram ? lightingChanged(step, state.diagram.style) : false
@@ -430,6 +476,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
               hasSource,
               link,
               linkKind,
+              foldSteps,
               breakBefore,
               lightingChanged: relight,
               facesMissing,
@@ -458,6 +505,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
       hasSource,
       link,
       linkKind,
+      foldSteps,
       breakBefore,
       relight,
       facesMissing,
@@ -545,8 +593,21 @@ export function useDiagramPoseActions(stepId: string | null): DiagramPoseAction[
       : null
   );
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
+  const capturing = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
   return useMemo(() => {
     if (!step) return [];
+    if (!isLockedStep(step) && step.source?.kind === 'fold-step') {
+      // Each a capture from the step's Fold state, in the pose asked for.
+      return buildDiagramFoldStepPoseActions(
+        {
+          render: step.source.render,
+          carriesUnknownAnnotations: step.annotations.some((annotation) => annotation.unknown !== undefined),
+          capturing,
+          readOnly,
+        },
+        { t, pose: (verb) => void poseDiagramFoldStep(step.id, verb) }
+      );
+    }
     if (!isLockedStep(step) && step.source?.kind === 'references-step' && step.picture?.kind === 'step-diagram') {
       return buildDiagramReferencesPoseActions(
         {
@@ -588,5 +649,5 @@ export function useDiagramPoseActions(stepId: string | null): DiagramPoseAction[
         },
       }
     );
-  }, [step, readOnly, t]);
+  }, [step, readOnly, capturing, t]);
 }

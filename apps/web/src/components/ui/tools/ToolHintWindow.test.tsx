@@ -78,6 +78,26 @@ describe('ToolHintWindow', () => {
     expect(windowEl()).toBeNull();
   });
 
+  it('keeps to its default height unless asked to cap it, as a phone canvas whose paper must stay in view does', () => {
+    render();
+    expect(windowEl()?.hasAttribute('data-height')).toBe(false);
+    act(() =>
+      root.render(
+        <ToolHintWindow
+          container={container}
+          collapseKey={STORAGE_KEYS.cpToolHintCollapsed}
+          title="Fold"
+          meta="Instructions"
+          ariaLabel="Tool options"
+          height="capped"
+        >
+          <p>Pick the layers</p>
+        </ToolHintWindow>
+      )
+    );
+    expect(windowEl()?.getAttribute('data-height')).toBe('capped');
+  });
+
   it('renders nothing while the viewport is laid out but not displayed', () => {
     render(viewportElement(0, 0));
     expect(windowEl()).toBeNull();
@@ -120,6 +140,65 @@ describe('ToolHintWindow', () => {
     expect(document.querySelector('.probe-body')).toBeNull();
   });
 
+  const renderWith = (props: { startsCollapsed?: boolean; needsAttention?: boolean }) =>
+    act(() =>
+      root.render(
+        <ToolHintWindow
+          container={container}
+          collapseKey={STORAGE_KEYS.cpToolHintCollapsed}
+          title="Valley fold"
+          meta="3 settings"
+          ariaLabel="Tool options"
+          {...props}
+        >
+          <p className="probe-body">Pick which layers move</p>
+        </ToolHintWindow>
+      )
+    );
+  const toggle = () => act(() => windowEl()?.querySelector<HTMLButtonElement>('button[aria-expanded]')?.click());
+  const open = () => document.querySelector('.probe-body') !== null;
+
+  it('starts collapsed when told to, and keeps a choice once made', () => {
+    renderWith({ startsCollapsed: true });
+    expect(open()).toBe(false);
+    toggle();
+    expect(open()).toBe(true);
+    expect(localStorage.getItem(KEY)).toBe('false');
+    // A choice made is the one read back, whatever the surface would start with.
+    act(() => root.unmount());
+    root = createRoot(host);
+    renderWith({ startsCollapsed: true });
+    expect(open()).toBe(true);
+  });
+
+  it('opens for a decision, closes for it alone, and is as the preference says once it passes', () => {
+    renderWith({ startsCollapsed: true });
+    expect(open()).toBe(false);
+    renderWith({ startsCollapsed: true, needsAttention: true });
+    expect(open()).toBe(true);
+    // Closed for this decision: the preference is untouched.
+    toggle();
+    expect(open()).toBe(false);
+    expect(localStorage.getItem(KEY)).toBeNull();
+    toggle();
+    expect(open()).toBe(true);
+    expect(localStorage.getItem(KEY)).toBeNull();
+    // The decision made: collapsed, as preferred.
+    renderWith({ startsCollapsed: true, needsAttention: false });
+    expect(open()).toBe(false);
+    // The next decision opens it again.
+    renderWith({ startsCollapsed: true, needsAttention: true });
+    expect(open()).toBe(true);
+  });
+
+  it('leaves a window someone keeps open as it is, decision or none', () => {
+    renderWith({ needsAttention: true });
+    expect(open()).toBe(true);
+    toggle();
+    expect(open()).toBe(false);
+    expect(localStorage.getItem(KEY)).toBe('true');
+  });
+
   it('renders a header action beside the header', () => {
     act(() =>
       root.render(
@@ -141,5 +220,25 @@ describe('ToolHintWindow', () => {
     // nest one.
     expect(reset?.closest('button[aria-expanded]')).toBeNull();
     expect(windowEl()?.contains(reset ?? null)).toBe(true);
+  });
+
+  it('hands its frame to a workspace that keeps out from under it, and takes it back as it goes', () => {
+    const frames: (HTMLElement | null)[] = [];
+    const onFrame = (frame: HTMLElement | null) => frames.push(frame);
+    const show = (el: HTMLElement | null) =>
+      act(() =>
+        root.render(
+          <ToolHintWindow container={el} collapseKey={STORAGE_KEYS.cpToolHintCollapsed} title="Valley fold" meta="1 setting" ariaLabel="Tool options" onFrame={onFrame}>
+            <p />
+          </ToolHintWindow>
+        )
+      );
+    show(container);
+    expect(frames).toEqual([windowEl()]);
+    // A re-render is not a new frame.
+    show(container);
+    expect(frames).toHaveLength(1);
+    show(null);
+    expect(frames).toEqual([expect.any(HTMLElement), null]);
   });
 });

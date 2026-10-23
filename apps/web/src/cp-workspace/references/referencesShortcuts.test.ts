@@ -46,9 +46,10 @@ describe('runReferencesShortcut', () => {
     ['references.exportStep', 'exportStep'],
     ['references.exportStepSvg', 'exportStepSvg'],
     ['references.exportStepPng', 'exportStepPng'],
-  ] as const)('routes %s to exactly %s', (id, verb) => {
+  ] as const)('routes %s to exactly %s, and claims the chord', (id, verb) => {
     const actions = mockActions();
-    runReferencesShortcut(id, actions);
+    // A claim, always: no References verb hands its key to the scope beneath.
+    expect(runReferencesShortcut(id, actions)).toBe(true);
     for (const [name, fn] of Object.entries(actions)) {
       expect(fn, name).toHaveBeenCalledTimes(name === verb ? 1 : 0);
     }

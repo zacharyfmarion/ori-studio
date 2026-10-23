@@ -34,7 +34,7 @@ import {
   referenceFinderStepInModel,
   rfSheetOfFrame,
 } from './referenceFinderStepInModel';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import { referencesStepOverlay, type ModelBounds } from './referencesStepGeometry';
 
 /**

@@ -26,14 +26,8 @@ import {
 import { toggleReferencesMark } from './referencesBrowserActions';
 import { pullFromReferences, type PulledCard } from './referencesPulledSteps';
 import { useDecodedPlan, useReferencesSheets, type BrowserPatternsState } from './useReferencesSheets';
-import {
-  browserSelection,
-  pullableCards,
-  sameLine,
-  shownCardIn,
-  type BrowserSelection,
-  type BrowserStep,
-} from './referencesBrowserSelection';
+import { pullableCards, sameLine, shownCardIn } from './referencesBrowserSelection';
+import { usePullSelection, type PullSelection } from './usePullSelection';
 
 export type { BrowserPatternsState } from './useReferencesSheets';
 
@@ -46,7 +40,7 @@ export type BrowserCardsState =
   | { status: 'stale' }
   | { status: 'ready'; cards: BrowserCard[]; finished: boolean; settings: BrowserPlan['settings'] | null };
 
-export interface ReferencesBrowser {
+export interface ReferencesBrowser extends PullSelection {
   state: DiagramReferencesBrowserState;
   patterns: BrowserPatternsState;
   /** The pattern shown, in Sequence. */
@@ -63,7 +57,6 @@ export interface ReferencesBrowser {
   patternUse: ReadonlyMap<string, number>;
   /** The card the replaced step was made from, when it is in the list shown. */
   shownCard: number | null;
-  selection: BrowserSelection;
   /** The steps the selection would add, in order: what the footer offers. */
   pullable: PulledCard[];
   /** A pull is finding its sheet: the verbs wait for it. */
@@ -89,22 +82,6 @@ export interface ReferencesBrowser {
   anchorTakesFirst: boolean;
   choosePattern: (id: string) => void;
   setMode: (mode: 'sequence' | 'find') => void;
-  /** A press on a card: it is added or taken away; with Shift, so is every card from the last one pressed (`browserSelection.press`). */
-  press: (index: number, modifiers: { range: boolean }) => void;
-  /**
-   * The keyboard's walk: to the card before or after the one the keyboard is
-   * on, or the first or last, skipping any that does not read, choosing
-   * nothing. The card it lands on, or null with none to land on.
-   */
-  move: (to: BrowserStep) => number | null;
-  /** A card took focus (Tab, a press, the dialog's own move): the keyboard is on it now. */
-  focusOn: (index: number) => void;
-  /** The walk with Shift: the card it lands on is pressed as Shift+press does. It returns that card. */
-  extend: (to: BrowserStep) => number | null;
-  /** Space: press the card the keyboard is on. */
-  toggle: () => void;
-  selectAll: () => void;
-  clear: () => void;
   /** Add the selection where the browser was opened for. */
   add: () => void;
   close: () => void;
@@ -176,29 +153,16 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
   // the replaced step's card, once the plan is read — however soon the list
   // itself was known.
   const listKey = `${state.mode}|${state.mode === 'sequence' ? (pattern?.id ?? '') : (findResults?.revision ?? '')}`;
-  const [picked, setPicked] = useState<{ list: string | null; selection: BrowserSelection }>({
-    list: null,
-    selection: browserSelection.empty(),
-  });
-  const selection = picked.list === listKey ? picked.selection : browserSelection.initial(shownCard);
-  // A change to the selection as it stands by then: a Shift+arrow extends it
-  // and focuses the card it lands on, whose onFocus asks again in the same
-  // event — and must see the extension, not this render's selection.
-  const select = (change: (current: BrowserSelection) => BrowserSelection) =>
-    setPicked((prev) => {
-      const current = prev.list === listKey ? prev.selection : browserSelection.initial(shownCard);
-      const next = change(current);
-      return next === current && prev.list === listKey ? prev : { list: listKey, selection: next };
-    });
+  // Nothing is added without the sheet it goes on: a Find answer before the
+  // patterns are found, or when they could not be.
+  const finished = cards.status === 'ready' && cards.finished;
+  const { selection, ...choose } = usePullSelection(shownList, listKey, shownCard, finished);
   const [withTurnOver, setWithTurnOver] = useState(true);
 
   const outline = useMemo(
     () => sheetOutline(state.mode === 'sequence' ? (pattern?.component ?? null) : findComponent(analysis, findResults)),
     [state.mode, pattern, analysis, findResults]
   );
-  // Nothing is added without the sheet it goes on: a Find answer before the
-  // patterns are found, or when they could not be.
-  const finished = cards.status === 'ready' && cards.finished;
   // A replaced card is one step's picture: no turn-over comes with it.
   const offersTurnOver = state.anchor.kind !== 'replace';
   const { pullable, turnOverBefore } = useMemo(() => {
@@ -257,25 +221,7 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     anchorTakesFirst,
     choosePattern: (id) => store().setDiagramReferencesBrowser({ pattern: id }),
     setMode: (mode) => store().setDiagramReferencesBrowser({ mode }),
-    press: (index, { range }) => select((current) => browserSelection.press(current, shownList, index, { range, finished })),
-    move: (to) => {
-      const next = browserSelection.step(shownList, selection.focus, to);
-      if (next !== null) select((current) => browserSelection.moveTo(current, next));
-      return next;
-    },
-    focusOn: (index) =>
-      select((current) => (current.focus === index ? current : browserSelection.moveTo(current, index))),
-    extend: (to) => {
-      const next = browserSelection.step(shownList, selection.focus, to);
-      if (next !== null) select((current) => browserSelection.press(current, shownList, next, { range: true, finished }));
-      return next;
-    },
-    toggle: () => {
-      const at = selection.focus ?? browserSelection.step(shownList, null, 'next');
-      if (at !== null) select((current) => browserSelection.press(current, shownList, at, { range: false, finished }));
-    },
-    selectAll: () => select(() => browserSelection.all(shownList, finished)),
-    clear: () => select(() => browserSelection.empty()),
+    ...choose,
     add: () => pull(pullable),
     close: () => store().closeDiagramReferencesBrowser(),
     openReferences: () => store().openReferencesWorkspace(),

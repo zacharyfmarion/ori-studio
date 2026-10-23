@@ -143,6 +143,21 @@ describe('the stylesheet copies of the query', () => {
   });
 });
 
+/** App.css's phone block, read by its media query. */
+function phoneBlock(): string {
+  const css = readFileSync(resolve(process.cwd(), 'src/App.css'), 'utf8');
+  const start = css.indexOf(`@media ${PHONE_MEDIA_QUERY} {`);
+  expect(start, 'the phone block moved; this test reads it by its media query').toBeGreaterThan(0);
+  // Everything up to the first line-start `}`, which closes the media block.
+  const end = css.indexOf('\n}', start);
+  return css.slice(start, end);
+}
+
+function rule(block: string, selector: string): string | null {
+  const start = block.indexOf(`${selector} {`);
+  return start === -1 ? null : block.slice(start, block.indexOf('}', start));
+}
+
 /**
  * The bottom bar spends the home-indicator inset on its *buttons*, not on itself.
  *
@@ -159,20 +174,6 @@ describe('the stylesheet copies of the query', () => {
  * answered "Edit workspace".
  */
 describe('the phone tab bar and the home-indicator inset', () => {
-  const phoneBlock = () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/App.css'), 'utf8');
-    const start = css.indexOf(`@media ${PHONE_MEDIA_QUERY} {`);
-    expect(start, 'the phone block moved; this test reads it by its media query').toBeGreaterThan(0);
-    // Everything up to the first line-start `}`, which closes the media block.
-    const end = css.indexOf('\n}', start);
-    return css.slice(start, end);
-  };
-
-  const rule = (block: string, selector: string) => {
-    const start = block.indexOf(`${selector} {`);
-    return start === -1 ? null : block.slice(start, block.indexOf('}', start));
-  };
-
   it('puts the inset on the button, so it is part of the target', () => {
     const button = rule(phoneBlock(), '.workspace-rail__button');
     expect(button).not.toBeNull();
@@ -187,5 +188,27 @@ describe('the phone tab bar and the home-indicator inset', () => {
     // would be the old arrangement, and the two together would reserve 68pt.
     expect(rail).toContain('margin-bottom: calc(-1 * var(--safe-bottom))');
     expect(/padding:[^;]*--safe-bottom/u.test(rail ?? '')).toBe(false);
+  });
+});
+
+/**
+ * A tab's caption fits its own cell.
+ *
+ * The Fold workspace made six tabs, and at 360px the 60px cells were narrower
+ * than Russian "Симуляция" and "Референсы" (and Japanese シミュレート and
+ * リファレンス), which ran into each other. A caption is one word and cannot
+ * wrap, so it has to fit by size, and the size has to follow the cell: `vw`
+ * would bake in today's tab count.
+ *
+ * Asserted against the text for the same reason as above: jsdom lays nothing
+ * out. Measured in Chromium and WebKit in all nine locales at 320, 360, 375 and
+ * 393 wide and in landscape, and with a seventh tab.
+ */
+describe('the phone tab captions', () => {
+  it('sizes the caption against its cell, not the screen', () => {
+    const button = rule(phoneBlock(), '.workspace-rail__button');
+    const label = rule(phoneBlock(), '.workspace-rail__label');
+    expect(button).toContain('container-type: inline-size');
+    expect(label).toMatch(/font-size: min\(0\.64rem, [^;]*\dcqi[^;]*\);/u);
   });
 });

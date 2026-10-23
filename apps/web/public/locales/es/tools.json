@@ -286,13 +286,981 @@
     "toolValleyArrow": "Flecha de valle",
     "toolValleyLine": "Línea de valle",
     "toolWhiteArrow": "Flecha blanca",
-    "toolXRay": "Rayos X"
+    "toolXRay": "Rayos X",
+    "uncreasedLine": "Línea sin marcar"
   },
   "divideMode": {
     "count": "Cantidad",
     "countTitle": "Dividir la línea en partes iguales",
     "ratio": "Proporción",
     "ratioTitle": "Dividir la línea según una proporción"
+  },
+  "fold": {
+    "categoryLabel": "Espacio de plegado",
+    "chooser": {
+      "noKeys": {
+        "emergent": "Más de un cuarto pliegue deja estos pliegues planos. Recórrelos.",
+        "opening": "La solapa se abre de más de una manera: las capas resaltadas quedan juntas. Recórrelas.",
+        "order": "Las capas pueden quedar apiladas de más de una manera. Recórrelas.",
+        "pocket": "La punta puede hundirse en más de un bolsillo entre sus capas. Recórrelos.",
+        "ridge": "Cualquiera de las dos crestas deja plano el pliegue pivotante. Recórrelas.",
+        "root": "Este axioma da más de un pliegue aquí. Recórrelos.",
+        "target": "Más de una capa admite el remetido: la más brillante es la elegida. Recórrelas."
+      },
+      "withKeys": {
+        "emergent": "Más de un cuarto pliegue deja estos pliegues planos. Recórrelos o pulsa {{keys}}.",
+        "opening": "La solapa se abre de más de una manera: las capas resaltadas quedan juntas. Recórrelas o pulsa {{keys}}.",
+        "order": "Las capas pueden quedar apiladas de más de una manera. Recórrelas o pulsa {{keys}}.",
+        "pocket": "La punta puede hundirse en más de un bolsillo entre sus capas. Recórrelos o pulsa {{keys}}.",
+        "ridge": "Cualquiera de las dos crestas deja plano el pliegue pivotante. Recórrelas o pulsa {{keys}}.",
+        "root": "Este axioma da más de un pliegue aquí. Recórrelos o pulsa {{keys}}.",
+        "target": "Más de una capa admite el remetido: la más brillante es la elegida. Recórrelas o pulsa {{keys}}."
+      }
+    },
+    "crimp": {
+      "bothFit": "Aquí caben los dos tipos de crimp: elige hacia dónde va la punta.",
+      "firstLine": "Primera línea",
+      "firstLineAxiom": "La primera línea se sitúa con {{mode}}, el modo de línea activo. Para dibujarla, elige Línea libre en Primera línea.",
+      "introTurn": "Gira el extremo de una solapa hacia dentro por una línea y de vuelta hacia fuera por una segunda.",
+      "secondLine": "Segunda línea"
+    },
+    "divide": {
+      "clear_one": "Borrar la marca hecha aquí",
+      "clear_many": "Borrar las {{count}} marcas hechas aquí",
+      "clear_other": "Borrar las {{count}} marcas hechas aquí",
+      "computed": "Proporción calculada {{s}} : {{t}}",
+      "count": "Partes iguales",
+      "left": "Desde el inicio",
+      "mode": "Dividir",
+      "parts": "Partes",
+      "ratio": "Proporción",
+      "right": "Hasta el final"
+    },
+    "extent": {
+      "commitPinch": "Pellizcar",
+      "keyNote": "Pulsa {{shortcut}} para pasar de una extensión a otra.",
+      "label": "Extensión",
+      "pinchHelp": "Marca solo un trazo corto, centrado en un punto en el que haces clic a lo largo de la línea.",
+      "pinchHelpTouch": "Marca solo un trazo corto, centrado en un punto que tocas a lo largo de la línea.",
+      "segmentHelp": "Marca la línea solo entre dos puntos en los que haces clic a lo largo de ella.",
+      "segmentHelpTouch": "Marca la línea solo entre dos puntos que tocas a lo largo de ella.",
+      "wholeHelp": "Marca la línea de borde a borde."
+    },
+    "fix": {
+      "closedSinkInstead": "Mejor un hundido cerrado",
+      "crimpFlap": "Hacer crimp solo en la solapa {{number}}",
+      "crimpThisFlap": "Hacer crimp solo en esta solapa",
+      "foldOntoLine": "Plegar el borde sobre la línea en su lugar",
+      "includeFlap": "Incluir la solapa {{number}}",
+      "includeFlaps_one": "Incluir {{count}} solapa",
+      "includeFlaps_many": "Incluir las {{count}} solapas",
+      "includeFlaps_other": "Incluir las {{count}} solapas",
+      "insideCrimpInstead": "Mejor un crimp interior",
+      "insideInstead": "Mejor un pliegue invertido interior",
+      "mountainInstead": "Mejor un pliegue de monte",
+      "openSinkInstead": "Mejor un hundido abierto",
+      "outsideCrimpInstead": "Mejor un crimp exterior",
+      "outsideInstead": "Mejor un pliegue invertido exterior",
+      "pickFlap": "Plegar solo la solapa {{number}}",
+      "pickThisFlap": "Plegar solo esta solapa",
+      "pinchInstead": "Pellizcar ahí en su lugar",
+      "precreaseOtherWay": "Premarcar en el otro sentido",
+      "reverseCrossedFlaps": "Invertir solo las solapas que cruza la línea",
+      "reverseFlap": "Invertir solo la solapa {{number}}",
+      "reverseThisFlap": "Invertir solo esta solapa",
+      "sinkFlap": "Hundir solo la solapa {{number}}",
+      "sinkThisFlap": "Hundir solo esta solapa",
+      "slideToEdge": "Deslizar la línea hasta que el punto quede en el borde",
+      "swapInstead": "Cambiar el lado que se mueve",
+      "throughAllLayers": "Marcar a través de todas las capas",
+      "tuckFlap": "Remeter solo la solapa {{number}}",
+      "tuckOtherWay": "Remeter en el otro sentido",
+      "tuckOver": "Mejor remeter sobre la capa {{number}} de la lista",
+      "tuckOverAnother": "Mejor remeter sobre la capa que encaja",
+      "tuckThisFlap": "Remeter solo esta solapa",
+      "tuckUnder": "Mejor remeter bajo la capa {{number}} de la lista",
+      "tuckUnderAnother": "Mejor remeter bajo la capa que encaja",
+      "turnToEdge": "Girar la línea hasta que el punto quede en el borde",
+      "useLine": "Usar la línea de referencia",
+      "useMovingPoint": "Usar el punto de la solapa que se mueve",
+      "useSquareLine": "Usar la línea perpendicular",
+      "useWholeLine": "Usar la línea entera",
+      "valleyInstead": "Mejor un pliegue de valle"
+    },
+    "flap": {
+      "chip_one": "Solapa {{number}}, {{count}} capa",
+      "chip_many": "Solapa {{number}}, {{count}} capas",
+      "chip_other": "Solapa {{number}}, {{count}} capas",
+      "chipAdded_one": "Solapa {{number}}, {{count}} capa, se mueve con el pliegue",
+      "chipAdded_many": "Solapa {{number}}, {{count}} capas, se mueve con el pliegue",
+      "chipAdded_other": "Solapa {{number}}, {{count}} capas, se mueve con el pliegue",
+      "groupLabel": "Solapas que se pliegan",
+      "layers_one": "{{count}} capa",
+      "layers_many": "{{count}} capas",
+      "layers_other": "{{count}} capas",
+      "name": "Solapa {{number}}"
+    },
+    "group": {
+      "fold": "Plegar",
+      "locate": "Situar la línea",
+      "model": "Modelo",
+      "reference": "Puntos de referencia",
+      "sequence": "Secuencia",
+      "sink": "Hundidos"
+    },
+    "key": {
+      "commit": "Hacer el pliegue",
+      "cycleExtent": "Siguiente extensión del premarcado",
+      "nextRoot": "Solución siguiente",
+      "previousRoot": "Solución anterior",
+      "swapSide": "Cambiar el lado que se mueve"
+    },
+    "keys": {
+      "nextBranch": "Rama siguiente",
+      "nextStep": "Paso siguiente",
+      "previousBranch": "Rama anterior",
+      "previousStep": "Paso anterior"
+    },
+    "latch": {
+      "freePoint": "Punto libre"
+    },
+    "line": {
+      "axiom": "Axioma {{number}}: {{phrase}}",
+      "axiom1Help": "La línea que pasa por dos puntos.",
+      "axiom2Help": "La línea que lleva un punto sobre otro.",
+      "axiom3Help": "La línea que lleva un borde o pliegue sobre otro.",
+      "axiom4Help": "La línea que pasa por un punto, perpendicular a un borde o pliegue.",
+      "axiom5Help": "La línea que pasa por un pivote y lleva un punto sobre un borde o pliegue.",
+      "axiom6Help": "La línea que lleva a la vez dos puntos sobre dos bordes o pliegues.",
+      "axiom7Help": "La línea que lleva un punto sobre un borde o pliegue, perpendicular a otro.",
+      "crease": "Pliegue existente",
+      "creaseHelp": "Un pliegue o borde plegado que ya existe: volver a plegar un premarcado o desplegar una solapa.",
+      "free": "Línea libre",
+      "freeHelp": "Una línea trazada en cualquier lugar, sin referencia."
+    },
+    "note": {
+      "acrossLayers": "Estos puntos están en capas que el plegado ha separado, así que la línea pasa por ellos donde quedan en la forma plegada. El patrón de pliegues muestra los pliegues que crea.",
+      "along": "Los puntos se ajustan a donde la línea cruza pliegues, bordes y marcas, a los puntos sobre ella y a su punto medio.",
+      "alongBack": "Esc deshace el último punto.",
+      "clear": "Esc borra los puntos elegidos.",
+      "closedSinkLine": "La línea que cruza la punta fija cuánto se hunde.",
+      "crease": "Plegar por un premarcado lo vuelve a plegar; por un borde plegado, despliega la solapa.",
+      "free": "Sin ajuste: la línea pasa exactamente por los puntos donde haces clic.",
+      "freePoint": "Mantén {{modifier}} para colocar un punto en cualquier lugar, sin ajuste.",
+      "freeSnap": "Se ajusta a los puntos cercanos; si no hay ninguno, usa exactamente donde haces clic.",
+      "freeSnapTouch": "Se ajusta a los puntos cercanos; si no hay ninguno, usa exactamente donde tocas.",
+      "freeTouch": "Sin ajuste: la línea pasa exactamente por los puntos que tocas.",
+      "openSinkSquare": "La línea que cruza la punta fija cuánto se hunde, y debe ser exactamente perpendicular a su línea central: el axioma 4 traza una.",
+      "queued": "Se plegará en cuanto la vista previa esté lista…",
+      "rotateCancel": "Esc suelta la herramienta Girar sin añadir el giro.",
+      "rotatePreview": "El panel plegado muestra el modelo girado tal como quedará.",
+      "rotateRefused": "Este giro no se puede añadir aquí.",
+      "severalSunk_one": "Aquí hay {{count}} punta hundida: se toma la primera.",
+      "severalSunk_many": "Aquí hay {{count}} puntas hundidas: se toma la primera.",
+      "severalSunk_other": "Aquí hay {{count}} puntas hundidas: se toma la primera.",
+      "snap": "Los puntos se ajustan a esquinas, marcas, cruces de pliegues, puntos medios y bordes.",
+      "unfoldCancel": "Esc suelta la herramienta Desplegar hasta un paso sin añadir el paso.",
+      "unfoldPreview": "El lienzo muestra el papel de vuelta en esa forma. Se conservan todos los pliegues.",
+      "unsinkRing": "La línea es un pliegue del anillo que dejó el hundido, a lo largo de la parte superior de la punta hundida."
+    },
+    "op": {
+      "closedSink": "Hundido cerrado",
+      "crimp": "Pinza",
+      "openSink": "Hundido abierto",
+      "outsideReverse": "Pliegue invertido exterior",
+      "petal": "Pliegue pétalo",
+      "pleat": "Pliegue escalonado",
+      "rabbitEar": "Oreja de conejo",
+      "squash": "Pliegue aplastado",
+      "swivel": "Pliegue pivotante",
+      "tuck": "Remeter",
+      "unsink": "Deshacer hundido"
+    },
+    "order": {
+      "accept": "Usar este orden",
+      "acceptAll": "Usar órdenes y añadir paso",
+      "acceptUpdate": "Usar órdenes y actualizar paso",
+      "back": "Atrás",
+      "choose": "Elegir orden de capas",
+      "count_one": "Orden {{index}} de {{count}}",
+      "count_many": "Orden {{index}} de {{count}}",
+      "count_other": "Orden {{index}} de {{count}}",
+      "failed": "No se pudo cargar el orden. Vuelve e inténtalo de nuevo, o elige otro orden.",
+      "found_one": "Orden {{index}} de {{count}} encontrados",
+      "found_many": "Orden {{index}} de {{count}} encontrados",
+      "found_other": "Orden {{index}} de {{count}} encontrados",
+      "help": "Previsualiza las disposiciones y elige el orden que quieras.",
+      "incomplete": "Búsqueda incompleta. Puede haber más órdenes.",
+      "inspect": "Inspeccionar capas",
+      "loading": "Cargando orden…",
+      "movingVaries": "Estos órdenes mueven distintas capas. Comprueba el papel resaltado.",
+      "next": "Siguiente orden de capas",
+      "noneFound": "Aún no se ha encontrado ningún orden",
+      "noOthers": "Búsqueda terminada. No hay más órdenes.",
+      "previous": "Orden de capas anterior",
+      "region": "Región {{number}}",
+      "regions": "Regiones independientes",
+      "search": "Buscar más órdenes",
+      "searching": "Buscando más órdenes…",
+      "stack": "Región {{number}}: {{layers}}",
+      "stackHelp": "Selecciona una región para resaltarla. Las capas se enumeran de delante hacia atrás; las diferencias resaltadas se comparan con la primera vista previa.",
+      "stop": "Detener la búsqueda"
+    },
+    "picker": {
+      "addFavorite": "Añadir {{tool}} a favoritos",
+      "close": "Cerrar la lista de herramientas",
+      "favorites": "Favoritos",
+      "favoritesHint": "Los primeros {{limit}} favoritos que aparecen aquí se muestran en la barra inferior. Mantén pulsado y arrastra para reordenarlos.",
+      "removeFavorite": "Quitar {{tool}} de favoritos",
+      "title": "Herramientas de plegado",
+      "trigger": "Herramientas"
+    },
+    "pleat": {
+      "blocked": "Ambos pliegues deben caber en la solapa seleccionada sin mover otro papel. Revisa las líneas y las capas seleccionadas.",
+      "intro": "Sitúa primero la línea de montaña y luego la de valle sobre el modelo antes de plegarlo.",
+      "layers": "Elige la solapa que quieres plegar. El extremo más allá de la línea de valle se pliega de vuelta.",
+      "limit": "Hay demasiadas disposiciones de capas para resolver este pliegue. Selecciona una solapa más pequeña.",
+      "lines": "La línea de valle debe estar más allá de la de montaña, hacia el extremo que se mueve. Revisa las líneas o pulsa Intercambiar.",
+      "mountainInstruction": "Línea de montaña: {{instruction}}",
+      "mountainLine": "Línea de montaña",
+      "refusedTitle": "El pliegue no puede realizarse aquí",
+      "searching": "Calculando cómo pueden apilarse las capas del pliegue…",
+      "valleyInstruction": "Línea de valle: {{instruction}}",
+      "valleyLine": "Línea de valle"
+    },
+    "railLabel": "Herramientas de plegado",
+    "readOnly": {
+      "locked": "Este paso es de una versión más reciente de Ori Studio, así que no se puede plegar a partir de él.",
+      "newer": "Esta secuencia es de una versión más reciente de Ori Studio, así que se abre en modo de solo lectura."
+    },
+    "refusal": {
+      "budget": {
+        "text": "Averiguar cómo se apilan las capas tardó demasiado aquí, así que no se sabe si este pliegue encaja. Pliega menos capas o pliega en otro sitio.",
+        "title": "La búsqueda se quedó sin tiempo"
+      },
+      "choiceBroken": {
+        "text": "La abertura o el orden de capas que guardó este paso ya no encaja con el papel anterior, así que no se puede plegar tal como está guardado.",
+        "title": "Una elección ya no encaja"
+      },
+      "chooseOpening": {
+        "text": "La solapa se abre de más de una manera. Elige una para plegar.",
+        "title": "Elige cómo se abre"
+      },
+      "chooseOrder": {
+        "text": "El pliegue puede quedar con sus capas apiladas de más de una manera. Elige una para plegar.",
+        "title": "Elige cómo se apilan las capas"
+      },
+      "choosePocket": {
+        "text": "La punta puede hundirse en más de un bolsillo entre sus capas. Elige uno para plegar.",
+        "title": "Elige un bolsillo"
+      },
+      "closureAddsFlaps": {
+        "textMany_one": "Plegar estas capas mueve también {{count}} solapa más.",
+        "textMany_many": "Plegar estas capas mueve también {{count}} solapas más.",
+        "textMany_other": "Plegar estas capas mueve también {{count}} solapas más.",
+        "textOne": "Plegar estas capas mueve también la solapa {{number}}.",
+        "title": "Se moverían más solapas"
+      },
+      "collision": {
+        "text": "Las capas que se mueven atravesarían capas que están en su camino.",
+        "title": "Colisión"
+      },
+      "crimpInsideInfeasible": {
+        "title": "No puede hacer crimp hacia dentro"
+      },
+      "crimpKindInfeasible": {
+        "neitherRedraw": "Ni el crimp interior ni el exterior caben con estas líneas: ninguna forma de apilar las capas deja girar la punta en las dos. Pulsa Esc y dibuja las líneas más cerca de ser paralelas, o haz el crimp en menos solapas.",
+        "text": "Ninguna forma de apilar las capas deja que la punta gire hacia este lado en las dos líneas. Puede que el otro tipo de crimp encaje."
+      },
+      "crimpLinesMeet": {
+        "redraw": "Las dos líneas se cruzan, o se acercan demasiado, sobre el papel que mueve el crimp. Pulsa Esc y dibuja la segunda línea separada de la primera, cruzando toda la solapa.",
+        "title": "Las líneas se tocan"
+      },
+      "crimpMissesTip": {
+        "redraw": "La segunda línea no cruza nada del papel más allá de la primera, así que nada volvería hacia fuera. Cambia el lado de la punta si la punta es el otro extremo, o pulsa Esc y dibuja la segunda línea cruzando la solapa, más allá de la primera.",
+        "title": "La segunda línea no toca la solapa"
+      },
+      "crimpNoOpening": {
+        "noSpine": "Una sola capa no tiene un borde plegado por el que hacer el crimp. Haz el crimp en una solapa de capas unidas por un pliegue.",
+        "text": "Sus capas se separan en la primera línea, pero en la segunda una de ellas ya ha terminado o no tiene sobre qué girar. Mueve la segunda línea o haz crimp en otras solapas.",
+        "title": "Esta solapa no se puede abrir en la segunda línea"
+      },
+      "crimpOutsideInfeasible": {
+        "title": "No puede hacer crimp por fuera"
+      },
+      "crimpTipNotFree": {
+        "text": "Hay otras capas donde giraría el papel del crimp. Incluye sus solapas en el crimp o hazlo en otro sitio."
+      },
+      "emptySeed": {
+        "text": "No hay ninguna capa elegida. Elige al menos una solapa para mover.",
+        "title": "Nada que plegar"
+      },
+      "extentMissesLayers": {
+        "text": "Ninguna de las capas por las que pasa este premarcado está a lo largo de ese tramo de la línea, o la línea ya está plegada ahí. Haz clic en otros puntos de la línea o marca a través de todas las capas.",
+        "title": "No hay capa que marcar ahí"
+      },
+      "extentMissesPaper": {
+        "text": "Ese tramo de la línea no pasa por encima del papel, así que no hay nada que marcar. Haz clic en puntos donde la línea cruza el papel.",
+        "title": "Ahí no hay papel"
+      },
+      "extentOffPaper": {
+        "text": "Un punto a partir del cual se mide el pliegue no está sobre el papel tal como está plegado ahora. Haz clic en sus puntos a lo largo de la línea, donde la línea cruza el papel.",
+        "title": "Un punto está fuera del papel"
+      },
+      "extentTooShort": {
+        "pinch": "Este pellizco es demasiado corto para que el papel tome un pliegue. Marca más parte de la línea.",
+        "segment": "Los dos puntos están demasiado cerca a lo largo de la línea para marcar entre ellos. Haz clic en dos puntos más separados o pellizca ahí en su lugar.",
+        "title": "Demasiado corto para marcar"
+      },
+      "insideInfeasible": {
+        "title": "No puede ir hacia dentro"
+      },
+      "invalid": {
+        "text": "No daría un modelo plano válido.",
+        "title": "Este pliegue no se puede hacer"
+      },
+      "kindInfeasible": {
+        "neither": "Aquí no cabe ningún tipo de pliegue invertido: ninguna forma de apilar las capas deja girar la punta. Mueve la línea o invierte otras solapas.",
+        "text": "Ninguna forma de apilar las capas deja que la punta gire hacia este lado aquí. Puede que el otro tipo de pliegue invertido encaje."
+      },
+      "markOffSheet": {
+        "text": "Parte de la marca quedaría fuera de la hoja. Haz clic en sus puntos a lo largo de la línea, dentro del papel.",
+        "title": "La marca saldría del papel"
+      },
+      "markOnCrease": {
+        "text": "La marca quedaría sobre un pliegue que ya existe. Marca otro tramo de la línea o pliega por el propio pliegue.",
+        "title": "Ya hay un pliegue ahí"
+      },
+      "marksOverlap": {
+        "text": "La marca quedaría sobre parte de una marca hecha antes, de un modo que el papel no admite. Marca otro tramo de la línea o marca la línea entera.",
+        "title": "Las marcas se solaparían"
+      },
+      "markTooShort": {
+        "text": "En una de sus capas la marca sería demasiado corta para que el papel tome un pliegue. Marca más parte de la línea.",
+        "title": "Demasiado corto para marcar"
+      },
+      "moverStays": {
+        "text": "La capa que lleva el punto que hay que mover no está entre las capas que se pliegan. Incluye su solapa o pliega todas las capas.",
+        "title": "El punto no se movería"
+      },
+      "nearMiss": {
+        "text": "La línea pasa justo al lado de un punto del papel: demasiado cerca para plegar limpiamente, demasiado lejos para pasar por él.",
+        "title": "Demasiado cerca de un punto"
+      },
+      "noMovingSide": {
+        "text": "No hay papel en el lado de la línea que se movería. Cambia el lado que se mueve o lleva la línea sobre el papel.",
+        "title": "Nada que plegar"
+      },
+      "noRoot": {
+        "text": "Estas referencias no dan ninguna línea de pliegue en el papel tal como está plegado. Elige otras referencias.",
+        "title": "Aquí no hay pliegue"
+      },
+      "noSide": {
+        "text": "Nada indica qué lado de la línea se mueve. Elige un punto fuera de la línea, en el lado que quieres mover.",
+        "title": "¿Qué lado se mueve?"
+      },
+      "nothingStays": {
+        "text": "Todas las capas están en el lado que se mueve, así que nada se quedaría quieto. Elige una solapa para plegar.",
+        "title": "Se movería todo"
+      },
+      "offPaper": {
+        "text": "Un punto o un borde a partir del cual se situó la línea no está sobre el papel tal como está plegado ahora. Vuelve a situar la línea.",
+        "title": "Una referencia no está sobre el papel"
+      },
+      "outsideInfeasible": {
+        "title": "No puede envolver por fuera"
+      },
+      "pickAgain": {
+        "text": "Ese lugar no está dentro de una capa del lado que se mueve. Elige dentro de una capa, lejos de sus pliegues.",
+        "title": "Vuelve a elegir"
+      },
+      "pointsTooClose": {
+        "text": "Los dos puntos caen en el mismo sitio del papel plegado, así que no forman ninguna línea. Elige dos puntos más separados.",
+        "title": "Los puntos están demasiado cerca"
+      },
+      "precreaseUnfold": {
+        "text": "Desplegarlo movería más capas que las que movió al plegarlo.",
+        "title": "Este premarcado no se puede desplegar"
+      },
+      "reverseNoOpening": {
+        "bodiesCross": "Si se separa por sus pliegues, el papel del que cuelga cada mitad cruzaría el de la otra.",
+        "noBody": "Si se separa por sus pliegues, una mitad no colgaría de nada que se quede quieto en la línea.",
+        "noSpine": "Una sola capa no tiene un borde plegado por el que invertirse. Invierte una solapa de capas unidas por un pliegue.",
+        "noSplit": "Sus capas no se pueden separar por un pliegue sin que una capa de abajo acabe sobre una de arriba.",
+        "title": "Esta solapa no se puede abrir"
+      },
+      "sinkLineTilted": {
+        "text": "Un hundido abierto necesita la línea exactamente perpendicular a la línea central de la punta: con la más mínima inclinación, la punta no se puede hundir abierta. La línea perpendicular a la misma profundidad sí puede.",
+        "title": "La línea no es perpendicular a la punta"
+      },
+      "sinkNoAxis": {
+        "text": "Su contorno no recorre dos lados rectos, así que no hay línea central a la que la línea de un hundido abierto pueda ser perpendicular.",
+        "title": "La punta no tiene línea central"
+      },
+      "sinkNoOrder": {
+        "none": "Ninguna forma de apilar las capas deja hundir la punta así aquí. Mueve la línea o elige otra punta.",
+        "otherSink": "Ninguna forma de apilar las capas deja hundir la punta así aquí. El otro tipo de hundido encaja.",
+        "title": "La punta no se puede hundir así aquí",
+        "unsink": "Ninguna forma de apilar las capas deja que la punta hundida vuelva a salir aquí.",
+        "unsinkTitle": "La punta no puede volver a salir aquí"
+      },
+      "sinkNoPocket": {
+        "text": "Ningún hueco entre sus capas recorre todo su contorno para que entre el extremo, así que no se puede hundir cerrada.",
+        "title": "La punta no tiene bolsillo"
+      },
+      "sinkOutlineMixed": {
+        "text": "Los bordes exteriores de la punta son pliegues de montaña y de valle a la vez: no tiene un único exterior al que dar la vuelta, así que no se puede hundir abierta.",
+        "title": "Su exterior no es un solo pliegue"
+      },
+      "sinkPointOpen": {
+        "text": "Hay bordes sueltos que llegan a su extremo: sus capas son esquinas libres, no una punta cerrada, así que nada dice cómo se hundirían. Hunde una punta cuyas capas estén unidas en el extremo.",
+        "title": "La punta está abierta"
+      },
+      "sinkSeveralPoints": {
+        "text_one": "Hay {{count}} punta en el lado del extremo, y un hundido toma solo una. Elige la punta que se hunde.",
+        "text_many": "Hay {{count}} puntas en el lado del extremo, y un hundido toma solo una. Elige la punta que se hunde.",
+        "text_other": "Hay {{count}} puntas en el lado del extremo, y un hundido toma solo una. Elige la punta que se hunde.",
+        "title": "Elige una punta"
+      },
+      "sliver": {
+        "text": "Un punto de las capas que se mueven quedaría a un pelo por dentro del borde de otra capa.",
+        "title": "Un punto cae justo dentro de un borde"
+      },
+      "stackedTooDeep": {
+        "fold": "Este pliegue apilaría las capas demasiado como para determinar su orden: hasta {{deepest, number}} unas sobre otras. Pliega menos capas.",
+        "pattern": "Este patrón de pliegues apila sus capas demasiado como para determinar su orden: hasta {{deepest, number}} unas sobre otras. Importa un patrón más sencillo.",
+        "step": "Este paso apila sus capas demasiado como para determinar su orden: hasta {{deepest, number}} unas sobre otras. Este paso y los siguientes solo se pueden eliminar.",
+        "title": "Capas demasiado apiladas"
+      },
+      "tipNotFree": {
+        "text": "Hay otras capas donde giraría la punta. Incluye sus solapas en el pliegue o invierte en otro sitio.",
+        "title": "Hay capas en medio"
+      },
+      "tooManyFaces": {
+        "fold": "Este pliegue daría {{faceCount, number}} caras, más de las {{limit, number}} que se pueden plegar. Pliega menos capas.",
+        "note": "{{faceCount, number}} caras, más de las {{limit, number}} que se pueden plegar",
+        "pattern": "Este patrón de pliegues tiene {{faceCount, number}} caras, y solo se pliegan patrones de hasta {{limit, number}}. Importa un patrón más sencillo.",
+        "step": "Este paso tiene {{faceCount, number}} caras, más de las {{limit, number}} que se pueden plegar. Este paso y los siguientes solo se pueden eliminar.",
+        "title": "Demasiadas caras"
+      },
+      "tooSmall": {
+        "text": "El pliegue dejaría un pliegue o una tira de papel más fina que el propio papel.",
+        "title": "Demasiado pequeño para plegar"
+      },
+      "tuckInfeasible": {
+        "none": "Ninguna forma de apilar las capas deja la solapa justo contra esa capa. Remete menos solapas o sitúa otra línea.",
+        "text": "Ninguna forma de apilar las capas deja la solapa justo contra esa capa. Otra capa de aquí la admite.",
+        "titleOver": "No se puede remeter sobre esa capa",
+        "titleUnder": "No se puede remeter bajo esa capa"
+      },
+      "tuckNoTarget": {
+        "over": "Ninguna capa que se queda quieta admite aquí la solapa por encima. Pliega en el otro sentido, cambia el lado que se mueve o sitúa otra línea.",
+        "title": "Aquí ninguna capa admite el remetido",
+        "under": "Ninguna capa que se queda quieta admite aquí la solapa por debajo. Pliega en el otro sentido, cambia el lado que se mueve o sitúa otra línea."
+      },
+      "tuckTarget": {
+        "text": "Elige una capa que se quede quieta para remeter la solapa contra ella.",
+        "title": "La capa donde remeter se movería"
+      },
+      "unsinkNotSunk": {
+        "text": "A lo largo de esta línea no hay nada hundido dentro del papel. Sitúa el anillo que dejó un hundido y elige la punta hundida dentro de él.",
+        "title": "Aquí no hay ninguna punta hundida"
+      },
+      "unsupported": {
+        "text": "Esta versión de Ori Studio no puede plegarlo tal como está guardado.",
+        "title": "Este paso no se puede plegar"
+      },
+      "wrongCrease": {
+        "text": "Despliega a lo largo de un borde plegado y vuelve a plegar a lo largo de un pliegue plano.",
+        "title": "No es ese tipo de pliegue"
+      }
+    },
+    "reverse": {
+      "auto": "Automático",
+      "bothFit": "Aquí caben los dos tipos: elige hacia dónde va la punta.",
+      "inside": "Interior",
+      "intentHelp": "Automático usa el tipo viable. Un tipo elegido sigue seleccionado aunque no se pueda plegar.",
+      "kind": "Tipo",
+      "next": "Siguiente",
+      "ofCount": "{{index}} de {{total}}",
+      "opening": "Abertura",
+      "openingsTruncated": "Puede haber más aperturas. Reduce las solapas seleccionadas para explorarlas.",
+      "order": "Orden de las capas",
+      "outside": "Exterior",
+      "previous": "Anterior",
+      "requestedKind": "Tipo de pliegue inverso",
+      "tipSide": "Lado de la punta"
+    },
+    "rotate": {
+      "amount": "Cantidad",
+      "degrees": "Ángulo exacto",
+      "direction": "Sentido",
+      "presetTooltip": "{{fraction}} de vuelta, {{degrees}}°"
+    },
+    "scopeLabel": "plegado",
+    "section": {
+      "label": "Capas en la línea de pliegue, de arriba abajo",
+      "labelWoven": "Capas en la línea de pliegue bajo el puntero, de arriba abajo",
+      "row": "Capa {{layer}}, {{flap}}",
+      "rowAdded": "Capa {{layer}}, {{flap}}, se mueve con el pliegue",
+      "rowAddedBeside": "Capa {{layer}}, {{flap}}, se mueve con el pliegue, junto a la capa {{above}}",
+      "rowBeside": "Capa {{layer}}, {{flap}}, junto a la capa {{above}}",
+      "top": "Arriba"
+    },
+    "sink": {
+      "bothFit": "Aquí caben los dos hundidos: uno abierto da la vuelta a cada capa; uno cerrado las mantiene juntas.",
+      "closed": "Cerrado",
+      "depth": "Profundidad",
+      "depthHelp": "A qué distancia está la línea del extremo de la punta a lo largo de su línea central, tomando el lado del papel como 1. Sitúa la línea más abajo para hundir más la punta.",
+      "depthValue": "{{depth}} desde el extremo",
+      "kind": "Hundido",
+      "onlyClosed": "Aquí solo cabe el hundido cerrado.",
+      "onlyOpen": "Aquí solo cabe el hundido abierto.",
+      "open": "Abierto",
+      "pocket": "Bolsillo",
+      "pocketBack": "Detrás",
+      "pocketFront": "Delante",
+      "sunkSide": "Lado hundido"
+    },
+    "steps": {
+      "axiom1First": "Haz clic en el primer punto por el que pasa el pliegue.",
+      "axiom1FirstTouch": "Toca el primer punto por el que pasa el pliegue.",
+      "axiom1Second": "Haz clic en el segundo punto.",
+      "axiom1SecondTouch": "Toca el segundo punto.",
+      "axiom2Land": "Haz clic donde debe caer.",
+      "axiom2LandTouch": "Toca donde debe caer.",
+      "axiom3Move": "Haz clic en el borde o pliegue que se mueve.",
+      "axiom3MoveTouch": "Toca el borde o pliegue que se mueve.",
+      "axiom3Onto": "Haz clic en el borde o pliegue sobre el que se coloca.",
+      "axiom3OntoTouch": "Toca el borde o pliegue sobre el que se coloca.",
+      "axiom4Through": "Haz clic en el punto por el que pasa el pliegue.",
+      "axiom4ThroughTouch": "Toca el punto por el que pasa el pliegue.",
+      "axiom5Pivot": "Haz clic en el pivote por el que pasa el pliegue.",
+      "axiom5PivotTouch": "Toca el pivote por el que pasa el pliegue.",
+      "axiom6FirstPoint": "Haz clic en el primer punto que se mueve.",
+      "axiom6FirstPointTouch": "Toca el primer punto que se mueve.",
+      "axiom6SecondLine": "Haz clic en el borde o pliegue sobre el que debe caer ese.",
+      "axiom6SecondLineTouch": "Toca el borde o pliegue sobre el que debe caer ese.",
+      "axiom6SecondPoint": "Haz clic en el segundo punto que se mueve.",
+      "axiom6SecondPointTouch": "Toca el segundo punto que se mueve.",
+      "commit": "Pulsa Intro para plegar.",
+      "commitOrClick": "Pulsa Intro, o haz clic en {{action}}, para plegar.",
+      "commitTouch": "Toca {{action}} para plegar.",
+      "crease": "Haz clic en el pliegue o borde plegado por el que plegar.",
+      "creaseTouch": "Toca el pliegue o borde plegado por el que plegar.",
+      "crimpFinish": "Elige Interior o Exterior y pulsa Intro.",
+      "crimpFinishTouch": "Elige Interior o Exterior y toca {{action}}.",
+      "crimpFirstCrease": "Haz clic en el pliegue o el borde plegado donde la solapa se pliega hacia dentro.",
+      "crimpFirstCreaseTouch": "Toca el pliegue o el borde plegado donde la solapa se pliega hacia dentro.",
+      "crimpFirstStart": "Haz clic donde empieza la primera línea, más cerca del cuerpo: donde la solapa se pliega hacia dentro.",
+      "crimpFirstStartTouch": "Toca donde empieza la primera línea, más cerca del cuerpo: donde la solapa se pliega hacia dentro.",
+      "crimpKindBoth": "Elige Interior para meter el extremo dentro de la solapa, o Exterior para envolverlo por fuera.",
+      "crimpLayers": "En Capas, quita las solapas que no deban hacer el crimp.",
+      "crimpSecondCrease": "Haz clic en el pliegue o el borde plegado, más allá de la primera línea, donde la solapa vuelve hacia fuera.",
+      "crimpSecondCreaseTouch": "Toca el pliegue o el borde plegado, más allá de la primera línea, donde la solapa vuelve hacia fuera.",
+      "crimpSecondStart": "Haz clic donde empieza la segunda línea, más allá de la primera hacia la punta: donde la solapa vuelve hacia fuera.",
+      "crimpSecondStartTouch": "Toca donde empieza la segunda línea, más allá de la primera hacia la punta: donde la solapa vuelve hacia fuera.",
+      "crimpTipEnd": "El extremo más allá de la segunda línea gira: si es el extremo equivocado, pulsa Cambiar.",
+      "divide": "Haz clic en un borde o pliegue para dividirlo.",
+      "divideTouch": "Toca un borde o pliegue para dividirlo.",
+      "divideUse": "Usa los puntos nuevos como referencias para cualquier pliegue.",
+      "finish": "Elige el pliegue y las capas y pulsa Intro.",
+      "finishTouch": "Elige el pliegue y las capas y toca {{action}}.",
+      "freeEnd": "Haz clic donde termina.",
+      "freeEndTouch": "Toca donde termina.",
+      "freeStart": "Haz clic donde empieza la línea de pliegue.",
+      "freeStartTouch": "Toca donde empieza la línea de pliegue.",
+      "landOnLine": "Haz clic en el borde o pliegue sobre el que debe caer.",
+      "landOnLineTouch": "Toca el borde o pliegue sobre el que debe caer.",
+      "perpendicularTo": "Haz clic en el borde o pliegue al que el pliegue es perpendicular.",
+      "perpendicularToTouch": "Toca el borde o pliegue al que el pliegue es perpendicular.",
+      "pickFlapsToReverse": "Elige qué solapas se invierten.",
+      "pickFlapsToTuck": "Elige qué solapas se remeten.",
+      "pickLayers": "Elige qué capas se mueven.",
+      "pickPoint": "Elige qué punta se hunde: un hundido toma solo una.",
+      "pickSunkPoint": "La punta hundida se encuentra por ti: elige otra en las capas para sacar esa.",
+      "pickTuckTarget": "Elige la capa contra la que remeter.",
+      "pinchAt": "Haz clic donde pellizcar a lo largo de la línea.",
+      "pinchAtTouch": "Toca donde pellizcar a lo largo de la línea.",
+      "pointToMove": "Haz clic en el punto que se mueve.",
+      "pointToMoveTouch": "Toca el punto que se mueve.",
+      "repeatAxes": "Señala un eje de simetría dibujado en el papel para previsualizarlo y haz clic en él para tomarlo, o sitúa uno con Situar la línea, en cualquiera de los dos paneles.",
+      "repeatAxesTouch": "Toca un eje de simetría dibujado en el papel, o sitúa uno con Situar la línea, en cualquiera de los dos paneles.",
+      "repeatCommit": "Pulsa Intro para añadir los pliegues repetidos.",
+      "repeatCommitTouch": "Toca {{action}} para añadir los pliegues repetidos.",
+      "repeatStart": "Elige el primer paso que se repite. El rango termina en el paso que está en pantalla.",
+      "reverseFinish": "Elige qué solapas se invierten y pulsa Intro.",
+      "reverseFinishTouch": "Elige qué solapas se invierten y toca {{action}}.",
+      "rotateCommit": "Pulsa Intro para añadir el giro.",
+      "rotateCommitTouch": "Toca {{action}} para añadir el giro.",
+      "rotateDirection": "Elige hacia qué lado gira.",
+      "rotateHowFar": "Elige cuánto girar el modelo.",
+      "segmentFrom": "Haz clic donde empieza el pliegue a lo largo de la línea.",
+      "segmentFromTouch": "Toca donde empieza el pliegue a lo largo de la línea.",
+      "segmentTo": "Haz clic donde termina.",
+      "segmentToTouch": "Toca donde termina.",
+      "sinkFinish": "Elige la punta y pulsa Intro.",
+      "sinkFinishTouch": "Elige la punta y toca {{action}}.",
+      "tuckFinish": "Elige las solapas y la capa contra la que remeter, y pulsa Intro.",
+      "tuckFinishTouch": "Elige las solapas y la capa contra la que remeter, y toca {{action}}.",
+      "unfoldCommit": "Pulsa Intro para añadir el paso.",
+      "unfoldCommitTouch": "Toca {{action}} para añadir el paso.",
+      "unfoldTarget": "Elige el paso al que volver."
+    },
+    "tool": {
+      "closedSinkHelp": "Empujar el extremo de una punta cerrada dentro de un bolsillo, con sus capas juntas.",
+      "crimpHelp": "Plegar una solapa hacia dentro por una línea y de vuelta hacia fuera por una segunda, de modo que su extremo gira.",
+      "divideLine": "Dividir línea",
+      "divideLineHelp": "Marcar puntos que dividen un borde o un pliegue en partes iguales.",
+      "insideReverse": "Pliegue invertido interior",
+      "mountain": "Pliegue de monte",
+      "mountainHelp": "Plegar el lado que se mueve alejándolo de ti, para que quede debajo.",
+      "openSinkHelp": "Empujar hacia dentro el extremo de una punta cerrada, dando la vuelta a cada una de sus capas.",
+      "pleatHelp": "Haz un pliegue escalonado: sitúa la línea de montaña y luego la de valle.",
+      "precrease": "Premarcar",
+      "precreaseHelp": "Plegar y desplegar, dejando un pliegue para usarlo después.",
+      "repeatAxisHelp": "Volver a plegar una serie de pasos respecto a un eje de simetría, en el otro lado o detrás, con vista previa, y añadirla como un paso.",
+      "reverse": "Pliegue inverso",
+      "reverseHelp": "Invierte una solapa hacia dentro o envuélvela por fuera, invirtiendo su pliegue central.",
+      "rotateHelp": "Girar el modelo una parte de vuelta o un ángulo exacto, primero en vista previa y luego como un paso propio.",
+      "tuckHelp": "Plegar una solapa y deslizarla bajo, o sobre, una capa que se queda quieta.",
+      "unfoldToHelp": "Devolver el papel a la forma de un paso anterior, conservando todos los pliegues hechos desde entonces, primero en vista previa y luego como un paso.",
+      "unsinkHelp": "Sacar de nuevo el extremo de una punta hundida.",
+      "valley": "Pliegue de valle",
+      "valleyHelp": "Plegar el lado que se mueve hacia ti, para que quede encima."
+    },
+    "tuck": {
+      "alsoOver": "Plegar también sobre la capa {{number}}",
+      "alsoUnder": "Plegar también bajo la capa {{number}}",
+      "noTargets": "Aquí ninguna capa admite el remetido.",
+      "over": "Remeter encima",
+      "targetsOver_one": "Aquí una capa admite el remetido sobre ella.",
+      "targetsOver_many": "Aquí {{count}} capas admiten el remetido sobre ellas: el papel plegado resalta cada una.",
+      "targetsOver_other": "Aquí {{count}} capas admiten el remetido sobre ellas: el papel plegado resalta cada una.",
+      "targetsUnder_one": "Aquí una capa admite el remetido bajo ella.",
+      "targetsUnder_many": "Aquí {{count}} capas admiten el remetido bajo ellas: el papel plegado resalta cada una.",
+      "targetsUnder_other": "Aquí {{count}} capas admiten el remetido bajo ellas: el papel plegado resalta cada una.",
+      "under": "Remeter debajo"
+    },
+    "verb": {
+      "turnOverHelp": "Dar la vuelta al modelo, de lado a lado, como un paso propio."
+    },
+    "vertex": {
+      "direction": "Sentido",
+      "directionCannot": "En este sentido no se puede plegar plano aquí.",
+      "fix": {
+        "creaseKites": "Marcar los pliegues de la cometa al plegar",
+        "emergent": "Usar el cuarto pliegue que cabe",
+        "emergentNumber": "Usar el cuarto pliegue {{number}}",
+        "otherRidge": "Usar la otra cresta",
+        "otherWay": "Plegar en el otro sentido",
+        "precreaseHinge": "Premarcar antes la bisagra",
+        "precreaseKite": "Premarcar la cometa",
+        "resetTarget": "Llevar el lomo a la bisagra"
+      },
+      "help": {
+        "petalHinge": "Levantar la punta inferior de una solapa a lo largo de una bisagra mientras sus lados se pliegan hacia dentro por dos pliegues de cometa.",
+        "rabbitEar": "Plegar las esquinas de un triángulo a lo largo de sus bisectrices, para que se levante una punta.",
+        "squash": "Abrir una solapa de dos capas y aplastarla, con su lomo sobre su bisagra.",
+        "swivelEdge": "Girar un borde sobre una línea, pivotando en un punto."
+      },
+      "hingeRegionBlocked": "Esta región de bisagra no se puede plegar con estas capas. Haz clic en otra región o cambia las capas.",
+      "hingeRegionBlockedTouch": "Esta región de bisagra no se puede plegar con estas capas. Toca otra región o cambia las capas.",
+      "hingeRegionFits": "El pliegue de bisagra está en la región seleccionada.",
+      "input": {
+        "edge": "Borde sobre línea",
+        "edgeHelp": "Elegir un borde y la línea sobre la que debe quedar",
+        "label": "Construir por",
+        "valleyMountain": "Valle y monte",
+        "valleyMountainHelp": "Elegir el valle y el monte en la capa que ves, que se juntan en un borde plegado; el pliegue de detrás resulta de ellos"
+      },
+      "intro": {
+        "petalLift": "Levanta la punta de una solapa a lo largo de una bisagra.",
+        "swivelSwing": "Gira un borde del papel sobre una línea."
+      },
+      "layers": "Capas",
+      "layersAll_one": "Las {{count}}",
+      "layersAll_many": "Las {{count}}",
+      "layersAll_other": "Las {{count}}",
+      "layersBottom_one": "{{count}} de abajo de {{total}}",
+      "layersBottom_many": "{{count}} de abajo de {{total}}",
+      "layersBottom_other": "{{count}} de abajo de {{total}}",
+      "layersTop_one": "{{count}} de arriba de {{total}}",
+      "layersTop_many": "{{count}} de arriba de {{total}}",
+      "layersTop_other": "{{count}} de arriba de {{total}}",
+      "lineBy": {
+        "creaseOrEdge": "Pliegue o borde",
+        "creaseOrEdgeHelp": "Haz clic en un pliegue o un borde que ya exista",
+        "hinge": "Bisagra",
+        "hingeCrease": "Pliegue bisagra",
+        "hingeCreaseHelp": "Haz clic en un premarcado que ya cruce la solapa",
+        "target": "Cae sobre",
+        "twoEndpoints": "Dos extremos",
+        "twoEndpointsHelp": "Haz clic en los dos extremos de la bisagra: el pliegue la marca",
+        "twoPoints": "Dos puntos",
+        "twoPointsHelp": "Haz clic en dos puntos de la línea"
+      },
+      "mountain": "Monte",
+      "mountainTitle": "Monte: el papel gira alejándose de ti",
+      "note": {
+        "petalCreasesAll": "Mientras la solapa se levanta, el pliegue marca la bisagra en la capa superior y los dos pliegues de la cometa en las dos capas superiores.",
+        "petalCreasesHinge": "Mientras la solapa se levanta, el pliegue marca la bisagra en la capa superior. Los pliegues de la cometa ya están.",
+        "petalCreasesHingeKite": "Mientras la solapa se levanta, el pliegue marca la bisagra en la capa superior y un pliegue de la cometa en las dos capas superiores. El otro pliegue de la cometa ya está.",
+        "petalCreasesKite": "Mientras la solapa se levanta, el pliegue marca un pliegue de la cometa en las dos capas superiores. La bisagra y el otro pliegue de la cometa ya están.",
+        "petalCreasesKites": "Mientras la solapa se levanta, el pliegue marca los dos pliegues de la cometa en las dos capas superiores. La bisagra ya está.",
+        "petalRefolds": "Todos los pliegues que hace ya existen: vuelve a plegar la bisagra y los pliegues de la cometa.",
+        "rabbitEarMeet": "Los pliegues se juntan en el incentro del triángulo: uno hacia cada esquina, y un cuarto por el que se alza la oreja.",
+        "snapOrFree": "Los puntos se ajustan a esquinas, cruces, marcas y puntos medios: mantén {{modifier}} para poner uno en cualquier lugar.",
+        "snapOrFreeTouch": "Los puntos se ajustan a esquinas, cruces, marcas y puntos medios: activa Punto libre para poner uno en cualquier sitio.",
+        "squashFlap": "Una solapa se aplasta cuando sus dos capas solo están unidas por su bisagra y no tiene nada encima.",
+        "swivelPicture": "Los pliegues se juntan en el punto, el borde cae sobre la línea gruesa y el papel iluminado se mueve.",
+        "swivelValleyMountainPicture": "Los pliegues se juntan en el punto. El pliegue punteado está en la capa de detrás y resulta del valle y el monte; el papel iluminado se mueve."
+      },
+      "refusal": {
+        "blocked": {
+          "steppers": "Un pliegue chocaría con papel que no se pliega con él, o el papel sujetaría juntas dos partes del pliegue. Cambia Capas para plegar más capas, o Cuarto pliegue para pasar a otro.",
+          "swivelEdge": "Un pliegue chocaría con papel que no se pliega con él, o el papel sujetaría juntas dos partes del pliegue. Elige otro pivote, u otra línea sobre la que caiga el borde.",
+          "swivelOnFold": "Un pliegue chocaría con un doblez antes de llegar al borde del papel, o el papel sujetaría juntas dos partes del pliegue pivotante. Elige otro borde plegado, u otra línea sobre la que caiga el borde.",
+          "swivelValleyMountain": "Un pliegue chocaría con un doblez antes de llegar al borde del papel, o el papel sujetaría juntas dos partes del pliegue pivotante. Elige otro valle u otro monte.",
+          "title": "Hay papel en medio"
+        },
+        "center": {
+          "textEar": "Los pliegues del triángulo se juntan en su incentro, que cae sobre un pliegue o fuera de las capas. Elige esquinas que lo dejen dentro de las capas, lejos de sus pliegues.",
+          "textSwivelEdge": "Los pliegues se juntan donde está el pivote, llevado a la línea que queda a medio camino entre el borde y la línea sobre la que cae, y eso queda sobre un pliegue o fuera del papel. Pulsa Esc y elige otro pivote.",
+          "textSwivelStep": "El punto donde se cruzan los pliegues está sobre un pliegue o fuera del papel. Pulsa Esc y vuelve a colocarlo como dice el paso 1: dentro del papel, lejos de todo pliegue.",
+          "title": "Los pliegues no pueden juntarse ahí"
+        },
+        "covered": {
+          "text": "Otras capas cubren la solapa, o están dentro de ella, del lado hacia el que se abre. Apártalas antes o aplástala en el otro sentido.",
+          "title": "La solapa está cubierta"
+        },
+        "fourthBesideStayer": {
+          "text": "La solapa se alza a lo largo del cuarto pliegue, así que este queda frente al papel que se queda quieto. Elige otro cuarto pliegue u otro papel que se quede quieto.",
+          "title": "El cuarto pliegue está junto al papel que se queda"
+        },
+        "fourthCannotRise": {
+          "text": "El cuarto pliegue se pliega en sentido contrario a los otros tres, y los ángulos entre estos pliegues no lo permiten. Elige otro cuarto pliegue u otros puntos.",
+          "title": "El cuarto pliegue no puede alzarse aquí"
+        },
+        "kite": {
+          "creaseOrPrecrease": "Sobre un pliegue bisagra, un pliegue pétalo vuelve a plegar pliegues que ya existen, y falta un pliegue de la cometa. Elige la bisagra por sus dos extremos y el pliegue marcará la cometa por sí mismo; o premárcala antes con la herramienta Premarcar en el Axioma 3: un borde inferior de la solapa superior sobre su línea central, sin las solapas de detrás.",
+          "titleMissing": "Faltan los pliegues de la cometa"
+        },
+        "line": {
+          "crease": "El pliegue bisagra no atraviesa todas las capas de debajo que se pliegan. Premarca la bisagra a través de todas las capas; luego haz el pliegue pétalo.",
+          "ends": "La bisagra cruza papel de la segunda capa, que se pliega hacia dentro junto a la cometa, y el pliegue no puede marcarlo mientras la solapa se levanta. Premarca la bisagra a través de todas las capas; luego haz el pliegue pétalo.",
+          "titleHinge": "Premarca antes la bisagra"
+        },
+        "lineMeeting": {
+          "textValleyMountain": "El valle y el monte se juntan en un punto de un borde plegado que ves, lejos de sus extremos. Elige dos líneas que se crucen ahí.",
+          "titleValleyMountain": "Las líneas no se juntan en un borde plegado"
+        },
+        "noFlap": {
+          "hingeOffSpine": "La línea de bisagra debe cruzar el borde plegado de la solapa, con el extremo en el que haces clic a un lado.",
+          "noHinge": "La solapa no se pliega sobre ninguna bisagra en ningún extremo de su lomo, así que no hay contra qué aplastarla.",
+          "noSpine": "Estas capas no están unidas por un único borde plegado, así que no hay lomo que abrir. Una solapa cerrada, unida por lados plegados hacia dentro, aún no se puede aplastar.",
+          "singleLayer": "Aquí solo hay una capa. Haz clic en una solapa de dos capas unidas por un borde plegado.",
+          "title": "No hay solapa que aplastar aquí",
+          "upperNotHinged": "La capa superior de la solapa solo está sujeta por su lomo: aplastada, su lado de la bisagra quedaría suelto."
+        },
+        "noOrder": {
+          "none": "Ninguna forma de apilar las capas lo deja plano aquí. Elige otros puntos o aparta primero las capas que estorban.",
+          "otherWay": "Ninguna forma de apilar las capas lo deja plano en este sentido aquí. Plegado en el otro sentido, encaja.",
+          "petal": "No se puede hacer el pliegue de pétalo aquí",
+          "rabbitEar": "La oreja no puede quedar plana aquí",
+          "squash": "No se puede aplastar plano aquí",
+          "swivel": "El pliegue giratorio no puede quedar plano aquí"
+        },
+        "noPetal": {
+          "missesFlap": "La solapa en la que hiciste clic queda entera a un lado de la bisagra. Haz clic en la solapa que cruza la bisagra, o elige una bisagra que vaya de uno de sus bordes plegados al otro.",
+          "missesFlapTitle": "La bisagra no pasa por la solapa",
+          "noCornerHinge": "Los pliegues de la cometa que salen de los extremos de la bisagra no se juntan debajo de ella, así que no hay punta que levantar. Elige una bisagra cuyos extremos estén donde los pliegues de la cometa tocan los bordes de la solapa.",
+          "noCornerTitle": "No hay punta que levantar",
+          "noEndsHinge": "La bisagra de un pliegue pétalo cruza la solapa de un borde plegado al otro, y esta cruza solo uno de ellos, o ninguno. Elige una bisagra cuyos extremos estén en los dos bordes plegados de la solapa.",
+          "noEndsTitle": "La bisagra no cruza la solapa",
+          "pastCorner": "Los pliegues de la cometa que salen de los extremos de la bisagra se juntan debajo de ella, pero la solapa llega más allá de donde se juntan, y ese papel no se plegaría de ninguna manera. Aleja la bisagra de la punta cerrada de la solapa: sus extremos, donde los pliegues de la cometa tocan los bordes de la solapa.",
+          "pastCornerTitle": "La bisagra está demasiado cerca de la punta cerrada"
+        },
+        "notFlat": {
+          "spread": "Ningún cuarto pliegue deja estos pliegues planos: dos apuntan en la misma dirección, o dos vecinos están separados media vuelta o más. Pulsa Esc y elige puntos repartidos de forma más uniforme alrededor del punto de cruce.",
+          "swivelEdge": "Ningún pliegue deja que el borde gire sobre esa línea y quede plano desde este pivote. Pulsa Esc y elige otro pivote, u otra línea.",
+          "title": "No puede quedar plano"
+        },
+        "notFree": {
+          "text": "La solapa está unida a otro papel lejos de su bisagra. Solo una solapa sujeta únicamente por su bisagra se abre plana: desdobla antes lo que la sujeta.",
+          "title": "La solapa está sujeta en otro sitio"
+        },
+        "petalCovered": {
+          "text": "Otras capas cubren la solapa del lado hacia el que se levanta. Apártalas antes o levántala en el otro sentido.",
+          "title": "La solapa está cubierta"
+        },
+        "ridgeBesideStayer": {
+          "pivot": "La solapa se alza a lo largo de la cresta, así que esta debe quedar frente al papel que se queda quieto, y aquí no lo está. Elige otro pivote.",
+          "title": "La cresta está junto al papel que se queda"
+        },
+        "ridgeCannotRise": {
+          "pivot": "La cresta se pliega al revés que los otros tres pliegues, y los ángulos entre ellos no lo permiten. Elige otro pivote.",
+          "title": "La cresta no puede alzarse aquí"
+        },
+        "stayer": {
+          "swivelEdge": "El papel junto a la línea, que se queda quieto, no está unido a ninguna parte del pliegue. Elige otro pivote, más cerca de donde el borde toca la línea.",
+          "text": "El papel elegido para quedarse quieto no está unido a ninguna parte del pliegue. Elige papel que corten los pliegues, o papel unido a él.",
+          "title": "¿Qué papel se queda?"
+        },
+        "swivelEdgeShort": {
+          "text": "Ninguna parte del borde queda más allá del punto perpendicular bajo el pivote, así que nada de él giraría. Un pliegue simple por la línea a medio camino entre el borde y su destino lo deja ahí.",
+          "title": "El borde termina antes de girar"
+        },
+        "swivelEdgeStays": {
+          "onFold": "Ninguna de las dos capas que une el borde plegado sostiene el borde que se mueve, así que se quedaría quieto. Elige un borde plegado de la capa de ese borde, u otro borde.",
+          "text": "El papel a lo largo del borde se quedaría quieto, o se plegaría por encima de la bisagra, en vez de girar sobre la línea. Elige un pivote más cerca del borde, u otro borde.",
+          "title": "El borde se quedaría quieto"
+        },
+        "swivelFoldWide": {
+          "text": "Del lado del borde que se mueve, el pliegue pivotante se encuentra con el borde plegado en ángulo recto o mayor, y no deja sitio para que la otra capa se pliegue. Elige una línea sobre la que caiga el borde que lo gire más, u otro borde plegado.",
+          "title": "El pliegue pivotante llega al borde demasiado empinado"
+        },
+        "swivelInsideFree": {
+          "text": "Un pliegue giratorio interior mete su tira entre las dos capas que une un borde plegado, y estos pliegues se juntan lejos de cualquier borde plegado. Pulsa Esc y haz clic en un borde plegado donde se junten los pliegues.",
+          "title": "Un pliegue giratorio interior necesita un borde plegado"
+        },
+        "swivelMissesFold": {
+          "text": "El pliegue pivotante sigue la línea a medio camino entre el borde y la línea sobre la que cae, y esa línea no cruza este borde plegado entre sus extremos. Pulsa Esc y elige el borde plegado que cruza, u otra línea.",
+          "title": "Los pliegues no pueden juntarse en ese borde"
+        },
+        "swivelNoFlap": {
+          "text": "El valle y el monte salen del borde plegado hacia el papel, en dos direcciones, con la solapa entre ellos. Una de estas líneas va a lo largo del borde plegado, o las dos están en una misma línea: elige otra.",
+          "title": "No hay solapa entre las líneas"
+        },
+        "swivelNotAFold": {
+          "text": "Los pliegues solo pueden juntarse en un borde plegado donde el papel está doblado, y el punto elegido no está en ningún doblez. Pulsa Esc y vuelve a hacer clic en el borde plegado.",
+          "title": "Eso no es un borde plegado"
+        },
+        "swivelNotAnEdge": {
+          "text": "Un pliegue pivotante mueve un borde del papel o un borde plegado, y la línea elegida no es ninguno de los dos. Pulsa Esc y vuelve a elegir el borde.",
+          "title": "Eso no es un borde"
+        },
+        "swivelPivotOnEdge": {
+          "text": "Los pliegues se juntan donde está el pivote, llevado a la línea que queda a medio camino entre el borde y la línea sobre la que cae, y aquí eso queda sobre el propio borde. Pulsa Esc y elige un pivote más lejos de donde el borde toca la línea.",
+          "title": "Los pliegues se juntarían sobre el borde"
+        },
+        "swivelTargetParallel": {
+          "text": "Ningún giro alrededor de un punto deja un borde sobre una línea paralela a él, ni sobre su propia línea. Elige una línea que corte la línea del borde.",
+          "title": "La línea es paralela al borde"
+        },
+        "targetOutside": {
+          "text": "El lomo cae entre donde está y la bisagra. Haz clic en un punto dentro de la solapa o devuélvelo a la bisagra.",
+          "title": "El lomo no puede caer ahí"
+        }
+      },
+      "reset": "Volver a la bisagra",
+      "ridge": "Cresta",
+      "squashHinge": {
+        "folded": "Borde plegado",
+        "foldedHelp": "El pliegue sobre el que gira la capa inferior de la solapa: se aplasta toda la solapa",
+        "intro": "Dibuja la bisagra a través del borde plegado de la solapa. Solo se aplasta el extremo más allá de ella.",
+        "label": "Bisagra",
+        "line": "Línea",
+        "lineHelp": "Una línea que dibujas: solo se aplasta el extremo de la solapa más allá de ella",
+        "lineMode": "Línea de bisagra",
+        "take": "Pulsa Enter para tomarla como bisagra.",
+        "takeTouch": "Toca Usar como bisagra.",
+        "use": "Usar como bisagra"
+      },
+      "steps": {
+        "earChoose": "Elige las capas o haz clic en otra región para el pliegue de bisagra.",
+        "earChooseTouch": "Elige las capas o toca otra región para el pliegue de bisagra.",
+        "earFinish": "Pulsa Enter para plegar.",
+        "earFinishTouch": "Toca {{action}} para plegar.",
+        "earFirstCorner": "Haz clic en la primera esquina del triángulo.",
+        "earFirstCornerTouch": "Toca la primera esquina del triángulo.",
+        "earHingeRegion": "Haz clic en la región donde debe ir el pliegue de bisagra.",
+        "earHingeRegionTouch": "Toca la región donde debe ir el pliegue de bisagra.",
+        "earSecondCorner": "Haz clic en su segunda esquina.",
+        "earSecondCornerTouch": "Toca su segunda esquina.",
+        "earThirdCorner": "Haz clic en su tercera esquina.",
+        "earThirdCornerTouch": "Toca su tercera esquina.",
+        "fixOrPickAgain": "Haz clic en una solución de abajo, o pulsa Esc y vuelve a elegir.",
+        "fixOrPickAgainTouch": "Toca una solución de abajo, o toca Cancelar y vuelve a elegir.",
+        "petalFinish": "Elige Valle o Monte y pulsa Intro.",
+        "petalFinishTouch": "Elige Valle o Monte y toca {{action}}.",
+        "petalFlap": "Haz clic en la solapa que se levanta, bajo la bisagra.",
+        "petalFlapTouch": "Toca la solapa que se levanta, bajo la bisagra.",
+        "petalHinge": "Haz clic en la bisagra: un premarcado que cruza la solapa.",
+        "petalHingeFirstEnd": "Haz clic en un extremo de la bisagra, donde un pliegue de la cometa toca el borde de la solapa.",
+        "petalHingeFirstEndTouch": "Toca un extremo de la bisagra, donde un pliegue de la cometa toca el borde de la solapa.",
+        "petalHingeSecondEnd": "Haz clic en su otro extremo, donde el otro pliegue de la cometa toca el borde.",
+        "petalHingeSecondEndTouch": "Toca su otro extremo, donde el otro pliegue de la cometa toca el borde.",
+        "petalHingeTouch": "Toca la bisagra: un premarcado que cruza la solapa.",
+        "petalWay": "Elige hacia dónde se levanta, o haz clic en otra solapa para levantar esa.",
+        "petalWayTouch": "Elige hacia dónde se levanta, o toca otra solapa para levantar esa.",
+        "pickAgainRead": "Pulsa Esc y vuelve a elegir: el aviso de abajo dice qué cambiar.",
+        "pickAgainReadTouch": "Toca Cancelar y vuelve a elegir: el aviso de abajo dice qué cambiar.",
+        "squashEnd": "Haz clic en el extremo de la solapa que quieres aplastar, a un lado de la línea.",
+        "squashEndTouch": "Toca el extremo de la solapa que quieres aplastar, a un lado de la línea.",
+        "squashFlap": "Haz clic en la solapa que quieres aplastar.",
+        "squashFlapTouch": "Toca la solapa que quieres aplastar.",
+        "squashSpine": "El lomo cae sobre la línea gruesa: haz clic en el papel para que caiga en otro sitio.",
+        "squashSpineTouch": "El lomo cae sobre la línea gruesa: toca el papel para que caiga en otro sitio.",
+        "swivelLands": "Haz clic en la línea sobre la que cae.",
+        "swivelLandsFirst": "Haz clic en un punto de la línea sobre la que cae.",
+        "swivelLandsFirstTouch": "Toca un punto de la línea sobre la que cae.",
+        "swivelLandsTouch": "Toca la línea sobre la que cae.",
+        "swivelMeet": "Haz clic en el borde plegado donde se juntan los pliegues, en cualquier punto de él. En papel plano, haz clic donde se juntan, o mantén {{modifier}} para cualquier punto.",
+        "swivelMeetTouch": "Toca el borde plegado donde se juntan los pliegues, en cualquier punto de él. En papel plano, toca donde se juntan, o activa Punto libre para cualquier punto.",
+        "swivelNothingSwings": "Nada puede girar desde ahí: haz clic en otro punto.",
+        "swivelNothingSwingsTouch": "Nada puede girar desde ahí: toca otro punto.",
+        "swivelOntoSecond": "Haz clic en un segundo punto de esa línea.",
+        "swivelOntoSecondTouch": "Toca un segundo punto de esa línea.",
+        "swivelSwing": "Haz clic en el borde que quieres girar sobre una línea.",
+        "swivelSwingTouch": "Toca el borde que quieres girar sobre una línea."
+      },
+      "swivelInside": "Interior",
+      "swivelInsideHelp": "Pliegue giratorio interior: la tira se mete entre las capas",
+      "swivelKind": "Tipo",
+      "swivelKindCannot": "Este tipo no puede quedar plano aquí.",
+      "swivelOpen": "Abierto",
+      "swivelOpenHelp": "Pliegue giratorio abierto: la tira se pliega por encima",
+      "target": "El lomo cae en",
+      "targetHinge": "La línea de la bisagra",
+      "targetPoint": "El punto pulsado",
+      "valley": "Valle",
+      "valleyMountain": {
+        "mountainLine": "Línea de monte",
+        "mountainStep": "Línea de monte: {{instruction}}",
+        "pickMountain": "Elige la línea de monte, desde el mismo punto del borde plegado. El pliegue de la capa de detrás resulta de ellas, punteado donde queda oculto.",
+        "pickValley": "Elige la línea de valle: la bisagra de la solapa, en la capa que ves, desde un punto de un borde plegado hacia el papel.",
+        "pickValleyInside": "Elige la línea de valle: en la capa que ves, desde un punto de un borde plegado hacia el papel.",
+        "takeValley": "Pulsa Enter para tomarla como valle.",
+        "takeValleyTouch": "Toca Usar como valle.",
+        "useValley": "Usar como valle",
+        "valleyLine": "Línea de valle",
+        "valleyStep": "Línea de valle: {{instruction}}"
+      },
+      "valleyTitle": "Valle: el papel gira hacia ti"
+    },
+    "window": {
+      "cancel": "Cancelar",
+      "finding": "Buscando las capas en la línea…",
+      "instructions": "Instrucciones",
+      "kind": "Pliegue",
+      "label": "Opciones de la herramienta de plegado",
+      "layers": "Capas",
+      "layersHelp": "Haz clic en una capa para incluir o excluir su solapa. Los corchetes muestran dónde un pliegue une dos capas.",
+      "layersHelpTouch": "Toca una capa para incluir o excluir su solapa. Los corchetes muestran dónde un pliegue une dos capas.",
+      "layersHelpWoven": "Estas capas se entrelazan, así que se muestra la pila que hay bajo el puntero. Haz clic en una capa para incluir o excluir su solapa.",
+      "layersHelpWovenTouch": "Estas capas se entrelazan, así que se muestra la pila donde tocaste la línea por última vez. Toca una capa para incluir o excluir su solapa.",
+      "layersMoving_one": "Se mueven {{moving}} de {{count}} capa",
+      "layersMoving_many": "Se mueven {{moving}} de {{count}} capas",
+      "layersMoving_other": "Se mueven {{moving}} de {{count}} capas",
+      "lineMode": "Situar la línea",
+      "movingSide": "Lado que se mueve",
+      "settings_one": "{{count}} ajuste",
+      "settings_many": "{{count}} ajustes",
+      "settings_other": "{{count}} ajustes",
+      "snapFreeLine": "Ajustar a puntos",
+      "swap": "Cambiar"
+    }
   },
   "foldAngleDisplay": {
     "color": "Color",

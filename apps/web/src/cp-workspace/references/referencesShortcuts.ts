@@ -56,65 +56,68 @@ export interface ReferencesShortcutActions {
  * Route a `references.*` shortcut to the action it names.
  *
  * React-free and store-free, so the executor the panel registers with
- * `registerReferencesShortcutExecutor` is this one line, and the mapping can be
+ * `registerConditionalScopeExecutor` is this one line, and the mapping can be
  * tested without mounting anything. Exhaustive over {@link ReferencesShortcutId}:
  * a new id fails to compile here until it is given a verb.
+ *
+ * Always `true`: every verb applies while the view is mounted, so References
+ * claims each chord it is asked about and never hands one to the scope beneath.
  */
 export function runReferencesShortcut(
   id: ReferencesShortcutId,
   actions: ReferencesShortcutActions
-): void {
+): true {
   switch (id) {
     case 'references.nextStep':
       actions.nextStep();
-      return;
+      return true;
     case 'references.previousStep':
       actions.previousStep();
-      return;
+      return true;
     case 'references.nextCandidate':
       actions.nextCandidate();
-      return;
+      return true;
     case 'references.previousCandidate':
       actions.previousCandidate();
-      return;
+      return true;
     case 'references.nextWay':
       actions.nextWay();
-      return;
+      return true;
     case 'references.previousWay':
       actions.previousWay();
-      return;
+      return true;
     case 'references.recompute':
       actions.recompute();
-      return;
+      return true;
     case 'references.toggleLandmarksFirst':
       actions.toggleLandmarksFirst();
-      return;
+      return true;
     case 'references.resetView':
       actions.resetView();
-      return;
+      return true;
     case 'references.zoomIn':
       actions.zoomIn();
-      return;
+      return true;
     case 'references.zoomOut':
       actions.zoomOut();
-      return;
+      return true;
     case 'references.clearTarget':
       actions.clearTarget();
-      return;
+      return true;
     case 'references.playFold':
       actions.playFold();
-      return;
+      return true;
     case 'references.exportStep':
       actions.exportStep();
-      return;
+      return true;
     case 'references.exportAllSteps':
       actions.exportAllSteps();
-      return;
+      return true;
     case 'references.exportStepSvg':
       actions.exportStepSvg();
-      return;
+      return true;
     case 'references.exportStepPng':
       actions.exportStepPng();
-      return;
+      return true;
   }
 }

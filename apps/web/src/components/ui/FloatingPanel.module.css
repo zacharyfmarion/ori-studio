@@ -15,7 +15,9 @@
      focused — the emphasis has to come from the shadow and the fill. */
   border: 1px solid var(--border-default);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-primary));
+  /* Named, for the dock, which wears the window's own fill over what scrolls under it. */
+  --panel-fill: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-primary));
+  background: var(--panel-fill);
   box-shadow: 0 8px 24px var(--shadow-overlay);
   color: var(--text-secondary);
   font-size: 0.68rem;
@@ -102,12 +104,30 @@ button.bar:focus-visible {
 }
 
 .body {
+  --body-pad: 8px;
   display: grid;
   align-content: start;
   /* Floating, the window takes its own overflow. Nothing in it escapes the box
      that needs to — selects are native and menus are portaled. */
   overflow-y: auto;
-  padding: 8px;
+  padding: var(--body-pad);
+}
+
+/* The end of the body that stays put while the rest scrolls under it
+   (FloatingPanelDock): docked to the window's bottom edge in the window's own
+   fill, its inset reaching over the body's padding so nothing scrolls by
+   below it. No negative margin to match: it left the body overflowing where
+   the content fit, and the scrollbar that flickered raised a ResizeObserver
+   loop in useAnimatedHeight. */
+.dock {
+  position: sticky;
+  z-index: 1;
+  bottom: calc(-1 * var(--body-pad));
+  display: grid;
+  gap: 8px;
+  padding-block: var(--body-pad);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--panel-fill);
 }
 
 /* Always its natural height, however tall the frame is mid-resize: this is what
@@ -124,12 +144,14 @@ button.bar:focus-visible {
    that edge: everything below a change stays where it was and only the bar
    travels. Left at the top, the control just pressed — Extend Line's Active /
    Same, at the bottom of the tool window — would drop away from the pointer on
-   every press and slide back. */
+   every press and slide back. Content that started over (`data-resizing='start'`,
+   `useAnimatedHeight`'s `startKey`) stays laid out from the top, where it is
+   shown once the frame stops, so it does not jump there at the end. */
 .panel[data-resizing] .body {
   overflow: hidden;
 }
 
-.panel[data-pin='bottom'][data-resizing] .body {
+.panel[data-pin='bottom'][data-resizing]:not([data-resizing='start']) .body {
   align-content: end;
 }
 

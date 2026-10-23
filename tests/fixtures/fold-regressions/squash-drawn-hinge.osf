@@ -1,0 +1,234 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Squash only the end beyond a drawn hinge",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-regression-squash-drawn-hinge",
+        "title": "Squash only the end beyond a drawn hinge",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-squash-drawn-hinge-1",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    1
+                  ]
+                ]
+              },
+              "moving": [
+                0,
+                1
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:9b674d890818d698",
+            "note": "Valley fold on the diagonal: a triangle of two layers."
+          },
+          {
+            "id": "fstep-squash-drawn-hinge-2",
+            "parent": "fstep-squash-drawn-hinge-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.75,
+                    0.75
+                  ],
+                  [
+                    0.875,
+                    0
+                  ]
+                ]
+              },
+              "moving": [
+                1,
+                0
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:51a46b0477134f41",
+            "note": "Valley fold the triangle’s right corner over."
+          },
+          {
+            "id": "fstep-squash-drawn-hinge-3",
+            "parent": "fstep-squash-drawn-hinge-2",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.6,
+                    0
+                  ],
+                  [
+                    0.3,
+                    0.3
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.1,
+                0.05
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:c39d4be533ab8ebc",
+            "note": "Precrease across the triangle’s tip, square to the diagonal: x + y = 0.6."
+          },
+          {
+            "id": "fstep-squash-drawn-hinge-4",
+            "parent": "fstep-squash-drawn-hinge-3",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.05,
+                0.1
+              ],
+              "direction": "valley",
+              "hinge": {
+                "line": {
+                  "via": "crease",
+                  "at": [
+                    0.45,
+                    0.15
+                  ]
+                }
+              }
+            },
+            "expect": "fs1:613323c5f273c9a2",
+            "note": "Squash the tip’s top layer about the precrease, Hinge: a line drawn (the precrease). Only the tip beyond it squashes; the rest of the flap stays."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-regression-squash-drawn-hinge",
+        "cursor": "fstep-squash-drawn-hinge-4"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

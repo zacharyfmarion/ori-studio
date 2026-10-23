@@ -1,0 +1,6 @@
+/* A turn's glyph in the theme's ink (TurnGlyph.tsx): its marks draw in `currentColor`. */
+.glyph {
+  display: block;
+  color: var(--text-primary);
+  overflow: visible;
+}

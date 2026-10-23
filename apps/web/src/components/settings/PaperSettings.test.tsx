@@ -194,7 +194,7 @@ describe('PaperSettings', () => {
       )
     ).toEqual([
       'Simulations, folded figures, the pattern in References',
-      'References only',
+      'References and Fold',
       'Simulator, folded figures',
     ]);
     // Two colour cards, one per pen and the folded-paper card; the preset

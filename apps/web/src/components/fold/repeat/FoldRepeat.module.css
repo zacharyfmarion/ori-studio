@@ -1,0 +1,11 @@
+/* A saved Repeat step's facts and buttons, in the Step pane (FoldRepeatControls.tsx). */
+.controls {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+.message {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}

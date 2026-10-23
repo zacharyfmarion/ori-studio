@@ -1,0 +1,5 @@
+/* Inherit the control's ink and active state, like the other tool glyphs. */
+.mark {
+  display: block;
+  flex-shrink: 0;
+}

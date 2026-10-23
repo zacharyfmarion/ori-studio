@@ -16,8 +16,8 @@ import type { ReferencesFilmstripStep } from './referencesFilmstrip';
 import {
   StepDiagramAdapterError,
   referenceFinderDiagramToPrimitives,
-  type StepDiagramModel,
 } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 

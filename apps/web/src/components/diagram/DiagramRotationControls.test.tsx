@@ -94,7 +94,7 @@ describe('DiagramRotationControls', () => {
   it('starts Custom from the preset it was, shows its Angle under Amount, and says so once', () => {
     show({ amount: 'half', direction: 'ccw' });
     act(() => option('Amount', 'Custom').click());
-    expect(changes).toEqual([{ degrees: 180, direction: 'ccw' }]);
+    expect(changes).toEqual([{ amount: 'degrees', degrees: 180, direction: 'ccw' }]);
     expect(pressed('Amount')).toEqual(['Custom']);
     const field = angleField()!;
     expect(field.value).toBe('180');
@@ -109,16 +109,16 @@ describe('DiagramRotationControls', () => {
   });
 
   it('commits an angle on Enter or blur, to a tenth, within a turn', () => {
-    show({ degrees: 90, direction: 'cw' });
+    show({ amount: 'degrees', degrees: 90, direction: 'cw' });
     type(angleField()!, '135');
-    expect(changes.at(-1)).toEqual({ degrees: 135, direction: 'cw' });
+    expect(changes.at(-1)).toEqual({ amount: 'degrees', degrees: 135, direction: 'cw' });
     type(angleField()!, '22.54', 'blur');
-    expect(changes.at(-1)).toEqual({ degrees: 22.5, direction: 'cw' });
+    expect(changes.at(-1)).toEqual({ amount: 'degrees', degrees: 22.5, direction: 'cw' });
     expect(angleField()!.value).toBe('22.5');
     type(angleField()!, '400');
-    expect(changes.at(-1)).toEqual({ degrees: 359.9, direction: 'cw' });
+    expect(changes.at(-1)).toEqual({ amount: 'degrees', degrees: 359.9, direction: 'cw' });
     type(angleField()!, '-30');
-    expect(changes.at(-1)).toEqual({ degrees: 0.1, direction: 'cw' });
+    expect(changes.at(-1)).toEqual({ amount: 'degrees', degrees: 0.1, direction: 'cw' });
     // Typing what it already is commits nothing.
     const count = changes.length;
     type(angleField()!, '0.1');
@@ -127,9 +127,9 @@ describe('DiagramRotationControls', () => {
   });
 
   it('keeps the angle as the direction changes, and drops it for a preset chosen again', () => {
-    show({ degrees: 135, direction: 'cw' });
+    show({ amount: 'degrees', degrees: 135, direction: 'cw' });
     act(() => option('Direction', 'Counterclockwise').click());
-    expect(changes.at(-1)).toEqual({ degrees: 135, direction: 'ccw' });
+    expect(changes.at(-1)).toEqual({ amount: 'degrees', degrees: 135, direction: 'ccw' });
     expect(angleField()!.value).toBe('135');
     act(() => option('Amount', '1/8').click());
     expect(changes.at(-1)).toEqual({ amount: 'eighth', direction: 'ccw' });
@@ -138,7 +138,7 @@ describe('DiagramRotationControls', () => {
   });
 
   it('changes nothing while the diagram is read-only', () => {
-    show({ degrees: 135, direction: 'cw' }, true);
+    show({ amount: 'degrees', degrees: 135, direction: 'cw' }, true);
     expect(angleField()!.disabled).toBe(true);
     expect([...group('Amount').querySelectorAll('button')].every((button) => button.disabled)).toBe(true);
   });

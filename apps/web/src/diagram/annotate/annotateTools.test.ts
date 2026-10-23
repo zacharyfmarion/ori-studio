@@ -67,13 +67,14 @@ describe('the rail', () => {
     // Every kind is drawn by a tool: each its own, the lines by Line in each
     // type, the angle mark by its picks (alone, or with a bisector's line) —
     // but the turn signs, which none draws: turning the model over or round is
-    // a step between steps (D22; Zach, 2026-10-05). The enlarge area is
-    // laid by two tools of its own, one for each shape (Revision 2).
+    // a step between steps (D22; Zach, 2026-10-05) — and a pinch's uncreased
+    // rest, a Fold step's mark. The enlarge area is laid by two tools of its
+    // own, one for each shape (Revision 2).
     const drawn = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).flatMap((tool) =>
       isPickTool(tool) ? ['angle-mark' as const] : DIAGRAM_LINE_TYPES.map((type) => drawingKind(tool, type))
     );
     expect([...new Set(drawn.filter((kind) => kind !== null))].sort()).toEqual(
-      ANNOTATION_KINDS.filter((kind) => kind !== 'turn-over' && kind !== 'rotate').sort()
+      ANNOTATION_KINDS.filter((kind) => kind !== 'turn-over' && kind !== 'rotate' && kind !== 'uncreased-line').sort()
     );
     // Nor has either a key: plain T, Turn Over's, picks nothing in the Diagram; R, Rotate's, picks the Rectangle
     // now, and Shift+O the Oval, the Circle's O paired (Revision 3, R3-25 A).

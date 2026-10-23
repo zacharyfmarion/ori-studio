@@ -205,6 +205,7 @@ describe('menu actions', () => {
     await expect(handle('view.creasePattern')).resolves.toBe(true);
     await expect(handle('view.simulator')).resolves.toBe(true);
     await expect(handle('view.references')).resolves.toBe(true);
+    await expect(handle('view.fold')).resolves.toBe(true);
     await expect(handle('view.properties')).resolves.toBe(true);
     await expect(handle('file.settings')).resolves.toBe(true);
     await expect(handle('help.about')).resolves.toBe(true);
@@ -217,8 +218,9 @@ describe('menu actions', () => {
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('crease-pattern');
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('simulator');
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('references');
+    expect(deps.layout.activatePanel).toHaveBeenCalledWith('fold');
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('cp-properties');
-    expect(deps.layout.activatePanel).toHaveBeenCalledTimes(6);
+    expect(deps.layout.activatePanel).toHaveBeenCalledTimes(7);
     expect(deps.settings).toHaveBeenCalledOnce();
     expect(deps.about).toHaveBeenCalledTimes(2);
     expect(deps.workspace.buildCreasePattern).toHaveBeenCalledOnce();
@@ -905,7 +907,7 @@ describe('menu actions', () => {
         oristudioCpSelectedCircleCount: 0,
         hasDeletableDesignSelection: false,
         canSaveDesign: true,
-        hasDiagram: false,
+        hasProjectDocument: false,
         diagramStepCount: 0,
         hasDeletableDiagramSelection: false,
         diagramDeleteTarget: 'step',

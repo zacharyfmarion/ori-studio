@@ -1,0 +1,216 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Reverse fold one arm of a folded strip",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-regression-reverse-seed-segment",
+        "title": "Reverse fold one arm of a folded strip",
+        "paper": {
+          "shape": {
+            "kind": "rectangle",
+            "aspect": [
+              1,
+              0.25
+            ]
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-reverse-seed-1",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.125
+                  ],
+                  [
+                    1,
+                    0.125
+                  ]
+                ]
+              },
+              "moving": [
+                0.5,
+                0.2
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:4aba5e5b0bc82920",
+            "note": "Valley fold the strip in half along its length: the top half down over the bottom, two layers joined along the top edge."
+          },
+          {
+            "id": "fstep-reverse-seed-2",
+            "parent": "fstep-reverse-seed-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.5,
+                    0
+                  ],
+                  [
+                    0.625,
+                    0.125
+                  ]
+                ]
+              },
+              "moving": [
+                0.9,
+                0.05
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:4cfb9738821958a5",
+            "note": "Valley fold the right half up, along a 45° line from (0.5, 0) on the bottom edge: an L of two arms, one pointing left and one pointing up, each two layers joined along its folded edge."
+          },
+          {
+            "id": "fstep-reverse-seed-3",
+            "parent": "fstep-reverse-seed-2",
+            "op": {
+              "kind": "inside-reverse",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.1138888888888889,
+                    0.2375
+                  ],
+                  [
+                    0.9612499999999998,
+                    0.11250000000000049
+                  ]
+                ]
+              },
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.08946569520340011,
+                    0.17896174863387979
+                  ]
+                ]
+              }
+            },
+            "expect": "fs1:35f088664b132cc5",
+            "note": "Inside reverse fold the left arm’s end, along a line drawn across that arm only. Extended, the line crosses the up arm’s end too, and with every layer on it the fold was refused: the two arms turn only as opposite kinds."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-regression-reverse-seed-segment",
+        "cursor": "fstep-reverse-seed-3"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

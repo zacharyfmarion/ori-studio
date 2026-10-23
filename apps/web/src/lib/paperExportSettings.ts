@@ -127,8 +127,8 @@ export function paperExportFromSimulatorSettings(source: unknown): PaperExportSe
 /**
  * The kinds of paper export, each remembering its own options (X6): a
  * simulation — the Simulate view and inline windows — a folded figure, 3D or
- * flat, and a References step. A figure exported in PNG at 600 dpi says
- * nothing about how the next step should go out.
+ * flat, and a step, References' or Fold's. A figure exported in PNG at 600
+ * dpi says nothing about how the next step should go out.
  */
 export type PaperExportKind = 'simulation' | 'folded-figure' | 'step';
 
@@ -153,6 +153,7 @@ export function paperExportKindOf(surface: PaperExportSurface): PaperExportKind 
     case 'folded-flat':
       return 'folded-figure';
     case 'references':
+    case 'fold':
       return 'step';
   }
 }

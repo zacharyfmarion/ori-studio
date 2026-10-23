@@ -3,7 +3,7 @@ import markFixture from './referenceFinder/__fixtures__/mark.json';
 import markCentreFixture from './referenceFinder/__fixtures__/mark-centre.json';
 import lineFixture from './referenceFinder/__fixtures__/line-exact.json';
 import { extractSolution } from './referenceFinder/extractor';
-import { createDiagramProjector, foldReturnOffset, returnStroke } from './stepDiagramGeometry';
+import { createDiagramProjector, foldReturnOffset, returnStroke } from '../../lib/stepDiagram/stepDiagramGeometry';
 import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClient';
 import type { Diagram } from './referenceFinder/solution';
 import {

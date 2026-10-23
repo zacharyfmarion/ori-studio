@@ -3,6 +3,7 @@ import {
   DESIGN_PATH,
   DIAGRAM_PATH,
   EDIT_PATH,
+  FOLD_PATH,
   LEGACY_DESIGN_PATHS,
   REFERENCES_PATH,
   SIMULATE_PATH,
@@ -25,6 +26,7 @@ describe('workspacePath', () => {
     expect(workspacePath('simulate')).toBe(SIMULATE_PATH);
     expect(workspacePath('references')).toBe(REFERENCES_PATH);
     expect(workspacePath('diagram')).toBe(DIAGRAM_PATH);
+    expect(workspacePath('fold')).toBe(FOLD_PATH);
   });
 });
 
@@ -34,6 +36,7 @@ describe('parseWorkspacePath', () => {
     expect(parseWorkspacePath(SIMULATE_PATH)).toEqual({ workspace: 'simulate' });
     expect(parseWorkspacePath(REFERENCES_PATH)).toEqual({ workspace: 'references' });
     expect(parseWorkspacePath(DIAGRAM_PATH)).toEqual({ workspace: 'diagram' });
+    expect(parseWorkspacePath(FOLD_PATH)).toEqual({ workspace: 'fold' });
     expect(parseWorkspacePath(DESIGN_PATH)).toEqual({ workspace: 'design' });
   });
 

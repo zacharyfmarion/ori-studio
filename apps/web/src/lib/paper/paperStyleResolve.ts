@@ -6,7 +6,7 @@
  *
  * Every surface reads the style through a {@link SurfaceStylePolicy}: the table
  * of which fields apply to it and which are forced. The flat folded figure is
- * drawn unlit, arrows exist only on References steps, and so on. The
+ * drawn unlit, arrows exist only on step diagrams, and so on. The
  * Properties panel shows exactly a policy's `applies`, so what the user can
  * edit and what the renderer honours are the same list by construction.
  */
@@ -32,6 +32,7 @@ export type PaperSurface =
   | 'folded-3d'
   | 'folded-flat'
   | 'references'
+  | 'fold'
   | 'diagram-workspace';
 
 export interface SurfaceStylePolicy {
@@ -73,32 +74,37 @@ const SIMULATION_FIELDS: PaperStyleField[] = [
 const FOLDED_3D_FIELDS: PaperStyleField[] = [...EVERY_SURFACE_FIELDS, 'light'];
 
 /**
+ * A step diagram, References' or Fold's: the paper too (D13) — a step's sheet
+ * is filled with the style's paper, or a black edge pen would vanish on a
+ * dark theme's ground — the pattern's folds in the fold pens, the fold to make
+ * in the diagram-crease pens, and its arrow. No light (D7). One list for both,
+ * so the two kinds of step cannot drift apart on what a style means.
+ */
+const STEP_DIAGRAM_FIELDS: PaperStyleField[] = [
+  ...EVERY_SURFACE_FIELDS,
+  'mountainFolds',
+  'valleyFolds',
+  'mountainDiagramCreases',
+  'valleyDiagramCreases',
+  'arrows',
+];
+
+/**
  * The policies. `auxCreases.*` and `erode` apply everywhere since Phase 5,
  * when every renderer learnt to draw them. A crease is drawn by what has
  * happened to it (Phase 9): both folded figures draw their folds as edges,
  * edge + aux (D6); a simulation draws mountain and valley unless its style
- * says `foldsAsEdges`; References draws the fold to make in the M/V pens.
- * `arrows` and the diagram-crease pens stay References-only: no other surface
- * draws an instruction, so no object can pin them.
+ * says `foldsAsEdges`; a step diagram draws the fold to make in the M/V pens.
+ * `arrows` and the diagram-crease pens stay on the step diagrams and the
+ * Diagram: no other surface draws an instruction, so no object can pin them.
  */
 export const PAPER_STYLE_POLICIES: Record<PaperSurface, SurfaceStylePolicy> = {
   simulator: { surface: 'simulator', applies: SIMULATION_FIELDS },
   'inline-simulation': { surface: 'inline-simulation', applies: SIMULATION_FIELDS },
   'folded-3d': { surface: 'folded-3d', applies: FOLDED_3D_FIELDS },
   'folded-flat': { surface: 'folded-flat', applies: EVERY_SURFACE_FIELDS },
-  // The paper too (D13): a step's sheet is filled with the style's paper, or a
-  // black edge pen would vanish on a dark theme's ground. No light (D7).
-  references: {
-    surface: 'references',
-    applies: [
-      ...EVERY_SURFACE_FIELDS,
-      'mountainFolds',
-      'valleyFolds',
-      'mountainDiagramCreases',
-      'valleyDiagramCreases',
-      'arrows',
-    ],
-  },
+  references: { surface: 'references', applies: STEP_DIAGRAM_FIELDS },
+  fold: { surface: 'fold', applies: STEP_DIAGRAM_FIELDS },
   // Every field: a diagram puts every kind of picture on one page — a crease
   // pattern in the fold pens, a References step's instructions and arrows, a
   // lit folded model. A folded model's folds, flat, in 3D or simulated, are

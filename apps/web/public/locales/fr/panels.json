@@ -1102,6 +1102,84 @@
       "title": "Commencer un diagramme",
       "tutorial": "Voir la vidéo de présentation"
     },
+    "fold": {
+      "badgeCreasePattern": "{{origin}} · Patron de plis",
+      "badgeFolded": "{{origin}} · Plié",
+      "card": "Étape {{number}}",
+      "cardMissing": "Étape introuvable",
+      "currentHint": "Montre déjà son étape telle qu’elle est",
+      "empty": "Pliez une étape dans Plier, et les étapes de la séquence apparaîtront ici.",
+      "finishedSentence": "Le modèle tel que les étapes le laissent.",
+      "fromFold": "Depuis Plier…",
+      "instruction": {
+        "closedSink": "Enfoncement fermé.",
+        "collapse": "Mettez en forme.",
+        "insideCrimp": "Crimp intérieur.",
+        "insideReverse": "Pli inversé intérieur.",
+        "insideSwivel": "Pli pivot intérieur.",
+        "insideSwivelBehind": "Pli pivot intérieur derrière.",
+        "mountain": "Pli montagne.",
+        "mountainBothSides": "Pli montagne des deux côtés.",
+        "mountainPrecrease": "Pliez en montagne et dépliez.",
+        "mountainPrecreaseBothSides": "Pliez en montagne et dépliez des deux côtés.",
+        "openSink": "Enfoncement ouvert.",
+        "outsideCrimp": "Crimp extérieur.",
+        "outsideReverse": "Pli inversé extérieur.",
+        "petal": "Pli pétale.",
+        "petalBehind": "Pli pétale derrière.",
+        "pinch": "Marquez un pincement.",
+        "pinchBothSides": "Marquez un pincement des deux côtés.",
+        "pleat": "Pli escalier.",
+        "precrease": "Pliez et dépliez.",
+        "precreaseBothSides": "Pliez et dépliez des deux côtés.",
+        "rabbitEar": "Oreille de lapin.",
+        "rabbitEarBehind": "Oreille de lapin derrière.",
+        "repeat_one": "Répéter de l’autre côté.",
+        "repeat_many": "Répéter les {{count}} dernières étapes de l’autre côté.",
+        "repeat_other": "Répéter les {{count}} dernières étapes de l’autre côté.",
+        "repeatBehind_one": "Répéter derrière.",
+        "repeatBehind_many": "Répéter derrière les {{count}} dernières étapes.",
+        "repeatBehind_other": "Répéter derrière les {{count}} dernières étapes.",
+        "squash": "Pli écrasé.",
+        "squashBehind": "Pli écrasé derrière.",
+        "squashEnd": "Pli écrasé de l’extrémité.",
+        "squashEndBehind": "Pli écrasé de l’extrémité derrière.",
+        "swivel": "Pli pivot.",
+        "swivelBehind": "Pli pivot derrière.",
+        "then": "{{first}} {{next}}",
+        "tuck": "Pli vallée et rentrez.",
+        "tuckBehind": "Pli montagne et rentrez.",
+        "unfold": "Dépliez.",
+        "unfoldAll": "Dépliez entièrement.",
+        "unfoldToStep": "Dépliez jusqu’à l’étape {{number}}.",
+        "unsink": "Désenfoncer.",
+        "valley": "Pli vallée.",
+        "valleyBothSides": "Pli vallée des deux côtés."
+      },
+      "mergedCard": "Étapes {{first}}–{{last}}",
+      "mergePrecreases": "Fusionner les prépliages symétriques",
+      "mergePrecreasesHint": "Un prépliage et son image miroir deviennent une seule étape, les deux plis sur un même dessin, comme dans un livre.",
+      "mergePrecreasesNone": "Aucun prépliage de ce chemin n’a d’image miroir avec laquelle fusionner.",
+      "missing": "Étape introuvable dans Plier",
+      "missingHint": "Son étape a disparu de Plier ou ne se plie plus",
+      "noStepsHint": "Pliez une étape dans Plier pour la reprendre ici",
+      "notLanded": "Plier n’a pas encore plié cette étape, elle ne peut donc pas encore être ajoutée.",
+      "openFold": "Ouvrir Plier",
+      "openInFold": "Ouvrir dans Plier",
+      "repeatBottom": "Répéter en bas",
+      "repeatHere": "Répéter ici",
+      "repeatLeft": "Répéter à gauche",
+      "repeatRight": "Répéter à droite",
+      "repeatTop": "Répéter en haut",
+      "sourceAfter": "Résultat d’une étape de Plier · {{shown}}",
+      "sourceBefore": "Une étape de Plier · {{shown}}",
+      "stale": "Pas à jour : la séquence de Plier a changé",
+      "steps": "Étapes",
+      "titleEnd": "Ajouter depuis Plier",
+      "turnCard": "Tour",
+      "unknown": "Pas encore vérifié : Plier plie encore ses étapes",
+      "withTurn": "Avec le tour qui précède"
+    },
     "grid": {
       "addStep": "Ajouter une étape",
       "insertHere": "Ajouter une étape ici",
@@ -1194,6 +1272,11 @@
       "stepCount_one": "{{count}} étape",
       "stepCount_many": "{{count}} étapes",
       "stepCount_other": "{{count}} étapes"
+    },
+    "link": {
+      "originEdit": "Édition",
+      "originFold": "Plier",
+      "originReferences": "Références"
     },
     "packing": {
       "bands": "Bandes",
@@ -1656,14 +1739,15 @@
       "cardTurnOver": "Retourner",
       "chipLabel": "{{name}}, {{where}}",
       "custom": "Autre",
+      "degrees": "{{degrees}}°",
       "delete": "Supprimer le mouvement",
       "eighth": "1/8 de tour",
       "firstHint": "Déjà en premier",
       "half": "1/2 tour",
-      "howAngleClockwise": "{{angle}} dans le sens horaire",
-      "howAngleCounterclockwise": "{{angle}} dans le sens antihoraire",
       "howClockwise": "{{fraction}} de tour dans le sens horaire",
       "howCounterclockwise": "{{fraction}} de tour dans le sens antihoraire",
+      "howDegreesClockwise": "{{degrees}}° dans le sens horaire",
+      "howDegreesCounterclockwise": "{{degrees}}° dans le sens antihoraire",
       "howSideToSide": "De gauche à droite",
       "howTopToBottom": "De haut en bas",
       "kind": "Mouvement",
@@ -1673,10 +1757,10 @@
       "note": "Imprimé entre les étapes, sans numéro propre.",
       "quarter": "1/4 de tour",
       "rotate": "Tourner",
-      "rotateAngleClockwise": "Tourner de {{angle}} dans le sens horaire",
-      "rotateAngleCounterclockwise": "Tourner de {{angle}} dans le sens antihoraire",
       "rotateClockwise": "Tourner de {{fraction}} de tour dans le sens horaire",
       "rotateCounterclockwise": "Tourner de {{fraction}} de tour dans le sens antihoraire",
+      "rotateDegreesClockwise": "Tourner de {{degrees}}° dans le sens horaire",
+      "rotateDegreesCounterclockwise": "Tourner de {{degrees}}° dans le sens antihoraire",
       "turnOver": "Retourner",
       "turnOverSideToSide": "Retourner de gauche à droite",
       "turnOverTopToBottom": "Retourner de haut en bas"
@@ -1753,6 +1837,1402 @@
     "viewportControls": "Commandes d’affichage de l’arbre de recherche",
     "viewTree": "Arbre",
     "viewTreeAndCp": "Arbre et patron de pliage"
+  },
+  "fold": {
+    "actions": {
+      "brokenHint": "Cette étape ne se plie plus.",
+      "deleteStep": "Supprimer cette étape",
+      "deleteStepAndFollowing": "Supprimer cette étape et les suivantes",
+      "exportFold": "Exporter FOLD…",
+      "exportSteps": "Exporter les étapes…",
+      "foldKind": "Pli",
+      "importCp": "Importer un CP…",
+      "importPolygonHint": "L’import d’un CP demande une feuille carrée ou rectangulaire.",
+      "lockedHint": "Cette étape a été créée avec une version plus récente d’Ori Studio.",
+      "pathBrokenHint": "Une étape de ce chemin ne se plie plus.",
+      "pathLockedHint": "Une étape de ce chemin a été créée avec une version plus récente d’Ori Studio.",
+      "pathReplayingHint": "Les étapes sont encore en cours de pliage.",
+      "precrease": "Prépliage",
+      "readOnlyHint": "Créée avec une version plus récente d’Ori Studio\u00a0: cette séquence s’ouvre en lecture seule.",
+      "replayingHint": "Les étapes précédentes sont encore en cours de pliage.",
+      "rotate": "Tourner…",
+      "sendToEditTitle": "Envoyer le patron de plis des étapes affichées vers le canevas Édition",
+      "sheetHint": "La feuille à plat est le point de départ des étapes\u00a0: il n’y a pas d’étape à supprimer.",
+      "startsBranch": "Commence une nouvelle branche"
+    },
+    "canvas": {
+      "creasePattern": "Patron de plis",
+      "creasePatternLabel": "Le patron de plis jusqu’ici, recto en haut. Cliquez sur ses points et ses plis pour situer un pliage.",
+      "flatCreases": "Plis à plat",
+      "flatCreasesTitle": "Dessiner les plis à plat sur le papier : prépliages et plis défaits",
+      "folded": "Plié",
+      "foldedLabel": "La forme pliée. Cliquez sur ses points et ses plis pour situer un pliage ; faites glisser pour vous déplacer, défilez pour zoomer.",
+      "spreadLayers": "Écarter les couches",
+      "spreadLayersTitle": "Écarte les couches pliées, comme un diagramme les dessine, à cette étape et aux suivantes",
+      "stepCreases": "Plis de l’étape",
+      "stepCreasesTitle": "Dessiner en gras les plis faits par l’étape affichée, comme son instruction",
+      "toolbar": "Vue de pliage"
+    },
+    "collapse": {
+      "changed": "Une mise à jour est disponible. Cette étape utilise toujours la version enregistrée du CP.",
+      "openSource": "Ouvrir le CP source",
+      "replay": "La mise à jour recalcule les plis suivants. Vérifiez les étapes modifiées ou impossibles à plier dans la chronologie avant de continuer.",
+      "saved": "La version enregistrée du CP est utilisée. Les modifications de la source ne sont appliquées que lors de la mise à jour.",
+      "unavailable": "Le CP source est indisponible. La copie enregistrée peut toujours être rejouée.",
+      "update": "Mettre à jour depuis le CP"
+    },
+    "header": {
+      "moreExports": "Autres façons d’exporter",
+      "moreVerbs": "Importer, envoyer et exporter",
+      "moreVerbsButExport": "Déplier, importer et envoyer"
+    },
+    "load": {
+      "failed": "L'espace de travail Plier n'a pas pu être chargé",
+      "loading": "Chargement de l'espace de travail Plier…",
+      "offline": "L'espace de travail Plier n'a pas encore été téléchargé et vous êtes hors ligne. Connectez-vous une fois et il fonctionnera hors ligne ensuite.",
+      "retry": "Réessayer"
+    },
+    "paper": {
+      "backUp": "Verso dessus",
+      "frontUp": "Recto dessus",
+      "importSheet": "Importer une feuille de départ…",
+      "keptStyle": "Le style propre à cette séquence",
+      "look": "Apparence",
+      "shape": "Forme",
+      "sheet": "Feuille",
+      "sheetPolygon_one": "Polygone, {{count}} côté",
+      "sheetPolygon_many": "Polygone, {{count}} côtés",
+      "sheetPolygon_other": "Polygone, {{count}} côtés",
+      "sheetRectangle": "Rectangle, 1 : {{ratio}}",
+      "sheetRegular_one": "Polygone régulier, {{count}} côté",
+      "sheetRegular_many": "Polygone régulier, {{count}} côtés",
+      "sheetRegular_other": "Polygone régulier, {{count}} côtés",
+      "sheetSquare": "Carré",
+      "sheetStartsOver_one": "Une nouvelle feuille de départ fait recommencer : le {{count}} pas de la séquence est effacé. Annuler le rétablit.",
+      "sheetStartsOver_many": "Une nouvelle feuille de départ fait recommencer : les {{count}} pas de la séquence sont effacés. Annuler les rétablit.",
+      "sheetStartsOver_other": "Une nouvelle feuille de départ fait recommencer : les {{count}} pas de la séquence sont effacés. Annuler les rétablit.",
+      "start": "Départ",
+      "startHelp": "Le côté du papier tourné vers vous avant le premier pli. Le patron de plis est toujours dessiné côté recto.",
+      "style": "Style",
+      "styleHint": "Le papier, les plumes et les plis de diagramme avec lesquels cette séquence est dessinée. Un style des Réglages est copié dans la séquence quand vous le choisissez."
+    },
+    "repeat": {
+      "advice": {
+        "axis": "Essayez un autre axe, ou pliez l’autre côté avec les outils.",
+        "axisOrLater": "Essayez un autre axe, ou commencez la plage après cette opération.",
+        "later": "Commencez la plage après cette opération, ou pliez l’autre côté avec les outils.",
+        "tools": "Pliez plutôt l’autre côté avec les outils."
+      },
+      "ambiguous": "L’opération en miroir retombe de deux façons différentes qui correspondent toutes deux à l’originale : on ne sait donc pas laquelle est voulue.",
+      "axis": "Axe de symétrie",
+      "axisName": {
+        "angle": "Ligne passant par le centre à {{degrees}}°",
+        "falling": "Diagonale, du haut à gauche au bas à droite",
+        "horizontal": "Ligne médiane, de gauche à droite",
+        "rising": "Diagonale, du bas à gauche au haut à droite",
+        "vertical": "Ligne médiane, de haut en bas"
+      },
+      "axisStopsAt": "S’arrête à l’opération {{number}} : {{reason}}",
+      "blockedAt": "Arrêt à l’opération source {{number}} : {{reason}}",
+      "choiceAt_one": "L’opération source {{number}} admet {{count}} ordres de couches correspondants. Choisissez-en un pour continuer.",
+      "choiceAt_many": "L’opération source {{number}} admet {{count}} ordres de couches correspondants. Choisissez-en un pour continuer.",
+      "choiceAt_other": "L’opération source {{number}} admet {{count}} ordres de couches correspondants. Choisissez-en un pour continuer.",
+      "chooseAxis": "Choisir l’axe de symétrie",
+      "commitBehind": "Répéter derrière",
+      "commitSame": "Répéter de l’autre côté",
+      "drawnAxisRefused": "La répétition par rapport à cet axe est refusée. {{reason}}",
+      "failureTitle": "Répétition impossible",
+      "findingAxes": "Recherche des axes de symétrie du modèle avant la plage…",
+      "from": "Commencer par",
+      "goSource": "Aller aux étapes sources",
+      "groupCount_one": "Répéter {{count}} opération en une étape numérotée.",
+      "groupCount_many": "Répéter {{count}} opérations jusqu’à l’étape actuelle en une seule étape numérotée.",
+      "groupCount_other": "Répéter {{count}} opérations jusqu’à l’étape actuelle en une seule étape numérotée.",
+      "groupCountBehind_one": "Répéter {{count}} opération derrière, en une étape numérotée.",
+      "groupCountBehind_many": "Répéter {{count}} opérations jusqu’à l’étape actuelle derrière, en une seule étape numérotée.",
+      "groupCountBehind_other": "Répéter {{count}} opérations jusqu’à l’étape actuelle derrière, en une seule étape numérotée.",
+      "groupCountSame_one": "Répéter {{count}} opération de l’autre côté, en une étape numérotée.",
+      "groupCountSame_many": "Répéter {{count}} opérations jusqu’à l’étape actuelle de l’autre côté, en une seule étape numérotée.",
+      "groupCountSame_other": "Répéter {{count}} opérations jusqu’à l’étape actuelle de l’autre côté, en une seule étape numérotée.",
+      "headlineAdvice": "{{reason}}. {{advice}}",
+      "headlineReason": "{{reason}}.",
+      "individual": "Afficher comme étapes individuelles",
+      "individualCount_one": "Répéter {{count}} opération comme entrée individuelle.",
+      "individualCount_many": "Répéter {{count}} opérations jusqu’à l’étape actuelle comme entrées individuelles.",
+      "individualCount_other": "Répéter {{count}} opérations jusqu’à l’étape actuelle comme entrées individuelles.",
+      "individualCountBehind_one": "Répéter {{count}} opération derrière, comme entrée individuelle.",
+      "individualCountBehind_many": "Répéter {{count}} opérations jusqu’à l’étape actuelle derrière, comme entrées individuelles.",
+      "individualCountBehind_other": "Répéter {{count}} opérations jusqu’à l’étape actuelle derrière, comme entrées individuelles.",
+      "individualCountSame_one": "Répéter {{count}} opération de l’autre côté, comme entrée individuelle.",
+      "individualCountSame_many": "Répéter {{count}} opérations jusqu’à l’étape actuelle de l’autre côté, comme entrées individuelles.",
+      "individualCountSame_other": "Répéter {{count}} opérations jusqu’à l’étape actuelle de l’autre côté, comme entrées individuelles.",
+      "invalidAxis": "Cette ligne ne relie pas des zones de papier et des couches correspondantes dans le modèle initial.",
+      "label": "Répéter",
+      "limit": "Cette répétition dépasse la limite de recherche. Essayez une plage plus courte.",
+      "materialConflict": "La répétition modifierait d’autres zones de papier ou d’autres plis. Les deux côtés ne peuvent pas être pliés indépendamment dans cette plage.",
+      "mirror": {
+        "budget": "Déterminer comment les couches réfléchies s’empilent a pris trop de temps : on ne sait donc pas si elles conviennent.",
+        "closureAddsFlaps": "Plier les couches réfléchies déplacerait aussi d’autres rabats.",
+        "emptySeed": "Le pli réfléchi ne choisit aucune couche à déplacer.",
+        "moverStays": "La couche qui porte le point à déplacer ne fait pas partie des couches que le pli réfléchi déplace.",
+        "noMovingSide": "Aucun papier ne se trouve du côté de la ligne réfléchie qui bougerait.",
+        "noRoot": "Les repères réfléchis ne donnent aucune ligne de pli sur le papier tel qu’il est plié.",
+        "noSide": "Rien n’indique quel côté de la ligne réfléchie bouge.",
+        "nothingStays": "Toutes les couches sont du côté de la ligne réfléchie qui bouge : rien ne resterait en place.",
+        "offPaper": "Un point ou un bord à partir duquel la ligne réfléchie est placée ne se trouve pas sur le papier tel qu’il est plié maintenant.",
+        "pickAgain": "L’endroit que choisit le pli réfléchi n’est dans aucune couche du côté qui bouge.",
+        "pointsTooClose": "Les deux points de la ligne réfléchie tombent au même endroit du papier plié, ils ne forment donc aucune ligne.",
+        "wrongCrease": "La ligne réfléchie ne suit ni un bord plié à déplier, ni un pli à plat à replier."
+      },
+      "noAxis": "Aucune paire de côtés correspondants n’a été vérifiée pour ce modèle initial. Choisissez une autre plage.",
+      "noDrawnLine": "Ces points ne placent aucune ligne ici. Choisissez à nouveau, ou choisissez un axe.",
+      "notAnAxis": "Pas un axe de symétrie",
+      "nothing": "Chaque opération de la plage est son propre reflet par rapport à cet axe : la répéter ne change donc rien. Choisissez un autre axe ou une autre plage.",
+      "open": "Répéter…",
+      "orderConflict": "Les relations initiales entre les couches ne peuvent pas être conservées de l’autre côté.",
+      "pleatBehind": "Vues de l’autre côté, la montagne et la vallée de ce pli en accordéon échangent leurs places, ce qu’une étape de pli en accordéon ne peut pas enregistrer. Retournez le modèle et faites le pli là-bas.",
+      "preparing": "Préparation des plis répétés…",
+      "previewShown": "Le canevas montre les plis répétés et les marques de pli qu’ils ajoutent.",
+      "reasonAdvice": "{{reason}} {{advice}}",
+      "rebuildRequired": "La répétition enregistrée ne correspond plus à cet état. Mettez-la à jour depuis ses étapes sources.",
+      "reference": "Une référence n’a pas de point correspondant de l’autre côté.",
+      "refusedPlain": "L’opération réfléchie ne peut pas être pliée. Aucune étape n’a été ajoutée.",
+      "returnTarget": "Ce dépliage revient à une étape antérieure à la plage sélectionnée. Incluez cette partie de la séquence dans la répétition.",
+      "savedCount_one": "Une opération enregistrée en une étape de répétition.",
+      "savedCount_many": "{{count}} opérations enregistrées en une seule étape de répétition.",
+      "savedCount_other": "{{count}} opérations enregistrées en une seule étape de répétition.",
+      "sentence_one": "Répéter l’opération précédente de l’autre côté.",
+      "sentence_many": "Répéter les {{count}} opérations précédentes de l’autre côté.",
+      "sentence_other": "Répéter les {{count}} opérations précédentes de l’autre côté.",
+      "sentenceBehind_one": "Répéter derrière l’opération précédente.",
+      "sentenceBehind_many": "Répéter derrière les {{count}} opérations précédentes.",
+      "sentenceBehind_other": "Répéter derrière les {{count}} opérations précédentes.",
+      "sourceChanged": "Les étapes sources ont changé. Mettez cette répétition à jour.",
+      "stop": "Arrêter",
+      "stopped": "Arrêté avant que la répétition soit prête. Aucune étape n’a été ajoutée.",
+      "swivelBehind": "De l’autre côté, la vallée et la montagne de ce pli pivot sont sur la couche de derrière. Retournez le modèle et faites le pli pivot là-bas.",
+      "unavailable": "Les états sources sont indisponibles ou ont changé. Attendez la fin de la lecture, puis rouvrez Répéter.",
+      "unsupported": "Cette plage contient un effondrement ou une autre répétition qui ne peut pas encore être réfléchie. Choisissez une plage d’opérations de pliage.",
+      "update": "Mettre à jour depuis les étapes sources",
+      "useNearest": "Utiliser {{axis}}",
+      "viewAxis": "Cette plage nécessite un retournement autour d’un axe oblique. Répétez les plis séparément de ce changement de vue.",
+      "waiting": "En attente de la fin du pliage des étapes…"
+    },
+    "return": {
+      "changed": "Les plis précédents ont changé. Recalculez ce dépliage pour vérifier le nouveau résultat.",
+      "empty": "Effectuez d’abord un pli.",
+      "failureTitle": "Dépliage impossible",
+      "invalidTarget": "Choisissez une étape antérieure sur cette branche.",
+      "label": "Déplier jusqu’à une étape",
+      "last": "Déplier la dernière étape",
+      "limit": "L’historique des plis est trop volumineux pour être restauré de manière fiable.",
+      "loading": "Préparation de l’aperçu du dépliage…",
+      "noop": "Le papier a déjà cette forme avec ces plis.",
+      "numberedSentence": "Revenir à l’étape {{number}} en conservant tous les plis.",
+      "open": "Déplier jusqu’à une étape…",
+      "rebuild": "Recalculer le dépliage",
+      "refused": "Le moteur n’a pas pu restaurer cette forme tout en conservant l’historique des plis. Aucune étape n’a été modifiée.",
+      "retain": "Revenir à une forme antérieure en conservant tous les plis.",
+      "sentence": "Revenir à la forme pliée précédente en conservant tous les plis.",
+      "sheet": "Feuille de départ",
+      "sheetSentence": "Déplier jusqu’à la feuille de départ en conservant tous les plis.",
+      "step": "Étape {{number}}",
+      "target": "Revenir à",
+      "turn": "Rotation après l’étape {{number}}",
+      "unavailable": "Attendez la fin de la relecture des étapes précédentes, puis réessayez.",
+      "viewTarget": "Voir la cible : {{target}}"
+    },
+    "sentence": {
+      "behind": {
+        "petal": "Faites un pli pétale avec le rabat, vers l’arrière.",
+        "petalScores": "Faites un pli pétale avec le rabat, vers l’arrière, en marquant sa charnière pendant qu’il se soulève.",
+        "rabbitEar": "Faites une oreille de lapin avec le triangle, vers l’arrière.",
+        "squash": "Faites un pli écrasé avec le rabat, vers l’arrière.",
+        "squashEnd": "Faites un pli écrasé avec l’extrémité du rabat, vers l’arrière, en la soulevant le long de la ligne.",
+        "swivel": "Faites pivoter le papier vers l’arrière autour du point par un pli pivot.",
+        "swivelEdgeCrease": "Faites pivoter le bord vers l’arrière sur le pli, autour du point.",
+        "swivelEdgeLine": "Faites pivoter le bord vers l’arrière sur la ligne, autour du point.",
+        "swivelFoldCrease": "Faites pivoter le bord vers l’arrière sur le pli, les plis se rejoignant sur le bord plié.",
+        "swivelFoldLine": "Faites pivoter le bord vers l’arrière sur la ligne, les plis se rejoignant sur le bord plié.",
+        "swivelInsideCrease": "Faites pivoter le bord vers l’arrière sur le pli en pli pivot intérieur, les plis se rejoignant sur le bord plié.",
+        "swivelInsideLine": "Faites pivoter le bord vers l’arrière sur la ligne en pli pivot intérieur, les plis se rejoignant sur le bord plié."
+      },
+      "closedSink": "Enfoncez la pointe en enfoncement fermé : poussez-la vers l’intérieur, ses couches restant ensemble.",
+      "collapse": "Mettez en forme selon le canevas de plis enregistré.",
+      "cpJump": "Repliez le papier selon le patron de plis importé.",
+      "crimp": {
+        "inside": {
+          "crease": {
+            "crease": {
+              "all": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "free": {
+            "crease": {
+              "all": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o1": {
+            "crease": {
+              "all": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o2": {
+            "crease": {
+              "all": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o3": {
+            "crease": {
+              "all": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o4": {
+            "crease": {
+              "all": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o5": {
+            "crease": {
+              "all": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o6": {
+            "crease": {
+              "all": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o7": {
+            "crease": {
+              "all": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          }
+        },
+        "outside": {
+          "crease": {
+            "crease": {
+              "all": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur le long du pli existant, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "free": {
+            "crease": {
+              "all": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur le long de la ligne tracée, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o1": {
+            "crease": {
+              "all": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur le long de la ligne passant par {{a}} et {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o2": {
+            "crease": {
+              "all": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o3": {
+            "crease": {
+              "all": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o4": {
+            "crease": {
+              "all": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o5": {
+            "crease": {
+              "all": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur par {{a}}, en amenant {{b}} sur {{c}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o6": {
+            "crease": {
+              "all": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          },
+          "o7": {
+            "crease": {
+              "all": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’un pli existant au-delà, seulement sur les {{count}} rabats indiqués."
+            },
+            "free": {
+              "all": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, sur toutes les couches.",
+              "depth_one": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur la couche du dessus.",
+              "depth_many": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "depth_other": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} couches du dessus.",
+              "flaps_one": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur le rabat indiqué.",
+              "flaps_many": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués.",
+              "flaps_other": "Faites un crimp extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis revenez le long d’une seconde ligne tracée au-delà, seulement sur les {{count}} rabats indiqués."
+            }
+          }
+        }
+      },
+      "extent": {
+        "pinch": "{{sentence}} Ne marquez qu’un court pincement sur {{at}}.",
+        "segment": "{{sentence}} Ne marquez que le tronçon entre {{from}} et {{to}}."
+      },
+      "insideReverse": {
+        "crease": {
+          "all": "Pliez toutes les couches en pli inversé intérieur le long du pli existant.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé intérieur le long du pli existant.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur le long du pli existant.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur le long du pli existant.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé intérieur le long du pli existant.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur le long du pli existant.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur le long du pli existant."
+        },
+        "free": {
+          "all": "Pliez toutes les couches en pli inversé intérieur le long de la ligne tracée.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé intérieur le long de la ligne tracée.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur le long de la ligne tracée.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur le long de la ligne tracée.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé intérieur le long de la ligne tracée.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur le long de la ligne tracée.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur le long de la ligne tracée."
+        },
+        "o1": {
+          "all": "Pliez toutes les couches en pli inversé intérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé intérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé intérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur le long de la ligne passant par {{a}} et {{b}}."
+        },
+        "o2": {
+          "all": "Pliez toutes les couches en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur, en amenant {{a}} sur {{b}}."
+        },
+        "o3": {
+          "all": "Pliez toutes les couches en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur, en amenant {{a}} sur {{b}}."
+        },
+        "o4": {
+          "all": "Pliez toutes les couches en pli inversé intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne."
+        },
+        "o5": {
+          "all": "Pliez toutes les couches en pli inversé intérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé intérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé intérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur par {{a}}, en amenant {{b}} sur {{c}}."
+        },
+        "o6": {
+          "all": "Pliez toutes les couches en pli inversé intérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé intérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé intérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}."
+        },
+        "o7": {
+          "all": "Pliez toutes les couches en pli inversé intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé intérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}."
+        }
+      },
+      "mountain": {
+        "crease": {
+          "all": "Pliez toutes les couches en montagne le long du pli existant.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne le long du pli existant.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne le long du pli existant.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne le long du pli existant.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne le long du pli existant.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne le long du pli existant.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne le long du pli existant."
+        },
+        "free": {
+          "all": "Pliez toutes les couches en montagne le long de la ligne tracée.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne le long de la ligne tracée.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne le long de la ligne tracée.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne le long de la ligne tracée.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne le long de la ligne tracée.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne le long de la ligne tracée.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne le long de la ligne tracée."
+        },
+        "o1": {
+          "all": "Pliez toutes les couches en montagne le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne le long de la ligne passant par {{a}} et {{b}}."
+        },
+        "o2": {
+          "all": "Pliez toutes les couches en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}}."
+        },
+        "o2Half": {
+          "all": "Pliez toutes les couches en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessous en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en deux en montagne, en amenant {{a}} sur {{b}}."
+        },
+        "o3": {
+          "all": "Pliez toutes les couches en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}}."
+        },
+        "o3Half": {
+          "all": "Pliez toutes les couches en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessous en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en deux en montagne, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en deux en montagne, en amenant {{a}} sur {{b}}."
+        },
+        "o4": {
+          "all": "Pliez toutes les couches en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne."
+        },
+        "o5": {
+          "all": "Pliez toutes les couches en montagne par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne par {{a}}, en amenant {{b}} sur {{c}}."
+        },
+        "o6": {
+          "all": "Pliez toutes les couches en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}."
+        },
+        "o7": {
+          "all": "Pliez toutes les couches en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}."
+        }
+      },
+      "mountainPrecrease": {
+        "crease": {
+          "all": "Pliez toutes les couches en montagne le long du pli existant, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne le long du pli existant, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne le long du pli existant, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne le long du pli existant, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne le long du pli existant, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne le long du pli existant, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne le long du pli existant, puis dépliez."
+        },
+        "free": {
+          "all": "Pliez toutes les couches en montagne le long de la ligne tracée, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne le long de la ligne tracée, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne le long de la ligne tracée, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne le long de la ligne tracée, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne le long de la ligne tracée, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne le long de la ligne tracée, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne le long de la ligne tracée, puis dépliez."
+        },
+        "o1": {
+          "all": "Pliez toutes les couches en montagne le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne le long de la ligne passant par {{a}} et {{b}}, puis dépliez."
+        },
+        "o2": {
+          "all": "Pliez toutes les couches en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}}, puis dépliez."
+        },
+        "o2Half": {
+          "all": "Pliez toutes les couches en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez."
+        },
+        "o3": {
+          "all": "Pliez toutes les couches en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}}, puis dépliez."
+        },
+        "o3Half": {
+          "all": "Pliez toutes les couches en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en deux en montagne, en amenant {{a}} sur {{b}}, puis dépliez."
+        },
+        "o4": {
+          "all": "Pliez toutes les couches en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez."
+        },
+        "o5": {
+          "all": "Pliez toutes les couches en montagne par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez."
+        },
+        "o6": {
+          "all": "Pliez toutes les couches en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez."
+        },
+        "o7": {
+          "all": "Pliez toutes les couches en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessous en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessous en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessous en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en montagne de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez."
+        }
+      },
+      "openSink": "Enfoncez la pointe en enfoncement ouvert : poussez-la vers l’intérieur en retournant chaque couche.",
+      "outsideReverse": {
+        "crease": {
+          "all": "Pliez toutes les couches en pli inversé extérieur le long du pli existant.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé extérieur le long du pli existant.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur le long du pli existant.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur le long du pli existant.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé extérieur le long du pli existant.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur le long du pli existant.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur le long du pli existant."
+        },
+        "free": {
+          "all": "Pliez toutes les couches en pli inversé extérieur le long de la ligne tracée.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé extérieur le long de la ligne tracée.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur le long de la ligne tracée.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur le long de la ligne tracée.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé extérieur le long de la ligne tracée.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur le long de la ligne tracée.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur le long de la ligne tracée."
+        },
+        "o1": {
+          "all": "Pliez toutes les couches en pli inversé extérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé extérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé extérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur le long de la ligne passant par {{a}} et {{b}}."
+        },
+        "o2": {
+          "all": "Pliez toutes les couches en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur, en amenant {{a}} sur {{b}}."
+        },
+        "o3": {
+          "all": "Pliez toutes les couches en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur, en amenant {{a}} sur {{b}}."
+        },
+        "o4": {
+          "all": "Pliez toutes les couches en pli inversé extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur par {{a}}, de sorte que {{b}} retombe sur sa propre ligne."
+        },
+        "o5": {
+          "all": "Pliez toutes les couches en pli inversé extérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé extérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé extérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur par {{a}}, en amenant {{b}} sur {{c}}."
+        },
+        "o6": {
+          "all": "Pliez toutes les couches en pli inversé extérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé extérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé extérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}."
+        },
+        "o7": {
+          "all": "Pliez toutes les couches en pli inversé extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en pli inversé extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en pli inversé extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en pli inversé extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en pli inversé extérieur de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}."
+        }
+      },
+      "petal": "Faites un pli pétale avec le rabat.",
+      "petalScores": "Faites un pli pétale avec le rabat, en marquant sa charnière pendant qu’il se soulève.",
+      "pleat": "Plier le long des deux lignes : montagne d’abord, puis vallée.",
+      "rabbitEar": "Faites une oreille de lapin avec le triangle.",
+      "squash": "Faites un pli écrasé avec le rabat.",
+      "squashEnd": "Faites un pli écrasé avec l’extrémité du rabat, en la soulevant le long de la ligne.",
+      "swivel": "Faites pivoter le papier autour du point par un pli pivot.",
+      "swivelEdgeCrease": "Faites pivoter le bord sur le pli, autour du point.",
+      "swivelEdgeLine": "Faites pivoter le bord sur la ligne, autour du point.",
+      "swivelFoldCrease": "Faites pivoter le bord sur le pli, les plis se rejoignant sur le bord plié.",
+      "swivelFoldLine": "Faites pivoter le bord sur la ligne, les plis se rejoignant sur le bord plié.",
+      "swivelInsideCrease": "Faites pivoter le bord sur le pli en pli pivot intérieur, les plis se rejoignant sur le bord plié.",
+      "swivelInsideLine": "Faites pivoter le bord sur la ligne en pli pivot intérieur, les plis se rejoignant sur le bord plié.",
+      "swivelInsideValleyMountain": "Faites pivoter le rabat en pli pivot intérieur le long de la vallée et de la montagne.",
+      "swivelValleyMountain": "Faites pivoter le rabat par un pli pivot le long de la vallée et de la montagne.",
+      "tuckMountain": "Pliez en montagne et rentrez le rabat par l’arrière, sur la couche choisie.",
+      "tuckValley": "Pliez en vallée et rentrez le rabat sous la couche choisie.",
+      "turn": "{{turn}}.",
+      "unfold": {
+        "all": "Dépliez toutes les couches le long du pli existant.",
+        "bottom_one": "Dépliez la couche du dessous.",
+        "bottom_many": "Dépliez les {{count}} couches du dessous.",
+        "bottom_other": "Dépliez les {{count}} couches du dessous.",
+        "flaps_one": "Dépliez le rabat indiqué.",
+        "flaps_many": "Dépliez les {{count}} rabats indiqués.",
+        "flaps_other": "Dépliez les {{count}} rabats indiqués.",
+        "top_one": "Dépliez la couche du dessus.",
+        "top_many": "Dépliez les {{count}} couches du dessus.",
+        "top_other": "Dépliez les {{count}} couches du dessus."
+      },
+      "unknown": "Une étape créée avec une version plus récente d’Ori Studio.",
+      "unsink": "Désenfoncez la pointe : ressortez-la.",
+      "valley": {
+        "crease": {
+          "all": "Pliez toutes les couches en vallée le long du pli existant.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée le long du pli existant.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée le long du pli existant.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée le long du pli existant.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée le long du pli existant.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée le long du pli existant.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée le long du pli existant."
+        },
+        "free": {
+          "all": "Pliez toutes les couches en vallée le long de la ligne tracée.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée le long de la ligne tracée.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée le long de la ligne tracée.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée le long de la ligne tracée.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée le long de la ligne tracée.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée le long de la ligne tracée.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée le long de la ligne tracée."
+        },
+        "o1": {
+          "all": "Pliez toutes les couches en vallée le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée le long de la ligne passant par {{a}} et {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée le long de la ligne passant par {{a}} et {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée le long de la ligne passant par {{a}} et {{b}}."
+        },
+        "o2": {
+          "all": "Pliez toutes les couches en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}}."
+        },
+        "o2Half": {
+          "all": "Pliez toutes les couches en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en deux en vallée, en amenant {{a}} sur {{b}}."
+        },
+        "o3": {
+          "all": "Pliez toutes les couches en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}}."
+        },
+        "o3Half": {
+          "all": "Pliez toutes les couches en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en deux en vallée, en amenant {{a}} sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en deux en vallée, en amenant {{a}} sur {{b}}."
+        },
+        "o4": {
+          "all": "Pliez toutes les couches en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne."
+        },
+        "o5": {
+          "all": "Pliez toutes les couches en vallée par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée par {{a}}, en amenant {{b}} sur {{c}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée par {{a}}, en amenant {{b}} sur {{c}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée par {{a}}, en amenant {{b}} sur {{c}}."
+        },
+        "o6": {
+          "all": "Pliez toutes les couches en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}."
+        },
+        "o7": {
+          "all": "Pliez toutes les couches en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}."
+        }
+      },
+      "valleyPrecrease": {
+        "crease": {
+          "all": "Pliez toutes les couches en vallée le long du pli existant, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée le long du pli existant, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée le long du pli existant, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée le long du pli existant, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée le long du pli existant, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée le long du pli existant, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée le long du pli existant, puis dépliez."
+        },
+        "free": {
+          "all": "Pliez toutes les couches en vallée le long de la ligne tracée, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée le long de la ligne tracée, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée le long de la ligne tracée, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée le long de la ligne tracée, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée le long de la ligne tracée, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée le long de la ligne tracée, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée le long de la ligne tracée, puis dépliez."
+        },
+        "o1": {
+          "all": "Pliez toutes les couches en vallée le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée le long de la ligne passant par {{a}} et {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée le long de la ligne passant par {{a}} et {{b}}, puis dépliez."
+        },
+        "o2": {
+          "all": "Pliez toutes les couches en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}}, puis dépliez."
+        },
+        "o2Half": {
+          "all": "Pliez toutes les couches en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez."
+        },
+        "o3": {
+          "all": "Pliez toutes les couches en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}}, puis dépliez."
+        },
+        "o3Half": {
+          "all": "Pliez toutes les couches en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en deux en vallée, en amenant {{a}} sur {{b}}, puis dépliez."
+        },
+        "o4": {
+          "all": "Pliez toutes les couches en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée par {{a}}, de sorte que {{b}} retombe sur sa propre ligne, puis dépliez."
+        },
+        "o5": {
+          "all": "Pliez toutes les couches en vallée par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée par {{a}}, en amenant {{b}} sur {{c}}, puis dépliez."
+        },
+        "o6": {
+          "all": "Pliez toutes les couches en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée, en amenant {{a}} sur {{b}} et {{c}} sur {{d}}, puis dépliez."
+        },
+        "o7": {
+          "all": "Pliez toutes les couches en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "depth_one": "Pliez seulement la couche du dessus en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "depth_many": "Pliez seulement les {{count}} couches du dessus en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "depth_other": "Pliez seulement les {{count}} couches du dessus en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "flaps_one": "Pliez seulement le rabat indiqué en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "flaps_many": "Pliez seulement les {{count}} rabats indiqués en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez.",
+          "flaps_other": "Pliez seulement les {{count}} rabats indiqués en vallée de sorte que {{self}} retombe sur sa propre ligne et que {{a}} tombe sur {{b}}, puis dépliez."
+        }
+      }
+    },
+    "sequence": {
+      "badgeBlocked": "Bloquée",
+      "badgeBroken": "Cassée",
+      "badgeChanged": "Modifiée",
+      "badgePreview": "Aperçu",
+      "badgeSheet": "Feuille",
+      "branch": "Branche {{n}} sur {{total}}",
+      "branchesLabel": "Branches à cette étape",
+      "branchShort": "{{n}} / {{total}}",
+      "nextBranch": "Branche suivante",
+      "nextStep": "Étape suivante",
+      "noTools": "Prenez un outil de pliage sur le canevas pour choisir son type.",
+      "placeholder": "Pliez la feuille pour créer l’étape 1.",
+      "previousBranch": "Branche précédente",
+      "previousStep": "Étape précédente",
+      "replayFailed": "Toutes les étapes n’ont pas pu être pliées.",
+      "replaying": "Pliage des étapes… {{done}} sur {{total}}",
+      "retry": "Réessayer",
+      "sheetIrregularBack_one": "Commencez avec un polygone à {{count}} côté, verso dessus.",
+      "sheetIrregularBack_many": "Commencez avec un polygone à {{count}} côtés, verso dessus.",
+      "sheetIrregularBack_other": "Commencez avec un polygone à {{count}} côtés, verso dessus.",
+      "sheetIrregularFront_one": "Commencez avec un polygone à {{count}} côté, recto dessus.",
+      "sheetIrregularFront_many": "Commencez avec un polygone à {{count}} côtés, recto dessus.",
+      "sheetIrregularFront_other": "Commencez avec un polygone à {{count}} côtés, recto dessus.",
+      "sheetPolygonBack_one": "Commencez avec un polygone régulier à {{count}} côté, verso dessus.",
+      "sheetPolygonBack_many": "Commencez avec un polygone régulier à {{count}} côtés, verso dessus.",
+      "sheetPolygonBack_other": "Commencez avec un polygone régulier à {{count}} côtés, verso dessus.",
+      "sheetPolygonFront_one": "Commencez avec un polygone régulier à {{count}} côté, recto dessus.",
+      "sheetPolygonFront_many": "Commencez avec un polygone régulier à {{count}} côtés, recto dessus.",
+      "sheetPolygonFront_other": "Commencez avec un polygone régulier à {{count}} côtés, recto dessus.",
+      "sheetRectangleBack": "Commencez avec un rectangle, verso dessus.",
+      "sheetRectangleFront": "Commencez avec un rectangle, recto dessus.",
+      "sheetSquareBack": "Commencez avec un carré, verso dessus.",
+      "sheetSquareFront": "Commencez avec un carré, recto dessus.",
+      "stepCount_one": "{{count}} étape",
+      "stepCount_many": "{{count}} étapes",
+      "stepCount_other": "{{count}} étapes",
+      "stripLabel": "Étapes",
+      "switchBranch": "Changer de branche",
+      "tagBranch": "Nouvelle branche",
+      "tagNext": "Suivante"
+    },
+    "step": {
+      "blocks": "Blocs",
+      "blocksHelp": "Piles de papier qui tournent d’un seul tenant\u00a0: la partie basse et la partie haute de chaque ouverture, et chaque rabat qui bouge en entier.",
+      "branchSheet": "Vous êtes sur la feuille à plat\u00a0: plier ici commence une nouvelle branche.",
+      "branchStep": "Vous êtes à l’étape {{at}} sur {{total}}\u00a0: plier ici commence une nouvelle branche.",
+      "broken": "Cette étape ne se plie plus\u00a0: ce dont elle est faite n’est plus sur le papier avant elle. Elle et les étapes suivantes ne peuvent qu’être supprimées.",
+      "brokenAbove": "Une étape précédente ne se plie plus, donc celle-ci ne peut pas être affichée.",
+      "changed": "Cette étape se plie autrement que lors de son enregistrement. Vérifiez ses entrées et les étapes précédentes.",
+      "changes": "Modifications",
+      "chosen": "Choix parmi plusieurs",
+      "construction": "Construction",
+      "creases": "Plis",
+      "creasesBackUp": "Vus du recto du papier, qui est dessous au départ\u00a0: ils peuvent se lire à l’inverse des plis que vous voyez.",
+      "creasesFront": "Vus du recto du papier.",
+      "creasesMeet": "Les plis se rejoignent",
+      "creasesMeetHelp": "Là où la ligne à mi-chemin entre le bord et la ligne où il se pose croise le bord plié. L’autre couche de ce bord se plie aussi le long d’un second pli.",
+      "extent": "Étendue",
+      "extentHelp": "La part de la ligne que le prépliage a marquée : toute la ligne, le tronçon entre deux points ou un court pincement.",
+      "firstLine": "Première ligne",
+      "flat": "À plat",
+      "flatHelp": "Pliés une fois puis dépliés\u00a0: ils sont maintenant à plat et gardent le sens dans lequel ils ont été pliés.",
+      "hinge": "Charnière",
+      "hingeHelp": "La ligne le long de laquelle le rabat se soulève : un pli déjà là, ou la ligne passant par deux points, que le pliage marque dans la couche du dessus.",
+      "imported": "Patron de plis importé\u00a0: cette étape remplace l’état plié par celui du patron.",
+      "landsOn": "Se pose sur",
+      "layerOrder": "Ordre des couches",
+      "layers": "Couches",
+      "layersHelp": "La pile la plus épaisse le long de la ligne de pli. Les couches qui restent à plat de part et d’autre d’un prépliage comptent pour une.",
+      "line": "Ligne",
+      "locked": "Cette étape a été créée avec une version plus récente d’Ori Studio. Vous pouvez la supprimer ici, et elle est enregistrée exactement telle quelle.",
+      "mountain": "Montagne",
+      "onlyOne": "La seule possible",
+      "opening": "Ouverture",
+      "openingHelp": "Là où le rabat s’écarte pour laisser passer la pointe\u00a0: les couches qui restent dessous et celles du dessus.",
+      "operation": "Opération",
+      "pending": "Pli en cours",
+      "pendingRefused": "Résolvez le problème dans la fenêtre de l’outil pour voir les plis qu’il crée.",
+      "pocket": "Poche",
+      "pocketHelp": "L’espace entre les couches de la pointe dans lequel son extrémité a été enfoncée : les couches au-dessus et celles en dessous restent ensemble.",
+      "previewSpread": "Inspectez cet aperçu. L’étape enregistrée commence sans écartement des couches.",
+      "ridge": "Arête",
+      "ridgeHelp": "Le pli le long duquel le pli pivot se dresse, plié dans l’autre sens que les trois autres.",
+      "secondLine": "Seconde ligne",
+      "sheet": "Feuille à plat",
+      "sheetNote": "Rien n’est encore plié. Pliez la feuille pour créer l’étape 1.",
+      "source": "Source",
+      "spread": "Écartement",
+      "spreadDefault": "L’écartement par défaut. Une modification ici s’applique à partir de cette étape.",
+      "spreadEarlier": "Tel qu’une étape précédente le règle. Une modification ici s’applique à partir de cette étape.",
+      "spreadOwn": "Réglé à cette étape. Les étapes suivantes le reprennent aussi.",
+      "squashHingeHelp": "Seule l’extrémité du rabat au-delà de la ligne est écrasée : soulevée le long de la ligne, ouverte et aplatie, son bord plié posé sur la ligne.",
+      "swivelKind": "Type",
+      "swivelKindInsideHelp": "La bande de l’autre couche se plie sous le reste de sa couche, glissée entre les deux couches.",
+      "swivelKindOpenHelp": "La bande de l’autre couche se plie par-dessus le reste de sa couche, son revers visible.",
+      "title": "Étape {{number}}",
+      "valley": "Vallée",
+      "valleyMountainHelp": "Sur la couche visible, la vallée et la montagne qui bordent le rabat et se rejoignent sur le bord plié. Le pli sur la couche de derrière en découle.",
+      "vertex": {
+        "blocksHelp": "Morceaux de papier qui tournent d’un seul tenant : chacun tourne autour des mêmes plis, dans le même ordre, jusqu’à l’endroit où il se pose."
+      }
+    },
+    "toDiagram": {
+      "sendPath": "Envoyer les étapes vers Diagramme",
+      "sendStep": "Envoyer l’étape vers Diagramme",
+      "sheetHint": "La feuille à plat est le point de départ des étapes : pliez une étape pour l’envoyer."
+    },
+    "words": {
+      "adds_one": "Ajoute {{count}} pli ({{mountain}} M, {{valley}} V)",
+      "adds_many": "Ajoute {{count}} plis ({{mountain}} M, {{valley}} V)",
+      "adds_other": "Ajoute {{count}} plis ({{mountain}} M, {{valley}} V)",
+      "addsCreaseMarks_one": "Ajoute {{count}} repère de pli",
+      "addsCreaseMarks_many": "Ajoute {{count}} repères de pli",
+      "addsCreaseMarks_other": "Ajoute {{count}} repères de pli",
+      "addsPinchMarks_one": "Ajoute {{count}} repère pincé",
+      "addsPinchMarks_many": "Ajoute {{count}} repères pincés",
+      "addsPinchMarks_other": "Ajoute {{count}} repères pincés",
+      "addsPrecreases_one": "Ajoute {{count}} prépliage",
+      "addsPrecreases_many": "Ajoute {{count}} prépliages",
+      "addsPrecreases_other": "Ajoute {{count}} prépliages",
+      "axiomLine": "Axiome {{axiom}} · {{phrase}}",
+      "badgeCrimp": "Crimp",
+      "badgeImported": "Importé",
+      "badgeInsideReverse": "Inversé intérieur",
+      "badgeMountain": "Montagne",
+      "badgeNewer": "Plus récente",
+      "badgeOutsideReverse": "Inversé extérieur",
+      "badgePetal": "Pétale",
+      "badgePrecrease": "Prépliage",
+      "badgeRabbitEar": "Oreille de lapin",
+      "badgeSquash": "Écrasé",
+      "badgeSwivel": "Pivot",
+      "badgeSwivelInside": "Pivot intérieur",
+      "badgeTuck": "Rentré",
+      "badgeValley": "Vallée",
+      "behind": {
+        "petal": "Pli pétale vers l’arrière",
+        "rabbitEar": "Oreille de lapin vers l’arrière",
+        "squash": "Pli écrasé vers l’arrière",
+        "swivel": "Pli pivot vers l’arrière",
+        "swivelInside": "Pli pivot intérieur vers l’arrière"
+      },
+      "closedSink": "Enfoncement fermé",
+      "collapse": "Mettre en forme",
+      "cpJump": "Importer un patron de plis",
+      "crimpInside": "Crimp intérieur",
+      "crimpOutside": "Crimp extérieur",
+      "existingCrease": "Pli existant",
+      "extentPinch": "Pincement",
+      "extentSegment": "Tronçon",
+      "extentWhole": "Ligne entière",
+      "freeLine": "Ligne libre",
+      "hingeCrease": "Pli existant",
+      "hingePoints": "Deux points, marqués par le pliage",
+      "insideReverse": "Pli inversé intérieur",
+      "meetOnFold": "Sur un bord plié",
+      "mountainFold": "Pli montagne",
+      "mountainPrecrease": "Pli montagne puis dépli",
+      "noChange": "Ne modifie aucun pli",
+      "openSink": "Enfoncement ouvert",
+      "originCp": "Fichier CP",
+      "originEditFoldedFigure": "Figure pliée d’Édition",
+      "originFold": "Fichier FOLD",
+      "originOrh": "Fichier ORH",
+      "originOri": "Fichier ORI",
+      "originProjectCp": "Canevas de plis du projet",
+      "originSample": "Exemple",
+      "outsideReverse": "Pli inversé extérieur",
+      "petal": "Pli pétale",
+      "rabbitEar": "Oreille de lapin",
+      "refolds_one": "Replie {{count}} prépliage",
+      "refolds_many": "Replie {{count}} prépliages",
+      "refolds_other": "Replie {{count}} prépliages",
+      "reverses_one": "Replie {{count}} prépliage dans l’autre sens",
+      "reverses_many": "Replie {{count}} prépliages dans l’autre sens",
+      "reverses_other": "Replie {{count}} prépliages dans l’autre sens",
+      "ridgeEnd": "Vers l’extrémité du bord",
+      "ridgeFoot": "À angle droit du bord",
+      "squash": "Pli écrasé",
+      "squashHingeLine": "Ligne tracée",
+      "swivel": "Pli pivot",
+      "swivelInside": "Pli pivot intérieur",
+      "swivelKindInside": "Intérieur",
+      "swivelKindOpen": "Ouvert",
+      "targetCrease": "Pli ou bord existant",
+      "targetLine": "Ligne passant par deux points",
+      "tuckMountain": "Pli montagne et rentrer",
+      "tuckValley": "Pli vallée et rentrer",
+      "unfold": "Déplier",
+      "unfolds_one": "Déplie {{count}} pli",
+      "unfolds_many": "Déplie {{count}} plis",
+      "unfolds_other": "Déplie {{count}} plis",
+      "unknown": "D’une version plus récente d’Ori Studio",
+      "unsink": "Désenfoncer",
+      "valleyFold": "Pli vallée",
+      "valleyMountain": "Vallée et montagne",
+      "valleyPrecrease": "Pli vallée puis dépli"
+    }
   },
   "fold3dVerdict": {
     "localCrossing_one": "Le papier se traverse lui-même en un sommet.",
@@ -1870,16 +3350,6 @@
       "summary": "{{closure}} lignes sur {{lines}} se plient à partir de la feuille elle-même ; {{queried}} ont nécessité une recherche.",
       "title": "Analyse des références",
       "unsolved": "aucune construction trouvée"
-    },
-    "axiom": {
-      "free": "déjà sur la feuille",
-      "o1": "par deux points",
-      "o2": "point sur point",
-      "o3": "bord sur bord",
-      "o4": "perpendiculaire par un point",
-      "o5": "point sur une ligne, par un point",
-      "o6": "deux points sur deux lignes",
-      "o7": "point sur une ligne, perpendiculaire"
     },
     "backToPattern": "Revenir au patron entier",
     "backToPatterns": "Patrons",
@@ -2018,20 +3488,6 @@
       "querying": "Recherche de {{done}} lignes sur {{total}}"
     },
     "recompute": "Recalculer",
-    "ref": {
-      "bottomEdge": "le bord inférieur",
-      "cornerNe": "le coin supérieur droit",
-      "cornerNw": "le coin supérieur gauche",
-      "cornerSe": "le coin inférieur droit",
-      "cornerSw": "le coin inférieur gauche",
-      "diagonalNwSe": "la diagonale du haut à gauche au bas à droite",
-      "diagonalSwNe": "la diagonale du bas à gauche au haut à droite",
-      "leftEdge": "le bord gauche",
-      "line": "la ligne {{name}}",
-      "point": "le point {{name}}",
-      "rightEdge": "le bord droit",
-      "topEdge": "le bord supérieur"
-    },
     "refusedSheet": "La feuille autour de cette sélection n’a pas pu être lue comme un rectangle.",
     "searching": "Recherche des références…",
     "settings": {
@@ -2103,6 +3559,7 @@
   "sidePane": {
     "layers": "Calques",
     "page": "Page",
+    "paper": "Papier",
     "properties": "Propriétés",
     "settings": "Réglages",
     "step": "Étape",

@@ -74,6 +74,9 @@
   },
   "worker": {
     "cpDetect": "Crease-pattern detection stopped unexpectedly. Try importing the image again.",
+    "foldSequence": "The fold engine stopped unexpectedly. Your steps are safe; if folding doesn't resume, reload Ori Studio.",
+    "foldSequenceKeptStopping": "The fold engine kept stopping, so folding is paused. Your steps are safe: undo your last change, or reload Ori Studio.",
+    "foldSequenceLost": "The fold engine stopped before it could finish that step. Try the fold again.",
     "oristudioBp": "The box-pleating engine stopped unexpectedly. Reload Ori Studio to continue working on this design.",
     "oristudioCp": "The crease-pattern engine stopped unexpectedly. Reload Ori Studio — unsaved edits since the last save may be lost.",
     "precrease": "The precrease planner stopped unexpectedly. Reopen the References workspace to restart it.",

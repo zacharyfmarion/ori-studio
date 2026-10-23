@@ -5,7 +5,11 @@ use std::process::Command;
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use treemaker_flatfold::{NormalizeOptions, SolveOptions, normalize_fold, solve_flat_fold};
+use treemaker_flatfold::{
+    AnalyzeOptions, Completion, CompletionOptions, NormalizeOptions, SolveOptions,
+    analyze_flat_fold, complete_layer_order, flat_folder_completion_problem, normalize_fold,
+    solve_flat_fold,
+};
 use treemaker_fold::{Assignment, FoldDocument};
 
 mod support;
@@ -21,7 +25,12 @@ fn flat_folder_normalization_matches_js_oracle_when_enabled() {
     if oracle.is_relative() {
         oracle = root.join(oracle);
     }
-    for fixture in ["kabuto.fold", "bad_twist.fold"] {
+    for fixture in [
+        "kabuto.fold",
+        "bad_twist.fold",
+        "r271-s03.fold",
+        "r069-s07.fold",
+    ] {
         let path = root.join("tests/fixtures/flat-folder").join(fixture);
         let record = run_flat_folder_oracle(&oracle, &root, "overlap", &path);
         assert_eq!(record["status"].as_str(), Some("ok"), "{fixture}");
@@ -68,54 +77,107 @@ fn flat_folder_solver_matches_js_oracle_when_enabled() {
     if oracle.is_relative() {
         oracle = root.join(oracle);
     }
-    let path = root.join("tests/fixtures/flat-folder/kabuto.fold");
-    let record = run_flat_folder_oracle(&oracle, &root, "solve", &path);
-    assert_eq!(record["status"].as_str(), Some("ok"), "kabuto.fold");
-    let text =
-        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("{}: {err}", path.display()));
-    let document: FoldDocument =
-        serde_json::from_str(&text).unwrap_or_else(|err| panic!("{}: {err}", path.display()));
-    let solved = solve_flat_fold(&document, SolveOptions::default())
-        .unwrap_or_else(|err| panic!("{}: {err}", path.display()));
+    for fixture in ["kabuto.fold", "r271-s03.fold", "r069-s07.fold"] {
+        let path = root.join("tests/fixtures/flat-folder").join(fixture);
+        let record = run_flat_folder_oracle(&oracle, &root, "solve", &path);
+        assert_eq!(record["status"].as_str(), Some("ok"), "{fixture}");
+        let solved = solve_flat_fold(&read_fold(&path), SolveOptions::default())
+            .unwrap_or_else(|err| panic!("{}: {err}", path.display()));
 
-    assert_constraint_record(&solved.constraints, &record, "kabuto.fold");
-    let solve = &record["solve"];
+        assert_constraint_record(&solved.constraints, &record, fixture);
+        let solve = &record["solve"];
+        assert_eq!(
+            solved.component_sizes,
+            solve["component_sizes"]
+                .as_array()
+                .expect("component_sizes")
+                .iter()
+                .map(|value| value.as_u64().expect("component size") as usize)
+                .collect::<Vec<_>>(),
+            "{fixture} component_sizes"
+        );
+        assert_eq!(
+            solved.solution_counts,
+            solve["solution_counts"]
+                .as_array()
+                .expect("solution_counts")
+                .iter()
+                .map(|value| value.as_u64().expect("solution count") as usize)
+                .collect::<Vec<_>>(),
+            "{fixture} solution_counts"
+        );
+        assert_eq!(
+            solved.states,
+            solve["states"].as_str().expect("states"),
+            "{fixture} states"
+        );
+        assert_eq!(
+            solved.face_orders.len(),
+            solve["face_orders"].as_u64().expect("face_orders") as usize,
+            "{fixture} face_orders"
+        );
+        assert_hash(&solved.face_orders, solve, "face_orders_hash", fixture);
+    }
+}
+
+/// The completion entry point's port of `error_faces`, run over Flat-Folder's
+/// own constraints, names the faces upstream's `initial_assignment` names.
+#[test]
+fn flat_folder_seed_conflict_matches_js_oracle_when_enabled() {
+    let Some(mut oracle) = env::var_os("FLATFOLDER_ORACLE").map(PathBuf::from) else {
+        eprintln!("skipping Flat-Folder conflict oracle parity; set FLATFOLDER_ORACLE to enable");
+        return;
+    };
+    let root = repo_root();
+    if oracle.is_relative() {
+        oracle = root.join(oracle);
+    }
+    let path = root.join("tests/fixtures/flat-folder/bad_twist.fold");
+    let record = run_flat_folder_oracle(&oracle, &root, "solve", &path);
     assert_eq!(
-        solved.component_sizes,
-        solve["component_sizes"]
-            .as_array()
-            .expect("component_sizes")
-            .iter()
-            .map(|value| value.as_u64().expect("component size") as usize)
-            .collect::<Vec<_>>(),
-        "kabuto.fold component_sizes"
+        record["status"].as_str(),
+        Some("assignment-conflict"),
+        "bad_twist.fold"
     );
+    let analysis = analyze_flat_fold(&read_fold(&path), AnalyzeOptions::default())
+        .expect("bad_twist.fold analysis");
+    let problem = flat_folder_completion_problem(&analysis).expect("bad_twist.fold problem");
+    let Ok(Completion::Conflict(conflict)) =
+        complete_layer_order(&problem, &CompletionOptions::default())
+    else {
+        panic!("bad_twist.fold: the completion did not conflict");
+    };
+    let error = &record["error"];
     assert_eq!(
-        solved.solution_counts,
-        solve["solution_counts"]
-            .as_array()
-            .expect("solution_counts")
-            .iter()
-            .map(|value| value.as_u64().expect("solution count") as usize)
-            .collect::<Vec<_>>(),
-        "kabuto.fold solution_counts"
+        Some(conflict.constraint.name()),
+        error["constraint_type"].as_str()
     );
+    assert_eq!(serde_json::json!(conflict.faces), error["faces"]);
     assert_eq!(
-        solved.states,
-        solve["states"].as_str().expect("states"),
-        "kabuto.fold states"
+        serde_json::json!(conflict.error_faces),
+        error["conflict_faces"]
     );
-    assert_eq!(
-        solved.face_orders.len(),
-        solve["face_orders"].as_u64().expect("face_orders") as usize,
-        "kabuto.fold face_orders"
-    );
-    assert_hash(
-        &solved.face_orders,
-        solve,
-        "face_orders_hash",
-        "kabuto.fold",
-    );
+}
+
+/// r271-s03 has one flat-folded state, and Flat-Folder reports two: the
+/// arrangement its ε heuristic picks under its own face numbering loses
+/// three taco-taco constraints. The JS oracle reports the same numbers (the
+/// parity test above), so this is upstream behaviour the port keeps.
+#[test]
+fn r271_s03_keeps_flat_folders_second_state() {
+    let path = repo_root().join("tests/fixtures/flat-folder/r271-s03.fold");
+    let solved = solve_flat_fold(&read_fold(&path), SolveOptions::default())
+        .unwrap_or_else(|err| panic!("{}: {err}", path.display()));
+    assert_eq!(solved.constraints.variables, 28);
+    assert_eq!(solved.constraints.taco_taco, 5);
+    assert_eq!(solved.solution_counts, vec![1, 2]);
+    assert_eq!(solved.states, "2");
+}
+
+fn read_fold(path: &Path) -> FoldDocument {
+    let text =
+        std::fs::read_to_string(path).unwrap_or_else(|err| panic!("{}: {err}", path.display()));
+    serde_json::from_str(&text).unwrap_or_else(|err| panic!("{}: {err}", path.display()))
 }
 
 fn assert_overlap_record(

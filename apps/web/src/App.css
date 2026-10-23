@@ -1052,9 +1052,9 @@
   }
 
   /*
-   * Equal thirds, icon over caption. `height: auto` undoes the icon-button size
+   * Equal cells, icon over caption. `height: auto` undoes the icon-button size
    * class, which is square; `min-height` is what holds the target, and the whole
-   * third is tappable rather than just the glyph.
+   * cell is tappable rather than just the glyph.
    *
    * Including the home-indicator inset, which is the point. The button's box now
    * runs to the bottom of the screen, so the strip that already *looks* like part
@@ -1073,11 +1073,19 @@
     min-height: calc(var(--touch-target) + var(--safe-bottom));
     padding: 6px 0 calc(4px + var(--safe-bottom));
     border-radius: 0;
+    /* The caption's font is sized against the cell, below. */
+    container-type: inline-size;
   }
 
+  /*
+   * A caption is one word and cannot wrap, so it has to fit its cell by size, or
+   * it runs into the next tab. The longest is about 6.1em (Russian "Референсы"),
+   * so the font shrinks until the cell holds 6.25em, whatever the screen width or
+   * the number of tabs.
+   */
   .workspace-rail__label {
     display: block;
-    font-size: 0.64rem;
+    font-size: min(0.64rem, 100cqi / 6.25);
     font-weight: 650;
     line-height: 1.1;
     letter-spacing: 0;
@@ -1136,14 +1144,14 @@
 }
 
 /*
- * The Simulate, References and Diagram workspaces dock one pane beside a
+ * The Simulate, References, Diagram and Fold workspaces dock one pane beside a
  * headerless primary whose own toolbar (`.panel-toolbar`) is the workspace
  * header height. The pane's tab bar is the dock's 28px, so the two headers met
  * at different heights and the seam between them read as a step. Sized to the
  * header in those workspaces — on the dock's own element, since the theme class
  * sets the variable there and an inherited value would lose to it.
  */
-.workspace-shell__dock:is([data-workspace='simulate'], [data-workspace='references'], [data-workspace='diagram']) .dockview-theme-treemaker {
+.workspace-shell__dock:is([data-workspace='simulate'], [data-workspace='references'], [data-workspace='diagram'], [data-workspace='fold']) .dockview-theme-treemaker {
   --dv-tabs-and-actions-container-height: var(--workspace-header-height);
 }
 

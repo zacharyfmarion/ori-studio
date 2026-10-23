@@ -1,0 +1,20 @@
+/*
+ * A pane switch's pill (PaneToggle.tsx). Its look is the canvas lane's shared
+ * `canvas-pill`; this is what a pane switch adds to it. Under the coarse query,
+ * as the lane's own rules are: the lane exists only there.
+ */
+@media (pointer: coarse) {
+  /*
+   * The label is a pane name, which the locale sets the length of
+   * ("Diagnostics", "Diagnostik", "Диагностика"). Capped and truncating, so it
+   * can never push the pills to its right off the row — the lane is anchored
+   * by its right edge, so an overflowing pill would take the others with it
+   * rather than spilling off the left.
+   */
+  .pill {
+    max-width: 40vw;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}

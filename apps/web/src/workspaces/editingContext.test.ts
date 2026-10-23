@@ -102,6 +102,20 @@ describe('resolveEditingContext', () => {
     }
   });
 
+  it('maps the fold sequence and its Step and Paper panes, whatever design is active', () => {
+    for (const activePanelId of ['fold', 'fold-step', 'fold-paper']) {
+      expect(resolveEditingContext({ ...base, activePanelId })).toBe('fold');
+      expect(
+        resolveEditingContext({
+          ...base,
+          activePanelId,
+          designMethod: 'box-pleat',
+          hasBpDocument: true,
+        })
+      ).toBe('fold');
+    }
+  });
+
   it('resolves TreeMaker side panes to the tree context', () => {
     for (const id of ['inspector', 'diagnostics', 'conditions']) {
       expect(resolveEditingContext({ ...base, activePanelId: id })).toBe('treemaker-tree');

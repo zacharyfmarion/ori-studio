@@ -213,8 +213,13 @@ function MenuDropdown({
             }}
           >
             <span className={styles.itemLabel}>{capability?.label ?? item.label}</span>
-            {item.shortcut && (
-              <span className={styles.itemShortcut}>{item.shortcut}</span>
+            {/* None on a phone, as its tool sheet shows none (`ToolPickerRow`):
+                width spent on the narrowest screen naming a chord nothing on
+                the device can press. */}
+            {item.shortcut && !phone && (
+              <span className={styles.itemShortcut} data-menu-shortcut="">
+                {item.shortcut}
+              </span>
             )}
           </button>
         );

@@ -11,6 +11,7 @@ import {
   Download,
   Eye,
   FilePlus,
+  FoldVertical,
   Image,
   ImageOff,
   Link2,
@@ -68,12 +69,15 @@ export const DIAGRAM_ACTION_ICONS: Readonly<Record<DiagramActionIconId, LucideIc
   'upload-picture': Upload,
   'link-pattern': Link2,
   'from-references': Compass,
+  // A Fold step's way in and its way back: Fold's own glyph, as its workspace rail draws it.
+  'from-fold': FoldVertical,
   'refresh-picture': RefreshCw,
   // The zoom status's Update.
   'update-enlarged': RefreshCw,
   'update-all-enlarged': RefreshCw,
   'open-in-edit': PenTool,
   'open-in-references': Compass,
+  'open-in-fold': FoldVertical,
   'replace-from-references': Replace,
   'make-marks-editable': Ungroup,
   'export-picture': Download,

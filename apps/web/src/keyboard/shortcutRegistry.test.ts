@@ -261,6 +261,28 @@ describe('adopted single-key layout', () => {
     expect(diagramChords).not.toContain('escape');
   });
 
+  it('keeps the fold scope conditional, off every always-present chord, and off Escape', () => {
+    // The Diagram's arrangement, for the Diagram's reasons: the scope is
+    // pushed only in Fold's own context, while its panel holds an executor,
+    // and Escape is `viewport.cancel` and its ladder there too (D14). Empty
+    // until the panel binds its verbs; this is the guard they land under.
+    expect(isConditionalShortcutScope('fold')).toBe(true);
+    const alwaysPresent = new Set(
+      SHORTCUT_DEFINITIONS.filter(
+        (d) =>
+          !isConditionalShortcutScope(d.scope) &&
+          d.scope !== 'viewport' &&
+          d.scope !== 'crease-pattern' &&
+          !shortcutMayDecline(d.id)
+      ).flatMap((d) => d.defaultChords.map(keyChordId))
+    );
+    const foldChords = SHORTCUT_DEFINITIONS.filter((d) => d.scope === 'fold').flatMap((d) =>
+      d.defaultChords.map(keyChordId)
+    );
+    expect(foldChords.filter((chord) => alwaysPresent.has(chord))).toEqual([]);
+    expect(foldChords).not.toContain('escape');
+  });
+
   it.each(EXPECTED_SINGLE_KEY_LAYOUT)('binds %s to %s', (chord, actionId) => {
     expect(byChord.get(chord)).toEqual([actionId]);
   });

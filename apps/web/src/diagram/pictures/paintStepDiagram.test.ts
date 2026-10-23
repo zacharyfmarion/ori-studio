@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   StepDiagramModel,
   StepDiagramPrimitive,
-} from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+} from '../../lib/stepDiagram/stepDiagramModel';
 import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE } from '../../lib/paper/paperStyle';
 import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
 import { referencesStrip } from '../document/referencesSteps.fixtures';

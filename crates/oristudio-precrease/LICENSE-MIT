@@ -1,11 +1,10 @@
 The MIT License (MIT)
 
-This crate (`treemaker-flatfold`) is a Rust port of Jason S. Ku's Flat-Folder
-algorithm. The original portions remain under their original MIT copyright,
-reproduced below, and the port is distributed under the same MIT terms.
+This crate (`oristudio-precrease`) is original work: the References
+workspace's precrease planner. It ports no upstream code; ReferenceFinder's
+answers reach it as JSON at runtime.
 
-Copyright (c) 2022 Jason S. Ku (origamimagiro, https://github.com/origamimagiro/flat-folder)
-Copyright (c) 2026 Zachary Marion (Rust port)
+Copyright (c) 2026 Zachary Marion
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

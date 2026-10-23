@@ -13,6 +13,10 @@ publish = false
 workspace = true
 
 [dev-dependencies]
+oristudio-cp.workspace = true
+oristudio-fold = { path = "../oristudio-fold", features = ["kernel", "random-sequences"] }
+oristudio-geometry = { path = "../oristudio-geometry" }
+oristudio-layer-order = { path = "../oristudio-layer-order" }
 serde_json.workspace = true
 serde.workspace = true
 sha2.workspace = true

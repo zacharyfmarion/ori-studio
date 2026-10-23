@@ -27,7 +27,7 @@ import {
   arcSamplePoints,
   arcThroughPoints,
   type DiagramArc,
-} from './stepDiagramGeometry';
+} from '../../lib/stepDiagram/stepDiagramGeometry';
 import {
   DEFAULT_DATABASE_SETTINGS,
   type ReferenceFinderDatabaseSettings,

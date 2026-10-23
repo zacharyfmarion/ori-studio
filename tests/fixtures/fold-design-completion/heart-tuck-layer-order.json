@@ -1,0 +1,79 @@
+{
+  "reference": "https://origami.me/heart/",
+  "stage": "8 result / 9 input",
+  "note": "The lowered upper flap covers the stationary bottom triangle. Its lower edge must not expose the original bottom triangle as a horizontal band. Both pairs coincide at model y=0.4; the crease from step 8 is at y=0.625.",
+  "witnesses": [
+    {
+      "loweredFlap": [
+        0.4,
+        0.85
+      ],
+      "stationaryBottom": [
+        0.4,
+        0.1
+      ]
+    },
+    {
+      "loweredFlap": [
+        0.6,
+        0.85
+      ],
+      "stationaryBottom": [
+        0.6,
+        0.1
+      ]
+    }
+  ],
+  "wrongChoices": {
+    "completion": {
+      "faces": [
+        [
+          0.5833333333333334,
+          0.08333333333333334
+        ],
+        [
+          0.7499999999999999,
+          0.875
+        ],
+        [
+          0.625,
+          0.75
+        ],
+        [
+          0.41666666666666663,
+          0.08333333333333333
+        ],
+        [
+          0.375,
+          0.75
+        ],
+        [
+          0.25,
+          0.875
+        ]
+      ],
+      "orders": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          2,
+          -1
+        ],
+        [
+          3,
+          4,
+          -1
+        ],
+        [
+          3,
+          5,
+          1
+        ]
+      ]
+    }
+  }
+}

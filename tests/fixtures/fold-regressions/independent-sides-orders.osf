@@ -1,0 +1,311 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T12:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T12:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Two independent sides",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-independent-sides-orders",
+        "title": "Two independent sides",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-sides-1",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.625,
+                      0.25
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.015625,
+                    0.015625
+                  ]
+                ]
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.9284766908852594,
+                  0.3713906763541037
+                ],
+                "d": 0.33657280044590654
+              }
+            },
+            "expect": "fs1:92b0e33797884698",
+            "note": "Valley, axiom 2: the bottom-left corner onto (5/8, 1/4)."
+          },
+          {
+            "id": "fstep-sides-2",
+            "parent": "fstep-sides-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.25,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5625,
+                      0.125
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.265625,
+                    0.015625
+                  ]
+                ]
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.9284766908852592,
+                  0.3713906763541039
+                ],
+                "d": 0.5048592006688598
+              }
+            },
+            "expect": "fs1:f01ad6f78f118bea",
+            "note": "Valley, axiom 2: the folded flap's point (1/4, 0) onto (9/16, 1/8), that flap only: two layers on the left."
+          },
+          {
+            "id": "fstep-sides-3",
+            "parent": "fstep-sides-2",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.75,
+                      0.375
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.984375,
+                    0.984375
+                  ]
+                ]
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.3713906763541037,
+                  0.9284766908852594
+                ],
+                "d": 0.9632945667934566
+              }
+            },
+            "expect": "fs1:5c0e353b68e16a7c",
+            "note": "Valley, axiom 2: the top-right corner onto (3/4, 3/8), step 1 mirrored across x + y = 1."
+          },
+          {
+            "id": "fstep-sides-4",
+            "parent": "fstep-sides-3",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0.75
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.875,
+                      0.4375
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.984375,
+                    0.734375
+                  ]
+                ]
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.371390676354103,
+                  0.9284766908852596
+                ],
+                "d": 0.7950081665705029
+              }
+            },
+            "expect": "fs1:d7220650251303dd",
+            "note": "Valley, axiom 2: the folded flap's point (1, 3/4) onto (7/8, 7/16), step 2 mirrored: two layers on the right."
+          }
+        ]
+      }
+    ],
+    "viewState": {}
+  },
+  "artifacts": {},
+  "extensions": {}
+}

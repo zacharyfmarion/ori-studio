@@ -3,17 +3,20 @@ import type { DocumentMode } from '../lib/sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
 import type { OristudioCpActionId } from '../lib/oristudioCpActions';
 import {
+  type ConditionalScopeExecutor,
+  type ConditionalScopeExecutors,
   handleShortcutKeyDown,
   type ShortcutExecutors,
 } from './shortcutDispatcher';
-import type {
-  DiagramShortcutId,
-  ReferencesShortcutId,
-  ShortcutDefaultsSource,
-  ShortcutOverrides,
-  ShortcutScope,
-  SimulatorShortcutId,
-  ViewportShortcutId,
+import {
+  CONDITIONAL_SHORTCUT_SCOPES,
+  type ConditionalShortcutTarget,
+  type ReferencesShortcutId,
+  type ShortcutDefaultsSource,
+  type ShortcutOverrides,
+  type ShortcutScope,
+  type SimulatorShortcutId,
+  type ViewportShortcutId,
 } from './shortcuts';
 
 type CpActionExecutor = (id: OristudioCpActionId) => unknown;
@@ -22,56 +25,41 @@ type CpActionExecutor = (id: OristudioCpActionId) => unknown;
  * Every id must answer one or the other; see `ShortcutExecutors.viewport`.
  */
 type ViewportExecutor = (id: ViewportShortcutId) => boolean;
-/** Claims or declines, as the viewport's does; see `ShortcutExecutors.simulator`. */
-type SimulatorExecutor = (id: SimulatorShortcutId) => boolean;
-type ReferencesExecutor = (id: ReferencesShortcutId) => unknown;
-/** May decline, as a viewport executor may; see `ShortcutExecutors.diagram`. */
-type DiagramExecutor = (id: DiagramShortcutId) => boolean;
 
 /**
  * Which viewport currently owns keyboard shortcuts. This is the document modes
  * plus the Box Pleating packing pane, which is its own focusable viewport
- * surface distinct from the tree (design) pane, and the Diagram workspace, whose
- * views share one surface with one owner at a time.
+ * surface distinct from the tree (design) pane, and the Diagram and Fold
+ * workspaces, whose views (and Fold's two canvas panes) share one surface each
+ * with one owner at a time.
  */
-export type ViewportSurface = DocumentMode | 'bp-editor' | 'diagram';
+export type ViewportSurface = DocumentMode | 'bp-editor' | 'diagram' | 'fold';
 
 const viewportExecutors: Partial<Record<ViewportSurface, ViewportExecutor>> = {};
 let cpActionExecutor: CpActionExecutor | null = null;
 let activeViewportSurface: ViewportSurface | null = null;
 /**
- * Set while a simulation owns the keyboard: the Simulate workspace panel, or a
- * focused inline simulation window on the Edit canvas. Its presence is what
- * pushes the `simulator` scope, so the simulator's bare letters and Space only
- * take precedence over the CP tools when a simulation is actually in hand.
+ * Each conditional surface's executor, set while that surface owns the
+ * keyboard: a simulation in hand (the Simulate workspace panel, or a focused
+ * inline window on the Edit canvas), the References panel, the Diagram
+ * workspace, the Fold workspace. Its presence is what pushes the surface's
+ * scopes, so their keys take precedence over the CP tools and the viewport only
+ * while the surface is actually in hand.
  */
-let simulatorExecutor: SimulatorExecutor | null = null;
+const conditionalExecutors: ConditionalScopeExecutors = {};
 /**
- * Told whenever {@link simulatorExecutor} comes or goes. The Simulate rail's
+ * Told whenever a surface's executor comes or goes. The Simulate rail's
  * buttons are enabled by exactly this: the panel registers its executor only
  * while its simulation is ready, so "is there one" is the readiness the rail
  * needs, and a second flag for it would be a second source of truth.
  */
-const simulatorExecutorListeners = new Set<() => void>();
-/**
- * Set while the References panel is mounted. Same mechanism as the simulator's:
- * its presence pushes the `references` scope, so the step and zoom keys apply
- * only while that workspace is on screen.
- */
-let referencesExecutor: ReferencesExecutor | null = null;
-/**
- * Set while the Diagram workspace is mounted, and the `diagram` scope's reason
- * to be in the stack.
- */
-let diagramExecutor: DiagramExecutor | null = null;
+const conditionalExecutorListeners = new Map<ConditionalShortcutTarget, Set<() => void>>();
 
 export interface ShortcutRuntimeContext {
   activeEditingContext: EditingContext;
   activeViewportSurface?: ViewportSurface | null;
-  /** Overrides the registered-executor check; for tests. */
-  simulatorFocused?: boolean;
-  /** Overrides the registered-executor check; for tests. */
-  referencesFocused?: boolean;
+  /** Overrides the registered-executor check, per surface; for tests. */
+  registeredExecutors?: Partial<Record<ConditionalShortcutTarget, boolean>>;
 }
 
 /** The viewport pane that owns shortcuts for a given editing context. */
@@ -79,6 +67,7 @@ function viewportSurfaceForContext(context: EditingContext): ViewportSurface {
   if (context === 'crease-pattern') return 'crease-pattern';
   if (context === 'bp-packing') return 'bp-editor';
   if (context === 'diagram') return 'diagram';
+  if (context === 'fold') return 'fold';
   return 'tree';
 }
 
@@ -103,22 +92,35 @@ export function registerViewportShortcutExecutor(
 }
 
 /**
- * Claim the keyboard for a simulation. Returns an unregister; call it on blur or
- * unmount, or the CP tools stay shadowed after the simulation is gone.
+ * Claim the keyboard for a conditional surface: while registered, the scopes
+ * `target` answers are in the stack (`CONDITIONAL_SHORTCUT_SCOPES`) and their
+ * bindings come here. Returns an unregister; call it on blur or unmount, or the
+ * scopes outlive the surface and keep shadowing the keys beneath them. A newer
+ * registration replaces an older one, whose unregister then leaves it be.
  */
-export function registerSimulatorShortcutExecutor(executor: SimulatorExecutor): () => void {
-  setSimulatorExecutor(executor);
+export function registerConditionalScopeExecutor<T extends ConditionalShortcutTarget>(
+  target: T,
+  executor: ConditionalScopeExecutor<T>
+): () => void {
+  setConditionalExecutor(target, executor);
   return () => {
-    if (simulatorExecutor === executor) {
-      setSimulatorExecutor(null);
+    if (conditionalExecutors[target] === executor) {
+      setConditionalExecutor(target, undefined);
     }
   };
 }
 
-function setSimulatorExecutor(next: SimulatorExecutor | null): void {
-  if (simulatorExecutor === next) return;
-  simulatorExecutor = next;
-  for (const listener of simulatorExecutorListeners) listener();
+function setConditionalExecutor<T extends ConditionalShortcutTarget>(
+  target: T,
+  next: ConditionalScopeExecutor<T> | undefined
+): void {
+  // The registry seen through `target` alone: written through the whole map, a
+  // generic key would have to take every surface's executor at once.
+  const executors: { [K in T]?: ConditionalScopeExecutor<K> } = conditionalExecutors;
+  if (executors[target] === next) return;
+  if (next) executors[target] = next;
+  else delete executors[target];
+  for (const listener of conditionalExecutorListeners.get(target) ?? []) listener();
 }
 
 /**
@@ -126,15 +128,17 @@ function setSimulatorExecutor(next: SimulatorExecutor | null): void {
  * `useSyncExternalStore`, with {@link hasSimulatorExecutor} as the snapshot.
  */
 export function subscribeSimulatorExecutor(listener: () => void): () => void {
-  simulatorExecutorListeners.add(listener);
+  const listeners = conditionalExecutorListeners.get('simulator') ?? new Set<() => void>();
+  conditionalExecutorListeners.set('simulator', listeners);
+  listeners.add(listener);
   return () => {
-    simulatorExecutorListeners.delete(listener);
+    listeners.delete(listener);
   };
 }
 
 /** Whether a simulation is in hand, so its verbs have somewhere to go. */
 export function hasSimulatorExecutor(): boolean {
-  return simulatorExecutor !== null;
+  return conditionalExecutors.simulator !== undefined;
 }
 
 /**
@@ -145,21 +149,9 @@ export function hasSimulatorExecutor(): boolean {
  * the one in hand declines the verb.
  */
 export function runSimulatorCommand(id: SimulatorShortcutId): boolean {
-  if (!simulatorExecutor) return false;
-  return simulatorExecutor(id);
-}
-
-/**
- * Claim the keyboard for the References workspace. Returns an unregister; call
- * it on unmount, or the scope outlives the panel.
- */
-export function registerReferencesShortcutExecutor(executor: ReferencesExecutor): () => void {
-  referencesExecutor = executor;
-  return () => {
-    if (referencesExecutor === executor) {
-      referencesExecutor = null;
-    }
-  };
+  const simulator = conditionalExecutors.simulator;
+  if (!simulator) return false;
+  return simulator(id);
 }
 
 /**
@@ -169,22 +161,10 @@ export function registerReferencesShortcutExecutor(executor: ReferencesExecutor)
  * own key are one path. False while no References view is mounted.
  */
 export function runReferencesCommand(id: ReferencesShortcutId): boolean {
-  if (!referencesExecutor) return false;
-  referencesExecutor(id);
+  const references = conditionalExecutors.references;
+  if (!references) return false;
+  references(id);
   return true;
-}
-
-/**
- * Claim the keyboard for the Diagram workspace. Returns an unregister; call it
- * on unmount, or the scope outlives the panel.
- */
-export function registerDiagramShortcutExecutor(executor: DiagramExecutor): () => void {
-  diagramExecutor = executor;
-  return () => {
-    if (diagramExecutor === executor) {
-      diagramExecutor = null;
-    }
-  };
 }
 
 /**
@@ -246,19 +226,13 @@ export function shortcutScopeStackForContext(
   context: ShortcutRuntimeContext
 ): ShortcutScope[] {
   const scopes: ShortcutScope[] = [];
-  // Ahead of everything: a simulation in hand should answer Space and the view
-  // toggles, not the crease-pattern tools bound to the same keys.
-  if (context.simulatorFocused ?? simulatorExecutor !== null) {
-    scopes.push('simulator');
-  }
-  if (context.referencesFocused ?? referencesExecutor !== null) {
-    scopes.push('references');
-  }
-  // Only in its own context, so it can never stack with `crease-pattern`.
-  // Edit Path's node keys first: the same executor, which declines them
-  // unless a node is selected, so the arrows then reach the steps' scope.
-  if (context.activeEditingContext === 'diagram' && diagramExecutor !== null) {
-    scopes.push('diagram-place', 'diagram-path', 'diagram');
+  // Ahead of everything, in the table's order: each surface's scopes while it
+  // holds an executor, and only in the one context a scope names, if any.
+  for (const { scope, target, onlyIn } of CONDITIONAL_SHORTCUT_SCOPES) {
+    if (onlyIn !== null && context.activeEditingContext !== onlyIn) continue;
+    if (context.registeredExecutors?.[target] ?? (conditionalExecutors[target] !== undefined)) {
+      scopes.push(scope);
+    }
   }
   scopes.push('viewport');
   if (context.activeEditingContext === 'crease-pattern') {
@@ -274,24 +248,13 @@ export function handleShortcutRuntimeKeyDown(
   options: ShortcutRuntimeOptions
 ): boolean {
   const executors: ShortcutExecutors = {
+    ...conditionalExecutors,
     menu: options.menu,
     viewport: viewportExecutors[resolvedViewportSurface(options.context)],
   };
 
   if (options.context.activeEditingContext === 'crease-pattern' && cpActionExecutor) {
     executors.cpAction = cpActionExecutor;
-  }
-
-  if (simulatorExecutor) {
-    executors.simulator = simulatorExecutor;
-  }
-
-  if (referencesExecutor) {
-    executors.references = referencesExecutor;
-  }
-
-  if (diagramExecutor) {
-    executors.diagram = diagramExecutor;
   }
 
   return handleShortcutKeyDown(event, {

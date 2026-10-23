@@ -20,7 +20,8 @@ export type EditingContext =
   | 'crease-pattern'
   | 'simulate'
   | 'references'
-  | 'diagram';
+  | 'diagram'
+  | 'fold';
 
 export interface EditingContextInput {
   activePanelId: string | null;
@@ -29,11 +30,11 @@ export interface EditingContextInput {
 }
 
 /**
- * Panels that belong to Edit, Simulate, References and Diagram.
+ * Panels that belong to Edit, Simulate, References, Diagram and Fold.
  *
  * Static, because those workspaces have no kinds — there is one crease pattern,
- * one simulator, one references view and one diagram, and a pane of any is that
- * workspace's context whatever else is open.
+ * one simulator, one references view, one diagram and one fold sequence on
+ * screen, and a pane of any is that workspace's context whatever else is open.
  */
 const STATIC_PANEL_CONTEXTS: Record<string, EditingContext> = {
   'crease-pattern': 'crease-pattern',
@@ -47,6 +48,9 @@ const STATIC_PANEL_CONTEXTS: Record<string, EditingContext> = {
   'diagram-step': 'diagram',
   'diagram-page': 'diagram',
   'diagram-layers': 'diagram',
+  fold: 'fold',
+  'fold-step': 'fold',
+  'fold-paper': 'fold',
 };
 
 /**

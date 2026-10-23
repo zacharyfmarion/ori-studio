@@ -19,15 +19,15 @@ import type {
 import { VERTEX_RADIUS_FACTOR } from '../adapters/cpPointsToScene';
 import { previewGroupsToStrokes, type PreviewStrokeGroup } from '../renderer/previewStrokes';
 import type { LineHitIndex } from '../picking/lineHitIndex';
-import { dashRulerAlong } from './stepDiagramGeometry';
+import { dashRulerAlong } from '../../lib/stepDiagram/stepDiagramGeometry';
 import {
   DIAGRAM_LINE_INK,
   diagramDashPatterns,
   diagramDashSlot,
   penInk,
   type DiagramPens,
-} from './diagram/diagramInk';
-import type { DiagramLineStyleName } from './referenceFinderDiagramToPrimitives';
+} from '../../lib/stepDiagram/diagramInk';
+import type { DiagramLineStyleName } from '../../lib/stepDiagram/stepDiagramModel';
 import type { Pen } from '../../lib/paper/paperStyle';
 import type { SheetStrokeRole } from '../sheets/sheetThumbnail';
 import { creaseRoleAt } from './creaseRole';
@@ -421,18 +421,6 @@ export function concatOverlayPoints(
   };
 }
 
-/** The movement below which a press-and-release counts as a click, CSS px. */
-export const REFERENCES_CLICK_MOVE_THRESHOLD_CSS = 4;
-
-/** Whether a pointer that went down at `press` and came up at `release` clicked. */
-export function isClick(
-  press: { x: number; y: number },
-  release: { x: number; y: number },
-  threshold = REFERENCES_CLICK_MOVE_THRESHOLD_CSS
-): boolean {
-  return Math.hypot(release.x - press.x, release.y - press.y) < threshold;
-}
-
 /** What a step does to each of the document's creases. */
 export interface ReferencesCreaseVisibility {
   /**
@@ -526,7 +514,7 @@ export function applyCreaseVisibility(
   strokes: StrokeGeometry,
   segmentCount: number,
   visibility: ReferencesCreaseVisibility,
-  /** The diagram's pen, for the dash runs — see `diagram/diagramInk`. */
+  /** The diagram's pen, for the dash runs — see `lib/stepDiagram/diagramInk`. */
   inkCss: number,
   /** The pens those runs are in, and a directed crease's width (`referencesCreasePens`). */
   pens: DiagramPens = DIAGRAM_LINE_INK
@@ -688,7 +676,7 @@ export function referencesCreasePens(
   segmentCount: number,
   options: {
     pens: DiagramPens;
-    /** The pens' ink, CSS px per unit — see `diagram/diagramInk`. */
+    /** The pens' ink, CSS px per unit — see `lib/stepDiagram/diagramInk`. */
     inkCss: number;
     /** Each pen's colour on this canvas: the fold pens' inks for a direction. */
     ink: Readonly<Record<CreasePen, Rgba>>;

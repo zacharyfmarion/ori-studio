@@ -1,0 +1,141 @@
+/*
+ * What Import CP can bring in (FoldImportPicker.tsx): the file drop, the
+ * Edit patterns as cards with their creases, and Edit's folded figure
+ * as a row.
+ */
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.drop {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-height: 132px;
+  align-content: center;
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.drop:hover:not(:disabled),
+.drop[data-dragging] {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-secondary));
+  color: var(--text-primary);
+}
+
+.drop:focus-visible,
+.card:focus-visible,
+.row:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.drop:disabled,
+.card:disabled,
+.row:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.dropTitle {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.dropHint {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.heading {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+}
+
+.card {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.card:hover:not(:disabled),
+.row:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.picture {
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 1;
+  margin-bottom: 4px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+}
+
+.name {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.note {
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch-target, 44px);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.rowText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text-primary);
+}

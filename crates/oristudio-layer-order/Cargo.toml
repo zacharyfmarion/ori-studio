@@ -1,0 +1,36 @@
+[package]
+name = "oristudio-layer-order"
+version.workspace = true
+publish.workspace = true
+edition.workspace = true
+# Original work: the pairwise layer order of a flat folded state, the overlay
+# of convex face images into cells, the layer-order constraint problem built
+# from them, and one checker that names faces. The constraint families are
+# the facewise model of Akitaya, Demaine & Ku (OSME 2024), which Flat-Folder
+# (MIT) also implements; no code is ported from Flat-Folder or Oriedita.
+license = "MIT OR Apache-2.0"
+description = "Layer order for flat folded states: pairwise order, cell overlay, constraints and a checker"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["origami", "folding", "layer-order"]
+categories = ["algorithms", "mathematics"]
+include = [
+    "Cargo.toml",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "README.md",
+    "src/**",
+    "tests/**",
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+oristudio-geometry = { path = "../oristudio-geometry" }
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

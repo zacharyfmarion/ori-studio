@@ -1068,6 +1068,82 @@
       "title": "Start a diagram",
       "tutorial": "Watch the walkthrough"
     },
+    "fold": {
+      "badgeCreasePattern": "{{origin}} · Crease pattern",
+      "badgeFolded": "{{origin}} · Folded",
+      "card": "Step {{number}}",
+      "cardMissing": "Step missing",
+      "currentHint": "Already shows its step as it is",
+      "empty": "Fold a step in Fold, and the sequence’s steps appear here.",
+      "finishedSentence": "The model as the steps leave it.",
+      "fromFold": "From Fold…",
+      "instruction": {
+        "closedSink": "Closed sink.",
+        "collapse": "Collapse.",
+        "insideCrimp": "Inside crimp.",
+        "insideReverse": "Inside reverse fold.",
+        "insideSwivel": "Inside swivel fold.",
+        "insideSwivelBehind": "Inside swivel fold behind.",
+        "mountain": "Mountain fold.",
+        "mountainBothSides": "Mountain fold on both sides.",
+        "mountainPrecrease": "Mountain fold and unfold.",
+        "mountainPrecreaseBothSides": "Mountain fold and unfold on both sides.",
+        "openSink": "Open sink.",
+        "outsideCrimp": "Outside crimp.",
+        "outsideReverse": "Outside reverse fold.",
+        "petal": "Petal fold.",
+        "petalBehind": "Petal fold behind.",
+        "pinch": "Make a pinch.",
+        "pinchBothSides": "Make a pinch on both sides.",
+        "pleat": "Pleat.",
+        "precrease": "Fold and unfold.",
+        "precreaseBothSides": "Fold and unfold on both sides.",
+        "rabbitEar": "Rabbit-ear fold.",
+        "rabbitEarBehind": "Rabbit-ear fold behind.",
+        "repeat_one": "Repeat on the other side.",
+        "repeat_other": "Repeat the last {{count}} steps on the other side.",
+        "repeatBehind_one": "Repeat behind.",
+        "repeatBehind_other": "Repeat the last {{count}} steps behind.",
+        "squash": "Squash fold.",
+        "squashBehind": "Squash fold behind.",
+        "squashEnd": "Squash fold the end.",
+        "squashEndBehind": "Squash fold the end behind.",
+        "swivel": "Swivel fold.",
+        "swivelBehind": "Swivel fold behind.",
+        "then": "{{first}} {{next}}",
+        "tuck": "Valley fold and tuck in.",
+        "tuckBehind": "Mountain fold and tuck in.",
+        "unfold": "Unfold.",
+        "unfoldAll": "Unfold completely.",
+        "unfoldToStep": "Unfold to step {{number}}.",
+        "unsink": "Unsink.",
+        "valley": "Valley fold.",
+        "valleyBothSides": "Valley fold on both sides."
+      },
+      "mergedCard": "Steps {{first}}–{{last}}",
+      "mergePrecreases": "Merge symmetric precreases",
+      "mergePrecreasesHint": "A precrease and its mirror image become one step, both creases on one picture, as a book draws them.",
+      "mergePrecreasesNone": "No precrease on this path has a mirror image to merge with.",
+      "missing": "Step missing from Fold",
+      "missingHint": "Its step is gone from Fold, or no longer folds",
+      "noStepsHint": "Fold a step in Fold to take it from there",
+      "notLanded": "Fold hasn’t folded this step, so it can’t be added yet.",
+      "openFold": "Open Fold",
+      "openInFold": "Open in Fold",
+      "repeatBottom": "Repeat at the bottom",
+      "repeatHere": "Repeat here",
+      "repeatLeft": "Repeat on the left",
+      "repeatRight": "Repeat on the right",
+      "repeatTop": "Repeat at the top",
+      "sourceAfter": "A Fold step’s result · {{shown}}",
+      "sourceBefore": "A Fold step · {{shown}}",
+      "stale": "Out of date: the Fold sequence changed",
+      "steps": "Steps",
+      "titleEnd": "Add from Fold",
+      "turnCard": "Turn",
+      "unknown": "Not checked yet: Fold is still folding its steps",
+      "withTurn": "With the turn before it"
+    },
     "grid": {
       "addStep": "Add step",
       "insertHere": "Add a step here",
@@ -1157,6 +1233,11 @@
       "separator": "Drag to resize the list",
       "stepCount_one": "{{count}} step",
       "stepCount_other": "{{count}} steps"
+    },
+    "link": {
+      "originEdit": "Edit",
+      "originFold": "Fold",
+      "originReferences": "References"
     },
     "packing": {
       "bands": "Bands",
@@ -1606,14 +1687,15 @@
       "cardTurnOver": "Turn over",
       "chipLabel": "{{name}}, {{where}}",
       "custom": "Custom",
+      "degrees": "{{degrees}}°",
       "delete": "Delete Turn",
       "eighth": "1/8 Turn",
       "firstHint": "Already first",
       "half": "1/2 Turn",
-      "howAngleClockwise": "{{angle}} clockwise",
-      "howAngleCounterclockwise": "{{angle}} counterclockwise",
       "howClockwise": "{{fraction}} turn clockwise",
       "howCounterclockwise": "{{fraction}} turn counterclockwise",
+      "howDegreesClockwise": "{{degrees}}° clockwise",
+      "howDegreesCounterclockwise": "{{degrees}}° counterclockwise",
       "howSideToSide": "Side to side",
       "howTopToBottom": "Top to bottom",
       "kind": "Turn",
@@ -1623,10 +1705,10 @@
       "note": "Printed between the steps, with no number of its own.",
       "quarter": "1/4 Turn",
       "rotate": "Rotate",
-      "rotateAngleClockwise": "Rotate {{angle}} clockwise",
-      "rotateAngleCounterclockwise": "Rotate {{angle}} counterclockwise",
       "rotateClockwise": "Rotate {{fraction}} turn clockwise",
       "rotateCounterclockwise": "Rotate {{fraction}} turn counterclockwise",
+      "rotateDegreesClockwise": "Rotate {{degrees}}° clockwise",
+      "rotateDegreesCounterclockwise": "Rotate {{degrees}}° counterclockwise",
       "turnOver": "Turn Over",
       "turnOverSideToSide": "Turn over, side to side",
       "turnOverTopToBottom": "Turn over, top to bottom"
@@ -1701,6 +1783,1178 @@
     "viewportControls": "Search tree viewport controls",
     "viewTree": "Tree",
     "viewTreeAndCp": "Tree and crease pattern"
+  },
+  "fold": {
+    "actions": {
+      "brokenHint": "This step no longer folds.",
+      "deleteStep": "Delete this step",
+      "deleteStepAndFollowing": "Delete this step and what follows",
+      "exportFold": "Export FOLD…",
+      "exportSteps": "Export steps…",
+      "foldKind": "Fold",
+      "importCp": "Import CP…",
+      "importPolygonHint": "Import CP needs a square or rectangle sheet.",
+      "lockedHint": "This step was made with a newer Ori Studio.",
+      "pathBrokenHint": "A step on this path no longer folds.",
+      "pathLockedHint": "A step on this path was made with a newer Ori Studio.",
+      "pathReplayingHint": "Still folding the steps.",
+      "precrease": "Precrease",
+      "readOnlyHint": "Made with a newer Ori Studio: this sequence opens read-only.",
+      "replayingHint": "Still folding the steps before this one.",
+      "rotate": "Rotate…",
+      "sendToEditTitle": "Send the crease pattern of the steps shown to the Edit canvas",
+      "sheetHint": "The flat sheet is where the steps start: there is no step to delete.",
+      "startsBranch": "Starts a new branch"
+    },
+    "canvas": {
+      "creasePattern": "Crease pattern",
+      "creasePatternLabel": "The crease pattern so far, front up. Click its points and creases to locate a fold.",
+      "flatCreases": "Flat creases",
+      "flatCreasesTitle": "Draw the flat creases on the paper: precreases, and folds unfolded again",
+      "folded": "Folded",
+      "foldedLabel": "The folded form. Click its points and creases to locate a fold; drag to pan, scroll to zoom.",
+      "spreadLayers": "Spread layers",
+      "spreadLayersTitle": "Spread the folded layers apart, as a diagram draws them, on this step and the ones after it",
+      "stepCreases": "Step creases",
+      "stepCreasesTitle": "Draw the creases the step on show made in bold, as its instruction",
+      "toolbar": "Fold view"
+    },
+    "collapse": {
+      "changed": "Update available. This step still uses its saved CP revision.",
+      "openSource": "Open source CP",
+      "replay": "Updating replays later folds. Check the timeline for Changed or Broken steps before continuing.",
+      "saved": "Using the saved CP revision. Source edits are applied only when you update.",
+      "unavailable": "Source CP unavailable. The saved snapshot still replays.",
+      "update": "Update from CP"
+    },
+    "header": {
+      "moreExports": "More ways to export",
+      "moreVerbs": "Import, send and export",
+      "moreVerbsButExport": "Unfold, import and send"
+    },
+    "load": {
+      "failed": "Fold did not load",
+      "loading": "Loading Fold…",
+      "offline": "Fold has not been downloaded yet, and you are offline. Connect once and it will work offline from then on.",
+      "retry": "Try again"
+    },
+    "paper": {
+      "backUp": "Back up",
+      "frontUp": "Front up",
+      "importSheet": "Import starting sheet…",
+      "keptStyle": "This sequence’s own",
+      "look": "Look",
+      "shape": "Shape",
+      "sheet": "Sheet",
+      "sheetPolygon_one": "Polygon, {{count}} side",
+      "sheetPolygon_other": "Polygon, {{count}} sides",
+      "sheetRectangle": "Rectangle, 1 : {{ratio}}",
+      "sheetRegular_one": "Regular polygon, {{count}} side",
+      "sheetRegular_other": "Regular polygon, {{count}} sides",
+      "sheetSquare": "Square",
+      "sheetStartsOver_one": "A new starting sheet starts over: the sequence’s {{count}} step is cleared. Undo brings it back.",
+      "sheetStartsOver_other": "A new starting sheet starts over: the sequence’s {{count}} steps are cleared. Undo brings them back.",
+      "start": "Start",
+      "startHelp": "Which side of the paper faces you before the first fold. The crease pattern is always drawn from the front.",
+      "style": "Style",
+      "styleHint": "The paper, pens and diagram creases this sequence is drawn in. A style from Settings is copied into the sequence when you pick it."
+    },
+    "repeat": {
+      "advice": {
+        "axis": "Try another axis, or fold the other side with the tools.",
+        "axisOrLater": "Try another axis, or start the range after this operation.",
+        "later": "Start the range after this operation, or fold the other side with the tools.",
+        "tools": "Fold the other side with the tools instead."
+      },
+      "ambiguous": "The mirrored operation lands two different ways that both match the original, so which one is meant is not known.",
+      "axis": "Symmetry axis",
+      "axisName": {
+        "angle": "Line through the center at {{degrees}}°",
+        "falling": "Diagonal, top left to bottom right",
+        "horizontal": "Center line, left to right",
+        "rising": "Diagonal, bottom left to top right",
+        "vertical": "Center line, top to bottom"
+      },
+      "axisStopsAt": "Stops at operation {{number}}: {{reason}}",
+      "blockedAt": "Stopped at source operation {{number}}: {{reason}}",
+      "choiceAt_one": "Source operation {{number}} has {{count}} matching layer orders. Choose one to continue.",
+      "choiceAt_other": "Source operation {{number}} has {{count}} matching layer orders. Choose one to continue.",
+      "chooseAxis": "Choose symmetry axis",
+      "commitBehind": "Repeat behind",
+      "commitSame": "Repeat on the other side",
+      "drawnAxisRefused": "Repeating across this axis is refused. {{reason}}",
+      "failureTitle": "Cannot repeat",
+      "findingAxes": "Finding the symmetry axes of the model before the range…",
+      "from": "Start with",
+      "goSource": "Go to source steps",
+      "groupCount_one": "Repeat {{count}} operation as one numbered step.",
+      "groupCount_other": "Repeat {{count}} operations through the current step as one numbered step.",
+      "groupCountBehind_one": "Repeat {{count}} operation behind, as one numbered step.",
+      "groupCountBehind_other": "Repeat {{count}} operations through the current step behind, as one numbered step.",
+      "groupCountSame_one": "Repeat {{count}} operation on the other side, as one numbered step.",
+      "groupCountSame_other": "Repeat {{count}} operations through the current step on the other side, as one numbered step.",
+      "headlineAdvice": "{{reason}}. {{advice}}",
+      "headlineReason": "{{reason}}.",
+      "individual": "Show as individual steps",
+      "individualCount_one": "Repeat {{count}} operation as an individual entry.",
+      "individualCount_other": "Repeat {{count}} operations through the current step as individual entries.",
+      "individualCountBehind_one": "Repeat {{count}} operation behind, as an individual entry.",
+      "individualCountBehind_other": "Repeat {{count}} operations through the current step behind, as individual entries.",
+      "individualCountSame_one": "Repeat {{count}} operation on the other side, as an individual entry.",
+      "individualCountSame_other": "Repeat {{count}} operations through the current step on the other side, as individual entries.",
+      "invalidAxis": "This line does not pair matching material and layers in the starting model.",
+      "label": "Repeat",
+      "limit": "This repeat exceeds the search limit. Try a shorter range.",
+      "materialConflict": "Repeating would change additional paper or creases. The two sides cannot be folded independently in this range.",
+      "mirror": {
+        "budget": "Working out how the mirrored layers stack took too long, so it is not known whether they fit.",
+        "closureAddsFlaps": "Folding the mirrored layers would move other flaps too.",
+        "emptySeed": "The mirrored fold picks no layer to move.",
+        "moverStays": "The layer that carries the point to move is not among the layers the mirrored fold moves.",
+        "noMovingSide": "No paper lies on the side of the mirrored line that would move.",
+        "noRoot": "The mirrored references give no fold line on the paper as it is folded.",
+        "noSide": "Nothing says which side of the mirrored line moves.",
+        "nothingStays": "Every layer is on the moving side of the mirrored line, so nothing would stay put.",
+        "offPaper": "A point or edge the mirrored line is located from does not lie on the paper as it is folded now.",
+        "pickAgain": "The spot the mirrored fold picks is not inside a layer on the moving side.",
+        "pointsTooClose": "The mirrored line’s two points land in the same place on the folded paper, so they make no line.",
+        "wrongCrease": "The mirrored line does not run along a folded edge to unfold, or a flat crease to refold."
+      },
+      "noAxis": "This starting model has no verified matching pair of sides. Choose a different range.",
+      "noDrawnLine": "These picks locate no line here. Pick again, or choose an axis.",
+      "notAnAxis": "Not a symmetry axis",
+      "nothing": "Every operation in the range is its own mirror across this axis, so repeating it changes nothing. Choose another axis or range.",
+      "open": "Repeat…",
+      "orderConflict": "The original layer relationships cannot be preserved on the other side.",
+      "pleatBehind": "Seen from the other side, this pleat’s mountain and valley trade places, which a pleat step cannot record. Turn the model over and make the pleat there.",
+      "preparing": "Preparing repeated folds…",
+      "previewShown": "The canvas shows the repeated folds and the creases they add.",
+      "reasonAdvice": "{{reason}} {{advice}}",
+      "rebuildRequired": "The saved repeat no longer matches this state. Update it from its source steps.",
+      "reference": "A reference does not have a matching point on the other side.",
+      "refusedPlain": "The mirrored operation cannot be folded. No steps were added.",
+      "returnTarget": "This unfold returns to a step before the selected range. Include that part of the sequence in the repeat.",
+      "savedCount_one": "One operation, saved as a Repeat step.",
+      "savedCount_other": "{{count}} operations, saved as one Repeat step.",
+      "sentence_one": "Repeat the previous operation on the other side.",
+      "sentence_other": "Repeat the previous {{count}} operations on the other side.",
+      "sentenceBehind_one": "Repeat the previous operation behind.",
+      "sentenceBehind_other": "Repeat the previous {{count}} operations behind.",
+      "sourceChanged": "Source steps changed. Update to rebuild this Repeat.",
+      "stop": "Stop",
+      "stopped": "Stopped before the repeat was ready. No steps were added.",
+      "swivelBehind": "On the other side, this swivel’s valley and mountain lie on the layer behind. Turn the model over and make the swivel there.",
+      "unavailable": "The source states are unavailable or changed. Wait for replay, then reopen Repeat.",
+      "unsupported": "This range includes a Collapse or another Repeat that cannot yet be mirrored. Choose a range of fold operations.",
+      "update": "Update from source steps",
+      "useNearest": "Use {{axis}}",
+      "viewAxis": "This range needs a turn-over about an oblique axis. Repeat the folds separately from that view change.",
+      "waiting": "Waiting for the steps to finish folding…"
+    },
+    "return": {
+      "changed": "Earlier folds changed. Rebuild this unfold to review the new result.",
+      "empty": "Fold a step first.",
+      "failureTitle": "Cannot unfold",
+      "invalidTarget": "Choose an earlier step on this branch.",
+      "label": "Unfold to step",
+      "last": "Unfold last step",
+      "limit": "This crease history is too large to restore safely.",
+      "loading": "Preparing unfold preview…",
+      "noop": "The paper is already in this pose with these creases.",
+      "numberedSentence": "Return to step {{number}}, keeping all creases.",
+      "open": "Unfold to step…",
+      "rebuild": "Rebuild unfold",
+      "refused": "The engine could not restore this pose while preserving the crease history. No step was changed.",
+      "retain": "Return to an earlier pose, keeping all creases.",
+      "sentence": "Return to the earlier folded pose, keeping all creases.",
+      "sheet": "Starting sheet",
+      "sheetSentence": "Unfold to the starting sheet, keeping all creases.",
+      "step": "Step {{number}}",
+      "target": "Return to",
+      "turn": "Turn after step {{number}}",
+      "unavailable": "Wait for the earlier steps to finish replaying, then try again.",
+      "viewTarget": "View target: {{target}}"
+    },
+    "sentence": {
+      "behind": {
+        "petal": "Petal-fold the flap behind.",
+        "petalScores": "Petal-fold the flap behind, creasing its hinge as it lifts.",
+        "rabbitEar": "Rabbit-ear the triangle behind.",
+        "squash": "Squash-fold the flap behind.",
+        "squashEnd": "Squash-fold the end of the flap behind, lifting it along the line.",
+        "swivel": "Swivel-fold the paper behind, about the point.",
+        "swivelEdgeCrease": "Swivel the edge behind onto the crease, pivoting at the point.",
+        "swivelEdgeLine": "Swivel the edge behind onto the line, pivoting at the point.",
+        "swivelFoldCrease": "Swivel the edge behind onto the crease, the creases meeting on the folded edge.",
+        "swivelFoldLine": "Swivel the edge behind onto the line, the creases meeting on the folded edge.",
+        "swivelInsideCrease": "Inside-swivel the edge behind onto the crease, the creases meeting on the folded edge.",
+        "swivelInsideLine": "Inside-swivel the edge behind onto the line, the creases meeting on the folded edge."
+      },
+      "closedSink": "Closed-sink the point: push its tip in, its layers kept together.",
+      "collapse": "Collapse along the saved crease pattern.",
+      "cpJump": "Collapse into the imported crease pattern.",
+      "crimp": {
+        "inside": {
+          "crease": {
+            "crease": {
+              "all": "Inside crimp along the existing crease, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Inside crimp along the existing crease, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp along the existing crease, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp along the existing crease, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp along the existing crease, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Inside crimp along the existing crease, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Inside crimp along the existing crease, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp along the existing crease, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp along the existing crease, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp along the existing crease, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "free": {
+            "crease": {
+              "all": "Inside crimp along the line drawn, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Inside crimp along the line drawn, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp along the line drawn, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp along the line drawn, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp along the line drawn, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Inside crimp along the line drawn, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Inside crimp along the line drawn, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp along the line drawn, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp along the line drawn, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp along the line drawn, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o1": {
+            "crease": {
+              "all": "Inside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Inside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Inside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Inside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o2": {
+            "crease": {
+              "all": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o3": {
+            "crease": {
+              "all": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o4": {
+            "crease": {
+              "all": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o5": {
+            "crease": {
+              "all": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o6": {
+            "crease": {
+              "all": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o7": {
+            "crease": {
+              "all": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Inside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          }
+        },
+        "outside": {
+          "crease": {
+            "crease": {
+              "all": "Outside crimp along the existing crease, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Outside crimp along the existing crease, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp along the existing crease, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp along the existing crease, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp along the existing crease, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Outside crimp along the existing crease, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Outside crimp along the existing crease, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp along the existing crease, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp along the existing crease, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp along the existing crease, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "free": {
+            "crease": {
+              "all": "Outside crimp along the line drawn, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Outside crimp along the line drawn, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp along the line drawn, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp along the line drawn, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp along the line drawn, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Outside crimp along the line drawn, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Outside crimp along the line drawn, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp along the line drawn, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp along the line drawn, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp along the line drawn, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o1": {
+            "crease": {
+              "all": "Outside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Outside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp along the line joining {{a}} and {{b}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Outside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Outside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp along the line joining {{a}} and {{b}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o2": {
+            "crease": {
+              "all": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o3": {
+            "crease": {
+              "all": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp, bringing {{a}} onto {{b}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp, bringing {{a}} onto {{b}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o4": {
+            "crease": {
+              "all": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp {{b}} onto itself, pivoting on {{a}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o5": {
+            "crease": {
+              "all": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp, pivoting on {{a}}, bringing {{b}} onto {{c}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o6": {
+            "crease": {
+              "all": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          },
+          "o7": {
+            "crease": {
+              "all": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, through all layers.",
+              "depth_one": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along an existing crease beyond it, crimping only the {{count}} flaps shown."
+            },
+            "free": {
+              "all": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, through all layers.",
+              "depth_one": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, crimping only the top layer.",
+              "depth_other": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, crimping only the top {{count}} layers.",
+              "flaps_one": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, crimping only the flap shown.",
+              "flaps_other": "Outside crimp {{self}} onto itself so that {{a}} lands on {{b}}, then back along a second line drawn beyond it, crimping only the {{count}} flaps shown."
+            }
+          }
+        }
+      },
+      "extent": {
+        "pinch": "{{sentence}} Crease only a short pinch at {{at}}.",
+        "segment": "{{sentence}} Crease only the stretch from {{from}} to {{to}}."
+      },
+      "insideReverse": {
+        "crease": {
+          "all": "Inside reverse fold along the existing crease, through all layers.",
+          "depth_one": "Inside reverse fold along the existing crease, reversing only the top layer.",
+          "depth_other": "Inside reverse fold along the existing crease, reversing only the top {{count}} layers.",
+          "flaps_one": "Inside reverse fold along the existing crease, reversing only the flap shown.",
+          "flaps_other": "Inside reverse fold along the existing crease, reversing only the {{count}} flaps shown."
+        },
+        "free": {
+          "all": "Inside reverse fold along the line drawn, through all layers.",
+          "depth_one": "Inside reverse fold along the line drawn, reversing only the top layer.",
+          "depth_other": "Inside reverse fold along the line drawn, reversing only the top {{count}} layers.",
+          "flaps_one": "Inside reverse fold along the line drawn, reversing only the flap shown.",
+          "flaps_other": "Inside reverse fold along the line drawn, reversing only the {{count}} flaps shown."
+        },
+        "o1": {
+          "all": "Inside reverse fold along the line joining {{a}} and {{b}}, through all layers.",
+          "depth_one": "Inside reverse fold along the line joining {{a}} and {{b}}, reversing only the top layer.",
+          "depth_other": "Inside reverse fold along the line joining {{a}} and {{b}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Inside reverse fold along the line joining {{a}} and {{b}}, reversing only the flap shown.",
+          "flaps_other": "Inside reverse fold along the line joining {{a}} and {{b}}, reversing only the {{count}} flaps shown."
+        },
+        "o2": {
+          "all": "Inside reverse fold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Inside reverse fold, bringing {{a}} onto {{b}}, reversing only the top layer.",
+          "depth_other": "Inside reverse fold, bringing {{a}} onto {{b}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Inside reverse fold, bringing {{a}} onto {{b}}, reversing only the flap shown.",
+          "flaps_other": "Inside reverse fold, bringing {{a}} onto {{b}}, reversing only the {{count}} flaps shown."
+        },
+        "o3": {
+          "all": "Inside reverse fold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Inside reverse fold, bringing {{a}} onto {{b}}, reversing only the top layer.",
+          "depth_other": "Inside reverse fold, bringing {{a}} onto {{b}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Inside reverse fold, bringing {{a}} onto {{b}}, reversing only the flap shown.",
+          "flaps_other": "Inside reverse fold, bringing {{a}} onto {{b}}, reversing only the {{count}} flaps shown."
+        },
+        "o4": {
+          "all": "Inside reverse fold {{b}} onto itself, pivoting on {{a}}, through all layers.",
+          "depth_one": "Inside reverse fold {{b}} onto itself, pivoting on {{a}}, reversing only the top layer.",
+          "depth_other": "Inside reverse fold {{b}} onto itself, pivoting on {{a}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Inside reverse fold {{b}} onto itself, pivoting on {{a}}, reversing only the flap shown.",
+          "flaps_other": "Inside reverse fold {{b}} onto itself, pivoting on {{a}}, reversing only the {{count}} flaps shown."
+        },
+        "o5": {
+          "all": "Inside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, through all layers.",
+          "depth_one": "Inside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, reversing only the top layer.",
+          "depth_other": "Inside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Inside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, reversing only the flap shown.",
+          "flaps_other": "Inside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, reversing only the {{count}} flaps shown."
+        },
+        "o6": {
+          "all": "Inside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, through all layers.",
+          "depth_one": "Inside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, reversing only the top layer.",
+          "depth_other": "Inside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Inside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, reversing only the flap shown.",
+          "flaps_other": "Inside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, reversing only the {{count}} flaps shown."
+        },
+        "o7": {
+          "all": "Inside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, through all layers.",
+          "depth_one": "Inside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, reversing only the top layer.",
+          "depth_other": "Inside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Inside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, reversing only the flap shown.",
+          "flaps_other": "Inside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, reversing only the {{count}} flaps shown."
+        }
+      },
+      "mountain": {
+        "crease": {
+          "all": "Mountain fold along the existing crease, through all layers.",
+          "depth_one": "Mountain fold along the existing crease, folding only the bottom layer.",
+          "depth_other": "Mountain fold along the existing crease, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold along the existing crease, folding only the flap shown.",
+          "flaps_other": "Mountain fold along the existing crease, folding only the {{count}} flaps shown."
+        },
+        "free": {
+          "all": "Mountain fold along the line drawn, through all layers.",
+          "depth_one": "Mountain fold along the line drawn, folding only the bottom layer.",
+          "depth_other": "Mountain fold along the line drawn, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold along the line drawn, folding only the flap shown.",
+          "flaps_other": "Mountain fold along the line drawn, folding only the {{count}} flaps shown."
+        },
+        "o1": {
+          "all": "Mountain fold along the line joining {{a}} and {{b}}, through all layers.",
+          "depth_one": "Mountain fold along the line joining {{a}} and {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold along the line joining {{a}} and {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold along the line joining {{a}} and {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold along the line joining {{a}} and {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o2": {
+          "all": "Mountain fold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Mountain fold, bringing {{a}} onto {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold, bringing {{a}} onto {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o2Half": {
+          "all": "Mountain fold in half, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Mountain fold in half, bringing {{a}} onto {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold in half, bringing {{a}} onto {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold in half, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold in half, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o3": {
+          "all": "Mountain fold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Mountain fold, bringing {{a}} onto {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold, bringing {{a}} onto {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o3Half": {
+          "all": "Mountain fold in half, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Mountain fold in half, bringing {{a}} onto {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold in half, bringing {{a}} onto {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold in half, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold in half, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o4": {
+          "all": "Mountain fold {{b}} onto itself, pivoting on {{a}}, through all layers.",
+          "depth_one": "Mountain fold {{b}} onto itself, pivoting on {{a}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold {{b}} onto itself, pivoting on {{a}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold {{b}} onto itself, pivoting on {{a}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold {{b}} onto itself, pivoting on {{a}}, folding only the {{count}} flaps shown."
+        },
+        "o5": {
+          "all": "Mountain fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, through all layers.",
+          "depth_one": "Mountain fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the {{count}} flaps shown."
+        },
+        "o6": {
+          "all": "Mountain fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, through all layers.",
+          "depth_one": "Mountain fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the {{count}} flaps shown."
+        },
+        "o7": {
+          "all": "Mountain fold {{self}} onto itself so that {{a}} lands on {{b}}, through all layers.",
+          "depth_one": "Mountain fold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the {{count}} flaps shown."
+        }
+      },
+      "mountainPrecrease": {
+        "crease": {
+          "all": "Mountain fold and unfold along the existing crease, through all layers.",
+          "depth_one": "Mountain fold and unfold along the existing crease, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold along the existing crease, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold along the existing crease, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold along the existing crease, folding only the {{count}} flaps shown."
+        },
+        "free": {
+          "all": "Mountain fold and unfold along the line drawn, through all layers.",
+          "depth_one": "Mountain fold and unfold along the line drawn, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold along the line drawn, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold along the line drawn, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold along the line drawn, folding only the {{count}} flaps shown."
+        },
+        "o1": {
+          "all": "Mountain fold and unfold along the line joining {{a}} and {{b}}, through all layers.",
+          "depth_one": "Mountain fold and unfold along the line joining {{a}} and {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold along the line joining {{a}} and {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold along the line joining {{a}} and {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold along the line joining {{a}} and {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o2": {
+          "all": "Mountain fold and unfold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Mountain fold and unfold, bringing {{a}} onto {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold, bringing {{a}} onto {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o2Half": {
+          "all": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o3": {
+          "all": "Mountain fold and unfold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Mountain fold and unfold, bringing {{a}} onto {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold, bringing {{a}} onto {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o3Half": {
+          "all": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold in half, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o4": {
+          "all": "Mountain fold and unfold {{b}} onto itself, pivoting on {{a}}, through all layers.",
+          "depth_one": "Mountain fold and unfold {{b}} onto itself, pivoting on {{a}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold {{b}} onto itself, pivoting on {{a}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold {{b}} onto itself, pivoting on {{a}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold {{b}} onto itself, pivoting on {{a}}, folding only the {{count}} flaps shown."
+        },
+        "o5": {
+          "all": "Mountain fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, through all layers.",
+          "depth_one": "Mountain fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the {{count}} flaps shown."
+        },
+        "o6": {
+          "all": "Mountain fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, through all layers.",
+          "depth_one": "Mountain fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the {{count}} flaps shown."
+        },
+        "o7": {
+          "all": "Mountain fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, through all layers.",
+          "depth_one": "Mountain fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the bottom layer.",
+          "depth_other": "Mountain fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the bottom {{count}} layers.",
+          "flaps_one": "Mountain fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the flap shown.",
+          "flaps_other": "Mountain fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the {{count}} flaps shown."
+        }
+      },
+      "openSink": "Open-sink the point: push its tip in, turning every layer inside out.",
+      "outsideReverse": {
+        "crease": {
+          "all": "Outside reverse fold along the existing crease, through all layers.",
+          "depth_one": "Outside reverse fold along the existing crease, reversing only the top layer.",
+          "depth_other": "Outside reverse fold along the existing crease, reversing only the top {{count}} layers.",
+          "flaps_one": "Outside reverse fold along the existing crease, reversing only the flap shown.",
+          "flaps_other": "Outside reverse fold along the existing crease, reversing only the {{count}} flaps shown."
+        },
+        "free": {
+          "all": "Outside reverse fold along the line drawn, through all layers.",
+          "depth_one": "Outside reverse fold along the line drawn, reversing only the top layer.",
+          "depth_other": "Outside reverse fold along the line drawn, reversing only the top {{count}} layers.",
+          "flaps_one": "Outside reverse fold along the line drawn, reversing only the flap shown.",
+          "flaps_other": "Outside reverse fold along the line drawn, reversing only the {{count}} flaps shown."
+        },
+        "o1": {
+          "all": "Outside reverse fold along the line joining {{a}} and {{b}}, through all layers.",
+          "depth_one": "Outside reverse fold along the line joining {{a}} and {{b}}, reversing only the top layer.",
+          "depth_other": "Outside reverse fold along the line joining {{a}} and {{b}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Outside reverse fold along the line joining {{a}} and {{b}}, reversing only the flap shown.",
+          "flaps_other": "Outside reverse fold along the line joining {{a}} and {{b}}, reversing only the {{count}} flaps shown."
+        },
+        "o2": {
+          "all": "Outside reverse fold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Outside reverse fold, bringing {{a}} onto {{b}}, reversing only the top layer.",
+          "depth_other": "Outside reverse fold, bringing {{a}} onto {{b}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Outside reverse fold, bringing {{a}} onto {{b}}, reversing only the flap shown.",
+          "flaps_other": "Outside reverse fold, bringing {{a}} onto {{b}}, reversing only the {{count}} flaps shown."
+        },
+        "o3": {
+          "all": "Outside reverse fold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Outside reverse fold, bringing {{a}} onto {{b}}, reversing only the top layer.",
+          "depth_other": "Outside reverse fold, bringing {{a}} onto {{b}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Outside reverse fold, bringing {{a}} onto {{b}}, reversing only the flap shown.",
+          "flaps_other": "Outside reverse fold, bringing {{a}} onto {{b}}, reversing only the {{count}} flaps shown."
+        },
+        "o4": {
+          "all": "Outside reverse fold {{b}} onto itself, pivoting on {{a}}, through all layers.",
+          "depth_one": "Outside reverse fold {{b}} onto itself, pivoting on {{a}}, reversing only the top layer.",
+          "depth_other": "Outside reverse fold {{b}} onto itself, pivoting on {{a}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Outside reverse fold {{b}} onto itself, pivoting on {{a}}, reversing only the flap shown.",
+          "flaps_other": "Outside reverse fold {{b}} onto itself, pivoting on {{a}}, reversing only the {{count}} flaps shown."
+        },
+        "o5": {
+          "all": "Outside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, through all layers.",
+          "depth_one": "Outside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, reversing only the top layer.",
+          "depth_other": "Outside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Outside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, reversing only the flap shown.",
+          "flaps_other": "Outside reverse fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, reversing only the {{count}} flaps shown."
+        },
+        "o6": {
+          "all": "Outside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, through all layers.",
+          "depth_one": "Outside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, reversing only the top layer.",
+          "depth_other": "Outside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Outside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, reversing only the flap shown.",
+          "flaps_other": "Outside reverse fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, reversing only the {{count}} flaps shown."
+        },
+        "o7": {
+          "all": "Outside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, through all layers.",
+          "depth_one": "Outside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, reversing only the top layer.",
+          "depth_other": "Outside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, reversing only the top {{count}} layers.",
+          "flaps_one": "Outside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, reversing only the flap shown.",
+          "flaps_other": "Outside reverse fold {{self}} onto itself so that {{a}} lands on {{b}}, reversing only the {{count}} flaps shown."
+        }
+      },
+      "petal": "Petal-fold the flap.",
+      "petalScores": "Petal-fold the flap, creasing its hinge as it lifts.",
+      "pleat": "Pleat along the two lines: mountain first, then valley.",
+      "rabbitEar": "Rabbit-ear the triangle.",
+      "squash": "Squash-fold the flap.",
+      "squashEnd": "Squash-fold the end of the flap, lifting it along the line.",
+      "swivel": "Swivel-fold the paper about the point.",
+      "swivelEdgeCrease": "Swivel the edge onto the crease, pivoting at the point.",
+      "swivelEdgeLine": "Swivel the edge onto the line, pivoting at the point.",
+      "swivelFoldCrease": "Swivel the edge onto the crease, the creases meeting on the folded edge.",
+      "swivelFoldLine": "Swivel the edge onto the line, the creases meeting on the folded edge.",
+      "swivelInsideCrease": "Inside-swivel the edge onto the crease, the creases meeting on the folded edge.",
+      "swivelInsideLine": "Inside-swivel the edge onto the line, the creases meeting on the folded edge.",
+      "swivelInsideValleyMountain": "Inside-swivel the flap along the valley and the mountain.",
+      "swivelValleyMountain": "Swivel-fold the flap along the valley and the mountain.",
+      "tuckMountain": "Mountain fold and tuck the flap in at the back, over the chosen layer.",
+      "tuckValley": "Valley fold and tuck the flap in, under the chosen layer.",
+      "turn": "{{turn}}.",
+      "unfold": {
+        "all": "Unfold along the existing crease, through all layers.",
+        "bottom_one": "Unfold the bottom layer.",
+        "bottom_other": "Unfold the bottom {{count}} layers.",
+        "flaps_one": "Unfold the flap shown.",
+        "flaps_other": "Unfold the {{count}} flaps shown.",
+        "top_one": "Unfold the top layer.",
+        "top_other": "Unfold the top {{count}} layers."
+      },
+      "unknown": "A step made with a newer Ori Studio.",
+      "unsink": "Unsink the point: pull its tip back out.",
+      "valley": {
+        "crease": {
+          "all": "Valley fold along the existing crease, through all layers.",
+          "depth_one": "Valley fold along the existing crease, folding only the top layer.",
+          "depth_other": "Valley fold along the existing crease, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold along the existing crease, folding only the flap shown.",
+          "flaps_other": "Valley fold along the existing crease, folding only the {{count}} flaps shown."
+        },
+        "free": {
+          "all": "Valley fold along the line drawn, through all layers.",
+          "depth_one": "Valley fold along the line drawn, folding only the top layer.",
+          "depth_other": "Valley fold along the line drawn, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold along the line drawn, folding only the flap shown.",
+          "flaps_other": "Valley fold along the line drawn, folding only the {{count}} flaps shown."
+        },
+        "o1": {
+          "all": "Valley fold along the line joining {{a}} and {{b}}, through all layers.",
+          "depth_one": "Valley fold along the line joining {{a}} and {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold along the line joining {{a}} and {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold along the line joining {{a}} and {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold along the line joining {{a}} and {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o2": {
+          "all": "Valley fold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Valley fold, bringing {{a}} onto {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold, bringing {{a}} onto {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o2Half": {
+          "all": "Valley fold in half, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Valley fold in half, bringing {{a}} onto {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold in half, bringing {{a}} onto {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold in half, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold in half, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o3": {
+          "all": "Valley fold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Valley fold, bringing {{a}} onto {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold, bringing {{a}} onto {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o3Half": {
+          "all": "Valley fold in half, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Valley fold in half, bringing {{a}} onto {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold in half, bringing {{a}} onto {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold in half, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold in half, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o4": {
+          "all": "Valley fold {{b}} onto itself, pivoting on {{a}}, through all layers.",
+          "depth_one": "Valley fold {{b}} onto itself, pivoting on {{a}}, folding only the top layer.",
+          "depth_other": "Valley fold {{b}} onto itself, pivoting on {{a}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold {{b}} onto itself, pivoting on {{a}}, folding only the flap shown.",
+          "flaps_other": "Valley fold {{b}} onto itself, pivoting on {{a}}, folding only the {{count}} flaps shown."
+        },
+        "o5": {
+          "all": "Valley fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, through all layers.",
+          "depth_one": "Valley fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the top layer.",
+          "depth_other": "Valley fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the flap shown.",
+          "flaps_other": "Valley fold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the {{count}} flaps shown."
+        },
+        "o6": {
+          "all": "Valley fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, through all layers.",
+          "depth_one": "Valley fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the top layer.",
+          "depth_other": "Valley fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the flap shown.",
+          "flaps_other": "Valley fold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the {{count}} flaps shown."
+        },
+        "o7": {
+          "all": "Valley fold {{self}} onto itself so that {{a}} lands on {{b}}, through all layers.",
+          "depth_one": "Valley fold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the {{count}} flaps shown."
+        }
+      },
+      "valleyPrecrease": {
+        "crease": {
+          "all": "Valley fold and unfold along the existing crease, through all layers.",
+          "depth_one": "Valley fold and unfold along the existing crease, folding only the top layer.",
+          "depth_other": "Valley fold and unfold along the existing crease, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold along the existing crease, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold along the existing crease, folding only the {{count}} flaps shown."
+        },
+        "free": {
+          "all": "Valley fold and unfold along the line drawn, through all layers.",
+          "depth_one": "Valley fold and unfold along the line drawn, folding only the top layer.",
+          "depth_other": "Valley fold and unfold along the line drawn, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold along the line drawn, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold along the line drawn, folding only the {{count}} flaps shown."
+        },
+        "o1": {
+          "all": "Valley fold and unfold along the line joining {{a}} and {{b}}, through all layers.",
+          "depth_one": "Valley fold and unfold along the line joining {{a}} and {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold and unfold along the line joining {{a}} and {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold along the line joining {{a}} and {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold along the line joining {{a}} and {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o2": {
+          "all": "Valley fold and unfold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Valley fold and unfold, bringing {{a}} onto {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold and unfold, bringing {{a}} onto {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o2Half": {
+          "all": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o3": {
+          "all": "Valley fold and unfold, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Valley fold and unfold, bringing {{a}} onto {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold and unfold, bringing {{a}} onto {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o3Half": {
+          "all": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, through all layers.",
+          "depth_one": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold in half, bringing {{a}} onto {{b}}, folding only the {{count}} flaps shown."
+        },
+        "o4": {
+          "all": "Valley fold and unfold {{b}} onto itself, pivoting on {{a}}, through all layers.",
+          "depth_one": "Valley fold and unfold {{b}} onto itself, pivoting on {{a}}, folding only the top layer.",
+          "depth_other": "Valley fold and unfold {{b}} onto itself, pivoting on {{a}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold {{b}} onto itself, pivoting on {{a}}, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold {{b}} onto itself, pivoting on {{a}}, folding only the {{count}} flaps shown."
+        },
+        "o5": {
+          "all": "Valley fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, through all layers.",
+          "depth_one": "Valley fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the top layer.",
+          "depth_other": "Valley fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold, pivoting on {{a}}, bringing {{b}} onto {{c}}, folding only the {{count}} flaps shown."
+        },
+        "o6": {
+          "all": "Valley fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, through all layers.",
+          "depth_one": "Valley fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the top layer.",
+          "depth_other": "Valley fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold, bringing {{a}} onto {{b}} and {{c}} onto {{d}}, folding only the {{count}} flaps shown."
+        },
+        "o7": {
+          "all": "Valley fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, through all layers.",
+          "depth_one": "Valley fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the top layer.",
+          "depth_other": "Valley fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the top {{count}} layers.",
+          "flaps_one": "Valley fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the flap shown.",
+          "flaps_other": "Valley fold and unfold {{self}} onto itself so that {{a}} lands on {{b}}, folding only the {{count}} flaps shown."
+        }
+      }
+    },
+    "sequence": {
+      "badgeBlocked": "Blocked",
+      "badgeBroken": "Broken",
+      "badgeChanged": "Changed",
+      "badgePreview": "Preview",
+      "badgeSheet": "Sheet",
+      "branch": "Branch {{n}} of {{total}}",
+      "branchesLabel": "Branches at this step",
+      "branchShort": "{{n}} / {{total}}",
+      "nextBranch": "Next branch",
+      "nextStep": "Next step",
+      "noTools": "Take a fold tool on the canvas to choose its kind.",
+      "placeholder": "Fold the sheet to make step 1.",
+      "previousBranch": "Previous branch",
+      "previousStep": "Previous step",
+      "replayFailed": "The steps could not all be folded.",
+      "replaying": "Folding the steps… {{done}} of {{total}}",
+      "retry": "Try again",
+      "sheetIrregularBack_one": "Start with a polygon of {{count}} side, back side up.",
+      "sheetIrregularBack_other": "Start with a polygon of {{count}} sides, back side up.",
+      "sheetIrregularFront_one": "Start with a polygon of {{count}} side, front side up.",
+      "sheetIrregularFront_other": "Start with a polygon of {{count}} sides, front side up.",
+      "sheetPolygonBack_one": "Start with a regular polygon of {{count}} side, back side up.",
+      "sheetPolygonBack_other": "Start with a regular polygon of {{count}} sides, back side up.",
+      "sheetPolygonFront_one": "Start with a regular polygon of {{count}} side, front side up.",
+      "sheetPolygonFront_other": "Start with a regular polygon of {{count}} sides, front side up.",
+      "sheetRectangleBack": "Start with a rectangle, back side up.",
+      "sheetRectangleFront": "Start with a rectangle, front side up.",
+      "sheetSquareBack": "Start with a square, back side up.",
+      "sheetSquareFront": "Start with a square, front side up.",
+      "stepCount_one": "{{count}} step",
+      "stepCount_other": "{{count}} steps",
+      "stripLabel": "Steps",
+      "switchBranch": "Switch branch",
+      "tagBranch": "New branch",
+      "tagNext": "Next"
+    },
+    "step": {
+      "blocks": "Blocks",
+      "blocksHelp": "Stacks of paper that turn as one: each opening’s lower and upper part, and each flap that moves whole.",
+      "branchSheet": "You are at the flat sheet: folding here starts a new branch.",
+      "branchStep": "You are at step {{at}} of {{total}}: folding here starts a new branch.",
+      "broken": "This step no longer folds: what it was made from is not on the paper before it. It and the steps after it can only be deleted.",
+      "brokenAbove": "A step before this one no longer folds, so this one cannot be shown.",
+      "changed": "This step folds differently than when it was saved. Check its inputs and the steps above it.",
+      "changes": "Changes",
+      "chosen": "Chosen among several",
+      "construction": "Construction",
+      "creases": "Creases",
+      "creasesBackUp": "As seen from the front of the paper, which starts face down: they can read the other way to the folds you see.",
+      "creasesFront": "As seen from the front of the paper.",
+      "creasesMeet": "Creases meet",
+      "creasesMeetHelp": "Where the line halfway between the edge and the line it lands on crosses the folded edge. The other layer at that edge folds along a second crease too.",
+      "extent": "Extent",
+      "extentHelp": "How much of the line the precrease creased: all of it, the stretch between two points, or a short pinch.",
+      "firstLine": "First line",
+      "flat": "Flat",
+      "flatHelp": "Folded once and unfolded: these lie flat now, and remember which way they went.",
+      "hinge": "Hinge",
+      "hingeHelp": "The line the flap lifts along: a crease already there, or the line through two points, which the fold creases through the top layer.",
+      "imported": "Imported crease pattern: this step replaces the folded state with the pattern’s own.",
+      "landsOn": "Lands on",
+      "layerOrder": "Layer order",
+      "layers": "Layers",
+      "layersHelp": "The deepest stack along the fold line. Layers that lie flat across a precrease count as one.",
+      "line": "Line",
+      "locked": "This step was made with a newer Ori Studio. It can be deleted here, and is saved exactly as it came.",
+      "mountain": "Mountain",
+      "onlyOne": "The only one",
+      "opening": "Opening",
+      "openingHelp": "Where the flap parts to let the tip through: the layers that stay below it and the ones above.",
+      "operation": "Operation",
+      "pending": "Pending fold",
+      "pendingRefused": "Resolve the issue in the tool window to see the creases it makes.",
+      "pocket": "Pocket",
+      "pocketHelp": "The gap between the point’s layers its tip was sunk into: the layers above it and the ones below stay together.",
+      "previewSpread": "Inspect this preview. The saved step starts with spreading off.",
+      "ridge": "Ridge",
+      "ridgeHelp": "The crease the swivel rises along, folded the other way from the other three.",
+      "secondLine": "Second line",
+      "sheet": "Flat sheet",
+      "sheetNote": "Nothing is folded yet. Fold the sheet to make step 1.",
+      "source": "Source",
+      "spread": "Spread",
+      "spreadDefault": "The default spread. A change here applies from this step on.",
+      "spreadEarlier": "As an earlier step sets it. A change here applies from this step on.",
+      "spreadOwn": "Set on this step. The steps after it take it too.",
+      "squashHingeHelp": "Only the flap’s end beyond the line squashes: lifted along it, opened and pressed flat, its folded edge laid on the line.",
+      "swivelKind": "Kind",
+      "swivelKindInsideHelp": "The other layer’s strip folds under the rest of its layer, tucked between the two layers.",
+      "swivelKindOpenHelp": "The other layer’s strip folds up over the rest of its layer, its back on show.",
+      "title": "Step {{number}}",
+      "valley": "Valley",
+      "valleyMountainHelp": "On the layer you see, the valley and the mountain that bound the flap, meeting on the folded edge. The crease on the layer behind follows from them.",
+      "vertex": {
+        "blocksHelp": "Pieces of paper that turn as one: each turns about the same creases, in the same order, to where it lands."
+      }
+    },
+    "toDiagram": {
+      "sendPath": "Send Steps to Diagram",
+      "sendStep": "Send Step to Diagram",
+      "sheetHint": "The flat sheet is where the steps start: fold a step to send it."
+    },
+    "words": {
+      "adds_one": "Adds {{count}} crease ({{mountain}} M, {{valley}} V)",
+      "adds_other": "Adds {{count}} creases ({{mountain}} M, {{valley}} V)",
+      "addsCreaseMarks_one": "Adds {{count}} crease mark",
+      "addsCreaseMarks_other": "Adds {{count}} crease marks",
+      "addsPinchMarks_one": "Adds {{count}} pinch mark",
+      "addsPinchMarks_other": "Adds {{count}} pinch marks",
+      "addsPrecreases_one": "Adds {{count}} precrease",
+      "addsPrecreases_other": "Adds {{count}} precreases",
+      "axiomLine": "Axiom {{axiom}} · {{phrase}}",
+      "badgeCrimp": "Crimp",
+      "badgeImported": "Imported",
+      "badgeInsideReverse": "Inside reverse",
+      "badgeMountain": "Mountain",
+      "badgeNewer": "Newer",
+      "badgeOutsideReverse": "Outside reverse",
+      "badgePetal": "Petal",
+      "badgePrecrease": "Precrease",
+      "badgeRabbitEar": "Rabbit ear",
+      "badgeSquash": "Squash",
+      "badgeSwivel": "Swivel",
+      "badgeSwivelInside": "Inside swivel",
+      "badgeTuck": "Tuck",
+      "badgeValley": "Valley",
+      "behind": {
+        "petal": "Petal fold behind",
+        "rabbitEar": "Rabbit ear behind",
+        "squash": "Squash fold behind",
+        "swivel": "Swivel fold behind",
+        "swivelInside": "Inside swivel behind"
+      },
+      "closedSink": "Closed sink",
+      "collapse": "Collapse",
+      "cpJump": "Import crease pattern",
+      "crimpInside": "Inside crimp",
+      "crimpOutside": "Outside crimp",
+      "existingCrease": "Existing crease",
+      "extentPinch": "Pinch",
+      "extentSegment": "Segment",
+      "extentWhole": "Whole line",
+      "freeLine": "Free line",
+      "hingeCrease": "Existing crease",
+      "hingePoints": "Two points, creased by the fold",
+      "insideReverse": "Inside reverse fold",
+      "meetOnFold": "On a folded edge",
+      "mountainFold": "Mountain fold",
+      "mountainPrecrease": "Mountain fold and unfold",
+      "noChange": "Changes no creases",
+      "openSink": "Open sink",
+      "originCp": "CP file",
+      "originEditFoldedFigure": "Edit’s folded figure",
+      "originFold": "FOLD file",
+      "originOrh": "ORH file",
+      "originOri": "ORI file",
+      "originProjectCp": "Project crease pattern",
+      "originSample": "Sample",
+      "outsideReverse": "Outside reverse fold",
+      "petal": "Petal fold",
+      "rabbitEar": "Rabbit ear",
+      "refolds_one": "Refolds {{count}} precrease",
+      "refolds_other": "Refolds {{count}} precreases",
+      "reverses_one": "Refolds {{count}} precrease the other way",
+      "reverses_other": "Refolds {{count}} precreases the other way",
+      "ridgeEnd": "Toward the edge’s end",
+      "ridgeFoot": "Square to the edge",
+      "squash": "Squash fold",
+      "squashHingeLine": "Drawn line",
+      "swivel": "Swivel fold",
+      "swivelInside": "Inside swivel",
+      "swivelKindInside": "Inside",
+      "swivelKindOpen": "Open",
+      "targetCrease": "Existing crease or edge",
+      "targetLine": "Line through two points",
+      "tuckMountain": "Mountain fold and tuck",
+      "tuckValley": "Valley fold and tuck",
+      "unfold": "Unfold",
+      "unfolds_one": "Unfolds {{count}} crease",
+      "unfolds_other": "Unfolds {{count}} creases",
+      "unknown": "From a newer Ori Studio",
+      "unsink": "Unsink",
+      "valleyFold": "Valley fold",
+      "valleyMountain": "Valley and mountain",
+      "valleyPrecrease": "Valley fold and unfold"
+    }
   },
   "fold3dVerdict": {
     "localCrossing_one": "The paper passes through itself at one vertex.",
@@ -1816,16 +3070,6 @@
       "summary": "{{closure}} of {{lines}} lines fold from the sheet itself; {{queried}} needed a search.",
       "title": "Reference analysis",
       "unsolved": "no construction found"
-    },
-    "axiom": {
-      "free": "already on the sheet",
-      "o1": "through two points",
-      "o2": "point onto point",
-      "o3": "edge onto edge",
-      "o4": "perpendicular through a point",
-      "o5": "point onto a line, through a point",
-      "o6": "two points onto two lines",
-      "o7": "point onto a line, perpendicular"
     },
     "backToPattern": "Back to the whole pattern",
     "backToPatterns": "Patterns",
@@ -1963,20 +3207,6 @@
       "querying": "Searching {{done}} of {{total}} lines"
     },
     "recompute": "Recompute",
-    "ref": {
-      "bottomEdge": "the bottom edge",
-      "cornerNe": "the top-right corner",
-      "cornerNw": "the top-left corner",
-      "cornerSe": "the bottom-right corner",
-      "cornerSw": "the bottom-left corner",
-      "diagonalNwSe": "the top-left to bottom-right diagonal",
-      "diagonalSwNe": "the bottom-left to top-right diagonal",
-      "leftEdge": "the left edge",
-      "line": "line {{name}}",
-      "point": "point {{name}}",
-      "rightEdge": "the right edge",
-      "topEdge": "the top edge"
-    },
     "refusedSheet": "The sheet around this pick could not be read as a rectangle.",
     "searching": "Finding references…",
     "settings": {
@@ -2047,6 +3277,7 @@
   "sidePane": {
     "layers": "Layers",
     "page": "Page",
+    "paper": "Paper",
     "properties": "Properties",
     "settings": "Settings",
     "step": "Step",

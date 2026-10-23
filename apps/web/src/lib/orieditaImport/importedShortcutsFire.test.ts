@@ -155,7 +155,7 @@ function dispatch(
     scopeStack: shortcutScopeStackForContext({
       activeEditingContext: 'crease-pattern',
       activeViewportSurface: 'crease-pattern',
-      simulatorFocused: false,
+      registeredExecutors: { simulator: false },
     }),
     overrides,
     executors: {

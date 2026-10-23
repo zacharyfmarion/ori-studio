@@ -15,8 +15,8 @@ import { useTranslation } from 'react-i18next';
 import type { OristudioCpActionDefinition } from '../../lib/oristudioCpActions';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { cpActionLabel, cpActionTooltip } from '../../i18n/cpVocab';
+import { ToolFavoriteToggle } from '../../components/ui/tools/ToolFavoriteToggle';
 import { ToolPickerRow, type ToolPickerRowReorder } from '../../components/ui/tools/ToolPickerRow';
-import { CpToolFavoriteToggle } from './CpToolFavoriteToggle';
 import { CpToolGlyph } from './cpToolGlyph';
 
 export type CpToolPickerRowReorder = ToolPickerRowReorder;
@@ -54,7 +54,19 @@ export function CpToolPickerRow({
       glyph={<CpToolGlyph action={action} glyphOperationId={glyphOperationId} size={18} />}
       isActive={isActive}
       available={available}
-      leading={<CpToolFavoriteToggle toolLabel={label} favorited={favorited} onToggle={onToggleFavorite} />}
+      leading={
+        <ToolFavoriteToggle
+          label={
+            favorited
+              ? t('tools:cpToolPicker.removeFavorite', 'Remove {{tool}} from favorites', {
+                  tool: label,
+                })
+              : t('tools:cpToolPicker.addFavorite', 'Add {{tool}} to favorites', { tool: label })
+          }
+          favorited={favorited}
+          onToggle={onToggleFavorite}
+        />
+      }
       onSelect={onSelect}
       reorder={reorder}
       data={{

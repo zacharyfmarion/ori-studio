@@ -22,14 +22,16 @@ import {
   DEFAULT_DIAGRAM_STYLE,
   DEFAULT_LAYER_SPREAD,
   isLockedStep,
+  setFoldStepPicture,
   setLinkedPicture,
   spreadStartsFor,
   type DiagramCpRender,
   type DiagramCpScope,
-  type DiagramCpSource,
   type DiagramDocument,
   type DiagramPicture,
+  type DiagramPosedSource,
   type DiagramStyle,
+  type KnownDiagramAnnotation,
   type KnownDiagramAsset,
   stepById,
 } from '../../diagram/document/diagramDocument';
@@ -54,6 +56,7 @@ import type { PaperPage } from '../../lib/paper/paperPage';
 import { pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import { buildSegmentSimulationFold, resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
+import type { ProjectDocumentCommit } from './projectDocumentHistory';
 import { landSeededFrame, type LandedFirstFrame } from '../../diagram/zoom/zoomFrames';
 import { trackSeeded } from './diagramZoom';
 import { releaseSimulatorClient, retainSimulatorClient } from './simulatorRuntime';
@@ -162,15 +165,38 @@ export function beginStepCapture(
   if (Object.hasOwn(state.diagramCaptures, stepId)) return { status: 'busy' };
   const cp = state.oristudioCpDocument;
   if (!cp) return { status: 'no-pattern' };
+  const run = beginCaptureRun(store, stepId);
+  if ('status' in run) return run;
+  return {
+    ...run,
+    cp,
+    // A 3D figure carries the document's aux lines; a document with none asks nothing.
+    auxHandle: cpAuxLinesKey(cp.geometry) === NO_AUX_LINES_KEY ? null : cp.handle,
+  };
+}
+
+/** A capture begun from any source: the guard its commit checks, and the style it is drawn in. */
+export type CaptureRunStart = Pick<StepCaptureStart, 'guard' | 'style'>;
+
+/**
+ * Begin a capture of a step from whatever it shows — Edit's pattern
+ * ({@link beginStepCapture}) or a Fold step — marking it capturing, or say
+ * why it cannot be: a read-only diagram, a step not there or not this
+ * build's, or one already capturing. End it with {@link endStepCapture}.
+ */
+export function beginCaptureRun(
+  store: DiagramCaptureStore,
+  stepId: string
+): CaptureRunStart | Extract<DiagramCaptureOutcome, { status: 'read-only' | 'discarded' | 'busy' }> {
+  const state = store.get();
+  if (state.diagramReadOnly) return { status: 'read-only' };
+  if (Object.hasOwn(state.diagramCaptures, stepId)) return { status: 'busy' };
   const step = state.diagram ? stepById(state.diagram, stepId) : null;
   if (!step || isLockedStep(step)) return { status: 'discarded' };
   setRun(store, stepId, { runId: null });
   return {
     guard: { stepId, loadId: state.diagramLoadId, revision: step.revision },
-    cp,
     style: state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE,
-    // A 3D figure carries the document's aux lines; a document with none asks nothing.
-    auxHandle: cpAuxLinesKey(cp.geometry) === NO_AUX_LINES_KEY ? null : cp.handle,
   };
 }
 
@@ -212,11 +238,11 @@ export function stepCaptureRuntime(start: StepCaptureStart): CpCaptureRuntime {
 export async function commitStepCapture(
   store: DiagramCaptureStore,
   commit: DiagramCommit,
-  start: StepCaptureStart,
-  captured: { source: DiagramCpSource; picture: CapturedPicture },
+  start: CaptureRunStart,
+  captured: StepCaptured,
   label: string,
   joinEntry?: object
-): Promise<{ changed: boolean; tooDetailed: boolean } | null> {
+): Promise<{ changed: boolean; tooDetailed: boolean; replaced?: number } | null> {
   const kept = await keptPicture(captured.picture, captured.source.render, start.style);
   const now = store.get();
   const { stepId, loadId, revision } = start.guard;
@@ -226,16 +252,35 @@ export async function commitStepCapture(
   // A step enlarged before it had a picture lands its frame on its first, or starts whole if that shows another
   // picture type than its run, in the same undo step (Revision 2; review fix 3).
   let landed = null as LandedFirstFrame | null;
+  let replaced = 0;
   const next = commit(
     label,
     (diagram) => {
-      landed = landSeededFrame(diagram, setLinkedPicture(diagram, stepId, { source: captured.source, ...kept }), stepId);
+      let pictured: DiagramDocument;
+      if (captured.source.kind === 'fold-step') {
+        // A Fold step's marks follow its source (plan D17), as a References card's do.
+        const set = setFoldStepPicture(diagram, stepId, { source: captured.source, marks: captured.marks ?? [], ...kept });
+        pictured = set.document;
+        replaced = set.replaced;
+      } else {
+        pictured = setLinkedPicture(diagram, stepId, { source: captured.source, ...kept });
+      }
+      landed = landSeededFrame(diagram, pictured, stepId);
       return landed.document;
     },
     join
   );
   if (next && landed) trackSeeded(next, stepId, landed);
-  return { changed: next !== null, tooDetailed: kept.asset !== undefined };
+  // How many edited marks a Fold step's own replaced, said only when any were.
+  return { changed: next !== null, tooDetailed: kept.asset !== undefined, ...(next && replaced > 0 ? { replaced } : {}) };
+}
+
+/** What a capture commits: the step's new source and picture, and for a Fold step the marks its fold brings. */
+export interface StepCaptured {
+  source: DiagramPosedSource;
+  picture: CapturedPicture;
+  /** A Fold step's line and arrow, tagged as its source's (`setFoldStepPicture`). */
+  marks?: readonly KnownDiagramAnnotation[];
 }
 
 /** A capture that threw: stopped by the user, or failed. */
@@ -246,12 +291,7 @@ export function captureFailure(error: unknown): Extract<DiagramCaptureOutcome, {
 }
 
 /** The slice's commit: one undo step, the project dirty, nothing for an edit that changes nothing. */
-export type DiagramCommit = (
-  label: string,
-  edit: (document: DiagramDocument) => DiagramDocument,
-  /** Fold the edit into the newest undo entry instead of recording one. */
-  extend?: boolean
-) => DiagramDocument | null;
+export type DiagramCommit = ProjectDocumentCommit<DiagramDocument>;
 
 /** Capture a step's picture from its pattern as it stands, and commit it. */
 export async function runDiagramCapture(

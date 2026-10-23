@@ -9,15 +9,15 @@ import {
   createDiagramRenderContext,
   diagramShapes,
   labelOnPaper,
-} from './diagram/DiagramPrimitives';
-import { diagramInlineInk, type DiagramInlineTokens } from './diagram/diagramColors';
+} from '../../lib/stepDiagram/DiagramPrimitives';
+import { diagramInlineInk, type DiagramInlineTokens } from '../../lib/stepDiagram/diagramColors';
 import {
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   labelWidth,
-} from './diagram/diagramInk';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+} from '../../lib/stepDiagram/diagramInk';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import {
   arcEndPoint,
   arrowheadReach,
@@ -25,7 +25,7 @@ import {
   createDiagramProjector,
   foldArrowArc,
   returnStroke,
-} from './stepDiagramGeometry';
+} from '../../lib/stepDiagram/stepDiagramGeometry';
 
 /** Every element of one tag in the markup, as its attributes plus its `text`. */
 function elements(markup: string, tag: string): Record<string, string>[] {

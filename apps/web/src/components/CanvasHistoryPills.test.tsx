@@ -78,6 +78,18 @@ describe('the canvas history pills', () => {
     expect(buttons().map((each) => each.getAttribute('aria-label'))).toEqual(['Undo', 'Redo']);
   });
 
+  it.each(['diagram', 'fold'] as const)('leaves the %s workspace’s to its own toolbar', (workspace) => {
+    // Both have a history of their own, but their panes open with a toolbar
+    // where the lane sits, and pills there would cover its right end (measured
+    // on Fold at 375px: Undo and Redo over the Settings pill). Their buttons
+    // are in the toolbar instead.
+    useLayoutStore.setState({ activeWorkspace: workspace });
+
+    render();
+
+    expect(buttons()).toHaveLength(0);
+  });
+
   it.each(['design', 'simulate', 'references'] as const)(
     'renders nothing in the %s workspace',
     (workspace) => {

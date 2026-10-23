@@ -1,5 +1,6 @@
 //! Typed errors for the crate's public entry points.
 
+use oristudio_geometry::GeometryError;
 use thiserror::Error;
 
 /// Everything `analyze`, the frame constructors and the planner can refuse.
@@ -69,4 +70,42 @@ pub enum PrecreaseError {
     /// Something asked of a planner whose component was refused.
     #[error("the component's sheet was refused; no plan exists")]
     RefusedSheet,
+}
+
+/// Frames are built in `oristudio-geometry`; each of its refusals is the
+/// error this crate returned before they moved there. The only rectangle the
+/// planner frames is the paper fallback, so an invalid one is that.
+impl From<GeometryError> for PrecreaseError {
+    fn from(error: GeometryError) -> Self {
+        match error {
+            GeometryError::DegenerateFrame { reason } => PrecreaseError::DegenerateFrame { reason },
+            GeometryError::InvalidRect => PrecreaseError::InvalidPaperFallback,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn geometry_refusals_keep_their_precrease_messages() {
+        let degenerate = PrecreaseError::from(GeometryError::DegenerateFrame {
+            reason: "sides must be positive",
+        });
+        assert_eq!(
+            degenerate,
+            PrecreaseError::DegenerateFrame {
+                reason: "sides must be positive"
+            }
+        );
+        assert_eq!(
+            degenerate.to_string(),
+            "degenerate frame: sides must be positive"
+        );
+        assert_eq!(
+            PrecreaseError::from(GeometryError::InvalidRect),
+            PrecreaseError::InvalidPaperFallback
+        );
+    }
 }

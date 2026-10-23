@@ -74,6 +74,9 @@
   },
   "worker": {
     "cpDetect": "Die Faltmuster-Erkennung wurde unerwartet beendet. Versuche, das Bild erneut zu importieren.",
+    "foldSequence": "Die Falt-Engine wurde unerwartet beendet. Deine Schritte sind sicher; wenn das Falten nicht weitergeht, lade Ori Studio neu.",
+    "foldSequenceKeptStopping": "Die Falt-Engine wurde immer wieder beendet, daher ist das Falten angehalten. Deine Schritte sind sicher: Mach deine letzte Änderung rückgängig oder lade Ori Studio neu.",
+    "foldSequenceLost": "Die Falt-Engine wurde beendet, bevor sie diesen Schritt abschließen konnte. Versuche die Faltung erneut.",
     "oristudioBp": "Die Box-Pleating-Engine wurde unerwartet beendet. Lade Ori Studio neu, um an diesem Entwurf weiterzuarbeiten.",
     "oristudioCp": "Die Faltmuster-Engine wurde unerwartet beendet. Lade Ori Studio neu – Änderungen seit dem letzten Speichern können verloren gehen.",
     "precrease": "Der Precrease-Planer wurde unerwartet beendet. Öffne den Referenzen-Arbeitsbereich erneut, um ihn neu zu starten.",

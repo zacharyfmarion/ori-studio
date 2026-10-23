@@ -87,22 +87,22 @@ import {
   diagramShapes,
   strokeAttributes,
   type DiagramRenderContext,
-} from '../../cp-workspace/references/diagram/DiagramPrimitives';
-import type { StepDiagramPrimitive } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
-import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/references/diagram/diagramColors';
-import { markRingWidth } from '../../cp-workspace/references/diagram/labelLayout';
-import { markReach, type DiagramMarkPrimitive } from '../../cp-workspace/references/diagram/markReach';
+} from '../../lib/stepDiagram/DiagramPrimitives';
+import type { StepDiagramPrimitive } from '../../lib/stepDiagram/stepDiagramModel';
+import { diagramInlineInk, type DiagramInlineInk } from '../../lib/stepDiagram/diagramColors';
+import { markRingWidth } from '../../lib/stepDiagram/labelLayout';
+import { markReach, type DiagramMarkPrimitive } from '../../lib/stepDiagram/markReach';
 import {
   haloPatternElement,
   sheetHalo,
   type ReachBox,
   type SheetHaloAcross,
-} from '../../cp-workspace/references/diagram/sheetHalo';
+} from '../../lib/stepDiagram/sheetHalo';
 import {
   canvasDiagramInk,
   canvasDiagramPens,
   penInk,
-} from '../../cp-workspace/references/diagram/diagramInk';
+} from '../../lib/stepDiagram/diagramInk';
 import {
   arcThroughPoints,
   createOverlayProjector,
@@ -110,7 +110,7 @@ import {
   strokePieces,
   type HiddenStretches,
   type PathArrowFold,
-} from '../../cp-workspace/references/stepDiagramGeometry';
+} from '../../lib/stepDiagram/stepDiagramGeometry';
 import { referencesPaperTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import type { PaperItem, PaperLineItem, PaperLineRole, PaperScene } from '../../lib/paper/paperScene';
 import { mmToCssPx, penForRole } from '../../lib/paper/paperSvg';
@@ -474,6 +474,7 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     case 'mountain-line':
       return { kind: 'line', role: 'diagram-mountain', from, to };
     case 'hidden-line':
+    case 'uncreased-line':
       return { kind: 'line', role: 'diagram-hidden', from, to };
     case 'solid-line':
       // References' reference-line pen, in its own colour or, with none, the style's arrow ink (`annotationInk`).
@@ -556,19 +557,13 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     }
     case 'turn-over':
       return { kind: 'mark', primitive: { kind: 'turn-over', at: up(from), axis: annotation.axis ?? 'vertical' } };
-    case 'rotate': {
-      // A preset prints its fraction, an angle of the author's own its degrees.
-      const rotation = annotation.rotate ?? DEFAULT_ROTATION;
-      const { direction } = rotation;
-      const at = up(from);
+    case 'rotate':
       return {
         kind: 'mark',
-        primitive:
-          rotation.degrees === undefined
-            ? { kind: 'rotate', at, amount: rotation.amount, direction }
-            : { kind: 'rotate', at, degrees: rotation.degrees, direction },
+        // A part of a turn or an angle of the author's own, either way round: the rotation's own fields.
+        // A preset prints its fraction, an angle its degrees.
+        primitive: { kind: 'rotate', at: up(from), ...(annotation.rotate ?? DEFAULT_ROTATION) },
       };
-    }
     case 'circle':
       // No letter (decision 8): a label names it, if anything does.
       return { kind: 'mark', primitive: { kind: 'point', at: up(from), style: 'highlight', ...(annotation.radius !== undefined ? { radius: annotation.radius } : {}) } };

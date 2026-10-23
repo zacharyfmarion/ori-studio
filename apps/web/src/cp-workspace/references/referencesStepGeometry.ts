@@ -15,7 +15,7 @@
  * camera to show.
  */
 import type { Point } from '../../lib/geometry';
-import type { DiagramArc } from './stepDiagramGeometry';
+import type { DiagramArc } from '../../lib/stepDiagram/stepDiagramGeometry';
 import type { ExtractedSolution, ExtractedStep } from './referenceFinder/extractor';
 import type { ReferencesModelStep, ReferencesOriginals } from './referencesResults';
 

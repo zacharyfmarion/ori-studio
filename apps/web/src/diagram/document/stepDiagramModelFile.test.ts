@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import { referencesStrip } from './referencesSteps.fixtures';
 import {
   STEP_DIAGRAM_MAX_ARROWS,
@@ -23,6 +23,7 @@ const EVERY_KIND: StepDiagramModel = {
     { kind: 'one-way-arrow', out: { center: [0.5, 0.5], radius: 0.3, from: 0.2, to: 1.1, ccw: true }, fold: 'mountain' },
     { kind: 'push-arrow', from: [0.1, 0.1], to: [0.3, 0.2] },
     { kind: 'rotate', at: [0.8, 0.4], amount: 'quarter', direction: 'ccw' },
+    { kind: 'rotate', at: [0.2, 0.4], amount: 'degrees', degrees: 30, direction: 'cw' },
     { kind: 'turn-over', at: [0.5, 0.25] },
     { kind: 'turn-over', at: [0.6, 0.25], axis: 'horizontal' },
     { kind: 'region', corners: [[0, 0], [1, 0], [1, 0.25]] },
@@ -89,6 +90,9 @@ describe('validateStepDiagramModel', () => {
       { kind: 'label', at: [0, 0], text: '', style: 'normal' },
       { kind: 'sheet', width: 0, height: 1 },
       { kind: 'line', from: [0, Number.NaN], to: [1, 1], style: 'crease' },
+      // An exact angle not as a turn writes one.
+      { kind: 'rotate', at: [0, 0], amount: 'degrees', direction: 'cw' },
+      { kind: 'rotate', at: [0, 0], amount: 'degrees', degrees: 270, direction: 'cw' },
       'line',
     ];
     for (const primitive of broken) {

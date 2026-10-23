@@ -1,0 +1,5 @@
+/* Fold's Paper pane (FoldPaperPanel.tsx): its rows scroll. */
+.body {
+  min-height: 0;
+  overflow-y: auto;
+}

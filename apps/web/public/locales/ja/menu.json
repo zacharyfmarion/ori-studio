@@ -105,6 +105,26 @@
     "saveAs": "名前を付けて保存...",
     "settings": "設定"
   },
+  "fold": {
+    "delete-step": "ステップを削除",
+    "exportFold": "FOLD をエクスポート...",
+    "exportStep": "このステップをエクスポート...",
+    "exportSteps": "ステップをエクスポート...",
+    "importCp": "CP をインポート...",
+    "importSample": "サンプルをインポート",
+    "mountain": "山折り",
+    "precrease": "下折り",
+    "rotate": "回転...",
+    "samplePleatInEighths": "8 等分のプリーツ",
+    "samplePreliminaryBase": "正方基本形",
+    "sampleWaterbombBase": "風船の基本形",
+    "sendPathToDiagram": "ここまでのステップを折り図に送る",
+    "sendToDiagram": "このステップを折り図に送る",
+    "sendToEdit": "編集に送る",
+    "startFromEditFigure": "編集の折り図から始める",
+    "turn-over": "裏返す",
+    "valley": "谷折り"
+  },
   "help": {
     "about": "Ori Studio について",
     "checkForUpdates": "アップデートを確認…"
@@ -118,6 +138,7 @@
     "design": "デザイン",
     "edit": "編集",
     "file": "ファイル",
+    "fold": "折り",
     "help": "ヘルプ",
     "insert": "挿入",
     "view": "表示"
@@ -131,6 +152,7 @@
     "design": "デザイン",
     "diagram": "折り図",
     "edit": "編集",
+    "fold": "折り",
     "properties": "プロパティ",
     "references": "リファレンス",
     "resetLayout": "レイアウトをリセット",

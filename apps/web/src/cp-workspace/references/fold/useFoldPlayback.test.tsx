@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FoldScene } from './foldScene';
-import type { FoldPoseSink } from './foldTransport';
+import { AUTO_PLAY_SETTLE_MS, type FoldPoseSink } from '../../../lib/foldMotion/foldTransport';
 import { useFoldPlayback } from './useFoldPlayback';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -94,5 +94,32 @@ describe('useFoldPlayback', () => {
     expect(probe()?.dataset.folded).toBe('false');
     expect(sink.setFoldPose).toHaveBeenLastCalledWith(null);
     expect(symbolsSink.setFoldPose).toHaveBeenLastCalledWith(null);
+  });
+
+  it('reports the way a card is folded, and turns the sheet over on arrival unasked', () => {
+    vi.useFakeTimers();
+    try {
+      act(() => root?.render(<Probe scene={{ ...SCENE, way: 'alternative' }} autoPlay={false} />));
+      act(() => probe()?.click());
+      expect(track).toHaveBeenLastCalledWith('references fold played', {
+        trigger: 'user',
+        direction: 'fold',
+        step_kind: 'cp',
+        tab: 'sequence',
+        way: 'alternative',
+      });
+      act(() => root?.render(<Probe scene={{ ...SCENE, kind: 'turn-over' }} autoPlay={false} />));
+      expect(probe()?.dataset.folded).toBe('false');
+      act(() => vi.advanceTimersByTime(AUTO_PLAY_SETTLE_MS));
+      expect(probe()?.dataset.folded).toBe('true');
+      expect(track).toHaveBeenLastCalledWith('references fold played', {
+        trigger: 'auto',
+        direction: 'fold',
+        step_kind: 'turn_over',
+        tab: 'sequence',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

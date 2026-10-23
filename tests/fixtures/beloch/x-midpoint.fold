@@ -1,0 +1,247 @@
+{
+  "file_spec": 1.1,
+  "file_creator": "beloch 0.3.0-dev",
+  "frame_classes": [ "creasePattern" ],
+  "vertices_coords": [
+    [ 0.0, 1.0 ],
+    [ 0.0, 0.5 ],
+    [ 0.25, 0.25 ],
+    [ 0.5, 0.5 ],
+    [ 1.0, 1.0 ],
+    [ 0.5, 0.0 ],
+    [ 1.0, 0.0 ],
+    [ 0.0, 0.0 ]
+  ],
+  "edges_vertices": [
+    [ 0, 1 ],
+    [ 1, 2 ],
+    [ 2, 3 ],
+    [ 3, 0 ],
+    [ 4, 0 ],
+    [ 3, 4 ],
+    [ 5, 6 ],
+    [ 6, 3 ],
+    [ 2, 5 ],
+    [ 6, 4 ],
+    [ 7, 2 ],
+    [ 1, 7 ],
+    [ 7, 5 ]
+  ],
+  "edges_assignment": [
+    "B", "V", "V", "V", "B", "V", "B", "V", "V", "B", "V", "B", "B"
+  ],
+  "faces_vertices": [
+    [ 0, 1, 2, 3 ],
+    [ 4, 0, 3 ],
+    [ 5, 6, 3, 2 ],
+    [ 6, 4, 3 ],
+    [ 7, 2, 1 ],
+    [ 7, 5, 2 ]
+  ],
+  "beloch:edges": [
+    null,
+    {
+      "axiom": "axiom2",
+      "sources": [ ".a", ".center" ],
+      "span": "tests/cases/construct/x-midpoint.bel:6:1-25",
+      "name": null,
+      "step": null
+    },
+    {
+      "axiom": "axiom1",
+      "sources": [ ".a", ".c" ],
+      "span": "tests/cases/construct/x-midpoint.bel:3:1-26",
+      "name": "d1",
+      "step": null
+    },
+    {
+      "axiom": "axiom1",
+      "sources": [ ".b", ".d" ],
+      "span": "tests/cases/construct/x-midpoint.bel:4:1-26",
+      "name": "d2",
+      "step": null
+    },
+    null,
+    {
+      "axiom": "axiom1",
+      "sources": [ ".a", ".c" ],
+      "span": "tests/cases/construct/x-midpoint.bel:3:1-26",
+      "name": "d1",
+      "step": null
+    },
+    null,
+    {
+      "axiom": "axiom1",
+      "sources": [ ".b", ".d" ],
+      "span": "tests/cases/construct/x-midpoint.bel:4:1-26",
+      "name": "d2",
+      "step": null
+    },
+    {
+      "axiom": "axiom2",
+      "sources": [ ".a", ".center" ],
+      "span": "tests/cases/construct/x-midpoint.bel:6:1-25",
+      "name": null,
+      "step": null
+    },
+    null,
+    {
+      "axiom": "axiom1",
+      "sources": [ ".a", ".c" ],
+      "span": "tests/cases/construct/x-midpoint.bel:3:1-26",
+      "name": "d1",
+      "step": null
+    },
+    null,
+    null
+  ],
+  "beloch:vertices_names": [ "d", null, null, "center", "c", null, "b", "a" ],
+  "beloch:named_points": {
+    "c": { "paper": [ 1.0, 1.0 ], "table": [ 1.0, 1.0 ], "step": 0 },
+    "center": { "paper": [ 0.5, 0.5 ], "table": [ 0.5, 0.5 ], "step": 0 },
+    "b": { "paper": [ 1.0, 0.0 ], "table": [ 1.0, 0.0 ], "step": 0 },
+    "d": { "paper": [ 0.0, 1.0 ], "table": [ 0.0, 1.0 ], "step": 0 },
+    "a": { "paper": [ 0.0, 0.0 ], "table": [ 0.5, 0.5 ], "step": 0 }
+  },
+  "beloch:named_lines": {
+    "d1": { "coeffs": [ -1.0, 1.0, 0.0 ], "step": 0 },
+    "d2": { "coeffs": [ -1.0, -1.0, -1.0 ], "step": 0 }
+  },
+  "beloch:named_lines_frame": "creasePattern",
+  "beloch:marks": [],
+  "file_frames": [
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 0.0 ], [ 1.0, 0.0 ], [ 1.0, 1.0 ], [ 0.0, 1.0 ]
+      ],
+      "edges_vertices": [ [ 0, 1 ], [ 1, 2 ], [ 2, 3 ], [ 3, 0 ] ],
+      "edges_assignment": [ "B", "B", "B", "B" ],
+      "edges_foldAngle": [ 0.0, 0.0, 0.0, 0.0 ],
+      "faces_vertices": [ [ 0, 1, 2, 3 ] ],
+      "beloch:faces_matrix": [ [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ] ],
+      "faceOrders": [],
+      "beloch:step": null,
+      "beloch:source_line": null,
+      "beloch:edges": [ null, null, null, null ],
+      "beloch:vertices_names": [ "a", "b", "c", "d" ]
+    },
+    {
+      "frame_classes": [ "foldedForm" ],
+      "frame_parent": 0,
+      "frame_inherit": false,
+      "vertices_coords": [
+        [ 0.0, 1.0 ],
+        [ 0.0, 0.5 ],
+        [ 0.25, 0.25 ],
+        [ 0.5, 0.5 ],
+        [ 1.0, 1.0 ],
+        [ 0.5, 0.0 ],
+        [ 1.0, 0.0 ],
+        [ 0.5, 0.5 ]
+      ],
+      "edges_vertices": [
+        [ 0, 1 ],
+        [ 1, 2 ],
+        [ 2, 3 ],
+        [ 3, 0 ],
+        [ 4, 0 ],
+        [ 3, 4 ],
+        [ 5, 6 ],
+        [ 6, 3 ],
+        [ 2, 5 ],
+        [ 6, 4 ],
+        [ 7, 2 ],
+        [ 1, 7 ],
+        [ 7, 5 ]
+      ],
+      "edges_assignment": [
+        "B", "V", "F", "F", "B", "F", "B", "F", "V", "B", "F", "B", "B"
+      ],
+      "edges_foldAngle": [
+        0.0, 180.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      "faces_vertices": [
+        [ 0, 1, 2, 3 ],
+        [ 4, 0, 3 ],
+        [ 5, 6, 3, 2 ],
+        [ 6, 4, 3 ],
+        [ 7, 2, 1 ],
+        [ 7, 5, 2 ]
+      ],
+      "beloch:faces_matrix": [
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+        [ 0.0, -1.0, -1.0, 0.0, 0.5, 0.5 ],
+        [ 0.0, -1.0, -1.0, 0.0, 0.5, 0.5 ]
+      ],
+      "faceOrders": [ [ 0, 4, 1 ], [ 2, 5, 1 ] ],
+      "beloch:step": null,
+      "beloch:source_line": 6,
+      "beloch:edges": [
+        null,
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".center" ],
+          "span": "tests/cases/construct/x-midpoint.bel:6:1-25",
+          "name": null,
+          "step": null
+        },
+        {
+          "axiom": "axiom1",
+          "sources": [ ".a", ".c" ],
+          "span": "tests/cases/construct/x-midpoint.bel:3:1-26",
+          "name": "d1",
+          "step": null
+        },
+        {
+          "axiom": "axiom1",
+          "sources": [ ".b", ".d" ],
+          "span": "tests/cases/construct/x-midpoint.bel:4:1-26",
+          "name": "d2",
+          "step": null
+        },
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".a", ".c" ],
+          "span": "tests/cases/construct/x-midpoint.bel:3:1-26",
+          "name": "d1",
+          "step": null
+        },
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".b", ".d" ],
+          "span": "tests/cases/construct/x-midpoint.bel:4:1-26",
+          "name": "d2",
+          "step": null
+        },
+        {
+          "axiom": "axiom2",
+          "sources": [ ".a", ".center" ],
+          "span": "tests/cases/construct/x-midpoint.bel:6:1-25",
+          "name": null,
+          "step": null
+        },
+        null,
+        {
+          "axiom": "axiom1",
+          "sources": [ ".a", ".c" ],
+          "span": "tests/cases/construct/x-midpoint.bel:3:1-26",
+          "name": "d1",
+          "step": null
+        },
+        null,
+        null
+      ],
+      "beloch:vertices_names": [
+        "d", null, null, "center", "c", null, "b", "a"
+      ]
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
 import {
   picturePreviewCache,
   picturePreviewSize,
   type PicturePreviewSize,
 } from '../../diagram/pictures/picturePreviewCache';
+import { PictureLoading } from '../ui/PictureLoading';
 import styles from './DiagramPicturePreview.module.css';
 
 /** The bitmap on the canvas: which source, and at what size. */
@@ -121,7 +121,7 @@ export const DiagramPicturePreview = memo(function DiagramPicturePreview({
       <canvas data-picture-preview="" ref={attachCanvas} className={styles.surface} hidden={!visible} />
       {!visible && (vectorWhileLoading || failedSrc === src
         ? <img className={styles.surface} src={src} alt="" draggable={false} />
-        : <span className={styles.pending}><LoaderCircle size={16} className={styles.loading} /></span>)}
+        : <PictureLoading />)}
     </span>
   );
 });

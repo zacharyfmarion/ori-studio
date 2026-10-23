@@ -30,8 +30,9 @@ import {
   DIAGRAM_DIVISIONS_INK,
   type DiagramWhiteArrowFill,
   type DiagramWhiteArrowWidth,
-} from '../../cp-workspace/references/diagram/diagramInk';
-import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
+} from '../../lib/stepDiagram/diagramInk';
+import type { WhiteArrowTail } from '../../lib/stepDiagram/stepDiagramGeometry';
+import { withTurnDirection } from '../../lib/steps/turn';
 import {
   randomDiagramId,
   type DiagramTicks,
@@ -43,7 +44,6 @@ import {
   type DiagramRotation,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import { withRotationDirection } from '../document/diagramRotation';
 
 export type PicturePoint = [number, number];
 
@@ -125,6 +125,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'valley-line': 'line',
   'mountain-line': 'line',
   'hidden-line': 'line',
+  'uncreased-line': 'line',
   'solid-line': 'line',
   label: 'point',
   circle: 'point',
@@ -256,6 +257,7 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'turn-over':
     case 'rotate':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'label':
     case 'right-angle':
     case 'callout':
@@ -1065,6 +1067,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'solid-line':
     case 'label':
     case 'circle':
@@ -1123,6 +1126,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'solid-line':
     case 'circle':
     case 'star':
@@ -1161,6 +1165,7 @@ export function carriesColor(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'circle':
     case 'star':
     case 'eye':
@@ -1209,6 +1214,7 @@ export function carriesTextStyle(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'solid-line':
     case 'circle':
     case 'star':
@@ -1365,6 +1371,7 @@ export function annotationEnds(annotation: Pick<KnownDiagramAnnotation, 'kind' |
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'solid-line':
     case 'divisions':
       return ['to', 'from'];
@@ -2302,6 +2309,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'solid-line':
     case 'label':
     case 'circle':
@@ -2499,6 +2507,7 @@ export function kindFromOtherSide(kind: DiagramAnnotationKind): DiagramAnnotatio
     case 'turn-over':
     case 'rotate':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'solid-line':
     case 'label':
     case 'circle':
@@ -2601,7 +2610,7 @@ function carriedOnPicture(annotation: KnownDiagramAnnotation, move: PictureMove)
   }
   // A mirror turns a rotation the other way, as far as it turned: a preset's, or an angle's own.
   if (move.mirrors && annotation.rotate) {
-    carried.rotate = withRotationDirection(annotation.rotate, annotation.rotate.direction === 'cw' ? 'ccw' : 'cw');
+    carried.rotate = withTurnDirection(annotation.rotate, annotation.rotate.direction === 'cw' ? 'ccw' : 'cw');
   }
   const quarters = move.quarterTurns ?? Math.round(move.turnDeg / 90);
   if (annotation.axis && Math.abs(quarters) % 2 === 1) {
@@ -2800,6 +2809,7 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'uncreased-line':
     case 'solid-line':
     case 'right-angle':
     case 'callout':

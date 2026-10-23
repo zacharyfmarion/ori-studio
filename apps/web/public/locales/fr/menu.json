@@ -105,6 +105,26 @@
     "saveAs": "Enregistrer sous...",
     "settings": "Paramètres"
   },
+  "fold": {
+    "delete-step": "Supprimer l’étape",
+    "exportFold": "Exporter FOLD...",
+    "exportStep": "Exporter l’étape...",
+    "exportSteps": "Exporter les étapes...",
+    "importCp": "Importer un CP...",
+    "importSample": "Importer un exemple",
+    "mountain": "Pli montagne",
+    "precrease": "Prépliage",
+    "rotate": "Tourner...",
+    "samplePleatInEighths": "Plissé en huitièmes",
+    "samplePreliminaryBase": "Base carrée",
+    "sampleWaterbombBase": "Base de la bombe à eau",
+    "sendPathToDiagram": "Envoyer les étapes vers Diagramme",
+    "sendToDiagram": "Envoyer l’étape vers Diagramme",
+    "sendToEdit": "Envoyer vers Édition",
+    "startFromEditFigure": "Partir du modèle plié d’Édition",
+    "turn-over": "Retourner",
+    "valley": "Pli vallée"
+  },
   "help": {
     "about": "À propos d'Ori Studio",
     "checkForUpdates": "Rechercher des mises à jour…"
@@ -118,6 +138,7 @@
     "design": "Conception",
     "edit": "Édition",
     "file": "Fichier",
+    "fold": "Plier",
     "help": "Aide",
     "insert": "Insertion",
     "view": "Affichage"
@@ -131,6 +152,7 @@
     "design": "Conception",
     "diagram": "Diagramme",
     "edit": "Édition",
+    "fold": "Plier",
     "properties": "Propriétés",
     "references": "Références",
     "resetLayout": "Réinitialiser la disposition",

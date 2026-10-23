@@ -4,8 +4,10 @@ import { PT_TO_CSS_PX, type PaperStyle, type Pen } from '../../lib/paper/paperSt
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
+import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import { referencesCreaseAlpha } from '../../themes/referencesInk';
-import type { DiagramCreaseOptions } from './diagram/DiagramPrimitives';
+import type { DiagramCreaseOptions } from '../../lib/stepDiagram/DiagramPrimitives';
+import type { DiagramMarkupTokens } from '../../lib/stepDiagram/diagramColors';
 import {
   canvasDiagramInk,
   canvasDiagramPens,
@@ -13,7 +15,7 @@ import {
   CP_CREASE_WIDTH_FACTOR,
   withReferencesViewFloors,
   type DiagramPens,
-} from './diagram/diagramInk';
+} from '../../lib/stepDiagram/diagramInk';
 import { referencesShowsAux } from './referencesAuxCreases';
 
 /**
@@ -154,6 +156,17 @@ export function referencesPaperTokens(style: PaperStyle): ReferencesPaperTokens 
     '--references-arrow': seen.arrows.color,
     '--references-crease-alpha': referencesCreaseAlpha(paper, aux).toFixed(3),
   };
+}
+
+/**
+ * The colours a References step is written into a file in
+ * (`diagramToPaperScene`'s `markupTokens`): the workspace's tokens for
+ * `style`, which a file carries no stylesheet to set, and the accent the
+ * light theme gives a reference — every letter's ink — since a printed
+ * diagram is on light paper. The ground is the page's.
+ */
+export function referencesMarkupTokens(style: PaperStyle): DiagramMarkupTokens {
+  return { ...referencesPaperTokens(style), '--cp-reference-input': REFERENCE_COLORS.light.input };
 }
 
 /**

@@ -1,0 +1,57 @@
+{
+  "$comment": "sha256 of `dump_closure <file>` (closure) and `dump_closure <file> --plan` (plan) stdout; checked by scripts/precrease/dump-closure-baselines.mjs.",
+  "baselines": {
+    "tests/fixtures/precrease/claim7-cand9.fold": {
+      "closure": "8a978fbd4f7282710c4ddb9b9488d2fc022bc57e8ca127cd4035f01ef80cd4b5",
+      "plan": "2ee6dda17035ec7f9ef6041dde018e1589608385257257e790dba5d6be907835"
+    },
+    "tests/fixtures/precrease/divergence-1.cp": {
+      "closure": "c9fea62cea27e4ebe6832b377b6fe1de602824da1cc108a3e4878c18854b4183",
+      "plan": "312dc6b9c1920ebe272b6d358b80b2e1e3ebe9f02b30fd95a2f3ad0472f5bd30"
+    },
+    "tests/fixtures/precrease/divergence-2.cp": {
+      "closure": "fb877f71c1a063a72faf5d6040a405d98134ac1e5c56d1db18d02926d256cdb7",
+      "plan": "22d6506d767d9d2720f20e51c58b82bb8830a05d8f976d520f444bb64d01d8a4"
+    },
+    "tests/fixtures/precrease/divergence-3.cp": {
+      "closure": "bec6d93caff5d4d4d0597673ca2c82adecd6147136bd0f02715e6ca53114dd52",
+      "plan": "ded7d894a8b71e43c8ecf36586826bf264030ebfc4da0bde833ddc58b2fa196f"
+    },
+    "tests/fixtures/precrease/g3d_x112.fold": {
+      "closure": "ab576e1813d32bdd40e7d66cd6be9c1dfa84a9e4f74406d0425f5770ffa7170d",
+      "plan": "7d51ba73380710d3ad1ecb7d81eb097deb3996a035009e68afa6f11d95ec9c81"
+    },
+    "tests/fixtures/precrease/g3d_x19.fold": {
+      "closure": "9eafc7cc589d464635e08ba1160448bbc8f1aadd711d7ff725ba343d915c2a8d",
+      "plan": "7f1364f5fba0618a8ec1c5c46afa4a985e8014831714e54570a27c8c5e7d67a2"
+    },
+    "tests/fixtures/precrease/grid6.fold": {
+      "closure": "fbb17a7bd9bd5fcb00aa301b329cf9ab6777afbbb6f8e137fa825c95c6950b69",
+      "plan": "fbb17a7bd9bd5fcb00aa301b329cf9ab6777afbbb6f8e137fa825c95c6950b69"
+    },
+    "tests/fixtures/precrease/hex-14.fold": {
+      "closure": "0c56513d2f4b75ac0abf8f55768e8c8638c88fc59254436445f80f8d03320ef1",
+      "plan": "0c56513d2f4b75ac0abf8f55768e8c8638c88fc59254436445f80f8d03320ef1"
+    },
+    "tests/fixtures/precrease/iguana-c0.fold": {
+      "closure": "deaf5635aed5abad98f515f027f261be4ac10dbcf6660cf840815405022b7c77",
+      "plan": "deaf5635aed5abad98f515f027f261be4ac10dbcf6660cf840815405022b7c77"
+    },
+    "tests/fixtures/precrease/x13_diag_pair.fold": {
+      "closure": "ad11054eed4f44867246192ee6c6b4d987e250aa5e6b04b239becda990d94806",
+      "plan": "021b9b3e9ca25abd63ae1af20d9bd5ebd028b258e02b74209a15cee87d9548b9"
+    },
+    "tests/fixtures/precrease/x13_x38.fold": {
+      "closure": "77f1a5da7d47e263d7f313315ad12d592a4342d8d4a2868008c82b3f670bd5b4",
+      "plan": "b81bdd10a7cdffcd6a17e01614a759abf88415487f63dbe2ebb8e5d405e801a1"
+    },
+    "crates/oristudio-cp/resources/default-molecules/bird_base.fold": {
+      "closure": "8edde06ef9e6183e102fd6f31c8a833e8e89c4f4191c8edb6615a2bca4b88b16",
+      "plan": "8edde06ef9e6183e102fd6f31c8a833e8e89c4f4191c8edb6615a2bca4b88b16"
+    },
+    "tests/fixtures/flat-folder/kabuto.fold": {
+      "closure": "b9a8d2ac16a9c6cc11228ff3ce338644986e142fc38dca0abfd7b9c2a9d4b473",
+      "plan": "42ae9a152353bace3b3f7454e6adad6027ac804134d91269e431303f2a748598"
+    }
+  }
+}

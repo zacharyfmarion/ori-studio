@@ -108,8 +108,8 @@ import {
   type PictureMove,
   type PicturePoint,
 } from './annotationModel';
-import { divisionsShape } from '../../cp-workspace/references/stepDiagramGeometry';
-import { DIAGRAM_DIVISIONS_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { divisionsShape } from '../../lib/stepDiagram/stepDiagramGeometry';
+import { DIAGRAM_DIVISIONS_INK } from '../../lib/stepDiagram/diagramInk';
 import { ANNOTATION_INK_MM } from './canvasInk';
 
 const SQUARE = { width: 1, height: 1 };
@@ -208,9 +208,10 @@ describe('carrying one through its picture’s move', () => {
     };
     expect(carryAnnotation(rotate, mirror).rotate).toEqual({ amount: 'half', direction: 'ccw' });
     // An angle of its own is carried as far as it turned, the other way; a move that does not mirror leaves it.
-    const angled: KnownDiagramAnnotation = { ...rotate, rotate: { degrees: 22.5, direction: 'cw' } };
-    expect(carryAnnotation(angled, mirror).rotate).toEqual({ degrees: 22.5, direction: 'ccw' });
+    const angled: KnownDiagramAnnotation = { ...rotate, rotate: { amount: 'degrees', degrees: 22.5, direction: 'cw' } };
+    expect(carryAnnotation(angled, mirror).rotate).toEqual({ amount: 'degrees', degrees: 22.5, direction: 'ccw' });
     expect(carryAnnotation(angled, { point: (point: [number, number]) => point, mirrors: false, turnDeg: 90 }).rotate).toEqual({
+      amount: 'degrees',
       degrees: 22.5,
       direction: 'cw',
     });

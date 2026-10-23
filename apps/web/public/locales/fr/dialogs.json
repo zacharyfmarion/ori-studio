@@ -325,6 +325,146 @@
     "vertexUnassignedCrease": "Un pli d’un sommet n’a aucun pliage attribué, ce sommet ne peut donc pas être plié.",
     "vertexUnsplitJunction": "Des plis se rejoignent en un point qui n’est pas un sommet, ce sommet ne peut donc pas être plié."
   },
+  "foldExport": {
+    "title": "Exporter la séquence de pliage"
+  },
+  "foldImport": {
+    "browse": "ou cliquez pour parcourir",
+    "browseTouch": "ou touchez pour parcourir",
+    "collapseTitle": "Mettre en forme depuis le CP",
+    "drop": "Déposez un fichier .cp, .fold, .ori ou .orh",
+    "editFigure": "Modèle plié d’Édition",
+    "editFigureNote": "Le patron de plis qu’Édition a plié, avec l’ordre des couches trouvé",
+    "fix": {
+      "searchLonger": "Chercher plus longtemps"
+    },
+    "fromEdit": "Depuis Édition",
+    "pickTitle": "Importer un patron de plis",
+    "placement": {
+      "afterSheet": "Ajoute une étape après la feuille à plat, son état plié calculé à partir des plis.",
+      "afterStep": "Ajoute une étape après l’étape {{number}}, son état plié calculé à partir des plis.",
+      "branch": "Elle commence une nouvelle branche.",
+      "empty": "Commence la séquence sur la feuille du patron de plis, pliée selon ses plis. Utilisez-le quand un état ne peut pas être atteint pli après pli.",
+      "sheet": "Prend le contour du motif comme feuille de départ de la séquence : toute forme convexe de 3 à 8 côtés. Ses plis ne sont pas importés ; utilisez Importer un CP pour plier à partir d’eux.",
+      "sheetStartsOver_one": "La séquence recommence : son {{count}} pas est effacé. Annuler le rétablit.",
+      "sheetStartsOver_many": "La séquence recommence : ses {{count}} pas sont effacés. Annuler les rétablit.",
+      "sheetStartsOver_other": "La séquence recommence : ses {{count}} pas sont effacés. Annuler les rétablit.",
+      "update": "Met à jour cette étape de mise en forme. Les étapes suivantes et les branches sont conservées et recalculées ; les plis concernés sont signalés comme modifiés ou impossibles à plier.",
+      "why": "Utilisez-le quand l’état suivant ne peut pas être atteint pli après pli."
+    },
+    "refusal": {
+      "budget": {
+        "text": "Trouver comment les couches s’empilent a pris plus de temps qu’un import n’en dispose. Cherchez plus longtemps ou importez un patron plus simple.",
+        "title": "La recherche a duré trop longtemps"
+      },
+      "changed": {
+        "text": "Les étapes ont changé pendant l’import du patron. Importez-le à nouveau.",
+        "title": "La séquence a changé"
+      },
+      "creases": {
+        "text": "Un pli sort du papier, se superpose à un pli d’un autre type ou s’arrête là où rien ne le rejoint. Chaque pli doit aller d’un bord ou d’un pli à un bord ou à un pli.",
+        "title": "Des plis impossibles à suivre"
+      },
+      "failed": {
+        "text": "Ce patron de plis n’a pas pu être importé.",
+        "title": "Import impossible"
+      },
+      "figureIncomplete": {
+        "text": "Le modèle plié d’Édition n’indique pas comment se place chaque couche. Repliez-le dans Édition, puis partez-en.",
+        "title": "Le modèle plié est incomplet"
+      },
+      "foldedForm": {
+        "text": "Ce fichier FOLD décrit du papier déjà plié. Importez plutôt le patron de plis à plat.",
+        "title": "Une forme pliée, pas un patron de plis"
+      },
+      "noFigure": {
+        "text": "Pliez d’abord le patron à plat dans Édition, puis partez de son modèle plié.",
+        "title": "Aucun modèle plié dans Édition"
+      },
+      "nonConvex": {
+        "text": "Une face du patron rentre vers l’intérieur à un coin. Seules les faces convexes se plient.",
+        "title": "Une face avec un angle rentrant"
+      },
+      "noOrder": {
+        "text": "Avec les plis montagne et vallée du patron, les couches ne peuvent pas s’empiler sans se traverser.",
+        "title": "Aucun ordre des couches ne convient"
+      },
+      "noProjectCp": {
+        "text": "Ouvrez ou créez le canevas de plis source dans Modifier, puis réessayez. L’étape de mise en forme enregistrée reste inchangée.",
+        "title": "CP source indisponible"
+      },
+      "noState": {
+        "text": "L’étape affichée n’a pas d’état plié\u00a0: rien ne peut être ajouté après. Allez à une étape qui se plie.",
+        "title": "Cette étape ne se plie pas"
+      },
+      "notFlat": {
+        "text": "Plié selon ses montagnes et ses vallées, le patron ne se pose pas à plat.",
+        "title": "Ne se plie pas à plat"
+      },
+      "orderOpen": {
+        "text": "Le modèle plié d’Édition laisse l’ordre des couches ouvert. Pliez-le jusqu’à une seule solution dans Édition, puis repartez-en.",
+        "title": "Plus d’un ordre des couches"
+      },
+      "outline": {
+        "text": "Le bord du patron n’est pas un contour fermé autour du papier\u00a0: il n’y a pas de feuille à plier.",
+        "title": "Aucune feuille trouvée"
+      },
+      "readOnly": {
+        "text": "Créée avec une version plus récente d’Ori Studio\u00a0: cette séquence s’ouvre en lecture seule.",
+        "title": "Séquence en lecture seule"
+      },
+      "shapeMismatch": {
+        "text": "La feuille du patron n’a pas la forme de celle de cette séquence. Importez-le plutôt dans une séquence vide.",
+        "textRatios": "Cette séquence plie une feuille de {{expected}} et le patron est sur une feuille de {{found}}. Importez-le plutôt dans une séquence vide.",
+        "title": "Une autre feuille"
+      },
+      "shapeUnsupported": {
+        "text": "Les patrons de plis s’importent sur une feuille carrée ou rectangulaire. La feuille de celui-ci a une autre forme.",
+        "title": "Feuilles carrées et rectangulaires uniquement"
+      },
+      "sheetNotConvex": {
+        "text": "Le contour du motif a un coin qui pointe vers l’intérieur du papier. Plier part de feuilles dont tous les coins pointent vers l’extérieur : un carré, un rectangle, un polygone régulier ou toute autre forme convexe.",
+        "title": "La feuille rentre vers l’intérieur"
+      },
+      "sheetSides": {
+        "text_one": "Plier part de feuilles de 3 à 8 côtés. Ce contour a {{count}} côté.",
+        "text_many": "Plier part de feuilles de 3 à 8 côtés. Ce contour a {{count}} côtés.",
+        "text_other": "Plier part de feuilles de 3 à 8 côtés. Ce contour a {{count}} côtés.",
+        "title": "Feuilles de 3 à 8 côtés seulement"
+      },
+      "sheetSideShort": {
+        "text": "Un côté du contour du motif est trop court pour que Plier en distingue les coins. Redressez-le ou supprimez-le, puis importez de nouveau la feuille.",
+        "title": "Un côté trop court pour plier"
+      },
+      "unreadable": {
+        "text": "Le fichier n’a pas pu être lu comme un patron de plis {{extension}}.",
+        "title": "Pas un patron de plis"
+      },
+      "unreadableFile": {
+        "text": "{{name}} n’a pas pu être lu.",
+        "title": "Impossible de lire le fichier"
+      },
+      "unsupportedFile": {
+        "text": "{{name}} n’est pas un patron de plis importable. Utilisez un fichier .cp, .fold, .ori ou .orh.",
+        "title": "Pas un patron de plis"
+      }
+    },
+    "sample": {
+      "pleatInEighths": "Plissé en huitièmes",
+      "preliminaryBase": "Base carrée",
+      "waterbombBase": "Base de la bombe à eau"
+    },
+    "sheetTitle": "Importer une feuille de départ",
+    "title": "Importer un patron de plis",
+    "updateTitle": "Mettre à jour depuis le CP",
+    "working": {
+      "figure": "Import du modèle plié d’Édition…",
+      "file": "Import de {{name}}…",
+      "projectCp": "Résolution du canevas de plis du projet…",
+      "sample": "Import de l’exemple…",
+      "sheet": "Lecture de la feuille…"
+    }
+  },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
     "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
@@ -685,7 +825,7 @@
         "exportLinked": "Style d'exportation · lié",
         "title": "Style"
       },
-      "stepsHint": "Références uniquement",
+      "stepsHintFold": "Références et Plier",
       "stepsTitle": "Étapes",
       "unsaved": {
         "custom": "Ce style n’est pas enregistré comme préréglage. Appliquer {{next}} le remplace.",

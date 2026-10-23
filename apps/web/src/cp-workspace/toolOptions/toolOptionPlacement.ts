@@ -15,7 +15,9 @@
  * `InlineSimulationLayer` avoids by counter-scaling its badge. Here they are
  * simply a fixed-size block *positioned against* the frame's top edge.
  *
- * Pure, so both rules are testable without a DOM.
+ * Pure, so both rules are testable without a DOM. The camera is a parameter,
+ * never read from a store, so a surface with cameras of its own places a
+ * window the same way Edit does.
  */
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import { overlayModelToCss } from '../annotations/annotationTransform';
@@ -112,4 +114,57 @@ export function toolOptionHeaderOffset(
   const above = frame.top - headerHeight;
   const fitsAbove = above >= VIEWPORT_MARGIN_CSS && above + headerHeight <= viewport.height;
   return fitsAbove ? -headerHeight : 0;
+}
+
+/** The gap between the frame (or the header) and the note, in CSS px: the note's stylesheet margin. */
+const NOTE_GAP_CSS = 6;
+
+/** Where the controls go when a surface keeps them in view (`toolOptionInView`). */
+export interface ToolOptionInView {
+  /** The header's offset from the frame's top edge, as {@link toolOptionHeaderOffset} gives it. */
+  headerTop: number;
+  /** How far the header and the note move right (negative: left) from where they are pinned. */
+  headerShift: number;
+  noteShift: number;
+  /** The note's offset from the frame's top edge: under the frame, or above the header where it does not fit there. */
+  noteTop: number;
+}
+
+/**
+ * The controls kept on screen, for a surface too narrow to let them hang off
+ * it — a phone's pane, where a small frame near the edge would put a header
+ * and a note that are wider than it partly off the screen. The header and the
+ * note slide along the viewport's edge rather than leave it, still sharing
+ * the frame's top edge and still beside it; and the area the surface covers
+ * at its bottom (`covered`, a phone's tool window) counts as off screen, so
+ * the note goes above the header when it would fall under that.
+ *
+ * Opt-in: a surface with room keeps the header pinned to its frame and panned
+ * off with it (see {@link toolOptionHeaderOffset}).
+ */
+export function toolOptionInView(
+  frame: Box,
+  header: Size,
+  note: Size | null,
+  viewport: Size,
+  covered: number
+): ToolOptionInView {
+  const visible: Size = { width: viewport.width, height: Math.max(0, viewport.height - covered) };
+  const shift = (width: number) => {
+    const pinned = frame.left + frame.width - width;
+    const most = visible.width - VIEWPORT_MARGIN_CSS - width;
+    const placed = most < VIEWPORT_MARGIN_CSS ? VIEWPORT_MARGIN_CSS : Math.min(Math.max(pinned, VIEWPORT_MARGIN_CSS), most);
+    return placed - pinned;
+  };
+  const headerTop = toolOptionHeaderOffset(frame, header.height, visible);
+  const below = frame.height + NOTE_GAP_CSS;
+  const above = headerTop - NOTE_GAP_CSS - (note?.height ?? 0);
+  const fitsBelow = !note || frame.top + below + note.height <= visible.height - VIEWPORT_MARGIN_CSS;
+  const fitsAbove = frame.top + above >= VIEWPORT_MARGIN_CSS;
+  return {
+    headerTop,
+    headerShift: shift(header.width),
+    noteShift: note ? shift(note.width) : 0,
+    noteTop: fitsBelow || !fitsAbove ? below : above,
+  };
 }

@@ -1,5 +1,4 @@
-import { useSyncExternalStore } from 'react';
-import { importOrReload } from '../lib/importOrReload';
+import { lazyModule } from '../lib/lazyModule';
 import type { OpenTextFileResult } from '../platform/fileService';
 import type * as WorkspaceEntry from './workspaceEntry';
 
@@ -23,37 +22,20 @@ export type StartOutcome =
   | { kind: 'error'; message: string }
   | { kind: 'stay' };
 
-let loading: Promise<Workspace> | null = null;
-let loaded: Workspace | null = null;
-const listeners = new Set<() => void>();
+const workspace = lazyModule<Workspace>(() => import('./workspaceEntry'));
 
+/** Load the workspace; a failed load (offline, say) is not remembered, so the next click retries. */
 export function loadWorkspace(): Promise<Workspace> {
-  if (loading) return loading;
-  const pending = importOrReload(() => import('./workspaceEntry')).then((workspace) => {
-    loaded = workspace;
-    for (const listener of listeners) listener();
-    return workspace;
-  });
-  // A failed load (offline, say) must not be remembered: the next click should retry.
-  pending.catch(() => {
-    if (loading === pending) loading = null;
-  });
-  loading = pending;
-  return pending;
+  return workspace.load();
 }
 
 /** The workspace if it has loaded, without asking for it. */
 export function loadedWorkspace(): Workspace | null {
-  return loaded;
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+  return workspace.loaded();
 }
 
 export function useLoadedWorkspace(): Workspace | null {
-  return useSyncExternalStore(subscribe, loadedWorkspace, () => null);
+  return workspace.useLoaded();
 }
 
 /**
@@ -76,7 +58,5 @@ export const startActions = {
 };
 
 export function resetWorkspaceForTest(): void {
-  loading = null;
-  loaded = null;
-  listeners.clear();
+  workspace.resetForTest();
 }

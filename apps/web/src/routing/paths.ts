@@ -18,6 +18,7 @@ export const EDIT_PATH = '/edit';
 export const SIMULATE_PATH = '/simulate';
 export const REFERENCES_PATH = '/references';
 export const DIAGRAM_PATH = '/diagram';
+export const FOLD_PATH = '/fold';
 /**
  * Share links land here, hand their payload to the store, and redirect to Edit.
  *
@@ -43,6 +44,8 @@ export function workspacePath(workspace: WorkspaceId): string {
       return REFERENCES_PATH;
     case 'diagram':
       return DIAGRAM_PATH;
+    case 'fold':
+      return FOLD_PATH;
   }
 }
 
@@ -64,6 +67,8 @@ export function parseWorkspacePath(pathname: string): { workspace: WorkspaceId }
       return { workspace: 'references' };
     case DIAGRAM_PATH:
       return { workspace: 'diagram' };
+    case FOLD_PATH:
+      return { workspace: 'fold' };
     case DESIGN_PATH:
       return { workspace: 'design' };
     default:

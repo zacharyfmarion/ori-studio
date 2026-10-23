@@ -285,6 +285,40 @@ describe('layout store', () => {
     expect(api.activePanel?.id).toBe('references');
   });
 
+  it('builds the fold workspace on the diagram shape: Step beside it, Paper a tab behind Step', () => {
+    const api = createDockviewApi();
+
+    applyDefaultLayout(api, 'fold', false);
+
+    expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
+      'fold',
+      'fold-step',
+      'fold-paper',
+    ]);
+    expect(api.panelMap.get('fold')?.group.header.hidden).toBe(true);
+    expect(api.addPanel.mock.calls[1][0]).toMatchObject({
+      id: 'fold-step',
+      component: 'fold-step',
+      title: 'Step',
+      position: { referencePanel: 'fold', direction: 'right' },
+      initialWidth: 280,
+    });
+    const stepGroup = api.panelMap.get('fold-step')?.group;
+    expect(api.addPanel.mock.calls[2][0]).toMatchObject({
+      id: 'fold-paper',
+      component: 'fold-paper',
+      title: 'Paper',
+      position: { referenceGroup: stepGroup },
+      inactive: true,
+    });
+    expect(api.activePanel?.id).toBe('fold');
+
+    // Under a coarse pointer both panes are the drawer's, never docked.
+    const touch = createDockviewApi();
+    applyDefaultLayout(touch, 'fold', true);
+    expect(touch.addPanel.mock.calls.map(([options]) => options.id)).toEqual(['fold']);
+  });
+
   it('activates existing panels through the dockview api', () => {
     const api = createDockviewApi();
     applyDefaultLayout(api, 'edit');
@@ -694,6 +728,9 @@ describe('the View pane under a coarse pointer', () => {
       ['edit', 'cp-properties', 'edit'],
       ['simulate', 'simulator-view-controls', 'simulate'],
       ['references', 'references-view-controls', 'references'],
+      // In the workspaces' own order: Fold before the Diagram.
+      ['fold', 'fold-step', 'fold'],
+      ['fold', 'fold-paper', 'fold'],
       ['diagram', 'diagram-step', 'diagram'],
       ['diagram', 'diagram-page', 'diagram'],
       ['diagram', 'diagram-layers', 'diagram'],

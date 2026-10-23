@@ -105,6 +105,26 @@
     "saveAs": "Сохранить как...",
     "settings": "Настройки"
   },
+  "fold": {
+    "delete-step": "Удалить шаг",
+    "exportFold": "Экспорт FOLD...",
+    "exportStep": "Экспорт шага...",
+    "exportSteps": "Экспорт шагов...",
+    "importCp": "Импорт CP...",
+    "importSample": "Импорт примера",
+    "mountain": "Складка-гора",
+    "precrease": "Предварительная складка",
+    "rotate": "Повернуть...",
+    "samplePleatInEighths": "Плиссе на восьмые",
+    "samplePreliminaryBase": "Базовая форма «квадрат»",
+    "sampleWaterbombBase": "Базовая форма «водяная бомбочка»",
+    "sendPathToDiagram": "Отправить шаги в Схему",
+    "sendToDiagram": "Отправить шаг в Схему",
+    "sendToEdit": "Отправить в Правку",
+    "startFromEditFigure": "Начать со сложенной модели из Правки",
+    "turn-over": "Перевернуть",
+    "valley": "Складка-долина"
+  },
   "help": {
     "about": "О программе Ori Studio",
     "checkForUpdates": "Проверить обновления…"
@@ -118,6 +138,7 @@
     "design": "Дизайн",
     "edit": "Правка",
     "file": "Файл",
+    "fold": "Складка",
     "help": "Справка",
     "insert": "Вставка",
     "view": "Вид"
@@ -131,6 +152,7 @@
     "design": "Дизайн",
     "diagram": "Схема",
     "edit": "Правка",
+    "fold": "Складывание",
     "properties": "Свойства",
     "references": "Референсы",
     "resetLayout": "Сбросить макет",

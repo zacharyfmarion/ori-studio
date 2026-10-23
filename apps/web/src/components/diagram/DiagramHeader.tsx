@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Download, Loader2, Plus, Printer } from "lucide-react";
 import { Button } from "../ui/Button";
 import { SplitButton } from "../ui/SplitButton";
-import { DiagramHistoryButtons } from "./DiagramHistoryButtons";
+import { TouchHistoryButtons } from "../ui/TouchHistoryButtons";
 import type { DiagramViewMode } from "../../store/workspaceStore/types";
 import { DiagramViewSwitch } from "./DiagramViewSwitch";
 import styles from "./DiagramHeader.module.css";
@@ -28,6 +28,8 @@ export function DiagramHeader({
   patternOpen,
   onLink,
   onFromReferences,
+  foldSteps,
+  onFromFold,
   onAddTurn,
   staleCount,
   poseAgainCount,
@@ -54,6 +56,10 @@ export function DiagramHeader({
   onLink: () => void;
   /** Open the References browser, adding after the selected step or at the end. */
   onFromReferences: () => void;
+  /** The project's Fold sequence has steps to add (fold-workspace plan D17). */
+  foldSteps: boolean;
+  /** Open the Fold browser, adding after the selected step or at the end. */
+  onFromFold: () => void;
   /** Add a turn between steps (D22), after the selected step or at the end. */
   onAddTurn: (kind: "turn-over" | "rotate") => void;
   /** How many linked steps are out of date, and Refresh all would capture again. */
@@ -83,7 +89,7 @@ export function DiagramHeader({
       />
       <div className={styles.verbs}>
         <div className={`panel-toolbar__group ${styles.actions}`}>
-          <DiagramHistoryButtons />
+          <TouchHistoryButtons />
           <SplitButton
             size="sm"
             variant="secondary"
@@ -132,6 +138,19 @@ export function DiagramHeader({
                     ),
                 opensDialog: true,
                 onSelect: onFromReferences,
+              },
+              {
+                id: "from-fold",
+                label: t("panels:diagram.fold.fromFold", "From Fold…"),
+                disabled: !foldSteps,
+                title: foldSteps
+                  ? undefined
+                  : t(
+                      "panels:diagram.fold.noStepsHint",
+                      "Fold a step in Fold to take it from there",
+                    ),
+                opensDialog: true,
+                onSelect: onFromFold,
               },
               {
                 id: "turn-over",

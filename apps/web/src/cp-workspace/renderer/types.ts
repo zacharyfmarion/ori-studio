@@ -102,7 +102,7 @@ export interface StrokeGeometry {
  * step's fold in the diagram-crease pens, the pattern under it in the fold
  * pens, and a dotted line and an earlier crease between them — one table for
  * both of its channels, because a folding flap draws the two under one
- * (`references/diagram/diagramInk`, `DIAGRAM_DASH_SLOTS`). A slot is two
+ * (`lib/stepDiagram/diagramInk`, `DIAGRAM_DASH_SLOTS`). A slot is two
  * `vec3` uniforms and one comparison in the vertex stage; nothing per segment,
  * since `dashSlot` is already a float. Raising this cannot disturb a geometry
  * that declares fewer patterns — `dashTableUniforms` pads the rest with solid.

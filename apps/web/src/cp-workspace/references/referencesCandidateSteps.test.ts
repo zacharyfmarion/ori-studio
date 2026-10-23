@@ -26,7 +26,7 @@ import {
   diagonalStepDiagram,
   type ReferencesCandidateRfStep,
 } from './referencesCandidateSteps';
-import { arcSamplePoints } from './stepDiagramGeometry';
+import { arcSamplePoints } from '../../lib/stepDiagram/stepDiagramGeometry';
 
 function step(overrides: Partial<ExtractedStep>): ExtractedStep {
   return { axiom: 1, inputs: [], label: '', pinch: false, diagramIndex: null, ...overrides };

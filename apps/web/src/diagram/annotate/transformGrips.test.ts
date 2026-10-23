@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DIAGRAM_EYE_INK, DIAGRAM_STAR_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { DIAGRAM_EYE_INK, DIAGRAM_STAR_INK } from '../../lib/stepDiagram/diagramInk';
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { ANNOTATION_KINDS, GLYPH_SCALE, withAnnotationReach, type PicturePoint } from './annotationModel';
 import { windowReach } from '../zoom/zoomModel';

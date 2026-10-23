@@ -30,8 +30,13 @@ import type {
 /** A mark the card brought: one this build reads, tagged. */
 export type CardMark = KnownDiagramAnnotation & { imported: DiagramImportedMark };
 
-/** Whether a step shows a References card, whose marks it can carry as the card's. */
+/**
+ * Whether a step shows its source's own picture, whose marks it can carry as
+ * the source's: a References card, or a Fold step's state (fold-workspace
+ * plan D17), whose fold's line and arrow arrive tagged as a card's do.
+ */
 export function showsCard(step: Pick<DiagramStep, 'source' | 'picture'>): boolean {
+  if (step.source?.kind === 'fold-step') return step.picture !== null;
   return step.source?.kind === 'references-step' && step.picture?.kind === 'step-diagram';
 }
 

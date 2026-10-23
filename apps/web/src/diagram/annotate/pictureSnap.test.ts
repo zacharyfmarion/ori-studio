@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import type { ScenePoint } from '../../lib/paper/paperScene';
 import { face, line, SQUARE } from '../../lib/paper/paperScene.fixtures';
 import { referencesStep, stepDiagramPicture } from '../document/diagramSteps.fixtures';

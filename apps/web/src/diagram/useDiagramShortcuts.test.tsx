@@ -16,7 +16,10 @@ const runtime = vi.hoisted(() => ({
   armed: null as (() => boolean) | null,
 }));
 vi.mock('../keyboard/shortcutRuntime', () => ({
-  registerDiagramShortcutExecutor: (executor: (id: DiagramShortcutId) => boolean) => {
+  registerConditionalScopeExecutor: (
+    _target: 'diagram',
+    executor: (id: DiagramShortcutId) => boolean
+  ) => {
     runtime.diagram = executor;
     return () => {
       runtime.diagram = null;

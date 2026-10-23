@@ -278,13 +278,964 @@
     "toolValleyArrow": "Valley Fold Arrow",
     "toolValleyLine": "Valley Line",
     "toolWhiteArrow": "White Arrow",
-    "toolXRay": "X-Ray"
+    "toolXRay": "X-Ray",
+    "uncreasedLine": "Uncreased Line"
   },
   "divideMode": {
     "count": "Count",
     "countTitle": "Divide the line into equal parts",
     "ratio": "Ratio",
     "ratioTitle": "Divide the line at a ratio"
+  },
+  "fold": {
+    "categoryLabel": "Fold workspace",
+    "chooser": {
+      "noKeys": {
+        "emergent": "More than one fourth crease lets these creases lie flat. Step through them.",
+        "opening": "The flap opens more than one way: the lit layers stay together. Step through them.",
+        "order": "The layers can land stacked more than one way. Step through them.",
+        "pocket": "The point can sink into more than one pocket between its layers. Step through them.",
+        "ridge": "Either ridge lets the swivel lie flat. Step through them.",
+        "root": "This axiom has more than one fold here. Step through them.",
+        "target": "More than one layer takes the tuck: the brightest is the one taken. Step through them."
+      },
+      "withKeys": {
+        "emergent": "More than one fourth crease lets these creases lie flat. Step through them, or press {{keys}}.",
+        "opening": "The flap opens more than one way: the lit layers stay together. Step through them, or press {{keys}}.",
+        "order": "The layers can land stacked more than one way. Step through them, or press {{keys}}.",
+        "pocket": "The point can sink into more than one pocket between its layers. Step through them, or press {{keys}}.",
+        "ridge": "Either ridge lets the swivel lie flat. Step through them, or press {{keys}}.",
+        "root": "This axiom has more than one fold here. Step through them, or press {{keys}}.",
+        "target": "More than one layer takes the tuck: the brightest is the one taken. Step through them, or press {{keys}}."
+      }
+    },
+    "crimp": {
+      "bothFit": "Both kinds of crimp fit here: choose which way the tip goes.",
+      "firstLine": "First line",
+      "firstLineAxiom": "The first line is located by {{mode}}, the line mode in hand. To draw it, choose Free line under First line.",
+      "introTurn": "Turns a flap’s end in along one line and back out along a second.",
+      "secondLine": "Second line"
+    },
+    "divide": {
+      "clear_one": "Clear the mark made here",
+      "clear_other": "Clear the {{count}} marks made here",
+      "computed": "Computed ratio {{s}} : {{t}}",
+      "count": "Equal parts",
+      "left": "From the start",
+      "mode": "Divide",
+      "parts": "Parts",
+      "ratio": "Ratio",
+      "right": "To the end"
+    },
+    "extent": {
+      "commitPinch": "Pinch",
+      "keyNote": "Press {{shortcut}} to step through the extents.",
+      "label": "Extent",
+      "pinchHelp": "Crease only a short mark, centred on a point you click along the line.",
+      "pinchHelpTouch": "Crease only a short mark, centred on a point you tap along the line.",
+      "segmentHelp": "Crease the line only between two points you click along it.",
+      "segmentHelpTouch": "Crease the line only between two points you tap along it.",
+      "wholeHelp": "Crease the line from edge to edge."
+    },
+    "fix": {
+      "closedSinkInstead": "Closed sink instead",
+      "crimpFlap": "Crimp flap {{number}} only",
+      "crimpThisFlap": "Crimp this flap only",
+      "foldOntoLine": "Fold the edge onto the line instead",
+      "includeFlap": "Include flap {{number}}",
+      "includeFlaps_one": "Include the {{count}} flap",
+      "includeFlaps_other": "Include the {{count}} flaps",
+      "insideCrimpInstead": "Inside crimp instead",
+      "insideInstead": "Inside reverse fold instead",
+      "mountainInstead": "Mountain fold instead",
+      "openSinkInstead": "Open sink instead",
+      "outsideCrimpInstead": "Outside crimp instead",
+      "outsideInstead": "Outside reverse fold instead",
+      "pickFlap": "Fold flap {{number}} only",
+      "pickThisFlap": "Fold this flap only",
+      "pinchInstead": "Pinch there instead",
+      "precreaseOtherWay": "Precrease the other way",
+      "reverseCrossedFlaps": "Reverse only the flaps the line crosses",
+      "reverseFlap": "Reverse flap {{number}} only",
+      "reverseThisFlap": "Reverse this flap only",
+      "sinkFlap": "Sink flap {{number}} only",
+      "sinkThisFlap": "Sink this flap only",
+      "slideToEdge": "Slide the line to land the point on the edge",
+      "swapInstead": "Swap the moving side",
+      "throughAllLayers": "Crease through all layers",
+      "tuckFlap": "Tuck flap {{number}} only",
+      "tuckOtherWay": "Tuck the other way",
+      "tuckOver": "Tuck over listed layer {{number}} instead",
+      "tuckOverAnother": "Tuck over the layer that fits instead",
+      "tuckThisFlap": "Tuck this flap only",
+      "tuckUnder": "Tuck under listed layer {{number}} instead",
+      "tuckUnderAnother": "Tuck under the layer that fits instead",
+      "turnToEdge": "Turn the line to land the point on the edge",
+      "useLine": "Use the landmark line",
+      "useMovingPoint": "Use the point on the moving flap",
+      "useSquareLine": "Use the square line",
+      "useWholeLine": "Use the whole line",
+      "valleyInstead": "Valley fold instead"
+    },
+    "flap": {
+      "chip_one": "Flap {{number}}, {{count}} layer",
+      "chip_other": "Flap {{number}}, {{count}} layers",
+      "chipAdded_one": "Flap {{number}}, {{count}} layer, moves with the fold",
+      "chipAdded_other": "Flap {{number}}, {{count}} layers, moves with the fold",
+      "groupLabel": "Flaps to fold",
+      "layers_one": "{{count}} layer",
+      "layers_other": "{{count}} layers",
+      "name": "Flap {{number}}"
+    },
+    "group": {
+      "fold": "Fold",
+      "locate": "Locate line",
+      "model": "Model",
+      "reference": "Reference points",
+      "sequence": "Sequence",
+      "sink": "Sinks"
+    },
+    "key": {
+      "commit": "Commit fold",
+      "cycleExtent": "Next precrease extent",
+      "nextRoot": "Next root",
+      "previousRoot": "Previous root",
+      "swapSide": "Swap moving side"
+    },
+    "keys": {
+      "nextBranch": "Next Branch",
+      "nextStep": "Next Step",
+      "previousBranch": "Previous Branch",
+      "previousStep": "Previous Step"
+    },
+    "latch": {
+      "freePoint": "Free point"
+    },
+    "line": {
+      "axiom": "Axiom {{number}}: {{phrase}}",
+      "axiom1Help": "The line through two points.",
+      "axiom2Help": "The line that folds one point onto another.",
+      "axiom3Help": "The line that folds one edge or crease onto another.",
+      "axiom4Help": "The line through a point, perpendicular to an edge or crease.",
+      "axiom5Help": "The line through a pivot that folds a point onto an edge or crease.",
+      "axiom6Help": "The line that folds two points onto two edges or creases at once.",
+      "axiom7Help": "The line that folds a point onto an edge or crease, perpendicular to another.",
+      "crease": "Existing crease",
+      "creaseHelp": "A crease or folded edge already there: refold a precrease, or unfold a flap.",
+      "free": "Free line",
+      "freeHelp": "A line drawn anywhere, with no reference."
+    },
+    "note": {
+      "acrossLayers": "These points lie on layers that are folded apart, so the line runs through them where they lie in the folded form. The crease pattern shows the creases it makes.",
+      "along": "Points snap to where the line crosses creases, edges and marks, to points on it, and to its middle.",
+      "alongBack": "Esc takes back the last point.",
+      "clear": "Esc clears the picks.",
+      "closedSinkLine": "The line across the point sets how deep it sinks.",
+      "crease": "Folding along a precrease refolds it; along a folded edge, it unfolds the flap.",
+      "free": "No snapping: the line runs exactly through the points you click.",
+      "freePoint": "Hold {{modifier}} to put a point down anywhere, without snapping.",
+      "freeSnap": "Snap to nearby point targets; otherwise use exactly where you click.",
+      "freeSnapTouch": "Snap to nearby point targets; otherwise use exactly where you tap.",
+      "freeTouch": "No snapping: the line runs exactly through the points you tap.",
+      "openSinkSquare": "The line across the point sets how deep it sinks, and must be exactly square to its centre line: Axiom 4 draws one.",
+      "queued": "Folding as soon as the preview is ready…",
+      "rotateCancel": "Esc puts Rotate down without adding the turn.",
+      "rotatePreview": "The folded pane shows the model turned as it will be.",
+      "rotateRefused": "This turn cannot be added here.",
+      "severalSunk_one": "{{count}} sunk point lies here: the first is taken.",
+      "severalSunk_other": "{{count}} sunk points lie here: the first is taken.",
+      "snap": "Points snap to corners, marks, crease crossings, midpoints and edges.",
+      "unfoldCancel": "Esc puts Unfold to step down without adding the step.",
+      "unfoldPreview": "The canvas shows the paper back in that pose. Every crease is kept.",
+      "unsinkRing": "The line is a crease of the ring the sink left, along the sunk point’s top."
+    },
+    "op": {
+      "closedSink": "Closed sink",
+      "crimp": "Crimp",
+      "openSink": "Open sink",
+      "outsideReverse": "Outside reverse fold",
+      "petal": "Petal fold",
+      "pleat": "Pleat",
+      "rabbitEar": "Rabbit ear",
+      "squash": "Squash fold",
+      "swivel": "Swivel fold",
+      "tuck": "Tuck",
+      "unsink": "Unsink"
+    },
+    "order": {
+      "accept": "Use this order",
+      "acceptAll": "Use orders and add step",
+      "acceptUpdate": "Use orders and update step",
+      "back": "Back",
+      "choose": "Choose layer order",
+      "count_one": "Order {{index}} of {{count}}",
+      "count_other": "Order {{index}} of {{count}}",
+      "failed": "The order could not be loaded. Go back and try again, or choose another order.",
+      "found_one": "Order {{index}} of {{count}} found",
+      "found_other": "Order {{index}} of {{count}} found",
+      "help": "Preview the arrangements, then choose the order you want.",
+      "incomplete": "Search incomplete. More orders may exist.",
+      "inspect": "Inspect layer stacks",
+      "loading": "Loading order…",
+      "movingVaries": "These orders move different layers. Check the highlighted paper.",
+      "next": "Next layer order",
+      "noneFound": "No order found yet",
+      "noOthers": "Search finished. There are no other orders.",
+      "previous": "Previous layer order",
+      "region": "Region {{number}}",
+      "regions": "Independent regions",
+      "search": "Find more orders",
+      "searching": "Searching for more orders…",
+      "stack": "Region {{number}}: {{layers}}",
+      "stackHelp": "Select a region to highlight it. Layers are listed from front to back; highlighted differences are relative to the first preview.",
+      "stop": "Stop searching"
+    },
+    "picker": {
+      "addFavorite": "Add {{tool}} to favorites",
+      "close": "Close tool list",
+      "favorites": "Favorites",
+      "favoritesHint": "The first {{limit}} favorites here are shown in the bottom toolbar. Long press and drag to reorder.",
+      "removeFavorite": "Remove {{tool}} from favorites",
+      "title": "Fold tools",
+      "trigger": "Tools"
+    },
+    "pleat": {
+      "blocked": "Both folds must fit within the selected flap without moving other paper. Check the lines and selected layers.",
+      "intro": "Locate the mountain line first, then the valley line, on the model before it folds.",
+      "layers": "Choose the flap to pleat. The end beyond the valley line folds back.",
+      "limit": "There are too many layer arrangements to resolve this pleat. Select a smaller flap.",
+      "lines": "The valley line must be beyond the mountain line, toward the end that moves. Check the lines or press Swap.",
+      "mountainInstruction": "Mountain line: {{instruction}}",
+      "mountainLine": "Mountain line",
+      "refusedTitle": "The pleat cannot fold here",
+      "searching": "Working out how the pleat’s layers can stack…",
+      "valleyInstruction": "Valley line: {{instruction}}",
+      "valleyLine": "Valley line"
+    },
+    "railLabel": "Fold tools",
+    "readOnly": {
+      "locked": "This step is from a newer Ori Studio, so nothing can be folded from it.",
+      "newer": "This sequence is from a newer Ori Studio, so it opens read-only."
+    },
+    "refusal": {
+      "budget": {
+        "text": "Working out how the layers stack took too long here, so it is not known whether this fold fits. Fold fewer layers, or fold it elsewhere.",
+        "title": "The search ran out of time"
+      },
+      "choiceBroken": {
+        "text": "The opening or the layer order this step stored no longer fits the paper before it, so it cannot be folded as it is stored.",
+        "title": "A choice no longer fits"
+      },
+      "chooseOpening": {
+        "text": "The flap opens more than one way. Pick one to fold.",
+        "title": "Choose how it opens"
+      },
+      "chooseOrder": {
+        "text": "The fold can land with its layers stacked more than one way. Pick one to fold.",
+        "title": "Choose how the layers stack"
+      },
+      "choosePocket": {
+        "text": "The point can sink into more than one pocket between its layers. Pick one to fold.",
+        "title": "Choose a pocket"
+      },
+      "closureAddsFlaps": {
+        "textMany_one": "Folding these layers moves {{count}} more flap too.",
+        "textMany_other": "Folding these layers moves {{count}} more flaps too.",
+        "textOne": "Folding these layers moves flap {{number}} too.",
+        "title": "More flaps would move"
+      },
+      "collision": {
+        "text": "The moving layers would pass through layers in their way.",
+        "title": "Collision"
+      },
+      "crimpInsideInfeasible": {
+        "title": "It cannot crimp inside"
+      },
+      "crimpKindInfeasible": {
+        "neitherRedraw": "Neither an inside nor an outside crimp fits these lines: no way of stacking the layers lets the tip turn on both. Press Esc and draw the lines closer to parallel, or crimp fewer flaps.",
+        "text": "No way of stacking the layers lets the tip turn this way on both lines. The other kind of crimp may fit."
+      },
+      "crimpLinesMeet": {
+        "redraw": "The two lines cross, or come too close, over the paper the crimp moves. Press Esc and draw the second line clear of the first, all the way across the flap.",
+        "title": "The lines meet"
+      },
+      "crimpMissesTip": {
+        "redraw": "The second line crosses none of the paper beyond the first, so nothing would turn back. Swap the tip side if the tip is the other end, or press Esc and draw the second line across the flap, beyond the first.",
+        "title": "The second line misses the flap"
+      },
+      "crimpNoOpening": {
+        "noSpine": "A single layer has no folded edge to crimp along. Crimp a flap of layers joined by a fold.",
+        "text": "Its layers part at the first line, but at the second one of them has ended, or has nothing to turn on. Move the second line, or crimp other flaps.",
+        "title": "This flap cannot open at the second line"
+      },
+      "crimpOutsideInfeasible": {
+        "title": "It cannot crimp round the outside"
+      },
+      "crimpTipNotFree": {
+        "text": "Other layers lie where the crimped paper would turn. Include their flaps in the crimp, or crimp it somewhere else."
+      },
+      "emptySeed": {
+        "text": "No layer is picked. Pick at least one flap to move.",
+        "title": "Nothing to fold"
+      },
+      "extentMissesLayers": {
+        "text": "None of the layers this precrease goes through lies along that stretch of the line, or the line is creased there already. Click points elsewhere along the line, or crease through all layers.",
+        "title": "No layer to crease there"
+      },
+      "extentMissesPaper": {
+        "text": "That stretch of the line runs over no paper, so there is nothing to crease. Click points where the line crosses the paper.",
+        "title": "No paper there"
+      },
+      "extentOffPaper": {
+        "text": "A point the crease is measured from does not lie on the paper as it is folded now. Click its points along the line where the line crosses the paper.",
+        "title": "A point is off the paper"
+      },
+      "extentTooShort": {
+        "pinch": "This pinch is too short for the paper to take a crease. Crease more of the line.",
+        "segment": "The two points are too close together along the line to crease between them. Click two points farther apart, or pinch there instead.",
+        "title": "Too short to crease"
+      },
+      "insideInfeasible": {
+        "title": "It cannot go inside"
+      },
+      "invalid": {
+        "text": "It would not land on a valid flat model.",
+        "title": "This fold cannot be made"
+      },
+      "kindInfeasible": {
+        "neither": "Neither kind of reverse fold fits here: no way of stacking the layers lets the tip turn. Move the line, or reverse other flaps.",
+        "text": "No way of stacking the layers lets the tip turn this way here. The other kind of reverse fold may fit."
+      },
+      "markOffSheet": {
+        "text": "Part of the mark would lie off the sheet. Click its points along the line inside the paper.",
+        "title": "The mark would leave the paper"
+      },
+      "markOnCrease": {
+        "text": "The mark would lie along a crease that is already there. Mark another stretch of the line, or fold along the crease itself.",
+        "title": "Already creased there"
+      },
+      "marksOverlap": {
+        "text": "The mark would lie over part of a mark made before, in a way the paper cannot take. Mark another stretch of the line, or crease the whole line.",
+        "title": "The marks would overlap"
+      },
+      "markTooShort": {
+        "text": "On one of its layers the mark would be too short for the paper to take a crease. Crease more of the line.",
+        "title": "Too short to crease"
+      },
+      "moverStays": {
+        "text": "The layer that carries the point to move is not among the layers folding. Include its flap, or fold every layer.",
+        "title": "The point would stay put"
+      },
+      "nearMiss": {
+        "text": "The line passes just beside a point of the paper: too close to fold cleanly, too far to go through it.",
+        "title": "Too close to a point"
+      },
+      "noMovingSide": {
+        "text": "No paper lies on the side of the line that would move. Swap the moving side, or move the line onto the paper.",
+        "title": "Nothing to fold"
+      },
+      "noRoot": {
+        "text": "These references give no fold line on the paper as it is folded. Pick other references.",
+        "title": "No fold here"
+      },
+      "noSide": {
+        "text": "Nothing says which side of the line moves. Pick a point off the line, on the side to move.",
+        "title": "Which side moves?"
+      },
+      "nothingStays": {
+        "text": "Every layer is on the moving side, so nothing would stay put. Pick a flap to fold.",
+        "title": "Everything would move"
+      },
+      "offPaper": {
+        "text": "A point or edge the line was located from does not lie on the paper as it is folded now. Locate the line again.",
+        "title": "A reference is not on the paper"
+      },
+      "outsideInfeasible": {
+        "title": "It cannot wrap round the outside"
+      },
+      "pickAgain": {
+        "text": "That spot is not inside a layer on the moving side. Pick inside a layer, away from its creases.",
+        "title": "Pick again"
+      },
+      "pointsTooClose": {
+        "text": "The two points land in the same place on the folded paper, so they make no line. Pick two points farther apart.",
+        "title": "The points are too close"
+      },
+      "precreaseUnfold": {
+        "text": "Unfolding it would move more layers than folding it did.",
+        "title": "This precrease cannot unfold"
+      },
+      "reverseNoOpening": {
+        "bodiesCross": "Parted along its folds, the paper each half hangs on would cross the other’s.",
+        "noBody": "Parted along its folds, one half would hang on nothing that stays put at the line.",
+        "noSpine": "A single layer has no folded edge to reverse along. Reverse a flap of layers joined by a fold.",
+        "noSplit": "Its layers cannot be parted along a fold without a lower layer ending up over an upper one.",
+        "title": "This flap cannot open"
+      },
+      "sinkLineTilted": {
+        "text": "An open sink needs the line exactly square to the point’s centre line: tilted even a little, the point cannot open-sink. The square line at the same depth can.",
+        "title": "The line is not square to the point"
+      },
+      "sinkNoAxis": {
+        "text": "Its outside does not run along two straight sides, so there is no centre line for an open sink’s line to be square to.",
+        "title": "The point has no centre line"
+      },
+      "sinkNoOrder": {
+        "none": "No way of stacking the layers lets the point sink this way here. Move the line, or pick another point.",
+        "otherSink": "No way of stacking the layers lets the point sink this way here. The other kind of sink fits.",
+        "title": "The point cannot sink this way here",
+        "unsink": "No way of stacking the layers lets the sunk point come back out here.",
+        "unsinkTitle": "The point cannot come back out here"
+      },
+      "sinkNoPocket": {
+        "text": "No gap between its layers runs the whole way round its outside for the tip to go into, so it cannot closed-sink.",
+        "title": "The point has no pocket"
+      },
+      "sinkOutlineMixed": {
+        "text": "The point’s outside edges are mountain folds and valley folds both: it has no one outside to turn inside out, so it cannot open-sink.",
+        "title": "Its outside is not one fold"
+      },
+      "sinkPointOpen": {
+        "text": "Raw edges reach its tip: its layers are free corners, not a closed point, so nothing says how they would sink. Sink a point whose layers are joined at the tip.",
+        "title": "The point is open"
+      },
+      "sinkSeveralPoints": {
+        "text_one": "{{count}} point lies on the tip side, and a sink takes one. Pick the point to sink.",
+        "text_other": "{{count}} points lie on the tip side, and a sink takes one. Pick the point to sink.",
+        "title": "Pick one point"
+      },
+      "sliver": {
+        "text": "A point of the moving layers would land a hair’s breadth inside another layer’s edge.",
+        "title": "A point lands just inside an edge"
+      },
+      "stackedTooDeep": {
+        "fold": "This fold would stack the layers too deeply for Fold to work out their order, up to {{deepest, number}} on top of each other. Fold fewer layers.",
+        "pattern": "This crease pattern stacks its layers too deeply for Fold to work out their order, up to {{deepest, number}} on top of each other. Import a simpler pattern.",
+        "step": "This step stacks its layers too deeply for Fold to work out their order, up to {{deepest, number}} on top of each other. It and the steps after it can only be deleted.",
+        "title": "Layers stacked too deep"
+      },
+      "tipNotFree": {
+        "text": "Other layers lie where the tip would turn. Include their flaps in the fold, or reverse it somewhere else.",
+        "title": "Layers are in the way"
+      },
+      "tooManyFaces": {
+        "fold": "This fold would make {{faceCount, number}} faces, more than the {{limit, number}} Fold folds. Fold fewer layers.",
+        "note": "{{faceCount, number}} faces, more than the {{limit, number}} Fold folds",
+        "pattern": "This crease pattern has {{faceCount, number}} faces, and Fold folds patterns of up to {{limit, number}}. Import a simpler pattern.",
+        "step": "This step has {{faceCount, number}} faces, more than the {{limit, number}} Fold folds. It and the steps after it can only be deleted.",
+        "title": "Too many faces"
+      },
+      "tooSmall": {
+        "text": "The fold would leave a crease or a strip of paper thinner than the paper itself.",
+        "title": "Too small to fold"
+      },
+      "tuckInfeasible": {
+        "none": "No way of stacking the layers puts the flap right against that layer. Tuck fewer flaps, or locate another line.",
+        "text": "No way of stacking the layers puts the flap right against that layer. Another layer here takes it.",
+        "titleOver": "It cannot be tucked over that layer",
+        "titleUnder": "It cannot be tucked under that layer"
+      },
+      "tuckNoTarget": {
+        "over": "No layer that stays can take the flap over it here. Fold it the other way, swap the moving side, or locate another line.",
+        "title": "No layer takes the tuck here",
+        "under": "No layer that stays can take the flap under it here. Fold it the other way, swap the moving side, or locate another line."
+      },
+      "tuckTarget": {
+        "text": "Pick a layer that stays put to tuck the flap against.",
+        "title": "The layer to tuck under would move"
+      },
+      "unsinkNotSunk": {
+        "text": "Nothing sunk lies inside the paper along this line. Locate the ring a sink left, and pick the sunk point inside it.",
+        "title": "No sunk point here"
+      },
+      "unsupported": {
+        "text": "This version of Ori Studio cannot fold it as it is stored.",
+        "title": "This step cannot be folded"
+      },
+      "wrongCrease": {
+        "text": "Unfold along a folded edge, and refold along a flat crease.",
+        "title": "Not that kind of crease"
+      }
+    },
+    "reverse": {
+      "auto": "Automatic",
+      "bothFit": "Both kinds fit here: choose which way the tip goes.",
+      "inside": "Inside",
+      "intentHelp": "Automatic uses the kind that fits. A chosen kind stays selected if it cannot fold.",
+      "kind": "Kind",
+      "next": "Next",
+      "ofCount": "{{index}} of {{total}}",
+      "opening": "Opening",
+      "openingsTruncated": "More openings may exist. Narrow the selected flaps to explore them.",
+      "order": "Layer order",
+      "outside": "Outside",
+      "previous": "Previous",
+      "requestedKind": "Reverse kind",
+      "tipSide": "Tip side"
+    },
+    "rotate": {
+      "amount": "Amount",
+      "degrees": "Exact angle",
+      "direction": "Direction",
+      "presetTooltip": "{{fraction}} turn, {{degrees}}°"
+    },
+    "scopeLabel": "fold",
+    "section": {
+      "label": "Layers at the fold line, top to bottom",
+      "labelWoven": "Layers at the fold line under the pointer, top to bottom",
+      "row": "Layer {{layer}}, {{flap}}",
+      "rowAdded": "Layer {{layer}}, {{flap}}, moves with the fold",
+      "rowAddedBeside": "Layer {{layer}}, {{flap}}, moves with the fold, beside layer {{above}}",
+      "rowBeside": "Layer {{layer}}, {{flap}}, beside layer {{above}}",
+      "top": "Top"
+    },
+    "sink": {
+      "bothFit": "Both sinks fit here: an open sink turns every layer inside out, a closed one keeps them together.",
+      "closed": "Closed",
+      "depth": "Depth",
+      "depthHelp": "How far the line lies from the point’s tip along its centre line, the paper’s side being 1. Locate the line farther down to sink the point deeper.",
+      "depthValue": "{{depth}} from the tip",
+      "kind": "Sink",
+      "onlyClosed": "Only the closed sink fits here.",
+      "onlyOpen": "Only the open sink fits here.",
+      "open": "Open",
+      "pocket": "Pocket",
+      "pocketBack": "Back",
+      "pocketFront": "Front",
+      "sunkSide": "Sunk side"
+    },
+    "steps": {
+      "axiom1First": "Click the first point the fold passes through.",
+      "axiom1FirstTouch": "Tap the first point the fold passes through.",
+      "axiom1Second": "Click the second point.",
+      "axiom1SecondTouch": "Tap the second point.",
+      "axiom2Land": "Click where it should land.",
+      "axiom2LandTouch": "Tap where it should land.",
+      "axiom3Move": "Click the edge or crease to move.",
+      "axiom3MoveTouch": "Tap the edge or crease to move.",
+      "axiom3Onto": "Click the edge or crease to lay it on.",
+      "axiom3OntoTouch": "Tap the edge or crease to lay it on.",
+      "axiom4Through": "Click the point the fold passes through.",
+      "axiom4ThroughTouch": "Tap the point the fold passes through.",
+      "axiom5Pivot": "Click the pivot the fold passes through.",
+      "axiom5PivotTouch": "Tap the pivot the fold passes through.",
+      "axiom6FirstPoint": "Click the first point to move.",
+      "axiom6FirstPointTouch": "Tap the first point to move.",
+      "axiom6SecondLine": "Click the edge or crease that one should land on.",
+      "axiom6SecondLineTouch": "Tap the edge or crease that one should land on.",
+      "axiom6SecondPoint": "Click the second point to move.",
+      "axiom6SecondPointTouch": "Tap the second point to move.",
+      "commit": "Press Enter to fold.",
+      "commitOrClick": "Press Enter, or click {{action}}, to fold.",
+      "commitTouch": "Tap {{action}} to fold.",
+      "crease": "Click the crease or folded edge to fold along.",
+      "creaseTouch": "Tap the crease or folded edge to fold along.",
+      "crimpFinish": "Choose Inside or Outside, then press Enter.",
+      "crimpFinishTouch": "Choose Inside or Outside, then tap {{action}}.",
+      "crimpFirstCrease": "Click the crease or folded edge where the flap turns in.",
+      "crimpFirstCreaseTouch": "Tap the crease or folded edge where the flap turns in.",
+      "crimpFirstStart": "Click where the first line starts, nearer the body: where the flap turns in.",
+      "crimpFirstStartTouch": "Tap where the first line starts, nearer the body: where the flap turns in.",
+      "crimpKindBoth": "Choose Inside to tuck the end inside the flap, or Outside to wrap it round.",
+      "crimpLayers": "Under Layers, leave out any flap that should not crimp.",
+      "crimpSecondCrease": "Click the crease or folded edge beyond the first line where the flap turns back out.",
+      "crimpSecondCreaseTouch": "Tap the crease or folded edge beyond the first line where the flap turns back out.",
+      "crimpSecondStart": "Click where the second line starts, beyond the first toward the tip: where the flap turns back out.",
+      "crimpSecondStartTouch": "Tap where the second line starts, beyond the first toward the tip: where the flap turns back out.",
+      "crimpTipEnd": "The end beyond the second line turns: if it is the wrong end, press Swap.",
+      "divide": "Click an edge or crease to divide it.",
+      "divideTouch": "Tap an edge or crease to divide it.",
+      "divideUse": "Use the new points as references for any fold.",
+      "finish": "Pick the fold and the layers, then press Enter.",
+      "finishTouch": "Pick the fold and the layers, then tap {{action}}.",
+      "freeEnd": "Click where it ends.",
+      "freeEndTouch": "Tap where it ends.",
+      "freeStart": "Click where the fold line starts.",
+      "freeStartTouch": "Tap where the fold line starts.",
+      "landOnLine": "Click the edge or crease it should land on.",
+      "landOnLineTouch": "Tap the edge or crease it should land on.",
+      "perpendicularTo": "Click the edge or crease the fold is perpendicular to.",
+      "perpendicularToTouch": "Tap the edge or crease the fold is perpendicular to.",
+      "pickFlapsToReverse": "Pick which flaps reverse.",
+      "pickFlapsToTuck": "Pick which flaps tuck.",
+      "pickLayers": "Pick which layers move.",
+      "pickPoint": "Pick which point sinks: a sink takes one.",
+      "pickSunkPoint": "The sunk point is found for you: pick another in the layers to pull that out.",
+      "pickTuckTarget": "Pick the layer to tuck against.",
+      "pinchAt": "Click where to pinch along the line.",
+      "pinchAtTouch": "Tap where to pinch along the line.",
+      "pointToMove": "Click the point to move.",
+      "pointToMoveTouch": "Tap the point to move.",
+      "repeatAxes": "Point at a symmetry axis drawn on the paper to preview it, and click it to take it — or locate one with Locate line, on either pane.",
+      "repeatAxesTouch": "Tap a symmetry axis drawn on the paper, or locate one with Locate line, on either pane.",
+      "repeatCommit": "Press Enter to add the repeated folds.",
+      "repeatCommitTouch": "Tap {{action}} to add the repeated folds.",
+      "repeatStart": "Choose the first step to repeat. The range ends at the step on screen.",
+      "reverseFinish": "Pick which flaps reverse, then press Enter.",
+      "reverseFinishTouch": "Pick which flaps reverse, then tap {{action}}.",
+      "rotateCommit": "Press Enter to add the turn.",
+      "rotateCommitTouch": "Tap {{action}} to add the turn.",
+      "rotateDirection": "Choose which way it turns.",
+      "rotateHowFar": "Choose how far to turn the model.",
+      "segmentFrom": "Click where the crease starts along the line.",
+      "segmentFromTouch": "Tap where the crease starts along the line.",
+      "segmentTo": "Click where it ends.",
+      "segmentToTouch": "Tap where it ends.",
+      "sinkFinish": "Pick the point, then press Enter.",
+      "sinkFinishTouch": "Pick the point, then tap {{action}}.",
+      "tuckFinish": "Pick the flaps and the layer to tuck against, then press Enter.",
+      "tuckFinishTouch": "Pick the flaps and the layer to tuck against, then tap {{action}}.",
+      "unfoldCommit": "Press Enter to add the step.",
+      "unfoldCommitTouch": "Tap {{action}} to add the step.",
+      "unfoldTarget": "Choose the step to return to."
+    },
+    "tool": {
+      "closedSinkHelp": "Push a closed point’s tip into a pocket, its layers kept together.",
+      "crimpHelp": "Fold a flap in along one line and back out along a second, so its end turns.",
+      "divideLine": "Divide line",
+      "divideLineHelp": "Mark points that divide an edge or a crease into equal parts.",
+      "insideReverse": "Inside reverse fold",
+      "mountain": "Mountain fold",
+      "mountainHelp": "Fold the moving side away from you, so it lands underneath.",
+      "openSinkHelp": "Push a closed point’s tip in, turning every layer of it inside out.",
+      "pleatHelp": "Make a pleat: locate the mountain line, then the valley line.",
+      "precrease": "Precrease",
+      "precreaseHelp": "Fold and unfold, leaving a crease to use later.",
+      "repeatAxisHelp": "Fold a range of steps again across a symmetry axis, on the other side or behind, previewed, then added as a step.",
+      "reverse": "Reverse fold",
+      "reverseHelp": "Reverse a flap inside itself or wrap it around the outside, reversing its spine.",
+      "rotateHelp": "Turn the model round by a part of a turn or an exact angle, previewed, then applied as a step of its own.",
+      "tuckHelp": "Fold a flap and slide it under, or over, a layer that stays.",
+      "unfoldToHelp": "Return the paper to an earlier step’s pose, keeping every crease made since, previewed, then added as a step.",
+      "unsinkHelp": "Pull a sunk point’s tip back out.",
+      "valley": "Valley fold",
+      "valleyHelp": "Fold the moving side toward you, so it lands on top."
+    },
+    "tuck": {
+      "alsoOver": "Also tuck over layer {{number}}",
+      "alsoUnder": "Also tuck under layer {{number}}",
+      "noTargets": "No layer here takes the tuck.",
+      "over": "Tuck over",
+      "targetsOver_one": "One layer here takes the tuck over it.",
+      "targetsOver_other": "{{count}} layers here take the tuck over them: the folded paper lights each.",
+      "targetsUnder_one": "One layer here takes the tuck under it.",
+      "targetsUnder_other": "{{count}} layers here take the tuck under them: the folded paper lights each.",
+      "under": "Tuck under"
+    },
+    "verb": {
+      "turnOverHelp": "Turn the model over, side to side, as a step of its own."
+    },
+    "vertex": {
+      "direction": "Direction",
+      "directionCannot": "This way it cannot fold flat here.",
+      "fix": {
+        "creaseKites": "Crease the kites as it folds",
+        "emergent": "Use the fourth crease that fits",
+        "emergentNumber": "Use fourth crease {{number}}",
+        "otherRidge": "Use the other ridge",
+        "otherWay": "Fold it the other way",
+        "precreaseHinge": "Precrease the hinge first",
+        "precreaseKite": "Precrease the kite",
+        "resetTarget": "Put the spine onto the hinge"
+      },
+      "help": {
+        "petalHinge": "Lift a flap’s lower point along a hinge while its sides fold in along two kite creases.",
+        "rabbitEar": "Fold a triangle’s corners in along their bisectors, so a point stands up.",
+        "squash": "Open a two-layer flap and press it flat, its spine onto its hinge.",
+        "swivelEdge": "Swivel an edge onto a line, pivoting at a point."
+      },
+      "hingeRegionBlocked": "This hinge region cannot fold with these layers. Click another region or change the layers.",
+      "hingeRegionBlockedTouch": "This hinge region cannot fold with these layers. Tap another region or change the layers.",
+      "hingeRegionFits": "The hinge crease lies in the selected region.",
+      "input": {
+        "edge": "Edge onto line",
+        "edgeHelp": "Choose an edge and the line it should land on",
+        "label": "Construct by",
+        "valleyMountain": "Valley and mountain",
+        "valleyMountainHelp": "Pick the valley and the mountain on the layer you see, meeting on a folded edge; the crease behind follows"
+      },
+      "intro": {
+        "petalLift": "Lifts a flap’s point up along a hinge.",
+        "swivelSwing": "Swings an edge of the paper onto a line."
+      },
+      "layers": "Layers",
+      "layersAll_one": "All {{count}}",
+      "layersAll_other": "All {{count}}",
+      "layersBottom_one": "Bottom {{count}} of {{total}}",
+      "layersBottom_other": "Bottom {{count}} of {{total}}",
+      "layersTop_one": "Top {{count}} of {{total}}",
+      "layersTop_other": "Top {{count}} of {{total}}",
+      "lineBy": {
+        "creaseOrEdge": "Crease or edge",
+        "creaseOrEdgeHelp": "Click a crease or an edge already there",
+        "hinge": "Hinge",
+        "hingeCrease": "Hinge crease",
+        "hingeCreaseHelp": "Click a precrease already across the flap",
+        "target": "Lands on",
+        "twoEndpoints": "Two endpoints",
+        "twoEndpointsHelp": "Click the hinge’s two ends: the fold creases it",
+        "twoPoints": "Two points",
+        "twoPointsHelp": "Click two points on the line"
+      },
+      "mountain": "Mountain",
+      "mountainTitle": "Mountain: the paper turns away from you",
+      "note": {
+        "petalCreasesAll": "The fold creases the hinge through the top layer and both kite creases through the top two layers as the flap lifts.",
+        "petalCreasesHinge": "The fold creases the hinge through the top layer as the flap lifts. The kite creases are there already.",
+        "petalCreasesHingeKite": "The fold creases the hinge through the top layer and one kite crease through the top two layers as the flap lifts. The other kite crease is there already.",
+        "petalCreasesKite": "The fold creases one kite crease through the top two layers as the flap lifts. The hinge and the other kite crease are there already.",
+        "petalCreasesKites": "The fold creases both kite creases through the top two layers as the flap lifts. The hinge is there already.",
+        "petalRefolds": "Every crease it folds is there already: it refolds the hinge and the kite creases.",
+        "rabbitEarMeet": "The creases meet at the triangle’s incenter: one to each corner, and a fourth the ear stands up along.",
+        "snapOrFree": "Points snap to corners, crossings, marks and midpoints: hold {{modifier}} to put one anywhere.",
+        "snapOrFreeTouch": "Points snap to corners, crossings, marks and midpoints: turn on Free point to put one anywhere.",
+        "squashFlap": "A flap squashes when its two layers are joined only at its hinge and nothing lies on top of it.",
+        "swivelPicture": "The creases meet at the dot, the edge lands on the bold line, and the lit paper moves.",
+        "swivelValleyMountainPicture": "The creases meet at the dot. The dotted crease is on the layer behind, and follows from the valley and the mountain; the lit paper moves."
+      },
+      "refusal": {
+        "blocked": {
+          "steppers": "A crease would run into paper that does not fold with it, or paper would hold two parts of the fold together. Step Layers to fold more layers, or Fourth crease to another one.",
+          "swivelEdge": "A crease would run into paper that does not fold with it, or paper would hold two parts of the fold together. Pick another pivot, or another line for the edge to land on.",
+          "swivelOnFold": "A crease would run into a fold before it reaches the paper’s edge, or paper would hold two parts of the swivel together. Pick another folded edge, or another line for the edge to land on.",
+          "swivelValleyMountain": "A crease would run into a fold before it reaches the paper’s edge, or paper would hold two parts of the swivel together. Pick another valley or another mountain.",
+          "title": "Paper is in the way"
+        },
+        "center": {
+          "textEar": "The triangle’s creases meet at its incenter, which lies on a crease or off the layers. Pick corners that put it inside the layers, away from their creases.",
+          "textSwivelEdge": "The creases meet where the pivot sits, moved onto the line halfway between the edge and the line it lands on, and that is on a crease or off the paper. Press Esc and pick another pivot.",
+          "textSwivelStep": "The point the creases meet at is on a crease or off the paper. Press Esc and place it again as step 1 says: inside the paper, away from every crease.",
+          "title": "The creases cannot meet there"
+        },
+        "covered": {
+          "text": "Other layers lie over the flap, or inside it, on the side it opens toward. Fold them out of the way first, or squash it the other way.",
+          "title": "The flap is covered"
+        },
+        "fourthBesideStayer": {
+          "text": "The flap rises along the fourth crease, so it lies across from the paper that stays put. Pick another fourth crease, or other paper to stay put.",
+          "title": "The fourth crease is beside the paper that stays"
+        },
+        "fourthCannotRise": {
+          "text": "The fourth crease folds the other way from the other three, and the angles between these creases do not let it. Pick another fourth crease, or other points.",
+          "title": "The fourth crease cannot rise here"
+        },
+        "kite": {
+          "creaseOrPrecrease": "Over a hinge crease, a petal fold refolds creases already there, and a kite crease is not. Name the hinge by its two ends instead, and the fold creases the kites itself; or precrease them first, with the Precrease tool on Axiom 3: a lower edge of the top flap onto its centre line, the flaps behind left out.",
+          "titleMissing": "The kite creases are not there"
+        },
+        "line": {
+          "crease": "The hinge crease does not run through every layer below it that folds. Precrease the hinge through every layer, then petal fold.",
+          "ends": "The hinge crosses paper of the second layer that folds in beside the kite, and the fold cannot crease that as the flap lifts. Precrease the hinge through every layer, then petal fold.",
+          "titleHinge": "Precrease the hinge first"
+        },
+        "lineMeeting": {
+          "textValleyMountain": "The valley and the mountain meet at a point of a folded edge you can see, away from its ends. Pick two lines that cross there.",
+          "titleValleyMountain": "The lines do not meet on a folded edge"
+        },
+        "noFlap": {
+          "hingeOffSpine": "The hinge line must cross the flap’s folded edge, with the end you click on one side of it.",
+          "noHinge": "The flap folds over no hinge at either end of its spine, so there is nothing to press it flat against.",
+          "noSpine": "These layers are not joined by a single folded edge, so there is no spine to open. A closed flap, joined through folded-in sides, cannot be squashed yet.",
+          "singleLayer": "Only one layer lies here. Click a flap of two layers joined along a folded edge.",
+          "title": "No flap to squash here",
+          "upperNotHinged": "The flap’s top layer is held by its spine alone: pressed flat, its hinge side would lie loose."
+        },
+        "noOrder": {
+          "none": "No way of stacking the layers lets it fold flat here. Pick other points, or fold the layers in its way first.",
+          "otherWay": "No way of stacking the layers lets it fold flat this way here. Folded the other way, it fits.",
+          "petal": "It cannot be petal-folded here",
+          "rabbitEar": "The ear cannot fold flat here",
+          "squash": "It cannot be squashed flat here",
+          "swivel": "It cannot swivel flat here"
+        },
+        "noPetal": {
+          "missesFlap": "The flap you clicked lies wholly on one side of the hinge. Click the flap the hinge runs across, or pick a hinge from one of its folded edges to the other.",
+          "missesFlapTitle": "The hinge misses the flap",
+          "noCornerHinge": "The kite creases from the hinge’s ends do not meet below it, so there is no point to lift. Pick a hinge whose ends lie where the kite creases meet the flap’s edges.",
+          "noCornerTitle": "No point to lift",
+          "noEndsHinge": "A petal fold’s hinge runs across the flap from one folded edge to the other, and this one crosses one of them, or neither. Pick a hinge whose ends lie on the flap’s two folded edges.",
+          "noEndsTitle": "The hinge does not cross the flap",
+          "pastCorner": "The kite creases from the hinge’s ends meet below it, but the flap reaches past where they meet, and that paper would fold no way. Move the hinge farther from the flap’s closed point: its ends where the kite creases meet the flap’s edges.",
+          "pastCornerTitle": "The hinge is too near the closed point"
+        },
+        "notFlat": {
+          "spread": "No fourth crease lets these creases lie flat: two of them point the same way, or two neighbours are half a turn or more apart. Press Esc and pick points spread more evenly round the meeting point.",
+          "swivelEdge": "No crease lets the edge turn onto that line and lie flat from this pivot. Press Esc and pick another pivot, or another line.",
+          "title": "It cannot fold flat"
+        },
+        "notFree": {
+          "text": "The flap is joined to other paper away from its hinge. Only a flap held along its hinge alone opens flat: unfold what holds it first.",
+          "title": "The flap is held elsewhere"
+        },
+        "petalCovered": {
+          "text": "Other layers lie over the flap on the side it lifts toward. Fold them out of the way first, or lift it the other way.",
+          "title": "The flap is covered"
+        },
+        "ridgeBesideStayer": {
+          "pivot": "The flap rises along the ridge, so it lies across from the paper that stays put, and here it does not. Pick another pivot.",
+          "title": "The ridge is beside the paper that stays"
+        },
+        "ridgeCannotRise": {
+          "pivot": "The ridge folds the other way from the other three creases, and the angles between them do not let it. Pick another pivot.",
+          "title": "The ridge cannot rise here"
+        },
+        "stayer": {
+          "swivelEdge": "The paper beside the line, which stays put, is joined to no part of the fold. Pick another pivot, nearer where the edge meets the line.",
+          "text": "The paper picked to stay put is joined to no part of the fold. Pick paper the creases cut, or paper joined to it.",
+          "title": "Which paper stays?"
+        },
+        "swivelEdgeShort": {
+          "text": "No part of the edge lies past the point square below the pivot, so none of it would swivel. A plain fold along the line halfway between the edge and its target lays it there instead.",
+          "title": "The edge ends before it would turn"
+        },
+        "swivelEdgeStays": {
+          "onFold": "Neither layer the folded edge joins holds the edge that moves, so it would stay put. Pick a folded edge of the edge’s own layer, or another edge.",
+          "text": "The paper along the edge would stay put, or fold across the hinge, rather than turn onto the line. Pick a pivot nearer the edge, or another edge.",
+          "title": "The edge would stay put"
+        },
+        "swivelFoldWide": {
+          "text": "On the moving edge’s side the swivel crease meets the folded edge at a right angle or more, which leaves the other layer no room to fold. Pick a line for the edge to land on that turns it further, or another folded edge.",
+          "title": "The swivel crease meets the edge too steeply"
+        },
+        "swivelInsideFree": {
+          "text": "An inside swivel tucks its strip between the two layers a folded edge joins, and these creases meet away from any folded edge. Press Esc and click a folded edge for the creases to meet on.",
+          "title": "An inside swivel needs a folded edge"
+        },
+        "swivelMissesFold": {
+          "text": "The swivel folds along the line halfway between the edge and the line it lands on, and that line does not cross this folded edge between its ends. Press Esc and pick the folded edge it crosses, or another line.",
+          "title": "The creases cannot meet on that edge"
+        },
+        "swivelNoFlap": {
+          "text": "The valley and the mountain leave the folded edge into the paper, in two directions, with the flap between them. One of these runs along the folded edge, or both lie on one line: pick another.",
+          "title": "No flap between the lines"
+        },
+        "swivelNotAFold": {
+          "text": "The creases can meet on a folded edge only where the paper is folded, and the point picked lies on no fold. Press Esc and click the folded edge again.",
+          "title": "That is no folded edge"
+        },
+        "swivelNotAnEdge": {
+          "text": "A swivel moves a raw edge of the paper or a folded edge, and the line picked is neither. Press Esc and pick the edge again.",
+          "title": "That is no edge"
+        },
+        "swivelPivotOnEdge": {
+          "text": "The creases meet where the pivot sits, moved onto the line halfway between the edge and the line it lands on, and here that is on the edge itself. Press Esc and pick a pivot farther from where the edge meets the line.",
+          "title": "The creases would meet on the edge"
+        },
+        "swivelTargetParallel": {
+          "text": "No turn about a point lays an edge on a line parallel to it, or on its own line. Pick a line that meets the edge’s line.",
+          "title": "The line runs parallel to the edge"
+        },
+        "targetOutside": {
+          "text": "The spine lands between where it lies and the hinge. Click a point inside the flap, or put it back onto the hinge.",
+          "title": "The spine cannot land there"
+        }
+      },
+      "reset": "Back to the hinge",
+      "ridge": "Ridge",
+      "squashHinge": {
+        "folded": "Folded edge",
+        "foldedHelp": "The fold the flap’s lower layer turns over: the whole flap squashes",
+        "intro": "Draw the hinge across the flap’s folded edge. Only the end beyond it squashes.",
+        "label": "Hinge",
+        "line": "Line",
+        "lineHelp": "A line you draw: only the flap’s end beyond it squashes",
+        "lineMode": "Hinge line",
+        "take": "Press Enter to take it as the hinge.",
+        "takeTouch": "Tap Use as the hinge.",
+        "use": "Use as the hinge"
+      },
+      "steps": {
+        "earChoose": "Choose the layers, or click another region for the hinge crease.",
+        "earChooseTouch": "Choose the layers, or tap another region for the hinge crease.",
+        "earFinish": "Press Enter to fold.",
+        "earFinishTouch": "Tap {{action}} to fold.",
+        "earFirstCorner": "Click the triangle’s first corner.",
+        "earFirstCornerTouch": "Tap the triangle’s first corner.",
+        "earHingeRegion": "Click the region where the hinge crease goes.",
+        "earHingeRegionTouch": "Tap the region where the hinge crease goes.",
+        "earSecondCorner": "Click its second corner.",
+        "earSecondCornerTouch": "Tap its second corner.",
+        "earThirdCorner": "Click its third corner.",
+        "earThirdCornerTouch": "Tap its third corner.",
+        "fixOrPickAgain": "Click a fix below, or press Esc and pick again.",
+        "fixOrPickAgainTouch": "Tap a fix below, or tap Cancel and pick again.",
+        "petalFinish": "Choose Valley or Mountain, then press Enter.",
+        "petalFinishTouch": "Choose Valley or Mountain, then tap {{action}}.",
+        "petalFlap": "Click the flap that lifts, below the hinge.",
+        "petalFlapTouch": "Tap the flap that lifts, below the hinge.",
+        "petalHinge": "Click the hinge: a precrease across the flap.",
+        "petalHingeFirstEnd": "Click one end of the hinge, where a kite crease meets the flap’s edge.",
+        "petalHingeFirstEndTouch": "Tap one end of the hinge, where a kite crease meets the flap’s edge.",
+        "petalHingeSecondEnd": "Click its other end, where the other kite crease meets the edge.",
+        "petalHingeSecondEndTouch": "Tap its other end, where the other kite crease meets the edge.",
+        "petalHingeTouch": "Tap the hinge: a precrease across the flap.",
+        "petalWay": "Choose which way it lifts, or click another flap to lift that one.",
+        "petalWayTouch": "Choose which way it lifts, or tap another flap to lift that one.",
+        "pickAgainRead": "Press Esc and pick again: the notice below says what to change.",
+        "pickAgainReadTouch": "Tap Cancel and pick again: the notice below says what to change.",
+        "squashEnd": "Click the end of the flap to squash, on one side of the line.",
+        "squashEndTouch": "Tap the end of the flap to squash, on one side of the line.",
+        "squashFlap": "Click the flap to squash.",
+        "squashFlapTouch": "Tap the flap to squash.",
+        "squashSpine": "The spine lands on the bold line: click the paper to land it elsewhere.",
+        "squashSpineTouch": "The spine lands on the bold line: tap the paper to land it elsewhere.",
+        "swivelLands": "Click the line it lands on.",
+        "swivelLandsFirst": "Click a point on the line it lands on.",
+        "swivelLandsFirstTouch": "Tap a point on the line it lands on.",
+        "swivelLandsTouch": "Tap the line it lands on.",
+        "swivelMeet": "Click the folded edge the creases meet on, anywhere along it. On flat paper, click where they meet, or hold {{modifier}} for any point.",
+        "swivelMeetTouch": "Tap the folded edge the creases meet on, anywhere along it. On flat paper, tap where they meet, or turn on Free point for any point.",
+        "swivelNothingSwings": "Nothing can swing from there: click another point.",
+        "swivelNothingSwingsTouch": "Nothing can swing from there: tap another point.",
+        "swivelOntoSecond": "Click a second point on that line.",
+        "swivelOntoSecondTouch": "Tap a second point on that line.",
+        "swivelSwing": "Click the edge to swing onto a line.",
+        "swivelSwingTouch": "Tap the edge to swing onto a line."
+      },
+      "swivelInside": "Inside",
+      "swivelInsideHelp": "Inside swivel: the strip tucks between the layers",
+      "swivelKind": "Kind",
+      "swivelKindCannot": "This kind cannot fold flat here.",
+      "swivelOpen": "Open",
+      "swivelOpenHelp": "Open swivel: the strip folds up on top",
+      "target": "Spine lands on",
+      "targetHinge": "The hinge line",
+      "targetPoint": "The point clicked",
+      "valley": "Valley",
+      "valleyMountain": {
+        "mountainLine": "Mountain line",
+        "mountainStep": "Mountain line: {{instruction}}",
+        "pickMountain": "Pick the mountain line, from the same point on the folded edge. The crease on the layer behind follows, dotted where it is hidden.",
+        "pickValley": "Pick the valley line: the flap’s hinge, on the layer you see, from a point on a folded edge into the paper.",
+        "pickValleyInside": "Pick the valley line: on the layer you see, from a point on a folded edge into the paper.",
+        "takeValley": "Press Enter to take it as the valley.",
+        "takeValleyTouch": "Tap Use as the valley.",
+        "useValley": "Use as the valley",
+        "valleyLine": "Valley line",
+        "valleyStep": "Valley line: {{instruction}}"
+      },
+      "valleyTitle": "Valley: the paper turns toward you"
+    },
+    "window": {
+      "cancel": "Cancel",
+      "finding": "Finding the layers at the line…",
+      "instructions": "Instructions",
+      "kind": "Fold",
+      "label": "Fold tool options",
+      "layers": "Layers",
+      "layersHelp": "Click a layer to include or exclude its flap. Brackets show where a fold joins two layers.",
+      "layersHelpTouch": "Tap a layer to include or exclude its flap. Brackets show where a fold joins two layers.",
+      "layersHelpWoven": "These layers weave through each other, so the stack shown is the one under the pointer. Click a layer to include or exclude its flap.",
+      "layersHelpWovenTouch": "These layers weave through each other, so the stack shown is the one where you last touched the line. Tap a layer to include or exclude its flap.",
+      "layersMoving_one": "{{moving}} of {{count}} layer moving",
+      "layersMoving_other": "{{moving}} of {{count}} layers moving",
+      "lineMode": "Locate line",
+      "movingSide": "Moving side",
+      "settings_one": "{{count}} setting",
+      "settings_other": "{{count}} settings",
+      "snapFreeLine": "Snap to points",
+      "swap": "Swap"
+    }
   },
   "foldAngleDisplay": {
     "color": "Color",

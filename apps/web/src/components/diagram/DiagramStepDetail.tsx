@@ -37,12 +37,13 @@ import type { DiagramDetailMode } from '../../store/workspaceStore/types';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { knownCreasesOf } from '../../diagram/capture/captureCreases';
 import type { DiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
+import { useDiagramFoldStepPose } from '../../diagram/fold/useDiagramFoldStepPose';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toolbar } from '../ui/Toolbar';
+import { TouchHistoryButtons } from '../ui/TouchHistoryButtons';
 import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
-import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import { DiagramLinkedPoseControls } from './DiagramLinkedPoseControls';
 import { DiagramWayChooser } from './DiagramWayChooser';
 import type { ReferencesStepWayChoice } from '../../diagram/references/useReferencesStepWays';
@@ -154,8 +155,10 @@ export function DiagramStepDetail({
 
   const phone = useIsPhoneLayout();
   const locked = isLockedStep(step);
+  // A Fold step's spread and its drag (plan D17), as a linked pattern's are.
+  const foldPose = useDiagramFoldStepPose(locked ? null : step);
   // In Pose, a spread being dragged shows in the step's place before it is committed (Phase 13).
-  const posed = (mode === 'pose' && linkedPose?.preview) || step;
+  const posed = (mode === 'pose' && (linkedPose?.preview ?? foldPose?.preview)) || step;
   const source = useMemo(() => stepPictureSource(posed, assets), [posed, assets]);
   const { annotations } = posed;
   // A preview is drawn for the moment it is shown, not kept among the cards' pictures.
@@ -226,6 +229,10 @@ export function DiagramStepDetail({
               </IconButton>
             );
           })}
+          {!phone && foldPose?.spreadToggle && (
+            // A Fold step's Spread Layers, as a linked pattern's toolbar has it; a phone's drawer has it with its amount.
+            <DiagramLinkedPoseControls actions={[foldPose.spreadToggle]} keep={keepPoseFocus} />
+          )}
         </>
       )}
     </Toolbar>
@@ -284,7 +291,7 @@ export function DiagramStepDetail({
           />
         )}
         <div className="panel-toolbar__group">
-          <DiagramHistoryButtons />
+          <TouchHistoryButtons />
           <Button size="sm" variant="primary" onClick={onBack}>
             {t('panels:diagram.detail.done', 'Done')}
           </Button>

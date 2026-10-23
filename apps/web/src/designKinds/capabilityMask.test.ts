@@ -20,6 +20,7 @@ const ALL_CONTEXTS: EditingContext[] = [
   'simulate',
   'references',
   'diagram',
+  'fold',
 ];
 
 /**
@@ -83,6 +84,8 @@ const LEGACY_DIAGRAM_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>([
   'edit.delete',
 ]);
 
+const LEGACY_FOLD_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit.redo']);
+
 function legacyMask(
   capabilities: WorkspaceCapabilities,
   context: EditingContext
@@ -112,14 +115,16 @@ function legacyMask(
   // The Diagram joined with a mask of its own: it authors its own document, so
   // it keeps undo, redo and Delete, and hides everything that authors a crease
   // pattern or a tree. Cut, Copy and Paste joined it when annotations could be
-  // copied from one step to another.
-  if (context === 'diagram') {
+  // copied from one step to another. Fold joined the Diagram's arm with undo
+  // and redo alone: it authors its own sequence, so they are live there.
+  if (context === 'diagram' || context === 'fold') {
+    const visibleEdit = context === 'diagram' ? LEGACY_DIAGRAM_VISIBLE_EDIT : LEGACY_FOLD_VISIBLE_EDIT;
     for (const id of ids) {
       const foreign =
         id.startsWith('cp.') ||
         id.startsWith('optimize.') ||
         id.startsWith('insert.') ||
-        (id.startsWith('edit.') && !LEGACY_DIAGRAM_VISIBLE_EDIT.has(id));
+        (id.startsWith('edit.') && !visibleEdit.has(id));
       if (foreign) hide(id);
     }
     return masked;
@@ -174,7 +179,7 @@ function allVisibleCapabilities(): WorkspaceCapabilities {
     oristudioCpSelectedCircleCount: 0,
     hasDeletableDesignSelection: false,
     canSaveDesign: true,
-    hasDiagram: false,
+    hasProjectDocument: false,
     diagramStepCount: 0,
     hasDeletableDiagramSelection: false,
     diagramDeleteTarget: 'step',

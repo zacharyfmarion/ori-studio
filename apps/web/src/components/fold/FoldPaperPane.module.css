@@ -1,0 +1,29 @@
+/*
+ * The Fold Paper tab (FoldPaperPane.tsx): the sequence's paper style, then
+ * the sheet. The rows are the shared field rows; this places the tab's own
+ * notice and swatches.
+ */
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Import starting sheet…, under the shape it replaces. */
+.sheetActions {
+  display: flex;
+  padding: var(--space-1) var(--space-3) var(--space-2);
+}
+
+.notice {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+/* A face's colour beside its Front up / Back up label, in the option's own row. */
+.swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}

@@ -1,5 +1,6 @@
 import earcut from 'earcut';
 import type {
+  PaperFaceItem,
   PaperLineItem,
   PaperLineRole,
   PaperScene,
@@ -9,13 +10,26 @@ import {
   CP_PAPER_RECT,
   cpModelToSvg,
 } from '../../lib/creasePatternViewport';
-import { DEFAULT_PAPER_STYLE, type Hex, type PaperStyle } from '../../lib/paper/paperStyle';
+import {
+  DEFAULT_PAPER_STYLE,
+  PT_TO_CSS_PX,
+  type Hex,
+  type PaperStyle,
+  type Pen,
+} from '../../lib/paper/paperStyle';
 import {
   PAPER_STYLE_POLICIES,
   hexToUnitRgb,
   surfacePaperStyle,
+  type SurfaceStylePolicy,
 } from '../../lib/paper/paperStyleResolve';
-import { erodeLine, faceOutlineLines, paperFaceFill, penForRole } from '../../lib/paper/paperSvg';
+import {
+  erodeLine,
+  faceOutlineLines,
+  paperFaceFill,
+  penDashPt,
+  penForRole,
+} from '../../lib/paper/paperSvg';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type {
@@ -42,7 +56,14 @@ import {
   pointToFrame,
   type BesideAnchor,
 } from '../canvasObjects/placeBesideCp';
-import type { FillGeometry, FoldedGeometry, Rgba, ShadowGeometry } from '../renderer/types';
+import {
+  MAX_DASH_RUNS,
+  MAX_DASH_SLOTS,
+  type FillGeometry,
+  type FoldedGeometry,
+  type Rgba,
+  type ShadowGeometry,
+} from '../renderer/types';
 import { folded3dFrameHalfSide } from '../folded/folded3dFrame';
 import { folded3dStylePlan } from '../folded/folded3dStyle';
 import type { FoldedFlatAuxSegment } from '../folded/foldedFlatAux';
@@ -63,6 +84,9 @@ const ELLIPSE_STEPS = 48;
  * `implementation-plans/unified-paper-style-and-export.md`).
  */
 const KERNEL_STROKE_WIDTH_MUL = 1;
+
+/** A stroke with no pattern: slot 0, which the program draws solid. */
+const SOLID_STROKE = { slot: 0, phase: 0 } as const;
 
 function normColor(c: OristudioCpRgbaColor): Rgba {
   return [c.red / 255, c.green / 255, c.blue / 255, c.alpha / 255];
@@ -305,6 +329,27 @@ function pointInRing(ring: readonly Point[], point: Point): boolean {
   return inside;
 }
 
+/**
+ * A stroke geometry's dash patterns, each once: the slot a pattern draws in is
+ * shared with any equal pattern already here, and 0 — solid — once the
+ * program's {@link MAX_DASH_SLOTS} are taken. One geometry carries one table,
+ * so every figure on the channel shares this one.
+ */
+class DashTable {
+  readonly patterns: number[][] = [];
+  private readonly slots = new Map<string, number>();
+
+  slot(runs: readonly number[]): number {
+    const key = runs.join(',');
+    const known = this.slots.get(key);
+    if (known !== undefined) return known;
+    if (this.patterns.length >= MAX_DASH_SLOTS) return 0;
+    this.patterns.push([...runs]);
+    this.slots.set(key, this.patterns.length);
+    return this.patterns.length;
+  }
+}
+
 class FoldedBuilder {
   fillPos: number[] = [];
   fillColor: number[] = [];
@@ -324,6 +369,13 @@ class FoldedBuilder {
   strokeDepth: number[] = [];
   /** The order stamped onto the next primitive. */
   depth = 0;
+
+  /** Per segment, a slot in {@link dashes} as `StrokeGeometry.dashSlot` numbers it: 0 solid. */
+  strokeDashSlot: number[] = [];
+  /** Per segment, the user units of its pattern before its start: `StrokeGeometry.dashPhase`. */
+  strokeDashPhase: number[] = [];
+  /** The patterns the slots name. */
+  readonly dashes = new DashTable();
 
   /** Layer shadows: see {@link ShadowGeometry}. Edge runs index `shadowEdges`. */
   shadowPos: number[] = [];
@@ -377,7 +429,18 @@ class FoldedBuilder {
     });
   }
 
-  addStrokePolyline(points: Point[], color: Rgba, width: number): void {
+  /**
+   * Segments from one point to the next, solid unless `dash` names a slot;
+   * a dashed polyline's pattern starts `dash.phase` user units before its
+   * first point and runs on along it.
+   */
+  addStrokePolyline(
+    points: Point[],
+    color: Rgba,
+    width: number,
+    dash: { slot: number; phase: number } = SOLID_STROKE
+  ): void {
+    let phase = dash.phase;
     for (let i = 0; i + 1 < points.length; i++) {
       const a = points[i];
       const b = points[i + 1];
@@ -386,6 +449,9 @@ class FoldedBuilder {
       this.strokeColor.push(color[0], color[1], color[2], color[3]);
       this.strokeWidthMul.push(width);
       this.strokeDepth.push(this.depth);
+      this.strokeDashSlot.push(dash.slot);
+      this.strokeDashPhase.push(dash.slot === 0 ? 0 : phase);
+      phase += Math.hypot(b.x - a.x, b.y - a.y);
     }
   }
 
@@ -458,6 +524,9 @@ class FoldedBuilder {
       strokeWidthMul: new Float32Array(this.strokeWidthMul),
       fillDepth: new Float32Array(this.fillDepth),
       strokeDepth: new Float32Array(this.strokeDepth),
+      strokeDashSlot: new Float32Array(this.strokeDashSlot),
+      strokeDashPhase: new Float32Array(this.strokeDashPhase),
+      dashPatterns: this.dashes.patterns,
       auxDepth,
       shadowPos: new Float32Array(this.shadowPos),
       shadowDepth: new Float32Array(this.shadowDepth),
@@ -499,6 +568,23 @@ export interface FoldedFigureLocalGeometry {
    */
   fillDepth: Float32Array;
   strokeDepth: Float32Array;
+  /**
+   * Per stroke segment, its slot in {@link dashPatterns}: 0 solid, `i + 1`
+   * pattern `i`, as `StrokeGeometry.dashSlot` numbers them. Only a stored
+   * scene's dashed pens fill any; a render snapshot is solid.
+   */
+  strokeDashSlot: Float32Array;
+  /**
+   * Per stroke segment, the local user units of its pattern before its start —
+   * `StrokeGeometry.dashPhase`, before the placement scales it.
+   */
+  strokeDashPhase: Float32Array;
+  /**
+   * The figure's own pattern table, CSS px runs for a stroke whose multiplier
+   * is pt ({@link PT_TO_CSS_PX} CSS px each); `cpFoldedToScene` merges every
+   * figure's into one.
+   */
+  dashPatterns: readonly (readonly number[])[];
   /**
    * Where the figure's aux creases go in that order: just above its last fill
    * and below whatever the drawer painted next, so a crease lies on its face
@@ -622,7 +708,42 @@ export function foldedFigureLocalGeometry(
 }
 
 /**
- * The same, for a 3D figure's stored {@link PaperScene}.
+ * How a stored scene is inked beyond its style: the surface it is read as, and
+ * what the drawing lays over its faces. Every field is optional, and absent
+ * draws Edit's 3D figure as it has always been drawn.
+ */
+export interface FoldedSceneInk {
+  /**
+   * The surface the style is read through: `folded-3d` — Edit's 3D figure,
+   * which draws every fold as an edge — unless the caller names another. Fold's
+   * folded pane reads its scene as `fold`, a step diagram, whose folds and
+   * instructions keep their own pens.
+   */
+  policy?: SurfaceStylePolicy;
+  /** Every face's fill alpha, 0..1. Under 1 is X-ray: see {@link foldedSceneLocalGeometry}. */
+  faceAlpha?: number;
+  /**
+   * Overrides by source face ({@link PaperFaceItem.face}), for every piece of
+   * that face: a moving set picked out over the paper, or the layers above it
+   * made translucent so it shows through them.
+   */
+  faces?: ReadonlyMap<number, FoldedFaceInk>;
+}
+
+/** One face's override. Its fill only: the lines on it keep their pens. */
+export interface FoldedFaceInk {
+  /**
+   * A colour laid over the face's paper at its own alpha — a theme accent on
+   * the faces a fold moves, drawn over the paper and never in place of it.
+   */
+  tint?: Rgba;
+  /** The face's fill alpha in place of {@link FoldedSceneInk.faceAlpha}, 0..1. */
+  alpha?: number;
+}
+
+/**
+ * The same, for a stored {@link PaperScene}: a 3D figure's, or any surface's
+ * that paints one on the folded channel.
  *
  * A scene is already in the figure's local user space and already in painter's
  * order, so this is only ink: each face filled with the colour its side and
@@ -636,44 +757,66 @@ export function foldedFigureLocalGeometry(
  * of a pan without a pixel to show for it; the scene keeps them marked so an
  * export that wants them still has them.
  *
- * Unless `faceAlpha` is under 1, which is X-ray: paper the eye can see through
- * shows the layers behind it, so the hidden test is exactly what must not be
- * applied and every marked piece is drawn in place. That is the one thing that
- * makes "Show another solution" visible — under `Paper5` and `Wire2` a figure's
- * solutions hash alike (`foldedFigureCapabilities.ts`) — and the window draws
- * it that way (`folded3dWindowRenderSettings` passes the same alpha), so the
- * canvas has to as well or a figure would change appearance the moment it lost
- * its window. The *export* stays opaque with every layer kept, which is §11's
- * reading and the painter's: a translucent style has no scene form.
+ * Unless a face is drawn under alpha 1 — every face, by `faceAlpha`, or one by
+ * its override — which is X-ray: the hidden test assumes paper the eye cannot
+ * see through, so once any can be, it is exactly what must not be applied and
+ * every marked piece is drawn in place. A piece behind paper that stays opaque
+ * is still covered by it, in the order the scene gives. That is the one thing
+ * that makes "Show another solution" visible — under `Paper5` and `Wire2` a
+ * figure's solutions hash alike (`foldedFigureCapabilities.ts`) — and the
+ * window draws it that way (`folded3dWindowRenderSettings` passes the same
+ * alpha), so the canvas has to as well or a figure would change appearance the
+ * moment it lost its window. The *export* stays opaque with every layer kept,
+ * which is §11's reading and the painter's: a translucent style has no scene
+ * form.
  *
- * Dashes are not drawn: the folded channel strokes segments in one batch with a
- * colour and a width and no pattern, exactly as it always has. A dashed pen on
- * a folded figure therefore reads solid on the canvas and dashed in the file.
+ * A dashed pen dashes as the painter dashes it: its runs are multiples of its
+ * width, and each line's pattern is centred on that line ({@link lineInk}).
+ * The runs are CSS px, so they are right for a frame whose folded stroke width
+ * is device px per pt (`ptToDevicePx(1, dpr)`), which is what makes a stroke
+ * multiplier a width in pt. The program's caps are butt: a round-capped dash
+ * reads square-ended on the canvas, as a solid round-capped line already did.
  *
- * `style` is the figure's effective style; the `folded-3d` policy is applied
- * here, where the painter applies it for the same scene, so the canvas and the
- * file cannot draw one crease at two widths.
+ * `style` is the figure's effective style; the policy is applied here, where
+ * the painter applies it for the same scene, so the canvas and the file cannot
+ * draw one crease at two widths.
  */
 export function foldedSceneLocalGeometry(
   scene: PaperScene,
   effective: PaperStyle,
-  faceAlpha = 1
+  ink: FoldedSceneInk = {}
 ): FoldedFigureLocalGeometry {
-  const style = surfacePaperStyle(effective, PAPER_STYLE_POLICIES['folded-3d']);
-  const ink = `${sceneInkKey(style)}|${faceAlpha}`;
+  const style = surfacePaperStyle(effective, ink.policy ?? PAPER_STYLE_POLICIES['folded-3d']);
+  const faceAlpha = ink.faceAlpha ?? 1;
+  const faces = ink.faces;
+  // The policy is in the key through the style it surfaced: two policies that
+  // see a style alike draw it alike.
+  const key = `${sceneInkKey(style)}|${faceAlpha}|${faces ? faceInkKey(faces) : ''}`;
   const cached = sceneGeometryCache.get(scene);
-  if (cached && cached.ink === ink) return cached.geometry;
+  if (cached && cached.ink === key) return cached.geometry;
 
-  const opaque = faceAlpha >= 1;
+  const opaque = faceAlpha >= 1 && !someFaceSeeThrough(faces);
+  const fill = (face: PaperFaceItem): Rgba =>
+    faceFill(paperFaceFill(style, face.side, face.shade), faceAlpha, faces?.get(face.face));
   const builder = new FoldedBuilder();
   const erodePx = style.erode * scene.sheet;
   const steps = scene.items.length + 1;
+  // Per role, once: a dense scene is thousands of lines in a handful of pens.
+  const inks = new Map<PaperLineRole, LineInk | null>();
+  const inkOf = (role: PaperLineRole): LineInk | null => {
+    if (!inks.has(role)) inks.set(role, lineInk(penForRole(style, role), builder));
+    return inks.get(role) ?? null;
+  };
   const stroke = (line: PaperLineItem): void => {
-    const pen = penForRole(style, line.role);
-    if (!pen) return;
+    const ink = inkOf(line.role);
+    if (!ink) return;
     const eroded = erodeLine(line, erodePx);
     if (!eroded) return;
-    builder.addStrokePolyline(eroded.map(scenePoint), rgbaOf(pen.color, 1), pen.width);
+    const [from, to] = eroded.map(scenePoint) as [Point, Point];
+    // A phase of minus half the line's length puts the pattern's start — the
+    // middle of its first run, when centred — on the line's midpoint.
+    const phase = ink.centred ? -Math.hypot(to.x - from.x, to.y - from.y) / 2 : 0;
+    builder.addStrokePolyline([from, to], ink.color, ink.width, { slot: ink.slot, phase });
   };
   let lastFill = -1;
   for (const [index, item] of scene.items.entries()) {
@@ -681,10 +824,7 @@ export function foldedSceneLocalGeometry(
     builder.depth = (index + 1) / steps;
     if (item.kind === 'face') {
       lastFill = index;
-      builder.addFillRegion(
-        item.rings.map((ring) => ring.map(scenePoint)),
-        rgbaOf(paperFaceFill(style, item.side, item.shade), faceAlpha)
-      );
+      builder.addFillRegion(item.rings.map((ring) => ring.map(scenePoint)), fill(item));
       // At the face's own depth, which the depth test passes over its fill.
       faceOutlineLines(item).forEach(stroke);
     } else if (item.kind === 'line') {
@@ -693,16 +833,127 @@ export function foldedSceneLocalGeometry(
   }
 
   const geometry = builder.buildLocal((lastFill + 1.5) / steps);
-  sceneGeometryCache.set(scene, { ink, geometry });
+  sceneGeometryCache.set(scene, { ink: key, geometry });
   return geometry;
 }
 
 /**
- * Keyed on the scene, and holding the ink it was drawn with — the style's key
- * and the display style's face alpha, which decides which pieces are drawn at
- * all: a scene is replaced whenever the picture changes, and a style change
- * re-inks the same geometry. One entry per scene, because a figure follows one
- * style at a time.
+ * A stored scene as the folded channel's geometry, for a surface that draws a
+ * scene of its own rather than a document's figures: no placement, no figure
+ * entry, no band — the scene's coordinates are the channel's user space.
+ *
+ * Widths and dashes are the crease-pattern canvas's: a stroke multiplier is
+ * pt, so the frame's folded stroke width is device px per pt. The arrays are
+ * the ink cache's ({@link foldedSceneLocalGeometry}), handed over rather than
+ * copied, since the renderer only uploads them; nothing may write to them.
+ */
+export function paperSceneToFoldedGeometry(
+  scene: PaperScene,
+  effective: PaperStyle,
+  ink: FoldedSceneInk = {}
+): FoldedGeometry {
+  const local = foldedSceneLocalGeometry(scene, effective, ink);
+  return {
+    fills: {
+      position: local.fillPos,
+      color: local.fillColor,
+      count: local.fillPos.length / 2,
+      depth: local.fillDepth,
+    },
+    strokes: {
+      a: local.strokeA,
+      b: local.strokeB,
+      color: local.strokeColor,
+      widthMul: local.strokeWidthMul,
+      count: local.strokeA.length / 2,
+      depth: local.strokeDepth,
+      ...(local.dashPatterns.length > 0
+        ? {
+            dashPatterns: local.dashPatterns,
+            dashSlot: local.strokeDashSlot,
+            dashPhase: local.strokeDashPhase,
+          }
+        : {}),
+    },
+  };
+}
+
+/** How the scene's lines in one role are stroked: the pen's ink, and its dash. */
+interface LineInk {
+  color: Rgba;
+  /** pt: a stroke multiplier over a frame's device px per pt. */
+  width: number;
+  /** The builder's slot for the pen's dash; 0 for a solid pen, or one the table had no room for. */
+  slot: number;
+  /** Whether the pattern starts at the middle of its first run, to be centred on each line. */
+  centred: boolean;
+}
+
+/**
+ * A role's pen as the folded channel strokes it, or null for a role the style
+ * leaves out; a dash takes a slot in `builder`'s table.
+ *
+ * The painter centres each line's pattern on it (`centredDashOffset`): the
+ * middle of the first run lands on the line's midpoint. The program measures
+ * a pattern from the segment's start, plus a phase in user units — which a
+ * centring offset cannot be, since half a run is screen px and the line's
+ * length scales with the zoom. So the pattern is handed over already started
+ * half way into its first run — that half, the rest, then the first half
+ * again — and each line's phase is minus half its length, which puts the
+ * pattern's start on the midpoint at every zoom. A pattern with too many
+ * runs for the program to take one more pair goes over as it is, from each
+ * line's start, as every other surface's dashes are drawn.
+ */
+function lineInk(pen: Pen | null, builder: FoldedBuilder): LineInk | null {
+  if (!pen) return null;
+  const solid = { color: rgbaOf(pen.color, 1), width: pen.width, slot: 0, centred: false };
+  const runsPt = penDashPt(pen);
+  if (!runsPt) return solid;
+  // An odd list is walked twice per period, as SVG walks one, so that on and
+  // off keep alternating; the program reads pairs.
+  const runs = (runsPt.length % 2 === 1 ? [...runsPt, ...runsPt] : runsPt).map(
+    (run) => run * PT_TO_CSS_PX
+  );
+  const half = runs[0]! / 2;
+  const centred = [half, ...runs.slice(1), half, 0];
+  const fits = centred.length <= MAX_DASH_RUNS * 2;
+  return { ...solid, slot: builder.dashes.slot(fits ? centred : runs), centred: fits };
+}
+
+/** A face's fill: its paper, under the override's tint, at the override's alpha or every face's. */
+function faceFill(paper: Hex, faceAlpha: number, override: FoldedFaceInk | undefined): Rgba {
+  const [r, g, b] = hexToUnitRgb(paper);
+  const alpha = unit(override?.alpha ?? faceAlpha);
+  const tint = override?.tint;
+  if (!tint) return [r, g, b, alpha];
+  const over = unit(tint[3]);
+  return [r + (tint[0] - r) * over, g + (tint[1] - g) * over, b + (tint[2] - b) * over, alpha];
+}
+
+function someFaceSeeThrough(faces: FoldedSceneInk['faces']): boolean {
+  if (!faces) return false;
+  for (const face of faces.values()) if (face.alpha !== undefined && face.alpha < 1) return true;
+  return false;
+}
+
+/** The overrides as one string, in face order, so an equal map built afresh hits the cache. */
+function faceInkKey(faces: ReadonlyMap<number, FoldedFaceInk>): string {
+  return [...faces]
+    .sort(([l], [r]) => l - r)
+    .map(([face, { tint, alpha }]) => `${face}:${tint ? tint.join(',') : ''}:${alpha ?? ''}`)
+    .join(';');
+}
+
+function unit(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+/**
+ * Keyed on the scene, and holding the ink it was drawn with — the style's key,
+ * the face alpha and the per-face overrides, which decide which pieces are
+ * drawn at all: a scene is replaced whenever the picture changes, and a style
+ * change re-inks the same geometry. One entry per scene, because a figure
+ * follows one style at a time.
  */
 const sceneGeometryCache = new WeakMap<
   PaperScene,
@@ -710,18 +961,19 @@ const sceneGeometryCache = new WeakMap<
 >();
 
 /**
- * Everything about a style that moves a vertex or a colour here, as one string.
+ * Everything about a style that moves a vertex, a colour or a dash here, as
+ * one string.
  *
  * By value and not by identity, because the effective style is a fresh object
  * on every read — `effectivePaperStyle` merges — so an identity check would
  * miss on every frame and re-triangulate a whole figure at pointer rate. What
- * is left out is left out on purpose: a pen's dash and cap are not drawn by
- * the folded channel, and the light is already baked into each face's shade.
+ * is left out is left out on purpose: a pen's cap is not drawn by the folded
+ * channel, and the light is already baked into each face's shade.
  */
 function sceneInkKey(style: PaperStyle): string {
   const pens = PAPER_LINE_ROLES.map((role) => {
     const pen = penForRole(style, role);
-    return pen ? `${role}${pen.color}${pen.width}` : role;
+    return pen ? `${role}${pen.color}${pen.width}${pen.dash ? `/${pen.dash.join(',')}` : ''}` : role;
   });
   return `${style.paper.front}${style.paper.back}|${style.erode}|${pens.join('|')}`;
 }
@@ -763,11 +1015,9 @@ export function foldedFigurePicture(
     if (scene.items.length === 0) return null;
     // The alpha is the display style's, not the scene's: a scene is geometry
     // and roles, and X-ray is ink. The flat figure's stream bakes its own.
-    return foldedSceneLocalGeometry(
-      scene,
-      style,
-      folded3dStylePlan(figure.displayStyle).faceAlpha
-    );
+    return foldedSceneLocalGeometry(scene, style, {
+      faceAlpha: folded3dStylePlan(figure.displayStyle).faceAlpha,
+    });
   }
   const snapshot = figure.renderSnapshot;
   return snapshot?.primitives.length ? foldedFigureLocalGeometry(snapshot) : null;
@@ -956,6 +1206,10 @@ export function cpFoldedToScene(
   const strokeWidthMul: number[] = [];
   const fillDepth: number[] = [];
   const strokeDepth: number[] = [];
+  const dashSlot: number[] = [];
+  const dashPhase: number[] = [];
+  // Every figure's patterns in the one table the channel's geometry carries.
+  const dashes = new DashTable();
   const shadowPos: number[] = [];
   const shadowDepth: number[] = [];
   const shadowEdgeRange: number[] = [];
@@ -1015,6 +1269,14 @@ export function cpFoldedToScene(
     for (let i = 0; i < local.strokeDepth.length; i++) {
       strokeDepth.push(bandBase + local.strokeDepth[i] * bandSpan);
     }
+    // The figure's slots renumbered into the shared table; a phase is a length
+    // along the stroke, so it scales with the figure and nothing else moves it.
+    const slotOf = [0, ...local.dashPatterns.map((pattern) => dashes.slot(pattern))];
+    for (let i = 0; i < local.strokeDashSlot.length; i++) {
+      const slot = slotOf[local.strokeDashSlot[i]] ?? 0;
+      dashSlot.push(slot);
+      dashPhase.push(slot === 0 ? 0 : local.strokeDashPhase[i] * figure.placement.scale);
+    }
 
     // The shadow's outline moves with the paper it is cast on, and its reach
     // scales with the figure the way a real shadow would; a similarity keeps
@@ -1060,6 +1322,8 @@ export function cpFoldedToScene(
       strokeColor.push(r, g, bl, alpha * opacity);
       strokeWidthMul.push(aux.widthMul);
       strokeDepth.push(auxDepth);
+      dashSlot.push(0);
+      dashPhase.push(0);
     }
   }
 
@@ -1088,6 +1352,15 @@ export function cpFoldedToScene(
       widthMul: new Float32Array(strokeWidthMul),
       count: strokeA.length / 2,
       depth: new Float32Array(strokeDepth),
+      // Only when something dashes: a channel of solid pens uploads exactly
+      // what it always has.
+      ...(dashes.patterns.length > 0
+        ? {
+            dashPatterns: dashes.patterns,
+            dashSlot: new Float32Array(dashSlot),
+            dashPhase: new Float32Array(dashPhase),
+          }
+        : {}),
     },
     shadows,
   };

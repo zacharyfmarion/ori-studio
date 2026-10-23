@@ -105,6 +105,26 @@
     "saveAs": "다른 이름으로 저장...",
     "settings": "설정"
   },
+  "fold": {
+    "delete-step": "단계 삭제",
+    "exportFold": "FOLD 내보내기...",
+    "exportStep": "이 단계 내보내기...",
+    "exportSteps": "단계 내보내기...",
+    "importCp": "CP 가져오기...",
+    "importSample": "예제 가져오기",
+    "mountain": "산접기",
+    "precrease": "사전 접기",
+    "rotate": "회전...",
+    "samplePleatInEighths": "8등분 주름",
+    "samplePreliminaryBase": "정사각 기본형",
+    "sampleWaterbombBase": "물풍선 기본형",
+    "sendPathToDiagram": "여기까지의 단계를 도해로 보내기",
+    "sendToDiagram": "이 단계를 도해로 보내기",
+    "sendToEdit": "편집으로 보내기",
+    "startFromEditFigure": "편집의 접힌 모델에서 시작",
+    "turn-over": "뒤집기",
+    "valley": "골접기"
+  },
   "help": {
     "about": "Ori Studio 정보",
     "checkForUpdates": "업데이트 확인…"
@@ -118,6 +138,7 @@
     "design": "디자인",
     "edit": "편집",
     "file": "파일",
+    "fold": "접기",
     "help": "도움말",
     "insert": "삽입",
     "view": "보기"
@@ -131,6 +152,7 @@
     "design": "디자인",
     "diagram": "도해",
     "edit": "편집",
+    "fold": "접기",
     "properties": "속성",
     "references": "참조",
     "resetLayout": "레이아웃 초기화",

@@ -26,6 +26,8 @@ export type WorkerName =
   | 'reference-finder'
   /** The precrease planner bridge; see store/workspaceStore/precreaseRuntime.ts. */
   | 'precrease'
+  /** The Fold engine's bridge; see store/workspaceStore/foldSequenceRuntime.ts. */
+  | 'fold-sequence'
   /** One diagram PDF, spawned per export and terminated after it; see diagram/export/browserPdfWriter.ts. */
   | 'diagram-pdf'
   | 'cp-task'

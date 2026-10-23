@@ -11,6 +11,10 @@ members = [
     "crates/oristudio-cp-wasm",
     "crates/oristudio-precrease",
     "crates/oristudio-precrease-wasm",
+    "crates/oristudio-geometry",
+    "crates/oristudio-layer-order",
+    "crates/oristudio-fold",
+    "crates/oristudio-fold-wasm",
     "crates/oristudio-pdf",
     "crates/oristudio-pdf-wasm",
     "crates/treemaker-flatfold",
@@ -78,7 +82,12 @@ nalgebra = "0.34.2"
 proptest = "1.6"
 rayon = "1.10"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# `float_roundtrip`: parse every float to the nearest f64, so what serde_json,
+# JavaScript's JSON.stringify or any shortest-round-trip writer wrote reads back
+# bit for bit. Without it about one value in ten reads back one ulp off
+# (`crates/oracle-tests/tests/json_floats.rs` has the measurement and pins the
+# feature). serde_json documents about twice the cost per float parsed.
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
 serde-wasm-bindgen = "0.6"
 js-sys = "0.3"
 encoding_rs = "0.8"
@@ -128,6 +137,11 @@ opt-level = 3
 
 # Exhaustive precrease fixture tests spent ~15 minutes in unoptimized geometry
 # search on CI. Optimize this test package while retaining test-profile debug
-# assertions and overflow checks; no fixtures or assertions are skipped.
+# assertions and overflow checks; no fixtures or assertions are skipped. That
+# geometry (lines, indexes, the constructions) is `oristudio-geometry`'s, so it
+# gets the same level or the precrease tests run it unoptimised.
 [profile.test.package.oristudio-precrease]
+opt-level = 2
+
+[profile.test.package.oristudio-geometry]
 opt-level = 2

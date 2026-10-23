@@ -12,7 +12,7 @@ import { candidateViewSteps, clampCandidateStep } from './referencesCandidateSte
 import type { ReferencesPlanVariant, ReferencesResults } from './referencesResults';
 import { sideAt, type ReferencesViewStep } from './referencesSequenceView';
 import { referencesSequenceSubject, type ReferencesStepExportSubject } from './referencesStepExport';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import { candidateStepDiagram, planHighlights } from './useReferencesView';
 
 /** One step's page, captured: the diagram, the face it is read on, and the card it is. */

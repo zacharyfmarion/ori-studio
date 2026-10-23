@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { calloutShape, closeUpShape, NEW_CALLOUT_TEXT, pathCubics } from '../../diagram/annotate/annotationModel';
 import { pendingFieldFocus } from '../../diagram/annotate/fieldFocus';
 import { ANNOTATE_SELECTION_INK, ANNOTATION_INK_MM, mmInPictureUnits, ptInPictureUnits } from '../../diagram/annotate/canvasInk';
-import { DIAGRAM_DIVISIONS_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { DIAGRAM_DIVISIONS_INK } from '../../lib/stepDiagram/diagramInk';
 import { setToolNotice, toolNotice } from '../../diagram/annotate/pickProgress';
 import i18n from '../../i18n';
 import { preloadLocale } from '../../test/preloadLocale';

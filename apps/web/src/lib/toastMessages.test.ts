@@ -27,6 +27,14 @@ describe('toast message helpers', () => {
     }
   });
 
+  // The Fold session's give-up after repeated crashes: a reload replays the
+  // same steps, so the sentence offers the undo first.
+  it('tells the user what to do when the fold engine kept stopping', () => {
+    const message = humanizeError({ code: 'fold_engine_kept_stopping', message: 'The fold engine kept stopping.' }, t);
+    expect(message).toContain('undo your last change');
+    expect(message).toContain('reload Ori Studio');
+  });
+
   it('humanizes structural fold error codes', () => {
     expect(
       humanizeError({ code: 'fold_same_parity', message: 'InitialHierarchy(...)' }, t)

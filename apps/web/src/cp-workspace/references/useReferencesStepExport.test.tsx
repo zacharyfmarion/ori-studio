@@ -11,7 +11,7 @@ import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import type { PrecreaseSequence } from './precreaseSequence';
 import type { ExtractedStep } from './referenceFinder/extractor';
 import type { RawSolution } from './referenceFinder/solution';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import { flatPlanSteps } from './referencesBreakdown';
 import { referencesExportSteps, type ReferencesStepsSource } from './referencesExportSteps';
 import { decodePlanModel, planModelPoints } from './referencesPlanGeometry';

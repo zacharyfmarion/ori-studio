@@ -19,25 +19,44 @@ import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes'
 import { lineContentFingerprint } from '../../lib/creaseFingerprint';
 import {
   isLockedStep,
+  isPosedSource,
   type DiagramCpScope,
   type DiagramCpSource,
+  type DiagramFoldStepSource,
   type DiagramReferencesSource,
   type DiagramStep,
   type DiagramStyle,
 } from '../document/diagramDocument';
+import type { FoldLinkContext } from '../fold/foldStepLink';
 import { lightingChanged } from '../pictures/lighting';
 import { chooseStepCreases, creasesMatch, knownCreasesOf, type KnownCreases, type StepCreaseChoice } from './captureCreases';
 
 export type DiagramLinkStatus = 'current' | 'stale' | 'missing' | 'unknown';
 
-/** A source that points back at the crease pattern: a linked pattern, or a step sent from References. */
-export type DiagramLinkedSource = DiagramCpSource | DiagramReferencesSource;
+/**
+ * A source that points back at what it was made from: a linked pattern, or a
+ * step sent from References — both regions of Edit's crease pattern — or a
+ * step of a Fold sequence (`diagram/fold/foldStepLink.ts`).
+ */
+export type DiagramLinkedSource = DiagramCpSource | DiagramReferencesSource | DiagramFoldStepSource;
 
-/** A step's link to the crease pattern, when it has one this build can follow. */
+/** A step's link to what it was made from, when it has one this build can follow. */
 export function linkedSourceOf(step: DiagramStep): DiagramLinkedSource | null {
   if (isLockedStep(step)) return null;
   const { source } = step;
-  return source?.kind === 'cp' || source?.kind === 'references-step' ? source : null;
+  return source?.kind === 'cp' || source?.kind === 'references-step' || source?.kind === 'fold-step' ? source : null;
+}
+
+/** The links of Edit's crease pattern, which `linkStatus` tells: a linked pattern, or a References step. */
+export type DiagramPatternLinkedSource = Exclude<DiagramLinkedSource, DiagramFoldStepSource>;
+
+/** Everything a link is told against: Edit's pattern and its sheet index, and the Fold sequences and their replay. */
+export interface DiagramLinkContext {
+  readonly cp: {
+    readonly document: OristudioCpDocumentSnapshot | null;
+    readonly sheets: CpSheetIndex | null;
+  };
+  readonly fold: FoldLinkContext;
 }
 
 /**
@@ -63,7 +82,8 @@ export function refreshKind(
   status: DiagramLinkStatus | undefined,
   style: DiagramStyle
 ): 'refresh' | 'pose' | null {
-  if (step.unknown || step.source?.kind !== 'cp') return null;
+  // A posed capture follows what it was captured from; a References card never does (D6).
+  if (step.unknown || !isPosedSource(step.source)) return null;
   const behind = status === 'stale' || (status === 'current' && lightingChanged(step, style));
   if (!behind) return null;
   return needsPose(step) ? 'pose' : 'refresh';

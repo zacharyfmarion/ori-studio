@@ -2,9 +2,11 @@ import { useMemo } from 'react';
 import {
   creasePatternSide,
   isLockedStep,
+  posedRenderOf,
   type DiagramCreasePatternRender,
   type DiagramStep,
 } from '../document/diagramDocument';
+import { flipFoldStepCreases, showFoldStepPaperSide } from '../fold/foldStepActions';
 import { flipCreasePatternCreases, showCreasePatternSide } from './creasePatternSide';
 
 /** The side whose colour a crease pattern's paper is drawn in, turned over or not, and the ways to change them. */
@@ -30,21 +32,23 @@ export interface CreasePatternSideField {
  * linked, a newer build's.
  */
 export function useCreasePatternSide(step: DiagramStep | null): CreasePatternSideField | null {
-  const render: DiagramCreasePatternRender | null =
-    step && !isLockedStep(step) && step.source?.kind === 'cp' && step.source.render.mode === 'crease-pattern'
-      ? step.source.render
-      : null;
+  const posed = step && !isLockedStep(step) ? posedRenderOf(step.source) : null;
+  const render: DiagramCreasePatternRender | null = posed?.mode === 'crease-pattern' ? posed : null;
+  // A Fold step's crease pattern is captured again from its state; a linked pattern's through its pose controller.
+  const fold = step?.source?.kind === 'fold-step';
   const stepId = step?.id ?? null;
   return useMemo(
     () =>
       render && stepId !== null
         ? {
             side: creasePatternSide(render),
-            choose: (side: 'front' | 'back') => void showCreasePatternSide(stepId, side),
+            choose: (side: 'front' | 'back') =>
+              void (fold ? showFoldStepPaperSide(stepId, side) : showCreasePatternSide(stepId, side)),
             flipCreases: render.flipCreases === true,
-            setFlipCreases: (on: boolean) => void flipCreasePatternCreases(stepId, on),
+            setFlipCreases: (on: boolean) =>
+              void (fold ? flipFoldStepCreases(stepId, on) : flipCreasePatternCreases(stepId, on)),
           }
         : null,
-    [render, stepId]
+    [render, stepId, fold]
   );
 }

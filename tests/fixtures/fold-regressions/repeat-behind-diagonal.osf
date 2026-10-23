@@ -1,0 +1,528 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.6.2",
+    "savedAt": "2026-10-21T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Repeat behind across the diagonal",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-repeat-behind-diagonal",
+        "title": "Repeat behind across the diagonal",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-rbd-1",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865476,
+                  0.7071067811865476
+                ],
+                "d": 0.7071067811865476
+              }
+            },
+            "expect": "fs1:e0afaec7d6c7cfa6",
+            "note": "Valley: the corner (1, 1) onto (0, 0), along the other diagonal (Axiom 2)."
+          },
+          {
+            "id": "fstep-rbd-2",
+            "parent": "fstep-rbd-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865476,
+                  -0.7071067811865476
+                ],
+                "d": 0
+              }
+            },
+            "expect": "fs1:fafa43c84fe12609",
+            "note": "Valley: in half again, the corner (1, 0) onto (0, 1) (Axiom 2)."
+          },
+          {
+            "id": "fstep-rbd-3",
+            "parent": "fstep-rbd-2",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.5,
+                0.1
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:08cce08a1cde7b1d",
+            "note": "Squash the front flap."
+          },
+          {
+            "id": "fstep-rbd-4",
+            "parent": "fstep-rbd-3",
+            "op": {
+              "kind": "turn",
+              "axis": "vertical"
+            },
+            "expect": "fs1:f3988ac3e7345fae",
+            "note": "Turn over."
+          },
+          {
+            "id": "fstep-rbd-5",
+            "parent": "fstep-rbd-4",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.0963,
+                0.7078
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:6764a7961af48aad",
+            "note": "Squash the other flap: the preliminary base."
+          },
+          {
+            "id": "fstep-rbd-6",
+            "parent": "fstep-rbd-5",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0,
+                      1
+                    ],
+                    "b": [
+                      0,
+                      0.5
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5,
+                      0.5
+                    ],
+                    "b": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.06903559372884942,
+                    0.33333333333333287
+                  ]
+                ]
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.38268343236509067,
+                  -0.9238795325112864
+                ],
+                "d": 4.600608404473753e-16
+              }
+            },
+            "expect": "fs1:5d5e573206d6770b",
+            "note": "Precrease tool (P), Axiom 3: edge onto edge. Click the bottom edge (the flap’s lower edge, a raw edge), then the diagonal crease in the middle (the centre line). Under Layers click the Flap 2 chip so only the top flap (Flap 1) folds. Press Enter: the first kite crease."
+          },
+          {
+            "id": "fstep-rbd-7",
+            "parent": "fstep-rbd-6",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 3,
+                "inputs": [
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5000000000000002,
+                      1
+                    ],
+                    "b": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "edge",
+                    "a": [
+                      0.5,
+                      0.5
+                    ],
+                    "b": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.6666666666666663,
+                    0.9309644062711501
+                  ]
+                ]
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.923879532511287,
+                  -0.38268343236508906
+                ],
+                "d": 7.004001889352352e-16
+              }
+            },
+            "expect": "fs1:12ddb4b4760cd33f",
+            "note": "Precrease, Axiom 3. Click the right edge, then the centre line; leave out Flap 2 again; press Enter: the second kite crease."
+          },
+          {
+            "id": "fstep-rbd-8",
+            "parent": "fstep-rbd-7",
+            "op": {
+              "kind": "petal",
+              "ends": [
+                [
+                  0.2071067811865481,
+                  0.5
+                ],
+                [
+                  0.5000000000000001,
+                  0.7928932188134531
+                ]
+              ],
+              "petal": [
+                0.19999996289656102,
+                0.7400000667861883
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:50f7fea679a8ee51",
+            "note": "Petal fold tool. Under Hinge choose Two endpoints. Click where the first kite crease meets the left edge, then where the second meets the top edge: the hinge, which the fold creases through the top layer, so it needs no precrease. Then click the kite between the two kite creases below it, the part that lifts: it lights up under the pointer. Direction Valley; press Enter. The flap lifts along the hinge as its sides fold in along the kite creases."
+          },
+          {
+            "id": "fstep-rbd-9",
+            "parent": "fstep-rbd-8",
+            "op": {
+              "kind": "repeat",
+              "source": {
+                "first": "fstep-rbd-6",
+                "last": "fstep-rbd-8",
+                "revision": "fh1:a229d884de4dc2fb"
+              },
+              "parentState": "fs1:50f7fea679a8ee51",
+              "axis": {
+                "n": [
+                  -0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 0
+              },
+              "side": "behind",
+              "steps": [
+                {
+                  "op": {
+                    "kind": "precrease",
+                    "line": {
+                      "via": "axiom",
+                      "axiom": 3,
+                      "inputs": [
+                        {
+                          "kind": "edge",
+                          "a": [
+                            0.9999999999999998,
+                            2.220446049250313e-16
+                          ],
+                          "b": [
+                            0.4999999999999999,
+                            1.1102230246251565e-16
+                          ]
+                        },
+                        {
+                          "kind": "edge",
+                          "a": [
+                            0.5,
+                            0.5
+                          ],
+                          "b": [
+                            0.9999999999999998,
+                            2.220446049250313e-16
+                          ]
+                        }
+                      ]
+                    },
+                    "direction": "mountain",
+                    "seed": {
+                      "scope": "flaps",
+                      "at": [
+                        [
+                          0.3333333333333328,
+                          0.06903559372884947
+                        ]
+                      ]
+                    }
+                  },
+                  "choices": {
+                    "root": {
+                      "n": [
+                        0.3826834323650898,
+                        -0.9238795325112854
+                      ],
+                      "d": 9.698975897525413e-16
+                    }
+                  },
+                  "expect": "fs1:064fd2322220991b",
+                  "sourceStep": "fstep-rbd-6"
+                },
+                {
+                  "op": {
+                    "kind": "precrease",
+                    "line": {
+                      "via": "axiom",
+                      "axiom": 3,
+                      "inputs": [
+                        {
+                          "kind": "edge",
+                          "a": [
+                            0.9999999999999999,
+                            0.5000000000000003
+                          ],
+                          "b": [
+                            0.9999999999999998,
+                            2.220446049250313e-16
+                          ]
+                        },
+                        {
+                          "kind": "edge",
+                          "a": [
+                            0.5,
+                            0.5
+                          ],
+                          "b": [
+                            0.9999999999999998,
+                            2.220446049250313e-16
+                          ]
+                        }
+                      ]
+                    },
+                    "direction": "mountain",
+                    "seed": {
+                      "scope": "flaps",
+                      "at": [
+                        [
+                          0.93096440627115,
+                          0.6666666666666664
+                        ]
+                      ]
+                    }
+                  },
+                  "choices": {
+                    "root": {
+                      "n": [
+                        0.9238795325112855,
+                        -0.38268343236508817
+                      ],
+                      "d": 1.181078885910953e-15
+                    }
+                  },
+                  "expect": "fs1:dbdf99aa7c113659",
+                  "sourceStep": "fstep-rbd-7"
+                },
+                {
+                  "op": {
+                    "kind": "petal",
+                    "ends": [
+                      [
+                        0.49999999999999994,
+                        0.20710678118654816
+                      ],
+                      [
+                        0.792893218813453,
+                        0.5000000000000002
+                      ]
+                    ],
+                    "petal": [
+                      0.7400000667861882,
+                      0.19999996289656113
+                    ],
+                    "direction": "mountain"
+                  },
+                  "expect": "fs1:ee5156254ad15a9c",
+                  "sourceStep": "fstep-rbd-8"
+                }
+              ]
+            },
+            "expect": "fs1:ee5156254ad15a9c",
+            "note": "Repeat behind: the kite precreases and the petal fold on the back flap, across the diagonal from the bottom left corner to the top right."
+          }
+        ]
+      }
+    ],
+    "viewState": {}
+  },
+  "artifacts": {},
+  "extensions": {}
+}

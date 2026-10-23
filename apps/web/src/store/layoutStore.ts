@@ -110,6 +110,7 @@ const ALL_LAYOUT_SCOPES = [
   'simulate',
   'references',
   'diagram',
+  'fold',
 ];
 
 /**
@@ -242,6 +243,25 @@ const WORKSPACE_SIDE_PANES = {
       placement: { kind: 'tab-of', leadId: 'diagram-step' },
     },
   ],
+  // The Diagram's arrangement: the step on show leads, and the paper it is
+  // painted on is a tab behind it.
+  fold: [
+    {
+      id: 'fold-step',
+      component: 'fold-step',
+      role: 'settings',
+      initialWidth: 280,
+      referencePanelId: 'fold',
+      placement: { kind: 'beside-primary', trigger: 'slot' },
+    },
+    {
+      id: 'fold-paper',
+      component: 'fold-paper',
+      role: 'view',
+      referencePanelId: 'fold',
+      placement: { kind: 'tab-of', leadId: 'fold-step' },
+    },
+  ],
 } as const satisfies Partial<Record<WorkspaceId, readonly SidePaneDefinition[]>>;
 
 export type SidePaneSpec = (typeof WORKSPACE_SIDE_PANES)[keyof typeof WORKSPACE_SIDE_PANES][number];
@@ -288,6 +308,9 @@ export function sidePaneTitle(spec: SidePaneSpec): string {
   if (spec.id === 'diagram-step') return i18n.t('panels:sidePane.step', 'Step');
   if (spec.id === 'diagram-page') return i18n.t('panels:sidePane.page', 'Page');
   if (spec.id === 'diagram-layers') return i18n.t('panels:sidePane.layers', 'Layers');
+  // Fold's, for the same reason: the step on show, and the paper it is on.
+  if (spec.id === 'fold-step') return i18n.t('panels:sidePane.step', 'Step');
+  if (spec.id === 'fold-paper') return i18n.t('panels:sidePane.paper', 'Paper');
   switch (spec.role) {
     case 'view':
       return i18n.t('panels:sidePane.view', 'View');
@@ -448,6 +471,9 @@ export function applyDefaultLayout(
     case 'diagram':
       applyDiagramLayout(api, coarsePointer);
       return;
+    case 'fold':
+      applyFoldLayout(api, coarsePointer);
+      return;
   }
 }
 
@@ -524,6 +550,20 @@ function applyDiagramLayout(api: DockviewApi, coarsePointer: boolean): void {
   });
   if (!coarsePointer) for (const spec of sidePanesFor('diagram')) addSidePane(api, spec);
   diagram.api.setActive();
+}
+
+/**
+ * The Diagram's shape: the sequence, headerless, and the Step and Paper panes
+ * docked beside it on a fine pointer; on a coarse one they are the drawer's.
+ */
+function applyFoldLayout(api: DockviewApi, coarsePointer: boolean): void {
+  const fold = addHeaderlessPanel(api, {
+    id: 'fold',
+    component: 'fold',
+    title: 'Fold',
+  });
+  if (!coarsePointer) for (const spec of sidePanesFor('fold')) addSidePane(api, spec);
+  fold.api.setActive();
 }
 
 interface LayoutState {

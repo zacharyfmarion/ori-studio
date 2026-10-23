@@ -126,19 +126,27 @@ const UNCACHEABLE_PATTERNS: readonly RegExp[] = [
 ];
 
 /**
- * Cached when used, but never warmed: the Diagram's PDF writer — its worker and
- * its wasm (4.2 MB, 1.5 MB gzipped), fetched on the first PDF export
- * (`diagram/export/browserPdfWriter.ts`) — and its font subsetter, HarfBuzz's
- * (650 KB, 260 KB gzipped), fetched when a diagram's pages are first set
- * (`diagram/fonts/browserFontSubsetter.ts`). The warm set is what every
- * installed app downloads on its first visit (invariant 5 in `src/pwa/sw.ts`),
- * and few of those visitors will ever lay out a diagram; the first use stores
- * them like any other asset. Allowed to match nothing.
+ * Cached when used, but never warmed. The warm set is what every installed app
+ * downloads on its first visit (invariant 5 in `src/pwa/sw.ts`); these are
+ * stored like any other asset the first time a page loads them. Allowed to
+ * match nothing.
+ * - The Diagram's PDF writer: its worker and its wasm (4.2 MB, 1.5 MB gzipped),
+ *   fetched on the first PDF export (`diagram/export/browserPdfWriter.ts`). Few
+ *   visitors will ever print a diagram.
+ * - The Diagram's font subsetter, HarfBuzz's (650 KB, 260 KB gzipped), fetched
+ *   when a diagram's pages are first set (`diagram/fonts/browserFontSubsetter.ts`):
+ *   few visitors will ever lay out a diagram.
+ * - The Fold engine: its worker and its wasm (2.7 MB, 1 MB gzipped), fetched
+ *   when the Fold workspace or a linked Diagram step first needs it
+ *   (`store/workspaceStore/foldSequenceRuntime.ts`). Fold works offline after
+ *   its first online use.
  */
 const UNWARMED_PATTERNS: readonly RegExp[] = [
   /^assets\/diagramPdfWorker-[^/]+\.js$/,
   /^assets\/oristudio_pdf_wasm_bg-[^/]+\.wasm$/,
   /^assets\/harfbuzz-subset-[^/]+\.wasm$/,
+  /^assets\/foldSequenceWorker-[^/]+\.js$/,
+  /^assets\/oristudio_fold_wasm_bg-[^/]+\.wasm$/,
 ];
 
 /** Where {@link simPerfLogSink} appends. Gitignored (`artifacts/`). */
@@ -232,8 +240,8 @@ function serviceWorkerManifest(
 
   // The engine kernels. Every `.wasm` this build emits, minus the ones no user
   // can reach — which today is exactly the CP detector's, already listed in
-  // `uncacheable` — and the PDF writer's, which waits for its first export
-  // (`UNWARMED_PATTERNS`). An extension match rather than a name pattern, for the same
+  // `uncacheable` — and the PDF writer's and the Fold engine's, which wait for
+  // their first use (`UNWARMED_PATTERNS`). An extension match rather than a name pattern, for the same
   // reason `workers` uses a bundle-type test: `oristudio_bp_wasm_bg-*.wasm` is
   // wasm-bindgen's naming, not ours, and a regex over it stops matching the day
   // the crate is renamed. See invariant 5 in `sw.ts` for why these are warmed.

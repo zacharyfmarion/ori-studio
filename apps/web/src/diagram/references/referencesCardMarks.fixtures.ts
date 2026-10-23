@@ -19,10 +19,8 @@ import type {
 } from '../../cp-workspace/references/precreaseSequence';
 import markFixture from '../../cp-workspace/references/referenceFinder/__fixtures__/mark.json';
 import type { ReferenceFinderReplayFixture } from '../../cp-workspace/references/referenceFinder/replayClient';
-import {
-  referenceFinderDiagramToPrimitives,
-  type StepDiagramModel,
-} from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import { referenceFinderDiagramToPrimitives } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 
 /** The fixture plan with each step folded in a direction, as a real plan's are. */
 function directed(sequence: PrecreaseSequence, direction: PrecreaseDirection = 'valley'): PrecreaseSequence {

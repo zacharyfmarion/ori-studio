@@ -13,7 +13,12 @@ import {
   antipodalCamera,
   type FoldedFigureCamera,
 } from '../../cp-workspace/folded/folded3dCamera';
-import type { SpreadDirection, SpreadKeep, SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
+import {
+  LAYER_SPREAD_EDIT_VERBS,
+  withSpreadField,
+  type LayerSpreadEdit,
+} from '../../cp-workspace/folded/layerSpreadSettings';
 import { resolveFoldRoute } from '../../cp-workspace/folded/foldRoute';
 import {
   POSE_ROTATION_STEP_DEG,
@@ -22,9 +27,6 @@ import {
 import {
   DEFAULT_SIMULATED_VIEW,
   DEFAULT_SPREAD_STARTS,
-  clampSpreadAmount,
-  clampSpreadAxis,
-  clampSpreadSkew,
   creasePatternSide,
   creasesFlipped,
   renderToShowAs,
@@ -65,62 +67,15 @@ export type LinkedPoseRequest =
   | { verb: 'orbit'; camera: FoldedFigureCamera }
   | { verb: 'rotate-to'; degrees: number }
   | { verb: 'spread-kind'; kind: SpreadKind }
-  | {
-      verb: 'spread-amount';
-      amount: number;
-      /**
-       * The kind of spread it was set on, when it was dragged: an amount is a
-       * share of the model by depth and τ for an affine one, so one dragged on
-       * the other kind is no amount of this spread's.
-       */
-      kind?: SpreadKind;
-    }
-  | { verb: 'spread-direction'; toward: SpreadDirection }
-  | { verb: 'spread-keep'; keep: SpreadKeep }
-  | { verb: 'spread-skew'; skew: number }
-  | { verb: 'spread-axis'; axisDeg: number }
+  // One value of the spread, as every flat picture's spread is set (`layerSpreadSettings.ts`).
+  | LayerSpreadEdit
   | { verb: 'simulate'; foldPercent: number; view: DiagramSimulatedView; still: StillScene }
   | { verb: 'paper-side'; side: 'front' | 'back' }
   | { verb: 'flip-creases'; on: boolean };
 
 /** The verbs that set one field of a spread: each a no-op on a fold with none, or of the other kind. */
-type SpreadFieldRequest = Extract<
-  LinkedPoseRequest,
-  { verb: 'spread-amount' | 'spread-direction' | 'spread-keep' | 'spread-skew' | 'spread-axis' }
->;
-
-const SPREAD_FIELD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
-  'spread-amount',
-  'spread-direction',
-  'spread-keep',
-  'spread-skew',
-  'spread-axis',
-]);
-
-function isSpreadFieldRequest(request: LinkedPoseRequest): request is SpreadFieldRequest {
-  return SPREAD_FIELD_VERBS.has(request.verb);
-}
-
-/**
- * A spread with one field set as a verb asks, within its range; the spread
- * itself when the verb is not for its kind — a direction for an affine one,
- * a skew for one by depth — which a verb undone under a drag can leave.
- */
-export function withSpreadField(spread: DiagramLayerSpread, request: SpreadFieldRequest): DiagramLayerSpread {
-  switch (request.verb) {
-    case 'spread-amount':
-      return request.kind === undefined || request.kind === spread.kind
-        ? { ...spread, amount: clampSpreadAmount(spread.kind, request.amount) }
-        : spread;
-    case 'spread-direction':
-      return spread.kind === 'depth' ? { ...spread, toward: request.toward } : spread;
-    case 'spread-keep':
-      return spread.kind === 'affine' ? { ...spread, keep: request.keep } : spread;
-    case 'spread-skew':
-      return spread.kind === 'affine' ? { ...spread, skew: clampSpreadSkew(request.skew) } : spread;
-    case 'spread-axis':
-      return spread.kind === 'affine' ? { ...spread, axisDeg: clampSpreadAxis(request.axisDeg) } : spread;
-  }
+function isSpreadFieldRequest(request: LinkedPoseRequest): request is LayerSpreadEdit {
+  return LAYER_SPREAD_EDIT_VERBS.has(request.verb);
 }
 
 export type LinkedPoseResult =
@@ -412,9 +367,10 @@ export async function poseLinkedStep(
  * when one is turned over and the other is not (Flip creases): the paper
  * turned over where it lies, as a flat fold's Turn Over turns it, so what
  * shows is the mirror of what showed, side to side, and Rotate Left and Right
- * still turn it the way they look. Turned back, the turn it had.
+ * still turn it the way they look. Turned back, the turn it had. A Fold
+ * step's crease pattern turns over by the same rule (`foldStepActions`).
  */
-function turnedOverFrom(render: DiagramCreasePatternRender, posed: DiagramCreasePatternRender): DiagramCreasePatternRender {
+export function turnedOverFrom(render: DiagramCreasePatternRender, posed: DiagramCreasePatternRender): DiagramCreasePatternRender {
   if (creasesFlipped(render) === creasesFlipped(posed)) return posed;
   return { ...posed, rotationDeg: turned(-posed.rotationDeg, 0) };
 }

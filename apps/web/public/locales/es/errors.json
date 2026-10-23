@@ -74,6 +74,9 @@
   },
   "worker": {
     "cpDetect": "La detección de patrones de pliegues se ha detenido inesperadamente. Prueba a importar la imagen de nuevo.",
+    "foldSequence": "El motor de plegado se ha detenido inesperadamente. Tus pasos están a salvo; si el plegado no se reanuda, recarga Ori Studio.",
+    "foldSequenceKeptStopping": "El motor de plegado se ha detenido una y otra vez, así que el plegado está en pausa. Tus pasos están a salvo: deshaz tu último cambio o recarga Ori Studio.",
+    "foldSequenceLost": "El motor de plegado se detuvo antes de poder terminar ese paso. Vuelve a intentar el pliegue.",
     "oristudioBp": "El motor de plegado en caja se ha detenido inesperadamente. Recarga Ori Studio para seguir trabajando en este diseño.",
     "oristudioCp": "El motor de patrones de pliegues se ha detenido inesperadamente. Recarga Ori Studio: puedes perder los cambios posteriores al último guardado.",
     "precrease": "El planificador de predoblado se ha detenido inesperadamente. Vuelve a abrir el espacio de trabajo de referencias para reiniciarlo.",

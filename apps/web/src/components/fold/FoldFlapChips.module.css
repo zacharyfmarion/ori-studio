@@ -1,0 +1,25 @@
+/*
+ * The flap chips (FoldFlapChips.tsx): Chip's own look, and the content Fold
+ * puts inside one — the flap's name, its layer count a step quieter, and the
+ * alert mark of a flap in the way.
+ */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.content {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Quieter than the name, in whatever ink the chip's state gives it. */
+.detail {
+  opacity: 0.72;
+}
+
+.needed {
+  color: var(--status-danger);
+}

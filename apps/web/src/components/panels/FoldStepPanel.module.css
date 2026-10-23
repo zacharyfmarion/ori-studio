@@ -1,0 +1,9 @@
+/* Fold's Step pane (FoldStepPanel.tsx): the rows scroll, under the replay's notice when there is one. */
+.body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.notice {
+  padding: var(--space-2) var(--space-3) 0;
+}

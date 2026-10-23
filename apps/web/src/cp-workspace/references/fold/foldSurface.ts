@@ -34,45 +34,14 @@
  * in `s` too — which is what lets the mesh be coarse everywhere but the bend
  * and the ramp edges, and a crease on the flap be cut only where it crosses
  * them.
+ *
+ * The rigid hinge itself, the face a point shows and how a tilt is shaded are
+ * every fold animation's, not this flap's: `lib/foldMotion/foldHinge.ts`. One
+ * thing differs through a bend — which face shows is not the sign of the
+ * normal there (`place` says why) — so a {@link PlacedPoint}'s `face` is the
+ * surface's to say.
  */
-/** A point of the flap once posed: its chord-frame coordinates, its height, and which face is up. */
-export interface PlacedPoint {
-  s: number;
-  v: number;
-  z: number;
-  /** The surface normal's component toward the reader: how far the paper tilts, for its shading. */
-  nz: number;
-  /**
-   * Which face the reader sees here: 1 the face the reader is on, -1 the other.
-   *
-   * Not the sign of {@link nz} through a bend. A real bend past a quarter turn
-   * overhangs itself: from above, the part of it that has turned over covers
-   * the part still rising — everything from `π − θ` into the bend onward shows
-   * the other face. The bend here is sheared so the flap lands exactly on its
-   * mirror, and a sheared bend does not overhang, so its still-rising part is
-   * never covered; coloured by its own normal it showed the reader's face as a
-   * strip along the crease, and as a band the width of a turn-over's roll.
-   * This is what a real bend shows there instead.
-   */
-  face: 1 | -1;
-}
-
-/** The face a point shows by the side its normal faces: the reader's at edge-on and before. */
-function faceOf(nz: number): 1 | -1 {
-  return nz >= 0 ? 1 : -1;
-}
-
-/** How a flap's paper is placed at a pose: the map from its flat `(s, u)` to space. */
-export interface FoldPlacement {
-  place(s: number, u: number): PlacedPoint;
-}
-
-/** A hinge with no bend: the flap turns rigidly about the line. The surface at radius zero. */
-export function rigidHinge(angle: number): FoldPlacement {
-  const c = Math.cos(angle);
-  const sn = Math.sin(angle);
-  return { place: (s, u) => ({ s, v: u * c, z: u * sn, nz: c, face: faceOf(c) }) };
-}
+import { shownFace, type FoldPlacement, type PlacedPoint } from '../../../lib/foldMotion/foldHinge';
 
 export interface FoldSurfaceParams {
   /** Bend radius at rest, model units. Zero is a rigid hinge. */
@@ -174,8 +143,15 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
           v: r * Math.sin(phi) + u * cosT,
           z: r * (1 - Math.cos(phi)) + u * sinT,
           nz: Math.cos(phi),
-          // What a real bend shows here: covered from `π − θ` on by the part
-          // that has turned over (see `PlacedPoint.face`).
+          // Not the sign of `nz`. A real bend past a quarter turn overhangs
+          // itself: from above, the part of it that has turned over covers the
+          // part still rising, so everything from `π − θ` into the bend onward
+          // shows the other face. This bend is sheared so the flap lands
+          // exactly on its mirror, and a sheared bend does not overhang, so its
+          // still-rising part is never covered; coloured by its own normal it
+          // showed the reader's face as a strip along the crease, and as a
+          // band the width of a turn-over's roll. This is what a real bend
+          // shows there instead.
           face: phi <= Math.PI - angle ? 1 : -1,
         };
       }
@@ -185,7 +161,7 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
         v: r * sinT + past * cosT,
         z: r * (1 - cosT) + past * sinT,
         nz: cosT,
-        face: faceOf(cosT),
+        face: shownFace(cosT),
       };
     },
     breakpoints() {

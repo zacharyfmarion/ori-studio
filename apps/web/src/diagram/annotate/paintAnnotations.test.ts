@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
-import { canvasDiagramInk, DIAGRAM_ROTATE_INK, DIAGRAM_TURN_OVER_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { canvasDiagramInk, DIAGRAM_ROTATE_INK, DIAGRAM_TURN_OVER_INK } from '../../lib/stepDiagram/diagramInk';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
 import {
   divisionsDrawn,
@@ -18,7 +18,7 @@ import {
   type Arrowhead,
   type DiagramArc,
   type SvgPoint,
-} from '../../cp-workspace/references/stepDiagramGeometry';
+} from '../../lib/stepDiagram/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { ARROW_BEND, CALLOUT_TEXT_SIZE, calloutShape } from './annotationModel';
 import { arcToPath } from './annotationPath';

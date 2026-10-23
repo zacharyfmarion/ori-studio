@@ -18,7 +18,7 @@
  *
  * Pure: no DOM, no store.
  */
-import { DIAGRAM_RIGHT_ANGLE_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { DIAGRAM_RIGHT_ANGLE_INK } from '../../lib/stepDiagram/diagramInk';
 import { placePoint, type PlacedPoint, type SnapContext } from './annotateSnap';
 import { DEFAULT_RIGHT_ANGLE_DIAGONAL, MIN_ANNOTATION_LENGTH, type PictureFrame, type PicturePoint } from './annotationModel';
 import { INK_UNITS } from './canvasInk';
