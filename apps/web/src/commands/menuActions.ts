@@ -41,6 +41,7 @@ import i18n from '../i18n';
 import { runUpdateCheck } from '../lib/updateController';
 import { announceUpdateCheck } from '../lib/updateFeedback';
 import { endOpenCanvasSessions } from '../cp-workspace/canvasObjects/canvasSessions';
+import { isShortcutBarrierOpen } from '../keyboard/shortcutDispatcher';
 
 export const MENU_ACTION_IDS = [
   'file.importDiagramSteps',
@@ -381,8 +382,30 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
   'view.properties': 'cp-properties',
 };
 
+/**
+ * What an open modal dialog ({@link isShortcutBarrierOpen}) holds back from the
+ * menus: the actions that change the workspace behind it. Undo and redo would
+ * rewind a document the dialog covers, and a view switch would move the
+ * workspace out from under a dialog opened over it. A key stops at the dialog
+ * (`handleAppKeyDown`), but a menu reaches {@link handleMenuAction} with no key
+ * to stop — so the native Edit ▸ Undo undid the workspace behind any modal.
+ *
+ * Only these. Settings, About and the exports open over a dialog on purpose;
+ * `App.tsx` stacks the modals for it.
+ */
+const HELD_BEHIND_MODAL_ACTIONS: ReadonlySet<MenuActionId> = new Set<MenuActionId>([
+  'edit.undo',
+  'edit.redo',
+  ...(Object.keys(VIEW_PANEL_ACTIONS) as MenuActionId[]),
+  'cp.analyzeReferences',
+]);
+
 export function isMenuActionId(id: string): id is MenuActionId {
   return (MENU_ACTION_IDS as readonly string[]).includes(id);
+}
+
+function isHeldBehindModal(id: string): boolean {
+  return isMenuActionId(id) && HELD_BEHIND_MODAL_ACTIONS.has(id) && isShortcutBarrierOpen();
 }
 
 /**
@@ -867,6 +890,8 @@ function analyticsCommandGroup(id: string): string {
 }
 
 export function handleMenuAction(id: string): Promise<boolean> {
+  // Before the event: an action a modal held back did nothing to count.
+  if (isHeldBehindModal(id)) return Promise.resolve(false);
   // The chokepoint for menu bar / command palette / keyboard-mapped actions.
   // Capturing intent here covers most of the app with one event. Only recognized
   // ids are recorded, so stray dispatches don't create phantom commands.
