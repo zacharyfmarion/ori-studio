@@ -106,17 +106,16 @@ the simulator's CSS-pixel sensitivity. There are no polar clamps: the complete
 frame is converted back to direction, inclination and roll, preserving orientation
 through the top and bottom poles. Direction/inclination controls reflect the view;
 notes retain all three angles. CPU projection and the WebGL shader consume the
-same transform. Camera changes update uniforms and a small rank lookup, never
-the cached lift or vertex buffers. Presets reset roll. Diagram mode ignores roll and retains its
+same transform. Camera changes update uniforms and a projected triangle index,
+never the cached lift or vertex buffers. Presets reset roll. Diagram mode ignores roll and retains its
 original compensated camera.
 
-In every camera mode, the explorer defaults to **Preserve layer order**. It lifts
-the existing flat paint plan rather than trusting approximate heights for
-visibility. Each paint item has a disjoint GPU depth interval; geometric depth
-only resolves triangles within that interval. An inverted buried face and its
-ink cannot win the depth test against a covering item in the same facing stack.
-Front and underside plans are prepared once in the worker; the underside plan
-reverses each supplied local stack.
+In every camera mode, the explorer defaults to **Preserve layer order**. The
+2026-10-22 partial-order correction separates actual over/under relationships
+from the arbitrary flat painting sequence. A cached transitive relation matrix
+records known coverage in both directions, with cycles identified separately.
+Front and underside paint plans are prepared once; the underside plan reverses
+each supplied local stack.
 
 A global face sort alone would break woven folds. The adapter therefore carries
 the existing renderer's local overlap patches as well as whole faces. It clips
@@ -133,22 +132,23 @@ finite eye-to-plane test; orthographic uses the view direction. A triangle can
 reverse before the camera crosses the original sheet's XY plane, and different
 parts of the model can use opposite stack directions simultaneously.
 
-Two depth-only GPU masks select the protected winners for those facing groups.
-A final geometric pass compares only those winners. A lower face within a
-group cannot reappear because its approximate height happens to be nearer.
-Opposite-facing groups do not share arbitrary rank priorities. The masks resize
-with the canvas and are reused across frames; no float-render-target extension
-is required. Lines use the source surface's plane rather than the line quad's
-raster winding.
+Each fragment tests projected covering triangles in a 32-pixel spatial tile.
+Only a known covering relationship in the same facing group may discard it.
+Within a woven cycle the existing rank/patch plan stays authoritative. All
+survivors then use the actual depth buffer, including unrelated surfaces in
+Diagram and surfaces in opposite facing groups. Depth is compared at the
+intersection rather than sorting face centroids. The index/relationship textures
+are reusable and require no float-render-target extension. Ink inherits its
+source surface and follows its projected depth slope; a small raster depth bias
+keeps it visible on that surface. Two-times supersampling avoids mixing
+fragment-centre coverage queries with multisample raster coverage.
 
-There is a separate issue at oblique angles: flat rendering arbitrarily orders
-faces with no authored over/under relationship. For the Gen Hagiwara frog at
-50%, 143°/86°, these new overlaps caused large grey panels to cover nearer yellow
-ones. A cached dependency graph now keeps all known layer relationships, using
-camera depth to choose among otherwise unordered paint blocks. Woven components
-and patch insertion spans move together. A small rank texture updates the GPU
-without rebuilding geometry. Centroid ordering of unrelated blocks is still an
-approximation, particularly for large intersecting or cyclic panels.
+This fixes the crane at 18%, direction 192°, inclination 29° in Diagram mode.
+Its symmetric flaps have the same target depth level (156), but the old draw
+priorities were 311 and 624. Unrelated deeper strips with priorities between
+those values wrongly covered only the left flap. Their arbitrary ordering is
+no longer a visibility constraint. The previous centroid-based rank remapping
+and the global rank-mask textures have been removed.
 
 This is **diagrammatic visibility**, not a repaired 3D surface. The earlier
 fallback to raw depth with a tiny tie bias removed the original buried-layer
@@ -166,10 +166,10 @@ crossings without layer protection. Its unit-height BSP trees remain cached per
 front/back plan. The protected vector experiment clips hidden geometry within
 each facing group before BSP-ordering the surviving pieces, matching the GPU's
 policy. Homogeneous clipping preserves perspective intersections; clipping in an
-unrolled camera frame avoids numerical changes when only roll changes. The 3D
+unrolled camera frame avoids numerical changes when only roll changes. Positive-depth
 vector paths refuse meshes over 2,000 triangles and masking caps intermediate
 fragments at 50,000. Unlike the GPU, this research-only vector path performs
-view-dependent clipping. Diagram does not need a BSP. None of these paths are
+view-dependent clipping, now including positive-depth Diagram. None of these paths are
 wired into production SVG/PDF export.
 
 ### Amount range and perceived opening

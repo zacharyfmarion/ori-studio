@@ -11,9 +11,8 @@ const { cameraSpreadLift, cameraSpreadStrain, liftWeights } = await server.ssrLo
   '/src/cp-workspace/folded/cameraSpreadLift.ts'
 );
 const { cameraPaintPlans } = await server.ssrLoadModule('/src/cp-workspace/folded/cameraSpreadVisibility.ts');
-const { cameraPaintRanks } = await server.ssrLoadModule('/src/cp-workspace/folded/cameraSpreadOrder.ts');
-const { cameraSpreadTransform } = await server.ssrLoadModule(
-  '/src/cp-workspace/folded/cameraSpreadCamera.ts'
+const { cameraLayerRelations } = await server.ssrLoadModule(
+  '/src/cp-workspace/folded/cameraSpreadRelations.ts'
 );
 const { layerLevels } = await server.ssrLoadModule('/src/cp-workspace/folded/foldedLayerSpread.ts');
 const { CAMERA_SPREAD_MAX_AMOUNT } = await server.ssrLoadModule(
@@ -66,35 +65,18 @@ for (const model of manifest.models.filter((m) => m.status === 'solved')) {
     // 2.5 extents from the centre and its near plane is 0.1; orthographic depth
     // clips at +/-2. This checks the expanded range independently of camera pose.
     let maxRadius = 0;
+    const relationStart = performance.now();
+    const relations = cameraLayerRelations(scene);
+    const relationPrepareMs = performance.now() - relationStart;
     let nonfinitePlanes = 0,
-      changedStackRelations = 0,
-      maxWarmOrderMs = 0;
-    for (const [side, plan] of [plans.front, plans.back].entries()) {
+      missingStackRelations = 0;
+    for (const plan of [plans.front, plans.back])
       nonfinitePlanes += plan.pieces.filter((p) => !p.plane.every(Number.isFinite) || p.plane[2] <= 0).length;
-      const faceRank = new Map(
-        plan.pieces.filter((p) => p.kind === 'face' && !p.patch).map((p) => [p.face, p.rank])
-      );
-      const base = {
-        amount: CAMERA_SPREAD_MAX_AMOUNT,
-        directionDeg: 143,
-        inclinationDeg: 86,
-        projection: 'perspective',
-      };
-      cameraPaintRanks(mesh, scene, plan, !!side, base, cameraSpreadTransform(base));
-      for (const inclinationDeg of [0, 45, 86, 94, 150, 180]) {
-        const view = { ...base, inclinationDeg };
-        const started = performance.now();
-        const ranks = cameraPaintRanks(mesh, scene, plan, !!side, view, cameraSpreadTransform(view));
-        maxWarmOrderMs = Math.max(maxWarmOrderMs, performance.now() - started);
-        for (const cell of scene.subfaces) {
-          const order = cell.faces_top_to_bottom;
-          for (let i = 1; i < order.length; i++) {
-            const a = faceRank.get(order[i - 1]),
-              b = faceRank.get(order[i]);
-            if (a !== undefined && b !== undefined && Math.sign(a - b) !== Math.sign(ranks[a] - ranks[b]))
-              changedStackRelations++;
-          }
-        }
+    for (const cell of scene.subfaces) {
+      const stack = cell.faces_top_to_bottom;
+      for (let i = 1; i < stack.length; i++) {
+        if (!(relations.data[stack[i] * relations.count + stack[i - 1]] & 1)) missingStackRelations++;
+        if (!(relations.data[stack[i - 1] * relations.count + stack[i]] & 2)) missingStackRelations++;
       }
     }
     for (const plan of [plans.front, plans.back])
@@ -118,8 +100,9 @@ for (const model of manifest.models.filter((m) => m.status === 'solved')) {
       wovenPatchTriangles: plans.front.pieces.filter((p) => p.patch && p.kind === 'face').length,
       nonfinitePoints,
       nonfinitePlanes,
-      changedStackRelations,
-      maxWarmOrderMs,
+      missingStackRelations,
+      relationPrepareMs,
+      relationBytes: relations.data.byteLength,
       outOfRangeHeights,
       layerLevels: zMax + 1,
       maxLocalStack: Math.max(...scene.subfaces.map((cell) => cell.faces_top_to_bottom.length)),

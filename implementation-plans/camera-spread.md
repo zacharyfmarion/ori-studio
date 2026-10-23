@@ -51,6 +51,7 @@ for Zach to validate before making this the default diagram spread.
 - [x] Investigate the oblique frog artifact (the initial geometric-depth fallback was rejected).
 - [x] Restore strict 3D layer protection, choosing the forward/reversed plan from each deformed surface's facing.
 - [x] Validate buried ink, locally reversed stacks, the reported frog angles and the supplied CP in the live explorer.
+- [x] Replace arbitrary paint priorities between unrelated faces with per-overlap depth; review 70 before/after pairs across ten models (see `camera-spread-partial-visibility.md`).
 
 ## Result and remaining product work
 

@@ -437,7 +437,7 @@ function App() {
           <p className={styles.notice}>
             {visibilityMode === 'depth'
               ? 'Raw depth shows the approximate 3D surfaces without layer protection.'
-              : 'Buried surfaces and ink stay behind their covering layers. In 3D, each lifted surface reverses its stacking order when viewed from behind.'}{' '}
+              : 'Known covering layers hide buried surfaces and ink. Unrelated surfaces use their depth at each overlap. In 3D, each surface reverses its stack when viewed from behind.'}{' '}
             The connected mesh can still stretch and intersect; visibility clipping does not repair the
             physical fit.
           </p>

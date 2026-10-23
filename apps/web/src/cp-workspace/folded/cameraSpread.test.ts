@@ -151,7 +151,12 @@ describe('experimental connected camera lift', () => {
   it('rotates the projected drawing without changing layer coverage when rolled', () => {
     const kernel = stack();
     for (const projection of ['orthographic', 'perspective'] as const) {
-      const camera = { ...options, projection, directionDeg: 32, inclinationDeg: 120 };
+      const camera = {
+        ...options,
+        projection,
+        directionDeg: 32,
+        inclinationDeg: 120,
+      };
       const before = cameraSpreadScene(kernel, camera);
       const after = cameraSpreadScene(kernel, { ...camera, rollDeg: 90 });
       const vertices = (scene: PaperScene) =>
@@ -196,13 +201,16 @@ describe('experimental connected camera lift', () => {
       (last, item, i) => (item.kind === 'line' && item.role === 'aux' ? i : last),
       -1
     );
-    expect(lastAux).toBeGreaterThan(-1);
-    expect(visibleFace({ ...locked, items: locked.items.slice(lastAux + 1) }, 0.4, 0.5)).toBe(1);
+    expect(lastAux).toBe(-1);
     for (const projection of ['orthographic', 'perspective'] as const) {
       const top = cameraSpreadScene(kernel, { ...view, projection });
       expect(visibleFace(top, 0.4, 0.5)).toBe(1);
       expect(auxAt(top, 0.4, 0.5)).toBe(false);
-      const below = cameraSpreadScene(kernel, { ...view, projection, inclinationDeg: 180 });
+      const below = cameraSpreadScene(kernel, {
+        ...view,
+        projection,
+        inclinationDeg: 180,
+      });
       expect(visibleFace(below, 0.4, 0.5)).toBe(0);
       expect(auxAt(below, 0.4, 0.5)).toBe(true);
     }
@@ -218,7 +226,12 @@ describe('experimental connected camera lift', () => {
       for (const t of mesh.triangles)
         for (const v of t.vertices) mesh.heights[v] = 2 * mesh.xy[v]!.x + (t.face === 0 ? 0.1 : -0.1);
       for (const projection of ['orthographic', 'perspective'] as const) {
-        const view = { ...options, amount: 0.5, projection, inclinationDeg: 60 };
+        const view = {
+          ...options,
+          amount: 0.5,
+          projection,
+          inclinationDeg: 60,
+        };
         const frame = cameraSpreadTransform(view);
         expect(frame[8]).toBeGreaterThan(0);
         const plans = cameraPaintPlans(mesh, kernel);
@@ -242,7 +255,10 @@ describe('experimental connected camera lift', () => {
         p.y += 2;
       })
     );
-    kernel.subfaces.push({ polygon: kernel.faces[2]!.outline, faces_top_to_bottom: [3, 2] });
+    kernel.subfaces.push({
+      polygon: kernel.faces[2]!.outline,
+      faces_top_to_bottom: [3, 2],
+    });
     const mesh = cameraSpreadLift(kernel);
     for (const t of mesh.triangles)
       for (const v of t.vertices)
@@ -264,7 +280,12 @@ describe('experimental connected camera lift', () => {
     }
   });
   it('uses the finite perspective eye for surface facing, independently of camera roll', () => {
-    const view = { ...options, amount: 0.5, inclinationDeg: 60, projection: 'orthographic' as const };
+    const view = {
+      ...options,
+      amount: 0.5,
+      inclinationDeg: 60,
+      projection: 'orthographic' as const,
+    };
     for (const rollDeg of [0, 91, 210]) {
       const frame = cameraSpreadTransform({ ...view, rollDeg });
       const plane: [number, number, number, number] = [-1, 0, 1, -0.5];
@@ -277,7 +298,10 @@ describe('experimental connected camera lift', () => {
     kernel.faces[0]!.outline.forEach((p) => {
       p.x += 1.5;
     });
-    kernel.subfaces = kernel.faces.map((face, i) => ({ polygon: face.outline, faces_top_to_bottom: [i] }));
+    kernel.subfaces = kernel.faces.map((face, i) => ({
+      polygon: face.outline,
+      faces_top_to_bottom: [i],
+    }));
     const mesh = cameraSpreadLift(kernel);
     // Two disconnected panels, disjoint in XY, become overlapping on screen
     // near a side view. Face 0 is nearer, even though face 1 paints last flat.
@@ -286,12 +310,41 @@ describe('experimental connected camera lift', () => {
     expect(plan.pieces.find((p) => p.face === 1)!.rank).toBeGreaterThan(
       plan.pieces.find((p) => p.face === 0)!.rank
     );
-    for (const projection of ['orthographic', 'perspective'] as const) {
-      const view = { ...options, amount: 0.5, directionDeg: 0, inclinationDeg: 80, projection };
+    for (const projection of ['diagram', 'orthographic', 'perspective'] as const) {
+      const view = {
+        ...options,
+        amount: 0.5,
+        directionDeg: 0,
+        inclinationDeg: 80,
+        projection,
+      };
       const layered = cameraSpreadScene(kernel, view);
       const raw = cameraSpreadScene(kernel, { ...view, visibility: 'depth' });
-      expect(visibleFace(raw, 1.4, 0.5)).toBe(0);
-      expect(visibleFace(layered, 1.4, 0.5)).toBe(0);
+      const x = projection === 'diagram' ? 2 : 1.4;
+      expect(visibleFace(raw, x, 0.5)).toBe(0);
+      expect(visibleFace(layered, x, 0.5)).toBe(0);
+    }
+  });
+  it('resolves unrelated tilted surfaces at each overlap instead of sorting their centre depths', () => {
+    for (const reverseIds of [false, true]) {
+      const kernel = stack();
+      kernel.subfaces = [];
+      const sloped = reverseIds ? 1 : 0;
+      kernel.aux_lines = [{ from: { x: 0, y: 0.5 }, to: { x: 1, y: 0.5 }, face: sloped }];
+      const mesh = cameraSpreadLift(kernel);
+      for (const t of mesh.triangles)
+        for (const v of t.vertices) mesh.heights[v] = t.face === sloped ? 1.5 * mesh.xy[v]!.x - 0.5 : 0;
+      for (const projection of ['diagram', 'orthographic', 'perspective'] as const) {
+        const view = { ...options, amount: 0.3, inclinationDeg: 0, projection };
+        const scene = cameraSpreadScene(kernel, view);
+        expect(visibleFace(scene, 0.2, 0.5)).toBe(1 - sloped);
+        expect(visibleFace(scene, 0.8, 0.5)).toBe(sloped);
+        // BSP draws unrelated hidden ink underneath the visible face; known
+        // buried ink, tested above, is clipped before it reaches the BSP.
+        const raw = cameraSpreadScene(kernel, { ...view, visibility: 'depth' });
+        expect(visibleFace(raw, 0.2, 0.5)).toBe(visibleFace(scene, 0.2, 0.5));
+        expect(visibleFace(raw, 0.8, 0.5)).toBe(visibleFace(scene, 0.8, 0.5));
+      }
     }
   });
   it('keeps all four local over/under crossings of a woven cycle', () => {
@@ -321,7 +374,10 @@ describe('experimental connected camera lift', () => {
     const plans = cameraPaintPlans(cameraSpreadLift(kernel), kernel);
     expect(plans.front.pieces.some((p) => p.patch && p.kind === 'face')).toBe(true);
     for (const angle of [0, 45]) {
-      const scene = cameraSpreadScene(kernel, { ...options, inclinationDeg: angle });
+      const scene = cameraSpreadScene(kernel, {
+        ...options,
+        inclinationDeg: angle,
+      });
       for (const [x, y, order] of cells) expect(visibleFace(scene, x + 0.5, y + 0.5)).toBe(order[0]);
     }
     // A positive lift must retain the reversed local woven stacks as well.
@@ -340,7 +396,11 @@ describe('experimental connected camera lift', () => {
     const corner = { x: 1 - 1e-13, y: 1 };
     face.outline.splice(3, 0, corner);
     face.points.splice(3, 0, 8);
-    face.edges = face.outline.map((from, i) => ({ from, to: face.outline[(i + 1) % 5]!, kind: 'border' }));
+    face.edges = face.outline.map((from, i) => ({
+      from,
+      to: face.outline[(i + 1) % 5]!,
+      kind: 'border',
+    }));
     kernel.aux_lines = [{ face: 0, from: { x: 0, y: 0.1 }, to: { x: 1, y: 0.9 } }];
     const mesh = cameraSpreadLift(kernel);
     const plans = cameraPaintPlans(mesh, kernel);

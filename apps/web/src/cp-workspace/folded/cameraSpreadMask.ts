@@ -1,6 +1,7 @@
-/** Vector counterpart of the GPU's per-facing layer masks (research export only). */
+/** Vector counterpart of per-overlap layer protection (research export only). */
 import type { Vec3 } from '@treemaker/origami-simulator';
 import type { CameraPaintPiece } from './cameraSpreadVisibility';
+import { cameraLayerCovers, type CameraLayerRelations } from './cameraSpreadRelations';
 
 type Point = [number, number];
 type Bounds = [number, number, number, number];
@@ -8,6 +9,7 @@ interface Cover {
   bounds: Bounds;
   planes: Array<(p: Vec3) => number>;
   rank: number;
+  face: number;
 }
 const lerp = (a: Vec3, b: Vec3, t: number): Vec3 => a.map((v, i) => v + t * (b[i]! - v)) as Vec3;
 
@@ -39,14 +41,16 @@ function split(points: Vec3[], side: (p: Vec3) => number, line: boolean): [Vec3[
 }
 
 /**
- * Remove higher-ranked coverage within one facing group before geometric depth
- * is allowed to compare it with the other group. Clips in homogeneous screen
+ * Remove authoritative coverage within one facing group before geometric depth
+ * compares the surviving unrelated and opposite-facing surfaces. Clips in homogeneous screen
  * coordinates, so intersections interpolate correctly in perspective too.
- * The GPU uses cached buffers and two depth textures instead of this CPU work.
+ * Unrelated surfaces survive to the depth comparison, regardless of paint rank.
  */
 export function maskCameraPaintGroup(
   pieces: CameraPaintPiece[],
-  homogeneous: (p: Vec3) => Vec3
+  homogeneous: (p: Vec3) => Vec3,
+  relations: CameraLayerRelations,
+  back: boolean
 ): CameraPaintPiece[] {
   const project = (p: Vec3): Point => {
     const [x, y, w] = homogeneous(p);
@@ -60,7 +64,7 @@ export function maskCameraPaintGroup(
     let fragments = [piece.points];
     for (const cover of covers) {
       // Fill and outline may share one item. Neither hides its own ink.
-      if (cover.rank <= piece.rank || !overlaps(box, cover.bounds)) continue;
+      if (!cameraLayerCovers(relations, cover, piece, back) || !overlaps(box, cover.bounds)) continue;
       const outside: Vec3[][] = [];
       for (const fragment of fragments) {
         let inside = fragment;
@@ -92,6 +96,7 @@ export function maskCameraPaintGroup(
     covers.push({
       bounds: box,
       rank: piece.rank,
+      face: piece.face,
       planes: projected.map((a, i) => {
         const b = projected[(i + 1) % 3]!;
         const dx = b[0] - a[0],

@@ -52,8 +52,10 @@ In the explorer:
 - **Preserve layer order** suppresses buried faces and ink in every camera mode.
   In 3D, each lifted triangle selects the forward or reversed stack according
   to its own facing. Known layer relationships stay authoritative; unrelated
-  stacks are ordered by camera depth. Opposite-facing protected surfaces then
-  occlude each other geometrically. **Raw 3D depth** disables this protection.
+  surfaces compete by depth at each projected overlap, including in Diagram.
+  Face IDs and arbitrary flat draw priorities cannot hide unrelated surfaces.
+  Opposite-facing protected surfaces also compete geometrically.
+  **Raw 3D depth** disables this protection.
 - Enable the bending mesh to inspect interior degrees of freedom.
 - Read edge extension and *withheld* layer-order sample failures. These are not a
   full triangle-intersection certificate; small residuals can also lie below the
@@ -62,20 +64,38 @@ In the explorer:
   No telemetry or uploads are initialized by this standalone entry.
 
 Mesh preparation runs in a worker that is terminated when models change.
-Direction, camera and amount update uniforms and a small paint-rank texture;
-they do not rebuild vertex buffers or rerun the solver. The ordering graph is cached.
+Direction, camera and amount update uniforms and a screen-tiled triangle index;
+they do not rebuild vertex buffers or rerun the solver. The transitive layer
+relationships are cached in a byte texture. Each fragment tests only candidate
+covering triangles in its tile, then surviving fragments use geometric depth.
 The displayed timing is CPU draw submission, **not GPU completion or FPS**.
 The original/legacy comparison is drawn through the existing PaperScene producer.
 Front/back visibility plans also prepare in the worker, including local patches
 for woven folds and auxiliary ink split along bending triangles. The layer-ordered
 vector path uses the same pieces and masks each facing group before BSP sorting;
-the 3D/raw BSP paths have a 2,000-triangle budget, plus a 50,000-fragment masking cap.
+positive-depth vector paths have a 2,000-triangle budget, plus a 50,000-fragment masking cap.
 These are research adapters, not production exports. The flat paint plan does
 not represent every buried order in a woven component, so newly exposed woven
 regions at large distortions still require visual review.
 
 A `?model=<manifest-id>` query opens a particular example directly; for the
 supplied CP use `camera-spread.html?model=ldm-layer-issue`.
+
+The partial-order visibility review captures seven matched settings on ten models:
+
+```sh
+# Run before changing the renderer to freeze the baseline, then after the change.
+node scripts/camera-spread/compare.mjs before
+node scripts/camera-spread/compare.mjs after
+node scripts/camera-spread/gallery.mjs
+node scripts/camera-spread/check-renderer.mjs
+```
+
+Open `/src/generated/camera-spread/comparison/index.html` on the same server for
+all 70 pairs, model/view filters, full-resolution PNGs and a wipe slider. Capture
+metadata records the exact cameras, framing and baseline revision. Artifacts stay
+local and ignored. The GPU pixel check uses synthetic geometry, without corpus
+files, and verifies crossing depths, ID permutation, stack reversal and hidden ink.
 
 Validation:
 

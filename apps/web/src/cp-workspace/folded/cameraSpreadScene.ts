@@ -11,7 +11,7 @@ import {
   type CameraPaintPlan,
 } from './cameraSpreadVisibility';
 import { maskCameraPaintGroup } from './cameraSpreadMask';
-import { cameraPaintRanks } from './cameraSpreadOrder';
+import { cameraLayerRelations } from './cameraSpreadRelations';
 import { cameraSpreadTransform, type CameraSpreadPose } from './cameraSpreadCamera';
 
 /** Research control range; not a physical paper-strain guarantee. */
@@ -71,10 +71,20 @@ function drawing(
         front: kernel.faces[piece.face]!.front_up,
         orientation: Math.sign(polygonArea(piece.points.map((p) => [p[0], p[1]]))),
       });
-      items.push({ kind: 0, ref: faces.length - 1, points: piece.points, order: piece.rank });
+      items.push({
+        kind: 0,
+        ref: faces.length - 1,
+        points: piece.points,
+        order: piece.rank,
+      });
     } else {
       edges.push({ role: piece.role! });
-      items.push({ kind: 1, ref: edges.length - 1, points: piece.points, order: piece.rank });
+      items.push({
+        kind: 1,
+        ref: edges.length - 1,
+        points: piece.points,
+        order: piece.rank,
+      });
     }
   }
   const result = {
@@ -139,32 +149,38 @@ export function cameraSpreadScene(
       mesh.origin.y + mesh.size * (cy + vertical / w),
     ];
   };
-  const groups = cameraPaintGroupsForView(plans, options, frame, [cx, cy]).map((pieces, i) => {
-    const ranks = cameraPaintRanks(mesh, kernel, i ? plans.back : plans.front, !!i, options, frame);
-    return pieces.map((piece) => ({ ...piece, rank: ranks[piece.rank]! })).sort((a, b) => a.rank - b.rank);
-  });
+  const groups = cameraPaintGroupsForView(plans, options, frame, [cx, cy]);
   const pieces = groups.flat();
-  // Diagram keeps the original painter plan. For orbit views, mask each side's
-  // buried geometry first, then BSP-order only the protected survivors. Thus
-  // real depth can compare opposite-facing surfaces but cannot resurrect a
-  // lower layer in a stack. This mirrors the live GPU's two depth masks.
+  // Protect only known stack relations in each facing group. All survivors,
+  // including unrelated surfaces in Diagram, compete geometrically at overlaps.
   const unrolled = cameraSpreadTransform({ ...options, rollDeg: 0 });
-  if (amount > 0 && projection !== 'diagram' && mesh.triangles.length > 2000)
+  if (amount > 0 && mesh.triangles.length > 2000)
     throw new Error('Experimental camera vector projection exceeds its 2,000-triangle budget');
   const prepared =
-    amount > 0 && (mode === 'depth' || projection !== 'diagram')
+    amount > 0
       ? drawing(
           mesh,
           kernel,
           plan,
           mode === 'layers'
-            ? groups.flatMap((group) => maskCameraPaintGroup(group, (p) => homogeneous(p, unrolled)))
+            ? groups.flatMap((group, side) =>
+                maskCameraPaintGroup(
+                  group,
+                  (p) => homogeneous(p, unrolled),
+                  cameraLayerRelations(kernel),
+                  !!side
+                )
+              )
             : undefined
         )
       : null;
   const ordered = prepared
     ? traverseBsp(prepared.tree, eye)
-    : pieces.map((p, ref) => ({ kind: p.kind === 'face' ? 0 : 1, ref, points: p.points }));
+    : pieces.map((p, ref) => ({
+        kind: p.kind === 'face' ? 0 : 1,
+        ref,
+        points: p.points,
+      }));
   const items: PaperItem[] = [];
   for (const piece of ordered) {
     const points = piece.points.map(project);
