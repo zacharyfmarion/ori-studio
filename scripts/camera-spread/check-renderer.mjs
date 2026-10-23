@@ -73,9 +73,11 @@ try {
             renderer.draw(view, 1, false, pan);
             const pixel = (x, y) => {
               const p = new Uint8Array(4);
+              // Read the pixel containing the projected point. Rounding can
+              // select the next pixel, outside a subpixel-width auxiliary line.
               gl.readPixels(
-                Math.round(canvas.width / 2 + ((x - 0.5 + pan[0]) * 1.45 * canvas.height) / 2),
-                Math.round(canvas.height / 2 - ((y - 0.5 + pan[1]) * 1.45 * canvas.height) / 2),
+                Math.floor(canvas.width / 2 + ((x - 0.5 + pan[0]) * 1.45 * canvas.height) / 2),
+                Math.floor(canvas.height / 2 - ((y - 0.5 + pan[1]) * 1.45 * canvas.height) / 2),
                 1,
                 1,
                 gl.RGBA,

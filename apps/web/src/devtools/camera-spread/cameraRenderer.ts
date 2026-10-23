@@ -54,7 +54,9 @@ void main(){
     vec2 d=(b.xy/b.w-p.xy/p.w)*pixels;
     float len=length(d);
     vec2 n=len>0.00001?vec2(-d.y,d.x)/len:vec2(0.0);
-    vec2 offset=n*side*(paint.y>1.5 && paint.y<2.5 ? .65 : 1.1)*inkScale/pixels;
+    // Full stroke widths in CSS pixels; expand only half to each side.
+    float strokeWidth=paint.y>1.5 && paint.y<2.5 ? .65 : 1.1;
+    vec2 offset=n*side*.5*strokeWidth*inkScale/pixels;
     if(layerMode<.5 || layerMode>1.5) {
       // Ink's pixel-width quad follows its source surface's depth slope. A
       // constant-depth ribbon sinks into a tilted panel and breaks its lines.

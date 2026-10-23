@@ -55,3 +55,14 @@ camera/settings combinations on ten private corpus/example models.
   11.89 ms. These are not GPU completion times or an interactive FPS guarantee.
 - Rust/oracle, native shell and production build checks are unnecessary here:
   no upstream solver, WASM, native behavior, production entry or route changed.
+
+## Stroke-weight follow-up
+
+- Restored lighter full CSS widths: 1.1 px outlines and 0.65 px auxiliary ink,
+  independent of rendering resolution. Each line quad expands by half that width
+  per side; coverage masks, surface slope and depth bias remain unchanged.
+- Recaptured all 70 after images and labeled the stroke-weight difference in the
+  gallery. The original before captures remain intact.
+- Web lint, TypeScript, 100 focused unit tests and all 32 WebGL pixel cases pass.
+  Pixel probes now select the pixel containing the projected point, avoiding an
+  adjacent pixel outside thin ink. No new tests for this cosmetic adjustment.
