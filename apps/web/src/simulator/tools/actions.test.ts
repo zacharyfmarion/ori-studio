@@ -55,12 +55,13 @@ describe('the tool catalog', () => {
 });
 
 describe('simulatorToolButtons', () => {
-  it('lists Orbit, Pin then Pull, with the active one marked and each selecting itself', () => {
+  it('lists Orbit, Pan, Pin then Pull, with the active one marked and each selecting itself', () => {
     const bound = verbs();
     const buttons = simulatorToolButtons(t, view({ activeToolId: 'pin' }), bound, 'rail');
 
     expect(buttons.map((button) => [button.id, button.label, button.active])).toEqual([
       ['orbit', 'Orbit', false],
+      ['pan', 'Pan', false],
       ['pin', 'Pin', true],
       ['pull', 'Pull', false],
     ]);
@@ -138,7 +139,7 @@ describe('simulatorToolWindow', () => {
       simulatorToolWindow(t, view({ activeToolId: 'pin' }), verbs(), host)?.instructions.at(-1);
 
     expect(last(MAC)).toBe('Cmd-drag turns the model.');
-    expect(last(PC)).toBe('Drag with the middle button to turn the model.');
+    expect(last(PC)).toBe('Middle-drag pans; use Orbit to turn the model.');
     expect(last(PHONE)).toBe('Switch to Orbit to turn the model.');
   });
 });

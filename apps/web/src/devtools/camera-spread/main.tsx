@@ -10,9 +10,9 @@ import {
 } from '../../cp-workspace/folded/cameraSpreadScene';
 import type { CameraPaintPlans } from '../../cp-workspace/folded/cameraSpreadVisibility';
 import { foldedFlatPaperScene } from '../../cp-workspace/folded/foldedFlatScene';
-import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { LegacyLayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import type { PaperScene } from '../../lib/paper/paperScene';
-import { createCameraRenderer } from './cameraRenderer';
+import { createCameraRenderer } from '../../cp-workspace/folded/cameraSpreadRenderer';
 import { useCameraSpreadOrbit } from './useCameraSpreadOrbit';
 import type { CameraSpreadPose } from '../../cp-workspace/folded/cameraSpreadCamera';
 import { readJson, storageKey, writeJson } from '../../lib/storage';
@@ -89,7 +89,7 @@ function FlatCanvas({
   label,
 }: {
   kernel: OristudioCpFoldedPaperScene;
-  spread?: LayerSpreadOptions;
+  spread?: LegacyLayerSpreadOptions;
   zoom: number;
   label: string;
 }) {
@@ -281,7 +281,7 @@ function App() {
   }, [model]);
   const set = <K extends keyof CameraSpreadOptions>(key: K, value: CameraSpreadOptions[K]) =>
     setOptions((o) => ({ ...o, [key]: value }));
-  const spread = useMemo<LayerSpreadOptions | undefined>(
+  const spread = useMemo<LegacyLayerSpreadOptions | undefined>(
     () =>
       comparison === 'depth'
         ? { kind: 'depth', amount: options.amount, toward: 'down' }

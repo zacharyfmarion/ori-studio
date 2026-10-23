@@ -9,18 +9,8 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import {
-  VIEW_CUBE_FACES,
-  viewCubeTransform,
-  visibleViewCubeFaces,
-  type ViewCubeFaceId,
-} from './viewCubeGeometry';
-import {
-  normalizeAngle,
-  type SimulatorOrbitGesture,
-  type SimulatorOrbitView,
-  type SimulatorViewDirection,
-} from '../../lib/simulatorOrbit';
+import { VIEW_CUBE_FACES, viewCubeTransform, visibleViewCubeFaces, type ViewCubeFaceId } from './viewCubeGeometry';
+import { normalizeAngle, type CameraGesture, type OrbitView, type ViewDirection } from '../../lib/viewport3dCamera';
 import { track } from '../../analytics';
 import { ANALYTICS_EVENTS } from '../../analytics/events';
 
@@ -47,17 +37,17 @@ import { ANALYTICS_EVENTS } from '../../analytics/events';
  * and there is no second answer to where the model is.
  */
 
-export interface SimulatorViewCubeHandle {
+export interface ViewCubeHandle {
   /** Turn the cube to match the camera. One style write; never reads layout. */
-  setView: (view: SimulatorOrbitView) => void;
+  setView: (view: OrbitView) => void;
 }
 
-export interface SimulatorViewCubeProps {
-  ref?: Ref<SimulatorViewCubeHandle>;
+export interface ViewCubeProps {
+  ref?: Ref<ViewCubeHandle>;
   /** Whether the faces accept presses (false while loading or errored). */
   interactive: boolean;
   /** A face was chosen: look at the model from here. */
-  onSnap: (direction: SimulatorViewDirection, face: ViewCubeFaceId) => void;
+  onSnap: (direction: ViewDirection, face: ViewCubeFaceId) => void;
   /** Spin the picture about the line of sight to this angle, in radians. */
   onRoll: (roll: number) => void;
   /**
@@ -65,7 +55,7 @@ export interface SimulatorViewCubeProps {
    * so a drag that starts on the cube is the drag it would have been anywhere
    * else. Grabbing the cube and turning it is what most people try first.
    */
-  orbit: SimulatorOrbitGesture;
+  orbit: CameraGesture;
 }
 
 /** How far an arrow key nudges the roll ring. */
@@ -114,13 +104,7 @@ function faceLabel(t: TFunction, id: ViewCubeFaceId): string {
   }
 }
 
-export function SimulatorViewCube({
-  ref,
-  interactive,
-  onSnap,
-  onRoll,
-  orbit,
-}: SimulatorViewCubeProps) {
+export function ViewCube({ ref, interactive, onSnap, onRoll, orbit }: ViewCubeProps) {
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<HTMLDivElement | null>(null);
@@ -128,9 +112,7 @@ export function SimulatorViewCube({
   // Compared before writing, so the six `data-hidden` attributes are touched
   // when a face crosses the horizon rather than on every frame of a drag.
   const visibleRef = useRef<number | null>(null);
-  const dragRef = useRef<{ pointerId: number; x: number; y: number; turned: boolean } | null>(
-    null
-  );
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; turned: boolean } | null>(null);
   // Set when a drag ends, and cleared by the press it swallows.
   const swallowPressRef = useRef(false);
   // The viewpoint currently lit, so the previous one can be put out.
@@ -157,7 +139,7 @@ export function SimulatorViewCube({
   // The roll the ring is showing, so a key press can nudge from it.
   const rollRef = useRef(0);
 
-  const applyView = useCallback((view: SimulatorOrbitView) => {
+  const applyView = useCallback((view: OrbitView) => {
     const scene = sceneRef.current;
     if (scene) scene.style.transform = viewCubeTransform(view);
 
@@ -306,10 +288,7 @@ export function SimulatorViewCube({
     // Begun on the press, not on the first move past the slop: this is also what
     // stops a snap that is still animating, and it fixes the angles the drag
     // turns from before anything can move them.
-    orbit.begin(
-      { x: event.clientX, y: event.clientY },
-      event.shiftKey ? 'roll' : 'orbit'
-    );
+    orbit.begin({ x: event.clientX, y: event.clientY }, event.shiftKey ? 'roll' : 'orbit');
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -355,9 +334,7 @@ export function SimulatorViewCube({
       // between two cells puts the old viewpoint out and lights the new one with
       // nothing in between. A captured drag reports both against the face it
       // grabbed, so the highlight holds still while the cube turns under it.
-      onPointerOver={(event) =>
-        lightViewpoint((event.target as HTMLElement).dataset?.viewpoint ?? null)
-      }
+      onPointerOver={(event) => lightViewpoint((event.target as HTMLElement).dataset?.viewpoint ?? null)}
       onPointerOut={() => lightViewpoint(null)}
       role="group"
       aria-label={t('panels:simulator.viewCube.label', 'View cube')}

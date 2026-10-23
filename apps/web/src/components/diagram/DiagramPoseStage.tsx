@@ -40,9 +40,13 @@ export function DiagramPoseStage({
   yaw,
   pitch,
   children,
+  hint,
+  showAngles = true,
 }: {
   /** The view's own state, for the inspector (`data-status`). */
   status: string;
+  hint?: string;
+  showAngles?: boolean;
   /** Laid out but not shown: a view still loading sizes itself under the picture. */
   hidden?: boolean;
   ghost: DiagramPoseGhost | null;
@@ -66,11 +70,11 @@ export function DiagramPoseStage({
           <g opacity={GHOST_OPACITY} dangerouslySetInnerHTML={{ __html: ghost.markup }} />
         </svg>
       )}
-      <ViewportStatusReadout>
+      {showAngles && <ViewportStatusReadout>
         <span>{t('panels:diagram.pose.cameraReadout', 'Yaw {{yaw}}° · Pitch {{pitch}}°', { yaw, pitch })}</span>
-      </ViewportStatusReadout>
+      </ViewportStatusReadout>}
       <p className={styles.hint} aria-hidden="true">
-        {t('panels:diagram.pose.orbitHint', 'Drag to turn · Double-click to reset')}
+        {hint ?? t('panels:diagram.pose.orbitHint', 'Drag to turn · Double-click to reset')}
       </p>
     </div>
   );

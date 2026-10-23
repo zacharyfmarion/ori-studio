@@ -357,6 +357,7 @@
     "toggleLighting": "조명",
     "toolExit": "도구 종료",
     "toolOrbit": "궤도 도구",
+    "toolPan": "이동 도구",
     "toolPin": "고정 도구",
     "toolPull": "당기기 도구"
   },

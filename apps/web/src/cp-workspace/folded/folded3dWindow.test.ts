@@ -15,7 +15,7 @@ import type {
   OristudioCpFolded3dRenderModel,
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
-import { SIMULATOR_MAX_ZOOM, SIMULATOR_MIN_ZOOM } from '../../lib/simulatorOrbit';
+import { MAX_CAMERA_ZOOM, MIN_CAMERA_ZOOM } from '../../lib/viewport3dCamera';
 import {
   resetFolded3dRenderModels,
   setFolded3dRenderModel,
@@ -188,8 +188,8 @@ describe('framing a figure inside its window', () => {
   it('clamps a stored zoom to the range the wheel can reach', () => {
     // A camera off a file cannot put a figure somewhere its own gestures could
     // not take it back from.
-    expect(folded3dWindowView({ yaw: 0, pitch: 0, zoom: 99 }).zoom).toBe(SIMULATOR_MAX_ZOOM);
-    expect(folded3dWindowView({ yaw: 0, pitch: 0, zoom: 0.001 }).zoom).toBe(SIMULATOR_MIN_ZOOM);
+    expect(folded3dWindowView({ yaw: 0, pitch: 0, zoom: 99 }).zoom).toBe(MAX_CAMERA_ZOOM);
+    expect(folded3dWindowView({ yaw: 0, pitch: 0, zoom: 0.001 }).zoom).toBe(MIN_CAMERA_ZOOM);
   });
 
   it('falls back to the fold camera for a figure that carries none', () => {

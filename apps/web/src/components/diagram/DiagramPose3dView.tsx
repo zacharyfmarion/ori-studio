@@ -16,14 +16,11 @@ import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { folded3dCaptureFrame } from '../../diagram/pictures/folded3dCaptureFrame';
 import { poseCreaseReferenceEdge } from '../../diagram/pictures/poseLineWeight';
-import { withRollAbsorbed } from '../../lib/simulatorOrbit';
-import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
-import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
-import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
-import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
+import { persistedCameraView } from '../../lib/viewport3dCamera';
+import { Viewport3d, type Viewport3dHandle } from '../../viewport3d/Viewport3d';
+import type { UprightViewHandle } from '../../viewport3d/viewport3dHandle';
 import { sameCamera } from '../../diagram/capture/poseController';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
-
 
 /**
  * A step folded in 3D, live, to be turned in Pose (D5): the mesh Edit's 3D
@@ -55,14 +52,13 @@ export function DiagramPose3dView({
   camera: FoldedFigureCamera;
   style: DiagramStyle;
   onCamera: (camera: FoldedFigureCamera) => void;
-  registerLiveView?: (view: SimulatorViewHandle) => () => void;
+  registerLiveView?: (view: UprightViewHandle) => () => void;
   /** The annotations to ghost, when they are in step with the stored picture; null otherwise. */
   ghost: DiagramPoseAnnotations | null;
   fallback: ReactNode;
 }) {
   const { t } = useTranslation();
-  const viewportRef = useRef<SimulatorViewportHandle | null>(null);
-  const [, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const viewportRef = useRef<Viewport3dHandle | null>(null);
   const mesh = useMemo(() => {
     const result = folded3dMesh(view.model, view.aux);
     return result.kind === 'mesh' ? result.mesh : null;
@@ -112,10 +108,7 @@ export function DiagramPose3dView({
       setCamera({ ...orbit, zoom: orbit.zoom * folded3dFrameFillZoom(width, height) }, width, height);
       // A step's camera has no roll of its own: a Shift-drag or the cube's
       // ring is kept in its orientation, so what is captured is what is shown.
-      const kept = withRollAbsorbed(orbit);
-      const shown: FoldedFigureCamera = kept.orient
-        ? { yaw: kept.yaw, pitch: kept.pitch, zoom: kept.zoom, orient: kept.orient }
-        : { yaw: kept.yaw, pitch: kept.pitch, zoom: kept.zoom };
+      const shown = persistedCameraView(orbit);
       showDegrees(shown);
       setAtStored(sameCamera(shown, storedRef.current));
       setSize((was) => (was?.width === width && was.height === height ? was : { width, height }));
@@ -126,6 +119,18 @@ export function DiagramPose3dView({
   // A new stored camera (the view rested and was captured, or an undo) is the
   // view's own: the next push says whether the view still shows it.
   useEffect(() => showDegrees(camera), [camera, showDegrees]);
+  const pushView = useCallback(
+    (orbit: OrbitView, size: { width: number; height: number; dpr: number }) => {
+      setRenderSettings({
+        ...renderSettings,
+        creaseWidthReferenceEdge: poseCreaseReferenceEdge(size.dpr),
+        creaseWidthShrinkExponent: 1,
+        creaseWidthGrows: true,
+      });
+      pushCamera(orbit, Math.round(size.width * size.dpr), Math.round(size.height * size.dpr));
+    },
+    [renderSettings, setRenderSettings, pushCamera]
+  );
 
   const frameRadius = useMemo(() => folded3dFrameRadius(view.model), [view]);
   const ghostMarkup = useMemo(() => {
@@ -136,7 +141,8 @@ export function DiagramPose3dView({
 
   const live = mesh !== null && status !== 'error';
   useEffect(
-    () => (live && registerLiveView ? registerLiveView({ setUpright: () => viewportRef.current?.setUpright() }) : undefined),
+    () =>
+      live && registerLiveView ? registerLiveView({ setUpright: () => viewportRef.current?.setUpright() }) : undefined,
     [live, registerLiveView]
   );
 
@@ -149,28 +155,12 @@ export function DiagramPose3dView({
       pitch={pitch}
     >
       {(canvasClassName) => (
-        <SimulatorViewport
+        <Viewport3d
           ref={viewportRef}
-          canvasKey="diagram-pose-3d"
-          onCanvasChange={setCanvas}
-          interactive
-          gpuActive
-          bitmapPresent
-          transparentBackground
-          // Its lines grow with the stage as the step's picture does when Pose shows it there.
-          creaseWidthReferenceEdge={poseCreaseReferenceEdge(simulatorDevicePixelRatio())}
-          creaseWidthShrinkExponent={1}
-          creaseWidthGrows
-          viewSettings={DEFAULT_SIMULATOR_SETTINGS}
-          paperStyle={paperStyle}
-          renderSettings={renderSettings}
-          viewCube
           initialView={stored}
-          pushCamera={pushCamera}
-          pushRenderSettings={setRenderSettings}
+          onView={pushView}
           className={canvasClassName}
-          ariaLabel={t('panels:diagram.pose.view3d', 'Folded model in 3D: drag to turn it')}
-          perfSurface="diagram-pose"
+          label={t('panels:diagram.pose.view3d', 'Folded model in 3D: drag to turn it')}
         />
       )}
     </DiagramPoseStage>

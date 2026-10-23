@@ -11,7 +11,7 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
-import { SIMULATOR_MAX_ZOOM, SIMULATOR_MIN_ZOOM } from '../../lib/simulatorOrbit';
+import { MAX_CAMERA_ZOOM, MIN_CAMERA_ZOOM } from '../../lib/viewport3dCamera';
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
 import { defaultFolded3dCamera, folded3dFrameRadius } from './folded3dCamera';
 import { folded3dWindowView } from './folded3dWindow';
@@ -260,12 +260,12 @@ describe('a zoom burst is not a document edit', () => {
     act(() => {
       for (let step = 0; step < 200; step += 1) api.orbit.zoom(-40);
     });
-    expect(getFolded3dOrbit(FIGURE_ID)?.camera.zoom).toBe(SIMULATOR_MAX_ZOOM);
+    expect(getFolded3dOrbit(FIGURE_ID)?.camera.zoom).toBe(MAX_CAMERA_ZOOM);
 
     act(() => {
       for (let step = 0; step < 400; step += 1) api.orbit.zoom(40);
     });
-    expect(getFolded3dOrbit(FIGURE_ID)?.camera.zoom).toBe(SIMULATOR_MIN_ZOOM);
+    expect(getFolded3dOrbit(FIGURE_ID)?.camera.zoom).toBe(MIN_CAMERA_ZOOM);
   });
 });
 

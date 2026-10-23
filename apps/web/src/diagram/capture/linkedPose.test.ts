@@ -7,6 +7,7 @@ import type { PaperStyle } from '../../lib/paper/paperStyle';
 import type { SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   DEFAULT_AFFINE_SPREAD,
+  DEFAULT_SPREAD_STARTS,
   DEFAULT_DIAGRAM_STYLE,
   DEFAULT_DEPTH_SPREAD,
   DEFAULT_LAYER_SPREAD,
@@ -629,6 +630,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
 
   /** Spread starts as `spreadStartsFor` gives them, each unlike its default. */
   const STARTS: DiagramSpreadStarts = {
+    ...DEFAULT_SPREAD_STARTS,
     any: { kind: 'depth', amount: 0.12, toward: 'up' },
     depth: { kind: 'depth', amount: 0.12, toward: 'up' },
     affine: { kind: 'affine', amount: 0.05, keep: 'bottom', skew: 0.2, axisDeg: 10 },
@@ -656,8 +658,8 @@ describe('a flat fold’s spread (Phase 13)', () => {
     const { session } = sessionWith();
     const document = cpDocument();
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }))).toEqual(DEFAULT_LAYER_SPREAD);
-    // Affine, on (Zach, 2026-10-05).
-    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
+    // Default, on.
+    expect(DEFAULT_LAYER_SPREAD).toMatchObject({ kind: 'camera', amount: 0.06, projection: 'diagram' });
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }, STARTS))).toEqual(STARTS.any);
     const off = await pose(session, SPREAD_FLAT, { verb: 'spread-layers' }, document);
     expect(off.status === 'posed' && off.render).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1 });

@@ -365,6 +365,7 @@
     "toggleLighting": "Beleuchtung",
     "toolExit": "Werkzeug beenden",
     "toolOrbit": "Orbit-Werkzeug",
+    "toolPan": "Verschieben-Werkzeug",
     "toolPin": "Fixier-Werkzeug",
     "toolPull": "Zieh-Werkzeug"
   },

@@ -40,6 +40,10 @@ const ORBIT: SimulatorToolDefinition = {
  * Pin: a box or a click picks crease-pattern faces, and the faces picked stay
  * where they are while the rest of the paper folds around them.
  */
+const PAN: SimulatorToolDefinition = {
+  id: 'pan', icon: 'pan', shortcut: 'simulator.tool.pan', input: 'pan', cursor: 'grab', window: pinsWindow,
+};
+
 const PIN: SimulatorToolDefinition = {
   id: 'pin',
   icon: 'pin',
@@ -78,9 +82,9 @@ const PULL: SimulatorToolDefinition = {
 };
 
 /** Every tool, in rail order. */
-export const SIMULATOR_TOOLS: readonly SimulatorToolDefinition[] = [ORBIT, PIN, PULL];
+export const SIMULATOR_TOOLS: readonly SimulatorToolDefinition[] = [ORBIT, PAN, PIN, PULL];
 
-const BY_ID: Record<SimulatorToolId, SimulatorToolDefinition> = { orbit: ORBIT, pin: PIN, pull: PULL };
+const BY_ID: Record<SimulatorToolId, SimulatorToolDefinition> = { orbit: ORBIT, pan: PAN, pin: PIN, pull: PULL };
 
 export function simulatorTool(id: SimulatorToolId): SimulatorToolDefinition {
   return BY_ID[id];

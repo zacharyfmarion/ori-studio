@@ -1,3 +1,5 @@
+import { cameraSpreadInitialView } from '../../cp-workspace/folded/cameraSpreadView';
+import { viewRotationFor } from '@treemaker/origami-simulator';
 import type { TFunction } from 'i18next';
 import {
   SPREAD_DIRECTIONS,
@@ -256,6 +258,7 @@ export function buildDiagramLinkedPoseActions(
           disabled: state.mirrorAxes?.length === 0,
           hint: t('panels:diagram.pose.uprightNone', 'This fold has no mirror axis to stand on'),
         }),
+        ...(render.spread?.kind === 'camera' && render.spread.projection !== 'diagram' ? [setUpright] : []),
         // Any layer order found, in either direction (D23): back to the one
         // before, on to the next — the search's next when none is found past
         // this one — the last wrapping round to the first, as Edit's does.
@@ -379,6 +382,7 @@ export function buildDiagramSpreadControls(
 
 /** A kind's name, as its segment says it. */
 export function spreadKindLabel(kind: SpreadKind, t: TFunction): string {
+  if (kind === 'camera') return t('panels:diagram.pose.spreadKindCamera', 'Default');
   return kind === 'depth'
     ? t('panels:diagram.pose.spreadKindDepth', 'Depth')
     : t('panels:diagram.pose.spreadKindAffine', 'Affine');
@@ -420,14 +424,22 @@ export function isDefaultRender(render: DiagramCpRender): boolean {
     case 'crease-pattern':
       // Its side is the Step pane's Front | Back, kept by Reset as a spread is.
       return render.rotationDeg === 0;
-    case 'folded-flat':
-      return render.rotationDeg === 0 && render.side === 'front' && render.foldCase === 1;
+    case 'folded-flat': {
+      const spread=render.spread;
+      const camera=spread?.kind === 'camera' ? spread.camera : null;
+      const start=spread?.kind === 'camera' ? cameraSpreadInitialView(spread) : null;
+      const atStart=!camera || !start || (Math.abs(camera.zoom-1)<1e-9 &&
+        Math.hypot(...(camera.pan ?? [0,0]))<1e-9 &&
+        viewRotationFor(camera).every((v,i)=>Math.abs(v-viewRotationFor(start)[i]!)<1e-9));
+      return render.rotationDeg === 0 && render.side === 'front' && render.foldCase === 1 && atStart;
+    }
     case 'folded-3d': {
       const start = defaultCaptureCamera('front');
       const { camera } = render;
       return (
         render.side === 'front' &&
         camera.orient === undefined &&
+        Math.hypot(...(camera.pan ?? [0,0]))<1e-9 &&
         Math.abs(camera.yaw - start.yaw) < 1e-9 &&
         Math.abs(camera.pitch - start.pitch) < 1e-9 &&
         Math.abs(camera.zoom - start.zoom) < 1e-9
@@ -438,6 +450,7 @@ export function isDefaultRender(render: DiagramCpRender): boolean {
       return (
         render.foldPercent === 0 &&
         view.orient === undefined &&
+        Math.hypot(...(view.pan ?? [0,0]))<1e-9 &&
         Math.abs(view.yaw - DEFAULT_SIMULATED_VIEW.yaw) < 1e-9 &&
         Math.abs(view.pitch - DEFAULT_SIMULATED_VIEW.pitch) < 1e-9 &&
         Math.abs(view.zoom - DEFAULT_SIMULATED_VIEW.zoom) < 1e-9

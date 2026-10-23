@@ -246,8 +246,9 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(controls({ render: { mode: 'crease-pattern', rotationDeg: 0 } }, SPREAD)).toBeNull();
     const on = controls({ render: { ...FLAT, spread: SPREAD } })!;
     expect(on).toMatchObject({ spread: SPREAD, disabled: false, keeps: [] });
-    // Affine first (Zach, 2026-10-05).
+    // Default first.
     expect(on.kinds.map(({ value, label, pressed }) => [value, label, pressed])).toEqual([
+      ['camera', 'Default', false],
       ['affine', 'Affine', false],
       ['depth', 'Depth', true],
     ]);
@@ -263,7 +264,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     on.kinds[0]!.run();
     on.kinds[1]!.run();
     expect(deps.direction.mock.calls).toEqual([['down']]);
-    expect(deps.kind.mock.calls).toEqual([['affine']]);
+    expect(deps.kind.mock.calls).toEqual([['camera'], ['affine']]);
     // A drag's spread shows over the step's while it is previewed.
     expect(controls({ render: { ...FLAT, spread: SPREAD } }, { ...SPREAD, amount: 0.12 })!.spread.amount).toBe(0.12);
   });

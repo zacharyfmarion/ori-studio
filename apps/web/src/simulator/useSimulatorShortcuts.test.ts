@@ -34,7 +34,7 @@ function toolHandlers(
 }
 
 const TOOL_VERBS: SimulatorShortcutId[] = [
-  'simulator.tool.orbit',
+  'simulator.tool.orbit', 'simulator.tool.pan',
   'simulator.tool.pin',
   'simulator.tool.pull',
   'simulator.tool.exit',

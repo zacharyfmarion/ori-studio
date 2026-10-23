@@ -1,13 +1,9 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { SimulatorViewCube, type SimulatorViewCubeHandle } from './SimulatorViewCube';
+import { ViewCube, type ViewCubeHandle } from './ViewCube';
 import type { ViewCubeFaceId } from './viewCubeGeometry';
-import {
-  simulatorViewLookingFrom,
-  type SimulatorOrbitGesture,
-  type SimulatorViewDirection,
-} from '../../lib/simulatorOrbit';
+import { viewLookingFrom, type CameraGesture, type ViewDirection } from '../../lib/viewport3dCamera';
 
 /**
  * The cube's DOM contract.
@@ -25,7 +21,7 @@ import {
  * checked in the browser instead; see the `minmax(0, 1fr)` note in `theme.css`.
  */
 
-type Snap = (direction: SimulatorViewDirection, face: ViewCubeFaceId) => void;
+type Snap = (direction: ViewDirection, face: ViewCubeFaceId) => void;
 
 const OPENING = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
 
@@ -33,14 +29,14 @@ let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 let onSnap: Mock<Snap>;
 let onRoll: Mock<(delta: number) => void>;
-let orbit: { [K in keyof SimulatorOrbitGesture]: Mock<SimulatorOrbitGesture[K]> };
-let handle: SimulatorViewCubeHandle | null = null;
+let orbit: { [K in keyof CameraGesture]: Mock<CameraGesture[K]> };
+let handle: ViewCubeHandle | null = null;
 let litCell: HTMLElement | null = null;
 
 function render(interactive = true) {
   act(() => {
     root?.render(
-      <SimulatorViewCube
+      <ViewCube
         ref={(value) => {
           handle = value;
         }}
@@ -62,18 +58,14 @@ function faces(): HTMLElement[] {
 }
 
 function face(label: string): HTMLElement {
-  const found = faces().find(
-    (element) => element.querySelector('.simulator-view-cube__label')?.textContent === label
-  );
+  const found = faces().find((element) => element.querySelector('.simulator-view-cube__label')?.textContent === label);
   expect(found, `a face labelled ${label}`).toBeDefined();
   return found as HTMLElement;
 }
 
 /** A face's own middle cell — the one that snaps to the face itself. */
 function faceButton(label: string): HTMLButtonElement {
-  const button = face(label).querySelector<HTMLButtonElement>(
-    '.simulator-view-cube__spot--face'
-  );
+  const button = face(label).querySelector<HTMLButtonElement>('.simulator-view-cube__spot--face');
   expect(button, `a button on the ${label} face`).not.toBeNull();
   return button as HTMLButtonElement;
 }
@@ -141,7 +133,7 @@ afterEach(() => {
   host = null;
 });
 
-describe('SimulatorViewCube', () => {
+describe('ViewCube', () => {
   it('offers all six faces, with the opening view’s three turned toward the eye', () => {
     render();
 
@@ -162,7 +154,7 @@ describe('SimulatorViewCube', () => {
     const scene = host?.querySelector('.simulator-view-cube__scene') as HTMLElement;
     const before = scene.style.transform;
 
-    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, 1])));
+    act(() => handle?.setView(viewLookingFrom(OPENING, [0, 0, 1])));
 
     expect(scene.style.transform).toMatch(/^matrix3d\(/);
     expect(scene.style.transform).not.toBe(before);
@@ -266,9 +258,7 @@ describe('SimulatorViewCube', () => {
     const target = faceButton(label);
     const send = (type: string, x: number, y: number) =>
       act(() => {
-        target.dispatchEvent(
-          new PointerEvent(type, { pointerId: 7, clientX: x, clientY: y, bubbles: true })
-        );
+        target.dispatchEvent(new PointerEvent(type, { pointerId: 7, clientX: x, clientY: y, bubbles: true }));
       });
     send('pointerdown', 100, 100);
     for (const [dx, dy] of offsets) send('pointermove', 100 + dx, 100 + dy);
@@ -341,8 +331,7 @@ describe('SimulatorViewCube', () => {
 
   /** How far round the mark is, in degrees clockwise from straight up. */
   function markDegrees(): number {
-    const mark = ring().querySelector('.simulator-view-cube__ring-mark')
-      ?.parentElement as unknown as SVGGElement;
+    const mark = ring().querySelector('.simulator-view-cube__ring-mark')?.parentElement as unknown as SVGGElement;
     const match = /rotate\(([-\d.]+)\)/.exec(mark?.getAttribute('transform') ?? '');
     return match ? Number(match[1]) : Number.NaN;
   }
@@ -358,9 +347,7 @@ describe('SimulatorViewCube', () => {
     const hit = ringHit();
     const send = (type: string, [x, y]: [number, number]) =>
       act(() => {
-        hit.dispatchEvent(
-          new PointerEvent(type, { pointerId: 5, clientX: x, clientY: y, bubbles: true })
-        );
+        hit.dispatchEvent(new PointerEvent(type, { pointerId: 5, clientX: x, clientY: y, bubbles: true }));
       });
     send('pointerdown', points[0] ?? [0, 0]);
     for (const point of points.slice(1)) send('pointermove', point);
@@ -373,11 +360,11 @@ describe('SimulatorViewCube', () => {
     render();
     expect(ring().dataset.available).toBe('false');
 
-    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+    act(() => handle?.setView(viewLookingFrom(OPENING, [0, 0, -1])));
     expect(ring().dataset.available).toBe('true');
 
     const half = 1 / Math.sqrt(2);
-    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [half, 0, -half])));
+    act(() => handle?.setView(viewLookingFrom(OPENING, [half, 0, -half])));
     expect(ring().dataset.available).toBe('false');
   });
 
@@ -394,7 +381,7 @@ describe('SimulatorViewCube', () => {
     // A steering wheel turns by how far your hand travels; taking hold of it at
     // ten to two does not straighten the wheels.
     render();
-    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+    act(() => handle?.setView(viewLookingFrom(OPENING, [0, 0, -1])));
 
     // Straight right of centre — a quarter turn away from the mark at the top.
     grabRing([10, 0]);
@@ -404,7 +391,7 @@ describe('SimulatorViewCube', () => {
 
   it('turns by how far the grab sweeps, from wherever it started', () => {
     render();
-    act(() => handle?.setView({ ...simulatorViewLookingFrom(OPENING, [0, 0, -1]), roll: 0.25 }));
+    act(() => handle?.setView({ ...viewLookingFrom(OPENING, [0, 0, -1]), roll: 0.25 }));
 
     // Take hold at 3 o'clock and sweep a quarter turn to 6 o'clock: a quarter
     // turn is added to the roll that was already there, rather than replacing it.
@@ -418,7 +405,7 @@ describe('SimulatorViewCube', () => {
     // the short arc. Accumulating a step at a time is what makes three quarters
     // of a turn read as three quarters.
     render();
-    act(() => handle?.setView({ ...simulatorViewLookingFrom(OPENING, [0, 0, -1]), roll: 0 }));
+    act(() => handle?.setView({ ...viewLookingFrom(OPENING, [0, 0, -1]), roll: 0 }));
 
     grabRing([0, -10], [10, 0], [0, 10], [-10, 0]);
 
@@ -434,7 +421,7 @@ describe('SimulatorViewCube', () => {
     // The ring sits inside the root, whose handlers turn the model. Without the
     // stop, grabbing it would begin an orbit underneath.
     render();
-    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+    act(() => handle?.setView(viewLookingFrom(OPENING, [0, 0, -1])));
 
     grabRing([10, 0], [0, 10]);
 
@@ -448,9 +435,7 @@ describe('SimulatorViewCube', () => {
     act(() => handle?.setView({ ...OPENING, roll: 0.5 }));
 
     act(() => {
-      ringHit().dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })
-      );
+      ringHit().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     });
 
     expect(onRoll).toHaveBeenCalledWith(0.5 + Math.PI / 12);

@@ -1,5 +1,5 @@
 import { viewDepthAxis, viewRotationFor } from '@treemaker/origami-simulator';
-import { normalizeAngle, type SimulatorOrbitView } from '../../lib/simulatorOrbit';
+import { normalizeAngle, type OrbitView } from '../../lib/viewport3dCamera';
 
 /**
  * The snap animation: how long a turn takes, and where it is partway through.
@@ -20,7 +20,7 @@ const TURN_RATE = 2 * Math.PI;
 const MIN_DURATION_MS = 120;
 const MAX_DURATION_MS = 500;
 
-function eyeDirection(view: SimulatorOrbitView): readonly [number, number, number] {
+function eyeDirection(view: OrbitView): readonly [number, number, number] {
   return viewDepthAxis(viewRotationFor(view));
 }
 
@@ -31,16 +31,13 @@ function eyeDirection(view: SimulatorOrbitView): readonly [number, number, numbe
  * in yaw and pitch: near the poles a large yaw change moves the eye barely at
  * all, and timing it by the angles would spend half a second going nowhere.
  */
-export function viewCubeSnapDurationMs(from: SimulatorOrbitView, to: SimulatorOrbitView): number {
+export function viewCubeSnapDurationMs(from: OrbitView, to: OrbitView): number {
   const a = eyeDirection(from);
   const b = eyeDirection(to);
   const dot = Math.min(1, Math.max(-1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
   // The larger of the two turns, because a roll moves the eye not at all: timed
   // on the eye alone, a quarter roll would take the floor and flick round.
-  const swept = Math.max(
-    Math.acos(dot),
-    Math.abs(normalizeAngle((to.roll ?? 0) - (from.roll ?? 0)))
-  );
+  const swept = Math.max(Math.acos(dot), Math.abs(normalizeAngle((to.roll ?? 0) - (from.roll ?? 0))));
   return Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, (swept / TURN_RATE) * 1000));
 }
 
@@ -58,11 +55,7 @@ function ease(t: number): number {
  * exactly — the tween must land on the view that was asked for and not near it,
  * or a snap would leave the camera a rounding error off every named viewpoint.
  */
-export function viewCubeSnapAt(
-  from: SimulatorOrbitView,
-  to: SimulatorOrbitView,
-  progress: number
-): SimulatorOrbitView {
+export function viewCubeSnapAt(from: OrbitView, to: OrbitView, progress: number): OrbitView {
   if (progress >= 1) return to;
   const t = ease(Math.max(0, progress));
   const fromRoll = from.roll ?? 0;

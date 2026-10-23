@@ -6,11 +6,7 @@ import {
   visibleViewCubeFaces,
   type ViewCubeSpot,
 } from './viewCubeGeometry';
-import {
-  setUprightView,
-  simulatorViewLookingFrom,
-  type SimulatorOrbitView,
-} from '../../lib/simulatorOrbit';
+import { setUprightView, viewLookingFrom, type OrbitView } from '../../lib/viewport3dCamera';
 import type { Mat3 } from '@treemaker/origami-simulator';
 
 /**
@@ -22,7 +18,7 @@ import type { Mat3 } from '@treemaker/origami-simulator';
  * cancels that, and "it cancelled" is exactly `det = +1`.
  */
 
-const VIEWS: SimulatorOrbitView[] = [
+const VIEWS: OrbitView[] = [
   { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 },
   { yaw: 0, pitch: 0, zoom: 1 },
   { yaw: 0, pitch: -Math.PI / 2, zoom: 1 },
@@ -32,11 +28,7 @@ const VIEWS: SimulatorOrbitView[] = [
 ];
 
 function determinant(m: Mat3): number {
-  return (
-    m[0] * (m[4] * m[8] - m[5] * m[7]) -
-    m[1] * (m[3] * m[8] - m[5] * m[6]) +
-    m[2] * (m[3] * m[7] - m[4] * m[6])
-  );
+  return m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + m[2] * (m[3] * m[7] - m[4] * m[6]);
 }
 
 /** How far `mᵀ · m` is from the identity. Zero exactly when m is orthonormal. */
@@ -69,9 +61,9 @@ describe('the view cube transform', () => {
   it('shows front, right and top at the simulator’s opening view', () => {
     // The eye is on the (1, 1, −1) diagonal, so exactly those three faces are
     // turned toward it — and which three is what the labels are read off.
-    const visible = VIEW_CUBE_FACES.filter(
-      (_, index) => (visibleViewCubeFaces(VIEWS[0]!) & (1 << index)) !== 0
-    ).map((face) => face.id);
+    const visible = VIEW_CUBE_FACES.filter((_, index) => (visibleViewCubeFaces(VIEWS[0]!) & (1 << index)) !== 0).map(
+      (face) => face.id
+    );
     expect(visible.sort()).toEqual(['front', 'right', 'top']);
   });
 
@@ -80,10 +72,10 @@ describe('the view cube transform', () => {
     // zero up to a rounding error of arbitrary sign, so a strict `> 0` here
     // reported a different set of zero-width faces as pressable on every snap.
     for (const face of VIEW_CUBE_FACES) {
-      const snapped = simulatorViewLookingFrom(VIEWS[0]!, face.direction);
-      const visible = VIEW_CUBE_FACES.filter(
-        (_, index) => (visibleViewCubeFaces(snapped) & (1 << index)) !== 0
-      ).map((candidate) => candidate.id);
+      const snapped = viewLookingFrom(VIEWS[0]!, face.direction);
+      const visible = VIEW_CUBE_FACES.filter((_, index) => (visibleViewCubeFaces(snapped) & (1 << index)) !== 0).map(
+        (candidate) => candidate.id
+      );
       expect(visible, face.id).toEqual([face.id]);
     }
   });
@@ -93,10 +85,10 @@ describe('the view cube transform', () => {
     // sign of the noise was actually observed to flip.
     const upright = setUprightView({ yaw: 1.2, pitch: 0.3, zoom: 2.5 });
     for (const face of VIEW_CUBE_FACES) {
-      const snapped = simulatorViewLookingFrom(upright, face.direction);
-      const visible = VIEW_CUBE_FACES.filter(
-        (_, index) => (visibleViewCubeFaces(snapped) & (1 << index)) !== 0
-      ).map((candidate) => candidate.id);
+      const snapped = viewLookingFrom(upright, face.direction);
+      const visible = VIEW_CUBE_FACES.filter((_, index) => (visibleViewCubeFaces(snapped) & (1 << index)) !== 0).map(
+        (candidate) => candidate.id
+      );
       expect(visible, face.id).toEqual([face.id]);
     }
   });
@@ -137,10 +129,7 @@ describe('the view cube transform', () => {
       expect(face.spots, face.id).toHaveLength(9);
       for (const spot of face.spots) {
         expect(Math.hypot(...spot.direction), face.id).toBeCloseTo(1, 12);
-        seen.set(
-          spot.direction.map((axis) => axis.toFixed(6)).join(','),
-          spot.kind
-        );
+        seen.set(spot.direction.map((axis) => axis.toFixed(6)).join(','), spot.kind);
       }
     }
     // 6 faces + 12 edges + 8 corners, each named by however many faces touch it.

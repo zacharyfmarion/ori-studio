@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   setUprightView,
-  simulatorViewLookingFrom,
-  type SimulatorOrbitView,
-  type SimulatorViewDirection,
-} from './simulatorOrbit';
+  viewLookingFrom,
+  type OrbitView,
+  type ViewDirection,
+} from './viewport3dCamera';
 import { viewRotation, viewRotationFor } from '@treemaker/origami-simulator';
 
 /**
@@ -18,24 +18,24 @@ import { viewRotation, viewRotationFor } from '@treemaker/origami-simulator';
  */
 
 /** Where the eye is, under a whole view. */
-function eyeDirection(view: SimulatorOrbitView): SimulatorViewDirection {
+function eyeDirection(view: OrbitView): ViewDirection {
   const m = viewRotationFor(view);
   return [m[6], m[7], m[8]];
 }
 
 /** The model direction drawn straight up the screen — row 1, read across. */
-function screenUpAxis(view: SimulatorOrbitView): SimulatorViewDirection {
+function screenUpAxis(view: OrbitView): ViewDirection {
   const m = viewRotationFor(view);
   return [m[3], m[4], m[5]];
 }
 
-function expectDirection(actual: SimulatorViewDirection, expected: SimulatorViewDirection) {
+function expectDirection(actual: ViewDirection, expected: ViewDirection) {
   expect(actual[0]).toBeCloseTo(expected[0], 12);
   expect(actual[1]).toBeCloseTo(expected[1], 12);
   expect(actual[2]).toBeCloseTo(expected[2], 12);
 }
 
-const AXES: Array<[string, SimulatorViewDirection]> = [
+const AXES: Array<[string, ViewDirection]> = [
   ['right (+X)', [1, 0, 0]],
   ['left (−X)', [-1, 0, 0]],
   ['top (+Y)', [0, 1, 0]],
@@ -47,7 +47,7 @@ const AXES: Array<[string, SimulatorViewDirection]> = [
 /** The four side-on faces: the ones for which "upright" is a question. */
 const SIDES = AXES.filter(([, d]) => d[1] === 0);
 
-const STARTING_VIEWS: SimulatorOrbitView[] = [
+const STARTING_VIEWS: OrbitView[] = [
   { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 },
   { yaw: 0, pitch: 0, zoom: 1 },
   { yaw: -2.1, pitch: 0.6, zoom: 0.8 },
@@ -58,7 +58,7 @@ describe('looking from a direction', () => {
   it('puts the eye exactly where it was asked to', () => {
     for (const start of STARTING_VIEWS) {
       for (const [, direction] of AXES) {
-        expectDirection(eyeDirection(simulatorViewLookingFrom(start, direction)), direction);
+        expectDirection(eyeDirection(viewLookingFrom(start, direction)), direction);
       }
     }
   });
@@ -69,7 +69,7 @@ describe('looking from a direction', () => {
     // where it shows: which way is up.
     for (const start of STARTING_VIEWS) {
       for (const [name, direction] of SIDES) {
-        const up = screenUpAxis(simulatorViewLookingFrom(start, direction));
+        const up = screenUpAxis(viewLookingFrom(start, direction));
         // The paper's normal, straight up the screen — a sheet seen edge-on.
         expect(up[1], name).toBeCloseTo(1, 12);
       }
@@ -80,7 +80,7 @@ describe('looking from a direction', () => {
     // DEFAULT_SIMULATOR_VIEW is the eye on the (1, 1, −1) diagonal. Clicking that
     // corner of a view cube has to return there and not to a near miss.
     const root = 1 / Math.sqrt(3);
-    const view = simulatorViewLookingFrom({ yaw: 0, pitch: 0, zoom: 1.4 }, [root, root, -root]);
+    const view = viewLookingFrom({ yaw: 0, pitch: 0, zoom: 1.4 }, [root, root, -root]);
     expect(view.yaw).toBeCloseTo(Math.PI / 4, 12);
     expect(view.pitch).toBeCloseTo(-0.9553166, 6);
   });
@@ -90,15 +90,15 @@ describe('looking from a direction', () => {
     // camera's own yaw does not avoid an arbitrary spin — it preserves one. The
     // four side faces come up square because their yaw *is* pinned; Top and
     // Bottom used to come up at whatever angle the last drag ended on.
-    const start: SimulatorOrbitView = { yaw: 1.234, pitch: -0.7, zoom: 1 };
-    expect(simulatorViewLookingFrom(start, [0, 1, 0]).yaw).toBe(0);
-    expect(simulatorViewLookingFrom(start, [0, -1, 0]).yaw).toBe(0);
+    const start: OrbitView = { yaw: 1.234, pitch: -0.7, zoom: 1 };
+    expect(viewLookingFrom(start, [0, 1, 0]).yaw).toBe(0);
+    expect(viewLookingFrom(start, [0, -1, 0]).yaw).toBe(0);
   });
 
   it('lays Top out the way the crease-pattern canvas draws it', () => {
     // Which is why zero is the answer rather than merely a fallback: at
     // (yaw 0, pitch 0) the transform is screen_x = FOLD x, screen_y = −FOLD y.
-    const top = simulatorViewLookingFrom({ yaw: 2.5, pitch: 0.4, zoom: 1 }, [0, 1, 0]);
+    const top = viewLookingFrom({ yaw: 2.5, pitch: 0.4, zoom: 1 }, [0, 1, 0]);
     const m = viewRotationFor(top);
     // Row 0 is screen-right, row 1 screen-up.
     expect([m[0], m[1], m[2]]).toEqual([1, 0, 0]);
@@ -111,13 +111,13 @@ describe('looking from a direction', () => {
     // Roll spins the picture about the line of sight, so it says nothing about
     // where you are looking from. A snap that wiped it would undo a deliberate
     // choice for no reason.
-    const rolled: SimulatorOrbitView = { yaw: 1, pitch: -0.8, zoom: 1, roll: 0.9 };
-    expect(simulatorViewLookingFrom(rolled, [0, 0, -1]).roll).toBe(0.9);
+    const rolled: OrbitView = { yaw: 1, pitch: -0.8, zoom: 1, roll: 0.9 };
+    expect(viewLookingFrom(rolled, [0, 0, -1]).roll).toBe(0.9);
   });
 
   it('keeps zoom and orientation, which are not the eye', () => {
     const upright = setUprightView({ yaw: 1.2, pitch: 0.3, zoom: 2.5 });
-    const looked = simulatorViewLookingFrom(upright, [1, 0, 0]);
+    const looked = viewLookingFrom(upright, [1, 0, 0]);
     expect(looked.zoom).toBe(upright.zoom);
     expect(looked.orient).toBe(upright.orient);
   });
@@ -131,7 +131,7 @@ describe('looking from a direction', () => {
       const upright = setUprightView(start);
       expect(upright.orient).toBeDefined();
       for (const [, direction] of AXES) {
-        const looked = simulatorViewLookingFrom(upright, direction);
+        const looked = viewLookingFrom(upright, direction);
         // Row 2 of the camera alone — the eye in the chosen frame.
         const camera = viewRotation(looked.yaw, looked.pitch);
         expectDirection([camera[6], camera[7], camera[8]], direction);
@@ -149,12 +149,12 @@ describe('looking from a direction', () => {
     const upright = setUprightView({ yaw: 1.2, pitch: 0.3, zoom: 2.5 });
     const orient = upright.orient!;
     for (const [, direction] of AXES) {
-      const inChosenFrame: SimulatorViewDirection = [
+      const inChosenFrame: ViewDirection = [
         orient[0] * direction[0] + orient[1] * direction[1] + orient[2] * direction[2],
         orient[3] * direction[0] + orient[4] * direction[1] + orient[5] * direction[2],
         orient[6] * direction[0] + orient[7] * direction[1] + orient[8] * direction[2],
       ];
-      const looked = simulatorViewLookingFrom(upright, inChosenFrame);
+      const looked = viewLookingFrom(upright, inChosenFrame);
       expectDirection(eyeDirection(looked), direction);
     }
   });

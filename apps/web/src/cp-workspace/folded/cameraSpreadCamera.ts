@@ -1,6 +1,6 @@
 /** Camera frame shared by the vector projector, GPU preview and orbit gesture. */
 import { multiplyMat3, type Mat3 } from '@treemaker/origami-simulator';
-import { SIMULATOR_ORBIT_SENSITIVITY } from '../../lib/simulatorOrbit';
+import { ORBIT_SENSITIVITY } from '../../lib/viewport3dCamera';
 
 export interface CameraSpreadPose {
   /** Azimuth around the paper, degrees from right toward down. */
@@ -40,8 +40,9 @@ export function cameraSpreadRotation(pose: CameraSpreadPose): Mat3 {
 
 /** Diagram compensation is a shear; the two 3D modes use the rotation as-is. */
 export function cameraSpreadTransform(
-  pose: CameraSpreadPose & { projection: 'diagram' | 'orthographic' | 'perspective' }
+  pose: CameraSpreadPose & { projection: 'diagram' | 'orthographic' | 'perspective'; frame?: Mat3 }
 ): Mat3 {
+  if (pose.frame) return pose.frame;
   if (pose.projection !== 'diagram') return cameraSpreadRotation(pose);
   const a = pose.directionDeg * radians;
   const t = Math.min(80, Math.max(0, pose.inclinationDeg)) * radians;
@@ -61,7 +62,7 @@ export function orbitCameraSpread(pose: CameraSpreadPose, dx: number, dy: number
   if (distance === 0) return pose;
   const x = -dy / distance,
     y = dx / distance;
-  const angle = distance * SIMULATOR_ORBIT_SENSITIVITY;
+  const angle = distance * ORBIT_SENSITIVITY;
   const c = Math.cos(angle),
     s = Math.sin(angle),
     k = 1 - c;

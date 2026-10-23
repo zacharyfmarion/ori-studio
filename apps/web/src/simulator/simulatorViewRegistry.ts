@@ -15,17 +15,9 @@
  * options rail, which reaches the view through the verb its panel's executor
  * answers (`simulator.setUpright`), and the panel holds the handle itself.
  */
-export interface SimulatorViewHandle {
-  /**
-   * Take the direction now pointing up on screen as the model's up.
-   *
-   * There is no matching clear: the way back is the viewport's own `resetView`,
-   * which drops the orientation with the angles on this surface.
-   */
-  setUpright(): void;
-}
+import type { UprightViewHandle } from '../viewport3d/viewport3dHandle';
 
-let current: SimulatorViewHandle | null = null;
+let current: UprightViewHandle | null = null;
 
 /**
  * Publish the mounted simulation's viewpoint verbs, and return the unregister.
@@ -34,7 +26,7 @@ let current: SimulatorViewHandle | null = null;
  * viewport remounts when the render path switches between GPU and CPU, and a
  * teardown must not clear a newer registration if the two overlap.
  */
-export function registerSimulatorView(handle: SimulatorViewHandle): () => void {
+export function registerSimulatorView(handle: UprightViewHandle): () => void {
   current = handle;
   return () => {
     if (current === handle) {
@@ -49,6 +41,6 @@ export function registerSimulatorView(handle: SimulatorViewHandle): () => void {
  * A caller finding none does nothing, which is the right outcome when the
  * Simulate workspace has no model loaded.
  */
-export function simulatorView(): SimulatorViewHandle | null {
+export function simulatorView(): UprightViewHandle | null {
   return current;
 }

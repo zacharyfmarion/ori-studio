@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   UPRIGHT_PITCH,
-  nextSimulatorOrbitView,
+  nextOrbitView,
   setUprightView,
-  type SimulatorOrbitView,
-} from './simulatorOrbit';
+  type OrbitView,
+} from './viewport3dCamera';
 import {
   toViewSpace,
   viewRotationFor,
@@ -35,20 +35,20 @@ function uniforms(rotation: Mat3): CameraUniforms {
 }
 
 /** Where a model direction lands in view space, under a whole view. */
-function imageOf(view: SimulatorOrbitView, d: readonly [number, number, number]) {
+function imageOf(view: OrbitView, d: readonly [number, number, number]) {
   const camera = uniforms(viewRotationFor(view));
   return toViewSpace(d[0], d[1], d[2], camera);
 }
 
 /** The model direction currently drawn straight up the screen. */
-function screenUpAxis(view: SimulatorOrbitView): [number, number, number] {
+function screenUpAxis(view: OrbitView): [number, number, number] {
   // Rows of a rotation are orthonormal, so the inverse is the transpose: the
   // direction mapping to view +Y is the middle *column*, i.e. row 1 read down.
   const m = viewRotationFor(view);
   return [m[3], m[4], m[5]];
 }
 
-const VIEWS: SimulatorOrbitView[] = [
+const VIEWS: OrbitView[] = [
   { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 },
   { yaw: 0, pitch: 0, zoom: 1 },
   { yaw: -2.1, pitch: 0.6, zoom: 0.8 },
@@ -119,8 +119,8 @@ describe('setting the current view as upright', () => {
     expect(upright.pitch).toBe(UPRIGHT_PITCH);
 
     const drag = { x: 0, y: 0, yaw: upright.yaw, pitch: upright.pitch, roll: 0 };
-    const down = nextSimulatorOrbitView(upright, drag, { x: 0, y: 40 });
-    const up = nextSimulatorOrbitView(upright, drag, { x: 0, y: -40 });
+    const down = nextOrbitView(upright, drag, { x: 0, y: 40 });
+    const up = nextOrbitView(upright, drag, { x: 0, y: -40 });
     expect(down.pitch).toBeGreaterThan(upright.pitch);
     expect(up.pitch).toBeLessThan(upright.pitch);
   });
@@ -155,12 +155,12 @@ describe('the way back from an upright', () => {
     // opening view — orientation included — which is what stops a model getting
     // stuck on a pole picked by accident. A folded figure's is document state,
     // so undo reaches it and its reset deliberately leaves an upright alone.
-    const opening: SimulatorOrbitView = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
+    const opening: OrbitView = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
     const upright = setUprightView({ yaw: 1.2, pitch: 0.3, zoom: 2.5 });
     expect(upright.orient).toBeDefined();
 
     // What `SimulatorViewport.resetView` does: back to the opening view whole.
-    const reset: SimulatorOrbitView = { ...opening };
+    const reset: OrbitView = { ...opening };
 
     expect(reset.orient).toBeUndefined();
     expect(reset.yaw).toBe(opening.yaw);

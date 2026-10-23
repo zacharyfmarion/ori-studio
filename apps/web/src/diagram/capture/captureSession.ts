@@ -17,6 +17,7 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFold3dRefusal,
   OristudioCpFolded3dAuxLines,
+  OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import { hasFoldedLayerOrder, openFold, readFoldedPicture, type FoldedFigureState, type FoldedPicture } from '../../lib/creaseExportFold';
@@ -28,6 +29,7 @@ import {
   capture3dPicture,
   captureModel,
   flatPicture,
+  captureFlatPicture,
   type CapturedPicture,
   type CpCaptureRuntime,
 } from './captureFolded';
@@ -45,6 +47,12 @@ export interface CaptureSessionDeps {
   /** The handle registry's epoch: a change means every held handle is gone. */
   epoch: () => number;
   env?: SanitizeEnv;
+}
+
+export interface CameraSpreadHold {
+  scene: OristudioCpFoldedPaperScene;
+  side: 'front' | 'back';
+  foldCase: number;
 }
 
 /** Which fold a session holds: what it was folded from, so a change of either folds again. */
@@ -122,6 +130,8 @@ export interface CaptureSession {
    * order with it.
    */
   flatMirrorAxes: () => Promise<number[]>;
+  /** Immutable held geometry for the independent camera spread renderer. */
+  flatScene: () => Promise<OristudioCpFoldedPaperScene | null>;
   /**
    * The same picture now, with no call to the kernel, when the session holds
    * this flat fold of `document` on `side` at `foldCase` and has read it;
@@ -288,7 +298,13 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     async flatPicture(rotationDeg, spread) {
       const hold = flatHold();
       hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
-      return flatPicture(hold.read, rotationDeg, deps.env, spread);
+      return captureFlatPicture(hold.read, rotationDeg, deps.env, spread);
+    },
+
+    async flatScene() {
+      const hold = flatHold();
+      hold.read ??= await readFoldedPicture(deps.runtime(),hold.handle,hold.state.displayStyle);
+      return hold.read.scene;
     },
 
     async flatMirrorAxes() {

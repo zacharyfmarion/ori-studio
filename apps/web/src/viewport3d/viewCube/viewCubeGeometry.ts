@@ -1,10 +1,5 @@
-import {
-  multiplyMat3,
-  viewDepthAxis,
-  viewRotationFor,
-  type Mat3,
-} from '@treemaker/origami-simulator';
-import type { SimulatorOrbitView, SimulatorViewDirection } from '../../lib/simulatorOrbit';
+import { multiplyMat3, viewDepthAxis, viewRotationFor, type Mat3 } from '@treemaker/origami-simulator';
+import type { OrbitView, ViewDirection } from '../../lib/viewport3dCamera';
 
 /**
  * The view cube's geometry: where its faces are, and how the whole cube is
@@ -36,7 +31,7 @@ export type ViewCubeSpotKind = 'face' | 'edge' | 'corner';
 export interface ViewCubeSpot {
   kind: ViewCubeSpotKind;
   /** The eye direction to snap to. Unit length. */
-  direction: SimulatorViewDirection;
+  direction: ViewDirection;
   /**
    * Which of the 26 viewpoints this is, as a name shared by every cell that
    * reaches it.
@@ -57,7 +52,7 @@ export interface ViewCubeFace {
    * The eye direction this face snaps to, in the renderer's world — where Y is
    * the flat paper's normal and the axis yaw spins about.
    */
-  direction: SimulatorViewDirection;
+  direction: ViewDirection;
   /**
    * Places the face on the cube, before the cube itself is turned. Ordinary CSS
    * 3D cube transforms; `--view-cube-half` is half the cube's edge, so the size
@@ -71,8 +66,8 @@ export interface ViewCubeFace {
    * work. `right × down = direction` on every face, which is what the test
    * checks and what makes a transcription error fail rather than skew.
    */
-  right: SimulatorViewDirection;
-  down: SimulatorViewDirection;
+  right: ViewDirection;
+  down: ViewDirection;
   /** The nine hit regions, in reading order from the face's top-left. */
   spots: readonly ViewCubeSpot[];
 }
@@ -100,11 +95,7 @@ const CELLS: ReadonlyArray<readonly [down: number, right: number]> = [
  * cell is the 45° between two faces, and a corner cell the (1,1,1) diagonal
  * between three. Exactly the 26 directions drei's hotspots name.
  */
-function facesSpots(
-  direction: SimulatorViewDirection,
-  right: SimulatorViewDirection,
-  down: SimulatorViewDirection
-): ViewCubeSpot[] {
+function facesSpots(direction: ViewDirection, right: ViewDirection, down: ViewDirection): ViewCubeSpot[] {
   return CELLS.map(([dy, dx]) => {
     const raw: [number, number, number] = [
       direction[0] + dx * right[0] + dy * down[0],
@@ -115,7 +106,7 @@ function facesSpots(
     const steps = Math.abs(dx) + Math.abs(dy);
     return {
       kind: steps === 0 ? 'face' : steps === 1 ? 'edge' : 'corner',
-      direction: [raw[0] / length, raw[1] / length, raw[2] / length] as SimulatorViewDirection,
+      direction: [raw[0] / length, raw[1] / length, raw[2] / length] as ViewDirection,
       // Named before the normalize, while the components are still integers —
       // two cells on different faces must produce the same string, and floats
       // divided by different roots would not reliably.
@@ -127,9 +118,9 @@ function facesSpots(
 function viewCubeFace(
   id: ViewCubeFaceId,
   transform: string,
-  direction: SimulatorViewDirection,
-  right: SimulatorViewDirection,
-  down: SimulatorViewDirection
+  direction: ViewDirection,
+  right: ViewDirection,
+  down: ViewDirection
 ): ViewCubeFace {
   return { id, direction, transform, right, down, spots: facesSpots(direction, right, down) };
 }
@@ -222,15 +213,12 @@ const CSS_Y_FLIP: Mat3 = [1, 0, 0, 0, -1, 0, 0, 0, 1];
  * {@link viewCubeRotation}. Built here once so the two functions that need it
  * cannot drift apart on which fields they take.
  */
-function cubeCamera(view: SimulatorOrbitView): Mat3 {
+function cubeCamera(view: OrbitView): Mat3 {
   return viewRotationFor({ ...view, orient: undefined });
 }
 
-export function viewCubeRotation(view: SimulatorOrbitView): Mat3 {
-  return multiplyMat3(
-    CSS_Y_FLIP,
-    multiplyMat3(multiplyMat3(cubeCamera(view), CUBE_BASIS), CSS_Y_FLIP)
-  );
+export function viewCubeRotation(view: OrbitView): Mat3 {
+  return multiplyMat3(CSS_Y_FLIP, multiplyMat3(multiplyMat3(cubeCamera(view), CUBE_BASIS), CSS_Y_FLIP));
 }
 
 /** Decimal places kept in the CSS string: 4e-5 px of error on a 76px cube. */
@@ -243,13 +231,11 @@ const MATRIX_PRECISION = 6;
  * string on every orbit frame, which is the whole per-frame cost of the cube —
  * one style write, no layout read.
  */
-export function viewCubeTransform(view: SimulatorOrbitView): string {
+export function viewCubeTransform(view: OrbitView): string {
   const m = viewCubeRotation(view);
   const at = (index: number) => m[index]!.toFixed(MATRIX_PRECISION);
   return (
-    `matrix3d(${at(0)},${at(3)},${at(6)},0,` +
-    `${at(1)},${at(4)},${at(7)},0,` +
-    `${at(2)},${at(5)},${at(8)},0,0,0,0,1)`
+    `matrix3d(${at(0)},${at(3)},${at(6)},0,` + `${at(1)},${at(4)},${at(7)},0,` + `${at(2)},${at(5)},${at(8)},0,0,0,0,1)`
   );
 }
 
@@ -270,14 +256,13 @@ export function viewCubeTransform(view: SimulatorOrbitView): string {
  * faces of zero width as pressable, differently each time, and the mask stopped
  * meaning anything a reader could check.
  */
-export function visibleViewCubeFaces(view: SimulatorOrbitView): number {
+export function visibleViewCubeFaces(view: OrbitView): number {
   // The same camera the cube is drawn by, so the faces reported as facing the
   // eye are the ones actually painted toward it.
   const eye = viewDepthAxis(cubeCamera(view));
   let mask = 0;
   VIEW_CUBE_FACES.forEach((face, index) => {
-    const facing =
-      face.direction[0] * eye[0] + face.direction[1] * eye[1] + face.direction[2] * eye[2];
+    const facing = face.direction[0] * eye[0] + face.direction[1] * eye[1] + face.direction[2] * eye[2];
     if (facing > EDGE_ON_EPSILON) mask |= 1 << index;
   });
   return mask;

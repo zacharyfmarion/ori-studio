@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeAngle } from '../../lib/simulatorOrbit';
+import { normalizeAngle } from '../../lib/viewport3dCamera';
 import {
   START_FIGURE_HOLD_MS,
   START_FIGURE_TURN_PERIOD_MS,

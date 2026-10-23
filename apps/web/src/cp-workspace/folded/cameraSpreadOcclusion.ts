@@ -1,11 +1,9 @@
 /** Screen-tiled coverage of authoritative layers; the depth buffer resolves all other overlaps. */
+import { triangleTouchesTile } from './cameraSpreadTiles';
 import type { Mat3, Vec3 } from '@treemaker/origami-simulator';
-import type { CameraLayerRelations } from '../../cp-workspace/folded/cameraSpreadRelations';
-import {
-  cameraPaintBackFacing,
-  type CameraPaintPlans,
-} from '../../cp-workspace/folded/cameraSpreadVisibility';
-import type { CameraSpreadOptions } from '../../cp-workspace/folded/cameraSpreadScene';
+import type { CameraLayerRelations } from './cameraSpreadRelations';
+import { cameraPaintBackFacing, type CameraPaintPlans } from './cameraSpreadVisibility';
+import type { CameraSpreadOptions } from './cameraSpreadScene';
 
 const TILE = 32;
 const WIDTH = 2048;
@@ -69,11 +67,14 @@ export function createCameraOcclusion(
     gl.UNSIGNED_BYTE,
     relations.data
   );
-  const sources = [plans.front, plans.back].map((plan) =>
-    plan.pieces.filter((p) => p.kind === 'face').reverse()
-  );
+  const sources = [plans.front, plans.back].map((plan) => plan.pieces.filter((p) => p.kind === 'face').reverse());
   let lastKey = '';
   const sizes: string[] = [];
+  let bins: number[][] = [];
+  let spans = new Uint32Array(0);
+  let ids = new Uint32Array(0);
+  const capacity = sources.reduce((n, pieces) => n + pieces.length, 0);
+  const triangles = new Float32Array(WIDTH * 4 * Math.max(1, Math.ceil((capacity * 8) / (WIDTH * 4))));
   function upload(
     index: number,
     w: number,
@@ -110,27 +111,25 @@ export function createCameraOcclusion(
       if (key === lastKey) return;
       const columns = Math.ceil(width / TILE),
         rows = Math.ceil(height / TILE);
-      const bins = Array.from({ length: columns * rows }, () => [] as number[]);
-      const geometry: number[] = [];
-      const project = ([x, y, h]: Vec3): [number, number] => {
+      if (bins.length !== columns * rows) {
+        bins = Array.from({ length: columns * rows }, () => [] as number[]);
+        spans = new Uint32Array(bins.length * 2);
+      } else for (const bin of bins) bin.length = 0;
+      let triangleCount = 0;
+      const project = ([x, y, h]: Vec3, out: [number, number]) => {
         const px = x - centre[0],
           py = y - centre[1],
           z = h * options.amount;
         const depth = frame[6] * px + frame[7] * py + frame[8] * z;
         const w = options.projection === 'perspective' ? (2.5 - depth) / 2.5 : 1;
-        return [
-          width / 2 + (((frame[0] * px + frame[1] * py + frame[2] * z) / w + pan[0]) * zoom * height) / 2,
-          height / 2 - (((frame[3] * px + frame[4] * py + frame[5] * z) / w + pan[1]) * zoom * height) / 2,
-        ];
+        out[0] = width / 2 + (((frame[0] * px + frame[1] * py + frame[2] * z) / w + pan[0]) * zoom * height) / 2;
+        out[1] = height / 2 - (((frame[3] * px + frame[4] * py + frame[5] * z) / w + pan[1]) * zoom * height) / 2;
       };
+      const a: [number,number]=[0,0], b: [number,number]=[0,0], c: [number,number]=[0,0];
       sources.forEach((pieces, side) => {
         for (const piece of pieces) {
           if (cameraPaintBackFacing(piece.plane, options, frame, centre) !== !!side) continue;
-          const [a, b, c] = piece.points.map(project) as [
-            [number, number],
-            [number, number],
-            [number, number],
-          ];
+          project(piece.points[0]!,a); project(piece.points[1]!,b); project(piece.points[2]!,c);
           const area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
           if (Math.abs(area) < 1e-8) continue;
           const x0 = Math.max(0, Math.floor(Math.min(a[0], b[0], c[0]) / TILE));
@@ -138,25 +137,40 @@ export function createCameraOcclusion(
           const x1 = Math.min(columns - 1, Math.floor(Math.max(a[0], b[0], c[0]) / TILE));
           const y1 = Math.min(rows - 1, Math.floor(Math.max(a[1], b[1], c[1]) / TILE));
           if (x0 > x1 || y0 > y1) continue;
-          const id = geometry.length / 8;
-          geometry.push(...a, ...b, ...c, (piece.face + 1) * (side ? -1 : 1), piece.rank);
-          for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) bins[y * columns + x]!.push(id);
+          const id = triangleCount++;
+          const offset=id*8;
+          triangles[offset]=a[0]; triangles[offset+1]=a[1];
+          triangles[offset+2]=b[0]; triangles[offset+3]=b[1];
+          triangles[offset+4]=c[0]; triangles[offset+5]=c[1];
+          triangles[offset+6]=(piece.face+1)*(side?-1:1); triangles[offset+7]=piece.rank;
+          for (let y = y0; y <= y1; y++)
+            for (let x = x0; x <= x1; x++) {
+              // Skinny crease triangles touch a tiny fraction of their bounding box.
+              // Reject those empty tiles before the fragment shader scans them.
+              if (triangleTouchesTile(a, b, c, x * TILE, y * TILE, TILE)) bins[y * columns + x]!.push(id);
+            }
         }
       });
-      const spans = new Uint32Array(bins.length * 2);
       let entries = 0;
       bins.forEach((bin, i) => {
         spans[2 * i] = entries;
         spans[2 * i + 1] = bin.length;
         entries += bin.length;
       });
-      const ids = new Uint32Array(WIDTH * Math.max(1, Math.ceil(entries / WIDTH)));
+      const needed = WIDTH * Math.max(1, Math.ceil(entries / WIDTH));
+      if (ids.length < needed) ids = new Uint32Array(2 ** Math.ceil(Math.log2(needed)));
       bins.forEach((bin, i) => ids.set(bin, spans[2 * i]));
-      const triangles = new Float32Array(WIDTH * 4 * Math.max(1, Math.ceil(geometry.length / (WIDTH * 4))));
-      triangles.set(geometry);
-      upload(0, WIDTH, triangles.length / (WIDTH * 4), gl.RGBA32F, gl.RGBA, gl.FLOAT, triangles);
+      upload(
+        0,
+        WIDTH,
+        Math.max(1, Math.ceil((triangleCount * 8) / (WIDTH * 4))),
+        gl.RGBA32F,
+        gl.RGBA,
+        gl.FLOAT,
+        triangles
+      );
       upload(1, columns, rows, gl.RG32UI, gl.RG_INTEGER, gl.UNSIGNED_INT, spans);
-      upload(2, WIDTH, ids.length / WIDTH, gl.R32UI, gl.RED_INTEGER, gl.UNSIGNED_INT, ids);
+      upload(2, WIDTH, needed / WIDTH, gl.R32UI, gl.RED_INTEGER, gl.UNSIGNED_INT, ids);
       lastKey = key;
     },
     dispose() {

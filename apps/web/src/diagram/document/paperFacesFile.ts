@@ -19,7 +19,7 @@ export const SCENE_JSON_MAX_BYTES = 4 * 1024 * 1024;
 export const NEWER_PAPER_FACES: unique symbol = Symbol('newer paper faces');
 
 /** The fields a stored `paperFaces` is written with; any other makes its step a newer build's. */
-const PAPER_FACES_KEYS: ReadonlySet<string> = new Set(['points', 'rings', 'levels']);
+const PAPER_FACES_KEYS: ReadonlySet<string> = new Set(['points', 'rings', 'levels', 'projection']);
 
 /**
  * A flat capture's `paperFaces` (Revision 2): a string of JSON holding each
@@ -54,6 +54,17 @@ export function readPaperFaces(
     ring.every((index) => Number.isInteger(index) && index >= 0 && index < points.length);
   if (!rings.every(isRing) || !levels.every((level) => Number.isInteger(level) && level >= 0)) return null;
   const faces = { points, rings, levels } as DiagramPaperFaces;
+  if (parsed.projection !== undefined) {
+    const projection = parsed.projection;
+    if (!isRecord(projection)) return null;
+    if (Object.keys(projection).some((key) => key !== 'points' && key !== 'triangles')) return NEWER_PAPER_FACES;
+    const vertices = projection.points, triangles = projection.triangles;
+    if (!Array.isArray(vertices) || !Array.isArray(triangles) || !vertices.every((p) => Array.isArray(p) &&
+      p.length === 5 && p.every((n) => typeof n === 'number' && Number.isFinite(n)) && p[4] > 0)) return null;
+    if (!triangles.every((t) => Array.isArray(t) && t.length === 4 && t.every((n) => Number.isInteger(n) && n >= 0) &&
+      t[0] < rings.length && t.slice(1).every((n) => n < vertices.length))) return null;
+    faces.projection = { points: vertices, triangles } as NonNullable<DiagramPaperFaces['projection']>;
+  }
   return { json: JSON.stringify(faces), faces };
 }
 

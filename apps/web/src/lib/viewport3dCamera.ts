@@ -3,36 +3,18 @@ import {
   transposeMat3,
   viewRotation,
   viewRotationFor,
-  type Mat3,
+  type OrbitView,
 } from '@treemaker/origami-simulator';
 
-export interface SimulatorOrbitView {
-  yaw: number;
-  pitch: number;
-  zoom: number;
-  /**
-   * Model rotation applied before the camera, so yaw spins about the model's own
-   * up rather than about the paper's normal. Absent means identity — the
-   * turntable both surfaces have always been.
-   */
-  orient?: Mat3;
-  /**
-   * Rotation about the line of sight, in radians. Absent means none.
-   *
-   * The third degree of freedom, and the one yaw and pitch cannot reach: they
-   * move the eye over a sphere, which says where you look from and leaves no say
-   * in which way up the picture lands. See the package's `viewRotationFor` for
-   * why spinning it cannot disturb the viewpoint.
-   */
-  roll?: number;
-}
+export type { OrbitView } from '@treemaker/origami-simulator';
 
-export interface SimulatorOrbitDrag {
+export interface CameraDrag {
   x: number;
   y: number;
   yaw: number;
   pitch: number;
   roll: number;
+  pan?: readonly [number, number];
 }
 
 /**
@@ -42,9 +24,9 @@ export interface SimulatorOrbitDrag {
  * of sight and leaves the eye exactly where it is. They are the same gesture
  * with a modifier held, so they are one mode rather than two gestures.
  */
-export type SimulatorOrbitMode = 'orbit' | 'roll';
+export type CameraGestureMode = 'orbit' | 'roll' | 'pan';
 
-export interface SimulatorOrbitPoint {
+export interface CameraPoint {
   x: number;
   y: number;
 }
@@ -59,20 +41,20 @@ export interface SimulatorOrbitPoint {
  * same gesture in DOM terms, which is exactly why the part they *do* share is
  * passed across rather than written twice.
  */
-export interface SimulatorOrbitGesture {
+export interface CameraGesture {
   /**
    * A drag has started at this point. Cancels anything already moving.
    *
    * The mode is fixed here rather than read per move, so a modifier let go
    * halfway through does not turn a roll into an orbit mid-gesture.
    */
-  begin: (point: SimulatorOrbitPoint, mode?: SimulatorOrbitMode) => void;
+  begin: (point: CameraPoint, mode?: CameraGestureMode) => void;
   /** The pointer is here now. Ignored unless a drag is in flight. */
-  move: (point: SimulatorOrbitPoint) => void;
+  move: (point: CameraPoint) => void;
   end: () => void;
 }
 
-export const SIMULATOR_ORBIT_SENSITIVITY = 0.01;
+export const ORBIT_SENSITIVITY = 0.01;
 
 /**
  * How far in and out an orbit camera may be zoomed.
@@ -82,11 +64,11 @@ export const SIMULATOR_ORBIT_SENSITIVITY = 0.01;
  * second pair of numbers held equal by intent is how "it behaves like the
  * simulator" quietly stops being true.
  */
-export const SIMULATOR_MIN_ZOOM = 0.45;
-export const SIMULATOR_MAX_ZOOM = 4;
+export const MIN_CAMERA_ZOOM = 0.45;
+export const MAX_CAMERA_ZOOM = 4;
 
-export function clampSimulatorZoom(zoom: number): number {
-  return Math.min(SIMULATOR_MAX_ZOOM, Math.max(SIMULATOR_MIN_ZOOM, zoom));
+export function clampCameraZoom(zoom: number): number {
+  return Math.min(MAX_CAMERA_ZOOM, Math.max(MIN_CAMERA_ZOOM, zoom));
 }
 
 /**
@@ -97,19 +79,15 @@ export function clampSimulatorZoom(zoom: number): number {
  * change how an inline simulation zooms on the browsers that report lines rather
  * than pixels. That is a fix for both surfaces at once, and its own change.
  */
-export function simulatorWheelZoomFactor(deltaY: number): number {
+export function wheelZoomFactor(deltaY: number): number {
   return Math.exp(-deltaY * 0.001);
 }
 
-export function nextSimulatorOrbitView(
-  view: SimulatorOrbitView,
-  drag: SimulatorOrbitDrag,
-  point: SimulatorOrbitPoint
-): SimulatorOrbitView {
+export function nextOrbitView(view: OrbitView, drag: CameraDrag, point: CameraPoint): OrbitView {
   return {
     ...view,
-    yaw: normalizeAngle(drag.yaw - (point.x - drag.x) * SIMULATOR_ORBIT_SENSITIVITY),
-    pitch: normalizeAngle(drag.pitch + (point.y - drag.y) * SIMULATOR_ORBIT_SENSITIVITY),
+    yaw: normalizeAngle(drag.yaw - (point.x - drag.x) * ORBIT_SENSITIVITY),
+    pitch: normalizeAngle(drag.pitch + (point.y - drag.y) * ORBIT_SENSITIVITY),
   };
 }
 
@@ -121,14 +99,56 @@ export function nextSimulatorOrbitView(
  * impossible to do cleanly by hand. Rightward is clockwise, so the model follows
  * the hand.
  */
-export function nextSimulatorRollView(
-  view: SimulatorOrbitView,
-  drag: SimulatorOrbitDrag,
-  point: SimulatorOrbitPoint
-): SimulatorOrbitView {
+export function nextRollView(view: OrbitView, drag: CameraDrag, point: CameraPoint): OrbitView {
   return {
     ...view,
-    roll: normalizeAngle(drag.roll + (point.x - drag.x) * SIMULATOR_ORBIT_SENSITIVITY),
+    roll: normalizeAngle(drag.roll + (point.x - drag.x) * ORBIT_SENSITIVITY),
+  };
+}
+
+/** Translation is measured in fractions of the short edge, independent of DPR. */
+export function panCamera(view: OrbitView, dx: number, dy: number, shortEdge: number): OrbitView {
+  if (!(shortEdge > 0)) return view;
+  return { ...view, pan: [(view.pan?.[0] ?? 0) + dx / shortEdge, (view.pan?.[1] ?? 0) + dy / shortEdge] };
+}
+
+/** Renderer-independent drag; the caller owns pointer capture and tool arbitration. */
+export function createCameraGesture(options: {
+  read: () => OrbitView;
+  write: (view: OrbitView) => void;
+  shortEdge: () => number;
+  begin?: () => void;
+  move?: () => void;
+  end?: () => void;
+}): CameraGesture {
+  let origin: CameraDrag | null = null;
+  let mode: CameraGestureMode = 'orbit';
+  let edge = 1;
+  return {
+    begin(point, nextMode = 'orbit') {
+      options.begin?.();
+      const view = options.read();
+      origin = { ...point, yaw: view.yaw, pitch: view.pitch, roll: view.roll ?? 0, pan: view.pan };
+      edge = options.shortEdge();
+      mode = nextMode;
+    },
+    move(point) {
+      if (!origin) return;
+      options.move?.();
+      const view = options.read();
+      options.write(
+        mode === 'pan'
+          ? panCamera({ ...view, pan: origin.pan }, point.x - origin.x, point.y - origin.y, edge)
+          : mode === 'roll'
+            ? nextRollView(view, origin, point)
+            : nextOrbitView(view, origin, point)
+      );
+    },
+    end() {
+      if (!origin) return;
+      origin = null;
+      options.end?.();
+    },
   };
 }
 
@@ -174,7 +194,7 @@ export const UPRIGHT_PITCH = -Math.PI / 2;
  * `v` become the yaw axis and that `Pitch(p')·Yaw(y')·R' = T` forces
  * `p' = UPRIGHT_PITCH` with `y'` free, leaving `R' = Pitch(p')⁻¹·T`.
  */
-export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
+export function setUprightView(view: OrbitView): OrbitView {
   const total = viewRotationFor(view);
   return {
     ...view,
@@ -201,7 +221,7 @@ export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
  * `R' = Cᵀ·Roll·C·R` draws `C·R'`, the same rotation. The view itself, when
  * it has no roll.
  */
-export function withRollAbsorbed<View extends SimulatorOrbitView>(view: View): View {
+export function withRollAbsorbed<View extends OrbitView>(view: View): View {
   if (!view.roll) return view;
   const total = viewRotationFor(view);
   return {
@@ -224,7 +244,7 @@ export function withRollAbsorbed<View extends SimulatorOrbitView>(view: View): V
  * across an upright: the cube shows the frame you are navigating, so its
  * vertical is the axis a drag actually spins about.
  */
-export type SimulatorViewDirection = readonly [number, number, number];
+export type ViewDirection = readonly [number, number, number];
 
 /** Below this, a direction is on the yaw axis and yaw has nothing left to name. */
 const POLE_EPSILON = 1e-9;
@@ -275,10 +295,7 @@ const POLE_EPSILON = 1e-9;
  * seen through the sheet. Every one of the six is now one view rather than a
  * family of them.
  */
-export function simulatorViewLookingFrom(
-  view: SimulatorOrbitView,
-  direction: SimulatorViewDirection
-): SimulatorOrbitView {
+export function viewLookingFrom(view: OrbitView, direction: ViewDirection): OrbitView {
   const flat = Math.hypot(direction[0], direction[2]);
   return {
     ...view,
@@ -287,4 +304,8 @@ export function simulatorViewLookingFrom(
   };
 }
 
-
+/** File camera fields only; transient screen roll is absorbed into the orientation. */
+export function persistedCameraView(view: OrbitView): Pick<OrbitView, 'yaw' | 'pitch' | 'zoom' | 'pan' | 'orient'> {
+  const { yaw, pitch, zoom, pan, orient } = withRollAbsorbed(view);
+  return { yaw, pitch, zoom, ...(pan ? { pan } : {}), ...(orient ? { orient } : {}) };
+}

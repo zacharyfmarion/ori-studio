@@ -1,10 +1,11 @@
+import { TooltipProvider } from '../components/ui/Tooltip';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { DEFAULT_SIMULATOR_VIEW, SimulatorViewport } from './SimulatorViewport';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../lib/simulatorSettings';
 import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
-import type { SimulatorOrbitView } from '../lib/simulatorOrbit';
+import type { OrbitView } from '../lib/viewport3dCamera';
 
 /**
  * The viewport's wheel handling, which has to do two things at once: zoom the
@@ -18,7 +19,7 @@ import type { SimulatorOrbitView } from '../lib/simulatorOrbit';
  * two implementations.
  */
 
-type PushCamera = (view: SimulatorOrbitView, width: number, height: number) => void;
+type PushCamera = (view: OrbitView, width: number, height: number) => void;
 
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
@@ -27,7 +28,7 @@ let pushCamera: Mock<PushCamera>;
 function render(interactive: boolean, claimsWheel?: () => boolean, viewCube = false) {
   act(() => {
     root?.render(
-      <SimulatorViewport
+      <TooltipProvider><SimulatorViewport
         canvasKey="gl"
         onCanvasChange={() => {}}
         interactive={interactive}
@@ -39,7 +40,7 @@ function render(interactive: boolean, claimsWheel?: () => boolean, viewCube = fa
         pushCamera={pushCamera}
         pushRenderSettings={() => {}}
         ariaLabel="simulator"
-      />
+      /></TooltipProvider>
     );
   });
   // Mounting pushes the initial camera; the tests are about what the gesture
@@ -184,10 +185,10 @@ describe('SimulatorViewport view cube', () => {
   }
 
   /** The camera the viewport most recently pushed. */
-  function lastView(): SimulatorOrbitView {
+  function lastView(): OrbitView {
     const view = pushCamera.mock.calls.at(-1)?.[0];
     expect(view).toBeDefined();
-    return view as SimulatorOrbitView;
+    return view as OrbitView;
   }
 
   beforeEach(() => {
@@ -357,7 +358,7 @@ describe('SimulatorViewport on the canvas-2D path', () => {
     pushRenderSettings = vi.fn();
     act(() => {
       root?.render(
-        <SimulatorViewport
+        <TooltipProvider><SimulatorViewport
           canvasKey="2d"
           onCanvasChange={() => {}}
           interactive
@@ -367,7 +368,7 @@ describe('SimulatorViewport on the canvas-2D path', () => {
           pushCamera={pushCamera}
           pushRenderSettings={pushRenderSettings}
           ariaLabel="simulator"
-        />
+        /></TooltipProvider>
       );
     });
   }

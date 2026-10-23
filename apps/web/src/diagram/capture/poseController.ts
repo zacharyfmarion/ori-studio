@@ -49,7 +49,7 @@ import {
   knownCreasesOf,
   type StepCreases,
 } from './captureCreases';
-import { CaptureSessionClosedError, createCaptureSession, type CaptureSession } from './captureSession';
+import { CaptureSessionClosedError, createCaptureSession, type CaptureSession, type CameraSpreadHold } from './captureSession';
 import { creasesThumbnail } from './captureThumbnail';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus } from './linkStatus';
@@ -83,6 +83,7 @@ const TRACKED: Record<LinkedPoseRequest['verb'], TrackedPoseAction> = {
   'spread-keep': 'spread_keep',
   'spread-skew': 'spread_skew',
   'spread-axis': 'spread_axis',
+  'spread-view': 'spread_view',
   // A crease pattern's paper on the colour of one side: not a turn-over (Zach, 2026-10-06).
   'paper-side': 'paper_side',
   // On, or off when the verb left them unflipped (`trackPose`).
@@ -98,6 +99,7 @@ const SPREAD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
   'spread-keep',
   'spread-skew',
   'spread-axis',
+  'spread-view',
 ]);
 
 /**
@@ -129,6 +131,7 @@ function renderSide(render: DiagramCpRender): 'front' | 'back' | undefined {
 }
 
 function spreadTracking(spread: LayerSpreadOptions): DiagramSpreadTracking {
+  if (spread.kind === 'camera') return { kind: 'camera', amount: spread.amount, projection: spread.projection };
   return spread.kind === 'depth'
     ? { kind: 'depth', direction: trackedDirection(spread.toward), amount: spread.amount }
     : { kind: 'affine', amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
@@ -139,7 +142,7 @@ function trackedDirection(toward: SpreadDirection): DiagramSpreadDirection {
 }
 
 /** The sliders a spread is dragged by: its amount, and an affine one's skew and axis. */
-export type SpreadSlider = 'amount' | 'skew' | 'axis';
+export type SpreadSlider = 'amount' | 'skew' | 'axis' | 'direction' | 'tilt';
 
 /**
  * A slider at a value: what a drag shows before it is committed. An amount
@@ -149,16 +152,19 @@ export type SpreadSlider = 'amount' | 'skew' | 'axis';
  */
 export type SpreadSlide =
   | { slider: 'amount'; kind: SpreadKind; value: number }
-  | { slider: 'skew' | 'axis'; value: number };
+  | { slider: 'skew' | 'axis' | 'direction' | 'tilt'; value: number };
 
 /** Whether a slider is one of `spread`'s: an amount of its kind, a skew or an axis of an affine one. */
 function slideFits(spread: LayerSpreadOptions, slide: SpreadSlide): boolean {
-  return slide.slider === 'amount' ? slide.kind === spread.kind : spread.kind === 'affine';
+  return slide.slider === 'amount' ? slide.kind === spread.kind :
+    slide.slider === 'direction' || slide.slider === 'tilt' ? spread.kind === 'camera' : spread.kind === 'affine';
 }
 
 /** The verb that commits a slide. */
 function slideRequest(slide: SpreadSlide) {
   switch (slide.slider) {
+    case 'direction': return { verb: 'spread-view', directionDeg: slide.value } as const;
+    case 'tilt': return { verb: 'spread-view', inclinationDeg: slide.value } as const;
     case 'amount':
       return { verb: 'spread-amount', amount: slide.value, kind: slide.kind } as const;
     case 'skew':
@@ -174,7 +180,7 @@ export function withSlide(spread: LayerSpreadOptions, slide: SpreadSlide): Layer
 }
 
 /** The verbs a slide commits as: a preview stays up under them until the newest lands. */
-const SLIDE_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set(['spread-amount', 'spread-skew', 'spread-axis']);
+const SLIDE_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set(['spread-amount', 'spread-skew', 'spread-axis', 'spread-view']);
 
 /** Where Pose's simulator came to rest, and the model there. */
 export type SimulatedRest = Omit<Extract<LinkedPoseRequest, { verb: 'simulate' }>, 'verb'>;
@@ -211,6 +217,7 @@ export interface DiagramPoseSpatialView {
  * to other creases, and the fold held for the old ones is not theirs.
  */
 export interface PoseControllerListener {
+  cameraSpread?: (view: CameraSpreadHold | null, key: string | null) => void;
   /** The live 3D fold, once held; null when let go. */
   spatial: (view: DiagramPoseSpatialView | null, key: string | null) => void;
   /** The held flat fold's layer orders as the search knows them; null when unknown. */
@@ -238,6 +245,10 @@ export function linkedFoldKey(stepId: string, source: Pick<DiagramCpSource, 'sco
  * React-free: `useDiagramLinkedPose` makes one per open step and disposes it.
  */
 export interface PoseController {
+  /** Consume an own save acknowledgement without rewinding a newer live gesture. */
+  consumeCameraCommit: (camera: FoldedFigureCamera) => boolean;
+  cameraGesture: (held: boolean, cancelled?: boolean) => void;
+  prepareCameraSpread: () => void;
   /**
    * `tracked: false` for a verb counted by its own surface — Show as from the
    * Step pane or a card, which `diagram step shown as` counts — so it is not
@@ -288,8 +299,12 @@ export interface PoseController {
 const store = { get: useWorkspaceStore.getState, set: useWorkspaceStore.setState };
 
 export function createPoseController(stepId: string, listener: PoseControllerListener): PoseController {
+  const cameraCommits = new Set<FoldedFigureCamera>();
   let start: StepCaptureStart | null = null;
   let orbitTimer: ReturnType<typeof setTimeout> | null = null;
+  let orbitHeld = false;
+  let nextCamera: FoldedFigureCamera | null = null;
+  let orbitCapture: Promise<void> | null = null;
   /** The simulator's rests: the one being captured, and the newest waiting for it. */
   let simulating: Promise<void> | null = null;
   let nextRest: SimulatedRest | null = null;
@@ -404,10 +419,13 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       );
       if (result.status === 'refused' || result.status === 'unavailable') return result;
       const source = linkedSource(linked, choice.creases, document, result.render);
+      const savedCamera = request.verb === 'orbit' && result.render.mode === 'folded-flat' && result.render.spread?.kind === 'camera'
+        ? result.render.spread.camera : null;
+      if (savedCamera) cameraCommits.add(savedCamera);
       const committed = await useWorkspaceStore
         .getState()
         .commitDiagramCapture(begun, { source, picture: result.picture }, 'Adjust pose');
-      if (!committed) return { status: 'discarded' };
+      if (!committed) { if (savedCamera) cameraCommits.delete(savedCamera); return { status: 'discarded' }; }
       if (committed.changed && options?.tracked !== false) trackPose(request.verb, result.render);
       const key = linkedFoldKey(stepId, source);
       // What a preview may draw from: the flat fold just posed, of these creases.
@@ -415,6 +433,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       listener.solutions(result.solutions ?? null, key);
       listener.mirrorAxes(result.mirrorAxes ?? null, key);
       if (result.spatial) listener.spatial({ model: result.spatial.fold.render, aux: result.spatial.aux }, key);
+      if (result.cameraSpread) listener.cameraSpread?.(result.cameraSpread,key);
       return {
         status: 'captured',
         changed: committed.changed,
@@ -441,6 +460,23 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   const cancelOrbit = () => {
     if (orbitTimer) clearTimeout(orbitTimer);
     orbitTimer = null;
+    nextCamera = null;
+    orbitHeld = false;
+  };
+
+  const captureOrbit = () => {
+    orbitCapture ??= (async () => {
+      await null;
+      try {
+        while (!disposed && nextCamera && !orbitHeld) {
+          while (own) await own;
+          if (disposed || orbitHeld || !nextCamera) break;
+          const camera = nextCamera;
+          nextCamera = null;
+          await run({ verb: 'orbit', camera });
+        }
+      } finally { orbitCapture = null; }
+    })();
   };
 
   /**
@@ -450,6 +486,8 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
    * fold of these creases is held.
    */
   const drawPreview = (spread: LayerSpreadOptions): DiagramScenePicture | null | undefined => {
+    // The live backend previews camera/amount changes; no vector clipping on a pointer move.
+    if (spread.kind === 'camera') return null;
     const linked = currentLinkedSource(stepId);
     const document = useWorkspaceStore.getState().oristudioCpDocument?.document;
     if (linked?.render.mode !== 'folded-flat' || !document) return null;
@@ -496,6 +534,8 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       await abandonOnEngineLoss(session.flat(document, choice.creases.foldLineIds, side, foldCase));
       await abandonOnEngineLoss(session.flatPicture(rotationDeg));
       heldFor = { key: linkedFoldKey(stepId, linked), document };
+      const scene = await session.flatScene();
+      if (scene) listener.cameraSpread?.({ scene,side,foldCase }, heldFor.key);
       return null;
     }).then(() => {
       holding = null;
@@ -511,15 +551,29 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   };
 
   return {
+    consumeCameraCommit(camera) {
+      for (const saved of cameraCommits) if (sameCamera(saved,camera)) { cameraCommits.delete(saved); return true; }
+      return false;
+    },
     run,
+    prepareCameraSpread: holdForPreview,
 
     orbit(camera, stored) {
-      cancelOrbit();
-      if (!stored || sameCamera(camera, stored)) return;
+      if (orbitTimer) clearTimeout(orbitTimer);
+      orbitTimer = null;
+      nextCamera = stored && !sameCamera(camera, stored) ? camera : null;
+      if (!nextCamera || orbitHeld) return;
       orbitTimer = setTimeout(() => {
         orbitTimer = null;
-        void run({ verb: 'orbit', camera });
+        captureOrbit();
       }, ORBIT_SETTLE_MS);
+    },
+    cameraGesture(held, cancelled) {
+      if (orbitTimer) clearTimeout(orbitTimer);
+      orbitTimer = null;
+      orbitHeld = held;
+      if (cancelled) nextCamera = null;
+      else if (!held) captureOrbit();
     },
 
     wantsRest,
@@ -612,6 +666,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     },
 
     historyMoved() {
+      cameraCommits.clear();
       cancelOrbit();
       // A rest still waiting is of the view before the undo.
       nextRest = null;
@@ -636,6 +691,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       useWorkspaceStore.getState().stopDiagramCapture(stepId);
       session.dispose();
       listener.spatial(null, null);
+      listener.cameraSpread?.(null,null);
     },
 
     engineLost() {
@@ -646,6 +702,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       endPreview();
       session.forget();
       listener.spatial(null, null);
+      listener.cameraSpread?.(null,null);
     },
 
     dispose() {
@@ -736,6 +793,7 @@ function linkedSource(
 export function sameCamera(a: FoldedFigureCamera, b: FoldedFigureCamera): boolean {
   const close = (x: number, y: number) => Math.abs(x - y) < 1e-6;
   if (!close(a.yaw, b.yaw) || !close(a.pitch, b.pitch) || !close(a.zoom, b.zoom)) return false;
+  if (!close(a.pan?.[0] ?? 0, b.pan?.[0] ?? 0) || !close(a.pan?.[1] ?? 0, b.pan?.[1] ?? 0)) return false;
   if (!a.orient || !b.orient) return !a.orient && !b.orient;
   return a.orient.every((value, index) => close(value, b.orient![index]!));
 }

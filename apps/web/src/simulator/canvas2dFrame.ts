@@ -30,7 +30,7 @@ import {
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import { pickFacesInFrame, type SimulatorPickQuery } from "./pickQuery";
 import type { SimulatorRenderModel } from "./renderModel";
-import type { SimulatorOrbitView as SimulatorView } from "../lib/simulatorOrbit";
+import type { OrbitView as SimulatorView } from "../lib/viewport3dCamera";
 import {
   renderColorToRgb,
   renderColorToCss,
@@ -237,8 +237,8 @@ export function drawFrame(
   const availableSize = fitExtent(width, height);
   const scale = (availableSize / (2 * framing.radius)) * view.zoom;
   const map = (point: ProjectedPoint) => ({
-    x: width / 2 + point.x * scale,
-    y: height / 2 - point.y * scale,
+    x: width / 2 + (surface.drawn?.camera.pan?.[0] ?? 0) + point.x * scale,
+    y: height / 2 + (surface.drawn?.camera.pan?.[1] ?? 0) - point.y * scale,
   });
   // The erode distance in this frame's pixels — the same sum the GPU pass
   // makes per draw, from the same sheet extent.

@@ -3,7 +3,7 @@ import type { FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-s
 import type { CpSheetRegion } from '../../cp-workspace/sheets/cpSheetRegions';
 import type { KnownCreases } from './captureCreases';
 import { stepSheet } from './linkStatus';
-import { withRollAbsorbed, type SimulatorOrbitView } from '../../lib/simulatorOrbit';
+import { persistedCameraView, type OrbitView } from '../../lib/viewport3dCamera';
 import { DEFAULT_SIMULATOR_SETTINGS, simulatorMaterialOptions } from '../../lib/simulatorSettings';
 import { FoldPlayhead } from '../../simulator/foldPlayhead';
 import type { SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
@@ -77,11 +77,8 @@ function samePose(
 }
 
 /** A step's camera as the viewport's orbit holds it: its roll kept in the orientation. */
-function poseView(orbit: SimulatorOrbitView): DiagramSimulatedView {
-  const kept = withRollAbsorbed(orbit);
-  return kept.orient
-    ? { yaw: kept.yaw, pitch: kept.pitch, zoom: kept.zoom, orient: kept.orient }
-    : { yaw: kept.yaw, pitch: kept.pitch, zoom: kept.zoom };
+function poseView(orbit: OrbitView): DiagramSimulatedView {
+  return persistedCameraView(orbit);
 }
 
 /**
@@ -111,7 +108,7 @@ export interface DiagramSimulatedPose {
   viewportRef: RefObject<SimulatorViewportHandle | null>;
   runtime: Pick<SimulatorRuntime, 'gpuActive' | 'setRenderSettings'>;
   /** The viewport moved its camera: drawn, and captured once it rests. */
-  pushCamera: (view: SimulatorOrbitView, width: number, height: number) => void;
+  pushCamera: (view: OrbitView, width: number, height: number) => void;
   /** The camera the view shows, as the step would store it; null before the first draw. */
   view: DiagramSimulatedView | null;
   /** The view's size in the device px it draws at; null before the first draw. */
@@ -375,7 +372,7 @@ export function useDiagramSimulatedPose({
   }, [runtimeStatus, arm]);
 
   const pushCamera = useCallback(
-    (orbit: SimulatorOrbitView, width: number, height: number) => {
+    (orbit: OrbitView, width: number, height: number) => {
       setCamera(orbit, width, height);
       const shown = poseView(orbit);
       const before = viewRef.current;

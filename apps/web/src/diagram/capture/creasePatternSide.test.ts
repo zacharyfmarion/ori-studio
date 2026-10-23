@@ -184,7 +184,7 @@ function openPose(verbs: Partial<DiagramLinkedPose>): DiagramLinkedPose {
   return {
     actions: [],
     layerOrder: null,
-    spatial: null,
+    spatial: null, cameraSpread: null,
     onCamera: () => {},
     registerLiveView: () => () => {},
     rotateTo: () => {},

@@ -29,7 +29,7 @@ import type {
 import type { Folded3dMeshPayload } from '../../simulator/foldedMeshSource';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, resolvePaperStyle } from '../../lib/paper/paperStyleResolve';
-import { clampSimulatorZoom } from '../../lib/simulatorOrbit';
+import { clampCameraZoom } from '../../lib/viewport3dCamera';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { folded3dRenderModel } from './folded3dRenderModels';
 import {
@@ -138,7 +138,8 @@ export function folded3dWindowView(camera: FoldedFigureCamera | null | undefined
   return {
     yaw: source.yaw,
     pitch: source.pitch,
-    zoom: clampSimulatorZoom(source.zoom),
+    zoom: clampCameraZoom(source.zoom),
+    pan: source.pan,
     orient: source.orient,
   };
 }

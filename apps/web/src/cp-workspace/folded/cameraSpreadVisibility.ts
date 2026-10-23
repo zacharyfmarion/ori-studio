@@ -12,6 +12,7 @@ import { foldedFlatPaperScene } from './foldedFlatScene';
 import type { CameraSpreadLift } from './cameraSpreadLift';
 import type { CameraSpreadOptions } from './cameraSpreadScene';
 import type { Mat3 } from '@treemaker/origami-simulator';
+import { liftWeights } from './cameraSpreadLift';
 
 export interface CameraPaintPiece {
   kind: 'face' | 'line';
@@ -22,6 +23,7 @@ export interface CameraPaintPiece {
   /** Unit-height source triangle plane, oriented toward original +Z. Ink inherits it. */
   plane: [number, number, number, number];
   role?: 'edge' | 'aux';
+  whole?: { points: [Vec3,Vec3]; onBoundary: [boolean,boolean] };
   patch: boolean;
 }
 export interface CameraPaintPlan {
@@ -168,15 +170,22 @@ export function cameraPaintPlans(
       const source = mesh.faceTriangles[face]!.map((i) => triangles[i]!).filter(
         (t) => Math.abs(cross(t[0]!, t[1]!, t[2]!)) >= 1e-18
       );
-      const addLine = (a: ScenePoint, b: ScenePoint, role: 'edge' | 'aux') => {
+      const addLine = (a: ScenePoint, b: ScenePoint, role: 'edge' | 'aux', onBoundary: [boolean,boolean] = [false,false]) => {
+        const liftEnd = (p: ScenePoint): Vec3 => {
+          const point = normalized(p);
+          const weights = liftWeights(mesh,face,{x:point[0],y:point[1]});
+          point[2] = weights?.reduce((sum,[v,w]) => sum+mesh.heights[v]!*w,0) ?? 0;
+          return point;
+        };
+        const whole = { points:[liftEnd(a),liftEnd(b)] as [Vec3,Vec3], onBoundary };
         for (const triangle of source) {
           const points = clipLine(normalized(a), normalized(b), triangle);
           if (points)
-            pieces.push({ kind: 'line', points, face, rank, role, patch, plane: planes.get(triangle)! });
+            pieces.push({ kind: 'line', points, face, rank, role, patch, plane: planes.get(triangle)!, whole });
         }
       };
       if (item.kind === 'line') {
-        addLine(item.a, item.b, item.role === 'aux' ? 'aux' : 'edge');
+        addLine(item.a, item.b, item.role === 'aux' ? 'aux' : 'edge', item.onBoundary);
       } else {
         if (!patch) {
           for (const points of source)

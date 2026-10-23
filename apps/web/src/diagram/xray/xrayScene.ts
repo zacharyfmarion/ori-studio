@@ -144,7 +144,7 @@ export function readXRayFaces(faces: StepFaces, scene: PaperScene): XRayFaces | 
   const sides = facesSides(faces, stored);
   const items = faces.unspread.map((ring, face): PaperFaceItem | null => {
     const own = stored.get(face);
-    if (own) {
+    if (own && !faces.projection) {
       const { group: _group, ...item } = own;
       return { ...item, hidden: false };
     }

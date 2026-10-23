@@ -254,6 +254,7 @@ function spreadProperties(spread: DiagramSpreadTracking): Record<string, string>
     spread_kind: spread.kind,
     spread_amount_bucket: bucketCount(percent(spread.amount), DIAGRAM_SPREAD_PERCENT_BUCKETS),
   };
+  if (spread.kind === 'camera') return { ...common, spread_projection: spread.projection };
   return spread.kind === 'depth'
     ? { ...common, spread_direction: spread.direction }
     : {

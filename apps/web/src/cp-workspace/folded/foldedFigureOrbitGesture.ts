@@ -37,10 +37,10 @@ import {
   type Vec2,
 } from '../annotations/annotationTransform';
 import {
-  nextSimulatorOrbitView,
-  type SimulatorOrbitDrag,
-  type SimulatorOrbitPoint,
-} from '../../lib/simulatorOrbit';
+  nextOrbitView,
+  type CameraDrag,
+  type CameraPoint,
+} from '../../lib/viewport3dCamera';
 import type { FoldedFigureCamera } from './folded3dCamera';
 
 /**
@@ -71,7 +71,7 @@ export function foldedFigureOrbitClaimsPress(
  *
  * `point` is in **CSS pixels** — see the note on spaces above. Nothing here can
  * check that, so the guarantee is the caller's; what this module can do is only
- * ever be handed the same space the simulator hands `nextSimulatorOrbitView`.
+ * ever be handed the same space the simulator hands `nextOrbitView`.
  *
  * Both halves are needed because orbit is measured from the press rather than
  * integrated frame to frame — integrating would accumulate rounding over a long
@@ -79,8 +79,8 @@ export function foldedFigureOrbitClaimsPress(
  */
 export function beginFoldedFigureOrbit(
   camera: FoldedFigureCamera,
-  point: SimulatorOrbitPoint
-): SimulatorOrbitDrag {
+  point: CameraPoint
+): CameraDrag {
   // A figure has no roll of its own: its camera is document state and the
   // `.osf` record has no slot for one, so a drag here can only ever orbit.
   return { x: point.x, y: point.y, yaw: camera.yaw, pitch: camera.pitch, roll: 0 };
@@ -90,12 +90,12 @@ export function beginFoldedFigureOrbit(
  * The camera the figure should be drawn at, for a pointer now at `point`,
  * in the same **CSS pixels** {@link beginFoldedFigureOrbit} anchored on.
  *
- * The turn itself is [`nextSimulatorOrbitView`], imported rather than copied:
+ * The turn itself is [`nextOrbitView`], imported rather than copied:
  * a figure and a simulation must answer the same drag with the same rotation,
  * or "it behaves like the simulator" is false in the one way a user can feel.
  * Sharing the arithmetic is necessary and was never sufficient — the same
  * function over a differently-scaled delta is a different gesture.
- * `FoldedFigureCamera` and `SimulatorOrbitView` are the same three fields by
+ * `FoldedFigureCamera` and `OrbitView` are the same three fields by
  * convergence — see the note on `FoldedFigureCamera` — and this function is the
  * only place that relies on it, so a future divergence has one site to fix.
  *
@@ -105,8 +105,8 @@ export function beginFoldedFigureOrbit(
  */
 export function advanceFoldedFigureOrbit(
   camera: FoldedFigureCamera,
-  drag: SimulatorOrbitDrag,
-  point: SimulatorOrbitPoint
+  drag: CameraDrag,
+  point: CameraPoint
 ): FoldedFigureCamera {
   // A pointer that has not left the press is not a turn, and must return the
   // anchor *exactly*. Without this it does not: `normalizeAngle` round-trips
@@ -120,17 +120,17 @@ export function advanceFoldedFigureOrbit(
   // hiding the drift, which still accumulates across a drag that keeps
   // returning to its anchor.
   if (point.x === drag.x && point.y === drag.y) {
-    return { yaw: drag.yaw, pitch: drag.pitch, zoom: camera.zoom, orient: camera.orient };
+    return { ...camera, yaw: drag.yaw, pitch: drag.pitch };
   }
-  const next = nextSimulatorOrbitView(
-    { yaw: camera.yaw, pitch: camera.pitch, zoom: camera.zoom, orient: camera.orient },
+  const next = nextOrbitView(
+    camera,
     drag,
     point
   );
   // `orient` rides through every branch. A drag moves the eye; it never changes
   // which way the model is up, and dropping it here would quietly undo a
   // "set upright" the first time the user turned the figure afterwards.
-  return { yaw: next.yaw, pitch: next.pitch, zoom: camera.zoom, orient: camera.orient };
+  return { ...camera, yaw: next.yaw, pitch: next.pitch };
 }
 
 /**

@@ -1,0 +1,7 @@
+.canvas {
+  touch-action: none;
+  cursor: grab;
+}
+.canvas:active {
+  cursor: grabbing;
+}

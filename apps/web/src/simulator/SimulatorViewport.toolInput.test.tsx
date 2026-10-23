@@ -9,7 +9,7 @@ import {
 } from './SimulatorViewport';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../lib/simulatorSettings';
 import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
-import type { SimulatorOrbitView } from '../lib/simulatorOrbit';
+import type { OrbitView } from '../lib/viewport3dCamera';
 
 /**
  * The viewport's tool input: which presses reach the tool, what a drag and a
@@ -18,7 +18,7 @@ import type { SimulatorOrbitView } from '../lib/simulatorOrbit';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-type PushCamera = (view: SimulatorOrbitView, width: number, height: number) => void;
+type PushCamera = (view: OrbitView, width: number, height: number) => void;
 
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
@@ -323,4 +323,19 @@ describe('SimulatorViewport tool input', () => {
       expect(canvas().style.cursor).toBe('not-allowed');
     });
   });
+});
+
+ it('routes the Pan tool and middle drag to camera translation without a tool gesture', () => {
+  render({ mode: 'pan' });
+  pointer('pointerdown', 40, 50);
+  pointer('pointermove', 100, 80);
+  pointer('pointerup', 100, 80);
+  expect(pushCamera.mock.lastCall?.[0].pan?.[0]).toBeGreaterThan(0);
+  expect(onGesture).not.toHaveBeenCalled();
+  render({ mode: 'pick-faces' });
+  pointer('pointerdown', 40, 50, { button: 1 });
+  pointer('pointermove', 100, 80, { button: 1 });
+  pointer('pointerup', 100, 80, { button: 1 });
+  expect(pushCamera.mock.lastCall?.[0].pan?.[0]).toBeGreaterThan(0);
+  expect(onGesture).not.toHaveBeenCalled();
 });

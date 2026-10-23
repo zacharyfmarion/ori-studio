@@ -1,4 +1,5 @@
-import { wrap, type Remote } from 'comlink';
+import type { Remote } from 'comlink';
+import { createSharedWorkerClient } from '../../lib/sharedWorkerClient';
 import type { SimulatorWorkerApi } from '../../workers/simulatorWorker';
 import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
@@ -21,23 +22,18 @@ export type SimulatorClient = Remote<SimulatorWorkerApi>;
 // consumer: the Simulate panel, and inline simulation windows in the Edit
 // workspace. Last one out turns the lights off.
 
-let worker: Worker | null = null;
-let client: SimulatorClient | null = null;
-let refCount = 0;
+const shared = createSharedWorkerClient<SimulatorWorkerApi>(() => {
+  const worker = new Worker(new URL('../../workers/simulatorWorker.ts', import.meta.url), { type: 'module' });
+  attachWorkerDiagnostics(worker, 'simulator');
+  return worker;
+});
 
 /**
  * Take a reference to the simulator worker, starting it if needed. Every caller
  * must pair this with {@link releaseSimulatorClient}.
  */
 export function retainSimulatorClient(): SimulatorClient {
-  refCount += 1;
-  if (client) return client;
-  worker = new Worker(new URL('../../workers/simulatorWorker.ts', import.meta.url), {
-    type: 'module',
-  });
-  attachWorkerDiagnostics(worker, 'simulator');
-  client = wrap<SimulatorWorkerApi>(worker);
-  return client;
+  return shared.retain();
 }
 
 /**
@@ -46,11 +42,7 @@ export function retainSimulatorClient(): SimulatorClient {
  * both the memory and the GL context indefinitely.
  */
 export function releaseSimulatorClient(): void {
-  refCount = Math.max(0, refCount - 1);
-  if (refCount > 0) return;
-  client = null;
-  worker?.terminate();
-  worker = null;
+  shared.release();
 }
 
 /**
@@ -59,10 +51,10 @@ export function releaseSimulatorClient(): void {
  * "no simulator is open" is a normal answer rather than a reason to start one.
  */
 export function peekSimulatorClient(): SimulatorClient | null {
-  return client;
+  return shared.peek();
 }
 
 /** Live reference count, for tests and diagnostics. */
 export function simulatorClientRefCount(): number {
-  return refCount;
+  return shared.count();
 }

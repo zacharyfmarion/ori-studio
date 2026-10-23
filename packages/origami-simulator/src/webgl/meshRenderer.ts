@@ -538,6 +538,7 @@ uniform vec3 u_center;
 uniform mat3 u_view;
 uniform float u_scale;
 uniform vec2 u_viewport;
+uniform vec2 u_pan;
 uniform float u_depthRange;
 uniform float u_camDist;
 
@@ -550,8 +551,8 @@ vec3 toView(vec3 world){
 vec2 toNdc(vec3 view){
   float persp = u_camDist / max(u_camDist - view.z, 0.001);
   return vec2(
-    view.x*persp*u_scale/(u_viewport.x*0.5),
-    view.y*persp*u_scale/(u_viewport.y*0.5)
+    (view.x*persp*u_scale + u_pan.x)/(u_viewport.x*0.5),
+    (view.y*persp*u_scale - u_pan.y)/(u_viewport.y*0.5)
   );
 }
 
@@ -1228,6 +1229,7 @@ export class MeshRenderer {
     this.setMat3(program, cache, 'u_view', camera.rotation);
     this.setFloat(program, cache, 'u_scale', camera.scale);
     this.setVec2(program, cache, 'u_viewport', [camera.width, camera.height]);
+    this.setVec2(program, cache, 'u_pan', camera.pan ?? [0, 0]);
     this.setFloat(program, cache, 'u_depthRange', camera.depthRange);
     this.setFloat(program, cache, 'u_camDist', camera.camDist);
   }
@@ -1261,7 +1263,7 @@ export class MeshRenderer {
   private setFloat(p: WebGLProgram, c: Map<string, WebGLUniformLocation | null>, n: string, v: number): void {
     this.gl.uniform1f(this.location(p, c, n), v);
   }
-  private setVec2(p: WebGLProgram, c: Map<string, WebGLUniformLocation | null>, n: string, v: [number, number]): void {
+  private setVec2(p: WebGLProgram, c: Map<string, WebGLUniformLocation | null>, n: string, v: readonly [number, number]): void {
     this.gl.uniform2f(this.location(p, c, n), v[0], v[1]);
   }
   private setVec3(

@@ -8,7 +8,7 @@ import { unprojectDevicePoint, userCameraToView, type UserCamera } from '../rend
  * A turn belongs to the hand, not to the crease-pattern camera.
  *
  * `foldedFigureOrbitGesture.test.ts` already pins that this module answers a
- * drag exactly as `nextSimulatorOrbitView` does. That test passed throughout the
+ * drag exactly as `nextOrbitView` does. That test passed throughout the
  * bug this file exists for, and could never have failed: the arithmetic was
  * always shared, and what differed was the **space the canvas measured the drag
  * in**. A simulation window measures `clientX/clientY`; the crease-pattern

@@ -55,7 +55,7 @@ import type {
 } from '../../lib/paper/paperScene';
 import { erodeLine, faceOutlineLines } from '../../lib/paper/paperSvg';
 import { faceComponents, foldedFlatPaperScene, wovenDrawOrder } from './foldedFlatScene';
-import type { LayerSpreadOptions } from './foldedLayerSpread';
+import type { LegacyLayerSpreadOptions } from './foldedLayerSpread';
 
 const FIXTURES = resolve(process.cwd(), '../../tests/fixtures');
 const ORIEDITA_TEST_RESOURCES = resolve(
@@ -1278,7 +1278,7 @@ describe('with an affine spread', () => {
   const affineScene = (
     kernel: OristudioCpFoldedPaperScene,
     toScenePx: (p: Point) => ScenePoint = identity,
-    spread: LayerSpreadOptions = OPEN
+    spread: LegacyLayerSpreadOptions = OPEN
   ): PaperScene => foldedFlatPaperScene(kernel, { markHidden: false, toScenePx, scale: 1, spread });
 
   const shapeless = (items: readonly PaperItem[]) =>

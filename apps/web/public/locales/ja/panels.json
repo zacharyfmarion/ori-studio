@@ -1349,6 +1349,7 @@
       "back": "裏",
       "backToFlat": "平らに戻す",
       "cameraReadout": "ヨー {{yaw}}° · ピッチ {{pitch}}°",
+      "cameraSpreadView": "レイヤーを広げたモデル：ドラッグで回転、中ボタンでドラッグすると平行移動",
       "degrees": "時計回りに {{degrees}}°",
       "enlarged": "拡大",
       "enlargedOff": "画像全体をもう一度表示します",
@@ -1377,12 +1378,14 @@
       "onlySolution": "この折りの重なり順は1つだけです",
       "orbitHint": "ドラッグで回転 · ダブルクリックでリセット",
       "otherSide": "反対側から見る",
+      "panHint": "ドラッグで平行移動 · スクロールでズーム",
       "pause": "一時停止",
       "percent": "{{value}}%",
       "play": "再生",
       "previousSolution": "前の重なり順",
       "reset": "ポーズをリセット",
       "resetHint": "すでに最初のポーズです",
+      "retrySpread": "ライブビューを再試行",
       "rotateLeft": "左に回転",
       "rotateRight": "右に回転",
       "rotation": "回転",
@@ -1406,6 +1409,7 @@
       "spreadAxisDegrees": "{{degrees}}°",
       "spreadAxisName": "層のずらしの軸",
       "spreadAxisValue": "シート上で{{degrees}}の軸",
+      "spreadDiagram": "図解",
       "spreadDirection": "方向",
       "spreadDirectionName": "ずらす方向",
       "spreadDown": "奥の層を下へ",
@@ -1417,12 +1421,16 @@
       "spreadKeepTop": "上",
       "spreadKind": "ずらし方",
       "spreadKindAffine": "アフィン",
+      "spreadKindCamera": "デフォルト",
       "spreadKindDepth": "深さ",
       "spreadLayers": "層をずらす",
       "spreadLayersRow": "層をずらす",
       "spreadLeft": "奥の層を左へ",
       "spreadNeedsFlat": "層をずらせるのは平らに折った図だけです",
       "spreadNeedsOrder": "この折りには重なり順がないため、ずらす層がありません",
+      "spreadOrthographic": "3D 平行投影",
+      "spreadPerspective": "3D 透視投影",
+      "spreadProjection": "表示",
       "spreadRight": "奥の層を右へ",
       "spreadSkew": "傾き",
       "spreadSkewName": "層のずらしの傾き",
@@ -1430,6 +1438,8 @@
       "spreadUp": "奥の層を上へ",
       "spreadUpLeft": "奥の層を左上へ",
       "spreadUpRight": "奥の層を右上へ",
+      "spreadViewDirection": "視線方向",
+      "spreadViewTilt": "視線の傾き",
       "turnOver": "裏返す",
       "upright": "直立させる",
       "uprightNone": "この折りには、直立させるための対称軸がありません",
@@ -1997,9 +2007,11 @@
     "backendGpuTitle": "GPUで計算中（WebGL2）",
     "backToPatterns": "パターン",
     "canvasAriaLabel": "折り紙の折りベースシミュレーター。ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセットします。",
+    "canvasAriaLabelPan": "折り紙シミュレーター。ドラッグで平行移動、スクロールでズーム。",
     "canvasAriaLabelPin": "折り紙の折りベースシミュレーター。ボックスをドラッグするか面をクリックして固定、スクロールでズームします。",
     "canvasAriaLabelPull": "折り紙ベースのシミュレーター。紙をドラッグすると固定した面を支点に引っ張れます。スクロールでズーム。",
     "canvasTitle": "ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセット",
+    "canvasTitlePan": "ドラッグで平行移動、スクロールでズーム",
     "canvasTitlePin": "ボックスをドラッグするか面をクリックして固定、スクロールでズーム",
     "canvasTitlePull": "紙をドラッグして引っ張る、スクロールでズーム",
     "contextMenu": {
@@ -2033,6 +2045,10 @@
         "description": "ドラッグしてモデルを回転します。",
         "label": "オービット"
       },
+      "pan": {
+        "description": "ドラッグして表示を平行移動します。",
+        "label": "平行移動"
+      },
       "picker": {
         "close": "ツール一覧を閉じる",
         "title": "ツール",
@@ -2043,7 +2059,7 @@
         "description": "残りの紙を折る間、面をその場に固定します。",
         "label": "固定",
         "orbitApple": "Cmd を押しながらドラッグするとモデルを回転します。",
-        "orbitMiddle": "中ボタンでドラッグするとモデルを回転します。",
+        "orbitMiddle": "中ボタンでドラッグすると平行移動します。モデルを回転するには軌道回転を使います。",
         "shift": "Shift を押しながらドラッグで固定に追加します。Shift を押しながらクリックで面を1つ固定・解除します。",
         "throughLayers": "すべての層を通して選択",
         "touchBox": "ボックスをドラッグして中の面を固定します。",
@@ -2159,5 +2175,10 @@
       "deselect": "すべて選択解除",
       "pairAllNone": "向かい合う未ペアのノードはありません。"
     }
+  },
+  "viewport3d": {
+    "fit": "全体を表示",
+    "navigation": "表示の操作",
+    "pan": "表示を平行移動"
   }
 }

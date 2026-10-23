@@ -10,6 +10,8 @@ export interface OrbitView {
   yaw: number;
   pitch: number;
   zoom: number;
+  /** Screen-right/down offset as a fraction of the viewport's short edge. */
+  pan?: readonly [number, number];
   /**
    * Model rotation applied before the camera, so yaw spins about the model's own
    * up rather than about the paper's normal. Absent means identity, i.e. the
@@ -40,17 +42,7 @@ export interface OrbitView {
  * the two conventions meet, and it is done with `uniformMatrix3fv`'s own
  * transpose flag rather than by storing the transpose here.
  */
-export type Mat3 = readonly [
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-];
+export type Mat3 = readonly [number, number, number, number, number, number, number, number, number];
 
 export const IDENTITY_MAT3: Mat3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
@@ -153,8 +145,7 @@ export function multiplyMat3(a: Mat3, b: Mat3): Mat3 {
   const out = new Array<number>(9);
   for (let row = 0; row < 3; row += 1) {
     for (let col = 0; col < 3; col += 1) {
-      out[row * 3 + col] =
-        a[row * 3]! * b[col]! + a[row * 3 + 1]! * b[3 + col]! + a[row * 3 + 2]! * b[6 + col]!;
+      out[row * 3 + col] = a[row * 3]! * b[col]! + a[row * 3 + 1]! * b[3 + col]! + a[row * 3 + 2]! * b[6 + col]!;
     }
   }
   return out as unknown as Mat3;
@@ -179,6 +170,8 @@ export function viewDepthAxis(rotation: Mat3): [number, number, number] {
 }
 
 export interface CameraUniforms {
+  /** Pixel offset, after perspective division. Missing means centered. */
+  pan?: readonly [number, number];
   center: [number, number, number];
   /** The view rotation. See {@link viewRotation}. */
   rotation: Mat3;
@@ -233,6 +226,7 @@ export function cameraUniforms(
   const scale = (fitExtent(width, height) / (2 * safeRadius)) * view.zoom;
   return {
     center,
+    pan: cameraPanPixels(view, width, height),
     rotation: viewRotationFor(view),
     scale,
     width,
@@ -242,6 +236,12 @@ export function cameraUniforms(
     depthRange: safeRadius * 2,
     camDist: safeRadius * CAM_DISTANCE_FACTOR,
   };
+}
+
+/** Shared by the GPU, canvas fallback, picking and vector export. */
+export function cameraPanPixels(view: Pick<OrbitView, 'pan'>, width: number, height: number): [number, number] {
+  const edge = Math.min(width, height);
+  return [(view.pan?.[0] ?? 0) * edge, (view.pan?.[1] ?? 0) * edge];
 }
 
 /**
@@ -319,21 +319,12 @@ export function projectVertices(
  * shader is handed — so this is no longer a *mirror* of the vertex shader that
  * has to be kept in step with it, it is the same matrix applied on the CPU.
  */
-export function toViewSpace(
-  x: number,
-  y: number,
-  z: number,
-  camera: CameraUniforms
-): [number, number, number] {
+export function toViewSpace(x: number, y: number, z: number, camera: CameraUniforms): [number, number, number] {
   const dx = x - camera.center[0];
   const dy = y - camera.center[1];
   const dz = z - camera.center[2];
   const m = camera.rotation;
-  return [
-    m[0] * dx + m[1] * dy + m[2] * dz,
-    m[3] * dx + m[4] * dy + m[5] * dz,
-    m[6] * dx + m[7] * dy + m[8] * dz,
-  ];
+  return [m[0] * dx + m[1] * dy + m[2] * dz, m[3] * dx + m[4] * dy + m[5] * dz, m[6] * dx + m[7] * dy + m[8] * dz];
 }
 
 /**
@@ -353,8 +344,8 @@ export function projectViewPoint(
   const persp = perspective ? camera.camDist / Math.max(camera.camDist - view[2], 0.001) : 1;
   // NDC -> pixels. NDC y is up and pixel y is down, hence the subtraction.
   return [
-    camera.width / 2 + view[0] * persp * camera.scale,
-    camera.height / 2 - view[1] * persp * camera.scale,
+    camera.width / 2 + (camera.pan?.[0] ?? 0) + view[0] * persp * camera.scale,
+    camera.height / 2 + (camera.pan?.[1] ?? 0) - view[1] * persp * camera.scale,
   ];
 }
 
@@ -371,8 +362,8 @@ export function cursorRay(
 ): { origin: [number, number, number]; direction: [number, number, number] } {
   const perspective = options.perspective ?? true;
   // Where the pixel's line crosses depth 0, where the perspective factor is 1.
-  const x = (point.x - camera.width / 2) / camera.scale;
-  const y = -(point.y - camera.height / 2) / camera.scale;
+  const x = (point.x - camera.width / 2 - (camera.pan?.[0] ?? 0)) / camera.scale;
+  const y = -(point.y - camera.height / 2 - (camera.pan?.[1] ?? 0)) / camera.scale;
   const viewOrigin: [number, number, number] = perspective ? [0, 0, camera.camDist] : [x, y, 0];
   const viewDirection: [number, number, number] = perspective ? [x, y, -camera.camDist] : [0, 0, -1];
   const length = Math.hypot(viewDirection[0], viewDirection[1], viewDirection[2]);

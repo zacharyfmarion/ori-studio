@@ -365,6 +365,7 @@
     "toggleLighting": "Lighting",
     "toolExit": "Exit Tool",
     "toolOrbit": "Orbit Tool",
+    "toolPan": "Pan Tool",
     "toolPin": "Pin Tool",
     "toolPull": "Pull Tool"
   },

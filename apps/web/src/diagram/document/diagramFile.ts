@@ -58,6 +58,7 @@
 
 import { ANGLE_RADIUS_MM } from '../annotate/angleMarkStyle';
 import { FOLDED_FIGURE_CAMERA_KEYS, readFoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import { isCameraOrientation } from '../../cp-workspace/folded/cameraSpreadView';
 import {
   SPREAD_DIRECTIONS,
   SPREAD_KEEPS,
@@ -1481,6 +1482,7 @@ function readCpRender(value: unknown): DiagramCpRender | null {
 
 /** A spread's fields, by its kind: any other makes the step a newer build's. */
 const SPREAD_FIELDS: Readonly<Record<SpreadKind, ReadonlySet<string>>> = {
+  camera: new Set(['kind', 'amount', 'projection', 'directionDeg', 'inclinationDeg', 'camera', 'cameraSet']),
   depth: new Set(['kind', 'amount', 'toward']),
   affine: new Set(['kind', 'amount', 'keep', 'skew', 'axisDeg']),
 };
@@ -1502,8 +1504,22 @@ function readSpread(value: unknown): DiagramLayerSpread | undefined | typeof NEW
   // A field it has no name for is news before a missing one is damage, as for an annotation.
   if (Object.keys(value).some((key) => !SPREAD_FIELDS[known].has(key))) return NEWER;
   const amount = finiteNumber(value.amount);
-  if (amount === null || amount <= 0) return null;
+  if (amount === null || amount < 0 || (known !== 'camera' && amount === 0)) return null;
   const past = amount > SPREAD_AMOUNT_RANGE[known].max;
+  if (known === 'camera') {
+    if (typeof value.projection !== 'string') return null;
+    if (past || !['diagram', 'orthographic', 'perspective'].includes(value.projection)) return NEWER;
+    if (isRecord(value.camera) && Object.keys(value.camera).some((key) => !FOLDED_FIGURE_CAMERA_KEYS.has(key))) return NEWER;
+    const camera = readFoldedFigureCamera(value.camera);
+    if (isRecord(value.camera) && value.camera.orient !== undefined && !isCameraOrientation(value.camera.orient)) return null;
+    if (value.cameraSet !== undefined && typeof value.cameraSet !== 'boolean') return null;
+    const directionDeg = finiteNumber(value.directionDeg);
+    const inclinationDeg = finiteNumber(value.inclinationDeg);
+    if (!camera || directionDeg === null || inclinationDeg === null) return null;
+    if (directionDeg < 0 || directionDeg >= 360 || inclinationDeg < 0 || inclinationDeg > 80) return NEWER;
+    return { kind: 'camera', amount, projection: value.projection as 'diagram' | 'orthographic' | 'perspective',
+      directionDeg, inclinationDeg, camera, ...(value.cameraSet !== undefined ? { cameraSet: value.cameraSet } : {}) };
+  }
   if (known === 'depth') {
     if (typeof value.toward !== 'string') return null;
     if (past || !(SPREAD_DIRECTIONS as readonly string[]).includes(value.toward)) return NEWER;
@@ -2427,6 +2443,10 @@ function paperFacesFitScene(faces: DiagramPaperFaces, picture: DiagramScenePictu
     if (!Number.isInteger(item.face) || item.face < 0 || item.face >= faces.rings.length) return false;
     if (whole.has(item.face)) continue;
     whole.set(item.face, Array.isArray(item.rings) && item.rings.length === 1 && Array.isArray(item.rings[0]) ? item.rings[0].length : null);
+  }
+  if (faces.projection) {
+    const covered = new Set(faces.projection.triangles.map((triangle) => triangle[0]));
+    return faces.rings.every((ring,face) => ring.length === 0 || covered.has(face));
   }
   if (!spread) return true;
   return faces.rings.every((ring, face) => ring.length === 0 || whole.get(face) === ring.length);

@@ -46,6 +46,7 @@ import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import { DiagramLinkedPoseControls } from './DiagramLinkedPoseControls';
 import { DiagramWayChooser } from './DiagramWayChooser';
 import type { ReferencesStepWayChoice } from '../../diagram/references/useReferencesStepWays';
+import { DiagramPoseCameraSpreadView } from './DiagramPoseCameraSpreadView';
 import { DiagramPose3dView } from './DiagramPose3dView';
 import { DiagramPoseSimulatedView } from './DiagramPoseSimulatedView';
 import type { DiagramPoseAnnotations } from './DiagramPoseStage';
@@ -351,7 +352,14 @@ export function DiagramStepDetail({
           />
         ) : url || linkedPose ? (
           <>
-            {linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
+            {linked?.render.mode === 'folded-flat' && linked.render.spread?.kind === 'camera' && linkedPose?.cameraSpread ? (
+              <DiagramPoseCameraSpreadView view={linkedPose.cameraSpread}
+                spread={linkedPose.spread?.spread.kind === 'camera' ? linkedPose.spread.spread : linked.render.spread}
+                rotationDeg={linked.render.rotationDeg} style={style} onCamera={linkedPose.onCamera}
+                onGesture={linkedPose.cameraGesture} consumeCameraCommit={linkedPose.consumeCameraCommit} registerLiveView={linkedPose.registerLiveView}
+                ghost={linkedPose.spread?.spread === linked.render.spread ? ghost : null}
+                fallback={picture} readOnly={readOnly}/>
+            ) : linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
               <DiagramPose3dView
                 view={linkedPose.spatial}
                 camera={linked.render.camera}

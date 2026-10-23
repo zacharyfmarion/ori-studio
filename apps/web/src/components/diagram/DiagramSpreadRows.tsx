@@ -18,7 +18,7 @@ import { SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../diagram/document/d
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { DiagramAffineCredit } from './DiagramAffineCredit';
 import { IconButton } from '../ui/IconButton';
-import { FieldRow, SegmentedRow, SliderRow, ToggleRow } from '../ui/fieldRows';
+import { FieldRow, SelectRow, SegmentedRow, SliderRow, ToggleRow } from '../ui/fieldRows';
 import styles from './DiagramSpreadRows.module.css';
 
 const ARROWS: Record<SpreadDirection, LucideIcon> = {
@@ -85,7 +85,7 @@ export function DiagramSpreadRows({
                 disabled={spread.disabled}
                 onChange={(value) => choose(spread.kinds, value)}
               />
-              <DiagramAffineCredit />
+              {shown.kind === 'affine' && <DiagramAffineCredit />}
             </span>
           </FieldRow>
           <SliderRow
@@ -97,11 +97,15 @@ export function DiagramSpreadRows({
             step={AMOUNT_STEP_PERCENT}
             format={percent}
             valueText={(value) =>
-              shown.kind === 'depth'
+              shown.kind !== 'affine'
                 ? t('panels:diagram.pose.spreadAmountValue', '{{percent}} of the model', { percent: percent(value) })
-                : t('panels:diagram.pose.spreadAffineAmountValue', '{{percent}} of the way back to the sheet along the axis', {
-                    percent: percent(value),
-                  })
+                : t(
+                    'panels:diagram.pose.spreadAffineAmountValue',
+                    '{{percent}} of the way back to the sheet along the axis',
+                    {
+                      percent: percent(value),
+                    }
+                  )
             }
             disabled={spread.disabled}
             title={spread.hint}
@@ -110,7 +114,11 @@ export function DiagramSpreadRows({
             onGestureCommit={spread.commit}
           />
           {shown.kind === 'depth' ? (
-            <FieldRow label={t('panels:diagram.pose.spreadDirection', 'Direction')} kind="segmented" title={spread.hint}>
+            <FieldRow
+              label={t('panels:diagram.pose.spreadDirection', 'Direction')}
+              kind="segmented"
+              title={spread.hint}
+            >
               <div
                 className={styles.compass}
                 role="group"
@@ -139,7 +147,7 @@ export function DiagramSpreadRows({
                 <Layers className={styles.centre} size={14} aria-hidden="true" />
               </div>
             </FieldRow>
-          ) : (
+          ) : shown.kind === 'affine' ? (
             <>
               <SegmentedRow
                 label={t('panels:diagram.pose.spreadKeep', 'Keep still')}
@@ -162,7 +170,9 @@ export function DiagramSpreadRows({
                 step={1}
                 format={percent}
                 valueText={(value) =>
-                  t('panels:diagram.pose.spreadSkewValue', '{{percent}} skewed about the axis', { percent: percent(value) })
+                  t('panels:diagram.pose.spreadSkewValue', '{{percent}} skewed about the axis', {
+                    percent: percent(value),
+                  })
                 }
                 disabled={spread.disabled}
                 title={spread.hint}
@@ -189,6 +199,48 @@ export function DiagramSpreadRows({
                 onGestureStart={spread.start}
                 onGestureCommit={spread.commit}
               />
+            </>
+          ) : (
+            <>
+              <SelectRow
+                label={t('panels:diagram.pose.spreadProjection', 'View')}
+                value={shown.projection}
+                options={[
+                  { id: 'diagram', label: t('panels:diagram.pose.spreadDiagram', 'Diagram') },
+                  { id: 'orthographic', label: t('panels:diagram.pose.spreadOrthographic', '3D parallel') },
+                  { id: 'perspective', label: t('panels:diagram.pose.spreadPerspective', '3D perspective') },
+                ]}
+                disabled={spread.disabled}
+                onChange={(value) => spread.projection(value as typeof shown.projection)}
+              />
+              {shown.projection === 'diagram' && (
+                <>
+                  <SliderRow
+                    label={t('panels:diagram.pose.spreadViewDirection', 'View direction')}
+                    value={shown.directionDeg}
+                    min={0}
+                    max={359}
+                    step={1}
+                    format={degrees}
+                    disabled={spread.disabled}
+                    onChange={(value) => spread.preview('direction', value)}
+                    onGestureStart={spread.start}
+                    onGestureCommit={spread.commit}
+                  />
+                  <SliderRow
+                    label={t('panels:diagram.pose.spreadViewTilt', 'View tilt')}
+                    value={shown.inclinationDeg}
+                    min={0}
+                    max={80}
+                    step={1}
+                    format={degrees}
+                    disabled={spread.disabled}
+                    onChange={(value) => spread.preview('tilt', value)}
+                    onGestureStart={spread.start}
+                    onGestureCommit={spread.commit}
+                  />
+                </>
+              )}
             </>
           )}
         </>
