@@ -95,7 +95,7 @@ export function createCameraRenderer(
   plans: CameraPaintPlans
 ) {
   // Fragment-centre coverage and raster coverage must agree at folds and ink.
-  // Render at twice CSS resolution instead of mixing these tests with MSAA.
+  // Supersample display pixels instead of mixing these tests with MSAA.
   const gl = canvas.getContext('webgl2', {
     antialias: false,
     preserveDrawingBuffer: true,
@@ -185,9 +185,12 @@ export function createCameraRenderer(
   gl.depthFunc(gl.LEQUAL);
   return {
     draw(options: CameraSpreadOptions, zoom = 1, showWire = false, pan: [number, number] = [0, 0]) {
-      const dpr = 2;
-      const width = Math.round(canvas.clientWidth * dpr),
-        height = Math.round(canvas.clientHeight * dpr);
+      // Two samples per axis on standard/Retina displays. A fixed 2x CSS
+      // buffer is only native resolution on Retina, leaving hard raster edges.
+      // Bound GPU work to 4x CSS resolution when display scaling exceeds 2x.
+      const renderScale = 2 * Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+      const width = Math.round(canvas.clientWidth * renderScale),
+        height = Math.round(canvas.clientHeight * renderScale);
       if (canvas.width !== width) canvas.width = width;
       if (canvas.height !== height) canvas.height = height;
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -195,7 +198,7 @@ export function createCameraRenderer(
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       const frame = cameraSpreadTransform(options);
       uniform('amount', options.amount);
-      uniform('inkScale', dpr);
+      uniform('inkScale', renderScale);
       gl.uniformMatrix3fv(gl.getUniformLocation(program, 'camera'), false, transposeMat3(frame));
       uniform('mode', ['diagram', 'orthographic', 'perspective'].indexOf(options.projection));
       uniform('aspect', canvas.width / canvas.height);

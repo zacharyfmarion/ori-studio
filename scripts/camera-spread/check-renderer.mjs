@@ -4,7 +4,10 @@ import { chromium } from 'playwright';
 const base = process.env.CAMERA_SPREAD_URL || 'http://localhost:5281';
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
-  const page = await browser.newPage({ viewport: { width: 512, height: 512 } });
+  const page = await browser.newPage({
+    viewport: { width: 512, height: 512 },
+    deviceScaleFactor: Number(process.env.CAMERA_SPREAD_DPR || 1),
+  });
   await page.route('**/@vite/client', (route) =>
     route.fulfill({
       contentType: 'application/javascript',

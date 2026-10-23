@@ -89,6 +89,8 @@ node scripts/camera-spread/compare.mjs before
 node scripts/camera-spread/compare.mjs after
 node scripts/camera-spread/gallery.mjs
 node scripts/camera-spread/check-renderer.mjs
+CAMERA_SPREAD_DPR=2 node scripts/camera-spread/check-renderer.mjs
+node scripts/camera-spread/check-antialiasing.mjs
 ```
 
 Open `/src/generated/camera-spread/comparison/index.html` on the same server for
@@ -96,6 +98,11 @@ all 70 pairs, model/view filters, full-resolution PNGs and a wipe slider. Captur
 metadata records the exact cameras, framing and baseline revision. Artifacts stay
 local and ignored. The GPU pixel check uses synthetic geometry, without corpus
 files, and verifies crossing depths, ID permutation, stack reversal and hidden ink.
+The antialiasing check inspects composited screenshots at 1x and 2x display pixel
+density. Rendering uses twice the display resolution per axis (capped at 4x CSS
+resolution), so Retina screens receive supersampling too. Full CSS stroke widths
+stay at 1.1 px / 0.65 px. Coverage masks and geometry use the same sample grid;
+native MSAA remains disabled to avoid inconsistent clipping at shared boundaries.
 
 Validation:
 

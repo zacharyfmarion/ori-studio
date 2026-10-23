@@ -66,3 +66,16 @@ camera/settings combinations on ten private corpus/example models.
 - Web lint, TypeScript, 100 focused unit tests and all 32 WebGL pixel cases pass.
   Pixel probes now select the pixel containing the projected point, avoiding an
   adjacent pixel outside thin ink. No new tests for this cosmetic adjustment.
+
+## Retina antialiasing follow-up
+
+- A fixed 2x CSS buffer was native resolution on a 2x Retina display, with no
+  supersampling left. Scale the buffer to twice display resolution per axis,
+  capped at 4x CSS resolution, retaining CSS stroke widths and clipping rules.
+- Added a compositor-level screenshot regression: sloping edges had zero blended
+  pixels at DPR 2 before the fix, versus 1,559 after. DPR 1 remains unchanged.
+- All 64 depth/stack/ink pixel checks pass across DPR 1 and DPR 2. Verified the
+  live in-app browser uses a 1,752 × 1,040 buffer for its 438 × 260 CSS preview
+  at DPR 2. The 70-image gallery was captured at DPR 1 and is unaffected.
+- Retina raster work grows to four times the previous pixel count. The scale cap
+  bounds this cost; this check does not establish interactive FPS on all models.
