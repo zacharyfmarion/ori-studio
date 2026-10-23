@@ -1,7 +1,7 @@
 import { createDiagram, insertPictureSteps, type DiagramDocument } from '../diagram/document/diagramDocument';
 import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
 import { useDiagramExportUiStore } from '../store/diagramExportUiStore';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   OristudioBpDocumentState,
 } from '../engine/oristudioBpTypes';
@@ -10,9 +10,17 @@ import type { OristudioCpDocumentState } from '../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import { getWorkspaceCapabilities } from '../lib/workspaceCapabilities';
 import { createFileService } from '../platform/fileService';
+import { useHelpStore } from '../store/helpStore';
 import { useLayoutStore } from '../store/layoutStore';
-import { createMenuActionHandler, isMenuActionId } from './menuActions';
+import { useWorkspaceStore } from '../store/workspaceStore';
+import { createMenuActionHandler, handleMenuAction, isMenuActionId } from './menuActions';
 import { registerCanvasSessionEnder } from '../cp-workspace/canvasObjects/canvasSessions';
+
+const analyticsMocks = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../analytics')>()),
+  track: analyticsMocks.track,
+}));
 
 // The default `showWorkspace` navigates for real, and the point of the tests
 // below is that it is a default rather than a wiring line — so the router itself
@@ -1016,5 +1024,134 @@ describe('menu actions that leave the start screen', () => {
     // The subscription already navigates on the workspace change, and its
     // navigate is async — a second one here would push a duplicate history entry.
     expect(routingMocks.navigateTo).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Through `handleMenuAction` and the real stores, because that is the path the
+ * native Edit ▸ Undo takes: no key event, so nothing upstream of the chokepoint
+ * stops it while a dialog is up.
+ */
+describe('the menus behind a modal dialog', () => {
+  const state = () => useWorkspaceStore.getState();
+  const stepCount = () => state().diagram?.steps.length ?? 0;
+  const counted = (commandId: string) =>
+    analyticsMocks.track.mock.calls.some(
+      ([event, properties]) => event === 'command invoked' && properties?.command_id === commandId
+    );
+  let dialog: HTMLElement | null = null;
+
+  /** What every modal the app marks a barrier renders (`useModalDialog`). */
+  function openModal() {
+    dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-shortcut-barrier', '');
+    document.body.append(dialog);
+  }
+
+  function closeModal() {
+    dialog?.remove();
+    dialog = null;
+  }
+
+  beforeEach(() => {
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    useLayoutStore.setState(useLayoutStore.getInitialState(), true);
+    useHelpStore.setState(useHelpStore.getInitialState(), true);
+    routingMocks.navigateTo.mockClear();
+    routingMocks.currentPath.mockReturnValue('/welcome');
+    // The Diagram on screen with two steps added, so its own history has two
+    // entries to undo — and nothing in it needs the engine.
+    useLayoutStore.getState().activateWorkspace('diagram');
+    state().addDiagramStep();
+    state().addDiagramStep();
+    expect(state().activeEditingContext).toBe('diagram');
+    expect(stepCount()).toBe(2);
+    analyticsMocks.track.mockClear();
+  });
+
+  afterEach(() => {
+    closeModal();
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    useLayoutStore.setState(useLayoutStore.getInitialState(), true);
+    useHelpStore.setState(useHelpStore.getInitialState(), true);
+  });
+
+  it('holds Undo back, leaves the document as it was, and counts nothing', async () => {
+    const past = state().diagramHistory.past.length;
+    openModal();
+
+    await expect(handleMenuAction('edit.undo')).resolves.toBe(false);
+
+    expect(stepCount()).toBe(2);
+    expect(state().diagramHistory.past).toHaveLength(past);
+    expect(counted('edit.undo')).toBe(false);
+  });
+
+  it('holds Redo back too', async () => {
+    await expect(handleMenuAction('edit.undo')).resolves.toBe(true);
+    expect(stepCount()).toBe(1);
+    const future = state().diagramHistory.future.length;
+    analyticsMocks.track.mockClear();
+    openModal();
+
+    await expect(handleMenuAction('edit.redo')).resolves.toBe(false);
+
+    expect(stepCount()).toBe(1);
+    expect(state().diagramHistory.future).toHaveLength(future);
+    expect(counted('edit.redo')).toBe(false);
+  });
+
+  it('undoes and redoes as before once the dialog closes', async () => {
+    openModal();
+    await handleMenuAction('edit.undo');
+    closeModal();
+
+    await expect(handleMenuAction('edit.undo')).resolves.toBe(true);
+    expect(stepCount()).toBe(1);
+    expect(counted('edit.undo')).toBe(true);
+
+    await expect(handleMenuAction('edit.redo')).resolves.toBe(true);
+    expect(stepCount()).toBe(2);
+    expect(counted('edit.redo')).toBe(true);
+  });
+
+  it('keeps the workspace behind it where it is', async () => {
+    openModal();
+
+    await expect(handleMenuAction('view.edit')).resolves.toBe(false);
+    await expect(handleMenuAction('cp.analyzeReferences')).resolves.toBe(false);
+
+    expect(useLayoutStore.getState().activeWorkspace).toBe('diagram');
+    expect(state().activeEditingContext).toBe('diagram');
+    expect(routingMocks.navigateTo).not.toHaveBeenCalled();
+    expect(counted('view.edit')).toBe(false);
+  });
+
+  it('switches workspace as before with no dialog open', async () => {
+    await expect(handleMenuAction('view.edit')).resolves.toBe(true);
+
+    expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
+    expect(routingMocks.navigateTo).toHaveBeenCalledWith('/edit');
+    expect(counted('view.edit')).toBe(true);
+  });
+
+  it('still opens what is meant to go over a dialog', async () => {
+    openModal();
+
+    await expect(handleMenuAction('help.about')).resolves.toBe(true);
+
+    expect(useHelpStore.getState().activeModal).toBe('about');
+    expect(counted('help.about')).toBe(true);
+  });
+
+  it('is not held back by a dialog that is not a barrier', async () => {
+    // A sheet or drawer is `aria-modal` too, but wants the workspace's keys.
+    openModal();
+    dialog?.removeAttribute('data-shortcut-barrier');
+
+    await expect(handleMenuAction('edit.undo')).resolves.toBe(true);
+    expect(stepCount()).toBe(1);
   });
 });
