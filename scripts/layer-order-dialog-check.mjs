@@ -59,13 +59,15 @@ async function settle(page) {
  *
  * What floats over a canvas is not the canvas: a tool window (any
  * `FloatingPanel`, `section[data-pin]`) is painted over in magenta, since its
- * text settles on its own schedule and differs from run to run. CSS
- * transitions are finished first, for the same reason.
+ * text settles on its own schedule and differs from run to run. So is the
+ * viewport toolbar: on the same commit, its buttons' rounded corners come out
+ * one of two ways from run to run (±1 on about a hundred corner pixels once a
+ * fold is made). CSS transitions are finished first, for the same reason.
  */
 async function steadyShot(page, locator, { timeoutMs = 15000 } = {}) {
   const deadline = Date.now() + timeoutMs;
-  const shoot = () =>
-    locator.screenshot({ animations: 'disabled', mask: [page.locator('section[data-pin]')], maskColor: '#ff00ff' });
+  const floating = [page.locator('section[data-pin]'), page.locator('[data-viewport-toolbar]')];
+  const shoot = () => locator.screenshot({ animations: 'disabled', mask: floating, maskColor: '#ff00ff' });
   await settle(page);
   let last = await shoot();
   while (Date.now() < deadline) {

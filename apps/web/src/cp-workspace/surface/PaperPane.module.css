@@ -1,0 +1,19 @@
+/*
+ * A paper pane (PaperPane.tsx): its canvas fills the pane's box, and the
+ * layers drawn through its camera sit over it. Where the pane goes, and what
+ * divides it from a pane beside it, is its parent's.
+ */
+.pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  outline: none;
+}
+
+.surface {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}

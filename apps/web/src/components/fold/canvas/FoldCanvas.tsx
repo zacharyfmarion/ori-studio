@@ -76,7 +76,7 @@ import styles from './FoldCanvas.module.css';
  * The Fold workspace's canvas (plan D11, D13, D14): the folded form on the
  * left, painted through the shared paper painter in the user's paper style,
  * and its crease pattern on the right, drawn as Edit's canvas draws one
- * (`useFoldCreasePatternStrokes`) — each a `FoldPane` on `useCpSurface`;
+ * (`useFoldCreasePatternStrokes`) — each a `FoldPane`, Fold's `PaperPane`;
  * the tool window over the viewport's corner; the viewport
  * toolbar along the bottom. Moving to another step shows it, with no
  * transition. The tool rail
