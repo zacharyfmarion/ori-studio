@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { captureCameraSpread } from './cameraSpreadCapture';
+import { foldedFlatPaperScene } from '../../cp-workspace/folded/foldedFlatScene';
+import { CAPTURE_PX_PER_UNIT } from './captureGeometry';
 import { storeScene } from './captureFolded';
 import { halfFoldOnSheetKernelScene } from './capture.fixtures';
 import { DEFAULT_CAMERA_SPREAD, createDiagram } from '../document/diagramDocument';
@@ -30,6 +32,25 @@ function captured(projection: 'diagram' | 'orthographic' | 'perspective', amount
 }
 
 describe('production camera spread capture', () => {
+  it('keeps the original flat painter order and hidden ink at zero spread', () => {
+    const kernel = halfFoldOnSheetKernelScene();
+    kernel.aux_lines = [{ face: 1, from: { x: 10, y: 20 }, to: { x: 90, y: 20 } }];
+    const spread = { ...DEFAULT_CAMERA_SPREAD, amount: 0 };
+    const captured = captureCameraSpread(kernel, spread, 0);
+    const original = foldedFlatPaperScene(kernel, {
+      markHidden: true,
+      scale: CAPTURE_PX_PER_UNIT,
+      toScenePx: (p) => [p.x * CAPTURE_PX_PER_UNIT, p.y * CAPTURE_PX_PER_UNIT],
+    });
+    // Includes the order: moving every line after all fills exposes buried ink.
+    expect(captured.scene.items).toEqual(
+      JSON.parse(JSON.stringify(original.items), (_key, value) =>
+        typeof value === 'number' ? expect.closeTo(value, 10) : value
+      )
+    );
+    expect(captured.scene.items.some((item) => item.kind === 'line' && item.hidden)).toBe(true);
+  });
+
   it('carries marks on a clipped face with disjoint islands, but not through a hole', () => {
     const first = captured('perspective');
     const spread = { ...first.spread, amount: 0.3, camera: { ...first.spread.camera, pan: [0.25, -0.08] as const } };

@@ -122,7 +122,7 @@ describe('experimental connected camera lift', () => {
   it('returns the exact original diagram at zero, with independent orbit in 3D', () => {
     const kernel = stack(true);
     const original = foldedFlatPaperScene(kernel, {
-      markHidden: false,
+      markHidden: true,
       toScenePx: (p) => [p.x, p.y],
       scale: 1,
     });

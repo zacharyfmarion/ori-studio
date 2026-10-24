@@ -12,7 +12,7 @@ import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import { STEP_PICTURE_EDGE_CSS_PX } from '../../diagram/pictures/poseLineWeight';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { resolvePaperStyle } from '../../lib/paper/paperStyleResolve';
-import { persistedCameraView } from '../../lib/viewport3dCamera';
+import { cameraSpreadStoredView, cameraSpreadViewportView } from '../../cp-workspace/folded/cameraSpreadView';
 import type { UprightViewHandle } from '../../viewport3d/viewport3dHandle';
 import { Viewport3d, type Viewport3dHandle } from '../../viewport3d/Viewport3d';
 import { Button } from '../ui/Button';
@@ -46,7 +46,7 @@ export function DiagramPoseCameraSpreadView({
 }) {
   const { t } = useTranslation();
   const viewport = useRef<Viewport3dHandle | null>(null);
-  const shown = useRef(spread.camera);
+  const shown = useRef(cameraSpreadViewportView(spread.camera, rotationDeg));
   const [size, setSize] = useState({ width: 1, height: 1, dpr: 1 });
   const [atStored, setAtStored] = useState(true);
   const [degrees, setDegrees] = useState(() => cameraDegrees(spread.camera));
@@ -58,8 +58,8 @@ export function DiagramPoseCameraSpreadView({
   const paint = useMemo(() => diagramScenePaintStyle(style, false), [style]);
   const push = useCallback(
     (camera: OrbitView, nextSize: typeof size) => {
-      const kept = persistedCameraView(camera);
-      shown.current = kept;
+      const kept = cameraSpreadStoredView(camera, rotationDeg);
+      shown.current = camera;
       setAtStored(sameCamera(kept, spread.camera));
       setDegrees((previous) => {
         const next = cameraDegrees(kept);
@@ -87,8 +87,9 @@ export function DiagramPoseCameraSpreadView({
     [spread, rotationDeg, paint, draw, onCamera]
   );
   useEffect(() => {
-    if (!consumeCameraCommit?.(spread.camera)) viewport.current?.setView(spread.camera);
-  }, [spread.camera, consumeCameraCommit]);
+    if (!consumeCameraCommit?.(spread.camera))
+      viewport.current?.setView(cameraSpreadViewportView(spread.camera, rotationDeg));
+  }, [spread.camera, rotationDeg, consumeCameraCommit]);
   useEffect(() => {
     push(shown.current, size);
   }, [push, size]);
@@ -132,7 +133,7 @@ export function DiagramPoseCameraSpreadView({
       {(canvasClassName) => (
         <Viewport3d
           ref={viewport}
-          initialView={spread.camera}
+          initialView={cameraSpreadViewportView(spread.camera, rotationDeg)}
           onView={push}
           onGesture={onGesture}
           interactive={!readOnly}

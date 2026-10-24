@@ -469,3 +469,110 @@ Raw benchmark JSON, per-model capture/storage sizes and screenshots stay in
 ignored artifacts. Available main-page JS heap samples are recorded, but exclude
 worker/GPU allocations and are not presented as peak total memory. Native GPU
 memory instrumentation and physical touch-device testing remain follow-ups.
+
+## Real project regression pass (2026-10-23)
+
+The prepared model corpus did not exercise reopening complete diagram projects.
+The user's Bodo step 190 reports no layer order despite a previously saved folded
+picture, and Set Upright needs verification through real pose controls. Treat the
+prior readiness assessment as incomplete until these workflows pass.
+
+- [x] Reproduce Bodo step 190 from the original OSF using the production sheet selection and fold path; identify the first divergence from its saved result.
+- [x] Reproduce and repair Upright/Set Upright in Diagram and 3D, including rotated poses, camera persistence and subsequent orbit.
+- [x] Audit real OSF projects from the supplied diagrams directory; keep inputs and generated reports ignored.
+- [x] Exercise Default, legacy spread, front/back, all projections, pan/zoom, undo/redo, switching steps, save/reopen and exports through the production UI.
+- [x] Add regression coverage for observed failures, then rerun affected lint/typecheck/tests/build and interaction performance checks.
+- [x] Record concrete results and remaining limitations; update the existing draft PR.
+
+### Confirmed regressions and fixes
+
+- Bodo step 190 was failing **before** the spread renderer, at `Step2 /
+  NotAttempted`. Our folded-image graph discarded subfaces after an Euler
+  diagnostic; Oriedita keeps them and proceeds. The original coordinates now
+  produce the same complete layer hierarchy as the Oriedita oracle. Source-paper
+  and FOLD-export validation stay strict. A generic regression and an optional
+  external fixture test cover the distinction. The external fixture records
+  coordinate bits because native decimal parsing can hide this numerical case.
+- Default's shared viewport did not include the independent page rotation when
+  establishing screen-up. The viewport adapter now absorbs that rotation on
+  entry and removes it before storage/capture. Set Upright keeps the image,
+  pan and zoom fixed, and a later horizontal orbit uses the visible vertical.
+  Tests cover 15°, 90°, 180° and 315°, plus the actual component's Set Upright,
+  camera commit, subsequent orbit, undo and page-rotation update.
+- The real 411 MB Bodo project (205 steps) opened through the production store,
+  step 190 rendered with Default and perspective, and saving/reopening through
+  the actual project writer/reader preserved the complete diagram exactly.
+  Original corpus files were never saved over. The browser test uses a separate
+  localhost origin to avoid replacing the user's working document.
+
+### Real project coverage
+
+The supplied directory contains 15 OSF files. Twelve have saved diagrams,
+containing 371 folded-flat steps (190 in Bodo); all resolve and solve using the
+production sheet resolver and rebuilt WASM. Heart step 17 already has a stale
+source fingerprint and also solves. Three OSF files contain no saved diagram
+and are reported separately, not counted as folded-step successes. Bodo's other
+15 steps are not saved folded-flat sources and are not counted in the fold audit.
+The audit additionally replays saved layer-order selections, including Crane's
+choices through 13; generated reports and coordinate fixtures stay ignored.
+
+### Zero-spread capture regression found during visual review
+
+At zero, the camera capture returned the old whole-face flat paint stream with
+hidden faces enabled, then fed it to the triangle compactor. That compactor
+moves visible ink after fills, which is valid only for already-clipped geometry;
+on a whole-face stream it exposed buried ink. The zero Diagram path now uses
+the normal hidden-face policy and preserves its original painter order. A
+capture regression checks geometry, hidden ink and item order. The six real
+zero cases were recaptured and reopened after the correction, and Bodo's zero
+picture was compared against the original OSF's saved picture.
+
+### Final validation
+
+- Rust workspace: **2,361 passed**, 7 existing ignored tests; format and workspace
+  clippy completed. All **30 Oriedita folding oracle** tests passed, including
+  Bodo step 190's complete hierarchy at the exact browser-decoded coordinates.
+- Web suite: **1,008 files / 13,989 tests passed**, 2 files / 16 existing skips.
+  After the final zero-capture correction, **48 focused tests passed**, including
+  camera capture, the actual viewport component, camera math and the real PDF
+  writer. Web lint and typecheck passed again.
+- WASM was rebuilt through the normal scripts. The final Vite production build
+  and the explicit landing prerender both passed (37 prerendered files). The
+  final bundle reused those freshly rebuilt bridges rather than rebuilding
+  them a third time.
+- **371/371** real folded steps solved; the other 14 OSF audits were repeated
+  with saved layer-order selections (all passed), while Bodo's 190 sources all
+  use case 1. Six representative real scenes (Bodo 190/205, Crane, Heart,
+  Chipmunk and Nazgul) passed **36 capture/storage/reopen cases**. All 36 export
+  through the actual PDF WASM writer as vectors, with no raster images.
+- UI checks on complete Bodo and Crane projects cover legacy Affine/Depth,
+  Default, zero, all projections, front/back, 315° page rotation, Set Upright,
+  orbit, pan/zoom, undo/redo, step changes and save/reopen. Crane's simulated
+  step 5 also passes pan and Set Upright; its edited project saves/reopens
+  exactly and exports from the production PDF dialog.
+- Native shell smoke and TreeMaker C++ parity were not repeated: neither host
+  code nor TreeMaker behavior changed. The changed Oriedita behavior has its
+  own native oracle, workspace tests, rebuilt-WASM corpus audit and browser
+  coverage. Physical touch-device and peak GPU-memory checks remain the earlier
+  documented follow-ups.
+
+The local review is `/src/generated/camera-spread/real-files/captures/index.html`
+and includes the 36-page vector PDF. Full raw inputs, screenshots, reports and
+exports remain ignored, and the user's original project files are untouched.
+
+### Real-file interaction timing
+
+The actual render worker was measured at 800 × 640 CSS pixels, DPR 1 and 2,
+with five warm frames and 24 measured frames for amount, orbit, pan, zoom and
+projection changes. Bodo steps 190/205, the real Crane and Heart projects and
+Nazgul all completed their bitmap updates at **2–9 ms p95**. Presentation was
+usually **17–19 ms p95**. An initial Bodo 205 run overlapped the UI PDF export
+and reached 39–48 ms for three presentation samples; an isolated repeat returned
+**17–18 ms p95** for every interaction at both DPRs, with bitmap completion
+**4–9 ms p95**. These include two animation frames, not input-to-photon timing.
+
+Cold worker preparation is **7.5 s for Bodo 190** and **11.3 s for Bodo 205**,
+versus **0.1–0.8 s** for the other three real models. Dense vector capture can
+still take seconds to tens of seconds off-thread. The live camera stays usable
+while a settled picture is captured. This is a documented remaining latency
+limit, not a claim that initial preparation or every corpus model is immediate.

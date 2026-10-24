@@ -156,3 +156,19 @@ orbit/pan/cube, persistence, capture, annotation and export contracts. Node 26
 needs `NODE_OPTIONS=--no-experimental-webstorage` when running Vitest without a
 storage file. Actual compositor pixel tests above remain necessary: jsdom does
 not supply a WebGL canvas.
+
+Real saved diagram projects can be checked without reselecting or translating
+creases. This uses the production sheet resolver and the rebuilt CP WASM bridge:
+
+```sh
+node scripts/camera-spread/audit-diagram-files.mjs /path/to/project.osf all
+# Or selected one-based step positions in each diagram:
+node scripts/camera-spread/audit-diagram-files.mjs /path/to/project.osf 188,189,190
+```
+
+Reports, solved scenes and exact coordinate-bit fixtures are written only under
+ignored `artifacts/camera-spread/real-files/`. The audit reports files with no saved
+diagrams separately. It audits every diagram in a project and checks both scope
+fingerprints and fold outcomes; it does not claim that folding alone validates
+camera rendering. A `*-bits.json` can also exercise the native/Oriedita parity
+regression with `ORISTUDIO_FOLD_SEGMENT_BITS` and `ORIEDITA_GEOMETRY_ORACLE` set.

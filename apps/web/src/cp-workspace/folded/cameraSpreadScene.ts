@@ -40,10 +40,11 @@ export function cameraSpreadScene(kernel: OristudioCpFoldedPaperScene, options: 
   ) {
     throw new Error(`Camera spread needs finite controls and amount in [0, ${CAMERA_SPREAD_MAX_AMOUNT}]`);
   }
-  // Exact original path, including its handling of woven coplanar stacks.
+  // At zero there is no separation to reveal buried faces. Use the normal flat
+  // capture policy; keeping hidden faces paintable leaks unconstrained buried ink.
   if (amount === 0 && projection === 'diagram')
     return foldedFlatPaperScene(kernel, {
-      markHidden: false,
+      markHidden: true,
       toScenePx: (p) => [p.x, p.y],
       scale: 1,
     });

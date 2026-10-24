@@ -257,6 +257,17 @@ impl FoldGraph {
         graph
     }
 
+    /// Oriedita's folded-image arrangement: `WireFrame_Worker.setLineSegmentSet`
+    /// ignores `PointSet.calculateFaces`' Euler verdict and keeps its traced
+    /// subfaces. Dense overlaps can fail that diagnostic after rounding even
+    /// though the layer solver can order them. The editable sheet and FOLD
+    /// exporter still use the strict gate; this is only the derived image.
+    pub(crate) fn from_subface_segments(segments: &[LineSegment]) -> Self {
+        let mut graph = Self::from_segments(segments, false);
+        graph.include_faces = graph.trace_faces(true);
+        graph
+    }
+
     pub(crate) fn from_segments(segments: &[LineSegment], calculate_faces: bool) -> Self {
         let mut points = VertexIndex::with_capacity(segments.len() * 2);
         let mut lines = Vec::with_capacity(segments.len());
@@ -404,6 +415,10 @@ impl FoldGraph {
     }
 
     fn calculate_faces(&mut self) -> bool {
+        self.trace_faces(false)
+    }
+
+    fn trace_faces(&mut self, keep_subfaces: bool) -> bool {
         let point_linking = self.point_linking();
         let mut face_point_map = vec![Vec::<usize>::new(); self.points.len()];
         let mut faces = Vec::<Vec<usize>>::new();
@@ -462,9 +477,14 @@ impl FoldGraph {
         // `numFaces` intact, skipping only `findLineInFaceBorder()`, so a caller
         // that ignores the boolean — `WireFrame_Worker.setLineSegmentSet` does —
         // still gets them. Clearing them makes the gate a refusal rather than the
-        // signal it is upstream. Left as-is because every current consumer treats
-        // a false verdict as "no faces" anyway, but it is not parity.
-        self.faces = if include_faces { faces } else { Vec::new() };
+        // signal it is upstream. Keep that stricter contract for source paper;
+        // derived folded-image subfaces use upstream's retained faces. The
+        // border cache is still absent after a failed verdict, as upstream's is.
+        self.faces = if include_faces || keep_subfaces {
+            faces
+        } else {
+            Vec::new()
+        };
         self.line_face_borders = if include_faces {
             self.line_face_borders_from_incidence(&face_point_map)
         } else {
@@ -1050,6 +1070,32 @@ fn face_area(face: &[usize], points: &[Point]) -> f64 {
 mod tests {
     use super::*;
     use crate::geometry::LineColor;
+
+    #[test]
+    fn subface_trace_retains_upstream_faces_after_an_euler_warning() {
+        // Two bounded regions are enough to fail the single-component Euler
+        // diagnostic. Only the derived subface path retains them, as Oriedita
+        // does. The source-sheet/export refusal must not become permissive.
+        let segments: Vec<_> = [0.0, 3.0]
+            .into_iter()
+            .flat_map(|x| {
+                let p = [
+                    Point::new(x, 0.0),
+                    Point::new(x + 1.0, 0.0),
+                    Point::new(x + 1.0, 1.0),
+                    Point::new(x, 1.0),
+                ];
+                (0..4).map(move |i| LineSegment::new(p[i], p[(i + 1) % 4]))
+            })
+            .collect();
+        let sheet = FoldGraph::from_sheet_segments(&segments);
+        assert!(!sheet.include_faces);
+        assert!(sheet.faces.is_empty());
+        let subfaces = FoldGraph::from_subface_segments(&segments);
+        assert!(!subfaces.include_faces);
+        assert_eq!(subfaces.faces.len(), 2);
+        assert!(subfaces.line_face_borders.is_empty());
+    }
 
     /// The all-faces scan [`FoldGraph::line_face_border`] replaces, kept as the
     /// reference the cache is checked against.

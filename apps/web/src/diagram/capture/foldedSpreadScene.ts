@@ -14,7 +14,11 @@ export function foldedSpreadScene(
 ): PaperScene {
   const spread = options.spread;
   if (spread?.kind !== 'camera') return foldedFlatPaperScene(kernel, { ...options, spread });
-  const scene = compactCameraScene(cameraSpreadScene(kernel, cameraSpreadRenderOptions(spread)));
+  const flat = spread.amount === 0 && spread.projection === 'diagram';
+  const projected = cameraSpreadScene(kernel, cameraSpreadRenderOptions(spread));
+  // The zero-spread path is a whole-face painter, not pre-clipped triangles.
+  // Its later fills must still cover earlier ink; compaction puts ink last.
+  const scene = flat ? projected : compactCameraScene(projected);
   const mesh = cameraSpreadLift(kernel);
   const { map, bounds } = cameraSpreadPageFrame(mesh, spread, options.toScenePx);
   return {
