@@ -5,10 +5,12 @@ import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes'
 import type { CameraLayerSpreadOptions } from './foldedLayerSpread';
 
 export const cameraSpreadRenderClient = createSharedWorkerClient<CameraSpreadRenderApi>(
-  () => new Worker(new URL('../../workers/cameraSpreadWorker.ts', import.meta.url), { type: 'module' })
+  () => new Worker(new URL('../../workers/cameraSpreadWorker.ts', import.meta.url), { type: 'module' }),
+  30_000
 );
 export const cameraSpreadCaptureClient = createSharedWorkerClient<CameraSpreadCaptureApi>(
-  () => new Worker(new URL('../../workers/cameraSpreadCaptureWorker.ts', import.meta.url), { type: 'module' })
+  () => new Worker(new URL('../../workers/cameraSpreadCaptureWorker.ts', import.meta.url), { type: 'module' }),
+  30_000
 );
 
 const keys = new WeakMap<OristudioCpFoldedPaperScene, number>();

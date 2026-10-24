@@ -9,7 +9,7 @@ import { sameCamera } from '../../diagram/capture/poseController';
 import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { diagramScenePaintStyle, DIAGRAM_STYLE_POLICY } from '../../diagram/pictures/diagramPaperStyle';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
-import { STEP_PICTURE_EDGE_CSS_PX } from '../../diagram/pictures/poseLineWeight';
+import { STEP_PICTURE_EDGE_CSS_PX, STEP_PICTURE_FRAME_SCALE } from '../../diagram/pictures/poseLineWeight';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { resolvePaperStyle } from '../../lib/paper/paperStyleResolve';
 import { cameraSpreadStoredView, cameraSpreadViewportView } from '../../cp-workspace/folded/cameraSpreadView';
@@ -31,6 +31,7 @@ export function DiagramPoseCameraSpreadView({
   ghost,
   fallback,
   readOnly = false,
+  stored = true,
 }: {
   view: CameraSpreadHold;
   spread: CameraLayerSpreadOptions;
@@ -43,6 +44,8 @@ export function DiagramPoseCameraSpreadView({
   ghost: DiagramPoseAnnotations | null;
   fallback: ReactNode;
   readOnly?: boolean;
+  /** False while an uncommitted spread slider differs from the saved picture. */
+  stored?: boolean;
 }) {
   const { t } = useTranslation();
   const viewport = useRef<Viewport3dHandle | null>(null);
@@ -81,7 +84,8 @@ export function DiagramPoseCameraSpreadView({
         showEdges: true,
       });
       // Widths are already sized for this viewport; the renderer only supersamples them.
-      draw({ spread: { ...spread, camera: kept }, rotationDeg, surface: { ...nextSize, style: settings } });
+      draw({ spread: { ...spread, camera: kept }, rotationDeg, surface: { ...nextSize, style: settings },
+        frameScale: STEP_PICTURE_FRAME_SCALE });
       onCamera(kept);
     },
     [spread, rotationDeg, paint, draw, onCamera]
@@ -119,10 +123,12 @@ export function DiagramPoseCameraSpreadView({
         </Button>
       </>
     );
-  return (
+  const showPicture = Boolean(fallback) && (status === 'loading' || (stored && atStored));
+  return (<>
+    {showPicture && fallback}
     <DiagramPoseStage
       status={status}
-      ghost={ghostMarkup ? { markup: ghostMarkup, ...size } : null}
+      ghost={!showPicture && ghostMarkup ? { markup: ghostMarkup, ...size } : null}
       yaw={degrees.yaw}
       pitch={degrees.pitch}
       showAngles={spread.projection !== 'diagram'}
@@ -138,10 +144,11 @@ export function DiagramPoseCameraSpreadView({
           onGesture={onGesture}
           interactive={!readOnly}
           orbitEnabled={spread.projection !== 'diagram'}
+          bitmapVisible={!showPicture}
           className={canvasClassName}
           label={t('panels:diagram.pose.cameraSpreadView', 'Spread model: drag to turn, middle-drag to pan')}
         />
       )}
     </DiagramPoseStage>
-  );
+  </>);
 }

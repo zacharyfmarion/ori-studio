@@ -594,6 +594,30 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     controller.dispose();
   });
 
+  it('reopens a Default pose from immutable geometry without folding or capturing another picture', async () => {
+    useWorkspaceStore.setState({ oristudioCpDocument: { ...state().oristudioCpDocument!, document: cpDocument() } });
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, DEFAULT_CAMERA_SPREAD);
+    const first = { ...listener(), cameraSpread: vi.fn() };
+    const one = createPoseController(stepId, first);
+    one.prepareCameraSpread();
+    await vi.waitFor(() => expect(first.cameraSpread).toHaveBeenCalledOnce());
+    const scene = first.cameraSpread.mock.lastCall![0].scene;
+    expect(bindings.runtime!.fold).toHaveBeenCalledOnce();
+    const picture = stepsIn(state().diagram!)[0]!.picture;
+    const history = state().diagramHistory;
+    one.dispose();
+    const second = { ...listener(), cameraSpread: vi.fn() };
+    const two = createPoseController(stepId, second);
+    two.prepareCameraSpread();
+    await vi.waitFor(() => expect(second.cameraSpread).toHaveBeenCalledOnce());
+    expect(second.cameraSpread.mock.lastCall![0].scene).toBe(scene);
+    expect(bindings.runtime!.fold).toHaveBeenCalledOnce();
+    expect(stepsIn(state().diagram!)[0]!.picture).toBe(picture);
+    expect(state().diagramHistory).toBe(history);
+    two.dispose();
+  });
+
   it('folds for a preview when it holds nothing yet, and commits after that fold rather than refused as busy', async () => {
     const stepId = await linkedStep();
     flatInTheFile(stepId, { kind: 'depth', amount: 0.05, toward: 'down' });

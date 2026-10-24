@@ -1,18 +1,26 @@
 import { wrap, type Remote } from 'comlink';
 
-/** A worker lives exactly as long as its consumers; no idle GL contexts or heaps. */
-export function createSharedWorkerClient<Api>(create: () => Worker) {
+/** Optional bounded idle retention lets expensive static backends survive view changes. */
+export function createSharedWorkerClient<Api>(create: () => Worker, idleMs = 0) {
   let worker: Worker | null = null;
   let client: Remote<Api> | null = null;
   let references = 0;
   let failure: Error | null = null;
   const pending = new Set<(error: Error) => void>();
+  let idle: ReturnType<typeof setTimeout> | null = null;
   const fail = (error: Error) => {
     failure = error;
     for (const reject of [...pending]) reject(error);
   };
   return {
     retain(): Remote<Api> {
+      if (idle !== null) clearTimeout(idle);
+      idle = null;
+      if (failure && references === 0) {
+        worker?.terminate();
+        worker = null;
+        client = null;
+      }
       if (!client) {
         worker = create();
         client = wrap<Api>(worker);
@@ -28,10 +36,16 @@ export function createSharedWorkerClient<Api>(create: () => Worker) {
     release() {
       references = Math.max(0, references - 1);
       if (references) return;
-      worker?.terminate();
-      fail(new Error('The rendering session was closed'));
-      worker = null;
-      client = null;
+      const close = () => {
+        idle = null;
+        worker?.terminate();
+        fail(new Error('The rendering session was closed'));
+        worker = null;
+        client = null;
+      };
+      if (idle !== null) clearTimeout(idle);
+      if (idleMs > 0 && !failure) idle = setTimeout(close, idleMs);
+      else close();
     },
     peek: () => client,
     count: () => references,

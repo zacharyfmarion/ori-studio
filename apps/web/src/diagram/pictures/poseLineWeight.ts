@@ -15,6 +15,8 @@ import { STEP_CARD_PADDING_MM } from './paintDiagramStep';
 
 /** The longer side, in CSS px, a step's scene picture opens at: its figure and the margin either side (`stepScenePage`). */
 export const STEP_PICTURE_EDGE_CSS_PX = ((DEFAULT_PAPER_SIZE_MM + 2 * STEP_CARD_PADDING_MM) * PT_PER_MM) / PT_PER_CSS_PX;
+/** Occupancy of the actual scene inside its SVG page, excluding the page margin. */
+export const STEP_PICTURE_FRAME_SCALE = DEFAULT_PAPER_SIZE_MM / (DEFAULT_PAPER_SIZE_MM + 2 * STEP_CARD_PADDING_MM);
 
 /** The frame edge, in device px, at which a live view in Pose draws its pens at their stated weight. */
 export function poseCreaseReferenceEdge(devicePixelRatio: number): number {

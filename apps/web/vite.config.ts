@@ -421,6 +421,10 @@ const uploadSourcemaps = Boolean(sentryAuthToken);
 const EXPLORI_DEV_ORIGIN = process.env.EXPLORI_DEV_ORIGIN || 'https://225.designorigami.net';
 
 export default defineConfig({
+  // Research SSR runners use Vite's default cache. Sharing it with a live app
+  // invalidates lazy imports (including References' plan compressor). Ports
+  // also need separate caches when the user app and isolated QA run together.
+  cacheDir: `node_modules/.vite-app/${process.env.VITEST ? 'test' : (process.env.DEV_SERVER_PORT ?? 'default')}`,
   plugins: [
     react(),
     keepTauriFrontendDistPath(),

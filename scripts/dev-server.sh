@@ -88,7 +88,7 @@ start() {
   # server came up; there is nothing else to wait for.
   ( set -m
     cd "$ROOT" && {
-      nohup npx vite apps/web --port "$PORT" --strictPort >"$LOG" 2>&1 </dev/null &
+      DEV_SERVER_PORT="$PORT" nohup npx vite apps/web --port "$PORT" --strictPort >"$LOG" 2>&1 </dev/null &
       echo $! >"$PID_FILE"
     } ) >/dev/null 2>&1 &
 

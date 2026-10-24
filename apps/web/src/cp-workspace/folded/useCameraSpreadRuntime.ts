@@ -89,9 +89,8 @@ export function useCameraSpreadRuntime(kernel: OristudioCpFoldedPaperScene, onFr
       kernel,
     };
     state.current = current;
-    // Prepare capture topology on its own worker while the live renderer starts.
-    // The first settled gesture then reuses the same connectivity and factorization.
-    void cameraSpreadCaptureClient.call((api) => api.load(current.key, kernel)).catch(() => undefined);
+    // Capture prepares lazily on the first edit. Preparing two copies of a dense
+    // lift on entry competes with the frame the user is waiting to manipulate.
     setStatus('loading');
     setError(null);
     if (last.current) current.pending = { ...last.current, key: current.key };
@@ -104,7 +103,7 @@ export function useCameraSpreadRuntime(kernel: OristudioCpFoldedPaperScene, onFr
       current.pending = null;
       if (current.animation !== null) cancelAnimationFrame(current.animation);
       if (state.current === current) state.current = null;
-      void client.release(current.key).catch(() => undefined);
+      // The backend owns a two-scene LRU, freed when its idle worker expires.
       cameraSpreadRenderClient.release();
       cameraSpreadCaptureClient.release();
     };

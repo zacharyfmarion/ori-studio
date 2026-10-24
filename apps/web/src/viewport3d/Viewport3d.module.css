@@ -5,3 +5,6 @@
 .canvas:active {
   cursor: grabbing;
 }
+.canvas[data-bitmap-hidden] {
+  opacity: 0;
+}

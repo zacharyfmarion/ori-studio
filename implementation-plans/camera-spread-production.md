@@ -576,3 +576,76 @@ versus **0.1–0.8 s** for the other three real models. Dense vector capture can
 still take seconds to tens of seconds off-thread. The live camera stays usable
 while a settled picture is captured. This is a documented remaining latency
 limit, not a claim that initial preparation or every corpus model is immediate.
+
+## Follow-up: References, Pose entry, and fish stroke parity
+
+- [x] Reproduce missing precreasing plans in the Diagram browser and compare main.
+- [x] Keep the saved picture visible during Pose preparation; remove redundant work and retain bounded reusable geometry.
+- [x] Use fish_view.osf to align settled Pose rendering with Pages without changing the saved geometry or visibility.
+- [x] Add targeted lifecycle/rendering regressions and measure cold and repeated Pose entry.
+- [x] Verify real References → Diagram, fish Pose/Pages, camera gestures, and save/reopen; run affected web checks.
+
+
+### Findings and corrections
+
+The References planner and picker have no branch-specific behavioral difference
+from main. The real browser reproduction completed 211 folds, but the packed
+plan was missing: its lazy `fflate` import returned HTTP 504 (Outdated Optimize
+Dep). Research SSR runners and the live app shared Vite's dependency cache.
+The app now has a separate cache, also isolated by dev-server port and from
+Vitest. Both running app origins now serve the compressor with HTTP 200.
+On the real fish file, a regenerated plan appears in the Diagram picker; adding
+its first card creates a linked References step with its six annotations.
+Already discarded plans need regenerating once after a reload.
+
+Pose keeps the saved vector picture visible while the interactive surface
+prepares and displays it again when an edit settles. That is the same picture
+used by Pages: the GPU's per-fragment clipping of expanded line ribbons no
+longer changes the resting pen width. During an active edit the fast GPU view
+still provides feedback until vector capture finishes. Its framing now includes
+the same paper margin, avoiding a size jump when the vector returns.
+
+Opening a camera pose no longer builds an unused flat vector picture or eagerly
+prepares both workers. Immutable folded scenes are cached by document identity,
+crease selection, side, layer solution and engine epoch (three scenes per live
+document). Render/capture backends retain their existing two-scene LRU for at
+most 30 idle seconds, then terminate. Kernel handles still close with their
+sessions. Reopening a kernel for a subsequent edit reuses the identical scene
+object and worker geometry key.
+
+The lift's matrix coefficients are packed once and its repeated products use
+allocation-free loops with the same accumulation order, tolerances and iteration
+limits. All geometry, heights and non-timing diagnostics have identical SHA-256
+hashes before and after on Bodo 190/205, Crane, Heart, Nazgul and fish. In the
+final isolated Node run, solver times were 1,381 / 1,898 ms for the two Bodo
+steps, 35 ms Crane, 19 ms Heart, 167 ms Nazgul and 331 ms fish; preparation adds
+roughly 2–389 ms. These are CPU solver timings, not full browser capture times.
+
+### Follow-up validation
+
+- Actual fish UI: Diagram and perspective, pan, orbit after Set Upright,
+  return to Pages, original 225°/19.5%/220°/28° settings, and exact save/reopen.
+  The original input is untouched. Screenshots and timing data remain ignored.
+- Instrumented Pose entry: initial saved-picture DOM at 133 ms and ready live
+  viewport at 862 ms; immediate repeat at 52 ms / 67 ms. No sampled frame had
+  neither picture nor ready viewport. The bitmap canvas is hidden at rest and
+  the vector image is fully decoded. These measurements are DOM/RAF checks,
+  not input-to-photon measurements; the full test suite was running concurrently.
+- Focused cache, lifecycle, controller, camera and component tests: 108 passed.
+  New regressions cover engine-epoch invalidation, bounded cache eviction,
+  worker idle expiry/reentry, saved-picture handoff and opening without a
+  recapture/history mutation.
+- Web lint/typecheck and production bundle pass; the explicit postbuild writes
+  all 37 prerendered files. No engine source changed in this follow-up, so the
+  existing rebuilt WASM was reused. Native/Rust/oracle checks were not repeated.
+- Final full web run: 1,007 files / 13,992 tests passed, 2 files / 16 existing
+  skips. Two unrelated timing checks failed under concurrent build load (the
+  Settings shortcut test's 5-second limit and the page-packing 32-ms budget).
+  Both files then passed in isolation: **80/80 tests**, with no changes to
+  those tests or their implementation. Every test in the final suite is thus
+  covered by a passing run; the parallel full run itself was not wholly green.
+
+Cold geometry and dense vector capture are still not instantaneous. This pass
+removes the blank flash and repeated preparation, and improves the unchanged
+solver; it does not claim a physical non-intersection guarantee or constant
+latency on arbitrary models.

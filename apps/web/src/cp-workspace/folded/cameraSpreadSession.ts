@@ -14,6 +14,8 @@ export interface CameraSpreadRenderRequest {
   spread: CameraLayerSpreadOptions;
   rotationDeg: number;
   surface: CameraSpreadSurface;
+  /** Picture-frame occupancy, including the diagram page's paper margin. */
+  frameScale?: number;
 }
 
 export function createCameraSpreadSession() {
@@ -33,7 +35,7 @@ export function createCameraSpreadSession() {
       const renderer = createCameraRenderer(canvas, mesh, kernel, cameraPaintPlans(mesh, kernel));
       sessions.set(key, { canvas, renderer });
     },
-    render({ key, spread, rotationDeg, surface }: CameraSpreadRenderRequest): ImageBitmap | null {
+    render({ key, spread, rotationDeg, surface, frameScale = 1 }: CameraSpreadRenderRequest): ImageBitmap | null {
       const session = sessions.get(key);
       if (!session) return null;
       sessions.delete(key);
@@ -44,9 +46,9 @@ export function createCameraSpreadSession() {
         s = Math.sin(theta);
       options.frame = multiplyMat3([c, -s, 0, s, c, 0, 0, 0, 1], cameraSpreadTransform(options));
       const short = Math.min(surface.width, surface.height);
-      const zoom = (spread.camera.zoom * Math.min(1, surface.width / surface.height)) / (Math.abs(c) + Math.abs(s));
+      const zoom = (frameScale * spread.camera.zoom * Math.min(1, surface.width / surface.height)) / (Math.abs(c) + Math.abs(s));
       const pan: [number, number] = [0, 1].map(
-        (i) => ((spread.camera.pan?.[i] ?? 0) * 2 * short) / surface.height / (1.45 * zoom)
+        (i) => ((spread.camera.pan?.[i] ?? 0) * 2 * short * frameScale) / surface.height / (1.45 * zoom)
       ) as [number, number];
       session.renderer.draw(
         options,

@@ -42,3 +42,25 @@ it('keeps the worker alive for another consumer and bounds an unanswered request
   runtime.release();
   expect(terminate).toHaveBeenCalledOnce();
 });
+
+it('reuses an idle static worker during navigation, then frees it after the grace period', async () => {
+  vi.useFakeTimers();
+  const terminate = vi.fn();
+  const create = vi.fn(() => ({ terminate, addEventListener: vi.fn() }) as unknown as Worker);
+  const runtime = createSharedWorkerClient(create, 30_000);
+  const first = runtime.retain();
+  runtime.release();
+  await vi.advanceTimersByTimeAsync(20_000);
+  expect(terminate).not.toHaveBeenCalled();
+  expect(runtime.retain()).toBe(first);
+  await vi.advanceTimersByTimeAsync(20_000);
+  expect(terminate).not.toHaveBeenCalled();
+  runtime.release();
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(terminate).toHaveBeenCalledOnce();
+  expect(runtime.peek()).toBeNull();
+  runtime.retain();
+  expect(create).toHaveBeenCalledTimes(2);
+  runtime.release();
+  await vi.advanceTimersByTimeAsync(30_000);
+});

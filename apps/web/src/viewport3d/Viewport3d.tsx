@@ -40,6 +40,7 @@ export function Viewport3d({
   label,
   interactive = true,
   orbitEnabled = true,
+  bitmapVisible = true,
 }: {
   ref?: Ref<Viewport3dHandle>;
   initialView: OrbitView;
@@ -49,6 +50,8 @@ export function Viewport3d({
   label: string;
   interactive?: boolean;
   orbitEnabled?: boolean;
+  /** Keep input/navigation active over a higher quality settled vector picture. */
+  bitmapVisible?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cubeRef = useRef<ViewCubeHandle | null>(null);
@@ -224,6 +227,7 @@ export function Viewport3d({
       <canvas
         ref={canvasRef}
         className={`${styles.canvas} ${className ?? ''}`}
+        data-bitmap-hidden={!bitmapVisible || undefined}
         aria-label={label}
         onPointerDown={down}
         onPointerMove={move}

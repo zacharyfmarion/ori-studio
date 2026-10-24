@@ -205,6 +205,7 @@ function prepare(kernel: OristudioCpFoldedPaperScene): CameraSpreadLift {
   const prepared = performance.now();
   const solution = new Float64Array(xy.length + 3 * faceTriangles.length);
   const allRows = [...rows, ...contacts];
+  const matrix = compileRows(allRows);
   const diagonal = new Float64Array(solution.length).fill(1e-8);
   for (const row of allRows)
     row.ids.forEach((id, j) => {
@@ -218,7 +219,7 @@ function prepare(kernel: OristudioCpFoldedPaperScene): CameraSpreadLift {
     rhs.fill(0);
     for (const row of rows) addRhs(rhs, row, row.target);
     for (const row of contacts) addRhs(rhs, row, Math.max(row.target, dotRow(row, solution)));
-    relativeResidual = conjugateGradient(allRows, diagonal, rhs, solution);
+    relativeResidual = conjugateGradient(matrix, diagonal, rhs, solution);
   }
   const heights = solution.slice(0, xy.length);
   // Remove an arbitrary rigid Z translation. Keep total thickness <= 1 so
@@ -284,21 +285,48 @@ export function liftWeights(
 }
 
 function dotRow(row: Row, x: Float64Array): number {
-  return row.ids.reduce((sum, id, j) => sum + row.weights[j]! * x[id]!, 0);
+  let sum = 0;
+  for (let j = 0; j < row.ids.length; j++) sum += row.weights[j]! * x[row.ids[j]!]!;
+  return sum;
 }
 function addRhs(rhs: Float64Array, row: Row, target: number): void {
-  row.ids.forEach((id, j) => {
-    rhs[id] += row.strength * row.weights[j]! * target;
-  });
+  for (let j = 0; j < row.ids.length; j++) rhs[row.ids[j]!] += row.strength * row.weights[j]! * target;
 }
-function multiply(rows: Row[], x: Float64Array, out: Float64Array): void {
-  out.set(x.map((v) => v * 1e-8));
-  for (const row of rows) addRhs(out, row, dotRow(row, x));
+/** Contiguous coefficients, compiled once. Row and accumulation order stay exact. */
+function compileRows(rows: Row[]) {
+  const count = rows.reduce((n, row) => n + row.ids.length, 0);
+  const offsets = new Uint32Array(rows.length + 1);
+  const ids = new Uint32Array(count);
+  const weights = new Float64Array(count);
+  const scaled = new Float64Array(count);
+  let at = 0;
+  rows.forEach((row, i) => {
+    offsets[i] = at;
+    for (let j = 0; j < row.ids.length; j++, at++) {
+      ids[at] = row.ids[j]!;
+      weights[at] = row.weights[j]!;
+      scaled[at] = row.strength * row.weights[j]!;
+    }
+  });
+  offsets[rows.length] = at;
+  return { offsets, ids, weights, scaled };
+}
+type Matrix = ReturnType<typeof compileRows>;
+function multiply({ offsets, ids, weights, scaled }: Matrix, x: Float64Array, out: Float64Array): void {
+  for (let i = 0; i < x.length; i++) out[i] = x[i]! * 1e-8;
+  for (let row = 0; row < offsets.length - 1; row++) {
+    const start = offsets[row]!, end = offsets[row + 1]!;
+    let sum = 0;
+    for (let j = start; j < end; j++) sum += weights[j]! * x[ids[j]!]!;
+    for (let j = start; j < end; j++) out[ids[j]!] += scaled[j]! * sum;
+  }
 }
 function dot(a: Float64Array, b: Float64Array): number {
-  return a.reduce((sum, value, i) => sum + value * b[i]!, 0);
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) sum += a[i]! * b[i]!;
+  return sum;
 }
-function conjugateGradient(rows: Row[], diagonal: Float64Array, rhs: Float64Array, x: Float64Array): number {
+function conjugateGradient(rows: Matrix, diagonal: Float64Array, rhs: Float64Array, x: Float64Array): number {
   const ax = new Float64Array(x.length);
   multiply(rows, x, ax);
   const r = rhs.map((b, i) => b - ax[i]!);
@@ -312,16 +340,14 @@ function conjugateGradient(rows: Row[], diagonal: Float64Array, rhs: Float64Arra
     const denominator = dot(p, ap);
     if (!(denominator > 0)) break;
     const alpha = rz / denominator;
-    x.forEach((value, v) => {
-      x[v] = value + alpha * p[v]!;
+    for (let v = 0; v < x.length; v++) {
+      x[v] += alpha * p[v]!;
       r[v] -= alpha * ap[v]!;
       z[v] = r[v]! / diagonal[v]!;
-    });
+    }
     const next = dot(r, z);
     const beta = next / Math.max(1e-30, rz);
-    p.forEach((value, v) => {
-      p[v] = z[v]! + beta * value;
-    });
+    for (let v = 0; v < p.length; v++) p[v] = z[v]! + beta * p[v]!;
     rz = next;
   }
   return Math.sqrt(dot(r, r) / rhsNorm);

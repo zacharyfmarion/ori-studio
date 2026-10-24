@@ -44,7 +44,7 @@ const initial: CameraLayerSpreadOptions = {
     zoom: 1.4,
   },
 };
-function mount(spread = initial, rotationDeg = 315) {
+function mount(spread = initial, rotationDeg = 315, stored = true, fallback = false) {
   act(() =>
     root.render(
       <TooltipProvider>
@@ -56,7 +56,8 @@ function mount(spread = initial, rotationDeg = 315) {
           onCamera={onCamera}
           registerLiveView={register}
           ghost={null}
-          fallback={null}
+          fallback={fallback ? <div data-test-picture="">Saved vector</div> : null}
+          stored={stored}
         />
       </TooltipProvider>
     )
@@ -83,6 +84,7 @@ function pointer(type: string, x: number, y: number) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  runtime.status = 'ready';
   vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue({
     width: 400,
     height: 300,
@@ -129,4 +131,25 @@ it('sets upright in the displayed page frame and retains it through a saved came
   shownFrame(onCamera.mock.lastCall![0], 90).forEach((v, i) =>
     expect(v).toBeCloseTo(shownFrame(initial.camera, 90)[i]!, 12)
   );
+});
+
+
+it('keeps the Pages vector visible while preparing and at rest, but not over a changed preview', () => {
+  runtime.status = 'loading';
+  mount(initial, 315, true, true);
+  expect(host.querySelector('[data-test-picture]')).not.toBeNull();
+  expect(host.querySelector('canvas')?.hasAttribute('data-bitmap-hidden')).toBe(true);
+  runtime.status = 'ready';
+  mount(initial, 315, true, true);
+  expect(host.querySelector('[data-test-picture]')).not.toBeNull();
+  pointer('pointerdown', 10, 20);
+  pointer('pointermove', 60, 20);
+  pointer('pointerup', 60, 20);
+  expect(host.querySelector('[data-test-picture]')).toBeNull();
+  expect(host.querySelector('canvas')?.hasAttribute('data-bitmap-hidden')).toBe(false);
+  const saved = onCamera.mock.lastCall![0];
+  mount({ ...initial, camera: saved }, 315, true, true);
+  expect(host.querySelector('[data-test-picture]')).not.toBeNull();
+  mount({ ...initial, camera: saved, amount: 0.2 }, 315, false, true);
+  expect(host.querySelector('[data-test-picture]')).toBeNull();
 });

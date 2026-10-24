@@ -50,6 +50,7 @@ import {
   type StepCreases,
 } from './captureCreases';
 import { CaptureSessionClosedError, createCaptureSession, type CaptureSession, type CameraSpreadHold } from './captureSession';
+import { cachedFlatScene } from './flatSceneCache';
 import { creasesThumbnail } from './captureThumbnail';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus } from './linkStatus';
@@ -530,11 +531,16 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       if (linked.render.mode !== 'folded-flat') return null;
       const { document, choice } = await creasesFor(begun, linked);
       if (choice.status !== 'found') return null;
-      const { side, foldCase, rotationDeg } = linked.render;
+      const { side, foldCase } = linked.render;
+      const cached = linked.render.spread?.kind === 'camera'
+        ? cachedFlatScene(document, choice.creases.foldLineIds.join(','), side, foldCase, foldedFigureHandleEpoch()) : null;
+      if (cached) {
+        listener.cameraSpread?.({ scene: cached, side, foldCase }, linkedFoldKey(stepId, linked));
+        return null;
+      }
       await abandonOnEngineLoss(session.flat(document, choice.creases.foldLineIds, side, foldCase));
-      await abandonOnEngineLoss(session.flatPicture(rotationDeg));
       heldFor = { key: linkedFoldKey(stepId, linked), document };
-      const scene = await session.flatScene();
+      const scene = await abandonOnEngineLoss(session.flatScene());
       if (scene) listener.cameraSpread?.({ scene,side,foldCase }, heldFor.key);
       return null;
     }).then(() => {

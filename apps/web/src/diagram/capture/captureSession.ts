@@ -24,6 +24,7 @@ import { hasFoldedLayerOrder, openFold, readFoldedPicture, type FoldedFigureStat
 import type { DiagramStyle } from '../document/diagramDocument';
 import { foldedMirrorAxes } from './mirrorAxes';
 import type { SanitizeEnv } from '../upload/svgSanitize';
+import { cachedFlatScene, rememberFlatScene } from './flatSceneCache';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
   capture3dPicture,
@@ -248,6 +249,18 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     noLayerOrder: !hasFoldedLayerOrder(hold.state),
   });
 
+  const readFlat = async (hold: FlatHold): Promise<FoldedPicture> => {
+    hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
+    if (hold.read.scene) {
+      const foldCase = flatState(hold).foldCase;
+      // Reopening the kernel for an edit must keep the worker's geometry key.
+      const scene = cachedFlatScene(hold.document, hold.lineIds, hold.side, foldCase, hold.epoch) ?? hold.read.scene;
+      if (scene !== hold.read.scene) hold.read = { ...hold.read, scene };
+      rememberFlatScene(hold.document, hold.lineIds, hold.side, foldCase, scene, hold.epoch);
+    }
+    return hold.read;
+  };
+
   return {
     async flat(document, lineIds, side, foldCase, knownCases = 0) {
       const key: FoldKey = { document, lineIds: lineIds.join(',') };
@@ -297,20 +310,15 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
 
     async flatPicture(rotationDeg, spread) {
       const hold = flatHold();
-      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
-      return captureFlatPicture(hold.read, rotationDeg, deps.env, spread);
+      return captureFlatPicture(await readFlat(hold), rotationDeg, deps.env, spread);
     },
 
     async flatScene() {
-      const hold = flatHold();
-      hold.read ??= await readFoldedPicture(deps.runtime(),hold.handle,hold.state.displayStyle);
-      return hold.read.scene;
+      return (await readFlat(flatHold())).scene;
     },
 
     async flatMirrorAxes() {
-      const hold = flatHold();
-      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
-      return foldedMirrorAxes(hold.read);
+      return foldedMirrorAxes(await readFlat(flatHold()));
     },
 
     heldFlatPicture({ document, side, foldCase }, rotationDeg, spread) {
