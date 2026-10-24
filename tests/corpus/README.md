@@ -146,6 +146,54 @@ over that (12.6 and 12.8 million) in 3.3–3.8 s in Node, so the cap is now 12
 million and admits 463 of the 471. Landing in Node runs the step as every
 replay of its `cp-jump` does (`import_pick`).
 
+## Layer Order Census
+
+Census 1 of the Layer order dialog (`implementation-plans/layer-order-dialog.md`,
+row E4, Phase gate 1): what the dialog's solver source,
+`oristudio_fold::steer::LayerSource::from_oriedita`, makes of every design
+Oriedita folds flat. Per design it checks the source's letters against
+Oriedita's initial hierarchy, records the source's refusal code, folds up to
+four witness orders back through `fold_with_order` and reads them off the new
+handle, rebuilds each from the plan's saved record on a fresh source, and
+measures the record's bytes, the pairs only the solver sees as overlapping,
+and native timings. The fixtures (kabuto, `solution_sample_1`, Oriedita's
+`colorconstrainttest` and `solution_sample_1_black_valley`) run in the
+workspace test step; iguana-c0 and an external corpus laid out as
+`<case>/truth.fold` run locally, in release:
+
+```sh
+cargo test -p oracle-tests --test layer_order_witness
+LAYER_ORDER_CENSUS_DIR=/path/to/real_benchmark/cpoogle \
+  cargo test -p oracle-tests --release --test layer_order_witness -- --nocapture
+```
+
+It writes a per-design CSV and a summary to `artifacts/layer-order-census/`
+(`LAYER_ORDER_CENSUS_OUT` moves them); `LAYER_ORDER_CENSUS_JOBS=n` runs `n`
+designs at once and `LAYER_ORDER_CENSUS_ONLY=a,b` keeps matching cases.
+
+Last run on October 23, 2026, natively on an Apple Silicon Mac, one design at
+a time (616 s): all 484 cpoogle cases fold flat in Oriedita, and with the
+fixtures and iguana-c0 that is 489 designs. Phase gate 1 passes on every
+measure:
+
+| Measure | Threshold | Measured |
+| --- | --- | --- |
+| Letter seeds equal Oriedita's initial hierarchy | every admitted design | 480 of 480 |
+| Source refusals | ≤ 5% of designs | 9 of 489 (1.8%): 8 `source_stacked_too_deep`, 1 `source_too_many_faces` (4,722 faces) |
+| `fold_with_order` reproduces a witness | ≥ 99%; every fixture | 1,467 of 1,467 |
+| Reopen rebuild equals the witness | every witness | 1,467 of 1,467 |
+| Record bytes, p50 / p95 / max | every record under 1 MB | corpus 3.8 KB / 46 KB / 249 KB; iguana-c0 863 KB |
+| Fold-only pairs | reported | none on any design |
+
+No design was refused as non-convex, ambiguous or for a tolerance failure.
+Over the 475 corpus designs with a session, overlapping pairs are 3,540 /
+63,610 / 163,352 and free pairs 96 / 2,432 / 16,352 (p50 / p95 / max), as
+Fold's import measured them; the full order in the record's shape is 48 KB /
+823 KB / 2.3 MB. The source plus the session's open took 17 / 657 / 2,751 ms
+and a single-flip check at most 55 ms on the corpus; on iguana-c0 the open
+took 1.0 s, checks a median of 0.6 s, and one of five ran out at its 30 s
+deadline.
+
 ## FOLD Frame-Shape Corpus Testing
 
 `file_frames` makes a FOLD document a tree of frames, and the importer has to

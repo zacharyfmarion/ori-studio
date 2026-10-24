@@ -35,7 +35,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use oristudio_layer_order::{
-    Ambiguity, Constraint, ConstraintProblem, FacePair, FoldedView, LayerOrder,
+    Ambiguity, Constraint, ConstraintProblem, EdgeKind, FacePair, FoldedView, LayerOrder, Letter,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -399,6 +399,35 @@ fn upper_lower(pair: FacePair, lo_above: bool) -> [FaceId; 2] {
     } else {
         [pair.hi(), pair.lo()]
     }
+}
+
+/// The orders the letters of `view`'s folded edges fix, as seeds, one per
+/// lettered edge in edge order: a valley's front-up face lies below the other,
+/// a mountain's above (research §3.1). An edge with no letter fixes nothing.
+///
+/// The one rule every source of letters shares: [`crate::Unordered`]'s
+/// creases and the Layer order dialog's Oriedita wireframe
+/// (`crate::steer::LayerSource`).
+pub fn letter_seeds(view: &FoldedView) -> Vec<FixedPair> {
+    view.edges()
+        .iter()
+        .filter_map(|edge| {
+            let EdgeKind::Folded(Some(letter)) = edge.kind else {
+                return None;
+            };
+            let [f, g] = edge.faces;
+            let (up, other) = if view.front_up(f)? { (f, g) } else { (g, f) };
+            let (upper, lower) = match letter {
+                Letter::Valley => (other, up),
+                Letter::Mountain => (up, other),
+            };
+            Some(FixedPair {
+                upper,
+                lower,
+                kind: FixedKind::Seed,
+            })
+        })
+        .collect()
 }
 
 /// Complete the order of `view`, whose constraint problem is `problem`, from

@@ -26,7 +26,9 @@
 //!   grip; and [`summary`], the M/V/F counts and the crease-pattern diff.
 //! - With the `kernel` feature: `kernel`, the one conversion to the CP
 //!   kernel's model (plan D10), and `fold_file`, the FOLD export of a
-//!   sequence path built on the kernel's FOLD writer.
+//!   sequence path built on the kernel's FOLD writer; and `steer`, the Layer
+//!   order dialog's engine over Oriedita's own wireframe of what Edit folded
+//!   (`implementation-plans/layer-order-dialog.md`).
 //! - [`Unordered`] and [`complete`]: parts whose layer order is still to be
 //!   decided, and the one entry that completes it through Flat-Folder's
 //!   search with a true ‹ n of m ›, for Import CP and the compound folds
@@ -95,6 +97,8 @@ pub mod scene;
 pub mod sheet;
 pub mod silhouette;
 pub mod state;
+#[cfg(feature = "kernel")]
+pub mod steer;
 pub mod summary;
 pub mod turn;
 mod unordered;
