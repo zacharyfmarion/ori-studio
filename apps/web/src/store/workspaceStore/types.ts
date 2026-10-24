@@ -1226,8 +1226,9 @@ export interface CreasePatternSliceActions {
    * {@link recordAnnotationHistory} for the other overlay layer.
    */
   /**
-   * Re-push each figure's stored model into its kernel handle. Fire-and-forget;
-   * safe to call repeatedly, since redundant reconciles are skipped.
+   * Re-push each figure's stored model, and the solution it shows, into its
+   * kernel handle. Fire-and-forget; safe to call repeatedly, since redundant
+   * reconciles are skipped.
    */
   reconcileFoldedFigureModels: (ids: readonly string[]) => void;
   recordFoldedFigureHistory: (
