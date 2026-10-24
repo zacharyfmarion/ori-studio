@@ -329,14 +329,18 @@ impl From<FoldingEstimateError> for EngineError {
                 | WorkerOverlapSearchError::FinalAdditionalEstimationRequired { .. } => {
                     "fold_layer_search"
                 }
-                // Unreachable on this path: only the 3D enumerator sets a
-                // budget, and it reports exhaustion as its own verdict rather
-                // than through this envelope. Named rather than folded into
-                // `fold_layer_search` so that if a flat caller ever does set
-                // one, it does not read as a failed search.
+                // A flat search has a budget only when it is seeded
+                // (`SEEDED_FOLD_ITERATION_BUDGET`); the 3D enumerator reports
+                // its own exhaustion as a verdict rather than through this
+                // envelope. Named rather than folded into `fold_layer_search`,
+                // so that giving up does not read as a failed search.
                 WorkerOverlapSearchError::Exhausted { .. } => "fold_search_exhausted",
-                // Both unreachable for the same reason as above, and both named
-                // for the same reason.
+                // Seeds refused before any search: a statement about the order
+                // the fold was handed, never about the creases, so never
+                // `fold_contradiction`. Only a seeded fold produces it.
+                WorkerOverlapSearchError::Seed(_) => "fold_seed_refused",
+                // Both unreachable, as in `setup_code`: `is_cancelled`
+                // returned above. Named for the same reason.
                 WorkerOverlapSearchError::AdditionalEstimation(
                     AdditionalEstimationError::Cancelled,
                 )

@@ -1426,6 +1426,12 @@ impl FoldingEstimateError {
 pub struct FoldingEstimateSession {
     segments: Vec<LineSegment>,
     starting_face_id: i32,
+    /// Layer-order relations every search of this figure starts from, beside
+    /// the creases' letters: its first fold, a restart, the wrap of "another
+    /// solution" and a render's fallback search alike, so a seeded figure never
+    /// shows the order an unseeded search would find. Empty is upstream's fold.
+    /// Ori Studio native; see [`Self::with_seeds`].
+    seeds: Vec<HierarchyRelation>,
     estimate: FoldingEstimate,
     worker: Option<WorkerOverlapEnumerator>,
 }
@@ -1903,9 +1909,34 @@ pub fn additional_estimation_from_segments(
 
 impl FoldingEstimateSession {
     pub fn new(segments: &[LineSegment], starting_face_id: i32) -> Self {
+        Self::with_seeds(segments, starting_face_id, Vec::new())
+    }
+
+    /// A figure whose layer-order search starts from `seeds` as well as the
+    /// creases' letters, each `upper_face` above its `lower_face` in
+    /// Oriedita's frame (nearer a viewer of the starting face's front).
+    ///
+    /// **Ori Studio native**, and additive: the seeded core of the Layer order
+    /// dialog (`implementation-plans/layer-order-dialog.md`, E1). Seeded with
+    /// the full relations of an order, the fold reproduces that order; with no
+    /// seeds this is [`Self::new`]. Seeds are checked when the fold reaches
+    /// `Order4`, where the faces are known: a bad one is
+    /// [`WorkerOverlapSearchError::Seed`], and a search that cannot settle
+    /// within [`SEEDED_FOLD_ITERATION_BUDGET`] is
+    /// [`WorkerOverlapSearchError::Exhausted`].
+    ///
+    /// Hidden: hosts reach it through the kernel's `fold_with_order` entry,
+    /// which the plan's next step (E2) adds. Until then it is for tests.
+    #[doc(hidden)]
+    pub fn with_seeds(
+        segments: &[LineSegment],
+        starting_face_id: i32,
+        seeds: Vec<HierarchyRelation>,
+    ) -> Self {
         Self {
             segments: segments.to_vec(),
             starting_face_id,
+            seeds,
             estimate: FoldingEstimate {
                 estimation_step: EstimationStep::Step0,
                 display_style: DisplayStyle::None0,
@@ -2015,7 +2046,11 @@ impl FoldingEstimateSession {
         if self.estimate.estimation_step == EstimationStep::Step3
             && order.is_at_least(EstimationOrder::Order4)
         {
-            match overlap_enumerator_from_segments(&self.segments, self.starting_face_id) {
+            match overlap_enumerator_from_segments_seeded(
+                &self.segments,
+                self.starting_face_id,
+                &self.seeds,
+            ) {
                 Ok(worker) => {
                     self.worker = worker;
                     self.estimate.estimation_step = EstimationStep::Step4;
@@ -2138,7 +2173,9 @@ impl FoldingEstimateSession {
             outcome: FoldOutcome::NotAttempted,
         };
         // `_inner`, not the public method: `restart` is already inside the
-        // transaction its own caller opened.
+        // transaction its own caller opened. It rebuilds the worker from
+        // `self.seeds`, so a seeded figure restarts, and "another solution"
+        // wraps, onto its own order rather than the unseeded first one.
         let outcome = self.folding_estimated_inner(EstimationOrder::Order5);
         if matches!(&outcome, Err(error) if error.is_cancelled()) {
             // The original worker, not the half-rebuilt one: the enclosing
@@ -2449,10 +2486,13 @@ enum HierarchySource<'a> {
     /// The owning session's solved ordering.
     Solved(&'a InitialHierarchy),
     /// Search it from the segments — the from-segments path, with no session
-    /// to ask, and a session whose search found nothing.
+    /// to ask, and a session whose search found nothing. `seeds` are the
+    /// session's ([`FoldingEstimateSession::with_seeds`]), so a seeded
+    /// figure's fallback searches its own order; empty on every unseeded path.
     Search {
         segments: &'a [LineSegment],
         starting_face_id: i32,
+        seeds: &'a [HierarchyRelation],
     },
 }
 
@@ -2475,6 +2515,7 @@ pub fn folded_figure_render_snapshot_from_session(
         None => HierarchySource::Search {
             segments: &session.segments,
             starting_face_id: session.starting_face_id,
+            seeds: &session.seeds,
         },
     };
     render_snapshot_impl(inputs, hierarchy, display_style, model, options)
@@ -2609,6 +2650,7 @@ pub fn folded_figure_render_snapshot_from_segments(
         HierarchySource::Search {
             segments,
             starting_face_id,
+            seeds: &[],
         },
         display_style,
         model,
@@ -2809,9 +2851,10 @@ fn paper_hierarchy_table(
         HierarchySource::Search {
             segments,
             starting_face_id,
+            seeds,
         } => {
             let Some(mut enumerator) =
-                overlap_enumerator_from_segments(segments, starting_face_id)?
+                overlap_enumerator_from_segments_seeded(segments, starting_face_id, seeds)?
             else {
                 return Ok(None);
             };
@@ -2879,6 +2922,7 @@ pub fn folded_figure_paper_scene_from_segments(
         HierarchySource::Search {
             segments,
             starting_face_id,
+            seeds: &[],
         },
         aux_lines,
         model,
@@ -3248,6 +3292,51 @@ fn overlap_enumerator_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
 ) -> Result<Option<WorkerOverlapEnumerator>, WorkerOverlapSearchError> {
+    overlap_enumerator_from_segments_seeded(segments, starting_face_id, &[])
+}
+
+/// Outer iterations a seeded flat search may spend, per search.
+///
+/// A whole layer order seeded leaves the search next to nothing to choose, so
+/// it settles at once: when this landed, every seeded search in
+/// `tests/folding_seeded.rs` (38 orders over eleven fixtures) took a single
+/// outer iteration. The number is the one the seeded verification oracle runs
+/// every Fold state under (`crates/oracle-tests/tests/fold_support/oriedita.rs`).
+///
+/// It is a backstop, as [`FOLD_3D_ITERATION_BUDGET`] is: a stall becomes
+/// [`WorkerOverlapSearchError::Exhausted`], a refusal the host can name,
+/// rather than a fold only Stop can end. **Iterations, never wall clock**, for
+/// the reason that constant gives. An unseeded search has no budget, as
+/// upstream has none.
+pub const SEEDED_FOLD_ITERATION_BUDGET: u64 = 100_000;
+
+/// [`overlap_enumerator_from_segments`] with layer-order relations added to
+/// the creases' own letters before any deduction runs.
+///
+/// **Ori Studio native**, and additive: the seeded core of the Layer order
+/// dialog (`implementation-plans/layer-order-dialog.md`, approach 4). With no
+/// seeds it takes exactly the shipped steps, and the unseeded entry is this
+/// call with `&[]`. With seeds:
+///
+/// 1. they join the letters' hierarchy, each checked first against the table
+///    the unseeded fold reads ([`seed_initial_hierarchy`]), because
+///    [`HierarchyTable::from_initial`] keeps the first of two contradictory
+///    relations silently;
+/// 2. every deduction the shipped fold makes then runs over letters and seeds
+///    together, in the shipped order: the equivalence conditions, Oriedita's
+///    setup-time `removeMode` AEA round (the step a pipeline assembled from
+///    the public stages can skip), the subface priority and guide maps; the
+///    search adds the realtime AEA and the final AEA at each candidate;
+/// 3. the enumerator searches within [`SEEDED_FOLD_ITERATION_BUDGET`].
+///
+/// A seed the closure contradicts is reported as the creases' contradictions
+/// are, as `AdditionalEstimation(Contradiction)`: the closure cannot say
+/// whether the seeds or the letters led to it.
+fn overlap_enumerator_from_segments_seeded(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    seeds: &[HierarchyRelation],
+) -> Result<Option<WorkerOverlapEnumerator>, WorkerOverlapSearchError> {
     if segments.is_empty() {
         return Ok(None);
     }
@@ -3260,14 +3349,24 @@ fn overlap_enumerator_from_segments(
     fold_phase_timer!("fold graph built");
 
     let positions = graph.face_positions(starting_face_id)?;
-    let initial = initial_hierarchy_from_graph(&graph, &positions)?;
+    let mut initial = initial_hierarchy_from_graph(&graph, &positions)?;
+    if !seeds.is_empty() {
+        seed_initial_hierarchy(&mut initial, seeds)?;
+    }
+    let budgeted = |enumerator: WorkerOverlapEnumerator| {
+        if seeds.is_empty() {
+            enumerator
+        } else {
+            enumerator.within_iteration_budget(SEEDED_FOLD_ITERATION_BUDGET)
+        }
+    };
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments)?;
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
         return WorkerOverlapEnumerator::from_ordered_subfaces(&[], &[], 0, &initial, None)
-            .map(Some);
+            .map(|enumerator| Some(budgeted(enumerator)));
     }
     fold_phase_timer!("subface graph built");
 
@@ -3294,7 +3393,7 @@ fn overlap_enumerator_from_segments(
         &configured_hierarchy,
         Some(&conditions),
     )
-    .map(Some);
+    .map(|enumerator| Some(budgeted(enumerator)));
     fold_phase_timer!("worker enumerator built");
     enumerator
 }
@@ -5253,6 +5352,71 @@ pub fn validate_initial_hierarchy(
     Ok(())
 }
 
+/// Why a seeded flat search refused its seeds before searching.
+///
+/// **Ori Studio native**, beside the seeded core
+/// ([`FoldingEstimateSession::with_seeds`]). A refusal names the seed, and it
+/// is an error, never a [`FoldOutcome::Contradiction`]: that outcome is a
+/// statement about the creases, and draws their faces red.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HierarchySeedError {
+    /// A seed names a face the fold does not have.
+    UnknownFace { face: usize, faces_total: usize },
+    /// A seed puts a face above itself.
+    SameFace { face: usize },
+    /// A seed orders a pair the other way from the letters' table, the one the
+    /// unseeded fold reads, or from an earlier seed. The refused relation is
+    /// always the seed, never a letter: the letters can disagree among
+    /// themselves (two collinear creases of different letters between the same
+    /// two faces), and the table settles that before any seed is checked.
+    Contradiction {
+        upper_face: usize,
+        lower_face: usize,
+    },
+}
+
+/// Add `seeds` to the letters' hierarchy `initial`, refusing any that name no
+/// face, relate a face to itself, or contradict what is already known.
+///
+/// Each seed is checked against [`HierarchyTable::from_initial`] of the
+/// letters, the table the unseeded fold reads, with the seeds before it added
+/// in turn. So only a seed is ever named, and the order an unseeded fold found
+/// always passes as seeds. ([`validate_initial_hierarchy`] over letters and
+/// seeds together would name a letter when two letters disagree, which
+/// `from_initial` resolves silently by keeping the first.)
+fn seed_initial_hierarchy(
+    initial: &mut InitialHierarchy,
+    seeds: &[HierarchyRelation],
+) -> Result<(), WorkerOverlapSearchError> {
+    let faces_total = initial.faces_total;
+    let refuse = |error| Err(WorkerOverlapSearchError::Seed(error));
+    let mut table = HierarchyTable::from_initial(initial);
+    for seed in seeds {
+        for face in [seed.upper_face, seed.lower_face] {
+            if face >= faces_total {
+                return refuse(HierarchySeedError::UnknownFace { face, faces_total });
+            }
+        }
+        if seed.upper_face == seed.lower_face {
+            return refuse(HierarchySeedError::SameFace {
+                face: seed.upper_face,
+            });
+        }
+        match table.infer_above(seed.upper_face, seed.lower_face) {
+            Ok(_) => {}
+            Err(AdditionalEstimationError::Contradiction { .. }) => {
+                return refuse(HierarchySeedError::Contradiction {
+                    upper_face: seed.upper_face,
+                    lower_face: seed.lower_face,
+                });
+            }
+            Err(other) => return Err(WorkerOverlapSearchError::AdditionalEstimation(other)),
+        }
+    }
+    initial.relations.extend_from_slice(seeds);
+    Ok(())
+}
+
 impl HierarchyTable {
     fn from_initial(initial: &InitialHierarchy) -> Self {
         crate::fold_profiling::bump_table_from_initial();
@@ -5674,6 +5838,7 @@ mod paper_scene_tests {
             let hierarchy = paper_hierarchy_table(HierarchySource::Search {
                 segments: &segments,
                 starting_face_id: 1,
+                seeds: &[],
             })
             .expect("search")
             .expect("ordering");
@@ -6200,5 +6365,132 @@ mod seeded_closure_tests {
             close_initial_hierarchy(&seeded, &subfaces, &mut conditions.clone()),
             Err(AdditionalEstimationError::Contradiction { .. })
         ));
+    }
+
+    fn seeded_enumerator(
+        segments: &[LineSegment],
+        seeds: &[HierarchyRelation],
+    ) -> Result<WorkerOverlapEnumerator, WorkerOverlapSearchError> {
+        overlap_enumerator_from_segments_seeded(segments, 1, seeds)
+            .map(|enumerator| enumerator.expect("faces"))
+    }
+
+    fn reversed(relation: HierarchyRelation) -> HierarchyRelation {
+        HierarchyRelation {
+            upper_face: relation.lower_face,
+            lower_face: relation.upper_face,
+        }
+    }
+
+    /// The unseeded search keeps upstream's unbounded loop; a seeded one is
+    /// bounded.
+    #[test]
+    fn only_a_seeded_enumerator_carries_a_budget() {
+        let segments = kabuto_segments();
+        let (initial, _, _) = stages(&segments);
+        let unseeded = overlap_enumerator_from_segments(&segments, 1)
+            .expect("enumerator")
+            .expect("faces");
+        assert_eq!(unseeded.iteration_budget(), None);
+        let seeded = seeded_enumerator(&segments, &initial.relations[..1]).expect("enumerator");
+        assert_eq!(
+            seeded.iteration_budget(),
+            Some(SEEDED_FOLD_ITERATION_BUDGET)
+        );
+    }
+
+    /// A seed that names no face, relates a face to itself, or reverses one of
+    /// the letters is refused by name, before any deduction runs.
+    #[test]
+    fn seeds_the_letters_cannot_take_are_refused_by_name() {
+        let segments = kabuto_segments();
+        let (initial, _, _) = stages(&segments);
+        let faces_total = initial.faces_total;
+        let letter = initial.relations[0];
+
+        let unknown = HierarchyRelation {
+            upper_face: 0,
+            lower_face: faces_total,
+        };
+        assert_eq!(
+            seeded_enumerator(&segments, &[unknown]).err(),
+            Some(WorkerOverlapSearchError::Seed(
+                HierarchySeedError::UnknownFace {
+                    face: faces_total,
+                    faces_total,
+                }
+            ))
+        );
+        let same = HierarchyRelation {
+            upper_face: 3,
+            lower_face: 3,
+        };
+        assert_eq!(
+            seeded_enumerator(&segments, &[same]).err(),
+            Some(WorkerOverlapSearchError::Seed(
+                HierarchySeedError::SameFace { face: 3 }
+            ))
+        );
+        assert_eq!(
+            seeded_enumerator(&segments, &[reversed(letter)]).err(),
+            Some(WorkerOverlapSearchError::Seed(
+                HierarchySeedError::Contradiction {
+                    upper_face: letter.lower_face,
+                    lower_face: letter.upper_face,
+                }
+            ))
+        );
+        // Two seeds that disagree with each other, on a pair the letters leave
+        // open, are refused the same way: the second is named.
+        let open = (0..faces_total)
+            .flat_map(|a| (0..faces_total).map(move |b| (a, b)))
+            .find(|&(a, b)| {
+                a < b
+                    && !initial.relations.iter().any(|r| {
+                        (r.upper_face, r.lower_face) == (a, b)
+                            || (r.upper_face, r.lower_face) == (b, a)
+                    })
+            })
+            .expect("kabuto's letters leave a pair open");
+        let seed = HierarchyRelation {
+            upper_face: open.0,
+            lower_face: open.1,
+        };
+        assert_eq!(
+            seeded_enumerator(&segments, &[seed, reversed(seed)]).err(),
+            Some(WorkerOverlapSearchError::Seed(
+                HierarchySeedError::Contradiction {
+                    upper_face: open.1,
+                    lower_face: open.0,
+                }
+            ))
+        );
+    }
+
+    /// The seeded core runs the shipped fold's deductions over the seeds, the
+    /// setup-time `removeMode` closure among them: a seed against a pair only
+    /// the closure derives passes the letters' check and is refused there.
+    /// (`a_seed_against_the_closure_is_a_contradiction` shows the same of the
+    /// public stages.)
+    #[test]
+    fn the_seeded_enumerator_closes_the_seeds_with_the_letters() {
+        let segments = kabuto_segments();
+        let (initial, subfaces, conditions) = stages(&segments);
+        let closed = close_initial_hierarchy(&initial, &subfaces, &mut conditions.clone())
+            .expect("kabuto's letters close");
+        let derived = closed
+            .relations
+            .iter()
+            .find(|relation| !initial.relations.contains(relation))
+            .copied()
+            .expect("a derived pair");
+        assert!(matches!(
+            seeded_enumerator(&segments, &[reversed(derived)]).err(),
+            Some(WorkerOverlapSearchError::AdditionalEstimation(
+                AdditionalEstimationError::Contradiction { .. }
+            ))
+        ));
+        // Seeded the way the closure already goes, it builds.
+        assert!(seeded_enumerator(&segments, &[derived]).is_ok());
     }
 }
