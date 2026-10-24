@@ -164,6 +164,7 @@ import type {
   OristudioCpFoldedFigureSnapshot,
 } from '../../../engine/oristudioCpTypes';
 import {
+  foldedFigureCurrentCase,
   foldedFigureCycling,
   foldedModelsEqual,
 } from '../../../cp-workspace/folded/foldedFigureState';
@@ -327,6 +328,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   setFoldedFigureHandleFree((handle) => {
     // Forget what we believed about a slot the kernel is free to reuse.
     lastWrittenKernelModel.delete(handle);
+    kernelFoldCase.delete(handle);
     return freeOristudioCpFoldedFigure(handle);
   });
 
@@ -378,6 +380,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function liveModelWriteCount(id: string): number {
     return pendingLiveModelWrites.get(id) ?? 0;
   }
+
+  /**
+   * Make every live write in flight for `id` stale. A bumped sequence means no
+   * in-flight response for the figure writes the store. Each one did reach the
+   * kernel, though, so the reconcile runs again once the last of them lands
+   * (see `updateOristudioCpFoldedFigureModel`).
+   */
+  function supersedeLiveModelWrites(id: string): void {
+    modelRequestSequence.set(id, (modelRequestSequence.get(id) ?? 0) + 1);
+    issuedModels.delete(id);
+    supersededLiveModelWrites.add(id);
+  }
   /**
    * Figures with a rehydrate in flight; see
    * `rehydrateOristudioCpFolded3dFigure`. The background queue and a press can
@@ -392,6 +406,21 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    * belief about a reused slot would skip a write that was actually needed.
    */
   const lastWrittenKernelModel = new Map<number, OristudioCpFoldedFigureModel>();
+  /**
+   * The solution each flat handle's kernel session is on, for every handle that
+   * has been stepped since it was folded ("Another solution", a fold to a
+   * case). A handle with no entry is on the solution it was folded at, which is
+   * the one every history entry holding it shows. Cleared when the handle is
+   * freed, for the same reason as {@link lastWrittenKernelModel}.
+   */
+  const kernelFoldCase = new Map<number, number>();
+
+  /** Remember which solution a kernel answer left `handle` on. */
+  function noteKernelFoldCase(handle: number, snapshot: OristudioCpFoldedFigureSnapshot): void {
+    // Read as `foldedFigureCycling` reads an entry: a figure that predates
+    // backwards navigation shows its discovered count.
+    kernelFoldCase.set(handle, snapshot.current_fold_case ?? snapshot.discovered_fold_cases);
+  }
 
   /** Run `task` after any reconcile already queued for `id`. */
   function enqueueModelWrite<T>(id: string, task: () => Promise<T>): Promise<T> {
@@ -486,21 +515,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   }
 
   /**
-   * Push a figure's stored model back into its kernel handle.
-   *
-   * Undo and redo swap the *web* entries only — deliberately, so an overlay-only
-   * step stays synchronous and never reloads the wasm document. But a figure's
-   * appearance lives in the kernel, and every history entry for a figure points
-   * at the same mutable handle (see `cp-workspace/folded/foldedFigureHandles.ts`),
-   * so after an undo the cached snapshot and the kernel disagree. Nothing shows
-   * it until something re-renders from the kernel — a reselect is the cheapest
-   * trigger — at which point the undone colour reappears.
-   *
-   * Reading the desired model *here*, at execution time rather than at schedule
-   * time, is what makes a burst of undos correct: every queued reconcile sees
-   * the state the burst settled on, so all but the first are skipped below.
-   */
-  /**
    * Take ownership of a freshly folded 3D handle for `id`, or give it back.
    *
    * Every 3D completion lands after an await, and in that window the figure it
@@ -533,15 +547,92 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     return true;
   }
 
+  /** Mark a figure whose kernel could not be brought back in line, and say why. */
+  function failFoldedFigureReconcile(id: string, error: unknown): void {
+    // Deliberately not swallowed. A failed reconcile leaves the kernel and the
+    // cache disagreeing, which is the exact condition this exists to prevent —
+    // surfacing it beats drifting silently.
+    const normalized = engineError(error);
+    set({
+      oristudioCpError: normalized.message,
+      oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+        candidate.id === id
+          ? { ...candidate, status: 'error', error: normalized.message }
+          : candidate
+      ),
+    });
+  }
+
+  /**
+   * Take a flat figure's kernel session to the solution its entry shows.
+   *
+   * "Another solution" steps the session in place, so after an undo or redo
+   * across one the kernel is on a solution the entry is not. Going back is a
+   * restart and a replay forward (`fold_to_case`), which can take as long as a
+   * fold, so it runs as one the user can see and stop. Answers whether the
+   * kernel now shows the entry's solution: `false` when the seek was stopped,
+   * `null` when it failed and the figure is marked.
+   */
+  async function reconcileFoldedFigureSolution(
+    figure: OristudioCpFoldedFigureEntry,
+    handle: number
+  ): Promise<boolean | null> {
+    const onKernel = kernelFoldCase.get(handle);
+    const shown = foldedFigureCurrentCase(figure);
+    if (onKernel === undefined || onKernel === shown || shown < 1) return true;
+    // A model write already in flight answers from the solution the kernel is
+    // leaving, and its landing would put that solution back on the entry. The
+    // paper-style mirror issues one from inside the undo's own state change.
+    if (liveModelWriteCount(figure.id) > 0) supersedeLiveModelWrites(figure.id);
+    try {
+      const result = await withFoldInFlight('to-case', (runId) =>
+        foldRuntimeOristudioCpFigureToCase(handle, shown, 'Order5', runId)
+      );
+      noteKernelFoldCase(handle, result.snapshot);
+      return kernelFoldCase.get(handle) === shown;
+    } catch (error) {
+      // Stopped: the kernel rolled the seek back and is still on `onKernel`.
+      if (isFoldCancellation(error)) return false;
+      kernelFoldCase.delete(handle);
+      failFoldedFigureReconcile(figure.id, error);
+      return null;
+    }
+  }
+
+  /**
+   * Bring a figure's kernel handle back in line with its entry: the solution it
+   * shows, then its model.
+   *
+   * Undo and redo swap the *web* entries only — deliberately, so an overlay-only
+   * step stays synchronous and never reloads the wasm document. But a figure's
+   * appearance and its solution live in the kernel, and every history entry for
+   * a figure points at the same mutable handle (see
+   * `cp-workspace/folded/foldedFigureHandles.ts`), so after an undo the cached
+   * snapshot and the kernel disagree. Nothing shows it until something
+   * re-renders from the kernel — a reselect or a restyle — at which point the
+   * undone colour, or the undone solution, reappears.
+   *
+   * Reading the desired state *here*, at execution time rather than at schedule
+   * time, is what makes a burst of undos correct: every queued reconcile sees
+   * the state the burst settled on, so all but the first are skipped below.
+   */
   async function reconcileFoldedFigureModel(id: string): Promise<void> {
-    const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+    const queued = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
     // A figure the step removed, one reopened from a file without a handle, or a
     // 3D one — which keeps no appearance in the kernel at all, so there is
     // nothing for an undo to have put out of step.
-    if (figure?.handle == null || !figure.snapshot) return;
-    const handle = figure.handle;
+    if (queued?.handle == null || !queued.snapshot) return;
+    const handle = queued.handle;
+    // The solution first, so that the render below draws the one the entry shows.
+    const inStep = await reconcileFoldedFigureSolution(queued, handle);
+    if (inStep === null) return;
+    // Read again: the seek awaited the kernel, and the entry may have moved on.
+    const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+    if (figure?.handle !== handle || !figure.snapshot) return;
     const desired = figure.snapshot.model;
-    if (foldedModelsEqual(lastWrittenKernelModel.get(handle), desired)) return;
+    // A stopped seek left the kernel on another solution, so the entry takes the
+    // kernel's answer below even when the model already matches.
+    if (inStep && foldedModelsEqual(lastWrittenKernelModel.get(handle), desired)) return;
     // A live edit issued while this sat in the queue is newer intent than the
     // history position that scheduled it, and its response lands after ours.
     if (liveModelWriteCount(id) > 0) return;
@@ -563,19 +654,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         ),
       });
     } catch (error) {
-      // Deliberately not swallowed. A failed reconcile leaves the kernel and the
-      // cache disagreeing, which is the exact condition this exists to prevent —
-      // surfacing it beats drifting silently.
-      const normalized = engineError(error);
       lastWrittenKernelModel.delete(handle);
-      set({
-        oristudioCpError: normalized.message,
-        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-          candidate.id === id
-            ? { ...candidate, status: 'error', error: normalized.message }
-            : candidate
-        ),
-      });
+      failFoldedFigureReconcile(id, error);
     }
   }
 
@@ -2579,6 +2659,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const snapshot = await withFoldInFlight('another', (runId) =>
           foldRuntimeOristudioCpFigureAnother(handle, runId)
         );
+        // In place: every history entry holding this handle now shows a
+        // solution the kernel is not on, until a reconcile takes it back.
+        noteKernelFoldCase(handle, snapshot);
         track(ANALYTICS_EVENTS.foldSolutionCycled, {
           direction: cycleDirection,
           solution_count_bucket: bucketCount(snapshot.discovered_fold_cases, COUNT_BUCKETS),
@@ -2661,6 +2744,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const result = await withFoldInFlight('to-case', (runId) =>
           foldRuntimeOristudioCpFigureToCase(handle, objective, 'Order5', runId)
         );
+        noteKernelFoldCase(handle, result.snapshot);
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,
@@ -2943,13 +3027,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     supersedeOristudioCpFoldedFigureModelWrites: () => {
       for (const [id, count] of pendingLiveModelWrites) {
-        if (count <= 0) continue;
-        // A bumped sequence makes every in-flight response for the figure
-        // stale: it will not write the store. It did reach the kernel, though,
-        // which is what the deferred reconcile above puts right.
-        modelRequestSequence.set(id, (modelRequestSequence.get(id) ?? 0) + 1);
-        issuedModels.delete(id);
-        supersededLiveModelWrites.add(id);
+        if (count > 0) supersedeLiveModelWrites(id);
       }
     },
 
@@ -3698,9 +3776,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     /**
      * Bring the kernel back in line with what the store says a figure looks
-     * like. Fire-and-forget by design: the caller's state transition stays
-     * synchronous, so holding undo never blocks on a wasm round-trip and never
-     * trips the `historyBusy` guard.
+     * like and which solution it shows. Fire-and-forget by design: the
+     * caller's state transition stays synchronous, so holding undo never blocks
+     * on a wasm round-trip and never trips the `historyBusy` guard.
      */
     reconcileFoldedFigureModels: (ids) => {
       for (const id of new Set(ids)) {

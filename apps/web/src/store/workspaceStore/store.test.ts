@@ -5812,6 +5812,207 @@ describe('workspace store slices', () => {
     expect(figure.id).toBe('generated-1');
   });
 
+  // --- Which solution the kernel is on, across undo ------------------------
+  //
+  // "Another solution" steps the figure's kernel session in place, and every
+  // history entry for the figure points at that one handle. Undo puts the entry
+  // back, picture and all, but left the kernel on the solution it had been
+  // stepped to — so the next thing that drew from the kernel (a restyle, a
+  // reselect, a colour change) drew the solution the user had just undone.
+
+  /** A flat kernel with three layer orderings, drawing whichever one it is on. */
+  function stubFlatSolutionStream() {
+    let current = 1;
+    const state = (): OristudioCpFoldedFigureSnapshot => ({
+      ...foldedFigureSnapshot(),
+      discovered_fold_cases: current,
+      current_fold_case: current,
+      find_another_overlap_valid: current < 3,
+    });
+    oristudioCpMocks.foldOristudioCpFigureAnother.mockImplementation(async () => {
+      current = current < 3 ? current + 1 : 1;
+      return state();
+    });
+    oristudioCpMocks.foldOristudioCpFigureToCase.mockImplementation(
+      async (_handle: number, objective: number) => {
+        current = objective;
+        return { snapshot: state(), discovered_case_numbers: [objective] };
+      }
+    );
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => ({ ...state(), model })
+    );
+    oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockImplementation(async () => ({
+      ...foldedRenderSnapshot(),
+      fixture: `solution ${current}`,
+    }));
+    return { solution: () => current, snapshot: state };
+  }
+
+  /** A flat figure on its first of three solutions, drawn as the kernel draws it. */
+  function seedFlatFigureOnFirstSolution() {
+    const seeded = seedFoldedFigureForModelTests();
+    const figure: OristudioCpFoldedFigureEntry = {
+      ...seeded,
+      snapshot: { ...seeded.snapshot!, current_fold_case: 1, find_another_overlap_valid: true },
+      renderSnapshot: { ...foldedRenderSnapshot(), fixture: 'solution 1' },
+    };
+    useWorkspaceStore.setState({ oristudioCpFoldedFigures: [figure] });
+    // Held by the live list, as a fold holds it, so an undo that drops the
+    // history entry does not free the handle under the figure.
+    retainFoldedFigureHandle(figure.handle!);
+    return figure;
+  }
+
+  /** "Another solution", recorded as the floating toolbar's verb records it. */
+  async function showAnotherSolution(id: string) {
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    const activeBefore = useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId;
+    await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure(id)).resolves.toBe(
+      true
+    );
+    useWorkspaceStore
+      .getState()
+      .recordFoldedFigureHistory([...before], 'Show another solution', activeBefore);
+  }
+
+  const shownSolution = () =>
+    useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.renderSnapshot?.fixture;
+
+  it('draws the restored solution after undoing "Another solution"', async () => {
+    // A figure whose model the kernel has never been sent: the undo's own
+    // reconcile writes it and redraws, so the undo itself drew the solution it
+    // had just undone.
+    const figure = seedFlatFigureOnFirstSolution();
+    const kernel = stubFlatSolutionStream();
+    await showAnotherSolution(figure.id);
+    expect(shownSolution()).toBe('solution 2');
+
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+
+    expect(shownSolution()).toBe('solution 1');
+    expect(
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.current_fold_case
+    ).toBe(1);
+    expect(kernel.solution()).toBe(1);
+  });
+
+  it('draws the restored solution when the figure is restyled after the undo', async () => {
+    const figure = seedFlatFigureOnFirstSolution();
+    const kernel = stubFlatSolutionStream();
+    // The kernel already holds the figure's model, so the undo redraws nothing
+    // and the restyle is the first thing to draw from the kernel.
+    await useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, {}, { mirror: true });
+    await showAnotherSolution(figure.id);
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+    expect(shownSolution()).toBe('solution 1');
+
+    await expect(
+      useWorkspaceStore.getState().setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Transparent3')
+    ).resolves.toBe(true);
+    expect(shownSolution()).toBe('solution 1');
+    expect(kernel.solution()).toBe(1);
+  });
+
+  it('takes the kernel forward again on redo', async () => {
+    const figure = seedFlatFigureOnFirstSolution();
+    const kernel = stubFlatSolutionStream();
+    await showAnotherSolution(figure.id);
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+
+    await useWorkspaceStore.getState().redo();
+    await flushMicrotasks();
+    expect(kernel.solution()).toBe(2);
+    await useWorkspaceStore.getState().setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Transparent3');
+    expect(shownSolution()).toBe('solution 2');
+    // The next "Another solution" steps on from the solution on screen.
+    await useWorkspaceStore.getState().foldAnotherOristudioCpFigure(figure.id);
+    expect(shownSolution()).toBe('solution 3');
+  });
+
+  it('leaves the kernel alone when the undo does not change the solution', async () => {
+    const figure = seedFlatFigureOnFirstSolution();
+    stubFlatSolutionStream();
+    await showAnotherSolution(figure.id);
+    // A move on top of the step: undoing it restores the same solution.
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    useWorkspaceStore
+      .getState()
+      .setOristudioCpFoldedFigurePlacement(figure.id, { offset: { x: 4, y: 0 } });
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Move folded form');
+
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].placement).toEqual(
+      IDENTITY_FOLDED_PLACEMENT
+    );
+    // No fold for a step that left the solution where it was.
+    expect(oristudioCpMocks.foldOristudioCpFigureToCase).not.toHaveBeenCalled();
+  });
+
+  it('drops a model write that answered from the undone solution', async () => {
+    const figure = seedFlatFigureOnFirstSolution();
+    const kernel = stubFlatSolutionStream();
+    await showAnotherSolution(figure.id);
+    // One model write held in flight, answered from the solution the kernel was
+    // on when it arrived.
+    let land: () => void = () => {};
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementationOnce(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => {
+        const answer = { ...kernel.snapshot(), model };
+        await new Promise<void>((resolve) => {
+          land = resolve;
+        });
+        return answer;
+      }
+    );
+
+    const undoing = useWorkspaceStore.getState().undo();
+    // The paper-style mirror writes from inside the undo's own state change, so
+    // its write reaches the kernel before the reconcile's seek does.
+    const writing = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, {}, { mirror: true });
+    await undoing;
+    await flushMicrotasks();
+    expect(kernel.solution()).toBe(1);
+
+    land();
+    await writing;
+    await flushMicrotasks();
+    // The write's answer named solution 2; the entry still shows solution 1.
+    expect(
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.current_fold_case
+    ).toBe(1);
+    expect(shownSolution()).toBe('solution 1');
+  });
+
+  it('shows what the kernel holds when the seek back is stopped', async () => {
+    const figure = seedFlatFigureOnFirstSolution();
+    const kernel = stubFlatSolutionStream();
+    await showAnotherSolution(figure.id);
+    // Stopped: the kernel rolls the seek back and stays on solution 2.
+    oristudioCpMocks.foldOristudioCpFigureToCase.mockRejectedValueOnce({
+      code: 'fold_cancelled',
+      message: 'fold cancelled',
+    });
+
+    await useWorkspaceStore.getState().undo();
+    await vi.waitFor(() => expect(shownSolution()).toBe('solution 2'));
+    expect(kernel.solution()).toBe(2);
+    // The entry says what the kernel says, so nothing drawn later disagrees.
+    expect(
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.current_fold_case
+    ).toBe(2);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].status).toBe('ready');
+  });
+
   it('shares renderSnapshot objects across history entries so undo memory stays bounded', () => {
     resetStores(seedSnapshot());
     const untouched: OristudioCpFoldedFigureEntry = {
