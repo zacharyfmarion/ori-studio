@@ -40,15 +40,18 @@ import {
   type DiagramScenePicture,
   type DiagramStep,
   type DiagramZoomOutline,
+  type DiagramPaperProjection,
 } from '../document/diagramDocument';
 import { readPaperFaces } from '../document/paperFacesFile';
 import { storedScene } from '../pictures/pictureFrame';
+import { projectPaperAnchor } from '../pictures/paperProjection';
 import { distanceOutside, distanceToSegment, zoomCore, zoomShapeOf } from './zoomModel';
 
 type Pt = PicturePoint;
 
 /** A step's faces as anchoring reads them. */
 export interface StepFaces {
+  projection?: DiagramPaperProjection;
   /** A flat fold's faces, or a crease pattern's one face, the paper. */
   kind: 'flat' | 'crease-pattern';
   /** Per face, its ring on the paper; empty for a face the kernel could not name. */
@@ -128,10 +131,12 @@ function flatFaces(scene: PaperScene, stored: string | undefined, spread: boolea
   const unspread = rings.map((ring) => ring.map((index): Pt => [points[index]![2], points[index]![3]]));
   return {
     kind: 'flat',
+    projection: read.faces.projection,
     paper: rings.map((ring) => ring.map((index): Pt => [points[index]![0], points[index]![1]])),
     unspread,
     drawn: unspread.map((ring, face) => {
       if (!spread) return ring;
+      if (read.faces.projection) return ring.map((point) => projectPaperAnchor(read.faces.projection!, face, point) ?? point);
       const drawn = whole.get(face);
       return drawn && drawn.length === ring.length ? drawn : [];
     }),
@@ -367,6 +372,7 @@ function blend(weights: readonly number[], ring: readonly Pt[]): Pt {
  */
 export function faceSpreadMove(faces: StepFaces, face: number, point: Pt): Pt {
   if (!faces.spread) return point;
+  if (faces.projection) return projectPaperAnchor(faces.projection, face, point) ?? point;
   const [unspread, drawn] = [faces.unspread[face], faces.drawn[face]];
   if (!unspread || !drawn || drawn.length !== unspread.length || unspread.length < 3) return point;
   const weights = weightsOver(unspread, point);
@@ -381,6 +387,7 @@ export function faceSpreadMove(faces: StepFaces, face: number, point: Pt): Pt {
  */
 export function unspreadOn(faces: StepFaces, face: number, drawnPoint: Pt): Pt {
   if (!faces.spread) return drawnPoint;
+  if (faces.projection) return projectPaperAnchor(faces.projection, face, drawnPoint, true) ?? drawnPoint;
   const [unspread, drawn] = [faces.unspread[face], faces.drawn[face]];
   if (!unspread || !drawn || drawn.length !== unspread.length || unspread.length < 3) return drawnPoint;
   let u = affineFit(drawn, unspread)?.(drawnPoint) ?? drawnPoint;

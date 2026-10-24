@@ -1,4 +1,4 @@
-import { SIMULATOR_ORBIT_SENSITIVITY, normalizeAngle } from '../../lib/simulatorOrbit';
+import { ORBIT_SENSITIVITY, normalizeAngle } from '../../lib/viewport3dCamera';
 
 /**
  * How the start screen's 3D figure turns.
@@ -124,7 +124,7 @@ export function dragStartFigureOrbit(
   return {
     ...state,
     mode: 'dragging',
-    yaw: normalizeAngle(state.yaw - deltaX * SIMULATOR_ORBIT_SENSITIVITY),
+    yaw: normalizeAngle(state.yaw - deltaX * ORBIT_SENSITIVITY),
   };
 }
 

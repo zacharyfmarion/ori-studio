@@ -1,3 +1,4 @@
+import { DiagramPoseCameraPicture } from './DiagramPoseCameraPicture';
 import { useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -46,6 +47,7 @@ import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import { DiagramLinkedPoseControls } from './DiagramLinkedPoseControls';
 import { DiagramWayChooser } from './DiagramWayChooser';
 import type { ReferencesStepWayChoice } from '../../diagram/references/useReferencesStepWays';
+import { DiagramPoseCameraSpreadView } from './DiagramPoseCameraSpreadView';
 import { DiagramPose3dView } from './DiagramPose3dView';
 import { DiagramPoseSimulatedView } from './DiagramPoseSimulatedView';
 import type { DiagramPoseAnnotations } from './DiagramPoseStage';
@@ -193,7 +195,9 @@ export function DiagramStepDetail({
   }, [step, annotations]);
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
   // Enlarged is not Pose's: Annotate's Step pane turns it on (Zach's review of #436, 2026-10-08).
-  const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
+  const picture = url && (linked?.render.mode === 'folded-flat' && linked.render.spread?.kind === 'camera'
+    ? <DiagramPoseCameraPicture url={url} />
+    : <img className={styles.picture} src={url} alt="" draggable={false} />);
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
   // The bar under the picture: a linked step's verbs, with `transport` (the
   // simulator's) between how it is shown and the rest, or an upload's.
@@ -351,7 +355,14 @@ export function DiagramStepDetail({
           />
         ) : url || linkedPose ? (
           <>
-            {linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
+            {linked?.render.mode === 'folded-flat' && linked.render.spread?.kind === 'camera' && linkedPose?.cameraSpread ? (
+              <DiagramPoseCameraSpreadView view={linkedPose.cameraSpread}
+                spread={linkedPose.spread?.spread.kind === 'camera' ? linkedPose.spread.spread : linked.render.spread}
+                rotationDeg={linked.render.rotationDeg} style={style} onCamera={linkedPose.onCamera}
+                onGesture={linkedPose.cameraGesture} consumeCameraCommit={linkedPose.consumeCameraCommit} registerLiveView={linkedPose.registerLiveView}
+                ghost={linkedPose.spread?.spread === linked.render.spread ? ghost : null}
+                fallback={picture} readOnly={readOnly} stored={!linkedPose.spread || linkedPose.spread.spread === linked.render.spread}/>
+            ) : linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
               <DiagramPose3dView
                 view={linkedPose.spatial}
                 camera={linked.render.camera}

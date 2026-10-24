@@ -67,6 +67,7 @@ export type SimulatorShortcutId =
   | 'simulator.exportView'
   | 'simulator.setUpright'
   | 'simulator.tool.orbit'
+  | 'simulator.tool.pan'
   | 'simulator.tool.pin'
   | 'simulator.tool.pull'
   | 'simulator.tool.exit'
@@ -472,6 +473,7 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   // beneath it as though no simulation were in hand. O, P and U are free in
   // every scope (G is Oriedita's Fold estimate in Edit; U is for unfold).
   simulatorShortcut('simulator.tool.orbit', 'Orbit Tool', { key: 'o' }),
+  simulatorShortcut('simulator.tool.pan', 'Pan Tool', { key: 'h' }),
   simulatorShortcut('simulator.tool.pin', 'Pin Tool', { key: 'p' }),
   simulatorShortcut('simulator.tool.pull', 'Pull Tool', { key: 'u' }),
   // Cancel a box or a pull in flight, else back to Orbit. Declined when there is

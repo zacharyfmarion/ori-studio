@@ -1,0 +1,10 @@
+.canvas {
+  touch-action: none;
+  cursor: grab;
+}
+.canvas:active {
+  cursor: grabbing;
+}
+.canvas[data-bitmap-hidden] {
+  opacity: 0;
+}

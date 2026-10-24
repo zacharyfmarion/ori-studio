@@ -20,7 +20,7 @@ import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport } from '../../simulator/SimulatorViewport';
 import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
-import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
+import type { UprightViewHandle } from '../../viewport3d/viewport3dHandle';
 import { SIMULATED_FRAME_PX } from '../../store/workspaceStore/diagramCapture';
 import { IconButton } from '../ui/IconButton';
 import { Slider } from '../ui/Slider';
@@ -67,7 +67,7 @@ export function DiagramPoseSimulatedView({
   onRest: (rest: SimulatedRest) => Promise<void>;
   /** Whether a rest at a pose would be captured: asked before its scene is drawn. */
   wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
-  registerLiveView?: (view: SimulatorViewHandle) => () => void;
+  registerLiveView?: (view: UprightViewHandle) => () => void;
   fallback: ReactNode;
   toolbar: (transport: ReactNode) => ReactNode;
 }) {

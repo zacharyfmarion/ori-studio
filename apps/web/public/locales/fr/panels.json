@@ -1427,6 +1427,7 @@
       "back": "Verso",
       "backToFlat": "Revenir à plat",
       "cameraReadout": "Lacet {{yaw}}° · Tangage {{pitch}}°",
+      "cameraSpreadView": "Modèle écarté : faites glisser pour tourner, avec le bouton central pour déplacer la vue",
       "degrees": "{{degrees}}\u00a0° dans le sens horaire",
       "enlarged": "Agrandie",
       "enlargedOff": "Montrer de nouveau l’image entière",
@@ -1455,12 +1456,14 @@
       "onlySolution": "Ce pliage n’a qu’un ordre de couches",
       "orbitHint": "Faites glisser pour tourner · Double-cliquez pour réinitialiser",
       "otherSide": "Voir de l’autre côté",
+      "panHint": "Glisser pour déplacer · Molette pour zoomer",
       "pause": "Pause",
       "percent": "{{value}} %",
       "play": "Lecture",
       "previousSolution": "Ordre des couches précédent",
       "reset": "Réinitialiser la pose",
       "resetHint": "Déjà dans sa pose de départ",
+      "retrySpread": "Réessayer la vue en direct",
       "rotateLeft": "Tourner à gauche",
       "rotateRight": "Tourner à droite",
       "rotation": "Rotation",
@@ -1484,6 +1487,7 @@
       "spreadAxisDegrees": "{{degrees}}°",
       "spreadAxisName": "Axe de l’écart",
       "spreadAxisValue": "Axe à {{degrees}} sur la feuille",
+      "spreadDiagram": "Diagramme",
       "spreadDirection": "Direction",
       "spreadDirectionName": "Direction de l’écart",
       "spreadDown": "Couches inférieures vers le bas",
@@ -1495,12 +1499,16 @@
       "spreadKeepTop": "Dessus",
       "spreadKind": "Écarter par",
       "spreadKindAffine": "Affine",
+      "spreadKindCamera": "Par défaut",
       "spreadKindDepth": "Profondeur",
       "spreadLayers": "Écarter les couches",
       "spreadLayersRow": "Écarter les couches",
       "spreadLeft": "Couches inférieures vers la gauche",
       "spreadNeedsFlat": "Seule une figure pliée à plat a des couches à écarter",
       "spreadNeedsOrder": "Ce pliage n’a pas d’ordre des couches, il n’a donc pas de couches à écarter",
+      "spreadOrthographic": "3D parallèle",
+      "spreadPerspective": "3D perspective",
+      "spreadProjection": "Vue",
       "spreadRight": "Couches inférieures vers la droite",
       "spreadSkew": "Biais",
       "spreadSkewName": "Biais de l’écart",
@@ -1508,6 +1516,8 @@
       "spreadUp": "Couches inférieures vers le haut",
       "spreadUpLeft": "Couches inférieures en haut à gauche",
       "spreadUpRight": "Couches inférieures en haut à droite",
+      "spreadViewDirection": "Direction de vue",
+      "spreadViewTilt": "Inclinaison de vue",
       "turnOver": "Retourner",
       "upright": "Redresser",
       "uprightNone": "Ce pliage n’a pas d’axe de symétrie sur lequel se redresser",
@@ -2115,9 +2125,11 @@
     "backendGpuTitle": "Résolution sur le GPU (WebGL2)",
     "backToPatterns": "Patrons",
     "canvasAriaLabel": "Simulateur de base pliée en origami. Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue.",
+    "canvasAriaLabelPan": "Simulateur d’origami. Faites glisser pour déplacer la vue, utilisez la molette pour zoomer.",
     "canvasAriaLabelPin": "Simulateur de base pliée en origami. Tracez un cadre ou cliquez sur une face pour l’épingler, défilez pour zoomer.",
     "canvasAriaLabelPull": "Simulateur de bases d’origami. Faites glisser le papier pour le tirer autour de ses épingles, défilez pour zoomer.",
     "canvasTitle": "Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue",
+    "canvasTitlePan": "Glisser pour déplacer la vue, molette pour zoomer",
     "canvasTitlePin": "Tracez un cadre ou cliquez sur une face pour l’épingler, défilez pour zoomer",
     "canvasTitlePull": "Faites glisser le papier pour le tirer, défilez pour zoomer",
     "contextMenu": {
@@ -2151,6 +2163,10 @@
         "description": "Faites glisser pour faire tourner le modèle.",
         "label": "Orbite"
       },
+      "pan": {
+        "description": "Faites glisser pour déplacer la vue.",
+        "label": "Déplacer"
+      },
       "picker": {
         "close": "Fermer la liste des outils",
         "title": "Outils",
@@ -2161,7 +2177,7 @@
         "description": "Maintient des faces en place pendant que le reste du papier se plie.",
         "label": "Épingler",
         "orbitApple": "Faire glisser avec Cmd fait tourner le modèle.",
-        "orbitMiddle": "Faites glisser avec le bouton du milieu pour faire tourner le modèle.",
+        "orbitMiddle": "Faites glisser avec le bouton central pour déplacer la vue ; utilisez Orbite pour tourner le modèle.",
         "shift": "Faire glisser avec Maj ajoute aux épingles. Maj-clic épingle ou désépingle une face.",
         "throughLayers": "Sélectionner à travers toutes les couches",
         "touchBox": "Tracez un cadre pour épingler les faces qu’il contient.",
@@ -2283,5 +2299,10 @@
       "deselect": "Tout désélectionner",
       "pairAllNone": "Aucun nœud non associé n'en a un en face."
     }
+  },
+  "viewport3d": {
+    "fit": "Ajuster la vue",
+    "navigation": "Navigation dans la vue",
+    "pan": "Déplacer la vue"
   }
 }

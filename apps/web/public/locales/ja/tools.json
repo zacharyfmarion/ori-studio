@@ -357,6 +357,7 @@
     "toggleLighting": "ライティング",
     "toolExit": "ツールを終了",
     "toolOrbit": "オービットツール",
+    "toolPan": "平行移動ツール",
     "toolPin": "固定ツール",
     "toolPull": "引っ張りツール"
   },

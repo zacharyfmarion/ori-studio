@@ -137,6 +137,10 @@ export function runSimulatorShortcut(
     case 'simulator.setUpright':
       handlers.setUpright?.();
       return true;
+    case 'simulator.tool.pan':
+      if (!handlers.tools) return false;
+      handlers.tools.selectTool('pan', source);
+      return true;
     case 'simulator.tool.orbit':
       if (!handlers.tools) return false;
       handlers.tools.selectTool('orbit', source);

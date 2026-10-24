@@ -29,7 +29,7 @@ import {
 import { folded3dSceneStyleKey } from '../../cp-workspace/folded/folded3dScene';
 import { folded3dFigureScene } from '../../cp-workspace/folded/folded3dStoredScene';
 import { foldedFigureExportDocument } from '../../cp-workspace/folded/foldedFigureExport';
-import { foldedFlatPaperScene } from '../../cp-workspace/folded/foldedFlatScene';
+import { foldedSpreadScene } from './foldedSpreadScene';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import { resolveFoldRoute } from '../../cp-workspace/folded/foldRoute';
 import {
@@ -58,7 +58,7 @@ import {
   type DiagramStyle,
 } from '../document/diagramDocument';
 import { storedCpSource, storedSceneJson } from '../document/diagramFile';
-import { storedPaperFaces } from '../document/paperFacesFile';
+import { SCENE_JSON_MAX_BYTES, storedPaperFaces } from '../document/paperFacesFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
@@ -75,6 +75,8 @@ import {
 import { creasesThumbnail } from './captureThumbnail';
 import { CAPTURE_PX_PER_UNIT, storableScene, turnClockwise } from './captureGeometry';
 import { flatPaperFaces } from './capturePaperFaces';
+import { cameraPaperFaces } from './cameraPaperFaces';
+import { captureCameraSpreadInWorker } from '../../cp-workspace/folded/cameraSpreadClients';
 import { creasePatternScene } from './creasePatternScene';
 
 /**
@@ -134,11 +136,14 @@ export function storeScene(
   faces?: DiagramPaperFaces
 ): CapturedPicture {
   const stored = storableScene(scene);
+  // A camera view composes inside a fixed frame. Re-fitting to its ink here
+  // would silently discard pan/zoom and make saved pictures jump on reopen.
+  if (faces?.projection) stored.bounds = scene.bounds;
   const sceneJson = storedSceneJson(stored);
   if (sceneJson === null || stored.items.length === 0) {
     throw new Error('The capture produced nothing to draw');
   }
-  if (sceneJson.length > SCENE_BUDGET_BYTES) return { kind: 'over-budget', scene: stored, paperScale };
+  if (sceneJson.length > (faces?.projection ? SCENE_JSON_MAX_BYTES : SCENE_BUDGET_BYTES)) return { kind: 'over-budget', scene: stored, paperScale };
   const paperFaces = faces ? storedPaperFaces(faces) : null;
   return {
     kind: 'picture',
@@ -215,7 +220,18 @@ export async function readFlatPicture(
   env?: SanitizeEnv,
   spread?: LayerSpreadOptions
 ): Promise<CapturedPicture> {
-  return flatPicture(await readFoldedPicture(runtime, handle, state.displayStyle), rotationDeg, env, spread);
+  return captureFlatPicture(await readFoldedPicture(runtime, handle, state.displayStyle), rotationDeg, env, spread);
+}
+
+/** Settled camera captures run off-thread; legacy projections remain synchronous and cheap. */
+export async function captureFlatPicture(read: FoldedPicture, rotationDeg: number, env?: SanitizeEnv,
+  spread?: LayerSpreadOptions): Promise<CapturedPicture> {
+  if (spread?.kind !== 'camera' || !read.scene) return flatPicture(read,rotationDeg,env,spread);
+  const result = await captureCameraSpreadInWorker(read.scene,spread,rotationDeg);
+  if (!result.paperFaces || !storedPaperFaces(result.paperFaces)) throw new Error('Camera spread anchors exceed the stored picture budget');
+  const captured = storeScene(result.scene,result.paperScale,null,result.paperFaces);
+  if (captured.kind === 'over-budget') throw new Error('Camera spread vector picture exceeds the stored picture budget');
+  return captured;
 }
 
 /**
@@ -238,14 +254,17 @@ export function flatPicture(
       const turned = turn(point);
       return [turned.x * CAPTURE_PX_PER_UNIT, turned.y * CAPTURE_PX_PER_UNIT];
     };
-    const flat = foldedFlatPaperScene(scene, {
+    const flat = foldedSpreadScene(scene, {
       markHidden: !spread,
       toScenePx,
       scale: CAPTURE_PX_PER_UNIT,
       ...(spread ? { spread } : {}),
     });
-    const paperFaces = faces ? flatPaperFaces(scene, toScenePx, CAPTURE_PX_PER_UNIT) : null;
-    return storeScene(flat, CAPTURE_PX_PER_UNIT, null, paperFaces ?? undefined);
+    const paperFaces = faces ? spread?.kind === 'camera'
+      ? cameraPaperFaces(scene, spread, toScenePx, CAPTURE_PX_PER_UNIT)
+      : flatPaperFaces(scene, toScenePx, CAPTURE_PX_PER_UNIT) : null;
+    return storeScene(flat, spread?.kind === 'camera' && spread.projection !== 'diagram' ? null : CAPTURE_PX_PER_UNIT,
+      null, paperFaces ?? undefined);
   }
   const page = foldedFigureExportDocument(snapshot, { showBackgroundColor: false, rotationDeg });
   if (!page) throw new Error('The folded figure produced nothing to draw');

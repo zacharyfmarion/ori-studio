@@ -504,6 +504,7 @@ export function erodeLine(
 ): [ScenePoint, ScenePoint] | null {
   const whole = line.whole;
   if (!whole || !(erodePx > 0)) return erodeSegment(line.a, line.b, line.onBoundary, erodePx);
+  if (!whole.onBoundary[0] && !whole.onBoundary[1]) return [line.a,line.b];
   const eroded = erodeSegment(whole.a, whole.b, whole.onBoundary, erodePx);
   if (!eroded) return null;
   const dx = whole.b[0] - whole.a[0];

@@ -4,6 +4,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from "react";
@@ -46,25 +47,22 @@ import {
   recordSimulatorProbe,
 } from "./simulatorPerfProbe";
 import {
-  clampSimulatorZoom,
-  nextSimulatorOrbitView,
-  nextSimulatorRollView,
+  clampCameraZoom,
+  createCameraGesture,
+  panCamera,
   setUprightView,
-  simulatorViewLookingFrom,
-  simulatorWheelZoomFactor,
-  type SimulatorOrbitDrag,
-  type SimulatorOrbitGesture,
-  type SimulatorOrbitMode,
-  type SimulatorOrbitView as SimulatorView,
-  type SimulatorViewDirection,
-} from "../lib/simulatorOrbit";
+  wheelZoomFactor,
+  type CameraGesture,
+  type OrbitView as SimulatorView,
+} from "../lib/viewport3dCamera";
 import type { SimulatorSettings as SimulatorViewSettings } from "../lib/simulatorSettings";
 import type { PaperStyle } from "../lib/paper/paperStyle";
 import {
-  SimulatorViewCube,
-  type SimulatorViewCubeHandle,
-} from "./viewCube/SimulatorViewCube";
-import { viewCubeSnapAt, viewCubeSnapDurationMs } from "./viewCube/viewCubeTween";
+  ViewCube,
+  type ViewCubeHandle,
+} from "../viewport3d/viewCube/ViewCube";
+import { useCameraMotion } from "../viewport3d/useCameraMotion";
+import { ViewportNavigation } from "../viewport3d/ViewportNavigation";
 import { simulatorDevicePixelRatio } from "./simulatorDevicePixelRatio";
 
 /**
@@ -378,6 +376,7 @@ export function SimulatorViewport({
   perfSurface = 'viewport',
 }: SimulatorViewportProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [panNavigation, setPanNavigation] = useState(false);
   const modelRef = useRef<SimulatorRenderModel | null>(null);
   const frameRef = useRef<SimulatorFrameView | null>(null);
   // Captured once. `resetView` reads it too, so "reset" means the view this
@@ -385,9 +384,7 @@ export function SimulatorViewport({
   const openingView = initialView ?? DEFAULT_SIMULATOR_VIEW;
   const openingViewRef = useRef<SimulatorView>({ ...openingView });
   const viewRef = useRef<SimulatorView>({ ...openingView });
-  const viewCubeRef = useRef<SimulatorViewCubeHandle | null>(null);
-  // The rAF of a view cube snap in flight, or null. See `applyView`.
-  const snapRef = useRef<number | null>(null);
+  const viewCubeRef = useRef<ViewCubeHandle | null>(null);
   // The rAF of a canvas-2D redraw while the camera is still arriving, or null.
   // See `drawCurrentFrame`.
   const framingRef = useRef<number | null>(null);
@@ -401,10 +398,6 @@ export function SimulatorViewport({
   // The box being dragged, drawn as a DOM layer because on the GPU path the
   // canvas is the worker's.
   const marqueeRef = useRef<HTMLDivElement | null>(null);
-  const orbitOriginRef = useRef<SimulatorOrbitDrag | null>(null);
-  // Fixed when the drag begins, so letting the modifier go halfway through does
-  // not turn a roll into an orbit under the user's hand.
-  const orbitModeRef = useRef<SimulatorOrbitMode>('orbit');
   // Read synchronously by the pointer and draw handlers, which must not see a
   // stale closure mid-gesture.
   const gpuActiveRef = useRef(gpuActive);
@@ -558,95 +551,8 @@ export function SimulatorViewport({
     if (!gpuActiveRef.current) drawCurrentFrame();
   }, [deviceSize, drawCurrentFrame, pushCamera]);
 
-  /**
-   * Move the camera and draw at it.
-   *
-   * Every path that moves it goes through here rather than assigning `viewRef`
-   * and calling {@link pushView} itself, because all of them also have to stop a
-   * view cube snap that is in flight — a drag, a wheel, a reset or a zoom during
-   * an animation would otherwise be overwritten by the next rAF and read as a
-   * dead control. The snap's own steps are the one caller that does not.
-   *
-   * `pushView` is still called directly from the effects that re-send an
-   * *unchanged* camera (a resize, a render-path switch); there is nothing to
-   * cancel there.
-   */
-  const cancelSnap = useCallback(() => {
-    if (snapRef.current === null) return;
-    cancelAnimationFrame(snapRef.current);
-    snapRef.current = null;
-  }, []);
-
-  const applyView = useCallback(
-    (next: SimulatorView) => {
-      cancelSnap();
-      viewRef.current = next;
-      pushView();
-    },
-    [cancelSnap, pushView]
-  );
-
-  /**
-   * Move the camera to `to` over about a quarter second.
-   *
-   * The animation is the camera's, not the cube's: it moves `viewRef` on every
-   * frame, so the fold, the cube and the readouts all follow one motion rather
-   * than the cube animating and the model jumping.
-   */
-  const tweenView = useCallback(
-    (to: SimulatorView) => {
-      const from = viewRef.current;
-      const reducedMotion =
-        typeof window !== 'undefined' &&
-        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      applyView(reducedMotion ? to : viewCubeSnapAt(from, to, 0));
-      if (reducedMotion) return;
-
-      const duration = viewCubeSnapDurationMs(from, to);
-      const started = performance.now();
-      const step = (now: number) => {
-        const progress = (now - started) / duration;
-        viewRef.current = viewCubeSnapAt(from, to, progress);
-        pushView();
-        snapRef.current = progress >= 1 ? null : requestAnimationFrame(step);
-      };
-      snapRef.current = requestAnimationFrame(step);
-    },
-    [applyView, pushView]
-  );
-
-  /**
-   * Turn to look at the model from `direction`, and stand the picture back up.
-   *
-   * The roll goes with it. A named viewpoint should be one view rather than a
-   * family of them, and a Top that came back at whatever angle the last roll
-   * left would give the cube no way home — the ring can only be reached square
-   * on to a face, so a view rolled from a corner would otherwise be stuck.
-   */
-  const snapToDirection = useCallback(
-    (direction: SimulatorViewDirection) => {
-      tweenView({ ...simulatorViewLookingFrom(viewRef.current, direction), roll: 0 });
-    },
-    [tweenView]
-  );
-
-  /**
-   * Spin the picture about the line of sight, to an absolute angle.
-   *
-   * The eye does not move — see the package's `viewRotationFor` for why that is
-   * exact — so this is the one control that changes which way up the model is
-   * drawn without changing what you are looking at. Applied rather than tweened:
-   * it is driven by a drag, and a drag has to answer the hand at once.
-   */
-  const setRoll = useCallback(
-    (roll: number) => {
-      applyView({ ...viewRef.current, roll });
-    },
-    [applyView]
-  );
-
-  // A snap outliving its surface would call into a torn-down worker session.
-  useEffect(() => cancelSnap, [cancelSnap]);
+  const { apply: applyView, cancel: cancelSnap, snap: snapToDirection, roll: setRoll } =
+    useCameraMotion(viewRef, pushView);
 
   /**
    * Point the cube at the live camera as its handle is attached.
@@ -656,7 +562,7 @@ export function SimulatorViewport({
    * moment and comes up showing where the model actually is. Stable, so it fires
    * on mount and unmount rather than on every render.
    */
-  const attachViewCube = useCallback((handle: SimulatorViewCubeHandle | null) => {
+  const attachViewCube = useCallback((handle: ViewCubeHandle | null) => {
     viewCubeRef.current = handle;
     handle?.setView(viewRef.current);
   }, []);
@@ -772,7 +678,7 @@ export function SimulatorViewport({
     (factor: number) => {
       applyView({
         ...viewRef.current,
-        zoom: clampSimulatorZoom(viewRef.current.zoom * factor),
+        zoom: clampCameraZoom(viewRef.current.zoom * factor),
       });
     },
     [applyView]
@@ -828,47 +734,17 @@ export function SimulatorViewport({
    * verbs across means the second surface inherits every one of those rather
    * than growing a near-copy that slowly disagrees.
    */
-  const orbit = useMemo<SimulatorOrbitGesture>(
-    () => ({
-      begin: (point, mode = 'orbit') => {
-        // Before the angles below are read, not after: a drag that began
-        // mid-snap must start from where the model is now and own it from there.
-        cancelSnap();
-        // A drag is the unit the orbit readout reports on; see
-        // `beginOrbitGesture`.
-        beginOrbitGesture(perfSurface);
-        orbitModeRef.current = mode;
-        orbitOriginRef.current = {
-          x: point.x,
-          y: point.y,
-          yaw: viewRef.current.yaw,
-          pitch: viewRef.current.pitch,
-          roll: viewRef.current.roll ?? 0,
-        };
-      },
-      move: (point) => {
-        const origin = orbitOriginRef.current;
-        if (!origin) return;
-        // Counted before the push, so the log compares pointer input against
-        // messages sent rather than against itself. They are equal today —
-        // nothing coalesces — which is the baseline any fix has to move.
-        recordOrbitMove();
-        applyView(
-          orbitModeRef.current === 'roll'
-            ? nextSimulatorRollView(viewRef.current, origin, point)
-            : nextSimulatorOrbitView(viewRef.current, origin, point)
-        );
-      },
-      end: () => {
-        if (!orbitOriginRef.current) return;
-        orbitOriginRef.current = null;
-        // The line lands once the backlog drains, which is the measurement: how
-        // long the fold keeps moving after the pointer stopped.
-        endOrbitGesture();
-      },
-    }),
-    [applyView, cancelSnap, perfSurface]
-  );
+  const orbit = useMemo<CameraGesture>(() => createCameraGesture({
+    read: () => viewRef.current,
+    write: applyView,
+    shortEdge: () => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      return Math.min(rect?.width ?? 1, rect?.height ?? 1);
+    },
+    begin: () => { cancelSnap(); beginOrbitGesture(perfSurface); },
+    move: recordOrbitMove,
+    end: endOrbitGesture,
+  }), [applyView, cancelSnap, perfSurface]);
 
   /**
    * The canvas's cursor, when it has tools: what a press here would do. Set
@@ -972,12 +848,6 @@ export function SimulatorViewport({
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!interactiveRef.current) return;
     const input = toolInputRef.current;
-    if (!input) {
-      event.currentTarget.setPointerCapture(event.pointerId);
-      dragRef.current = { kind: "orbit", pointerId: event.pointerId };
-      orbit.begin({ x: event.clientX, y: event.clientY }, event.shiftKey ? "roll" : "orbit");
-      return;
-    }
 
     arbiterRef.current ??= createTouchArbiter();
     const verdict = arbiterRef.current.down(event.nativeEvent);
@@ -986,6 +856,14 @@ export function SimulatorViewport({
     if (verdict.abort.includes("canvas")) abandonDrag();
     if (verdict.action !== "forward") {
       if (verdict.action === "transform") event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
+
+    if (!input) {
+      if (event.button === 1) event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = { kind: "orbit", pointerId: event.pointerId };
+      orbit.begin({ x: event.clientX, y: event.clientY }, event.button === 1 || panNavigation ? "pan" : event.shiftKey ? "roll" : "orbit");
       return;
     }
 
@@ -1035,14 +913,14 @@ export function SimulatorViewport({
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (toolInputRef.current && arbiterRef.current) {
+    if (arbiterRef.current) {
       const verdict = arbiterRef.current.move(event.nativeEvent);
       if (verdict.action === "transform") {
-        // A pinch zooms, as the wheel does. The orbit camera has no pan.
-        applyView({
+        const rect = event.currentTarget.getBoundingClientRect();
+        applyView(panCamera({
           ...viewRef.current,
-          zoom: clampSimulatorZoom(viewRef.current.zoom * verdict.transform.scale),
-        });
+          zoom: clampCameraZoom(viewRef.current.zoom * verdict.transform.scale),
+        }, verdict.transform.dx, verdict.transform.dy, Math.min(rect.width, rect.height)));
         return;
       }
       if (verdict.action === "ignore") return;
@@ -1060,8 +938,7 @@ export function SimulatorViewport({
   };
 
   const handlePointerEnd = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const input = toolInputRef.current;
-    if (input && arbiterRef.current) {
+    if (arbiterRef.current) {
       const verdict = arbiterRef.current.up(event.nativeEvent);
       if (verdict.action === "ignore") {
         releaseCapture(event.pointerId);
@@ -1088,7 +965,7 @@ export function SimulatorViewport({
   // each of which the tool has already answered.
   const handleDoubleClick = () => {
     const input = toolInputRef.current;
-    if (input && input.mode !== "orbit") return;
+    if (input && input.mode !== "orbit" && input.mode !== "pan") return;
     resetView();
   };
 
@@ -1117,7 +994,7 @@ export function SimulatorViewport({
       if (claimsWheelRef.current?.() === false) return;
       applyView({
         ...viewRef.current,
-        zoom: clampSimulatorZoom(viewRef.current.zoom * simulatorWheelZoomFactor(event.deltaY)),
+        zoom: clampCameraZoom(viewRef.current.zoom * wheelZoomFactor(event.deltaY)),
       });
     };
 
@@ -1147,8 +1024,10 @@ export function SimulatorViewport({
         onDoubleClick={handleDoubleClick}
       />
       {toolInput && <div ref={marqueeRef} className={styles.marquee} hidden aria-hidden="true" />}
+      {viewCube && !toolInput && <ViewportNavigation pan={panNavigation} onPan={setPanNavigation} disabled={!interactive}
+        onFit={() => applyView({ ...viewRef.current, zoom: 1, pan: [0,0] })}/>}
       {viewCube && (
-        <SimulatorViewCube
+        <ViewCube
           ref={attachViewCube}
           interactive={interactive}
           onSnap={snapToDirection}

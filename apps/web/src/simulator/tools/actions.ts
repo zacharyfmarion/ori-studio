@@ -87,6 +87,7 @@ export interface SimulatorToolWindowModel {
 
 export function simulatorToolLabel(t: TFunction, id: SimulatorToolId): string {
   switch (id) {
+    case 'pan': return t('panels:simulator.tools.pan.label', 'Pan');
     case 'orbit':
       return t('panels:simulator.tools.orbit.label', 'Orbit');
     case 'pin':
@@ -98,6 +99,7 @@ export function simulatorToolLabel(t: TFunction, id: SimulatorToolId): string {
 
 export function simulatorToolDescription(t: TFunction, id: SimulatorToolId): string {
   switch (id) {
+    case 'pan': return t('panels:simulator.tools.pan.description', 'Drag to move the view.');
     case 'orbit':
       return t('panels:simulator.tools.orbit.description', 'Drag to turn the model.');
     case 'pin':
@@ -116,6 +118,7 @@ export function simulatorToolDescription(t: TFunction, id: SimulatorToolId): str
 /** What the canvas says it does under each tool: its accessible name, and its hover title. */
 export function simulatorCanvasLabels(t: TFunction, id: SimulatorToolId): { ariaLabel: string; title: string } {
   switch (id) {
+    case 'pan': return { ariaLabel: t('panels:simulator.canvasAriaLabelPan', 'Origami simulator. Drag to pan, scroll to zoom.'), title: t('panels:simulator.canvasTitlePan', 'Drag to pan, scroll to zoom') };
     case 'pin':
       return {
         ariaLabel: t(
@@ -188,7 +191,7 @@ function pinInstructions(t: TFunction, host: SimulatorToolHost): string[] {
     ),
     host.apple
       ? t('panels:simulator.tools.pin.orbitApple', 'Cmd-drag turns the model.')
-      : t('panels:simulator.tools.pin.orbitMiddle', 'Drag with the middle button to turn the model.'),
+      : t('panels:simulator.tools.pin.orbitMiddle', 'Middle-drag pans; use Orbit to turn the model.'),
   ];
 }
 
@@ -208,7 +211,7 @@ function pullInstructions(t: TFunction, host: SimulatorToolHost): string[] {
     t('panels:simulator.tools.pull.cancel', 'Esc while dragging puts it back.'),
     host.apple
       ? t('panels:simulator.tools.pin.orbitApple', 'Cmd-drag turns the model.')
-      : t('panels:simulator.tools.pin.orbitMiddle', 'Drag with the middle button to turn the model.'),
+      : t('panels:simulator.tools.pin.orbitMiddle', 'Middle-drag pans; use Orbit to turn the model.'),
   ];
 }
 

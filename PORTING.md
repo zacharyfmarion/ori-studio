@@ -215,17 +215,19 @@ are unchanged:
   without a sub-tolerance crease changes, so the folding and FOLD-export oracles
   see identical output.
 
-- **A failed Euler gate clears our faces; upstream keeps them.** *(Known gap, not
-  a decision — predates the per-component work above and is not relied on by it.)*
-  `FoldGraph::calculate_faces` sets `self.faces = Vec::new()` when the gate fails.
-  `PointSet.calculateFaces` instead returns early with `faces[]` and `numFaces`
-  populated, so a caller that ignores the boolean still has them, and
-  `WireFrame_Worker.setLineSegmentSet` (`:213`) is exactly such a caller. Upstream
-  therefore treats a failed gate as a warning; we turn it into a refusal. Every
-  current consumer of `include_faces` reads a false verdict as "no faces", so
-  nothing observable depends on the difference today — but it is a real
-  divergence, it is not recorded anywhere else, and a future caller that wants
-  upstream's behaviour will not find the faces where upstream would.
+- **Derived folded subfaces retain faces after an Euler warning, as upstream does.**
+  `PointSet.calculateFaces` returns early with its traced faces intact when the
+  Euler diagnostic fails; `WireFrame_Worker.setLineSegmentSet` ignores that
+  boolean. `FoldGraph::from_subface_segments` now preserves the same faces for
+  the folded-image arrangement, leaving the border cache empty as upstream does.
+  Previously all seven subface construction sites discarded them, so a valid
+  dense fold could stop at `Step2 / NotAttempted` solely because of its canvas
+  position. The external Bodo step 190 reproduces this with 597 points, 1,257
+  edges and 671 traced subfaces (Euler 11). Oriedita and the corrected port solve
+  the same original coordinates with the same hierarchy. The source-sheet and
+  FOLD-export paths keep their existing stricter refusal; this change does not
+  accept unresolved input paper. An external oracle test takes IEEE-754 bits
+  because decimal parsing with a different rounding can hide this case.
 
 - **A FOLD folded form is refused, not flattened.** `io::fold::import_fold_document`
   returns `IoError::FoldedForm` — engine code `fold_folded_form` — for a frame

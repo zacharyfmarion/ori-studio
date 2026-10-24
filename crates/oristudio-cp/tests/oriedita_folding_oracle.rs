@@ -17,6 +17,50 @@ use oristudio_cp::io::cp;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// External project audit, including the exact browser-decoded f64 coordinates.
+/// Decimal parsing in serde_json can round differently from JavaScript, hiding
+/// a dense-subface regression. The audit script writes bits, never a fixture in Git.
+#[test]
+fn external_diagram_fold_matches_oriedita_oracle() {
+    let Ok(path) = std::env::var("ORISTUDIO_FOLD_SEGMENT_BITS") else {
+        return;
+    };
+    let oracle = folding_oracle().expect("external audit requires ORIEDITA_GEOMETRY_ORACLE");
+    let raw: Vec<([u64; 4], LineColor)> =
+        serde_json::from_str(&std::fs::read_to_string(path).expect("external segment bits"))
+            .expect("segment bit tuples");
+    let segments: Vec<_> = raw
+        .into_iter()
+        .map(|(b, color)| {
+            LineSegment::with_color(
+                Point::new(f64::from_bits(b[0]), f64::from_bits(b[1])),
+                Point::new(f64::from_bits(b[2]), f64::from_bits(b[3])),
+                color,
+            )
+        })
+        .collect();
+    let estimate = folding_estimate_from_segments(
+        &segments,
+        1,
+        oristudio_cp::folding::EstimationOrder::Order5,
+    )
+    .expect("external fold");
+    let mut args = vec![
+        "folding-estimate-summary".to_string(),
+        "1".to_string(),
+        "5".to_string(),
+        segments.len().to_string(),
+    ];
+    push_segment_args(&mut args, &segments);
+    assert_eq!(
+        folding_estimate_summary(&estimate),
+        run_oracle(
+            &oracle,
+            &args.iter().map(String::as_str).collect::<Vec<_>>()
+        )
+    );
+}
+
 #[test]
 fn wireframe_folding_matches_oriedita_oracle() {
     let Some(oracle) = folding_oracle() else {

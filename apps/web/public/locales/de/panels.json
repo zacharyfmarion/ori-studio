@@ -1388,6 +1388,7 @@
       "back": "Rückseite",
       "backToFlat": "Auf flach zurücksetzen",
       "cameraReadout": "Gieren {{yaw}}° · Nicken {{pitch}}°",
+      "cameraSpreadView": "Aufgefächertes Modell: zum Drehen ziehen, mit mittlerer Maustaste verschieben",
       "degrees": "{{degrees}}° im Uhrzeigersinn",
       "enlarged": "Vergrößert",
       "enlargedOff": "Wieder das ganze Bild zeigen",
@@ -1416,12 +1417,14 @@
       "onlySolution": "Diese Faltung hat nur eine Lagenfolge",
       "orbitHint": "Zum Drehen ziehen · Doppelklick zum Zurücksetzen",
       "otherSide": "Von der anderen Seite ansehen",
+      "panHint": "Ziehen zum Verschieben · Scrollen zum Zoomen",
       "pause": "Pause",
       "percent": "{{value}} %",
       "play": "Abspielen",
       "previousSolution": "Vorherige Lagenfolge",
       "reset": "Pose zurücksetzen",
       "resetHint": "Schon in der Ausgangslage",
+      "retrySpread": "Live-Ansicht erneut laden",
       "rotateLeft": "Nach links drehen",
       "rotateRight": "Nach rechts drehen",
       "rotation": "Drehung",
@@ -1445,6 +1448,7 @@
       "spreadAxisDegrees": "{{degrees}}°",
       "spreadAxisName": "Achse der Auffächerung",
       "spreadAxisValue": "Achse bei {{degrees}} auf dem Blatt",
+      "spreadDiagram": "Diagramm",
       "spreadDirection": "Richtung",
       "spreadDirectionName": "Richtung der Auffächerung",
       "spreadDown": "Tiefere Lagen nach unten",
@@ -1456,12 +1460,16 @@
       "spreadKeepTop": "Oben",
       "spreadKind": "Auffächern nach",
       "spreadKindAffine": "Affin",
+      "spreadKindCamera": "Standard",
       "spreadKindDepth": "Tiefe",
       "spreadLayers": "Lagen auffächern",
       "spreadLayersRow": "Lagen auffächern",
       "spreadLeft": "Tiefere Lagen nach links",
       "spreadNeedsFlat": "Nur ein flach gefaltetes Bild hat Lagen zum Auffächern",
       "spreadNeedsOrder": "Diese Faltung hat keine Lagenfolge, also keine Lagen zum Auffächern",
+      "spreadOrthographic": "3D parallel",
+      "spreadPerspective": "3D perspektivisch",
+      "spreadProjection": "Ansicht",
       "spreadRight": "Tiefere Lagen nach rechts",
       "spreadSkew": "Scherung",
       "spreadSkewName": "Scherung der Auffächerung",
@@ -1469,6 +1477,8 @@
       "spreadUp": "Tiefere Lagen nach oben",
       "spreadUpLeft": "Tiefere Lagen nach links oben",
       "spreadUpRight": "Tiefere Lagen nach rechts oben",
+      "spreadViewDirection": "Blickrichtung",
+      "spreadViewTilt": "Blickneigung",
       "turnOver": "Umdrehen",
       "upright": "Aufrichten",
       "uprightNone": "Diese Faltung hat keine Spiegelachse, auf der sie stehen kann",
@@ -2053,9 +2063,11 @@
     "backendGpuTitle": "Berechnung auf der GPU (WebGL2)",
     "backToPatterns": "Muster",
     "canvasAriaLabel": "Origami-Simulator für gefaltete Basen. Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht.",
+    "canvasAriaLabelPan": "Origami-Simulator. Ziehen zum Verschieben, Scrollen zum Zoomen.",
     "canvasAriaLabelPin": "Origami-Simulator für gefaltete Basen. Rahmen aufziehen oder eine Fläche anklicken, um sie zu fixieren, Scrollen zum Zoomen.",
     "canvasAriaLabelPull": "Simulator für Origami-Grundformen. Am Papier ziehen, um es um seine Fixierungen zu bewegen, Scrollen zum Zoomen.",
     "canvasTitle": "Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht",
+    "canvasTitlePan": "Ziehen zum Verschieben, Scrollen zum Zoomen",
     "canvasTitlePin": "Rahmen aufziehen oder eine Fläche anklicken, um sie zu fixieren, Scrollen zum Zoomen",
     "canvasTitlePull": "Am Papier ziehen, Scrollen zum Zoomen",
     "contextMenu": {
@@ -2089,6 +2101,10 @@
         "description": "Ziehen, um das Modell zu drehen.",
         "label": "Orbit"
       },
+      "pan": {
+        "description": "Ziehen, um die Ansicht zu verschieben.",
+        "label": "Verschieben"
+      },
       "picker": {
         "close": "Werkzeugliste schließen",
         "title": "Werkzeuge",
@@ -2099,7 +2115,7 @@
         "description": "Hält Flächen an ihrem Platz, während sich der Rest des Papiers faltet.",
         "label": "Fixieren",
         "orbitApple": "Mit Cmd ziehen dreht das Modell.",
-        "orbitMiddle": "Mit der mittleren Maustaste ziehen dreht das Modell.",
+        "orbitMiddle": "Ziehen mit der mittleren Maustaste verschiebt die Ansicht; mit Umkreisen drehen Sie das Modell.",
         "shift": "Mit Umschalt ziehen fügt Fixierungen hinzu. Umschalt-Klick fixiert eine Fläche oder löst sie.",
         "throughLayers": "Durch alle Lagen auswählen",
         "touchBox": "Einen Rahmen aufziehen, um die Flächen darin zu fixieren.",
@@ -2218,5 +2234,10 @@
       "deselect": "Auswahl aufheben",
       "pairAllNone": "Keine ungepaarten Knoten liegen einander gegenüber."
     }
+  },
+  "viewport3d": {
+    "fit": "Ansicht einpassen",
+    "navigation": "Ansichtsnavigation",
+    "pan": "Ansicht verschieben"
   }
 }

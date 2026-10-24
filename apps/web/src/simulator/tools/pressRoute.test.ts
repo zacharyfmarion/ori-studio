@@ -15,14 +15,14 @@ describe('routeSimulatorPress', () => {
     }
   });
 
-  it('orbits on the middle button and on Meta whatever the tool, and rolls with Shift', () => {
-    expect(routeSimulatorPress(press({ button: 1 }), 'pick-faces')).toEqual({ kind: 'orbit', mode: 'orbit' });
+  it('pans on the middle button; Meta orbits and Meta-Shift rolls under every tool', () => {
+    expect(routeSimulatorPress(press({ button: 1 }), 'pick-faces')).toEqual({ kind: 'orbit', mode: 'pan' });
     expect(routeSimulatorPress(press({ meta: true }), 'pick-faces')).toEqual({ kind: 'orbit', mode: 'orbit' });
     expect(routeSimulatorPress(press({ meta: true, shift: true }), 'pick-faces')).toEqual({
       kind: 'orbit',
       mode: 'roll',
     });
-    expect(routeSimulatorPress(press({ button: 1, shift: true }), 'orbit')).toEqual({ kind: 'orbit', mode: 'roll' });
+    expect(routeSimulatorPress(press({ button: 1, shift: true }), 'orbit')).toEqual({ kind: 'orbit', mode: 'pan' });
   });
 
   it('hands a plain press to the tool', () => {

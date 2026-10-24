@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import type { CameraLayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { CameraSpreadHold } from './captureSession';
 import { onEngineLost } from '../../engines/engineHost';
 import { announceUprightSet } from '../../lib/uprightFeedback';
-import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
+import type { UprightViewHandle } from '../../viewport3d/viewport3dHandle';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   buildDiagramLinkedPoseActions,
@@ -41,6 +43,7 @@ export type { DiagramPoseSpatialView };
 
 /** A flat fold's spread while it is on (Phase 13): what the Step pane shows of it, and its sliders' drags. */
 export interface DiagramLinkedSpread extends DiagramSpreadControls {
+  projection: (projection: CameraLayerSpreadOptions['projection']) => void;
   /**
    * Show the picture with a slider at this value — an amount as a fraction,
    * a skew from 0 to 1, an axis in degrees — before it is committed: each
@@ -54,6 +57,9 @@ export interface DiagramLinkedSpread extends DiagramSpreadControls {
 }
 
 export interface DiagramLinkedPose {
+  consumeCameraCommit?: (camera: FoldedFigureCamera) => boolean;
+  cameraGesture?: (held: boolean, cancelled?: boolean) => void;
+  cameraSpread: CameraSpreadHold | null;
   actions: DiagramLinkedPoseAction[];
   /** A flat fold's place among its layer orders ("2 of 5+"), for the pager between its verbs; null otherwise. */
   layerOrder: { count: string; label: string } | null;
@@ -65,7 +71,7 @@ export interface DiagramLinkedPose {
    * A live view — the 3D one, or the simulator — showing the step, for Set
    * Upright: registered while its viewport is up, and the unregister.
    */
-  registerLiveView: (view: SimulatorViewHandle) => () => void;
+  registerLiveView: (view: UprightViewHandle) => () => void;
   /** Turn a crease pattern or a flat fold to an angle, in degrees clockwise (D5). */
   rotateTo: (degrees: number) => void;
   /**
@@ -123,6 +129,7 @@ export function useDiagramLinkedPose(
   // Each kept with the creases it was learnt from (`linkedFoldKey`): after a
   // Relink or an undo the step links to others, and these are not theirs.
   const [spatial, setSpatial] = useState<{ key: string; view: DiagramPoseSpatialView } | null>(null);
+  const [cameraSpread, setCameraSpread] = useState<{ key: string; view: CameraSpreadHold } | null>(null);
   const [found, setFound] = useState<{ key: string; value: DiagramLinkedPoseState['solutions'] } | null>(null);
   const [measured, setMeasured] = useState<{ key: string; value: readonly number[] | null } | null>(null);
   const [previewed, setPreviewed] = useState<{ key: string; value: SpreadPreview } | null>(null);
@@ -134,6 +141,7 @@ export function useDiagramLinkedPose(
         ? null
         : createPoseController(stepId, {
             spatial: (view, key) => setSpatial(view && key ? { key, view } : null),
+            cameraSpread: (view,key) => setCameraSpread(view && key ? { key,view } : null),
             solutions: (value, key) => setFound({ key, value }),
             mirrorAxes: (value, key) => setMeasured({ key, value }),
             preview: (value, key) => setPreviewed(value && key ? { key, value } : null),
@@ -166,15 +174,22 @@ export function useDiagramLinkedPose(
     if (controller && live && showsSpatial && !view) void controller.prepareSpatial();
   }, [controller, live, showsSpatial, view]);
 
-  const storedCamera = source?.render.mode === 'folded-3d' ? source.render.camera : null;
+  const showsCameraSpread = source?.render.mode === 'folded-flat' && source.render.spread?.kind === 'camera';
+  const cameraView = showsCameraSpread && cameraSpread?.key === foldKey && source.render.mode === 'folded-flat' &&
+    cameraSpread.view.side === source.render.side && cameraSpread.view.foldCase === source.render.foldCase ? cameraSpread.view : null;
+  useEffect(() => {
+    if (controller && live && showsCameraSpread && !cameraView) controller.prepareCameraSpread();
+  }, [controller,live,showsCameraSpread,cameraView]);
+  const storedCamera = source?.render.mode === 'folded-3d' ? source.render.camera :
+    source?.render.mode === 'folded-flat' && source.render.spread?.kind === 'camera' ? source.render.spread.camera : null;
   const onCamera = useCallback(
-    (camera: FoldedFigureCamera) => controller?.orbit(camera, storedCamera),
-    [controller, storedCamera]
+    (camera: FoldedFigureCamera) => { if (!readOnly) controller?.orbit(camera, storedCamera); },
+    [controller, storedCamera, readOnly]
   );
 
   // The live view Set Upright turns, while one shows: the latest registered, until it goes.
-  const [liveView, setLiveView] = useState<SimulatorViewHandle | null>(null);
-  const registerLiveView = useCallback((handle: SimulatorViewHandle) => {
+  const [liveView, setLiveView] = useState<UprightViewHandle | null>(null);
+  const registerLiveView = useCallback((handle: UprightViewHandle) => {
     setLiveView(handle);
     return () => setLiveView((was) => (was === handle ? null : was));
   }, []);
@@ -226,11 +241,12 @@ export function useDiagramLinkedPose(
     const kind = controls.spread.kind;
     return {
       ...controls,
+      projection: (projection) => { if (!controls.disabled) void controller.run({ verb: 'spread-view', projection }); },
       preview: (slider, value) =>
         controller.previewSpread(
           slider === 'amount'
             ? { slider, kind, value: clampSpreadAmount(kind, value) }
-            : { slider, value: slider === 'skew' ? clampSpreadSkew(value) : clampSpreadAxis(value) }
+            : { slider, value: slider === 'skew' ? clampSpreadSkew(value) : slider === 'axis' ? clampSpreadAxis(value) : value }
         ),
       commit: () => void controller.commitSpread(),
       start: () => !controls.disabled,
@@ -297,7 +313,10 @@ export function useDiagramLinkedPose(
             actions,
             layerOrder,
             spatial: view,
+            cameraSpread: cameraView,
             onCamera,
+            cameraGesture: controller?.cameraGesture,
+            consumeCameraCommit: controller?.consumeCameraCommit,
             registerLiveView,
             rotateTo,
             showAs,
@@ -314,7 +333,9 @@ export function useDiagramLinkedPose(
       actions,
       layerOrder,
       view,
+      cameraView,
       onCamera,
+      controller,
       registerLiveView,
       rotateTo,
       showAs,

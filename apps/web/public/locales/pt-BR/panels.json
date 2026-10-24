@@ -1427,6 +1427,7 @@
       "back": "Verso",
       "backToFlat": "Voltar ao plano",
       "cameraReadout": "Guinada {{yaw}}° · Arfagem {{pitch}}°",
+      "cameraSpreadView": "Modelo separado: arraste para girar; arraste com o botão do meio para deslocar",
       "degrees": "{{degrees}}° no sentido horário",
       "enlarged": "Ampliado",
       "enlargedOff": "Mostrar de novo a imagem inteira",
@@ -1455,12 +1456,14 @@
       "onlySolution": "Esta dobra tem só uma ordem de camadas",
       "orbitHint": "Arraste para girar · Clique duas vezes para redefinir",
       "otherSide": "Ver do outro lado",
+      "panHint": "Arraste para deslocar · Role para ampliar ou reduzir",
       "pause": "Pausar",
       "percent": "{{value}}%",
       "play": "Reproduzir",
       "previousSolution": "Ordem de camadas anterior",
       "reset": "Redefinir pose",
       "resetHint": "Já está na pose inicial",
+      "retrySpread": "Tentar novamente a visualização ao vivo",
       "rotateLeft": "Girar à esquerda",
       "rotateRight": "Girar à direita",
       "rotation": "Rotação",
@@ -1484,6 +1487,7 @@
       "spreadAxisDegrees": "{{degrees}}°",
       "spreadAxisName": "Eixo da separação",
       "spreadAxisValue": "Eixo a {{degrees}} na folha",
+      "spreadDiagram": "Diagrama",
       "spreadDirection": "Direção",
       "spreadDirectionName": "Direção da separação",
       "spreadDown": "Camadas inferiores para baixo",
@@ -1495,12 +1499,16 @@
       "spreadKeepTop": "Superior",
       "spreadKind": "Separar por",
       "spreadKindAffine": "Afim",
+      "spreadKindCamera": "Padrão",
       "spreadKindDepth": "Profundidade",
       "spreadLayers": "Separar camadas",
       "spreadLayersRow": "Separar camadas",
       "spreadLeft": "Camadas inferiores para a esquerda",
       "spreadNeedsFlat": "Só uma figura dobrada plana tem camadas para separar",
       "spreadNeedsOrder": "Esta dobra não tem ordem de camadas, então não tem camadas para separar",
+      "spreadOrthographic": "3D paralela",
+      "spreadPerspective": "3D perspectiva",
+      "spreadProjection": "Vista",
       "spreadRight": "Camadas inferiores para a direita",
       "spreadSkew": "Inclinação",
       "spreadSkewName": "Inclinação da separação",
@@ -1508,6 +1516,8 @@
       "spreadUp": "Camadas inferiores para cima",
       "spreadUpLeft": "Camadas inferiores para cima e à esquerda",
       "spreadUpRight": "Camadas inferiores para cima e à direita",
+      "spreadViewDirection": "Direção da vista",
+      "spreadViewTilt": "Inclinação da vista",
       "turnOver": "Virar",
       "upright": "Endireitar",
       "uprightNone": "Esta dobra não tem um eixo de simetria sobre o qual se endireitar",
@@ -2113,9 +2123,11 @@
     "backendGpuTitle": "Resolvendo na GPU (WebGL2)",
     "backToPatterns": "Padrões",
     "canvasAriaLabel": "Simulador de base dobrada de origami. Arraste para girar, role para aproximar, clique duplo para redefinir a visualização.",
+    "canvasAriaLabelPan": "Simulador de origami. Arraste para deslocar, role para ampliar ou reduzir.",
     "canvasAriaLabelPin": "Simulador de base dobrada de origami. Arraste uma caixa ou clique em uma face para fixá-la, role para aproximar.",
     "canvasAriaLabelPull": "Simulador de bases de origami. Arraste o papel para puxá-lo em torno das fixações, role para aproximar.",
     "canvasTitle": "Arraste para girar, role para aproximar, clique duplo para redefinir a visualização",
+    "canvasTitlePan": "Arraste para deslocar, role para ampliar ou reduzir",
     "canvasTitlePin": "Arraste uma caixa ou clique em uma face para fixá-la, role para aproximar",
     "canvasTitlePull": "Arraste o papel para puxá-lo, role para aproximar",
     "contextMenu": {
@@ -2149,6 +2161,10 @@
         "description": "Arraste para girar o modelo.",
         "label": "Órbita"
       },
+      "pan": {
+        "description": "Arraste para deslocar a vista.",
+        "label": "Deslocar"
+      },
       "picker": {
         "close": "Fechar a lista de ferramentas",
         "title": "Ferramentas",
@@ -2159,7 +2175,7 @@
         "description": "Mantém faces no lugar enquanto o resto do papel dobra.",
         "label": "Fixar",
         "orbitApple": "Arrastar com Cmd gira o modelo.",
-        "orbitMiddle": "Arraste com o botão do meio para girar o modelo.",
+        "orbitMiddle": "Arraste com o botão do meio para deslocar; use Orbitar para girar o modelo.",
         "shift": "Arrastar com Shift adiciona às fixações. Shift+clique fixa ou solta uma face.",
         "throughLayers": "Selecionar através de todas as camadas",
         "touchBox": "Arraste uma caixa para fixar as faces dentro dela.",
@@ -2281,5 +2297,10 @@
       "deselect": "Desmarcar tudo",
       "pairAllNone": "Nenhum nó sem par tem outro em frente."
     }
+  },
+  "viewport3d": {
+    "fit": "Ajustar à vista",
+    "navigation": "Navegação da vista",
+    "pan": "Deslocar vista"
   }
 }

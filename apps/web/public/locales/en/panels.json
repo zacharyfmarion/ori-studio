@@ -1388,6 +1388,7 @@
       "back": "Back",
       "backToFlat": "Back to Flat",
       "cameraReadout": "Yaw {{yaw}}° · Pitch {{pitch}}°",
+      "cameraSpreadView": "Spread model: drag to turn, middle-drag to pan",
       "degrees": "{{degrees}}° clockwise",
       "enlarged": "Enlarged",
       "enlargedOff": "Show the whole picture again",
@@ -1416,12 +1417,14 @@
       "onlySolution": "This fold has one layer order",
       "orbitHint": "Drag to turn · Double-click to reset",
       "otherSide": "View From the Other Side",
+      "panHint": "Drag to pan · Scroll to zoom",
       "pause": "Pause",
       "percent": "{{value}}%",
       "play": "Play",
       "previousSolution": "Previous Layer Order",
       "reset": "Reset Pose",
       "resetHint": "Already in its starting pose",
+      "retrySpread": "Retry live view",
       "rotateLeft": "Rotate Left",
       "rotateRight": "Rotate Right",
       "rotation": "Rotation",
@@ -1445,6 +1448,7 @@
       "spreadAxisDegrees": "{{degrees}}°",
       "spreadAxisName": "Spread axis",
       "spreadAxisValue": "Axis at {{degrees}} on the sheet",
+      "spreadDiagram": "Diagram",
       "spreadDirection": "Direction",
       "spreadDirectionName": "Spread direction",
       "spreadDown": "Deeper layers down",
@@ -1456,12 +1460,16 @@
       "spreadKeepTop": "Top",
       "spreadKind": "Spread by",
       "spreadKindAffine": "Affine",
+      "spreadKindCamera": "Default",
       "spreadKindDepth": "Depth",
       "spreadLayers": "Spread Layers",
       "spreadLayersRow": "Spread layers",
       "spreadLeft": "Deeper layers left",
       "spreadNeedsFlat": "Only a flat folded picture has layers to spread",
       "spreadNeedsOrder": "This fold has no layer order, so it has no layers to spread",
+      "spreadOrthographic": "3D parallel",
+      "spreadPerspective": "3D perspective",
+      "spreadProjection": "View",
       "spreadRight": "Deeper layers right",
       "spreadSkew": "Skew",
       "spreadSkewName": "Spread skew",
@@ -1469,6 +1477,8 @@
       "spreadUp": "Deeper layers up",
       "spreadUpLeft": "Deeper layers up and left",
       "spreadUpRight": "Deeper layers up and right",
+      "spreadViewDirection": "View direction",
+      "spreadViewTilt": "View tilt",
       "turnOver": "Turn Over",
       "upright": "Upright",
       "uprightNone": "This fold has no mirror axis to stand on",
@@ -2059,9 +2069,11 @@
     "backendGpuTitle": "Solving on the GPU (WebGL2)",
     "backToPatterns": "Patterns",
     "canvasAriaLabel": "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
+    "canvasAriaLabelPan": "Origami simulator. Drag to pan, scroll to zoom.",
     "canvasAriaLabelPin": "Origami folded-base simulator. Drag a box or click a face to pin it, scroll to zoom.",
     "canvasAriaLabelPull": "Origami folded-base simulator. Drag the paper to pull it around its pins, scroll to zoom.",
     "canvasTitle": "Drag to rotate, scroll to zoom, double-click to reset view",
+    "canvasTitlePan": "Drag to pan, scroll to zoom",
     "canvasTitlePin": "Drag a box or click a face to pin it, scroll to zoom",
     "canvasTitlePull": "Drag the paper to pull it, scroll to zoom",
     "contextMenu": {
@@ -2095,6 +2107,10 @@
         "description": "Drag to turn the model.",
         "label": "Orbit"
       },
+      "pan": {
+        "description": "Drag to move the view.",
+        "label": "Pan"
+      },
       "picker": {
         "close": "Close tool list",
         "title": "Tools",
@@ -2105,7 +2121,7 @@
         "description": "Hold faces in place while the rest of the paper folds.",
         "label": "Pin",
         "orbitApple": "Cmd-drag turns the model.",
-        "orbitMiddle": "Drag with the middle button to turn the model.",
+        "orbitMiddle": "Middle-drag pans; use Orbit to turn the model.",
         "shift": "Shift-drag adds to the pins. Shift-click pins or unpins one face.",
         "throughLayers": "Select through all layers",
         "touchBox": "Drag a box to pin the faces inside it.",
@@ -2224,5 +2240,10 @@
       "deselect": "Deselect all",
       "pairAllNone": "No unpaired nodes sit opposite each other."
     }
+  },
+  "viewport3d": {
+    "fit": "Fit view",
+    "navigation": "View navigation",
+    "pan": "Pan view"
   }
 }

@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createDiagram, createStep, insertSteps, type DiagramDocument } from '../document/diagramDocument';
+import { createDiagram, createStep, insertSteps, DEFAULT_CAMERA_SPREAD, type DiagramDocument } from '../document/diagramDocument';
 import { cpStep, referencesStep } from '../document/diagramSteps.fixtures';
 import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from '../fonts/diagramFontFaces';
 import type { DiagramFonts } from '../fonts/diagramFonts';
@@ -12,6 +12,9 @@ import { createFontSubsetter, type FontSubsetter } from '../fonts/fontSubset';
 import { diagramPdfInput, PRINT_SHOP_BLEED_MM, PRINT_SHOP_SLUG_MM, type PdfWriter } from './diagramPdf';
 import { craneStep } from '../zoom/zoom.fixtures';
 import { xrayCase } from '../xray/xray.cases';
+import { captureCameraSpread } from '../capture/cameraSpreadCapture';
+import { halfFoldOnSheetKernelScene } from '../capture/capture.fixtures';
+import { storeScene } from '../capture/captureFolded';
 
 /**
  * A diagram through the real writer (`crates/oristudio-pdf-wasm`), in node.
@@ -72,6 +75,25 @@ function boxes(pdf: Uint8Array, key: string): number[][] {
 }
 
 describe.skipIf(!available)('a diagram as one PDF', () => {
+  it('exports all Default spread projections as vector paper through the real PDF writer', async () => {
+    const steps = (['diagram', 'orthographic', 'perspective'] as const).map((projection) => {
+      const spread = { ...DEFAULT_CAMERA_SPREAD, projection, amount: 0.18,
+        camera: { ...DEFAULT_CAMERA_SPREAD.camera, pan: [0.08,-0.04] as const, zoom:1.1 } };
+      const capture = captureCameraSpread(halfFoldOnSheetKernelScene(), spread, 0);
+      const stored = storeScene(capture.scene, capture.paperScale, null, capture.paperFaces!);
+      if (stored.kind !== 'picture') throw new Error('Expected vector capture');
+      return cpStep(projection, {mode:'folded-flat',side:'front',foldCase:1,rotationDeg:0,spread}, stored.picture);
+    });
+    const document = insertSteps(createDiagram({title:'Default camera spread'}),steps,0);
+    const input = diagramPdfInput(document,FONTS,subsetter,'home');
+    expect(input.missing).toEqual([]);
+    expect(input.pages.join('')).toContain('<path');
+    expect(input.pages.join('')).not.toContain('<image');
+    const pdf=await write(input.pages,input.fonts,input.options);
+    expect(boxes(pdf,'/MediaBox')).toHaveLength(input.pages.length);
+    expect(new TextDecoder('latin1').decode(pdf)).not.toMatch(/\/Subtype\s*\/Image/);
+    if(process.env.CAMERA_SPREAD_PDF_OUT) writeFileSync(process.env.CAMERA_SPREAD_PDF_OUT,pdf);
+  });
   it('prints every page at home on its trim, with the fonts it sets embedded once', async () => {
     const input = diagramPdfInput(diagram(), FONTS, subsetter, 'home');
     expect(input.missing).toEqual([]);

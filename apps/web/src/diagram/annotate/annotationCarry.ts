@@ -17,6 +17,7 @@
  * pictures it carried marks to ({@link placesOnFaces}).
  */
 import { meanValueWeights } from '../../cp-workspace/folded/foldedLayerSpread';
+import { paperFacesOf, unspreadOn, faceSpreadMove, type StepFaces } from '../zoom/zoomImprint';
 import { storedSceneStep } from '../capture/captureGeometry';
 import { boundariesMatchMoved, isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import { turnClockwise } from '../../lib/geometry';
@@ -264,7 +265,9 @@ function pictureMove(
     const turn = sceneTurnMove(sceneBefore.bounds, sceneAfter.bounds, delta, quarters);
     if (!turn || was.mode !== 'folded-flat') return turn;
     const places = { from: placesOnFaces.get(before.picture), to: placesOn(after.picture) };
-    return spread ? spreadMove(sceneBefore, sceneAfter, turn, places) : turnRemembering(turn, places);
+    const beforeFaces = paperFacesOf(before), afterFaces = paperFacesOf(after);
+    const mapped = beforeFaces?.projection || afterFaces?.projection ? { before: beforeFaces, after: afterFaces } : undefined;
+    return spread ? spreadMove(sceneBefore, sceneAfter, turn, places, mapped) : turnRemembering(turn, places);
   }
   return null;
 }
@@ -339,12 +342,15 @@ function turnRemembering(turn: PictureMove, { from, to }: CarriedPlaces): Pictur
  * by `turn`. A point a carry took to `before` keeps its place on the face it
  * took it with ({@link placesOnFaces}), wherever it lies now.
  */
-function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove, places: CarriedPlaces): PictureMove {
+function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove, places: CarriedPlaces,
+  mapped?: { before: StepFaces | null; after: StepFaces | null }): PictureMove {
   const [source, target] = [wholeFaces(before), wholeFaces(after)];
+  if (mapped?.before) mapped.before.unspread.forEach((ring, face) => source.set(face, ring));
+  if (mapped?.after) mapped.after.unspread.forEach((ring, face) => target.set(face, ring));
   // Whole faces and woven patches, each as it is drawn: a patch is pressed on
   // its own piece, and moves with its face.
   const drawn = before.items.filter(
-    (item): item is PaperFaceItem => item.kind === 'face' && item.rings.length === 1 && !item.hidden && source.has(item.face)
+    (item): item is PaperFaceItem => item.kind === 'face' && item.rings.length > 0 && !item.hidden && source.has(item.face)
   );
   const [from, to] = [before.bounds, after.bounds];
   const longerFrom = Math.max(from.maxX - from.minX, from.maxY - from.minY);
@@ -355,15 +361,20 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove, pl
   const epsilon = Math.max(1e-9 * longerFrom, 2 * storedSceneStep(before.sheet));
   const scenePoint = ([u, v]: PicturePoint) => ({ x: from.minX + u * longerFrom, y: from.minY + v * longerFrom });
   // Front to back, the first drawn piece that holds.
-  const topmost = (holds: (piece: readonly ScenePoint[]) => boolean) => {
-    for (let i = drawn.length - 1; i >= 0; i -= 1) if (holds(drawn[i]!.rings[0]!)) return drawn[i]!.face;
+  const topmost = (holds: (rings: PaperFaceItem['rings']) => boolean) => {
+    for (let i = drawn.length - 1; i >= 0; i -= 1) if (holds(drawn[i]!.rings)) return drawn[i]!.face;
     return null;
   };
-  const cornerAt = (at: { x: number; y: number }) => (piece: readonly ScenePoint[]) =>
-    piece.some(([x, y]) => Math.hypot(x - at.x, y - at.y) <= epsilon);
+  // Compaction can leave disjoint visible islands or holes in one face item.
+  // Hit testing must use the same even-odd fill as its stored vector drawing.
+  const inside = (rings: PaperFaceItem['rings'], at: { x: number; y: number }) =>
+    rings.reduce((count, ring) => count + Number(insideRing(ring, at)), 0) % 2 === 1;
+  const cornerAt = (at: { x: number; y: number }) => (rings: PaperFaceItem['rings']) =>
+    rings.some((ring) => ring.some(([x, y]) => Math.hypot(x - at.x, y - at.y) <= epsilon));
   /** `at`'s place on `face`. */
   const placeOn = (face: number, at: { x: number; y: number }): PlaceOnFace | null => {
-    const weights = meanValueWeights(source.get(face)!.map(([x, y]) => ({ x, y })), at, epsilon);
+    const point = mapped?.before ? unspreadOn(mapped.before, face, [at.x,at.y]) : [at.x,at.y];
+    const weights = meanValueWeights(source.get(face)!.map(([x, y]) => ({ x, y })), { x: point[0]!, y: point[1]! }, epsilon);
     return weights ? { face, weights } : null;
   };
   /**
@@ -379,6 +390,7 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove, pl
         x += weight * goal[corner]![0];
         y += weight * goal[corner]![1];
       });
+      if (mapped?.after) [x,y] = faceSpreadMove(mapped.after, place.face, [x,y]);
       carried = [(x - to.minX) / longerTo, (y - to.minY) / longerTo];
     }
     if (place) places.to[kind].set(pointKey(carried), place);
@@ -405,17 +417,17 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove, pl
       // outside it): never a deeper face's, whose edge runs under the face it
       // shows on.
       const under =
-        topmost(cornerAt(at)) ?? topmost((piece) => insideRing(piece, at) || onRing(piece, at, epsilon));
+        topmost(cornerAt(at)) ?? topmost((rings) => inside(rings, at) || rings.some((ring) => onRing(ring, at, epsilon)));
       return carry('points', point, under === null ? null : placeOn(under, at));
     },
     // The face it is a corner of and opens into, though one without a corner
     // there has come over the angle since.
-    corner: (corner, inside) => {
+    corner: (corner, toward) => {
       const remembered = places.from?.corners.get(pointKey(corner));
       if (remembered) return carry('corners', corner, remembered);
-      const [at, nudged] = [scenePoint(corner), scenePoint(inside)];
+      const [at, nudged] = [scenePoint(corner), scenePoint(toward)];
       const isCorner = cornerAt(at);
-      const owner = topmost((piece) => isCorner(piece) && insideRing(piece, nudged));
+      const owner = topmost((rings) => isCorner(rings) && inside(rings, nudged));
       const place = owner === null ? null : placeOn(owner, at);
       return place && carry('corners', corner, place);
     },

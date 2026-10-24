@@ -357,6 +357,7 @@
     "toggleLighting": "光照",
     "toolExit": "退出工具",
     "toolOrbit": "环绕工具",
+    "toolPan": "平移工具",
     "toolPin": "固定工具",
     "toolPull": "拉动工具"
   },

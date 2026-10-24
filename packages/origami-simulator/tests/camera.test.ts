@@ -204,3 +204,25 @@ describe('the line of sight through a pixel', () => {
     expect(near.view[2]!).toBeGreaterThan(far.view[2]!);
   });
 });
+
+
+describe('camera pan', () => {
+  it('moves every depth by the same screen offset and preserves cursor rays', () => {
+    const positions = new Float32Array([0.2, 0.3, 0.4, -0.1, -0.2, 0.1]);
+    for (const perspective of [true, false]) {
+      for (const dpr of [1, 2]) {
+        const before = cameraUniforms(VIEW, CENTER, 1, 800 * dpr, 400 * dpr);
+        const after = cameraUniforms({ ...VIEW, pan: [0.25, -0.125] }, CENTER, 1, 800 * dpr, 400 * dpr);
+        const a = projectVertices(positions, before, { perspective });
+        const b = projectVertices(positions, after, { perspective });
+        for (let i = 0; i < a.count; i++) {
+          expect(b.screen[2*i]! - a.screen[2*i]!).toBeCloseTo(100 * dpr, 3);
+          expect(b.screen[2*i+1]! - a.screen[2*i+1]!).toBeCloseTo(-50 * dpr, 3);
+        }
+        const rayA = cursorRay({ x: 300 * dpr, y: 120 * dpr }, before, { perspective });
+        const rayB = cursorRay({ x: 400 * dpr, y: 70 * dpr }, after, { perspective });
+        expect(rayB).toEqual(rayA);
+      }
+    }
+  });
+});

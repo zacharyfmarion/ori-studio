@@ -1349,6 +1349,7 @@
       "back": "뒷면",
       "backToFlat": "평평하게 되돌리기",
       "cameraReadout": "요 {{yaw}}° · 피치 {{pitch}}°",
+      "cameraSpreadView": "펼친 모델: 드래그하여 회전, 가운데 버튼으로 드래그하여 이동",
       "degrees": "시계 방향 {{degrees}}°",
       "enlarged": "확대됨",
       "enlargedOff": "그림 전체를 다시 보여 줍니다",
@@ -1377,12 +1378,14 @@
       "onlySolution": "이 접기에는 층 순서가 하나뿐입니다",
       "orbitHint": "드래그해서 돌리기 · 두 번 클릭해서 초기화",
       "otherSide": "반대쪽에서 보기",
+      "panHint": "드래그하여 이동 · 스크롤하여 확대/축소",
       "pause": "일시정지",
       "percent": "{{value}}%",
       "play": "재생",
       "previousSolution": "이전 층 순서",
       "reset": "포즈 초기화",
       "resetHint": "이미 처음 자세입니다",
+      "retrySpread": "실시간 보기 다시 시도",
       "rotateLeft": "왼쪽으로 회전",
       "rotateRight": "오른쪽으로 회전",
       "rotation": "회전",
@@ -1406,6 +1409,7 @@
       "spreadAxisDegrees": "{{degrees}}°",
       "spreadAxisName": "벌림 축",
       "spreadAxisValue": "종이에서 {{degrees}} 축",
+      "spreadDiagram": "도해",
       "spreadDirection": "방향",
       "spreadDirectionName": "벌리는 방향",
       "spreadDown": "아래 층을 아래로",
@@ -1417,12 +1421,16 @@
       "spreadKeepTop": "위",
       "spreadKind": "벌림 방식",
       "spreadKindAffine": "아핀",
+      "spreadKindCamera": "기본값",
       "spreadKindDepth": "깊이",
       "spreadLayers": "층 벌리기",
       "spreadLayersRow": "층 벌리기",
       "spreadLeft": "아래 층을 왼쪽으로",
       "spreadNeedsFlat": "평평하게 접은 그림만 벌릴 층이 있습니다",
       "spreadNeedsOrder": "이 접기에는 층 순서가 없어 벌릴 층이 없습니다",
+      "spreadOrthographic": "3D 평행 투영",
+      "spreadPerspective": "3D 원근 투영",
+      "spreadProjection": "보기",
       "spreadRight": "아래 층을 오른쪽으로",
       "spreadSkew": "기울기",
       "spreadSkewName": "벌림 기울기",
@@ -1430,6 +1438,8 @@
       "spreadUp": "아래 층을 위로",
       "spreadUpLeft": "아래 층을 왼쪽 위로",
       "spreadUpRight": "아래 층을 오른쪽 위로",
+      "spreadViewDirection": "시선 방향",
+      "spreadViewTilt": "시선 기울기",
       "turnOver": "뒤집기",
       "upright": "똑바로 세우기",
       "uprightNone": "이 접기에는 똑바로 세울 대칭축이 없습니다",
@@ -1997,9 +2007,11 @@
     "backendGpuTitle": "GPU에서 계산 중 (WebGL2)",
     "backToPatterns": "패턴",
     "canvasAriaLabel": "종이접기 접힌 베이스 시뮬레이터. 드래그하여 회전, 스크롤하여 확대/축소, 더블 클릭하여 보기 초기화.",
+    "canvasAriaLabelPan": "종이접기 시뮬레이터. 드래그하여 이동하고 스크롤하여 확대/축소합니다.",
     "canvasAriaLabelPin": "종이접기 접힌 베이스 시뮬레이터. 상자를 드래그하거나 면을 클릭하여 고정, 스크롤하여 확대/축소.",
     "canvasAriaLabelPull": "종이접기 기본형 시뮬레이터. 종이를 드래그하여 고정된 곳을 중심으로 당기고, 스크롤하여 확대/축소합니다.",
     "canvasTitle": "드래그하여 회전, 스크롤하여 확대/축소, 더블 클릭하여 보기 초기화",
+    "canvasTitlePan": "드래그하여 이동, 스크롤하여 확대/축소",
     "canvasTitlePin": "상자를 드래그하거나 면을 클릭하여 고정, 스크롤하여 확대/축소",
     "canvasTitlePull": "종이를 드래그하여 당기기, 스크롤하여 확대/축소",
     "contextMenu": {
@@ -2033,6 +2045,10 @@
         "description": "드래그하여 모델을 돌립니다.",
         "label": "궤도"
       },
+      "pan": {
+        "description": "드래그하여 보기를 이동합니다.",
+        "label": "이동"
+      },
       "picker": {
         "close": "도구 목록 닫기",
         "title": "도구",
@@ -2043,7 +2059,7 @@
         "description": "나머지 종이가 접히는 동안 면을 제자리에 고정합니다.",
         "label": "고정",
         "orbitApple": "Cmd를 누른 채 드래그하면 모델이 돌아갑니다.",
-        "orbitMiddle": "가운데 버튼으로 드래그하면 모델이 돌아갑니다.",
+        "orbitMiddle": "가운데 버튼으로 드래그하면 이동합니다. 모델을 회전하려면 궤도 회전을 사용하세요.",
         "shift": "Shift를 누른 채 드래그하면 고정에 추가합니다. Shift를 누른 채 클릭하면 면 하나를 고정하거나 해제합니다.",
         "throughLayers": "모든 레이어를 관통하여 선택",
         "touchBox": "상자를 드래그하여 그 안의 면을 고정합니다.",
@@ -2159,5 +2175,10 @@
       "deselect": "모두 선택 해제",
       "pairAllNone": "서로 마주 보는 미지정 노드가 없습니다."
     }
+  },
+  "viewport3d": {
+    "fit": "화면에 맞추기",
+    "navigation": "보기 탐색",
+    "pan": "보기 이동"
   }
 }

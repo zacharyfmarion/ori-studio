@@ -15,7 +15,7 @@ import type { CpCaptureRuntime } from './captureFolded';
 import { createPoseController, linkedFoldKey } from './poseController';
 import { ensureCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
 import { stepsIn } from '../document/diagramSteps.fixtures';
-import type { DiagramLayerSpread } from '../document/diagramDocument';
+import { DEFAULT_CAMERA_SPREAD, type DiagramLayerSpread } from '../document/diagramDocument';
 
 const bindings = vi.hoisted(() => ({ runtime: null as CpCaptureRuntime | null }));
 vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOriginal) => ({
@@ -185,6 +185,32 @@ describe('the Pose controller', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('holds a camera drag across pauses, commits once on release, and cancels without history', async () => {
+    vi.useFakeTimers();
+    const stepId = await linkedStep();
+    const controller = createPoseController(stepId, listener());
+    try {
+      await controller.run({ verb: 'show-folded' });
+      const stored = DEFAULT_CAMERA_SPREAD.camera;
+      const before = state().diagramHistory.past.length;
+      controller.cameraGesture(true);
+      const moved = { ...stored, pan: [0.2, 0.1] as [number, number] };
+      controller.orbit(moved, stored);
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(state().diagramHistory.past.length).toBe(before);
+      controller.cameraGesture(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(state().diagramHistory.past.length).toBe(before + 1);
+      expect(controller.consumeCameraCommit(moved)).toBe(true);
+      expect(controller.consumeCameraCommit(moved)).toBe(false);
+      controller.cameraGesture(true);
+      controller.orbit({ ...moved, zoom: 2 }, moved);
+      controller.cameraGesture(false, true);
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(state().diagramHistory.past.length).toBe(before + 1);
+    } finally { controller.dispose(); vi.useRealTimers(); }
   });
 
   it('captures a rest of Pose’s simulator only when it is not the step’s picture already (D19)', async () => {
@@ -396,36 +422,36 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     });
   }
 
-  it('starts a new flat pose spread — the nearest step before’s, else affine (Zach, 2026-10-05) — and turns it off and on, counted with how', async () => {
+  it('starts a new flat pose spread — the nearest earlier Default spread — and turns it off and on, counted with how', async () => {
     const first = await linkedStep();
     const second = await linkedStep();
     expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, second]);
     const one = createPoseController(first, listener());
     await one.run({ verb: 'show-folded' });
-    // No step before it has one: the default, affine, on.
-    expect(spreadOf(first)).toEqual(AFFINE);
-    await one.run({ verb: 'spread-keep', keep: 'bottom' });
-    expect(spreadOf(first)).toEqual({ ...AFFINE, keep: 'bottom' });
+    // No step before it has one: the default, camera, on.
+    expect(spreadOf(first)).toEqual(DEFAULT_CAMERA_SPREAD);
+    await one.run({ verb: 'spread-amount', amount: 0.12 });
+    expect(spreadOf(first)).toEqual({ ...DEFAULT_CAMERA_SPREAD, amount: 0.12 });
     one.dispose();
 
     const two = createPoseController(second, listener());
     await two.run({ verb: 'show-folded' });
     // The step before's.
-    expect(spreadOf(second)).toEqual({ ...AFFINE, keep: 'bottom' });
+    expect(spreadOf(second)).toEqual({ ...DEFAULT_CAMERA_SPREAD, amount: 0.12 });
     const past = state().diagramHistory.past.length;
     await two.run({ verb: 'spread-layers' });
     expect(spreadOf(second)).toBeNull();
     await two.run({ verb: 'spread-layers' });
-    expect(spreadOf(second)).toEqual({ ...AFFINE, keep: 'bottom' });
+    expect(spreadOf(second)).toEqual({ ...DEFAULT_CAMERA_SPREAD, amount: 0.12 });
     expect(state().diagramHistory.past.length).toBe(past + 2);
     two.dispose();
 
     expect(analytics.trackDiagramPicturePosed.mock.calls.slice(-5)).toEqual([
       ['show_folded', 'flat', {}],
-      ['spread_keep', 'flat', { spread: { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 } }],
+      ['spread_amount', 'flat', { spread: { kind: 'camera', amount: 0.12, projection: 'diagram' } }],
       ['show_folded', 'flat', {}],
       ['spread_off', 'flat', {}],
-      ['spread_on', 'flat', { spread: { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 } }],
+      ['spread_on', 'flat', { spread: { kind: 'camera', amount: 0.12, projection: 'diagram' } }],
     ]);
   });
 
@@ -477,8 +503,8 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
 
     const two = createPoseController(second, listener());
     await two.run({ verb: 'show-folded' });
-    // A new pose starts as the step before is spread, of either kind.
-    expect(spreadOf(second)).toEqual(opened);
+    // A new pose uses Default; choosing Affine still inherits the earlier affine settings.
+    expect(spreadOf(second)).toEqual(DEFAULT_CAMERA_SPREAD);
     // No step before has a depth spread: the default; and back to the affine one before.
     await two.run({ verb: 'spread-kind', kind: 'depth' });
     expect(spreadOf(second)).toEqual(DEPTH);
@@ -492,6 +518,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
+    await controller.run({ verb: 'spread-kind', kind: 'affine' });
     const reads = vi.mocked(bindings.runtime!.paperScene).mock.calls.length;
     const past = state().diagramHistory.past.length;
     const posed = analytics.trackDiagramPicturePosed.mock.calls.length;
@@ -567,6 +594,30 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     controller.dispose();
   });
 
+  it('reopens a Default pose from immutable geometry without folding or capturing another picture', async () => {
+    useWorkspaceStore.setState({ oristudioCpDocument: { ...state().oristudioCpDocument!, document: cpDocument() } });
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, DEFAULT_CAMERA_SPREAD);
+    const first = { ...listener(), cameraSpread: vi.fn() };
+    const one = createPoseController(stepId, first);
+    one.prepareCameraSpread();
+    await vi.waitFor(() => expect(first.cameraSpread).toHaveBeenCalledOnce());
+    const scene = first.cameraSpread.mock.lastCall![0].scene;
+    expect(bindings.runtime!.fold).toHaveBeenCalledOnce();
+    const picture = stepsIn(state().diagram!)[0]!.picture;
+    const history = state().diagramHistory;
+    one.dispose();
+    const second = { ...listener(), cameraSpread: vi.fn() };
+    const two = createPoseController(stepId, second);
+    two.prepareCameraSpread();
+    await vi.waitFor(() => expect(second.cameraSpread).toHaveBeenCalledOnce());
+    expect(second.cameraSpread.mock.lastCall![0].scene).toBe(scene);
+    expect(bindings.runtime!.fold).toHaveBeenCalledOnce();
+    expect(stepsIn(state().diagram!)[0]!.picture).toBe(picture);
+    expect(state().diagramHistory).toBe(history);
+    two.dispose();
+  });
+
   it('folds for a preview when it holds nothing yet, and commits after that fold rather than refused as busy', async () => {
     const stepId = await linkedStep();
     flatInTheFile(stepId, { kind: 'depth', amount: 0.05, toward: 'down' });
@@ -603,6 +654,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const stepId = await linkedStep();
     const controller = createPoseController(stepId, listener());
     await controller.run({ verb: 'show-folded' });
+    await controller.run({ verb: 'spread-kind', kind: 'affine' });
     const past = state().diagramHistory.past.length;
     const commits = [0.1, 0.12, 0.14].map((value) => {
       controller.previewSpread({ slider: 'amount', kind: 'affine', value });
@@ -790,6 +842,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
+    await controller.run({ verb: 'spread-kind', kind: 'affine' });
     await controller.run({ verb: 'turn-over' });
     controller.previewSpread({ slider: 'amount', kind: 'affine', value: 0.1 });
     // Heard before the undo, which takes back this step's turn.
@@ -890,6 +943,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
+    await controller.run({ verb: 'spread-kind', kind: 'affine' });
     controller.previewSpread({ slider: 'amount', kind: 'affine', value: 0.1 });
     expect(heard.preview).toHaveBeenLastCalledWith(
       expect.objectContaining({ spread: { ...AFFINE, amount: 0.1 } }),

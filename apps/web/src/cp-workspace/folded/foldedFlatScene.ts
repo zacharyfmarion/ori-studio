@@ -101,7 +101,7 @@ export interface FoldedFlatPaperSceneOptions {
    * show an edge, so a caller that spreads keeps every face:
    * `markHidden: false`.
    */
-  spread?: LayerSpreadOptions;
+  spread?: Exclude<LayerSpreadOptions, { kind: 'camera' }>;
 }
 
 /**

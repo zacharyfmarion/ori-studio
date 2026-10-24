@@ -373,6 +373,7 @@
     "toggleLighting": "Iluminação",
     "toolExit": "Sair da ferramenta",
     "toolOrbit": "Ferramenta Órbita",
+    "toolPan": "Ferramenta de deslocamento",
     "toolPin": "Ferramenta Fixar",
     "toolPull": "Ferramenta Puxar"
   },

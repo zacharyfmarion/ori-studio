@@ -373,6 +373,7 @@
     "toggleLighting": "Éclairage",
     "toolExit": "Quitter l’outil",
     "toolOrbit": "Outil Orbite",
+    "toolPan": "Outil de déplacement",
     "toolPin": "Outil Épingler",
     "toolPull": "Outil Tirer"
   },

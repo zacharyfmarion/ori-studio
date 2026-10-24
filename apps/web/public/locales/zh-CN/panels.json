@@ -1349,6 +1349,7 @@
       "back": "背面",
       "backToFlat": "恢复为平面",
       "cameraReadout": "偏航 {{yaw}}° · 俯仰 {{pitch}}°",
+      "cameraSpreadView": "展开图层的模型：拖动旋转，按住中键拖动平移",
       "degrees": "顺时针 {{degrees}}°",
       "enlarged": "已放大",
       "enlargedOff": "重新显示整张图片",
@@ -1377,12 +1378,14 @@
       "onlySolution": "此折叠只有一种层序",
       "orbitHint": "拖动以旋转 · 双击以重置",
       "otherSide": "从另一面查看",
+      "panHint": "拖动平移 · 滚动缩放",
       "pause": "暂停",
       "percent": "{{value}}%",
       "play": "播放",
       "previousSolution": "上一种层序",
       "reset": "重置姿态",
       "resetHint": "已处于初始姿态",
+      "retrySpread": "重试实时视图",
       "rotateLeft": "向左旋转",
       "rotateRight": "向右旋转",
       "rotation": "旋转",
@@ -1406,6 +1409,7 @@
       "spreadAxisDegrees": "{{degrees}}°",
       "spreadAxisName": "错开轴",
       "spreadAxisValue": "纸面上{{degrees}}的轴",
+      "spreadDiagram": "图解",
       "spreadDirection": "方向",
       "spreadDirectionName": "错开方向",
       "spreadDown": "下层向下",
@@ -1417,12 +1421,16 @@
       "spreadKeepTop": "顶层",
       "spreadKind": "错开方式",
       "spreadKindAffine": "仿射",
+      "spreadKindCamera": "默认",
       "spreadKindDepth": "深度",
       "spreadLayers": "错开层",
       "spreadLayersRow": "错开层",
       "spreadLeft": "下层向左",
       "spreadNeedsFlat": "只有平折的图才有可错开的层",
       "spreadNeedsOrder": "此折叠没有层序，因此没有可错开的层",
+      "spreadOrthographic": "3D 平行投影",
+      "spreadPerspective": "3D 透视投影",
+      "spreadProjection": "视图",
       "spreadRight": "下层向右",
       "spreadSkew": "倾斜",
       "spreadSkewName": "错开倾斜",
@@ -1430,6 +1438,8 @@
       "spreadUp": "下层向上",
       "spreadUpLeft": "下层向左上",
       "spreadUpRight": "下层向右上",
+      "spreadViewDirection": "观察方向",
+      "spreadViewTilt": "观察倾角",
       "turnOver": "翻面",
       "upright": "竖直摆正",
       "uprightNone": "此折叠没有可用来竖直摆正的对称轴",
@@ -1997,9 +2007,11 @@
     "backendGpuTitle": "在 GPU 上求解（WebGL2）",
     "backToPatterns": "折痕图",
     "canvasAriaLabel": "折纸折叠基础模拟器。拖动以旋转，滚动以缩放，双击以重置视图。",
+    "canvasAriaLabelPan": "折纸模拟器。拖动平移，滚动缩放。",
     "canvasAriaLabelPin": "折纸折叠基础模拟器。拖出方框或点击面以固定，滚动以缩放。",
     "canvasAriaLabelPull": "折纸基础形模拟器。拖动纸张可绕固定处拉动，滚动以缩放。",
     "canvasTitle": "拖动以旋转，滚动以缩放，双击以重置视图",
+    "canvasTitlePan": "拖动平移，滚动缩放",
     "canvasTitlePin": "拖出方框或点击面以固定，滚动以缩放",
     "canvasTitlePull": "拖动纸张以拉动，滚动以缩放",
     "contextMenu": {
@@ -2033,6 +2045,10 @@
         "description": "拖动以转动模型。",
         "label": "环绕"
       },
+      "pan": {
+        "description": "拖动以平移视图。",
+        "label": "平移"
+      },
       "picker": {
         "close": "关闭工具列表",
         "title": "工具",
@@ -2043,7 +2059,7 @@
         "description": "在纸张其余部分折叠时，将面固定在原位。",
         "label": "固定",
         "orbitApple": "按住 Cmd 拖动以转动模型。",
-        "orbitMiddle": "用鼠标中键拖动以转动模型。",
+        "orbitMiddle": "按住中键拖动可平移；使用环绕工具旋转模型。",
         "shift": "按住 Shift 拖动可添加固定。按住 Shift 点击可固定或取消固定单个面。",
         "throughLayers": "穿透所有层选择",
         "touchBox": "拖出方框以固定其中的面。",
@@ -2159,5 +2175,10 @@
       "deselect": "取消全部选择",
       "pairAllNone": "没有彼此相对的未配对节点。"
     }
+  },
+  "viewport3d": {
+    "fit": "适应窗口",
+    "navigation": "视图导航",
+    "pan": "平移视图"
   }
 }

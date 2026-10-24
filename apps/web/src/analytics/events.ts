@@ -292,6 +292,7 @@ export type DiagramPoseAction =
   | 'spread_keep'
   | 'spread_skew'
   | 'spread_axis'
+  | 'spread_view'
   | 'paper_side'
   // A crease pattern on its back turned over side to side, or back (the Step pane's Flip creases).
   | 'flip_creases_on'
@@ -317,6 +318,7 @@ export type DiagramSpreadKeep = 'top' | 'bottom';
  * held still, skew and axis. The numbers are bucketed when sent.
  */
 export type DiagramSpreadTracking =
+  | { kind: 'camera'; amount: number; projection: 'diagram' | 'orthographic' | 'perspective' }
   | { kind: 'depth'; direction: DiagramSpreadDirection; amount: number }
   | { kind: 'affine'; amount: number; keep: DiagramSpreadKeep; skew: number; axisDeg: number };
 

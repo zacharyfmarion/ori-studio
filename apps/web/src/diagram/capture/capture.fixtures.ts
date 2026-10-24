@@ -219,7 +219,7 @@ export function fakeCaptureRuntime(overrides: Partial<CpCaptureRuntime> = {}): C
     setModel: vi.fn(async () => ({ discoveredCases: 1, displayStyle: 'Paper5' as const })),
     foldAnother: vi.fn(async () => ({ discoveredCases: 2, displayStyle: 'Paper5' as const })),
     renderSnapshot: vi.fn(async () => squareRenderSnapshot()),
-    paperScene: vi.fn(async () => halfFoldKernelScene()),
+    paperScene: vi.fn(async () => halfFoldOnSheetKernelScene()),
     free: vi.fn(async () => {}),
     fold3d: vi.fn(async () => {
       throw new Error('no 3D fold in this fake');

@@ -1427,6 +1427,7 @@
       "back": "Reverso",
       "backToFlat": "Volver a plano",
       "cameraReadout": "Guiñada {{yaw}}° · Cabeceo {{pitch}}°",
+      "cameraSpreadView": "Modelo separado: arrastra para girar; arrastra con el botón central para desplazar",
       "degrees": "{{degrees}}° en sentido horario",
       "enlarged": "Ampliado",
       "enlargedOff": "Mostrar de nuevo la imagen entera",
@@ -1455,12 +1456,14 @@
       "onlySolution": "Este pliegue tiene un solo orden de capas",
       "orbitHint": "Arrastra para girar · Doble clic para restablecer",
       "otherSide": "Ver desde el otro lado",
+      "panHint": "Arrastra para desplazar · Desplázate con la rueda para hacer zoom",
       "pause": "Pausar",
       "percent": "{{value}} %",
       "play": "Reproducir",
       "previousSolution": "Orden de capas anterior",
       "reset": "Restablecer pose",
       "resetHint": "Ya está en su pose inicial",
+      "retrySpread": "Reintentar vista en vivo",
       "rotateLeft": "Girar a la izquierda",
       "rotateRight": "Girar a la derecha",
       "rotation": "Rotación",
@@ -1484,6 +1487,7 @@
       "spreadAxisDegrees": "{{degrees}}°",
       "spreadAxisName": "Eje de la separación",
       "spreadAxisValue": "Eje a {{degrees}} en la hoja",
+      "spreadDiagram": "Diagrama",
       "spreadDirection": "Dirección",
       "spreadDirectionName": "Dirección de separación",
       "spreadDown": "Capas inferiores hacia abajo",
@@ -1495,12 +1499,16 @@
       "spreadKeepTop": "Superior",
       "spreadKind": "Separar por",
       "spreadKindAffine": "Afín",
+      "spreadKindCamera": "Predeterminado",
       "spreadKindDepth": "Profundidad",
       "spreadLayers": "Separar capas",
       "spreadLayersRow": "Separar capas",
       "spreadLeft": "Capas inferiores hacia la izquierda",
       "spreadNeedsFlat": "Solo una figura plegada en plano tiene capas que separar",
       "spreadNeedsOrder": "Este pliegue no tiene orden de capas, así que no tiene capas que separar",
+      "spreadOrthographic": "3D paralela",
+      "spreadPerspective": "3D perspectiva",
+      "spreadProjection": "Vista",
       "spreadRight": "Capas inferiores hacia la derecha",
       "spreadSkew": "Sesgo",
       "spreadSkewName": "Sesgo de la separación",
@@ -1508,6 +1516,8 @@
       "spreadUp": "Capas inferiores hacia arriba",
       "spreadUpLeft": "Capas inferiores arriba a la izquierda",
       "spreadUpRight": "Capas inferiores arriba a la derecha",
+      "spreadViewDirection": "Dirección de vista",
+      "spreadViewTilt": "Inclinación de vista",
       "turnOver": "Dar la vuelta",
       "upright": "Enderezar",
       "uprightNone": "Este pliegue no tiene un eje de simetría sobre el que enderezarse",
@@ -2113,9 +2123,11 @@
     "backendGpuTitle": "Resolviendo en la GPU (WebGL2)",
     "backToPatterns": "Patrones",
     "canvasAriaLabel": "Simulador de bases plegadas de origami. Arrastre para rotar, desplace para ampliar, haga doble clic para restablecer la vista.",
+    "canvasAriaLabelPan": "Simulador de origami. Arrastra para desplazar; usa la rueda para hacer zoom.",
     "canvasAriaLabelPin": "Simulador de bases plegadas de origami. Arrastre un recuadro o haga clic en una cara para fijarla, desplace para ampliar.",
     "canvasAriaLabelPull": "Simulador de bases de origami. Arrastre el papel para tirar de él alrededor de sus fijaciones, desplace para ampliar.",
     "canvasTitle": "Arrastre para rotar, desplace para ampliar, haga doble clic para restablecer la vista",
+    "canvasTitlePan": "Arrastra para desplazar; usa la rueda para hacer zoom",
     "canvasTitlePin": "Arrastre un recuadro o haga clic en una cara para fijarla, desplace para ampliar",
     "canvasTitlePull": "Arrastre el papel para tirar de él, desplace para ampliar",
     "contextMenu": {
@@ -2149,6 +2161,10 @@
         "description": "Arrastre para girar el modelo.",
         "label": "Órbita"
       },
+      "pan": {
+        "description": "Arrastra para desplazar la vista.",
+        "label": "Desplazar"
+      },
       "picker": {
         "close": "Cerrar la lista de herramientas",
         "title": "Herramientas",
@@ -2159,7 +2175,7 @@
         "description": "Mantiene caras en su sitio mientras el resto del papel se pliega.",
         "label": "Fijar",
         "orbitApple": "Arrastrar con Cmd gira el modelo.",
-        "orbitMiddle": "Arrastre con el botón central para girar el modelo.",
+        "orbitMiddle": "Arrastra con el botón central para desplazar; usa Orbitar para girar el modelo.",
         "shift": "Arrastrar con Mayús añade a las fijaciones. Mayús+clic fija o suelta una cara.",
         "throughLayers": "Seleccionar a través de todas las capas",
         "touchBox": "Arrastre un recuadro para fijar las caras que contiene.",
@@ -2281,5 +2297,10 @@
       "deselect": "Deseleccionar todo",
       "pairAllNone": "Ningún nodo sin pareja tiene otro enfrente."
     }
+  },
+  "viewport3d": {
+    "fit": "Ajustar vista",
+    "navigation": "Navegación de vista",
+    "pan": "Desplazar vista"
   }
 }

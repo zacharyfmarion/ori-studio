@@ -11,7 +11,7 @@ import type { SimulatorShortcutId } from '../../keyboard/shortcuts';
 import type { SimulatorPickRegion, SimulatorScreenPoint } from '../pickQuery';
 
 /** The simulator's tools. Orbit is the resting one: a drag turns the model. */
-export type SimulatorToolId = 'orbit' | 'pin' | 'pull';
+export type SimulatorToolId = 'orbit' | 'pan' | 'pin' | 'pull';
 
 /**
  * How a tool reads a press on the canvas.
@@ -20,10 +20,10 @@ export type SimulatorToolId = 'orbit' | 'pin' | 'pull';
  * routes in `pressRoute.ts`: a new mode is a typecheck error everywhere it has
  * to be handled.
  */
-export type SimulatorInputMode = 'orbit' | 'pick-faces' | 'pull';
+export type SimulatorInputMode = 'orbit' | 'pan' | 'pick-faces' | 'pull';
 
 /** Icon names, mapped to glyphs by each surface so this module stays JSX-free. */
-export type SimulatorToolIcon = 'orbit' | 'pin' | 'pull';
+export type SimulatorToolIcon = 'orbit' | 'pan' | 'pin' | 'pull';
 
 /** The cursor a tool shows over the canvas while nothing overrides it. */
 export type SimulatorToolCursor = 'grab' | 'crosshair';

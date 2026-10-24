@@ -71,6 +71,7 @@ import {
   DEFAULT_AFFINE_SPREAD,
   DEFAULT_DEPTH_SPREAD,
   DEFAULT_LAYER_SPREAD,
+  DEFAULT_CAMERA_SPREAD,
   DEFAULT_SPREAD_STARTS,
   nearestEarlierShowAs,
   nearestEarlierSpread,
@@ -958,7 +959,7 @@ describe('the ways a linked pattern is shown (D19)', () => {
       side: 'front',
       rotationDeg: 45,
       foldCase: 1,
-      spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 },
+      spread: DEFAULT_CAMERA_SPREAD,
     });
     expect(renderToShowAs({ render: pattern }, 'folded')).not.toHaveProperty('spread');
     // The pattern and the simulation take none.
@@ -1006,12 +1007,14 @@ describe('a flat fold’s spread (Phase 13)', () => {
     expect(nearestEarlierSpread(document, 'step-g', 'affine')).toEqual(affine(0.06));
     expect(nearestEarlierSpread(document, 'step-c', 'depth')).toEqual(depth(0.1, 'down'));
     expect(spreadStartsFor(document, 'step-g')).toEqual({
-      any: depth(0.03, 'up-left'),
+      any: DEFAULT_CAMERA_SPREAD,
+      camera: DEFAULT_CAMERA_SPREAD,
       depth: depth(0.03, 'up-left'),
       affine: affine(0.06),
     });
     expect(spreadStartsFor(document, 'step-b')).toEqual({
-      any: depth(0.1, 'down'),
+      any: DEFAULT_CAMERA_SPREAD,
+      camera: DEFAULT_CAMERA_SPREAD,
       depth: depth(0.1, 'down'),
       affine: DEFAULT_AFFINE_SPREAD,
     });
@@ -1033,11 +1036,11 @@ describe('a flat fold’s spread (Phase 13)', () => {
     expect(nearestEarlierShowAs(after, 'step-gone')).toBeNull();
   });
 
-  it('defaults to affine, at the playground’s bird base; and depth to 2.5%, deeper layers down (Zach, 2026-10-05)', () => {
-    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
+  it('defaults to camera spread while preserving the legacy kind defaults', () => {
+    expect(DEFAULT_LAYER_SPREAD).toBe(DEFAULT_CAMERA_SPREAD);
     expect(DEFAULT_AFFINE_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
     expect(DEFAULT_DEPTH_SPREAD).toEqual({ kind: 'depth', amount: 0.025, toward: 'down' });
-    expect(DEFAULT_SPREAD_STARTS).toEqual({ any: DEFAULT_AFFINE_SPREAD, depth: DEFAULT_DEPTH_SPREAD, affine: DEFAULT_AFFINE_SPREAD });
+    expect(DEFAULT_SPREAD_STARTS).toEqual({ any: DEFAULT_CAMERA_SPREAD, camera: DEFAULT_CAMERA_SPREAD, depth: DEFAULT_DEPTH_SPREAD, affine: DEFAULT_AFFINE_SPREAD });
   });
 
   it('keeps a depth amount within 0.5% and 20%, to a hundredth of a percent', () => {

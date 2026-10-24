@@ -57,6 +57,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('panels:simulatorExport.trigger', 'Export view…');
     case 'simulator.setUpright':
       return t('panels:simulator.setUpright', 'Set upright');
+    case 'simulator.tool.pan':
+      return t('tools:simulator.toolPan', 'Pan Tool');
     case 'simulator.tool.orbit':
       return t('tools:simulator.toolOrbit', 'Orbit Tool');
     case 'simulator.tool.pin':

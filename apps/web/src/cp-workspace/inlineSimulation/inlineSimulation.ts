@@ -20,7 +20,7 @@ import {
 } from '../canvasObjects/placeBesideCp';
 import type { TransformableCanvasObject } from '../canvasObjects/transformableObject';
 import { resolveRegion, type RegionLike } from '../regions/regionReference';
-import type { SimulatorOrbitView } from '../../lib/simulatorOrbit';
+import type { OrbitView } from '../../lib/viewport3dCamera';
 
 /**
  * A live simulation of one crease-pattern region, placed on the Edit canvas.
@@ -55,7 +55,7 @@ export interface InlineSimulation {
    * would fix that is still missing. Which is also why orbiting takes no undo
    * checkpoint: there is nothing in the descriptor for it to change.
    */
-  view: SimulatorOrbitView;
+  view: OrbitView;
   /*
    * Note what is NOT here: where the fold currently is.
    *
@@ -154,7 +154,7 @@ export function createInlineSimulation(options: {
   document: OristudioCpDocumentSnapshot;
   cpLineIds: readonly number[];
   z: number;
-  view: SimulatorOrbitView;
+  view: OrbitView;
   /** Blockers already measured along the frame's axes (see `frameAngle`). */
   blockers?: readonly Aabb[];
   /**

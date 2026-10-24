@@ -15,8 +15,10 @@
  */
 
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import { cameraSpreadInitialView } from '../../cp-workspace/folded/cameraSpreadView';
 import type {
   AffineSpreadOptions,
+  CameraLayerSpreadOptions,
   DepthSpreadOptions,
   LayerSpreadOptions,
   SpreadKind,
@@ -283,6 +285,7 @@ export type DiagramAffineSpread = AffineSpreadOptions;
  * way back to the sheet along its axis (in every direction only at no skew).
  */
 export const SPREAD_AMOUNT_RANGE: Readonly<Record<SpreadKind, { readonly min: number; readonly max: number }>> = {
+  camera: { min: 0, max: 0.5 },
   depth: { min: 0.005, max: 0.2 },
   affine: { min: 0.005, max: 0.25 },
 };
@@ -299,7 +302,7 @@ export const SPREAD_AXIS_RANGE = { min: 0, max: 179 } as const;
  */
 export function clampSpreadAmount(kind: SpreadKind, amount: number): number {
   const { min, max } = SPREAD_AMOUNT_RANGE[kind];
-  const fallback = kind === 'depth' ? DEFAULT_DEPTH_SPREAD.amount : DEFAULT_AFFINE_SPREAD.amount;
+  const fallback = DEFAULT_SPREAD_STARTS[kind].amount;
   const within = Number.isFinite(amount) ? Math.min(max, Math.max(min, amount)) : fallback;
   return Number(within.toFixed(4));
 }
@@ -338,12 +341,16 @@ export const DEFAULT_AFFINE_SPREAD: DiagramAffineSpread = {
   axisDeg: 81,
 };
 
+export const DEFAULT_CAMERA_SPREAD: CameraLayerSpreadOptions = {
+  kind: 'camera', amount: 0.06, projection: 'diagram', directionDeg: 247, inclinationDeg: 45,
+  camera: cameraSpreadInitialView({ directionDeg: 247, inclinationDeg: 45 }),
+};
+
 /**
- * The spread a folded-flat pose starts with when no earlier step has one, and
- * Spread Layers turned on takes then — Zach, 2026-10-05: "I want affine to be
- * the default option and the first displayed, and default to on".
+ * New flat poses use Default. An existing pose retains its stored spread
+ * (including Off), and legacy choices keep their own remembered settings.
  */
-export const DEFAULT_LAYER_SPREAD: DiagramLayerSpread = DEFAULT_AFFINE_SPREAD;
+export const DEFAULT_LAYER_SPREAD: DiagramLayerSpread = DEFAULT_CAMERA_SPREAD;
 
 /**
  * The spread of the nearest step before `stepId` whose flat fold has one —
@@ -390,6 +397,7 @@ export function nearestEarlierShowAs(document: DiagramDocument, stepId: string):
  */
 export interface DiagramSpreadStarts {
   any: DiagramLayerSpread;
+  camera: CameraLayerSpreadOptions;
   depth: DiagramDepthSpread;
   affine: DiagramAffineSpread;
 }
@@ -397,6 +405,7 @@ export interface DiagramSpreadStarts {
 /** The starts when there is no diagram to look in: the defaults. */
 export const DEFAULT_SPREAD_STARTS: DiagramSpreadStarts = {
   any: DEFAULT_LAYER_SPREAD,
+  camera: DEFAULT_CAMERA_SPREAD,
   depth: DEFAULT_DEPTH_SPREAD,
   affine: DEFAULT_AFFINE_SPREAD,
 };
@@ -405,10 +414,12 @@ export const DEFAULT_SPREAD_STARTS: DiagramSpreadStarts = {
 export function spreadStartsFor(document: DiagramDocument, stepId: string): DiagramSpreadStarts {
   const depth = nearestEarlierSpread(document, stepId, 'depth');
   const affine = nearestEarlierSpread(document, stepId, 'affine');
+  const camera = nearestEarlierSpread(document, stepId, 'camera');
   return {
-    any: nearestEarlierSpread(document, stepId) ?? DEFAULT_LAYER_SPREAD,
+    any: camera ?? DEFAULT_LAYER_SPREAD,
     depth: depth?.kind === 'depth' ? depth : DEFAULT_DEPTH_SPREAD,
     affine: affine?.kind === 'affine' ? affine : DEFAULT_AFFINE_SPREAD,
+    camera: camera?.kind === 'camera' ? camera : DEFAULT_CAMERA_SPREAD,
   };
 }
 
@@ -417,6 +428,12 @@ export function sameSpread(a: DiagramLayerSpread | undefined, b: DiagramLayerSpr
   if (a === b) return true;
   if (a === undefined || b === undefined || a.kind !== b.kind || a.amount !== b.amount) return false;
   if (a.kind === 'depth') return b.kind === 'depth' && a.toward === b.toward;
+  if (a.kind === 'camera') return b.kind === 'camera' && a.projection === b.projection &&
+    !!a.cameraSet === !!b.cameraSet &&
+    a.directionDeg === b.directionDeg && a.inclinationDeg === b.inclinationDeg &&
+    a.camera.yaw === b.camera.yaw && a.camera.pitch === b.camera.pitch && a.camera.zoom === b.camera.zoom &&
+    (a.camera.pan?.[0] ?? 0) === (b.camera.pan?.[0] ?? 0) && (a.camera.pan?.[1] ?? 0) === (b.camera.pan?.[1] ?? 0) &&
+    JSON.stringify(a.camera.orient) === JSON.stringify(b.camera.orient);
   return b.kind === 'affine' && a.keep === b.keep && a.skew === b.skew && a.axisDeg === b.axisDeg;
 }
 
@@ -696,6 +713,8 @@ export interface DiagramScenePicture {
  * there, and with none it is its unspread place.
  */
 export interface DiagramPaperFaces {
+  /** Full unoccluded lift. Clipped face fragments never replace source anchors. */
+  projection?: DiagramPaperProjection;
   /** Per point: its place on the paper, then on the unspread picture. */
   points: [number, number, number, number][];
   /**
@@ -706,6 +725,13 @@ export interface DiagramPaperFaces {
   rings: number[][];
   /** Per face: the longest chain of faces stacked over it as the picture is seen (`layerLevels`); the greatest is backmost. */
   levels: number[];
+}
+
+export interface DiagramPaperProjection {
+  /** Unspread x/y, projected x/y and perspective denominator per vertex. */
+  points: [number, number, number, number, number][];
+  /** Source face and three vertex indices. */
+  triangles: [number, number, number, number][];
 }
 
 /**

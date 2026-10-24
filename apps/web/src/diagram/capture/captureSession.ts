@@ -17,17 +17,20 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFold3dRefusal,
   OristudioCpFolded3dAuxLines,
+  OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import { hasFoldedLayerOrder, openFold, readFoldedPicture, type FoldedFigureState, type FoldedPicture } from '../../lib/creaseExportFold';
 import type { DiagramStyle } from '../document/diagramDocument';
 import { foldedMirrorAxes } from './mirrorAxes';
 import type { SanitizeEnv } from '../upload/svgSanitize';
+import { cachedFlatScene, rememberFlatScene } from './flatSceneCache';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
   capture3dPicture,
   captureModel,
   flatPicture,
+  captureFlatPicture,
   type CapturedPicture,
   type CpCaptureRuntime,
 } from './captureFolded';
@@ -45,6 +48,12 @@ export interface CaptureSessionDeps {
   /** The handle registry's epoch: a change means every held handle is gone. */
   epoch: () => number;
   env?: SanitizeEnv;
+}
+
+export interface CameraSpreadHold {
+  scene: OristudioCpFoldedPaperScene;
+  side: 'front' | 'back';
+  foldCase: number;
 }
 
 /** Which fold a session holds: what it was folded from, so a change of either folds again. */
@@ -122,6 +131,8 @@ export interface CaptureSession {
    * order with it.
    */
   flatMirrorAxes: () => Promise<number[]>;
+  /** Immutable held geometry for the independent camera spread renderer. */
+  flatScene: () => Promise<OristudioCpFoldedPaperScene | null>;
   /**
    * The same picture now, with no call to the kernel, when the session holds
    * this flat fold of `document` on `side` at `foldCase` and has read it;
@@ -238,6 +249,18 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     noLayerOrder: !hasFoldedLayerOrder(hold.state),
   });
 
+  const readFlat = async (hold: FlatHold): Promise<FoldedPicture> => {
+    hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
+    if (hold.read.scene) {
+      const foldCase = flatState(hold).foldCase;
+      // Reopening the kernel for an edit must keep the worker's geometry key.
+      const scene = cachedFlatScene(hold.document, hold.lineIds, hold.side, foldCase, hold.epoch) ?? hold.read.scene;
+      if (scene !== hold.read.scene) hold.read = { ...hold.read, scene };
+      rememberFlatScene(hold.document, hold.lineIds, hold.side, foldCase, scene, hold.epoch);
+    }
+    return hold.read;
+  };
+
   return {
     async flat(document, lineIds, side, foldCase, knownCases = 0) {
       const key: FoldKey = { document, lineIds: lineIds.join(',') };
@@ -287,14 +310,15 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
 
     async flatPicture(rotationDeg, spread) {
       const hold = flatHold();
-      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
-      return flatPicture(hold.read, rotationDeg, deps.env, spread);
+      return captureFlatPicture(await readFlat(hold), rotationDeg, deps.env, spread);
+    },
+
+    async flatScene() {
+      return (await readFlat(flatHold())).scene;
     },
 
     async flatMirrorAxes() {
-      const hold = flatHold();
-      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
-      return foldedMirrorAxes(hold.read);
+      return foldedMirrorAxes(await readFlat(flatHold()));
     },
 
     heldFlatPicture({ document, side, foldCase }, rotationDeg, spread) {

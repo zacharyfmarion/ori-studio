@@ -23,6 +23,7 @@ import {
   cpDocument,
   fakeCaptureRuntime,
   halfFoldOnSheetKernelScene,
+  halfFoldKernelScene,
   LEFT_FOLD_LINE_IDS,
   movedLines,
   TWO_SQUARES,
@@ -381,8 +382,8 @@ describe('a flat capture’s faces on the paper (Revision 2)', () => {
   });
 
   it.each([
-    ['a depth spread', { kind: 'depth', amount: 0.05, toward: 'up-left' } as LayerSpreadOptions],
-    ['an affine spread', { kind: 'affine', amount: 0.04, keep: 'top', skew: 1, axisDeg: 81 } as LayerSpreadOptions],
+    ['a depth spread', { kind: 'depth', amount: 0.05, toward: 'up-left' } as Exclude<LayerSpreadOptions, { kind: 'camera' }>],
+    ['an affine spread', { kind: 'affine', amount: 0.04, keep: 'top', skew: 1, axisDeg: 81 } as Exclude<LayerSpreadOptions, { kind: 'camera' }>],
   ])('with %s on, keeps the unspread places, and the stored scene draws every face whole, corner for corner, where the painter spreads it', async (_label, spread) => {
     const { faces, drawn } = await captured(45, spread);
     const plain = await captured(45);
@@ -430,7 +431,7 @@ describe('a flat capture’s faces on the paper (Revision 2)', () => {
   });
 
   it('keeps none for a fold named nowhere on its paper', async () => {
-    const picture = await readFlatPicture(fakeCaptureRuntime(), 7, { displayStyle: 'Paper5' }, 0);
+    const picture = await readFlatPicture(fakeCaptureRuntime({ paperScene: vi.fn(async () => halfFoldKernelScene()) }), 7, { displayStyle: 'Paper5' }, 0);
     expect(picture.kind === 'picture' && picture.picture.kind === 'scene' && picture.picture.paperFaces).toBeUndefined();
   });
 

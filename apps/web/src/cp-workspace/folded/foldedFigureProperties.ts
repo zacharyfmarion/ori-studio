@@ -20,7 +20,7 @@ import type {
   PropertySheet,
   PropertySupport,
 } from '../../lib/propertyDescriptors';
-import { clampSimulatorZoom, SIMULATOR_MAX_ZOOM, SIMULATOR_MIN_ZOOM } from '../../lib/simulatorOrbit';
+import { clampCameraZoom, MAX_CAMERA_ZOOM, MIN_CAMERA_ZOOM } from '../../lib/viewport3dCamera';
 import { degreesToRadians, radiansToDegrees, wrapDegrees } from '../../lib/angleUnits';
 import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
 import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCamera';
@@ -307,14 +307,14 @@ export function buildFoldedFigureProperties(
           label: t('panels:cpProperties.folded.zoom', 'Zoom'),
           support: 'supported',
           undoLabel: changeView,
-          min: SIMULATOR_MIN_ZOOM,
-          max: SIMULATOR_MAX_ZOOM,
+          min: MIN_CAMERA_ZOOM,
+          max: MAX_CAMERA_ZOOM,
           step: 0.05,
-          normalize: clampSimulatorZoom,
+          normalize: clampCameraZoom,
           live: { read: () => current().zoom, subscribe: deps.liveCamera.subscribe },
           protocol: 'draft',
           value: current().zoom,
-          commit: (zoom) => deps.setCamera({ ...current(), zoom: clampSimulatorZoom(zoom) }),
+          commit: (zoom) => deps.setCamera({ ...current(), zoom: clampCameraZoom(zoom) }),
           reset: () => deps.setCamera({ ...current(), zoom: DEFAULT_FOLDED_3D_CAMERA.zoom }),
         },
       ],

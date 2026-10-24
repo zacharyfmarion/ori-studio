@@ -1,4 +1,4 @@
-import type { SimulatorOrbitMode } from '../../lib/simulatorOrbit';
+import type { CameraGestureMode } from '../../lib/viewport3dCamera';
 import { boxGestureEngine } from './engines/boxGesture';
 import { pullGestureEngine } from './engines/pullGesture';
 import type { SimulatorGestureEngine, SimulatorInputMode } from './types';
@@ -22,7 +22,7 @@ export type SimulatorPressRoute =
   | { kind: 'menu' }
   /** A button nothing answers (back, forward). */
   | { kind: 'ignore' }
-  | { kind: 'orbit'; mode: SimulatorOrbitMode }
+  | { kind: 'orbit'; mode: CameraGestureMode }
   /**
    * A tool's gesture. `grabsPaper`: the gesture takes hold of the paper, which
    * the cursor shows as a closed hand while it runs.
@@ -39,6 +39,7 @@ function orbit(press: SimulatorPress): SimulatorPressRoute {
  */
 const ROUTES: Record<SimulatorInputMode, (press: SimulatorPress) => SimulatorPressRoute> = {
   orbit,
+  pan: () => ({ kind: 'orbit', mode: 'pan' }),
   'pick-faces': () => ({
     kind: 'gesture',
     engine: boxGestureEngine as SimulatorGestureEngine<unknown>,
@@ -54,7 +55,7 @@ const ROUTES: Record<SimulatorInputMode, (press: SimulatorPress) => SimulatorPre
  * What a press on the canvas does.
  *
  * Navigation first, so no tool can claim it: the secondary button belongs to
- * the context menu, and the middle button and Meta always orbit (Shift rolls).
+ * the context menu, and the middle button pans and Meta orbits (Shift rolls).
  * That is the rule Edit keeps for panning — a Cmd-drag pans whatever tool is
  * armed — and it is what makes the canvas safe to turn with a tool in hand.
  */
@@ -63,7 +64,7 @@ export function routeSimulatorPress(
   input: SimulatorInputMode
 ): SimulatorPressRoute {
   if (press.button === 2 || press.contextClick) return { kind: 'menu' };
-  if (press.button === 1) return orbit(press);
+  if (press.button === 1) return { kind: 'orbit', mode: 'pan' };
   if (press.button !== 0) return { kind: 'ignore' };
   if (press.meta) return orbit(press);
   return ROUTES[input](press);

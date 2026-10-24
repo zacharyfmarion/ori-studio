@@ -48,7 +48,8 @@ import {
   type SimulateFlat,
   type StillScene,
 } from './captureFolded';
-import type { CaptureSession, SpatialHold } from './captureSession';
+import type { CaptureSession, SpatialHold, CameraSpreadHold } from './captureSession';
+import { cameraSpreadInitialView } from '../../cp-workspace/folded/cameraSpreadView';
 import { uprightTurn } from './mirrorAxes';
 
 /**
@@ -79,6 +80,7 @@ export type LinkedPoseRequest =
   | { verb: 'spread-keep'; keep: SpreadKeep }
   | { verb: 'spread-skew'; skew: number }
   | { verb: 'spread-axis'; axisDeg: number }
+  | { verb: 'spread-view'; projection?: 'diagram' | 'orthographic' | 'perspective'; directionDeg?: number; inclinationDeg?: number }
   | { verb: 'simulate'; foldPercent: number; view: DiagramSimulatedView; still: StillScene }
   | { verb: 'paper-side'; side: 'front' | 'back' }
   | { verb: 'flip-creases'; on: boolean };
@@ -86,7 +88,7 @@ export type LinkedPoseRequest =
 /** The verbs that set one field of a spread: each a no-op on a fold with none, or of the other kind. */
 type SpreadFieldRequest = Extract<
   LinkedPoseRequest,
-  { verb: 'spread-amount' | 'spread-direction' | 'spread-keep' | 'spread-skew' | 'spread-axis' }
+  { verb: 'spread-amount' | 'spread-direction' | 'spread-keep' | 'spread-skew' | 'spread-axis' | 'spread-view' }
 >;
 
 const SPREAD_FIELD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
@@ -95,6 +97,7 @@ const SPREAD_FIELD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
   'spread-keep',
   'spread-skew',
   'spread-axis',
+  'spread-view',
 ]);
 
 function isSpreadFieldRequest(request: LinkedPoseRequest): request is SpreadFieldRequest {
@@ -108,6 +111,16 @@ function isSpreadFieldRequest(request: LinkedPoseRequest): request is SpreadFiel
  */
 export function withSpreadField(spread: DiagramLayerSpread, request: SpreadFieldRequest): DiagramLayerSpread {
   switch (request.verb) {
+    case 'spread-view': {
+      if (spread.kind !== 'camera') return spread;
+      const projection = request.projection ?? spread.projection;
+      const directionDeg = Number.isFinite(request.directionDeg) ? ((request.directionDeg! % 360)+360)%360 : spread.directionDeg;
+      const inclinationDeg = Number.isFinite(request.inclinationDeg) ? Math.max(0,Math.min(80,request.inclinationDeg!)) : spread.inclinationDeg;
+      const entering = projection !== 'diagram' && !spread.cameraSet;
+      return { ...spread, projection, directionDeg, inclinationDeg,
+        ...(entering ? { cameraSet: true, camera: { ...cameraSpreadInitialView({ directionDeg,inclinationDeg }),
+          zoom: spread.camera.zoom, pan: spread.camera.pan } } : {}) };
+    }
     case 'spread-amount':
       return request.kind === undefined || request.kind === spread.kind
         ? { ...spread, amount: clampSpreadAmount(spread.kind, request.amount) }
@@ -135,6 +148,7 @@ export type LinkedPoseResult =
       mirrorAxes?: readonly number[];
       /** For a 3D fold: what the live view draws. */
       spatial?: SpatialHold;
+      cameraSpread?: CameraSpreadHold;
     }
   | { status: 'refused'; refusal: OristudioCpFold3dRefusal }
   /** Shown as Simulated, and the region has no model the simulator can fold. */
@@ -211,6 +225,7 @@ export async function poseLinkedStep(
     const mirrorAxes = await session.flatMirrorAxes();
     const turn = upright ? (uprightTurn(mirrorAxes, rotationDeg) ?? rotationDeg) : rotationDeg;
     const picture = await session.flatPicture(turn, spread);
+    const cameraScene = spread?.kind === 'camera' ? await session.flatScene() : null;
     return {
       status: 'posed',
       render: {
@@ -224,6 +239,7 @@ export async function poseLinkedStep(
       noLayerOrder: state.noLayerOrder,
       solutions: { discovered: state.discovered, hasNext: state.hasNext, none: state.noLayerOrder },
       mirrorAxes,
+      ...(cameraScene ? { cameraSpread: { scene: cameraScene, side: state.side, foldCase: state.foldCase } } : {}),
     };
   };
 
@@ -347,6 +363,10 @@ export async function poseLinkedStep(
     const { rotationDeg, foldCase, spread } = render;
     const pose: FlatPose = { side: render.side, rotationDeg, foldCase, ...(spread ? { spread } : {}) };
     switch (verb) {
+      case 'orbit':
+        return spread?.kind === 'camera' && request.verb === 'orbit'
+          ? flat({ ...pose, spread: { ...spread, camera: request.camera,
+            cameraSet: spread.cameraSet || spread.projection !== 'diagram' } }) : flat(pose);
       case 'show-folded':
         return flat(pose);
       case 'rotate-left':
@@ -370,7 +390,8 @@ export async function poseLinkedStep(
         return flat({ ...pose, foldCase: Math.max(1, foldCase - 1) }, undefined, foldCase);
       case 'reset':
         // Upright, from the front, the first order: the spread has its own off switch.
-        return flat({ side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread } : {}) });
+        return flat({ side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread: spread.kind === 'camera'
+          ? { ...spread, camera: cameraSpreadInitialView(spread), cameraSet: false } : spread } : {}) });
       case 'spread-layers': {
         const { spread: _was, ...unspread } = pose;
         return flat(spread ? unspread : { ...unspread, spread: spreadStart.any });
@@ -384,6 +405,7 @@ export async function poseLinkedStep(
       case 'spread-keep':
       case 'spread-skew':
       case 'spread-axis':
+      case 'spread-view':
         // Only a spread there is takes a value: one undone under the drag stays off.
         if (!spread || !isSpreadFieldRequest(request)) return flat(pose);
         return flat({ ...pose, spread: withSpreadField(spread, request) });

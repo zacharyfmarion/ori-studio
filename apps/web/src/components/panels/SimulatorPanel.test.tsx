@@ -14,7 +14,7 @@ import {
   runSimulatorCommand,
 } from '../../keyboard/shortcutRuntime';
 import { announceUprightSet } from '../../lib/uprightFeedback';
-import { setUprightView } from '../../lib/simulatorOrbit';
+import { setUprightView } from '../../lib/viewport3dCamera';
 import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
 import { useLayoutStore } from '../../store/layoutStore';
 import { usePaperExportUiStore } from '../../store/paperExportUiStore';
@@ -42,8 +42,8 @@ function asPromiseClient<T extends object>(session: T): T {
 // The toast and the analytics event are the verb's outward sign — the picture
 // does not move on the press — and the orbit it takes is what it changes.
 vi.mock('../../lib/uprightFeedback', () => ({ announceUprightSet: vi.fn() }));
-vi.mock('../../lib/simulatorOrbit', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/simulatorOrbit')>();
+vi.mock('../../lib/viewport3dCamera', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/viewport3dCamera')>();
   return { ...actual, setUprightView: vi.fn(actual.setUprightView) };
 });
 
@@ -607,7 +607,7 @@ describe('SimulatorPanel tools', () => {
       const sheet = document.querySelector('[role="dialog"][aria-label="Tools"]');
       expect(sheet).not.toBeNull();
       const rows = [...(sheet?.querySelectorAll('[data-tool-label]') ?? [])].map((row) => row.textContent);
-      expect(rows).toEqual(['Orbit', 'Pin', 'Pull']);
+      expect(rows).toEqual(['Orbit', 'Pan', 'Pin', 'Pull']);
 
       act(() =>
         sheet?.querySelector<HTMLButtonElement>('[data-tool="pin"] [data-tool-item]')?.click()

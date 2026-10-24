@@ -62,6 +62,8 @@ export interface FoldedFigureCamera {
    * inline simulation has between its wheel and its resize handles.
    */
   zoom: number;
+  /** Screen-right/down offset in viewport short-edge units; absent means zero. */
+  pan?: readonly [number, number];
   /**
    * The model's own up, applied before the camera, so `yaw` spins about it
    * rather than about the paper's normal.
@@ -139,6 +141,7 @@ export function defaultFolded3dCamera(
  */
 export function antipodalCamera(camera: FoldedFigureCamera): FoldedFigureCamera {
   return {
+    ...camera,
     yaw: camera.yaw + Math.PI,
     pitch: Math.PI - camera.pitch,
     zoom: camera.zoom,
@@ -229,7 +232,7 @@ function finiteNumber(value: unknown): number | null {
  * build's, which a Diagram step carries whole rather than drop on save
  * (`diagramFile.ts`); {@link readFoldedFigureCamera} reads these alone.
  */
-export const FOLDED_FIGURE_CAMERA_KEYS: ReadonlySet<string> = new Set(['yaw', 'pitch', 'zoom', 'orient']);
+export const FOLDED_FIGURE_CAMERA_KEYS: ReadonlySet<string> = new Set(['yaw', 'pitch', 'zoom', 'orient', 'pan']);
 
 /**
  * A stored 3D viewpoint, read leniently: `null` for anything that is not one.
@@ -244,7 +247,13 @@ export function readFoldedFigureCamera(value: unknown): FoldedFigureCamera | nul
   const zoom = finiteNumber(record.zoom);
   if (yaw === null || pitch === null || zoom === null || zoom <= 0) return null;
   const orient = readOrient(record.orient);
-  return orient ? { yaw, pitch, zoom, orient } : { yaw, pitch, zoom };
+  const camera: FoldedFigureCamera = orient ? { yaw, pitch, zoom, orient } : { yaw, pitch, zoom };
+  if (record.pan !== undefined) {
+    if (!Array.isArray(record.pan) || record.pan.length !== 2 ||
+        record.pan.some((n) => typeof n !== 'number' || !Number.isFinite(n))) return null;
+    camera.pan = [record.pan[0] as number, record.pan[1] as number];
+  }
+  return camera;
 }
 
 /**

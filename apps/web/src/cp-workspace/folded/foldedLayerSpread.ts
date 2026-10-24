@@ -1,7 +1,9 @@
 /**
- * A flat folded picture's layers spread apart, one of two ways (Phase 13 of
+ * A flat folded picture's layers spread apart, one of three ways (Phase 13 of
  * the diagram workspace, `implementation-plans/diagram-distortion.md`):
  *
+ * - **Default** (`camera`): a connected depth lift projected through a camera,
+ *   with local layer-order protection and geometric visibility.
  * - **By depth** (`layerSpread`): each layer beneath the nearest moved a
  *   little further in one direction on the screen, so the edges a stack
  *   hides peek out. It is Akitaya's depth shift,
@@ -52,6 +54,7 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type { ScenePoint } from '../../lib/paper/paperScene';
+import type { FoldedFigureCamera } from './folded3dCamera';
 
 /** Where deeper layers step to, on the screen. */
 export type SpreadDirection =
@@ -75,11 +78,23 @@ export const SPREAD_DIRECTIONS: readonly SpreadDirection[] = [
   'left',
 ];
 
-/** The two ways a picture's layers are spread: by depth, or DEFOX's affine opening. */
-export type SpreadKind = 'depth' | 'affine';
+/** Camera lift, legacy depth shift, or DEFOX affine opening. */
+export type SpreadKind = 'camera' | 'depth' | 'affine';
 
-/** The kinds, in the order every surface offers them: affine first, the default (Zach, 2026-10-05). */
-export const SPREAD_KINDS: readonly SpreadKind[] = ['affine', 'depth'];
+/** The kinds in display order: Default first. */
+export const SPREAD_KINDS: readonly SpreadKind[] = ['camera', 'affine', 'depth'];
+
+/** Connected depth lift with independent diagram and orbit camera settings. */
+export interface CameraLayerSpreadOptions {
+  kind: 'camera';
+  amount: number;
+  projection: 'diagram' | 'orthographic' | 'perspective';
+  directionDeg: number;
+  inclinationDeg: number;
+  camera: FoldedFigureCamera;
+  /** Once 3D has been composed, returning to it restores that orientation. */
+  cameraSet?: boolean;
+}
 
 /** A depth spread: how far the deepest layer moves, and which way. */
 export interface DepthSpreadOptions {
@@ -112,7 +127,8 @@ export interface AffineSpreadOptions {
 }
 
 /** A step's spread, of either kind. */
-export type LayerSpreadOptions = DepthSpreadOptions | AffineSpreadOptions;
+export type LegacyLayerSpreadOptions = DepthSpreadOptions | AffineSpreadOptions;
+export type LayerSpreadOptions = CameraLayerSpreadOptions | LegacyLayerSpreadOptions;
 
 /** The spread of one picture. */
 export interface LayerSpread {

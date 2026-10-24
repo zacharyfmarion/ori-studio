@@ -8,9 +8,9 @@ import {
 } from './foldedFigureOrbitGesture';
 import { DEFAULT_FOLDED_3D_CAMERA } from './folded3dCamera';
 import {
-  SIMULATOR_ORBIT_SENSITIVITY,
-  nextSimulatorOrbitView,
-} from '../../lib/simulatorOrbit';
+  ORBIT_SENSITIVITY,
+  nextOrbitView,
+} from '../../lib/viewport3dCamera';
 import type { AnnotationBox } from '../annotations/annotationTransform';
 
 const BOX: AnnotationBox = { center: { x: 100, y: 100 }, width: 40, height: 20, rotation: 0 };
@@ -81,7 +81,7 @@ describe('orbit', () => {
     const drag = beginFoldedFigureOrbit(DEFAULT_FOLDED_3D_CAMERA, { x: 5, y: 5 });
     const point = { x: 85, y: -35 };
     const figure = advanceFoldedFigureOrbit(DEFAULT_FOLDED_3D_CAMERA, drag, point);
-    const simulation = nextSimulatorOrbitView(
+    const simulation = nextOrbitView(
       { ...DEFAULT_FOLDED_3D_CAMERA },
       drag,
       point
@@ -91,7 +91,7 @@ describe('orbit', () => {
     // And the constant is genuinely in play, so the assertion above is not
     // comparing two copies of "unchanged".
     expect(figure.yaw).not.toBe(DEFAULT_FOLDED_3D_CAMERA.yaw);
-    expect(SIMULATOR_ORBIT_SENSITIVITY).toBeGreaterThan(0);
+    expect(ORBIT_SENSITIVITY).toBeGreaterThan(0);
   });
 
   it('carries zoom through untouched — scroll does not zoom a focused figure', () => {
@@ -116,7 +116,7 @@ describe('orbit', () => {
     expect(after.yaw).toBe(DEFAULT_FOLDED_3D_CAMERA.yaw);
     expect(after.pitch).toBe(DEFAULT_FOLDED_3D_CAMERA.pitch);
     // And the drift it is guarding against is real, so this test is not vacuous.
-    const unguarded = nextSimulatorOrbitView({ ...DEFAULT_FOLDED_3D_CAMERA }, drag, {
+    const unguarded = nextOrbitView({ ...DEFAULT_FOLDED_3D_CAMERA }, drag, {
       x: 42,
       y: 7,
     });

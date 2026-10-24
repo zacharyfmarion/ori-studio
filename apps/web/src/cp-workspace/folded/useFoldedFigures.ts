@@ -53,12 +53,12 @@ import {
 import { useFolded3dRehydration } from './useFolded3dRehydration';
 import type { Vec2 } from '../annotations/annotationTransform';
 import {
-  clampSimulatorZoom,
+  clampCameraZoom,
   setUprightView,
-  simulatorWheelZoomFactor,
-  type SimulatorOrbitDrag,
-  type SimulatorOrbitPoint,
-} from '../../lib/simulatorOrbit';
+  wheelZoomFactor,
+  type CameraDrag,
+  type CameraPoint,
+} from '../../lib/viewport3dCamera';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import { announceUprightSet } from '../../lib/uprightFeedback';
 import {
@@ -402,7 +402,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
 
   const orbitDragRef = useRef<{
     id: string;
-    drag: SimulatorOrbitDrag;
+    drag: CameraDrag;
     /**
      * Whether this figure is drawn by the window layer, decided once at the
      * press. A windowed figure needs no re-projection, and asking again on every
@@ -449,7 +449,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    * same space once the crease-pattern camera is zoomed or rotated.
    */
   const beginOrbit = useCallback(
-    (point: SimulatorOrbitPoint) => {
+    (point: CameraPoint) => {
       const id = oristudioCpFocusedFoldedFigureId;
       if (!id) return false;
       const figure = figureById(id);
@@ -485,7 +485,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    * `folded3dRuntime.ts`.
    */
   const advanceOrbit = useCallback(
-    (point: SimulatorOrbitPoint) => {
+    (point: CameraPoint) => {
       const session = orbitDragRef.current;
       if (!session) return;
       const figure = figureById(session.id);
@@ -657,7 +657,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       const figure = figureById(id);
       if (!figure) return;
       const before = liveFigureCamera(figure);
-      const zoom = clampSimulatorZoom(before.zoom * simulatorWheelZoomFactor(deltaY));
+      const zoom = clampCameraZoom(before.zoom * wheelZoomFactor(deltaY));
       if (zoom === before.zoom) return;
       const burst = zoomBurstRef.current;
       let token: GestureToken | null;
