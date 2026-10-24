@@ -531,6 +531,17 @@ fn the_dialogs_scene_of_an_order_is_the_scene_its_apply_draws() {
                 .expect("the session's scene")
                 .expect("a picture");
                 assert_eq!(dialog, session, "{name} {state:?}: not the session's scene");
+                // The dialog restacks a scene between orders by the faces
+                // under each of its subfaces, numbered as the scene's.
+                let drawn: Vec<&[usize]> = inputs.scene_subface_face_ids().collect();
+                assert_eq!(drawn.len(), dialog.subfaces.len(), "{name} {state:?}");
+                for (faces, subface) in drawn.iter().zip(&dialog.subfaces) {
+                    let mut stacked = subface.faces_top_to_bottom.clone();
+                    stacked.sort_unstable();
+                    let mut under = faces.to_vec();
+                    under.sort_unstable();
+                    assert_eq!(stacked, under, "{name} {state:?}");
+                }
                 assert_eq!(
                     fixture.scene(handle, state),
                     Some(dialog),

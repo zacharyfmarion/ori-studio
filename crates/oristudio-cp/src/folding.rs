@@ -2567,6 +2567,19 @@ impl FoldedRenderInputs {
         })
     }
 
+    /// The faces under each subface the paper scene draws, in the scene's
+    /// order: whatever the order, [`FoldedPaperScene::subfaces`]`[i]` stacks
+    /// exactly the faces of entry `i`. These are the subfaces of
+    /// [`Self::subface_face_ids`] less the ones the drawer skips (no face
+    /// under it, or a ring of fewer than three points), so a caller that
+    /// stacks an order itself, as the Layer order dialog does between scenes,
+    /// numbers its stacks as the scene numbers its subfaces.
+    pub fn scene_subface_face_ids(&self) -> impl Iterator<Item = &[usize]> {
+        self.subfaces.iter().flat_map(|(graph, configuration)| {
+            drawn_subfaces(graph, configuration).map(|(_, subface)| subface.face_ids.as_slice())
+        })
+    }
+
     /// The lowest and highest face with wireframe line `line_index` on its
     /// border: two faces for a line the paper folds across, the same face
     /// twice for one on the paper's edge, `None` for a line no face borders.
@@ -3405,26 +3418,40 @@ fn paper_scene_subfaces(
     hierarchy: &HierarchyTable,
     pass: OrieditaPaperRenderPass,
 ) -> Vec<FoldedPaperSubface> {
+    drawn_subfaces(subface_graph, subfaces)
+        .map(|(ring, subface)| FoldedPaperSubface {
+            polygon: ring
+                .map(|point| pass.camera.object_to_tv(point))
+                .collect::<Vec<_>>(),
+            faces_top_to_bottom: subface_stack_as_seen(subface, hierarchy, pass.flipped),
+        })
+        .collect()
+}
+
+/// The subfaces the paper scene draws, in the drawer's order, each with the
+/// points of its ring: every subface with a face under it (the stack the
+/// drawer paints falls back to those faces, so it is never empty) and a ring
+/// of at least three points. The one rule [`paper_scene_subfaces`] and
+/// [`FoldedRenderInputs::scene_subface_face_ids`] share, so the scene's
+/// subfaces and a stack list built beside it are numbered alike.
+fn drawn_subfaces<'a>(
+    subface_graph: &'a FoldGraph,
+    subfaces: &'a SubFaceConfiguration,
+) -> impl Iterator<Item = (impl Iterator<Item = Point> + 'a, &'a SubFace)> + 'a {
+    let ring = move |face: &'a Vec<usize>| {
+        face.iter()
+            .filter_map(move |point_index| subface_graph.points.get(*point_index).copied())
+    };
     subface_graph
         .faces
         .iter()
         .enumerate()
-        .filter_map(|(subface_index, face)| {
+        .filter_map(move |(subface_index, face)| {
             let subface = subfaces.subfaces.get(subface_index)?;
-            let faces_top_to_bottom = subface_stack_as_seen(subface, hierarchy, pass.flipped);
             // The drawer's own skip: nothing to paint there.
-            faces_top_to_bottom.first()?;
-            let polygon = face
-                .iter()
-                .filter_map(|point_index| subface_graph.points.get(*point_index).copied())
-                .map(|point| pass.camera.object_to_tv(point))
-                .collect::<Vec<_>>();
-            (polygon.len() >= 3).then_some(FoldedPaperSubface {
-                polygon,
-                faces_top_to_bottom,
-            })
+            subface.face_ids.first()?;
+            (ring(face).count() >= 3).then(|| (ring(face), subface))
         })
-        .collect()
 }
 
 /// `subface_top_stack` read the way `visible_subface_face` reads it: from the

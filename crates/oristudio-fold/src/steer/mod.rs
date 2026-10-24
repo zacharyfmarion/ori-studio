@@ -17,11 +17,37 @@
 //!   letters Oriedita's edge rule gives, the refusals that keep v1 honest
 //!   ([`SourceRefusal`]), the pairs only the solver sees as overlapping, and
 //!   [`LayerSource::oriedita_relations`] for an order going back.
+//! - [`ConstraintSession`]: what the dialog asks while the user builds
+//!   constraints (E5): the open pairs, a preview that never commits, a commit
+//!   of the whole list, the stacks and the paper scene of the order on
+//!   screen, the saved record, and a restore onto creases that may have
+//!   changed ([`ConstraintSession::restore`], decision D10). The smallest
+//!   clashing set and the solution count (E6) build on it:
+//!   [`CantFit::constraints`] is where a smallest set is looked for.
+//! - [`LayerOrderRecord`], [`read_record`] and [`encode_record`]: the saved
+//!   form, byte for byte the TypeScript codec's
+//!   (`apps/web/src/lib/layerOrder/layerOrderRecord.ts`).
 //!
-//! The constraint session the dialog drives (open pairs, preview, commit,
-//! explain, the saved record) is built on this source by the plan's later
-//! rows (E5, E6).
+//! Nothing here is bound to wasm yet (E7).
 
+mod record;
+mod restore;
+mod session;
 mod source;
+mod stacks;
 
+pub use record::{
+    Attention, AttentionReason, EncodeRefusal, FoldSign, LayerOrderRecord, RECORD_MAX_BYTES,
+    RECORD_VERSION, RecordDamage, RecordFace, RecordPair, RecordPart, RecordRead, encode_record,
+    js_number, read_record,
+};
+pub use restore::{
+    AREA_TOLERANCE, ConstraintStatus, FaceStatus, GoneCause, RestoreOutcome, Restored,
+    SavedPairStatus,
+};
+pub use session::{
+    CantFit, CantFitProof, Commit, Committed, Constraint, ConstraintFault, ConstraintSession,
+    Limits, Preview, PreviewFit, SessionRefusal, TimedOut, Verb,
+};
 pub use source::{LayerSource, PaperFrame, SourceRefusal, ToleranceCause};
+pub use stacks::{ChangedSpots, Stacks, ViewSide};

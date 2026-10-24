@@ -194,6 +194,34 @@ and a single-flip check at most 55 ms on the corpus; on iguana-c0 the open
 took 1.0 s, checks a median of 0.6 s, and one of five ran out at its 30 s
 deadline.
 
+### The constraint session
+
+`crates/oracle-tests/tests/layer_order_session.rs` (row E5) runs the dialog's
+`ConstraintSession` over the same designs, read from the same
+`LAYER_ORDER_CENSUS_DIR` (`LAYER_ORDER_SESSION_OUT` moves its report from
+`artifacts/layer-order-session/`). Per design it builds up to three
+constraints on open pairs, each the other way from the order on screen, and
+holds each preview to changing nothing, a preview with no nodes to answering
+alike or timing out, and Add to landing on the previewed order; then removal
+to keeping the order on screen, and a save, encode, read and restore on a
+fresh source to giving back the same constraints, order and open pairs:
+
+```sh
+cargo test -p oracle-tests --test layer_order_session
+LAYER_ORDER_CENSUS_DIR=/path/to/real_benchmark/cpoogle \
+  cargo test -p oracle-tests --release --test layer_order_session -- --nocapture
+```
+
+Last run on October 23, 2026, natively on an Apple Silicon Mac, one design at
+a time (235 s): 480 of 489 designs admitted (the nine census 1 refuses), and
+all 480 pass every gate, 376 of them with constraints (the other 104 have no
+open pair). 1,031 previews: 997 fit, 34 could not (an offered object can
+have no fitting order); with no nodes, 541 timed out and the other 490 needed
+no search and answered alike. Corpus p50 / p95 / max: open 7.4 / 373 /
+1,406 ms, preview 0.2 / 7.6 / 39.1 ms, commit 0.2 / 7.4 / 40.5 ms, restore
+8.4 / 395 / 1,427 ms, record 3.8 / 46 / 249 KB. iguana-c0: open 0.97 s,
+previews 0.46 s, restore 1.9 s, record 863 KB.
+
 ## FOLD Frame-Shape Corpus Testing
 
 `file_frames` makes a FOLD document a tree of frames, and the importer has to

@@ -599,7 +599,7 @@ fn search_problem(
     Ok((search, faces))
 }
 
-fn search_budget(max_nodes: Option<u64>, deadline: Option<Deadline>) -> SearchBudget {
+pub(crate) fn search_budget(max_nodes: Option<u64>, deadline: Option<Deadline>) -> SearchBudget {
     SearchBudget {
         max_nodes,
         deadline: deadline.map(|d| flatfold::Deadline {
@@ -609,10 +609,19 @@ fn search_budget(max_nodes: Option<u64>, deadline: Option<Deadline>) -> SearchBu
     }
 }
 
-fn budget_limit(limit: flatfold::BudgetLimit) -> BudgetLimit {
+pub(crate) fn budget_limit(limit: flatfold::BudgetLimit) -> BudgetLimit {
     match limit {
         flatfold::BudgetLimit::Nodes => BudgetLimit::Nodes,
         flatfold::BudgetLimit::Deadline => BudgetLimit::Deadline,
+    }
+}
+
+pub(crate) fn constraint_family(kind: flatfold::ConstraintKind) -> ConstraintFamily {
+    match kind {
+        flatfold::ConstraintKind::TacoTaco => ConstraintFamily::TacoTaco,
+        flatfold::ConstraintKind::TacoTortilla => ConstraintFamily::TacoTortilla,
+        flatfold::ConstraintKind::TortillaTortilla => ConstraintFamily::TortillaTortilla,
+        flatfold::ConstraintKind::Transitivity => ConstraintFamily::Transitivity,
     }
 }
 
@@ -621,18 +630,13 @@ fn conflict_refusal(
     faces: &FaceIndex,
 ) -> Result<CompletionRefusal, CompletionRefusal> {
     Ok(CompletionRefusal::Conflict {
-        family: match conflict.constraint {
-            flatfold::ConstraintKind::TacoTaco => ConstraintFamily::TacoTaco,
-            flatfold::ConstraintKind::TacoTortilla => ConstraintFamily::TacoTortilla,
-            flatfold::ConstraintKind::TortillaTortilla => ConstraintFamily::TortillaTortilla,
-            flatfold::ConstraintKind::Transitivity => ConstraintFamily::Transitivity,
-        },
+        family: constraint_family(conflict.constraint),
         faces: faces.ids_of(&conflict.faces)?,
         traced: faces.ids_of(&conflict.error_faces)?,
     })
 }
 
-fn search_refusal(error: CompletionError) -> CompletionRefusal {
+pub(crate) fn search_refusal(error: CompletionError) -> CompletionRefusal {
     match error {
         CompletionError::BudgetExceeded { limit, nodes } => CompletionRefusal::BudgetExceeded {
             limit: budget_limit(limit),
@@ -949,6 +953,15 @@ pub enum CheckStage {
     Exhaustive,
 }
 
+pub(crate) fn check_stage(stage: flatfold::CheckStage) -> CheckStage {
+    match stage {
+        flatfold::CheckStage::Unchanged => CheckStage::Unchanged,
+        flatfold::CheckStage::SeedsFirst => CheckStage::SeedsFirst,
+        flatfold::CheckStage::OpenOrder => CheckStage::OpenOrder,
+        flatfold::CheckStage::Exhaustive => CheckStage::Exhaustive,
+    }
+}
+
 /// A check's answer. Only [`Check::Undecided`] is not a verdict.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Check {
@@ -1100,6 +1113,26 @@ impl CompletionSession {
         self.search.nodes()
     }
 
+    /// The problem's variables, ascending: what entry `k` of every
+    /// per-variable vector the search reads and writes is about.
+    pub fn variables(&self) -> &[FacePair] {
+        &self.variables
+    }
+
+    /// The search itself, for the Layer order dialog's constraint session
+    /// (`crate::steer`), which asks it per variable: deductions, checks with
+    /// a vouched-for preference, and the roots behind a "no".
+    #[cfg(feature = "kernel")]
+    pub(crate) fn search(&self) -> &flatfold::CompletionSession {
+        &self.search
+    }
+
+    /// The search's face numbers as face ids.
+    #[cfg(feature = "kernel")]
+    pub(crate) fn face_ids(&self, faces: &[usize]) -> Result<Vec<FaceId>, CompletionRefusal> {
+        self.faces.ids_of(faces)
+    }
+
     fn order_of(&self, orders: &[PairOrder]) -> LayerOrder {
         let mut order = LayerOrder::new();
         for (&pair, &o) in self.variables.iter().zip(orders) {
@@ -1164,17 +1197,15 @@ impl CompletionSession {
             budget: search_budget(limits.max_nodes, limits.deadline),
             fast_nodes: limits.fast_nodes,
             prefer: preferred.as_deref(),
+            // `prefer` can leave pairs out, which take the open's first
+            // order, so what is passed is not known to fit.
+            prefer_fits: false,
         };
         let outcome = self
             .search
             .check(&seeds, &options)
             .map_err(search_refusal)?;
-        let stage = |stage: flatfold::CheckStage| match stage {
-            flatfold::CheckStage::Unchanged => CheckStage::Unchanged,
-            flatfold::CheckStage::SeedsFirst => CheckStage::SeedsFirst,
-            flatfold::CheckStage::OpenOrder => CheckStage::OpenOrder,
-            flatfold::CheckStage::Exhaustive => CheckStage::Exhaustive,
-        };
+        let stage = check_stage;
         Ok(match outcome {
             flatfold::CheckOutcome::Fits(fit) => Check::Fits {
                 order: self.order_of(&fit.order),
@@ -1192,6 +1223,7 @@ impl CompletionSession {
             flatfold::CheckOutcome::Forced {
                 variable,
                 error_faces,
+                ..
             } => {
                 let pair = self.variables[variable];
                 let asked = seeds

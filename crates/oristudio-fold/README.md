@@ -501,6 +501,39 @@ Flat-Folder's search is called through `treemaker-flatfold`, not copied.
   the matrices against the frame's coordinates; a turn-over and a rotation;
   the whole-file cap refusing one element short; Edit saving the file with
   the step frames kept.
+- `tests/steer_source.rs`, `tests/steer_session.rs` and
+  `tests/steer_record.rs`: the Layer order dialog's engine (`steer`, below).
+  The source's edge rule, frame and refusals; the constraint session against
+  Fold's own import of the same square sheets (the same forced and open pairs
+  and the same orders), Oriedita's own first order accepted whole, a preview
+  never changing the session, Add landing on the previewed order, removal
+  keeping the order on screen, the stacks against the paper scene, Apply
+  drawing the session's scene, save and restore, restore after a split, a
+  merge, a moved crease and a clash on kabuto, and a node budget or deadline
+  that runs out reported as a timeout; the record codec against the golden
+  it shares with the web's (`tests/fixtures/layer-order/record-v1.json`).
+
+## The Layer order dialog's engine (`steer`, feature `kernel`)
+
+Ori Studio original work (`implementation-plans/layer-order-dialog.md`, E4
+and E5):
+
+- `LayerSource::from_oriedita`: the solver's folded view of exactly the faces
+  Edit folded (face *k* is Oriedita face *k*), by Oriedita's edge rule, with
+  typed refusals.
+- `ConstraintSession`: the committed constraints, the order on screen and
+  what deduction forces. `open`, `open_pairs`, `preview` (never commits),
+  `commit` (the whole list), `stacks` and `scene` per side,
+  `oriedita_relations` for a host's `fold_with_order`, `save`, and `restore`
+  onto creases that may have changed (decision D10: intact constraints
+  applied together or not at all, the saved order kept where it still fits).
+  Every limit that runs out is a `TimedOut`, never a "can't fit".
+- `read_record` / `encode_record`: the saved record, byte for byte the web
+  codec's.
+
+`crates/oracle-tests/tests/layer_order_witness.rs` (census 1) and
+`layer_order_session.rs` run the same calls over the fixtures in CI and over
+a corpus locally.
 
 ## Performance
 
