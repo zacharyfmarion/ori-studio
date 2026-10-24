@@ -1186,6 +1186,86 @@ independent review built them on purpose, and a session opened over them
 disagreed with completing from scratch. The check costs about 21 ms of the
 iguana's 1 s open.
 
+#### What the Layer order dialog adds to the session
+
+Also ours, beside the port (`implementation-plans/layer-order-dialog.md`,
+E3):
+
+- **`deduce(seeds, deadline)`** is a check's first two steps alone: a seed
+  against a pair the open forced is refused, and the others are propagated
+  from the open's state, with no search. It answers what the fixed orders
+  and the seeds force (`Deduced::forced`), the pairs a check's fit calls
+  forced; only a search finds a component with no order, so a deduction can
+  leave open what a check refuses.
+- **`enumerate(&deduced)`** is a cursor (`Enumeration`) over every complete
+  order the deduction leaves. It splits the closure with upstream's
+  `get_components`, as completing from scratch with the same seeds does,
+  searches each component with upstream's `guess_vars` (value 1 first), and
+  walks their product with the first component slowest. Its orders are
+  therefore `complete_layer_order`'s with every order listed, in the order
+  it lists them, which the randomized test checks. Each `next` call takes
+  its own node budget and deadline and yields one order, or says the
+  enumeration is exhausted, has no order (`Unsatisfied`, the
+  `UnsatisfiedComponent` completing would report), or was stopped, in which
+  case the next call resumes where it stopped.
+  - To resume, `search`'s loop keeps its locals in a struct
+    (`constraints::Search`), and `search` itself is now one run of it, so
+    every upstream path runs the same loop. The one reordering: on
+    backtracking, the loop asks its meter for a node before undoing the
+    guess that node revisits, not after, so that a stop leaves the guess on
+    the stack. The meter reads nothing the undo changes, so every run
+    spends the same nodes and finds the same solutions in the same order;
+    resumed one node at a time, an enumeration yields the same orders with
+    the same total nodes.
+  - A component with no order is reported before any order is yielded,
+    instead of backtracking into the components before it: they are
+    independent, so it has no order whatever they hold.
+- **`CheckOptions::prefer_fits`.** The caller vouches that the preferred
+  order is a complete order that fits, such as an earlier check's fit or an
+  enumerated order. Every component on which it agrees with what the seeds
+  force then keeps it without a search, every component the seeds did not
+  reach among them. That is sound because a component's live constraints
+  read only its own pairs and pairs the open forced, and every constraint
+  joining two components is dead. Without the option, a component nothing
+  reached keeps the preference only where it is the open's first order;
+  elsewhere it is searched again, and falls back to the first order when
+  that quick search runs out of nodes. So after the dialog's stepper moves
+  to another solution, a preview could reset components far from the new
+  constraint (`a_stepper_move_changes_no_cell_the_seeds_did_not_reach`).
+- **Roots on every "no".** `CompletionConflict::roots` (so also
+  `complete_layer_order`'s conflicts), `CheckNoOrder::roots` and
+  `CheckOutcome::Forced { roots }` list the fixed orders and seeds, as
+  variables, that the trace behind `error_faces` leads back to: the
+  assigned pairs it reaches whose parent is a root. One walk
+  (`constraints::traced`) gives both, so `error_faces` is unchanged. Each
+  order the walk passes through was implied from orders it also reaches, so
+  the roots alone, with the constraints, have no order, and a smallest
+  clashing set of seeds lies among them. Where upstream's walk stops short
+  (a pair implied in the level that conflicted is not expanded, so its
+  faces leave out what implied it), the roots walk on through that pair's
+  parent, or a conflict between two implications in one level would name
+  the seeds of only one
+  (`error_faces_stop_at_orders_implied_in_the_conflicting_level`).
+
+The evidence is the in-crate randomized test
+(`checks_agree_with_completing_from_scratch`, now over seven problems and
+six stacks tied at random, both table forms): every deduction equals the
+check's steps 1–2 and completing from scratch; every enumeration equals
+completing from scratch with every order listed, its orders distinct, valid
+and carrying the seeds, and the same again resumed in slices of one to three
+nodes; checks preferring a vouched-for stepper move agree with completing
+from scratch and keep the move wherever it agrees with the seeds' closure;
+and the seeds among every "no"'s roots alone still have no order.
+The reworked loop leaves upstream's paths as they were (2026-10-23, against
+the commit before it): `solver_differential dump` gives 0 differences on the
+5 in-repo fixtures and all 484 cpoogle designs; `solver_session_check`
+agrees with the old from-scratch answers on 4,788 questions in three modes;
+`solve_flat_fold`'s output (through `treemaker flatfold`) is byte-identical
+on all 14,000 files of `cp_training_mix_v1`; and `flat_folder_corpus` gives
+the counts above, 8,394 of the 8,396 files the oracle answers agreeing and
+the same two taco-tortilla counts differing, and one file not finishing,
+as before (`treemaker_tree_v1-5gjm9-018843`, stopped after 3 minutes).
+
 That caller-built constraints avoid both arrangement failures above is still
 **[derived]**: neither goes through Flat-Folder's arrangement. The `verify`
 oracle is the check.

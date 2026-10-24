@@ -159,6 +159,8 @@ pub(crate) struct SeedConflict {
     pub constraint_type: usize,
     pub faces: Vec<usize>,
     pub error_faces: Vec<usize>,
+    /// The roots the same walk leads back to ([`Traced::roots`]; ours).
+    pub roots: Vec<usize>,
     pub cause: ConflictCause,
 }
 
@@ -832,15 +834,20 @@ pub(crate) fn propagate_levels<M: NodeMeter>(
                     };
                     if let Some(cause) = cause {
                         let faces = *constraint_faces;
+                        let Traced {
+                            faces: error_faces,
+                            roots,
+                        } = error_faces(
+                            tables,
+                            pairs_of(constraint_type, &faces),
+                            assignments,
+                            parents,
+                        );
                         return Ok(Ok(Some(SeedConflict {
                             constraint_type,
                             faces: faces_vec(constraint_type, &faces),
-                            error_faces: error_faces(
-                                tables,
-                                pairs_of(constraint_type, &faces),
-                                assignments,
-                                parents,
-                            ),
+                            error_faces,
+                            roots,
                             cause,
                         })));
                     }
@@ -859,13 +866,13 @@ pub(crate) fn propagate_levels<M: NodeMeter>(
 /// found by walking parent pointers back from the pairs the conflicting
 /// constraint reads to the roots. Like upstream, it follows only variables
 /// already applied; ones implied in the level that conflicted are not
-/// expanded.
+/// expanded. With the conflict's roots beside it ([`traced`]; ours).
 pub(crate) fn error_faces(
     tables: &SearchTables<'_>,
     pairs: PairList,
     assignments: &[u8],
     parents: &[Option<Parent>],
-) -> Vec<usize> {
+) -> Traced {
     let lookup = tables.data.lookup();
     let variable_of = |[a, b]: [usize; 2]| lookup.get(a, b);
     let stack = pairs
@@ -874,23 +881,108 @@ pub(crate) fn error_faces(
         .copied()
         .filter_map(variable_of)
         .collect::<Vec<_>>();
-    traced_faces(tables, stack, assignments, parents)
+    traced(tables, stack, assignments, parents)
+}
+
+/// What a walk back through parent pointers reached ([`traced`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Traced {
+    /// The faces of every variable reached, ascending: upstream
+    /// `error_faces`, what [`traced_faces`] returns.
+    pub faces: Vec<usize>,
+    /// The traced roots (ours): the assigned variables reached whose parent
+    /// is [`Parent::Root`], the fixed orders and seeds the walk leads back
+    /// to, ascending.
+    pub roots: Vec<usize>,
 }
 
 /// The walk behind [`error_faces`], from any variables: the faces of every
 /// variable reached, ascending.
 pub(crate) fn traced_faces(
     tables: &SearchTables<'_>,
-    mut stack: Vec<usize>,
+    stack: Vec<usize>,
     assignments: &[u8],
     parents: &[Option<Parent>],
 ) -> Vec<usize> {
-    let lookup = tables.data.lookup();
+    traced(tables, stack, assignments, parents).faces
+}
+
+/// [`traced_faces`]' walk, with the roots it leads back to beside the faces
+/// (ours; one walk for both).
+///
+/// Every order the walk passes through was implied by a constraint from
+/// orders it also reaches, so the roots and the constraints imply all of
+/// them: whatever the walk explains, a conflict or a component with no
+/// order, needs no seed outside the roots. To keep that true where
+/// upstream's walk stops short, the roots also follow a pair implied in the
+/// level that conflicted (given a parent but no order yet), which upstream's
+/// `error_faces` leaves unexpanded: two constraints implied opposite orders
+/// for it, and both lead back to roots. The faces stay upstream's.
+pub(crate) fn traced(
+    tables: &SearchTables<'_>,
+    stack: Vec<usize>,
+    assignments: &[u8],
+    parents: &[Option<Parent>],
+) -> Traced {
     let mut scratch = tables.scratch();
     let mut seen = vec![false; assignments.len()];
+    walk_parents(
+        tables,
+        stack,
+        &mut seen,
+        assignments,
+        parents,
+        false,
+        &mut scratch,
+    );
+    let faces = seen
+        .iter()
+        .enumerate()
+        .filter(|(_, seen)| **seen)
+        .flat_map(|(variable, _)| tables.data.faces(variable))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    // On past the pairs implied in the level that conflicted: none are
+    // reached unless the walk explains a conflict.
+    let pending: Vec<usize> = (0..seen.len())
+        .filter(|&v| seen[v] && assignments[v] == 0 && parents[v].is_some())
+        .collect();
+    if !pending.is_empty() {
+        for &v in &pending {
+            seen[v] = false;
+        }
+        walk_parents(
+            tables,
+            pending,
+            &mut seen,
+            assignments,
+            parents,
+            true,
+            &mut scratch,
+        );
+    }
+    let roots = (0..seen.len())
+        .filter(|&v| seen[v] && assignments[v] != 0 && parents[v] == Some(Parent::Root))
+        .collect();
+    Traced { faces, roots }
+}
+
+/// Mark every variable reachable from `stack` through the constraints that
+/// implied them, expanding only applied ones unless `pending_too`.
+fn walk_parents(
+    tables: &SearchTables<'_>,
+    mut stack: Vec<usize>,
+    seen: &mut [bool],
+    assignments: &[u8],
+    parents: &[Option<Parent>],
+    pending_too: bool,
+    scratch: &mut Scratch,
+) {
+    let lookup = tables.data.lookup();
     while let Some(variable) = stack.pop() {
         seen[variable] = true;
-        if assignments[variable] == 0 {
+        if assignments[variable] == 0 && !pending_too {
             continue;
         }
         let Some(Parent::Implied {
@@ -911,7 +1003,7 @@ pub(crate) fn traced_faces(
             f1,
             f2,
             &mut counts,
-            &mut scratch,
+            scratch,
         )
         .get(index)
         .copied() else {
@@ -925,13 +1017,6 @@ pub(crate) fn traced_faces(
             }
         }
     }
-    seen.iter()
-        .enumerate()
-        .filter(|(_, seen)| **seen)
-        .flat_map(|(variable, _)| tables.data.faces(variable))
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
 }
 
 /// Upstream `get_components`. `transitivity_counts`, when given, counts
@@ -1608,73 +1693,126 @@ pub(crate) fn search<M: NodeMeter>(
     meter: &mut M,
     first: impl Fn(usize) -> u8,
     scratch: &mut Scratch,
-    mut found: impl FnMut(&[u8]),
+    found: impl FnMut(&[u8]),
 ) -> Result<std::result::Result<usize, M::Stop>> {
-    let mut guesses: Vec<Vec<usize>> = Vec::new();
-    let mut solutions = 0usize;
-    let mut index = 0usize;
-    let mut backtracking = false;
-    loop {
-        if backtracking {
-            let Some(guess) = guesses.pop() else {
-                break;
-            };
-            let previous_assignment = assignments[guess[0]];
-            while index >= group.len() || group[index] != guess[0] {
-                if index == 0 {
-                    return Err(FlatFoldError::PrecisionFailure(
-                        "solver backtracking index escaped component".to_string(),
-                    ));
+    Search::default().run(
+        tables,
+        group,
+        assignments,
+        limit,
+        meter,
+        first,
+        scratch,
+        found,
+    )
+}
+
+/// [`search`]'s loop with its locals kept between calls (ours, for the
+/// session's enumeration): a search its meter stopped, or one that returned
+/// `limit` solutions, carries on from there when run again over the same
+/// group and assignments, with the same `first`.
+///
+/// The loop is upstream's `guess_vars`, step for step. The one reordering:
+/// backtracking asks the meter for a node before it undoes the guess the
+/// node revisits, not after, so that a stop leaves that guess in place to be
+/// revisited on the next run. The meter reads nothing the undo changes, so
+/// every run spends the nodes and finds the solutions, in the same order,
+/// that the loop always did.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Search {
+    guesses: Vec<Vec<usize>>,
+    index: usize,
+    backtracking: bool,
+}
+
+impl Search {
+    /// Search on until `limit` more solutions, calling `found` on each, or
+    /// until every guess is undone. Returns how many it found in this run.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn run<M: NodeMeter>(
+        &mut self,
+        tables: &SearchTables<'_>,
+        group: &[usize],
+        assignments: &mut [u8],
+        limit: usize,
+        meter: &mut M,
+        first: impl Fn(usize) -> u8,
+        scratch: &mut Scratch,
+        mut found: impl FnMut(&[u8]),
+    ) -> Result<std::result::Result<usize, M::Stop>> {
+        let Search {
+            guesses,
+            index,
+            backtracking,
+        } = self;
+        let mut solutions = 0usize;
+        loop {
+            if *backtracking {
+                let Some(revisited) = guesses.last().map(|guess| guess[0]) else {
+                    break;
+                };
+                let previous_assignment = assignments[revisited];
+                while *index >= group.len() || group[*index] != revisited {
+                    if *index == 0 {
+                        return Err(FlatFoldError::PrecisionFailure(
+                            "solver backtracking index escaped component".to_string(),
+                        ));
+                    }
+                    *index -= 1;
                 }
-                index -= 1;
-            }
-            for variable in &guess {
-                assignments[*variable] = 0;
-            }
-            let tried = first(group[index]);
-            if previous_assignment == tried {
-                if let Err(stop) = meter.enter() {
+                let tried = first(group[*index]);
+                if previous_assignment == tried
+                    && let Err(stop) = meter.enter()
+                {
                     return Ok(Err(stop));
                 }
-                let other = 3 - tried;
-                let assigned =
-                    propagate_assignment(tables, group[index], other, assignments, scratch)?;
-                if assigned.is_empty() {
-                    guesses.push(vec![group[index]]);
-                    assignments[group[index]] = other;
-                } else {
-                    guesses.push(assigned);
-                    backtracking = false;
-                    index += 1;
+                if let Some(guess) = guesses.pop() {
+                    for variable in &guess {
+                        assignments[*variable] = 0;
+                    }
                 }
-            }
-        } else if index == group.len() {
-            found(assignments);
-            solutions += 1;
-            if solutions >= limit {
-                return Ok(Ok(solutions));
-            }
-            backtracking = true;
-        } else {
-            if assignments[group[index]] == 0 {
-                if let Err(stop) = meter.enter() {
-                    return Ok(Err(stop));
+                if previous_assignment == tried {
+                    let other = 3 - tried;
+                    let assigned =
+                        propagate_assignment(tables, group[*index], other, assignments, scratch)?;
+                    if assigned.is_empty() {
+                        guesses.push(vec![group[*index]]);
+                        assignments[group[*index]] = other;
+                    } else {
+                        guesses.push(assigned);
+                        *backtracking = false;
+                        *index += 1;
+                    }
                 }
-                let tried = first(group[index]);
-                let assigned =
-                    propagate_assignment(tables, group[index], tried, assignments, scratch)?;
-                if assigned.is_empty() {
-                    guesses.push(vec![group[index]]);
-                    assignments[group[index]] = tried;
-                    backtracking = true;
-                } else {
-                    guesses.push(assigned);
+            } else if *index == group.len() {
+                found(assignments);
+                solutions += 1;
+                // Past this solution next, whether now or on the next run.
+                *backtracking = true;
+                if solutions >= limit {
+                    return Ok(Ok(solutions));
                 }
+            } else {
+                if assignments[group[*index]] == 0 {
+                    if let Err(stop) = meter.enter() {
+                        return Ok(Err(stop));
+                    }
+                    let tried = first(group[*index]);
+                    let assigned =
+                        propagate_assignment(tables, group[*index], tried, assignments, scratch)?;
+                    if assigned.is_empty() {
+                        guesses.push(vec![group[*index]]);
+                        assignments[group[*index]] = tried;
+                        *backtracking = true;
+                    } else {
+                        guesses.push(assigned);
+                    }
+                }
+                *index += 1;
             }
-            index += 1;
         }
+        Ok(Ok(solutions))
     }
-    Ok(Ok(solutions))
 }
 
 fn first_solution_face_orders(

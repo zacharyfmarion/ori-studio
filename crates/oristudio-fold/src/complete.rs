@@ -1135,6 +1135,9 @@ impl CompletionSession {
             budget: search_budget(limits.max_nodes, limits.deadline),
             fast_nodes: limits.fast_nodes,
             prefer: preferred.as_deref(),
+            // `prefer` can leave pairs out, which take the open's first
+            // order, so what is passed is not known to fit.
+            prefer_fits: false,
         };
         let outcome = self
             .search
@@ -1163,6 +1166,7 @@ impl CompletionSession {
             flatfold::CheckOutcome::Forced {
                 variable,
                 error_faces,
+                ..
             } => {
                 let pair = self.variables[variable];
                 let asked = seeds

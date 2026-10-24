@@ -242,6 +242,11 @@ pub struct CompletionConflict {
     /// Upstream `error_faces`: every face the conflict traces back to through
     /// the propagation, ascending.
     pub error_faces: Vec<usize>,
+    /// The fixed orders and seeds the conflict traces back to, as variables,
+    /// ascending (ours): they and the constraints conflict with no other
+    /// seed.
+    #[serde(default)]
+    pub roots: Vec<usize>,
 }
 
 /// A component with no valid order (upstream `solve` returning a component
@@ -758,6 +763,7 @@ pub(crate) fn public_conflict(conflict: SeedConflict) -> CompletionConflict {
         constraint: ConstraintKind::from_type(conflict.constraint_type),
         faces: conflict.faces,
         error_faces: conflict.error_faces,
+        roots: conflict.roots,
     }
 }
 
@@ -925,6 +931,7 @@ mod tests {
                 constraint: ConstraintKind::Transitivity,
                 faces: vec![0, 1, 2],
                 error_faces: vec![0, 1, 2],
+                roots: vec![0, 1, 2],
             })
         );
     }
@@ -971,6 +978,8 @@ mod tests {
                 constraint: ConstraintKind::TortillaTortilla,
                 faces: vec![0, 3, 2, 4],
                 error_faces: vec![0, 1, 2, 3, 4],
+                // The two seeds and the carried pair.
+                roots: vec![0, 2, 3],
             })
         );
     }
@@ -990,6 +999,9 @@ mod tests {
                 constraint: ConstraintKind::TortillaTortilla,
                 faces: vec![0, 3, 2, 4],
                 error_faces: vec![0, 2, 3, 4],
+                // The roots walk on where the faces stop, to the two seeds
+                // that implied 0 over 2: 4 over 3 alone has an order.
+                roots: vec![0, 2, 3],
             })
         );
     }
