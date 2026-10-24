@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, type DragEvent as ReactDragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { X } from 'lucide-react';
 import { dragCarriesFiles } from '../../../lib/fileDrop';
 import { useLayoutStore } from '../../../store/layoutStore';
 import { useFoldSessionState } from '../../../fold/session/useFoldSession';
@@ -13,8 +12,7 @@ import { foldStepIsNumbered } from '../../../fold/io/foldStepPages';
 import { useFoldImportUiStore, type FoldImportOpening } from '../../../fold/io/foldImportUiStore';
 import { useFoldImportFlow } from '../../../fold/io/useFoldImport';
 import { useFoldStartingSheetFlow } from '../../../fold/io/useFoldStartingSheet';
-import { IconButton } from '../../ui/IconButton';
-import { useModalDialog } from '../../ui/useModalDialog';
+import { ModalFrame } from '../../ui/ModalFrame';
 import { FoldRefusalNotice } from '../FoldRefusalNotice';
 import { FoldImportPicker } from './FoldImportPicker';
 import styles from './FoldImportDialog.module.css';
@@ -102,7 +100,7 @@ function workingLabel(t: TFunction, state: FoldImportFlowState): string {
  * The dialog: what to import — a file, by the picker or a drop anywhere on
  * the dialog, a linked Edit pattern, or Edit's folded figure — and, when the pattern's
  * creases leave several layer orders, which. A shortcut barrier
- * (`useModalDialog`): Escape, the close button and a press on the backdrop
+ * (`ModalFrame`): Escape, the close button and a press on the backdrop
  * close it, and closing lets go of whatever the engine holds for it. It
  * closes itself once the step is committed.
  */
@@ -212,11 +210,10 @@ function FoldStartingSheetDialog({ opening }: { opening: FoldImportOpening }) {
 }
 
 /**
- * The dialog's frame, both modes': a modal over Fold with a title bar, the
- * picker, the status and a refusal's notice, and a foot that says what the
- * import does. A file dropped anywhere on it is imported. A shortcut barrier
- * (`useModalDialog`): Escape, the close button and a press on the backdrop
- * close it.
+ * The dialog's content, both modes', in the app's modal frame (`ModalFrame`):
+ * the picker, the status and a refusal's notice, and a foot that says what
+ * the import does. A file dropped anywhere on it is imported. Escape, the
+ * close button and a press on the backdrop close it.
  */
 function ImportDialogFrame({
   title,
@@ -240,8 +237,6 @@ function ImportDialogFrame({
   notice: FoldImportNoticeModel | null;
   footer: string;
 }) {
-  const { t } = useTranslation();
-  const { rootRef, documentRef, keepFocus } = useModalDialog(onClose, opening.returnFocus);
   const [dragging, setDragging] = useState(false);
 
   const importFile = useCallback(
@@ -275,43 +270,20 @@ function ImportDialogFrame({
   };
 
   return (
-    <div
-      ref={rootRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      data-shortcut-barrier=""
-      className={styles.backdrop}
-      onMouseDown={onClose}
+    <ModalFrame
+      title={title}
+      onClose={onClose}
+      returnFocus={opening.returnFocus}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
+      footer={<p className={styles.placement}>{footer}</p>}
     >
-      <div
-        ref={documentRef}
-        role="document"
-        tabIndex={-1}
-        className={styles.dialog}
-        onMouseDown={(event) => event.stopPropagation()}
-        onBlur={keepFocus}
-      >
-        <div className={styles.bar}>
-          <span className={styles.title}>{title}</span>
-          <IconButton size="sm" aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: title })} onClick={onClose}>
-            <X size={15} />
-          </IconButton>
-        </div>
-        <div className={styles.body}>
-          <FoldImportPicker dragging={dragging} busy={busy} offerFigure={offerFigure} onRequest={onRequest} />
-          <div className={styles.status} role="status">
-            {status}
-          </div>
-          {notice && <FoldRefusalNotice notice={notice} />}
-        </div>
-        <div className={styles.footer}>
-          <p className={styles.placement}>{footer}</p>
-        </div>
+      <FoldImportPicker dragging={dragging} busy={busy} offerFigure={offerFigure} onRequest={onRequest} />
+      <div className={styles.status} role="status">
+        {status}
       </div>
-    </div>
+      {notice && <FoldRefusalNotice notice={notice} />}
+    </ModalFrame>
   );
 }
