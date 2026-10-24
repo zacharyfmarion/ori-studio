@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const source = vi.hoisted(() => ({
+  segments: [],
+  starting_face_id: 1,
+  aux_segments: [],
+  digest: '0123456789abcdef',
+}));
 const kernel = vi.hoisted(() => {
   const snapshot = {
     discovered_fold_cases: 2,
@@ -16,6 +22,12 @@ const kernel = vi.hoisted(() => {
     getOristudioCpFoldedFigureRenderSnapshot: vi.fn(async () => null),
     getOristudioCpFoldedFigurePaperScene: vi.fn(async () => null),
     freeOristudioCpFoldedFigure: vi.fn(async () => {}),
+    getOristudioCpFoldedFigureSource: vi.fn(async () => source),
+    foldOristudioCpWithOrder: vi.fn(async () => ({
+      status: 'folded',
+      handle: 11,
+      snapshot: { ...snapshot, discovered_fold_cases: 1, find_another_overlap_valid: false },
+    })),
   };
 });
 vi.mock('./oristudioCpRuntime', () => kernel);
@@ -54,5 +66,32 @@ describe('createCpFoldRuntime', () => {
       find_another_overlap_valid: false,
     } as never);
     expect(await createCpFoldRuntime(0).foldAnother(9)).toMatchObject({ currentCase: 3, hasNext: false });
+  });
+
+  it('folds a given layer order into a new handle on the same run, and reads the source it folds', async () => {
+    const runtime = createCpFoldRuntime(42);
+    const relations = Uint32Array.of(3, 1, 0, 2);
+
+    expect(await runtime.source?.(9)).toBe(source);
+    expect(kernel.getOristudioCpFoldedFigureSource).toHaveBeenCalledWith(9);
+    expect(await runtime.foldWithOrder?.(source, relations, undefined)).toEqual({
+      status: 'folded',
+      handle: 11,
+      discoveredCases: 1,
+      displayStyle: 'Paper5',
+      outcome: 'Solved',
+      currentCase: 1,
+      hasNext: false,
+    });
+    expect(kernel.foldOristudioCpWithOrder).toHaveBeenCalledWith(source, relations, undefined, 42);
+  });
+
+  it('passes a refusal through, with no handle', async () => {
+    const refusal = { code: 'against_letters', upper_face: 2, lower_face: 5 };
+    kernel.foldOristudioCpWithOrder.mockResolvedValueOnce({ status: 'refused', refusal } as never);
+    expect(await createCpFoldRuntime(0).foldWithOrder?.(source, Uint32Array.of(2, 5), undefined)).toEqual({
+      status: 'refused',
+      refusal,
+    });
   });
 });

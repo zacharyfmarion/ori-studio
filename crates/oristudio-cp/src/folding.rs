@@ -387,6 +387,36 @@ pub struct FoldedFigureSnapshot {
     /// rather than failing to load.
     #[serde(default)]
     pub outcome: FoldOutcome,
+    /// Whether the layer order on show is Oriedita's own or one the fold was
+    /// given ([`ShownOrder`]). Written only when one was given, so the snapshot
+    /// of every other figure, and every file that saves one, keeps its bytes;
+    /// absent reads back as [`ShownOrder::Searched`].
+    #[serde(default, skip_serializing_if = "ShownOrder::is_searched")]
+    pub shown_order: ShownOrder,
+}
+
+/// Where a flat figure's layer order came from.
+///
+/// **Ori Studio native**, and additive: the Layer order dialog's hosts fold a
+/// chosen order through [`FoldingEstimateSession::with_seeds`]
+/// (`implementation-plans/layer-order-dialog.md`, approach 4), and a saved
+/// figure says which kind it is so a record of that choice can tell whether it
+/// still belongs to the figure. Nothing the fold does reads it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShownOrder {
+    /// Oriedita's search from the creases alone: every unseeded fold.
+    #[default]
+    Searched,
+    /// A search that started from a given order as well as the creases.
+    Given,
+}
+
+impl ShownOrder {
+    /// Whether this is the default, which a snapshot does not write.
+    pub fn is_searched(&self) -> bool {
+        *self == Self::Searched
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1925,9 +1955,9 @@ impl FoldingEstimateSession {
     /// within [`SEEDED_FOLD_ITERATION_BUDGET`] is
     /// [`WorkerOverlapSearchError::Exhausted`].
     ///
-    /// Hidden: hosts reach it through the kernel's `fold_with_order` entry,
-    /// which the plan's next step (E2) adds. Until then it is for tests.
-    #[doc(hidden)]
+    /// Hosts reach it through `CpSession::folded_figure_fold_with_order`
+    /// (`crate::session`), which folds into a new handle and turns these
+    /// errors into typed refusals.
     pub fn with_seeds(
         segments: &[LineSegment],
         starting_face_id: i32,
@@ -1954,6 +1984,22 @@ impl FoldingEstimateSession {
 
     pub fn estimate(&self) -> &FoldingEstimate {
         &self.estimate
+    }
+
+    /// The creases this figure folds, exactly as it was given them.
+    pub fn segments(&self) -> &[LineSegment] {
+        &self.segments
+    }
+
+    /// The face the fold starts from, as it was given (Oriedita's 1-based id).
+    pub fn starting_face_id(&self) -> i32 {
+        self.starting_face_id
+    }
+
+    /// The relations every search of this figure starts from beside the
+    /// letters ([`Self::with_seeds`]); empty for an unseeded figure.
+    pub fn seeds(&self) -> &[HierarchyRelation] {
+        &self.seeds
     }
 
     /// Oriedita `FoldedFigure.folding_estimated(...)` on a reusable folded
@@ -2435,6 +2481,11 @@ fn folded_figure_snapshot_with_wireframe(
         contradiction: estimate.contradiction,
         contradiction_faces,
         outcome: estimate.outcome,
+        shown_order: if session.seeds.is_empty() {
+            ShownOrder::Searched
+        } else {
+            ShownOrder::Given
+        },
     }
 }
 
@@ -2452,6 +2503,9 @@ pub struct FoldedRenderInputs {
     /// `None` when the wireframe has no subfaces — a result, not a failure —
     /// and the styles that need them render nothing, as they always have.
     subfaces: Option<(FoldGraph, SubFaceConfiguration)>,
+    /// The starting face the fold was asked for, as given: part of
+    /// [`Self::face_ring_digest`].
+    starting_face_id: i32,
 }
 
 impl FoldedRenderInputs {
@@ -2477,7 +2531,160 @@ impl FoldedRenderInputs {
             graph,
             folded,
             subfaces,
+            starting_face_id,
         }))
+    }
+
+    // The accessors below are **Ori Studio native** and read-only: what the
+    // Layer order dialog's solver source (`LayerSource::from_oriedita`,
+    // `implementation-plans/layer-order-dialog.md` approach 2) reads to see
+    // exactly Edit's faces, without building the graph a second time.
+
+    /// Every wireframe point where it lies on the unfolded sheet: the crease
+    /// pattern's own coordinates, indexed as [`FoldedWireframe::points`] (the
+    /// wireframe folds these points in place), so a face ring names both.
+    pub fn flat_points(&self) -> &[Point] {
+        &self.graph.points
+    }
+
+    /// The folded wireframe: folded points, face rings (face `k` is the
+    /// figure's face `k`, as the snapshot, the scene and a contradiction name
+    /// it), Oriedita's face positions (odd is the starting face's side), and
+    /// one line per input segment with its colour.
+    pub fn wireframe(&self) -> &FoldedWireframe {
+        &self.folded
+    }
+
+    /// For each subface of the folded arrangement, the faces that cover it, in
+    /// face order: the overlaps the layer search orders and the drawer stacks.
+    /// Empty when the figure has no subfaces.
+    pub fn subface_face_ids(&self) -> impl Iterator<Item = &[usize]> {
+        self.subfaces.iter().flat_map(|(_, configuration)| {
+            configuration
+                .subfaces
+                .iter()
+                .map(|subface| subface.face_ids.as_slice())
+        })
+    }
+
+    /// The lowest and highest face with wireframe line `line_index` on its
+    /// border: two faces for a line the paper folds across, the same face
+    /// twice for one on the paper's edge, `None` for a line no face borders.
+    ///
+    /// This, and not the line's colour, is Oriedita's edge rule: every line
+    /// between two faces is a fold, a mountain when it is `Red1` and a valley
+    /// otherwise, so an interior `Black0` line folds as a valley
+    /// (`initial_hierarchy_from_graph`).
+    pub fn line_face_border(&self, line_index: usize) -> Option<(usize, usize)> {
+        self.graph.line_face_border(line_index)
+    }
+
+    /// The digest of which face is which: see [`FaceRingDigest`].
+    pub fn face_ring_digest(&self) -> FaceRingDigest {
+        face_ring_digest(
+            &self.graph.segments,
+            self.starting_face_id,
+            &self.graph.faces,
+        )
+    }
+}
+
+/// Which faces a flat fold of some creases has, and how they are numbered.
+///
+/// **Ori Studio native.** The Layer order dialog analyses a figure in one
+/// kernel (the Fold wasm) and its host draws the chosen order in another (the
+/// CP wasm on the web, native on desktop), and both name faces by Oriedita's
+/// index. The two run the same code on the same input, but nothing proves
+/// they number the faces alike, so each computes this digest and the dialog
+/// refuses a mismatch (`implementation-plans/layer-order-dialog.md`,
+/// approach 2).
+///
+/// It is FNV-1a over the inputs and the integer result only: each segment's
+/// colour and coordinates exactly as given, the starting face as given, and
+/// every face ring's vertex indices. No folded or derived coordinate enters
+/// it, so a libm that rounds a reflection differently cannot change it while
+/// the faces stay the same. A zero coordinate is hashed as `+0.0`, because a
+/// trip through JavaScript's JSON writes `-0` as `0`.
+///
+/// It names faces; it is not a security check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FaceRingDigest(u64);
+
+impl FaceRingDigest {
+    pub const fn as_u64(self) -> u64 {
+        self.0
+    }
+}
+
+/// Sixteen lowercase hex digits: how the digest crosses a bridge, since a
+/// JavaScript number cannot hold every `u64`.
+impl fmt::Display for FaceRingDigest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:016x}", self.0)
+    }
+}
+
+/// [`FaceRingDigest`] of the faces `segments` trace from `starting_face_id`,
+/// building only the fold graph (no fold, no wireframe, no subfaces), or
+/// `None` when they trace no faces.
+pub fn face_ring_digest_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+) -> Option<FaceRingDigest> {
+    if segments.is_empty() {
+        return None;
+    }
+    let graph = FoldGraph::from_sheet_segments(segments);
+    if graph.faces.is_empty() {
+        return None;
+    }
+    Some(face_ring_digest(segments, starting_face_id, &graph.faces))
+}
+
+fn face_ring_digest(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    faces: &[Vec<usize>],
+) -> FaceRingDigest {
+    // Named, so a change to what is hashed changes every digest at once.
+    const DOMAIN: &[u8] = b"oristudio-face-rings/1";
+    let mut hash = Fnv1a64::new();
+    hash.write(DOMAIN);
+    hash.write_u64(segments.len() as u64);
+    for segment in segments {
+        hash.write_u64(segment.color.number() as u64);
+        for value in [segment.a.x, segment.a.y, segment.b.x, segment.b.y] {
+            hash.write_u64(if value == 0.0 { 0 } else { value.to_bits() });
+        }
+    }
+    hash.write_u64(i64::from(starting_face_id) as u64);
+    hash.write_u64(faces.len() as u64);
+    for ring in faces {
+        hash.write_u64(ring.len() as u64);
+        for &point in ring {
+            hash.write_u64(point as u64);
+        }
+    }
+    FaceRingDigest(hash.0)
+}
+
+/// 64-bit FNV-1a, little-endian words.
+struct Fnv1a64(u64);
+
+impl Fnv1a64 {
+    fn new() -> Self {
+        Self(0xcbf2_9ce4_8422_2325)
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for byte in bytes {
+            self.0 ^= u64::from(*byte);
+            self.0 = self.0.wrapping_mul(0x0100_0000_01b3);
+        }
+    }
+
+    fn write_u64(&mut self, value: u64) {
+        self.write(&value.to_le_bytes());
     }
 }
 
@@ -2898,6 +3105,42 @@ pub fn folded_figure_paper_scene_from_session(
     paper_scene_impl(
         inputs,
         HierarchySource::Solved(&overlap.hierarchy),
+        aux_lines,
+        model,
+    )
+}
+
+/// The paper scene of `inputs` stacked by a given layer order, each relation's
+/// `upper_face` above its `lower_face` in Oriedita's frame (nearer a viewer of
+/// the starting face's front).
+///
+/// **Ori Studio native**, and read-only: the Layer order dialog's panes draw
+/// an order the user is choosing through this, the same builder
+/// [`folded_figure_paper_scene_from_session`] draws a solved figure through
+/// (`implementation-plans/layer-order-dialog.md`, approach 3). Given the full
+/// relations of an order, it is the scene of a figure folded with that order
+/// (`CpSession::folded_figure_fold_with_order`), so the dialog shows what its
+/// Apply will. A pair the order leaves out is unplaced, and the drawer leaves
+/// it out of its subface's stack, as it does for any unplaced pair.
+///
+/// A relation naming a face the figure lacks, putting a face above itself or
+/// reversing an earlier relation is refused as
+/// [`WorkerOverlapSearchError::Seed`], as a seed would be. `Ok(None)` when the
+/// figure has no subfaces.
+pub fn folded_paper_scene_with_order(
+    inputs: &FoldedRenderInputs,
+    order: &[HierarchyRelation],
+    aux_lines: &[LineSegment],
+    model: &FoldedFigureModel,
+) -> Result<Option<FoldedPaperScene>, FoldingEstimateError> {
+    let mut hierarchy = InitialHierarchy {
+        faces_total: inputs.folded.faces.len(),
+        relations: Vec::new(),
+    };
+    seed_initial_hierarchy(&mut hierarchy, order)?;
+    paper_scene_impl(
+        inputs,
+        HierarchySource::Solved(&hierarchy),
         aux_lines,
         model,
     )

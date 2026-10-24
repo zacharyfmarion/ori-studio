@@ -696,6 +696,49 @@ ways, "Another solution" walks exactly the solutions that honour it, and wraps
 back to the seeded first (`solution_sample_1` 8 of 16, `kabuto` 3 of 9,
 `r069-s07` 3 of 5).
 
+#### The hosts' entries (E2)
+
+The Layer order dialog's hosts reach the seeded core through four `CpSession`
+entries, each a CP-wasm binding and a Tauri command
+(`implementation-plans/layer-order-dialog.md`, E2). They are read-only or fold
+into a new handle; none changes a figure in place.
+
+- **`folded_figure_source(handle, document)` and
+  `fold_source_of_selection(document, lines, face)`** answer a `FoldSource`:
+  the creases exactly as the fold takes them, the starting face, the aux lines
+  and a face-ring digest. A host hands it on whole, never reselected from the
+  document, because reselected lines can renumber the faces an order names.
+- **`folded_figure_fold_with_order(source, relations, model)`** folds the
+  source's segments, after checking its digest, through
+  `FoldingEstimateSession::with_seeds` into a **new** handle. An order Oriedita
+  cannot draw is a typed `FoldOrderRefusal` result (`digest_mismatch`,
+  `unknown_face`, `same_face`, `against_letters`, `in_closure`, `not_found`,
+  `budget`) that leaves no handle; a Stop is `fold_cancelled`, as for any fold.
+  There is no in-place "show this order": a new handle keeps undo honest.
+- **`folded_figure_digest(handle)`** is the figure's digest alone.
+- **The digest** (`FaceRingDigest`) is FNV-1a over each segment's colour and
+  coordinates as given, the starting face as given and every face ring's vertex
+  indices. No folded or derived float enters it, so two builds whose libm round
+  a reflection differently still agree while their faces agree. The native
+  kernel and the CP bridge are held to one recording of it
+  (`tests/fixtures/oristudio-cp/face-ring-digests.json`).
+- **The snapshot's `shown_order`** is `"given"` on a seeded figure and is not
+  written otherwise (`skip_serializing_if`), so every unseeded snapshot and
+  every saved file keeps its bytes. `tests/fold_with_order.rs` holds the
+  unseeded snapshot, renders and paper scenes of eleven file fixtures, and
+  `oristudioCpFoldWithOrder.wasm.test.ts` an `.osf` of each, to recordings made
+  before the entries existed.
+
+Two Rust-only exports serve the dialog's own engine, the Fold wasm, which links
+this crate: the `FoldedRenderInputs` accessors (`flat_points`, `wireframe`,
+`subface_face_ids` and `line_face_border`, Oriedita's edge rule: every line
+between two faces folds, a mountain if `Red1` and otherwise a valley), and
+`folded_paper_scene_with_order`, the paper scene stacked by a given order
+through the same builder as a solved figure's. Given a session's own order it
+is the scene of the figure `fold_with_order` folds, front and back, on every
+order of kabuto and `solution_sample_1`, so the dialog shows what its Apply
+will.
+
 ### Ori Studio native operations
 
 Not every CP operation is a port. Some exist only here — fold-angle editing has

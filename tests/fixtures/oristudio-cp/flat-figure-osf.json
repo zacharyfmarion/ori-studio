@@ -1,0 +1,68 @@
+[
+  {
+    "fixture": "solution_sample_1",
+    "outcome": "Solved",
+    "bytes": 107820,
+    "sha256": "60759cf3e1751e57113a3d4d78f2d6a3d418fb592d66d3238fc3e2db9fc313f0"
+  },
+  {
+    "fixture": "failing_global_flat_fold",
+    "outcome": "Contradiction",
+    "bytes": 268452,
+    "sha256": "196bf5c16527cd75f7ec1244e35d49356832ecbc090eaf7353abd9597e1e7587"
+  },
+  {
+    "fixture": "holed_sheet_spiral",
+    "outcome": "Solved",
+    "bytes": 101252,
+    "sha256": "018b3108b9e9589020f4bffc2e10d8470f6eb14b3578c1d5ed28d695bb3f4303"
+  },
+  {
+    "fixture": "holed_frame_collinear",
+    "outcome": "Solved",
+    "bytes": 24420,
+    "sha256": "382baada38468750fa5bbfcf01084c54531bc7432d0502edcb0980687b316806"
+  },
+  {
+    "fixture": "kabuto",
+    "outcome": "Solved",
+    "bytes": 113970,
+    "sha256": "5724a4c2fc602f07e870a023f3bc64af0b4426c206888f5a64096f0aef982b34"
+  },
+  {
+    "fixture": "bad_twist",
+    "outcome": "Contradiction",
+    "bytes": 220645,
+    "sha256": "2557a11fb2e1f3aeb5d6b62c9ed75f2ba4da0ba737695be5db4167013cb24a63"
+  },
+  {
+    "fixture": "r069-s07",
+    "outcome": "Solved",
+    "bytes": 76270,
+    "sha256": "5cf63c1dc37204fe2e5c70529aeeb215ce98af4b2a9ca271eeb4847813059a78"
+  },
+  {
+    "fixture": "r271-s03",
+    "outcome": "Solved",
+    "bytes": 90621,
+    "sha256": "ae3152504864d765e9e32decb255b483b338b4a3add8ae6025cec14bc1fa73fb"
+  },
+  {
+    "fixture": "pleat-in-eighths",
+    "outcome": "Solved",
+    "bytes": 33569,
+    "sha256": "539f2d39504378f4d09610b38d0c82b6dffc8a4d2bf8f7bc2ca21a2aab809f2c"
+  },
+  {
+    "fixture": "preliminary-base",
+    "outcome": "Solved",
+    "bytes": 27060,
+    "sha256": "1afe08c74a31ac92c5873958d6d0bcace91f97d5a5e5c30ccca9516d68cf5c01"
+  },
+  {
+    "fixture": "waterbomb-base",
+    "outcome": "Solved",
+    "bytes": 27069,
+    "sha256": "04d0651705c785bf65d48004196557bb91194051edd0e516deaa64a4657a3b9d"
+  }
+]

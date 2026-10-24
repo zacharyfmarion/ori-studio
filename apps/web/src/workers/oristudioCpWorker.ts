@@ -19,13 +19,17 @@ import init, {
   folded_figure_3d_aux_lines,
   folded_figure_3d_duplicate,
   folded_figure_3d_fold_another,
+  folded_figure_digest,
   folded_figure_duplicate,
   folded_figure_fold,
   folded_figure_fold_3d,
   folded_figure_fold_selected,
   folded_figure_fold_another,
   folded_figure_fold_to_case,
+  folded_figure_fold_with_order,
   folded_figure_paper_scene,
+  folded_figure_source,
+  fold_source_of_selection,
   folded_figure_render_snapshot,
   folded_figure_set_model,
   folded_figure_snapshot,
@@ -71,6 +75,8 @@ import type {
   OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldSource,
+  OristudioCpFoldWithOrderResult,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
   OristudioCpSelectedLines,
@@ -377,6 +383,54 @@ const api = {
           runId
         ) as OristudioCpFoldedFigureBatchResult
     );
+  },
+  /**
+   * What the flat figure was folded from, for the Layer order dialog. Its aux
+   * lines are `documentHandle`'s as they stand now, or, without one, the ones
+   * captured at the fold — the paper scene's rule.
+   */
+  async foldedFigureSource(
+    handle: number,
+    documentHandle?: number | null
+  ): Promise<OristudioCpFoldSource> {
+    return call(
+      () => folded_figure_source(handle, documentHandle ?? undefined) as OristudioCpFoldSource
+    );
+  },
+  /** What folding the selection would fold, as a source, before any figure exists. */
+  async foldSourceOfSelection(
+    handle: number,
+    selectedLineIds: number[],
+    startingFaceId = 1
+  ): Promise<OristudioCpFoldSource> {
+    return call(
+      () => fold_source_of_selection(handle, selectedLineIds, startingFaceId) as OristudioCpFoldSource
+    );
+  },
+  /**
+   * Fold `source` again with `relations` given — `[upper, lower]` face pairs,
+   * flat — into a new handle. Resolves to a refusal, with no handle, when the
+   * order cannot be drawn on the source's creases.
+   */
+  async foldFigureWithOrder(
+    source: OristudioCpFoldSource,
+    relations: Uint32Array,
+    model?: OristudioCpFoldedFigureModel,
+    runId = 0
+  ): Promise<OristudioCpFoldWithOrderResult> {
+    return call(
+      () =>
+        folded_figure_fold_with_order(
+          source,
+          relations,
+          model ?? null,
+          runId
+        ) as OristudioCpFoldWithOrderResult
+    );
+  },
+  /** The digest of the flat figure's faces, as its source carries it. */
+  async foldedFigureDigest(handle: number): Promise<string> {
+    return call(() => folded_figure_digest(handle));
   },
   /**
    * Fold the selected creases in 3D.

@@ -21,6 +21,8 @@ import type {
   OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldSource,
+  OristudioCpFoldWithOrderResult,
   OristudioCpLineSegment,
   OristudioCpModel,
   OristudioCpOperationDescriptor,
@@ -978,6 +980,59 @@ export async function foldOristudioCpFigureToCase(
 ): Promise<OristudioCpFoldedFigureBatchResult> {
   const api = await getOristudioCpClient();
   return api.foldFigureToCase(foldedFigureHandle, objective, initialOrder, runId);
+}
+
+/**
+ * What a flat figure was folded from, for the Layer order dialog
+ * (`folded_figure_source`): its creases, starting face, aux lines and face
+ * digest. The aux lines are `documentHandle`'s as they stand now, or, without
+ * one, the ones captured at the fold, as for the paper scene.
+ */
+export async function getOristudioCpFoldedFigureSource(
+  foldedFigureHandle: number,
+  documentHandle?: number | null
+): Promise<OristudioCpFoldSource> {
+  const api = await getOristudioCpClient();
+  return api.foldedFigureSource(foldedFigureHandle, documentHandle);
+}
+
+/**
+ * What folding these lines of the loaded crease pattern would fold, as a
+ * source, before any figure exists (`fold_source_of_selection`). It builds the
+ * fold graph and does not fold.
+ */
+export async function getOristudioCpSelectionFoldSource(
+  selectedLineIds: number[],
+  startingFaceId = 1
+): Promise<OristudioCpFoldSource> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  return api.foldSourceOfSelection(handle, selectedLineIds, startingFaceId);
+}
+
+/**
+ * Fold `source` again with `relations` given (flat `[upper, lower]` face
+ * pairs), into a **new** handle (`folded_figure_fold_with_order`). A refusal
+ * resolves, and leaves no handle; a Stop rejects with `fold_cancelled`.
+ */
+export async function foldOristudioCpWithOrder(
+  source: OristudioCpFoldSource,
+  relations: Uint32Array,
+  model?: OristudioCpFoldedFigureModel,
+  runId: number = FOLD_RUN_NONE
+): Promise<OristudioCpFoldWithOrderResult> {
+  const api = await getOristudioCpClient();
+  return api.foldFigureWithOrder(source, relations, model, runId);
+}
+
+/** The digest of a flat figure's faces, as its source carries it. */
+export async function getOristudioCpFoldedFigureDigest(
+  foldedFigureHandle: number
+): Promise<string> {
+  const api = await getOristudioCpClient();
+  return api.foldedFigureDigest(foldedFigureHandle);
 }
 
 /**

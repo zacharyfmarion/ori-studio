@@ -28,8 +28,9 @@ use oristudio_cp::geometry::LineSegment;
 use oristudio_cp::geometry_transport::CompactGeometry;
 use oristudio_cp::line_selection::SelectedLines;
 use oristudio_cp::session::{
-    CpSession, DocumentSummary, EngineError, Fold3dFoldResult, Fold3dStepResult,
-    FoldedFigureBatchResult, FoldedFigureResult, OperationInfo, SelectionCommandResult,
+    CpSession, DocumentSummary, EngineError, Fold3dFoldResult, Fold3dStepResult, FoldSource,
+    FoldWithOrderResult, FoldedFigureBatchResult, FoldedFigureResult, OperationInfo,
+    SelectionCommandResult, relations_from_flat_pairs,
 };
 use oristudio_cp::{CommandPreview, CommandResult, CreasePatternCommandPayload, OperationId};
 use tauri::State;
@@ -870,6 +871,69 @@ pub async fn cp_folded_figure_fold_to_case(
     .await
 }
 
+// --- layer order (the Layer order dialog's host entries) ---------------------
+
+#[tauri::command]
+pub async fn cp_folded_figure_source(
+    handle: u32,
+    document_handle: Option<u32>,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<FoldSource, EngineError> {
+    run(state, session_id, move |session| {
+        session.folded_figure_source(handle, document_handle)
+    })
+    .await
+}
+
+/// Builds the fold graph of the selection, never folds it: not a search, so
+/// not cancellable.
+#[tauri::command]
+pub async fn cp_fold_source_of_selection(
+    document_handle: u32,
+    selected_line_ids: Vec<usize>,
+    starting_face_id: i32,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<FoldSource, EngineError> {
+    run(state, session_id, move |session| {
+        session.fold_source_of_selection(document_handle, &selected_line_ids, starting_face_id)
+    })
+    .await
+}
+
+/// `relations` is the flat `[upper, lower, …]` pair list the browser bridge
+/// takes as a `Uint32Array`.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)] // Flat IPC arguments, as for every fold command.
+pub async fn cp_folded_figure_fold_with_order(
+    source: FoldSource,
+    relations: Vec<u32>,
+    model: Option<FoldedFigureModel>,
+    run_id: u32,
+    state: State<'_, CpEngine>,
+    cancel: State<'_, FoldCancelState>,
+    session_id: Option<u32>,
+) -> Result<FoldWithOrderResult, EngineError> {
+    run_cancellable(state, cancel, run_id, session_id, move |session| {
+        let relations = relations_from_flat_pairs(&relations)?;
+        session.folded_figure_fold_with_order(&source, &relations, model.unwrap_or_default())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn cp_folded_figure_digest(
+    handle: u32,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<String, EngineError> {
+    run(state, session_id, move |session| {
+        session.folded_figure_digest(handle)
+    })
+    .await
+}
+
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // Flat IPC arguments preserve the existing client contract.
 pub async fn cp_folded_figure_fold_3d(
@@ -993,6 +1057,10 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_folded_figure_duplicate",
     "cp_folded_figure_fold_another",
     "cp_folded_figure_fold_to_case",
+    "cp_folded_figure_source",
+    "cp_fold_source_of_selection",
+    "cp_folded_figure_fold_with_order",
+    "cp_folded_figure_digest",
     "cp_folded_figure_fold_3d",
     "cp_folded_figure_3d_fold_another",
     "cp_folded_figure_3d_duplicate",
@@ -1000,7 +1068,7 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_free_folded_figure",
 ];
 
-/// The six commands that run a layer-ordering search, and so must be
+/// The seven commands that run a layer-ordering search, and so must be
 /// cancellable. Named here rather than inferred, because [`run_cancellable`] can
 /// be written and never called: that compiles, passes every check in the repo,
 /// and leaves desktop Stop silently doing nothing forever.
@@ -1010,6 +1078,7 @@ const CANCELLABLE_FOLD_COMMANDS: &[&str] = &[
     "cp_folded_figure_fold_selected",
     "cp_folded_figure_fold_another",
     "cp_folded_figure_fold_to_case",
+    "cp_folded_figure_fold_with_order",
     "cp_folded_figure_fold_3d",
     "cp_folded_figure_3d_fold_another",
 ];

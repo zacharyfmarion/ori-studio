@@ -13,7 +13,7 @@ use oristudio_cp::folding::{
 use oristudio_cp::geometry::LineSegment;
 use oristudio_cp::geometry_transport::CompactGeometry;
 use oristudio_cp::line_selection::SelectedLines;
-use oristudio_cp::session::{CpSession, EngineError};
+use oristudio_cp::session::{CpSession, EngineError, FoldSource, relations_from_flat_pairs};
 use oristudio_cp::{CreasePatternCommandPayload, CreasePatternDocument, OperationId};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -471,6 +471,61 @@ pub fn folded_figure_fold_to_case(
         session.folded_figure_fold_to_case(handle, objective as usize, initial_order)
     })?;
     to_js_value(&result)
+}
+
+// --- layer order ------------------------------------------------------------
+//
+// The Layer order dialog's host entries (`CpSession`'s, Ori Studio native). A
+// source is `{ segments, starting_face_id, aux_segments, digest }`; relations
+// cross as one flat `Uint32Array` of `[upper, lower]` face pairs.
+
+/// What the flat figure `handle` was folded from: its creases, starting face,
+/// aux lines (`document_handle`'s as they stand now, or the ones captured at
+/// the fold) and the digest of its faces.
+#[wasm_bindgen]
+pub fn folded_figure_source(handle: u32, document_handle: Option<u32>) -> Result<JsValue, JsValue> {
+    let source = with_session(|session| session.folded_figure_source(handle, document_handle))?;
+    to_js_value(&source)
+}
+
+/// What `folded_figure_fold_selected` would fold, as a source, before any
+/// figure exists.
+#[wasm_bindgen]
+pub fn fold_source_of_selection(
+    document_handle: u32,
+    selected_line_ids: JsValue,
+    starting_face_id: i32,
+) -> Result<JsValue, JsValue> {
+    let selected_line_ids: Vec<usize> = from_js(selected_line_ids)?;
+    let source = with_session(|session| {
+        session.fold_source_of_selection(document_handle, &selected_line_ids, starting_face_id)
+    })?;
+    to_js_value(&source)
+}
+
+/// Fold `source` with `relations` given, into a new handle:
+/// `{ status: "folded", handle, snapshot }`, or
+/// `{ status: "refused", refusal: { code, ... } }`, which leaves no handle.
+#[wasm_bindgen]
+pub fn folded_figure_fold_with_order(
+    source: JsValue,
+    relations: &[u32],
+    model: JsValue,
+    run_id: u32,
+) -> Result<JsValue, JsValue> {
+    let source: FoldSource = from_js(source)?;
+    let relations = relations_from_flat_pairs(relations).map_err(engine_error_to_js)?;
+    let model = folded_figure_model_from_js(model)?;
+    let result = with_fold(run_id, |session| {
+        session.folded_figure_fold_with_order(&source, &relations, model)
+    })?;
+    to_js_value(&result)
+}
+
+/// The digest of the flat figure `handle`'s faces, as its source carries it.
+#[wasm_bindgen]
+pub fn folded_figure_digest(handle: u32) -> Result<String, JsValue> {
+    with_session(|session| session.folded_figure_digest(handle))
 }
 
 // --- folding in 3D ----------------------------------------------------------

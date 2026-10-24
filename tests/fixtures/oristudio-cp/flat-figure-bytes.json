@@ -1,0 +1,266 @@
+[
+  {
+    "fixture": "solution_sample_1",
+    "outcome": "Solved",
+    "snapshot": {
+      "bytes": 3804,
+      "fnv1a64": "6f9d5c985ee44c85"
+    },
+    "render_front": {
+      "bytes": 17294,
+      "fnv1a64": "4079c26fea280b11"
+    },
+    "render_back": {
+      "bytes": 28437,
+      "fnv1a64": "9b90a75ae222b8a8"
+    },
+    "scene_front": {
+      "bytes": 12145,
+      "fnv1a64": "e975968a4966e5a1"
+    },
+    "scene_back": {
+      "bytes": 12147,
+      "fnv1a64": "65bb019804fe749f"
+    }
+  },
+  {
+    "fixture": "failing_global_flat_fold",
+    "outcome": "Contradiction",
+    "snapshot": {
+      "bytes": 12756,
+      "fnv1a64": "969fbaf48b428290"
+    },
+    "render_front": {
+      "bytes": 34701,
+      "fnv1a64": "471d7a1931da0dfb"
+    },
+    "render_back": {
+      "bytes": 34700,
+      "fnv1a64": "90c96ee8b2e52239"
+    },
+    "scene_front": {
+      "bytes": 4,
+      "fnv1a64": "5b9bc4ba528108e4"
+    },
+    "scene_back": {
+      "bytes": 4,
+      "fnv1a64": "5b9bc4ba528108e4"
+    }
+  },
+  {
+    "fixture": "holed_sheet_spiral",
+    "outcome": "Solved",
+    "snapshot": {
+      "bytes": 6204,
+      "fnv1a64": "cc63e9dec1372f2c"
+    },
+    "render_front": {
+      "bytes": 6867,
+      "fnv1a64": "9d4a1c3f40ddee80"
+    },
+    "render_back": {
+      "bytes": 6866,
+      "fnv1a64": "8a01581ccf4a43ec"
+    },
+    "scene_front": {
+      "bytes": 16879,
+      "fnv1a64": "d8c5b2045efffd5c"
+    },
+    "scene_back": {
+      "bytes": 16878,
+      "fnv1a64": "c331abd862acdc63"
+    }
+  },
+  {
+    "fixture": "holed_frame_collinear",
+    "outcome": "Solved",
+    "snapshot": {
+      "bytes": 1321,
+      "fnv1a64": "7b209a4354d131be"
+    },
+    "render_front": {
+      "bytes": 2910,
+      "fnv1a64": "32865647ebcf77b9"
+    },
+    "render_back": {
+      "bytes": 2915,
+      "fnv1a64": "2558563cd9b41d9e"
+    },
+    "scene_front": {
+      "bytes": 1796,
+      "fnv1a64": "166df441d9c6b49d"
+    },
+    "scene_back": {
+      "bytes": 1809,
+      "fnv1a64": "a7d3105ceb067b09"
+    }
+  },
+  {
+    "fixture": "kabuto",
+    "outcome": "Solved",
+    "snapshot": {
+      "bytes": 2884,
+      "fnv1a64": "84a303fc2de5c423"
+    },
+    "render_front": {
+      "bytes": 22103,
+      "fnv1a64": "0add932d450eab2d"
+    },
+    "render_back": {
+      "bytes": 16375,
+      "fnv1a64": "6e1289916b77bd86"
+    },
+    "scene_front": {
+      "bytes": 11756,
+      "fnv1a64": "ca9f5550041ce07e"
+    },
+    "scene_back": {
+      "bytes": 10205,
+      "fnv1a64": "d8421fe4b428a0bb"
+    }
+  },
+  {
+    "fixture": "bad_twist",
+    "outcome": "Contradiction",
+    "snapshot": {
+      "bytes": 2780,
+      "fnv1a64": "b70676ec34947c26"
+    },
+    "render_front": {
+      "bytes": 55570,
+      "fnv1a64": "4acfe5ac26fb36bc"
+    },
+    "render_back": {
+      "bytes": 55540,
+      "fnv1a64": "67d426068a6857ad"
+    },
+    "scene_front": {
+      "bytes": 4,
+      "fnv1a64": "5b9bc4ba528108e4"
+    },
+    "scene_back": {
+      "bytes": 4,
+      "fnv1a64": "5b9bc4ba528108e4"
+    }
+  },
+  {
+    "fixture": "r069-s07",
+    "outcome": "Solved",
+    "snapshot": {
+      "bytes": 2773,
+      "fnv1a64": "50e8ce2f1d3b244c"
+    },
+    "render_front": {
+      "bytes": 12371,
+      "fnv1a64": "996fbe30f9283727"
+    },
+    "render_back": {
+      "bytes": 14402,
+      "fnv1a64": "c416d2c1914ac2c6"
+    },
+    "scene_front": {
+      "bytes": 10039,
+      "fnv1a64": "3681d1cdc4300040"
+    },
+    "scene_back": {
+      "bytes": 10265,
+      "fnv1a64": "3217feafd0f76e00"
+    }
+  },
+  {
+    "fixture": "r271-s03",
+    "outcome": "Solved",
+    "snapshot": {
+      "bytes": 2105,
+      "fnv1a64": "f051831f59ab5f6b"
+    },
+    "render_front": {
+      "bytes": 19652,
+      "fnv1a64": "32fde406ce2da77f"
+    },
+    "render_back": {
+      "bytes": 16442,
+      "fnv1a64": "3d294927160637c9"
+    },
+    "scene_front": {
+      "bytes": 8335,
+      "fnv1a64": "5e66341e8dbba9f7"
+    },
+    "scene_back": {
+      "bytes": 8258,
+      "fnv1a64": "095933c6d21a8ef8"
+    }
+  },
+  {
+    "fixture": "pleat-in-eighths",
+    "outcome": "Solved",
+    "snapshot": {
+      "bytes": 2222,
+      "fnv1a64": "64c9a987a4236e1d"
+    },
+    "render_front": {
+      "bytes": 2075,
+      "fnv1a64": "8cfbaf7f0833d15a"
+    },
+    "render_back": {
+      "bytes": 2074,
+      "fnv1a64": "f4528fd7f4364afc"
+    },
+    "scene_front": {
+      "bytes": 4337,
+      "fnv1a64": "1c249487be80858b"
+    },
+    "scene_back": {
+      "bytes": 4336,
+      "fnv1a64": "3f343746b9a30bba"
+    }
+  },
+  {
+    "fixture": "preliminary-base",
+    "outcome": "Solved",
+    "snapshot": {
+      "bytes": 1502,
+      "fnv1a64": "1ec21d4c7cae6959"
+    },
+    "render_front": {
+      "bytes": 2444,
+      "fnv1a64": "4066a861e81adaa4"
+    },
+    "render_back": {
+      "bytes": 2443,
+      "fnv1a64": "b783c885901446ea"
+    },
+    "scene_front": {
+      "bytes": 2766,
+      "fnv1a64": "b13f0d04bbbebca1"
+    },
+    "scene_back": {
+      "bytes": 2765,
+      "fnv1a64": "22e4cd10f10fbddc"
+    }
+  },
+  {
+    "fixture": "waterbomb-base",
+    "outcome": "Solved",
+    "snapshot": {
+      "bytes": 1506,
+      "fnv1a64": "fa4638c07334ecaa"
+    },
+    "render_front": {
+      "bytes": 2445,
+      "fnv1a64": "e618051fc4f2879a"
+    },
+    "render_back": {
+      "bytes": 2452,
+      "fnv1a64": "d0eb8390c08cf488"
+    },
+    "scene_front": {
+      "bytes": 2765,
+      "fnv1a64": "0563749615d96d53"
+    },
+    "scene_back": {
+      "bytes": 2804,
+      "fnv1a64": "e76956ab832d404e"
+    }
+  }
+]
