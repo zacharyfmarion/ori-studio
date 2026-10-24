@@ -45,6 +45,8 @@ import { announceUpdateCheck } from '../lib/updateFeedback';
 import { endOpenCanvasSessions } from '../cp-workspace/canvasObjects/canvasSessions';
 import type { FoldMenuVerb } from '../fold/sequence/foldCommands';
 import { loadFold } from '../workspaces/foldGateway';
+import { isShortcutBarrierOpen } from '../keyboard/shortcutDispatcher';
+import { runModalHistory, type ModalHistoryVerb } from '../keyboard/dialogShortcuts';
 
 export const MENU_ACTION_IDS = [
   'file.importDiagramSteps',
@@ -458,8 +460,55 @@ const FOLD_TO_DIAGRAM_ACTIONS: Partial<Record<MenuActionId, FoldSendToDiagramSco
   'fold.send-path-to-diagram': 'path',
 };
 
+/**
+ * What an open modal dialog ({@link isShortcutBarrierOpen}) holds back from the
+ * menus: the actions that change the workspace behind it. Undo and redo would
+ * rewind a document the dialog covers, and a view switch would move the
+ * workspace out from under a dialog opened over it. A key stops at the dialog
+ * (`handleAppKeyDown`), but a menu reaches {@link handleMenuAction} with no key
+ * to stop — so the native Edit ▸ Undo undid the workspace behind any modal.
+ *
+ * Only these. Settings, About and the exports open over a dialog on purpose;
+ * `App.tsx` stacks the modals for it.
+ *
+ * Undo and Redo go to the dialog's own history instead, when the dialog on top
+ * keeps one ({@link MODAL_HISTORY_VERBS}).
+ */
+const HELD_BEHIND_MODAL_ACTIONS: ReadonlySet<MenuActionId> = new Set<MenuActionId>([
+  'edit.undo',
+  'edit.redo',
+  ...(Object.keys(VIEW_PANEL_ACTIONS) as MenuActionId[]),
+  'cp.analyzeReferences',
+]);
+
+/**
+ * The held actions that a dialog with a history of its own takes instead
+ * (`registerModalHistory`): Undo and Redo, on that history, while it is the
+ * dialog on top. Keys inside the dialog come here too
+ * (`handleDialogShortcutKeyDown`), so a key and the menu bar's Undo take one
+ * route. With no history registered they stay held, like the rest.
+ */
+const MODAL_HISTORY_VERBS: Partial<Record<MenuActionId, ModalHistoryVerb>> = {
+  'edit.undo': 'undo',
+  'edit.redo': 'redo',
+};
+
 export function isMenuActionId(id: string): id is MenuActionId {
   return (MENU_ACTION_IDS as readonly string[]).includes(id);
+}
+
+function isHeldBehindModal(id: string): id is MenuActionId {
+  return isMenuActionId(id) && HELD_BEHIND_MODAL_ACTIONS.has(id) && isShortcutBarrierOpen();
+}
+
+/**
+ * What a held action does instead: Undo or Redo on the dialog's own history.
+ * True when that took a step. False for every other held action, and for Undo
+ * and Redo with no history registered or nothing left in it.
+ */
+function runInsteadBehindModal(id: MenuActionId): boolean {
+  const verb = MODAL_HISTORY_VERBS[id];
+  return verb !== undefined && runModalHistory(verb);
 }
 
 /**
@@ -958,16 +1007,25 @@ function analyticsCommandGroup(id: string): string {
   return id.split(/[.:]/, 1)[0] || 'other';
 }
 
+function trackCommandInvoked(id: string): void {
+  track('command invoked', {
+    command_id: analyticsCommandId(id),
+    command_group: analyticsCommandGroup(id),
+  });
+}
+
 export function handleMenuAction(id: string): Promise<boolean> {
+  if (isHeldBehindModal(id)) {
+    // Before the event: an action a modal held back did nothing to count. A
+    // step on the dialog's own history is an Undo or Redo like any other.
+    const ran = runInsteadBehindModal(id);
+    if (ran) trackCommandInvoked(id);
+    return Promise.resolve(ran);
+  }
   // The chokepoint for menu bar / command palette / keyboard-mapped actions.
   // Capturing intent here covers most of the app with one event. Only recognized
   // ids are recorded, so stray dispatches don't create phantom commands.
-  if (isMenuActionId(id) || id.startsWith(OPEN_EXAMPLE_PREFIX)) {
-    track('command invoked', {
-      command_id: analyticsCommandId(id),
-      command_group: analyticsCommandGroup(id),
-    });
-  }
+  if (isMenuActionId(id) || id.startsWith(OPEN_EXAMPLE_PREFIX)) trackCommandInvoked(id);
   return createMenuActionHandler({
     workspace: useWorkspaceStore.getState(),
     layout: useLayoutStore.getState(),

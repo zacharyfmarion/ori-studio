@@ -10,7 +10,7 @@ import {
 import { handleMenuAction, type MenuActionId } from '../../commands/menuActions';
 import type { ContextMenuItem } from '../../components/ui/contextMenuTypes';
 import { useShortcutStore } from '../../store/shortcutStore';
-import { topmostModalDialog } from '../../components/ui/useModalDialog';
+import { topmostModalDialog } from '../../keyboard/shortcutDispatcher';
 import { focusCommandDialog } from '../../store/commandDialogStore';
 import { selectWorkspaceCapabilities } from '../../store/workspaceStore/capabilities';
 import { useWorkspaceStore } from '../../store/workspaceStore';

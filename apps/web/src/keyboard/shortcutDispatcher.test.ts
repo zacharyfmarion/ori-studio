@@ -409,3 +409,167 @@ describe('an open layer owns its keys', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 });
+
+/**
+ * `insideBarrier`: a barrier dialog resolving its own keys through the same
+ * registry, rather than having every key aimed into it dropped.
+ */
+describe('a barrier dialog resolves its keys through the registry', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  /** What `useModalDialog` renders for a dialog that owns every key, appended on top of any already open. */
+  function openDialog(): HTMLElement {
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-shortcut-barrier', '');
+    dialog.innerHTML = '<div role="document" tabindex="-1"></div>';
+    document.body.append(dialog);
+    return dialog;
+  }
+
+  function press(target: Element, init: KeyboardEventInit): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    Object.defineProperty(event, 'target', { value: target });
+    return event;
+  }
+
+  function dispatchFor(
+    dialog: Element,
+    event: KeyboardEvent,
+    overrides?: Parameters<typeof handleShortcutKeyDown>[1]['overrides']
+  ) {
+    const menu = vi.fn();
+    const claimed = handleShortcutKeyDown(event, {
+      scopeStack: ['global'],
+      overrides,
+      executors: { menu },
+      insideBarrier: dialog,
+    });
+    return { claimed, menu };
+  }
+
+  const surfaceOf = (dialog: Element) => dialog.querySelector('[role="document"]') as HTMLElement;
+
+  it('takes ⌘Z and ⇧⌘Z inside it, as Undo and Redo', () => {
+    const dialog = openDialog();
+
+    const undo = press(surfaceOf(dialog), { key: 'z', metaKey: true });
+    const first = dispatchFor(dialog, undo);
+    expect(first.claimed).toBe(true);
+    expect(first.menu).toHaveBeenCalledWith('edit.undo');
+    expect(undo.defaultPrevented).toBe(true);
+
+    const redo = press(surfaceOf(dialog), { key: 'Z', metaKey: true, shiftKey: true });
+    const second = dispatchFor(dialog, redo);
+    expect(second.claimed).toBe(true);
+    expect(second.menu).toHaveBeenCalledWith('edit.redo');
+  });
+
+  it('takes a chord the user added to Undo, from the same overrides the workspace reads', () => {
+    const dialog = openDialog();
+    const overrides = { 'edit.undo': [{ primary: true, key: 'u' }] };
+
+    const added = dispatchFor(dialog, press(surfaceOf(dialog), { key: 'u', metaKey: true }), overrides);
+    expect(added.menu).toHaveBeenCalledWith('edit.undo');
+    // Undo keeps its defaults: an override adds a chord, never moves ⌘Z away.
+    const kept = dispatchFor(dialog, press(surfaceOf(dialog), { key: 'z', metaKey: true }), overrides);
+    expect(kept.menu).toHaveBeenCalledWith('edit.undo');
+    // Without the override, the added chord is nothing in the dialog.
+    const without = dispatchFor(dialog, press(surfaceOf(dialog), { key: 'u', metaKey: true }));
+    expect(without.claimed).toBe(false);
+  });
+
+  it('takes nothing else the global scope binds: those stay the dialog’s', () => {
+    const dialog = openDialog();
+    for (const init of [
+      { key: 's', metaKey: true },
+      { key: 'Delete' },
+      { key: ' ' },
+      { key: 'Escape' },
+    ]) {
+      const event = press(surfaceOf(dialog), init);
+      const { claimed, menu } = dispatchFor(dialog, event);
+      expect(claimed, JSON.stringify(init)).toBe(false);
+      expect(menu, JSON.stringify(init)).not.toHaveBeenCalled();
+      expect(event.defaultPrevented, JSON.stringify(init)).toBe(false);
+    }
+  });
+
+  it('leaves a text field inside it its own undo', () => {
+    const dialog = openDialog();
+    for (const field of [document.createElement('input'), document.createElement('textarea')]) {
+      dialog.append(field);
+      for (const init of [
+        { key: 'z', metaKey: true },
+        { key: 'Z', metaKey: true, shiftKey: true },
+      ]) {
+        const event = press(field, init);
+        const { claimed, menu } = dispatchFor(dialog, event);
+        expect(claimed).toBe(false);
+        expect(menu).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+      }
+    }
+  });
+
+  it('still undoes from a slider inside it, which has no text to undo', () => {
+    const dialog = openDialog();
+    const slider = Object.assign(document.createElement('input'), { type: 'range' });
+    dialog.append(slider);
+
+    const { claimed, menu } = dispatchFor(dialog, press(slider, { key: 'z', metaKey: true }));
+    expect(claimed).toBe(true);
+    expect(menu).toHaveBeenCalledWith('edit.undo');
+  });
+
+  it('takes nothing while another dialog is open over it, and its keys again once that closes', () => {
+    const dialog = openDialog();
+    const over = openDialog();
+
+    const under = dispatchFor(dialog, press(surfaceOf(dialog), { key: 'z', metaKey: true }));
+    expect(under.claimed).toBe(false);
+    expect(under.menu).not.toHaveBeenCalled();
+    const top = dispatchFor(over, press(surfaceOf(over), { key: 'z', metaKey: true }));
+    expect(top.menu).toHaveBeenCalledWith('edit.undo');
+
+    over.remove();
+    const again = dispatchFor(dialog, press(surfaceOf(dialog), { key: 'z', metaKey: true }));
+    expect(again.menu).toHaveBeenCalledWith('edit.undo');
+  });
+
+  it('leaves a key aimed into another barrier to that one', () => {
+    // A popover that holds every key, portalled beside the dialog it opened from.
+    const dialog = openDialog();
+    const popover = document.body.appendChild(document.createElement('div'));
+    popover.setAttribute('data-shortcut-barrier', '');
+    const link = popover.appendChild(document.createElement('a'));
+
+    const { claimed, menu } = dispatchFor(dialog, press(link, { key: 'z', metaKey: true }));
+    expect(claimed).toBe(false);
+    expect(menu).not.toHaveBeenCalled();
+  });
+
+  it('takes a key that slipped out of it with focus: nothing behind it may act', () => {
+    const dialog = openDialog();
+    const behind = document.body.appendChild(document.createElement('button'));
+
+    const { menu } = dispatchFor(dialog, press(behind, { key: 'z', metaKey: true }));
+    expect(menu).toHaveBeenCalledWith('edit.undo');
+  });
+
+  it('changes nothing for a dispatch that names no barrier', () => {
+    const dialog = openDialog();
+    const menu = vi.fn();
+    const inside = press(surfaceOf(dialog), { key: 'z', metaKey: true });
+    expect(handleShortcutKeyDown(inside, { scopeStack: ['global'], executors: { menu } })).toBe(false);
+    expect(menu).not.toHaveBeenCalled();
+
+    dialog.remove();
+    const save = press(document.body, { key: 's', metaKey: true });
+    expect(handleShortcutKeyDown(save, { scopeStack: ['global'], executors: { menu } })).toBe(true);
+    expect(menu).toHaveBeenCalledWith('file.save');
+  });
+});

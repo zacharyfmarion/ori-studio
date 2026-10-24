@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
-import { isOpenLayerTarget, isShortcutEditingTarget } from '../../keyboard/shortcutDispatcher';
+import { isOpenLayerTarget, isShortcutEditingTarget, isTopmostDialog } from '../../keyboard/shortcutDispatcher';
 import { escapeEndsArmedMode } from '../../keyboard/shortcutRuntime';
-import { isTopmostDialog } from './useModalDialog';
 
 /**
  * Is this Escape the sheet's to close on? `sheet` is a touch sheet — the View

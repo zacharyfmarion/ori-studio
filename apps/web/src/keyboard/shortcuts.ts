@@ -289,6 +289,17 @@ export interface ShortcutDefinition {
    * them, and a browser left to answer ⌘S itself opens Save Page As.
    */
   inFormControls?: boolean;
+  /**
+   * Whether the chord still reaches the app from inside the barrier dialog on
+   * top (`data-shortcut-barrier`), when that dialog answers it. Every other key
+   * aimed into one is the dialog's alone.
+   *
+   * Undo and Redo only. A dialog that keeps a history of its own
+   * (`registerModalHistory`) takes them for that history, through these same
+   * bindings, so a chord the user added to Undo works there too, and the key
+   * and the menu bar's Undo stay one verb.
+   */
+  inBarrierDialogs?: boolean;
 }
 
 export type ShortcutOverrides = Partial<Record<ShortcutActionId, KeyChord[] | null>>;
@@ -468,8 +479,14 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
   },
   menuShortcut('file.printDiagram', 'Print Diagram...', 'File', { primary: true, key: 'p' }),
   menuShortcut('file.settings', 'Settings', 'File', { primary: true, key: ',' }, 'prefAction'),
-  menuShortcut('edit.undo', 'Undo', 'Edit', { primary: true, key: 'z' }, 'undoAction'),
-  menuShortcut('edit.redo', 'Redo', 'Edit', { primary: true, shift: true, key: 'z' }, 'redoAction'),
+  {
+    ...menuShortcut('edit.undo', 'Undo', 'Edit', { primary: true, key: 'z' }, 'undoAction'),
+    inBarrierDialogs: true,
+  },
+  {
+    ...menuShortcut('edit.redo', 'Redo', 'Edit', { primary: true, shift: true, key: 'z' }, 'redoAction'),
+    inBarrierDialogs: true,
+  },
   menuShortcut('edit.cut', 'Cut', 'Edit', { primary: true, key: 'x' }, 'cutClipboardAction'),
   menuShortcut('edit.copy', 'Copy', 'Edit', { primary: true, key: 'c' }, 'copyClipboardAction'),
   menuShortcut('edit.paste', 'Paste', 'Edit', { primary: true, key: 'v' }, 'pasteClipboardAction'),

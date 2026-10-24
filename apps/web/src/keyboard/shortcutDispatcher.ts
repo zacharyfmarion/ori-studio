@@ -72,6 +72,19 @@ export interface ShortcutDispatchOptions {
    */
   defaultsSource?: ShortcutDefaultsSource;
   executors: ShortcutExecutors;
+  /**
+   * Resolve for this barrier dialog (`data-shortcut-barrier`) instead of for
+   * the workspace behind it. Without it, every key aimed into a barrier is
+   * dropped before any scope resolves. With it, the dialog's keys resolve
+   * through the same registry, overrides and form-control rule as the
+   * workspace's, but only the definitions that reach into a barrier dialog
+   * (`inBarrierDialogs`) can match.
+   *
+   * Only while it is the dialog on top: a dialog opened over it owns the keys
+   * then. A key aimed into another barrier (a popover of its own that holds
+   * every key) stays that one's.
+   */
+  insideBarrier?: Element;
 }
 
 export function isShortcutEditingTarget(target: EventTarget | null): boolean {
@@ -154,6 +167,33 @@ export function isShortcutBarrierOpen(): boolean {
   return document.querySelector('[role="dialog"][aria-modal="true"][data-shortcut-barrier]') !== null;
 }
 
+/** The modal dialog on top — the last in the document, as they stack — or null with none open. */
+export function topmostModalDialog(): Element | null {
+  const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+  return dialogs[dialogs.length - 1] ?? null;
+}
+
+/** Is `root` the dialog on top? */
+export function isTopmostDialog(root: Element | null): boolean {
+  return root !== null && topmostModalDialog() === root;
+}
+
+/**
+ * May a key aimed at `target` reach a dispatch for `barrier`, or for the
+ * workspace when none is named?
+ *
+ * The workspace gets no key aimed into a barrier: the dialog owns it. A
+ * barrier gets its keys only while it is the dialog on top, and not one aimed
+ * into another barrier. A key that slipped out of it with focus is still its
+ * own, because nothing behind a modal dialog may act.
+ */
+function keyReachesDispatch(target: EventTarget | null, barrier: Element | undefined): boolean {
+  if (!barrier) return !isShortcutBarrierTarget(target);
+  if (!isTopmostDialog(barrier)) return false;
+  const holder = target instanceof Element ? target.closest('[data-shortcut-barrier]') : null;
+  return holder === null || holder === barrier;
+}
+
 export function handleShortcutKeyDown(
   event: KeyboardEvent,
   options: ShortcutDispatchOptions
@@ -162,7 +202,7 @@ export function handleShortcutKeyDown(
     event.defaultPrevented ||
     event.isComposing ||
     isOpenLayerTarget(event.target) ||
-    isShortcutBarrierTarget(event.target)
+    !keyReachesDispatch(event.target, options.insideBarrier)
   ) {
     return false;
   }
@@ -184,6 +224,7 @@ export function handleShortcutKeyDown(
     const definition = SHORTCUT_DEFINITIONS.find((candidate) => {
       if (candidate.scope !== scope) return false;
       if (ownsChords && !candidate.inFormControls) return false;
+      if (options.insideBarrier && !candidate.inBarrierDialogs) return false;
       return getResolvedShortcuts(candidate.id, resolution).some((shortcut) =>
         keyChordEquals(shortcut, chord)
       );

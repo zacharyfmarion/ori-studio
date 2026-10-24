@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditingContext } from '../workspaces/editingContext';
+import { registerModalHistory } from '../keyboard/dialogShortcuts';
 import {
   registerCpActionShortcutExecutor,
   registerViewportShortcutExecutor,
@@ -215,10 +216,11 @@ describe('app keyboard shortcuts', () => {
     document.body.append(outside);
     cleanups.push(() => outside.remove());
     const actions = createActions(selectEverything(createSampleProject()));
-    for (const key of ['Delete', 'Backspace', 'Escape']) {
-      const event = new KeyboardEvent('keydown', { key, cancelable: true, bubbles: true });
+    for (const init of [{ key: 'Delete' }, { key: 'Backspace' }, { key: 'Escape' }, { key: 'z', metaKey: true }]) {
+      const event = new KeyboardEvent('keydown', { ...init, cancelable: true, bubbles: true });
       Object.defineProperty(event, 'target', { value: outside });
-      expect(handleAppKeyDown(event, actions), key).toBe(false);
+      expect(handleAppKeyDown(event, actions), init.key).toBe(false);
+      expect(event.defaultPrevented, init.key).toBe(false);
     }
     expect(actions.handleMenuAction).not.toHaveBeenCalled();
     expect(actions.selectNone).not.toHaveBeenCalled();
@@ -508,6 +510,104 @@ describe('app keyboard — an open layer owns the keys aimed at it', () => {
     expect(viewport).not.toHaveBeenCalled();
     expect(cpAction).not.toHaveBeenCalled();
     expect(actions.handleMenuAction).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A barrier dialog that keeps a history of its own (`registerModalHistory`),
+ * through the app's one capture listener: no listener of the dialog's own.
+ */
+describe('app keyboard — a dialog with a history of its own', () => {
+  function openDialog(): HTMLElement {
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-shortcut-barrier', '');
+    const surface = dialog.appendChild(document.createElement('div'));
+    surface.setAttribute('role', 'document');
+    surface.tabIndex = -1;
+    document.body.append(dialog);
+    cleanups.push(() => dialog.remove());
+    return dialog;
+  }
+
+  function withHistory(dialog: HTMLElement): void {
+    cleanups.push(
+      registerModalHistory(dialog, { undo: vi.fn(), redo: vi.fn(), canUndo: () => true, canRedo: () => true })
+    );
+  }
+
+  function listen(overrides?: ShortcutOverrides) {
+    const actions = {
+      ...createActions(selectEverything(createSampleProject()), { activeEditingContext: 'crease-pattern' }),
+      getShortcutOverrides: () => overrides ?? {},
+    };
+    cleanups.push(installAppKeyboardListener(actions));
+    return actions;
+  }
+
+  function press(target: HTMLElement, init: KeyboardEventInit): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    target.dispatchEvent(event);
+    return event;
+  }
+
+  const surfaceOf = (dialog: HTMLElement) => dialog.querySelector('[role="document"]') as HTMLElement;
+
+  it('sends ⌘Z and ⇧⌘Z from inside it to the menus’ Undo and Redo, and nothing else', () => {
+    const dialog = openDialog();
+    withHistory(dialog);
+    const actions = listen();
+
+    expect(press(surfaceOf(dialog), { key: 'z', metaKey: true }).defaultPrevented).toBe(true);
+    expect(press(surfaceOf(dialog), { key: 'Z', metaKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+    for (const init of [{ key: 'Delete' }, { key: 'Escape' }, { key: 's', metaKey: true }]) {
+      expect(press(surfaceOf(dialog), init).defaultPrevented, init.key).toBe(false);
+    }
+    expect(actions.handleMenuAction.mock.calls).toEqual([['edit.undo'], ['edit.redo']]);
+    expect(actions.selectNone).not.toHaveBeenCalled();
+  });
+
+  it('follows a chord the user added to Undo', () => {
+    const dialog = openDialog();
+    withHistory(dialog);
+    const actions = listen({ 'edit.undo': [{ primary: true, alt: true, key: 'z' }] });
+
+    expect(press(surfaceOf(dialog), { key: 'z', metaKey: true, altKey: true }).defaultPrevented).toBe(true);
+    expect(actions.handleMenuAction).toHaveBeenCalledWith('edit.undo');
+  });
+
+  it('leaves a text field inside it its own undo', () => {
+    const dialog = openDialog();
+    withHistory(dialog);
+    const actions = listen();
+    const field = dialog.appendChild(document.createElement('input'));
+    field.focus();
+
+    expect(press(field, { key: 'z', metaKey: true }).defaultPrevented).toBe(false);
+    expect(press(field, { key: 'Z', metaKey: true, shiftKey: true }).defaultPrevented).toBe(false);
+    expect(actions.handleMenuAction).not.toHaveBeenCalled();
+  });
+
+  it('gives ⌘Z to nothing while a dialog with no history is open over it', () => {
+    const dialog = openDialog();
+    withHistory(dialog);
+    const over = openDialog();
+    const actions = listen();
+
+    expect(press(surfaceOf(over), { key: 'z', metaKey: true }).defaultPrevented).toBe(false);
+    expect(actions.handleMenuAction).not.toHaveBeenCalled();
+  });
+
+  it('leaves the workspace its keys once the dialog is gone', () => {
+    const dialog = openDialog();
+    withHistory(dialog);
+    dialog.remove();
+    const actions = listen();
+
+    expect(press(document.body, { key: 'z', metaKey: true }).defaultPrevented).toBe(true);
+    expect(press(document.body, { key: 'Delete' }).defaultPrevented).toBe(true);
+    expect(actions.handleMenuAction.mock.calls).toEqual([['edit.undo'], ['edit.delete']]);
   });
 });
 

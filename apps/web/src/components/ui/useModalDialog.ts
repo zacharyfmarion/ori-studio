@@ -1,16 +1,5 @@
 import { useCallback, useEffect, useRef, type FocusEvent, type RefObject } from 'react';
-import { isOpenLayerTarget, isShortcutEditingTarget } from '../../keyboard/shortcutDispatcher';
-
-/** The modal dialog on top — the last in the document, as they stack — or null with none open. */
-export function topmostModalDialog(): Element | null {
-  const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
-  return dialogs[dialogs.length - 1] ?? null;
-}
-
-/** Is `root` the dialog on top? */
-export function isTopmostDialog(root: Element | null): boolean {
-  return root !== null && topmostModalDialog() === root;
-}
+import { isOpenLayerTarget, isShortcutEditingTarget, isTopmostDialog } from '../../keyboard/shortcutDispatcher';
 
 /**
  * What a dialog opening now gives focus back to when it closes: what has

@@ -7,6 +7,7 @@ import {
   isShortcutBarrierTarget,
   isShortcutEditingTarget,
 } from '../keyboard/shortcutDispatcher';
+import { handleDialogShortcutKeyDown } from '../keyboard/dialogShortcuts';
 import { handleShortcutRuntimeKeyDown } from '../keyboard/shortcutRuntime';
 import type { ShortcutDefaultsSource, ShortcutOverrides } from '../keyboard/shortcuts';
 
@@ -67,12 +68,21 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
   if (
     event.defaultPrevented ||
     isOpenLayerTarget(event.target) ||
-    isShortcutBarrierTarget(event.target) ||
-    isShortcutBarrierOpen() ||
     actions.isReadingSitePage?.() ||
     actions.isCommandDialogOpen?.()
   ) {
     return false;
+  }
+
+  // A dialog that owns every key: nothing behind it acts, wherever the key was
+  // aimed. The dialog on top may claim Undo and Redo for a history of its own;
+  // nothing else reaches the runtime, and no Escape reaches the deselect below.
+  if (isShortcutBarrierTarget(event.target) || isShortcutBarrierOpen()) {
+    return handleDialogShortcutKeyDown(event, {
+      overrides: actions.getShortcutOverrides?.(),
+      defaultsSource: actions.getShortcutDefaultsSource?.(),
+      menu: actions.handleMenuAction,
+    });
   }
 
   // The runtime is asked first, always. It used to be asked second, behind a
