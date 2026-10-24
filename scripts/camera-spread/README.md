@@ -172,3 +172,105 @@ diagrams separately. It audits every diagram in a project and checks both scope
 fingerprints and fold outcomes; it does not claim that folding alone validates
 camera rendering. A `*-bits.json` can also exercise the native/Oriedita parity
 regression with `ORISTUDIO_FOLD_SEGMENT_BITS` and `ORIEDITA_GEOMETRY_ORACLE` set.
+
+## Full-corpus cold preparation baseline
+
+The full-corpus harness attempts **every `*/truth.fold`**, sorted by edge count
+and then ID. It does not use the explorer's 32-model selection. Run it without
+other benchmarks, builds or tests competing for CPU:
+
+```sh
+node scripts/camera-spread/benchmark-preparation.mjs \
+  /absolute/path/to/cpoogle artifacts/camera-spread/benchmarks/my-baseline
+# After interruption, with exactly the same options/code/input/runtime:
+node scripts/camera-spread/benchmark-preparation.mjs \
+  /absolute/path/to/cpoogle artifacts/camera-spread/benchmarks/my-baseline --resume
+```
+
+Defaults are three preparation trials per model, 30 seconds for folding and
+120 seconds for each preparation process. Override with `--repeats=N`,
+`--fold-timeout=MS`, `--prep-timeout=MS`; `--limit=N` makes a smoke run. Failures
+and timeouts are retained, including the stage reached. A timeout is a censored
+observation, not evidence of an impossible fold or zero-cost preparation.
+
+Each model folds once through the current generated Oriedita WASM (starting
+face 1, layer solution 1, folding-colour creases only). Each preparation trial
+then uses a **fresh Node process and immutable scene**. It calls the production
+lift, front/back visibility plans and layer relations. Timings distinguish:
+
+- WASM initialization, parsing, folding and scene extraction.
+- Lift topology, matrix/solve/probes, front/back paint plans and relations.
+- Cached lookup cost, process wall time and process peak RSS.
+
+Preparation excludes importing modules, file reading/parsing, worker transfer,
+GPU initialization and vector capture. It measures cold **geometry caches**, not
+cold filesystem caches. The lift's existing solve diagnostic includes matrix
+compilation, normalization and final probe calculations. Scene and mesh hashes
+let later optimizations verify unchanged geometry. All three trial hashes
+should match before timing changes are interpreted.
+
+The output contains `run.json` (input SHA-256 manifest, code/bundle/WASM/runtime
+and hardware provenance), atomic per-model results, `results.jsonl` (raw trials),
+`results.csv`, `summary.json`, `README.md`, and ignored solved `scenes/`. Resume
+reconstructs the journal from atomic records and rejects changed inputs,
+measurement code, compiled implementation, WASM or trial settings. Reports use
+nearest-rank percentiles of per-model trial medians and exclude incomplete
+models from latency percentiles while preserving their outcome counts.
+
+### Actual browser initialization
+
+After the CPU run finishes, build its standalone browser harness and open the
+printed file through the existing generated-artifact mount:
+
+```sh
+node scripts/camera-spread/prepare-browser-benchmark.mjs \
+  artifacts/camera-spread/benchmarks/my-baseline
+DEV_SERVER_PORT=5282 scripts/dev-server.sh start
+# Open http://localhost:5282/src/generated/camera-spread/benchmarks/my-baseline/browser.html
+```
+
+Click **Start / resume benchmark**. It uses a fresh module worker for each of
+three trials, sequentially, calling the actual production render session's
+`load` and `render`. Surface: 800 × 640 CSS pixels at DPR 2; Diagram, 6% amount,
+247° direction, 45° inclination, no page rotation. The page hashes each fetched
+scene against the CPU manifest. It separately records worker startup, in-worker
+preparation, first bitmap, full RPC and two-frame presentation, plus browser/GPU
+identity. Keep this tab foreground; presentation is not input-to-photon timing.
+`BENCH_BROWSER_REPEATS=N` changes the trial count when generating the harness.
+
+Completed models save in local storage. **Stop after this model** leaves a
+resumable result; **Save results JSON** downloads `browser-results.json`. Put
+that beside the CPU report. The generated bundle is saved and hashed so the
+browser run uses a fixed code snapshot even if the development checkout changes.
+Browser timing excludes corpus fetch, JSON decode and scene hash verification;
+those are recorded separately. Vector clipping/capture after an edit is a
+separate cost, not part of this initial preparation benchmark.
+
+Only benchmark scripts and numerical baseline data belong in Git. Corpus
+inputs, solved scenes, bundles, detailed local reports and browser downloads
+stay under the ignored artifact directory. Do not copy the corpus into the repo.
+
+Harness checks (no Rust/product implementation changes):
+
+```sh
+node --test scripts/camera-spread/benchmark-preparation.test.mjs
+node --check scripts/camera-spread/benchmark-preparation.mjs
+node --check scripts/camera-spread/benchmark-preparation-worker.mjs
+```
+
+Export a shareable/versionable numerical baseline and regenerate the local
+sortable report after saving the browser JSON:
+
+```sh
+node scripts/camera-spread/export-preparation-benchmark.mjs \
+  artifacts/camera-spread/benchmarks/my-baseline \
+  research/benchmarks/camera-spread/my-baseline.json
+```
+
+The exporter explicitly selects timing/count/hash fields, excluding source
+paths, geometry, and raw error stacks. It writes the interactive `index.html`
+only inside the artifact directory. The versioned JSON stores one line per
+model for manageable diffs; all raw numerical trial values remain available.
+Compare matching input, scene and mesh hashes before interpreting speedups.
+The initial full-corpus baseline is documented in
+`research/2026-10-24-camera-spread-preparation.md`.
