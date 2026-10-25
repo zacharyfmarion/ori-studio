@@ -1,4 +1,4 @@
-import { act, useLayoutEffect } from 'react';
+import { act, StrictMode, useLayoutEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
@@ -32,6 +32,25 @@ vi.mock('../../cp-workspace/sheets/cpSheetIndex', async (importOriginal) => ({
 }));
 const toasts = vi.hoisted(() => ({ error: vi.fn(), message: vi.fn(), success: vi.fn() }));
 vi.mock('sonner', () => ({ toast: toasts }));
+/** Every controller the hook made, and whether it was let go: the real one, its `dispose` watched. */
+const controllers = vi.hoisted(() => ({ made: [] as { disposed: boolean }[] }));
+vi.mock('./poseController', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./poseController')>();
+  return {
+    ...actual,
+    createPoseController: (...args: Parameters<typeof actual.createPoseController>) => {
+      const controller = actual.createPoseController(...args);
+      const made = { disposed: false };
+      controllers.made.push(made);
+      const dispose = controller.dispose;
+      controller.dispose = () => {
+        made.disposed = true;
+        dispose();
+      };
+      return controller;
+    },
+  };
+});
 
 const sheets = twoSquaresIndex();
 const [left] = sheetRegions(sheets);
@@ -57,8 +76,8 @@ async function flatStep(spread: DiagramLayerSpread): Promise<string> {
   return linkedStep({ mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1, spread });
 }
 
-/** A step linked to the left square, shown as `render`, the hook mounted on it. */
-async function linkedStep(render: DiagramCpRender): Promise<string> {
+/** A step linked to the left square, shown as `render`, the hook mounted on it — under StrictMode if `strict`. */
+async function linkedStep(render: DiagramCpRender, { strict = false }: { strict?: boolean } = {}): Promise<string> {
   const stepId = state().addDiagramStep()!;
   await state().captureDiagramStep(stepId, {
     scope: { kind: 'segment', region: regionReferenceFor(left!) },
@@ -78,9 +97,15 @@ async function linkedStep(render: DiagramCpRender): Promise<string> {
   });
   host = document.body.appendChild(document.createElement('div'));
   root = createRoot(host);
-  act(() => root!.render(<Probe stepId={stepId} />));
+  const probe = <Probe stepId={stepId} />;
+  act(() => root!.render(strict ? <StrictMode>{probe}</StrictMode> : probe));
   return stepId;
 }
+
+const renderOf = (stepId: string) => {
+  const source = stepsIn(state().diagram!).find((step) => step.id === stepId)?.source;
+  return source?.kind === 'cp' ? source.render : undefined;
+};
 
 const spreadOf = (stepId: string) => {
   const source = stepsIn(state().diagram!).find((step) => step.id === stepId)?.source;
@@ -115,6 +140,7 @@ beforeEach(async () => {
     oristudioCpDocument: { handle: 1, document: cpDocument(), geometry: null } as unknown as OristudioCpDocumentState,
   });
   bindings.runtime = fakeCaptureRuntime();
+  controllers.made = [];
 });
 
 afterEach(() => {
@@ -233,5 +259,28 @@ describe('Set Upright in Pose', () => {
     expect(toasts.success).toHaveBeenCalledWith('Up direction set — drag to turn around it');
     act(() => letGoSecond());
     expect(setUpright()).toMatchObject({ disabled: true });
+  });
+});
+
+describe('Pose under StrictMode', () => {
+  it('poses through a live controller on first mount, and lets it go on the real unmount', async () => {
+    // The detail opening with a step already open: StrictMode mounts, unmounts and mounts its effects.
+    const stepId = await linkedStep({ mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 }, { strict: true });
+    act(() => seen.pose!.actions.find((action) => action.id === 'turn-over')!.run());
+    await act(async () => {
+      await vi.waitFor(() => expect(renderOf(stepId)).toMatchObject({ mode: 'folded-flat', side: 'back' }));
+    });
+    // Show as, from the Step pane or a card, reaches it too.
+    let shown = false;
+    await act(async () => {
+      shown = await seen.pose!.showAs('crease-pattern');
+    });
+    expect(shown).toBe(true);
+    expect(renderOf(stepId)).toMatchObject({ mode: 'crease-pattern' });
+    expect(controllers.made.filter((made) => !made.disposed)).toHaveLength(1);
+
+    act(() => root!.unmount());
+    root = null;
+    expect(controllers.made.every((made) => made.disposed)).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
@@ -32,6 +32,7 @@ import {
   linkedFoldKey,
   withSlide,
   type DiagramPoseSpatialView,
+  type PoseController,
   type SimulatedRest,
   type SpreadPreview,
   type SpreadSlider,
@@ -128,20 +129,21 @@ export function useDiagramLinkedPose(
   const [previewed, setPreviewed] = useState<{ key: string; value: SpreadPreview } | null>(null);
   const foldKey = useMemo(() => (source && stepId ? linkedFoldKey(stepId, source) : null), [source, stepId]);
 
-  const controller = useMemo(
-    () =>
-      stepId === null
-        ? null
-        : createPoseController(stepId, {
-            spatial: (view, key) => setSpatial(view && key ? { key, view } : null),
-            solutions: (value, key) => setFound({ key, value }),
-            mirrorAxes: (value, key) => setMeasured({ key, value }),
-            preview: (value, key) => setPreviewed(value && key ? { key, value } : null),
-          }),
-    [stepId]
-  );
-  useEffect(() => {
-    if (!controller) return undefined;
+  // Made by the effect that lets it go, so StrictMode's mount, unmount and
+  // mount ends on a live one; kept with its step, so a render for the next
+  // step never reaches the last one's. A layout effect: the detail never
+  // paints without its verbs.
+  const [held, setHeld] = useState<{ stepId: string; controller: PoseController } | null>(null);
+  const controller = held !== null && held.stepId === stepId ? held.controller : null;
+  useLayoutEffect(() => {
+    if (stepId === null) return undefined;
+    const controller = createPoseController(stepId, {
+      spatial: (view, key) => setSpatial(view && key ? { key, view } : null),
+      solutions: (value, key) => setFound({ key, value }),
+      mirrorAxes: (value, key) => setMeasured({ key, value }),
+      preview: (value, key) => setPreviewed(value && key ? { key, value } : null),
+    });
+    setHeld({ stepId, controller });
     const unregister = registerCanvasSessionEnder((reason) =>
       reason === 'history' ? controller.historyMoved() : controller.documentReplaced()
     );
@@ -152,10 +154,11 @@ export function useDiagramLinkedPose(
       unregister();
       unlisten();
       controller.dispose();
+      setHeld((was) => (was?.controller === controller ? null : was));
       // Its preview goes with it, even one it could not take back itself.
       setPreviewed(null);
     };
-  }, [controller]);
+  }, [stepId]);
 
   // A step shown in 3D: fold it for the live view as its detail opens — not
   // for a step only selected on the pages (`live` false), whose verbs fold it
