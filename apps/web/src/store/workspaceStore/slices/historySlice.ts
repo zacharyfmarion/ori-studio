@@ -153,9 +153,9 @@ function restoredAnnotationSelection(
  * entry, so each handle keeps the references it had and nothing is retained or
  * released. Counting it as a release of the restored entry and a retain of the
  * pushed one balanced only when both held the same handle; a step between two
- * folds — a refold, an Apply of a layer order, a delete — freed the fold it was
- * putting back on screen. An entry that never captured figures leaves the live
- * ones live, so the pushed entry takes a reference of its own.
+ * folds — a refold, a delete — freed the fold it was putting back on screen.
+ * An entry that never captured figures leaves the live ones live, so the
+ * pushed entry takes a reference of its own.
  */
 function swappedCpHistoryEntry(
   restoring: OristudioCpHistoryEntry,
