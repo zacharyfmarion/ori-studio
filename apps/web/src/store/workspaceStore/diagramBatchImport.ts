@@ -83,12 +83,26 @@ export function importTarget(): ImportTarget {
     simulations: s.oristudioCpInlineSimulations,
   };
 }
+/** A new compound entry of what is live: it takes a reference to each figure's handle, the live list keeps its own. */
 function captureCp(
   s: WorkspaceState,
   label: string,
   compoundId: string,
 ): OristudioCpHistoryEntry {
   retainFoldedFigureHandles(s.oristudioCpFoldedFigures);
+  return cpEntryOf(s, label, compoundId);
+}
+/**
+ * What is live, as the entry an undo or redo pushes while it puts another
+ * entry's figures back: the live figures' handles move to it as the restored
+ * entry's move to the live list, so each keeps the reference it had
+ * (`historySlice.ts`, `swappedCpHistoryEntry`).
+ */
+function cpEntryOf(
+  s: WorkspaceState,
+  label: string,
+  compoundId: string,
+): OristudioCpHistoryEntry {
   return {
     document: cpHistoryDocumentOf(s.oristudioCpDocument!),
     selection: s.oristudioCpSelection,
@@ -382,8 +396,9 @@ export function compoundImportTravel(
         s.oristudioCpDocument!.source,
         null,
       );
-      const current = captureCp(s, cp.label, id);
-      releaseFoldedFigureHandles(cp.foldedFigures);
+      // A swap: the entry's figures go live and the live ones into the pushed
+      // entry, each handle keeping the one reference it had.
+      const current = cpEntryOf(s, cp.label, id);
       // As ordinary Edit undo restores it (historySlice), the overlay result included.
       set({
         oristudioCpDocument: restored,
