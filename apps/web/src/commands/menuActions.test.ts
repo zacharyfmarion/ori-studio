@@ -1205,6 +1205,53 @@ describe('the menus behind a modal dialog', () => {
     });
   });
 
+  /** The File menu's imports: each loads another file into the document under the dialog. */
+  describe('File ▸ Import Diagram Steps and Detect CP from Image', () => {
+    const DETECT_REQUEST = 'ori-studio:detect-cp-image';
+    let detectRequests = 0;
+    const countDetectRequest = () => {
+      detectRequests += 1;
+    };
+    const openImport = vi.fn<(...args: unknown[]) => void>();
+    const cases = [
+      { id: 'file.importDiagramSteps', ran: () => openImport.mock.calls.length > 0 },
+      { id: 'file.detectCpImage', ran: () => detectRequests > 0 },
+    ];
+
+    beforeEach(async () => {
+      detectRequests = 0;
+      window.addEventListener(DETECT_REQUEST, countDetectRequest);
+      openImport.mockClear();
+      const { useImportDialogStore } = await import('../diagram/import/importDialogStore');
+      useImportDialogStore.setState({ open: openImport });
+      // The engine up, so Detect CP from Image is enabled when nothing holds it.
+      useWorkspaceStore.setState({ status: 'ready' });
+    });
+
+    afterEach(async () => {
+      window.removeEventListener(DETECT_REQUEST, countDetectRequest);
+      const { useImportDialogStore } = await import('../diagram/import/importDialogStore');
+      useImportDialogStore.setState(useImportDialogStore.getInitialState(), true);
+    });
+
+    it.each(cases)('holds $id back, loads nothing, and counts nothing', async ({ id, ran }) => {
+      openModal();
+
+      await expect(handleMenuAction(id)).resolves.toBe(false);
+
+      expect(ran()).toBe(false);
+      expect(stepCount()).toBe(2);
+      expect(counted(id)).toBe(false);
+    });
+
+    it.each(cases)('runs $id as before with no dialog open', async ({ id, ran }) => {
+      await expect(handleMenuAction(id)).resolves.toBe(true);
+
+      expect(ran()).toBe(true);
+      expect(counted(id)).toBe(true);
+    });
+  });
+
   it('is not held back by a dialog that is not a barrier', async () => {
     // A sheet or drawer is `aria-modal` too, but wants the workspace's keys.
     openModal();

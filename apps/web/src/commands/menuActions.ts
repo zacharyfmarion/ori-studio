@@ -386,8 +386,9 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
  * What an open modal dialog ({@link isShortcutBarrierOpen}) holds back from the
  * menus: the actions that change the workspace behind it. Undo and redo would
  * rewind a document the dialog covers, a view switch would move the workspace
- * out from under a dialog opened over it, and File ▸ New, Open and Import
- * (Add) would put a document under it that it was never opened on. A key stops
+ * out from under a dialog opened over it, and the File menu's New, Open,
+ * Import (Add), Import Diagram Steps and Detect CP from Image would replace the
+ * document under it, or load another file into it. A key stops
  * at the dialog (`handleAppKeyDown`), but a menu reaches
  * {@link handleMenuAction} with no key to stop — so the native menu ran every
  * one of these behind any modal. A file opened from the Finder is refused for
@@ -404,6 +405,8 @@ const HELD_BEHIND_MODAL_ACTIONS: ReadonlySet<MenuActionId> = new Set<MenuActionI
   'file.new',
   'file.open',
   'file.importAdd',
+  'file.importDiagramSteps',
+  'file.detectCpImage',
 ]);
 
 export function isMenuActionId(id: string): id is MenuActionId {
