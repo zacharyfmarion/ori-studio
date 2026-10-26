@@ -75,7 +75,7 @@
       import { StartFigureMesh } from '/src/components/start/startFigureMesh.ts';
       import { resolveRenderSettings } from '/src/simulator/simulatorPalette.ts';
       import { DEFAULT_SIMULATOR_SETTINGS } from '/src/lib/simulatorSettings.ts';
-      import { startFigurePaperSettings } from '/src/components/start/startFigurePaper.ts';
+      import { startFigurePaperStyle } from '/src/components/start/startFigurePaper.ts';
       import { applyTheme, DEFAULT_DARK_THEME } from '/src/themes/index.ts';
 
       // This page is outside the app, so nothing has written the theme tokens the
@@ -121,9 +121,12 @@
       };
 
       const draw = () => {
+        // The same call `StartFigure.tsx` makes, so the tuner draws what ships.
+        const styles = getComputedStyle(document.documentElement);
         const settings = resolveRenderSettings(
-          getComputedStyle(document.documentElement),
-          { ...DEFAULT_SIMULATOR_SETTINGS, creaseStyle: 'mono', ...startFigurePaperSettings(getComputedStyle(document.documentElement)) },
+          styles,
+          DEFAULT_SIMULATOR_SETTINGS,
+          startFigurePaperStyle(styles),
           { transparentBackground: true, creaseWidthReferenceEdge: 640 }
         );
         mesh.render({ yaw: view.yaw, pitch: view.pitch }, settings);
