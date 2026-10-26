@@ -1146,6 +1146,65 @@ describe('the menus behind a modal dialog', () => {
     expect(counted('help.about')).toBe(true);
   });
 
+  /**
+   * The native File menu, which put another document under any open dialog —
+   * one Layer order's Apply then wrote an old figure's order into.
+   */
+  describe('File ▸ New, Open and Import (Add)', () => {
+    // What each one reaches when it runs: the store's opener, or (New) the start screen.
+    const openers = () => ({
+      openProject: vi.fn().mockResolvedValue(true),
+      importAddCreasePattern: vi.fn().mockResolvedValue(true),
+    });
+    let opened: ReturnType<typeof openers>;
+    const cases = [
+      {
+        id: 'file.new',
+        commandId: 'file.new',
+        ran: () => routingMocks.navigateTo.mock.calls.some(([path]) => path === '/welcome'),
+      },
+      { id: 'file.open', commandId: 'file.open', ran: () => opened.openProject.mock.calls.length > 0 },
+      {
+        id: 'file.importAdd',
+        commandId: 'file.importAdd',
+        ran: () => opened.importAddCreasePattern.mock.calls.length > 0,
+      },
+    ];
+
+    beforeEach(() => {
+      opened = openers();
+      // The engine up, and a crease pattern to import beside: each one enabled when nothing holds it.
+      useWorkspaceStore.setState({ ...opened, status: 'ready', oristudioCpDocument: cpDocumentWithCircles(0) });
+    });
+
+    it.each(cases)('holds $id back, opens nothing, and counts nothing', async ({ id, commandId, ran }) => {
+      openModal();
+
+      await expect(handleMenuAction(id)).resolves.toBe(false);
+
+      expect(ran()).toBe(false);
+      expect(routingMocks.navigateTo).not.toHaveBeenCalled();
+      expect(stepCount()).toBe(2);
+      expect(counted(commandId)).toBe(false);
+    });
+
+    it.each(cases)('runs $id as before with no dialog open', async ({ id, commandId, ran }) => {
+      await expect(handleMenuAction(id)).resolves.toBe(true);
+
+      expect(ran()).toBe(true);
+      expect(counted(commandId)).toBe(true);
+    });
+
+    it.each(cases)('runs $id again once the dialog closes', async ({ id, ran }) => {
+      openModal();
+      await handleMenuAction(id);
+      closeModal();
+
+      await expect(handleMenuAction(id)).resolves.toBe(true);
+      expect(ran()).toBe(true);
+    });
+  });
+
   it('is not held back by a dialog that is not a barrier', async () => {
     // A sheet or drawer is `aria-modal` too, but wants the workspace's keys.
     openModal();

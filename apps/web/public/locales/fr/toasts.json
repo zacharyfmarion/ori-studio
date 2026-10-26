@@ -103,6 +103,9 @@
     "ignoredFile": "{{name}} utilisé ; 1 autre fichier déposé a été ignoré.",
     "ignoredFiles": "{{name}} utilisé ; {{others}} autres fichiers déposés ont été ignorés."
   },
+  "fileOpen": {
+    "closeDialog": "Fermez la fenêtre pour ouvrir un autre fichier"
+  },
   "foldedFigureExport": {
     "empty": "Ce modèle plié n'a encore rien à exporter",
     "failed": "Impossible d'exporter ce modèle plié"

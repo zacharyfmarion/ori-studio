@@ -103,6 +103,9 @@
     "ignoredFile": "{{name}} usado; 1 outro arquivo solto foi ignorado.",
     "ignoredFiles": "{{name}} usado; {{others}} outros arquivos soltos foram ignorados."
   },
+  "fileOpen": {
+    "closeDialog": "Feche a janela para abrir outro arquivo"
+  },
   "foldedFigureExport": {
     "empty": "Este modelo dobrado ainda não tem nada para exportar",
     "failed": "Não foi possível exportar este modelo dobrado"

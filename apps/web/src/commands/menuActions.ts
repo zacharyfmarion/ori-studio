@@ -385,10 +385,13 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
 /**
  * What an open modal dialog ({@link isShortcutBarrierOpen}) holds back from the
  * menus: the actions that change the workspace behind it. Undo and redo would
- * rewind a document the dialog covers, and a view switch would move the
- * workspace out from under a dialog opened over it. A key stops at the dialog
- * (`handleAppKeyDown`), but a menu reaches {@link handleMenuAction} with no key
- * to stop — so the native Edit ▸ Undo undid the workspace behind any modal.
+ * rewind a document the dialog covers, a view switch would move the workspace
+ * out from under a dialog opened over it, and File ▸ New, Open and Import
+ * (Add) would put a document under it that it was never opened on. A key stops
+ * at the dialog (`handleAppKeyDown`), but a menu reaches
+ * {@link handleMenuAction} with no key to stop — so the native menu ran every
+ * one of these behind any modal. A file opened from the Finder is refused for
+ * the same reason (`useTauriOpenedFiles`).
  *
  * Only these. Settings, About and the exports open over a dialog on purpose;
  * `App.tsx` stacks the modals for it.
@@ -398,6 +401,9 @@ const HELD_BEHIND_MODAL_ACTIONS: ReadonlySet<MenuActionId> = new Set<MenuActionI
   'edit.redo',
   ...(Object.keys(VIEW_PANEL_ACTIONS) as MenuActionId[]),
   'cp.analyzeReferences',
+  'file.new',
+  'file.open',
+  'file.importAdd',
 ]);
 
 export function isMenuActionId(id: string): id is MenuActionId {

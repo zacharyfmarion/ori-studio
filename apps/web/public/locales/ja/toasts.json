@@ -81,6 +81,9 @@
     "ignoredFile": "{{name}} を使用しました。ドロップされた他の 1 件は無視されました。",
     "ignoredFiles": "{{name}} を使用しました。ドロップされた他の {{others}} 件は無視されました。"
   },
+  "fileOpen": {
+    "closeDialog": "別のファイルを開くには、ダイアログを閉じてください"
+  },
   "foldedFigureExport": {
     "empty": "この折り図にはまだ書き出せるものがありません",
     "failed": "この折り図を書き出せませんでした"

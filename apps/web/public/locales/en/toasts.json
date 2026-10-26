@@ -92,6 +92,9 @@
     "ignoredFile": "Used {{name}}; ignored 1 other dropped file.",
     "ignoredFiles": "Used {{name}}; ignored {{others}} other dropped files."
   },
+  "fileOpen": {
+    "closeDialog": "Close the dialog to open another file"
+  },
   "foldedFigureExport": {
     "empty": "This folded model has nothing to export yet",
     "failed": "Could not export this folded model"

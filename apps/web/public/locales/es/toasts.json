@@ -103,6 +103,9 @@
     "ignoredFile": "Se usó {{name}}; se ignoró 1 archivo más de los soltados.",
     "ignoredFiles": "Se usó {{name}}; se ignoraron {{others}} archivos más de los soltados."
   },
+  "fileOpen": {
+    "closeDialog": "Cierra el diálogo para abrir otro archivo"
+  },
   "foldedFigureExport": {
     "empty": "Esta figura plegada aún no tiene nada que exportar",
     "failed": "No se pudo exportar esta figura plegada"
