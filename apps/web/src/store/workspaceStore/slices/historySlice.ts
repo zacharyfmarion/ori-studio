@@ -144,23 +144,26 @@ function restoredAnnotationSelection(
 }
 
 /**
- * Build a history entry that owns its figures' handles. Undo/redo move an entry
- * from one stack to the other; the entry leaving releases (via
- * {@link releasedFrom}) and the entry being pushed retains here, so a handle
- * stays alive exactly as long as some stack still refers to it.
+ * The entry an undo or redo pushes onto the other stack, holding what was live,
+ * when `restoring` is the entry it takes off.
+ *
+ * A figure's handle is held once by the live list and once by each entry that
+ * refers to it (`foldedFigureHandles.ts`). A step swaps the two: the restored
+ * entry's figures become the live list and the live figures become the pushed
+ * entry, so each handle keeps the references it had and nothing is retained or
+ * released. Counting it as a release of the restored entry and a retain of the
+ * pushed one balanced only when both held the same handle; a step between two
+ * folds — a refold, a delete — freed the fold it was putting back on screen.
+ * An entry that never captured figures leaves the live ones live, so the
+ * pushed entry takes a reference of its own.
  */
-function retainedCpHistoryEntry(
+function swappedCpHistoryEntry(
+  restoring: OristudioCpHistoryEntry,
   ...args: Parameters<typeof cpHistoryEntry>
 ): OristudioCpHistoryEntry {
   const entry = cpHistoryEntry(...args);
-  retainFoldedFigureHandles(entry.foldedFigures);
+  if (!restoring.foldedFigures) retainFoldedFigureHandles(entry.foldedFigures);
   return entry;
-}
-
-/** Release the handles of an entry that has just left a stack. */
-function releasedFrom<T extends OristudioCpHistoryEntry[]>(remaining: T, leaving: OristudioCpHistoryEntry): T {
-  releaseFoldedFigureHandles(leaving.foldedFigures ?? []);
-  return remaining;
 }
 
 /**
@@ -394,9 +397,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             ),
             ...restoredFoldedFigureState(previous),
             ...restoredInlineSimulationState(previous),
-            oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
+            oristudioCpHistoryPast: past.slice(0, -1),
             oristudioCpHistoryFuture: [
-              retainedCpHistoryEntry(
+              swappedCpHistoryEntry(
+                previous,
                 { kind: 'overlay' },
                 currentSelection,
                 currentAnnotations,
@@ -441,9 +445,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           ),
           ...restoredFoldedFigureState(previous),
           ...restoredInlineSimulationState(previous),
-          oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
+          oristudioCpHistoryPast: past.slice(0, -1),
           oristudioCpHistoryFuture: [
-            retainedCpHistoryEntry(
+            swappedCpHistoryEntry(
+              previous,
               oppositeContent(current, replacedLines),
               currentSelection,
               currentAnnotations,
@@ -582,7 +587,8 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             ...restoredInlineSimulationState(next),
             oristudioCpHistoryPast: [
               ...get().oristudioCpHistoryPast,
-              retainedCpHistoryEntry(
+              swappedCpHistoryEntry(
+                next,
                 { kind: 'overlay' },
                 currentSelection,
                 currentAnnotations,
@@ -592,7 +598,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
                 next.label
               ),
             ].slice(-MAX_HISTORY),
-            oristudioCpHistoryFuture: releasedFrom(future.slice(1), next),
+            oristudioCpHistoryFuture: future.slice(1),
             dirty: true,
             projectMessage: `Redid ${next.label}`});
           get().reconcileFoldedFigureModels(next.foldedFigures?.map((f) => f.id) ?? []);
@@ -619,7 +625,8 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           ...restoredInlineSimulationState(next),
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
-            retainedCpHistoryEntry(
+            swappedCpHistoryEntry(
+              next,
               oppositeContent(current, replacedLines),
               currentSelection,
               currentAnnotations,
@@ -629,7 +636,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
               next.label
             ),
           ].slice(-MAX_HISTORY),
-          oristudioCpHistoryFuture: releasedFrom(future.slice(1), next),
+          oristudioCpHistoryFuture: future.slice(1),
           ...(replacedLines ? {} : staleFoldArtifactResourceState(get().foldArtifactRevision)),
           projectMessage: `Redid ${next.label}`});
         if (!replacedLines) get().scheduleOristudioCamvRefresh();
