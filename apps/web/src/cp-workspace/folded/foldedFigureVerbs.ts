@@ -22,6 +22,33 @@ import { foldedFigureGesture } from './foldedFigureGesture';
  * stay in the hook and on the floating toolbar.
  */
 
+/**
+ * The face folding holds fixed. Oriedita lets this be chosen and the kernel still
+ * takes it per fold, but the product does not offer the choice: the picker was the
+ * only thing that ever set it, so every fold was already from face 1.
+ */
+const FOLD_STARTING_FACE_ID = 1;
+
+/**
+ * Fold these creases into a new figure, as one entry: the viewport bar, `G` and
+ * the selection toolbar all fold through here. A fold that is refused, fails or
+ * is stopped leaves the figures as it found them, so it records nothing.
+ */
+export function foldCreases(
+  lineIds: readonly number[],
+  t: TFunction
+): Promise<boolean | undefined> {
+  return foldedFigureGesture.run(
+    'verb',
+    t('panels:creasePattern.foldModelAction', 'Fold model'),
+    () =>
+      useWorkspaceStore.getState().foldOristudioCpDocument({
+        startingFaceId: FOLD_STARTING_FACE_ID,
+        lineIds: [...lineIds],
+      })
+  );
+}
+
 export function setFoldedFigureDisplayStyle(
   id: string,
   displayStyle: OristudioCpFoldedFigureDisplayStyle,

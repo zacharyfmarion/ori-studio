@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
+import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import { cpOverlayViewStore } from './cpOverlayViewStore';
 import { emptyOristudioCpSelection } from '../lib/creasePatternViewport';
 import { TooltipProvider } from '../components/ui/Tooltip';
@@ -274,6 +275,70 @@ describe('CpSelectionToolbar', () => {
         cpLineIds: expect.any(Array),
       });
       expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
+    });
+  });
+
+  // The viewport bar's Fold and `G` both fold through the layer's bracket, so a
+  // fold is one undo step. This button called the store's fold directly, so its
+  // fold recorded nothing: Undo then did nothing at all, or — with an earlier
+  // step on the stack — undid that step and took the figure with it.
+  describe('folding the selection', () => {
+    const realFold = useWorkspaceStore.getState().foldOristudioCpDocument;
+    afterEach(() => {
+      useWorkspaceStore.setState({ foldOristudioCpDocument: realFold });
+    });
+
+    /** What the store's fold resolves to; the real one needs the fold engine. */
+    function stubFold() {
+      const fold = vi.fn(async () => {
+        useWorkspaceStore.setState({
+          oristudioCpFoldedFigures: [
+            ...useWorkspaceStore.getState().oristudioCpFoldedFigures,
+            {
+              id: 'folded-1',
+              title: 'Folded model 1',
+              handle: 7,
+              sourceKind: 'generated-from-current-cp',
+              sourceCpRevision: 0,
+              startingFaceId: 1,
+              displayStyle: 'Paper5',
+              status: 'ready',
+              snapshot: null,
+              renderSnapshot: null,
+              placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: 0 },
+              error: null,
+            } as OristudioCpFoldedFigureEntry,
+          ],
+        });
+        return true;
+      });
+      useWorkspaceStore.setState({
+        // The Edit canvas, which is what makes undo the crease pattern's.
+        activePanelId: 'crease-pattern',
+        foldOristudioCpDocument: fold,
+        oristudioCpFoldedFigures: [],
+        oristudioCpActiveFoldedFigureId: null,
+        oristudioCpHistoryPast: [],
+        oristudioCpHistoryFuture: [],
+      });
+      return fold;
+    }
+
+    it('is one undo step, and undo takes the figure away', async () => {
+      seedStore(LEFT_SHEET);
+      const fold = stubFold();
+      await act(async () => renderToolbar(root, container));
+      const button = document.querySelector<HTMLButtonElement>('button[aria-label="Fold"]');
+      await act(async () => button!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+
+      // The sheet's creases, captured before the toolbar cleared the selection.
+      expect(fold).toHaveBeenCalledWith(expect.objectContaining({ lineIds: LEFT_SHEET }));
+      const past = useWorkspaceStore.getState().oristudioCpHistoryPast;
+      expect(past).toHaveLength(1);
+      expect(past[0]?.label).toBe('Fold model');
+
+      await act(async () => useWorkspaceStore.getState().undo());
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
     });
   });
 
