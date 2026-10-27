@@ -50,10 +50,13 @@ export function installFolded3dAuxLinesSync(store: StoreApi<WorkspaceState>): ()
     const state = store.getState();
     const document = state.oristudioCpDocument;
     if (!document) return;
-    const auxKey = cpAuxLinesKey(document.geometry);
+    // Hashed on the first 3D figure that needs it: the hash walks every crease,
+    // and this runs on every edit, with or without a figure.
+    let auxKey: string | null = null;
     for (const figure of state.oristudioCpFoldedFigures) {
       // Handle 0 is a valid wasm slot; only null/undefined means "no kernel".
       if (!figure.folded3d || figure.handle == null) continue;
+      auxKey ??= cpAuxLinesKey(document.geometry);
       if (folded3dAuxKeyOf(figure.handle) === auxKey) continue;
       void fetchFolded3dAuxLines(store, figure.handle, document.handle, auxKey);
     }

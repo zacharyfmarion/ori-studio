@@ -31,20 +31,15 @@ import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import { overlayModelToCss } from '../annotations/annotationTransform';
 import { applyAffine, type CpTransformPreview } from '../adapters/cpSnapshotToScene';
 import type { ModelPoint } from '../renderer/types';
-import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
-import {
-  creaseFoldAngle,
-  foldAngleFromParts,
-  isClassicCrease,
-  isClassicMagnitude,
-  isFoldingCrease,
-} from '../../lib/foldAngle';
+import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
+import { creaseFoldAngle, foldAngleFromParts, isClassicMagnitude } from '../../lib/foldAngle';
 import { formatFoldAngle } from '../../lib/foldAngle';
 import type { ToolPreviewSegment } from '../tools/types';
 import {
   planFoldAngleBadges,
   type FoldAngleBadgeInput,
 } from './foldAngleBadges';
+import { foldAngleCreasesOf } from './foldAngleCreases';
 
 /**
  * Where a crease is *drawn* right now: its stored endpoint, or that endpoint
@@ -77,12 +72,15 @@ function drawnAt(
 }
 
 export function CpFoldAngleLayer({
-  lineSegments,
+  cpDocument,
   toolCandidates,
   toolReplacedLineIds,
 }: {
-  /** Crease line segments in model space, indexed so id === index + 1. */
-  lineSegments: readonly OristudioCpLineSegment[] | undefined;
+  /**
+   * The crease pattern whose creases are badged. Only its non-classic folding
+   * creases are read (`foldAngleCreasesOf`), never the whole line list.
+   */
+  cpDocument: OristudioCpDocumentSnapshot | null | undefined;
   /**
    * Candidate creases the active tool would create, when it solved them rather
    * than taking the active line type — the vertex-completion tool.
@@ -135,20 +133,18 @@ export function CpFoldAngleLayer({
   const replaced = toolReplacedLineIds.length > 0 ? new Set(toolReplacedLineIds) : undefined;
 
   const creases: FoldAngleBadgeInput[] = [];
-  if (lineSegments && labelsVisible) {
-    lineSegments.forEach((segment, index) => {
-      // Before the fold-state filters, matching the scene builders: a replaced
-      // crease drops out whatever it is, so the rule stays "the canvas is not
-      // drawing it" rather than a second opinion about which creases count.
-      if (replaced?.has(index + 1)) return;
-      if (!isFoldingCrease(segment.color) || isClassicCrease(segment)) return;
+  if (labelsVisible) {
+    foldAngleCreasesOf(cpDocument).forEach(({ lineId, segment }) => {
+      // Matching the scene builders: a replaced crease drops out whatever it
+      // is, so the rule stays "the canvas is not drawing it" rather than a
+      // second opinion about which creases count.
+      if (replaced?.has(lineId)) return;
       // Signed, not |rho|. The sign duplicates what the colour already says, and
       // that redundancy is the point: a red crease reading -90 teaches the
       // convention for free, where an unsigned 90 on both a red and a blue crease
       // teaches nothing and quietly implies they are the same fold.
       const degrees = creaseFoldAngle(segment);
       if (degrees === null) return;
-      const lineId = index + 1;
       creases.push({
         lineId,
         a: overlayModelToCss(view, drawnAt(move, lineId, 'a', segment.a)),

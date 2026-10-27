@@ -24,6 +24,7 @@ import type {
   OristudioCpDocumentState,
 } from '../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../lib/creasePatternViewport';
+import { cpLineSegmentCount } from '../engine/oristudioCpGeometry';
 import type { CpSelectionTransform } from '../lib/creasePatternClipboard';
 import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
@@ -752,8 +753,7 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           deps.workspace.activeEditingContext === 'crease-pattern' &&
           deps.workspace.oristudioCpDocument
         ) {
-          const lineCount =
-            deps.workspace.oristudioCpDocument?.document.crease_pattern.line_segments.length ?? 0;
+          const lineCount = cpLineSegmentCount(deps.workspace.oristudioCpDocument.document);
           deps.workspace.setOristudioCpSelection({
             lines: Array.from({ length: lineCount }, (_value, index) => index + 1),
             points: [],

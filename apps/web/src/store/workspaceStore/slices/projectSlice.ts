@@ -273,6 +273,11 @@ import type {
 import { retainFoldedFigureHandles } from '../../../cp-workspace/folded/foldedFigureHandles';
 import { folded3dExportHandles } from '../../../cp-workspace/folded/foldedFigureInterchange';
 import type { FoldDocument } from '../../../engine/types';
+import {
+  cpLineSegmentCount,
+  cpSelectedLineIds,
+  withCpDocumentTexts,
+} from '../../../engine/oristudioCpGeometry';
 import type {
   OristudioCpCommandResult,
   OristudioCpDocumentSnapshot,
@@ -444,16 +449,13 @@ function oristudioCpSelectionAfterCommand(
   }
 
   if (SYNC_CP_LINE_SELECTION_AFTER_OPERATIONS.has(operationId)) {
-    return {
-      ...emptyOristudioCpSelection(),
-      lines: document.crease_pattern.line_segments
-        .map((line, index) => (line.selected === 0 ? null : index + 1))
-        .filter((id): id is number => id !== null),
-    };
+    return { ...emptyOristudioCpSelection(), lines: cpSelectedLineIds(document) };
   }
 
+  // Counted, not read: the lines themselves are not decoded for this.
+  const lineCount = cpLineSegmentCount(document);
   return {
-    lines: selection.lines.filter((id) => id >= 1 && id <= document.crease_pattern.line_segments.length),
+    lines: selection.lines.filter((id) => id >= 1 && id <= lineCount),
     points: selection.points.filter((id) => id >= 1 && id <= document.crease_pattern.points.length),
     circles: selection.circles.filter((id) => id >= 1 && id <= document.crease_pattern.circles.length),
     texts: selection.texts.filter((id) => id >= 1 && id <= document.crease_pattern.texts.length),
@@ -517,12 +519,7 @@ function oristudioCpGridEquals(
 function selectedLineSelectionFromDocument(
   document: OristudioCpDocumentSnapshot
 ): OristudioCpSelection {
-  return {
-    ...emptyOristudioCpSelection(),
-    lines: document.crease_pattern.line_segments
-      .map((line, index) => (line.selected === 0 ? null : index + 1))
-      .filter((id): id is number => id !== null),
-  };
+  return { ...emptyOristudioCpSelection(), lines: cpSelectedLineIds(document) };
 }
 
 // A project source this large risks exhausting the desktop WebView's memory as
@@ -1087,10 +1084,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (oristudioCpDocument && importedTextAnnotations.length > 0) {
       oristudioCpDocument = {
         ...oristudioCpDocument,
-        document: {
-          ...oristudioCpDocument.document,
-          crease_pattern: { ...oristudioCpDocument.document.crease_pattern, texts: [] },
-        },
+        document: withCpDocumentTexts(oristudioCpDocument.document, []),
       };
       // Keep the live kernel document free of the now-inflated texts so later
       // snapshots and `.osf` saves don't re-introduce them.

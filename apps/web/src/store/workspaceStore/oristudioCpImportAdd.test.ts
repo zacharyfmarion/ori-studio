@@ -132,8 +132,13 @@ vi.mock('../../engines/engineHost', () => ({
   isEngineConnected: () => true,
 }));
 
-vi.mock('../../engine/oristudioCpGeometry', () => ({
+// The fake kernel's "geometry" is the snapshot itself, so both ways of reading
+// one hand back a copy of it; everything else is the real module.
+vi.mock('../../engine/oristudioCpGeometry', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../engine/oristudioCpGeometry')>()),
   decodeCpGeometryToSnapshot: (geometry: { snapshot: OristudioCpDocumentSnapshot }) =>
+    structuredClone(geometry.snapshot),
+  lazyCpDocumentSnapshot: (geometry: { snapshot: OristudioCpDocumentSnapshot }) =>
     structuredClone(geometry.snapshot),
 }));
 

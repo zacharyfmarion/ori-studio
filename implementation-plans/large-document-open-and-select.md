@@ -518,6 +518,91 @@ medium on the effort, since five consumers move.
   containment) onto the `CpGeometry` accessor, and decode only where a whole
   snapshot is genuinely needed (save, clipboard).
 
+  *Done, as built (#474):* the store holds a lazily decoded snapshot
+  (`lazyCpDocumentSnapshot`): its line segments, circles, points and aux lines
+  decode from the compact geometry the first time each is read, and read like
+  the eager decode in every way a reader can tell — same keys in the same
+  order, so a save, a structured clone and a spread copy what it held, and an
+  `.osf` save after the same actions is byte-identical to main's apart from
+  `savedAt` (checked on this file and on a four-sheet one). A selection writes
+  its flags into decoded lines only if they exist; a later decode reads them
+  from the geometry it wrote. The readers on the way through an edit, a
+  selection, an undo, a redo, a hover or an import read the typed arrays
+  instead, through a handful of accessors beside the codec
+  (`cpLineEndpoints`, `cpLineSegmentAt`, `cpLineSegmentCount`,
+  `cpSelectedLineIds`, `forEachCpLine`): the canvas (hit index, framing and
+  sizing bounds, spacing, selected and held endpoints, box select, the
+  lengthen picks, the vertex drag), the crease and line-content fingerprints
+  (bit-identical, pinned on the kernel's battery document), snapping (packed
+  endpoints, a target built only for a winner), the selection toolbar, the
+  fold-angle layer and hooks, the staleness reselects behind folded figures
+  and inline simulations, the store's selection after a command, and select
+  all. A kernel-backed test runs select, edit, undo, redo, select and a diagram
+  import with its compound undo and redo without the store's snapshot ever
+  being decoded. The undo entry is unchanged (`{ geometry }`), so the compound
+  history composes as it did.
+
+  With nothing decoding, the profile showed what an edit rebuilt, and three
+  more went: the hit index keeps entry numbers in one packed array per grid
+  (dense when the bounding box allows, else a map of occupied cells), the
+  vertex dots dedupe through an open-addressed set in typed arrays, and the
+  toolbar fingerprints only with lines selected. Each answers as before
+  (tests against a full scan and against the map-of-sets dedupe). Measured on
+  this file (same boxes, `--edits 1 --draw 440,715,850,820`, #473's branch
+  9f60f940c against the branch, two runs each, alternating, load 3–6):
+
+  | | before | lazy snapshot |
+  | --- | ---: | ---: |
+  | An edit (a line drawn) | 561 / 588 ms | 236 / 226 ms |
+  | Undo of it | 723 / 706 ms | 244 / 241 ms |
+  | Redo | 596 / 626 ms | 256 / 254 ms |
+  | Longest freeze per edit, undo or redo | 483–633 ms | 206–231 ms |
+  | First sheet → selected | 286 / 293 ms | 256 / 291 ms |
+  | Second sheet → selected | 224 / 227 ms | 187 / 185 ms |
+  | Longest freeze per selection | 107–123 ms | 70–99 ms |
+  | Open → canvas | 4.78 / 4.83 s | 4.41 / 4.55 s |
+  | Heap after open | 346 MiB | 201 MiB |
+  | Heap after edit, undo, redo | 506 → 595 MiB | 215 MiB |
+  | A pointer move with Line and snapping on | 42 ms | 17 ms |
+
+  Array buffers are 16–32 MiB higher (the index and the dots are typed
+  arrays now); heap plus buffers after an undo and redo is 420 MiB against
+  768. What is left of an edit is one ~210 ms main-thread task, of which the
+  two hit indexes are ~85 ms, the stroke buffer ~25 ms, the vertex dots ~25 ms
+  and the sizing bounds ~17 ms (traced); an index updated per edit rather than
+  rebuilt would be the next step. What is left of a selection is the kernel's
+  box select in the worker and one task rebuilding the stroke buffer to
+  highlight it (~30 ms). Still decoding, on purpose, because each needs every
+  line as an object once per action: a save, the clipboard, an export, a fold,
+  the Simulate and References rails' sheet thumbnails, Diagram capture, the
+  region solve and an import (add).
+
+  *Review fix (#474):* a selection of many lines cost more per line than on
+  #473. With the lines not decoded, every reader a selection change runs
+  built each selected line from the geometry: the panel's foldable ids, the
+  fold-angle and hint availability checks, and `selectedCpLineSegments`
+  behind the panel's move-drag lines and the two controls' summaries, which
+  then copied each line again. #473 read the decoded array and copied once.
+  The colour checks now read the colour slot (`cpLineColorAt`) and build
+  nothing, and lines built from the geometry are handed out without a second
+  copy. The harness's new `--select-all` times Select All and the Escape after
+  it (same boxes first; alternating; load 30–75, so the box selections are
+  noise here and unchanged):
+
+  | Select All, 489,093 lines | #473 (9f60f940c) | #474 before the fix | with the fix |
+  | --- | ---: | ---: | ---: |
+  | → selected | 728 / 731 ms | 986 / 901 ms | 551 / 628 / 539 ms |
+  | Longest freeze | 721 / 723 ms | 949 / 895 ms | 545 / 617 / 532 ms |
+  | Heap it keeps (after a collection) | +106 MiB | +107 MiB | +108 MiB |
+  | Escape → deselected | 89 / 88 ms | 72 / 77 ms | 68 / 83 / 84 ms |
+
+  What is left of a full selection is mostly two builds of every selected
+  line, both also on #473: the panel's move-drag lines (built for a drag that
+  may never come, and by their size most of the ~107 MiB kept; not confirmed
+  with a heap snapshot) and the fold-angle summary
+  (which needs only the colour and the magnitude). Building the first at the
+  drag and reading the second from the geometry would be the next step.
+
 Expected: a selection costs one kernel call and a re-render that rebuilds
 nothing — tens of milliseconds. Medium confidence on the exact number: the
 kernel's box select is one linear pass, and today's whole select-to-store step
@@ -658,7 +743,7 @@ Phase 3
 - [x] 3.1 Selection commands return ids; document identity preserved (#472)
 - [x] 3.2 Selection-only undo entries (#472)
 - [x] 3.2 Compact geometry for edit entries (#473)
-- [ ] 3.3 Hot consumers on the `CpGeometry` accessor
+- [x] 3.3 Hot consumers on the `CpGeometry` accessor; the snapshot decoded only on demand (#474)
 
 Phase 4
 - [ ] 4.1 Parse and load in the CP worker

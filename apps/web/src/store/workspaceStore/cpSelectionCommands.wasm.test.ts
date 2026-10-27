@@ -6,7 +6,13 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpSelectedLines,
 } from '../../engine/oristudioCpTypes';
-import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import {
+  cpDecodedLineSegments,
+  cpDocumentTransport,
+  cpLineSegmentCount,
+  decodeCpGeometryToSnapshot,
+  type CpGeometryTransport,
+} from '../../engine/oristudioCpGeometry';
 import { createStep } from '../../diagram/document/diagramDocument';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
@@ -628,6 +634,94 @@ describe.skipIf(!wasmAvailable)('selection commands against the kernel', () => {
         );
         expect(state().status).not.toBe('error');
       });
+    });
+  });
+
+  /**
+   * The store holds a lazily decoded snapshot (`lazyCpDocumentSnapshot`): its
+   * lines become objects only when something asks for every one of them. On a
+   * canvas of half a million creases that decode was ~150 ms and 131 MiB per
+   * command, so nothing the store does on the way through an edit, a selection,
+   * an undo, a redo or an import may ask — and whatever does later must find
+   * exactly what the kernel holds.
+   */
+  describe('the snapshot the store holds', () => {
+    const live = () => {
+      const documentState = state().oristudioCpDocument;
+      if (!documentState) throw new Error('no document');
+      return documentState;
+    };
+    /** Nothing has decoded the lines, and they are the store's geometry's. */
+    const undecoded = () => {
+      const { document, geometry } = live();
+      return cpDecodedLineSegments(document) === null && cpDocumentTransport(document) === geometry;
+    };
+    /** What a save writes: the snapshot, decoded now. */
+    const savedAs = () => JSON.stringify(live().document);
+    /** What it wrote before: the kernel's document as it is now, decoded at once. */
+    const kernelSnapshot = () =>
+      JSON.stringify(
+        decodeCpGeometryToSnapshot(wasm.document_geometry(live().handle) as CpGeometryTransport)
+      );
+
+    it('is not decoded by a selection, an edit, its undo or its redo', async () => {
+      expect(undecoded()).toBe(true);
+      await select(boxOver(0, 1));
+      expect(undecoded()).toBe(true);
+      await state().executeOristudioCpCommand('CreaseSetLineColor', {
+        line_ids: [1],
+        line_color: 'Cyan3',
+      });
+      expect(undecoded()).toBe(true);
+      await state().undo();
+      expect(undecoded()).toBe(true);
+      await state().redo();
+      expect(undecoded()).toBe(true);
+      await select(boxOver(3, 3, true));
+      expect(undecoded()).toBe(true);
+
+      // Decoded at last, by a save: the kernel's document, selection included.
+      expect(savedAs()).toBe(kernelSnapshot());
+      expect([storeIds(), kernelIds(), snapshotIds()]).toEqual([[1, 2, 4], [1, 2, 4], [1, 2, 4]]);
+      expect(live().document.crease_pattern.line_segments[0]?.color).toBe('Cyan3');
+    });
+
+    it('keeps a decoded snapshot in step with the selections written into it', async () => {
+      // Something read every line (a save, the clipboard) before the selection.
+      void live().document.crease_pattern.line_segments;
+      expect(cpDecodedLineSegments(live().document)).not.toBeNull();
+      await select(boxOver(1, 2));
+      expect(snapshotIds()).toEqual([2, 3]);
+      expect(savedAs()).toBe(kernelSnapshot());
+    });
+
+    it('is not decoded by an import through the compound history, either way', async () => {
+      store.setState({
+        diagram: null,
+        diagramHistory: { past: [], future: [] },
+        diagramImportBusy: false,
+      });
+      const { commitDiagramImport, importTarget } = await import('./diagramBatchImport');
+      const sheet = wasm.load_cp('1 0 0 2 0\n1 2 0 2 2\n1 2 2 0 2\n1 0 2 0 0\n', 'sheet');
+      const geometry = wasm.document_geometry(sheet) as CpGeometryTransport;
+      wasm.free_document(sheet);
+
+      await expect(
+        commitDiagramImport([{ geometry, steps: [createStep()] }], importTarget(), 1, 10)
+      ).resolves.toBe(1);
+      expect(undecoded()).toBe(true);
+      const compoundId = state().oristudioCpHistoryPast.at(-1)?.compoundId;
+      expect(compoundId).toBeDefined();
+      expect(state().diagramHistory.past.at(-1)?.compoundId).toBe(compoundId);
+
+      await state().undo();
+      expect(undecoded()).toBe(true);
+      expect(cpLineSegmentCount(live().document)).toBe(4);
+      await state().redo();
+      expect(undecoded()).toBe(true);
+      expect(cpLineSegmentCount(live().document)).toBe(8);
+      expect(state().oristudioCpHistoryPast.at(-1)?.compoundId).toBe(compoundId);
+      expect(savedAs()).toBe(kernelSnapshot());
     });
   });
 

@@ -108,8 +108,10 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   // The cache is keyed by a fingerprint of the crease geometry, so it survives
   // both remounts and the snapshot churn a deselect produces.
   const [, bumpIndexVersion] = useState(0);
-  const sheetIndex = peekCpSheetIndex(cpDocument);
   const hasLineSelection = selection.lines.length > 0;
+  // Only looked up with lines selected: with none there is no sheet to match,
+  // and the lookup fingerprints every crease of a document just edited.
+  const sheetIndex = hasLineSelection ? peekCpSheetIndex(cpDocument) : null;
   useEffect(() => {
     if (!hasLineSelection || !cpDocument || sheetIndex) return undefined;
     let alive = true;

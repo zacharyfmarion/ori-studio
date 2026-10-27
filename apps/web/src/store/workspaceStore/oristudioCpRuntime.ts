@@ -29,7 +29,9 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { WasmErrorEnvelope } from '../../engine/types';
 import {
+  cpLineSegmentCount,
   decodeCpGeometryToSnapshot,
+  lazyCpDocumentSnapshot,
   type CpGeometryTransport,
 } from '../../engine/oristudioCpGeometry';
 import { CpSheetIndex } from '../../engine/oristudioCpSheetIndex';
@@ -264,20 +266,20 @@ export async function openSharedCpPayload(
 
 /**
  * Fetch the document for a handle via the compact geometry transport: fetch **only**
- * the compact geometry (transferable typed arrays) and build the structured snapshot
- * from it on the main thread via `decodeCpGeometryToSnapshot`, skipping the worker's
- * `document_snapshot` (its serde object-graph build + structured clone, ~140ms on a
- * dense document vs ~4ms here). The parity gate proves the decoded snapshot is
- * identical to `document_snapshot`, so every consumer, undo, and save/export are
- * unaffected. Save/export operate on the kernel handle directly, so they never need
- * `document_snapshot` either.
+ * the compact geometry (transferable typed arrays), skipping the worker's
+ * `document_snapshot` (its serde object-graph build + structured clone). The
+ * snapshot beside it is lazy (`lazyCpDocumentSnapshot`): its lines are decoded
+ * from the same arrays the first time something reads them as objects, and the
+ * hot path — the canvas, hit testing, snapping, fingerprints — never does. The
+ * parity gate proves a decode is identical to `document_snapshot`, so every
+ * consumer, undo, and save/export are unaffected.
  */
 async function fetchDocumentAndGeometry(
   api: OristudioCpClient,
   targetHandle: number
 ): Promise<{ document: OristudioCpDocumentSnapshot; geometry: CpGeometryTransport }> {
   const geometry = await api.documentGeometry(targetHandle);
-  return { document: decodeCpGeometryToSnapshot(geometry), geometry };
+  return { document: lazyCpDocumentSnapshot(geometry), geometry };
 }
 
 /**
@@ -798,8 +800,10 @@ export function creasePatternHoldsNothingOfItsOwn(document: OristudioCpDocumentS
   ) {
     return false;
   }
-  if (model.line_segments.length === 0) return true;
-  if (model.line_segments.length !== STARTER_BORDER_SEGMENT_COUNT) return false;
+  // Counted first, so a canvas full of the user's work is not decoded to say so.
+  const lineCount = cpLineSegmentCount(document);
+  if (lineCount === 0) return true;
+  if (lineCount !== STARTER_BORDER_SEGMENT_COUNT) return false;
   const starter = createStarterBorderSegments().map(segmentKey);
   const present = model.line_segments.map(segmentKey);
   return starter.every((key) => present.includes(key));

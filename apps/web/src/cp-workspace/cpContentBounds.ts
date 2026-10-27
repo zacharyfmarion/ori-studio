@@ -26,7 +26,11 @@ export interface CpOverlayBox {
 }
 
 export interface CpContentBoundsInput {
-  lineSegments: readonly { a: ModelPoint; b: ModelPoint }[];
+  /**
+   * The creases' endpoints, `[ax, ay, bx, by]` per crease — the geometry
+   * transport's own packing (`cpSegmentEndpoints` packs line objects so).
+   */
+  lineEndpoints: Float64Array;
   images?: readonly CpImage[];
   overlayBoxes?: readonly CpOverlayBox[];
   /**
@@ -39,7 +43,11 @@ export interface CpContentBoundsInput {
    * the mistake `bf484295` was about.
    */
   foldedFigures?: readonly OristudioCpFoldedFigureEntry[];
-  /** Model space to SVG user space, since the camera frames in user coords. */
+  /**
+   * Model space to SVG user space, since the camera frames in user coords.
+   * Must map each axis independently and monotonically, as `cpModelToSvg` does
+   * — see {@link cpTrimmedCreaseBounds}, which relies on the same.
+   */
   modelToSvg: (point: ModelPoint) => { x: number; y: number };
 }
 
@@ -62,7 +70,7 @@ export interface CpContentBoundsInput {
  * something invisible would just look like the camera was wrong.
  */
 export function cpContentBounds(input: CpContentBoundsInput): UserBounds | null {
-  const { lineSegments, images, overlayBoxes, foldedFigures, modelToSvg } = input;
+  const { lineEndpoints, images, overlayBoxes, foldedFigures, modelToSvg } = input;
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -95,9 +103,29 @@ export function cpContentBounds(input: CpContentBoundsInput): UserBounds | null 
     extendUser(u.x, u.y);
   };
 
-  for (const segment of lineSegments) {
-    extend(segment.a);
-    extend(segment.b);
+  // The creases' extent is found in model space and its two corners projected,
+  // rather than every endpoint: they are the bulk of what is framed, half a
+  // million on a large canvas, and projecting each was most of what this cost.
+  // Exact for a mapping that is monotone per axis (see `modelToSvg`): it cannot
+  // change which endpoint is outermost along an axis, and `extendUser` puts the
+  // corners back in order. Non-finite coordinates are left out first, as
+  // `extendUser` would leave out their projections.
+  let creaseMinX = Infinity;
+  let creaseMinY = Infinity;
+  let creaseMaxX = -Infinity;
+  let creaseMaxY = -Infinity;
+  for (let i = 0; i < lineEndpoints.length; i += 2) {
+    const x = lineEndpoints[i]!;
+    const y = lineEndpoints[i + 1]!;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    if (x < creaseMinX) creaseMinX = x;
+    if (y < creaseMinY) creaseMinY = y;
+    if (x > creaseMaxX) creaseMaxX = x;
+    if (y > creaseMaxY) creaseMaxY = y;
+  }
+  if (creaseMinX <= creaseMaxX) {
+    extend({ x: creaseMinX, y: creaseMinY });
+    extend({ x: creaseMaxX, y: creaseMaxY });
   }
   for (const image of images ?? []) {
     if (image.hidden) continue;
@@ -190,7 +218,7 @@ function selectNth(values: Float64Array, k: number, lo: number, hi: number): num
  *
  * Split out of {@link cpSizingBounds} because it is the expensive half and the
  * only half that depends on the document's geometry. The canvas memoises it on
- * `lineSegments` alone for that reason; folding it in with the placed-object
+ * `lineEndpoints` alone for that reason; folding it in with the placed-object
  * kinds, whose arrays are rebuilt every render, is what put a full pass over
  * every crease endpoint on every camera frame.
  *
@@ -204,26 +232,21 @@ function selectNth(values: Float64Array, k: number, lo: number, hi: number): num
  * need the old project-then-select path back.
  */
 export function cpTrimmedCreaseBounds(
-  lineSegments: CpContentBoundsInput['lineSegments'],
+  lineEndpoints: CpContentBoundsInput['lineEndpoints'],
   modelToSvg: CpContentBoundsInput['modelToSvg']
 ): UserBounds | null {
-  if (lineSegments.length === 0) return null;
+  if (lineEndpoints.length === 0) return null;
 
-  const xs = new Float64Array(lineSegments.length * 2);
-  const ys = new Float64Array(lineSegments.length * 2);
+  const xs = new Float64Array(lineEndpoints.length / 2);
+  const ys = new Float64Array(lineEndpoints.length / 2);
   let n = 0;
-  for (const segment of lineSegments) {
-    // Unrolled rather than iterating `[segment.a, segment.b]`: that allocates a
-    // two-element array per crease, and this walks the whole document.
-    const { a, b } = segment;
-    if (Number.isFinite(a.x) && Number.isFinite(a.y)) {
-      xs[n] = a.x;
-      ys[n] = a.y;
-      n += 1;
-    }
-    if (Number.isFinite(b.x) && Number.isFinite(b.y)) {
-      xs[n] = b.x;
-      ys[n] = b.y;
+  // Every endpoint in order, `a` before `b`, as the line objects were read.
+  for (let i = 0; i < lineEndpoints.length; i += 2) {
+    const x = lineEndpoints[i]!;
+    const y = lineEndpoints[i + 1]!;
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      xs[n] = x;
+      ys[n] = y;
       n += 1;
     }
   }
@@ -264,11 +287,13 @@ export function cpTrimmedCreaseBounds(
   };
 }
 
+const NO_ENDPOINTS = new Float64Array(0);
+
 /** {@link cpContentBounds} over every placed kind *except* creases. */
 export function cpPlacedObjectBounds(
-  input: Omit<CpContentBoundsInput, 'lineSegments'>
+  input: Omit<CpContentBoundsInput, 'lineEndpoints'>
 ): UserBounds | null {
-  return cpContentBounds({ ...input, lineSegments: [] });
+  return cpContentBounds({ ...input, lineEndpoints: NO_ENDPOINTS });
 }
 
 /** The box containing both, or whichever one is not null. */
@@ -316,7 +341,7 @@ export function cpSizingBounds(input: CpContentBoundsInput): UserBounds | null {
   // different things; this composition is what the tests pin and what any other
   // caller should reach for.
   return unionBounds(
-    cpTrimmedCreaseBounds(input.lineSegments, input.modelToSvg),
+    cpTrimmedCreaseBounds(input.lineEndpoints, input.modelToSvg),
     cpPlacedObjectBounds(input)
   );
 }

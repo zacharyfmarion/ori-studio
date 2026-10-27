@@ -5,9 +5,9 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpGridMetadata,
   OristudioCpGridState,
-  OristudioCpLineSegment,
   OristudioCpSnapCandidates,
 } from '../engine/oristudioCpTypes';
+import { cpLineEndpoints } from '../engine/oristudioCpGeometry';
 import type { Point, PlotRect } from './geometry';
 import { cpPaletteEntryForColor } from './oristudioCpPalette';
 
@@ -828,12 +828,24 @@ export function closestOrieditaGridPoint(
   return bestPoint;
 }
 
+/**
+ * The nearest snap target, of the kinds `options` turns on.
+ *
+ * `lineEndpoints` are the creases snapped to, `[ax, ay, bx, by]` per crease and
+ * labelled by their place in it — the document's own (`cpLineEndpoints`)
+ * unless the caller narrows them, as a move-drag does to leave out the lines
+ * it is moving. They are read as numbers, and a target is built only for a
+ * candidate that beats the best so far: this runs on every pointer move, over
+ * every crease, and building one per endpoint was half a million objects and
+ * label strings a move on a large canvas.
+ */
 export function nearestCpSnapTarget(
   document: OristudioCpDocumentSnapshot,
   point: Point,
   bounds: CpModelBounds,
   options: OristudioCpViewportOptions,
-  maxDistance = Math.max(bounds.spanX, bounds.spanY) * 0.015
+  maxDistance = Math.max(bounds.spanX, bounds.spanY) * 0.015,
+  lineEndpoints: Float64Array = cpLineEndpoints(document)
 ): CpSnapTarget | null {
   let best: CpSnapTarget | null = null;
   const pointSnapDistance = maxDistance * POINT_SNAP_DISTANCE_MULTIPLIER;
@@ -841,18 +853,11 @@ export function nearestCpSnapTarget(
     if (!withinSnapDistance(target, targetMaxDistance)) return;
     if (!best || target.distance < best.distance) best = target;
   };
+  const beatsBest = (candidateDistance: number, targetMaxDistance: number) =>
+    candidateDistance <= targetMaxDistance && (!best || candidateDistance < best.distance);
 
   if (options.snapToVertices) {
-    document.crease_pattern.line_segments.forEach((segment, index) => {
-      consider(
-        pointTarget(segment.a, point, 'vertex', `line ${index + 1} start`),
-        pointSnapDistance
-      );
-      consider(
-        pointTarget(segment.b, point, 'vertex', `line ${index + 1} end`),
-        pointSnapDistance
-      );
-    });
+    best = nearestLineEndpointTarget(lineEndpoints, point, pointSnapDistance, best);
     document.crease_pattern.points.forEach((candidate, index) => {
       consider(pointTarget(candidate, point, 'point', `point ${index + 1}`), pointSnapDistance);
     });
@@ -862,10 +867,13 @@ export function nearestCpSnapTarget(
   }
 
   if (options.snapToLines) {
-    document.crease_pattern.line_segments.forEach((segment, index) => {
-      const projected = closestPointOnSegment(point, segment);
-      consider(pointTarget(projected, point, 'line', `line ${index + 1}`));
-    });
+    const count = lineEndpoints.length / 4;
+    for (let index = 0; index < count; index += 1) {
+      const [x, y] = closestPointOnPackedLine(point, lineEndpoints, index);
+      const candidateDistance = Math.hypot(x - point.x, y - point.y);
+      if (!beatsBest(candidateDistance, maxDistance)) continue;
+      best = { point: { x, y }, kind: 'line', label: `line ${index + 1}`, distance: candidateDistance };
+    }
   }
 
   const snapGrid = snappableOrieditaGrid(document.crease_pattern.grid, options);
@@ -894,16 +902,7 @@ export function nearestOrieditaDrawPointTarget(
   };
 
   if (options.snapToVertices) {
-    document.crease_pattern.line_segments.forEach((segment, index) => {
-      consider(
-        pointTarget(segment.a, point, 'vertex', `line ${index + 1} start`),
-        pointSnapDistance
-      );
-      consider(
-        pointTarget(segment.b, point, 'vertex', `line ${index + 1} end`),
-        pointSnapDistance
-      );
-    });
+    best = nearestLineEndpointTarget(cpLineEndpoints(document), point, pointSnapDistance, best);
     document.crease_pattern.points.forEach((candidate, index) => {
       consider(pointTarget(candidate, point, 'point', `point ${index + 1}`), pointSnapDistance);
     });
@@ -968,12 +967,22 @@ export function nearestCpJunctionTarget(
   if (!options.snapToVertices) return best;
 
   const reach = maxDistance * POINT_SNAP_DISTANCE_MULTIPLIER;
-  const near: { index: number; segment: OristudioCpLineSegment }[] = [];
-  document.crease_pattern.line_segments.forEach((segment, index) => {
-    if (distance(closestPointOnSegment(point, segment), point) <= reach) {
-      near.push({ index, segment });
+  const near: { index: number; segment: SnapSegment }[] = [];
+  const endpoints = cpLineEndpoints(document);
+  const count = endpoints.length / 4;
+  for (let index = 0; index < count; index += 1) {
+    const [x, y] = closestPointOnPackedLine(point, endpoints, index);
+    if (Math.hypot(x - point.x, y - point.y) <= reach) {
+      const at = index * 4;
+      near.push({
+        index,
+        segment: {
+          a: { x: endpoints[at]!, y: endpoints[at + 1]! },
+          b: { x: endpoints[at + 2]!, y: endpoints[at + 3]! },
+        },
+      });
     }
-  });
+  }
 
   let crossing: CpSnapTarget | null = best;
   for (let i = 0; i < near.length; i += 1) {
@@ -998,10 +1007,7 @@ export function nearestCpJunctionTarget(
  * Where two segments cross in both their interiors, or null when they are
  * parallel, miss, or only touch at an end.
  */
-function segmentCrossingPoint(
-  first: OristudioCpLineSegment,
-  second: OristudioCpLineSegment
-): Point | null {
+function segmentCrossingPoint(first: SnapSegment, second: SnapSegment): Point | null {
   const r = { x: first.b.x - first.a.x, y: first.b.y - first.a.y };
   const s = { x: second.b.x - second.a.x, y: second.b.y - second.a.y };
   const denominator = r.x * s.y - r.y * s.x;
@@ -1196,19 +1202,71 @@ function pointTarget(
   };
 }
 
-function closestPointOnSegment(point: Point, segment: OristudioCpLineSegment): Point {
-  const dx = segment.b.x - segment.a.x;
-  const dy = segment.b.y - segment.a.y;
+/** The endpoints a crossing is computed from. */
+interface SnapSegment {
+  a: Point;
+  b: Point;
+}
+
+/** Reused by {@link closestPointOnPackedLine}, whose callers read it at once. */
+const closest: [number, number] = [0, 0];
+
+/**
+ * The point on crease `index` of a packed endpoint array nearest `point`, as
+ * `[x, y]` — an array reused by every call, to be read before the next.
+ */
+function closestPointOnPackedLine(
+  point: Point,
+  endpoints: Float64Array,
+  index: number
+): readonly [number, number] {
+  const at = index * 4;
+  const ax = endpoints[at]!;
+  const ay = endpoints[at + 1]!;
+  const dx = endpoints[at + 2]! - ax;
+  const dy = endpoints[at + 3]! - ay;
   const lengthSquared = dx * dx + dy * dy;
-  if (lengthSquared === 0) return segment.a;
-  const t = Math.max(
-    0,
-    Math.min(1, ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / lengthSquared)
-  );
-  return {
-    x: segment.a.x + dx * t,
-    y: segment.a.y + dy * t,
-  };
+  if (lengthSquared === 0) {
+    closest[0] = ax;
+    closest[1] = ay;
+    return closest;
+  }
+  const t = Math.max(0, Math.min(1, ((point.x - ax) * dx + (point.y - ay) * dy) / lengthSquared));
+  closest[0] = ax + dx * t;
+  closest[1] = ay + dy * t;
+  return closest;
+}
+
+/**
+ * Every crease endpoint as a `vertex` target within `maxDistance` — `a` then
+ * `b`, crease by crease — against `best`, answering the nearer: what offering
+ * `pointTarget(segment.a | segment.b, …)` for each would give, building a
+ * target only for one that wins.
+ */
+function nearestLineEndpointTarget(
+  endpoints: Float64Array,
+  point: Point,
+  maxDistance: number,
+  best: CpSnapTarget | null
+): CpSnapTarget | null {
+  let nearest = best;
+  const count = endpoints.length / 4;
+  for (let index = 0; index < count; index += 1) {
+    for (let end = 0; end < 2; end += 1) {
+      const x = endpoints[index * 4 + end * 2]!;
+      const y = endpoints[index * 4 + end * 2 + 1]!;
+      const candidateDistance = Math.hypot(x - point.x, y - point.y);
+      if (!(candidateDistance <= maxDistance)) continue;
+      if (nearest && !(candidateDistance < nearest.distance)) continue;
+      nearest = {
+        point: { x, y },
+        kind: 'vertex',
+        label: `line ${index + 1} ${end === 0 ? 'start' : 'end'}`,
+        distance: candidateDistance,
+      };
+    }
+  }
+  return nearest;
 }
 
 function distance(a: Point, b: Point): number {

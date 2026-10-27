@@ -30,7 +30,8 @@
  * it is not part of a history entry: an undo after a pin should walk back the
  * last crease edit, not the marker.
  */
-import { VERTEX_COINCIDENCE, endpointKey, type VertexEndpointSegment } from '../tools/vertexEndpoints';
+import { VERTEX_COINCIDENCE, endpointKey } from '../tools/vertexEndpoints';
+import { forEachPackedLine } from '../../engine/oristudioCpGeometry';
 import type { ModelPoint } from '../renderer/types';
 
 /** A pinned vertex, in document model space. */
@@ -117,15 +118,15 @@ export function pinnedVertexIndices(
  * which is the same argument the moved-endpoint set next door already makes.
  */
 export function heldEndpointKeys(
-  segments: readonly VertexEndpointSegment[],
+  endpoints: Float64Array,
   pins: readonly CpVertexPin[]
 ): ReadonlySet<number> {
   const keys = new Set<number>();
   if (pins.length === 0) return keys;
-  for (let index = 0; index < segments.length; index++) {
-    const segment = segments[index];
-    if (isCpVertexPinned(pins, segment.a)) keys.add(endpointKey(index, 'a'));
-    if (isCpVertexPinned(pins, segment.b)) keys.add(endpointKey(index, 'b'));
-  }
+  // `[ax, ay, bx, by]` per crease, as the geometry transport packs them.
+  forEachPackedLine(endpoints, (a, b, id) => {
+    if (isCpVertexPinned(pins, a)) keys.add(endpointKey(id - 1, 'a'));
+    if (isCpVertexPinned(pins, b)) keys.add(endpointKey(id - 1, 'b'));
+  });
   return keys;
 }

@@ -7,6 +7,7 @@
  */
 import { useCallback, useMemo } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
+import { cpLineColorAt } from '../../engine/oristudioCpGeometry';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { selectedCpLineSegments } from '../../lib/creasePatternClipboard';
@@ -30,8 +31,8 @@ export function hasFoldableCpSelection(
 ): boolean {
   if (!document) return false;
   return selection.lines.some((id) => {
-    const segment = document.crease_pattern.line_segments[id - 1];
-    return segment !== undefined && isFoldingCrease(segment.color);
+    const color = cpLineColorAt(document, id);
+    return color !== undefined && isFoldingCrease(color);
   });
 }
 

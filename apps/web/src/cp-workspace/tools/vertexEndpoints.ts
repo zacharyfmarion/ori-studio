@@ -42,33 +42,31 @@ export interface VertexEndpointMatch {
   slot: VertexEndpointSlot;
 }
 
-/** The endpoint coordinates this module reads. */
-export interface VertexEndpointSegment {
-  a: ModelPoint;
-  b: ModelPoint;
-}
-
 function within(px: number, py: number, vertex: ModelPoint): boolean {
   return Math.hypot(px - vertex.x, py - vertex.y) <= VERTEX_COINCIDENCE;
 }
 
 /**
  * Every crease endpoint within {@link VERTEX_COINCIDENCE} of `vertex`, in segment
- * order, `a` before `b`.
+ * order, `a` before `b`. `endpoints` is `[ax, ay, bx, by]` per crease, the
+ * geometry transport's packing (`cpSegmentEndpoints` packs line objects so).
  *
  * A segment with *both* endpoints on the vertex contributes two entries. That is
  * already-degenerate geometry, and the kernel reports it the same way, so the
  * mirror must too.
  */
 export function vertexEndpointsAt(
-  segments: readonly VertexEndpointSegment[],
+  endpoints: Float64Array,
   vertex: ModelPoint
 ): VertexEndpointMatch[] {
   const found: VertexEndpointMatch[] = [];
-  for (let index = 0; index < segments.length; index++) {
-    const segment = segments[index];
-    if (within(segment.a.x, segment.a.y, vertex)) found.push({ segment: index, slot: 'a' });
-    if (within(segment.b.x, segment.b.y, vertex)) found.push({ segment: index, slot: 'b' });
+  const count = endpoints.length / 4;
+  for (let index = 0; index < count; index++) {
+    const at = index * 4;
+    if (within(endpoints[at]!, endpoints[at + 1]!, vertex)) found.push({ segment: index, slot: 'a' });
+    if (within(endpoints[at + 2]!, endpoints[at + 3]!, vertex)) {
+      found.push({ segment: index, slot: 'b' });
+    }
   }
   return found;
 }

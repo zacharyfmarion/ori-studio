@@ -1,4 +1,6 @@
 import { useCallback } from 'react';
+import { cpLineSegmentCount } from '../../engine/oristudioCpGeometry';
+import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
 /**
@@ -13,10 +15,10 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
  */
 export function selectionCoversEntireCp(
   match: { cpLineIds: readonly number[] } | null,
-  cpDocument: { crease_pattern: { line_segments: readonly unknown[] } } | null
+  cpDocument: OristudioCpDocumentSnapshot | null
 ): boolean {
   if (!match || !cpDocument) return false;
-  return match.cpLineIds.length === cpDocument.crease_pattern.line_segments.length;
+  return match.cpLineIds.length === cpLineSegmentCount(cpDocument);
 }
 
 /**
