@@ -124,6 +124,25 @@ export function releaseFoldedFigureHandles(
   for (const figure of figures) releaseFoldedFigureHandle(figure.handle);
 }
 
+/**
+ * Hold the handles in a figure list until the returned function lets go: for
+ * a list that becomes a history entry only after a verb has run, so a verb
+ * that releases a figure (delete, refold) cannot free its handle before the
+ * entry undoing it retains it. A hold only delays a free, so a handle nothing
+ * holds is left alone; and one from before a reset lets go of nothing — the
+ * reset freed its handles, and their slots may have been reused since.
+ */
+export function holdFoldedFigureHandles(
+  figures: readonly { handle: number | null }[]
+): () => void {
+  const epoch = handleEpoch;
+  const held = figures.filter((figure) => figure.handle != null && counts.has(figure.handle));
+  retainFoldedFigureHandles(held);
+  return () => {
+    if (handleEpoch === epoch) releaseFoldedFigureHandles(held);
+  };
+}
+
 /** Current reference count, for tests and diagnostics. */
 export function foldedFigureHandleRefCount(handle: number): number {
   return counts.get(handle) ?? 0;

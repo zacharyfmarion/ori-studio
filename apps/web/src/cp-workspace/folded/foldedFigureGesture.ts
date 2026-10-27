@@ -3,6 +3,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { registerCanvasSessionEnder } from '../canvasObjects/canvasSessions';
 import { createGestureBracket } from '../canvasObjects/gestureBracket';
 import { pendingFoldedModelWrites, supersedeFoldedModelWrites } from './foldedModelWriteQueue';
+import { holdFoldedFigureHandles } from './foldedFigureHandles';
 import { foldedFigureListsEqual } from './foldedFigureState';
 
 interface FoldedFigureSnapshot {
@@ -40,6 +41,9 @@ export const foldedFigureGesture = createGestureBracket<FoldedFigureSnapshot>({
       .getState()
       .recordFoldedFigureHistory([...before.figures], label, before.activeId),
   beforeCommit: () => pendingFoldedModelWrites(),
+  // A delete or refold releases the figure's handle before the entry undoing it
+  // is recorded; held from the snapshot on, the handle outlives the gap.
+  hold: (before) => holdFoldedFigureHandles(before.figures),
 });
 
 // An undo taken while a flat figure's model write is still in flight: the

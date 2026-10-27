@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   foldedFigureHandleRefCount,
+  holdFoldedFigureHandles,
   releaseFoldedFigureHandle,
   releaseFoldedFigureHandles,
   resetFoldedFigureHandles,
@@ -80,6 +81,53 @@ describe('folded figure handle ownership', () => {
 
     releaseFoldedFigureHandle(5); // that entry scrolls off the undo stack
     expect(free).toHaveBeenCalledExactlyOnceWith(5);
+  });
+
+  it('holds a list across a release until the entry that keeps it is recorded', () => {
+    // The verb's shape: snapshot, delete, then record the snapshot as the entry
+    // that undoes the delete.
+    retainFoldedFigureHandle(5); // live list
+    const letGo = holdFoldedFigureHandles([{ handle: 5 }, { handle: null }]);
+
+    releaseFoldedFigureHandle(5); // delete
+    expect(free).not.toHaveBeenCalled();
+
+    retainFoldedFigureHandle(5); // the entry
+    letGo();
+    expect(free).not.toHaveBeenCalled();
+    expect(foldedFigureHandleRefCount(5)).toBe(1);
+  });
+
+  it('frees a held handle when nothing else took it by the time the hold lets go', () => {
+    retainFoldedFigureHandle(5);
+    const letGo = holdFoldedFigureHandles([{ handle: 5 }]);
+    releaseFoldedFigureHandle(5);
+
+    letGo();
+
+    expect(free).toHaveBeenCalledExactlyOnceWith(5);
+  });
+
+  it('leaves alone a handle nothing holds, so a hold never frees one itself', () => {
+    const letGo = holdFoldedFigureHandles([{ handle: 6 }]);
+    expect(foldedFigureHandleRefCount(6)).toBe(0);
+
+    letGo();
+
+    expect(free).not.toHaveBeenCalled();
+  });
+
+  it('lets go of nothing once a reset has freed what it held', async () => {
+    const letGo = holdFoldedFigureHandles([{ handle: 5 }]);
+    await resetFoldedFigureHandles();
+    // The kernel reuses slots: 5 can be a new figure by the time the hold ends.
+    retainFoldedFigureHandle(5);
+    free.mockClear();
+
+    letGo();
+
+    expect(foldedFigureHandleRefCount(5)).toBe(1);
+    expect(free).not.toHaveBeenCalled();
   });
 
   it('frees on reset rather than trusting the document to take its handles with it', () => {
