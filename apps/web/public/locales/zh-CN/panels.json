@@ -1755,15 +1755,18 @@
     },
     "canvas": {
       "creasePattern": "折痕图",
+      "creasePatternBackLabel": "到目前为止的折痕图，背面朝上。山折和谷折已反转。单击其中的点和折痕来确定折线。",
       "creasePatternLabel": "到目前为止的折痕图，正面朝上。单击其中的点和折痕来确定折线。",
       "flatCreases": "平折痕",
       "flatCreasesTitle": "在纸上绘制平折痕：预折痕和已展开的折叠",
       "folded": "折叠后",
       "foldedLabel": "折叠后的形状。单击其中的点和折痕来确定折线；拖动以平移，滚动以缩放。",
+      "showCpBack": "显示折痕图背面",
+      "showCpFront": "显示折痕图正面",
       "spreadLayers": "错开层",
       "spreadLayersTitle": "像图解那样把折叠的层错开绘制，作用于本步及之后各步",
       "stepCreases": "本步折痕",
-      "stepCreasesTitle": "用粗线画出当前步骤产生的折痕，作为该步骤的说明",
+      "stepCreasesTitle": "使用纸张的折叠指示画笔绘制此步骤的折痕",
       "toolbar": "折叠视图"
     },
     "collapse": {
@@ -1799,7 +1802,7 @@
       "sheetSquare": "正方形",
       "sheetStartsOver_other": "换一张起始纸张会让序列重新开始：它的 {{count}} 个步骤会被清除。撤销可以恢复它们。",
       "start": "开始",
-      "startHelp": "第一次折叠前纸的哪一面朝向你。折痕图始终从正面绘制。",
+      "startHelp": "第一次折叠前朝向你的纸张一面。使用画布工具栏上的纸面按钮，可查看折痕图的正反面。",
       "style": "样式",
       "styleHint": "绘制此序列所用的纸张、笔和图解折痕。从设置中选择的样式会在选择时复制到序列中。"
     },

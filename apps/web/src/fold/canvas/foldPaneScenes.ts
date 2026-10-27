@@ -41,7 +41,7 @@ import type { FoldInstructionLine } from './foldCreasePatternLines';
 
 /** The pane toggles on the viewport toolbar (the design's "Step creases | Precreases"). */
 export interface FoldPaneDisplay {
-  /** Draw the creases the step on show made as its instruction: bold on the pane, the diagram-crease pens on paper. */
+  /** Draw the creases the step on show made as its instruction: in the diagram-crease pens. */
   stepCreases: boolean;
   /** Draw flat creases: precreases, and creases a flap was unfolded along. */
   precreases: boolean;
@@ -308,7 +308,7 @@ export function madeByStep(madeAt: number, { step, since }: Pick<FoldPaneCreaseO
  * or a previewed fold's — by the way it folds; a fold, by its letter from the
  * front; or a flat crease, with the letter it remembers. Null when the
  * pattern leaves it out (Precreases off). The one rule both pictures of a
- * crease pattern read: the pane's, in Edit's inks
+ * crease pattern read: the pane's, in the paper's pens
  * (`creasePatternPaneLines`), and the paper's (`creasePatternPaperScene`).
  */
 export type FoldPaneCrease =
@@ -393,7 +393,7 @@ export interface CreasePatternPaperOptions extends Omit<FoldPaneCreaseOptions, '
  * changed — and its creases in their pens, the instruction in the
  * diagram-crease pens, the border over them so a crease that ends on the
  * edge never breaks the outline (`diagramToPaperScene`'s order). The canvas's
- * crease-pattern pane shows the same creases in Edit's inks instead
+ * crease-pattern pane keeps the instruction on a separate renderer channel
  * (`creasePatternPaneLines`).
  */
 export function creasePatternPaperScene(scene: FoldScene, options: CreasePatternPaperOptions): PaperScene {

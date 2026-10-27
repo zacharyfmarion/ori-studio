@@ -1,16 +1,14 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { cpCreaseStrokeWidthPx, cpSizingScales } from '../../cp-workspace/cpSizingScales';
-import { SOLID_DASH_SLOT } from '../../lib/oristudioCpLineStyle';
-import { CP_CREASE_WIDTH_FACTOR } from '../../lib/stepDiagram/diagramInk';
+import { DEFAULT_PAPER_STYLE, ptToDevicePx, type PaperStyle } from '../../lib/paper/paperStyle';
+import type { StrokeGeometry } from '../../cp-workspace/renderer/types';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { FoldScene, FoldSceneCrease } from '../engine/foldEngineWire';
 import { bookScene } from './foldCanvas.fixtures';
 import { creasePatternPaneLines, type FoldCreasePatternLines } from './foldCreasePatternLines';
 import { FOLD_PANE_DISPLAY_DEFAULT } from './foldPaneScenes';
 import {
-  FOLD_INSTRUCTION_WIDTH_MUL,
   foldPaneStrokeWidthPx,
   useFoldCreasePatternStrokes,
   type FoldCreasePatternStrokes,
@@ -101,25 +99,33 @@ describe('the crease-pattern pane in Edit’s vocabulary', () => {
   });
 });
 
-describe('the pane’s strokes, through Edit’s renderer path', () => {
+describe('the pane’s strokes in the paper pens', () => {
   let root: Root;
   let host: HTMLDivElement;
-  let themed: HTMLDivElement;
   let latest: FoldCreasePatternStrokes | null = null;
+  const pen = (color: string, width: number, dash: number[] | null) => ({ color, width, dash, cap: 'butt' as const });
+  const style: PaperStyle = {
+    ...DEFAULT_PAPER_STYLE,
+    edges: pen('#123456', 0.75, null),
+    mountainFolds: pen('#aa1100', 1.5, [8, 2, 1, 2]),
+    valleyFolds: pen('#0011aa', 0.375, [4, 2]),
+    auxCreases: { visible: true, pen: pen('#117733', 0.25, [1, 2]) },
+    mountainDiagramCreases: pen('#aa44aa', 2.25, [6, 2, 1, 2]),
+    valleyDiagramCreases: pen('#aa7700', 3, [3, 2]),
+  };
+  const a = { x: 0.2, y: 0.1 };
+  const b = { x: 0.7, y: 0.8 };
+  const lines: FoldCreasePatternLines = {
+    creases: ['Red1', 'Blue2', 'Cyan3', 'Black0'].map((color) => ({ a, b, color })),
+    instruction: [{ a, b, letter: 'mountain' }, { a: b, b: a, letter: 'valley' }],
+  };
 
-  function Probe({ lines }: { lines: FoldCreasePatternLines }) {
-    latest = useFoldCreasePatternStrokes(lines, themed, 'theme');
+  function Probe({ paper = style, side = 'front' }: { paper?: PaperStyle; side?: 'front' | 'back' }) {
+    latest = useFoldCreasePatternStrokes(lines, paper, side);
     return null;
   }
 
   beforeEach(() => {
-    themed = document.createElement('div');
-    themed.style.setProperty('--fold-border', '#111417');
-    themed.style.setProperty('--fold-mountain', '#ff4d5d');
-    themed.style.setProperty('--fold-valley', '#60a5fa');
-    themed.style.setProperty('--fold-unassigned', '#9aa4ad');
-    themed.style.setProperty('--fold-flat', '#64c8c8');
-    document.body.append(themed);
     host = document.createElement('div');
     document.body.append(host);
     root = createRoot(host);
@@ -129,80 +135,78 @@ describe('the pane’s strokes, through Edit’s renderer path', () => {
   afterEach(() => {
     act(() => root.unmount());
     host.remove();
-    themed.remove();
     latest = null;
   });
 
   const rgb = (color: Float32Array, at: number) =>
     [0, 1, 2].map((k) => Math.round((color[at * 4 + k] ?? 0) * 255).toString(16).padStart(2, '0')).join('');
+  const dash = (strokes: StrokeGeometry, at: number) =>
+    strokes.dashPatterns?.[(strokes.dashSlot?.[at] ?? 0) - 1] ?? null;
 
-  it('inks the pattern as Edit does and draws the instruction solid in its crease colour, wider', () => {
-    const lines = creasePatternPaneLines(bookWithPrecrease(), {
-      display: FOLD_PANE_DISPLAY_DEFAULT,
-      step: 1,
-      instruction: null,
-    });
-    act(() => root.render(<Probe lines={lines} />));
-    const strokes = latest!;
-    // Edit's default line width.
-    expect(strokes.lineWidth).toBe(1);
-    // The precrease in Edit's auxiliary ink, solid, as Edit draws an aux line; the border in Edit's ink.
-    expect(rgb(strokes.creases.color, 0)).toBe('64c8c8');
-    expect(strokes.creases.dashSlot?.[0]).toBe(SOLID_DASH_SLOT);
-    expect(rgb(strokes.creases.color, 1)).toBe('111417');
-    // No second stroke for a letter: the precrease and the six edges of the border, and nothing else.
-    expect(strokes.creases.count).toBe(7);
-    expect([...Array(strokes.creases.count).keys()].map((at) => rgb(strokes.creases.color, at))).not.toContain('ff4d5d');
-    // The step's valley: the tool's line, solid, in the valley colour.
-    const instruction = strokes.instruction!;
-    expect(instruction.count).toBe(1);
-    expect(rgb(instruction.color, 0)).toBe('60a5fa');
-    expect(instruction.dashSlot?.[0]).toBe(0);
-    expect(instruction.widthMul[0]).toBe(FOLD_INSTRUCTION_WIDTH_MUL);
+  it('uses each paper pen’s color, point width and centered dashes, including step and preview instructions', () => {
+    act(() => root.render(<Probe />));
+    const { creases, instruction } = latest!;
+    expect([0, 1, 2, 3].map((k) => rgb(creases.color, k))).toEqual(['aa1100', '0011aa', '117733', '123456']);
+    expect([...creases.widthMul]).toEqual([1.5, 0.375, 0.25, 0.75]);
+    // Dash lengths are screen CSS px, centered with half the first run at either end.
+    expect(dash(creases, 0)).toEqual([8, 4, 2, 4, 8, 0]);
+    expect(dash(creases, 1)).toEqual([1, 1, 1, 0]);
+    expect(dash(creases, 3)).toBeNull();
+    expect(creases.dashPhase?.[0]).toBeCloseTo(-Math.hypot(b.x - a.x, b.y - a.y) / 2);
+    expect([0, 1].map((k) => rgb(instruction!.color, k))).toEqual(['aa44aa', 'aa7700']);
+    expect([...instruction!.widthMul]).toEqual([2.25, 3]);
+    expect(dash(instruction!, 0)).toEqual([9, 6, 3, 6, 9, 0]);
+    expect(dash(instruction!, 1)).toEqual([6, 8, 6, 0]);
   });
 
-  it('follows the line style and width Edit’s view is set to', () => {
-    useWorkspaceStore.setState((state) => ({
-      oristudioCpViewport: { ...state.oristudioCpViewport, lineStyle: 'black-one-dot', lineWidth: 2 },
-    }));
-    const lines = creasePatternPaneLines(bookScene(), {
-      display: { ...FOLD_PANE_DISPLAY_DEFAULT, stepCreases: false },
-      step: 1,
-      instruction: null,
-    });
-    act(() => root.render(<Probe lines={lines} />));
-    const strokes = latest!;
-    expect(strokes.lineWidth).toBe(2);
-    // The valley fold, in the monochrome style's ink and its valley dash.
-    expect(rgb(strokes.creases.color, 0)).toBe('111417');
-    expect(strokes.creases.dashSlot?.[0]).not.toBe(0);
-    expect(strokes.instruction).toBeNull();
+  it('swaps full mountain and valley pens on the back and restores them without changing the source', () => {
+    const saved = JSON.stringify(lines);
+    act(() => root.render(<Probe />));
+    const front = latest!;
+    act(() => root.render(<Probe side="back" />));
+    const back = latest!;
+    expect([0, 1, 2, 3].map((k) => rgb(back.creases.color, k))).toEqual(['0011aa', 'aa1100', '117733', '123456']);
+    expect([...back.creases.widthMul]).toEqual([0.375, 1.5, 0.25, 0.75]);
+    expect(dash(back.creases, 0)).toEqual(dash(front.creases, 1));
+    expect(dash(back.creases, 1)).toEqual(dash(front.creases, 0));
+    expect([0, 1].map((k) => rgb(back.instruction!.color, k))).toEqual(['aa7700', 'aa44aa']);
+    expect([...back.instruction!.widthMul]).toEqual([3, 2.25]);
+    expect(dash(back.instruction!, 0)).toEqual(dash(front.instruction!, 1));
+    expect(dash(back.instruction!, 1)).toEqual(dash(front.instruction!, 0));
+    expect(back.creases.a).toEqual(front.creases.a);
+    expect(back.creases.b).toEqual(front.creases.b);
+    expect(JSON.stringify(lines)).toBe(saved);
+    act(() => root.render(<Probe />));
+    expect(latest).toEqual(front);
   });
 
-  it('strokes a crease as wide as Edit’s canvas does at the same zoom, and the step’s own at twice that', () => {
-    useWorkspaceStore.setState((state) => ({
-      oristudioCpViewport: { ...state.oristudioCpViewport, lineWidth: 1.5 },
-    }));
-    const lines = creasePatternPaneLines(bookWithPrecrease(), {
-      display: FOLD_PANE_DISPLAY_DEFAULT,
-      step: 1,
-      instruction: null,
-    });
-    act(() => root.render(<Probe lines={lines} />));
-    const strokes = latest!;
-    // One frame, sized as both canvases size theirs: a retina display, zoomed in past the fit.
-    const ratio = 2;
-    const { widthBoost } = cpSizingScales({ camZoom: 8, fitZoom: 2, ratio });
-    expect(widthBoost).toBeGreaterThan(1);
-    const frame = { ratio, widthBoost };
-    // Edit's canvas: its crease width law over the line width its view is set to.
-    const edit = cpCreaseStrokeWidthPx(useWorkspaceStore.getState().oristudioCpViewport.lineWidth ?? 1, frame);
-    expect(edit).toBeCloseTo(CP_CREASE_WIDTH_FACTOR * 1.5 * ratio * widthBoost, 9);
-    // Fold's pane: the same width on its crease channel, every crease of the pattern at 1×...
-    const fold = foldPaneStrokeWidthPx(strokes, frame);
-    expect(fold).toBe(edit);
-    expect([...strokes.creases.widthMul]).toEqual(Array(strokes.creases.count).fill(1));
-    // ...and the step's own valley, on the preview channel, at twice Edit's.
-    expect(fold * strokes.instruction!.widthMul[0]!).toBe(2 * edit);
+  it('follows paper style changes and auxiliary visibility independently of Edit’s settings', () => {
+    act(() => root.render(<Probe />));
+    const front = latest;
+    act(() => useWorkspaceStore.setState((state) => ({
+      oristudioCpViewport: { ...state.oristudioCpViewport, lineStyle: 'black-one-dot', lineWidth: 6 },
+    })));
+    act(() => root.render(<Probe />));
+    expect(latest).toBe(front);
+    act(() => root.render(<Probe paper={{
+      ...style,
+      mountainFolds: pen('#004411', 4, null),
+      auxCreases: { ...style.auxCreases, visible: false },
+    }} />));
+    expect(latest!.creases.count).toBe(3);
+    expect(rgb(latest!.creases.color, 0)).toBe('004411');
+    expect(latest!.creases.widthMul[0]).toBe(4);
+    expect(dash(latest!.creases, 0)).toBeNull();
+  });
+
+  it('keeps physical pen widths constant through zoom and scales them for display density', () => {
+    act(() => root.render(<Probe />));
+    for (const ratio of [1, 2]) {
+      for (const widthBoost of [0.8, 1, 2]) {
+        const unit = foldPaneStrokeWidthPx(latest!, { ratio, widthBoost });
+        expect(unit * latest!.creases.widthMul[0]!).toBeCloseTo(ptToDevicePx(style.mountainFolds.width, ratio));
+        expect(unit * latest!.instruction!.widthMul[0]!).toBeCloseTo(ptToDevicePx(style.mountainDiagramCreases.width, ratio));
+      }
+    }
   });
 });

@@ -1755,15 +1755,18 @@
     },
     "canvas": {
       "creasePattern": "전개도",
+      "creasePatternBackLabel": "지금까지의 전개도(뒷면이 위). 산접기와 골접기가 반대로 표시됩니다. 점과 접은 선을 클릭해 접을 위치를 정하세요.",
       "creasePatternLabel": "지금까지의 전개도(앞면이 위). 점과 접은 선을 클릭해 접을 위치를 정하세요.",
       "flatCreases": "평평한 접은 선",
       "flatCreasesTitle": "종이 위에 평평한 접은 선 그리기: 미리 접은 선과 펼친 접기",
       "folded": "접은 모양",
       "foldedLabel": "접은 모양. 점과 접은 선을 클릭해 접을 위치를 정하세요. 끌어서 이동하고 스크롤해서 확대·축소합니다.",
+      "showCpBack": "전개도 뒷면 보기",
+      "showCpFront": "전개도 앞면 보기",
       "spreadLayers": "층 벌리기",
       "spreadLayersTitle": "접은 층을 접기 도해처럼 벌려 그립니다. 이 단계와 그 뒤의 단계에 적용됩니다",
       "stepCreases": "단계의 접은 선",
-      "stepCreasesTitle": "표시된 단계에서 생긴 접은 선을 그 단계의 지시로, 굵은 선으로 그리기",
+      "stepCreasesTitle": "이 단계의 접기를 종이의 접기 지시 펜으로 그리기",
       "toolbar": "접기 보기"
     },
     "collapse": {
@@ -1799,7 +1802,7 @@
       "sheetSquare": "정사각형",
       "sheetStartsOver_other": "새 시작 종이를 쓰면 시퀀스가 처음부터 다시 시작되어 {{count}}개 단계가 지워집니다. 실행 취소로 되돌릴 수 있습니다.",
       "start": "시작",
-      "startHelp": "첫 번째 접기 전에 종이의 어느 면이 나를 향하는지입니다. 전개도는 항상 앞면에서 그려집니다.",
+      "startHelp": "첫 접기 전에 사용자를 향하는 종이 면입니다. 캔버스 도구 모음의 종이 면 버튼으로 전개도의 앞면과 뒷면을 볼 수 있습니다.",
       "style": "스타일",
       "styleHint": "이 시퀀스를 그리는 종이, 펜, 도해 접는 선입니다. 설정의 스타일은 고를 때 시퀀스에 복사됩니다."
     },

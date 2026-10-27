@@ -1781,6 +1781,7 @@ export const ANALYTICS_EVENTS = {
    */
   foldSpreadChanged: 'fold spread changed',
   foldFreeLineSnapChanged: 'fold free line snapping changed',
+  foldCpSideChanged: 'fold cp side changed',
   /**
    * The Fold engine crashed and the session restarted it, or gave up: how
    * often, why, and whether the steps came back (`trackFoldEngine.ts`).

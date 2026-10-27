@@ -56,19 +56,25 @@ vi.mock('../../../fold/session/useFoldSession', () => ({
 }));
 
 /** Each pane's last frame, by its canvas. */
-const frames = vi.hoisted(() => new Map<HTMLCanvasElement, { userScalePx: number }>());
+const frames = vi.hoisted(() => new Map<HTMLCanvasElement, CpRenderFrame>());
+const sheetFills = vi.hoisted(() => new Map<HTMLCanvasElement, FillGeometry | null>());
 vi.mock('../../../cp-workspace/renderer/reglRenderer', () => ({
   createReglRenderer: (canvas: HTMLCanvasElement) =>
     new Proxy(
       {},
       {
-        get: (_target, key) =>
-          key === 'render' ? (frame: { userScalePx: number }) => frames.set(canvas, frame) : () => undefined,
+        get: (_target, key) => {
+          if (key === 'render') return (frame: CpRenderFrame) => frames.set(canvas, frame);
+          if (key === 'setSheetFill') return (fill: FillGeometry | null) => sheetFills.set(canvas, fill);
+          return () => undefined;
+        },
       }
     ),
 }));
 
 import { FOLD_USER_PER_UNIT } from '../../../fold/canvas/foldCanvasGeometry';
+import type { CpRenderFrame } from '../../../cp-workspace/renderer/CpRenderer';
+import type { FillGeometry } from '../../../cp-workspace/renderer/types';
 import { resetFoldPaneDisplay } from '../../../fold/canvas/foldPaneDisplay';
 import { TooltipProvider } from '../../ui/Tooltip';
 import { FoldCanvas } from './FoldCanvas';
@@ -184,6 +190,7 @@ afterEach(() => {
   host = null;
   observers.length = 0;
   frames.clear();
+  sheetFills.clear();
   box.width = 0;
   box.height = 0;
   session.node.summary = null;
@@ -193,6 +200,32 @@ afterEach(() => {
 });
 
 describe('the Fold panes’ opening camera', () => {
+  it('turns the CP camera and sheet fill together, leaving the folded pane and zoom alone', () => {
+    session.node.summary = SHEET_SUMMARY;
+    box.width = PANE.width;
+    box.height = PANE.height;
+    mount();
+    const cp = host!.querySelector<HTMLCanvasElement>('[data-testid="fold-crease-pattern-canvas"]')!;
+    const folded = host!.querySelector<HTMLCanvasElement>('[data-testid="fold-folded-canvas"]')!;
+    const front = frames.get(cp)!;
+    const foldedFront = frames.get(folded)!;
+    const frontFill = sheetFills.get(cp)!;
+    expect(frontFill.count).toBe(6);
+    expect(front.view.ex[0]).toBeGreaterThan(0);
+    const turn = host!.querySelector<HTMLButtonElement>('button[aria-label="Show back of crease pattern"]')!;
+    act(() => turn.click());
+    const back = frames.get(cp)!;
+    expect(back.view.ex[0]).toBe(-front.view.ex[0]);
+    expect(back.view.ey).toEqual(front.view.ey);
+    expect(back.userScalePx).toBe(front.userScalePx);
+    expect(sheetFills.get(cp)!.color).not.toEqual(frontFill.color);
+    expect(sheetFills.get(cp)!.position).toEqual(frontFill.position);
+    expect(frames.get(folded)!.view).toEqual(foldedFront.view);
+    expect(sheetFills.get(folded)).toBeNull();
+    act(() => turn.click());
+    expect(frames.get(cp)!.view).toEqual(front.view);
+    expect(sheetFills.get(cp)).toEqual(frontFill);
+  });
   it('fits the sheet in both panes on a fresh open: the dock laid out, the sheet in after the panes mount', () => {
     box.width = PANE.width;
     box.height = PANE.height;

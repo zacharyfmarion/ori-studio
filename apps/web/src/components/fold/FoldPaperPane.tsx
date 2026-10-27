@@ -18,9 +18,8 @@ import styles from './FoldPaperPane.module.css';
  * diagram's (`PaperStyleChoiceRow`): a built-in — the Diagram style, which a
  * new sequence is drawn in — the export style from Settings, or a preset
  * saved there, copied into the sequence when chosen. The folded form and the
- * step cards paint from it; the crease pattern pane is drawn as Edit draws a
- * crease pattern, but for the step's own fold lines, in the style's diagram
- * crease pens.
+ * step cards paint from it; the crease pattern pane uses its paper colors
+ * and pens, with a view-only control to turn the sheet over.
  *
  * The style and the sheet are the sequence's document state, so they arrive
  * in props and leave through callbacks. Which side starts up is labelled
@@ -81,7 +80,7 @@ export function FoldPaperPane({
           label={t('panels:fold.paper.start', 'Start')}
           help={t(
             'panels:fold.paper.startHelp',
-            'Which side of the paper faces you before the first fold. The crease pattern is always drawn from the front.'
+            'Which side of the paper faces you before the first fold. Use the paper face button on the canvas toolbar to view either side of the crease pattern.'
           )}
           value={startSide}
           disabled={readOnly}
