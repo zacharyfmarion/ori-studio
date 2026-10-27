@@ -92,6 +92,8 @@ import {
 import { PHONE_MEDIA_QUERY } from "../../../platform/phoneLayout";
 import { TooltipProvider } from "../../ui/Tooltip";
 import { FoldCanvas } from "./FoldCanvas";
+import { useWorkspaceStore } from "../../../store/workspaceStore";
+import * as foldAnalytics from "../../../analytics/trackFold";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -139,6 +141,37 @@ afterEach(() => {
 });
 
 describe("the Fold canvas", () => {
+  it("turns only the CP view over and back without editing the sequence or the tool, and counts each turn once", () => {
+    const tracked = vi.spyOn(foldAnalytics, 'trackFoldCpSideChanged').mockImplementation(() => {});
+    try {
+      const canvas = mount();
+      const before = useWorkspaceStore.getState().foldSequences;
+      const tool = foldTools().store.getState();
+      const button = canvas.querySelector<HTMLButtonElement>('button[aria-label="Show back of crease pattern"]')!;
+      const cp = () => canvas.querySelector('[data-testid="fold-crease-pattern-canvas"]');
+      const folded = canvas.querySelector('[data-testid="fold-folded-canvas"]')?.getAttribute('aria-label');
+      expect(button.hasAttribute('data-active')).toBe(false);
+      expect(button.getAttribute('aria-label')).toBe('Show back of crease pattern');
+      expect(button.querySelector('[data-paper-side="front"] rect')?.getAttribute('fill')).toBe('#ffffff');
+      expect(cp()?.getAttribute('aria-label')).toContain('front up');
+      act(() => button.click());
+      expect(button.hasAttribute('data-active')).toBe(true);
+      expect(button.getAttribute('aria-label')).toBe('Show front of crease pattern');
+      expect(button.querySelector('[data-paper-side="back"] rect')?.getAttribute('fill')).toBe('#b3b3b3');
+      expect(cp()?.getAttribute('aria-label')).toContain('back up');
+      act(() => button.click());
+      expect(button.hasAttribute('data-active')).toBe(false);
+      expect(button.getAttribute('aria-label')).toBe('Show back of crease pattern');
+      expect(button.querySelector('[data-paper-side="front"] rect')?.getAttribute('fill')).toBe('#ffffff');
+      expect(cp()?.getAttribute('aria-label')).toContain('front up');
+      expect(canvas.querySelector('[data-testid="fold-folded-canvas"]')?.getAttribute('aria-label')).toBe(folded);
+      expect(useWorkspaceStore.getState().foldSequences).toBe(before);
+      expect(foldTools().store.getState()).toBe(tool);
+      expect(tracked.mock.calls).toEqual([['back'], ['front']]);
+    } finally {
+      tracked.mockRestore();
+    }
+  });
   it("mounts both panes and the toolbar with its display switches and the Send to Edit slot", () => {
     const canvas = mount();
     expect(canvas.querySelector('[data-fold-pane="folded"]')).not.toBeNull();
@@ -209,6 +242,16 @@ describe("the Fold canvas", () => {
     act(() => button("Crease pattern")?.click());
     expect(canvas.querySelector('[data-fold-pane="crease-pattern"]')).not.toBeNull();
     expect(canvas.querySelector('[data-fold-pane="folded"]')).toBeNull();
+    // The CP's view-only turnover remains available in the phone's overflow menu.
+    act(() => {
+      button("More view controls")?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+    });
+    const turn = [...document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')].find((row) => row.textContent === 'Show back of crease pattern');
+    expect(turn?.getAttribute('aria-checked')).toBe('false');
+    act(() => turn?.click());
+    expect(turn?.getAttribute('aria-checked')).toBe('true');
+    expect(canvas.querySelector('[data-testid="fold-crease-pattern-canvas"]')?.getAttribute('aria-label')).toContain('back up');
+    act(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
     act(() => button("Folded")?.click());
   });
 

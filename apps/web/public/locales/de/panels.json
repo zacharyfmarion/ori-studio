@@ -1807,15 +1807,18 @@
     },
     "canvas": {
       "creasePattern": "Faltmuster",
+      "creasePatternBackLabel": "Das bisherige Faltmuster, Rückseite oben. Berg- und Talfalten sind vertauscht. Klicke auf Punkte und Faltlinien, um eine Faltung festzulegen.",
       "creasePatternLabel": "Das bisherige Faltmuster, Vorderseite oben. Klicke seine Punkte und Faltlinien an, um eine Faltung festzulegen.",
       "flatCreases": "Flache Faltlinien",
       "flatCreasesTitle": "Die flachen Faltlinien auf das Papier zeichnen: Vorfalten und wieder geöffnete Falten",
       "folded": "Gefaltet",
       "foldedLabel": "Die gefaltete Form. Klicke ihre Punkte und Faltlinien an, um eine Faltung festzulegen; ziehen zum Verschieben, scrollen zum Zoomen.",
+      "showCpBack": "Rückseite des Faltmusters anzeigen",
+      "showCpFront": "Vorderseite des Faltmusters anzeigen",
       "spreadLayers": "Lagen auffächern",
       "spreadLayersTitle": "Die gefalteten Lagen auffächern, wie ein Diagramm sie zeichnet, in diesem Schritt und den folgenden",
       "stepCreases": "Schritt-Faltlinien",
-      "stepCreasesTitle": "Die Faltlinien des gezeigten Schritts fett zeichnen, als dessen Anleitung",
+      "stepCreasesTitle": "Die Falten dieses Schritts mit den Anweisungsstiften des Papiers zeichnen",
       "toolbar": "Faltansicht"
     },
     "collapse": {
@@ -1854,7 +1857,7 @@
       "sheetStartsOver_one": "Ein neues Startblatt beginnt von vorn: der {{count}} Schritt der Folge wird entfernt. Rückgängig holt ihn zurück.",
       "sheetStartsOver_other": "Ein neues Startblatt beginnt von vorn: die {{count}} Schritte der Folge werden entfernt. Rückgängig holt sie zurück.",
       "start": "Beginn",
-      "startHelp": "Welche Seite des Papiers vor der ersten Faltung zu dir zeigt. Das Faltmuster wird immer von der Vorderseite gezeigt.",
+      "startHelp": "Welche Papierseite vor dem ersten Falten zu dir zeigt. Mit der Papierseiten-Schaltfläche in der Canvas-Werkzeugleiste kannst du beide Seiten des Faltmusters ansehen.",
       "style": "Stil",
       "styleHint": "Papier, Stifte und Diagrammfaltlinien, in denen diese Sequenz gezeichnet wird. Ein Stil aus den Einstellungen wird beim Auswählen in die Sequenz kopiert."
     },

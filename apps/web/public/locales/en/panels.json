@@ -1807,15 +1807,18 @@
     },
     "canvas": {
       "creasePattern": "Crease pattern",
+      "creasePatternBackLabel": "The crease pattern so far, back up. Mountain and valley creases are reversed. Click its points and creases to locate a fold.",
       "creasePatternLabel": "The crease pattern so far, front up. Click its points and creases to locate a fold.",
       "flatCreases": "Flat creases",
       "flatCreasesTitle": "Draw the flat creases on the paper: precreases, and folds unfolded again",
       "folded": "Folded",
       "foldedLabel": "The folded form. Click its points and creases to locate a fold; drag to pan, scroll to zoom.",
+      "showCpBack": "Show back of crease pattern",
+      "showCpFront": "Show front of crease pattern",
       "spreadLayers": "Spread layers",
       "spreadLayersTitle": "Spread the folded layers apart, as a diagram draws them, on this step and the ones after it",
       "stepCreases": "Step creases",
-      "stepCreasesTitle": "Draw the creases the step on show made in bold, as its instruction",
+      "stepCreasesTitle": "Draw this step’s creases with the paper’s instruction pens",
       "toolbar": "Fold view"
     },
     "collapse": {
@@ -1854,7 +1857,7 @@
       "sheetStartsOver_one": "A new starting sheet starts over: the sequence’s {{count}} step is cleared. Undo brings it back.",
       "sheetStartsOver_other": "A new starting sheet starts over: the sequence’s {{count}} steps are cleared. Undo brings them back.",
       "start": "Start",
-      "startHelp": "Which side of the paper faces you before the first fold. The crease pattern is always drawn from the front.",
+      "startHelp": "Which side of the paper faces you before the first fold. Use the paper face button on the canvas toolbar to view either side of the crease pattern.",
       "style": "Style",
       "styleHint": "The paper, pens and diagram creases this sequence is drawn in. A style from Settings is copied into the sequence when you pick it."
     },

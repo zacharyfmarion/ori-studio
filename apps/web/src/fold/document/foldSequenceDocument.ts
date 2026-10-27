@@ -965,9 +965,8 @@ export interface FoldSequenceDocument {
 }
 
 /**
- * What a sequence is drawn in until its Paper tab picks another: the built-in
- * Diagram style (a step of a sequence reads as a step of a diagram), as a new
- * diagram is.
+ * What a new Fold sequence draws in until its Paper tab picks another:
+ * the built-in Diagram style, saved with the sequence’s own values.
  */
 export const FOLD_DEFAULT_PAPER_STYLE: ResolvedDocumentPaperStyle = DEFAULT_DOCUMENT_PAPER_STYLE;
 

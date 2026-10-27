@@ -1861,15 +1861,18 @@
     },
     "canvas": {
       "creasePattern": "Patrón de pliegues",
+      "creasePatternBackLabel": "El patrón de pliegues hasta ahora, con el reverso hacia arriba. Los pliegues de montaña y valle están invertidos. Haz clic en sus puntos y pliegues para situar un doblez.",
       "creasePatternLabel": "El patrón de pliegues hasta ahora, anverso arriba. Haz clic en sus puntos y pliegues para situar un pliegue.",
       "flatCreases": "Pliegues planos",
       "flatCreasesTitle": "Dibujar los pliegues planos sobre el papel: premarcados y pliegues deshechos",
       "folded": "Plegado",
       "foldedLabel": "La forma plegada. Haz clic en sus puntos y pliegues para situar un pliegue; arrastra para desplazar, desplázate para hacer zoom.",
+      "showCpBack": "Mostrar el reverso del patrón de pliegues",
+      "showCpFront": "Mostrar el anverso del patrón de pliegues",
       "spreadLayers": "Separar capas",
       "spreadLayersTitle": "Separa las capas plegadas, como las dibuja un diagrama, en este paso y los siguientes",
       "stepCreases": "Pliegues del paso",
-      "stepCreasesTitle": "Dibujar en trazo grueso los pliegues que hizo el paso mostrado, como su instrucción",
+      "stepCreasesTitle": "Dibujar los pliegues de este paso con las plumas de instrucciones del papel",
       "toolbar": "Vista de plegado"
     },
     "collapse": {
@@ -1911,7 +1914,7 @@
       "sheetStartsOver_many": "Una nueva hoja inicial vuelve a empezar: se borran los {{count}} pasos de la secuencia. Deshacer los recupera.",
       "sheetStartsOver_other": "Una nueva hoja inicial vuelve a empezar: se borran los {{count}} pasos de la secuencia. Deshacer los recupera.",
       "start": "Inicio",
-      "startHelp": "Qué cara del papel mira hacia ti antes del primer pliegue. El patrón de pliegues siempre se dibuja desde el anverso.",
+      "startHelp": "Qué lado del papel mira hacia ti antes del primer pliegue. Usa el botón de la cara del papel en la barra del lienzo para ver cualquiera de los lados del patrón de pliegues.",
       "style": "Estilo",
       "styleHint": "El papel, las plumas y los pliegues de diagrama con que se dibuja esta secuencia. Un estilo de Ajustes se copia en la secuencia al elegirlo."
     },

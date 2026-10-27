@@ -1861,15 +1861,18 @@
     },
     "canvas": {
       "creasePattern": "Patron de plis",
+      "creasePatternBackLabel": "Le canevas de plis actuel, verso vers le haut. Les plis montagne et vallée sont inversés. Cliquez sur ses points et ses plis pour situer un pli.",
       "creasePatternLabel": "Le patron de plis jusqu’ici, recto en haut. Cliquez sur ses points et ses plis pour situer un pliage.",
       "flatCreases": "Plis à plat",
       "flatCreasesTitle": "Dessiner les plis à plat sur le papier : prépliages et plis défaits",
       "folded": "Plié",
       "foldedLabel": "La forme pliée. Cliquez sur ses points et ses plis pour situer un pliage ; faites glisser pour vous déplacer, défilez pour zoomer.",
+      "showCpBack": "Afficher le verso du canevas de plis",
+      "showCpFront": "Afficher le recto du canevas de plis",
       "spreadLayers": "Écarter les couches",
       "spreadLayersTitle": "Écarte les couches pliées, comme un diagramme les dessine, à cette étape et aux suivantes",
       "stepCreases": "Plis de l’étape",
-      "stepCreasesTitle": "Dessiner en gras les plis faits par l’étape affichée, comme son instruction",
+      "stepCreasesTitle": "Dessiner les plis de cette étape avec les stylos d’instruction du papier",
       "toolbar": "Vue de pliage"
     },
     "collapse": {
@@ -1911,7 +1914,7 @@
       "sheetStartsOver_many": "Une nouvelle feuille de départ fait recommencer : les {{count}} pas de la séquence sont effacés. Annuler les rétablit.",
       "sheetStartsOver_other": "Une nouvelle feuille de départ fait recommencer : les {{count}} pas de la séquence sont effacés. Annuler les rétablit.",
       "start": "Départ",
-      "startHelp": "Le côté du papier tourné vers vous avant le premier pli. Le patron de plis est toujours dessiné côté recto.",
+      "startHelp": "La face du papier tournée vers vous avant le premier pli. Utilisez le bouton de face du papier dans la barre du canevas pour voir chaque face du canevas de plis.",
       "style": "Style",
       "styleHint": "Le papier, les plumes et les plis de diagramme avec lesquels cette séquence est dessinée. Un style des Réglages est copié dans la séquence quand vous le choisissez."
     },

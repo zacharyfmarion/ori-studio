@@ -12,7 +12,7 @@ vi.mock('../runtime', async (importOriginal) => {
   return { ...actual, track: runtime.track };
 });
 
-const { trackFoldSpreadChanged, trackFoldOrderResolved, trackFoldFreeLineSnapChanged } = await import('../trackFold');
+const { trackFoldSpreadChanged, trackFoldOrderResolved, trackFoldFreeLineSnapChanged, trackFoldCpSideChanged } = await import('../trackFold');
 const { spreadTracking } = await import('../trackDiagram');
 
 beforeEach(() => {
@@ -22,6 +22,11 @@ beforeEach(() => {
 it('reports free-line snapping changes as on/off only', () => {
   trackFoldFreeLineSnapChanged(false);
   expect(runtime.track).toHaveBeenCalledWith('fold free line snapping changed', { state: 'off' });
+});
+
+it('reports a CP turnover only as the side now shown', () => {
+  trackFoldCpSideChanged('back');
+  expect(runtime.track).toHaveBeenCalledExactlyOnceWith('fold cp side changed', { side: 'back' });
 });
 
 describe('trackFoldSpreadChanged', () => {

@@ -1861,15 +1861,18 @@
     },
     "canvas": {
       "creasePattern": "Padrão de vincos",
+      "creasePatternBackLabel": "O padrão de vincos até agora, com o verso para cima. Os vincos de montanha e vale estão invertidos. Clique nos pontos e vincos para localizar uma dobra.",
       "creasePatternLabel": "O padrão de vincos até agora, com a frente para cima. Clique em seus pontos e vincos para posicionar uma dobra.",
       "flatCreases": "Vincos planos",
       "flatCreasesTitle": "Desenhar os vincos planos no papel: pré-vincos e dobras desfeitas",
       "folded": "Dobrado",
       "foldedLabel": "A forma dobrada. Clique em seus pontos e vincos para posicionar uma dobra; arraste para mover, role para dar zoom.",
+      "showCpBack": "Mostrar o verso do padrão de vincos",
+      "showCpFront": "Mostrar a frente do padrão de vincos",
       "spreadLayers": "Separar camadas",
       "spreadLayersTitle": "Separa as camadas dobradas, como um diagrama as desenha, neste passo e nos seguintes",
       "stepCreases": "Vincos do passo",
-      "stepCreasesTitle": "Desenhar em negrito os vincos feitos pelo passo mostrado, como sua instrução",
+      "stepCreasesTitle": "Desenhar os vincos desta etapa com as canetas de instrução do papel",
       "toolbar": "Visualização da dobra"
     },
     "collapse": {
@@ -1911,7 +1914,7 @@
       "sheetStartsOver_many": "Uma nova folha inicial recomeça a sequência: seus {{count}} passos são apagados. Desfazer os traz de volta.",
       "sheetStartsOver_other": "Uma nova folha inicial recomeça a sequência: seus {{count}} passos são apagados. Desfazer os traz de volta.",
       "start": "Início",
-      "startHelp": "Qual lado do papel fica virado para você antes da primeira dobra. O padrão de vincos é sempre desenhado pela frente.",
+      "startHelp": "Qual lado do papel fica voltado para você antes da primeira dobra. Use o botão da face do papel na barra da tela para ver os dois lados do padrão de vincos.",
       "style": "Estilo",
       "styleHint": "O papel, as canetas e os vincos de diagrama com que esta sequência é desenhada. Um estilo das Configurações é copiado para a sequência quando você o escolhe."
     },
