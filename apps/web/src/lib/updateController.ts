@@ -12,6 +12,7 @@ import {
   discardPendingUpdate,
   downloadUpdate,
   installUpdateAndRelaunch,
+  isUpdateStaged,
   readUpdateEnvironment,
   type UpdateEnvironment,
   type UpdateInstallKind,
@@ -158,7 +159,9 @@ export async function runUpdateCheck(trigger: UpdateTrigger): Promise<UpdateChec
   if (store.delivery === 'off' && trigger === 'automatic') return 'skipped';
   if (store.status === 'downloading' || store.status === 'installing') return 'skipped';
 
-  store.setChecking();
+  // A staged update stays on screen while the check runs: the card says
+  // "Relaunch to update", and that stays true whatever the check finds out.
+  if (store.status !== 'ready') store.setChecking();
   // Read before the check so a failure can say which bundle format failed. The
   // store's `installKind` is set only once an update is offered, which is why
   // every check failure used to carry an empty one.
@@ -192,6 +195,13 @@ export async function runUpdateCheck(trigger: UpdateTrigger): Promise<UpdateChec
     }
 
     track(ANALYTICS_EVENTS.appUpdateChecked, { result: 'available', trigger });
+
+    // The offer is the one already downloaded and verified: nothing to fetch.
+    if (isUpdateStaged(update.version)) {
+      useUpdateStore.getState().setStillReady(checkedAt);
+      return 'available';
+    }
+
     track(ANALYTICS_EVENTS.appUpdateAvailable, {
       trigger,
       install_kind: environment.installKind,

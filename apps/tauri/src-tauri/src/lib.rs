@@ -391,6 +391,8 @@ pub fn run() {
             take_opened_files,
             updater::update_environment,
             updater::update_check,
+            updater::update_download,
+            updater::update_install,
             // CP engine — keep in lockstep with cp_engine::NATIVE_CP_COMMAND_NAMES.
             cp_engine::cp_operation_descriptors,
             cp_engine::cp_load_cp,

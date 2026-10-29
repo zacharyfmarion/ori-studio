@@ -77,6 +77,8 @@ interface UpdateState {
   setDownloading: (requested: boolean) => void;
   setDownloadProgress: (progress: number) => void;
   setReady: (readyAt: number) => void;
+  /** A check offered the version already staged; only the check is new. */
+  setStillReady: (checkedAt: number) => void;
   setInstalling: () => void;
   setFailed: () => void;
   /** Forget the offer entirely — used when a release is revoked mid-flight. */
@@ -158,6 +160,9 @@ export const useUpdateStore = create<UpdateState>()(
       setDownloadProgress: (progress) => set({ downloadProgress: progress }),
 
       setReady: (readyAt) => set({ status: 'ready', downloadProgress: null, readyAt }),
+
+      setStillReady: (checkedAt) =>
+        set({ status: 'ready', lastCheck: { at: checkedAt, ok: true } }),
 
       setInstalling: () => set({ status: 'installing' }),
 

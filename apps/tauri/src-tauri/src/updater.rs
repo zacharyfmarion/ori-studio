@@ -1,7 +1,9 @@
 //! Support for the in-app updater that the frontend drives.
 //!
-//! The plugin's download and install commands are called from JavaScript. The
-//! *check* runs through [`update_check`] here instead, for a diagnostic reason
+//! The plugin finds the update and installs it. The download in between runs
+//! through [`update_download`] here, because the plugin's own is a single GET
+//! that a dropped connection throws away in full — see [`download`]. The
+//! *check* runs through [`update_check`] here too, for a diagnostic reason
 //! rather than a functional one: the plugin serializes a failure as its
 //! `Display` string, and for every transport failure that string is reqwest's
 //! `error sending request for url (…)` — a DNS miss, a refused connection, a
@@ -9,6 +11,9 @@
 //! is in the error's `source()` chain, which only Rust can walk. So the check
 //! runs here, its failure is classified into a bounded kind, and the frontend
 //! gets a reason it can count instead of a string it cannot read.
+
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+mod download;
 
 /// The bundle format this build was installed from, as far as it can tell.
 ///
@@ -124,7 +129,7 @@ pub enum UpdateCheckErrorKind {
     Unknown,
 }
 
-/// A failed check, with the cause already classified.
+/// A failed check or download, with the cause already classified.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct UpdateCheckError {
     pub kind: UpdateCheckErrorKind,
@@ -134,9 +139,8 @@ pub struct UpdateCheckError {
     pub message: String,
 }
 
-/// What the plugin's own `check` command returns: the shape the JavaScript
-/// `Update` class is constructed from, so that `download()` and `install()`
-/// stay the plugin's. The field names are that contract.
+/// What the plugin's own `check` command returns. The field names are kept to
+/// that shape, which the frontend has always read.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateCheckMetadata {
@@ -152,8 +156,7 @@ pub struct UpdateCheckMetadata {
 ///
 /// `None` means nothing newer. An offered update is held in the webview's
 /// resource table under the returned `rid`, exactly as the plugin's command
-/// holds it, so the frontend constructs the plugin's `Update` handle from this
-/// and downloads and installs through the plugin as before.
+/// holds it; [`update_download`] and [`update_install`] take it from there.
 #[tauri::command]
 pub async fn update_check(
     webview: tauri::Webview,
@@ -173,6 +176,52 @@ pub async fn update_check(
     }
 }
 
+/// Download and verify the offered update, without installing it.
+///
+/// Returns the handle of the verified payload, for [`update_install`]. Holding
+/// the bytes in the resource table rather than returning them keeps a 100 MB
+/// payload off the IPC bridge.
+#[tauri::command]
+pub async fn update_download(
+    webview: tauri::Webview,
+    rid: tauri::ResourceId,
+) -> Result<tauri::ResourceId, UpdateCheckError> {
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    {
+        desktop::run_download(&webview, rid).await
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        let _ = (webview, rid);
+        Err(UpdateCheckError {
+            kind: UpdateCheckErrorKind::Unsupported,
+            message: "the updater is desktop-only".to_owned(),
+        })
+    }
+}
+
+/// Install a payload [`update_download`] verified. On Windows this exits the
+/// process rather than returning.
+#[tauri::command]
+pub async fn update_install(
+    webview: tauri::Webview,
+    update_rid: tauri::ResourceId,
+    payload_rid: tauri::ResourceId,
+) -> Result<(), UpdateCheckError> {
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    {
+        desktop::run_install(&webview, update_rid, payload_rid)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        let _ = (webview, update_rid, payload_rid);
+        Err(UpdateCheckError {
+            kind: UpdateCheckErrorKind::Unsupported,
+            message: "the updater is desktop-only".to_owned(),
+        })
+    }
+}
+
 /// The check itself, on the targets the updater plugin builds for.
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 mod desktop {
@@ -182,7 +231,84 @@ mod desktop {
     use tauri::Manager;
     use tauri_plugin_updater::{Error as PluginError, Update, UpdaterExt};
 
+    use super::download;
     use super::{UpdateCheckError, UpdateCheckErrorKind as Kind, UpdateCheckMetadata};
+
+    /// A verified payload, waiting for [`run_install`].
+    struct VerifiedPayload(Vec<u8>);
+    impl tauri::Resource for VerifiedPayload {}
+
+    pub(super) async fn run_download(
+        webview: &tauri::Webview,
+        rid: tauri::ResourceId,
+    ) -> Result<tauri::ResourceId, UpdateCheckError> {
+        let update = webview
+            .resources_table()
+            .get::<Update>(rid)
+            .map_err(|error| UpdateCheckError {
+                kind: Kind::Unknown,
+                message: error.to_string(),
+            })?;
+        let pubkey = updater_pubkey(webview).ok_or_else(|| UpdateCheckError {
+            kind: Kind::Signature,
+            message: "no updater public key is configured".to_owned(),
+        })?;
+        let client = download::client().map_err(UpdateCheckError::from)?;
+        let bytes = download::fetch(
+            &client,
+            &update.download_url,
+            &download::RetryPolicy::default(),
+        )
+        .await?;
+        download::verify(&bytes, &update.signature, &pubkey)?;
+        Ok(webview.resources_table().add(VerifiedPayload(bytes)))
+    }
+
+    pub(super) fn run_install(
+        webview: &tauri::Webview,
+        update_rid: tauri::ResourceId,
+        payload_rid: tauri::ResourceId,
+    ) -> Result<(), UpdateCheckError> {
+        let lookup = |error: tauri::Error| UpdateCheckError {
+            kind: Kind::Unknown,
+            message: error.to_string(),
+        };
+        let update = webview
+            .resources_table()
+            .get::<Update>(update_rid)
+            .map_err(lookup)?;
+        let payload = webview
+            .resources_table()
+            .get::<VerifiedPayload>(payload_rid)
+            .map_err(lookup)?;
+        update
+            .install(&payload.0)
+            .map_err(|error| UpdateCheckError::from_plugin(&error))?;
+        let _ = webview.resources_table().close(payload_rid);
+        Ok(())
+    }
+
+    /// The key `tauri.conf.json` gives the plugin, which is the key the plugin
+    /// itself verifies with: nothing here overrides it at runtime.
+    fn updater_pubkey(webview: &tauri::Webview) -> Option<String> {
+        webview
+            .config()
+            .plugins
+            .0
+            .get("updater")?
+            .get("pubkey")?
+            .as_str()
+            .map(str::to_owned)
+    }
+
+    impl From<download::DownloadError> for UpdateCheckError {
+        fn from(error: download::DownloadError) -> Self {
+            Self {
+                kind: error.kind,
+                message: error.message,
+            }
+        }
+    }
 
     pub(super) async fn run_check(
         webview: &tauri::Webview,

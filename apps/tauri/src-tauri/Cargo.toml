@@ -46,6 +46,13 @@ tauri-plugin-process = "2"
 # naming it here turns it on inside the plugin. And `updater.rs` needs the error
 # type to say *why* a check failed — the plugin only ever reports the message.
 reqwest = { version = "0.13", default-features = false, features = ["system-proxy"] }
+# The resumable download in `updater/download.rs`: its retry backoff, the same
+# signature check the plugin's own download runs, with the plugin's crates, and
+# the TLS crypto provider the plugin installs before its own requests.
+tokio = { version = "1", features = ["time"] }
+minisign-verify = "0.2"
+base64 = "0.22"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 # The plugin's publish-date type, formatted the way its own check command does.
 time = { version = "0.3", features = ["formatting"] }
 
