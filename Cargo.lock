@@ -3321,6 +3321,7 @@ name = "ori-studio"
 version = "0.7.1"
 dependencies = [
  "base64 0.22.1",
+ "libc",
  "minisign-verify",
  "oristudio-cp",
  "oristudio-cp-compiler",

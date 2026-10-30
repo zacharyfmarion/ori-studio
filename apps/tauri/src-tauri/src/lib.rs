@@ -325,7 +325,8 @@ pub fn run() {
     {
         builder = builder
             .plugin(tauri_plugin_updater::Builder::new().build())
-            .plugin(tauri_plugin_process::init());
+            .plugin(tauri_plugin_process::init())
+            .manage(updater::QuitInstall::default());
     }
 
     builder
@@ -461,7 +462,15 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building Ori Studio")
-        .run(handle_opened_event);
+        .run(|app, event| {
+            // Before the app's own cleanup, which drops the resources this
+            // reads; a relaunch has already installed and disarmed it.
+            #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+            if matches!(event, tauri::RunEvent::Exit) {
+                updater::install_on_quit(app);
+            }
+            handle_opened_event(app, event);
+        });
 }
 
 #[cfg(test)]

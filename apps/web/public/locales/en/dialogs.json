@@ -900,7 +900,7 @@
       "checking": "Checking…",
       "checkNow": "Check now",
       "currentVersion": "Version {{version}}",
-      "description": "Updates are downloaded in full — Ori Studio has no partial updates. Nothing installs until you choose to relaunch.",
+      "description": "Updates are downloaded in full — Ori Studio has no partial updates. A downloaded update installs when you relaunch, or the next time you quit.",
       "neverChecked": "Not checked yet",
       "notify": "Tell me, but let me start the download",
       "off": "Don't check for updates",

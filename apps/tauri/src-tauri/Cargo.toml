@@ -82,6 +82,11 @@ ort = { version = "=2.0.0-rc.13", features = ["coreml"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 ort = { version = "=2.0.0-rc.13" }
 
+# `updater.rs` asks whether the .app bundle is writable before installing an
+# update at quit, rather than letting the plugin fall back to a password prompt.
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

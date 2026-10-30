@@ -922,7 +922,7 @@
       "checking": "Vérification…",
       "checkNow": "Vérifier maintenant",
       "currentVersion": "Version {{version}}",
-      "description": "Les mises à jour sont téléchargées en entier — Ori Studio n’a pas de mises à jour partielles. Rien ne s’installe avant que vous ne redémarriez.",
+      "description": "Les mises à jour sont téléchargées en entier — Ori Studio n’a pas de mises à jour partielles. Une mise à jour téléchargée s’installe au redémarrage, ou la prochaine fois que vous quittez l’app.",
       "neverChecked": "Pas encore vérifié",
       "notify": "Me prévenir, mais me laisser lancer le téléchargement",
       "off": "Ne pas rechercher de mises à jour",

@@ -922,7 +922,7 @@
       "checking": "Verificando…",
       "checkNow": "Verificar agora",
       "currentVersion": "Versão {{version}}",
-      "description": "As atualizações são baixadas por inteiro — o Ori Studio não tem atualizações parciais. Nada é instalado até você reiniciar.",
+      "description": "As atualizações são baixadas por inteiro — o Ori Studio não tem atualizações parciais. Uma atualização baixada é instalada quando você reinicia ou na próxima vez que fechar o app.",
       "neverChecked": "Ainda não verificado",
       "notify": "Avisar, mas deixar eu iniciar o download",
       "off": "Não verificar atualizações",

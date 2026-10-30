@@ -206,7 +206,9 @@ export async function checkForUpdate(): Promise<AvailableUpdate | null> {
  * update" is a true statement rather than the start of a download.
  *
  * The shell's `update_download` rather than the plugin's: it resumes a dropped
- * connection where the plugin's starts over, and it says why it failed.
+ * connection where the plugin's starts over, and it says why it failed. The
+ * shell also arms the verified payload to install when the app quits, until
+ * its handle is closed — most people never click "Relaunch to update".
  */
 export async function downloadUpdate(version: string): Promise<void> {
   assertDesktop();
@@ -254,7 +256,10 @@ export async function installUpdateAndRelaunch(version: string): Promise<void> {
   await relaunch();
 }
 
-/** Drop a staged update, so a revoked release cannot be relaunched into. */
+/**
+ * Drop a staged update, so a revoked release cannot be relaunched into. Closing
+ * the payload's handle also disarms its install at quit.
+ */
 export async function discardPendingUpdate(): Promise<void> {
   const pending = pendingUpdate;
   pendingUpdate = null;
