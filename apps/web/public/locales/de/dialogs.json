@@ -900,7 +900,7 @@
       "checking": "Wird geprüft…",
       "checkNow": "Jetzt prüfen",
       "currentVersion": "Version {{version}}",
-      "description": "Updates werden vollständig heruntergeladen — Ori Studio hat keine Teil-Updates. Es wird nichts installiert, bis Sie neu starten.",
+      "description": "Updates werden vollständig heruntergeladen — Ori Studio hat keine Teil-Updates. Ein heruntergeladenes Update wird beim Neustart installiert oder spätestens, wenn Sie die App das nächste Mal beenden.",
       "neverChecked": "Noch nicht geprüft",
       "notify": "Benachrichtigen, aber Download selbst starten",
       "off": "Nicht nach Updates suchen",

@@ -922,7 +922,7 @@
       "checking": "Buscando…",
       "checkNow": "Buscar ahora",
       "currentVersion": "Versión {{version}}",
-      "description": "Las actualizaciones se descargan completas: Ori Studio no tiene actualizaciones parciales. No se instala nada hasta que reinicies.",
+      "description": "Las actualizaciones se descargan completas: Ori Studio no tiene actualizaciones parciales. Una actualización descargada se instala al reiniciar o la próxima vez que cierres la app.",
       "neverChecked": "Aún sin comprobar",
       "notify": "Avisarme, pero iniciar la descarga yo",
       "off": "No buscar actualizaciones",

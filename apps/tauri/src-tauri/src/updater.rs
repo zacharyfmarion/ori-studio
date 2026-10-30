@@ -1,7 +1,9 @@
 //! Support for the in-app updater that the frontend drives.
 //!
-//! The plugin's download and install commands are called from JavaScript. The
-//! *check* runs through [`update_check`] here instead, for a diagnostic reason
+//! The plugin finds the update and installs it. The download in between runs
+//! through [`update_download`] here, because the plugin's own is a single GET
+//! that a dropped connection throws away in full — see [`download`]. The
+//! *check* runs through [`update_check`] here too, for a diagnostic reason
 //! rather than a functional one: the plugin serializes a failure as its
 //! `Display` string, and for every transport failure that string is reqwest's
 //! `error sending request for url (…)` — a DNS miss, a refused connection, a
@@ -9,6 +11,27 @@
 //! is in the error's `source()` chain, which only Rust can walk. So the check
 //! runs here, its failure is classified into a bounded kind, and the frontend
 //! gets a reason it can count instead of a string it cannot read.
+//!
+//! A verified download is also armed to install when the app quits — see
+//! [`quit`] — so an update nobody relaunched into still lands.
+
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+mod download;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+mod quit;
+
+/// The update armed to install when the app quits. Managed app state.
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+pub type QuitInstall = quit::QuitSlot<tauri_plugin_updater::Update>;
+
+/// Install the armed update, if there is one, on the way out.
+///
+/// Call from `RunEvent::Exit`. A relaunch into the update has already installed
+/// it and disarmed the slot, so this does nothing then.
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+pub fn install_on_quit(app: &tauri::AppHandle) {
+    desktop::install_on_quit(app);
+}
 
 /// The bundle format this build was installed from, as far as it can tell.
 ///
@@ -124,7 +147,7 @@ pub enum UpdateCheckErrorKind {
     Unknown,
 }
 
-/// A failed check, with the cause already classified.
+/// A failed check or download, with the cause already classified.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct UpdateCheckError {
     pub kind: UpdateCheckErrorKind,
@@ -134,9 +157,8 @@ pub struct UpdateCheckError {
     pub message: String,
 }
 
-/// What the plugin's own `check` command returns: the shape the JavaScript
-/// `Update` class is constructed from, so that `download()` and `install()`
-/// stay the plugin's. The field names are that contract.
+/// What the plugin's own `check` command returns. The field names are kept to
+/// that shape, which the frontend has always read.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateCheckMetadata {
@@ -152,8 +174,7 @@ pub struct UpdateCheckMetadata {
 ///
 /// `None` means nothing newer. An offered update is held in the webview's
 /// resource table under the returned `rid`, exactly as the plugin's command
-/// holds it, so the frontend constructs the plugin's `Update` handle from this
-/// and downloads and installs through the plugin as before.
+/// holds it; [`update_download`] and [`update_install`] take it from there.
 #[tauri::command]
 pub async fn update_check(
     webview: tauri::Webview,
@@ -173,16 +194,243 @@ pub async fn update_check(
     }
 }
 
+/// Download and verify the offered update, without installing it.
+///
+/// Returns the handle of the verified payload, for [`update_install`]. Holding
+/// the bytes in the resource table rather than returning them keeps a 100 MB
+/// payload off the IPC bridge. The payload is armed to install at quit until
+/// that handle closes.
+#[tauri::command]
+pub async fn update_download(
+    webview: tauri::Webview,
+    rid: tauri::ResourceId,
+) -> Result<tauri::ResourceId, UpdateCheckError> {
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    {
+        desktop::run_download(&webview, rid).await
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        let _ = (webview, rid);
+        Err(UpdateCheckError {
+            kind: UpdateCheckErrorKind::Unsupported,
+            message: "the updater is desktop-only".to_owned(),
+        })
+    }
+}
+
+/// Install a payload [`update_download`] verified. On Windows this exits the
+/// process rather than returning.
+#[tauri::command]
+pub async fn update_install(
+    webview: tauri::Webview,
+    update_rid: tauri::ResourceId,
+    payload_rid: tauri::ResourceId,
+) -> Result<(), UpdateCheckError> {
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    {
+        desktop::run_install(&webview, update_rid, payload_rid)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        let _ = (webview, update_rid, payload_rid);
+        Err(UpdateCheckError {
+            kind: UpdateCheckErrorKind::Unsupported,
+            message: "the updater is desktop-only".to_owned(),
+        })
+    }
+}
+
 /// The check itself, on the targets the updater plugin builds for.
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 mod desktop {
     use std::error::Error as StdError;
+    use std::sync::Arc;
     use std::time::Duration;
 
     use tauri::Manager;
     use tauri_plugin_updater::{Error as PluginError, Update, UpdaterExt};
 
+    use super::{QuitInstall, download, quit};
     use super::{UpdateCheckError, UpdateCheckErrorKind as Kind, UpdateCheckMetadata};
+
+    /// A verified payload, waiting for [`run_install`] or for the app to quit.
+    struct VerifiedPayload {
+        bytes: Arc<Vec<u8>>,
+        quit: QuitInstall,
+    }
+
+    impl tauri::Resource for VerifiedPayload {
+        // Called when the handle is closed — a relaunch that installed it, a
+        // newer offer, a revoked release — and not when a webview is torn
+        // down, which only drops the table.
+        fn close(self: Arc<Self>) {
+            self.quit.disarm(&self.bytes);
+        }
+    }
+
+    pub(super) async fn run_download(
+        webview: &tauri::Webview,
+        rid: tauri::ResourceId,
+    ) -> Result<tauri::ResourceId, UpdateCheckError> {
+        let update = webview
+            .resources_table()
+            .get::<Update>(rid)
+            .map_err(|error| UpdateCheckError {
+                kind: Kind::Unknown,
+                message: error.to_string(),
+            })?;
+        let pubkey = updater_pubkey(webview).ok_or_else(|| UpdateCheckError {
+            kind: Kind::Signature,
+            message: "no updater public key is configured".to_owned(),
+        })?;
+        let client = download::client().map_err(UpdateCheckError::from)?;
+        let bytes = download::fetch(
+            &client,
+            &update.download_url,
+            &download::RetryPolicy::default(),
+        )
+        .await?;
+        download::verify(&bytes, &update.signature, &pubkey)?;
+        let bytes = Arc::new(bytes);
+        let quit = webview.state::<QuitInstall>().inner().clone();
+        quit.arm((*update).clone(), Arc::clone(&bytes));
+        Ok(webview
+            .resources_table()
+            .add(VerifiedPayload { bytes, quit }))
+    }
+
+    pub(super) fn run_install(
+        webview: &tauri::Webview,
+        update_rid: tauri::ResourceId,
+        payload_rid: tauri::ResourceId,
+    ) -> Result<(), UpdateCheckError> {
+        let lookup = |error: tauri::Error| UpdateCheckError {
+            kind: Kind::Unknown,
+            message: error.to_string(),
+        };
+        let update = webview
+            .resources_table()
+            .get::<Update>(update_rid)
+            .map_err(lookup)?;
+        let payload = webview
+            .resources_table()
+            .get::<VerifiedPayload>(payload_rid)
+            .map_err(lookup)?;
+        update
+            .install(&payload.bytes[..])
+            .map_err(|error| UpdateCheckError::from_plugin(&error))?;
+        // Closing disarms the quit install, which would otherwise run the
+        // installer a second time on the way out of the relaunch.
+        let _ = webview.resources_table().close(payload_rid);
+        Ok(())
+    }
+
+    pub(super) fn install_on_quit(app: &tauri::AppHandle) {
+        let Some(slot) = app.try_state::<QuitInstall>() else {
+            return;
+        };
+        let Some(armed) = slot.take() else {
+            return;
+        };
+        // Nothing downloads on a package install, but should anything ever be
+        // armed there, its install is a root password prompt: not at quit.
+        if !super::self_update_supported() {
+            return;
+        }
+        if let Err(message) = install_armed(app, &armed) {
+            eprintln!(
+                "[updater] did not install {} on quit: {message}",
+                armed.update.version
+            );
+        }
+    }
+
+    type ArmedUpdate = quit::Armed<Update>;
+
+    #[cfg(target_os = "macos")]
+    fn install_armed(_app: &tauri::AppHandle, armed: &ArmedUpdate) -> Result<(), String> {
+        let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+        let bundle = quit::app_bundle(&executable).ok_or("not running from an app bundle")?;
+        // When it cannot move the bundle, the plugin asks for an administrator
+        // password through AppleScript on the main thread — which at quit is
+        // this thread, so the exit would hang on it. A password prompt nobody
+        // expects after quitting is wrong anyway: leave that case to the card.
+        let writable = |path: &std::path::Path| {
+            use std::os::unix::ffi::OsStrExt;
+            std::ffi::CString::new(path.as_os_str().as_bytes())
+                .is_ok_and(|path| unsafe { libc::access(path.as_ptr(), libc::W_OK) } == 0)
+        };
+        if !writable(&bundle) || !bundle.parent().is_some_and(writable) {
+            return Err("replacing the app needs an administrator password".to_owned());
+        }
+        armed
+            .update
+            .install(&armed.payload[..])
+            .map_err(|error| describe(&error))
+    }
+
+    #[cfg(target_os = "linux")]
+    fn install_armed(_app: &tauri::AppHandle, armed: &ArmedUpdate) -> Result<(), String> {
+        armed
+            .update
+            .install(&armed.payload[..])
+            .map_err(|error| describe(&error))
+    }
+
+    /// Run the installer ourselves rather than through the plugin, whose
+    /// Windows install always passes `/R` and so reopens the app the user just
+    /// quit. The payload is the same verified NSIS installer the plugin would
+    /// run, with the same arguments otherwise.
+    #[cfg(target_os = "windows")]
+    fn install_armed(app: &tauri::AppHandle, armed: &ArmedUpdate) -> Result<(), String> {
+        let bytes = &armed.payload[..];
+        if !bytes.starts_with(b"MZ") {
+            return Err("the payload is not an NSIS installer".to_owned());
+        }
+        let name = &app.package_info().name;
+        let version = &armed.update.version;
+        let dir = std::env::temp_dir().join(format!("{name}-{version}-updater-on-quit"));
+        let installer = dir.join(format!("{name}-{version}-installer.exe"));
+        std::fs::create_dir_all(&dir)
+            .and_then(|()| std::fs::write(&installer, bytes))
+            .map_err(|error| error.to_string())?;
+        let config = app.config();
+        let install_mode = config
+            .plugins
+            .0
+            .get("updater")
+            .and_then(|updater| updater.get("windows"))
+            .and_then(|windows| windows.get("installMode"))
+            .and_then(|mode| mode.as_str());
+        std::process::Command::new(&installer)
+            .args(quit::nsis_quit_args(install_mode))
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+
+    /// The key `tauri.conf.json` gives the plugin, which is the key the plugin
+    /// itself verifies with: nothing here overrides it at runtime.
+    fn updater_pubkey(webview: &tauri::Webview) -> Option<String> {
+        webview
+            .config()
+            .plugins
+            .0
+            .get("updater")?
+            .get("pubkey")?
+            .as_str()
+            .map(str::to_owned)
+    }
+
+    impl From<download::DownloadError> for UpdateCheckError {
+        fn from(error: download::DownloadError) -> Self {
+            Self {
+                kind: error.kind,
+                message: error.message,
+            }
+        }
+    }
 
     pub(super) async fn run_check(
         webview: &tauri::Webview,

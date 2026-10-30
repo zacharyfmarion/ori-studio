@@ -104,7 +104,7 @@ function toCheckError(rejection: unknown): Error {
   return new Error(String(rejection));
 }
 
-/** The plugin's own metadata shape, which its `Update` class is built from. */
+/** What `update_check` returns: the plugin's own metadata shape. */
 type NativeUpdateMetadata = {
   rid: number;
   currentVersion: string;
@@ -122,18 +122,33 @@ function assertDesktop(): void {
 }
 
 /**
- * The `Update` handle from the last successful {@link checkForUpdate}.
+ * The offer from the last successful {@link checkForUpdate}, and its payload
+ * once {@link downloadUpdate} has fetched and verified it.
  *
- * Held at module scope rather than in the store because it is a `Resource` with
- * a Rust-side handle — it is not serializable, and putting it in Zustand would
- * invite it being structurally cloned or compared. The store holds the version
- * string; this holds the thing you can actually install.
+ * Both are handles into the shell's resource table — the update the plugin
+ * found, and the verified bytes — so they live at module scope rather than in
+ * the store: they are not serializable, and the store holds the version string.
  */
-let pendingUpdate: { version: string; handle: unknown } | null = null;
+let pendingUpdate: { version: string; rid: number; payloadRid: number | null } | null = null;
 
 /** Test seam: the store's reducers are pure, so only this module needs resetting. */
 export function resetUpdateServiceForTest(): void {
   pendingUpdate = null;
+}
+
+/** Release shell-side handles; a failure to close one changes nothing. */
+async function closeResources(...rids: Array<number | null>): Promise<void> {
+  const { Resource } = await import('@tauri-apps/api/core');
+  await Promise.all(
+    rids
+      .filter((rid): rid is number => rid !== null)
+      .map((rid) => new Resource(rid).close().catch(() => {}))
+  );
+}
+
+/** Whether `version` is downloaded, verified and waiting to be installed. */
+export function isUpdateStaged(version: string): boolean {
+  return pendingUpdate?.version === version && pendingUpdate.payloadRid !== null;
 }
 
 export async function readUpdateEnvironment(): Promise<UpdateEnvironment> {
@@ -146,13 +161,15 @@ export async function readUpdateEnvironment(): Promise<UpdateEnvironment> {
  * Ask the endpoint whether a newer version exists.
  *
  * The check runs in the shell (`update_check`), which runs the plugin's own
- * check and classifies a failure from the Rust error chain; the offered update
- * comes back in the plugin's metadata shape and is wrapped in the plugin's
- * `Update` class, so download and install are still the plugin's.
+ * check and classifies a failure from the Rust error chain.
  *
- * Note this verifies *nothing*: the plugin checks the signature at the end of
- * {@link downloadUpdate}, on the completed payload. A manifest signed with the
- * wrong key looks perfectly healthy here.
+ * An offer of the version already staged keeps the staged payload: the release
+ * has not changed, so neither has what was verified, and fetching it again
+ * every four hours is how one machine downloaded the same 50 MB forty times.
+ *
+ * Note this verifies *nothing*: the payload's signature is checked at the end
+ * of {@link downloadUpdate}. A manifest signed with the wrong key looks
+ * perfectly healthy here.
  */
 export async function checkForUpdate(): Promise<AvailableUpdate | null> {
   assertDesktop();
@@ -165,35 +182,54 @@ export async function checkForUpdate(): Promise<AvailableUpdate | null> {
   } catch (rejection) {
     throw toCheckError(rejection);
   }
-  if (!metadata) {
-    pendingUpdate = null;
-    return null;
+  const offer = metadata && {
+    version: metadata.version,
+    // The shell serializes an absent value as null.
+    notes: metadata.body ?? undefined,
+    publishedAt: metadata.date ?? undefined,
+  };
+  if (metadata && isUpdateStaged(metadata.version)) {
+    await closeResources(metadata.rid);
+    return offer;
   }
-  const { Update } = await import('@tauri-apps/plugin-updater');
-  const update = new Update({
-    ...metadata,
-    // The shell serializes an absent value as null; the plugin's type says undefined.
-    date: metadata.date ?? undefined,
-    body: metadata.body ?? undefined,
-  });
-  pendingUpdate = { version: update.version, handle: update };
-  return { version: update.version, notes: update.body, publishedAt: update.date };
+  const previous = pendingUpdate;
+  pendingUpdate = metadata && { version: metadata.version, rid: metadata.rid, payloadRid: null };
+  if (previous) await closeResources(previous.rid, previous.payloadRid);
+  return offer;
 }
 
 /**
  * Download and verify, without installing.
  *
- * Deliberately not `downloadAndInstall`. The whole affordance rests on there
- * being a state where the update is on disk, verified, and waiting — so that
- * "Relaunch to update" is a true statement rather than the start of a download.
+ * Deliberately not download-and-install. The whole affordance rests on there
+ * being a state where the update is verified and waiting — so that "Relaunch to
+ * update" is a true statement rather than the start of a download.
+ *
+ * The shell's `update_download` rather than the plugin's: it resumes a dropped
+ * connection where the plugin's starts over, and it says why it failed. The
+ * shell also arms the verified payload to install when the app quits, until
+ * its handle is closed — most people never click "Relaunch to update".
  */
 export async function downloadUpdate(version: string): Promise<void> {
   assertDesktop();
-  if (pendingUpdate?.version !== version) {
+  const pending = pendingUpdate;
+  if (pending?.version !== version) {
     throw new Error(`no pending update for ${version}`);
   }
-  const update = pendingUpdate.handle as { download: () => Promise<void> };
-  await update.download();
+  if (pending.payloadRid !== null) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  let payloadRid: number;
+  try {
+    payloadRid = await invoke<number>('update_download', { rid: pending.rid });
+  } catch (rejection) {
+    throw toCheckError(rejection);
+  }
+  if (pendingUpdate !== pending) {
+    // A newer offer replaced this one while it downloaded.
+    await closeResources(payloadRid);
+    throw new Error(`the offer for ${version} was replaced while it downloaded`);
+  }
+  pending.payloadRid = payloadRid;
 }
 
 /**
@@ -205,22 +241,27 @@ export async function downloadUpdate(version: string): Promise<void> {
  */
 export async function installUpdateAndRelaunch(version: string): Promise<void> {
   assertDesktop();
-  if (pendingUpdate?.version !== version) {
-    throw new Error(`no pending update for ${version}`);
+  const pending = pendingUpdate;
+  if (pending?.version !== version || pending.payloadRid === null) {
+    throw new Error(`no downloaded update for ${version}`);
   }
-  const update = pendingUpdate.handle as { install: () => Promise<void> };
-  await update.install();
+  const { invoke } = await import('@tauri-apps/api/core');
+  try {
+    await invoke('update_install', { updateRid: pending.rid, payloadRid: pending.payloadRid });
+  } catch (rejection) {
+    throw toCheckError(rejection);
+  }
+  pending.payloadRid = null;
   const { relaunch } = await import('@tauri-apps/plugin-process');
   await relaunch();
 }
 
-/** Drop a staged update, so a revoked release cannot be relaunched into. */
+/**
+ * Drop a staged update, so a revoked release cannot be relaunched into. Closing
+ * the payload's handle also disarms its install at quit.
+ */
 export async function discardPendingUpdate(): Promise<void> {
-  const update = pendingUpdate?.handle as { close?: () => Promise<void> } | undefined;
+  const pending = pendingUpdate;
   pendingUpdate = null;
-  try {
-    await update?.close?.();
-  } catch {
-    // The handle is being thrown away; a failure to close it changes nothing.
-  }
+  if (pending) await closeResources(pending.rid, pending.payloadRid);
 }

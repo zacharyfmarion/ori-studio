@@ -3320,11 +3320,15 @@ dependencies = [
 name = "ori-studio"
 version = "0.7.1"
 dependencies = [
+ "base64 0.22.1",
+ "libc",
+ "minisign-verify",
  "oristudio-cp",
  "oristudio-cp-compiler",
  "oristudio-cp-detect",
  "ort",
  "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "tauri",
@@ -3336,6 +3340,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
  "time",
+ "tokio",
  "treemaker-fold",
 ]
 
