@@ -138,7 +138,7 @@ export function DiagramStepPose({
         {render.mode === 'folded-flat' && foldPose && (
           <>
           <LayerSpreadRows revealVisible={!perspective} toggle={foldPose.spreadToggle} spread={foldPose.spread} />
-          {render.spread?.kind === 'connected' && <SpreadPresentationRow value={render.presentation?.kind ?? 'diagram'} onChange={foldPose.setPresentation} disabled={foldPose.turnHeld} />}
+          {render.spread?.kind === 'connected' && <SpreadPresentationRow key={step.id} value={render.presentation?.kind ?? 'diagram'} onChange={foldPose.setPresentation} disabled={foldPose.presentationHeld} />}
           </>
         )}
       </>
@@ -176,7 +176,7 @@ export function DiagramStepPose({
         // Its layers spread apart (Phase 13): on or off, by depth or affine (13g), and how.
         <>
         <LayerSpreadRows revealVisible={!perspective} toggle={linked.find((action) => action.id === 'spread-layers')} spread={linkedPose.spread} />
-        {render.spread?.kind === 'connected' && <SpreadPresentationRow value={render.presentation?.kind ?? 'diagram'} onChange={linkedPose.setPresentation} disabled={readOnly || waiting} />}
+        {render.spread?.kind === 'connected' && <SpreadPresentationRow key={step.id} value={render.presentation?.kind ?? 'diagram'} onChange={linkedPose.setPresentation} disabled={readOnly || step.annotations.some((annotation) => !!annotation.unknown)} />}
         </>
       )}
     </>

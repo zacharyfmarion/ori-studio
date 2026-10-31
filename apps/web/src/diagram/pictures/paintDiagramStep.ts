@@ -138,7 +138,7 @@ export function sceneMeasure(pattern: boolean): PaperSizeMeasure {
  * review): what can be done to it is the edit gates' to say.
  */
 export type StepPictureSource =
-  | { kind: 'asset'; asset: KnownDiagramAsset; pose: PicturePose }
+  | { kind: 'asset'; asset: KnownDiagramAsset; pose: PicturePose; sceneFrame?: [number, number, number, number] }
   | SceneSource
   | { kind: 'fixed'; picture: DiagramFixedPicture }
   | { kind: 'step-diagram'; picture: DiagramStepDiagramPicture };
@@ -158,6 +158,7 @@ export function stepPictureSource(
       return {
         kind: 'asset',
         asset,
+        ...(picture.sceneFrame ? { sceneFrame: picture.sceneFrame } : {}),
         pose: { rotationQuarterTurns: pose.rotationQuarterTurns, mirrored: pose.mirrored },
       };
     }

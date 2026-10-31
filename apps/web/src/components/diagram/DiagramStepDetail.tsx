@@ -1,4 +1,4 @@
-import { spreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
+import { posePictureBounds, spreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
 import { sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
 import { DiagramSpreadView } from './DiagramSpreadView';
 import { useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react';
@@ -31,7 +31,6 @@ import {
   type DiagramStyle,
 } from '../../diagram/document/diagramDocument';
 import { stepPictureSource } from '../../diagram/pictures/paintDiagramStep';
-import { storedScene } from '../../diagram/pictures/pictureFrame';
 import { annotatedStepUrl, posedZoomUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { zoomedSource } from '../../diagram/zoom/paintZoomed';
 import { viewOfStep } from '../../diagram/zoom/stepView';
@@ -192,12 +191,12 @@ export function DiagramStepDetail({
   // Over a live view (3D or simulated), the annotations drawn on its capture, while they are.
   // An enlarged step's frame is outlined over it, whatever its marks (Revision 2).
   const ghost = useMemo((): DiagramPoseAnnotations | null => {
-    if (step.picture?.kind !== 'scene') return null;
+    const bounds = posePictureBounds(step.picture);
+    if (!bounds) return null;
     const marks = annotationsOutOfStep(step) ? [] : annotations;
     const zoom = viewOfStep(step).zoom;
     if (marks.length === 0 && !zoom) return null;
-    const scene = storedScene(step.picture);
-    return scene ? { annotations: marks, bounds: scene.bounds, zoom } : null;
+    return { annotations: marks, bounds, zoom };
   }, [step, annotations]);
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
   // Enlarged is not Pose's: Annotate's Step pane turns it on (Zach's review of #436, 2026-10-08).

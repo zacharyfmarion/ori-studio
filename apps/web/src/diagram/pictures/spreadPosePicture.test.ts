@@ -6,7 +6,7 @@ import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
 import { scenePicture } from '../document/diagramSteps.fixtures';
 import { paintScene } from './paintDiagramStep';
 import { stepPictureUrl } from './useStepPictureUrl';
-import { spreadPosePicture, spreadPosePictureFrame } from './spreadPosePicture';
+import { posePictureBounds, spreadPosePicture, spreadPosePictureFrame } from './spreadPosePicture';
 
 const view = { prepared: { source: {
   input: { xy: [[-1, -1], [1, 1]] },
@@ -35,6 +35,30 @@ describe('the final spread picture in a live viewport', () => {
       const frame = spreadFrame(view, 35, spatial, size.width, size.height, zoom);
       expect(inkX).toBeCloseTo(frame.x + result.scene!.bounds.minX * frame.scale / CAPTURE_PX_PER_UNIT, 3);
       expect(inkY).toBeCloseTo(frame.y + result.scene!.bounds.minY * frame.scale / CAPTURE_PX_PER_UNIT, 3);
+    }
+  });
+  it('uses unannotated raster ink and keeps ghosts in its padded frame', () => {
+    const sceneFrame: [number, number, number, number] = [-12, 5, 80, 50];
+    const source = { kind: 'asset' as const, asset: {
+      id: 'raster', kind: 'raster' as const, src: 'data:image/png;base64,AA==', widthPx: 800, heightPx: 500, bytes: 1,
+    }, pose: { rotationQuarterTurns: 0 as const, mirrored: false }, sceneFrame };
+    const picture = spreadPosePicture(source, style, 'annotated.svg');
+    expect(picture.url).toBe(stepPictureUrl(source, style));
+    expect(picture.sceneFrame).toEqual(sceneFrame);
+    expect(posePictureBounds({ kind: 'asset', assetId: 'raster', key: 'raster', paperScale: null, sceneFrame }))
+      .toEqual({ minX: -12, minY: 5, maxX: 68, maxY: 55 });
+  });
+  it.each([false, true])('keeps a raster fallback in the live camera frame (perspective: %s)', (spatial) => {
+    const picture = { url: 'raster.svg', scene: null, sceneFrame: [-12, 5, 80, 50] as [number, number, number, number] };
+    for (const zoom of [0.5, 2]) {
+      const size = { width: 900, height: 600 };
+      const box = spreadPosePictureFrame(picture, view, style, 35, spatial, size, zoom)!;
+      const frame = spreadFrame(view, 35, spatial, size.width, size.height, zoom);
+      const k = frame.scale / CAPTURE_PX_PER_UNIT;
+      expect(parseFloat(box.left) * size.width / 100).toBeCloseTo(frame.x - 12 * k);
+      expect(parseFloat(box.top) * size.height / 100).toBeCloseTo(frame.y + 5 * k);
+      expect(parseFloat(box.width) * size.width / 100).toBeCloseTo(80 * k);
+      expect(parseFloat(box.height) * size.height / 100).toBeCloseTo(50 * k);
     }
   });
   it('retains the existing image for captures kept as bitmaps', () => {

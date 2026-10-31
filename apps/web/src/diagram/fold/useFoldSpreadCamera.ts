@@ -1,3 +1,4 @@
+import { queueStepPoseEdit } from '../capture/stepPoseQueue';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
@@ -14,18 +15,6 @@ import { sameCamera } from '../capture/poseController';
 import { settledTask } from '../capture/settledTask';
 import { stepById, type DiagramStep } from '../document/diagramDocument';
 import { presentDiagramFoldStep, spreadDiagramFoldStep } from './foldStepActions';
-
-function idle(stepId: string): Promise<void> {
-  if (!useWorkspaceStore.getState().diagramCaptures[stepId]) return Promise.resolve();
-  return new Promise((resolve) => {
-    const off = useWorkspaceStore.subscribe((state) => {
-      if (!state.diagramCaptures[stepId]) {
-        off();
-        resolve();
-      }
-    });
-  });
-}
 
 /** Camera-only Pose behavior for a Fold-derived picture. The Fold sequence
  * remains head-on; only this Diagram step owns a perspective presentation. */
@@ -46,20 +35,21 @@ export function useFoldSpreadCamera(step: DiagramStep | null, live: boolean) {
     const loadId = useWorkspaceStore.getState().diagramLoadId;
     return settledTask<SpreadPresentation>(async (value, current) => {
       if (!id) return;
-      await idle(id);
-      const state = useWorkspaceStore.getState();
-      const stored = state.diagram ? stepById(state.diagram, id)?.source : null;
-      // The inspector and live viewport have distinct hook lifetimes. A mode
-      // change in the inspector must invalidate the viewport's queued orbit.
-      if (
-        current() &&
-        state.diagramLoadId === loadId &&
-        stored?.kind === 'fold-step' &&
-        stored.render.mode === 'folded-flat' &&
-        stored.render.presentation?.kind === 'perspective'
-      ) {
-        await presentDiagramFoldStep(id, value, current);
-      }
+      await queueStepPoseEdit(id, 'orbit', async (queued) => {
+        const state = useWorkspaceStore.getState();
+        const stored = state.diagram ? stepById(state.diagram, id)?.source : null;
+        // The inspector and live viewport have distinct hook lifetimes. A mode
+        // change in the inspector must invalidate the viewport's queued orbit.
+        if (
+          current() && queued() &&
+          state.diagramLoadId === loadId &&
+          stored?.kind === 'fold-step' &&
+          stored.render.mode === 'folded-flat' &&
+          stored.render.presentation?.kind === 'perspective'
+        ) {
+          await presentDiagramFoldStep(id, value, () => current() && queued());
+        }
+      });
     });
   }, [id]);
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { endOpenCanvasSessions } from '../../cp-workspace/canvasObjects/canvasSessions';
 import { act, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -76,5 +77,16 @@ it('keeps read-only gestures inert', async () => {
   pointer('pointermove', 50, 8);
   pointer('pointerup', 50, 8);
   expect(preview).not.toHaveBeenCalled();
+  expect(commit).not.toHaveBeenCalled();
+});
+
+
+it('does not recommit a held pointer after Undo or replacing the document', () => {
+  pointer('pointerdown', 92, 50);
+  const previews = preview.mock.calls.length;
+  act(() => endOpenCanvasSessions('history'));
+  pointer('pointermove', 50, 8);
+  pointer('pointerup', 50, 8);
+  expect(preview).toHaveBeenCalledTimes(previews);
   expect(commit).not.toHaveBeenCalled();
 });

@@ -1,3 +1,4 @@
+import { queueStepPoseEdit } from './stepPoseQueue';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -60,7 +61,7 @@ export interface DiagramLinkedPose {
   connected: ConnectedSpreadView | null;
   connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
   onReveal: (reveal: [number, number]) => void;
-  setPresentation: (kind: SpreadPresentation['kind']) => void;
+  setPresentation: (kind: SpreadPresentation['kind']) => Promise<void>;
   actions: DiagramLinkedPoseAction[];
   /** A flat fold's place among its layer orders ("2 of 5+"), for the pager between its verbs; null otherwise. */
   layerOrder: { count: string; label: string } | null;
@@ -182,11 +183,15 @@ export function useDiagramLinkedPose(
     if (controller && live && connectedKey && !connectedView) void controller.prepareConnected();
   }, [controller, live, connectedKey, connectedView]);
   const onReveal = useCallback((reveal:[number,number]) => {
-    if(!readOnly)void controller?.run({verb:'spread-reveal',reveal});
+    if (readOnly || !controller) return;
+    controller.previewSpread({ slider: 'reveal', value: reveal });
+    void controller.commitSpread();
   },[controller,readOnly]);
   const setPresentation = useCallback((kind: SpreadPresentation['kind']) => {
-    if (!readOnly) void controller?.run({verb: 'spread-presentation', kind});
-  }, [controller, readOnly]);
+    if (readOnly || !controller || !stepId) return Promise.resolve();
+    return queueStepPoseEdit(stepId, 'presentation', (current) =>
+      controller.run({ verb: 'spread-presentation', kind }, { current }));
+  }, [controller, readOnly, stepId]);
   const storedCamera = source?.render.mode === 'folded-3d' ? source.render.camera : flat?.presentation?.camera ?? null;
   const onCamera = useCallback(
     (camera: FoldedFigureCamera) => controller?.orbit(camera, storedCamera),

@@ -1,3 +1,5 @@
+import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
+import { queueStepPoseEdit } from '../capture/stepPoseQueue';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
 /**
  * The verbs of a Diagram step linked to a Fold step (plan D17), bound to the
@@ -233,12 +235,21 @@ export async function rotateDiagramFoldStepTo(stepId: string, degrees: number): 
 }
 
 /** Spread a Fold step's flat fold, or change its spread (`spreadFoldRender`), as one undo step. */
-export async function spreadDiagramFoldStep(stepId: string, request: FoldStepSpreadRequest): Promise<boolean> {
+async function captureSpreadEdit(stepId: string, request: FoldStepSpreadRequest, current: () => boolean): Promise<boolean> {
   const source = foldSourceOf(stepId);
   if (!source) return false;
   const { diagram } = useWorkspaceStore.getState();
   const starts = diagram ? spreadStartsFor(diagram, stepId) : DEFAULT_SPREAD_STARTS;
-  return poseAs(stepId, source, spreadFoldRender(source.render, request, starts), request.verb);
+  return poseAs(stepId, source, spreadFoldRender(source.render, request, starts), request.verb, current);
+}
+
+/** A new gesture may arrive while the previous capture is still running. */
+export async function spreadDiagramFoldStep(stepId: string, request: FoldStepSpreadRequest): Promise<boolean> {
+  let captured = false;
+  await queueStepPoseEdit(stepId, request.verb === 'spread-layers' ? null : request.verb, async (current) => {
+    captured = await captureSpreadEdit(stepId, request, current);
+  });
+  return captured;
 }
 
 /**
@@ -345,4 +356,18 @@ export async function presentDiagramFoldStep(stepId: string, presentation: Sprea
   const source=foldSourceOf(stepId);
   if(!source || source.render.mode!=='folded-flat' || source.render.spread?.kind!=='connected')return false;
   return poseAs(stepId,source,{...source.render,presentation},'spread-presentation',current);
+}
+
+/** Presentation changes remain available while a picture is being captured. */
+export function setDiagramFoldPresentation(stepId: string, kind: SpreadPresentation['kind']): Promise<void> {
+  return queueStepPoseEdit(stepId, 'presentation', async (current) => {
+    const source = foldSourceOf(stepId);
+    if (source?.render.mode !== 'folded-flat' || source.render.spread?.kind !== 'connected') return;
+    const previous = source.render.presentation;
+    await presentDiagramFoldStep(stepId, {
+      kind,
+      camera: previous?.camera ?? DEFAULT_FOLDED_3D_CAMERA,
+      orderSide: previous?.orderSide ?? 'front',
+    }, current);
+  });
 }

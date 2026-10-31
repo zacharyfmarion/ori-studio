@@ -32,6 +32,7 @@ afterEach(async () => {
   root = null;
   workers.length = 0;
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 it('retains one pending frame and closes late bitmaps after unmount', async () => {
@@ -66,4 +67,22 @@ it('falls back when the worker cannot render and stops further requests', async 
   expect(worker.terminate).toHaveBeenCalledOnce();
   render.request(frame(1));
   expect(worker.postMessage).toHaveBeenCalledTimes(1);
+});
+
+
+it('falls back if a graphics worker stops responding and closes a late frame', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('Worker', WorkerMock);
+  root = createRoot(host);
+  const paint = vi.fn();
+  await act(async () => root!.render(<Harness paint={paint} />));
+  const worker = workers[0]!;
+  await act(async () => render.request(frame(1)));
+  await act(async () => vi.advanceTimersByTimeAsync(10_000));
+  expect(render.status).toBe('error');
+  expect(worker.terminate).toHaveBeenCalledOnce();
+  const bitmap = { close: vi.fn() } as unknown as ImageBitmap;
+  await act(async () => worker.onmessage!({ data: { kind: 'frame', bitmap } }));
+  expect(paint).not.toHaveBeenCalled();
+  expect(bitmap.close).toHaveBeenCalledOnce();
 });

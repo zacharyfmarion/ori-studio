@@ -1,4 +1,5 @@
-import { useId, useRef, type PointerEvent } from 'react';
+import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
+import { useEffect, useId, useRef, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clampReveal, DEFAULT_CONNECTED_SPREAD, REVEAL_RADIUS } from '../../cp-workspace/folded/layerSpreadSettings';
 import { spreadDirectionLabel, type LayerSpreadDrag } from '../../cp-workspace/folded/layerSpreadControls';
@@ -13,6 +14,8 @@ export function LayerRevealControl({ spread }: { spread: LayerSpreadDrag }) {
   const { t, i18n } = useTranslation();
   const hintId = useId();
   const gesture = useRef<{ id: number; start: [number, number]; shown: [number, number] } | null>(null);
+  // A pointer released after Undo or a file change cannot start a fresh edit.
+  useEffect(() => registerCanvasSessionEnder(() => { gesture.current = null; }), []);
   if (spread.spread.kind !== 'connected') return null;
   const value = spread.spread.reveal;
   const radius = Math.hypot(...value);

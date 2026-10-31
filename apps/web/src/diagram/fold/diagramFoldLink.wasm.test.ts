@@ -2,7 +2,7 @@ import '../../layer-spread/captureWorker.testSupport';
 // @vitest-environment jsdom
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FoldOp } from '../../fold/document/foldSequenceDocument';
 import { createFoldEngineCalls } from '../../fold/engine/foldEngineCalls';
 import { createFoldSession, type FoldSession } from '../../fold/session/foldSession';
@@ -47,7 +47,7 @@ const { useWorkspaceStore } = await import('../../store/workspaceStore/store');
 const { foldSessionDocumentSource } = await import('../../store/workspaceStore/foldSession');
 const { useLayoutStore } = await import('../../store/layoutStore');
 const { pullFromFold, sendFoldStepsToDiagram } = await import('./foldBrowserActions');
-const { openDiagramStepInFold, refreshDiagramFoldStep, spreadDiagramFoldStep, presentDiagramFoldStep } = await import('./foldStepActions');
+const { openDiagramStepInFold, refreshDiagramFoldStep, spreadDiagramFoldStep, presentDiagramFoldStep, setDiagramFoldPresentation } = await import('./foldStepActions');
 const { foldLinkContextNow } = await import('./useFoldLinkContext');
 const { foldStepLinkStatus } = await import('./foldStepLink');
 
@@ -84,6 +84,14 @@ function onlyStep(): DiagramStep {
 const statusOf = (step: DiagramStep) => foldStepLinkStatus(step.source as DiagramFoldStepSource, foldLinkContextNow());
 
 describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D17)', () => {
+  beforeAll(async () => {
+    // The first capture lazily loads the whole Fold workspace. In Vite tests
+    // its cold TS transform can consume the capture test's five-second budget;
+    // load the module graph as fixture setup, independent of capture timing.
+    const { loadFold } = await import('../../workspaces/foldGateway');
+    await loadFold();
+  }, 30_000);
+
   beforeEach(async () => {
     useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
     held.session = createFoldSession({ document: foldSessionDocumentSource(useWorkspaceStore), runtime: await bridge() });
@@ -114,6 +122,33 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     expect(await pending).toBe(false);
     expect(onlyStep()).toBe(before);
     expect(state().diagramHistory).toBe(history);
+    expect(state().diagramCaptures).toEqual({});
+  });
+
+  it('queues a presentation change behind capture, preserves its camera, and persists it with undo/redo', async () => {
+    const [, second] = state().foldSequences[0]!.document.steps;
+    await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });
+    const id = onlyStep().id;
+    const before = state().diagramHistory.past.length;
+    useWorkspaceStore.setState({ diagramCaptures: { [id]: { runId: null } } });
+    const pending = setDiagramFoldPresentation(id, 'perspective');
+    await Promise.resolve();
+    expect(state().diagramHistory.past.length).toBe(before);
+    useWorkspaceStore.setState({ diagramCaptures: {} });
+    await pending;
+    const perspective = (onlyStep().source as DiagramFoldStepSource).render;
+    expect(perspective).toMatchObject({ mode: 'folded-flat', presentation: { kind: 'perspective' } });
+    await setDiagramFoldPresentation(id, 'diagram');
+    const diagram = (onlyStep().source as DiagramFoldStepSource).render;
+    expect(diagram).toMatchObject({ presentation: { kind: 'diagram' } });
+    expect(diagram.mode === 'folded-flat' && diagram.presentation?.camera).toEqual(
+      perspective.mode === 'folded-flat' && perspective.presentation?.camera);
+    state().undoDiagram();
+    expect((onlyStep().source as DiagramFoldStepSource).render).toEqual(perspective);
+    state().redoDiagram();
+    const loaded = readDiagram(JSON.parse(JSON.stringify(writeDiagram(state().diagram!))))!;
+    expect(loaded.document.steps).toEqual(state().diagram!.steps);
+    expect(state().diagramHistory.past.length).toBe(before + 2);
     expect(state().diagramCaptures).toEqual({});
   });
 

@@ -246,7 +246,7 @@ export interface PoseController {
    * Step pane or a card, which `diagram step shown as` counts — so it is not
    * also counted as a pose.
    */
-  run: (request: LinkedPoseRequest, options?: { tracked?: boolean }) => Promise<void>;
+  run: (request: LinkedPoseRequest, options?: { tracked?: boolean; current?: () => boolean }) => Promise<void>;
   /** The 3D view moved: capture it once it rests, if it is not where the step already is. */
   orbit: (camera: FoldedFigureCamera, stored: FoldedFigureCamera | null) => void;
   /**

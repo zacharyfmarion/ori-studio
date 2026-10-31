@@ -8,6 +8,11 @@ export function useSpreadRenderer(view: ConnectedSpreadView, onFrame: (bitmap: I
   const worker = useRef<Worker | null>(null),
     busy = useRef(false),
     pending = useRef<SpreadFrame | null>(null);
+  const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearWatchdog = useCallback(() => {
+    if (watchdog.current) clearTimeout(watchdog.current);
+    watchdog.current = null;
+  }, []);
   const last = useRef<SpreadFrame | null>(null),
     paint = useRef(onFrame);
   const [status, setStatus] = useState<'preparing' | 'ready' | 'error'>('preparing');
@@ -22,16 +27,24 @@ export function useSpreadRenderer(view: ConnectedSpreadView, onFrame: (bitmap: I
       return;
     }
     busy.current = true;
+    watchdog.current = setTimeout(() => {
+      worker.current?.terminate();
+      worker.current = null;
+      busy.current = false;
+      pending.current = null;
+      setStatus('error');
+    }, 10_000);
     try {
       worker.current.postMessage({ kind: 'frame', frame });
     } catch {
+      clearWatchdog();
       worker.current.terminate();
       worker.current = null;
       busy.current = false;
       pending.current = null;
       setStatus('error');
     }
-  }, []);
+  }, [clearWatchdog]);
   useEffect(() => {
     let live = true;
     let w: Worker;
@@ -47,10 +60,11 @@ export function useSpreadRenderer(view: ConnectedSpreadView, onFrame: (bitmap: I
     pending.current = null;
     setStatus('preparing');
     w.onmessage = ({ data }: { data: { kind: 'frame'; bitmap: ImageBitmap } | { kind: 'error' } }) => {
-      if (!live) {
+      if (!live || worker.current !== w) {
         if (data.kind === 'frame') data.bitmap.close();
         return;
       }
+      clearWatchdog();
       busy.current = false;
       if (data.kind === 'error') {
         w.terminate();
@@ -66,7 +80,8 @@ export function useSpreadRenderer(view: ConnectedSpreadView, onFrame: (bitmap: I
       if (next) request(next);
     };
     w.onerror = () => {
-      if (live) {
+      if (live && worker.current === w) {
+        clearWatchdog();
         w.terminate();
         worker.current = null;
         pending.current = null;
@@ -78,15 +93,17 @@ export function useSpreadRenderer(view: ConnectedSpreadView, onFrame: (bitmap: I
       w.postMessage({ kind: 'source', view });
       if (last.current) request(last.current);
     } catch {
+      clearWatchdog();
       w.terminate();
       worker.current = null;
       setStatus('error');
     }
     return () => {
       live = false;
+      clearWatchdog();
       w.terminate();
       if (worker.current === w) worker.current = null;
     };
-  }, [view, request]);
+  }, [view, request, clearWatchdog]);
   return { status, request };
 }

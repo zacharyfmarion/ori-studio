@@ -5,6 +5,8 @@ export interface SpreadRaster {
   width: number;
   height: number;
   scale: number;
+  /** Image rectangle in the captured scene coordinates, including pixel rounding. */
+  sceneFrame: [number, number, number, number];
 }
 
 export function rasterConnected(

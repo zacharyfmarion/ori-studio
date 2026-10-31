@@ -1,10 +1,11 @@
+import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
 import { useFoldSpreadCamera } from './useFoldSpreadCamera';
 import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import { useFoldSpreadView } from './useFoldSpreadView';
-import { presentDiagramFoldStep } from './foldStepActions';
+import { setDiagramFoldPresentation } from './foldStepActions';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
-import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import { type FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -52,7 +53,8 @@ export interface DiagramFoldStepPose {
   registerLiveView: (view: SimulatorViewHandle) => () => void;
   connected: ConnectedSpreadView | null;
   connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
-  setPresentation: (kind: SpreadPresentation['kind']) => void;
+  setPresentation: (kind: SpreadPresentation['kind']) => Promise<void>;
+  presentationHeld: boolean;
   onCamera: (camera: FoldedFigureCamera) => void;
   onReveal: (reveal: [number, number]) => void;
   /** Spread Layers, the pose verb: absent unless the step shows a flat fold. */
@@ -82,10 +84,9 @@ interface FoldSpreadDrag {
 
 let drag: FoldSpreadDrag | null = null;
 const listeners = new Set<() => void>();
+let endSession: (() => void) | null = null;
 /** What each step's picture is drawn from, by {@link pictureKey}: read once a drag starts. */
 const inputs = new Map<string, FoldStepCaptureInput | 'reading'>();
-/** The captures a drag's ends asked for, one after another, so none is refused as busy. */
-let committing: Promise<unknown> = Promise.resolve();
 
 function publish(next: FoldSpreadDrag | null): void {
   drag = next;
@@ -94,7 +95,15 @@ function publish(next: FoldSpreadDrag | null): void {
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  endSession ??= registerCanvasSessionEnder(() => publish(null));
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      endSession?.();
+      endSession = null;
+      drag = null;
+    }
+  };
 }
 
 /** Which picture a Fold step shows: its state and moment — and a run's last step — which a pose leaves as they are. */
@@ -130,13 +139,10 @@ function commitDrag(key: string, stepId: string): void {
   const ended = drag?.key === key ? drag : null;
   if (!ended) return;
   const edits = [...ended.slides.values()];
-  committing = committing
-    .then(async () => {
-      for (const edit of edits) await spreadDiagramFoldStep(stepId, edit);
-    })
-    .finally(() => {
-      if (drag === ended) publish(null);
-    });
+  // Enqueue now, so document/history guards refer to the gesture's document.
+  void Promise.all(edits.map((edit) => spreadDiagramFoldStep(stepId, edit))).finally(() => {
+    if (drag === ended) publish(null);
+  });
 }
 
 /** How many steps' pictures are kept to draw drags from: the few a session poses. */
@@ -273,21 +279,19 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
   const setPresentation = useCallback(
     (kind: SpreadPresentation['kind']) => {
       cancelCamera();
-      if (stepId && !readOnly && !unknownMarks)
-        void presentDiagramFoldStep(stepId, {
-          kind,
-          camera: flat?.presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA,
-          orderSide: flat?.presentation?.orderSide ?? 'front',
-        });
+      if (!stepId || readOnly || unknownMarks) return Promise.resolve();
+      return setDiagramFoldPresentation(stepId, kind);
     },
-    [stepId, readOnly, unknownMarks, flat?.presentation, cancelCamera],
+    [stepId, readOnly, unknownMarks, cancelCamera],
   );
   const { onCamera, registerLiveView, actions: perspectiveActions } = camera;
   const onReveal = useCallback(
     (reveal: [number, number]) => {
-      if (stepId && !readOnly && !unknownMarks) void spreadDiagramFoldStep(stepId, { verb: 'spread-reveal', reveal });
+      if (!spread || !spread.start()) return;
+      spread.previewReveal(reveal);
+      spread.commit();
     },
-    [stepId, readOnly, unknownMarks],
+    [spread],
   );
   const connectedSpread =
     ours?.spread.kind === 'connected' ? ours.spread : flat?.spread?.kind === 'connected' ? flat.spread : null;
@@ -308,6 +312,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
             connected,
             connectedSpread,
             setPresentation,
+            presentationHeld: readOnly || unknownMarks,
             onCamera,
             onReveal,
             spreadToggle,

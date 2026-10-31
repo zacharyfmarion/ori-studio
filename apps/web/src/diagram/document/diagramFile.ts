@@ -855,7 +855,7 @@ const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<str
 };
 /** The fields each kind of picture is written with, as {@link SOURCE_KEYS} are a source's. */
 const PICTURE_KEYS: Readonly<Record<DiagramPicture['kind'], ReadonlySet<string>>> = {
-  asset: new Set(['kind', 'assetId', 'paperScale', 'styleKey', 'key']),
+  asset: new Set(['kind', 'assetId', 'paperScale', 'styleKey', 'key', 'sceneFrame']),
   scene: new Set(['kind', 'sceneJson', 'paperScale', 'styleKey', 'key', 'paperFaces']),
   fixed: new Set(['kind', 'svg', 'widthPx', 'heightPx', 'key']),
   'step-diagram': new Set(['kind', 'model', 'mirrored', 'key']),
@@ -1622,7 +1622,16 @@ function readPictureOfKind(
       const assetId = value.assetId;
       if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
       const styleKey = typeof value.styleKey === 'string' && value.styleKey.length <= 512 ? value.styleKey : null;
-      return { kind: 'asset', assetId, paperScale, ...(styleKey === null ? {} : { styleKey }), key };
+      const frame = value.sceneFrame;
+      if (frame !== undefined && (
+        !Array.isArray(frame) || frame.length !== 4 ||
+        !frame.every((n) => typeof n === 'number' && Number.isFinite(n)) ||
+        !(frame[2] > 0) || !(frame[3] > 0)
+      )) return null;
+      return {
+        kind: 'asset', assetId, paperScale, ...(styleKey === null ? {} : { styleKey }), key,
+        ...(frame === undefined ? {} : { sceneFrame: frame as [number, number, number, number] }),
+      };
     }
     case 'scene': {
       const read = readSceneJson(value.sceneJson);

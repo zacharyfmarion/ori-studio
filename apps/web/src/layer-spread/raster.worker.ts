@@ -33,7 +33,8 @@ self.onmessage = async ({ data }: MessageEvent<{ scene: ConnectedPaperScene; sty
       widthPx: 300 / 72,
     });
     const png = await (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer();
-    self.postMessage({ kind: 'png', png, width, height, scale }, [png]);
+    const sceneFrame = [b.minX - pad / scale, b.minY - pad / scale, width / scale, height / scale];
+    self.postMessage({ kind: 'png', png, width, height, scale, sceneFrame }, [png]);
   } catch (error) {
     self.postMessage({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
   } finally {

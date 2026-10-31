@@ -8,9 +8,10 @@ The accepted behavior is **Normalized 50 heights, a reference plane fitted to
 the whole visible surface, and layer-order correction**. It is not the earlier
 single-face anchor or the rejected experiment that pinned all visible faces.
 
-Requested and approved on 2026-10-30. Implementation is in progress on
-`codex/connected-layer-spread`; defaults remain unchanged until the integration
-gates below pass.
+Requested and approved on 2026-10-30. Implemented on
+`codex/connected-layer-spread` in draft PR #563. Defaults and accepted follow-up
+controls are integrated; the production self-review below records further fixes
+and remaining validation limits.
 
 | Surface | Presentation | Interaction |
 | --- | --- | --- |
@@ -340,8 +341,8 @@ Compatibility must distinguish absent legacy fields from new defaults:
   so a future application default cannot alter a saved sequence.
 - New Diagram flat poses start connected. Existing affine/depth pictures and
   existing unspread pictures keep their saved recipe and appearance. No silent
-  conversion on open, refresh or style changes. Offer an explicit undoable
-  “Use new spread” conversion when editing a legacy spread; the new presentation
+  conversion on open, refresh or style changes. Offer **Default / Affine / Depth** as normal undoable choices, with the saved
+  kind selected (accepted follow-up replaces the original upgrade button). The presentation
   chooser offers Diagram / Perspective 3D, not the research alternatives.
 - Fold-to-Diagram capture takes the effective Fold spread and initially uses
   Diagram presentation. The Diagram can then choose Perspective 3D without
@@ -363,8 +364,9 @@ rather than redrawing it differently.
 control, with direct dragging on the model while the reveal tool is active.
 The drag moves the reveal vector; it never tilts the camera. Retain ordinary
 2D in-plane rotation, front/back, fit and viewport zoom. Fit changes framing,
-not reveal or amount. Clear reveal zeros the vector; zero amount gives the
-exact flat drawing. Escape restores the gesture's initial value. Provide
+not reveal or amount. The draggable reveal pad excludes a 5% center dead zone on new edits;
+its reset restores the default direction. Existing saved zero reveals remain
+unchanged. Zero amount gives the exact flat drawing. Escape restores the gesture's initial value. Provide
 keyboard/numeric alternatives through the shortcut registry and shared controls.
 
 **Fold tool arbitration:** do not replace the Fold workspace's normal pointer
@@ -649,8 +651,9 @@ new input invalidates older captures before they can commit.
 The resting vector view uses `stepPictureUrl`, the same scene/pens used by Pages,
 positioned in the live viewport using cached bounds and print margins. Camera
 zoom and position therefore survive the transition; annotations remain ghosted
-on the existing overlay. Captures already stored as bitmaps retain the normal
-image-fit fallback. Image decoding is asynchronous, and an unavailable image
+on the existing overlay. Newly captured bitmaps also retain the scene frame
+(added during the production audit below); older bitmaps without it retain the
+normal image-fit fallback until recaptured. Image decoding is asynchronous, and an unavailable image
 leaves the live view visible. No additional solver or clipping worker is started.
 
 Both CP-linked and Fold-derived camera captures carry an ephemeral validity
@@ -718,3 +721,73 @@ read optimization, 15 targeted control, linked-Pose and Fold/WASM integration
 checks passed. The full run also had one expected failure and 21 skips. No
 solver, worker entry points, file readers, bundling or native shell behavior
 changed, so Rust/oracle/Tauri and production-build checks were not repeated.
+
+
+## Production self-review (2026-10-30)
+
+The earlier checklist covered the original integration, not every interaction
+with a slow in-flight capture. This audit follows the reported disabled
+Presentation control and checks both linked source types.
+
+- [x] Presentation can be selected during capture, with pending feedback; newest choice wins.
+- [x] Canvas and inspector reveal edits queue without dropping values; one gesture, one undo.
+- [x] Queued edits cannot survive Undo, document replacement, read-only changes or step removal.
+- [x] Review preview/final picture alignment, worker failures and bounded resource lifetimes.
+- [x] Reconcile the plan with accepted follow-ups and review persistence/default/camera coverage.
+- [x] Run focused regressions, full web checks, package tests and production build.
+- [ ] Verify Diagram/Perspective switching, orbit, idle render and Pages in Chrome Canary.
+
+### Findings and fixes
+
+The Perspective implementation existed, but both source types disabled its
+selector while a final capture ran. Large captures made it appear unavailable.
+The selector now stays enabled and displays the requested mode immediately;
+a shared per-step queue waits for capture ownership, keeps the newest pending
+value for each field, and prevents superseded captures from committing. Fold
+camera captures use that queue too; presentation changes invalidate old orbits.
+Canvas reveal gestures now use the same preview/commit path as their inspector.
+
+Undo and document replacement cancel queued requests and held reveal gestures.
+The queue also checks document identity, step existence and read-only status
+before work and commit, removes its subscriptions after draining, and recovers
+from rejected requests. Fold previews clear on history changes, so releasing a
+pointer after Undo cannot restore an abandoned gesture.
+
+Raster fallback was missing the geometry frame required to align its final
+image with the live camera. New connected raster pictures save a small optional
+scene-frame tuple, including the capture margin and rounded pixel extent.
+Pose uses it to preserve framing and ghost-annotation placement. The reader
+validates this metadata; existing files without it still load unchanged. A
+graphics worker that stops replying now terminates after ten seconds, exposes
+the existing fallback, and closes late bitmaps rather than painting them.
+
+The bounded solve cache, request leases, worker cancellation, saved spread
+compatibility and camera persistence remain shared between Fold and Diagram.
+No additional solver or duplicate final capture was introduced for idle display.
+
+### Audit validation
+
+- Full web suite: 1,274 passing files, 16,219 passing tests, one expected failure
+  and 21 skips. Final targeted regressions cover queue cancellation/coalescing,
+  busy selectors, held gestures across Undo, real Fold/WASM presentation and
+  history, raster framing/file round-trips and stalled workers. The final three
+  UI/WASM suites passed all 45 tests. The first Fold integration test's cold
+  module loading was moved to fixture setup after intermittent five-second
+  timeouts; its capture behavior and timeout are unchanged.
+- Lint, TypeScript, all nine locale checks and diff checks passed. Shared
+  package tests (11) and solver/bridge Rust tests (5) passed. The normal
+  production build rebuilt the WASM outputs and completed landing prerender;
+  the final frontend bundle and explicit prerender passed again after the last
+  hook change.
+- In-app Chromium: saved Affine selection; conversion to Default; both
+  presentation choices; Perspective camera toolbar; camera retained after
+  Done/reopen; return to Diagram; idle final image; matching saved artwork in
+  Pages. Local screenshot: `/tmp/ori-spread-review-perspective.png`.
+- Chrome Canary is blocked by the locked Mac; automatic unlock failed and the
+  user was asked to unlock it. The prior Canary/Bodo checks above do not certify
+  this audit's fixes. Native pointer orbit/touch and current Canary checks remain
+  outstanding. No private source file was saved or committed.
+
+This audit changes shared frontend scheduling, presentation, and optional
+capture metadata. It does not change the native shell or upstream folding
+semantics; interactive Tauri and upstream oracle runs were not repeated.

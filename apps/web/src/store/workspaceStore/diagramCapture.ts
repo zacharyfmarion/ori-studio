@@ -55,7 +55,7 @@ import type { FoldDocument } from '../../engine/types';
 import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
 import { paperPngSize, paperSvgToPng } from '../../lib/paper/paperPng';
 import type { PaperPage } from '../../lib/paper/paperPage';
-import { pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
+import { pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import { buildSegmentSimulationFold, resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
 import type { ProjectDocumentCommit } from './projectDocumentHistory';
@@ -438,13 +438,18 @@ export async function keptPicture(
   style: DiagramStyle
 ): Promise<{ picture: DiagramPicture; asset?: KnownDiagramAsset }> {
   if (captured.kind === 'picture') return { picture: captured.picture };
-  if(hasConnectedDrawing(captured.scene)) {
-    const raster=await rasterConnected(captured.scene,diagramScenePaintStyle(style,false),CAPTURE_RASTER_BOX_MM);
-    const src=`data:image/png;base64,${bytesToBase64(new Uint8Array(raster.png))}`;
-    const id=`asset-raster-${digest(src)}`;
-    return {picture:{kind:'asset',assetId:id,paperScale:captured.paperScale===null?null:captured.paperScale*raster.scale,
-      styleKey:diagramStyleKey(style),key:`raster-${id}`},
-      asset:{id,kind:'raster',src,widthPx:raster.width,heightPx:raster.height,bytes:src.length}};
+  if (hasConnectedDrawing(captured.scene)) {
+    const raster = await rasterConnected(captured.scene, diagramScenePaintStyle(style, false), CAPTURE_RASTER_BOX_MM);
+    const src = `data:image/png;base64,${bytesToBase64(new Uint8Array(raster.png))}`;
+    const id = `asset-raster-${digest(src)}`;
+    return {
+      picture: {
+        kind: 'asset', assetId: id,
+        paperScale: captured.paperScale === null ? null : captured.paperScale * raster.scale,
+        styleKey: diagramStyleKey(style), key: `raster-${id}`, sceneFrame: raster.sceneFrame,
+      },
+      asset: { id, kind: 'raster', src, widthPx: raster.width, heightPx: raster.height, bytes: src.length },
+    };
   }
   const pagePaper: PaperPage = {
     sheet: { mm: CAPTURE_RASTER_BOX_MM },
@@ -464,8 +469,16 @@ export async function keptPicture(
   // The bitmap's own px per pattern unit: the scene's, through the page's scale.
   const pxPerScenePx = (pagePtPerPx(captured.scene, pagePaper, measure) * CAPTURE_RASTER_DPI) / 72;
   const paperScale = captured.paperScale === null ? null : captured.paperScale * pxPerScenePx;
+  const margin = pageMarginPt(diagramScenePaintStyle(style, pattern), pagePaper) * CAPTURE_RASTER_DPI / 72 / pxPerScenePx;
+  const sceneFrame: [number, number, number, number] = [
+    captured.scene.bounds.minX - margin, captured.scene.bounds.minY - margin,
+    width / pxPerScenePx, height / pxPerScenePx,
+  ];
   return {
-    picture: { kind: 'asset', assetId: id, paperScale, styleKey: diagramStyleKey(style), key: `raster-${id}` },
+    picture: {
+      kind: 'asset', assetId: id, paperScale, styleKey: diagramStyleKey(style), key: `raster-${id}`,
+      ...(render.mode === 'folded-flat' && render.spread?.kind === 'connected' ? { sceneFrame } : {}),
+    },
     asset: { id, kind: 'raster', src, widthPx: width, heightPx: height, bytes: src.length },
   };
 }

@@ -688,6 +688,9 @@ export type DiagramStepSource =
  */
 export interface DiagramAssetPicture {
   kind: 'asset';
+  /** Captured image rectangle in scene coordinates: x, y, width, height.
+   * Retains the live camera framing when a large capture falls back to raster. */
+  sceneFrame?: [number, number, number, number];
   assetId: string;
   /**
    * Picture px per crease-pattern unit, for a capture kept as a bitmap, for

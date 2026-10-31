@@ -1,3 +1,5 @@
+import { endOpenCanvasSessions } from '../../cp-workspace/canvasObjects/canvasSessions';
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -493,7 +495,7 @@ describe('DiagramStepPanel', () => {
         publishOpenLinkedPose('step-f', {
           actions,
           layerOrder: { count: '2 of 2+', label: 'Layer order 2 of 2+' },
-          spatial: null, connected: null, connectedSpread: null, setPresentation: () => {}, onReveal: () => {},
+          spatial: null, connected: null, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
           onCamera: () => {},
           registerLiveView: () => () => {},
           rotateTo,
@@ -540,13 +542,13 @@ describe('DiagramStepPanel', () => {
       const verbs = { pose: vi.fn(), kind: vi.fn(), direction: vi.fn(), keep: vi.fn(), preview: vi.fn(), commit: vi.fn() };
       const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
         fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as never;
-      const publish = (render: DiagramCpRender) => {
-        const poseState = { render, readOnly: false, busy: false, solutions: { discovered: 1, hasNext: false } };
+      const publish = (render: DiagramCpRender, busy = false) => {
+        const poseState = { render, readOnly: false, busy, solutions: { discovered: 1, hasNext: false } };
         const controls = buildDiagramSpreadControls(poseState, null, { t, ...verbs });
         publishOpenLinkedPose('step-f', {
           actions: buildDiagramLinkedPoseActions(poseState, { t, pose: verbs.pose }),
           layerOrder: null,
-          spatial: null, connected: null, connectedSpread: null, setPresentation: () => {}, onReveal: () => {},
+          spatial: null, connected: null, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
           onCamera: () => {},
           registerLiveView: () => () => {},
           rotateTo: () => {},
@@ -569,6 +571,56 @@ describe('DiagramStepPanel', () => {
       const kinds = () => host!.querySelector('[role="group"][aria-label="Spread by"]');
       return { verbs, publish, flat, slider, kinds };
     }
+
+    it('keeps both presentations available while a CP capture runs', () => {
+      const { publish, flat } = spreadPane();
+      const render = { ...flat, spread: DEFAULT_CONNECTED_SPREAD };
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram(), steps: [cpStep('step-f', render)] },
+          diagramCaptures: { 'step-f': { runId: null } } });
+        publish(render, true);
+      });
+      const select = host!.querySelector<HTMLButtonElement>('[role="combobox"][aria-label="Presentation"]')!;
+      expect(select).not.toBeNull();
+      expect(select.disabled).toBe(false);
+      act(() => select.click());
+      expect([...document.querySelectorAll('[role="option"]')].map((el) => el.textContent)).toEqual(['Diagram', 'Perspective 3D']);
+    });
+
+    it('keeps Presentation available while a Fold-derived capture runs', () => {
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram(), steps: [foldStepStep('step-k', { render: {
+          mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1, spread: DEFAULT_CONNECTED_SPREAD,
+        } })] }, diagramCaptures: { 'step-k': { runId: null } } });
+        state().openDiagramStep('step-k');
+      });
+      const select = host!.querySelector<HTMLButtonElement>('[role="combobox"][aria-label="Presentation"]')!;
+      expect(select).not.toBeNull();
+      expect(select.disabled).toBe(false);
+    });
+
+    it('drops a Fold-derived reveal preview when history moves mid-drag', () => {
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram(), steps: [foldStepStep('step-k', { render: {
+          mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1, spread: DEFAULT_CONNECTED_SPREAD,
+        } })] } });
+        state().openDiagramStep('step-k');
+      });
+      const pad = host!.querySelector<HTMLButtonElement>('[role="slider"][aria-label="Layer reveal"]')!;
+      pad.setPointerCapture = vi.fn();
+      pad.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+      const pointer = (type: string) => {
+        const event = new MouseEvent(type, { bubbles: true, clientX: 92, clientY: 50, button: 0 });
+        Object.defineProperty(event, 'pointerId', { value: 1 });
+        act(() => pad.dispatchEvent(event));
+      };
+      pointer('pointerdown');
+      expect(pad.getAttribute('aria-valuenow')).toBe('100');
+      act(() => endOpenCanvasSessions('history'));
+      expect(pad.getAttribute('aria-valuenow')).toBe('50');
+      pointer('pointerup');
+      expect(foldPose.spread).not.toHaveBeenCalled();
+    });
 
     it('spreads a flat fold’s layers from the pane: on, by depth, how far as a percentage, and which way (Phase 13)', () => {
       const { verbs, publish, flat, slider, kinds } = spreadPane();

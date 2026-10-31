@@ -81,7 +81,7 @@ export function DiagramSpreadView({
     [paper],
   );
   useEffect(() => {
-    setReveal(spread.reveal);
+    if (!drag.current) setReveal(spread.reveal);
   }, [spread.reveal]);
   useEffect(() => {
     const camera = presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA;
@@ -199,7 +199,7 @@ export function DiagramSpreadView({
       onPointerDownCapture={(event) => settled.down(event.pointerId)}
       onPointerUpCapture={(event) => settled.up(event.pointerId)}
       onPointerCancelCapture={(event) => settled.up(event.pointerId)}
-      onLostPointerCapture={(event) => settled.up(event.pointerId)}
+      onLostPointerCapture={(event) => { settled.up(event.pointerId); end(event); }}
       onWheelCapture={settled.wake}
       onPointerDown={down}
       onPointerMove={move}
@@ -216,7 +216,7 @@ export function DiagramSpreadView({
         cameraReadout={spatial}
         yaw={degrees.yaw}
         pitch={degrees.pitch}
-        ghost={(!settled.url || picture.scene) && ghostMarkup ? { markup: ghostMarkup, ...size } : null}
+        ghost={(!settled.url || picture.scene || picture.sceneFrame) && ghostMarkup ? { markup: ghostMarkup, ...size } : null}
         hint={spatial ? undefined : t('panels:diagram.spread.revealHint', 'Drag to reveal layers · Scroll to zoom')}
       >
         {(canvasClassName) => (
