@@ -42,6 +42,18 @@ pub fn sample_turned_over(name: &str) -> State {
 }
 
 fn import_sample(name: &str, turned: bool) -> State {
+    let states = import_sample_with(name, turned, &[]);
+    assert_eq!(states.len(), 1, "{name}: not one order");
+    states.into_iter().next().unwrap_or_else(|| unreachable!())
+}
+
+/// [`sample`] with `extra` creases (sheet segments, the sample's frame)
+/// folded too: every order the pattern allows.
+pub fn sample_with(name: &str, extra: &[ImportSegment]) -> Vec<State> {
+    import_sample_with(name, false, extra)
+}
+
+fn import_sample_with(name: &str, turned: bool, extra: &[ImportSegment]) -> Vec<State> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/fold-samples")
         .join(format!("{name}.fold"));
@@ -86,6 +98,7 @@ fn import_sample(name: &str, turned: bool) -> State {
                 kind,
             }
         })
+        .chain(extra.iter().cloned())
         .collect();
     let pattern = ImportedPattern::new(
         &CreasePatternInput {
@@ -104,13 +117,28 @@ fn import_sample(name: &str, turned: bool) -> State {
     let completions = pattern
         .complete(&CompletionLimits::default())
         .unwrap_or_else(|e| panic!("{name}: {e}"));
-    assert!(completions.is_unique(), "{name}: {:?}", completions.count());
-    let order = completions
-        .order(&vec![0; completions.components().len()])
-        .unwrap_or_default();
-    pattern
-        .state(order)
-        .unwrap_or_else(|e| panic!("{name}: {e}"))
+    let mut picks: Vec<Vec<usize>> = vec![Vec::new()];
+    for component in completions.components() {
+        picks = picks
+            .into_iter()
+            .flat_map(|pick| {
+                (0..component.orders.len()).map(move |k| {
+                    let mut next = pick.clone();
+                    next.push(k);
+                    next
+                })
+            })
+            .collect();
+    }
+    picks
+        .iter()
+        .map(|pick| {
+            let order = completions.order(pick).unwrap_or_default();
+            pattern
+                .state(order)
+                .unwrap_or_else(|e| panic!("{name}: {e}"))
+        })
+        .collect()
 }
 
 pub fn preliminary() -> State {

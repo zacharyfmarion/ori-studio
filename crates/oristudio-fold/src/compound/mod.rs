@@ -434,9 +434,10 @@ impl Prepared {
 /// A moving face placed directly against the nearest of some faces that
 /// stay, on one side of it (step 7). Nothing lies between them, so every
 /// other face that stays and overlaps both lies on the same side of the
-/// moving face as of that one. A sink anchors each tip face this way: one
-/// anchor per block leaves pairs open (research §5.4, 16 on the preliminary
-/// base).
+/// moving face as of that one — but for staying paper inside an open sink's
+/// pocket, which [`Prepared::anchor_in_pockets`] may leave to the
+/// completion. A sink anchors each tip face this way: one anchor per block
+/// leaves pairs open (research §5.4, 16 on the preliminary base).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Anchor {
     /// Landed positions: the moving face, and the faces that stay it may
@@ -459,6 +460,41 @@ impl Prepared {
     /// the faces that stay is the carried one: exactly their pairs that
     /// overlap once landed.
     pub(crate) fn anchor(&mut self, anchors: &[Anchor]) {
+        let (seeds, _) = self.anchor_seeds(anchors, None);
+        self.fixed.extend(seeds);
+    }
+
+    /// Seed an open sink's `anchors`, whose point layers' staying paper
+    /// `layers` marks (per landed face position): the pockets lie between
+    /// them. Each tip face lies directly against its piece where some order
+    /// allows that, as [`Prepared::anchor`] places it. Where staying paper
+    /// lies inside its pocket — unmarked, past the piece, short of the next
+    /// marked face: a flap folded into the pocket before the sink — and no
+    /// order puts every tip face directly on its piece, the tip faces lie in
+    /// their pockets instead: past their pieces and short of the next layer,
+    /// and the completion places them among that paper, where the tip may
+    /// ride over it.
+    pub(crate) fn anchor_in_pockets(
+        &mut self,
+        anchors: &[Anchor],
+        layers: &[bool],
+        limits: &CompletionLimits,
+    ) {
+        let (strict, _) = self.anchor_seeds(anchors, None);
+        let (relaxed, pocket) = self.anchor_seeds(anchors, Some(layers));
+        let relax = pocket
+            && match self.complete(&strict, &first(limits)) {
+                Ok(_) | Err(CompletionRefusal::BudgetExceeded { .. }) => false,
+                Err(_) => true,
+            };
+        self.fixed.extend(if relax { relaxed } else { strict });
+    }
+
+    /// The seeds [`Prepared::anchor`] and [`Prepared::anchor_in_pockets`]
+    /// add, and whether any staying paper was left inside a pocket: with
+    /// `layers`, the order of a tip face against such paper is not copied
+    /// from the face it lies against.
+    fn anchor_seeds(&self, anchors: &[Anchor], layers: Option<&[bool]>) -> (Vec<FixedPair>, bool) {
         let ids: Vec<FaceId> = self.unordered.parts().faces.iter().map(|f| f.id).collect();
         let problem = self.unordered.problem();
         let stays = |a: usize| self.block_of.get(a).is_some_and(Option::is_none);
@@ -491,6 +527,7 @@ impl Prepared {
                 });
             }
         };
+        let mut left = false;
         for anchor in anchors {
             let t = ids[anchor.face];
             let near: Vec<usize> = anchor
@@ -500,21 +537,45 @@ impl Prepared {
                 .filter(|&s| stays(s) && problem.is_variable(t, ids[s]))
                 .collect();
             // Not one with another candidate between it and the moving face.
-            let nearest = near.iter().copied().filter(|&s| {
-                !near
-                    .iter()
-                    .any(|&o| o != s && higher(o, s) == Some(anchor.above))
-            });
-            for s in nearest {
+            let nearest: Vec<usize> = near
+                .iter()
+                .copied()
+                .filter(|&s| {
+                    !near
+                        .iter()
+                        .any(|&o| o != s && higher(o, s) == Some(anchor.above))
+                })
+                .collect();
+            // The staying paper inside its pocket: past a face it lies
+            // against, with no marked face between. None unless `layers`
+            // bounds the pockets.
+            let mut pocket = vec![false; ids.len()];
+            if let Some(layers) = layers {
+                let marked = |x: usize| layers.get(x).copied().unwrap_or(false);
+                let bounds: Vec<usize> =
+                    (0..ids.len()).filter(|&p| marked(p) && stays(p)).collect();
+                let beyond = |a: usize, b: usize| higher(a, b) == Some(anchor.above);
+                for x in (0..ids.len()).filter(|&x| stays(x) && !marked(x)) {
+                    if !problem.is_variable(t, ids[x]) {
+                        continue;
+                    }
+                    pocket[x] = nearest.iter().any(|&s| {
+                        beyond(x, s) && !bounds.iter().any(|&p| beyond(p, s) && beyond(x, p))
+                    });
+                }
+            }
+            left |= pocket.contains(&true);
+            for &s in &nearest {
                 if anchor.above {
                     push(t, ids[s]);
                 } else {
                     push(ids[s], t);
                 }
-                // Nothing lies between the two, so what lies above the face
-                // it lies against lies above it, and what lies below, below.
+                // Nothing lies between the two (but the paper inside its
+                // pocket, where that is left), so what lies above the face it
+                // lies against lies above it, and what lies below, below.
                 for x in (0..ids.len()).filter(|&x| x != s && stays(x)) {
-                    if !problem.is_variable(t, ids[x]) {
+                    if !problem.is_variable(t, ids[x]) || pocket[x] {
                         continue;
                     }
                     match higher(s, x) {
@@ -525,7 +586,7 @@ impl Prepared {
                 }
             }
         }
-        self.fixed.extend(seeds);
+        (seeds, left)
     }
 }
 

@@ -39,10 +39,16 @@ found three gaps that a small, local change closes:
    needs the layer to crease twice and offers switching the Swivel tool to
    Valley and mountain, through the fix-verb mechanism the other vertex
    refusals use.
-3. In `compound/sink.rs`/`compound/mod.rs`, an open sink's anchor takes the
-   staying paper in its pocket over its piece: the tip face lies beyond it,
-   against the nearest, and the order the anchor copies onto the tip face is
-   that paper's, not the piece's, where it lies there.
+3. In `compound/sink.rs`/`compound/mod.rs`, the open sink keeps anchoring
+   each tip face directly on its piece whenever an order allows it, so no
+   landing it finds today changes. When staying paper lies inside a pocket
+   (unmarked paper past the piece, short of the next point layer's paper)
+   and that strict anchor leaves no order, each tip face is seeded only past
+   its piece and short of the next layer, and the completion places it among
+   that paper. Forcing every tip face past the pocket paper, as first
+   proposed, is wrong for the real case: one layer's tip rides over the flap
+   while the tip of the layer on the pocket's other side stays on its own
+   piece.
 
 ## Affected Areas
 
@@ -66,8 +72,9 @@ found three gaps that a small, local change closes:
       it lights `ends` + `corner`, the top layer's kite, which is what lifts;
       the second layer's kite is new optional analysis fields.
 - [ ] Swivel notice offers Valley and mountain; tests; i18n check.
-- [ ] Open sink anchor past staying paper in the pocket; synthetic
-      regression test; every existing sink test passes.
+- [x] Open sink anchor past staying paper in the pocket; synthetic
+      regression test (a hem folded into the preliminary base's front
+      pocket); every existing sink test and the sink/vertex oracles pass.
 - [ ] Acceptance on the study's cases (outside the repo), with before and
       after renders.
 - [ ] fmt, clippy, crate tests, wasm build, web tests near the change,
