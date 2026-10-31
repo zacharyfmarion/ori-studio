@@ -632,3 +632,45 @@ intersection guarantee.
 - [x] Complete final production build and source cleanup.
 - [x] Open [draft PR #563](https://github.com/zacharyfmarion/ori-studio/pull/563)
   and hand off the persistent local app at `http://localhost:5267/`.
+
+## Pose final rendering on idle
+
+Pose keeps the GPU preview during interaction, then displays the step's already
+captured final picture after 450 ms of rest. Reuse the Pages picture pipeline
+(including vector clipping, stroke styles and raster fallback), without another
+solve or capture. Keep the viewport mounted for immediate dragging and named
+views. Only show a loaded picture matching the current spread and camera;
+new input invalidates older captures before they can commit.
+
+- [x] Add idle/final presentation for connected Diagram poses.
+- [x] Guard camera capture commits against newer gestures.
+- [x] Verify interaction, stale results, final picture parity and browser behavior.
+
+The resting vector view uses `stepPictureUrl`, the same scene/pens used by Pages,
+positioned in the live viewport using cached bounds and print margins. Camera
+zoom and position therefore survive the transition; annotations remain ghosted
+on the existing overlay. Captures already stored as bitmaps retain the normal
+image-fit fallback. Image decoding is asynchronous, and an unavailable image
+leaves the live view visible. No additional solver or clipping worker is started.
+
+Both CP-linked and Fold-derived camera captures carry an ephemeral validity
+guard through the final commit, including asynchronous rasterization. New input
+invalidates a running capture and postpones the next until it rests; leaving
+Pose still explicitly flushes the newest camera. Duplicate camera notifications
+from resize/settings are ignored. Conversion from a legacy spread waits for its
+capture before preparing the live connected view.
+
+The follow-up changes shared frontend presentation/capture scheduling only.
+Rust/oracle/Tauri checks and a new production build are not repeated: no engine,
+native shell, worker entry point, routing or build configuration changed. The
+previous normal production build remains the baseline for those surfaces.
+
+Follow-up validation: full web suite passed with four workers (16,195 passing,
+one expected failure, 21 skipped), with 49 focused regression checks also
+passing after the final queue change. The initial default-concurrency run hit
+two 5-second WASM timeouts; both passed in isolation and in the full four-worker
+run. Web lint, TypeScript and diff checks passed. In-app Chromium verified
+legacy-to-connected conversion, head-on reveal, perspective orbit, reopening
+Pose, Pages parity and retained wheel zoom (the final image stayed enlarged
+from 306 to 628 CSS px across). The idle image marker was absent immediately
+after input and present after capture/rest, with the same viewport mounted.

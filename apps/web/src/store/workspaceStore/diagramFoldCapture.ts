@@ -31,6 +31,8 @@ import {
 export interface DiagramFoldCaptureRequest extends FoldStepCaptureRequest {
   /** The undo step's name. */
   label: string;
+  /** Whether this camera edit is still the newest pending view. */
+  current?: () => boolean;
   /** An undo entry to fold this capture into while it is still the newest (Refresh all's). */
   joinEntry?: object;
 }
@@ -63,6 +65,7 @@ export async function runDiagramFoldCapture(
 ): Promise<DiagramFoldCaptureOutcome> {
   const start = beginCaptureRun(store, stepId);
   if ('status' in start) return start;
+  start.guard.current = request.current;
   try {
     const fold = await loadFold();
     const result = await fold.captureFoldStep(session ?? fold.foldSession(), request, { t: i18n.t.bind(i18n) });

@@ -58,7 +58,7 @@ export function useFoldSpreadCamera(step: DiagramStep | null, live: boolean) {
         stored.render.mode === 'folded-flat' &&
         stored.render.presentation?.kind === 'perspective'
       ) {
-        await presentDiagramFoldStep(id, value);
+        await presentDiagramFoldStep(id, value, current);
       }
     });
   }, [id]);
@@ -75,10 +75,13 @@ export function useFoldSpreadCamera(step: DiagramStep | null, live: boolean) {
       if (
         !live ||
         blocked ||
-        flat?.presentation?.kind !== 'perspective' ||
-        sameCamera(camera, flat.presentation.camera)
+        flat?.presentation?.kind !== 'perspective'
       )
         return;
+      if (sameCamera(camera, flat.presentation.camera)) {
+        queue.cancel();
+        return;
+      }
       queue.offer(withSpreadCamera(flat.presentation, camera));
     },
     [live, blocked, flat, queue],

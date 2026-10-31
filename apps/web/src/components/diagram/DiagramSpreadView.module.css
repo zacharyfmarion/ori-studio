@@ -3,3 +3,19 @@
   inset: 0;
   touch-action: none;
 }
+
+.finalPicture {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-5) var(--space-5) 8px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.finalPicture[data-framed] {
+  inset: auto;
+  padding: 0;
+}

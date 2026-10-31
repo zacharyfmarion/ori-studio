@@ -47,7 +47,7 @@ const { useWorkspaceStore } = await import('../../store/workspaceStore/store');
 const { foldSessionDocumentSource } = await import('../../store/workspaceStore/foldSession');
 const { useLayoutStore } = await import('../../store/layoutStore');
 const { pullFromFold, sendFoldStepsToDiagram } = await import('./foldBrowserActions');
-const { openDiagramStepInFold, refreshDiagramFoldStep, spreadDiagramFoldStep } = await import('./foldStepActions');
+const { openDiagramStepInFold, refreshDiagramFoldStep, spreadDiagramFoldStep, presentDiagramFoldStep } = await import('./foldStepActions');
 const { foldLinkContextNow } = await import('./useFoldLinkContext');
 const { foldStepLinkStatus } = await import('./foldStepLink');
 
@@ -99,6 +99,22 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
   afterEach(() => {
     held.session?.dispose();
     held.session = null;
+  });
+
+  it('drops an obsolete camera capture without changing the Fold-derived step or history', async () => {
+    const [, second] = state().foldSequences[0]!.document.steps;
+    await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });
+    const before = onlyStep();
+    const history = state().diagramHistory;
+    let current = true;
+    const pending = presentDiagramFoldStep(before.id, {
+      kind: 'perspective', camera: { yaw: 0.4, pitch: -0.8, zoom: 1 }, orderSide: 'front',
+    }, () => current);
+    current = false;
+    expect(await pending).toBe(false);
+    expect(onlyStep()).toBe(before);
+    expect(state().diagramHistory).toBe(history);
+    expect(state().diagramCaptures).toEqual({});
   });
 
   it('draws a step sent from Fold on a page, turns it stale after an edit upstream, and refreshes it', async () => {

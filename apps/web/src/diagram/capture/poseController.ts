@@ -294,6 +294,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   let orbitTimer: ReturnType<typeof setTimeout> | null = null;
   let nextOrbit: {camera:FoldedFigureCamera;loadId:number} | null = null;
   let orbiting: Promise<void> | null = null;
+  let orbitGeneration = 0;
   /** The simulator's rests: the one being captured, and the newest waiting for it. */
   let simulating: Promise<void> | null = null;
   let nextRest: SimulatedRest | null = null;
@@ -382,11 +383,13 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     return { document, choice: { ...choice, creases } };
   };
 
-  const run = async (request: LinkedPoseRequest, options?: { tracked?: boolean }): Promise<void> => {
+  const run = async (request: LinkedPoseRequest, options?: { tracked?: boolean; current?: () => boolean }): Promise<void> => {
+    if (request.verb !== 'orbit') cancelOrbit();
     // Any other verb makes a picture the preview was not drawn over — a drag
     // that ended where it began commits nothing and would leave one up.
     if (!SLIDE_VERBS.has(request.verb)) endPreview();
     const outcome = await capturing(async (begun, linked): Promise<DiagramCaptureOutcome> => {
+      begun.guard.current = options?.current;
       // Shown another way since the simulator came to rest: an undo, or a verb.
       if (request.verb === 'simulate' && linked.render.mode !== 'simulated') return { status: 'discarded' };
       const { document, choice } = await creasesFor(begun, linked);
@@ -443,6 +446,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   };
 
   const cancelOrbit = () => {
+    orbitGeneration++;
     if (orbitTimer) clearTimeout(orbitTimer);
     orbitTimer = null;
     nextOrbit = null;
@@ -519,12 +523,14 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     orbiting??=(async()=>{
       await null;
       try {
-        while(nextOrbit) {
+        while(nextOrbit && !orbitTimer) {
           while(own)await own;
+          if (orbitTimer) break;
           const next=nextOrbit;nextOrbit=null;
           if(!next||disposed)break;
           if(next.loadId!==useWorkspaceStore.getState().diagramLoadId)continue;
-          await run({verb:'orbit',camera:next.camera});
+          const generation = orbitGeneration;
+          await run({verb:'orbit',camera:next.camera}, { current: () => generation === orbitGeneration && !disposed });
         }
       } finally {orbiting=null;}
     })();
@@ -613,6 +619,9 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     },
 
     async prepareConnected() {
+      // Switching from a legacy spread can still be committing its picture.
+      // Prepare the live view after that capture, instead of losing it as busy.
+      while (own) await own;
       await capturing(async (begun, linked) => {
         if (linked.render.mode !== 'folded-flat') return null;
         const {document, choice} = await creasesFor(begun, linked);

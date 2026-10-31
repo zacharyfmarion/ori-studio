@@ -13,7 +13,8 @@ describe('settled view captures', () => {
     await vi.runAllTimersAsync();
     expect(write).toHaveBeenCalledTimes(1);
   });
-  it('serializes a running capture with the latest pending view', async () => {
+  it('waits for the newest view to rest even when the previous capture finishes mid-gesture', async () => {
+    vi.useFakeTimers();
     let release!: () => void;
     const first = new Promise<void>((r) => {
       release = r;
@@ -30,6 +31,10 @@ describe('settled view captures', () => {
     task.offer(3);
     release();
     await done;
+    expect(seen).toEqual([1]);
+    await vi.advanceTimersByTimeAsync(449);
+    expect(seen).toEqual([1]);
+    await vi.advanceTimersByTimeAsync(1);
     expect(seen).toEqual([1, 3]);
     await task.flush();
   });
@@ -51,4 +56,23 @@ describe('settled view captures', () => {
     await done;
     expect(seen).toEqual([]);
   });
+  it('invalidates a running capture when a newer view is offered', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const committed: number[] = [];
+    const task = settledTask<number>(async (value, current) => {
+      if (value === 1) await gate;
+      if (current()) committed.push(value);
+    });
+    task.offer(1);
+    const done = task.flush();
+    await Promise.resolve();
+    task.offer(2);
+    release();
+    await done;
+    await task.flush();
+    expect(committed).toEqual([2]);
+    task.cancel();
+  });
+
 });

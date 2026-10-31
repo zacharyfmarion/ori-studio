@@ -1,3 +1,4 @@
+import { spreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
 import { sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
 import { DiagramSpreadView } from './DiagramSpreadView';
 import { useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react';
@@ -200,6 +201,9 @@ export function DiagramStepDetail({
   }, [step, annotations]);
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
   // Enlarged is not Pose's: Annotate's Step pane turns it on (Zach's review of #436, 2026-10-08).
+  const finalSpreadPicture = useMemo(() => spreadPosePicture(
+    connectedRender?.spread?.kind === 'connected' ? source : null, style, url),
+    [connectedRender?.spread?.kind, source, style, url]);
   const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
   // The bar under the picture: a linked step's verbs, with `transport` (the
@@ -365,8 +369,8 @@ export function DiagramStepDetail({
           />
         ) : url || linkedPose ? (
           <>
-            {connectedPose?.connected && connectedPose.connectedSpread && connectedRender ? (
-              <DiagramSpreadView view={connectedPose.connected} spread={connectedPose.connectedSpread}
+            {connectedPose?.connected && connectedPose.connectedSpread && connectedRender?.spread?.kind === 'connected' ? (
+              <DiagramSpreadView key={step.id} picture={finalSpreadPicture} capturedSpread={connectedRender.spread} view={connectedPose.connected} spread={connectedPose.connectedSpread}
                 presentation={connectedRender.presentation} rotationDeg={connectedRender.rotationDeg} style={style}
                 onCamera={connectedPose.onCamera} onReveal={connectedPose.onReveal}
                 ghost={sameSpread(connectedRender.spread ?? null, connectedPose.connectedSpread) ? ghost : null} registerLiveView={connectedPose.registerLiveView} readOnly={readOnly} fallback={url && picture} />

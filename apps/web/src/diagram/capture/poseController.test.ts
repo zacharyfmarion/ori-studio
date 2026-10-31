@@ -189,6 +189,31 @@ describe('the Pose controller', () => {
     }
   });
 
+  it('does not commit a slow orbit after a newer gesture, including a return to the saved view', async () => {
+    vi.useFakeTimers();
+    try {
+      const stepId = await linkedStep();
+      const controller = createPoseController(stepId, listener());
+      const commit = state().commitDiagramCapture;
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const commits = vi.fn(async (...args: Parameters<typeof commit>) => { await gate; return commit(...args); });
+      useWorkspaceStore.setState({ commitDiagramCapture: commits });
+      const saved = state().diagram;
+      const history = state().diagramHistory;
+      const stored = { yaw: 0, pitch: 0, zoom: 1 };
+      controller.orbit({ ...stored, yaw: 0.4 }, stored);
+      await vi.advanceTimersByTimeAsync(450);
+      expect(commits).toHaveBeenCalledOnce();
+      controller.orbit(stored, stored);
+      release();
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(state().diagram).toBe(saved);
+      expect(state().diagramHistory).toBe(history);
+      controller.dispose();
+    } finally { vi.useRealTimers(); }
+  });
+
   it('captures a rest of Pose’s simulator only when it is not the step’s picture already (D19)', async () => {
     const stepId = await linkedStep();
     const controller = createPoseController(stepId, listener());

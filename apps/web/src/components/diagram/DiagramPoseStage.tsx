@@ -35,6 +35,7 @@ export interface DiagramPoseGhost {
  */
 export function DiagramPoseStage({
   status,
+  finalPicture,
   hidden = false,
   ghost,
   yaw,
@@ -43,6 +44,8 @@ export function DiagramPoseStage({
   hint,
   cameraReadout = true,
 }: {
+  /** Final Pages rendering at rest; the live canvas and its controls stay mounted. */
+  finalPicture?: ReactNode;
   hint?: string;
   cameraReadout?: boolean;
   /** The view's own state, for the inspector (`data-status`). */
@@ -57,7 +60,8 @@ export function DiagramPoseStage({
 }) {
   const { t } = useTranslation();
   return (
-    <div className={styles.view} data-status={status} data-hidden={hidden || undefined}>
+    <div className={styles.view} data-status={status} data-hidden={hidden || undefined} data-final={!!finalPicture || undefined}>
+      {finalPicture}
       {children(styles.canvas)}
       {ghost && (
         <svg

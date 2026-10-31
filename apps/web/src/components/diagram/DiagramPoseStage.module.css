@@ -58,3 +58,8 @@
     display: none;
   }
 }
+
+/* A final picture replaces only the ink, never the viewport's input or cube. */
+.view[data-final] .canvas {
+  opacity: 0;
+}

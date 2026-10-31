@@ -60,7 +60,8 @@ async function captureAs(
   source: DiagramFoldStepSource,
   render: DiagramCpRender,
   label: string,
-  joinEntry?: object
+  joinEntry?: object,
+  current?: () => boolean
 ): Promise<DiagramFoldCaptureOutcome> {
   const { sequence, step, through, moment } = source;
   const outcome = await useWorkspaceStore.getState().captureDiagramFoldStep(stepId, {
@@ -71,6 +72,7 @@ async function captureAs(
     moment,
     render,
     label,
+    current,
     ...(joinEntry ? { joinEntry } : {}),
   });
   sayFoldCaptureOutcome(outcome);
@@ -209,10 +211,11 @@ async function poseAs(
   stepId: string,
   source: DiagramFoldStepSource,
   render: DiagramCpRender,
-  verb: LinkedPoseRequest['verb']
+  verb: LinkedPoseRequest['verb'],
+  current?: () => boolean
 ): Promise<boolean> {
   if (JSON.stringify(render) === JSON.stringify(source.render)) return true;
-  const outcome = await captureAs(stepId, source, render, 'Adjust pose');
+  const outcome = await captureAs(stepId, source, render, 'Adjust pose', undefined, current);
   if (outcome.status === 'captured' && outcome.changed) trackPose(verb, outcome.render);
   return outcome.status === 'captured';
 }
@@ -338,8 +341,8 @@ export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void 
 }
 
 /** View-only change: the Fold source remains a flat folded state. */
-export async function presentDiagramFoldStep(stepId: string, presentation: SpreadPresentation): Promise<boolean> {
+export async function presentDiagramFoldStep(stepId: string, presentation: SpreadPresentation, current?: () => boolean): Promise<boolean> {
   const source=foldSourceOf(stepId);
   if(!source || source.render.mode!=='folded-flat' || source.render.spread?.kind!=='connected')return false;
-  return poseAs(stepId,source,{...source.render,presentation},'spread-presentation');
+  return poseAs(stepId,source,{...source.render,presentation},'spread-presentation',current);
 }

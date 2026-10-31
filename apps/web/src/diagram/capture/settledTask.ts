@@ -5,13 +5,11 @@ export function settledTask<T>(write: (value: T, current: () => boolean) => Prom
   let pending: T | undefined;
   let running: Promise<void> | null = null;
   let generation = 0;
-  const flush = (): Promise<void> => {
-    if (timer) clearTimeout(timer);
-    timer = null;
+  const drain = (): Promise<void> => {
     running ??= (async () => {
       await null;
       try {
-        while (pending !== undefined) {
+        while (pending !== undefined && timer === null) {
           const value = pending,
             epoch = generation;
           pending = undefined;
@@ -25,11 +23,12 @@ export function settledTask<T>(write: (value: T, current: () => boolean) => Prom
   };
   return {
     offer(value: T) {
+      generation++;
       pending = value;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = null;
-        void flush();
+        void drain();
       }, delay);
     },
     cancel() {
@@ -38,6 +37,10 @@ export function settledTask<T>(write: (value: T, current: () => boolean) => Prom
       if (timer) clearTimeout(timer);
       timer = null;
     },
-    flush,
+    flush() {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      return drain();
+    },
   };
 }

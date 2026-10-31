@@ -141,6 +141,8 @@ export interface StepCaptureGuard {
   stepId: string;
   loadId: number;
   revision: number;
+  /** Transient view edits can be superseded before they reach the document. */
+  current?: () => boolean;
 }
 
 /** A step's capture, begun: what it captures from, and the guard its commit checks. */
@@ -245,11 +247,12 @@ export async function commitStepCapture(
   label: string,
   joinEntry?: object
 ): Promise<{ changed: boolean; tooDetailed: boolean; replaced?: number } | null> {
+  if (start.guard.current?.() === false) return null;
   const kept = await keptPicture(captured.picture, captured.source.render, start.style);
   const now = store.get();
   const { stepId, loadId, revision } = start.guard;
   const current = now.diagram ? stepById(now.diagram, stepId) : null;
-  if (now.diagramLoadId !== loadId || !current || current.revision !== revision) return null;
+  if (start.guard.current?.() === false || now.diagramLoadId !== loadId || !current || current.revision !== revision) return null;
   const join = joinEntry !== undefined && now.diagramHistory.past.at(-1) === joinEntry;
   // A step enlarged before it had a picture lands its frame on its first, or starts whole if that shows another
   // picture type than its run, in the same undo step (Revision 2; review fix 3).

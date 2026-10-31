@@ -1,3 +1,6 @@
+import { spreadPosePictureFrame, type SpreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
+import { sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
+import { useSettledPosePicture } from '../../diagram/capture/useSettledPosePicture';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { spreadFrame } from '../../layer-spread/spreadFrame';
@@ -24,11 +27,15 @@ import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
 import styles from './DiagramSpreadView.module.css';
 
+const ignoreRenderSettings = () => {};
+
 /** Fold and Diagram share the drawing pass. This host supplies Pose's existing
  * full-orbit controls only for the perspective presentation. */
 export function DiagramSpreadView({
   view,
   spread,
+  capturedSpread,
+  picture,
   presentation,
   rotationDeg,
   style,
@@ -41,6 +48,8 @@ export function DiagramSpreadView({
 }: {
   view: ConnectedSpreadView;
   spread: ConnectedSpread;
+  capturedSpread: ConnectedSpread;
+  picture: SpreadPosePicture;
   presentation?: SpreadPresentation;
   rotationDeg: number;
   style: DiagramStyle;
@@ -60,6 +69,7 @@ export function DiagramSpreadView({
   const [zoom, setZoom] = useState(1);
   const [orderSide, setOrderSide] = useState(presentation?.orderSide ?? 'front');
   const spatial = presentation?.kind === 'perspective';
+  const reportedCamera = useRef<FoldedFigureCamera | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; start: [number, number]; shown: [number, number] } | null>(
     null,
   );
@@ -100,7 +110,13 @@ export function DiagramSpreadView({
       if (spatial) {
         setOrbit(camera);
         setOrderSide((side) => spreadCameraSide(camera, side));
-        if (!readOnly) onCamera(withRollAbsorbed(camera));
+        const shown = withRollAbsorbed(camera);
+        // Resize/settings effects resend the same camera. They must not restart
+        // the idle capture or invalidate one just because its busy state changed.
+        if (!reportedCamera.current || !sameCamera(shown, reportedCamera.current)) {
+          reportedCamera.current = shown;
+          if (!readOnly) onCamera(shown);
+        }
       }
     },
     [spatial, onCamera, readOnly],
@@ -168,12 +184,24 @@ export function DiagramSpreadView({
       ghost.zoom,
     );
   }, [ghost, reveal, spread.reveal, spatial, orbit, presentation?.camera, view, rotationDeg, size, zoom, style]);
+  const pose = useMemo(() => ({ view, spread, reveal, orbit, orderSide, rotationDeg, spatial, zoom, size }),
+    [view, spread, reveal, orbit, orderSide, rotationDeg, spatial, zoom, size]);
+  const matchesCapture = sameSpread({ ...spread, reveal }, capturedSpread) &&
+    (!spatial || (sameCamera(withRollAbsorbed(orbit), presentation!.camera) && orderSide === presentation!.orderSide));
+  const settled = useSettledPosePicture(pose, matchesCapture ? picture.url : null);
+  const pictureFrame = useMemo(() => spreadPosePictureFrame(picture, view, style, rotationDeg, spatial, size, zoom),
+    [picture, view, style, rotationDeg, spatial, size, zoom]);
   const degrees = cameraDegrees(withRollAbsorbed(orbit));
   if (status === 'error') return <>{fallback}</>;
   return (
     <div
       className={styles.view}
       data-status={status}
+      onPointerDownCapture={(event) => settled.down(event.pointerId)}
+      onPointerUpCapture={(event) => settled.up(event.pointerId)}
+      onPointerCancelCapture={(event) => settled.up(event.pointerId)}
+      onLostPointerCapture={(event) => settled.up(event.pointerId)}
+      onWheelCapture={settled.wake}
       onPointerDown={down}
       onPointerMove={move}
       onPointerUp={end}
@@ -182,11 +210,14 @@ export function DiagramSpreadView({
       {status === 'preparing' && fallback}
       <DiagramPoseStage
         status={status}
+        finalPicture={settled.url && <img className={styles.finalPicture} src={settled.url} alt="" draggable={false}
+          style={pictureFrame ?? { transform: `scale(${spatial ? 1 : zoom})` }} data-framed={!!pictureFrame || undefined}
+          data-pose-final-picture="" />}
         hidden={status === 'preparing'}
         cameraReadout={spatial}
         yaw={degrees.yaw}
         pitch={degrees.pitch}
-        ghost={ghostMarkup ? { markup: ghostMarkup, ...size } : null}
+        ghost={(!settled.url || picture.scene) && ghostMarkup ? { markup: ghostMarkup, ...size } : null}
         hint={spatial ? undefined : t('panels:diagram.spread.revealHint', 'Drag to reveal layers · Scroll to zoom')}
       >
         {(canvasClassName) => (
@@ -201,7 +232,7 @@ export function DiagramSpreadView({
             viewCube={spatial}
             initialView={presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA}
             pushCamera={pushCamera}
-            pushRenderSettings={() => {}}
+            pushRenderSettings={ignoreRenderSettings}
             viewSettings={DEFAULT_SIMULATOR_SETTINGS}
             paperStyle={paper}
             renderSettings={settings}
