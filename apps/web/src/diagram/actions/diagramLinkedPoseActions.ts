@@ -320,7 +320,6 @@ export function buildDiagramSpreadControls(
     kind: (kind: SpreadKind) => void;
     direction: (toward: SpreadDirection) => void;
     keep: (keep: SpreadKeep) => void;
-    clearReveal?: () => void;
   }
 ): DiagramSpreadControls | null {
   const { t } = deps;

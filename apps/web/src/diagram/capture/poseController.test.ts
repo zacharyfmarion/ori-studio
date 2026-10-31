@@ -423,6 +423,26 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     });
   }
 
+  it('previews both reveal coordinates and commits one capture and undo per gesture', async () => {
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, DEFAULT_CONNECTED_SPREAD);
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    const before = state().diagramHistory.past.length;
+    controller.previewSpread({ slider: 'reveal', value: [1, 0.2] });
+    controller.previewSpread({ slider: 'reveal', value: [0.4, -0.8] });
+    expect(heard.preview).toHaveBeenLastCalledWith(expect.objectContaining({
+      spread: { ...DEFAULT_CONNECTED_SPREAD, reveal: [0.4, -0.8] },
+    }), expect.any(String));
+    expect(state().diagramHistory.past.length).toBe(before);
+    await controller.commitSpread();
+    expect(spreadOf(stepId)).toEqual({ ...DEFAULT_CONNECTED_SPREAD, reveal: [0.4, -0.8] });
+    expect(state().diagramHistory.past.length).toBe(before + 1);
+    state().undoDiagram();
+    expect(spreadOf(stepId)).toEqual(DEFAULT_CONNECTED_SPREAD);
+    controller.dispose();
+  });
+
   it('starts a new flat pose spread — the nearest step before’s, else connected — and turns it off and on, counted with how', async () => {
     const first = await linkedStep();
     const second = await linkedStep();

@@ -191,10 +191,10 @@ export function withSpreadField(spread: LayerSpreadOptions, edit: LayerSpreadEdi
       if (spread.kind !== 'connected') return spread;
       const reveal: [number, number] = [...spread.reveal];
       reveal[edit.axis] = edit.value;
-      return { ...spread, reveal: clampReveal(reveal) };
+      return { ...spread, reveal: clampReveal(reveal, spread.reveal) };
     }
     case 'spread-reveal':
-      return spread.kind === 'connected' ? { ...spread, reveal: clampReveal(edit.reveal) } : spread;
+      return spread.kind === 'connected' ? { ...spread, reveal: clampReveal(edit.reveal, spread.reveal) } : spread;
     case 'spread-amount':
       return edit.kind === undefined || edit.kind === spread.kind
         ? { ...spread, amount: clampSpreadAmount(spread.kind, edit.amount) }
@@ -284,9 +284,22 @@ export function writeLayerSpread(spread: LayerSpreadOptions): Record<string, unk
     : { kind: spread.kind, amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
 }
 
-/** Screen-space reveal, bounded independently of spread height. */
-export function clampReveal(value: readonly [number, number]): [number, number] {
+/** The reveal pad excludes the inner 5% of its radius, for user edits only. */
+export const REVEAL_RADIUS = { min: 0.1, max: 2 } as const;
+
+/** Screen-space reveal. Saved documents are read unchanged, including zero. */
+export function clampReveal(
+  value: readonly [number, number],
+  previous: readonly [number, number] = DEFAULT_CONNECTED_SPREAD.reveal,
+): [number, number] {
   if (!value.every(Number.isFinite)) return [...DEFAULT_CONNECTED_SPREAD.reveal];
-  const scale = Math.min(1, 2 / Math.max(1e-12, Math.hypot(...value)));
-  return value.map(v => Number((v * scale).toFixed(5))) as [number, number];
+  const radius = Math.hypot(...value);
+  if (radius < 1e-12) {
+    const direction = previous.every(Number.isFinite) && Math.hypot(...previous) > 1e-12
+      ? previous : DEFAULT_CONNECTED_SPREAD.reveal;
+    const scale = REVEAL_RADIUS.min / Math.hypot(...direction);
+    return [direction[0] * scale, direction[1] * scale];
+  }
+  const scale = Math.max(REVEAL_RADIUS.min, Math.min(REVEAL_RADIUS.max, radius)) / radius;
+  return [value[0] * scale, value[1] * scale];
 }

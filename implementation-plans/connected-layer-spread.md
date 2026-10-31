@@ -674,3 +674,47 @@ legacy-to-connected conversion, head-on reveal, perspective orbit, reopening
 Pose, Pages parity and retained wheel zoom (the final image stayed enlarged
 from 306 to 628 CSS px across). The idle image marker was absent immediately
 after input and present after capture/rest, with the same viewport mounted.
+
+## Spread selector and reveal pad
+
+Keep each saved spread selected and offer Default, Affine and Depth on every
+spread. Replace the reveal axis sliders with a themed circular pointer/keyboard
+control. Preview the vector atomically and commit once per gesture. Clamp user
+reveal edits to a 5% radial minimum (preserve direction at the center), while
+reading saved values unchanged. Show capture work explicitly and investigate
+legacy conversion on the external Bodo document.
+
+- [x] Restore all spread choices and preserve saved selection.
+- [x] Add shared radial control, vector preview and consistent center exclusion.
+- [x] Check Bodo conversion and live responsiveness.
+- [x] Validate gestures, saved compatibility, locales and browser appearance.
+
+Default is a normal selectable kind, not a conversion button, and Affine/Depth
+remain available afterward. File readers still preserve the saved kind and
+values. Reveal edits share one radial clamp across the inspector and both
+canvases; the center retains the previous direction at a 5% radius. Both
+coordinates preview together and commit in one capture/undo operation. The
+pad supports pointer capture, touch, arrow keys, Shift steps and reset. It
+replaces the zero-reveal action and the two axis sliders. Legacy snapshot reads
+are skipped for Default drags in Fold-derived Diagram poses.
+
+Chrome Canary opened the original external 433 MB Bodo OSF and selected step
+204 (the largest solve in the prior benchmark). Affine remained selected on
+open. Default completed successfully and mounted the live renderer without
+reopening Pose; the initial operation still takes seconds for the solve and
+final capture (the vector worker has a 12-second ceiling). This change adds an
+explicit Updating spread status rather than claiming to remove that upfront
+cost. Center click, keyboard edits and radial dragging continued to work during
+pending final captures. No changes were saved to the original OSF. The in-app
+browser separately verified the final Default label, switching back to Affine,
+switching back to Default and dragging the pad. Screenshot:
+`/tmp/ori-default-spread-control.png` (local validation artifact only).
+
+Validation: lint, TypeScript, all nine locale checks and diff checks passed.
+The full web run passed 16,201 tests and found one old two-option selector
+expectation. That expectation was updated for Default/Affine/Depth, with all
+94 tests in the five affected suites passing on rerun. After the final snapshot
+read optimization, 15 targeted control, linked-Pose and Fold/WASM integration
+checks passed. The full run also had one expected failure and 21 skips. No
+solver, worker entry points, file readers, bundling or native shell behavior
+changed, so Rust/oracle/Tauri and production-build checks were not repeated.

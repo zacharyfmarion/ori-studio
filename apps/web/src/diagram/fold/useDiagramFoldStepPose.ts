@@ -73,7 +73,7 @@ interface FoldSpreadDrag {
   /** Which picture the drag is of: a new capture of the step ends it. */
   key: string;
   /** Each slider dragged and where to, the newest last: the step's spread with each applied is what it shows. */
-  slides: Map<SpreadSlider, LayerSpreadEdit>;
+  slides: Map<SpreadSlider | 'reveal', LayerSpreadEdit>;
   /** The spread shown. */
   spread: LayerSpreadOptions;
   /** The picture drawn with it; null until what it is drawn from is read. */
@@ -222,7 +222,6 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
       kind: (kind) => void spreadDiagramFoldStep(stepId, { verb: 'spread-kind', kind }),
       direction: (toward) => void spreadDiagramFoldStep(stepId, { verb: 'spread-direction', toward }),
       keep: (keep) => void spreadDiagramFoldStep(stepId, { verb: 'spread-keep', keep }),
-      clearReveal: () => void spreadDiagramFoldStep(stepId, { verb: 'spread-reveal', reveal: [0, 0] }),
     });
     if (!controls) return null;
     const held = controls.disabled || unknownMarks;
@@ -231,18 +230,28 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
       ...(unknownMarks ? { disabled: true, hint: annotationsHint } : {}),
       start: () => {
         if (held) return false;
-        readInput(key, source, t);
+        // Default already has its prepared live renderer; only legacy previews need this snapshot.
+        if (controls.spread.kind !== 'connected') readInput(key, source, t);
         return true;
       },
       preview: (slider, value) => {
         const stored = source.render.mode === 'folded-flat' ? source.render.spread : undefined;
         if (held || !stored) return;
-        readInput(key, source, t);
+        if (stored.kind !== 'connected') readInput(key, source, t);
         const slides = new Map(drag?.key === key ? drag.slides : []);
         slides.delete(slider);
         slides.set(slider, spreadSliderEdit(slider, stored.kind, value));
         const shown = [...slides.values()].reduce(withSpreadField, stored);
         publish({ stepId, key, slides, spread: shown, picture: drawWith(key, source, shown) });
+      },
+      previewReveal: (reveal) => {
+        const stored = source.render.mode === 'folded-flat' ? source.render.spread : undefined;
+        if (held || stored?.kind !== 'connected') return;
+        const slides = new Map(drag?.key === key ? drag.slides : []);
+        slides.delete('reveal');
+        slides.set('reveal', { verb: 'spread-reveal', reveal });
+        const shown = [...slides.values()].reduce(withSpreadField, stored);
+        publish({ stepId, key, slides, spread: shown, picture: null });
       },
       commit: () => commitDrag(key, stepId),
     };

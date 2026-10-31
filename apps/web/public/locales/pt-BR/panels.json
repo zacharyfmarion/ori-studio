@@ -1543,8 +1543,6 @@
       "previousSolution": "Ordem de camadas anterior",
       "reset": "Redefinir pose",
       "resetHint": "Já está na pose inicial",
-      "revealHorizontal": "Revelar horizontalmente",
-      "revealVertical": "Revelar verticalmente",
       "rotateLeft": "Girar à esquerda",
       "rotateRight": "Girar à direita",
       "rotation": "Rotação",
@@ -1579,7 +1577,7 @@
       "spreadKeepTop": "Superior",
       "spreadKind": "Separar por",
       "spreadKindAffine": "Afim",
-      "spreadKindConnected": "Conectado",
+      "spreadKindConnected": "Padrão",
       "spreadKindDepth": "Profundidade",
       "spreadLayers": "Separar camadas",
       "spreadLayersRow": "Separar camadas",
@@ -1685,15 +1683,15 @@
       "withTurnOver": "Com a virada anterior"
     },
     "spread": {
-      "clearReveal": "Remover deslocamento",
       "diagram": "Diagrama",
       "drag": "Arraste para revelar as camadas",
+      "padHint": "Arraste para revelar as camadas. Ajuste com as setas; Shift aumenta o deslocamento.",
       "perspective": "Perspectiva 3D",
       "preparing": "Preparando separação…",
       "presentation": "Apresentação",
       "reveal": "Exibição de camadas",
       "revealHint": "Arraste para revelar as camadas · Role para ampliar",
-      "upgrade": "Usar nova separação"
+      "updating": "Atualizando afastamento…"
     },
     "stepPane": {
       "annotate": "Anotar",

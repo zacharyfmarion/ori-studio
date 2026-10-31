@@ -56,12 +56,12 @@ export interface LayerSpreadChoice<T extends string> {
 export interface LayerSpreadControls {
   /** The spread the picture shows — a drag's, while it is previewed. */
   spread: LayerSpreadOptions;
-  /** Clear the reveal in one document edit, keeping the height amount. */
-  clearReveal?: () => void;
+  /** A final picture is being captured; choices wait, live drags remain available. */
+  busy: boolean;
   /** Whether the spread can be changed, and if not, why. */
   disabled: boolean;
   hint?: string;
-  /** Depth or affine (13g). */
+  /** Default, Affine or Depth; every kind stays available after switching. */
   kinds: LayerSpreadChoice<SpreadKind>[];
   /** A depth spread's eight directions; none for an affine one. */
   directions: LayerSpreadChoice<SpreadDirection>[];
@@ -77,6 +77,8 @@ export interface LayerSpreadDrag extends LayerSpreadControls {
    * move of a drag, or a key.
    */
   preview: (slider: SpreadSlider, value: number) => void;
+  /** Preview both reveal coordinates together, with one capture on commit. */
+  previewReveal: (value: [number, number]) => void;
   /** Commit the slide previewed, as one undo step: the end of a drag, or a key. */
   commit: () => void;
   /** Whether a drag may start: not on a document that cannot change, nor a picture with no layers. */
@@ -97,7 +99,6 @@ export function layerSpreadControls(
     kind,
     direction,
     keep,
-    clearReveal,
   }: {
     hint: string | undefined;
     busy: boolean;
@@ -105,7 +106,6 @@ export function layerSpreadControls(
     kind: (kind: SpreadKind) => void;
     direction: (toward: SpreadDirection) => void;
     keep: (keep: SpreadKeep) => void;
-    clearReveal?: () => void;
   }
 ): LayerSpreadControls {
   const disabled = hint !== undefined;
@@ -123,10 +123,10 @@ export function layerSpreadControls(
   });
   return {
     spread,
-    clearReveal: clearReveal ? () => { if (!disabled && !waiting) clearReveal(); } : undefined,
+    busy,
     disabled,
     hint,
-    kinds: (spread.kind === 'connected' ? ['connected'] as const : SPREAD_KINDS).map((each) => choice(each, spreadKindLabel(each, t), each === spread.kind, kind)),
+    kinds: SPREAD_KINDS.map((each) => choice(each, spreadKindLabel(each, t), each === spread.kind, kind)),
     directions:
       spread.kind === 'depth'
         ? SPREAD_DIRECTIONS.map((toward) => choice(toward, spreadDirectionLabel(toward, t), toward === spread.toward, direction))
@@ -158,7 +158,7 @@ export function spreadSliderEdit(slider: SpreadSlider, kind: SpreadKind, value: 
 
 /** A kind's name, as its segment says it. */
 export function spreadKindLabel(kind: SpreadKind, t: TFunction): string {
-  if (kind === 'connected') return t('panels:diagram.pose.spreadKindConnected', 'Connected');
+  if (kind === 'connected') return t('panels:diagram.pose.spreadKindConnected', 'Default');
   return kind === 'depth'
     ? t('panels:diagram.pose.spreadKindDepth', 'Depth')
     : t('panels:diagram.pose.spreadKindAffine', 'Affine');

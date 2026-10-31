@@ -49,6 +49,7 @@ export interface DiagramLinkedSpread extends DiagramSpreadControls {
    * move of a drag, or a key.
    */
   preview: (slider: SpreadSlider, value: number) => void;
+  previewReveal: (value: [number, number]) => void;
   /** Commit the slide previewed, as one undo step: the end of a drag, or a key. */
   commit: () => void;
   /** Whether a drag may start: not on a diagram that cannot change, nor a picture with no layers. */
@@ -241,7 +242,6 @@ export function useDiagramLinkedPose(
       kind: (kind) => void controller.run({ verb: 'spread-kind', kind }),
       direction: (toward) => void controller.run({ verb: 'spread-direction', toward }),
       keep: (keep) => void controller.run({ verb: 'spread-keep', keep }),
-      clearReveal: () => void controller.run({ verb: 'spread-reveal', reveal: [0, 0] }),
     });
     if (!controls) return null;
     const kind = controls.spread.kind;
@@ -253,6 +253,7 @@ export function useDiagramLinkedPose(
             ? { slider, kind, value: clampSpreadAmount(kind, value) }
             : { slider, value: slider === 'skew' ? clampSpreadSkew(value) : slider === 'axis' ? clampSpreadAxis(value) : Math.max(-2,Math.min(2,value)) }
         ),
+      previewReveal: (value) => controller.previewSpread({ slider: 'reveal', value }),
       commit: () => void controller.commitSpread(),
       start: () => !controls.disabled,
     };

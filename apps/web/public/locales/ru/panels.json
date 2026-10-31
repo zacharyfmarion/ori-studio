@@ -1584,8 +1584,6 @@
       "previousSolution": "Предыдущий порядок слоёв",
       "reset": "Сбросить положение",
       "resetHint": "Уже в исходном положении",
-      "revealHorizontal": "Сдвиг по горизонтали",
-      "revealVertical": "Сдвиг по вертикали",
       "rotateLeft": "Повернуть влево",
       "rotateRight": "Повернуть вправо",
       "rotation": "Поворот",
@@ -1620,7 +1618,7 @@
       "spreadKeepTop": "Верхний",
       "spreadKind": "Способ",
       "spreadKindAffine": "Аффинно",
-      "spreadKindConnected": "Соединённые слои",
+      "spreadKindConnected": "По умолчанию",
       "spreadKindDepth": "По глубине",
       "spreadLayers": "Раздвинуть слои",
       "spreadLayersRow": "Раздвинуть слои",
@@ -1737,15 +1735,15 @@
       "withTurnOver": "Вместе с переворотом перед ней"
     },
     "spread": {
-      "clearReveal": "Убрать сдвиг",
       "diagram": "Схема",
       "drag": "Перетаскивайте, чтобы показать слои",
+      "padHint": "Перетаскивайте, чтобы показать слои. Стрелки изменяют смещение, Shift увеличивает шаг.",
       "perspective": "3D-перспектива",
       "preparing": "Подготовка раздвижения…",
       "presentation": "Представление",
       "reveal": "Сдвиг слоёв",
       "revealHint": "Перетаскивайте, чтобы показать слои · Прокручивайте для масштаба",
-      "upgrade": "Использовать новое раздвижение"
+      "updating": "Обновление раздвижения слоёв…"
     },
     "stepPane": {
       "annotate": "Аннотировать",

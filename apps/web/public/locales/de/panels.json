@@ -1502,8 +1502,6 @@
       "previousSolution": "Vorherige Lagenfolge",
       "reset": "Pose zurücksetzen",
       "resetHint": "Schon in der Ausgangslage",
-      "revealHorizontal": "Horizontal versetzen",
-      "revealVertical": "Vertikal versetzen",
       "rotateLeft": "Nach links drehen",
       "rotateRight": "Nach rechts drehen",
       "rotation": "Drehung",
@@ -1538,7 +1536,7 @@
       "spreadKeepTop": "Oben",
       "spreadKind": "Auffächern nach",
       "spreadKindAffine": "Affin",
-      "spreadKindConnected": "Verbunden",
+      "spreadKindConnected": "Standard",
       "spreadKindDepth": "Tiefe",
       "spreadLayers": "Lagen auffächern",
       "spreadLayersRow": "Lagen auffächern",
@@ -1633,15 +1631,15 @@
       "withTurnOver": "Mit dem Wenden davor"
     },
     "spread": {
-      "clearReveal": "Versatz aufheben",
       "diagram": "Diagramm",
       "drag": "Ziehen, um Lagen sichtbar zu machen",
+      "padHint": "Ebenen durch Ziehen sichtbar machen. Pfeiltasten zum Anpassen; Umschalt für größere Schritte.",
       "perspective": "3D-Perspektive",
       "preparing": "Lagenabstand wird vorbereitet…",
       "presentation": "Darstellung",
       "reveal": "Lagenversatz",
       "revealHint": "Ziehen, um Lagen sichtbar zu machen · Scrollen zum Zoomen",
-      "upgrade": "Neuen Lagenabstand verwenden"
+      "updating": "Auffächerung wird aktualisiert…"
     },
     "stepPane": {
       "annotate": "Annotieren",

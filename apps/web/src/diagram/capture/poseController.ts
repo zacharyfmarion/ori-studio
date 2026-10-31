@@ -146,17 +146,19 @@ export type { SpreadSlider };
  * other kind while it waits; a skew and an axis are an affine spread's alone.
  */
 export type SpreadSlide =
+  | { slider: 'reveal'; value: [number, number] }
   | { slider: 'amount'; kind: SpreadKind; value: number }
   | { slider: 'skew' | 'axis' | 'reveal-x' | 'reveal-y'; value: number };
 
 /** Whether a slider is one of `spread`'s: an amount of its kind, a skew or an axis of an affine one. */
 function slideFits(spread: LayerSpreadOptions, slide: SpreadSlide): boolean {
-  return slide.slider === 'amount' ? slide.kind === spread.kind : slide.slider.startsWith('reveal-') ? spread.kind === 'connected' : spread.kind === 'affine';
+  return slide.slider === 'amount' ? slide.kind === spread.kind : slide.slider.startsWith('reveal') ? spread.kind === 'connected' : spread.kind === 'affine';
 }
 
 /** The verb that commits a slide. */
 function slideRequest(slide: SpreadSlide) {
   switch (slide.slider) {
+    case 'reveal': return { verb: 'spread-reveal', reveal: slide.value } as const;
     case 'reveal-x': return { verb: 'spread-reveal-axis', axis: 0, value: slide.value } as const;
     case 'reveal-y': return { verb: 'spread-reveal-axis', axis: 1, value: slide.value } as const;
     case 'amount':
@@ -320,7 +322,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   /** The spread commits: the one being captured, and the newest of each slider waiting for it. */
   let spreading: Promise<void> | null = null;
   let committing: { slide: SpreadSlide; revision: number | undefined } | null = null;
-  const waiting = new Map<SpreadSlider, SpreadSlide>();
+  const waiting = new Map<SpreadSlider | 'reveal', SpreadSlide>();
   const session: CaptureSession = createCaptureSession({
     search: (work) => {
       if (!start) throw new Error('A pose fold ran outside a capture');

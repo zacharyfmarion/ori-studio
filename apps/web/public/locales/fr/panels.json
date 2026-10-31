@@ -1543,8 +1543,6 @@
       "previousSolution": "Ordre des couches précédent",
       "reset": "Réinitialiser la pose",
       "resetHint": "Déjà dans sa pose de départ",
-      "revealHorizontal": "Décaler horizontalement",
-      "revealVertical": "Décaler verticalement",
       "rotateLeft": "Tourner à gauche",
       "rotateRight": "Tourner à droite",
       "rotation": "Rotation",
@@ -1579,7 +1577,7 @@
       "spreadKeepTop": "Dessus",
       "spreadKind": "Écarter par",
       "spreadKindAffine": "Affine",
-      "spreadKindConnected": "Connecté",
+      "spreadKindConnected": "Par défaut",
       "spreadKindDepth": "Profondeur",
       "spreadLayers": "Écarter les couches",
       "spreadLayersRow": "Écarter les couches",
@@ -1685,15 +1683,15 @@
       "withTurnOver": "Avec le retournement qui précède"
     },
     "spread": {
-      "clearReveal": "Effacer le décalage",
       "diagram": "Diagramme",
       "drag": "Glisser pour révéler les couches",
+      "padHint": "Faites glisser pour révéler les couches. Ajustez avec les flèches ; Maj augmente le déplacement.",
       "perspective": "Perspective 3D",
       "preparing": "Préparation de l’écartement…",
       "presentation": "Présentation",
       "reveal": "Décalage des couches",
       "revealHint": "Glisser pour révéler les couches · Défiler pour zoomer",
-      "upgrade": "Utiliser le nouvel écartement"
+      "updating": "Mise à jour de l’écartement…"
     },
     "stepPane": {
       "annotate": "Annoter",

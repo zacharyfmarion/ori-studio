@@ -1461,8 +1461,6 @@
       "previousSolution": "上一种层序",
       "reset": "重置姿态",
       "resetHint": "已处于初始姿态",
-      "revealHorizontal": "水平错开",
-      "revealVertical": "垂直错开",
       "rotateLeft": "向左旋转",
       "rotateRight": "向右旋转",
       "rotation": "旋转",
@@ -1497,7 +1495,7 @@
       "spreadKeepTop": "顶层",
       "spreadKind": "错开方式",
       "spreadKindAffine": "仿射",
-      "spreadKindConnected": "保持连接",
+      "spreadKindConnected": "默认",
       "spreadKindDepth": "深度",
       "spreadLayers": "错开层",
       "spreadLayersRow": "错开层",
@@ -1581,15 +1579,15 @@
       "withTurnOver": "连同前面的翻面"
     },
     "spread": {
-      "clearReveal": "清除错位",
       "diagram": "图解",
       "drag": "拖动以显示层次",
+      "padHint": "拖动以显露纸层。使用方向键调整，按住 Shift 可增大移动幅度。",
       "perspective": "透视 3D",
       "preparing": "正在准备层间距…",
       "presentation": "显示方式",
       "reveal": "层次显示",
       "revealHint": "拖动以显示层次 · 滚动以缩放",
-      "upgrade": "使用新的层间距方式"
+      "updating": "正在更新纸层展开…"
     },
     "stepPane": {
       "annotate": "标注",

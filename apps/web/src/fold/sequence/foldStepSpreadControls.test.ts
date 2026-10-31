@@ -119,3 +119,15 @@ function foldStepSpreadControlsWithDefaults() {
   );
   return { controls, set };
 }
+
+it('previews a radial reveal as one Fold undo sitting and one analytics event', () => {
+  const { controls, set, changed } = build(on(DEFAULT_CONNECTED_SPREAD));
+  controls.spread!.start();
+  controls.spread!.previewReveal([1, 0.5]);
+  controls.spread!.previewReveal([0.4, -0.8]);
+  expect(set).toHaveBeenNthCalledWith(1, { ...DEFAULT_CONNECTED_SPREAD, reveal: [1, 0.5] }, 1);
+  expect(set).toHaveBeenNthCalledWith(2, { ...DEFAULT_CONNECTED_SPREAD, reveal: [0.4, -0.8] }, 1);
+  expect(changed).not.toHaveBeenCalled();
+  controls.spread!.commit();
+  expect(changed).toHaveBeenCalledExactlyOnceWith('spread_reveal', { ...DEFAULT_CONNECTED_SPREAD, reveal: [0.4, -0.8] });
+});

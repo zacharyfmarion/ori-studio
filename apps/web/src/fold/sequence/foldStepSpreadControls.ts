@@ -61,7 +61,7 @@ export interface FoldStepSpreadState {
  */
 export interface FoldSpreadSitting {
   session: number;
-  slider: SpreadSlider | null;
+  slider: SpreadSlider | 'reveal' | null;
   /** The spread the newest move that changed anything left; null while none has. */
   left: LayerSpreadOptions | null;
 }
@@ -90,10 +90,11 @@ export interface FoldStepSpreadControls {
   origin: FoldEffectiveSpread['origin'];
 }
 
-const SLIDER_CHANGE: Record<SpreadSlider, FoldSpreadChange> = {
+const SLIDER_CHANGE: Record<SpreadSlider | 'reveal', FoldSpreadChange> = {
   amount: 'spread_amount',
   skew: 'spread_skew',
   axis: 'spread_axis',
+  reveal: 'spread_reveal',
   'reveal-x': 'spread_reveal',
   'reveal-y': 'spread_reveal',
 };
@@ -132,7 +133,6 @@ export function foldStepSpreadControls(state: FoldStepSpreadState, deps: FoldSte
     kind: (kind: SpreadKind) => apply(starts[kind], 'spread_kind'),
     direction: (toward) => edit(shown, { verb: 'spread-direction', toward }, 'spread_direction'),
     keep: (keep) => edit(shown, { verb: 'spread-keep', keep }, 'spread_keep'),
-    clearReveal: () => edit(shown, { verb: 'spread-reveal', reveal: [0, 0] }, 'spread_reveal'),
   });
   return {
     toggle,
@@ -150,6 +150,13 @@ export function foldStepSpreadControls(state: FoldStepSpreadState, deps: FoldSte
         const sitting = deps.sitting.current ?? open();
         sitting.slider = slider;
         const next = withSpreadField(sitting.left ?? shown, spreadSliderEdit(slider, shown.kind, value));
+        if (deps.set(next, sitting.session)) sitting.left = next;
+      },
+      previewReveal: (reveal) => {
+        if (disabled || shown.kind !== 'connected') return;
+        const sitting = deps.sitting.current ?? open();
+        sitting.slider = 'reveal';
+        const next = withSpreadField(sitting.left ?? shown, { verb: 'spread-reveal', reveal });
         if (deps.set(next, sitting.session)) sitting.left = next;
       },
       commit: () => {

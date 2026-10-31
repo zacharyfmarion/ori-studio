@@ -1,5 +1,5 @@
 import { spreadPosePictureFrame, type SpreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
-import { sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
+import { clampReveal, sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
 import { useSettledPosePicture } from '../../diagram/capture/useSettledPosePicture';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
@@ -152,8 +152,7 @@ export function DiagramSpreadView({
     const box = event.currentTarget.getBoundingClientRect();
     const unit = Math.max(100, Math.min(box.width, box.height)) * 0.22;
     const xy: [number, number] = [d.start[0] + (event.clientX - d.x) / unit, d.start[1] + (event.clientY - d.y) / unit];
-    const scale = Math.min(1, 2 / Math.hypot(...xy));
-    d.shown = [xy[0] * scale, xy[1] * scale];
+    d.shown = clampReveal(xy, d.shown);
     setReveal(d.shown);
   };
   const end = (event: PointerEvent) => {

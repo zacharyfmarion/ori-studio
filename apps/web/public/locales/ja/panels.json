@@ -1461,8 +1461,6 @@
       "previousSolution": "前の重なり順",
       "reset": "ポーズをリセット",
       "resetHint": "すでに最初のポーズです",
-      "revealHorizontal": "水平方向にずらす",
-      "revealVertical": "垂直方向にずらす",
       "rotateLeft": "左に回転",
       "rotateRight": "右に回転",
       "rotation": "回転",
@@ -1497,7 +1495,7 @@
       "spreadKeepTop": "上",
       "spreadKind": "ずらし方",
       "spreadKindAffine": "アフィン",
-      "spreadKindConnected": "折り目を接続",
+      "spreadKindConnected": "デフォルト",
       "spreadKindDepth": "深さ",
       "spreadLayers": "層をずらす",
       "spreadLayersRow": "層をずらす",
@@ -1581,15 +1579,15 @@
       "withTurnOver": "直前の裏返しも含める"
     },
     "spread": {
-      "clearReveal": "ずれを解除",
       "diagram": "図解",
       "drag": "ドラッグして層を見せる",
+      "padHint": "ドラッグしてレイヤーを表示します。矢印キーで調整し、Shiftで移動量を大きくします。",
       "perspective": "透視投影3D",
       "preparing": "層の間隔を準備中…",
       "presentation": "表示方式",
       "reveal": "層のずれ",
       "revealHint": "ドラッグして層を見せる · スクロールで拡大縮小",
-      "upgrade": "新しい層の間隔を使う"
+      "updating": "レイヤーの広がりを更新中…"
     },
     "stepPane": {
       "annotate": "注記",

@@ -1502,8 +1502,6 @@
       "previousSolution": "Previous Layer Order",
       "reset": "Reset Pose",
       "resetHint": "Already in its starting pose",
-      "revealHorizontal": "Reveal horizontally",
-      "revealVertical": "Reveal vertically",
       "rotateLeft": "Rotate Left",
       "rotateRight": "Rotate Right",
       "rotation": "Rotation",
@@ -1538,7 +1536,7 @@
       "spreadKeepTop": "Top",
       "spreadKind": "Spread by",
       "spreadKindAffine": "Affine",
-      "spreadKindConnected": "Connected",
+      "spreadKindConnected": "Default",
       "spreadKindDepth": "Depth",
       "spreadLayers": "Spread Layers",
       "spreadLayersRow": "Spread layers",
@@ -1633,15 +1631,15 @@
       "withTurnOver": "With the turn-over before it"
     },
     "spread": {
-      "clearReveal": "Clear reveal",
       "diagram": "Diagram",
       "drag": "Drag to reveal layers",
+      "padHint": "Drag to reveal layers. Arrow keys adjust; Shift moves farther.",
       "perspective": "Perspective 3D",
       "preparing": "Preparing spread…",
       "presentation": "Presentation",
       "reveal": "Layer reveal",
       "revealHint": "Drag to reveal layers · Scroll to zoom",
-      "upgrade": "Use new spread"
+      "updating": "Updating spread…"
     },
     "stepPane": {
       "annotate": "Annotate",

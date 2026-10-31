@@ -248,7 +248,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(on).toMatchObject({ spread: SPREAD, disabled: false, keeps: [] });
     // Affine first (Zach, 2026-10-05).
     expect(on.kinds.map(({ value, label, pressed }) => [value, label, pressed])).toEqual([
-      ['connected', 'Connected', false],
+      ['connected', 'Default', false],
       ['affine', 'Affine', false],
       ['depth', 'Depth', true],
     ]);

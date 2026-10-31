@@ -90,7 +90,7 @@ export function useFoldReveal(stepId: string | null, spread: LayerSpreadOptions 
         reveal: clampReveal([
           g.start.reveal[0] + (event.clientX - g.x) / unit,
           g.start.reveal[1] + (event.clientY - g.y) / unit,
-        ]),
+        ], g.shown.reveal),
       };
       setPreview(g.shown);
       return true;

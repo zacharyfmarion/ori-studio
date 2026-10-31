@@ -555,7 +555,7 @@ describe('DiagramStepPanel', () => {
           setFlipCreases: async () => true,
           simulate: async () => {},
           wantsRest: () => false,
-          spread: controls && { ...controls, preview: verbs.preview, commit: verbs.commit, start: () => true },
+          spread: controls && { ...controls, previewReveal: vi.fn(), preview: verbs.preview, commit: verbs.commit, start: () => true },
           preview: null,
         });
       };
@@ -606,10 +606,11 @@ describe('DiagramStepPanel', () => {
       act(() => amount()!.dispatchEvent(new Event('change', { bubbles: true })));
       expect(verbs.commit).toHaveBeenCalledOnce();
 
-      // Affine | Depth, under the switch: affine first (Zach, 2026-10-05).
+      // Default is another option; the saved Depth selection stays selected.
       const segments = [...kinds()!.querySelectorAll<HTMLButtonElement>('button')];
-      expect(segments.map((button) => button.textContent)).toEqual(['Affine', 'Depth']);
-      act(() => segments[0]!.click());
+      expect(segments.map((button) => button.textContent)).toEqual(['Default', 'Affine', 'Depth']);
+      expect(segments.map((button) => button.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true']);
+      act(() => segments[1]!.click());
       expect(verbs.kind).toHaveBeenCalledWith('affine');
       act(() => publishOpenLinkedPose(null, null));
     });

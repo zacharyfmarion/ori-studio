@@ -6369,10 +6369,7 @@
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
-    "panels:diagram.pose.revealHorizontal": "0016d1338200",
-    "panels:diagram.pose.revealVertical": "9b0cad5a0763",
-    "panels:diagram.pose.spreadKindConnected": "22965568d22a",
-    "panels:diagram.spread.clearReveal": "3d10baec111d",
+    "panels:diagram.pose.spreadKindConnected": "21b111cbfe6e",
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
@@ -6380,9 +6377,10 @@
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
-    "panels:diagram.spread.upgrade": "e563839153ed",
     "panels:fold.canvas.adjustSpread": "50967b465d13",
-    "panels:fold.spread.unavailable": "49ea8d6523a5"
+    "panels:fold.spread.unavailable": "49ea8d6523a5",
+    "panels:diagram.spread.padHint": "f127f084029a",
+    "panels:diagram.spread.updating": "5366901b3d2a"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -12754,10 +12752,7 @@
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
-    "panels:diagram.pose.revealHorizontal": "0016d1338200",
-    "panels:diagram.pose.revealVertical": "9b0cad5a0763",
-    "panels:diagram.pose.spreadKindConnected": "22965568d22a",
-    "panels:diagram.spread.clearReveal": "3d10baec111d",
+    "panels:diagram.pose.spreadKindConnected": "21b111cbfe6e",
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
@@ -12765,9 +12760,10 @@
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
-    "panels:diagram.spread.upgrade": "e563839153ed",
     "panels:fold.canvas.adjustSpread": "50967b465d13",
-    "panels:fold.spread.unavailable": "49ea8d6523a5"
+    "panels:fold.spread.unavailable": "49ea8d6523a5",
+    "panels:diagram.spread.padHint": "f127f084029a",
+    "panels:diagram.spread.updating": "5366901b3d2a"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -19141,10 +19137,7 @@
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
-    "panels:diagram.pose.revealHorizontal": "0016d1338200",
-    "panels:diagram.pose.revealVertical": "9b0cad5a0763",
-    "panels:diagram.pose.spreadKindConnected": "22965568d22a",
-    "panels:diagram.spread.clearReveal": "3d10baec111d",
+    "panels:diagram.pose.spreadKindConnected": "21b111cbfe6e",
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
@@ -19152,9 +19145,10 @@
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
-    "panels:diagram.spread.upgrade": "e563839153ed",
     "panels:fold.canvas.adjustSpread": "50967b465d13",
-    "panels:fold.spread.unavailable": "49ea8d6523a5"
+    "panels:fold.spread.unavailable": "49ea8d6523a5",
+    "panels:diagram.spread.padHint": "f127f084029a",
+    "panels:diagram.spread.updating": "5366901b3d2a"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -25181,10 +25175,7 @@
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
-    "panels:diagram.pose.revealHorizontal": "0016d1338200",
-    "panels:diagram.pose.revealVertical": "9b0cad5a0763",
-    "panels:diagram.pose.spreadKindConnected": "22965568d22a",
-    "panels:diagram.spread.clearReveal": "3d10baec111d",
+    "panels:diagram.pose.spreadKindConnected": "21b111cbfe6e",
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
@@ -25192,9 +25183,10 @@
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
-    "panels:diagram.spread.upgrade": "e563839153ed",
     "panels:fold.canvas.adjustSpread": "50967b465d13",
-    "panels:fold.spread.unavailable": "49ea8d6523a5"
+    "panels:fold.spread.unavailable": "49ea8d6523a5",
+    "panels:diagram.spread.padHint": "f127f084029a",
+    "panels:diagram.spread.updating": "5366901b3d2a"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -31221,10 +31213,7 @@
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
-    "panels:diagram.pose.revealHorizontal": "0016d1338200",
-    "panels:diagram.pose.revealVertical": "9b0cad5a0763",
-    "panels:diagram.pose.spreadKindConnected": "22965568d22a",
-    "panels:diagram.spread.clearReveal": "3d10baec111d",
+    "panels:diagram.pose.spreadKindConnected": "21b111cbfe6e",
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
@@ -31232,9 +31221,10 @@
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
-    "panels:diagram.spread.upgrade": "e563839153ed",
     "panels:fold.canvas.adjustSpread": "50967b465d13",
-    "panels:fold.spread.unavailable": "49ea8d6523a5"
+    "panels:fold.spread.unavailable": "49ea8d6523a5",
+    "panels:diagram.spread.padHint": "f127f084029a",
+    "panels:diagram.spread.updating": "5366901b3d2a"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -37606,10 +37596,7 @@
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
-    "panels:diagram.pose.revealHorizontal": "0016d1338200",
-    "panels:diagram.pose.revealVertical": "9b0cad5a0763",
-    "panels:diagram.pose.spreadKindConnected": "22965568d22a",
-    "panels:diagram.spread.clearReveal": "3d10baec111d",
+    "panels:diagram.pose.spreadKindConnected": "21b111cbfe6e",
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
@@ -37617,9 +37604,10 @@
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
-    "panels:diagram.spread.upgrade": "e563839153ed",
     "panels:fold.canvas.adjustSpread": "50967b465d13",
-    "panels:fold.spread.unavailable": "49ea8d6523a5"
+    "panels:fold.spread.unavailable": "49ea8d6523a5",
+    "panels:diagram.spread.padHint": "f127f084029a",
+    "panels:diagram.spread.updating": "5366901b3d2a"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -43991,10 +43979,7 @@
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
-    "panels:diagram.pose.revealHorizontal": "0016d1338200",
-    "panels:diagram.pose.revealVertical": "9b0cad5a0763",
-    "panels:diagram.pose.spreadKindConnected": "22965568d22a",
-    "panels:diagram.spread.clearReveal": "3d10baec111d",
+    "panels:diagram.pose.spreadKindConnected": "21b111cbfe6e",
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
@@ -44002,9 +43987,10 @@
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
-    "panels:diagram.spread.upgrade": "e563839153ed",
     "panels:fold.canvas.adjustSpread": "50967b465d13",
-    "panels:fold.spread.unavailable": "49ea8d6523a5"
+    "panels:fold.spread.unavailable": "49ea8d6523a5",
+    "panels:diagram.spread.padHint": "f127f084029a",
+    "panels:diagram.spread.updating": "5366901b3d2a"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -50031,10 +50017,7 @@
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
-    "panels:diagram.pose.revealHorizontal": "0016d1338200",
-    "panels:diagram.pose.revealVertical": "9b0cad5a0763",
-    "panels:diagram.pose.spreadKindConnected": "22965568d22a",
-    "panels:diagram.spread.clearReveal": "3d10baec111d",
+    "panels:diagram.pose.spreadKindConnected": "21b111cbfe6e",
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
@@ -50042,8 +50025,9 @@
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
-    "panels:diagram.spread.upgrade": "e563839153ed",
     "panels:fold.canvas.adjustSpread": "50967b465d13",
-    "panels:fold.spread.unavailable": "49ea8d6523a5"
+    "panels:fold.spread.unavailable": "49ea8d6523a5",
+    "panels:diagram.spread.padHint": "f127f084029a",
+    "panels:diagram.spread.updating": "5366901b3d2a"
   }
 }
