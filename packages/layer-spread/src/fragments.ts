@@ -1,5 +1,5 @@
 import type { Point, Point3, ProjectedSpread } from './types.js';
-import { coveringTriangles, winner } from './visibility.js';
+import { createWinner, type WinnerQuery } from './visibility.js';
 
 export class SpreadComplexityError extends Error {
   constructor() {
@@ -265,13 +265,45 @@ function cyclicFragments(
 /** Prepare once for all the ink in one immutable posed mesh. This is scoped to
  * the capture, not a persistent cache: camera/pose changes get fresh planes. */
 export function createLineClipper(mesh: ProjectedSpread): (face: number, a: Point3, b: Point3) => [number, number][] {
+  const winner = createWinner(mesh.visibility);
   const owners = new Map<number, number>();
   const geometry = mesh.triangles.map((ids, triangle) => {
     owners.set(mesh.triangleFaces[triangle], triangle);
     const points = ids.map((v) => mesh.positions[v]);
-    return { box: bounds(points), edges: edges(points.map((p) => [p[0], p[1]])), plane: depthPlane(points) };
+    const [a, b, c] = points;
+    const x = b[0] - a[0], y = b[1] - a[1], u = c[0] - a[0], v = c[1] - a[1];
+    return {
+      box: bounds(points), edges: edges(points.map((p) => [p[0], p[1]])), plane: depthPlane(points),
+      triangle, face: mesh.triangleFaces[triangle], points, x, y, u, v, determinant: x * v - y * u,
+    };
   });
-  return (face, a, b) => lineIntervals(mesh, face, a, b, geometry, owners.get(face) ?? -1);
+  return (face, a, b) => lineIntervals(mesh, face, a, b, geometry, owners.get(face) ?? -1, winner);
+}
+
+interface LineTriangle {
+  box: Box;
+  edges: Plane[];
+  plane: Plane | null;
+  triangle: number;
+  face: number;
+  points: Point3[];
+  x: number;
+  y: number;
+  u: number;
+  v: number;
+  determinant: number;
+}
+
+/** The same barycentric arithmetic/coverage tolerance as picking, without
+ * rebuilding corners and allocating weights for every interval/triangle pair. */
+function coveredDepth(t: LineTriangle, px: number, py: number, depth = true): number | null {
+  if (Math.abs(t.determinant) < 1e-16) return null;
+  const qx = px - t.points[0][0], qy = py - t.points[0][1];
+  const wb = (qx * t.v - qy * t.u) / t.determinant;
+  const wc = (t.x * qy - t.y * qx) / t.determinant;
+  const wa = 1 - wb - wc;
+  if (Math.min(wa, wb, wc) < -1e-9) return null;
+  return depth ? 0 + wa * t.points[0][2] + wb * t.points[1][2] + wc * t.points[2][2] : 0;
 }
 
 /** Visibility intervals of an original edge. Clipping boundaries are never ink. */
@@ -284,18 +316,21 @@ function lineIntervals(
   face: number,
   a: Point3,
   b: Point3,
-  geometry: { box: Box; edges: Plane[]; plane: Plane | null }[],
+  geometry: LineTriangle[],
   owner: number,
+  winner: WinnerQuery,
 ): [number, number][] {
   const box = bounds([a, b]);
-  const cuts = [0, 1],
-    near: number[] = [];
+  const cuts = [0, 1];
+  const higher: LineTriangle[] = [], peers: LineTriangle[] = [];
+  const ranks = mesh.visibility.ranks;
   const dx = b[0] - a[0],
     dy = b[1] - a[1];
   for (let t = 0; t < geometry.length; t++) {
     const triangle = geometry[t];
     if (!overlap(box, triangle.box)) continue;
-    near.push(t);
+    if (!ranks || ranks[triangle.face] === ranks[face]) peers.push(triangle);
+    else if (ranks[triangle.face] > ranks[face]) higher.push(triangle);
     for (const edge of triangle.edges) {
       const va = value(edge, [a[0], a[1]]),
         vb = value(edge, [b[0], b[1]]),
@@ -322,16 +357,25 @@ function lineIntervals(
       hi = cuts[i];
     if (hi - lo < 1e-9) continue;
     const u = (lo + hi) / 2;
+    const px = a[0] + u * dx, py = a[1] + u * dy;
+    // For acyclic order, any covering higher rank settles the question: this
+    // edge is hidden. Lower ranks cannot beat its known owner. Keep ALL cuts
+    // above, including lower faces, so interval endpoints stay byte-identical.
+    if (higher.some((triangle) => coveredDepth(triangle, px, py, false) !== null)) continue;
+    const covering: { face: number; triangle: number; depth: number }[] = [];
+    for (const triangle of peers) {
+      const depth = coveredDepth(triangle, px, py);
+      if (depth !== null) covering.push({ face: triangle.face, triangle: triangle.triangle, depth });
+    }
     // Ink already carries its material owner and interpolated depth. At an
     // outline, roundoff can place its midpoint just outside the owner's fill;
     // do not rediscover that ownership with a point-in-triangle test. Other
     // covering faces still occlude it through the same rank/cycle/depth rule.
     const pick = winner(
       [
-        ...coveringTriangles(mesh, [a[0] + u * dx, a[1] + u * dy], near),
+        ...covering,
         { face, triangle: owner, depth: a[2] + u * (b[2] - a[2]) },
       ],
-      mesh.visibility,
     );
     if (pick?.face !== face) continue;
     const last = out[out.length - 1];

@@ -32,20 +32,42 @@ export function winner<T extends Pick<SpreadPick, 'face' | 'triangle' | 'depth'>
   candidates: readonly T[],
   order: Visibility,
 ): T | null {
-  if (!candidates.length) return null;
-  let eligible = candidates;
-  if (order.ranks) {
-    let rank = -1;
-    for (const c of candidates) rank = Math.max(rank, order.ranks[c.face]);
-    eligible = candidates.filter((c) => order.ranks![c.face] === rank);
-  } else {
-    const present = new Set(candidates.map((c) => c.face));
-    const survivors = candidates.filter((c) => !order.above[c.face].some((f) => present.has(f)));
-    if (survivors.length) eligible = survivors; // All excluded: preserve the physical baseline.
-  }
-  return eligible.reduce((a, b) =>
-    b.depth > a.depth + 1e-10 || (Math.abs(a.depth - b.depth) <= 1e-10 && b.triangle > a.triangle) ? b : a,
-  );
+  return createWinner(order)(candidates);
+}
+
+type Candidate = Pick<SpreadPick, 'face' | 'triangle' | 'depth'>;
+export type WinnerQuery = <T extends Candidate>(candidates: readonly T[]) => T | null;
+
+/** Reuse membership scratch space for the many visibility samples in one
+ * immutable mesh. Stamps avoid clearing face-sized arrays per sample. */
+export function createWinner(order: Visibility): WinnerQuery {
+  const present = new Uint32Array(order.ranks ? 0 : order.above.length);
+  const checked = new Uint32Array(present.length);
+  const blocked = new Uint8Array(present.length);
+  let stamp = 0;
+  const ahead = <T extends Candidate>(a: T | null, b: T): T =>
+    !a || b.depth > a.depth + 1e-10 || (Math.abs(a.depth - b.depth) <= 1e-10 && b.triangle > a.triangle) ? b : a;
+  return <T extends Candidate>(candidates: readonly T[]): T | null => {
+    let best: T | null = null;
+    if (order.ranks) {
+      let rank = -1;
+      for (const c of candidates) rank = Math.max(rank, order.ranks[c.face]);
+      for (const c of candidates) if (order.ranks[c.face] === rank) best = ahead(best, c);
+      return best;
+    }
+    if (++stamp === 0xffffffff) { present.fill(0); checked.fill(0); stamp = 1; }
+    for (const c of candidates) present[c.face] = stamp;
+    let physical: T | null = null;
+    for (const c of candidates) {
+      physical = ahead(physical, c);
+      if (checked[c.face] !== stamp) {
+        checked[c.face] = stamp;
+        blocked[c.face] = order.above[c.face].some((f) => present[f] === stamp) ? 1 : 0;
+      }
+      if (!blocked[c.face]) best = ahead(best, c);
+    }
+    return best ?? physical; // All excluded: preserve the physical baseline.
+  };
 }
 
 export function coveringTriangles(mesh: ProjectedSpread, point: Point, triangles?: readonly number[]): SpreadPick[] {

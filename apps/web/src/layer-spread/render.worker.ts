@@ -14,10 +14,12 @@ let view: ConnectedSpreadView | null = null;
 const canvas = new OffscreenCanvas(1, 1);
 let renderer: ReturnType<typeof createSpreadProgram> | null = null;
 let regl: ReturnType<typeof createREGL> | null = null;
+let geometryKey: string | null = null;
 self.onmessage = ({ data }: MessageEvent<SpreadRenderMessage>) => {
   try {
     if (data.kind === 'source') {
       view = data.view;
+      geometryKey = null;
       return;
     }
     if (!view) return;
@@ -31,10 +33,18 @@ self.onmessage = ({ data }: MessageEvent<SpreadRenderMessage>) => {
     if (canvas.width !== f.width) canvas.width = f.width;
     if (canvas.height !== f.height) canvas.height = f.height;
     regl.poll();
-    const scene = posedSpreadScene(view, f.rotationDeg, f.spread, 1, f.presentation);
-    if (!hasConnectedDrawing(scene)) throw new Error('Spread geometry unavailable');
+    // Zoom/resize only change the frame. Keep the geometry already resident in
+    // the renderer instead of reprojecting, rebuilding ink and uploading it.
+    // Perspective camera.zoom IS geometry (perspective projection), so keep
+    // the entire presentation in the key. A new source invalidates it above.
+    const key = JSON.stringify([f.spread, f.presentation, f.rotationDeg, f.style]);
+    if (key !== geometryKey) {
+      const scene = posedSpreadScene(view, f.rotationDeg, f.spread, 1, f.presentation);
+      if (!hasConnectedDrawing(scene)) throw new Error('Spread geometry unavailable');
+      renderer!.setData(spreadGeometry(scene, f.style, { policy: PAPER_STYLE_POLICIES.fold }));
+      geometryKey = key;
+    }
     const frame = spreadFrame(view, f.rotationDeg, f.presentation?.kind === 'perspective', f.width, f.height, f.zoom);
-    renderer!.setData(spreadGeometry(scene, f.style, { policy: PAPER_STYLE_POLICIES.fold }));
     regl.clear({ color: [0, 0, 0, 0], depth: 1, stencil: 0 });
     renderer!.draw({
       view: { origin: [frame.x, frame.y], ex: [frame.scale, 0], ey: [0, frame.scale] },

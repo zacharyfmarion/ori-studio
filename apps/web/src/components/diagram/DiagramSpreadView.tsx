@@ -150,7 +150,7 @@ export function DiagramSpreadView({
     const d = drag.current;
     if (!d || d.id !== event.pointerId) return;
     const box = event.currentTarget.getBoundingClientRect();
-    const unit = Math.max(100, Math.min(box.width, box.height)) * 0.22;
+    const unit = Math.max(100, Math.min(box.width, box.height)) * 0.11;
     const xy: [number, number] = [d.start[0] + (event.clientX - d.x) / unit, d.start[1] + (event.clientY - d.y) / unit];
     d.shown = clampReveal(xy, d.shown);
     setReveal(d.shown);

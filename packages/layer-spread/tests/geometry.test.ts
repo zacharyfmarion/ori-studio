@@ -10,10 +10,47 @@ import {
   visibility,
   visibleFragments,
   visibleLine,
+  createWinner,
   type ProjectedSpread,
   type SpreadInput,
   type SpreadSolution,
 } from '../src/index.js';
+
+it('reuses cyclic visibility scratch without retaining faces from previous samples', () => {
+  const order = visibility(3, [[0, 1], [1, 2], [2, 0]]);
+  const query = createWinner(order);
+  const a = { face: 0, triangle: 0, depth: 5 };
+  const b = { face: 1, triangle: 1, depth: 1 };
+  const c = { face: 2, triangle: 2, depth: 3 };
+  for (let repeat = 0; repeat < 10; repeat++) {
+    expect(query([a, b])).toBe(b);
+    expect(query([a, b, c])).toBe(a); // All masked: physical depth.
+    expect(query([b, c])).toBe(c);
+    expect(query([a, c])).toBe(a);
+    expect(query([])).toBeNull();
+  }
+});
+
+it('matches the declarative visibility policy across repeated ranks, cycles and depth ties', () => {
+  let seed = 1283;
+  const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+  for (const orders of [[[0, 1], [1, 2]], [[0, 1], [1, 2], [2, 0]]] as [number, number][][]) {
+    const order = visibility(6, orders), query = createWinner(order);
+    for (let i = 0; i < 500; i++) {
+      const candidates = Array.from({ length: Math.floor(random() * 15) }, (_, triangle) => ({
+        face: Math.floor(random() * 6), triangle, depth: Math.floor(random() * 4) + random() * 2e-10,
+      }));
+      const present = new Set(candidates.map(c => c.face));
+      const rank = order.ranks ? Math.max(...candidates.map(c => order.ranks![c.face])) : 0;
+      const survivors = candidates.filter(c => order.ranks ? order.ranks[c.face] === rank
+        : !order.above[c.face].some(f => present.has(f)));
+      const eligible = survivors.length ? survivors : candidates;
+      const expected = eligible.reduce<typeof candidates[number] | null>((a, b) =>
+        !a || b.depth > a.depth + 1e-10 || (Math.abs(a.depth - b.depth) <= 1e-10 && b.triangle > a.triangle) ? b : a, null);
+      expect(query(candidates)).toBe(expected);
+    }
+  }
+});
 
 const input: SpreadInput = {
   xy: [

@@ -76,6 +76,19 @@ it('uses the captured artwork only once idle and decoded, keeping the live canva
   expect(final()).not.toBeNull();
 });
 
+it('reveals half a unit for a drag of 5.5% of the smaller viewport dimension', async () => {
+  await show();
+  const stage = host.querySelector<HTMLElement>('[data-reveal]')!;
+  stage.setPointerCapture = vi.fn();
+  stage.getBoundingClientRect = () => ({ width: 800, height: 600 } as DOMRect);
+  for (const [type, x] of [['pointerdown', 300], ['pointermove', 333], ['pointerup', 333]] as const) {
+    const event = new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: 300 });
+    Object.defineProperty(event, 'pointerId', { value: 1 });
+    act(() => host.querySelector('canvas')!.dispatchEvent(event));
+  }
+  expect(props.onReveal).toHaveBeenCalledExactlyOnceWith([1.3, 0.6]);
+});
+
 it('keeps previews live until the saved spread catches up, with no new solve or capture', async () => {
   await show();
   await decode();
