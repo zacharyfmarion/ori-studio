@@ -53,7 +53,8 @@ export interface ProjectedSpread {
 export interface Visibility {
   /** Null for a cyclic graph, otherwise longest-path ranks. */
   ranks: number[] | null;
-  /** Direct known blockers, without transitive closure. */
+  /** Direct known blockers, including every piece of a blocking flat layer;
+   * without transitive closure through other layers. */
   above: number[][];
 }
 export interface SpreadPick {

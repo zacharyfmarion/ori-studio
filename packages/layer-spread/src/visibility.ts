@@ -1,8 +1,30 @@
 import type { Point, ProjectedSpread, SpreadPick, Visibility } from './types.js';
 import { barycentric } from './projection.js';
 
-/** Acyclic ranks preserve the prototype; cycles keep direct local relations. */
-export function visibility(faceCount: number, orders: readonly Point[], back = false): Visibility {
+/** Flat creases subdivide one layer without changing its stacking position.
+ * Rank those pieces together; cyclic masks inherit only direct layer relations,
+ * never an invented total order through a woven stack.
+ */
+export function visibility(faceCount: number, orders: readonly Point[], back = false, planeGroups?: readonly number[]): Visibility {
+  if (planeGroups && new Set(planeGroups).size < faceCount) {
+    const members = new Map<number, number[]>();
+    planeGroups.forEach((group, face) => {
+      if (!members.has(group)) members.set(group, []);
+      members.get(group)!.push(face);
+    });
+    const groups = [...members.values()];
+    const groupOf = new Int32Array(faceCount);
+    groups.forEach((faces, group) => faces.forEach(face => { groupOf[face] = group; }));
+    const groupedOrders: Point[] = [];
+    for (const [lo, hi] of orders)
+      if (groupOf[lo] !== groupOf[hi]) groupedOrders.push([groupOf[lo], groupOf[hi]]);
+    const grouped = visibility(groups.length, groupedOrders, back);
+    const above = grouped.above.map(blockers => blockers.flatMap(group => groups[group]).sort((a, b) => a - b));
+    return {
+      ranks: grouped.ranks ? Array.from(groupOf, group => grouped.ranks![group]) : null,
+      above: Array.from(groupOf, group => above[group]),
+    };
+  }
   const above = Array.from({ length: faceCount }, () => new Set<number>());
   const degree = new Int32Array(faceCount);
   for (const order of orders) {

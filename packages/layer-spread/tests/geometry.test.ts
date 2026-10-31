@@ -109,6 +109,34 @@ describe('connected spread projection', () => {
   });
 });
 describe('ordering in drawing, picking and vector output', () => {
+  it.each([false, true])('keeps both pieces of a flat layer ahead of a protruding flap (back=%s)', (back) => {
+    // Faces 0 and 1 are one layer; only piece 0 overlapped flap 2 before
+    // spreading. The new overlap with piece 1 must inherit the same order.
+    const orders: [number, number][] = back ? [[0, 2]] : [[2, 0]];
+    const mesh = stack(orders, [0, 0, 10]);
+    mesh.positions.slice(0, 3).forEach(p => { p[0] += 2; });
+    mesh.visibility = visibility(3, orders, back, [7, 7, 19]);
+    expect(mesh.visibility.ranks).toEqual([1, 1, 0]);
+    expect(pickSpread(mesh, [0.2, 0.2])?.face).toBe(1);
+    expect(visibleFragments(mesh).map(p => p.face).sort()).toEqual([0, 1]);
+    expect(visibleLine(mesh, 2, [0.1, 0.1, 10], [0.5, 0.1, 10])).toEqual([]);
+    expect(visibleLine(mesh, 1, [0.1, 0.1, 0], [0.5, 0.1, 0])).toEqual([[0, 1]]);
+  });
+  it('inherits direct blockers across flat pieces while preserving cyclic local order', () => {
+    // Three woven layers, the first split into faces 0 and 3.
+    const order = visibility(4, [[0, 1], [1, 2], [2, 3]], false, [0, 1, 2, 0]);
+    expect(order.ranks).toBeNull();
+    expect(order.above).toEqual([[1], [2], [0, 3], [1]]);
+    const query = createWinner(order);
+    const a = { face: 3, triangle: 3, depth: 10 };
+    const b = { face: 1, triangle: 1, depth: 1 };
+    const c = { face: 2, triangle: 2, depth: 2 };
+    expect(query([a, b])).toBe(b);
+    expect(query([a, c])).toBe(a);
+    expect(query([a, b, c])).toBe(a); // Fully masked cycle retains physical fallback.
+    expect(visibility(4, [[0, 1], [1, 2], [2, 3]], true, [0, 1, 2, 0]).above)
+      .toEqual([[2], [0, 3], [1], [2]]);
+  });
   it('hides a physically protruding lower face and its ink', () => {
     const mesh = stack([[0, 1]], [1, 0]);
     expect(pickSpread(mesh, [0.2, 0.2])?.face).toBe(1);

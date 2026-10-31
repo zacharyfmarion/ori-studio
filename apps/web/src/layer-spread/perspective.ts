@@ -66,6 +66,6 @@ export function perspectiveDrawing(
     ...drawing,
     front,
     ink,
-    mesh: { ...drawing.mesh, positions, visibility: visibility(front.length, prepared.source.input.orders, back) },
+    mesh: { ...drawing.mesh, positions, visibility: visibility(front.length, prepared.source.input.orders, back, prepared.source.input.planeGroups) },
   };
 }

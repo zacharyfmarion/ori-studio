@@ -66,7 +66,7 @@ export function connectedDrawing(
     positions,
     triangles: input.triangles,
     triangleFaces: input.triangleFaces,
-    visibility: visibility(input.faces.length, input.orders, back),
+    visibility: visibility(input.faces.length, input.orders, back, input.planeGroups),
   };
   const ink: ConnectedInk[] = preparedInk(source, baseInk).map((edge) => {
     const a = interpolate(edge.ids, edge.a, positions),

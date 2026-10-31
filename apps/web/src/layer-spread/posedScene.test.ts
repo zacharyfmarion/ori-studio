@@ -28,7 +28,7 @@ it.each([0, 0.5, 2])('doubles Perspective height and ink at amount %s without ch
     mesh: { ...diagram.connected.mesh, positions: diagram.connected.mesh.positions.map(twice) },
     ink: diagram.connected.ink.map((edge) => ({ ...edge, a: twice(edge.a), b: twice(edge.b) })),
   };
-  for (const pitch of [0.5, -0.5]) {
+  for (const pitch of [0.5, Math.PI - 0.5]) {
     const presentation = { kind: 'perspective' as const, camera: { yaw: 0.4, pitch, zoom: 1 }, orderSide: 'front' as const };
     const expected = perspectiveDrawing(doubled, connected, presentation);
     const live = foldedFlatPaperScene(kernel, { ...options, presentation }) as ConnectedPaperScene;
