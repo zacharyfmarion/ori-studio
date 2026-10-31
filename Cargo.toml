@@ -13,6 +13,8 @@ members = [
     "crates/oristudio-precrease-wasm",
     "crates/oristudio-geometry",
     "crates/oristudio-layer-order",
+    "crates/oristudio-layer-spread",
+    "crates/oristudio-layer-spread-wasm",
     "crates/oristudio-fold",
     "crates/oristudio-fold-wasm",
     "crates/oristudio-pdf",

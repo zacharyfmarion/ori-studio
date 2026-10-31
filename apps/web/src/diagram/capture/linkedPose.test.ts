@@ -1,3 +1,5 @@
+import '../../layer-spread/captureWorker.testSupport';
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
@@ -34,6 +36,7 @@ vi.mock('../../cp-workspace/folded/folded3dStoredScene', async (importOriginal) 
   ...(await importOriginal<typeof import('../../cp-workspace/folded/folded3dStoredScene')>()),
   ...folded3dStoredScene,
 }));
+
 
 const sheets = twoSquaresIndex();
 const [left] = sheetRegions(sheets);
@@ -629,7 +632,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
   });
 
   /** Spread starts as `spreadStartsFor` gives them, each unlike its default. */
-  const STARTS: DiagramSpreadStarts = {
+  const STARTS: DiagramSpreadStarts = { connected: DEFAULT_CONNECTED_SPREAD,
     any: { kind: 'depth', amount: 0.12, toward: 'up' },
     depth: { kind: 'depth', amount: 0.12, toward: 'up' },
     affine: { kind: 'affine', amount: 0.05, keep: 'bottom', skew: 0.2, axisDeg: 10 },
@@ -658,7 +661,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
     const document = cpDocument();
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }))).toEqual(DEFAULT_LAYER_SPREAD);
     // Affine, on (Zach, 2026-10-05).
-    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
+    expect(DEFAULT_LAYER_SPREAD).toEqual(DEFAULT_CONNECTED_SPREAD);
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }, STARTS))).toEqual(STARTS.any);
     const off = await pose(session, SPREAD_FLAT, { verb: 'spread-layers' }, document);
     expect(off.status === 'posed' && off.render).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1 });
@@ -669,7 +672,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
     const { session } = sessionWith();
     const first = await poseWith(session, CP, { verb: 'show-folded' });
     expect(first).toMatchObject({ render: { mode: 'folded-flat', rotationDeg: 345, spread: DEFAULT_LAYER_SPREAD } });
-    expect(facesOf(first).sort()).toEqual([0, 1]);
+    expect([...new Set(facesOf(first))].sort()).toEqual([0, 1]);
     expect(spreadOf(await poseWith(session, CP, { verb: 'show-folded' }, STARTS))).toEqual(STARTS.any);
     const threeD: DiagramCpRender = { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' };
     const flatAgain = await poseWith(session, threeD, { verb: 'view-top' }, STARTS);

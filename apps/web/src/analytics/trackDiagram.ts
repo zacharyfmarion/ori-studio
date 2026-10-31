@@ -257,6 +257,7 @@ export function trackDiagramPicturePosed(
  * how it goes: values here, bucketed by {@link spreadProperties}.
  */
 export function spreadTracking(spread: LayerSpreadOptions): DiagramSpreadTracking {
+  if (spread.kind === 'connected') return { kind: 'connected', amount: spread.amount };
   return spread.kind === 'depth'
     ? { kind: 'depth', direction: spread.toward.replace('-', '_') as DiagramSpreadDirection, amount: spread.amount }
     : { kind: 'affine', amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
@@ -269,6 +270,7 @@ export function spreadProperties(spread: DiagramSpreadTracking): Record<string, 
     spread_kind: spread.kind,
     spread_amount_bucket: bucketCount(percent(spread.amount), DIAGRAM_SPREAD_PERCENT_BUCKETS),
   };
+  if (spread.kind === 'connected') return common;
   return spread.kind === 'depth'
     ? { ...common, spread_direction: spread.direction }
     : {

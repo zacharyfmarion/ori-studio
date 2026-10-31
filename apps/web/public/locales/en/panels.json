@@ -1502,6 +1502,8 @@
       "previousSolution": "Previous Layer Order",
       "reset": "Reset Pose",
       "resetHint": "Already in its starting pose",
+      "revealHorizontal": "Reveal horizontally",
+      "revealVertical": "Reveal vertically",
       "rotateLeft": "Rotate Left",
       "rotateRight": "Rotate Right",
       "rotation": "Rotation",
@@ -1536,6 +1538,7 @@
       "spreadKeepTop": "Top",
       "spreadKind": "Spread by",
       "spreadKindAffine": "Affine",
+      "spreadKindConnected": "Connected",
       "spreadKindDepth": "Depth",
       "spreadLayers": "Spread Layers",
       "spreadLayersRow": "Spread layers",
@@ -1628,6 +1631,17 @@
       "ways_one": "{{count}} way",
       "ways_other": "{{count}} ways",
       "withTurnOver": "With the turn-over before it"
+    },
+    "spread": {
+      "clearReveal": "Clear reveal",
+      "diagram": "Diagram",
+      "drag": "Drag to reveal layers",
+      "perspective": "Perspective 3D",
+      "preparing": "Preparing spread…",
+      "presentation": "Presentation",
+      "reveal": "Layer reveal",
+      "revealHint": "Drag to reveal layers · Scroll to zoom",
+      "upgrade": "Use new spread"
     },
     "stepPane": {
       "annotate": "Annotate",
@@ -1806,6 +1820,7 @@
       "startsBranch": "Starts a new branch"
     },
     "canvas": {
+      "adjustSpread": "Adjust spread",
       "creasePattern": "Crease pattern",
       "creasePatternLabel": "The crease pattern so far, front up. Click its points and creases to locate a fold.",
       "flatCreases": "Flat creases",
@@ -2803,6 +2818,9 @@
       "switchBranch": "Switch branch",
       "tagBranch": "New branch",
       "tagNext": "Next"
+    },
+    "spread": {
+      "unavailable": "Spread unavailable for this state"
     },
     "step": {
       "blocks": "Blocks",

@@ -1,3 +1,5 @@
+import {hasConnectedDrawing} from '../../layer-spread/connectedScene';
+import {rasterConnected} from '../../layer-spread/rasterConnected';
 /**
  * A linked Diagram step's capture, run against the store (D4): choose the
  * step's creases from the crease pattern as it stands, fold them if its
@@ -433,6 +435,14 @@ export async function keptPicture(
   style: DiagramStyle
 ): Promise<{ picture: DiagramPicture; asset?: KnownDiagramAsset }> {
   if (captured.kind === 'picture') return { picture: captured.picture };
+  if(hasConnectedDrawing(captured.scene)) {
+    const raster=await rasterConnected(captured.scene,diagramScenePaintStyle(style,false),CAPTURE_RASTER_BOX_MM);
+    const src=`data:image/png;base64,${bytesToBase64(new Uint8Array(raster.png))}`;
+    const id=`asset-raster-${digest(src)}`;
+    return {picture:{kind:'asset',assetId:id,paperScale:captured.paperScale===null?null:captured.paperScale*raster.scale,
+      styleKey:diagramStyleKey(style),key:`raster-${id}`},
+      asset:{id,kind:'raster',src,widthPx:raster.width,heightPx:raster.height,bytes:src.length}};
+  }
   const pagePaper: PaperPage = {
     sheet: { mm: CAPTURE_RASTER_BOX_MM },
     paddingMm: 1,

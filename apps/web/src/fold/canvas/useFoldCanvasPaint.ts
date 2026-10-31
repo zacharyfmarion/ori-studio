@@ -1,3 +1,4 @@
+import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 import { useMemo } from 'react';
 import type { FoldedSceneInk } from '../../cp-workspace/adapters/cpFoldedToScene';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
@@ -124,7 +125,8 @@ export function useFoldCanvasPaint(
   inks: FoldCanvasInks | null,
   spread: LayerSpreadOptions | null = null,
   pending: FoldPendingCreases | null = null,
-  resolvedScene: import('../engine/foldEngineWire').FoldScene | null = null
+  resolvedScene: import('../engine/foldEngineWire').FoldScene | null = null,
+  connected?: PreparedConnectedSpread
 ): FoldCanvasPaint {
   const { summary, index } = view;
   // Rotate's preview: the model turned as it will be, in place of the state
@@ -145,14 +147,14 @@ export function useFoldCanvasPaint(
   const vertexCreases = useFoldVertexCreases(index, preview.vertex);
   const foldedScene = useMemo(() => {
     if (!scene) return null;
-    const base = foldedPaneScene(scene, display, offset, spread);
+    const base = foldedPaneScene(scene, display, offset, spread, connected);
     if (resolvedScene) return base;
     return withPreviewCreases(
       base,
       { action: preview.action, second: secondLine, vertex: vertexCreases, pending: pendingFolded },
       offset
     );
-  }, [scene, resolvedScene, display, offset, spread, preview.action, secondLine, vertexCreases, pendingFolded]);
+  }, [scene, resolvedScene, display, offset, spread, connected, preview.action, secondLine, vertexCreases, pendingFolded]);
   const foldedInk = useMemo<FoldedSceneInk>(
     () => ({
       policy: PAPER_STYLE_POLICIES.fold,

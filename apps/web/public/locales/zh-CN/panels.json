@@ -1461,6 +1461,8 @@
       "previousSolution": "上一种层序",
       "reset": "重置姿态",
       "resetHint": "已处于初始姿态",
+      "revealHorizontal": "水平错开",
+      "revealVertical": "垂直错开",
       "rotateLeft": "向左旋转",
       "rotateRight": "向右旋转",
       "rotation": "旋转",
@@ -1495,6 +1497,7 @@
       "spreadKeepTop": "顶层",
       "spreadKind": "错开方式",
       "spreadKindAffine": "仿射",
+      "spreadKindConnected": "保持连接",
       "spreadKindDepth": "深度",
       "spreadLayers": "错开层",
       "spreadLayersRow": "错开层",
@@ -1576,6 +1579,17 @@
       "unreadableCard": "无法读取此卡片的图，因此无法添加。",
       "ways_other": "{{count}} 种方式",
       "withTurnOver": "连同前面的翻面"
+    },
+    "spread": {
+      "clearReveal": "清除错位",
+      "diagram": "图解",
+      "drag": "拖动以显示层次",
+      "perspective": "透视 3D",
+      "preparing": "正在准备层间距…",
+      "presentation": "显示方式",
+      "reveal": "层次显示",
+      "revealHint": "拖动以显示层次 · 滚动以缩放",
+      "upgrade": "使用新的层间距方式"
     },
     "stepPane": {
       "annotate": "标注",
@@ -1754,6 +1768,7 @@
       "startsBranch": "开始新的分支"
     },
     "canvas": {
+      "adjustSpread": "调整层间距",
       "creasePattern": "折痕图",
       "creasePatternLabel": "到目前为止的折痕图，正面朝上。单击其中的点和折痕来确定折线。",
       "flatCreases": "平折痕",
@@ -2534,6 +2549,9 @@
       "switchBranch": "切换分支",
       "tagBranch": "新分支",
       "tagNext": "下一步"
+    },
+    "spread": {
+      "unavailable": "此状态无法显示层间距"
     },
     "step": {
       "blocks": "整块",

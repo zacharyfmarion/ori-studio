@@ -1,3 +1,4 @@
+import { barycentric } from '@oristudio/layer-spread';
 /**
  * An enlarged step's frame imprinted on the paper and landed on a step's
  * picture (Revision 2, `implementation-plans/diagram-revision-2.md`,
@@ -52,6 +53,7 @@ type Pt = PicturePoint;
 export interface StepFaces {
   /** A flat fold's faces, or a crease pattern's one face, the paper. */
   kind: 'flat' | 'crease-pattern';
+  triangles?: [number, number, number][][];
   /** Per face, its ring on the paper; empty for a face the kernel could not name. */
   paper: Pt[][];
   /** Per face, its ring on the unspread picture, scene px. */
@@ -130,11 +132,12 @@ function flatFaces(scene: PaperScene, stored: string | undefined, spread: boolea
   const unspread = rings.map((ring) => ring.map((index): Pt => [points[index]![2], points[index]![3]]));
   return {
     kind: 'flat',
+    triangles: read.faces.triangles,
     paper: rings.map((ring) => ring.map((index): Pt => [points[index]![0], points[index]![1]])),
     unspread,
     drawn: unspread.map((ring, face) => {
       if (!spread) return ring;
-      const drawn = whole.get(face);
+      const drawn = read.faces.drawn?.[face] ?? whole.get(face);
       return drawn && drawn.length === ring.length ? drawn : [];
     }),
     levels: [...levels],
@@ -344,7 +347,14 @@ export function facePlacement(faces: StepFaces, face: number): Placement | null 
  * ----------------------------------------------------------------------- */
 
 /** Mean value weights of `point` over `ring`, with the edge and corner cases a hair wide. */
-function weightsOver(ring: readonly Pt[], point: Pt): number[] | null {
+function weightsOver(ring: readonly Pt[], point: Pt, triangles?: [number, number, number][]): number[] | null {
+  for (const ids of triangles ?? []) {
+    const sample = barycentric(ring[ids[0]]!, ring[ids[1]]!, ring[ids[2]]!, point);
+    if (!sample || Math.min(...sample) < -1e-7) continue;
+    const weights = ring.map(() => 0);
+    ids.forEach((v, k) => { weights[v] = sample[k]!; });
+    return weights;
+  }
   const span = Math.max(...ring.map(([x]) => Math.abs(x)), ...ring.map(([, y]) => Math.abs(y)), 1);
   return meanValueWeights(
     ring.map(([x, y]) => ({ x, y })),
@@ -371,7 +381,7 @@ export function faceSpreadMove(faces: StepFaces, face: number, point: Pt): Pt {
   if (!faces.spread) return point;
   const [unspread, drawn] = [faces.unspread[face], faces.drawn[face]];
   if (!unspread || !drawn || drawn.length !== unspread.length || unspread.length < 3) return point;
-  const weights = weightsOver(unspread, point);
+  const weights = weightsOver(unspread, point, faces.triangles?.[face]);
   return weights ? blend(weights, drawn) : point;
 }
 

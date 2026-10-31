@@ -1,3 +1,5 @@
+import { useConnectedSpread } from '../../layer-spread/useConnectedSpread';
+import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 import { useMemo } from 'react';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import { foldPaneSpreadMap, type FoldPaneSpreadMap } from './foldPaneSpreadMap';
@@ -6,6 +8,8 @@ import type { FoldStateView } from './useFoldStateView';
 
 /** The folded pane's spread as what is picked and drawn over the paper reads it. */
 export interface FoldPaneSpread {
+  connected: PreparedConnectedSpread | null;
+  status: 'idle' | 'preparing' | 'ready' | 'unavailable';
   /** Where the pane draws the paper; null while it draws the scene as it is. */
   map: FoldPaneSpreadMap | null;
   /**
@@ -26,11 +30,12 @@ export interface FoldPaneSpread {
  */
 export function useFoldPaneSpread(view: FoldStateView, spread: LayerSpreadOptions | null): FoldPaneSpread {
   const { scene, index, landmarks, markPoints } = view;
-  const map = useMemo(() => (scene && spread ? foldPaneSpreadMap(scene, spread) : null), [scene, spread]);
+  const { prepared: connected, status } = useConnectedSpread(scene, spread?.kind === 'connected', true);
+  const map = useMemo(() => (scene && spread ? foldPaneSpreadMap(scene, spread, connected ?? undefined) : null), [scene, spread, connected]);
   const picking = useMemo(
     // The index is the shown scene's once it is in; the map is that scene's spread.
     () => (index && map && index.scene === scene ? foldPickIndex(index.scene, landmarks, markPoints, map) : index),
     [index, map, scene, landmarks, markPoints]
   );
-  return useMemo(() => ({ map, index: picking }), [map, picking]);
+  return useMemo(() => ({ map, index: picking, connected, status }), [map, picking, connected, status]);
 }

@@ -2,6 +2,7 @@
   "name": "treemaker-rs-workspace",
   "private": true,
   "workspaces": [
+    "packages/layer-spread",
     "packages/origami-simulator",
     "apps/web",
     "apps/tauri",

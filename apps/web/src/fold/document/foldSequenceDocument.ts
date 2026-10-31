@@ -1,3 +1,4 @@
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 /**
  * A Fold sequence: the sheet it starts from and the steps folded on it, as the
  * project file holds it (`workspace.foldSequences`, plan D6 and D7).
@@ -951,6 +952,8 @@ export interface FoldSequenceDocument {
    * Optional only for documents built by hand, which draw in the default.
    */
   style?: ResolvedDocumentPaperStyle;
+  /** Snapshot of this sequence's initial display recipe. Absent in legacy files means off. */
+  defaultSpread?: import('../../cp-workspace/folded/foldedLayerSpread').LayerSpreadOptions | 'off';
   /**
    * Reserved for per-sequence `PaperStyleOverrides` (plan D7, D11): never
    * written by this build, carried verbatim when a file holds one.
@@ -983,6 +986,7 @@ export function createFoldSequence(
     title,
     paper,
     style: FOLD_DEFAULT_PAPER_STYLE,
+    defaultSpread: { ...DEFAULT_CONNECTED_SPREAD, reveal: [...DEFAULT_CONNECTED_SPREAD.reveal] },
     steps: [],
   };
 }

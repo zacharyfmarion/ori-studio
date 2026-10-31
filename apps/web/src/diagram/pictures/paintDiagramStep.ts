@@ -1,3 +1,5 @@
+import {STEP_CARD_PADDING_MM} from './pictureMetrics';
+export {STEP_CARD_PADDING_MM} from './pictureMetrics';
 /**
  * A step's picture as SVG markup (implementation-plans/diagram-workspace.md,
  * Paint contract): what a card shows, what Export picture writes, and — from
@@ -183,7 +185,7 @@ export function stepScenePage(paddingMm: number, scale = 1): PaperPage {
 }
 
 /** The margin a card or the step detail gives a scene: the pens' own room, near enough. */
-export const STEP_CARD_PADDING_MM = 1;
+
 
 /**
  * A scene with only the items whose extent meets `cull` — a box in picture

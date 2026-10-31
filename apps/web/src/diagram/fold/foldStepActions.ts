@@ -1,3 +1,4 @@
+import type { SpreadPresentation } from '../../layer-spread/presentation';
 /**
  * The verbs of a Diagram step linked to a Fold step (plan D17), bound to the
  * store: Refresh, Show as, its pose — turned, turned over, to an angle, its
@@ -334,4 +335,11 @@ export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void 
     case 'busy':
       return;
   }
+}
+
+/** View-only change: the Fold source remains a flat folded state. */
+export async function presentDiagramFoldStep(stepId: string, presentation: SpreadPresentation): Promise<boolean> {
+  const source=foldSourceOf(stepId);
+  if(!source || source.render.mode!=='folded-flat' || source.render.spread?.kind!=='connected')return false;
+  return poseAs(stepId,source,{...source.render,presentation},'spread-presentation');
 }

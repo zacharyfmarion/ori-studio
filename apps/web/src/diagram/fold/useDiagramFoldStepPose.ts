@@ -1,3 +1,10 @@
+import { useFoldSpreadCamera } from './useFoldSpreadCamera';
+import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
+import { useFoldSpreadView } from './useFoldSpreadView';
+import { presentDiagramFoldStep } from './foldStepActions';
+import type { ConnectedSpreadView } from '../../layer-spread/view';
+import type { SpreadPresentation } from '../../layer-spread/presentation';
+import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -41,6 +48,13 @@ import { rotateDiagramFoldStepTo, spreadDiagramFoldStep } from './foldStepAction
  * Null for a step that is not a Fold step's.
  */
 export interface DiagramFoldStepPose {
+  perspectiveActions: DiagramLinkedPoseAction[] | null;
+  registerLiveView: (view: SimulatorViewHandle) => () => void;
+  connected: ConnectedSpreadView | null;
+  connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
+  setPresentation: (kind: SpreadPresentation['kind']) => void;
+  onCamera: (camera: FoldedFigureCamera) => void;
+  onReveal: (reveal: [number, number]) => void;
   /** Spread Layers, the pose verb: absent unless the step shows a flat fold. */
   spreadToggle: DiagramLinkedPoseAction | undefined;
   /** The spread's kind and values while the layers are spread; null while they are not. */
@@ -85,11 +99,20 @@ function subscribe(listener: () => void): () => void {
 
 /** Which picture a Fold step shows: its state and moment — and a run's last step — which a pose leaves as they are. */
 function pictureKey(stepId: string, source: DiagramFoldStepSource): string {
-  return JSON.stringify([stepId, source.sequence, source.step, source.through ?? null, source.moment, source.path, source.state]);
+  return JSON.stringify([
+    stepId,
+    source.sequence,
+    source.step,
+    source.through ?? null,
+    source.moment,
+    source.path,
+    source.state,
+  ]);
 }
 
 /** The picture `source` would show with `spread`, from what it is drawn from; null when that is not read yet. */
 function drawWith(key: string, source: DiagramFoldStepSource, spread: LayerSpreadOptions): DiagramScenePicture | null {
+  if (spread.kind === 'connected') return null;
   const input = inputs.get(key);
   // An input is only ever read once Fold's code has loaded (`readInput`).
   const fold = loadedFold();
@@ -147,9 +170,11 @@ function foldSource(step: DiagramStep | null): DiagramFoldStepSource | null {
   return step && !step.unknown && step.source?.kind === 'fold-step' ? step.source : null;
 }
 
-export function useDiagramFoldStepPose(step: DiagramStep | null): DiagramFoldStepPose | null {
+export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): DiagramFoldStepPose | null {
   const { t } = useTranslation();
+  const camera = useFoldSpreadCamera(step, live);
   const source = foldSource(step);
+  const connected = useFoldSpreadView(source, live);
   const stepId = source ? step!.id : null;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const busy = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
@@ -173,12 +198,12 @@ export function useDiagramFoldStepPose(step: DiagramStep | null): DiagramFoldSte
             seeThrough: source.render.mode === 'folded-flat' && step?.picture?.kind === 'fixed',
           }
         : null,
-    [source, readOnly, busy, step?.picture?.kind]
+    [source, readOnly, busy, step?.picture?.kind],
   );
 
   const annotationsHint = t(
     'panels:diagram.pose.annotationsHint',
-    'Its annotations were made with a newer Ori Studio, which could not turn with it'
+    'Its annotations were made with a newer Ori Studio, which could not turn with it',
   );
   const spreadToggle = useMemo((): DiagramLinkedPoseAction | undefined => {
     if (!poseState || stepId === null || poseState.render.mode !== 'folded-flat') return undefined;
@@ -197,6 +222,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null): DiagramFoldSte
       kind: (kind) => void spreadDiagramFoldStep(stepId, { verb: 'spread-kind', kind }),
       direction: (toward) => void spreadDiagramFoldStep(stepId, { verb: 'spread-direction', toward }),
       keep: (keep) => void spreadDiagramFoldStep(stepId, { verb: 'spread-keep', keep }),
+      clearReveal: () => void spreadDiagramFoldStep(stepId, { verb: 'spread-reveal', reveal: [0, 0] }),
     });
     if (!controls) return null;
     const held = controls.disabled || unknownMarks;
@@ -233,18 +259,71 @@ export function useDiagramFoldStepPose(step: DiagramStep | null): DiagramFoldSte
     return withCarriedAnnotations(step, shown, assets ?? {});
   }, [step, source, ours, assets]);
 
+  const flat = source?.render.mode === 'folded-flat' ? source.render : null;
+  const { cancelCamera } = camera;
+  const setPresentation = useCallback(
+    (kind: SpreadPresentation['kind']) => {
+      cancelCamera();
+      if (stepId && !readOnly && !unknownMarks)
+        void presentDiagramFoldStep(stepId, {
+          kind,
+          camera: flat?.presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA,
+          orderSide: flat?.presentation?.orderSide ?? 'front',
+        });
+    },
+    [stepId, readOnly, unknownMarks, flat?.presentation, cancelCamera],
+  );
+  const { onCamera, registerLiveView, actions: perspectiveActions } = camera;
+  const onReveal = useCallback(
+    (reveal: [number, number]) => {
+      if (stepId && !readOnly && !unknownMarks) void spreadDiagramFoldStep(stepId, { verb: 'spread-reveal', reveal });
+    },
+    [stepId, readOnly, unknownMarks],
+  );
+  const connectedSpread =
+    ours?.spread.kind === 'connected' ? ours.spread : flat?.spread?.kind === 'connected' ? flat.spread : null;
+
   const rotateTo = useCallback(
     (degrees: number) => {
       if (stepId !== null && !busy && !readOnly && !unknownMarks) void rotateDiagramFoldStepTo(stepId, degrees);
     },
-    [stepId, busy, readOnly, unknownMarks]
+    [stepId, busy, readOnly, unknownMarks],
   );
 
   return useMemo(
     () =>
       source
-        ? { spreadToggle, spread, rotateTo, turnHeld: readOnly || busy || unknownMarks, preview }
+        ? {
+            perspectiveActions,
+            registerLiveView,
+            connected,
+            connectedSpread,
+            setPresentation,
+            onCamera,
+            onReveal,
+            spreadToggle,
+            spread,
+            rotateTo,
+            turnHeld: readOnly || busy || unknownMarks,
+            preview,
+          }
         : null,
-    [source, spreadToggle, spread, rotateTo, readOnly, busy, unknownMarks, preview]
+    [
+      perspectiveActions,
+      registerLiveView,
+      connected,
+      connectedSpread,
+      setPresentation,
+      onCamera,
+      onReveal,
+      source,
+      spreadToggle,
+      spread,
+      rotateTo,
+      readOnly,
+      busy,
+      unknownMarks,
+      preview,
+    ],
   );
 }

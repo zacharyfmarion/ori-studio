@@ -21,7 +21,7 @@ import {
 import { clampSpreadAmount, clampSpreadAxis, clampSpreadSkew, type LayerSpreadEdit } from './layerSpreadSettings';
 
 /** The sliders a spread is dragged by: its amount, and an affine one's skew and axis. */
-export type SpreadSlider = 'amount' | 'skew' | 'axis';
+export type SpreadSlider = 'amount' | 'skew' | 'axis' | 'reveal-x' | 'reveal-y';
 
 /**
  * Spread Layers, the switch: on or off, and why it cannot be turned now.
@@ -56,6 +56,8 @@ export interface LayerSpreadChoice<T extends string> {
 export interface LayerSpreadControls {
   /** The spread the picture shows — a drag's, while it is previewed. */
   spread: LayerSpreadOptions;
+  /** Clear the reveal in one document edit, keeping the height amount. */
+  clearReveal?: () => void;
   /** Whether the spread can be changed, and if not, why. */
   disabled: boolean;
   hint?: string;
@@ -95,6 +97,7 @@ export function layerSpreadControls(
     kind,
     direction,
     keep,
+    clearReveal,
   }: {
     hint: string | undefined;
     busy: boolean;
@@ -102,6 +105,7 @@ export function layerSpreadControls(
     kind: (kind: SpreadKind) => void;
     direction: (toward: SpreadDirection) => void;
     keep: (keep: SpreadKeep) => void;
+    clearReveal?: () => void;
   }
 ): LayerSpreadControls {
   const disabled = hint !== undefined;
@@ -119,9 +123,10 @@ export function layerSpreadControls(
   });
   return {
     spread,
+    clearReveal: clearReveal ? () => { if (!disabled && !waiting) clearReveal(); } : undefined,
     disabled,
     hint,
-    kinds: SPREAD_KINDS.map((each) => choice(each, spreadKindLabel(each, t), each === spread.kind, kind)),
+    kinds: (spread.kind === 'connected' ? ['connected'] as const : SPREAD_KINDS).map((each) => choice(each, spreadKindLabel(each, t), each === spread.kind, kind)),
     directions:
       spread.kind === 'depth'
         ? SPREAD_DIRECTIONS.map((toward) => choice(toward, spreadDirectionLabel(toward, t), toward === spread.toward, direction))
@@ -140,6 +145,8 @@ export function layerSpreadControls(
  */
 export function spreadSliderEdit(slider: SpreadSlider, kind: SpreadKind, value: number): LayerSpreadEdit {
   switch (slider) {
+    case 'reveal-x': return { verb: 'spread-reveal-axis', axis: 0, value };
+    case 'reveal-y': return { verb: 'spread-reveal-axis', axis: 1, value };
     case 'amount':
       return { verb: 'spread-amount', amount: clampSpreadAmount(kind, value), kind };
     case 'skew':
@@ -151,6 +158,7 @@ export function spreadSliderEdit(slider: SpreadSlider, kind: SpreadKind, value: 
 
 /** A kind's name, as its segment says it. */
 export function spreadKindLabel(kind: SpreadKind, t: TFunction): string {
+  if (kind === 'connected') return t('panels:diagram.pose.spreadKindConnected', 'Connected');
   return kind === 'depth'
     ? t('panels:diagram.pose.spreadKindDepth', 'Depth')
     : t('panels:diagram.pose.spreadKindAffine', 'Affine');

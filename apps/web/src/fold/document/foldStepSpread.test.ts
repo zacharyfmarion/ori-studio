@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AffineSpreadOptions, DepthSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   DEFAULT_AFFINE_SPREAD,
+  DEFAULT_CONNECTED_SPREAD,
   DEFAULT_DEPTH_SPREAD,
   DEFAULT_LAYER_SPREAD,
   DEFAULT_SPREAD_STARTS,
@@ -71,8 +72,8 @@ describe('the spread a Fold step shows (the Diagram’s rule, along its path)', 
 
   it('starts a spread turned on from the steps before it, each kind from the nearest of its kind', () => {
     const document = sequence({ a: affine(0.1), b: depth(0.05), c: 'off' });
-    expect(foldSpreadStarts(document, 'd')).toEqual({ any: depth(0.05), depth: depth(0.05), affine: affine(0.1) });
-    expect(foldSpreadStarts(document, 'b')).toEqual({ any: affine(0.1), depth: DEFAULT_DEPTH_SPREAD, affine: affine(0.1) });
+    expect(foldSpreadStarts(document, 'd')).toEqual({connected: DEFAULT_CONNECTED_SPREAD, any: depth(0.05), depth: depth(0.05), affine: affine(0.1) });
+    expect(foldSpreadStarts(document, 'b')).toEqual({connected: DEFAULT_CONNECTED_SPREAD, any: affine(0.1), depth: DEFAULT_DEPTH_SPREAD, affine: affine(0.1) });
     expect(foldSpreadStarts(sequence(), 'c')).toEqual(DEFAULT_SPREAD_STARTS);
   });
 });

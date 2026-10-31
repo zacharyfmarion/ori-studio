@@ -34,7 +34,7 @@ function linkedPose(preview: DiagramStep | null, actions: DiagramLinkedPoseActio
   return {
     actions,
     layerOrder: null,
-    spatial: null,
+    spatial: null, connected: null, connectedSpread: null, setPresentation: () => {}, onReveal: () => {},
     onCamera: () => {},
     registerLiveView: () => () => {},
     rotateTo: () => {},

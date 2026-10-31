@@ -1,3 +1,5 @@
+import {DEFAULT_CONNECTED_SPREAD} from '../../cp-workspace/folded/layerSpreadSettings';
+import '../../layer-spread/captureWorker.testSupport';
 import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
@@ -396,14 +398,15 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     });
   }
 
-  it('starts a new flat pose spread — the nearest step before’s, else affine (Zach, 2026-10-05) — and turns it off and on, counted with how', async () => {
+  it('starts a new flat pose spread — the nearest step before’s, else connected — and turns it off and on, counted with how', async () => {
     const first = await linkedStep();
     const second = await linkedStep();
     expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, second]);
     const one = createPoseController(first, listener());
     await one.run({ verb: 'show-folded' });
-    // No step before it has one: the default, affine, on.
-    expect(spreadOf(first)).toEqual(AFFINE);
+    // New steps use connected; an explicitly selected legacy spread still inherits.
+    expect(spreadOf(first)).toEqual(DEFAULT_CONNECTED_SPREAD);
+    await one.run({verb: 'spread-kind',kind:'affine'});
     await one.run({ verb: 'spread-keep', keep: 'bottom' });
     expect(spreadOf(first)).toEqual({ ...AFFINE, keep: 'bottom' });
     one.dispose();
@@ -420,8 +423,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(state().diagramHistory.past.length).toBe(past + 2);
     two.dispose();
 
-    expect(analytics.trackDiagramPicturePosed.mock.calls.slice(-5)).toEqual([
-      ['show_folded', 'flat', {}],
+    expect(analytics.trackDiagramPicturePosed.mock.calls.slice(-4)).toEqual([
       ['spread_keep', 'flat', { spread: { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 } }],
       ['show_folded', 'flat', {}],
       ['spread_off', 'flat', {}],
@@ -492,6 +494,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
+    await controller.run({verb:'spread-kind',kind:'affine'});
     const reads = vi.mocked(bindings.runtime!.paperScene).mock.calls.length;
     const past = state().diagramHistory.past.length;
     const posed = analytics.trackDiagramPicturePosed.mock.calls.length;
@@ -603,6 +606,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const stepId = await linkedStep();
     const controller = createPoseController(stepId, listener());
     await controller.run({ verb: 'show-folded' });
+    await controller.run({verb:'spread-kind',kind:'affine'});
     const past = state().diagramHistory.past.length;
     const commits = [0.1, 0.12, 0.14].map((value) => {
       controller.previewSpread({ slider: 'amount', kind: 'affine', value });
@@ -790,6 +794,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
+    await controller.run({verb:'spread-kind',kind:'affine'});
     await controller.run({ verb: 'turn-over' });
     controller.previewSpread({ slider: 'amount', kind: 'affine', value: 0.1 });
     // Heard before the undo, which takes back this step's turn.
@@ -890,6 +895,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
+    await controller.run({verb:'spread-kind',kind:'affine'});
     controller.previewSpread({ slider: 'amount', kind: 'affine', value: 0.1 });
     expect(heard.preview).toHaveBeenLastCalledWith(
       expect.objectContaining({ spread: { ...AFFINE, amount: 0.1 } }),

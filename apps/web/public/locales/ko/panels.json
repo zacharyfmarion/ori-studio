@@ -1461,6 +1461,8 @@
       "previousSolution": "이전 층 순서",
       "reset": "포즈 초기화",
       "resetHint": "이미 처음 자세입니다",
+      "revealHorizontal": "가로로 드러내기",
+      "revealVertical": "세로로 드러내기",
       "rotateLeft": "왼쪽으로 회전",
       "rotateRight": "오른쪽으로 회전",
       "rotation": "회전",
@@ -1495,6 +1497,7 @@
       "spreadKeepTop": "위",
       "spreadKind": "벌림 방식",
       "spreadKindAffine": "아핀",
+      "spreadKindConnected": "연결 유지",
       "spreadKindDepth": "깊이",
       "spreadLayers": "층 벌리기",
       "spreadLayersRow": "층 벌리기",
@@ -1576,6 +1579,17 @@
       "unreadableCard": "이 카드의 그림을 읽을 수 없어 추가할 수 없습니다.",
       "ways_other": "{{count}}가지 방법",
       "withTurnOver": "앞의 뒤집기 포함"
+    },
+    "spread": {
+      "clearReveal": "오프셋 지우기",
+      "diagram": "도해",
+      "drag": "드래그하여 층 드러내기",
+      "perspective": "원근 3D",
+      "preparing": "층 간격 준비 중…",
+      "presentation": "표현 방식",
+      "reveal": "층 드러내기",
+      "revealHint": "드래그하여 층 드러내기 · 스크롤하여 확대/축소",
+      "upgrade": "새 층 간격 방식 사용"
     },
     "stepPane": {
       "annotate": "주석",
@@ -1754,6 +1768,7 @@
       "startsBranch": "새 분기를 시작합니다"
     },
     "canvas": {
+      "adjustSpread": "층 간격 조정",
       "creasePattern": "전개도",
       "creasePatternLabel": "지금까지의 전개도(앞면이 위). 점과 접은 선을 클릭해 접을 위치를 정하세요.",
       "flatCreases": "평평한 접은 선",
@@ -2534,6 +2549,9 @@
       "switchBranch": "분기 전환",
       "tagBranch": "새 분기",
       "tagNext": "다음"
+    },
+    "spread": {
+      "unavailable": "이 상태에서는 층 간격을 표시할 수 없습니다"
     },
     "step": {
       "blocks": "블록",

@@ -1,3 +1,6 @@
+import { captureFlatScenePicture } from '../capture/captureFolded';
+import { prepareConnected } from '../../layer-spread/prepareConnected';
+import { foldScenePattern } from './foldStepPicture';
 /**
  * A Diagram step's picture, captured from a step of a Fold sequence (plan
  * D17): the Fold session is held while it works — so it runs from the
@@ -183,7 +186,18 @@ export async function captureFoldStep(
     const read = await readFoldStepCapture(session, request, t);
     if (read.status !== 'ready') return read;
     const { picture: input, ready, parent, node, engineVersion, run } = read.input;
-    const picture = foldStepPicture(input, request.render, newId);
+    const lease = request.render.mode === 'folded-flat' && request.render.spread?.kind === 'connected'
+      ? prepareConnected(foldScenePattern(input.shown, request.render.side)) : null;
+    let picture: ReturnType<typeof foldStepPicture>;
+    try {
+      const connected = await lease?.promise;
+      const render = request.render;
+      const captured = connected && render.mode === 'folded-flat' && render.spread
+        ? await captureFlatScenePicture(foldScenePattern(input.shown, render.side), render.rotationDeg, render.spread, connected, render.presentation)
+        : undefined;
+      picture = foldStepPicture(input, render, newId, connected, captured);
+    }
+    finally { lease?.release(); }
     const sentence = run
       ? xmlText(run.sentence)
       : sentenceOf(

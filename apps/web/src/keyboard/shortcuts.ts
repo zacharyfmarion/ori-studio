@@ -220,6 +220,7 @@ export type FoldShortcutId =
   | 'fold.toolOpenSink'
   | 'fold.toolClosedSink'
   | 'fold.toolUnsink'
+  | 'fold.adjustSpread'
   | 'fold.turnOver'
   | 'fold.rotate'
   | 'fold.lineAxiom1'
@@ -870,6 +871,7 @@ const FOLD_SHORTCUTS: ShortcutDefinition[] = [
   foldShortcut('fold.toolOpenSink', 'Open Sink', { shift: true, key: 'z' }),
   foldShortcut('fold.toolClosedSink', 'Closed Sink', { shift: true, key: 'x' }),
   foldShortcut('fold.toolUnsink', 'Unsink', { shift: true, key: 'c' }),
+  foldShortcut('fold.adjustSpread', 'Adjust spread', null),
   foldShortcut('fold.turnOver', 'Turn Over', { key: 't' }),
   // R takes the Rotate tool in hand: its window sets how far and which way, Enter applies.
   foldShortcut('fold.rotate', 'Rotate', { key: 'r' }),

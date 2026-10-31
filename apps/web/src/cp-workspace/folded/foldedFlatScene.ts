@@ -1,3 +1,5 @@
+import { perspectiveDrawing } from '../../layer-spread/perspective';
+import type { SpreadPresentation } from '../../layer-spread/presentation';
 /**
  * The flat folded figure's picture as a {@link PaperScene}: whole faces in
  * painter's order, every layer present, from the kernel's paper scene.
@@ -79,6 +81,7 @@
  */
 
 import type { PaperScene } from '@treemaker/origami-simulator';
+import { connectedDrawing, connectedPaperScene, type PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 import type {
   OristudioCpFoldedPaperEdgeKind,
   OristudioCpFoldedPaperFace,
@@ -117,6 +120,10 @@ export interface FoldedFlatPaperSceneOptions {
    * `markHidden: false`.
    */
   spread?: LayerSpreadOptions;
+  connected?: PreparedConnectedSpread;
+  /** Live drawing uses GPU masks; captures resolve vector fragments once. */
+  live?: boolean;
+  presentation?: SpreadPresentation;
 }
 
 /**
@@ -127,10 +134,38 @@ export interface FoldedFlatPaperSceneOptions {
  * model's scale and rotation — and the scene overlays the canvas's picture
  * through the same `toScenePx`.
  */
+const connectedInk = new WeakMap<OristudioCpFoldedPaperScene, PaperItem[]>();
+
 export function foldedFlatPaperScene(
   kernel: OristudioCpFoldedPaperScene,
   options: FoldedFlatPaperSceneOptions
 ): PaperScene {
+  if (options.spread?.kind === 'connected') {
+    if (!options.connected) {
+      // A new state stays flat while its own solve is being prepared.
+      return foldedFlatPaperScene(kernel, { ...options, spread: undefined });
+    }
+    let ink = connectedInk.get(kernel);
+    if (!ink) {
+    const material = foldedFlatPaperScene({ ...kernel, subfaces: [] }, {
+      markHidden: false, toScenePx: p => [p.x, p.y], scale: 1,
+    });
+    ink = [];
+    for (const item of material.items) {
+      if (item.kind === 'line') ink.push(item);
+      if (item.kind === 'face' && item.outline) for (const ring of item.rings) {
+        ring.forEach((a, k) => ink!.push({ kind: 'line', role: item.outline!, face: item.face,
+          a, b: ring[(k + 1) % ring.length]!, onBoundary: [false, false], joined: [true, true], hidden: false }));
+      }
+    }
+    connectedInk.set(kernel, ink);
+    }
+    const spatial = options.presentation?.kind === 'perspective';
+    const spread = spatial ? { ...options.spread, reveal: [0, 0] as [number, number] } : options.spread;
+    let drawing = connectedDrawing(kernel, options.connected, spread, options.toScenePx, ink);
+    if (spatial) drawing = perspectiveDrawing(drawing, options.connected, options.presentation!);
+    return connectedPaperScene(drawing, kernel.sheet * options.scale, !options.live);
+  }
   const epsilon = foldedSceneEpsilon(kernel);
   const { edges, ink, order } = paintPlan(kernel, epsilon);
   const context: EmitContext = {
@@ -216,7 +251,7 @@ function placement(
   { toScenePx, scale, spread }: FoldedFlatPaperSceneOptions,
   epsilon: number
 ): Pick<EmitContext, 'at' | 'along'> {
-  if (!spread) {
+  if (!spread || spread.kind === 'connected') {
     return {
       at: (_face, point) => toScenePx(point),
       along: (_face, from, to, t) => toScenePx(lerp(from, to, t)),

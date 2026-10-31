@@ -1,3 +1,4 @@
+vi.mock('./programs/spreadProgram', () => ({createSpreadProgram:()=>({setData:()=>{},draw:()=>{},dispose:()=>{}})}));
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import type { ViewTransform } from './types';

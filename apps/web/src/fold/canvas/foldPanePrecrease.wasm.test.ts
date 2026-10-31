@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DEPTH_SPREAD, DEFAULT_LAYER_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_DEPTH_SPREAD, DEFAULT_AFFINE_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import { foldedDisplayLayers } from '../../cp-workspace/folded/foldedDisplayLayers';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import { createFoldEngineCalls, type FoldEngineCalls } from '../engine/foldEngineCalls';
@@ -47,10 +47,10 @@ describe.skipIf(!available)('a precrease under the spread folded pane', () => {
   });
 
   it.each([
-    ['the default affine spread', DEFAULT_LAYER_SPREAD],
+    ['the default affine spread', DEFAULT_AFFINE_SPREAD],
     ['the default depth spread', DEFAULT_DEPTH_SPREAD],
     ['a wide depth spread', { kind: 'depth', amount: 0.2, toward: 'down-left' } as LayerSpreadOptions],
-    ['an affine spread held at the bottom', { ...DEFAULT_LAYER_SPREAD, keep: 'bottom', amount: 0.2 } as LayerSpreadOptions],
+    ['an affine spread held at the bottom', { ...DEFAULT_AFFINE_SPREAD, keep: 'bottom', amount: 0.2 } as LayerSpreadOptions],
   ])('shows every point of the paper as it was before, with %s', async (_label, spread) => {
     const calls = await engine();
     const states = precreasedBaseStates(calls);

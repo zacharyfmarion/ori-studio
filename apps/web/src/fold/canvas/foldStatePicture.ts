@@ -69,3 +69,27 @@ export function foldStatePictureUrl(
   const { svg } = paperSceneToSvg(paper, paneStyle(style).style, CARD_PAGE, 'figure');
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
+
+/** The windowed card queue uses a low-priority solve and an interruptible
+ * vector capture; a card scrolled away releases both immediately. */
+export async function connectedFoldStatePictureUrl(scene: FoldScene, style: PaperStyle,
+  display: FoldPaneDisplay, spread: LayerSpreadOptions, signal: AbortSignal): Promise<string | null> {
+  const [{prepareConnected},{captureConnected},{hasConnectedDrawing}]=await Promise.all([
+    import('../../layer-spread/prepareConnected'),import('../../layer-spread/captureConnected'),import('../../layer-spread/connectedScene')]);
+  const lease=prepareConnected(scene,true,0);
+  const abort=()=>lease.release();signal.addEventListener('abort',abort,{once:true});
+  try {
+    if(signal.aborted)throw new DOMException('Card no longer visible','AbortError');
+    const prepared=await lease.promise;
+    if(signal.aborted)throw new DOMException('Card no longer visible','AbortError');
+    const live=foldedPaneScene(scene,display,undefined,spread,prepared);
+    const paper=hasConnectedDrawing(live)?await captureConnected(live,signal):live;
+    if(hasConnectedDrawing(paper)) {
+      const [{rasterConnected},{bytesToBase64}]=await Promise.all([import('../../layer-spread/rasterConnected'),import('../../lib/base64')]);
+      const raster=await rasterConnected(paper,paneStyle(style).style,30,signal);
+      return `data:image/png;base64,${bytesToBase64(new Uint8Array(raster.png))}`;
+    }
+    const {svg}=paperSceneToSvg(paper,paneStyle(style).style,CARD_PAGE,'figure');
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  } finally {signal.removeEventListener('abort',abort);lease.release();}
+}

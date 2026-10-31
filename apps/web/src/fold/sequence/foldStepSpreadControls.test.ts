@@ -1,3 +1,4 @@
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { TFunction } from 'i18next';
 import { describe, expect, it, vi } from 'vitest';
 import type {
@@ -12,7 +13,7 @@ import { foldStepSpreadControls, type FoldSpreadSitting, type FoldStepSpreadStat
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
 const depth: DepthSpreadOptions = { kind: 'depth', amount: 0.05, toward: 'down' };
 const affine: AffineSpreadOptions = { kind: 'affine', amount: 0.04, keep: 'top', skew: 1, axisDeg: 81 };
-const starts: LayerSpreadStarts = { any: depth, depth, affine: { ...affine, amount: 0.1 } };
+const starts: LayerSpreadStarts = { connected: DEFAULT_CONNECTED_SPREAD, any: depth, depth, affine: { ...affine, amount: 0.1 } };
 
 function build(effective: FoldEffectiveSpread, state: Partial<FoldStepSpreadState> = {}, changes = true) {
   const set = vi.fn(() => changes);
@@ -48,6 +49,7 @@ describe('a Fold step’s spread controls', () => {
   it('starts a kind from the nearest earlier spread of it, and sets a direction or a layer held still', () => {
     const shown = build(on());
     expect(shown.controls.spread?.kinds.map((kind) => [kind.value, kind.pressed])).toEqual([
+      ['connected', false],
       ['affine', true],
       ['depth', false],
     ]);

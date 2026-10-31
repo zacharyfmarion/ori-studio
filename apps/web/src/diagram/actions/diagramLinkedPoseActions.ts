@@ -245,6 +245,12 @@ export function buildDiagramLinkedPoseActions(
     case 'crease-pattern':
       return [...modes, ...turn, reset];
     case 'folded-flat':
+      if(render.spread?.kind==='connected' && render.presentation?.kind==='perspective')return [
+        ...modes,
+        action('turn-over',t('panels:diagram.pose.otherSide','View From the Other Side')),
+        action('view-top',t('panels:diagram.pose.viewTop','View From Above')),
+        setUpright,spreadLayers,reset,
+      ];
       return [
         ...modes,
         action('turn-over', t('panels:diagram.pose.turnOver', 'Turn Over')),
@@ -314,6 +320,7 @@ export function buildDiagramSpreadControls(
     kind: (kind: SpreadKind) => void;
     direction: (toward: SpreadDirection) => void;
     keep: (keep: SpreadKeep) => void;
+    clearReveal?: () => void;
   }
 ): DiagramSpreadControls | null {
   const { t } = deps;
@@ -333,6 +340,10 @@ export function isDefaultRender(render: DiagramCpRender): boolean {
       // Its side is the Step pane's Front | Back, kept by Reset as a spread is.
       return render.rotationDeg === 0;
     case 'folded-flat':
+      if(render.spread?.kind==='connected'&&render.presentation?.kind==='perspective') {
+        const start=defaultCaptureCamera('front'),camera=render.presentation.camera;
+        return !camera.orient && Math.abs(camera.yaw-start.yaw)<1e-9 && Math.abs(camera.pitch-start.pitch)<1e-9 && Math.abs(camera.zoom-start.zoom)<1e-9;
+      }
       return render.rotationDeg === 0 && render.side === 'front' && render.foldCase === 1;
     case 'folded-3d': {
       const start = defaultCaptureCamera('front');

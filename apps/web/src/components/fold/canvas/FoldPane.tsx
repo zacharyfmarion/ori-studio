@@ -1,3 +1,4 @@
+import type { FoldRevealGesture } from '../../../fold/canvas/useFoldReveal';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type ReactNode } from 'react';
 import { CpRendererUnavailable } from '../../../cp-workspace/CpRendererUnavailable';
 import type { CpOverlayView } from '../../../cp-workspace/CreasePatternWebglCanvas';
@@ -42,6 +43,7 @@ const EMPTY_FOLDED: FoldedGeometry = {
 const FOLD_INK: FoldedSceneInk = { policy: PAPER_STYLE_POLICIES.fold };
 
 export interface FoldPaneProps {
+  revealGesture?: FoldRevealGesture;
   pane: FoldPaneId;
   /** The paper the pane paints, through the shared painter; null before the state's scene is in, or for none. */
   scene: PaperScene | null;
@@ -237,9 +239,11 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
       // hit-tests it, as Edit's canvas does on a move: a modifier whose
       // key-up landed elsewhere — another window took it without a blur —
       // would otherwise stay held, and Alt makes every click a free point.
-      onPointerMoveCapture={syncHeldModifiersFromEvent}
-      onPointerUpCapture={syncHeldModifiersFromEvent}
+      onPointerMoveCapture={event => { if (!props.revealGesture?.move(event)) syncHeldModifiersFromEvent(event); }}
+      onPointerUpCapture={event => { if (!props.revealGesture?.end(event)) syncHeldModifiersFromEvent(event); }}
+      onPointerCancelCapture={event => { props.revealGesture?.end(event); }}
       onPointerDownCapture={(event) => {
+        if (props.revealGesture?.down(event)) return;
         syncHeldModifiersFromEvent(event);
         onActivate?.();
         if (document.activeElement !== event.currentTarget) event.currentTarget.focus({ preventScroll: true });

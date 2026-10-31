@@ -13,8 +13,8 @@
     "build:oristudio-fold-wasm": "wasm-pack build ../../crates/oristudio-fold-wasm --target web --out-dir ../../apps/web/src/generated/oristudio-fold-wasm",
     "build:reference-finder-wasm": "node ../../scripts/build-reference-finder.mjs",
     "gen:cp-detect-defaults": "cargo run -q --manifest-path ../../Cargo.toml -p oristudio-cp-detect --bin emit_cp_detect_defaults_ts > src/generated/cpDetectDefaults.generated.ts.tmp && mv src/generated/cpDetectDefaults.generated.ts.tmp src/generated/cpDetectDefaults.generated.ts",
-    "build:wasm": "npm run build:treemaker-wasm && npm run build:oristudio-cp-wasm && npm run build:oristudio-bp-wasm && npm run build:oristudio-cp-detect-wasm && npm run build:oristudio-precrease-wasm && npm run build:oristudio-pdf-wasm && npm run build:oristudio-fold-wasm && npm run build:reference-finder-wasm",
-    "build:simulator": "npm --workspace @treemaker/origami-simulator run build",
+    "build:wasm": "npm run build:treemaker-wasm && npm run build:oristudio-cp-wasm && npm run build:oristudio-bp-wasm && npm run build:oristudio-cp-detect-wasm && npm run build:oristudio-precrease-wasm && npm run build:oristudio-pdf-wasm && npm run build:oristudio-fold-wasm && npm run build:reference-finder-wasm && npm run build:oristudio-layer-spread-wasm",
+    "build:simulator": "npm run build:layer-spread && npm --workspace @treemaker/origami-simulator run build",
     "predev": "npm run build:simulator && npm run build:wasm",
     "prebuild": "npm run build:simulator && npm run build:wasm",
     "pretypecheck": "npm run build:simulator && npm run build:wasm",
@@ -32,7 +32,9 @@
     "generate:oriedita-defaults": "node scripts/generate-oriedita-defaults.mjs",
     "typecheck:functions": "tsc --noEmit --project tsconfig.functions.json",
     "share:build": "VITE_SHARE_API_URL=http://localhost:8788 vite build",
-    "share:dev": "npm run share:build && npx -y wrangler@4 pages dev dist --port 8788 --kv SHARE_KV --r2 SHARE_R2 --persist-to .wrangler/state/share-dev"
+    "share:dev": "npm run share:build && npx -y wrangler@4 pages dev dist --port 8788 --kv SHARE_KV --r2 SHARE_R2 --persist-to .wrangler/state/share-dev",
+    "build:layer-spread": "npm --workspace @oristudio/layer-spread run build",
+    "build:oristudio-layer-spread-wasm": "wasm-pack build ../../crates/oristudio-layer-spread-wasm --target web --out-dir ../../apps/web/src/generated/oristudio-layer-spread-wasm"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
@@ -71,7 +73,8 @@
     "react-router-dom": "^7.18.1",
     "react-zoom-pan-pinch": "^3.7.0",
     "sonner": "^2.0.7",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.11",
+    "@oristudio/layer-spread": "0.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

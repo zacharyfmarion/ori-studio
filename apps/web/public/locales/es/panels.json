@@ -1543,6 +1543,8 @@
       "previousSolution": "Orden de capas anterior",
       "reset": "Restablecer pose",
       "resetHint": "Ya está en su pose inicial",
+      "revealHorizontal": "Revelar horizontalmente",
+      "revealVertical": "Revelar verticalmente",
       "rotateLeft": "Girar a la izquierda",
       "rotateRight": "Girar a la derecha",
       "rotation": "Rotación",
@@ -1577,6 +1579,7 @@
       "spreadKeepTop": "Superior",
       "spreadKind": "Separar por",
       "spreadKindAffine": "Afín",
+      "spreadKindConnected": "Conectado",
       "spreadKindDepth": "Profundidad",
       "spreadLayers": "Separar capas",
       "spreadLayersRow": "Separar capas",
@@ -1680,6 +1683,17 @@
       "ways_many": "{{count}} formas",
       "ways_other": "{{count}} formas",
       "withTurnOver": "Con la vuelta anterior"
+    },
+    "spread": {
+      "clearReveal": "Quitar desplazamiento",
+      "diagram": "Diagrama",
+      "drag": "Arrastra para mostrar las capas",
+      "perspective": "Perspectiva 3D",
+      "preparing": "Preparando separación…",
+      "presentation": "Presentación",
+      "reveal": "Capas visibles",
+      "revealHint": "Arrastra para mostrar las capas · Desplaza para ampliar",
+      "upgrade": "Usar nueva separación"
     },
     "stepPane": {
       "annotate": "Anotar",
@@ -1860,6 +1874,7 @@
       "startsBranch": "Empieza una rama nueva"
     },
     "canvas": {
+      "adjustSpread": "Ajustar separación",
       "creasePattern": "Patrón de pliegues",
       "creasePatternLabel": "El patrón de pliegues hasta ahora, anverso arriba. Haz clic en sus puntos y pliegues para situar un pliegue.",
       "flatCreases": "Pliegues planos",
@@ -3074,6 +3089,9 @@
       "switchBranch": "Cambiar de rama",
       "tagBranch": "Rama nueva",
       "tagNext": "Siguiente"
+    },
+    "spread": {
+      "unavailable": "La separación no está disponible para este estado"
     },
     "step": {
       "blocks": "Bloques",

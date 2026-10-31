@@ -65,6 +65,8 @@ export interface StrokeGeometry {
    * defaults to 0 and leaves plain painter order exactly as it was.
    */
   depth?: Float32Array;
+  /** Optional endpoint depth for spatial ink; absent keeps constant painter depth. */
+  depthEnd?: Float32Array;
   /** Number of segments. */
   count: number;
   /**
@@ -258,6 +260,8 @@ export const EMPTY_SHADOW_GEOMETRY: ShadowGeometry = {
 
 /** Folded-figure geometry: triangulated fills plus edge strokes (user coords). */
 export interface FoldedGeometry {
+  /** Optional connected spread pass; regular overlays still use the same canvas. */
+  spread?: import('./programs/spreadProgram').SpreadGeometry;
   fills: FillGeometry;
   strokes: StrokeGeometry;
   /**

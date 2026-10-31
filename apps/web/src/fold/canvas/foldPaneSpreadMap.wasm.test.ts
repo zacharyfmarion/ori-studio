@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cpHitRadiusModel, CP_LINE_HIT_RATIO, CP_POINT_HIT_RATIO } from '../../cp-workspace/snapRadius';
-import { DEFAULT_DEPTH_SPREAD, DEFAULT_LAYER_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_DEPTH_SPREAD, DEFAULT_AFFINE_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { Point } from '../../lib/geometry';
 import { CP_DEFAULT_SNAP_RADIUS } from '../../lib/cpSnapRadiusSetting';
 import type { FoldOp } from '../document/foldSequenceDocument';
@@ -61,7 +61,7 @@ describe.skipIf(!available)('the spread folded pane, picked where it is drawn', 
   it('maps every face where the painter draws it', async () => {
     const { calls, state } = await bookAndCorner();
     const scene = calls.scene(state);
-    for (const spread of [DEFAULT_LAYER_SPREAD, DEFAULT_DEPTH_SPREAD]) {
+    for (const spread of [DEFAULT_AFFINE_SPREAD, DEFAULT_DEPTH_SPREAD]) {
       const map = foldPaneSpreadMap(scene, spread)!;
       const painted = foldedPaneScene(scene, FOLD_PANE_DISPLAY_DEFAULT, undefined, spread);
       let checked = 0;
@@ -83,7 +83,7 @@ describe.skipIf(!available)('the spread folded pane, picked where it is drawn', 
     const { calls, state } = await bookAndCorner();
     const scene = calls.scene(state);
     const landmarks = calls.landmarks(state, []);
-    const map = foldPaneSpreadMap(scene, DEFAULT_LAYER_SPREAD)!;
+    const map = foldPaneSpreadMap(scene, DEFAULT_AFFINE_SPREAD)!;
     // The flap's corner, on the bottom layer's sheet at (1, 0.25), lies on the top layer's (0, 0.25).
     const truth = { x: 1, y: 0.25 };
     const drawn = map.sheet([1, 0.25])!;
@@ -118,7 +118,7 @@ describe.skipIf(!available)('the spread folded pane, picked where it is drawn', 
   it('reads a free point off the face drawn on top, and draws it back where it was clicked', async () => {
     const { calls, state } = await bookAndCorner();
     const scene = calls.scene(state);
-    const map = foldPaneSpreadMap(scene, DEFAULT_LAYER_SPREAD)!;
+    const map = foldPaneSpreadMap(scene, DEFAULT_AFFINE_SPREAD)!;
     const index = foldPickIndex(scene, calls.landmarks(state, []), [], map);
     // Inside the flap as drawn.
     const inFlap = map.sheet([0.95, 0.15])!;
@@ -132,7 +132,7 @@ describe.skipIf(!available)('the spread folded pane, picked where it is drawn', 
 
   it('lies flat once a tool has a pick in hand', () => {
     const none = { action: null, analysis: null };
-    expect(restingSpread(DEFAULT_LAYER_SPREAD, none)).toBe(DEFAULT_LAYER_SPREAD);
-    expect(restingSpread(DEFAULT_LAYER_SPREAD, none, true)).toBeNull();
+    expect(restingSpread(DEFAULT_AFFINE_SPREAD, none)).toBe(DEFAULT_AFFINE_SPREAD);
+    expect(restingSpread(DEFAULT_AFFINE_SPREAD, none, true)).toBeNull();
   });
 });

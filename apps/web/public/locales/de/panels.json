@@ -1502,6 +1502,8 @@
       "previousSolution": "Vorherige Lagenfolge",
       "reset": "Pose zurücksetzen",
       "resetHint": "Schon in der Ausgangslage",
+      "revealHorizontal": "Horizontal versetzen",
+      "revealVertical": "Vertikal versetzen",
       "rotateLeft": "Nach links drehen",
       "rotateRight": "Nach rechts drehen",
       "rotation": "Drehung",
@@ -1536,6 +1538,7 @@
       "spreadKeepTop": "Oben",
       "spreadKind": "Auffächern nach",
       "spreadKindAffine": "Affin",
+      "spreadKindConnected": "Verbunden",
       "spreadKindDepth": "Tiefe",
       "spreadLayers": "Lagen auffächern",
       "spreadLayersRow": "Lagen auffächern",
@@ -1628,6 +1631,17 @@
       "ways_one": "{{count}} Weg",
       "ways_other": "{{count}} Wege",
       "withTurnOver": "Mit dem Wenden davor"
+    },
+    "spread": {
+      "clearReveal": "Versatz aufheben",
+      "diagram": "Diagramm",
+      "drag": "Ziehen, um Lagen sichtbar zu machen",
+      "perspective": "3D-Perspektive",
+      "preparing": "Lagenabstand wird vorbereitet…",
+      "presentation": "Darstellung",
+      "reveal": "Lagenversatz",
+      "revealHint": "Ziehen, um Lagen sichtbar zu machen · Scrollen zum Zoomen",
+      "upgrade": "Neuen Lagenabstand verwenden"
     },
     "stepPane": {
       "annotate": "Annotieren",
@@ -1806,6 +1820,7 @@
       "startsBranch": "Beginnt einen neuen Zweig"
     },
     "canvas": {
+      "adjustSpread": "Lagenabstand anpassen",
       "creasePattern": "Faltmuster",
       "creasePatternLabel": "Das bisherige Faltmuster, Vorderseite oben. Klicke seine Punkte und Faltlinien an, um eine Faltung festzulegen.",
       "flatCreases": "Flache Faltlinien",
@@ -2803,6 +2818,9 @@
       "switchBranch": "Zweig wechseln",
       "tagBranch": "Neuer Zweig",
       "tagNext": "Nächster"
+    },
+    "spread": {
+      "unavailable": "Lagenabstand für diesen Zustand nicht verfügbar"
     },
     "step": {
       "blocks": "Blöcke",

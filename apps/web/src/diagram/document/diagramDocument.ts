@@ -1,3 +1,4 @@
+import type { SpreadPresentation } from '../../layer-spread/presentation';
 /**
  * The Diagram workspace's document: an ordered list of steps, the page they
  * are laid out on, and the paper style they are painted in.
@@ -251,6 +252,7 @@ export type DiagramCpRender =
        * about the picture, kept by every other pose verb. Absent is none.
        */
       spread?: DiagramLayerSpread;
+      presentation?: SpreadPresentation;
     }
   | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' }
   | {
@@ -746,6 +748,10 @@ export interface DiagramPaperFaces {
   rings: number[][];
   /** Per face: the longest chain of display layers stacked over its own as the picture is seen (`layerLevels`); the greatest is backmost. */
   levels: number[];
+  /** Render triangles, per face, as indices into that face's ring. */
+  triangles?: [number, number, number][][];
+  /** Whole projected rings, separate from the visible clipped pieces. */
+  drawn?: [number, number][][];
 }
 
 /**

@@ -213,7 +213,7 @@ describe.skipIf(!available)('the Fold session over the real bridge', () => {
     const mark: FoldMark = { id: 'fmark-1', from: [0, 0], to: [1, 0], divide: { mode: 'count', parts: 3 } };
     expect(state().setFoldMarks(first!, [mark])).toBe(true);
     await settle();
-    expect(state().setFoldStepSpread(second!, DEFAULT_LAYER_SPREAD)).toBe(true);
+    expect(state().setFoldStepSpread(second!, {...DEFAULT_LAYER_SPREAD, amount:1.5})).toBe(true);
     await settle();
     // The replay each edit asks for lands the same paths at the same states:
     // the session hands out the very nodes, reports and compounds it had.

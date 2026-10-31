@@ -8,7 +8,7 @@ import { reportError } from '../../monitoring';
 import { foldSession } from '../../store/workspaceStore/foldSession';
 import { useFoldPaneDisplay } from '../canvas/foldPaneDisplay';
 import type { FoldPaneDisplay } from '../canvas/foldPaneScenes';
-import { foldSpreadPictureKey, foldStatePictureKey, foldStatePictureUrl } from '../canvas/foldStatePicture';
+import { connectedFoldStatePictureUrl, foldSpreadPictureKey, foldStatePictureKey, foldStatePictureUrl } from '../canvas/foldStatePicture';
 import type { FoldScene } from '../engine/foldEngineWire';
 import type { FoldSession } from '../session/foldSession';
 import { FOLD_SCENE_QUERY } from '../session/foldStateQueries';
@@ -75,6 +75,7 @@ interface PaintJob {
 /** Asked and not yet painted: a scene on its way, or a job in the queue. */
 const asked = new Set<string>();
 const queue: PaintJob[] = [];
+const captures = new Map<string, AbortController>();
 /** The look the latest ask was for: a job for any other is for a look no longer shown. */
 let currentLook = '';
 let scheduled = false;
@@ -108,6 +109,7 @@ function release(key: string): void {
     return;
   }
   wanted.delete(key);
+  captures.get(key)?.abort();
   // No card says it failed any more: one that wants it later asks again.
   if (pictures.getState().failed.has(key)) pictures.setState({ failed: without(pictures.getState().failed, [key]) });
 }
@@ -164,29 +166,37 @@ function keep(painted: readonly { key: string; url: string | null }[]): void {
   pictures.setState({ byKey: next, failed: painted.some(({ key }) => failed.has(key)) ? without(failed, [...fresh]) : failed });
 }
 
-function drain(): void {
-  scheduled = false;
+async function drain(): Promise<void> {
   const start = performance.now();
   const painted: { key: string; url: string | null }[] = [];
   const failed: string[] = [];
   while (performance.now() - start < SLICE_MS) {
     const job = queue.shift();
     if (!job) break;
-    asked.delete(job.key);
     if (job.look !== currentLook || unwanted(job.key)) {
+      asked.delete(job.key);
       forget(job.key);
       continue;
     }
     try {
-      painted.push({ key: job.key, url: foldStatePictureUrl(job.scene, job.style, job.display, job.spread) });
+      let url: string | null;
+      if (job.spread?.kind === 'connected') {
+        const controller = new AbortController(); captures.set(job.key, controller);
+        url = await connectedFoldStatePictureUrl(job.scene, job.style, job.display, job.spread, controller.signal);
+        if (job.look !== currentLook || unwanted(job.key)) continue;
+      } else url = foldStatePictureUrl(job.scene, job.style, job.display, job.spread);
+      painted.push({ key: job.key, url });
     } catch (error) {
       // Not the user's to act on: the card says it can't be drawn, and asks again when it next mounts.
-      failed.push(job.key);
-      reportError(error, { surface: 'fold:card-picture' });
-    }
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        failed.push(job.key);
+        reportError(error, { surface: 'fold:card-picture' });
+      }
+    } finally { asked.delete(job.key); captures.delete(job.key); }
   }
   if (painted.length > 0) keep(painted);
   fail(failed);
+  scheduled = false;
   if (queue.length > 0) schedule();
 }
 
@@ -194,7 +204,7 @@ function schedule(): void {
   if (scheduled) return;
   scheduled = true;
   // A task of its own, so the strip renders between slices.
-  setTimeout(drain, 0);
+  setTimeout(() => void drain(), 0);
 }
 
 function enqueue(job: PaintJob): void {
@@ -251,6 +261,8 @@ export function heldFoldCardPicture(
 
 /** Forget every picture and every job: for tests. */
 export function clearFoldCardPictures(): void {
+  for (const capture of captures.values()) capture.abort();
+  captures.clear();
   asked.clear();
   queue.length = 0;
   currentLook = '';

@@ -399,6 +399,7 @@ describe('a flat capture’s faces on the paper (Revision 2)', () => {
         const [x, y] = turned(45, point);
         return [x! + dx, y! + dy];
       }
+      if (spread.kind !== 'affine') throw new Error('Legacy fixture expected affine');
       const { x, y } = affineSpread(kernel, spread, { epsilon }).offset(face, point);
       return turned(45, { x: point.x + x, y: point.y + y });
     };

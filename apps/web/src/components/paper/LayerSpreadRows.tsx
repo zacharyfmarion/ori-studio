@@ -18,6 +18,7 @@ import type {
   LayerSpreadToggle,
 } from '../../cp-workspace/folded/layerSpreadControls';
 import { SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
+import { Button } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { AffineSpreadCredit } from './AffineSpreadCredit';
 import { IconButton } from '../ui/IconButton';
@@ -55,7 +56,9 @@ const AMOUNT_STEP_PERCENT = 0.5;
 export function LayerSpreadRows({
   toggle,
   spread,
+  revealVisible = true,
 }: {
+  revealVisible?: boolean;
   /** Spread Layers; absent where the picture has no layers to offer it for. */
   toggle: LayerSpreadToggle | undefined;
   /** The spread while it is on; null while off. */
@@ -82,19 +85,26 @@ export function LayerSpreadRows({
       />
       {spread && shown && (
         <>
-          <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
-            <span className={styles.kind}>
-              <SegmentedControl
-                size="sm"
-                aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
-                value={shown.kind}
-                options={spread.kinds.map(({ value, label }) => ({ value, label }))}
-                disabled={spread.disabled}
-                onChange={(value) => choose(spread.kinds, value)}
-              />
-              <AffineSpreadCredit />
-            </span>
-          </FieldRow>
+          {shown.kind !== 'connected' && (
+            <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
+              <span className={styles.kind}>
+                <SegmentedControl
+                  size="sm"
+                  aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
+                  value={shown.kind}
+                  options={spread.kinds
+                    .filter((choice) => choice.value !== 'connected')
+                    .map(({ value, label }) => ({ value, label }))}
+                  disabled={spread.disabled}
+                  onChange={(value) => choose(spread.kinds, value)}
+                />
+                <AffineSpreadCredit />
+                <Button size="sm" disabled={spread.disabled} onClick={() => choose(spread.kinds, 'connected')}>
+                  {t('panels:diagram.spread.upgrade', 'Use new spread')}
+                </Button>
+              </span>
+            </FieldRow>
+          )}
           <SliderRow
             label={t('panels:diagram.pose.spreadAmount', 'Amount')}
             ariaLabel={t('panels:diagram.pose.spreadAmountName', 'Spread amount')}
@@ -104,20 +114,90 @@ export function LayerSpreadRows({
             step={AMOUNT_STEP_PERCENT}
             format={percent}
             valueText={(value) =>
-              shown.kind === 'depth'
-                ? t('panels:diagram.pose.spreadAmountValue', '{{percent}} of the model', { percent: percent(value) })
-                : t('panels:diagram.pose.spreadAffineAmountValue', '{{percent}} of the way back to the sheet along the axis', {
-                    percent: percent(value),
-                  })
+              shown.kind === 'connected'
+                ? percent(value)
+                : shown.kind === 'depth'
+                  ? t('panels:diagram.pose.spreadAmountValue', '{{percent}} of the model', { percent: percent(value) })
+                  : t(
+                      'panels:diagram.pose.spreadAffineAmountValue',
+                      '{{percent}} of the way back to the sheet along the axis',
+                      {
+                        percent: percent(value),
+                      },
+                    )
             }
             disabled={spread.disabled}
             title={spread.hint}
             onChange={(value) => spread.preview('amount', value / 100)}
             onGestureStart={spread.start}
             onGestureCommit={spread.commit}
+            onReset={
+              shown.kind === 'connected'
+                ? () => {
+                    if (spread.start()) {
+                      spread.preview('amount', 1);
+                      spread.commit();
+                    }
+                  }
+                : undefined
+            }
           />
-          {shown.kind === 'depth' ? (
-            <FieldRow label={t('panels:diagram.pose.spreadDirection', 'Direction')} kind="segmented" title={spread.hint}>
+          {shown.kind === 'connected' ? (
+            revealVisible ? (
+              <>
+                {spread.clearReveal && (
+                  <FieldRow kind="text" label={t('panels:diagram.spread.reveal', 'Layer reveal')}>
+                    <Button size="sm" disabled={spread.disabled} onClick={spread.clearReveal}>
+                      {t('panels:diagram.spread.clearReveal', 'Clear reveal')}
+                    </Button>
+                  </FieldRow>
+                )}
+                <SliderRow
+                  label={t('panels:diagram.pose.revealHorizontal', 'Reveal horizontally')}
+                  ariaLabel={t('panels:diagram.pose.revealHorizontal', 'Reveal horizontally')}
+                  onReset={() => {
+                    if (spread.start()) {
+                      spread.preview('reveal-x', 0.8);
+                      spread.commit();
+                    }
+                  }}
+                  value={shown.reveal[0]}
+                  min={-2}
+                  max={2}
+                  step={0.01}
+                  format={(value) => value.toFixed(2)}
+                  disabled={spread.disabled}
+                  onChange={(value) => spread.preview('reveal-x', value)}
+                  onGestureStart={spread.start}
+                  onGestureCommit={spread.commit}
+                />
+                <SliderRow
+                  label={t('panels:diagram.pose.revealVertical', 'Reveal vertically')}
+                  ariaLabel={t('panels:diagram.pose.revealVertical', 'Reveal vertically')}
+                  onReset={() => {
+                    if (spread.start()) {
+                      spread.preview('reveal-y', 0.6);
+                      spread.commit();
+                    }
+                  }}
+                  value={shown.reveal[1]}
+                  min={-2}
+                  max={2}
+                  step={0.01}
+                  format={(value) => value.toFixed(2)}
+                  disabled={spread.disabled}
+                  onChange={(value) => spread.preview('reveal-y', value)}
+                  onGestureStart={spread.start}
+                  onGestureCommit={spread.commit}
+                />
+              </>
+            ) : null
+          ) : shown.kind === 'depth' ? (
+            <FieldRow
+              label={t('panels:diagram.pose.spreadDirection', 'Direction')}
+              kind="segmented"
+              title={spread.hint}
+            >
               <div
                 className={styles.compass}
                 role="group"
@@ -156,7 +236,7 @@ export function LayerSpreadRows({
                 title={spread.hint}
                 help={t(
                   'panels:diagram.pose.spreadKeepHelp',
-                  'The layer that does not move: the one on top, or the one at the bottom, as the front shows them.'
+                  'The layer that does not move: the one on top, or the one at the bottom, as the front shows them.',
                 )}
                 onChange={(value) => choose(spread.keeps, value)}
               />
@@ -169,7 +249,9 @@ export function LayerSpreadRows({
                 step={1}
                 format={percent}
                 valueText={(value) =>
-                  t('panels:diagram.pose.spreadSkewValue', '{{percent}} skewed about the axis', { percent: percent(value) })
+                  t('panels:diagram.pose.spreadSkewValue', '{{percent}} skewed about the axis', {
+                    percent: percent(value),
+                  })
                 }
                 disabled={spread.disabled}
                 title={spread.hint}

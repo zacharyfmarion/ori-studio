@@ -3,7 +3,7 @@ import { NEWER } from '../../lib/documentFile';
 import type { AffineSpreadOptions, DepthSpreadOptions } from './foldedLayerSpread';
 import { spreadSliderEdit } from './layerSpreadControls';
 import {
-  DEFAULT_AFFINE_SPREAD,
+  DEFAULT_CONNECTED_SPREAD,
   DEFAULT_DEPTH_SPREAD,
   DEFAULT_LAYER_SPREAD,
   DEFAULT_SPREAD_STARTS,
@@ -25,28 +25,29 @@ const affine = (amount: number, axisDeg = 81): AffineSpreadOptions => ({ kind: '
 describe('the start rule (13g), shared by the Diagram and Fold', () => {
   it('starts from the nearest earlier spread, and each kind from the nearest of its kind', () => {
     expect(spreadStartsAmong([depth(0.05), affine(0.06), depth(0.1)])).toEqual({
+      connected: DEFAULT_CONNECTED_SPREAD,
       any: depth(0.05),
       depth: depth(0.05),
       affine: affine(0.06),
     });
-    expect(spreadStartsAmong([affine(0.06)])).toEqual({ any: affine(0.06), depth: DEFAULT_DEPTH_SPREAD, affine: affine(0.06) });
+    expect(spreadStartsAmong([affine(0.06)])).toEqual({ connected:DEFAULT_CONNECTED_SPREAD, any: affine(0.06), depth: DEFAULT_DEPTH_SPREAD, affine: affine(0.06) });
   });
 
-  it('starts from the defaults with nothing earlier, affine first (Zach, 2026-10-05)', () => {
+  it('starts from the defaults with nothing earlier, connected first', () => {
     expect(spreadStartsAmong([])).toEqual(DEFAULT_SPREAD_STARTS);
-    expect(DEFAULT_LAYER_SPREAD).toBe(DEFAULT_AFFINE_SPREAD);
+    expect(DEFAULT_LAYER_SPREAD).toBe(DEFAULT_CONNECTED_SPREAD);
   });
 
-  it('stops walking back once both kinds are found', () => {
+  it('stops walking back once all kinds are found', () => {
     let read = 0;
     function* earlier() {
-      for (const spread of [depth(0.05), affine(0.06), depth(0.1), affine(0.2)]) {
+      for (const spread of [depth(0.05), affine(0.06), DEFAULT_CONNECTED_SPREAD, depth(0.1)]) {
         read += 1;
         yield spread;
       }
     }
     spreadStartsAmong(earlier());
-    expect(read).toBe(2);
+    expect(read).toBe(3);
   });
 });
 

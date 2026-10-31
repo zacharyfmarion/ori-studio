@@ -48,6 +48,7 @@ attribute float aDashPhase; // model units of pattern before this segment's star
 // Draw order in [0, 1], 0 farthest. Zero without depth ordering, where every
 // segment lands at the same z and plain painter order survives.
 attribute float aDepth;
+attribute float aDepthEnd;
 uniform vec2 u_origin;   // device px of model (0,0)
 uniform vec2 u_ex;       // device delta per +1 model x
 uniform vec2 u_ey;       // device delta per +1 model y
@@ -82,7 +83,7 @@ void main() {
   // device (y-down) -> clip
   vec2 clip = vec2(pos.x / u_viewport.x * 2.0 - 1.0, 1.0 - pos.y / u_viewport.y * 2.0);
   // Nearer segments get smaller z, which is what LEQUAL wants.
-  gl_Position = vec4(clip, 1.0 - 2.0 * aDepth, 1.0);
+  gl_Position = vec4(clip, 1.0 - 2.0 * mix(aDepth, aDepthEnd, corner.x), 1.0);
   vColor = aColor;
   // The phase arrives in model units so it survives zoom; len over modelLen is
   // this segment's own model-to-device scale.
@@ -224,6 +225,7 @@ interface StrokeDrawParams {
   colorBuf: Buffer;
   widthMulBuf: Buffer;
   depthBuf: Buffer;
+  depthEndBuf: Buffer;
   dashSlotBuf: Buffer;
   dashPhaseBuf: Buffer;
   instanceCount: number;
@@ -260,6 +262,7 @@ interface StrokeAttributes {
   aDashSlot: unknown;
   aDashPhase: unknown;
   aDepth: unknown;
+  aDepthEnd: unknown;
 }
 
 /**
@@ -295,6 +298,7 @@ export function createStrokeProgram(
   let colorBuf: Buffer | null = null;
   let widthMulBuf: Buffer | null = null;
   let depthBuf: Buffer | null = null;
+  let depthEndBuf: Buffer | null = null;
   let dashSlotBuf: Buffer | null = null;
   let dashPhaseBuf: Buffer | null = null;
   let count = 0;
@@ -309,6 +313,7 @@ export function createStrokeProgram(
       aB: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.bBuf, divisor: 1 },
       aColor: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.colorBuf, divisor: 1 },
       aWidthMul: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.widthMulBuf, divisor: 1 },
+      aDepthEnd: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.depthEndBuf, divisor: 1 },
       aDepth: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.depthBuf, divisor: 1 },
       aDashSlot: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashSlotBuf, divisor: 1 },
       aDashPhase: {
@@ -352,22 +357,20 @@ export function createStrokeProgram(
     setData(geometry) {
       count = geometry.count;
       dashPatterns = geometry.dashPatterns;
-      aBuf?.destroy();
-      bBuf?.destroy();
-      colorBuf?.destroy();
-      widthMulBuf?.destroy();
-      depthBuf?.destroy();
-      dashSlotBuf?.destroy();
-      dashPhaseBuf?.destroy();
-      aBuf = regl.buffer(geometry.a);
-      bBuf = regl.buffer(geometry.b);
-      colorBuf = regl.buffer(geometry.color);
-      widthMulBuf = regl.buffer(geometry.widthMul);
-      // Absent depths mean "all at the same z", which under LEQUAL degrades
-      // exactly to the painter order this program had before.
-      depthBuf = regl.buffer(geometry.depth ?? new Float32Array(geometry.count));
-      dashSlotBuf = regl.buffer(dashSlots(geometry));
-      dashPhaseBuf = regl.buffer(geometry.dashPhase ?? new Float32Array(geometry.count));
+      // Reuse GPU buffers during spread gestures; buffer(data) resizes only
+      // when needed and keeps the WebGL object alive.
+      const update = (buffer: Buffer | null, data: Float32Array): Buffer => {
+        if (buffer) { buffer(data); return buffer; }
+        return regl.buffer(data);
+      };
+      aBuf = update(aBuf, geometry.a);
+      bBuf = update(bBuf, geometry.b);
+      colorBuf = update(colorBuf, geometry.color);
+      widthMulBuf = update(widthMulBuf, geometry.widthMul);
+      depthBuf = update(depthBuf, geometry.depth ?? new Float32Array(geometry.count));
+      depthEndBuf = update(depthEndBuf, geometry.depthEnd ?? geometry.depth ?? new Float32Array(geometry.count));
+      dashSlotBuf = update(dashSlotBuf, dashSlots(geometry));
+      dashPhaseBuf = update(dashPhaseBuf, geometry.dashPhase ?? new Float32Array(geometry.count));
     },
     draw({ view, viewport, widthPx }) {
       if (
@@ -378,7 +381,7 @@ export function createStrokeProgram(
         !widthMulBuf ||
         !dashSlotBuf ||
         !dashPhaseBuf ||
-        !depthBuf
+        !depthBuf || !depthEndBuf
       )
         return;
       const [slot1, slot2, slot3, slot4, slot5, slot6] = dashTableUniforms(dashPatterns, viewport.dpr);
@@ -405,6 +408,7 @@ export function createStrokeProgram(
         colorBuf,
         widthMulBuf,
         depthBuf,
+        depthEndBuf,
         dashSlotBuf,
         dashPhaseBuf,
         instanceCount: count,
@@ -417,6 +421,7 @@ export function createStrokeProgram(
       colorBuf?.destroy();
       widthMulBuf?.destroy();
       depthBuf?.destroy();
+      depthEndBuf?.destroy();
       dashSlotBuf?.destroy();
       dashPhaseBuf?.destroy();
     }),

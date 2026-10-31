@@ -1,3 +1,4 @@
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -995,7 +996,7 @@ describe('the ways a linked pattern is shown (D19)', () => {
       side: 'front',
       rotationDeg: 45,
       foldCase: 1,
-      spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 },
+      spread: DEFAULT_CONNECTED_SPREAD,
     });
     expect(renderToShowAs({ render: pattern }, 'folded')).not.toHaveProperty('spread');
     // The pattern and the simulation take none.
@@ -1046,11 +1047,13 @@ describe('a flat fold’s spread (Phase 13)', () => {
       any: depth(0.03, 'up-left'),
       depth: depth(0.03, 'up-left'),
       affine: affine(0.06),
+      connected: DEFAULT_CONNECTED_SPREAD,
     });
     expect(spreadStartsFor(document, 'step-b')).toEqual({
       any: depth(0.1, 'down'),
       depth: depth(0.1, 'down'),
       affine: DEFAULT_AFFINE_SPREAD,
+      connected: DEFAULT_CONNECTED_SPREAD,
     });
     expect(spreadStartsFor(document, 'step-a')).toEqual(DEFAULT_SPREAD_STARTS);
   });
@@ -1070,11 +1073,11 @@ describe('a flat fold’s spread (Phase 13)', () => {
     expect(nearestEarlierShowAs(after, 'step-gone')).toBeNull();
   });
 
-  it('defaults to affine, at the playground’s bird base; and depth to 2.5%, deeper layers down (Zach, 2026-10-05)', () => {
-    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
+  it('defaults to connected spread while preserving both legacy defaults', () => {
+    expect(DEFAULT_LAYER_SPREAD).toEqual(DEFAULT_CONNECTED_SPREAD);
     expect(DEFAULT_AFFINE_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
     expect(DEFAULT_DEPTH_SPREAD).toEqual({ kind: 'depth', amount: 0.025, toward: 'down' });
-    expect(DEFAULT_SPREAD_STARTS).toEqual({ any: DEFAULT_AFFINE_SPREAD, depth: DEFAULT_DEPTH_SPREAD, affine: DEFAULT_AFFINE_SPREAD });
+    expect(DEFAULT_SPREAD_STARTS).toEqual({ any: DEFAULT_CONNECTED_SPREAD, connected: DEFAULT_CONNECTED_SPREAD, depth: DEFAULT_DEPTH_SPREAD, affine: DEFAULT_AFFINE_SPREAD });
   });
 
   it('keeps a depth amount within 0.5% and 20%, to a hundredth of a percent', () => {

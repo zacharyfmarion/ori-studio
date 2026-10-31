@@ -1,3 +1,6 @@
+import { faceWeights, interpolate } from '@oristudio/layer-spread';
+import { connectedDrawing, connectedPick, type PreparedConnectedSpread } from '../../layer-spread/connectedScene';
+import { sourcePoint } from '../../cp-workspace/folded/connectedSpreadSource';
 /**
  * Where the folded pane draws the paper while its layers are spread
  * (`foldedPaneScene` with the step's spread): every point of a face moved by
@@ -81,12 +84,27 @@ interface FaceRings {
  * `foldedPaneScene` takes it — or null for none, when the pane draws the
  * scene where it is.
  */
-export function foldPaneSpreadMap(scene: FoldScene, spread: LayerSpreadOptions | null): FoldPaneSpreadMap | null {
+export function foldPaneSpreadMap(scene: FoldScene, spread: LayerSpreadOptions | null, connected?: PreparedConnectedSpread): FoldPaneSpreadMap | null {
   const here = foldFrameSpread(spread);
   if (!here) return null;
   const epsilon = foldedSceneEpsilon(scene);
+  let connectedUnder: ((point: Point) => FoldDrawnPoint | null) | null = null;
   let onFace: (face: number, point: Point) => Point;
-  if (here.kind === 'affine') {
+  if (here.kind === 'connected') {
+    if (!connected) return null;
+    const drawing = connectedDrawing(scene, connected, here, p => [p.x, -p.y], []);
+    onFace = (face, point) => {
+      const sample = faceWeights(connected.source.input, face, sourcePoint(connected.source, point));
+      if (!sample) return point;
+      const [x,y] = interpolate(sample.ids, sample.weights, drawing.mesh.positions);
+      return { x, y: -y };
+    };
+    connectedUnder = point => {
+      const hit = connectedPick(connected, drawing, [point.x, -point.y]);
+      const transform = hit && scene.face_transforms[hit.face];
+      return hit && transform ? { face: hit.face, scene: hit.point, sheet: toPair(applyIsometry(invertIsometry(transform), hit.point)) } : null;
+    };
+  } else if (here.kind === 'affine') {
     const { offset } = affineSpread(scene, here, { epsilon });
     onFace = (face, point) => {
       const move = offset(face, point);
@@ -145,6 +163,7 @@ export function foldPaneSpreadMap(scene: FoldScene, spread: LayerSpreadOptions |
       return kept <= swapped ? [p, q] : [q, p];
     },
     under: (point) => {
+      if (connectedUnder) return connectedUnder(point);
       for (const { face, outline, drawn, box } of drawnRings()) {
         if (point.x < box.minX || point.x > box.maxX || point.y < box.minY || point.y > box.maxY) continue;
         if (!insideConvex(drawn, point, SHEET_EPSILON)) continue;

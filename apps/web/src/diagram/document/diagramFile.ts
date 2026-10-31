@@ -1,3 +1,4 @@
+import { readSpreadPresentation } from '../../layer-spread/presentation';
 /**
  * A diagram as it is stored in the project file (each of `workspace.diagrams`),
  * read leniently and written back exactly.
@@ -847,7 +848,7 @@ const PULLED_MARKS_KEYS: ReadonlySet<string> = new Set(['letters', 'highlights']
 const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<string>>> = {
   defox: new Set(['mode', 'snapshot']),
   'crease-pattern': new Set(['mode', 'rotationDeg', 'side', 'flipCreases']),
-  'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread']),
+  'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread', 'presentation']),
   'folded-3d': new Set(['mode', 'camera', 'side']),
   // `shape` is Pose's mesh, which this build carries and never reads (`readCpRender`).
   simulated: new Set(['mode', 'foldPercent', 'view', 'shape']),
@@ -1175,7 +1176,7 @@ function isNewerRender(value: unknown): boolean {
     case 'crease-pattern':
       return readPatternSide(value.side) === NEWER;
     case 'folded-flat':
-      return readSpread(value.spread) === NEWER || isNewerWord(value.side, ['front', 'back']);
+      return readSpreadPresentation(value.presentation) === NEWER || readSpread(value.spread) === NEWER || isNewerWord(value.side, ['front', 'back']);
     case 'folded-3d':
       return isNewerRecord(value.camera, FOLDED_FIGURE_CAMERA_KEYS) || isNewerWord(value.side, ['front', 'back']);
     case 'simulated': {
@@ -1543,6 +1544,8 @@ function readCpRender(value: unknown): DiagramCpRender | null {
     case 'folded-flat': {
       const foldCase = wholeNumber(value.foldCase);
       const spread = readSpread(value.spread);
+      const presentation = readSpreadPresentation(value.presentation);
+      if (presentation === null || presentation === NEWER) return null;
       if (!side || rotationDeg === null || foldCase === null || foldCase < 1) return null;
       // A newer build's spread made the step a newer build's before this was reached.
       if (spread === null || spread === NEWER) return null;
@@ -1552,6 +1555,7 @@ function readCpRender(value: unknown): DiagramCpRender | null {
         rotationDeg: normalizeDegrees(rotationDeg),
         foldCase,
         ...(spread ? { spread } : {}),
+        ...(presentation ? { presentation } : {}),
       };
     }
     case 'folded-3d': {
@@ -2469,7 +2473,7 @@ function paperFacesFitScene(faces: DiagramPaperFaces, picture: DiagramScenePictu
     if (whole.has(item.face)) continue;
     whole.set(item.face, Array.isArray(item.rings) && item.rings.length === 1 && Array.isArray(item.rings[0]) ? item.rings[0].length : null);
   }
-  if (!spread) return true;
+  if (!spread || faces.drawn) return true;
   return faces.rings.every((ring, face) => ring.length === 0 || whole.get(face) === ring.length);
 }
 

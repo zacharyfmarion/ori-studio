@@ -1543,6 +1543,8 @@
       "previousSolution": "Ordem de camadas anterior",
       "reset": "Redefinir pose",
       "resetHint": "Já está na pose inicial",
+      "revealHorizontal": "Revelar horizontalmente",
+      "revealVertical": "Revelar verticalmente",
       "rotateLeft": "Girar à esquerda",
       "rotateRight": "Girar à direita",
       "rotation": "Rotação",
@@ -1577,6 +1579,7 @@
       "spreadKeepTop": "Superior",
       "spreadKind": "Separar por",
       "spreadKindAffine": "Afim",
+      "spreadKindConnected": "Conectado",
       "spreadKindDepth": "Profundidade",
       "spreadLayers": "Separar camadas",
       "spreadLayersRow": "Separar camadas",
@@ -1680,6 +1683,17 @@
       "ways_many": "{{count}} formas",
       "ways_other": "{{count}} formas",
       "withTurnOver": "Com a virada anterior"
+    },
+    "spread": {
+      "clearReveal": "Remover deslocamento",
+      "diagram": "Diagrama",
+      "drag": "Arraste para revelar as camadas",
+      "perspective": "Perspectiva 3D",
+      "preparing": "Preparando separação…",
+      "presentation": "Apresentação",
+      "reveal": "Exibição de camadas",
+      "revealHint": "Arraste para revelar as camadas · Role para ampliar",
+      "upgrade": "Usar nova separação"
     },
     "stepPane": {
       "annotate": "Anotar",
@@ -1860,6 +1874,7 @@
       "startsBranch": "Começa um novo ramo"
     },
     "canvas": {
+      "adjustSpread": "Ajustar separação",
       "creasePattern": "Padrão de vincos",
       "creasePatternLabel": "O padrão de vincos até agora, com a frente para cima. Clique em seus pontos e vincos para posicionar uma dobra.",
       "flatCreases": "Vincos planos",
@@ -3074,6 +3089,9 @@
       "switchBranch": "Trocar de ramo",
       "tagBranch": "Novo ramo",
       "tagNext": "Próximo"
+    },
+    "spread": {
+      "unavailable": "Separação indisponível para este estado"
     },
     "step": {
       "blocks": "Blocos",

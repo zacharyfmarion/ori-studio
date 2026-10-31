@@ -1584,6 +1584,8 @@
       "previousSolution": "Предыдущий порядок слоёв",
       "reset": "Сбросить положение",
       "resetHint": "Уже в исходном положении",
+      "revealHorizontal": "Сдвиг по горизонтали",
+      "revealVertical": "Сдвиг по вертикали",
       "rotateLeft": "Повернуть влево",
       "rotateRight": "Повернуть вправо",
       "rotation": "Поворот",
@@ -1618,6 +1620,7 @@
       "spreadKeepTop": "Верхний",
       "spreadKind": "Способ",
       "spreadKindAffine": "Аффинно",
+      "spreadKindConnected": "Соединённые слои",
       "spreadKindDepth": "По глубине",
       "spreadLayers": "Раздвинуть слои",
       "spreadLayersRow": "Раздвинуть слои",
@@ -1732,6 +1735,17 @@
       "ways_many": "{{count}} способов",
       "ways_other": "{{count}} способа",
       "withTurnOver": "Вместе с переворотом перед ней"
+    },
+    "spread": {
+      "clearReveal": "Убрать сдвиг",
+      "diagram": "Схема",
+      "drag": "Перетаскивайте, чтобы показать слои",
+      "perspective": "3D-перспектива",
+      "preparing": "Подготовка раздвижения…",
+      "presentation": "Представление",
+      "reveal": "Сдвиг слоёв",
+      "revealHint": "Перетаскивайте, чтобы показать слои · Прокручивайте для масштаба",
+      "upgrade": "Использовать новое раздвижение"
     },
     "stepPane": {
       "annotate": "Аннотировать",
@@ -1914,6 +1928,7 @@
       "startsBranch": "Начинает новую ветку"
     },
     "canvas": {
+      "adjustSpread": "Настроить раздвижение",
       "creasePattern": "Паттерн складок",
       "creasePatternLabel": "Паттерн складок на данный момент, лицевой стороной вверх. Щёлкайте его точки и складки, чтобы задать сгиб.",
       "flatCreases": "Плоские складки",
@@ -3345,6 +3360,9 @@
       "switchBranch": "Сменить ветку",
       "tagBranch": "Новая ветка",
       "tagNext": "Далее"
+    },
+    "spread": {
+      "unavailable": "Раздвижение недоступно для этого состояния"
     },
     "step": {
       "blocks": "Блоки",

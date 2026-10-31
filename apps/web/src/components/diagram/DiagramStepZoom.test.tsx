@@ -121,7 +121,7 @@ function linkedPose(): DiagramLinkedPose {
   return {
     actions: [reset],
     layerOrder: null,
-    spatial: null,
+    spatial: null, connected: null, connectedSpread: null, setPresentation: () => {}, onReveal: () => {},
     onCamera: () => {},
     registerLiveView: () => () => {},
     rotateTo: () => {},

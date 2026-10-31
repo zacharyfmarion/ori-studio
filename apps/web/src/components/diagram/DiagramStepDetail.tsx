@@ -1,3 +1,5 @@
+import { sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DiagramSpreadView } from './DiagramSpreadView';
 import { useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -156,7 +158,9 @@ export function DiagramStepDetail({
   const phone = useIsPhoneLayout();
   const locked = isLockedStep(step);
   // A Fold step's spread and its drag (plan D17), as a linked pattern's are.
-  const foldPose = useDiagramFoldStepPose(locked ? null : step);
+  const foldPose = useDiagramFoldStepPose(locked ? null : step, mode === 'pose');
+  const connectedPose = linkedPose?.connected ? linkedPose : foldPose?.connected ? foldPose : null;
+  const connectedRender = step.source && 'render' in step.source && step.source.render.mode === 'folded-flat' ? step.source.render : null;
   // In Pose, a spread being dragged shows in the step's place before it is committed (Phase 13).
   const posed = (mode === 'pose' && (linkedPose?.preview ?? foldPose?.preview)) || step;
   const source = useMemo(() => stepPictureSource(posed, assets), [posed, assets]);
@@ -211,6 +215,9 @@ export function DiagramStepDetail({
         >
           {transport}
         </DiagramLinkedPoseControls>
+      ) : foldPose?.perspectiveActions ? (
+        <><DiagramWayChooser choice={ways} readOnly={readOnly} />
+          <DiagramLinkedPoseControls actions={foldPose.perspectiveActions} keep={keepPoseFocus} /></>
       ) : (
         <>
           <DiagramWayChooser choice={ways} readOnly={readOnly} />
@@ -358,7 +365,12 @@ export function DiagramStepDetail({
           />
         ) : url || linkedPose ? (
           <>
-            {linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
+            {connectedPose?.connected && connectedPose.connectedSpread && connectedRender ? (
+              <DiagramSpreadView view={connectedPose.connected} spread={connectedPose.connectedSpread}
+                presentation={connectedRender.presentation} rotationDeg={connectedRender.rotationDeg} style={style}
+                onCamera={connectedPose.onCamera} onReveal={connectedPose.onReveal}
+                ghost={sameSpread(connectedRender.spread ?? null, connectedPose.connectedSpread) ? ghost : null} registerLiveView={connectedPose.registerLiveView} readOnly={readOnly} fallback={url && picture} />
+            ) : linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
               <DiagramPose3dView
                 view={linkedPose.spatial}
                 camera={linked.render.camera}

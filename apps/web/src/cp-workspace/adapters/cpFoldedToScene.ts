@@ -1,3 +1,5 @@
+import { hasConnectedDrawing } from '../../layer-spread/connectedScene';
+import { spreadGeometry } from '../../layer-spread/spreadGeometry';
 import earcut from 'earcut';
 import type {
   PaperFaceItem,
@@ -852,6 +854,11 @@ export function paperSceneToFoldedGeometry(
   effective: PaperStyle,
   ink: FoldedSceneInk = {}
 ): FoldedGeometry {
+  if (hasConnectedDrawing(scene)) return {
+    fills: { position: new Float32Array(), color: new Float32Array(), count: 0 },
+    strokes: { a: new Float32Array(), b: new Float32Array(), color: new Float32Array(), widthMul: new Float32Array(), count: 0 },
+    spread: spreadGeometry(scene, effective, ink),
+  };
   const local = foldedSceneLocalGeometry(scene, effective, ink);
   return {
     fills: {

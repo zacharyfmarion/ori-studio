@@ -180,11 +180,13 @@ function readTuckTargets(value: unknown): readonly SheetPoint[] | null {
   return points.every((point): point is SheetPoint => point !== null) ? points : null;
 }
 
-const SEQUENCE_KEYS = new Set(['formatVersion', 'id', 'title', 'paper', 'style', 'appearance', 'sheetMarks', 'steps']);
+const SEQUENCE_KEYS = new Set(['formatVersion', 'id', 'title', 'paper', 'style', 'defaultSpread', 'appearance', 'sheetMarks', 'steps']);
 
 function readDocument(value: Record<string, unknown>, newId: FoldIdFactory): FoldSequenceDocument {
   const sheetMarks = readMarks(value.sheetMarks);
+  const defaultSpread = value.defaultSpread === 'off' ? 'off' : readLayerSpread(value.defaultSpread);
   const carried = Object.fromEntries(Object.entries(value).filter(([key]) => !SEQUENCE_KEYS.has(key)));
+  if (defaultSpread === NEWER) carried.defaultSpread = value.defaultSpread;
   // A style a newer build wrote is drawn as this build reads it, and written back as it came.
   if (isRecord(value.style) && isNewerDocumentPaperStyle(value.style)) carried.style = value.style;
   return {
@@ -194,6 +196,7 @@ function readDocument(value: Record<string, unknown>, newId: FoldIdFactory): Fol
     paper: readPaper(value.paper),
     // A file from before there was a style draws in the default, and is written with it.
     style: readDocumentPaperStyle(value.style, FOLD_DEFAULT_PAPER_STYLE),
+    ...(defaultSpread && defaultSpread !== NEWER ? { defaultSpread } : {}),
     ...(isRecord(value.appearance) ? { appearance: value.appearance } : {}),
     ...(sheetMarks.length > 0 ? { sheetMarks } : {}),
     steps: readSteps(value.steps),
@@ -1031,6 +1034,7 @@ function writeSequenceFields(document: FoldSequenceDocument): Record<string, unk
     paper: writeFoldPaper(document.paper),
     // Written always, so a later default never changes what a saved sequence is drawn in.
     style: document.style ?? FOLD_DEFAULT_PAPER_STYLE,
+    ...(document.defaultSpread ? { defaultSpread: document.defaultSpread === 'off' ? 'off' : writeLayerSpread(document.defaultSpread) } : {}),
     ...(appearance ? { appearance } : {}),
     ...(sheetMarks && sheetMarks.length > 0 ? { sheetMarks: sheetMarks.map(writeMark) } : {}),
     steps: document.steps.map(writeStep),

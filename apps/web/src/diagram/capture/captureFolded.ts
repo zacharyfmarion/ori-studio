@@ -1,3 +1,8 @@
+import { captureConnected } from '../../layer-spread/captureConnected';
+import { hasConnectedDrawing } from '../../layer-spread/connectedScene';
+import type { SpreadPresentation } from '../../layer-spread/presentation';
+import { prepareConnected } from '../../layer-spread/prepareConnected';
+import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 /**
  * A linked step's picture, captured (D2, D4, D5): the crease pattern itself,
  * the flat folded model, or the folded model in 3D — each made from the
@@ -216,7 +221,7 @@ export async function readFlatPicture(
   env?: SanitizeEnv,
   spread?: LayerSpreadOptions
 ): Promise<CapturedPicture> {
-  return flatPicture(await readFoldedPicture(runtime, handle, state.displayStyle), rotationDeg, env, spread);
+  return captureFlatPicture(await readFoldedPicture(runtime, handle, state.displayStyle), rotationDeg, env, spread);
 }
 
 /**
@@ -231,9 +236,9 @@ export function flatPicture(
   rotationDeg: number,
   env?: SanitizeEnv,
   spread?: LayerSpreadOptions,
-  { faces = true }: { faces?: boolean } = {}
+  { faces = true, connected }: { faces?: boolean; connected?: PreparedConnectedSpread } = {}
 ): CapturedPicture {
-  if (scene && scene.faces.length > 0) return flatScenePicture(scene, rotationDeg, spread, { faces });
+  if (scene && scene.faces.length > 0) return flatScenePicture(scene, rotationDeg, spread, { faces, connected });
   const page = foldedFigureExportDocument(snapshot, { showBackgroundColor: false, rotationDeg });
   if (!page) throw new Error('The folded figure produced nothing to draw');
   return { kind: 'picture', picture: fixedPicture(page.svg, env) };
@@ -250,21 +255,35 @@ export function flatScenePicture(
   scene: OristudioCpFoldedPaperScene,
   rotationDeg: number,
   spread?: LayerSpreadOptions,
-  { faces = true }: { faces?: boolean } = {}
+  { faces = true, connected, resolved, presentation }: { faces?: boolean; connected?: PreparedConnectedSpread; resolved?: PaperScene; presentation?: SpreadPresentation } = {}
 ): CapturedPicture {
   const turn = turnClockwise(rotationDeg);
   const toScenePx = (point: Point): ScenePoint => {
     const turned = turn(point);
     return [turned.x * CAPTURE_PX_PER_UNIT, turned.y * CAPTURE_PX_PER_UNIT];
   };
-  const flat = foldedFlatPaperScene(scene, {
+  const flat = resolved ?? foldedFlatPaperScene(scene, {
+    connected, presentation,
     markHidden: !spread,
     toScenePx,
     scale: CAPTURE_PX_PER_UNIT,
     ...(spread ? { spread } : {}),
   });
   const paperFaces = faces ? flatPaperFaces(scene, toScenePx, CAPTURE_PX_PER_UNIT) : null;
-  return storeScene(flat, CAPTURE_PX_PER_UNIT, null, paperFaces ?? undefined);
+  if (paperFaces && connected && spread?.kind === 'connected') {
+    paperFaces.drawn = connected.source.input.faces.map((_, face) => {
+      const item = flat.items.find(item => item.kind === 'face' && item.face === face);
+      return item?.kind === 'face' ? item.rings[0]!.map(p => [...p] as [number, number]) : [];
+    });
+    paperFaces.triangles = connected.source.input.faces.map(() => []);
+    connected.source.input.triangles.forEach((triangle, index) => {
+      const face = connected.source.input.triangleFaces[index]!;
+      const ring = connected.source.input.faces[face]!;
+      paperFaces.triangles![face]!.push(triangle.map(v => ring.indexOf(v)) as [number, number, number]);
+    });
+  }
+  const spatial=spread?.kind==='connected' && connected && presentation?.kind==='perspective';
+  return storeScene(flat, spatial ? null : CAPTURE_PX_PER_UNIT, null, spatial ? undefined : paperFaces ?? undefined);
 }
 
 /**
@@ -494,10 +513,34 @@ export async function captureStep(
       foldCase = Math.max(1, Math.min(render.foldCase, state.discoveredCases));
     }
     const picture = await readFoldedPicture(runtime, folded.handle, state.displayStyle);
-    const captured = flatPicture(picture, render.rotationDeg, env, render.spread);
+    const captured = await captureFlatPicture(picture, render.rotationDeg, env, render.spread, render.presentation);
     const noLayerOrder = !hasFoldedLayerOrder(state) || !picture.scene?.faces.length;
     return { status: 'captured', source: source({ ...render, foldCase }), captured, noLayerOrder };
   } finally {
     await runtime.free(folded.handle);
   }
+}
+
+/** Cold capture prepares once; subsequent amount/camera edits use the shared cache. */
+export async function captureFlatPicture(picture: FoldedPicture, rotationDeg: number, env?: SanitizeEnv, spread?: LayerSpreadOptions, presentation?: SpreadPresentation): Promise<CapturedPicture> {
+  if (spread?.kind !== 'connected' || !picture.scene) return flatPicture(picture, rotationDeg, env, spread);
+  const lease = prepareConnected(picture.scene);
+  try { return await captureFlatScenePicture(picture.scene, rotationDeg, spread, await lease.promise, presentation); }
+  finally { lease.release(); }
+}
+
+/** Live poses share this geometry with the capture worker. */
+export function flatSceneCanvas(scene: OristudioCpFoldedPaperScene, rotationDeg: number,
+  spread: LayerSpreadOptions, connected: PreparedConnectedSpread, presentation?: SpreadPresentation): PaperScene {
+  const turn = turnClockwise(rotationDeg);
+  return foldedFlatPaperScene(scene, { markHidden: false, live: true, connected, spread, presentation,
+    scale: CAPTURE_PX_PER_UNIT, toScenePx: p => {const at=turn(p);return [at.x*CAPTURE_PX_PER_UNIT,at.y*CAPTURE_PX_PER_UNIT];} });
+}
+
+export async function captureFlatScenePicture(scene: OristudioCpFoldedPaperScene, rotationDeg: number,
+  spread: LayerSpreadOptions, connected: PreparedConnectedSpread, presentation?: SpreadPresentation): Promise<CapturedPicture> {
+  const live = flatSceneCanvas(scene, rotationDeg, spread, connected, presentation);
+  const resolved = hasConnectedDrawing(live) ? await captureConnected(live) : live;
+  if(hasConnectedDrawing(resolved))return {kind:'over-budget',scene:resolved,paperScale:presentation?.kind==='perspective'?null:CAPTURE_PX_PER_UNIT};
+  return flatScenePicture(scene, rotationDeg, spread, { connected, presentation, resolved });
 }

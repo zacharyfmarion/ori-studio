@@ -1,3 +1,4 @@
+import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 /**
  * The folded form and the crease pattern of a Fold state as paper scenes
  * (plan D11), for the shared painter (`paperSceneToFoldedGeometry` with the
@@ -99,7 +100,7 @@ const shifted = (offset: Point) => (point: Point): ScenePoint =>
  * scene, and is the same in both; so is every amount, a share of the model.
  */
 export function foldFrameSpread(spread: LayerSpreadOptions | null): LayerSpreadOptions | null {
-  if (!spread || spread.kind === 'depth') return spread;
+  if (!spread || spread.kind !== 'affine') return spread;
   return { ...spread, axisDeg: (180 - spread.axisDeg) % 180 };
 }
 
@@ -131,9 +132,10 @@ export function foldedPaneScene(
   scene: FoldScene,
   display: FoldPaneDisplay,
   offset: Point = ORIGIN,
-  spread: LayerSpreadOptions | null = null
+  spread: LayerSpreadOptions | null = null,
+  connected?: PreparedConnectedSpread
 ): PaperScene {
-  const painted = foldedFlatPaperScene(scene, foldedPanePlacement(offset, spread));
+  const painted = foldedFlatPaperScene(scene, { ...foldedPanePlacement(offset, spread), connected, live: true });
   return display.precreases ? painted : withoutFlatCreases(painted);
 }
 

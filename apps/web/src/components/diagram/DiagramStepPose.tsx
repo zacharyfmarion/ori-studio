@@ -1,3 +1,4 @@
+import { SpreadPresentationRow } from './SpreadPresentationRow';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiagramPoseAction } from '../../diagram/actions/diagramPoseActions';
@@ -126,15 +127,19 @@ export function DiagramStepPose({
     // flat fold's side, and its layers spread (Phase 13). Its layer order is
     // the sequence's, never a choice.
     const { render } = source;
+    const perspective=render.mode==='folded-flat'&&render.spread?.kind==='connected'&&render.presentation?.kind==='perspective';
     return section(
       <>
-        {(render.mode === 'crease-pattern' || render.mode === 'folded-flat') && foldPose && (
+        {!perspective && (render.mode === 'crease-pattern' || render.mode === 'folded-flat') && foldPose && (
           <RotationRow turn={render.rotationDeg} disabled={foldPose.turnHeld} onCommit={foldPose.rotateTo} />
         )}
-        {render.mode === 'folded-flat' &&
+        {render.mode === 'folded-flat' && !perspective &&
           sideRow({ side: render.side, turnOver: actions.find((action) => action.id === 'turn-over') })}
         {render.mode === 'folded-flat' && foldPose && (
-          <LayerSpreadRows toggle={foldPose.spreadToggle} spread={foldPose.spread} />
+          <>
+          <LayerSpreadRows revealVisible={!perspective} toggle={foldPose.spreadToggle} spread={foldPose.spread} />
+          {render.spread?.kind === 'connected' && <SpreadPresentationRow value={render.presentation?.kind ?? 'diagram'} onChange={foldPose.setPresentation} disabled={foldPose.turnHeld} />}
+          </>
         )}
       </>
     );
@@ -142,6 +147,7 @@ export function DiagramStepPose({
 
   if (source?.kind !== 'cp' || !linkedPose) return null;
   const { render } = source;
+  const perspective=render.mode==='folded-flat'&&render.spread?.kind==='connected'&&render.presentation?.kind==='perspective';
   const linked = linkedPose.actions;
   const turn = render.mode === 'crease-pattern' || render.mode === 'folded-flat' ? render.rotationDeg : null;
   const turnHeld = linked.find((action: DiagramLinkedPoseAction) => action.id === 'rotate-left')?.disabled ?? true;
@@ -151,11 +157,11 @@ export function DiagramStepPose({
   if (turn === null && side === null) return null;
   return section(
     <>
-      {turn !== null && (
+      {turn !== null && !perspective && (
         // Held as the turn verbs are: on a diagram that cannot change, or while a capture runs.
         <RotationRow turn={turn} disabled={turnHeld || waiting} onCommit={linkedPose.rotateTo} />
       )}
-      {side !== null && sideRow({ side, turnOver })}
+      {side !== null && !perspective && sideRow({ side, turnOver })}
       {render.mode === 'folded-flat' && !main && (
         // Any layer order found, back or on (D23), as Pose's own pager has them.
         <FieldRow label={t('panels:diagram.pose.layerOrder', 'Layer order')} kind="text">
@@ -168,7 +174,10 @@ export function DiagramStepPose({
       )}
       {render.mode === 'folded-flat' && !main && (
         // Its layers spread apart (Phase 13): on or off, by depth or affine (13g), and how.
-        <LayerSpreadRows toggle={linked.find((action) => action.id === 'spread-layers')} spread={linkedPose.spread} />
+        <>
+        <LayerSpreadRows revealVisible={!perspective} toggle={linked.find((action) => action.id === 'spread-layers')} spread={linkedPose.spread} />
+        {render.spread?.kind === 'connected' && <SpreadPresentationRow value={render.presentation?.kind ?? 'diagram'} onChange={linkedPose.setPresentation} disabled={readOnly || waiting} />}
+        </>
       )}
     </>
   );

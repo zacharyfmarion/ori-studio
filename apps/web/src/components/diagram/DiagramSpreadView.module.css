@@ -1,0 +1,5 @@
+.view {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
