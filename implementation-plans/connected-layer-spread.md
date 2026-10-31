@@ -630,4 +630,5 @@ intersection guarantee.
 - [x] Add keyboard/inspector alternatives, translations and analytics.
 - [x] Validate package, Rust workspace and web behavior.
 - [x] Complete final production build and source cleanup.
-- [ ] Open the draft PR and hand off the running local app.
+- [x] Open [draft PR #563](https://github.com/zacharyfmarion/ori-studio/pull/563)
+  and hand off the persistent local app at `http://localhost:5267/`.
