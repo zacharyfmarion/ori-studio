@@ -109,6 +109,37 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     held.session = null;
   });
 
+  it('marks a spread-kind replacement as blocking, but not a live reveal capture', async () => {
+    const [, second] = state().foldSequences[0]!.document.steps;
+    await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });
+    const id = onlyStep().id;
+    await spreadDiagramFoldStep(id, {verb:'spread-kind',kind:'affine'});
+    const captures: boolean[] = [];
+    const unsubscribe = useWorkspaceStore.subscribe(value=>{
+      const capture = value.diagramCaptures[id];
+      if(capture) captures.push(capture.blocksPose === true);
+    });
+    try {
+      await spreadDiagramFoldStep(id, {verb:'spread-kind',kind:'connected'});
+      expect(captures.length).toBeGreaterThan(0);
+      expect(captures.every(Boolean)).toBe(true);
+      expect(state().diagramCaptures[id]).toBeUndefined();
+      captures.length = 0;
+      await spreadDiagramFoldStep(id, {verb:'spread-reveal',reveal:[.4,.9]});
+      expect(captures.length).toBeGreaterThan(0);
+      expect(captures.every(value=>!value)).toBe(true);
+      expect(state().diagramCaptures[id]).toBeUndefined();
+      await setDiagramFoldPresentation(id, 'perspective');
+      captures.length = 0;
+      await presentDiagramFoldStep(id, {
+        kind:'perspective',camera:{yaw:.4,pitch:-.8,zoom:1},orderSide:'front',
+      }, undefined, true);
+      expect(captures.length).toBeGreaterThan(0);
+      expect(captures.every(value=>!value)).toBe(true);
+      expect(state().diagramCaptures[id]).toBeUndefined();
+    } finally { unsubscribe(); }
+  });
+
   it('drops an obsolete camera capture without changing the Fold-derived step or history', async () => {
     const [, second] = state().foldSequences[0]!.document.steps;
     await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });

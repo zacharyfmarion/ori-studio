@@ -178,6 +178,11 @@ export function withSlide(spread: LayerSpreadOptions, slide: SpreadSlide): Layer
 /** The verbs a slide commits as: a preview stays up under them until the newest lands. */
 const SLIDE_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set(['spread-amount', 'spread-skew', 'spread-axis', 'spread-reveal', 'spread-reveal-axis']);
 
+/** Discrete changes need a replacement picture; live gestures already show their new pose while capturing. */
+export function poseCaptureBlocksViewport(verb: LinkedPoseRequest['verb']): boolean {
+  return !SLIDE_VERBS.has(verb) && verb !== 'orbit' && verb !== 'simulate';
+}
+
 /** Where Pose's simulator came to rest, and the model there. */
 export type SimulatedRest = Omit<Extract<LinkedPoseRequest, { verb: 'simulate' }>, 'verb'>;
 
@@ -343,12 +348,13 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
    * refused as busy leaves `own` to the capture that is running.
    */
   const capturing = <T>(
-    work: (begun: StepCaptureStart, linked: DiagramCpSource) => Promise<T>
+    work: (begun: StepCaptureStart, linked: DiagramCpSource) => Promise<T>,
+    blocksPose = false
   ): Promise<T | DiagramCaptureOutcome | null> => {
     if (disposed) return Promise.resolve(null);
     const linked = currentLinkedSource(stepId);
     if (!linked) return Promise.resolve(null);
-    const begun = beginStepCapture(store, stepId);
+    const begun = beginStepCapture(store, stepId, blocksPose);
     if ('status' in begun) return Promise.resolve(begun);
     const task = (async (): Promise<T | DiagramCaptureOutcome | null> => {
       start = begun;
@@ -431,7 +437,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
         noLayerOrder: result.noLayerOrder,
         tooDetailed: committed.tooDetailed,
       };
-    });
+    }, poseCaptureBlocksViewport(request.verb));
     // A drag begun while this verb captured was drawn over the spread before
     // it: drawn again over the one it left, or taken down if that has none.
     if (!SLIDE_VERBS.has(request.verb)) showPreview(false);

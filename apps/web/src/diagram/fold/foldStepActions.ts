@@ -30,7 +30,7 @@ import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramFoldCaptureOutcome } from '../../store/workspaceStore/diagramFoldCapture';
 import { turnedOverFrom, type LinkedPoseRequest } from '../capture/linkedPose';
-import { trackPose } from '../capture/poseController';
+import { poseCaptureBlocksViewport, trackPose } from '../capture/poseController';
 import {
   creasePatternSide,
   isLockedStep,
@@ -63,7 +63,8 @@ async function captureAs(
   render: DiagramCpRender,
   label: string,
   joinEntry?: object,
-  current?: () => boolean
+  current?: () => boolean,
+  blocksPose = true
 ): Promise<DiagramFoldCaptureOutcome> {
   const { sequence, step, through, moment } = source;
   const outcome = await useWorkspaceStore.getState().captureDiagramFoldStep(stepId, {
@@ -75,6 +76,7 @@ async function captureAs(
     render,
     label,
     current,
+    blocksPose,
     ...(joinEntry ? { joinEntry } : {}),
   });
   sayFoldCaptureOutcome(outcome);
@@ -214,10 +216,11 @@ async function poseAs(
   source: DiagramFoldStepSource,
   render: DiagramCpRender,
   verb: LinkedPoseRequest['verb'],
-  current?: () => boolean
+  current?: () => boolean,
+  blocksPose = poseCaptureBlocksViewport(verb)
 ): Promise<boolean> {
   if (JSON.stringify(render) === JSON.stringify(source.render)) return true;
-  const outcome = await captureAs(stepId, source, render, 'Adjust pose', undefined, current);
+  const outcome = await captureAs(stepId, source, render, 'Adjust pose', undefined, current, blocksPose);
   if (outcome.status === 'captured' && outcome.changed) trackPose(verb, outcome.render);
   return outcome.status === 'captured';
 }
@@ -351,11 +354,12 @@ export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void 
   }
 }
 
-/** View-only change: the Fold source remains a flat folded state. */
-export async function presentDiagramFoldStep(stepId: string, presentation: SpreadPresentation, current?: () => boolean): Promise<boolean> {
+/** View-only change: the Fold source remains a flat folded state.
+ * `background` is for a live camera already showing the new pose; discrete controls wait for capture. */
+export async function presentDiagramFoldStep(stepId: string, presentation: SpreadPresentation, current?: () => boolean, background = false): Promise<boolean> {
   const source=foldSourceOf(stepId);
   if(!source || source.render.mode!=='folded-flat' || source.render.spread?.kind!=='connected')return false;
-  return poseAs(stepId,source,{...source.render,presentation},'spread-presentation',current);
+  return poseAs(stepId,source,{...source.render,presentation},'spread-presentation',current,!background);
 }
 
 /** Presentation changes remain available while a picture is being captured. */

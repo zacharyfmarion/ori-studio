@@ -181,10 +181,12 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
   const { t } = useTranslation();
   const camera = useFoldSpreadCamera(step, live);
   const source = foldSource(step);
-  const { view: connected, preparing: connectedPreparing } = useFoldSpreadView(source, live);
+  const { view: connected, preparing } = useFoldSpreadView(source, live);
   const stepId = source ? step!.id : null;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const busy = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
+  const blockingCapture = useWorkspaceStore((state) => stepId !== null && state.diagramCaptures[stepId]?.blocksPose === true);
+  const connectedPreparing = live && (blockingCapture || preparing);
   const assets = useWorkspaceStore((state) => state.diagram?.assets);
   const dragged = useSyncExternalStore(subscribe, () => drag);
   const unknownMarks = step?.annotations.some((annotation) => annotation.unknown !== undefined) ?? false;

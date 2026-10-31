@@ -47,7 +47,7 @@ export function useFoldSpreadCamera(step: DiagramStep | null, live: boolean) {
           stored.render.mode === 'folded-flat' &&
           stored.render.presentation?.kind === 'perspective'
         ) {
-          await presentDiagramFoldStep(id, value, () => current() && queued());
+          await presentDiagramFoldStep(id, value, () => current() && queued(), true);
         }
       });
     });

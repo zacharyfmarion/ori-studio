@@ -129,6 +129,7 @@ export function useDiagramLinkedPose(
   const stepId = source ? step!.id : null;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const busy = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
+  const blockingCapture = useWorkspaceStore((state) => stepId !== null && state.diagramCaptures[stepId]?.blocksPose === true);
   // Each kept with the creases it was learnt from (`linkedFoldKey`): after a
   // Relink or an undo the step links to others, and these are not theirs.
   const [connected, setConnected] = useState<{key: string; view: ConnectedSpreadView} | null>(null);
@@ -191,7 +192,9 @@ export function useDiagramLinkedPose(
     void controller.prepareConnected().then(finish, finish);
     return () => { current = false; };
   }, [controller, live, connectedKey, connectedView]);
-  const connectedPreparing = !!(live && connectedKey && !connectedView && finishedPreparation !== connectedKey);
+  // The saved source stays Affine until a switch to Default finishes capturing.
+  // Follow the operation from its start, then hand off to live-view preparation.
+  const connectedPreparing = !!(live && (blockingCapture || (connectedKey && !connectedView && finishedPreparation !== connectedKey)));
   const onReveal = useCallback((reveal:[number,number]) => {
     if (readOnly || !controller) return;
     controller.previewSpread({ slider: 'reveal', value: reveal });

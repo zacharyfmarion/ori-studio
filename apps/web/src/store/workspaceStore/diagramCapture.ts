@@ -121,6 +121,8 @@ export type DiagramCaptureOutcome =
 export interface DiagramCaptureRun {
   /** The fold run a Stop names; null while the creases are being chosen, or for a picture with no fold. */
   runId: number | null;
+  /** A discrete pose change is preparing its replacement picture. Live gesture captures do not block Pose. */
+  blocksPose?: true;
 }
 
 /** The store as a capture uses it. */
@@ -162,14 +164,15 @@ export interface StepCaptureStart {
  */
 export function beginStepCapture(
   store: DiagramCaptureStore,
-  stepId: string
+  stepId: string,
+  blocksPose = false
 ): StepCaptureStart | Extract<DiagramCaptureOutcome, { status: 'read-only' | 'no-pattern' | 'discarded' | 'busy' }> {
   const state = store.get();
   if (state.diagramReadOnly) return { status: 'read-only' };
   if (Object.hasOwn(state.diagramCaptures, stepId)) return { status: 'busy' };
   const cp = state.oristudioCpDocument;
   if (!cp) return { status: 'no-pattern' };
-  const run = beginCaptureRun(store, stepId);
+  const run = beginCaptureRun(store, stepId, blocksPose);
   if ('status' in run) return run;
   return {
     ...run,
@@ -190,14 +193,15 @@ export type CaptureRunStart = Pick<StepCaptureStart, 'guard' | 'style'>;
  */
 export function beginCaptureRun(
   store: DiagramCaptureStore,
-  stepId: string
+  stepId: string,
+  blocksPose = false
 ): CaptureRunStart | Extract<DiagramCaptureOutcome, { status: 'read-only' | 'discarded' | 'busy' }> {
   const state = store.get();
   if (state.diagramReadOnly) return { status: 'read-only' };
   if (Object.hasOwn(state.diagramCaptures, stepId)) return { status: 'busy' };
   const step = state.diagram ? stepById(state.diagram, stepId) : null;
   if (!step || isLockedStep(step)) return { status: 'discarded' };
-  setRun(store, stepId, { runId: null });
+  setRun(store, stepId, { runId: null, ...(blocksPose ? { blocksPose: true } : {}) });
   return {
     guard: { stepId, loadId: state.diagramLoadId, revision: step.revision },
     style: state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE,
@@ -222,7 +226,8 @@ export function runStepFold<T>(
   const { stepId } = start.guard;
   return abandonOnEngineLoss(
     withFoldInFlight(store, kind, (runId) => {
-      if (Object.hasOwn(store.get().diagramCaptures, stepId)) setRun(store, stepId, { runId });
+      const capture = store.get().diagramCaptures[stepId];
+      if (capture) setRun(store, stepId, { ...capture, runId });
       return work(createCpCaptureRuntime(runId, start.auxHandle));
     })
   );

@@ -53,3 +53,19 @@ A pane-local “Preparing pose…” spinner dims and intercepts the model while
 - Rust/native/oracle suites are not rerun: no engine, shell or file semantics changed.
 
 - Web lint, TypeScript, translation integrity and diff checks passed. Final loading gestures and worker readiness were rechecked after review, including avoiding a React commit for every live bitmap. The final TS/catalog revision was rebundled and prerendered using the freshly rebuilt WASM artifacts.
+
+## Follow-up: switching Affine to Default
+
+The first loading check only followed the saved render. A spread-kind change builds its replacement picture before committing the render, so an Affine source stayed Affine throughout the expensive solve and vector capture. That transition never satisfied the original Default-only preparation predicate.
+
+Capture runs now carry a transient `blocksPose` flag for discrete pose changes, set before any asynchronous work and preserved when folding assigns a run ID. Both CP-linked and Fold-linked Pose read that flag as well as source/renderer readiness. It clears with the capture on success, failure or discard. Live amount/reveal/camera/simulation captures do not set it. Nothing is persisted to OSF or changed in the geometry/ordering/solver.
+
+- [x] Cover the pending request before the stored render changes
+- [x] Test the post-fold solve and vector capture separately, plus failure and navigation
+- [x] Verify Fold-linked transitions and nonblocking live captures
+- [x] Exercise Affine → Default on Bodo step 204 in the app
+- [x] Finish focused validation and update the draft PR
+
+The full external Bodo book was imported in in-app Chromium, then step 204 was opened through the step grid and switched from saved Affine to Default. The overlay appeared immediately while Affine remained selected, persisted through replacement capture/renderer startup, and disappeared when ready. A subsequent model reveal drag captured without an overlay. The native Canary picker and in-app picker transport did not accept the automated file selection, so an ignored local loader substituted only the picked file and then called the normal app import; the production store, controls, folding, capture and viewport were used. No artificial solve/capture delay was added.
+
+Follow-up validation: 99 tests passed across nine capture/store/Fold/Pose/renderer suites, including the real WASM Fold-to-Diagram integration. Web lint and TypeScript passed; final touched-file lint and TypeScript passed again after the camera-path review. The review also caught Fold-derived live orbits sharing the presentation capture entry point; these now explicitly remain background captures, with a regression assertion. No engine/package/bundling/CSS changes: generated WASM was reused from the preceding normal build; Rust/oracle/native and production build were not repeated for this state-lifecycle fix.

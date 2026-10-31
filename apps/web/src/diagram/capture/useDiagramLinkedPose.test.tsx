@@ -12,6 +12,9 @@ import { cpDocument, fakeCaptureRuntime, twoSquaresIndex } from './capture.fixtu
 import type { CpCaptureRuntime } from './captureFolded';
 import { useDiagramLinkedPose, type DiagramLinkedPose } from './useDiagramLinkedPose';
 import { ensureCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
+import { connectedSpreadSource } from '../../cp-workspace/folded/connectedSpreadSource';
+import { connectedPaperScene } from '../../layer-spread/connectedScene';
 
 /**
  * The Step pane's spread rows reach the controller only through this hook:
@@ -22,6 +25,8 @@ import { ensureCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
 
 const preparation = vi.hoisted(() => ({ start: vi.fn() }));
 vi.mock('../../layer-spread/prepareConnected', () => ({ prepareConnected: (...args: unknown[]) => preparation.start(...args) }));
+const capture = vi.hoisted(() => ({ scene: vi.fn() }));
+vi.mock('../../layer-spread/captureConnected', () => ({ captureConnected: (...args: unknown[]) => capture.scene(...args) }));
 
 const bindings = vi.hoisted(() => ({ runtime: null as CpCaptureRuntime | null }));
 vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOriginal) => ({
@@ -111,6 +116,8 @@ function holdTheLookup(): () => void {
 }
 
 beforeEach(async () => {
+  preparation.start.mockReset();
+  capture.scene.mockReset();
   setFoldedFigureHandleFree(() => {});
   await resetFoldedFigureHandles();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
@@ -118,6 +125,86 @@ beforeEach(async () => {
     oristudioCpDocument: { handle: 1, document: cpDocument(), geometry: null } as unknown as OristudioCpDocumentState,
   });
   bindings.runtime = fakeCaptureRuntime();
+});
+
+it('covers Affine → Default from the click through post-fold solve and capture, before the saved mode changes', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { initSync, solve_layer_spread } = await import('../../generated/oristudio-layer-spread-wasm/oristudio_layer_spread_wasm');
+  initSync({module:readFileSync(resolve('src/generated/oristudio-layer-spread-wasm/oristudio_layer_spread_wasm_bg.wasm'))});
+  let finishSolve!: () => void;
+  let finishCapture!: () => void;
+  preparation.start.mockImplementation(scene => {
+    const source = connectedSpreadSource(scene);
+    const prepared = {source, solution:solve_layer_spread(source.input)};
+    return {promise:new Promise(resolve=>{finishSolve=()=>resolve(prepared);}), release:vi.fn()};
+  });
+  capture.scene.mockImplementation(scene => new Promise(resolve => {
+    finishCapture = () => resolve(connectedPaperScene(scene.connected, scene.sheet, true));
+  }));
+  const stepId = await flatStep(AFFINE);
+  const releaseLookup = holdTheLookup();
+  act(() => seen.pose!.spread!.kinds.find(kind=>kind.value==='connected')!.run());
+  expect(spreadOf(stepId)).toEqual(AFFINE);
+  expect(seen.pose!.connectedPreparing).toBe(true);
+  await act(async () => {
+    releaseLookup();
+    await vi.waitFor(()=>expect(preparation.start).toHaveBeenCalledOnce());
+  });
+  // Folding has ended, but solving and the replacement picture have not.
+  expect(state().oristudioCpFoldRuns).toEqual({});
+  expect(state().diagramCaptures[stepId]).toMatchObject({blocksPose:true});
+  expect(spreadOf(stepId)).toEqual(AFFINE);
+  expect(seen.pose!.connectedPreparing).toBe(true);
+  await act(async () => { finishSolve(); await vi.waitFor(()=>expect(capture.scene).toHaveBeenCalledOnce()); });
+  expect(spreadOf(stepId)).toEqual(AFFINE);
+  expect(seen.pose!.connectedPreparing).toBe(true);
+  await act(async () => {
+    finishCapture();
+    await vi.waitFor(()=>expect(seen.pose!.connected).not.toBeNull());
+  });
+  expect(spreadOf(stepId)).toEqual(DEFAULT_CONNECTED_SPREAD);
+  expect(seen.pose!.connectedPreparing).toBe(false);
+
+  // A live reveal captures in the background, without covering the interactive view.
+  const releaseReveal = holdTheLookup();
+  act(() => seen.pose!.onReveal([1, .5]));
+  await act(async()=>{await vi.waitFor(()=>expect(state().diagramCaptures[stepId]).toBeDefined());});
+  expect(seen.pose!.connectedPreparing).toBe(false);
+  expect(state().diagramCaptures[stepId]?.blocksPose).toBeUndefined();
+  await act(async()=>{releaseReveal();await vi.waitFor(()=>expect(capture.scene).toHaveBeenCalledTimes(2));});
+  await act(async()=>{finishCapture();await vi.waitFor(()=>expect(state().diagramCaptures[stepId]).toBeUndefined());});
+});
+
+it('removes transition loading after a failed Default solve while keeping the saved Affine pose', async () => {
+  let fail!: (error:Error)=>void;
+  preparation.start.mockReturnValue({promise:new Promise((_,reject)=>{fail=reject;}),release:vi.fn()});
+  const stepId = await flatStep(AFFINE);
+  act(()=>seen.pose!.spread!.kinds.find(kind=>kind.value==='connected')!.run());
+  await act(async()=>{await vi.waitFor(()=>expect(preparation.start).toHaveBeenCalledOnce());});
+  expect(seen.pose!.connectedPreparing).toBe(true);
+  await act(async()=>fail(new Error('Solve failed')));
+  expect(seen.pose!.connectedPreparing).toBe(false);
+  expect(state().diagramCaptures[stepId]).toBeUndefined();
+  expect(spreadOf(stepId)).toEqual(AFFINE);
+});
+
+it('does not carry an Affine → Default loading state into another step', async () => {
+  let fail!: (error:Error)=>void;
+  preparation.start.mockReturnValue({promise:new Promise((_,reject)=>{fail=reject;}),release:vi.fn()});
+  const first = await flatStep(AFFINE);
+  const original = stepsIn(state().diagram!).find(step=>step.id===first)!;
+  const second = state().addDiagramStep()!;
+  act(()=>useWorkspaceStore.setState({diagram:{...state().diagram!,steps:stepsIn(state().diagram!).map(step=>step.id===second?{...original,id:second}:step)}}));
+  act(()=>seen.pose!.spread!.kinds.find(kind=>kind.value==='connected')!.run());
+  await act(async()=>{await vi.waitFor(()=>expect(preparation.start).toHaveBeenCalledOnce());});
+  expect(seen.pose!.connectedPreparing).toBe(true);
+  act(()=>root!.render(<Probe stepId={second}/>));
+  expect(seen.pose!.connectedPreparing).toBe(false);
+  await act(async()=>fail(new Error('Old solve stopped')));
+  expect(seen.pose!.connectedPreparing).toBe(false);
+  expect(spreadOf(first)).toEqual(AFFINE);
+  expect(spreadOf(second)).toEqual(AFFINE);
 });
 
 afterEach(() => {
