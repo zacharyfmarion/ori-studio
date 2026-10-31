@@ -656,6 +656,22 @@ describe('a vertex fold’s refusals', () => {
     const locked = foldRefusalNotice(t, refused(line), { ...vertexContext('petal'), readOnly: true }, calls);
     expect(locked.actions.every((action) => action.disabled)).toBe(true);
   });
+
+  it('offers a swivel too steep for its edge onto a line the construction that creases the layer twice', () => {
+    const calls = { ...verbs(), setSwivelInput: vi.fn() };
+    const wide = { code: 'swivel_fold_wide' as const, faces: [17, 18] };
+    const onFold = vertexContext('swivel', { swivel: 'fold' });
+    const notice = foldRefusalNotice(t, refused(wide), onFold, calls);
+    expect(notice.title).toBe('The swivel crease meets the edge too steeply');
+    expect(notice.text).toMatch(/has to crease twice, a valley and a mountain/);
+    expect(notice.actions.map((action) => action.label)).toEqual(['Switch to Valley and mountain']);
+    notice.actions[0]?.run();
+    expect(calls.setSwivelInput).toHaveBeenCalledWith('valley-mountain');
+    // No button that cannot act: none without the verb, none taken read-only.
+    expect(foldRefusalNotice(t, refused(wide), onFold, verbs()).actions).toEqual([]);
+    const locked = foldRefusalNotice(t, refused(wide), { ...onFold, readOnly: true }, calls);
+    expect(locked.actions.map((action) => action.disabled)).toEqual([true]);
+  });
 });
 
 describe('a squash about a drawn hinge', () => {

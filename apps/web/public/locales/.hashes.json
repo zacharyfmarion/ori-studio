@@ -5623,7 +5623,6 @@
     "tools:fold.vertex.directionCannot": "b4b0f693d6eb",
     "tools:fold.vertex.refusal.blocked.swivelOnFold": "d1185db3cf2c",
     "tools:fold.vertex.refusal.swivelEdgeStays.onFold": "eaa4601c69f6",
-    "tools:fold.vertex.refusal.swivelFoldWide.text": "dd5fdb83e503",
     "tools:fold.vertex.refusal.swivelFoldWide.title": "99d29db2bea2",
     "tools:fold.vertex.refusal.swivelMissesFold.text": "9b88efdcca17",
     "tools:fold.vertex.refusal.swivelMissesFold.title": "68d0d420338c",
@@ -6692,7 +6691,9 @@
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "tools:fold.vertex.fix.valleyMountain": "6149cd2c0bb4",
+    "tools:fold.vertex.refusal.swivelFoldWide.creaseTwice": "7cae3c0ad52d"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -12318,7 +12319,6 @@
     "tools:fold.vertex.directionCannot": "b4b0f693d6eb",
     "tools:fold.vertex.refusal.blocked.swivelOnFold": "d1185db3cf2c",
     "tools:fold.vertex.refusal.swivelEdgeStays.onFold": "eaa4601c69f6",
-    "tools:fold.vertex.refusal.swivelFoldWide.text": "dd5fdb83e503",
     "tools:fold.vertex.refusal.swivelFoldWide.title": "99d29db2bea2",
     "tools:fold.vertex.refusal.swivelMissesFold.text": "9b88efdcca17",
     "tools:fold.vertex.refusal.swivelMissesFold.title": "68d0d420338c",
@@ -13387,7 +13387,9 @@
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "tools:fold.vertex.fix.valleyMountain": "6149cd2c0bb4",
+    "tools:fold.vertex.refusal.swivelFoldWide.creaseTwice": "7cae3c0ad52d"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -19015,7 +19017,6 @@
     "tools:fold.vertex.directionCannot": "b4b0f693d6eb",
     "tools:fold.vertex.refusal.blocked.swivelOnFold": "d1185db3cf2c",
     "tools:fold.vertex.refusal.swivelEdgeStays.onFold": "eaa4601c69f6",
-    "tools:fold.vertex.refusal.swivelFoldWide.text": "dd5fdb83e503",
     "tools:fold.vertex.refusal.swivelFoldWide.title": "99d29db2bea2",
     "tools:fold.vertex.refusal.swivelMissesFold.text": "9b88efdcca17",
     "tools:fold.vertex.refusal.swivelMissesFold.title": "68d0d420338c",
@@ -20084,7 +20085,9 @@
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "tools:fold.vertex.fix.valleyMountain": "6149cd2c0bb4",
+    "tools:fold.vertex.refusal.swivelFoldWide.creaseTwice": "7cae3c0ad52d"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -25394,7 +25397,6 @@
     "tools:fold.vertex.directionCannot": "b4b0f693d6eb",
     "tools:fold.vertex.refusal.blocked.swivelOnFold": "d1185db3cf2c",
     "tools:fold.vertex.refusal.swivelEdgeStays.onFold": "eaa4601c69f6",
-    "tools:fold.vertex.refusal.swivelFoldWide.text": "dd5fdb83e503",
     "tools:fold.vertex.refusal.swivelFoldWide.title": "99d29db2bea2",
     "tools:fold.vertex.refusal.swivelMissesFold.text": "9b88efdcca17",
     "tools:fold.vertex.refusal.swivelMissesFold.title": "68d0d420338c",
@@ -26401,7 +26403,9 @@
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "tools:fold.vertex.fix.valleyMountain": "6149cd2c0bb4",
+    "tools:fold.vertex.refusal.swivelFoldWide.creaseTwice": "7cae3c0ad52d"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -31711,7 +31715,6 @@
     "tools:fold.vertex.directionCannot": "b4b0f693d6eb",
     "tools:fold.vertex.refusal.blocked.swivelOnFold": "d1185db3cf2c",
     "tools:fold.vertex.refusal.swivelEdgeStays.onFold": "eaa4601c69f6",
-    "tools:fold.vertex.refusal.swivelFoldWide.text": "dd5fdb83e503",
     "tools:fold.vertex.refusal.swivelFoldWide.title": "99d29db2bea2",
     "tools:fold.vertex.refusal.swivelMissesFold.text": "9b88efdcca17",
     "tools:fold.vertex.refusal.swivelMissesFold.title": "68d0d420338c",
@@ -32718,7 +32721,9 @@
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "tools:fold.vertex.fix.valleyMountain": "6149cd2c0bb4",
+    "tools:fold.vertex.refusal.swivelFoldWide.creaseTwice": "7cae3c0ad52d"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -38344,7 +38349,6 @@
     "tools:fold.vertex.directionCannot": "b4b0f693d6eb",
     "tools:fold.vertex.refusal.blocked.swivelOnFold": "d1185db3cf2c",
     "tools:fold.vertex.refusal.swivelEdgeStays.onFold": "eaa4601c69f6",
-    "tools:fold.vertex.refusal.swivelFoldWide.text": "dd5fdb83e503",
     "tools:fold.vertex.refusal.swivelFoldWide.title": "99d29db2bea2",
     "tools:fold.vertex.refusal.swivelMissesFold.text": "9b88efdcca17",
     "tools:fold.vertex.refusal.swivelMissesFold.title": "68d0d420338c",
@@ -39413,7 +39417,9 @@
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "tools:fold.vertex.fix.valleyMountain": "6149cd2c0bb4",
+    "tools:fold.vertex.refusal.swivelFoldWide.creaseTwice": "7cae3c0ad52d"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -45039,7 +45045,6 @@
     "tools:fold.vertex.directionCannot": "b4b0f693d6eb",
     "tools:fold.vertex.refusal.blocked.swivelOnFold": "d1185db3cf2c",
     "tools:fold.vertex.refusal.swivelEdgeStays.onFold": "eaa4601c69f6",
-    "tools:fold.vertex.refusal.swivelFoldWide.text": "dd5fdb83e503",
     "tools:fold.vertex.refusal.swivelFoldWide.title": "99d29db2bea2",
     "tools:fold.vertex.refusal.swivelMissesFold.text": "9b88efdcca17",
     "tools:fold.vertex.refusal.swivelMissesFold.title": "68d0d420338c",
@@ -46108,7 +46113,9 @@
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "tools:fold.vertex.fix.valleyMountain": "6149cd2c0bb4",
+    "tools:fold.vertex.refusal.swivelFoldWide.creaseTwice": "7cae3c0ad52d"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -51418,7 +51425,6 @@
     "tools:fold.vertex.directionCannot": "b4b0f693d6eb",
     "tools:fold.vertex.refusal.blocked.swivelOnFold": "d1185db3cf2c",
     "tools:fold.vertex.refusal.swivelEdgeStays.onFold": "eaa4601c69f6",
-    "tools:fold.vertex.refusal.swivelFoldWide.text": "dd5fdb83e503",
     "tools:fold.vertex.refusal.swivelFoldWide.title": "99d29db2bea2",
     "tools:fold.vertex.refusal.swivelMissesFold.text": "9b88efdcca17",
     "tools:fold.vertex.refusal.swivelMissesFold.title": "68d0d420338c",
@@ -52425,6 +52431,8 @@
     "panels:diagram.actions.importFromFile": "c5243d675700",
     "panels:diagram.import.menuButton": "2cff9baabf56",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "tools:fold.vertex.fix.valleyMountain": "6149cd2c0bb4",
+    "tools:fold.vertex.refusal.swivelFoldWide.creaseTwice": "7cae3c0ad52d"
   }
 }

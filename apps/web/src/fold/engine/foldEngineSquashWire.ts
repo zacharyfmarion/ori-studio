@@ -101,18 +101,27 @@ export interface FoldSquashAnalysis {
 export interface FoldPetalAnalysis {
   /** H, in the parent's model frame. */
   line: FoldModelLine;
-  /** H's ends on the flap's folded edges, and the corner the kite creases meet at. */
+  /** H's ends on the flap's folded edges, and the corner the top layer's kite creases meet at: the kite that lifts. */
   ends: [FoldModelPoint, FoldModelPoint];
   corner: FoldModelPoint;
-  /** The kite creases from each end: precreased, or — H named by its ends — the bisector of H and the folded edge there. */
+  /** The top layer's kite creases from each end: precreased, or — H named by its ends — the bisector of H and the folded edge there. */
   kites: [FoldModelLine, FoldModelLine];
+  /**
+   * The second layer's kite creases (in `kites`' order) and their corner: the
+   * top layer's own where the layers end together, as on the bird base; on a
+   * doubled flap (a squashed one, as the frog base's) they run on to the
+   * second layer's own corner. Optional only so an analysis written before
+   * them still types.
+   */
+  second_corner?: FoldModelPoint;
+  second_kites?: [FoldModelLine, FoldModelLine];
   /** The parent's faces of the top and second layers: below H, or across it where H is not creased. */
   top: number[];
   second: number[];
   /**
    * What the fold creases itself (H named by its ends): H where it crosses
-   * the top layer, and each kite crease (in `kites`' order) where it crosses
-   * the top two layers. All false over precreases, and always for H named by
+   * the top layer, and at each end (in `kites`' order) a kite crease where it
+   * crosses its layer. All false over precreases, and always for H named by
    * a crease. The bridge always sends both; they are optional only so an
    * analysis written before them still types.
    */

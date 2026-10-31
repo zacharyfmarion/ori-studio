@@ -936,7 +936,8 @@
         "otherWay": "Andersherum falten",
         "precreaseHinge": "Zuerst das Scharnier vorfalten",
         "precreaseKite": "Den Drachen vorfalten",
-        "resetTarget": "Den Rücken auf das Scharnier legen"
+        "resetTarget": "Den Rücken auf das Scharnier legen",
+        "valleyMountain": "Zu Tal und Berg wechseln"
       },
       "help": {
         "petalHinge": "Die untere Spitze einer Lasche entlang eines Scharniers anheben, während sich ihre Seiten entlang zweier Drachenlinien einfalten.",
@@ -1094,7 +1095,7 @@
           "title": "Die Kante würde liegen bleiben"
         },
         "swivelFoldWide": {
-          "text": "Auf der Seite der bewegten Kante trifft die Schwenkfaltlinie die gefaltete Kante in einem rechten oder stumpfen Winkel, sodass der anderen Lage kein Platz zum Falten bleibt. Wähle eine Linie für die Kante, die sie weiter dreht, oder eine andere gefaltete Kante.",
+          "creaseTwice": "Auf der Seite der bewegten Kante trifft die Schwenkfaltlinie die gefaltete Kante in einem rechten oder stumpfen Winkel, sodass die Lage der Kante zweimal gefaltet werden muss, als Tal und als Berg, und Kante auf Linie faltet sie nur einmal. Wechsle zu Tal und Berg und wähle die beiden Faltlinien, oder wähle eine Linie, die die Kante weiter dreht.",
           "title": "Die Schwenkfaltlinie trifft die Kante zu steil"
         },
         "swivelInsideFree": {
