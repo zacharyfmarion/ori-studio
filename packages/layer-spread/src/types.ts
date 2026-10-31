@@ -51,8 +51,8 @@ export interface ProjectedSpread {
   visibility: Visibility;
 }
 export interface Visibility {
-  /** Depth bands only when every comparison between bands is a direct known
-   * relation. Partial orders and cycles use per-face blockers instead. */
+  /** Global topological depth bands for acyclic stacks; null for cycles.
+   * Faces in the same band use physical depth and triangle order. */
   ranks: number[] | null;
   /** False allows vector capture to skip the all-masked-cycle fallback. */
   cyclic?: boolean;

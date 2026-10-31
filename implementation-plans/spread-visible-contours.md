@@ -1,5 +1,9 @@
 # Visible contours for pairwise spread
 
+This experiment was removed when the user chose
+[global spread rendering](global-spread-rendering.md). The lossless
+line-coverage sweep remains; the contour pass is no longer in the app.
+
 ## Goal
 
 Restore the pairwise-order experiment after the canceled rollback, close the

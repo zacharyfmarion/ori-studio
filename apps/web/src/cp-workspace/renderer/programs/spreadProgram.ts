@@ -47,7 +47,8 @@ float d=(rank+0.1+0.8*depth)/bands;
 gl_Position=vec4(p.x/viewport.x*2.0-1.0,1.0-p.y/viewport.y*2.0,1.0-2.0*d,1.0);ink=color;}`;
 const FRAG = `precision highp float;varying vec4 ink;void main(){gl_FragColor=vec4(ink.rgb*ink.a,ink.a);}`;
 
-/** Local-order masks in the existing CP context. No clipping or solver work.
+/** Global depth bands in the existing CP context. No clipping or solver work.
+ * Only genuinely cyclic stacks need local-order masks.
  * The uncorrected pass remains underneath projected cycles which suppress all
  * candidates; normal overlays resume with stencil disabled after this scope.
  */
@@ -163,7 +164,7 @@ export function createSpreadProgram(regl: Regl) {
     order = data.visibility;
     const bands = order.ranks ? Math.max(...order.ranks) + 1 : 1;
     const inkBias = spreadInkDepthBias(bands, depthBits);
-    const boxes = data.faces.map(({ fills }) => {
+    const boxes = order.ranks ? [] : data.faces.map(({ fills }) => {
       let minX = Infinity,
         minY = Infinity,
         maxX = -Infinity,
@@ -193,7 +194,14 @@ export function createSpreadProgram(regl: Regl) {
         target.geometry = geometry;
       }
       const rank = order?.ranks?.[f] ?? 0;
-      if (!order?.ranks) {
+      if (order?.ranks) {
+        // Release any buffers retained from a previously cyclic scene.
+        if (target.maskCount || target.blockers.length) {
+          target.maskPosition([]);
+          target.maskCount = 0;
+          target.blockers = [];
+        }
+      } else {
         const a = boxes[f]!;
         const blockers = order!.above[f]!.filter((b) => {
           const box = boxes[b]!;

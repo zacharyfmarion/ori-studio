@@ -5,7 +5,6 @@ import {
   visibility,
   visibleFragments,
   createLineClipper,
-  visibleContours,
   type ConnectedSpread,
   type Point3,
   type ProjectedSpread,
@@ -29,7 +28,6 @@ export interface ConnectedInk {
 export interface ConnectedDrawing {
   mesh: ProjectedSpread;
   rings: number[][];
-  planeGroups?: number[];
   /** Per original face: material side, independent of triangulation winding. */
   front: boolean[];
   ink: ConnectedInk[];
@@ -90,7 +88,7 @@ export function connectedDrawing(
       },
     };
   });
-  return { mesh, rings: input.faces, planeGroups: input.planeGroups, front: kernel.faces.map((f) => f.front_up), ink };
+  return { mesh, rings: input.faces, front: kernel.faces.map((f) => f.front_up), ink };
 }
 
 export function connectedPaperScene(drawing: ConnectedDrawing, sheet: number, resolved = false): PaperScene {
@@ -144,11 +142,6 @@ export function connectedPaperScene(drawing: ConnectedDrawing, sheet: number, re
       });
     }
   }
-  // A hidden mask may separate two other visible faces while losing its own
-  // ink. Close only those contours, using the existing idle-capture geometry.
-  if (resolved)
-    for (const { a, b } of visibleContours(mesh, drawing.rings, fragments, drawing.planeGroups))
-      items.push({ kind: 'line', role: 'edge', a, b, onBoundary: [false, false], joined: [true, true], hidden: false });
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   for (const p of mesh.positions) {
     bounds.minX = Math.min(bounds.minX, p[0]);

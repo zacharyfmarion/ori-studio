@@ -369,8 +369,7 @@ function coveredDepth(t: LineTriangle, px: number, py: number, depth = true): nu
   return depth ? 0 + wa * t.points[0][2] + wb * t.points[1][2] + wc * t.points[2][2] : 0;
 }
 
-/** Visibility intervals of original, material-owned ink. Missing contours are
- * extracted separately from the resolved fill arrangement. */
+/** Visibility intervals of original, material-owned ink. */
 export function visibleLine(mesh: ProjectedSpread, face: number, a: Point3, b: Point3): [number, number][] {
   return createLineClipper(mesh)(face, a, b);
 }

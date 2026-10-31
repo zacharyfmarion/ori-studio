@@ -32,33 +32,32 @@ function assertFace(mesh: ProjectedSpread, point: Point, face: number) {
 }
 
 it.each([false,true])('keeps known pairs ordered across their entire new overlap (back=%s)', back => {
-  // An extra unrelated layer forces the pairwise path. Neither shifted edge
-  // belongs to the intersection of the two moved original overlap footprints.
+  // Unrelated layers no longer force per-face masks on an acyclic stack.
   const input = rectangles([[0,2], [1,3], [10,11]], [[0,1]]);
   const mesh = posed(input, back ? [0,2,0] : [2,0,0], [.25,0,0], back);
-  expect(mesh.visibility.ranks).toBeNull();
+  expect(mesh.visibility.ranks).toEqual(back ? [1,0,0] : [0,1,0]);
   expect(mesh.visibility.cyclic).toBe(false);
   for (const x of [1.1,1.5,2.1]) assertFace(mesh, [x,.37], back ? 0 : 1);
 });
 
-it('does not infer an order between disjoint faces through an absent intermediate layer', () => {
+it('enforces global order even when the intermediate layer is absent from a new overlap', () => {
   const input = rectangles([[0,1],[.5,2.5],[2,3]], [[0,1],[1,2]]);
   const mesh = posed(input, [3,0,1], [2,-5,0]);
-  expect(mesh.visibility.ranks).toBeNull();
-  assertFace(mesh, [2.2,.37], 0);
+  expect(mesh.visibility.ranks).toEqual([0,1,2]);
+  assertFace(mesh, [2.2,.37], 2);
   // With the intermediary covering the point, both direct relations apply.
   const all = posed(input, [3,0,1], [2,1,0]);
   assertFace(all, [2.2,.37], 2);
 });
 
-it('uses bands only when they cannot invent an unrelated pair comparison', () => {
-  expect(visibility(3, [[0,1],[1,2]]).ranks).toBeNull();
+it('uses bands for every acyclic stack, including incomplete pair relations', () => {
+  expect(visibility(3, [[0,1],[1,2]]).ranks).toEqual([0,1,2]);
   expect(visibility(3, [[0,1],[1,2],[0,2]]).ranks).toEqual([0,1,2]);
   expect(visibility(3, [[0,2],[1,2]]).ranks).toEqual([0,0,1]);
   expect(visibility(3, []).ranks).toEqual([0,0,0]);
 });
 
-it('inherits the known relation across flat crease pieces but not unrelated layers', () => {
+it('keeps flat crease pieces in the same depth band', () => {
   const input = rectangles([[0,1],[1,2],[0,2],[10,11]], [[0,2]], [0,0,1,2]);
   const mesh = posed(input, [2,2,1,0], [.25,.25,0,0]);
   expect(mesh.visibility.above).toEqual([[2],[2],[],[]]);
@@ -89,7 +88,7 @@ it.each([0, 10_000_000])('keeps every visibility interval as occluders enter and
 });
 
 
-it('matches direct blockers for every visible subset without inventing rank relations', () => {
+it('uses global bands for acyclic subsets and direct blockers for genuinely cyclic stacks', () => {
   let seed = 29;
   for (let sample = 0; sample < 100; sample++) {
     const edges: Point[] = [];
@@ -99,10 +98,13 @@ it('matches direct blockers for every visible subset without inventing rank rela
     }
     for (const back of [false,true]) {
       const direct = back ? edges.map(([a,b]) => [b,a]) : edges;
-      const query = createWinner(visibility(4,edges,back));
+      const order = visibility(4,edges,back);
+      const query = createWinner(order);
       for (let subset = 1; subset < 16; subset++) {
         const present = [0,1,2,3].filter(f => subset & (1 << f));
-        const survivors = present.filter(f => !direct.some(([a,b]) => a === f && present.includes(b)));
+        const highest = order.ranks ? Math.max(...present.map(f => order.ranks![f])) : null;
+        const survivors = present.filter(f => order.ranks ? order.ranks[f] === highest
+          : !direct.some(([a,b]) => a === f && present.includes(b)));
         // Distinct physical depths deliberately oppose face index.
         const expected = Math.min(...(survivors.length ? survivors : present));
         expect(query(present.map(face => ({face,triangle:face,depth:4-face})))?.face).toBe(expected);

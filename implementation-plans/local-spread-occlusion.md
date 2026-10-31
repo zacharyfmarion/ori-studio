@@ -1,5 +1,9 @@
 # Pairwise spread occlusion and stable Pose presentation
 
+The pairwise visibility policy below was superseded by
+[global spread rendering](global-spread-rendering.md) at the user's request.
+The auxiliary-line and stable-framing fixes remain active.
+
 ## Goal
 
 Keep known ordered layers in their correct order across their current screen

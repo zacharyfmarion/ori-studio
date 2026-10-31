@@ -3,7 +3,7 @@ import { visibility, type Point3 } from '@oristudio/layer-spread';
 import { connectedPaperScene, type ConnectedDrawing } from './connectedScene';
 import { readPaperScene } from '../lib/paper/paperSceneValidate';
 
-it('adds serializable contour ink only to the settled capture, without changing material anchors', () => {
+it('uses global order in settled capture without synthesizing hidden-mask contours or changing material anchors', () => {
   const drawing: ConnectedDrawing = {
     mesh: {
       positions: [[0,2],[1,2],[0,2]].flatMap(([lo,hi],f) =>
@@ -19,9 +19,8 @@ it('adds serializable contour ink only to the settled capture, without changing 
   const live = connectedPaperScene(drawing, 2);
   const settled = connectedPaperScene(drawing, 2, true);
   expect(live.items.filter(i => i.kind === 'line')).toEqual([]);
-  expect(settled.items.filter(i => i.kind === 'line')).toEqual([
-    {kind:'line',role:'edge',a:[1,0],b:[1,1],onBoundary:[false,false],joined:[true,true],hidden:false},
-  ]);
+  expect(settled.items.filter(i => i.kind === 'line')).toEqual([]);
+  expect([...new Set(settled.items.flatMap(i => i.kind === 'face' && !i.hidden ? [i.face] : []))]).toEqual([2]);
   expect(settled.items.slice(0,3)).toEqual(live.items.slice(0,3));
   expect(readPaperScene(JSON.parse(JSON.stringify(settled)))).not.toBeNull();
 });

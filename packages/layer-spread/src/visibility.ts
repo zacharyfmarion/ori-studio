@@ -2,8 +2,8 @@ import type { Point, ProjectedSpread, SpreadPick, Visibility } from './types.js'
 import { barycentric } from './projection.js';
 
 /** Flat creases subdivide one layer without changing its stacking position.
- * Rank those pieces together; masks inherit only direct layer relations,
- * never an invented total order through a woven stack.
+ * Rank those pieces together. Acyclic stacks use global depth bands, including
+ * newly overlapping faces; genuinely cyclic stacks retain local masks.
  */
 export function visibility(faceCount: number, orders: readonly Point[], back = false, planeGroups?: readonly number[]): Visibility {
   if (planeGroups && new Set(planeGroups).size < faceCount) {
@@ -48,14 +48,7 @@ export function visibility(faceCount: number, orders: readonly Point[], back = f
     }
   }
   const cyclic = queue.length !== faceCount;
-  // A topological rank is not a relation: A < B < C does not say what
-  // happens when A and C newly overlap and B is elsewhere on screen.
-  // Bands are an exact fast path only if ALL cross-band pairs are known.
-  const countAboveRank = new Int32Array(faceCount + 1);
-  for (const rank of ranks) countAboveRank[rank]++;
-  for (let rank = faceCount - 1; rank >= 0; rank--) countAboveRank[rank] += countAboveRank[rank + 1];
-  const completeBands = !cyclic && above.every((blockers, face) => blockers.size === countAboveRank[ranks[face] + 1]);
-  return { ranks: completeBands ? ranks : null, cyclic, above: above.map((s) => [...s].sort((a, b) => a - b)) };
+  return { ranks: cyclic ? null : ranks, cyclic, above: above.map((s) => [...s].sort((a, b) => a - b)) };
 }
 
 /** Exact same winner rule as the depth-band / local-mask GPU pass. */
