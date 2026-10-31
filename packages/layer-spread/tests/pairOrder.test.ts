@@ -77,6 +77,17 @@ it('uses the same pair rule after perspective division', () => {
   assertFace(mesh, [.4,.17], 1);
 });
 
+it.each([0, 10_000_000])('keeps every visibility interval as occluders enter and leave a line (offset=%s)', offset => {
+  const spans: Point[] = [[0,100], ...Array.from({length:25}, (_, i) => [4*i+1,4*i+2] as Point)];
+  const mesh = posed(rectangles(spans, []), [1, ...Array(25).fill(2)], Array(26).fill(offset));
+  const intervals = visibleLine(mesh, 0, [offset,.5,1], [offset+100,.5,1]);
+  expect(intervals).toHaveLength(26);
+  for (let i=0; i<intervals.length; i++) {
+    expect(intervals[i][0]).toBeCloseTo(i ? (4*(i-1)+2)/100 : 0, 12);
+    expect(intervals[i][1]).toBeCloseTo(i < 25 ? (4*i+1)/100 : 1, 12);
+  }
+});
+
 
 it('matches direct blockers for every visible subset without inventing rank relations', () => {
   let seed = 29;

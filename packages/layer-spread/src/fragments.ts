@@ -295,6 +295,68 @@ interface LineTriangle {
   determinant: number;
 }
 
+interface LineCandidate {
+  triangle: LineTriangle;
+  lo: number;
+  hi: number;
+}
+
+/** Conservative segment coverage interval. Keep the original cuts and exact
+ * midpoint predicate below; this only avoids testing triangles that cannot
+ * cover that midpoint. The padding includes the barycentric coverage epsilon
+ * and roundoff from subtracting coordinates far from the origin. */
+function lineCandidate(triangle: LineTriangle, a: Point3, b: Point3): LineCandidate | null {
+  const { x, y, u, v, determinant, points } = triangle;
+  if (Math.abs(determinant) < 1e-16) return null;
+  const weights = (p: Point3) => {
+    const qx = p[0] - points[0][0], qy = p[1] - points[0][1];
+    const wb = (qx * v - qy * u) / determinant;
+    const wc = (x * qy - y * qx) / determinant;
+    return [1 - wb - wc, wb, wc];
+  };
+  const magnitude = Math.max(1, Math.abs(a[0]), Math.abs(a[1]), Math.abs(b[0]), Math.abs(b[1]),
+    Math.abs(points[0][0]), Math.abs(points[0][1]));
+  const tolerance = 1e-9 + 128 * Number.EPSILON * magnitude * (Math.abs(x) + Math.abs(y) + Math.abs(u) + Math.abs(v)) / Math.abs(determinant);
+  const wa = weights(a), wb = weights(b);
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 3; i++) {
+    const va = wa[i] + tolerance, vb = wb[i] + tolerance;
+    if (va < 0 && vb < 0) return null;
+    if (va < 0) lo = Math.max(lo, va / (va - vb));
+    else if (vb < 0) hi = Math.min(hi, va / (va - vb));
+  }
+  return hi >= lo ? { triangle, lo, hi } : null;
+}
+
+/** Walk increasing sample parameters, preserving triangle order for exact tie
+ * behavior. Most of the bbox neighbors cover only a small part of an edge. */
+function sweepCandidates(candidates: LineCandidate[]): (t: number) => LineTriangle[] {
+  const starts = [...candidates].sort((a, b) => a.lo - b.lo);
+  const ends = [...candidates].sort((a, b) => a.hi - b.hi);
+  const active: LineTriangle[] = [];
+  let start = 0, end = 0;
+  const index = (triangle: LineTriangle) => {
+    let lo = 0, hi = active.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (active[mid].triangle < triangle.triangle) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  return t => {
+    while (start < starts.length && starts[start].lo <= t) {
+      const triangle = starts[start++].triangle;
+      active.splice(index(triangle), 0, triangle);
+    }
+    while (end < ends.length && ends[end].hi < t) {
+      const triangle = ends[end++].triangle;
+      active.splice(index(triangle), 1);
+    }
+    return active;
+  };
+}
+
 /** The same barycentric arithmetic/coverage tolerance as picking, without
  * rebuilding corners and allocating weights for every interval/triangle pair. */
 function coveredDepth(t: LineTriangle, px: number, py: number, depth = true): number | null {
@@ -307,7 +369,8 @@ function coveredDepth(t: LineTriangle, px: number, py: number, depth = true): nu
   return depth ? 0 + wa * t.points[0][2] + wb * t.points[1][2] + wc * t.points[2][2] : 0;
 }
 
-/** Visibility intervals of an original edge. Clipping boundaries are never ink. */
+/** Visibility intervals of original, material-owned ink. Missing contours are
+ * extracted separately from the resolved fill arrangement. */
 export function visibleLine(mesh: ProjectedSpread, face: number, a: Point3, b: Point3): [number, number][] {
   return createLineClipper(mesh)(face, a, b);
 }
@@ -324,7 +387,7 @@ function lineIntervals(
 ): [number, number][] {
   const box = bounds([a, b]);
   const cuts = [0, 1];
-  const higher: LineTriangle[] = [], peers: LineTriangle[] = [];
+  const higher: LineCandidate[] = [], peers: LineCandidate[] = [];
   const ranks = mesh.visibility.ranks;
   const dx = b[0] - a[0],
     dy = b[1] - a[1];
@@ -338,11 +401,14 @@ function lineIntervals(
       : mesh.visibility.cyclic === false && blockers.has(triangle.face);
     if (orderedBlocker && coveredDepth(triangle, a[0], a[1], false) !== null
       && coveredDepth(triangle, b[0], b[1], false) !== null) return [];
-    if (!ranks || ranks[triangle.face] === ranks[face]) peers.push(triangle);
-    if (orderedBlocker) higher.push(triangle);
+    const candidate = lineCandidate(triangle, a, b);
+    if (candidate) {
+      if (!ranks || ranks[triangle.face] === ranks[face]) peers.push(candidate);
+      if (orderedBlocker) higher.push(candidate);
+    }
     for (const edge of triangle.edges) {
-      const va = value(edge, [a[0], a[1]]),
-        vb = value(edge, [b[0], b[1]]),
+      const va = edge.x * (a[0] - edge.origin[0]) + edge.y * (a[1] - edge.origin[1]) + edge.z,
+        vb = edge.x * (b[0] - edge.origin[0]) + edge.y * (b[1] - edge.origin[1]) + edge.z,
         denom = va - vb;
       if (Math.abs(denom) > 1e-14) {
         const u = va / denom;
@@ -360,6 +426,8 @@ function lineIntervals(
     }
   }
   cuts.sort((u, v) => u - v);
+  const activePeers = sweepCandidates(peers);
+  const activeHigher = sweepCandidates(higher);
   const out: [number, number][] = [];
   for (let i = 1; i < cuts.length; i++) {
     const lo = cuts[i - 1],
@@ -369,9 +437,9 @@ function lineIntervals(
     const px = a[0] + u * dx, py = a[1] + u * dy;
     // A direct blocker (or an equivalent higher band) settles this interval.
     // Keep all cuts above, so the remaining interval endpoints are unchanged.
-    if (higher.some((triangle) => coveredDepth(triangle, px, py, false) !== null)) continue;
+    if (activeHigher(u).some(triangle => coveredDepth(triangle, px, py, false) !== null)) continue;
     const covering: { face: number; triangle: number; depth: number }[] = [];
-    for (const triangle of peers) {
+    for (const triangle of activePeers(u)) {
       const depth = coveredDepth(triangle, px, py);
       if (depth !== null) covering.push({ face: triangle.face, triangle: triangle.triangle, depth });
     }
