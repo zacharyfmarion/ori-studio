@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   background: color-mix(in srgb, var(--bg-secondary) 30%, transparent);
-  cursor: wait;
+  cursor: default;
   touch-action: none;
 }
 
