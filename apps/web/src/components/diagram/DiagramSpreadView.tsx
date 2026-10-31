@@ -196,6 +196,7 @@ export function DiagramSpreadView({
     <div
       className={styles.view}
       data-status={status}
+      data-reveal={!spatial && !readOnly || undefined}
       onPointerDownCapture={(event) => settled.down(event.pointerId)}
       onPointerUpCapture={(event) => settled.up(event.pointerId)}
       onPointerCancelCapture={(event) => settled.up(event.pointerId)}

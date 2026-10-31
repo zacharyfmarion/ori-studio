@@ -4,6 +4,14 @@
   touch-action: none;
 }
 
+.view[data-reveal] {
+  cursor: grab;
+}
+
+.view[data-reveal]:active {
+  cursor: grabbing;
+}
+
 .finalPicture {
   position: absolute;
   inset: 0;
