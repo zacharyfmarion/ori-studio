@@ -870,8 +870,13 @@
     "close": "关闭设置",
     "general": {
       "analytics": "发送匿名使用分析数据和崩溃报告以帮助改进 Ori Studio",
+      "graphics": "图形",
       "privacy": "隐私",
       "showWelcome": "启动时显示欢迎屏幕",
+      "simulatorShowRate": "显示模拟器速度",
+      "simulatorShowRateDescription": "在模拟状态栏中显示求解器步数和每秒帧数。",
+      "simulatorWebgpu": "为 3D 使用 WebGPU（实验性）",
+      "simulatorWebgpuDescription": "在浏览器支持时用 WebGPU 运行模拟器和 3D 图形：大型模型更快。重新加载后生效。",
       "startup": "启动"
     },
     "language": {

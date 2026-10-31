@@ -1985,6 +1985,15 @@ export const ANALYTICS_EVENTS = {
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
   cpSnapRadiusChanged: 'cp snap radius changed',
   cpWheelGestureChanged: 'cp wheel gesture changed',
+  /** The opt-in to run the simulator on WebGPU was switched in Settings. */
+  simulatorWebgpuChanged: 'simulator webgpu changed',
+  /**
+   * The simulator loaded a model on a backend: `webgpu`, `webgl2` or the CPU
+   * `reference`, with whether WebGPU was opted into. Once per backend per
+   * page, so it counts machines rather than models. With WebGPU on, a
+   * `webgl2` or `reference` answer is a machine where it could not run.
+   */
+  simulatorBackendUsed: 'simulator backend used',
   /**
    * The touch-only View drawer was opened.
    *

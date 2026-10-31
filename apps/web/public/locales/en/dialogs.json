@@ -904,8 +904,13 @@
     "close": "Close settings",
     "general": {
       "analytics": "Send anonymous usage analytics and crash reports to help improve Ori Studio",
+      "graphics": "Graphics",
       "privacy": "Privacy",
       "showWelcome": "Show welcome screen on startup",
+      "simulatorShowRate": "Show simulator speed",
+      "simulatorShowRateDescription": "Shows solver steps and frames per second in the Simulate status bar.",
+      "simulatorWebgpu": "Use WebGPU for 3D (experimental)",
+      "simulatorWebgpuDescription": "Runs the simulator and 3D figures on WebGPU where your browser supports it: faster on large models. Takes effect after a reload.",
       "startup": "Startup"
     },
     "language": {

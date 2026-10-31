@@ -612,7 +612,7 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     const info = session.load(fold, {});
     const flat = session.flatScene(fold, still);
     expect(flat).not.toBeNull();
-    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    expect(await session.sessionScene({ ...still, token: info.token })).toEqual(flat);
 
     // Folded and back: a solver at rest at 0% holds the sheet only to float
     // noise, which can split a face, so 0% is drawn from the flat sheet itself.
@@ -620,7 +620,7 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     await session.settle(2_000, { token: info.token });
     session.setFoldPercent(0, info.token);
     await session.settle(2_000, { token: info.token });
-    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    expect(await session.sessionScene({ ...still, token: info.token })).toEqual(flat);
     session.dispose();
   }, 30_000);
 
@@ -630,13 +630,13 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     const settled = session.load(fold, {});
     session.setFoldPercent(60, settled.token);
     await session.settle(20_000, { token: settled.token });
-    const atRest = session.sessionScene({ ...still, token: settled.token });
+    const atRest = await session.sessionScene({ ...still, token: settled.token });
 
     const hurried = session.load(fold, {});
     session.setFoldPercent(60, hurried.token);
     // Not a step taken yet: unsettled, it is still the flat sheet.
-    expect(session.sessionScene({ ...still, token: hurried.token })).toEqual(session.flatScene(fold, still));
-    expect(session.sessionScene({ ...still, token: hurried.token, settleSteps: 20_000 })).toEqual(atRest);
+    expect(await session.sessionScene({ ...still, token: hurried.token })).toEqual(session.flatScene(fold, still));
+    expect(await session.sessionScene({ ...still, token: hurried.token, settleSteps: 20_000 })).toEqual(atRest);
     session.dispose();
   }, 30_000);
 
@@ -646,7 +646,7 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     const info = session.load(fold, {});
     session.setFoldPercent(60, info.token);
     await session.settle(2_000, { token: info.token });
-    const folded = session.sessionScene({ ...still, token: info.token });
+    const folded = await session.sessionScene({ ...still, token: info.token });
     expect(folded).not.toBeNull();
     expect(folded).not.toEqual(session.flatScene(fold, still));
     session.dispose();
@@ -666,13 +666,13 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     await session.setPinnedFaces([faces[0]!, faces[faces.length - 1]!], info.token);
     session.setFoldPercent(0, info.token);
     await session.settle(2_000, { token: info.token });
-    const pinned = session.sessionScene({ ...still, token: info.token });
+    const pinned = await session.sessionScene({ ...still, token: info.token });
     expect(pinned).not.toBeNull();
     expect(pinned).not.toEqual(flat);
 
     // With the pins gone, 0% is the flat sheet again.
     await session.setPinnedFaces([], info.token);
-    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    expect(await session.sessionScene({ ...still, token: info.token })).toEqual(flat);
     session.dispose();
   }, 30_000);
 
@@ -688,11 +688,11 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     session.dispose();
   }, 30_000);
 
-  it('answers null for a session that has gone', () => {
+  it('answers null for a session that has gone', async () => {
     const session = createSimulatorSession();
     const info = session.load(miura(4, 4), {});
     session.release(info.token);
-    expect(session.sessionScene({ ...still, token: info.token })).toBeNull();
+    expect(await session.sessionScene({ ...still, token: info.token })).toBeNull();
     session.dispose();
   });
 });
@@ -1854,16 +1854,16 @@ describe('pulling the paper', () => {
     await settled(session);
     session.endPull('keep');
     await settled(session);
-    expect(session.sessionScene({ ...still, token: info.token })).not.toEqual(flat);
+    expect(await session.sessionScene({ ...still, token: info.token })).not.toEqual(flat);
 
     // Unpinned, the pose still holds the shape.
     await session.setPinnedFaces([]);
-    const posed = session.sessionScene({ ...still, token: info.token });
+    const posed = await session.sessionScene({ ...still, token: info.token });
     expect(posed).not.toBeNull();
     expect(posed).not.toEqual(flat);
 
     session.releasePose();
-    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    expect(await session.sessionScene({ ...still, token: info.token })).toEqual(flat);
     session.dispose();
   }, 30_000);
 

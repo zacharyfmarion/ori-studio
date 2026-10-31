@@ -1,18 +1,36 @@
 import {
   GlCore,
+  GpuCore,
   MeshRenderer,
+  WebgpuCanvasTarget,
+  WebgpuMeshRenderer,
   cameraUniforms,
+  type CameraUniforms,
+  type MeshTopology,
   type RenderSettings,
 } from '@treemaker/origami-simulator';
 import { folded3dMesh, packFolded3dPositionTexture } from '../../cp-workspace/folded/folded3dMesh';
 import { FOLDED_3D_CREASE_DEPTH_BIAS } from '../../cp-workspace/folded/folded3dWindow';
 import type { Folded3dRange, Folded3dSkin } from '../../cp-workspace/folded/folded3dMesh';
 import { UNDETERMINED_FACE_ALPHA } from '../../cp-workspace/folded/folded3dStyle';
-import { folded3dDrawPasses } from '../../simulator/foldedMeshSource';
+import { folded3dDrawPasses, type Folded3dDrawPass } from '../../simulator/foldedMeshSource';
 import type { StartFigureAsset } from './startFigureAsset';
 
 /**
- * The start figure as a WebGL2 mesh on a plain canvas.
+ * What draws the figure's passes: the WebGPU mesh renderer when the browser
+ * has a device, the WebGL2 one when it does not. Both take the same camera,
+ * settings and passes and draw the same picture.
+ */
+interface StartFigureDrawer {
+  readonly lost: boolean;
+  draw(camera: CameraUniforms, settings: RenderSettings, passes: readonly Folded3dDrawPass[]): void;
+  onLost(handler: () => void): void;
+  dispose(): void;
+}
+
+/**
+ * The start figure as a GPU mesh on a plain canvas, on WebGPU where the
+ * browser has it and WebGL2 where it does not.
  *
  * This is `FoldedMeshSource` (apps/web/src/simulator/foldedMeshSource.ts) with
  * one thing changed: it draws to a visible `HTMLCanvasElement` on the main
@@ -35,8 +53,7 @@ export class StartFigureMesh {
   private disposed = false;
 
   private constructor(
-    private readonly core: GlCore,
-    private readonly mesh: MeshRenderer,
+    private readonly drawer: StartFigureDrawer,
     private readonly canvas: HTMLCanvasElement,
     private readonly radius: number,
     private readonly skins: readonly Folded3dSkin[],
@@ -48,65 +65,42 @@ export class StartFigureMesh {
   /**
    * Build a mesh, or `null` when this machine cannot draw one.
    *
-   * `GlCore.create` returns null without WebGL2 and *throws* without
-   * `EXT_color_buffer_float`; `folded3dMesh` refuses a model past its vertex
-   * budget. Every arm returns null: a start screen must never take the page down
-   * over a decoration.
+   * WebGPU first, when asked for. A canvas holds one kind of context for life, so once it has
+   * taken WebGPU a later failure cannot fall back to WebGL2 on it; it falls
+   * back to the image instead. `GlCore.create` returns null without WebGL2 and
+   * *throws* without `EXT_color_buffer_float`; `folded3dMesh` refuses a model
+   * past its vertex budget. Every arm returns null: a start screen must never
+   * take the page down over a decoration.
    */
-  static create(canvas: HTMLCanvasElement, asset: StartFigureAsset): StartFigureMesh | null {
+  static async create(
+    canvas: HTMLCanvasElement,
+    asset: StartFigureAsset,
+    /** WebGPU only when the user has opted in (`simulatorWebgpu`). */
+    options: { webgpu?: boolean } = {}
+  ): Promise<StartFigureMesh | null> {
     const built = folded3dMesh(asset.model);
     if (built.kind !== 'mesh') return null;
     const { topology } = built.mesh;
     const positions = orient(built.mesh.positions, asset.view.orient);
     const radius = screenFitRadius(positions, asset.view.pitch);
 
-    let core: GlCore | null = null;
-    try {
-      core = GlCore.create(canvas);
-      if (!core) return null;
-      const textureDim = topology.textureDim;
-      // `u_originalPosition` holds rest positions and `u_lastPosition` a
-      // displacement the shader adds to them; a static figure puts its geometry
-      // in the first and zeros in the second. `u_lastVelocity` carries per-node
-      // strain, which a frozen figure has none of — but `bindCommon` binds all
-      // three unconditionally and `getTexture` throws on a name it does not
-      // know, so a missing one is a hard failure at the first draw rather than a
-      // silently absent feature. `data: null` is zero-filled by the WebGL spec.
-      core.createTexture('u_originalPosition', {
-        width: textureDim,
-        height: textureDim,
-        data: packFolded3dPositionTexture(positions, textureDim),
-      });
-      core.createTexture('u_lastPosition', {
-        width: textureDim,
-        height: textureDim,
-        data: null,
-      });
-      core.createTexture('u_lastVelocity', {
-        width: textureDim,
-        height: textureDim,
-        data: null,
-      });
-      const mesh = new MeshRenderer(core, topology, { sheet: built.mesh.sheet });
-      return new StartFigureMesh(
-        core,
-        mesh,
-        canvas,
-        radius,
-        orientSkins(built.mesh.skins, asset.view.orient),
-        built.mesh.translucent,
-        built.mesh.undetermined,
-        UNDETERMINED_FACE_ALPHA
-      );
-    } catch {
-      core?.dispose();
-      return null;
-    }
+    const webgpu = options.webgpu ? await webgpuDrawer(canvas, topology, positions, built.mesh.sheet) : null;
+    const drawer = webgpu === 'committed' ? null : webgpu ?? webglDrawer(canvas, topology, positions, built.mesh.sheet);
+    if (!drawer) return null;
+    return new StartFigureMesh(
+      drawer,
+      canvas,
+      radius,
+      orientSkins(built.mesh.skins, asset.view.orient),
+      built.mesh.translucent,
+      built.mesh.undetermined,
+      UNDETERMINED_FACE_ALPHA
+    );
   }
 
   /** True once the context has gone away; the caller falls back to the image. */
   get lost(): boolean {
-    return this.disposed || this.core.gl.isContextLost();
+    return this.disposed || this.drawer.lost;
   }
 
   /**
@@ -153,7 +147,7 @@ export class StartFigureMesh {
     // order, so those cells draw translucent over the resolved stack. Shared with
     // the worker's folded figures rather than re-decided here — drawing an
     // undetermined stack opaque is drawing an order, and the wrong one.
-    for (const pass of folded3dDrawPasses(
+    const passes = folded3dDrawPasses(
       {
         skins: this.skins,
         translucent: this.translucent,
@@ -162,37 +156,148 @@ export class StartFigureMesh {
       },
       settings,
       orthographic
-    )) {
-      this.mesh.render(
-        orthographic,
-        {
-          ...settings,
-          showEdges: pass.showEdges,
-          faceAlpha: pass.faceAlpha,
-          // A crease only has to beat the one face it lies on. Same rule as the
-          // figure window.
-          creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS,
-        },
-        null,
-        {
-          clear: pass.clear,
-          faceRange: pass.faceRange ?? undefined,
-          edgeRange: pass.edgeRange ?? undefined,
-        }
-      );
-    }
+    );
+    // A crease only has to beat the one face it lies on. Same rule as the
+    // figure window.
+    this.drawer.draw(orthographic, { ...settings, creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS }, passes);
   }
 
-  /** Fires once if the context is lost, so the caller can drop to the image. */
+  /** Fires once if the context or device is lost, so the caller can drop to the image. */
   onContextLost(handler: () => void): void {
-    this.canvas.addEventListener('webglcontextlost', handler, { once: true });
+    this.drawer.onLost(handler);
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.mesh.dispose();
-    this.core.dispose();
+    this.drawer.dispose();
+  }
+}
+
+/**
+ * The figure on WebGPU, or null when there is no device, or `'committed'`
+ * when the canvas took a WebGPU context and the build then failed, which
+ * leaves it unable to take a WebGL one.
+ */
+async function webgpuDrawer(
+  canvas: HTMLCanvasElement,
+  topology: MeshTopology,
+  positions: Float32Array,
+  sheet: number
+): Promise<StartFigureDrawer | 'committed' | null> {
+  let core: GpuCore;
+  try {
+    core = await GpuCore.create();
+    await WebgpuMeshRenderer.validateShaders(core);
+  } catch {
+    return null;
+  }
+  let committed = false;
+  try {
+    const target = WebgpuCanvasTarget.create(canvas, core);
+    if (!target) {
+      core.dispose();
+      return null;
+    }
+    committed = true;
+    // Absolute positions as the flat-sheet companion and a zero displacement
+    // the shader adds to them, as FoldedMeshSource does.
+    const rest = packFolded3dPositionTexture(positions, topology.textureDim);
+    const displacement = core.storageBuffer(new Float32Array(rest.length), 'start figure displacement');
+    const mesh = new WebgpuMeshRenderer(core, topology, rest, { positions: () => displacement, velocities: () => null }, { sheet });
+    return {
+      get lost() {
+        return core.lost;
+      },
+      draw(camera, settings, passes) {
+        // One canvas texture for the frame, or each pass would get its own.
+        const frame = target.current();
+        for (const pass of passes) {
+          mesh.render(camera, { ...settings, showEdges: pass.showEdges, faceAlpha: pass.faceAlpha }, frame, {
+            clear: pass.clear,
+            faceRange: pass.faceRange ?? undefined,
+            edgeRange: pass.edgeRange ?? undefined,
+          });
+        }
+      },
+      onLost(handler) {
+        void core.device.lost.then((info: { reason: string }) => {
+          // `destroyed` is this drawer's own dispose, not a loss.
+          if (info.reason !== 'destroyed') handler();
+        });
+      },
+      dispose() {
+        mesh.dispose();
+        target.dispose();
+        core.dispose();
+      },
+    };
+  } catch {
+    core.dispose();
+    return committed ? 'committed' : null;
+  }
+}
+
+/** The figure on WebGL2, or null when this canvas cannot have it. */
+function webglDrawer(
+  canvas: HTMLCanvasElement,
+  topology: MeshTopology,
+  positions: Float32Array,
+  sheet: number
+): StartFigureDrawer | null {
+  let core: GlCore | null = null;
+  try {
+    core = GlCore.create(canvas);
+    if (!core) return null;
+    const gl = core;
+    const textureDim = topology.textureDim;
+    // `u_originalPosition` holds rest positions and `u_lastPosition` a
+    // displacement the shader adds to them; a static figure puts its geometry
+    // in the first and zeros in the second. `u_lastVelocity` carries per-node
+    // strain, which a frozen figure has none of — but `bindCommon` binds all
+    // three unconditionally and `getTexture` throws on a name it does not
+    // know, so a missing one is a hard failure at the first draw rather than a
+    // silently absent feature. `data: null` is zero-filled by the WebGL spec.
+    gl.createTexture('u_originalPosition', {
+      width: textureDim,
+      height: textureDim,
+      data: packFolded3dPositionTexture(positions, textureDim),
+    });
+    gl.createTexture('u_lastPosition', {
+      width: textureDim,
+      height: textureDim,
+      data: null,
+    });
+    gl.createTexture('u_lastVelocity', {
+      width: textureDim,
+      height: textureDim,
+      data: null,
+    });
+    const mesh = new MeshRenderer(core, topology, { sheet });
+    return {
+      get lost() {
+        return gl.gl.isContextLost();
+      },
+      draw(camera, settings, passes) {
+        for (const pass of passes) {
+          mesh.render(camera, { ...settings, showEdges: pass.showEdges, faceAlpha: pass.faceAlpha }, null, {
+            clear: pass.clear,
+            faceRange: pass.faceRange ?? undefined,
+            edgeRange: pass.edgeRange ?? undefined,
+          });
+        }
+      },
+      onLost(handler) {
+        canvas.addEventListener('webglcontextlost', handler, { once: true });
+      },
+      dispose() {
+        mesh.dispose();
+        gl.dispose();
+      },
+    };
+  } catch {
+    core?.dispose();
+    return null;
   }
 }
 

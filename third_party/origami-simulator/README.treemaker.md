@@ -124,7 +124,14 @@ Five things that will otherwise cost you an afternoon:
    | `axialStiffness`, `creaseStiffness`, `panelStiffness`, `faceStiffness` | same names, + `materialHasChanged` |
 
 4. **Positions are radius-normalised** (unit square → ±0.7071), matching
-   `normalizeSimulationPositions` in the port. Compare in that space.
+   `normalizeSimulationPositions` in the port. Compare in that space — but
+   **not in that frame.** Upstream lifts a 2D vertex to `[x, 0, y]`; the port
+   lifts it to `[x, 0, −y]` (`normalizePoint` in `src/geometry.ts` says why).
+   The two sheets are the same paper turned over, half a turn about the x axis,
+   so upstream's node `i` is ours with `y` and `z` negated. `UpstreamOracle`
+   applies that turn before it returns positions. Compared raw, symmetric
+   patterns still agree by accident; an asymmetric one such as a single
+   diagonal crease does not.
 5. **`setFoldData` calls `gtag()`.** It is defined by the bundled analytics
    snippet, so it does not throw, but an offline harness should stub it if the
    analytics script is blocked.

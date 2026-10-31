@@ -26,7 +26,13 @@ const FORCE_SHADER_SAMPLERS = [
   'u_nominalTriangles',
 ] as const;
 
-import { assertSolverShape, copyFixedNodeMask, type SolverBackend, type SolverShape } from '../solverBackend.js';
+import {
+  assertSolverShape,
+  copyFixedNodeMask,
+  type MotionSample,
+  type SolverBackend,
+  type SolverShape,
+} from '../solverBackend.js';
 import {
   gripParameters,
   keptRestLength,
@@ -532,6 +538,15 @@ export class WebglSolver implements SolverBackend {
     return { ...this.diagnostics, maxNodalStrain: this.maxStrain };
   }
 
+  sampleMotion(): MotionSample {
+    const maxVelocity = this.maxVelocity();
+    return { maxVelocity, maxStrain: this.maxStrain };
+  }
+
+  /**
+   * Largest absolute velocity component, NaN when any node is non-finite. Also
+   * refreshes the max strain {@link readDiagnostics} reports.
+   */
   maxVelocity(): number {
     // The velocity texture's alpha channel holds each node's error term, which
     // velocityCalc computes as its mean axial (edge) strain -- so this one

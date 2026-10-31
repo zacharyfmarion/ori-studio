@@ -1,9 +1,9 @@
 export { prepareFoldModel, EDGES_FACET_KEY } from './prepare.js';
 export { createOrigamiSimulator } from './simulator.js';
 export { ReferenceSolver } from './referenceSolver.js';
-export { SimulationClock } from './simulationClock.js';
+export { AsyncMotionSampleError, SimulationClock } from './simulationClock.js';
 export type { SimulationClockOptions, SimulationRecovery, SimulationTick } from './simulationClock.js';
-export type { SolverBackend, SolverBackendInfo, SolverShape } from './solverBackend.js';
+export type { MotionSample, SolverBackend, SolverBackendInfo, SolverShape } from './solverBackend.js';
 export { createSolverShape, InvalidFixedNodeMaskError, InvalidSolverShapeError } from './solverBackend.js';
 export {
   InvalidPullGripError,
@@ -15,6 +15,10 @@ export {
   type PullSummary,
 } from './pull.js';
 export { WebglSolver } from './webgl/webglSolver.js';
+export { WebgpuSolver } from './webgpu/webgpuSolver.js';
+export { GpuCore, WebGpuDeviceLostError, WebGpuUnavailableError, type WebGpuUnavailableReason } from './webgpu/gpuCore.js';
+export { WebgpuCanvasTarget } from './webgpu/canvasTarget.js';
+export { WebgpuMeshRenderer, type WebgpuMeshSource, type WebgpuRenderTarget } from './webgpu/meshRenderer.js';
 export {
   GlCore,
   WebGlContextLostError,

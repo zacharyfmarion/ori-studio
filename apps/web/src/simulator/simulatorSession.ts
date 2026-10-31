@@ -10,6 +10,7 @@ import { MAX_LIVE_FOLDED_MESHES, MAX_LIVE_SIMULATOR_SESSIONS } from './simulator
 import {
   FOLDED_3D_REQUIRED_DEPTH_BITS,
   FoldedMeshSource,
+  WebgpuFoldedMeshSource,
   type Folded3dMeshPayload,
 } from './foldedMeshSource';
 import {
@@ -23,10 +24,13 @@ import {
 } from './framingFollow';
 import {
   GlCore,
+  GpuCore,
   OrigamiModel,
   ReferenceSolver,
   SimulationClock,
   WebglSolver,
+  WebgpuCanvasTarget,
+  WebgpuSolver,
   cameraUniforms,
   createSolverShape,
   glContextAttributeOverrides,
@@ -86,7 +90,7 @@ import {
 // backend removes this transport entirely, so it only ever serves the
 // no-WebGL2 fallback and simple is the right trade.
 
-export type SimulatorBackendId = 'webgl2' | 'reference';
+export type SimulatorBackendId = 'webgpu' | 'webgl2' | 'reference';
 
 export interface SimulatorLoadOptions {
   prepare?: PrepareFoldOptions;
@@ -349,7 +353,7 @@ interface Session {
    * positions are transferred to the main thread. Absent means the panel draws
    * on the main thread from transferred positions (canvas-2D fallback).
    */
-  gpuRender: WebglSolver | null;
+  gpuRender: GpuSolver | null;
   /** One per triangle: its crease-pattern face. See {@link SimulatorModelInfo.faceGroups}. */
   faceGroups: Int32Array;
   /** The nodes the pins hold; null when nothing is pinned. What a pull pulls against. */
@@ -636,7 +640,7 @@ let meshToken: Folded3dMeshToken = 0;
 export type Folded3dMeshToken = number;
 
 interface MeshSession {
-  source: FoldedMeshSource;
+  source: FoldedMeshSource | WebgpuFoldedMeshSource;
   view: SessionView;
   lastUsed: number;
 }
@@ -671,10 +675,13 @@ interface MeshRenderSource {
   render(
     camera: CameraUniforms,
     settings: RenderSettings,
-    target?: WebGLFramebuffer | null,
+    target?: null,
     options?: { highlight?: boolean }
   ): void;
 }
+
+/** A solver that renders on the GPU itself, to the worker's canvas. */
+type GpuSolver = WebglSolver | WebgpuSolver;
 
 /** The most recently loaded session, for callers with no token to quote. */
 function latestSession(): Session | null {
@@ -845,6 +852,95 @@ type PresentMode = 'canvas' | 'bitmap';
 
 let renderCanvas: OffscreenCanvas | null = null;
 let presentMode: PresentMode = 'canvas';
+
+/**
+ * The worker's WebGPU device, once one has been had and every shader the
+ * solver and renderer use has compiled on it. Null until then, and when the
+ * browser has no WebGPU, in which case the GPU path is WebGL2.
+ *
+ * Prepared ahead, from the moment the worker starts, because `load` is
+ * synchronous and a device can only be had asynchronously: by the time the
+ * panel has probed the worker and transferred its canvas, the device is
+ * ready, and the solver is built on it with no wait.
+ */
+let webgpuCore: GpuCore | null = null;
+/**
+ * Whether WebGPU may be used at all: the user's opt-in (`simulatorWebgpu` in
+ * Settings), sent by the main thread as the worker starts. Off, every GPU
+ * surface is WebGL2 as before.
+ */
+let webgpuEnabled = false;
+let webgpuPreparing: Promise<GpuCore | null> | null = null;
+/**
+ * `renderCanvas` configured for {@link webgpuCore}. A canvas holds one kind of
+ * context for life, so once this exists every surface on the canvas draws on
+ * WebGPU, and once a WebGL context exists there instead this can never be made.
+ */
+let webgpuTarget: WebgpuCanvasTarget | null = null;
+
+function prepareWebgpu(): Promise<GpuCore | null> {
+  if (!webgpuEnabled) return Promise.resolve(null);
+  if (webgpuCore && !webgpuCore.lost) return Promise.resolve(webgpuCore);
+  webgpuPreparing ??= (async () => {
+    try {
+      const core = await GpuCore.create();
+      await WebgpuSolver.validateShaders(core);
+      void core.device.lost.then(() => {
+        if (webgpuCore !== core) return;
+        webgpuCore = null;
+        webgpuTarget = null;
+        if (sessions.size > 0 || meshes.size > 0) {
+          sessionFailure =
+            'The graphics device was lost, so the simulation stopped. Reload the model to restart it.';
+        }
+        // A new device can configure the same canvas, so the next load gets WebGPU again.
+        void prepareWebgpu();
+      });
+      webgpuCore = core;
+      return core;
+    } catch (error) {
+      // Opted in and refused: say why, since the only other sign is a WebGL2 label.
+      console.warn('[simulator] WebGPU unavailable; using WebGL2.', error);
+      return null;
+    } finally {
+      webgpuPreparing = null;
+    }
+  })();
+  return webgpuPreparing;
+}
+
+/**
+ * Wait for the WebGPU device when it is wanted and still coming. Every caller
+ * attaches a surface before it loads, so the attach waits here: otherwise a
+ * load that follows at once, from a worker started after the main thread
+ * cached its GPU probe (the probe's own worker is gone by then), finds no
+ * device and commits the canvas to WebGL2 for good.
+ */
+async function webgpuSettled(): Promise<void> {
+  if (webgpuEnabled) await prepareWebgpu();
+}
+
+/** The render canvas as a WebGPU target, or null when it cannot be one. */
+function webgpuCanvas(): WebgpuCanvasTarget | null {
+  if (!webgpuEnabled || !renderCanvas || !webgpuCore || webgpuCore.lost) return null;
+  if (webgpuTarget?.canvas === renderCanvas) return webgpuTarget;
+  try {
+    webgpuTarget = WebgpuCanvasTarget.create(renderCanvas, webgpuCore);
+  } catch {
+    webgpuTarget = null;
+  }
+  return webgpuTarget;
+}
+
+/**
+ * Which GPU API the render canvas is committed to, if any. WebGPU is taken
+ * whenever it can be, and then the canvas is WebGPU's for good.
+ */
+function canvasApi(): 'webgpu' | 'webgl2' | null {
+  if (!renderCanvas) return null;
+  if (webgpuCanvas()) return 'webgpu';
+  return 'webgl2';
+}
 
 export interface PerfSnapshot {
   windowMs: number;
@@ -1069,16 +1165,17 @@ function sessionFor(token: SimulatorSessionToken | undefined): Session | null {
  *
  * When the panel transfers its canvas (`renderCanvas`) and the model uses the
  * standard uniform fold target, the GPU solver runs *on that canvas* and renders
- * to it in the worker — positions never touch the CPU. A fold profile (our
- * addition, which the GPU path does not express), a Verlet request,
- * `preferGpu: false`, or no canvas / no WebGL2 falls back to the reference
- * solver with main-thread canvas-2D rendering.
+ * to it in the worker — positions never touch the CPU. WebGPU when the worker
+ * has a device and the canvas can take it, else WebGL2. A fold profile (our
+ * addition, which the GPU path does not express), `preferGpu: false`, or no
+ * canvas / no GPU API falls back to the reference solver with main-thread
+ * canvas-2D rendering.
  */
 function createBackend(
   model: OrigamiModel,
   options: SimulatorLoadOptions,
   renderCanvas: OffscreenCanvas | null
-): { backend: SolverBackend; backendId: SimulatorBackendId; gpuSolver: WebglSolver | null } {
+): { backend: SolverBackend; backendId: SimulatorBackendId; gpuSolver: GpuSolver | null } {
   const solverOptions = options.solver ?? {};
   const hasFoldProfile = Boolean(solverOptions.foldProfile?.ranges?.length);
 
@@ -1086,8 +1183,21 @@ function createBackend(
   // only a fold profile (segment/sequence-step simulation) still needs the
   // reference solver.
   if (renderCanvas && options.preferGpu !== false && !hasFoldProfile) {
+    // WebGPU first. A canvas that has taken WebGPU cannot take WebGL, so a
+    // WebGPU failure here goes to the reference solver, not to WebGL2.
+    const api = canvasApi();
+    if (api === 'webgpu' && webgpuCore && webgpuTarget) {
+      try {
+        const solver = WebgpuSolver.createNow(model, solverOptions, webgpuCore);
+        solver.attachCanvas(webgpuTarget);
+        return { backend: solver, backendId: 'webgpu', gpuSolver: solver };
+      } catch (error) {
+        // As below: a setup failure falls through to the reference solver.
+        console.warn('[simulator] WebGPU solver setup failed; using the CPU solver.', error);
+      }
+    }
     try {
-      if (WebglSolver.isSupported(renderCanvas)) {
+      if (api === 'webgl2' && WebglSolver.isSupported(renderCanvas)) {
         const solver = new WebglSolver(renderCanvas, model, solverOptions);
         solver.onContextLost(() => {
           sessionFailure =
@@ -1252,8 +1362,23 @@ const api = {
    * whole budget, and a probe that kept one would evict a live session — the
    * same discipline `webglRenderSupported` follows on the main thread.
    */
-  probeGpuRender(): boolean {
+  /**
+   * Allow WebGPU, or not, and when allowed start acquiring the device and
+   * compiling every shader, so the synchronous `load` can build on it at
+   * once. Sent first, as the worker starts: a canvas commits to one kind of
+   * context with its first surface, so a later change applies to the next
+   * worker.
+   */
+  useWebgpu(enabled: boolean): void {
+    webgpuEnabled = enabled;
+    if (enabled) void prepareWebgpu();
+  },
+
+  async probeGpuRender(): Promise<boolean> {
     if (typeof OffscreenCanvas === 'undefined') return false;
+    // WebGPU first: a device with every shader compiled is the whole answer,
+    // and having it ready now is what lets the next `load` use it.
+    if (await prepareWebgpu()) return true;
     try {
       const core = GlCore.create(new OffscreenCanvas(1, 1));
       if (!core) return false;
@@ -1269,9 +1394,11 @@ const api = {
    * Transfer a caller-owned canvas to the worker, once. The solver renders
    * straight to it and no pixels cross back.
    */
-  attachCanvas(canvas: OffscreenCanvas): void {
+  async attachCanvas(canvas: OffscreenCanvas): Promise<void> {
     renderCanvas = canvas;
+    webgpuTarget = null;
     presentMode = 'canvas';
+    await webgpuSettled();
   },
 
   /**
@@ -1283,16 +1410,18 @@ const api = {
    * against the four WebGL contexts a worker is allowed. Resizing reuses the
    * same canvas, so switching size does not churn the context.
    */
-  attachBitmapOutput(width: number, height: number): void {
+  async attachBitmapOutput(width: number, height: number): Promise<void> {
     if (renderCanvas && presentMode === 'bitmap') {
       // Grow-only, like every other size request in this mode — see
       // {@link sizeRenderCanvas}. Shrinking here would hand the reallocation
       // back on the next window that wants the larger size.
       sizeRenderCanvas(width, height);
-      return;
+    } else {
+      renderCanvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
+      webgpuTarget = null;
+      presentMode = 'bitmap';
     }
-    renderCanvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
-    presentMode = 'bitmap';
+    await webgpuSettled();
   },
 
   load(fold: FoldDocument, options: SimulatorLoadOptions = {}): SimulatorModelInfo {
@@ -1689,7 +1818,10 @@ const api = {
   ): Promise<SimulatorFramePayload | null> {
     const active = sessionFor(options.token);
     if (!active) return null;
-    const tick = active.clock.runToConvergence(active.backend, maxSteps);
+    const tick = await active.clock.settle(active.backend, maxSteps);
+    // An async backend's synchronous reads are its last landed sample; bring
+    // them up to the settled state before the frame reads positions.
+    await active.backend.syncReads?.();
     return readFrame(active, tick, options);
   },
 
@@ -1822,7 +1954,7 @@ const api = {
    * shown as Simulated captures in Pose (D19). Null when the session has gone
    * or the frame draws nothing.
    */
-  sessionScene(options: SimulatorSessionSceneOptions): PaperScene | null {
+  async sessionScene(options: SimulatorSessionSceneOptions): Promise<PaperScene | null> {
     const active = sessionFor(options.token);
     if (!active) return null;
     const prepared = active.model.prepared;
@@ -1836,7 +1968,8 @@ const api = {
     const flat = active.foldPercent === 0 && !active.backend.posed && !active.pinnedNodes;
     let positions = originalPositions;
     if (!flat) {
-      if (options.settleSteps) active.clock.runToConvergence(active.backend, options.settleSteps);
+      if (options.settleSteps) await active.clock.settle(active.backend, options.settleSteps);
+      await active.backend.syncReads?.();
       positions = new Float32Array(prepared.vertexCount * 3);
       active.backend.readPositions(positions);
     }
@@ -1952,7 +2085,12 @@ const api = {
    */
   loadFolded3dMesh(payload: Folded3dMeshPayload): Folded3dMeshInfo | null {
     if (!renderCanvas) return null;
-    const source = FoldedMeshSource.create(renderCanvas, payload);
+    // On whichever API the canvas has taken, WebGPU when it can.
+    const target = webgpuCanvas();
+    const source =
+      target && webgpuCore
+        ? WebgpuFoldedMeshSource.create(webgpuCore, target, payload)
+        : FoldedMeshSource.create(renderCanvas, payload);
     if (!source) return null;
     meshToken += 1;
     const previous = latestSession()?.view;
@@ -2446,7 +2584,7 @@ async function renderGpu(
  * a few times a second while the model moves, and once when it settles — so the
  * render path stays free of readbacks in between.
  */
-function followFit(solver: WebglSolver, state: SessionView, settled: boolean): boolean {
+function followFit(solver: GpuSolver, state: SessionView, settled: boolean): boolean {
   state.framing ??= createFramingFollow();
   const { framing, arrived } = followFraming(
     state.framing,

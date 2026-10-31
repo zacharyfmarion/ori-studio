@@ -1,9 +1,12 @@
 import {
   GlCore,
   MeshRenderer,
+  WebgpuMeshRenderer,
   viewDepthAxis,
   type CameraUniforms,
+  type GpuCore,
   type RenderSettings,
+  type WebgpuCanvasTarget,
 } from '@treemaker/origami-simulator';
 import type {
   Folded3dHingeGroup,
@@ -176,6 +179,95 @@ export class FoldedMeshSource {
   dispose(): void {
     this.mesh.dispose();
     this.core.dispose();
+  }
+}
+
+/**
+ * {@link FoldedMeshSource} on WebGPU: the same figure, the same passes, drawn
+ * by WebgpuMeshRenderer into the worker's canvas once that canvas holds a
+ * WebGPU context — which it then holds for every surface the worker draws, so
+ * a figure cannot fall back to WebGL on it.
+ */
+export class WebgpuFoldedMeshSource {
+  private constructor(
+    private readonly core: GpuCore,
+    private readonly target: WebgpuCanvasTarget,
+    private readonly mesh: WebgpuMeshRenderer,
+    private readonly displacement: ReturnType<GpuCore['storageBuffer']>,
+    private readonly skins: readonly Folded3dSkin[],
+    private readonly translucent: Folded3dRange,
+    private readonly undetermined: Folded3dRange,
+    private readonly undeterminedFaceAlpha: number
+  ) {}
+
+  /** `depth24plus`: the 24 bits the layer displacement is budgeted against. */
+  readonly depthBits = FOLDED_3D_REQUIRED_DEPTH_BITS;
+
+  static create(core: GpuCore, target: WebgpuCanvasTarget, payload: Folded3dMeshPayload): WebgpuFoldedMeshSource | null {
+    try {
+      // As the GL source: absolute positions as the flat-sheet companion, and
+      // a zero displacement the shader adds to them.
+      const positions = new Float32Array(payload.positions);
+      const displacement = core.storageBuffer(new Float32Array(positions.length), 'folded figure displacement');
+      const mesh = new WebgpuMeshRenderer(
+        core,
+        {
+          faceIndices: new Uint32Array(payload.faceIndices),
+          edgeIndices: new Uint32Array(payload.edgeIndices),
+          edgeAssignments: new Uint8Array(payload.edgeAssignments),
+          auxEnds: new Uint8Array(payload.auxEnds),
+          textureDim: payload.textureDim,
+        },
+        positions,
+        { positions: () => displacement, velocities: () => null },
+        { sheet: payload.sheet }
+      );
+      return new WebgpuFoldedMeshSource(
+        core,
+        target,
+        mesh,
+        displacement,
+        payload.skins,
+        payload.translucent,
+        payload.undetermined,
+        payload.undeterminedFaceAlpha
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  get drawingBufferSize(): { width: number; height: number } {
+    return this.target.drawingBufferSize(this.core);
+  }
+
+  /** Draw the figure — see {@link folded3dDrawPasses}. */
+  render(camera: CameraUniforms, settings: RenderSettings, target: null = null): void {
+    void target;
+    const passes = folded3dDrawPasses(
+      {
+        skins: this.skins,
+        translucent: this.translucent,
+        undetermined: this.undetermined,
+        undeterminedFaceAlpha: this.undeterminedFaceAlpha,
+      },
+      settings,
+      camera
+    );
+    // One canvas texture for the whole frame, or each pass would get its own.
+    const frame = this.target.current();
+    for (const pass of passes) {
+      this.mesh.render(camera, { ...settings, showEdges: pass.showEdges, faceAlpha: pass.faceAlpha }, frame, {
+        clear: pass.clear,
+        faceRange: pass.faceRange ?? undefined,
+        edgeRange: pass.edgeRange ?? undefined,
+      });
+    }
+  }
+
+  dispose(): void {
+    this.mesh.dispose();
+    this.core.release(this.displacement);
   }
 }
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import type { RenderSettings } from '@treemaker/origami-simulator';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
 import { resolveRenderSettings } from '../../simulator/simulatorPalette';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
@@ -188,7 +189,13 @@ export function StartFigure() {
       const canvas = canvasRef.current;
       if (cancelled || !canvas) return;
 
-      const mesh = StartFigureMesh.create(canvas, asset);
+      const mesh = await StartFigureMesh.create(canvas, asset, {
+        webgpu: useSettingsStore.getState().simulatorWebgpu,
+      });
+      if (cancelled) {
+        mesh?.dispose();
+        return;
+      }
       if (!mesh) {
         track(ANALYTICS_EVENTS.startFigureFallback, { reason: 'no_webgl2' });
         setStatus('fallback');

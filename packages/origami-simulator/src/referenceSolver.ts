@@ -6,7 +6,13 @@ import type {
   SimulatorDiagnostics,
   SimulatorOptions,
 } from './types.js';
-import { assertSolverShape, copyFixedNodeMask, type SolverBackend, type SolverShape } from './solverBackend.js';
+import {
+  assertSolverShape,
+  copyFixedNodeMask,
+  type MotionSample,
+  type SolverBackend,
+  type SolverShape,
+} from './solverBackend.js';
 import {
   gripForce,
   gripParameters,
@@ -338,6 +344,11 @@ export class ReferenceSolver implements SolverBackend {
     return max;
   }
 
+  sampleMotion(): MotionSample {
+    return { maxVelocity: this.maxVelocity(), maxStrain: this.maxNodalStrain() };
+  }
+
+  /** Largest absolute velocity component; NaN when any is non-finite. */
   maxVelocity(): number {
     let max = 0;
     const velocities = this.model.velocities;

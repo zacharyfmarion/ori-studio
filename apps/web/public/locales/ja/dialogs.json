@@ -870,8 +870,13 @@
     "close": "設定を閉じる",
     "general": {
       "analytics": "Ori Studio の改善に役立てるため、匿名の利用状況データとクラッシュレポートを送信する",
+      "graphics": "グラフィックス",
       "privacy": "プライバシー",
       "showWelcome": "起動時にようこそ画面を表示する",
+      "simulatorShowRate": "シミュレーターの速度を表示",
+      "simulatorShowRateDescription": "シミュレートのステータスバーに、ソルバーのステップ数と毎秒フレーム数を表示します。",
+      "simulatorWebgpu": "3D に WebGPU を使用（試験的）",
+      "simulatorWebgpuDescription": "ブラウザが対応している場合、シミュレーターと 3D 図形を WebGPU で実行します。大きなモデルで高速です。再読み込み後に有効になります。",
       "startup": "起動"
     },
     "language": {

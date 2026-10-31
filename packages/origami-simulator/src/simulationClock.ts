@@ -1,4 +1,4 @@
-import type { SolverBackend } from './solverBackend.js';
+import type { MotionSample, SolverBackend } from './solverBackend.js';
 
 /**
  * Decides how much simulation to run per tick.
@@ -64,7 +64,11 @@ export interface SimulationTick {
   elapsedMs: number;
   /** True once the model has been settled for `convergenceTicks` ticks. */
   converged: boolean;
-  /** Max absolute velocity component at the end of the tick. */
+  /**
+   * Max absolute velocity component in the latest motion sample. With a backend
+   * that samples at once that is the end of this tick; with an asynchronous one
+   * it can be a tick or so behind. Infinity before any sample has landed.
+   */
   maxVelocity: number;
   /**
    * What the blow-up guard did this tick, if anything: `reset` returned a
@@ -85,13 +89,42 @@ const DEFAULTS = {
   blowupStrain: 3,
 };
 
+/**
+ * Thrown by {@link SimulationClock.runToConvergence} when the backend samples
+ * asynchronously: a loop that must not yield cannot wait for a sample. Use
+ * {@link SimulationClock.settle} instead.
+ */
+export class AsyncMotionSampleError extends Error {
+  constructor() {
+    super('This backend samples motion asynchronously; use SimulationClock.settle');
+    this.name = 'AsyncMotionSampleError';
+  }
+}
+
+function isPromise(value: MotionSample | Promise<MotionSample>): value is Promise<MotionSample> {
+  return typeof (value as Promise<MotionSample>).then === 'function';
+}
+
 export class SimulationClock {
   private readonly options: Required<Omit<SimulationClockOptions, 'now'>>;
   private readonly now: () => number;
   private settledTicks = 0;
   private totalSteps = 0;
-  /** The previous tick's max velocity, for the stagnation rule; null after any change. */
+  /** The previous sample's max velocity, for the stagnation rule; null after any change. */
   private lastMaxVelocity: number | null = null;
+
+  // Motion sampling. A backend may answer `sampleMotion` with a promise, so the
+  // clock keeps at most one request in flight and acts on each sample once, when
+  // it lands. Acting on one sample twice would read as a velocity that repeats
+  // exactly, which the stagnation rule takes for a model that cannot move.
+  /** Bumped by anything that makes a sample in flight describe a state that is gone. */
+  private generation = 0;
+  private pending = false;
+  private latest: MotionSample | null = null;
+  /** The latest sample has landed and not been acted on. */
+  private fresh = false;
+  /** A sample that failed to land (a lost device), rethrown on the next tick. */
+  private failure: { error: unknown } | null = null;
 
   constructor(options: SimulationClockOptions = {}) {
     this.options = {
@@ -123,6 +156,7 @@ export class SimulationClock {
   invalidate(): void {
     this.settledTicks = 0;
     this.lastMaxVelocity = null;
+    this.forgetSamples();
   }
 
   /**
@@ -134,12 +168,14 @@ export class SimulationClock {
   markSettled(): void {
     this.settledTicks = this.options.convergenceTicks;
     this.lastMaxVelocity = null;
+    this.forgetSamples();
   }
 
   reset(): void {
     this.settledTicks = 0;
     this.totalSteps = 0;
     this.lastMaxVelocity = null;
+    this.forgetSamples();
   }
 
   /**
@@ -147,8 +183,11 @@ export class SimulationClock {
    * is already converged, so a settled simulator costs nothing.
    */
   runFrame(backend: SolverBackend): SimulationTick {
+    this.rethrowFailure();
     if (this.converged) {
-      return { steps: 0, elapsedMs: 0, converged: true, maxVelocity: backend.maxVelocity(), recovered: null };
+      // Nothing steps, so a sample in hand is still true; take one only if there is none.
+      if (this.latest === null) this.requestSample(backend);
+      return { steps: 0, elapsedMs: 0, converged: true, maxVelocity: this.reportedVelocity(), recovered: null };
     }
 
     const started = this.now();
@@ -163,16 +202,144 @@ export class SimulationClock {
     const elapsedMs = this.now() - started;
     this.totalSteps += steps;
 
-    const maxVelocity = backend.maxVelocity();
-    this.recordSettling(maxVelocity);
-    const recovered = this.guardBlowup(backend, maxVelocity);
+    this.requestSample(backend);
+    const recovered = this.actOnSample(backend);
 
-    return { steps, elapsedMs, converged: this.converged, maxVelocity, recovered };
+    return { steps, elapsedMs, converged: this.converged, maxVelocity: this.reportedVelocity(), recovered };
   }
 
   /**
-   * Count a tick as settled when the model is still, or when it can no longer
-   * move: the same maximum velocity as last tick, which a model that is still
+   * Run until converged or `maxSteps` is reached, ignoring the frame budget.
+   * For headless callers (tests, CLI, export) where there is no frame to keep
+   * responsive. Never call this on a thread with a UI on it.
+   *
+   * @throws {AsyncMotionSampleError} when the backend samples asynchronously;
+   *   {@link settle} is the same loop for those.
+   */
+  runToConvergence(backend: SolverBackend, maxSteps = 20_000): SimulationTick {
+    this.rethrowFailure();
+    const started = this.now();
+    let steps = 0;
+    let recovered: SimulationRecovery | null = null;
+    if (this.latest === null && this.converged) this.landNow(backend, false);
+
+    while (steps < maxSteps && !this.converged) {
+      backend.step(this.options.chunkSteps);
+      steps += this.options.chunkSteps;
+      this.landNow(backend, true);
+      recovered = this.actOnSample(backend) ?? recovered;
+    }
+
+    this.totalSteps += steps;
+    return {
+      steps,
+      elapsedMs: this.now() - started,
+      converged: this.converged,
+      maxVelocity: this.reportedVelocity(),
+      recovered,
+    };
+  }
+
+  /**
+   * {@link runToConvergence} for a backend of either kind: every chunk waits
+   * for its own sample, so it decides on exactly what a synchronous backend
+   * would, at the cost of a round trip per chunk.
+   */
+  async settle(backend: SolverBackend, maxSteps = 20_000): Promise<SimulationTick> {
+    this.rethrowFailure();
+    const started = this.now();
+    let steps = 0;
+    let recovered: SimulationRecovery | null = null;
+    this.forgetSamples();
+    if (this.latest === null && this.converged) this.land(await backend.sampleMotion(), false);
+
+    while (steps < maxSteps && !this.converged) {
+      backend.step(this.options.chunkSteps);
+      steps += this.options.chunkSteps;
+      this.land(await backend.sampleMotion(), true);
+      recovered = this.actOnSample(backend) ?? recovered;
+    }
+
+    this.totalSteps += steps;
+    return {
+      steps,
+      elapsedMs: this.now() - started,
+      converged: this.converged,
+      maxVelocity: this.reportedVelocity(),
+      recovered,
+    };
+  }
+
+  /** Ask for a sample unless one is already on its way. A synchronous answer lands at once. */
+  private requestSample(backend: SolverBackend): void {
+    if (this.pending) return;
+    const generation = this.generation;
+    const result = backend.sampleMotion();
+    if (!isPromise(result)) {
+      this.land(result, true);
+      return;
+    }
+    this.pending = true;
+    result.then(
+      (sample) => {
+        if (generation !== this.generation) return;
+        this.pending = false;
+        this.land(sample, true);
+      },
+      (error: unknown) => {
+        if (generation !== this.generation) return;
+        this.pending = false;
+        this.failure = { error };
+      }
+    );
+  }
+
+  /** Sample a backend that must answer at once. */
+  private landNow(backend: SolverBackend, fresh: boolean): void {
+    const result = backend.sampleMotion();
+    if (isPromise(result)) {
+      // Nothing will wait for it; don't leave its rejection unhandled.
+      result.catch(() => undefined);
+      throw new AsyncMotionSampleError();
+    }
+    this.land(result, fresh);
+  }
+
+  private land(sample: MotionSample, fresh: boolean): void {
+    this.latest = sample;
+    this.fresh = fresh;
+  }
+
+  /** Drop any sample in flight. The latest one stays for reporting, but is never acted on again. */
+  private forgetSamples(): void {
+    this.generation += 1;
+    this.pending = false;
+    this.fresh = false;
+  }
+
+  private reportedVelocity(): number {
+    return this.latest?.maxVelocity ?? Number.POSITIVE_INFINITY;
+  }
+
+  private rethrowFailure(): void {
+    if (!this.failure) return;
+    const { error } = this.failure;
+    this.failure = null;
+    throw error;
+  }
+
+  /** Settle and guard on the latest sample, once. Nothing to do until a new one lands. */
+  private actOnSample(backend: SolverBackend): SimulationRecovery | null {
+    const sample = this.latest;
+    if (!this.fresh || sample === null) return null;
+    this.fresh = false;
+    this.recordSettling(sample.maxVelocity);
+    return this.guardBlowup(backend, sample);
+  }
+
+  /**
+   * Count a sample as settled when the model is still, or when it can no longer
+   * move: the same maximum velocity as last time, which a model that is still
    * converging never reports. See {@link SimulationClockOptions.stagnationCeiling}.
    */
   private recordSettling(maxVelocity: number): void {
@@ -185,19 +352,18 @@ export class SimulationClock {
 
   /**
    * If the explicit integrator has destabilized -- velocity/strain non-finite,
-   * or edge strain past the configured limit -- drain the runaway velocity so
+   * or nodal strain past the configured limit -- drain the runaway velocity so
    * the stable axial springs re-settle the mesh instead of it exploding
    * off-screen. Strain is scale-invariant; a healthy fold never reaches the
    * limit, so this is inert in the common case. NaN/Inf is always arrested even
    * when the strain limit is disabled.
+   *
+   * A late sample is still worth acting on: a model non-finite a tick ago is
+   * non-finite now, and one stretched past the limit has not healed itself.
    */
-  private guardBlowup(backend: SolverBackend, maxVelocity: number): SimulationRecovery | null {
+  private guardBlowup(backend: SolverBackend, sample: MotionSample): SimulationRecovery | null {
     const limit = this.options.blowupStrain;
-    const diagnostics = backend.readDiagnostics();
-    // Nodal strain is the measure both backends report identically; maxEdgeStrain
-    // is CPU-only, so falling back to it would silently disable the guard on the
-    // GPU (and did, when the GPU reported the nodal value under that name).
-    const strain = diagnostics.maxNodalStrain ?? diagnostics.maxEdgeStrain ?? 0;
+    const { maxVelocity, maxStrain: strain } = sample;
 
     // Already NaN/Infinite: the positions themselves are unrecoverable, and
     // draining velocity cannot repair them -- every later step keeps propagating
@@ -209,6 +375,7 @@ export class SimulationClock {
       backend.reset();
       this.settledTicks = 0;
       this.lastMaxVelocity = null;
+      this.forgetSamples();
       return 'reset';
     }
 
@@ -218,31 +385,9 @@ export class SimulationClock {
       backend.arrestDynamics();
       this.settledTicks = 0;
       this.lastMaxVelocity = null;
+      this.forgetSamples();
       return 'arrest';
     }
     return null;
-  }
-
-  /**
-   * Run until converged or `maxSteps` is reached, ignoring the frame budget.
-   * For headless callers (tests, CLI, export) where there is no frame to keep
-   * responsive. Never call this on a thread with a UI on it.
-   */
-  runToConvergence(backend: SolverBackend, maxSteps = 20_000): SimulationTick {
-    const started = this.now();
-    let steps = 0;
-    let maxVelocity = backend.maxVelocity();
-    let recovered: SimulationRecovery | null = null;
-
-    while (steps < maxSteps && !this.converged) {
-      backend.step(this.options.chunkSteps);
-      steps += this.options.chunkSteps;
-      maxVelocity = backend.maxVelocity();
-      this.recordSettling(maxVelocity);
-      recovered = this.guardBlowup(backend, maxVelocity) ?? recovered;
-    }
-
-    this.totalSteps += steps;
-    return { steps, elapsedMs: this.now() - started, converged: this.converged, maxVelocity, recovered };
   }
 }

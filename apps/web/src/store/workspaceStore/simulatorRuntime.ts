@@ -1,6 +1,7 @@
 import { wrap, type Remote } from 'comlink';
 import type { SimulatorWorkerApi } from '../../workers/simulatorWorker';
 import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
+import { useSettingsStore } from '../settingsStore';
 
 export type SimulatorClient = Remote<SimulatorWorkerApi>;
 
@@ -37,6 +38,8 @@ export function retainSimulatorClient(): SimulatorClient {
   });
   attachWorkerDiagnostics(worker, 'simulator');
   client = wrap<SimulatorWorkerApi>(worker);
+  // First message, so it lands before any probe or load commits a canvas.
+  void client.useWebgpu(useSettingsStore.getState().simulatorWebgpu);
   return client;
 }
 

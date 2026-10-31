@@ -24,10 +24,13 @@ import {
   recordSimulatorProbe,
 } from './simulatorPerfProbe';
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
+import { trackSimulatorBackendUsed } from '../analytics/trackSimulatorBackend';
+import { useSettingsStore } from '../store/settingsStore';
 import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
 import type { SimulatorFraming } from './framingFollow';
 import type { PaperScene } from '../lib/paper/paperScene';
 import type {
+  SimulatorBackendId,
   SimulatorDrawnView,
   SimulatorExportSceneOptions,
   SimulatorPoseEnd,
@@ -145,7 +148,7 @@ export interface SimulatorModelView extends SimulatorRenderModel {
   edgeCount: number;
   creaseCount: number;
   diagnostics: SimulatorDiagnostics;
-  backend: 'webgl2' | 'reference';
+  backend: SimulatorBackendId;
   /** What the load's `initialShape` did; null when there was none. */
   restored: SimulatorShapeRestore | null;
 }
@@ -587,7 +590,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
         // holds a `bitmaprenderer` canvas it chose from `useWorkerGpuSupport`,
         // which the same call has just flipped -- so it re-renders into its own
         // no-GPU state without this runtime reaching into it.
-        if (wantsGpu && info.backend !== 'webgl2') {
+        if (wantsGpu && info.backend === 'reference') {
           markWorkerGpuUnsupported();
           if (canvas && transferredCanvasRef.current === canvas) {
             setCanvasGeneration((value) => value + 1);
@@ -595,7 +598,11 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           return;
         }
 
-        const gpu = info.backend === 'webgl2' && wantsGpu;
+        trackSimulatorBackendUsed({
+          backend: info.backend,
+          webgpuEnabled: useSettingsStore.getState().simulatorWebgpu,
+        });
+        const gpu = info.backend !== 'reference' && wantsGpu;
         gpuActiveRef.current = gpu;
         setGpuActive(gpu);
         const loaded: SimulatorModelView = {

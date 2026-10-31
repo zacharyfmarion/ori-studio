@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { SimulationClock } from '../src/simulationClock.js';
-import type { SolverBackend } from '../src/solverBackend.js';
+import { AsyncMotionSampleError, SimulationClock } from '../src/simulationClock.js';
+import type { MotionSample, SolverBackend } from '../src/solverBackend.js';
 import type { SimulatorDiagnostics } from '../src/types.js';
 
 /**
@@ -8,19 +8,43 @@ import type { SimulatorDiagnostics } from '../src/types.js';
  * so budget behaviour can be asserted without depending on how fast the machine
  * running the tests happens to be.
  */
+/** A sample the fake has been asked for and not yet landed. */
+interface PendingSample {
+  resolve: (sample: MotionSample) => void;
+  reject: (error: unknown) => void;
+  sample: MotionSample;
+}
+
 function fakeBackend(options: {
   msPerStep: number;
   velocity?: (step: number) => number;
   strain?: (step: number) => number;
+  /**
+   * Answer `sampleMotion` with a promise that lands only when the test calls
+   * `land()`, as a WebGPU backend's `mapAsync` does in its own time. Each
+   * sample describes the step it was asked for at.
+   */
+  async?: boolean;
 }) {
   let step = 0;
   let clock = 0;
   let arrests = 0;
   let resets = 0;
+  let requests = 0;
+  const waiting: PendingSample[] = [];
+  const sampleAt = (at: number): MotionSample => ({
+    maxVelocity: options.velocity ? options.velocity(at) : 1,
+    maxStrain: options.strain ? options.strain(at) : 0,
+  });
   const backend: SolverBackend & {
     elapsed(): number;
     arrests(): number;
     resets(): number;
+    requests(): number;
+    /** Land every sample asked for so far, then let the clock's handlers run. */
+    land(): Promise<void>;
+    /** Fail every sample asked for so far. */
+    fail(error: unknown): Promise<void>;
   } = {
     step(count) {
       step += count;
@@ -44,10 +68,13 @@ function fakeBackend(options: {
       return 0;
     },
     readDiagnostics(): SimulatorDiagnostics {
-      return { warnings: [], errors: [], maxEdgeStrain: options.strain ? options.strain(step) : 0 };
+      return { warnings: [], errors: [], maxNodalStrain: options.strain ? options.strain(step) : 0 };
     },
-    maxVelocity() {
-      return options.velocity ? options.velocity(step) : 1;
+    sampleMotion() {
+      requests += 1;
+      const sample = sampleAt(step);
+      if (!options.async) return sample;
+      return new Promise<MotionSample>((resolve, reject) => waiting.push({ resolve, reject, sample }));
     },
     get stepCount() {
       return step;
@@ -56,6 +83,15 @@ function fakeBackend(options: {
     elapsed: () => clock,
     arrests: () => arrests,
     resets: () => resets,
+    requests: () => requests,
+    async land() {
+      for (const request of waiting.splice(0)) request.resolve(request.sample);
+      await Promise.resolve();
+    },
+    async fail(error) {
+      for (const request of waiting.splice(0)) request.reject(error);
+      await Promise.resolve();
+    },
   };
   return { backend, now: () => clock };
 }
@@ -296,5 +332,102 @@ describe('SimulationClock recovery report', () => {
     const { backend, now } = fakeBackend({ msPerStep: 0.01, strain: () => 0.2, velocity: () => 0.1 });
     const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, now });
     expect(clock.runFrame(backend).recovered).toBeNull();
+  });
+});
+
+describe('SimulationClock with a backend that samples asynchronously', () => {
+  it('acts on a sample when it lands, a tick later', async () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => 0, async: true });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 1, convergenceTicks: 1, now });
+
+    const first = clock.runFrame(backend);
+    // Nothing has landed: the tick cannot know the model is still.
+    expect(first.converged).toBe(false);
+    expect(first.maxVelocity).toBe(Number.POSITIVE_INFINITY);
+
+    await backend.land();
+    const second = clock.runFrame(backend);
+    expect(second.converged).toBe(true);
+    expect(second.maxVelocity).toBe(0);
+  });
+
+  it('keeps one sample in flight, however many ticks run', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, async: true });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 1, now });
+    for (let tick = 0; tick < 5; tick += 1) clock.runFrame(backend);
+    expect(backend.requests()).toBe(1);
+  });
+
+  it('acts on each sample once, so a late one never reads as a model that has stopped', async () => {
+    // Above epsilon and below the stagnation ceiling: two equal samples in a
+    // row would count as stuck. Only one ever lands.
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => 1.26e-5, async: true });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 1, convergenceTicks: 1, now });
+    clock.runFrame(backend);
+    await backend.land();
+    for (let tick = 0; tick < 10; tick += 1) clock.runFrame(backend);
+    expect(clock.converged).toBe(false);
+  });
+
+  it('drops a sample asked for before invalidate', async () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => Number.NaN, async: true });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 1, now });
+    clock.runFrame(backend);
+    clock.invalidate();
+    await backend.land();
+    // The NaN described the state before the change; the clock must not reset over it.
+    expect(clock.runFrame(backend).recovered).toBeNull();
+    expect(backend.resets()).toBe(0);
+  });
+
+  it('resets on a non-finite sample, late or not', async () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => Number.NaN, async: true });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 1, convergenceTicks: 1, now });
+    expect(clock.runFrame(backend).recovered).toBeNull();
+    await backend.land();
+    expect(clock.runFrame(backend).recovered).toBe('reset');
+    expect(clock.converged).toBe(false);
+  });
+
+  it('arrests on a strained sample when it lands', async () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, strain: () => 9, velocity: () => 0.1, async: true });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 1, blowupStrain: 3, now });
+    clock.runFrame(backend);
+    await backend.land();
+    expect(clock.runFrame(backend).recovered).toBe('arrest');
+  });
+
+  it('throws a failed sample on the next tick, once', async () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, async: true });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 1, now });
+    clock.runFrame(backend);
+    await backend.fail(new Error('device lost'));
+    expect(() => clock.runFrame(backend)).toThrow('device lost');
+    expect(() => clock.runFrame(backend)).not.toThrow();
+  });
+
+  it('will not run a headless loop it cannot wait in', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, async: true });
+    const clock = new SimulationClock({ chunkSteps: 10, now });
+    expect(() => clock.runToConvergence(backend, 100)).toThrow(AsyncMotionSampleError);
+  });
+
+  it('settles an asynchronous backend, deciding on each chunk as runToConvergence would', async () => {
+    const velocity = (step: number) => (step < 200 ? 1 : 0);
+    const asyncSide = fakeBackend({ msPerStep: 0.001, velocity, async: true });
+    const syncSide = fakeBackend({ msPerStep: 0.001, velocity });
+    const settling = new SimulationClock({ chunkSteps: 10, convergenceTicks: 2, now: asyncSide.now }).settle(
+      asyncSide.backend,
+      100_000
+    );
+    // Land each sample as it is asked for, as a device would.
+    for (let i = 0; i < 100; i += 1) await asyncSide.backend.land();
+    const tick = await settling;
+    const reference = new SimulationClock({ chunkSteps: 10, convergenceTicks: 2, now: syncSide.now }).runToConvergence(
+      syncSide.backend,
+      100_000
+    );
+    expect(tick.converged).toBe(true);
+    expect(tick.steps).toBe(reference.steps);
   });
 });

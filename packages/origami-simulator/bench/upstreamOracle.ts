@@ -33,6 +33,15 @@ export interface UpstreamRunOptions {
   damping?: number;
 }
 
+/** Positions at each checkpoint of one run, plus the mesh it ran on. */
+export interface UpstreamTrajectory {
+  /** One per checkpoint, in the order asked. */
+  positions: Float32Array[];
+  nodeCount: number;
+  creaseCount: number;
+  faceCount: number;
+}
+
 export interface UpstreamRunResult {
   positions: Float32Array;
   nodeCount: number;
@@ -65,7 +74,9 @@ export class UpstreamOracle {
     const address = server.resolvedUrls?.local?.[0];
     if (!address) throw new Error('Upstream oracle: vite did not report a local URL');
 
-    const browser = await chromium.launch();
+    // `ORI_BENCH_CHROMIUM` points at a Chromium binary when Playwright's own is not installed.
+    const executablePath = process.env.ORI_BENCH_CHROMIUM;
+    const browser = await chromium.launch(executablePath ? { executablePath } : {});
     const page = await browser.newPage();
     // Upstream logs a lot; surface only genuine errors.
     page.on('pageerror', (error) => {
@@ -85,8 +96,28 @@ export class UpstreamOracle {
   }
 
   async run(fold: FoldDocument, options: UpstreamRunOptions): Promise<UpstreamRunResult> {
+    const result = await this.trajectory(fold, options, [options.steps]);
+    return {
+      positions: result.positions[0]!,
+      nodeCount: result.nodeCount,
+      creaseCount: result.creaseCount,
+      faceCount: result.faceCount,
+      maxStrain: result.maxStrain,
+    };
+  }
+
+  /**
+   * One run from the flat sheet, read at every checkpoint on the way: the
+   * path the solver takes, not only where it ends. `checkpoints` are step
+   * counts from reset, ascending; `options.steps` is ignored.
+   */
+  async trajectory(
+    fold: FoldDocument,
+    options: Omit<UpstreamRunOptions, 'steps'> & { steps?: number },
+    checkpoints: readonly number[]
+  ): Promise<UpstreamTrajectory & { maxStrain: number | null }> {
     const raw = await this.page.evaluate(
-      ({ fold: foldArg, options: optionsArg }) => {
+      ({ fold: foldArg, options: optionsArg, checkpoints: checkpointsArg }) => {
         const g = (window as never as UpstreamWindow).globals;
 
         // setFoldData -> processFold -> model.buildModel only stashes nextFold
@@ -114,22 +145,27 @@ export class UpstreamOracle {
         g.shouldChangeCreasePercent = true;
 
         g.model.reset();
-        g.model.step(optionsArg.steps);
-
-        const positions = g.model.getPositionsArray();
+        const positions: number[][] = [];
+        let done = 0;
+        for (const checkpoint of checkpointsArg) {
+          if (checkpoint > done) g.model.step(checkpoint - done);
+          done = Math.max(done, checkpoint);
+          positions.push(Array.from(g.model.getPositionsArray() as ArrayLike<number>));
+        }
         return {
-          positions: Array.from(positions as ArrayLike<number>),
+          positions,
           nodeCount: g.model.getNodes().length,
           creaseCount: g.model.getCreases().length,
           faceCount: g.model.getFaces().length,
           maxStrain: typeof g.maxStrain === 'number' ? g.maxStrain : null,
         };
       },
-      { fold, options }
+      { fold, options, checkpoints }
     );
 
+    const lift = toOurFrame(fold);
     return {
-      positions: Float32Array.from(raw.positions),
+      positions: raw.positions.map((p) => lift(Float32Array.from(p))),
       nodeCount: raw.nodeCount,
       creaseCount: raw.creaseCount,
       faceCount: raw.faceCount,
@@ -141,6 +177,30 @@ export class UpstreamOracle {
     await this.browser.close();
     await this.server.close();
   }
+}
+
+/**
+ * Upstream lifts a 2D sheet to `[x, 0, y]`; we lift it to `[x, 0, −y]`
+ * (`normalizePoint` in src/geometry.ts says why). The two flat sheets differ by
+ * a half turn about the x axis, `(x, y, z) → (x, −y, −z)`: the same paper
+ * turned over, not a mirror image. The solver is indifferent to a rigid
+ * rotation, so applying that turn to upstream's output puts every node where
+ * ours is, step for step, and node `i` is then the same vertex on both sides.
+ *
+ * Upstream lifts only 2-component coordinates and passes 3-component ones
+ * through, as we do, so a sheet given in 3D needs no turn. A sheet mixing the
+ * two is lifted per vertex on both sides and is not a rigid motion apart;
+ * it is returned as upstream gave it.
+ */
+function toOurFrame(fold: FoldDocument): (positions: Float32Array) => Float32Array {
+  if (!fold.vertices_coords.every((coord) => coord.length === 2)) return (positions) => positions;
+  return (positions) => {
+    for (let index = 0; index < positions.length; index += 3) {
+      positions[index + 1] = -positions[index + 1]!;
+      positions[index + 2] = -positions[index + 2]!;
+    }
+    return positions;
+  };
 }
 
 interface UpstreamWindow {

@@ -207,6 +207,10 @@ function GeneralTab() {
   const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
   const analyticsEnabled = useSettingsStore((state) => state.analyticsEnabled);
   const setAnalyticsEnabled = useSettingsStore((state) => state.setAnalyticsEnabled);
+  const simulatorWebgpu = useSettingsStore((state) => state.simulatorWebgpu);
+  const setSimulatorWebgpu = useSettingsStore((state) => state.setSimulatorWebgpu);
+  const simulatorShowRate = useSettingsStore((state) => state.simulatorShowRate);
+  const setSimulatorShowRate = useSettingsStore((state) => state.setSimulatorShowRate);
   const analytics = useAnalytics();
 
   return (
@@ -223,6 +227,29 @@ function GeneralTab() {
       </section>
       <UpdatesSection />
       <ModelsSection />
+      <section className="settings-section">
+        <h3 className="settings-section__title">
+          {t('dialogs:settings.general.graphics', 'Graphics')}
+        </h3>
+        <SettingsToggleRow
+          label={t('dialogs:settings.general.simulatorWebgpu', 'Use WebGPU for 3D (experimental)')}
+          description={t(
+            'dialogs:settings.general.simulatorWebgpuDescription',
+            'Runs the simulator and 3D figures on WebGPU where your browser supports it: faster on large models. Takes effect after a reload.'
+          )}
+          checked={simulatorWebgpu}
+          onChange={setSimulatorWebgpu}
+        />
+        <SettingsToggleRow
+          label={t('dialogs:settings.general.simulatorShowRate', 'Show simulator speed')}
+          description={t(
+            'dialogs:settings.general.simulatorShowRateDescription',
+            'Shows solver steps and frames per second in the Simulate status bar.'
+          )}
+          checked={simulatorShowRate}
+          onChange={setSimulatorShowRate}
+        />
+      </section>
       <section className="settings-section">
         <h3 className="settings-section__title">
           {t('dialogs:settings.general.privacy', 'Privacy')}

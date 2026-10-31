@@ -870,8 +870,13 @@
     "close": "설정 닫기",
     "general": {
       "analytics": "Ori Studio 개선에 도움이 되도록 익명 사용 통계와 오류 보고서 보내기",
+      "graphics": "그래픽",
       "privacy": "개인정보 보호",
       "showWelcome": "시작 시 환영 화면 표시",
+      "simulatorShowRate": "시뮬레이터 속도 표시",
+      "simulatorShowRateDescription": "시뮬레이트 상태 표시줄에 솔버 스텝과 초당 프레임 수를 표시합니다.",
+      "simulatorWebgpu": "3D에 WebGPU 사용(실험적)",
+      "simulatorWebgpuDescription": "브라우저가 지원하는 경우 시뮬레이터와 3D 도형을 WebGPU로 실행합니다. 큰 모델에서 더 빠릅니다. 새로고침 후 적용됩니다.",
       "startup": "시작"
     },
     "language": {

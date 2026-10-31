@@ -34,6 +34,11 @@
     "bench:unwrap-spike": "vitest run --config vitest.bench.config.ts bench/unwrapSpike.bench.ts --disable-console-intercept",
     "bench:gpu-parity": "vitest run --config vitest.bench.config.ts bench/gpuParity.bench.ts --disable-console-intercept",
     "bench:gpu-stability": "vitest run --config vitest.bench.config.ts bench/gpuStability.bench.ts --disable-console-intercept",
+    "bench:webgpu-spike": "vitest run --config vitest.bench.config.ts bench/webgpuSpike.bench.ts --disable-console-intercept",
+    "bench:webgpu-spike:serve": "vite --open /bench/webgpuSpikeHarness/index.html",
+    "bench:backends": "vitest run --config vitest.bench.config.ts bench/backendBench.bench.ts --disable-console-intercept",
+    "bench:backends:serve": "vite --open /bench/backendBench/index.html",
+    "bench:upstream-trajectory": "vitest run --config vitest.bench.config.ts bench/upstreamTrajectory.bench.ts --disable-console-intercept",
     "bench:pull": "vitest run --config vitest.bench.config.ts bench/pull.bench.ts --disable-console-intercept"
   },
   "dependencies": {
@@ -43,6 +48,7 @@
   "devDependencies": {
     "@types/earcut": "^3.0.0",
     "@types/node": "^24.10.1",
+    "@webgpu/types": "0.1.74",
     "typescript": "~5.9.3",
     "vitest": "^4.0.18",
     "playwright": "^1.60.0",

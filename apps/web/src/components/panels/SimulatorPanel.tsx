@@ -20,6 +20,7 @@ import type { FoldDocument as SimulatorFoldDocument } from "@treemaker/origami-s
 import {
   useSimulatorRuntime,
   type SimulatorFrameView,
+  type SimulatorModelView,
 } from "../../simulator/useSimulatorRuntime";
 import { SimulatorSegmentsSidebar } from "./SimulatorSegmentsPanel";
 import { useSimulateSource } from "../../simulator/useSimulateSource";
@@ -46,6 +47,8 @@ import { simulatorMaterialOptions } from "../../lib/simulatorSettings";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useSimulatorPaperStyle } from "../../simulator/useSimulatorPaperStyle";
 import { useWorkspaceStore } from "../../store/workspaceStore";
+import { useSettingsStore } from "../../store/settingsStore";
+import { useSimulatorRate } from "../../simulator/useSimulatorRate";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { NextDocumentAction } from "./NextDocumentAction";
@@ -109,7 +112,7 @@ export function SimulatorPanel() {
   const [step, setStep] = useState(0);
   const [strain, setStrain] = useState(0);
   const [modelStats, setModelStats] = useState({ vertices: 0, triangles: 0 });
-  const [backend, setBackend] = useState<"webgl2" | "reference" | null>(null);
+  const [backend, setBackend] = useState<SimulatorModelView["backend"] | null>(null);
   // Render/material/solver settings live in the store: the options pane is a
   // sibling panel, so this panel applies them but does not own them.
   const viewSettings = useWorkspaceStore((state) => state.simulatorSettings);
@@ -129,6 +132,9 @@ export function SimulatorPanel() {
   const simulationFold = source.fold;
   const simulationSourceKey = source.sourceKey;
 
+  const showRate = useSettingsStore((state) => state.simulatorShowRate);
+  const { rate, observe: observeRate } = useSimulatorRate(showRate);
+
   const handleFrame = useCallback(
     (frame: SimulatorFrameView) => {
       // Reported, not assigned: a frame carries the target as it was when the
@@ -140,6 +146,7 @@ export function SimulatorPanel() {
       // frame would starve the loop this is reporting on.
       viewportRef.current?.showFrame(frame);
       observeFrameRef.current(frame);
+      observeRate(frame.stepsThisTick);
 
       // Throttle the readout state to ~15Hz. These three setStates re-render the
       // whole panel, and at 60fps that re-render was starving the main-thread rAF
@@ -158,7 +165,7 @@ export function SimulatorPanel() {
         setFoldPercent(frame.foldPercent);
       }
     },
-    [],
+    [observeRate],
   );
 
   // The run profile sets the work budget (steps per frame and so on); the user's
@@ -661,7 +668,12 @@ export function SimulatorPanel() {
               {backend && (
                 <span
                   title={
-                    backend === "webgl2"
+                    backend === "webgpu"
+                      ? t(
+                          "panels:simulator.backendWebgpuTitle",
+                          "Solving on the GPU (WebGPU)",
+                        )
+                      : backend === "webgl2"
                       ? t(
                           "panels:simulator.backendGpuTitle",
                           "Solving on the GPU (WebGL2)",
@@ -672,9 +684,19 @@ export function SimulatorPanel() {
                         )
                   }
                 >
-                  {backend === "webgl2"
-                    ? t("panels:simulator.backendGpu", "GPU")
+                  {backend === "webgpu"
+                    ? t("panels:simulator.backendWebgpu", "WebGPU")
+                    : backend === "webgl2"
+                    ? t("panels:simulator.backendWebgl", "WebGL2")
                     : t("panels:simulator.backendCpu", "CPU")}
+                </span>
+              )}
+              {rate && (
+                <span data-readout="rate">
+                  {t("panels:simulator.rateReadout", "{{steps}} steps/s · {{fps}} fps", {
+                    steps: Math.round(rate.stepsPerSecond).toLocaleString(),
+                    fps: Math.round(rate.framesPerSecond),
+                  })}
                 </span>
               )}
             </div>

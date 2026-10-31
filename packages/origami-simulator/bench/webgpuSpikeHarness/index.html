@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>WebGPU solver spike</title>
+    <style>
+      body { font: 13px/1.4 ui-monospace, monospace; margin: 16px; }
+      pre { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <p>
+      Runs the WebGPU spike against the WebGL2 solver on this machine's GPU.
+      Numbers from a real GPU are the ones that count; see
+      implementation-plans/simulator-webgpu-backend.md.
+    </p>
+    <button id="run" type="button">Run</button>
+    <pre id="out"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

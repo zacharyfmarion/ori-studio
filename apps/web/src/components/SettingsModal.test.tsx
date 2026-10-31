@@ -124,6 +124,8 @@ const ORIEDITA_DEFAULTS_LABEL = 'Use Oriedita defaults';
 const WELCOME_LABEL = 'Show welcome screen on startup';
 const FOLD_WARNING_LABEL = 'Warn before folding a crease pattern with flat-foldability errors';
 const SUGGEST_DETECTION_LABEL = 'Suggest detecting crease patterns in images added to the canvas';
+const WEBGPU_LABEL = 'Use WebGPU for 3D (experimental)';
+const SHOW_RATE_LABEL = 'Show simulator speed';
 const ANALYTICS_LABEL =
   'Send anonymous usage analytics and crash reports to help improve Ori Studio';
 
@@ -322,13 +324,18 @@ describe('SettingsModal', () => {
   it('presents the general booleans as switches, each naming its own row copy', () => {
     const rendered = renderModal('general');
 
-    // Startup, the detection suggestion in Models, and Privacy. Updates sits
-    // between them but renders nothing off the desktop build, so it
-    // contributes no control here.
-    expect(rendered.querySelectorAll('.settings-toggle-row [role="switch"]')).toHaveLength(3);
+    // Startup, the detection suggestion in Models, Graphics and Privacy.
+    // Updates sits between them but renders nothing off the desktop build, so
+    // it contributes no control here.
+    expect(rendered.querySelectorAll('.settings-toggle-row [role="switch"]')).toHaveLength(5);
     for (const label of [WELCOME_LABEL, SUGGEST_DETECTION_LABEL, ANALYTICS_LABEL]) {
       expectSwitchRow(rendered, label);
     }
+    // Both opt-in, so the switches that start off.
+    expect(rowSwitch(WEBGPU_LABEL).getAttribute('aria-labelledby')).toBeTruthy();
+    expect(rowChecked(WEBGPU_LABEL)).toBe(false);
+    expect(rowSwitch(SHOW_RATE_LABEL).getAttribute('aria-labelledby')).toBeTruthy();
+    expect(rowChecked(SHOW_RATE_LABEL)).toBe(false);
   });
 
   it('presents the workspace booleans as switches, each naming its own row copy', () => {

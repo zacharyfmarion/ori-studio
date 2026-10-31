@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Simulator backend benchmark</title>
+    <style>
+      body { font: 13px/1.4 ui-monospace, monospace; margin: 16px; }
+      pre { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <p>
+      Times the simulator's three backends, WebGPU, WebGL2 and the CPU reference
+      solver, on the same models, the way the app runs them. Narrow a run with
+      the query string, for example
+      <code>?fixtures=miura-32x32,miura-80x80&amp;backends=webgpu,webgl2&amp;duration=4000</code>.
+    </p>
+    <button id="run" type="button">Run</button>
+    <pre id="out"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
