@@ -71,11 +71,18 @@ found three gaps that a small, local change closes:
 - [x] Petal preview (`petalGeometry.ts`) checked against the new analysis:
       it lights `ends` + `corner`, the top layer's kite, which is what lifts;
       the second layer's kite is new optional analysis fields.
-- [ ] Swivel notice offers Valley and mountain; tests; i18n check.
+- [x] Swivel notice offers Valley and mountain (the existing
+      `setSwivelInput` verb, now a vertex fix verb too); tests; i18n check.
 - [x] Open sink anchor past staying paper in the pocket; synthetic
       regression test (a hem folded into the preliminary base's front
       pocket); every existing sink test and the sink/vertex oracles pass.
-- [ ] Acceptance on the study's cases (outside the repo), with before and
-      after renders.
-- [ ] fmt, clippy, crate tests, wasm build, web tests near the change,
-      typecheck, lint.
+- [x] Acceptance on the study's cases (outside the repo), with before and
+      after renders: the open sink equals the saved landing, canonical keys
+      and all; the petal folds are physically identical to the Import-CP
+      landings (stacks and folded creases), whose canonical keys differ only
+      because the import cuts faces and creases its own way.
+- [x] fmt, clippy, crate tests, wasm build, web tests near the change,
+      typecheck, lint; the swivel notice checked in the browser.
+- [ ] Follow-ups, not in this change: a doubled flap with no precreases
+      (H by two points) still refuses past its corner; the swivel tool's
+      "Nothing can swing from there" could point at Valley and mountain too.
