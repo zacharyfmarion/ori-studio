@@ -1458,6 +1458,7 @@
       "pause": "暂停",
       "percent": "{{value}}%",
       "play": "播放",
+      "preparing": "正在准备姿态…",
       "previousSolution": "上一种层序",
       "reset": "重置姿态",
       "resetHint": "已处于初始姿态",
@@ -1586,8 +1587,7 @@
       "preparing": "正在准备层间距…",
       "presentation": "显示方式",
       "reveal": "层次显示",
-      "revealHint": "拖动以显示层次 · 滚动以缩放",
-      "updating": "正在更新纸层展开…"
+      "revealHint": "拖动以显示层次 · 滚动以缩放"
     },
     "stepPane": {
       "annotate": "标注",

@@ -1,0 +1,24 @@
+.veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg-secondary) 30%, transparent);
+  cursor: wait;
+  touch-action: none;
+}
+
+.label {
+  display: grid;
+  grid-template-columns: 16px auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-context-menu);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}

@@ -6,7 +6,7 @@ import { DEFAULT_DIAGRAM_STYLE } from '../../diagram/document/diagramDocument';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import { DiagramSpreadView } from './DiagramSpreadView';
 
-const renderer = vi.hoisted(() => ({ status: 'ready' as const, request: vi.fn() }));
+const renderer = vi.hoisted(() => ({ status: 'ready' as 'preparing' | 'ready' | 'error', request: vi.fn() }));
 vi.mock('../../layer-spread/useSpreadRenderer', () => ({ useSpreadRenderer: () => renderer }));
 let viewport: ComponentProps<typeof import('../../simulator/SimulatorViewport').SimulatorViewport>;
 vi.mock('../../simulator/SimulatorViewport', () => ({
@@ -38,6 +38,7 @@ function pointer(type: string, id = 1) {
   act(() => host.querySelector('canvas')!.dispatchEvent(event));
 }
 beforeEach(() => {
+  renderer.status = 'ready';
   vi.useFakeTimers();
   vi.stubGlobal('Image', MockImage);
   decodes.length = 0;
@@ -150,4 +151,29 @@ it('keeps the live view on a decode failure and restores a loaded image after wh
   expect(final()).toBeNull();
   await rest();
   expect(final()).not.toBeNull();
+});
+
+it('blocks model gestures with a spinner until the live frame is ready, then releases it', async () => {
+  renderer.status = 'preparing';
+  const onZoom = vi.fn();
+  await show({onZoom});
+  expect(host.querySelector('[role="status"]')?.textContent).toContain('Preparing pose');
+  expect(host.querySelector('[aria-busy="true"]')).not.toBeNull();
+  const canvas = host.querySelector('canvas')!;
+  await act(async () => viewport.onCanvasChange?.(canvas));
+  const outer = host.querySelector<HTMLElement>('[data-status="preparing"]')!;
+  outer.setPointerCapture = vi.fn();
+  act(() => {
+    canvas.dispatchEvent(new MouseEvent('pointerdown', {bubbles:true,button:0}));
+    canvas.dispatchEvent(new WheelEvent('wheel', {deltaY:100}));
+  });
+  expect(outer.setPointerCapture).not.toHaveBeenCalled(); expect(onZoom).not.toHaveBeenCalled();
+  renderer.status = 'ready'; await show();
+  expect(host.querySelector('[data-pose-loading]')).toBeNull();
+  expect(host.querySelector('canvas')).toBe(canvas);
+  await decode(); await rest();
+  expect(final()).not.toBeNull(); // A press while loading never starts a pose gesture.
+  renderer.status = 'error'; await show();
+  expect(host.querySelector('[data-pose-loading]')).toBeNull();
+  expect(host.querySelector('img')?.getAttribute('src')).toBe('fallback.svg');
 });

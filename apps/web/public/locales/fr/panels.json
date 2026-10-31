@@ -1540,6 +1540,7 @@
       "pause": "Pause",
       "percent": "{{value}} %",
       "play": "Lecture",
+      "preparing": "Préparation de la pose…",
       "previousSolution": "Ordre des couches précédent",
       "reset": "Réinitialiser la pose",
       "resetHint": "Déjà dans sa pose de départ",
@@ -1690,8 +1691,7 @@
       "preparing": "Préparation de l’écartement…",
       "presentation": "Présentation",
       "reveal": "Décalage des couches",
-      "revealHint": "Glisser pour révéler les couches · Défiler pour zoomer",
-      "updating": "Mise à jour de l’écartement…"
+      "revealHint": "Glisser pour révéler les couches · Défiler pour zoomer"
     },
     "stepPane": {
       "annotate": "Annoter",

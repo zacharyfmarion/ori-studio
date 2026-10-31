@@ -1,3 +1,4 @@
+import { PoseLoading } from './PoseLoading';
 import { spreadPosePictureFrame, type SpreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
 import { clampReveal, sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
 import { useSettledPosePicture } from '../../diagram/capture/useSettledPosePicture';
@@ -133,7 +134,7 @@ export function DiagramSpreadView({
     [spatial, onCamera, readOnly],
   );
   useEffect(() => {
-    if (!canvas || spatial) return;
+    if (!canvas || spatial || status !== 'ready') return;
     const wheel = (event: WheelEvent) => {
       event.preventDefault();
       wheelZoom.current = Math.max(0.2, Math.min(5, wheelZoom.current * Math.exp(-event.deltaY * 0.001)));
@@ -141,7 +142,7 @@ export function DiagramSpreadView({
     };
     canvas.addEventListener('wheel', wheel, { passive: false });
     return () => canvas.removeEventListener('wheel', wheel);
-  }, [canvas, spatial, setZoom]);
+  }, [canvas, spatial, setZoom, status]);
   useEffect(
     () =>
       registerDiagramGestureCancel(() => {
@@ -154,7 +155,7 @@ export function DiagramSpreadView({
     [],
   );
   const down = (event: PointerEvent) => {
-    if (spatial || readOnly || event.button !== 0) return;
+    if (status !== 'ready' || spatial || readOnly || event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, start: reveal, shown: reveal };
   };
@@ -207,19 +208,20 @@ export function DiagramSpreadView({
   return (
     <div
       className={styles.view}
+      aria-busy={status === 'preparing'}
       data-status={status}
-      data-reveal={!spatial && !readOnly || undefined}
-      onPointerDownCapture={(event) => settled.down(event.pointerId)}
+      data-reveal={status === 'ready' && !spatial && !readOnly || undefined}
+      onPointerDownCapture={(event) => { if (status === 'ready') settled.down(event.pointerId); }}
       onPointerUpCapture={(event) => settled.up(event.pointerId)}
       onPointerCancelCapture={(event) => settled.up(event.pointerId)}
       onLostPointerCapture={(event) => { settled.up(event.pointerId); end(event); }}
-      onWheelCapture={settled.wake}
+      onWheelCapture={() => { if (status === 'ready') settled.wake(); }}
       onPointerDown={down}
       onPointerMove={move}
       onPointerUp={end}
       onPointerCancel={end}
     >
-      {status === 'preparing' && fallback}
+      {status === 'preparing' && <>{fallback}<PoseLoading /></>}
       <DiagramPoseStage
         status={status}
         fullHeight={!spatial}
@@ -238,7 +240,7 @@ export function DiagramSpreadView({
             ref={viewport}
             canvasKey="connected-spread"
             onCanvasChange={setCanvas}
-            interactive={spatial && !readOnly}
+            interactive={status === 'ready' && spatial && !readOnly}
             gpuActive
             bitmapPresent
             transparentBackground

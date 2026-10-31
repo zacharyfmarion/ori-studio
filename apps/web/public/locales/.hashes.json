@@ -6380,7 +6380,7 @@
     "panels:fold.canvas.adjustSpread": "50967b465d13",
     "panels:fold.spread.unavailable": "49ea8d6523a5",
     "panels:diagram.spread.padHint": "f127f084029a",
-    "panels:diagram.spread.updating": "5366901b3d2a"
+    "panels:diagram.pose.preparing": "2067de2d3d51"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -12763,7 +12763,7 @@
     "panels:fold.canvas.adjustSpread": "50967b465d13",
     "panels:fold.spread.unavailable": "49ea8d6523a5",
     "panels:diagram.spread.padHint": "f127f084029a",
-    "panels:diagram.spread.updating": "5366901b3d2a"
+    "panels:diagram.pose.preparing": "2067de2d3d51"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -19148,7 +19148,7 @@
     "panels:fold.canvas.adjustSpread": "50967b465d13",
     "panels:fold.spread.unavailable": "49ea8d6523a5",
     "panels:diagram.spread.padHint": "f127f084029a",
-    "panels:diagram.spread.updating": "5366901b3d2a"
+    "panels:diagram.pose.preparing": "2067de2d3d51"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -25186,7 +25186,7 @@
     "panels:fold.canvas.adjustSpread": "50967b465d13",
     "panels:fold.spread.unavailable": "49ea8d6523a5",
     "panels:diagram.spread.padHint": "f127f084029a",
-    "panels:diagram.spread.updating": "5366901b3d2a"
+    "panels:diagram.pose.preparing": "2067de2d3d51"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -31224,7 +31224,7 @@
     "panels:fold.canvas.adjustSpread": "50967b465d13",
     "panels:fold.spread.unavailable": "49ea8d6523a5",
     "panels:diagram.spread.padHint": "f127f084029a",
-    "panels:diagram.spread.updating": "5366901b3d2a"
+    "panels:diagram.pose.preparing": "2067de2d3d51"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -37607,7 +37607,7 @@
     "panels:fold.canvas.adjustSpread": "50967b465d13",
     "panels:fold.spread.unavailable": "49ea8d6523a5",
     "panels:diagram.spread.padHint": "f127f084029a",
-    "panels:diagram.spread.updating": "5366901b3d2a"
+    "panels:diagram.pose.preparing": "2067de2d3d51"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -43990,7 +43990,7 @@
     "panels:fold.canvas.adjustSpread": "50967b465d13",
     "panels:fold.spread.unavailable": "49ea8d6523a5",
     "panels:diagram.spread.padHint": "f127f084029a",
-    "panels:diagram.spread.updating": "5366901b3d2a"
+    "panels:diagram.pose.preparing": "2067de2d3d51"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -50028,6 +50028,6 @@
     "panels:fold.canvas.adjustSpread": "50967b465d13",
     "panels:fold.spread.unavailable": "49ea8d6523a5",
     "panels:diagram.spread.padHint": "f127f084029a",
-    "panels:diagram.spread.updating": "5366901b3d2a"
+    "panels:diagram.pose.preparing": "2067de2d3d51"
   }
 }

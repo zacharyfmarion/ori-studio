@@ -15,11 +15,18 @@ export function useSpreadRenderer(view: ConnectedSpreadView, onFrame: (bitmap: I
   }, []);
   const last = useRef<SpreadFrame | null>(null),
     paint = useRef(onFrame);
-  const [status, setStatus] = useState<'preparing' | 'ready' | 'error'>('preparing');
+  type Status = 'preparing' | 'ready' | 'error';
+  const [result, setResult] = useState<{view: ConnectedSpreadView; status: Status} | null>(null);
+  const status = result?.view === view ? result.status : 'preparing';
+  const setStatus = useCallback((status: Status) => {
+    setResult((was) => was?.view === view && was.status === status ? was : { view, status });
+  }, [view]);
   useEffect(() => {
     paint.current = onFrame;
   }, [onFrame]);
   const request = useCallback((frame: SpreadFrame) => {
+    // Wait for layout: a 1px placeholder is not a usable first frame.
+    if (frame.width <= 1 || frame.height <= 1) return;
     last.current = frame;
     if (!worker.current) return;
     if (busy.current) {
@@ -44,7 +51,7 @@ export function useSpreadRenderer(view: ConnectedSpreadView, onFrame: (bitmap: I
       pending.current = null;
       setStatus('error');
     }
-  }, [clearWatchdog]);
+  }, [clearWatchdog, setStatus]);
   useEffect(() => {
     let live = true;
     let w: Worker;
@@ -104,6 +111,6 @@ export function useSpreadRenderer(view: ConnectedSpreadView, onFrame: (bitmap: I
       w.terminate();
       if (worker.current === w) worker.current = null;
     };
-  }, [view, request, clearWatchdog]);
+  }, [view, request, clearWatchdog, setStatus]);
   return { status, request };
 }

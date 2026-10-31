@@ -20,7 +20,7 @@ export function useFoldSpreadView(source: DiagramFoldStepSource | null, live: bo
           source.render.side,
         ])
       : null;
-  const [read, setRead] = useState<{ key: string; scene: OristudioCpFoldedPaperScene } | null>(null);
+  const [read, setRead] = useState<{ key: string; scene: OristudioCpFoldedPaperScene | null } | null>(null);
   useEffect(() => {
     if (!live || !key || !source) return;
     let current = true;
@@ -30,7 +30,11 @@ export function useFoldSpreadView(source: DiagramFoldStepSource | null, live: bo
           release = session.retain();
         try {
           const result = await fold.readFoldStepCapture(session, source, t);
-          if (!current || result.status !== 'ready' || source.render.mode !== 'folded-flat') return;
+          if (!current) return;
+          if (result.status !== 'ready' || source.render.mode !== 'folded-flat') {
+            setRead({ key, scene: null });
+            return;
+          }
           const { foldScenePattern } = await import('./foldStepPicture');
           if (current) setRead({ key, scene: foldScenePattern(result.input.picture.shown, source.render.side) });
         } finally {
@@ -38,7 +42,7 @@ export function useFoldSpreadView(source: DiagramFoldStepSource | null, live: bo
         }
       })
       .catch(() => {
-        if (current) setRead(null);
+        if (current) setRead({ key, scene: null });
       });
     return () => {
       current = false;
@@ -47,6 +51,8 @@ export function useFoldSpreadView(source: DiagramFoldStepSource | null, live: bo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, live, t]);
   const scene = key && read?.key === key ? read.scene : null;
-  const { prepared } = useConnectedSpread(scene, live && !!key);
-  return useMemo(() => (scene && prepared ? { scene, prepared } : null), [scene, prepared]);
+  const { prepared, status } = useConnectedSpread(scene, live && !!key);
+  const view = useMemo(() => (scene && prepared ? { scene, prepared } : null), [scene, prepared]);
+  const preparing = !!(live && key && (read?.key !== key || status === 'preparing'));
+  return { view, preparing };
 }

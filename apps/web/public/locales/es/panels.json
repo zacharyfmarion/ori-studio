@@ -1540,6 +1540,7 @@
       "pause": "Pausar",
       "percent": "{{value}} %",
       "play": "Reproducir",
+      "preparing": "Preparando pose…",
       "previousSolution": "Orden de capas anterior",
       "reset": "Restablecer pose",
       "resetHint": "Ya está en su pose inicial",
@@ -1690,8 +1691,7 @@
       "preparing": "Preparando separación…",
       "presentation": "Presentación",
       "reveal": "Capas visibles",
-      "revealHint": "Arrastra para mostrar las capas · Desplaza para ampliar",
-      "updating": "Actualizando separación…"
+      "revealHint": "Arrastra para mostrar las capas · Desplaza para ampliar"
     },
     "stepPane": {
       "annotate": "Anotar",

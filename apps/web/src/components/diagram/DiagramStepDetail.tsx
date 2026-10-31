@@ -1,3 +1,4 @@
+import { PoseLoading } from './PoseLoading';
 import { posePictureBounds, spreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
 import { sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
 import { DiagramSpreadView } from './DiagramSpreadView';
@@ -339,9 +340,11 @@ export function DiagramStepDetail({
       ) : (
       <div
         className={styles.stage}
+        aria-busy={linkedPose?.connectedPreparing || foldPose?.connectedPreparing || undefined}
         data-picture={url !== null || undefined}
         data-drop-target={dropping || undefined}
       >
+        {(linkedPose?.connectedPreparing || foldPose?.connectedPreparing) && <PoseLoading />}
         {locked && picture ? (
           // A newer build's step, drawn as far as this build reads it (decision 2): nothing to pose or annotate.
           picture

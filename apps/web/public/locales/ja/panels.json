@@ -1458,6 +1458,7 @@
       "pause": "一時停止",
       "percent": "{{value}}%",
       "play": "再生",
+      "preparing": "ポーズを準備中…",
       "previousSolution": "前の重なり順",
       "reset": "ポーズをリセット",
       "resetHint": "すでに最初のポーズです",
@@ -1586,8 +1587,7 @@
       "preparing": "層の間隔を準備中…",
       "presentation": "表示方式",
       "reveal": "層のずれ",
-      "revealHint": "ドラッグして層を見せる · スクロールで拡大縮小",
-      "updating": "レイヤーの広がりを更新中…"
+      "revealHint": "ドラッグして層を見せる · スクロールで拡大縮小"
     },
     "stepPane": {
       "annotate": "注記",

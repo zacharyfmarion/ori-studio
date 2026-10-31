@@ -52,6 +52,7 @@ export interface DiagramFoldStepPose {
   perspectiveActions: DiagramLinkedPoseAction[] | null;
   registerLiveView: (view: SimulatorViewHandle) => () => void;
   connected: ConnectedSpreadView | null;
+  connectedPreparing: boolean;
   connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
   setPresentation: (kind: SpreadPresentation['kind']) => Promise<void>;
   presentationHeld: boolean;
@@ -180,7 +181,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
   const { t } = useTranslation();
   const camera = useFoldSpreadCamera(step, live);
   const source = foldSource(step);
-  const connected = useFoldSpreadView(source, live);
+  const { view: connected, preparing: connectedPreparing } = useFoldSpreadView(source, live);
   const stepId = source ? step!.id : null;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const busy = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
@@ -310,6 +311,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
             perspectiveActions,
             registerLiveView,
             connected,
+            connectedPreparing,
             connectedSpread,
             setPresentation,
             presentationHeld: readOnly || unknownMarks,
@@ -326,6 +328,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
       perspectiveActions,
       registerLiveView,
       connected,
+      connectedPreparing,
       connectedSpread,
       setPresentation,
       onCamera,

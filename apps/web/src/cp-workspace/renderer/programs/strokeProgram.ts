@@ -288,22 +288,13 @@ export interface StrokeProgramOptions {
   depthOrdered?: boolean;
 }
 
-export function createStrokeProgram(
-  regl: Regl,
-  options: StrokeProgramOptions = {}
-): StrokeProgram {
-  const quad = regl.buffer(QUAD);
-  let aBuf: Buffer | null = null;
-  let bBuf: Buffer | null = null;
-  let colorBuf: Buffer | null = null;
-  let widthMulBuf: Buffer | null = null;
-  let depthBuf: Buffer | null = null;
-  let depthEndBuf: Buffer | null = null;
-  let dashSlotBuf: Buffer | null = null;
-  let dashPhaseBuf: Buffer | null = null;
-  let count = 0;
-  let dashPatterns: readonly (readonly number[])[] | undefined;
+/** Commands are expensive to build. Faces own their segment buffers, but share
+ * one compiled command and unit quad per WebGL context/depth mode. Release the
+ * quad with the last owner; no model geometry is retained by this cache. */
+const commands = new WeakMap<Regl, Map<boolean, ReturnType<typeof makeStrokeCommand>>>();
 
+function makeStrokeCommand(regl: Regl, depthOrdered: boolean) {
+  const quad = regl.buffer(QUAD);
   const draw = regl<StrokeUniforms, StrokeAttributes, StrokeDrawParams>({
     vert: VERT,
     frag: FRAG,
@@ -346,12 +337,54 @@ export function createStrokeProgram(
       enable: true,
       func: { srcRGB: 1, srcAlpha: 1, dstRGB: 'one minus src alpha', dstAlpha: 'one minus src alpha' },
     },
-    depth: options.depthOrdered
+    depth: depthOrdered
       ? { enable: true, mask: true, func: 'lequal' }
       : { enable: false },
     count: 6,
     instances: (_ctx, props) => props.instanceCount,
   });
+
+  return { draw, quad, refs: 0 };
+}
+
+function acquireStrokeCommand(regl: Regl, depthOrdered: boolean) {
+  let modes = commands.get(regl);
+  if (!modes) {
+    modes = new Map();
+    commands.set(regl, modes);
+  }
+  let shared = modes.get(depthOrdered);
+  if (!shared) {
+    shared = makeStrokeCommand(regl, depthOrdered);
+    modes.set(depthOrdered, shared);
+  }
+  shared.refs++;
+  return {
+    draw: shared.draw,
+    release: disposeOnce(() => {
+      if (--shared.refs === 0) {
+        shared.quad.destroy();
+        modes.delete(depthOrdered);
+      }
+    }),
+  };
+}
+
+export function createStrokeProgram(
+  regl: Regl,
+  options: StrokeProgramOptions = {}
+): StrokeProgram {
+  const { draw, release } = acquireStrokeCommand(regl, !!options.depthOrdered);
+  let aBuf: Buffer | null = null;
+  let bBuf: Buffer | null = null;
+  let colorBuf: Buffer | null = null;
+  let widthMulBuf: Buffer | null = null;
+  let depthBuf: Buffer | null = null;
+  let depthEndBuf: Buffer | null = null;
+  let dashSlotBuf: Buffer | null = null;
+  let dashPhaseBuf: Buffer | null = null;
+  let count = 0;
+  let dashPatterns: readonly (readonly number[])[] | undefined;
 
   return {
     setData(geometry) {
@@ -415,7 +448,7 @@ export function createStrokeProgram(
       });
     },
     dispose: disposeOnce(() => {
-      quad.destroy();
+      release();
       aBuf?.destroy();
       bBuf?.destroy();
       colorBuf?.destroy();

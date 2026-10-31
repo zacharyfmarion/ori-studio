@@ -1499,6 +1499,7 @@
       "pause": "Pause",
       "percent": "{{value}} %",
       "play": "Abspielen",
+      "preparing": "Pose wird vorbereitet…",
       "previousSolution": "Vorherige Lagenfolge",
       "reset": "Pose zurücksetzen",
       "resetHint": "Schon in der Ausgangslage",
@@ -1638,8 +1639,7 @@
       "preparing": "Lagenabstand wird vorbereitet…",
       "presentation": "Darstellung",
       "reveal": "Lagenversatz",
-      "revealHint": "Ziehen, um Lagen sichtbar zu machen · Scrollen zum Zoomen",
-      "updating": "Auffächerung wird aktualisiert…"
+      "revealHint": "Ziehen, um Lagen sichtbar zu machen · Scrollen zum Zoomen"
     },
     "stepPane": {
       "annotate": "Annotieren",

@@ -1458,6 +1458,7 @@
       "pause": "일시정지",
       "percent": "{{value}}%",
       "play": "재생",
+      "preparing": "포즈 준비 중…",
       "previousSolution": "이전 층 순서",
       "reset": "포즈 초기화",
       "resetHint": "이미 처음 자세입니다",
@@ -1586,8 +1587,7 @@
       "preparing": "층 간격 준비 중…",
       "presentation": "표현 방식",
       "reveal": "층 드러내기",
-      "revealHint": "드래그하여 층 드러내기 · 스크롤하여 확대/축소",
-      "updating": "레이어 펼침 업데이트 중…"
+      "revealHint": "드래그하여 층 드러내기 · 스크롤하여 확대/축소"
     },
     "stepPane": {
       "annotate": "주석",

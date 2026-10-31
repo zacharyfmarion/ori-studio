@@ -1540,6 +1540,7 @@
       "pause": "Pausar",
       "percent": "{{value}}%",
       "play": "Reproduzir",
+      "preparing": "Preparando pose…",
       "previousSolution": "Ordem de camadas anterior",
       "reset": "Redefinir pose",
       "resetHint": "Já está na pose inicial",
@@ -1690,8 +1691,7 @@
       "preparing": "Preparando separação…",
       "presentation": "Apresentação",
       "reveal": "Exibição de camadas",
-      "revealHint": "Arraste para revelar as camadas · Role para ampliar",
-      "updating": "Atualizando afastamento…"
+      "revealHint": "Arraste para revelar as camadas · Role para ampliar"
     },
     "stepPane": {
       "annotate": "Anotar",

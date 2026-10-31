@@ -16,14 +16,16 @@ class WorkerMock {
   }
 }
 const view = {} as ConnectedSpreadView;
-const frame = (zoom: number) => ({ zoom }) as SpreadFrame;
+const frame = (zoom: number) => ({ zoom, width: 800, height: 600 }) as SpreadFrame;
 const host = document.createElement('div');
 let root: ReturnType<typeof createRoot> | null = null;
 let render!: ReturnType<typeof useSpreadRenderer>;
-function Harness({ paint }: { paint: (bitmap: ImageBitmap) => void }) {
-  const result = useSpreadRenderer(view, paint);
+let commits = 0;
+function Harness({ paint, source = view }: { paint: (bitmap: ImageBitmap) => void; source?: ConnectedSpreadView }) {
+  const result = useSpreadRenderer(source, paint);
   useLayoutEffect(() => {
     render = result;
+    commits++;
   });
   return null;
 }
@@ -85,4 +87,27 @@ it('falls back if a graphics worker stops responding and closes a late frame', a
   await act(async () => worker.onmessage!({ data: { kind: 'frame', bitmap } }));
   expect(paint).not.toHaveBeenCalled();
   expect(bitmap.close).toHaveBeenCalledOnce();
+});
+
+it('waits for layout and a painted frame, resetting readiness when the model changes', async () => {
+  vi.stubGlobal('Worker', WorkerMock); root = createRoot(host);
+  const paint = vi.fn();
+  await act(async () => root!.render(<Harness paint={paint} />));
+  expect(render.status).toBe('preparing');
+  await act(async () => render.request({...frame(1), width:1, height:1}));
+  expect(workers[0]!.postMessage).toHaveBeenCalledTimes(1);
+  await act(async () => render.request(frame(1)));
+  const bitmap = {close:vi.fn()} as unknown as ImageBitmap;
+  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',bitmap}}));
+  expect(paint).toHaveBeenCalledWith(bitmap); expect(render.status).toBe('ready');
+  const readyCommits = commits;
+  await act(async () => render.request(frame(2)));
+  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',bitmap}}));
+  expect(commits).toBe(readyCommits); // Painting a live frame must not re-render React.
+  await act(async () => render.request(frame(3)));
+  expect(render.status).toBe('ready'); // Live updates do not re-block Pose.
+  await act(async () => root!.render(<Harness source={{} as ConnectedSpreadView} paint={paint} />));
+  expect(render.status).toBe('preparing');
+  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',bitmap}}));
+  expect(render.status).toBe('preparing'); expect(bitmap.close).toHaveBeenCalledOnce();
 });

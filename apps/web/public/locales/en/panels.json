@@ -1499,6 +1499,7 @@
       "pause": "Pause",
       "percent": "{{value}}%",
       "play": "Play",
+      "preparing": "Preparing pose…",
       "previousSolution": "Previous Layer Order",
       "reset": "Reset Pose",
       "resetHint": "Already in its starting pose",
@@ -1638,8 +1639,7 @@
       "preparing": "Preparing spread…",
       "presentation": "Presentation",
       "reveal": "Layer reveal",
-      "revealHint": "Drag to reveal layers · Scroll to zoom",
-      "updating": "Updating spread…"
+      "revealHint": "Drag to reveal layers · Scroll to zoom"
     },
     "stepPane": {
       "annotate": "Annotate",

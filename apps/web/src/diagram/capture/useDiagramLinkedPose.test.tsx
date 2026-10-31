@@ -20,6 +20,9 @@ import { ensureCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const preparation = vi.hoisted(() => ({ start: vi.fn() }));
+vi.mock('../../layer-spread/prepareConnected', () => ({ prepareConnected: (...args: unknown[]) => preparation.start(...args) }));
+
 const bindings = vi.hoisted(() => ({ runtime: null as CpCaptureRuntime | null }));
 vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../store/workspaceStore/cpFoldRuntimeBindings')>()),
@@ -234,4 +237,38 @@ describe('Set Upright in Pose', () => {
     act(() => letGoSecond());
     expect(setUpright()).toMatchObject({ disabled: true });
   });
+});
+
+
+it('keeps Pose busy after folding until spread preparation finishes, and stops on failure', async () => {
+  let fail!: (error: Error) => void;
+  const release = vi.fn();
+  preparation.start.mockReturnValue({promise:new Promise((_, reject)=>{fail=reject;}),release});
+  await flatStep({kind:'connected',version:1,amount:.5,reveal:[.8,.6]});
+  await act(async () => { await vi.waitFor(()=>expect(preparation.start).toHaveBeenCalled()); });
+  expect(bindings.runtime!.fold).toHaveBeenCalledOnce();
+  expect(seen.pose!.connectedPreparing).toBe(true);
+  expect(seen.pose!.connected).toBeNull();
+  await act(async () => fail(new Error('Spread unavailable')));
+  expect(seen.pose!.connectedPreparing).toBe(false);
+  expect(seen.pose!.connected).toBeNull();
+});
+
+it('does not let an old preparation clear a newer step’s loading state', async () => {
+  const finish: ((value: unknown)=>void)[] = [];
+  preparation.start.mockImplementation(()=>({promise:new Promise(resolve=>finish.push(resolve)),release:vi.fn()}));
+  const first = await flatStep({kind:'connected',version:1,amount:.5,reveal:[.8,.6]});
+  await act(async()=>{await vi.waitFor(()=>expect(finish).toHaveLength(1));});
+  const second = state().addDiagramStep()!;
+  const original = stepsIn(state().diagram!).find(step=>step.id===first)!;
+  await act(async()=>{
+    useWorkspaceStore.setState({diagram:{...state().diagram!,steps:stepsIn(state().diagram!).map(step=>step.id===second?{...original,id:second}:step)}});
+    root!.render(<Probe stepId={second}/>);
+  });
+  await act(async()=>{await vi.waitFor(()=>expect(finish).toHaveLength(2));});
+  await act(async()=>finish[0]!({}));
+  expect(seen.pose!.connectedPreparing).toBe(true);
+  await act(async()=>finish[1]!({}));
+  expect(seen.pose!.connectedPreparing).toBe(false);
+  expect(seen.pose!.connected).not.toBeNull();
 });

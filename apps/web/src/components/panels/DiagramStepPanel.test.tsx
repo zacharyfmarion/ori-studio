@@ -495,7 +495,7 @@ describe('DiagramStepPanel', () => {
         publishOpenLinkedPose('step-f', {
           actions,
           layerOrder: { count: '2 of 2+', label: 'Layer order 2 of 2+' },
-          spatial: null, connected: null, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
+          spatial: null, connected: null, connectedPreparing: false, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
           onCamera: () => {},
           registerLiveView: () => () => {},
           rotateTo,
@@ -548,7 +548,7 @@ describe('DiagramStepPanel', () => {
         publishOpenLinkedPose('step-f', {
           actions: buildDiagramLinkedPoseActions(poseState, { t, pose: verbs.pose }),
           layerOrder: null,
-          spatial: null, connected: null, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
+          spatial: null, connected: null, connectedPreparing: false, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
           onCamera: () => {},
           registerLiveView: () => () => {},
           rotateTo: () => {},

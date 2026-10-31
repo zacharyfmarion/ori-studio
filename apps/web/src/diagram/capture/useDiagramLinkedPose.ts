@@ -59,6 +59,7 @@ export interface DiagramLinkedSpread extends DiagramSpreadControls {
 
 export interface DiagramLinkedPose {
   connected: ConnectedSpreadView | null;
+  connectedPreparing: boolean;
   connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
   onReveal: (reveal: [number, number]) => void;
   setPresentation: (kind: SpreadPresentation['kind']) => Promise<void>;
@@ -179,9 +180,18 @@ export function useDiagramLinkedPose(
   const flat = source?.render.mode === 'folded-flat' ? source.render : null;
   const connectedKey = flat?.spread?.kind === 'connected' ? foldKey + ':' + flat.side + ':' + flat.foldCase : null;
   const connectedView = connectedKey && connected?.key === connectedKey ? connected.view : null;
+  const [finishedPreparation, setFinishedPreparation] = useState<string | null>(null);
   useEffect(() => {
-    if (controller && live && connectedKey && !connectedView) void controller.prepareConnected();
+    if (!controller || !live || !connectedKey || connectedView) return;
+    let current = true;
+    setFinishedPreparation(null);
+    // The controller reports failures through the capture lifecycle. In either
+    // case stop waiting: an unavailable spread must not leave an endless veil.
+    const finish = () => { if (current) setFinishedPreparation(connectedKey); };
+    void controller.prepareConnected().then(finish, finish);
+    return () => { current = false; };
   }, [controller, live, connectedKey, connectedView]);
+  const connectedPreparing = !!(live && connectedKey && !connectedView && finishedPreparation !== connectedKey);
   const onReveal = useCallback((reveal:[number,number]) => {
     if (readOnly || !controller) return;
     controller.previewSpread({ slider: 'reveal', value: reveal });
@@ -325,6 +335,7 @@ export function useDiagramLinkedPose(
             layerOrder,
             spatial: view,
             connected: connectedView,
+            connectedPreparing,
             connectedSpread: shownPreview?.spread.kind === 'connected' ? shownPreview.spread : flat?.spread?.kind === 'connected' ? flat.spread : null,
             setPresentation,
             onReveal,
@@ -346,6 +357,7 @@ export function useDiagramLinkedPose(
       layerOrder,
       view,
       connectedView,
+      connectedPreparing,
       shownPreview,
       flat,
       setPresentation,
