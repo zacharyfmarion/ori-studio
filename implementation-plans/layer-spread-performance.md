@@ -77,12 +77,14 @@ scoped Bodo CP snapshots, then `compare` on those exact saved projected meshes.
 The scripts document the commands. All model inputs, prepared meshes, output
 signatures and machine-specific reports stay outside the checkout.
 
-cpoogle uses every `truth.fold`, first layer solution, amount 100%, reveal
+cpoogle uses every `truth.fold`, first layer solution, height multiplier 1, reveal
 `[0.8, 0.6]`, front Diagram. The Bodo set contains the 191 flat-fold scopes from
 the external OSF benchmark; each uses the app's selected-crease folding path
-and step 168's spread settings (amount 103%, reveal approximately
+and step 168's spread settings (height multiplier 1.03, reveal approximately
 `[-1.7892, 0.8938]`). It measures the same settings across those geometries,
-not each step's saved legacy spread. Initial whole-document Bodo harness
+not each step's saved legacy spread. These amounts now display as 50% and
+51.5% after the Amount control was relabeled to 0–100%; the benchmark geometry
+is unchanged. Initial whole-document Bodo harness
 attempts were discarded and rerun using the correct scoped selection.
 
 One bounded Node worker runs at a time. Report folding, scene preparation,

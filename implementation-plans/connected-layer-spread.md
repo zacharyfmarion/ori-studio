@@ -107,8 +107,8 @@ retains its original shape or orientation at large amounts. The reference
 center stays fixed; fitting the viewport must not continuously recenter the
 changing silhouette while dragging.
 
-The solver's geometric limits describe the nominal pose. The existing 200%
-control deliberately doubles that pose, including its warp and slopes; do not
+The solver's geometric limits describe the nominal pose. The maximum Amount
+(now labeled 100%) deliberately doubles that pose, including its warp and slopes; do not
 describe those nominal bounds as guarantees at every slider value or clamp the
 slider back down through an unannounced second solve.
 
@@ -325,11 +325,12 @@ which currently only admits crease-pattern and flat-folded render modes.
 Switching presentations keeps amount and remembers each presentation's view.
 It does not refold, lose the selected order, or overwrite Simulated's pose.
 
-Starting product values are the prototype's no-query defaults: amount **100%**,
-range **0–200%**, reveal vector **(0.8, 0.6)**, whole-visible-surface reference
-and layer correction on. These numeric defaults are subject to the single-solve
-scale check above; 200% remains available. Amount is a multiple of the nominal
-solved opening, not a guaranteed equal physical gap everywhere. Keep the simple
+Starting product values, revised 2026-10-31: amount **25%**, range **0–100%**,
+reveal vector **(0.8, 0.6)**, whole-visible-surface reference and layer correction
+on. The display maps to the unchanged stored multiplier range **0–2**: 25% is
+0.5 and 100% is 2, retaining the prototype's maximum opening. Saved amounts
+are not rescaled. Amount multiplies the nominal solved opening; it is not a
+guaranteed equal physical gap everywhere. Keep the simple
 label **Spread amount**; do not expose “Normalized 50”, reference-face selection
 or optimizer weights in the product UI.
 
@@ -857,3 +858,19 @@ Validation for this follow-up:
 
 This closes the reproduced precision defects, not an all-model/all-device
 certification. Physical touch devices and other browser engines remain untested.
+
+## Amount control follow-up (2026-10-31)
+
+- [x] Display Default spread as 0–100% in the shared Fold/Diagram controls,
+  preserving the internal 0–2 range and existing saved poses.
+- [x] Use 25% (multiplier 0.5) for new defaults and Amount reset. Affine and
+  Depth retain their original percentage semantics.
+- [x] Verify range endpoints, reset, and unchanged saved values. All 228 tests
+  across eight affected suites passed; web lint and TypeScript passed.
+- [x] Check Chrome Canary on Bodo step 168: the existing multiplier 1.03
+  displayed as 51.5%; reset displayed 25%; Undo restored 51.5%. The original
+  file was not saved. Screenshot: `/tmp/ori-spread-perf-20261031/amount-25-canary.png`.
+
+No solver, renderer, serializer, CSS or native-shell changes in this follow-up.
+The prior production build and corpus benchmark were not repeated for a shared
+control conversion and default-value change.

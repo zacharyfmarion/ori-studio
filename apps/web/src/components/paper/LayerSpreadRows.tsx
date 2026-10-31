@@ -17,7 +17,7 @@ import type {
   LayerSpreadDrag,
   LayerSpreadToggle,
 } from '../../cp-workspace/folded/layerSpreadControls';
-import { SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_CONNECTED_SPREAD, SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
 import { LayerRevealControl } from './LayerRevealControl';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { AffineSpreadCredit } from './AffineSpreadCredit';
@@ -74,6 +74,8 @@ export function LayerSpreadRows({
       degrees: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(value),
     });
   const shown = spread?.spread;
+  // Default's percentage covers its full height range; saved multipliers stay unchanged.
+  const amountPercentScale = shown?.kind === 'connected' ? 100 / SPREAD_AMOUNT_RANGE.connected.max : 100;
   return (
     <>
       <ToggleRow
@@ -100,9 +102,9 @@ export function LayerSpreadRows({
           <SliderRow
             label={t('panels:diagram.pose.spreadAmount', 'Amount')}
             ariaLabel={t('panels:diagram.pose.spreadAmountName', 'Spread amount')}
-            value={shown.amount * 100}
-            min={SPREAD_AMOUNT_RANGE[shown.kind].min * 100}
-            max={SPREAD_AMOUNT_RANGE[shown.kind].max * 100}
+            value={shown.amount * amountPercentScale}
+            min={SPREAD_AMOUNT_RANGE[shown.kind].min * amountPercentScale}
+            max={SPREAD_AMOUNT_RANGE[shown.kind].max * amountPercentScale}
             step={AMOUNT_STEP_PERCENT}
             format={percent}
             valueText={(value) =>
@@ -120,14 +122,14 @@ export function LayerSpreadRows({
             }
             disabled={spread.disabled}
             title={spread.hint}
-            onChange={(value) => spread.preview('amount', value / 100)}
+            onChange={(value) => spread.preview('amount', value / amountPercentScale)}
             onGestureStart={spread.start}
             onGestureCommit={spread.commit}
             onReset={
               shown.kind === 'connected'
                 ? () => {
                     if (spread.start()) {
-                      spread.preview('amount', 1);
+                      spread.preview('amount', DEFAULT_CONNECTED_SPREAD.amount);
                       spread.commit();
                     }
                   }

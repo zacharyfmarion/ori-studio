@@ -67,11 +67,11 @@ export const DEFAULT_AFFINE_SPREAD: AffineSpreadOptions = {
 };
 
 /**
- * The spread a flat picture starts with when no earlier one has one, and
- * Spread Layers turned on takes then — Zach, 2026-10-05: "I want affine to be
- * the default option and the first displayed, and default to on".
+ * The spread a flat picture starts with when no earlier one has one.
+ * Amount is stored as a height multiplier (0–2); the UI shows 0–100%,
+ * so the default multiplier of 0.5 displays as 25%.
  */
-export const DEFAULT_CONNECTED_SPREAD: ConnectedSpread = { kind: 'connected', version: 1, amount: 1, reveal: [0.8, 0.6] };
+export const DEFAULT_CONNECTED_SPREAD: ConnectedSpread = { kind: 'connected', version: 1, amount: 0.5, reveal: [0.8, 0.6] };
 
 export const DEFAULT_LAYER_SPREAD: LayerSpreadOptions = DEFAULT_CONNECTED_SPREAD;
 
