@@ -334,6 +334,11 @@ guaranteed equal physical gap everywhere. Keep the simple
 label **Spread amount**; do not expose “Normalized 50”, reference-face selection
 or optimizer weights in the product UI.
 
+Perspective 3D applies twice the stored height multiplier before projection
+(2026-10-31 follow-up). Diagram retains the scale above. Both presentations
+keep the same slider value and reuse the same cached solution; the shared
+drawing path applies the extra height to faces and ink for live and final output.
+
 Compatibility must distinguish absent legacy fields from new defaults:
 
 - New Fold sequences explicitly store the connected default, so branch
@@ -890,3 +895,19 @@ Validation: 99 focused tests passed across reveal, Fold/Diagram controls,
 shared field rows, global progress toasts and live CSS selectors. Web lint and TypeScript passed.
 No geometry, file format, worker or native changes: no new corpus run, build,
 Rust/oracle run or Tauri check was needed for this presentation-only cleanup.
+
+## Perspective amount follow-up (2026-10-31)
+
+- [x] Double the height produced by Amount in Perspective 3D only. Keep
+  Diagram, stored amounts, defaults, reveal settings and the solver unchanged.
+- [x] Cover zero, default and maximum amounts from both camera hemispheres,
+  checking doubled faces/ink, live/final agreement, and unchanged Diagram output.
+  All 73 tests across six affected suites passed, plus web lint, TypeScript
+  and diff checks.
+
+Chrome Canary opened the crane example, but native UI actions stalled before
+the presentation check; no new interactive verification is claimed for this
+follow-up. No new solve or per-frame work beyond the scalar multiplication.
+No corpus benchmark, production rebuild, Rust/oracle or native-shell checks
+were repeated for this shared TS parameter adjustment. Stored pictures remain
+snapshots until their next recapture, as before.

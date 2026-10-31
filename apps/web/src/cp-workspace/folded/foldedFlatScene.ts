@@ -161,7 +161,11 @@ export function foldedFlatPaperScene(
     connectedInk.set(kernel, ink);
     }
     const spatial = options.presentation?.kind === 'perspective';
-    const spread = spatial ? { ...options.spread, reveal: [0, 0] as [number, number] } : options.spread;
+    // Perspective exaggerates height only; Diagram and the stored Amount stay unchanged.
+    // Apply it before projection so live faces, ink, picking and captures agree.
+    const spread = spatial
+      ? { ...options.spread, amount: options.spread.amount * 2, reveal: [0, 0] as [number, number] }
+      : options.spread;
     let drawing = connectedDrawing(kernel, options.connected, spread, options.toScenePx, ink);
     if (spatial) drawing = perspectiveDrawing(drawing, options.connected, options.presentation!);
     return connectedPaperScene(drawing, kernel.sheet * options.scale, !options.live);
