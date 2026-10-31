@@ -13,9 +13,9 @@ const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const preview = vi.fn(), amountPreview = vi.fn(), commit = vi.fn(), choose = vi.fn();
 let disabled = false;
-function Harness({ initial = DEFAULT_CONNECTED_SPREAD }: { initial?: LayerSpreadOptions }) {
+function Harness({ initial = DEFAULT_CONNECTED_SPREAD, busy = false }: { initial?: LayerSpreadOptions; busy?: boolean }) {
   const [spread, setSpread] = useState<LayerSpreadOptions>(initial);
-  const controls = layerSpreadControls(spread, { t, busy: false, hint: disabled ? 'Read-only' : undefined, kind: choose, direction: vi.fn(), keep: vi.fn() });
+  const controls = layerSpreadControls(spread, { t, busy, hint: disabled ? 'Read-only' : undefined, kind: choose, direction: vi.fn(), keep: vi.fn() });
   return <TooltipProvider><LayerSpreadRows toggle={{ pressed: true, disabled, run: vi.fn() }} spread={{ ...controls,
     start: () => !disabled, commit,
     preview: (field, value) => {
@@ -71,7 +71,7 @@ it.each<{ initial: LayerSpreadOptions; shown: string; max: string }>([
   expect(commit).not.toHaveBeenCalled();
 });
 
-it('offers Default, Affine and Depth even after Default is selected', () => {
+it('offers Default, Affine and Depth without extra captions or a busy-state layout row', async () => {
   const group = host.querySelector('[role="group"][aria-label="Spread by"]')!;
   expect([...group.querySelectorAll('button')].map(b => [b.textContent, b.getAttribute('aria-pressed')]))
     .toEqual([['Default', 'true'], ['Affine', 'false'], ['Depth', 'false']]);
@@ -79,6 +79,11 @@ it('offers Default, Affine and Depth even after Default is selected', () => {
   expect(choose).toHaveBeenCalledWith('affine');
   expect(host.textContent).not.toContain('Use new spread');
   expect(host.textContent).not.toContain('Reveal horizontally');
+  await act(async () => root.render(<Harness busy />));
+  expect(host.querySelector('[aria-busy="true"]')).not.toBeNull();
+  expect(host.querySelector('[data-field-note]')).toBeNull();
+  expect(host.textContent).not.toContain('Deeper layers');
+  expect(pad().getAttribute('aria-valuetext')).toContain('Deeper layers');
 });
 
 it('clicks and drags both coordinates, caps the rim, and commits only on release', () => {

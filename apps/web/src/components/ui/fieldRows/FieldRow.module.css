@@ -96,6 +96,7 @@
 
 .value[data-field-value='text'] {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
 }
 

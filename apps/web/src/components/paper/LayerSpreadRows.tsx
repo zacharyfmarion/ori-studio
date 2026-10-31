@@ -88,8 +88,7 @@ export function LayerSpreadRows({
       />
       {spread && shown && (
         <>
-          <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}
-            note={spread.busy ? t('panels:diagram.spread.updating', 'Updating spread…') : undefined}>
+          <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
             <span className={styles.kind} aria-busy={spread.busy || undefined}>
               <SegmentedControl size="sm" aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
                 value={shown.kind}

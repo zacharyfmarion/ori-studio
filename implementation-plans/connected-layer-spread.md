@@ -874,3 +874,19 @@ certification. Physical touch devices and other browser engines remain untested.
 No solver, renderer, serializer, CSS or native-shell changes in this follow-up.
 The prior production build and corpus benchmark were not repeated for a shared
 control conversion and default-value change.
+
+## Inspector cleanup (2026-10-31)
+
+- [x] Remove the inline “Updating spread…” note so busy state does not add a
+  row or shift controls. Keep the accessible busy state and existing global
+  folding progress toast; do not add a toast on every reveal edit.
+- [x] Remove the visible direction caption beneath the reveal pad, retaining
+  direction in its accessible value and the keyboard/drag hint.
+- [x] Center text-row values beside reset buttons in the shared FieldRow CSS
+  module. Chrome Canary visually confirms the percentage and reset alignment
+  on Bodo step 168. No saved file was changed.
+
+Validation: 99 focused tests passed across reveal, Fold/Diagram controls,
+shared field rows, global progress toasts and live CSS selectors. Web lint and TypeScript passed.
+No geometry, file format, worker or native changes: no new corpus run, build,
+Rust/oracle run or Tauri check was needed for this presentation-only cleanup.

@@ -25,5 +25,4 @@
 .axes { stroke: var(--border-subtle); fill: none; }
 .excluded { fill: var(--text-tertiary); opacity: 0.3; }
 .handle { fill: var(--accent-primary); stroke: color-mix(in srgb, var(--accent-primary) 20%, transparent); stroke-width: 5; }
-.caption { margin-top: var(--space-2); color: var(--text-secondary); font-size: 0.74rem; text-align: center; }
 .hint { margin: var(--space-2) var(--space-3) 0; color: var(--text-tertiary); font-size: 0.68rem; text-align: center; }

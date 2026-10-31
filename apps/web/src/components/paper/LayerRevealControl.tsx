@@ -77,7 +77,6 @@ export function LayerRevealControl({ spread }: { spread: LayerSpreadDrag }) {
           <circle cx={50 + value[0] * 21} cy={50 + value[1] * 21} r="5" className={styles.handle} />
         </svg>
       </button>
-      <div className={styles.caption}>{direction}</div>
       <div id={hintId} className={styles.hint}>{t('panels:diagram.spread.padHint', 'Drag to reveal layers. Arrow keys adjust; Shift moves farther.')}</div>
     </div>
   );
