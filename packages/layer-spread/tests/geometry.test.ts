@@ -85,6 +85,27 @@ describe('ordering in drawing, picking and vector output', () => {
     expect(pickSpread(mesh, [0.2, 0.2])?.face).toBe(0);
     expect(visibleFragments(mesh).map((p) => p.face)).toEqual([0]);
   });
+  it('keeps a known outline over lower paper when roundoff puts it outside its own triangle', () => {
+    const mesh = stack([[0, 1], [1, 2]], [2, 1, 0]);
+    mesh.positions[0] = [-1, -1, 2];
+    mesh.positions[1] = [2, -1, 2];
+    mesh.positions[2] = [-1, 2, 2];
+    mesh.positions[3] = [0, 1e-8, 1];
+    mesh.positions[4] = [1, 1e-8, 1];
+    // A higher-ranked flap covers only the second half of the outline.
+    mesh.positions[6] = [0.5, -1, 0];
+    mesh.positions[7] = [2, -1, 0];
+    mesh.positions[8] = [0.5, 2, 0];
+    expect(pickSpread(mesh, [0.25, 0])?.face).toBe(0);
+    expect(visibleLine(mesh, 1, [0, 0, 1], [1, 0, 1])).toEqual([[0, 0.5]]);
+  });
+  it('still clips a known outline using physical depth inside a projected cycle', () => {
+    const mesh = stack([[0, 1], [1, 2], [2, 0]], [1, 3, 2]);
+    mesh.positions[0][1] = 1e-8;
+    mesh.positions[1][1] = 1e-8;
+    expect(visibleLine(mesh, 0, [0, 0, 1], [1, 0, 1])).toEqual([]);
+    expect(visibleLine(mesh, 0, [0, 0, 4], [1, 0, 4])).toEqual([[0, 1]]);
+  });
   it('preserves physical depth where a projected cycle masks every face', () => {
     const mesh = stack(
       [
@@ -167,4 +188,40 @@ it('does not duplicate slivers when clipping touching and repeated edges', () =>
   const fragments = visibleFragments(mesh, 500);
   expect(fragments.length).toBeLessThan(12);
   expect(pickSpread(mesh, [0.2, 0.2])?.face).toBe(2);
+});
+
+it('drops numerically zero-width fragments without discarding real thin layers far from the origin', () => {
+  const mesh = stack([[0, 1]], [0, 1]);
+  mesh.positions = [
+    [4000, 3000, 0], [4100, 3000, 0], [4000, 3100, 0],
+    [4000, 3000, 1], [4100, 3000 + 1e-11, 1], [4000, 3100, 1],
+  ];
+  const fragments = visibleFragments(mesh);
+  expect(fragments.map((f) => f.face)).toEqual([1]);
+  mesh.positions[4][1] = 3000 + 1e-5;
+  expect(visibleFragments(mesh).some((f) => f.face === 0)).toBe(true);
+});
+
+it('clips physical crossings consistently when a model is translated far across the page', () => {
+  for (const offset of [0, 4000, -100000]) {
+    const mesh = stack([], [0, 0]);
+    mesh.positions[3][2] = -1;
+    mesh.positions[4][2] = 1;
+    mesh.positions[5][2] = -1;
+    for (const p of mesh.positions) { p[0] += offset; p[1] -= offset; }
+    const visible = visibleLine(mesh, 0, [offset, 0.1 - offset, 0], [offset + 0.8, 0.1 - offset, 0]);
+    expect(visible).toHaveLength(1);
+    expect(visible[0][0]).toBe(0);
+    expect(visible[0][1]).toBeCloseTo(0.625, 8);
+    const area = visibleFragments(mesh).reduce((total, f) => {
+      const [o, ...ring] = f.polygon;
+      let twice = 0;
+      for (let i = 0; i + 1 < ring.length; i++) {
+        const a = ring[i], b = ring[i + 1];
+        twice += (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+      }
+      return total + Math.abs(twice) / 2;
+    }, 0);
+    expect(area).toBeCloseTo(0.5, 8);
+  }
 });

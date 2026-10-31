@@ -1,4 +1,4 @@
-import { barycentric } from '@oristudio/layer-spread';
+import { barycentric, type Point3 } from '@oristudio/layer-spread';
 import { paperSceneToFoldedGeometry, type FoldedSceneInk } from '../cp-workspace/adapters/cpFoldedToScene';
 import type { SpreadGeometry } from '../cp-workspace/renderer/programs/spreadProgram';
 import type { PaperScene, PaperItem } from '../lib/paper/paperScene';
@@ -20,15 +20,31 @@ export function spreadGeometry(scene: ConnectedPaperScene, style: PaperStyle, in
   const items: PaperItem[][] = front.map(() => []);
   for (const item of scene.items)
     if (item.kind !== 'markup' && !item.hidden && item.face !== undefined) items[item.face]!.push(item);
-  const triangles: number[][] = front.map(() => []);
-  mesh.triangleFaces.forEach((f, t) => triangles[f]!.push(t));
+  const triangles: Point3[][][] = front.map(() => []);
+  mesh.triangleFaces.forEach((f, t) => triangles[f]!.push(mesh.triangles[t]!.map((v) => mesh.positions[v]!)));
   const depth = (face: number, x: number, y: number): number => {
-    for (const t of triangles[face]!) {
-      const p = mesh.triangles[t]!.map((v) => mesh.positions[v]!);
+    let distance = Infinity;
+    let closest = lo;
+    for (const p of triangles[face]!) {
       const w = barycentric(p[0]!, p[1]!, p[2]!, [x, y]);
-      if (w && Math.min(...w) > -1e-5) return (w.reduce((s, v, k) => s + v * p[k]![2], 0) - lo) / span;
+      if (w && Math.min(...w) >= 0) return (w.reduce((s, v, k) => s + v * p[k]![2], 0) - lo) / span;
+      // The adapter's GPU positions are Float32. Rounding a boundary at large
+      // page coordinates can put it outside every double-precision triangle,
+      // especially on thin flaps. Extend depth from the nearest material edge
+      // continuously instead of snapping that vertex to an arbitrary mid-plane.
+      for (let i = 0; i < 3; i++) {
+        const a = p[i]!, b = p[(i + 1) % 3]!;
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const length2 = dx * dx + dy * dy;
+        const u = length2 > 0 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / length2)) : 0;
+        const d = (x - a[0] - u * dx) ** 2 + (y - a[1] - u * dy) ** 2;
+        if (d < distance) {
+          distance = d;
+          closest = a[2] + u * (b[2] - a[2]);
+        }
+      }
     }
-    return 0.5;
+    return (closest - lo) / span;
   };
   const faces = items.map((items, face) => {
     const plain: PaperScene = { items, sheet: scene.sheet, bounds: scene.bounds };

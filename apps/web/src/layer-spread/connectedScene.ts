@@ -4,7 +4,7 @@ import {
   pickSpread,
   visibility,
   visibleFragments,
-  visibleLine,
+  createLineClipper,
   type ConnectedSpread,
   type Point3,
   type ProjectedSpread,
@@ -122,12 +122,13 @@ export function connectedPaperScene(drawing: ConnectedDrawing, sheet: number, re
       shade: 1,
       hidden: false,
     });
+  const clipLine = resolved ? createLineClipper(mesh) : null;
   for (const edge of ink) {
-    if (!resolved) {
+    if (!clipLine) {
       items.push(edge.line);
       continue;
     }
-    for (const [lo, hi] of visibleLine(mesh, edge.face, edge.a, edge.b)) {
+    for (const [lo, hi] of clipLine(edge.face, edge.a, edge.b)) {
       const at = (t: number): ScenePoint => [
         edge.a[0] + t * (edge.b[0] - edge.a[0]),
         edge.a[1] + t * (edge.b[1] - edge.a[1]),

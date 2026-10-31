@@ -1,6 +1,5 @@
-import type { Point, Point3, ProjectedSpread, SpreadPick } from './types.js';
-import { barycentric } from './projection.js';
-import { pickSpread } from './visibility.js';
+import type { Point, Point3, ProjectedSpread } from './types.js';
+import { coveringTriangles, winner } from './visibility.js';
 
 export class SpreadComplexityError extends Error {
   constructor() {
@@ -15,7 +14,14 @@ export interface VisibleFragment {
   polygon: Point[];
 }
 type Box = [number, number, number, number];
-type Plane = [number, number, number];
+// Evaluate relative to a point on the primitive. Global ax + by + c loses
+// precision when a small fold sits far from the page origin.
+interface Plane {
+  x: number;
+  y: number;
+  z: number;
+  origin: Point;
+}
 const EPS = 1e-10;
 
 export function bounds(points: readonly (readonly number[])[]): Box {
@@ -29,21 +35,40 @@ export function bounds(points: readonly (readonly number[])[]): Box {
   return box;
 }
 const overlap = (a: Box, b: Box) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
-const value = (line: Plane, p: Point) => line[0] * p[0] + line[1] * p[1] + line[2];
+const value = (line: Plane, p: Point) => line.x * (p[0] - line.origin[0]) + line.y * (p[1] - line.origin[1]) + line.z;
+const difference = (a: Plane, b: Plane): Plane => ({
+  x: a.x - b.x,
+  y: a.y - b.y,
+  z: value(a, b.origin) - b.z,
+  origin: b.origin,
+});
+const coincident = (plane: Plane) => Math.max(Math.abs(plane.x), Math.abs(plane.y), Math.abs(plane.z)) < EPS;
 function area(p: readonly Point[]): number {
+  if (!p.length) return 0;
+  const [x, y] = p[0];
   return (
     p.reduce((s, a, i) => {
       const b = p[(i + 1) % p.length];
-      return s + a[0] * b[1] - a[1] * b[0];
+      return s + (a[0] - x) * (b[1] - y) - (a[1] - y) * (b[0] - x);
     }, 0) / 2
   );
 }
 function clean(p: Point[]): Point[] {
+  // Repeated clipping can leave rings only a few coordinate ULPs wide. They
+  // have no reliable area, but the SVG seam-closing stroke makes them visible.
+  // Scale by coordinate precision and perimeter, not a visual/pixel threshold:
+  // real narrow layers must survive at every zoom and translation.
+  let magnitude = 1;
+  for (const point of p) magnitude = Math.max(magnitude, Math.abs(point[0]), Math.abs(point[1]));
+  const tolerance = 32 * Number.EPSILON * magnitude;
+  let perimeter = 0;
   const ring = p.filter((a, i) => {
     const b = p[(i + 1) % p.length];
-    return Math.hypot(a[0] - b[0], a[1] - b[1]) > 1e-12;
+    const length = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    perimeter += length;
+    return length > tolerance;
   });
-  return ring.length >= 3 && Math.abs(area(ring)) > 1e-16 ? ring : [];
+  return ring.length >= 3 && Math.abs(area(ring)) > tolerance * perimeter ? ring : [];
 }
 function clip(polygon: readonly Point[], line: Plane): Point[] {
   const out: Point[] = [];
@@ -67,9 +92,9 @@ function edges(polygon: readonly Point[]): Plane[] {
   return polygon
     .map((a, i) => {
       const b = polygon[(i + 1) % polygon.length];
-      return [s * (a[1] - b[1]), s * (b[0] - a[0]), s * (a[0] * b[1] - a[1] * b[0])] as Plane;
+      return { x: s * (a[1] - b[1]), y: s * (b[0] - a[0]), z: 0, origin: a };
     })
-    .filter((line) => Math.hypot(line[0], line[1]) > 1e-14);
+    .filter((line) => Math.hypot(line.x, line.y) > 1e-14);
 }
 function partition(subject: Point[], mask: readonly Point[]): { outside: Point[][]; inside: Point[] } {
   const halfplanes = edges(mask);
@@ -81,7 +106,7 @@ function partition(subject: Point[], mask: readonly Point[]): { outside: Point[]
   let inside = subject;
   const outside: Point[][] = [];
   for (const edge of halfplanes) {
-    const out = clip(inside, edge.map((x) => -x) as Plane);
+    const out = clip(inside, { ...edge, x: -edge.x, y: -edge.y, z: -edge.z });
     if (out.length) outside.push(out);
     inside = clip(inside, edge);
     if (!inside.length) break;
@@ -90,13 +115,16 @@ function partition(subject: Point[], mask: readonly Point[]): { outside: Point[]
 }
 function depthPlane(points: Point3[]): Plane | null {
   const [a, b, c] = points;
-  const u = barycentric(a, b, c, [0, 0]),
-    v = barycentric(a, b, c, [1, 0]),
-    w = barycentric(a, b, c, [0, 1]);
-  if (!u || !v || !w) return null;
-  const at = (weights: Point3) => weights.reduce((s, x, i) => s + x * points[i][2], 0);
-  const z = at(u);
-  return [at(v) - z, at(w) - z, z];
+  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+  const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  const determinant = ux * vy - uy * vx;
+  if (Math.abs(determinant) < 1e-16) return null;
+  return {
+    x: (uz * vy - uy * vz) / determinant,
+    y: (ux * vz - uz * vx) / determinant,
+    z: a[2],
+    origin: [a[0], a[1]],
+  };
 }
 function candidates(mesh: ProjectedSpread): number[][] {
   const boxes = mesh.triangles.map((ids) => bounds(ids.map((v) => mesh.positions[v])));
@@ -122,7 +150,7 @@ function candidates(mesh: ProjectedSpread): number[][] {
  * arrangement avoids unbounded allocations on pathological projected meshes.
  */
 export function visibleFragments(mesh: ProjectedSpread, budget = 2_000_000): VisibleFragment[] {
-  const polygons = mesh.triangles.map((ids) => ids.map((v) => mesh.positions[v].slice(0, 2) as Point));
+  const polygons = mesh.triangles.map((ids) => clean(ids.map((v) => mesh.positions[v].slice(0, 2) as Point)));
   const planes = mesh.triangles.map((ids) => depthPlane(ids.map((v) => mesh.positions[v])));
   const neighbors = candidates(mesh),
     out: VisibleFragment[] = [];
@@ -132,7 +160,7 @@ export function visibleFragments(mesh: ProjectedSpread, budget = 2_000_000): Vis
   };
   for (let t = 0; t < polygons.length; t++) {
     const own = planes[t];
-    if (!own) continue;
+    if (!own || !polygons[t].length) continue;
     const face = mesh.triangleFaces[t];
     const ranks = mesh.visibility.ranks;
     if (ranks) {
@@ -140,12 +168,12 @@ export function visibleFragments(mesh: ProjectedSpread, budget = 2_000_000): Vis
       for (const other of neighbors[t]) {
         const f = mesh.triangleFaces[other],
           plane = planes[other];
-        if (!plane || ranks[f] < ranks[face]) continue;
+        if (!plane || !polygons[other].length || ranks[f] < ranks[face]) continue;
         let mask = polygons[other];
         if (ranks[f] === ranks[face]) {
-          const delta = plane.map((v, k) => v - own[k]) as Plane;
+          const delta = difference(plane, own);
           // Exact ties follow triangle draw order, consistently with picking.
-          if (Math.max(...delta.map(Math.abs)) < EPS) {
+          if (coincident(delta)) {
             if (other < t) continue;
           } else mask = clip(mask, delta);
         }
@@ -177,7 +205,7 @@ function cyclicFragments(
   charge: () => void,
 ): VisibleFragment[] {
   const original: Piece[] = polygons.flatMap((polygon, triangle) =>
-    planes[triangle] ? [{ triangle, face: mesh.triangleFaces[triangle], polygon, box: bounds(polygon) }] : [],
+    planes[triangle] && polygon.length ? [{ triangle, face: mesh.triangleFaces[triangle], polygon, box: bounds(polygon) }] : [],
   );
   const boxes = polygons.map(bounds);
   const subtract = (pieces: Point[][], mask: Point[], box: Box): Point[][] =>
@@ -191,7 +219,7 @@ function cyclicFragments(
     const blockers = new Set(mesh.visibility.above[own.face]);
     let pieces = [own.polygon];
     for (const other of neighbors[own.triangle]) {
-      if (!blockers.has(mesh.triangleFaces[other])) continue;
+      if (!polygons[other].length || !blockers.has(mesh.triangleFaces[other])) continue;
       pieces = subtract(pieces, polygons[other], boxes[other]);
       if (!pieces.length) break;
     }
@@ -218,9 +246,9 @@ function cyclicFragments(
       for (const other of sorted) {
         if (other.box[0] > own.box[2]) break;
         if (other.triangle === own.triangle || !overlap(own.box, other.box)) continue;
-        const delta = planes[other.triangle]!.map((v, k) => v - planes[own.triangle]![k]) as Plane;
+        const delta = difference(planes[other.triangle]!, planes[own.triangle]!);
         let mask = other.polygon;
-        if (Math.max(...delta.map(Math.abs)) < EPS) {
+        if (coincident(delta)) {
           if (other.triangle < own.triangle) continue;
         } else mask = clip(mask, delta);
         if (!mask.length) continue;
@@ -234,18 +262,41 @@ function cyclicFragments(
   return [...physical(fallback), ...physical(survivors)];
 }
 
+/** Prepare once for all the ink in one immutable posed mesh. This is scoped to
+ * the capture, not a persistent cache: camera/pose changes get fresh planes. */
+export function createLineClipper(mesh: ProjectedSpread): (face: number, a: Point3, b: Point3) => [number, number][] {
+  const owners = new Map<number, number>();
+  const geometry = mesh.triangles.map((ids, triangle) => {
+    owners.set(mesh.triangleFaces[triangle], triangle);
+    const points = ids.map((v) => mesh.positions[v]);
+    return { box: bounds(points), edges: edges(points.map((p) => [p[0], p[1]])), plane: depthPlane(points) };
+  });
+  return (face, a, b) => lineIntervals(mesh, face, a, b, geometry, owners.get(face) ?? -1);
+}
+
 /** Visibility intervals of an original edge. Clipping boundaries are never ink. */
 export function visibleLine(mesh: ProjectedSpread, face: number, a: Point3, b: Point3): [number, number][] {
+  return createLineClipper(mesh)(face, a, b);
+}
+
+function lineIntervals(
+  mesh: ProjectedSpread,
+  face: number,
+  a: Point3,
+  b: Point3,
+  geometry: { box: Box; edges: Plane[]; plane: Plane | null }[],
+  owner: number,
+): [number, number][] {
   const box = bounds([a, b]);
   const cuts = [0, 1],
     near: number[] = [];
   const dx = b[0] - a[0],
     dy = b[1] - a[1];
-  for (let t = 0; t < mesh.triangles.length; t++) {
-    const p = mesh.triangles[t].map((v) => mesh.positions[v]);
-    if (!overlap(box, bounds(p))) continue;
+  for (let t = 0; t < geometry.length; t++) {
+    const triangle = geometry[t];
+    if (!overlap(box, triangle.box)) continue;
     near.push(t);
-    for (const edge of edges(p.map((v) => [v[0], v[1]]))) {
+    for (const edge of triangle.edges) {
       const va = value(edge, [a[0], a[1]]),
         vb = value(edge, [b[0], b[1]]),
         denom = va - vb;
@@ -254,7 +305,7 @@ export function visibleLine(mesh: ProjectedSpread, face: number, a: Point3, b: P
         if (u > 0 && u < 1) cuts.push(u);
       }
     }
-    const plane = depthPlane(p);
+    const plane = triangle.plane;
     if (plane) {
       const va = a[2] - value(plane, [a[0], a[1]]),
         vb = b[2] - value(plane, [b[0], b[1]]);
@@ -271,7 +322,17 @@ export function visibleLine(mesh: ProjectedSpread, face: number, a: Point3, b: P
       hi = cuts[i];
     if (hi - lo < 1e-9) continue;
     const u = (lo + hi) / 2;
-    const pick: SpreadPick | null = pickSpread(mesh, [a[0] + u * dx, a[1] + u * dy], near);
+    // Ink already carries its material owner and interpolated depth. At an
+    // outline, roundoff can place its midpoint just outside the owner's fill;
+    // do not rediscover that ownership with a point-in-triangle test. Other
+    // covering faces still occlude it through the same rank/cycle/depth rule.
+    const pick = winner(
+      [
+        ...coveringTriangles(mesh, [a[0] + u * dx, a[1] + u * dy], near),
+        { face, triangle: owner, depth: a[2] + u * (b[2] - a[2]) },
+      ],
+      mesh.visibility,
+    );
     if (pick?.face !== face) continue;
     const last = out[out.length - 1];
     if (last && Math.abs(last[1] - lo) < 1e-9) last[1] = hi;

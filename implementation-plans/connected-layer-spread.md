@@ -783,11 +783,77 @@ No additional solver or duplicate final capture was introduced for idle display.
   presentation choices; Perspective camera toolbar; camera retained after
   Done/reopen; return to Diagram; idle final image; matching saved artwork in
   Pages. Local screenshot: `/tmp/ori-spread-review-perspective.png`.
-- Chrome Canary is blocked by the locked Mac; automatic unlock failed and the
-  user was asked to unlock it. The prior Canary/Bodo checks above do not certify
-  this audit's fixes. Native pointer orbit/touch and current Canary checks remain
-  outstanding. No private source file was saved or committed.
+- Chrome Canary was unavailable at this audit checkpoint. The follow-up below
+  records the later exact-file Canary verification and remaining input-tool
+  limitations. No private source file was saved or committed.
 
 This audit changes shared frontend scheduling, presentation, and optional
 capture metadata. It does not change the native shell or upstream folding
 semantics; interactive Tauri and upstream oracle runs were not repeated.
+
+## Live and settled ink parity (2026-10-31)
+
+Investigate the reported Bodo fish regression at rest and line flicker during
+parameter changes. Compare actual vector/raster capture against live geometry,
+including line visibility at shared boundaries, pen treatment, depth precision,
+and asynchronous frame/picture handoff. Keep expensive clipping off interaction.
+
+- [x] Reproduce on the external Bodo document and identify the differing paths.
+- [x] Correct verified rendering/visibility or handoff defects with focused regressions.
+- [x] Check settled Pages output, parameter gestures, zoom and both presentations.
+- [x] Run relevant validation and record actual performance/coverage limits.
+
+The supplied external document's step 168 has 820 faces and 1,326 triangles,
+with an acyclic layer order. Its saved pose and computed framing agree. Three
+precision defects explained the discrepancy:
+
+- Line clipping rediscovered ownership by testing a midpoint against face
+  triangles. A midpoint on an outline could round outside its owner, making a
+  lower face win and removing a valid 123-unit outline. Ink now includes its
+  known material owner and interpolated depth in the canonical winner rule;
+  genuinely higher covering faces still hide it, including cyclic-order cases.
+- Clipping at large page coordinates produced essentially zero-area polygons.
+  The SVG seam-closing fill stroke made these visible as white cuts. Relative
+  half-planes, analytic depth planes, stable polygon area, and coordinate-ULP
+  cleanup remove these artifacts without dropping real thin layers. Step 168
+  went from 980 fragments (68 numerical slivers) to 710 (zero such slivers).
+- Float32 GPU positions could miss every double-precision triangle and receive
+  an arbitrary 0.5 depth. Nearest material-edge interpolation replaces that
+  discontinuity. There were 447 affected fill vertices and 1,430 stroke
+  endpoints on step 168; none remain. Ink bias now accounts for depth-buffer
+  precision instead of vanishing when divided across hundreds of layer bands.
+  It stays within a band's reserved margin so it cannot jump an ordered layer.
+
+Prepared triangle planes/bounds are reused across all lines in one capture,
+then released. There is no new persistent cache, solve, or interaction-time
+clipping. A local diagnostic measured 146 ms polygon clipping and 3,741 ms ink
+clipping for step 168; final capture remains expensive worker work. Isolated
+GPU-geometry preparation measured 16.3 ms median / 17.0 ms p95 (before: 15.8 /
+30.8 ms). These are local stage timings, not end-to-end interaction latency or
+a new corpus benchmark.
+
+Validation for this follow-up:
+
+- Shared geometry: 15 passing tests. Focused web suites: 45 files / 349 tests,
+  covering spread geometry, capture, picture metadata/framing, idle handoff,
+  layer ordering, context loss, and quantized 16/24/32-bit depth. Lint,
+  TypeScript, package build and diff checks passed.
+- The normal production build passed with WASM hooks and landing prerender.
+  The frontend bundle and explicit prerender passed again after the ink-bias
+  change. Rust, upstream oracles, full web suite, and interactive Tauri were
+  not repeated: this follow-up changes shared TS rendering only; the current
+  targeted suites cover it. The earlier full-suite results above are historical.
+- Chrome Canary opened the supplied 433 MB document, selected step 168, captured
+  the corrected pose, and displayed that artwork in Pages. Native scroll/drag
+  automation later returned `noWindowsAvailable`; this limits the final Canary
+  pointer verification, not file loading or settled rendering.
+- In-app Chromium additionally verified final-code wheel zoom and idle handoff,
+  amount/reveal changes, Perspective 3D orbit (yaw/pitch changed), and return to
+  Diagram. Corrected screenshot: `/tmp/ori-spread-ink-review/final-recaptured.png`.
+- Existing saved pictures remain snapshots until recaptured. Opening the old
+  regression file alone can therefore still show its old white cuts at rest;
+  nudging Amount and restoring 103% regenerated the picture for these tests.
+  The original file was never saved, uploaded, or committed.
+
+This closes the reproduced precision defects, not an all-model/all-device
+certification. Physical touch devices and other browser engines remain untested.

@@ -28,7 +28,10 @@ export function visibility(faceCount: number, orders: readonly Point[], back = f
 }
 
 /** Exact same winner rule as the depth-band / local-mask GPU pass. */
-export function winner(candidates: readonly SpreadPick[], order: Visibility): SpreadPick | null {
+export function winner<T extends Pick<SpreadPick, 'face' | 'triangle' | 'depth'>>(
+  candidates: readonly T[],
+  order: Visibility,
+): T | null {
   if (!candidates.length) return null;
   let eligible = candidates;
   if (order.ranks) {
@@ -45,7 +48,7 @@ export function winner(candidates: readonly SpreadPick[], order: Visibility): Sp
   );
 }
 
-export function pickSpread(mesh: ProjectedSpread, point: Point, triangles?: readonly number[]): SpreadPick | null {
+export function coveringTriangles(mesh: ProjectedSpread, point: Point, triangles?: readonly number[]): SpreadPick[] {
   const candidates: SpreadPick[] = [];
   const ids = triangles ?? mesh.triangles.map((_, t) => t);
   for (const t of ids) {
@@ -59,7 +62,11 @@ export function pickSpread(mesh: ProjectedSpread, point: Point, triangles?: read
       depth: weights.reduce((s, w, i) => s + w * corners[i][2], 0),
     });
   }
-  return winner(candidates, mesh.visibility);
+  return candidates;
+}
+
+export function pickSpread(mesh: ProjectedSpread, point: Point, triangles?: readonly number[]): SpreadPick | null {
+  return winner(coveringTriangles(mesh, point, triangles), mesh.visibility);
 }
 
 /** Keep the previous side in the edge-on band; cold captures default to front. */

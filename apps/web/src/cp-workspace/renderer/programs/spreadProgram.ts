@@ -3,6 +3,7 @@ import type { Visibility } from '@oristudio/layer-spread';
 import type { FillGeometry, StrokeGeometry, ViewTransform, Viewport } from '../types';
 import { createStrokeProgram, type StrokeProgram } from './strokeProgram';
 import { disposeOnce } from './disposeOnce';
+import { spreadInkDepthBias } from './spreadDepth';
 
 type Regl = ReturnType<typeof createREGL>;
 type Buffer = ReturnType<Regl['buffer']>;
@@ -53,6 +54,7 @@ const FRAG = `precision highp float;varying vec4 ink;void main(){gl_FragColor=ve
 export function createSpreadProgram(regl: Regl) {
   let faces: FaceBuffers[] = [];
   let order: Visibility | null = null;
+  const depthBits = Number(regl._gl.getParameter(regl._gl.DEPTH_BITS)) || 16;
   const drawFill = regl<
     {
       origin: number[];
@@ -160,6 +162,7 @@ export function createSpreadProgram(regl: Regl) {
     }
     order = data.visibility;
     const bands = order.ranks ? Math.max(...order.ranks) + 1 : 1;
+    const inkBias = spreadInkDepthBias(bands, depthBits);
     const boxes = data.faces.map(({ fills }) => {
       let minX = Infinity,
         minY = Infinity,
@@ -217,7 +220,7 @@ export function createSpreadProgram(regl: Regl) {
           target.maskCount = length / 2;
         }
       }
-      const depth = (a: Float32Array | undefined) => a?.map((v) => (rank + 0.1 + 0.8 * v) / bands + 1e-6 / bands);
+      const depth = (a: Float32Array | undefined) => a?.map((v) => (rank + 0.1 + 0.8 * v) / bands + inkBias);
       target.ink.setData({
         ...geometry.strokes,
         depth: depth(geometry.strokes.depth),
