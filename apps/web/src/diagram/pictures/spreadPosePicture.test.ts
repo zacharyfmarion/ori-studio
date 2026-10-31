@@ -7,6 +7,7 @@ import { scenePicture } from '../document/diagramSteps.fixtures';
 import { paintScene } from './paintDiagramStep';
 import { stepPictureUrl } from './useStepPictureUrl';
 import { posePictureBounds, spreadPosePicture, spreadPosePictureFrame } from './spreadPosePicture';
+import { diagramScenePaintStyle } from './diagramPaperStyle';
 
 const view = { prepared: { source: {
   input: { xy: [[-1, -1], [1, 1]] },
@@ -15,6 +16,26 @@ const view = { prepared: { source: {
 const style = DEFAULT_DIAGRAM_STYLE;
 
 describe('the final spread picture in a live viewport', () => {
+  it.each([1, 2])('matches the ordinary flat picture fit before spread is enabled (pixel ratio %s)', (pixelRatio) => {
+    const flatView = { prepared: { source: { ...view.prepared.source,
+      input: { xy: [[-120, -50], [120, 50]] },
+    } } } as ConnectedSpreadView;
+    const picture = scenePicture('flat');
+    const scene = JSON.parse(picture.sceneJson);
+    scene.bounds = { minX: -120 * CAPTURE_PX_PER_UNIT, minY: -50 * CAPTURE_PX_PER_UNIT,
+      maxX: 120 * CAPTURE_PX_PER_UNIT, maxY: 50 * CAPTURE_PX_PER_UNIT };
+    const source = { kind: 'scene' as const, picture: { ...picture, sceneJson: JSON.stringify(scene) }, pattern: false };
+    const painted = paintScene(source, style)!;
+    for (const [width, height] of [[900,600], [400,800]]) {
+      const fitted = Math.min((width!-40)/painted.widthPx, (height!-84)/painted.heightPx);
+      const expectedWidth = painted.frame.width * fitted * pixelRatio;
+      const frame = spreadFrame(flatView, 0, false, width!*pixelRatio, height!*pixelRatio, 1,
+        diagramScenePaintStyle(style, false), pixelRatio);
+      expect(240 * frame.scale).toBeCloseTo(expectedWidth);
+      expect(frame.x).toBeCloseTo(width!*pixelRatio/2);
+      expect(frame.y).toBeCloseTo((height!/2-22)*pixelRatio);
+    }
+  });
   it('uses the same painted scene as Pages', () => {
     const source = { kind: 'scene' as const, picture: scenePicture('scene'), pattern: false };
     const result = spreadPosePicture(source, style, 'annotated-fallback.svg');

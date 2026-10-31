@@ -43,11 +43,14 @@ export function DiagramPoseStage({
   children,
   hint,
   cameraReadout = true,
+  fullHeight = false,
 }: {
   /** Final Pages rendering at rest; the live canvas and its controls stay mounted. */
   finalPicture?: ReactNode;
   hint?: string;
   cameraReadout?: boolean;
+  /** Diagram framing includes toolbar clearance in its camera fit already. */
+  fullHeight?: boolean;
   /** The view's own state, for the inspector (`data-status`). */
   status: string;
   /** Laid out but not shown: a view still loading sizes itself under the picture. */
@@ -60,7 +63,7 @@ export function DiagramPoseStage({
 }) {
   const { t } = useTranslation();
   return (
-    <div className={styles.view} data-status={status} data-hidden={hidden || undefined} data-final={!!finalPicture || undefined}>
+    <div className={styles.view} data-full-height={fullHeight || undefined} data-status={status} data-hidden={hidden || undefined} data-final={!!finalPicture || undefined}>
       {finalPicture}
       {children(styles.canvas)}
       {ghost && (

@@ -38,7 +38,7 @@ export function preparedInk(source: ConnectedSpreadSource, items: readonly Paper
       to = sourcePoint(source, { x: line.b[0], y: line.b[1] });
     for (const segment of faceLineSegments(source.input, face, from, to))
       result.push({
-        line,
+        line: { ...line, onBoundary: [segment.lo === 0 && line.onBoundary[0], segment.hi === 1 && line.onBoundary[1]] },
         face,
         ids: segment.ids,
         a: segment.wa,

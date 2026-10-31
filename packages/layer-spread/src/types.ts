@@ -51,8 +51,11 @@ export interface ProjectedSpread {
   visibility: Visibility;
 }
 export interface Visibility {
-  /** Null for a cyclic graph, otherwise longest-path ranks. */
+  /** Depth bands only when every comparison between bands is a direct known
+   * relation. Partial orders and cycles use per-face blockers instead. */
   ranks: number[] | null;
+  /** False allows vector capture to skip the all-masked-cycle fallback. */
+  cyclic?: boolean;
   /** Direct known blockers, including every piece of a blocking flat layer;
    * without transitive closure through other layers. */
   above: number[][];

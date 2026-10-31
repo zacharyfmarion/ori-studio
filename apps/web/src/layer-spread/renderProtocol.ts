@@ -9,6 +9,7 @@ export interface SpreadFrame {
   width: number;
   height: number;
   zoom: number;
+  pixelRatio?: number;
   style: PaperStyle;
 }
 export type SpreadRenderMessage = { kind: 'source'; view: ConnectedSpreadView } | { kind: 'frame'; frame: SpreadFrame };

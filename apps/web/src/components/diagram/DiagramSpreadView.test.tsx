@@ -104,6 +104,21 @@ it('keeps previews live until the saved spread catches up, with no new solve or 
   expect(renderer.request.mock.lastCall![0].spread).toEqual(spread);
 });
 
+it('shares viewing zoom with the host and accumulates wheel input before the host rerenders', async () => {
+  const onZoom = vi.fn();
+  await show({ zoom: 1.2, onZoom });
+  const canvas = host.querySelector('canvas')!;
+  await act(async () => viewport.onCanvasChange?.(canvas));
+  expect(host.querySelector('[data-full-height]')).not.toBeNull();
+  act(() => {
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }));
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }));
+  });
+  expect(onZoom).toHaveBeenLastCalledWith(1.2 * Math.exp(.1) * Math.exp(.1));
+  await show({ zoom: onZoom.mock.lastCall![0] });
+  expect(renderer.request.mock.lastCall![0].zoom).toBeCloseTo(1.2 * Math.exp(.2));
+});
+
 it('never covers a newer orbit with an older picture or late image decode', async () => {
   const camera = { yaw: 0, pitch: 0, zoom: 1 };
   await show({ presentation: { kind: 'perspective', camera, orderSide: 'front' } });

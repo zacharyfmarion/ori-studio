@@ -243,9 +243,13 @@ export function createSpreadProgram(regl: Regl) {
       }
       // Physical baseline, including ink, remains only where the correction
       // offers no surviving face. Clearing depth never clears its colour.
-      for (let f = 0; f < faces.length; f++) fill(f);
-      for (let f = 0; f < faces.length; f++) ink(f);
-      regl.clear({ depth: 1 });
+      // An acyclic graph always leaves a survivor at every covered pixel.
+      // Only cycles need a physical baseline underneath the corrected pass.
+      if (order!.cyclic !== false) {
+        for (let f = 0; f < faces.length; f++) fill(f);
+        for (let f = 0; f < faces.length; f++) ink(f);
+        regl.clear({ depth: 1 });
+      }
       const corrected = (f: number, paint: () => void) => {
         regl.clear({ stencil: 0 });
         mask(() => {

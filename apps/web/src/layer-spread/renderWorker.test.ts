@@ -3,7 +3,7 @@ import type { SpreadFrame, SpreadRenderMessage } from './renderProtocol';
 
 const mocks = vi.hoisted(() => ({
   setData: vi.fn(), draw: vi.fn(), poll: vi.fn(), clear: vi.fn(),
-  project: vi.fn(() => ({ connected: {} })), geometry: vi.fn(() => ({})),
+  project: vi.fn(() => ({ connected: {}, bounds: { minX: 0, minY: 0, maxX: 100, maxY: 50 } })), geometry: vi.fn(() => ({})),
 }));
 vi.mock('regl', () => ({ default: () => ({ poll: mocks.poll, clear: mocks.clear }) }));
 vi.mock('../cp-workspace/renderer/programs/spreadProgram', () => ({

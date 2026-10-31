@@ -1,7 +1,7 @@
 import { posePictureBounds, spreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
 import { sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
 import { DiagramSpreadView } from './DiagramSpreadView';
-import { useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
@@ -150,6 +150,10 @@ export function DiagramStepDetail({
 }) {
   const { t } = useTranslation();
   const root = useRef<HTMLDivElement | null>(null);
+  // Viewing scale belongs to this step, not the spread renderer's lifetime.
+  const [poseZoom, setPoseZoom] = useState({ step: step.id, value: 1 });
+  const zoom = poseZoom.step === step.id ? poseZoom.value : 1;
+  const changeZoom = useCallback((value: number) => setPoseZoom({ step: step.id, value }), [step.id]);
   const [poseRef, keepPoseFocus] = useKeepFocusWithin<HTMLDivElement>();
   useEffect(() => {
     root.current?.focus({ preventScroll: true });
@@ -203,7 +207,8 @@ export function DiagramStepDetail({
   const finalSpreadPicture = useMemo(() => spreadPosePicture(
     connectedRender?.spread?.kind === 'connected' ? source : null, style, url),
     [connectedRender?.spread?.kind, source, style, url]);
-  const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
+  const picture = url && <img className={styles.picture} src={url} alt="" draggable={false}
+    style={connectedRender ? { transform: `scale(${zoom})` } : undefined} />;
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
   // The bar under the picture: a linked step's verbs, with `transport` (the
   // simulator's) between how it is shown and the rest, or an upload's.
@@ -370,6 +375,7 @@ export function DiagramStepDetail({
           <>
             {connectedPose?.connected && connectedPose.connectedSpread && connectedRender?.spread?.kind === 'connected' ? (
               <DiagramSpreadView key={step.id} picture={finalSpreadPicture} capturedSpread={connectedRender.spread} view={connectedPose.connected} spread={connectedPose.connectedSpread}
+                zoom={zoom} onZoom={changeZoom}
                 presentation={connectedRender.presentation} rotationDeg={connectedRender.rotationDeg} style={style}
                 onCamera={connectedPose.onCamera} onReveal={connectedPose.onReveal}
                 ghost={sameSpread(connectedRender.spread ?? null, connectedPose.connectedSpread) ? ghost : null} registerLiveView={connectedPose.registerLiveView} readOnly={readOnly} fallback={url && picture} />

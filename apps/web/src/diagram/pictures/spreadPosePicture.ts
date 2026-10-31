@@ -32,9 +32,10 @@ export function spreadPosePictureFrame(
   spatial: boolean,
   size: { width: number; height: number },
   zoom: number,
+  pixelRatio = 1,
 ) {
   if (picture.sceneFrame) {
-    const frame = spreadFrame(view, rotationDeg, spatial, size.width, size.height, zoom);
+    const frame = spreadFrame(view, rotationDeg, spatial, size.width, size.height, zoom, diagramScenePaintStyle(style, false), pixelRatio);
     const k = frame.scale / CAPTURE_PX_PER_UNIT;
     const [x, y, width, height] = picture.sceneFrame;
     return {
@@ -47,7 +48,7 @@ export function spreadPosePictureFrame(
   if (!picture.scene) return null;
   const page = stepScenePage(STEP_CARD_PADDING_MM);
   const margin = pageMarginPt(diagramScenePaintStyle(style, false), page) / pagePtPerPx(picture.scene, page, 'figure');
-  const frame = spreadFrame(view, rotationDeg, spatial, size.width, size.height, zoom);
+  const frame = spreadFrame(view, rotationDeg, spatial, size.width, size.height, zoom, diagramScenePaintStyle(style, false), pixelRatio);
   const k = frame.scale / CAPTURE_PX_PER_UNIT;
   const b = picture.scene.bounds;
   return {

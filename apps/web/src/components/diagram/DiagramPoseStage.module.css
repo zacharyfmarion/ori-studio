@@ -8,6 +8,10 @@
   inset: 0 0 56px;
 }
 
+.view[data-full-height] {
+  inset: 0;
+}
+
 /* Still loading: laid out, so the view knows its size, but the picture shows. */
 .view[data-hidden] {
   visibility: hidden;

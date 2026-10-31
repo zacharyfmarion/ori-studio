@@ -24,7 +24,8 @@ import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
 import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import type { DiagramStyle } from '../../diagram/document/diagramDocument';
-import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
+import { diagramScenePaintStyle } from '../../diagram/pictures/diagramPaperStyle';
+import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
 import styles from './DiagramSpreadView.module.css';
 
 const ignoreRenderSettings = () => {};
@@ -45,6 +46,8 @@ export function DiagramSpreadView({
   fallback,
   ghost = null,
   readOnly = false,
+  zoom: controlledZoom,
+  onZoom,
 }: {
   view: ConnectedSpreadView;
   spread: ConnectedSpread;
@@ -59,6 +62,8 @@ export function DiagramSpreadView({
   fallback: ReactNode;
   ghost?: DiagramPoseAnnotations | null;
   readOnly?: boolean;
+  zoom?: number;
+  onZoom?: (zoom: number) => void;
 }) {
   const { t } = useTranslation();
   const viewport = useRef<SimulatorViewportHandle | null>(null);
@@ -66,7 +71,12 @@ export function DiagramSpreadView({
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [orbit, setOrbit] = useState<OrbitView>(presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA);
   const [reveal, setReveal] = useState<[number, number]>(spread.reveal);
-  const [zoom, setZoom] = useState(1);
+  const [localZoom, setLocalZoom] = useState(1);
+  const zoom = controlledZoom ?? localZoom;
+  const setZoom = onZoom ?? setLocalZoom;
+  const wheelZoom = useRef(zoom);
+  useEffect(() => { wheelZoom.current = zoom; }, [zoom]);
+  const pixelRatio = simulatorDevicePixelRatio();
   const [orderSide, setOrderSide] = useState(presentation?.orderSide ?? 'front');
   const spatial = presentation?.kind === 'perspective';
   const reportedCamera = useRef<FoldedFigureCamera | null>(null);
@@ -75,7 +85,7 @@ export function DiagramSpreadView({
   );
   const present = useCallback((bitmap: ImageBitmap) => viewport.current?.presentBitmap(bitmap), []);
   const { status, request } = useSpreadRenderer(view, present);
-  const paper = useMemo(() => diagramPaperStyle(style), [style]);
+  const paper = useMemo(() => diagramScenePaintStyle(style, false), [style]);
   const settings = useMemo(
     () => folded3dWindowRenderSettings({ style: paper, displayStyle: 'Paper5', devicePixelRatio: 1 }),
     [paper],
@@ -101,9 +111,10 @@ export function DiagramSpreadView({
       width: size.width,
       height: size.height,
       zoom,
+      pixelRatio,
       style: paper,
     });
-  }, [request, spread, reveal, spatial, orbit, orderSide, rotationDeg, size, zoom, paper]);
+  }, [request, spread, reveal, spatial, orbit, orderSide, rotationDeg, size, zoom, paper, pixelRatio]);
   const pushCamera = useCallback(
     (camera: OrbitView, width: number, height: number) => {
       setSize((was) => (was.width === width && was.height === height ? was : { width, height }));
@@ -125,11 +136,12 @@ export function DiagramSpreadView({
     if (!canvas || spatial) return;
     const wheel = (event: WheelEvent) => {
       event.preventDefault();
-      setZoom((z) => Math.max(0.2, Math.min(5, z * Math.exp(-event.deltaY * 0.001))));
+      wheelZoom.current = Math.max(0.2, Math.min(5, wheelZoom.current * Math.exp(-event.deltaY * 0.001)));
+      setZoom(wheelZoom.current);
     };
     canvas.addEventListener('wheel', wheel, { passive: false });
     return () => canvas.removeEventListener('wheel', wheel);
-  }, [canvas, spatial]);
+  }, [canvas, spatial, setZoom]);
   useEffect(
     () =>
       registerDiagramGestureCancel(() => {
@@ -173,7 +185,7 @@ export function DiagramSpreadView({
       (spatial && !sameCamera(withRollAbsorbed(orbit), presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA))
     )
       return null;
-    const frame = spreadFrame(view, rotationDeg, spatial, size.width, size.height, zoom),
+    const frame = spreadFrame(view, rotationDeg, spatial, size.width, size.height, zoom, paper, pixelRatio),
       k = frame.scale / CAPTURE_PX_PER_UNIT;
     const b = ghost.bounds;
     return poseGhostMarkup(
@@ -182,14 +194,14 @@ export function DiagramSpreadView({
       style,
       ghost.zoom,
     );
-  }, [ghost, reveal, spread.reveal, spatial, orbit, presentation?.camera, view, rotationDeg, size, zoom, style]);
+  }, [ghost, reveal, spread.reveal, spatial, orbit, presentation?.camera, view, rotationDeg, size, zoom, style, paper, pixelRatio]);
   const pose = useMemo(() => ({ view, spread, reveal, orbit, orderSide, rotationDeg, spatial, zoom, size }),
     [view, spread, reveal, orbit, orderSide, rotationDeg, spatial, zoom, size]);
   const matchesCapture = sameSpread({ ...spread, reveal }, capturedSpread) &&
     (!spatial || (sameCamera(withRollAbsorbed(orbit), presentation!.camera) && orderSide === presentation!.orderSide));
   const settled = useSettledPosePicture(pose, matchesCapture ? picture.url : null);
-  const pictureFrame = useMemo(() => spreadPosePictureFrame(picture, view, style, rotationDeg, spatial, size, zoom),
-    [picture, view, style, rotationDeg, spatial, size, zoom]);
+  const pictureFrame = useMemo(() => spreadPosePictureFrame(picture, view, style, rotationDeg, spatial, size, zoom, pixelRatio),
+    [picture, view, style, rotationDeg, spatial, size, zoom, pixelRatio]);
   const degrees = cameraDegrees(withRollAbsorbed(orbit));
   if (status === 'error') return <>{fallback}</>;
   return (
@@ -210,6 +222,7 @@ export function DiagramSpreadView({
       {status === 'preparing' && fallback}
       <DiagramPoseStage
         status={status}
+        fullHeight={!spatial}
         finalPicture={settled.url && <img className={styles.finalPicture} src={settled.url} alt="" draggable={false}
           style={pictureFrame ?? { transform: `scale(${spatial ? 1 : zoom})` }} data-framed={!!pictureFrame || undefined}
           data-pose-final-picture="" />}

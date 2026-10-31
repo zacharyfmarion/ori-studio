@@ -187,9 +187,9 @@ export function visibleFragments(mesh: ProjectedSpread, budget = 2_000_000): Vis
       for (const polygon of pieces) out.push({ triangle: t, face, polygon });
       continue;
     }
-    // Cyclic models are resolved together below, after local masks.
+    // Partial orders and cycles are resolved below using direct blockers.
   }
-  if (!mesh.visibility.ranks) return cyclicFragments(mesh, polygons, planes, neighbors, charge);
+  if (!mesh.visibility.ranks) return maskedFragments(mesh, polygons, planes, neighbors, charge);
 
   return out;
 }
@@ -197,7 +197,7 @@ export function visibleFragments(mesh: ProjectedSpread, budget = 2_000_000): Vis
 interface Piece extends VisibleFragment {
   box: Box;
 }
-function cyclicFragments(
+function maskedFragments(
   mesh: ProjectedSpread,
   polygons: Point[][],
   planes: (Plane | null)[],
@@ -228,7 +228,7 @@ function cyclicFragments(
   // Subtract the union of surviving coverage from the physical baseline.
   // Only all-masked projected cycles need this fallback.
   const fallback: Piece[] = [];
-  for (const own of original) {
+  for (const own of mesh.visibility.cyclic === false ? [] : original) {
     let pieces = [own.polygon];
     for (const other of survivors) {
       if (!overlap(own.box, other.box)) continue;
@@ -266,6 +266,7 @@ function cyclicFragments(
  * the capture, not a persistent cache: camera/pose changes get fresh planes. */
 export function createLineClipper(mesh: ProjectedSpread): (face: number, a: Point3, b: Point3) => [number, number][] {
   const winner = createWinner(mesh.visibility);
+  const direct = mesh.visibility.above.map(faces => new Set(faces));
   const owners = new Map<number, number>();
   const geometry = mesh.triangles.map((ids, triangle) => {
     owners.set(mesh.triangleFaces[triangle], triangle);
@@ -277,7 +278,7 @@ export function createLineClipper(mesh: ProjectedSpread): (face: number, a: Poin
       triangle, face: mesh.triangleFaces[triangle], points, x, y, u, v, determinant: x * v - y * u,
     };
   });
-  return (face, a, b) => lineIntervals(mesh, face, a, b, geometry, owners.get(face) ?? -1, winner);
+  return (face, a, b) => lineIntervals(mesh, face, a, b, geometry, owners.get(face) ?? -1, winner, direct[face]);
 }
 
 interface LineTriangle {
@@ -319,6 +320,7 @@ function lineIntervals(
   geometry: LineTriangle[],
   owner: number,
   winner: WinnerQuery,
+  blockers: ReadonlySet<number>,
 ): [number, number][] {
   const box = bounds([a, b]);
   const cuts = [0, 1];
@@ -329,8 +331,15 @@ function lineIntervals(
   for (let t = 0; t < geometry.length; t++) {
     const triangle = geometry[t];
     if (!overlap(box, triangle.box)) continue;
+    // Convex coverage at both endpoints proves the whole segment is hidden.
+    // Only acyclic pairwise order permits this shortcut: a projected cycle
+    // can mask every participant and require the physical fallback.
+    const orderedBlocker = ranks ? ranks[triangle.face] > ranks[face]
+      : mesh.visibility.cyclic === false && blockers.has(triangle.face);
+    if (orderedBlocker && coveredDepth(triangle, a[0], a[1], false) !== null
+      && coveredDepth(triangle, b[0], b[1], false) !== null) return [];
     if (!ranks || ranks[triangle.face] === ranks[face]) peers.push(triangle);
-    else if (ranks[triangle.face] > ranks[face]) higher.push(triangle);
+    if (orderedBlocker) higher.push(triangle);
     for (const edge of triangle.edges) {
       const va = value(edge, [a[0], a[1]]),
         vb = value(edge, [b[0], b[1]]),
@@ -358,9 +367,8 @@ function lineIntervals(
     if (hi - lo < 1e-9) continue;
     const u = (lo + hi) / 2;
     const px = a[0] + u * dx, py = a[1] + u * dy;
-    // For acyclic order, any covering higher rank settles the question: this
-    // edge is hidden. Lower ranks cannot beat its known owner. Keep ALL cuts
-    // above, including lower faces, so interval endpoints stay byte-identical.
+    // A direct blocker (or an equivalent higher band) settles this interval.
+    // Keep all cuts above, so the remaining interval endpoints are unchanged.
     if (higher.some((triangle) => coveredDepth(triangle, px, py, false) !== null)) continue;
     const covering: { face: number; triangle: number; depth: number }[] = [];
     for (const triangle of peers) {
