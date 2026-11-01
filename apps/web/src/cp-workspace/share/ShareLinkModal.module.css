@@ -4,8 +4,9 @@
  * judged, so it holds still while the controls beside it change, and it never
  * has to compete with them for width. Its frame is the shared `simple-modal`.
  *
- * Height-capped and scrolling like the export dialog, because the folded
- * controls plus the preview can exceed a laptop viewport.
+ * A fixed working height, as the export dialog has: the folded figure's rows
+ * scroll in the controls column, beside a preview that holds still, rather
+ * than the dialog growing to the window's height as they appear.
  */
 
 /* `div.modal` outranks the shared `.simple-modal__document` the same element
@@ -17,11 +18,15 @@ div.modal {
   max-height: calc(100vh - var(--space-6));
 }
 
+/* Room for the preview and the controls above the folded figure's; on a short
+   window, what the dialog's chrome leaves. */
 .columns {
   display: grid;
   grid-template-columns: 296px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  block-size: min(440px, calc(100vh - 220px));
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .controls {
@@ -29,7 +34,9 @@ div.modal {
   flex-direction: column;
   gap: var(--space-3);
   align-content: start;
+  min-height: 0;
   padding: var(--space-4);
+  overflow-y: auto;
   border-right: 1px solid var(--border-subtle);
 }
 
@@ -47,7 +54,9 @@ div.modal {
   flex-direction: column;
   gap: var(--space-3);
   align-content: start;
+  min-height: 0;
   padding: var(--space-4);
+  overflow-y: auto;
   background: var(--bg-primary);
 }
 
