@@ -278,4 +278,18 @@ describe('the scenes a save reads', () => {
     expect(figures[4]).toBe(wireframe);
     expect(failed).toHaveBeenCalledTimes(1);
   });
+
+  it('saves no scene for a figure whose handle shows another layer order, as an undo leaves one', async () => {
+    // Another solution, then Undo: the entry is back on solution 1, the handle on solution 2.
+    const restored = spread(figure('generated-1', { handle: 4, foldCase: 1 }), record(), false);
+    const shows = vi.fn(async () => figure('generated-1', { handle: 4, foldCase: 2 }).snapshot!);
+    const read = vi.fn(async (handle: number) => scene(handle));
+    const [kept] = await foldedFiguresWithLiveSpreadScenes([restored], read, undefined, shows);
+    expect(kept).not.toHaveProperty('spreadScene');
+    expect(read).not.toHaveBeenCalled();
+    // On its own order again, the handle's scene is the figure's.
+    shows.mockResolvedValue(restored.snapshot!);
+    const [saved] = await foldedFiguresWithLiveSpreadScenes([restored], read, undefined, shows);
+    expect(saved!.spreadScene).toEqual(scene(4));
+  });
 });

@@ -56,12 +56,17 @@
  *
  * Pure.
  */
-import type { OristudioCpFoldedFigureEntry, OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldedPaperScene,
+} from '../../engine/oristudioCpTypes';
 import { NEWER, hasNewerKey, isRecord } from '../../lib/documentFile';
 import { keyDigest } from '../../lib/keyDigest';
 import { foldedFigureSavesLiveSpreadScene, type FoldedFigureSpread } from './foldedFigureSpread';
 import { foldedFigureRefoldKey } from './foldedFigureLayerOrders';
 import { foldedFigureCurrentCase } from './foldedFigureState';
+import { sameFoldedPaperScene } from './foldedFlatSpreadScene';
 import { readLayerSpread, writeLayerSpread } from './layerSpreadSettings';
 
 /** The crease pattern's extensions key the figures' spreads are saved under. */
@@ -260,18 +265,25 @@ export function foldedFigureSpreadsAfterSave(
  * as it is — a reopened figure with the scene its file carried. A read that
  * fails leaves its figure without one, and saving goes on: the figure then
  * reopens flat until it is folded again. `failed` hears of each failure.
+ *
+ * `shows` reads the snapshot a handle shows now; without it, each handle is
+ * taken to show its figure's fold. An undo after Another solution puts back
+ * the entry, not the kernel's case, so a handle can show another layer order
+ * than its figure: that figure saves no scene, as one past the budget does.
  */
 export async function foldedFiguresWithLiveSpreadScenes(
   figures: readonly OristudioCpFoldedFigureEntry[],
   read: (handle: number) => Promise<OristudioCpFoldedPaperScene | null>,
-  failed: (error: unknown) => void = () => {}
+  failed: (error: unknown) => void = () => {},
+  shows?: (handle: number) => Promise<OristudioCpFoldedFigureSnapshot>
 ): Promise<OristudioCpFoldedFigureEntry[]> {
   return Promise.all(
     figures.map(async (figure) => {
       if (!foldedFigureSavesLiveSpreadScene(figure)) return figure;
       let scene: OristudioCpFoldedPaperScene | null = null;
       try {
-        scene = await read(figure.handle);
+        const shown = shows ? await shows(figure.handle) : figure.snapshot;
+        if (shown && figure.snapshot && sameFoldedPaperScene(shown, figure.snapshot)) scene = await read(figure.handle);
       } catch (error) {
         failed(error);
       }

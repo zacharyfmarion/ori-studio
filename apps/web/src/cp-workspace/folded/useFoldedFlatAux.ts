@@ -11,7 +11,10 @@ import {
   surfacePaperStyle,
 } from '../../lib/paper/paperStyleResolve';
 import { useSettingsStore } from '../../store/settingsStore';
-import { getOristudioCpFoldedFigurePaperScene } from '../../store/workspaceStore/oristudioCpRuntime';
+import {
+  getOristudioCpFoldedFigurePaperScene,
+  getOristudioCpFoldedFigureSnapshot,
+} from '../../store/workspaceStore/oristudioCpRuntime';
 import type { FoldedFigureAuxStrokes } from '../adapters/cpFoldedToScene';
 import { askForAuxLines, NO_FOLDED_AUX_SOURCE, type FoldedAuxSource } from './foldedAuxSource';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
@@ -29,7 +32,7 @@ import {
   setFoldedFlatScene,
   subscribeFoldedFlatScenes,
 } from './foldedFlatScenes';
-import { foldedFigureWantsSpread } from './foldedFlatSpreadScene';
+import { foldedFigureWantsSpread, sameFoldedPaperScene } from './foldedFlatSpreadScene';
 
 /**
  * The flat figures' aux creases, for the canvas to draw over their fills.
@@ -160,6 +163,11 @@ const sameRequest = (a: SceneRequest | undefined, b: SceneRequest): boolean =>
  * Fetch the handle's scene for `request` into the runtime map, which tells
  * its subscribers. A handle freed, a document replaced, or a newer request
  * while the kernel was answering leaves nothing behind.
+ *
+ * An undo after Another solution puts back the entry, not the kernel's case,
+ * so the handle can show another layer order than the figure: it has no scene
+ * of the figure's to give, and the figure draws without one. That request is
+ * kept as asked, so the renders after it ask the kernel nothing more.
  */
 async function fetchScene(request: SceneRequest): Promise<void> {
   if (sameRequest(latest.get(request.handle), request)) return;
@@ -170,12 +178,16 @@ async function fetchScene(request: SceneRequest): Promise<void> {
     latest.get(handle) === request &&
     foldedFigureHandleEpoch() === epoch &&
     foldedFigureHandleRefCount(handle) > 0;
-  const scene = await askForAuxLines(
-    () => getOristudioCpFoldedFigurePaperScene(handle, request.documentHandle),
+  const asked = await askForAuxLines(
+    async () =>
+      sameFoldedPaperScene(await getOristudioCpFoldedFigureSnapshot(handle), request.snapshot)
+        ? { scene: await getOristudioCpFoldedFigurePaperScene(handle, request.documentHandle) }
+        : null,
     wanted,
     'folded-flat-aux'
   );
-  if (scene && wanted()) setFoldedFlatScene(handle, request.snapshot, scene, request.auxKey);
+  if (asked === null && wanted()) return;
+  if (asked?.scene && wanted()) setFoldedFlatScene(handle, request.snapshot, asked.scene, request.auxKey);
   if (latest.get(handle) === request) latest.delete(handle);
 }
 
