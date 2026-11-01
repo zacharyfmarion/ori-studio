@@ -1344,8 +1344,11 @@ export function cpFoldedToScene(
     for (let i = 0; i < local.strokeWidthMul.length; i++) {
       strokeWidthMul.push(local.strokeWidthMul[i] * strokeWidth);
     }
+    // X-ray draws a spread scene's lines over all its fills, as the kernel's
+    // X-ray stream and a Default spread do: just above its last fill.
+    const linesOnTop = spread?.kind === 'scene' && spread.faceAlpha < 1;
     for (let i = 0; i < local.strokeDepth.length; i++) {
-      strokeDepth.push(bandBase + local.strokeDepth[i] * bandSpan);
+      strokeDepth.push(bandBase + (linesOnTop ? local.auxDepth : local.strokeDepth[i]) * bandSpan);
     }
     // The figure's slots renumbered into the shared table; a phase is a length
     // along the stroke, so it scales with the figure and nothing else moves it.
