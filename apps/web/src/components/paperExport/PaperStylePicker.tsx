@@ -23,6 +23,7 @@ import {
 } from '../../lib/paperPresetRows';
 import { useSettingsStore } from '../../store/settingsStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
+import { SelectRow, type SelectRowOption } from '../ui/fieldRows';
 import styles from './PaperStylePicker.module.css';
 
 /**
@@ -67,9 +68,7 @@ export function PaperStylePicker({
   id?: string;
 }) {
   const { t } = useTranslation();
-  const paperStyle = useSettingsStore((state) => state.paperStyle);
-  const rows = useMemo(() => paperPresetRows(paperStyle.presets), [paperStyle.presets]);
-  const slot = useMemo(() => paperSlotPreset(paperStyle, 'export', rows), [paperStyle, rows]);
+  const choices = usePaperStyleChoices();
   const label = t('dialogs:paperExport.style', 'Style');
   return (
     <div className="export-modal__control-group">
@@ -84,12 +83,9 @@ export function PaperStylePicker({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={PAPER_EXPORT_STYLE_SLOT}>
-              {exportStyleEntryLabel(t, slot, { fromDisplay: paperStyle.export === null })}
-            </SelectItem>
-            {rows.map((row) => (
-              <SelectItem key={row.key} value={row.key}>
-                {paperPresetRowLabel(t, row)}
+            {choices.map((choice) => (
+              <SelectItem key={choice.id} value={choice.id}>
+                {choice.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -97,5 +93,42 @@ export function PaperStylePicker({
       </div>
       {hint && <small className="export-modal__hint">{hint}</small>}
     </div>
+  );
+}
+
+/**
+ * The same choice as a row of an options pane (`SelectRow`): the folded-figure
+ * sections of the Export crease pattern dialog and the Share modal, whose
+ * rows are FieldRows as the Diagram export's and the sidebars' are.
+ */
+export function PaperStyleRow({
+  value,
+  onChange,
+}: {
+  value: PaperExportStyleChoice;
+  onChange: (value: PaperExportStyleChoice) => void;
+}) {
+  const { t } = useTranslation();
+  const choices = usePaperStyleChoices();
+  return (
+    <SelectRow label={t('dialogs:paperExport.style', 'Style')} value={value} options={choices} onChange={onChange} />
+  );
+}
+
+/** The styles an export can pick, as the picker and the row offer them: the export slot first, then every preset. */
+function usePaperStyleChoices(): SelectRowOption[] {
+  const { t } = useTranslation();
+  const paperStyle = useSettingsStore((state) => state.paperStyle);
+  const rows = useMemo(() => paperPresetRows(paperStyle.presets), [paperStyle.presets]);
+  const slot = useMemo(() => paperSlotPreset(paperStyle, 'export', rows), [paperStyle, rows]);
+  return useMemo(
+    () => [
+      {
+        id: PAPER_EXPORT_STYLE_SLOT,
+        label: exportStyleEntryLabel(t, slot, { fromDisplay: paperStyle.export === null }),
+      },
+      ...rows.map((row) => ({ id: row.key, label: paperPresetRowLabel(t, row) })),
+    ],
+    [t, slot, paperStyle.export, rows]
   );
 }

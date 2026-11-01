@@ -51,7 +51,7 @@ import type {
   CreaseExportOptions,
 } from '../../lib/creaseExport';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
-import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
+import type { CreaseExportFoldResult, CreaseExportLayerOrderHost } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import type { KeptCamera } from '../../hooks/useViewportSurface';
@@ -543,6 +543,8 @@ export interface ProjectSliceActions {
      * share and crease-pattern export; null when the card shows no figure.
      */
     foldedFigureStyle?: PaperExportStyleChoice | null;
+    /** Whose layer order the card's figure is drawn in: one chosen in the Layer order dialog, or the kernel's. */
+    foldedFigureLayerOrder?: 'default' | 'chosen';
   }) => Promise<boolean>;
   /**
    * Fold the drafted share's pattern for its card preview. Injected through the store
@@ -552,6 +554,12 @@ export interface ProjectSliceActions {
   foldOristudioCpShareFigure: (
     settings: CreaseExportFoldedFigureSettings
   ) => Promise<CreaseExportFoldResult>;
+  /**
+   * The Layer order dialog's host for the drafted share's figure (`useExportLayerOrder`),
+   * as the export dialog's `layerOrderHost` is: null with no draft, or no editable
+   * crease pattern to fold.
+   */
+  oristudioCpShareLayerOrderHost: () => CreaseExportLayerOrderHost | null;
   /** Close the share modal and drop the generated link. */
   dismissOristudioCpShare: () => void;
   /** Record a share payload for the Edit surface to open. Set by `/s` only. */

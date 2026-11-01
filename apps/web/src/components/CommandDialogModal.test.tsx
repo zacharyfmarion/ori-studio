@@ -25,6 +25,7 @@ import { builtInPaperPreset } from '../lib/paper/paperPresets';
 import { IDENTITY_CP_MODEL_TO_FOLD } from '../lib/creaseExportFold';
 import { useSettingsStore } from '../store/settingsStore';
 import { CommandDialogModal } from './CommandDialogModal';
+import { TooltipProvider } from './ui/Tooltip';
 
 function exportFold(): FoldDocument {
   return {
@@ -185,7 +186,11 @@ function renderModalHost() {
   document.body.append(container);
   root = createRoot(container);
   act(() => {
-    root?.render(<CommandDialogModal />);
+    root?.render(
+      <TooltipProvider>
+        <CommandDialogModal />
+      </TooltipProvider>
+    );
   });
   return container;
 }
@@ -353,6 +358,7 @@ describe('CommandDialogModal', () => {
         paper: { style: DEFAULT_PAPER_STYLE },
         foldedFigureTransform: undefined,
         grid: null,
+        foldedFigureLayerOrder: 'default',
       },
     });
   });
@@ -541,9 +547,11 @@ describe('CommandDialogModal', () => {
     await act(async () => {
       (rendered.querySelector('[aria-label="Include folded figure"]') as HTMLButtonElement).click();
     });
-    act(() => {
-      openSection(rendered, 'Folded figure');
-    });
+    // The section opens with the switch.
+    const sectionToggle = Array.from(rendered.querySelectorAll('button[aria-expanded]')).find((button) =>
+      button.textContent?.includes('Folded figure')
+    );
+    expect(sectionToggle?.getAttribute('aria-expanded')).toBe('true');
 
     const sides = rendered.querySelector('[role="group"][aria-label="Side"]');
     expect(sides).not.toBeNull();
@@ -823,7 +831,7 @@ describe('CommandDialogModal', () => {
     const styleTrigger = () =>
       container?.querySelector<HTMLButtonElement>('button[aria-label="Style"]') ?? null;
     const colourField = (label: 'Front' | 'Back') =>
-      container?.querySelector<HTMLInputElement>(`input[type="color"][aria-label="${label}"]`) ??
+      container?.querySelector<HTMLInputElement>(`input[type="color"][aria-label="${label} color"]`) ??
       null;
     const preview = () =>
       decodeURIComponent(
@@ -862,9 +870,6 @@ describe('CommandDialogModal', () => {
         (
           rendered.querySelector('[aria-label="Include folded figure"]') as HTMLButtonElement
         ).click();
-      });
-      act(() => {
-        openSection(rendered, 'Folded figure');
       });
       return { result };
     }
@@ -941,7 +946,7 @@ describe('CommandDialogModal', () => {
       expect(section?.querySelector('.export-modal__section-toggle')?.textContent).toBe(
         'Folded figure'
       );
-      expect(section?.querySelector('.export-modal__label')?.textContent).toBe('Style');
+      expect(section?.querySelector('[data-field-label]')?.textContent).toBe('Style');
       expect(styleTrigger()?.textContent).toBe('Diagram');
       expect(colourField('Front')?.value).toBe(diagram.paper.front);
       expect(colourField('Back')?.value).toBe(diagram.paper.back);

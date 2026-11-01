@@ -20,6 +20,7 @@ describe('trackCreasePatternExported', () => {
     expect(runtime.track).toHaveBeenCalledWith('crease pattern exported', {
       format: 'png',
       folded_figure: 'diagram',
+      folded_figure_layer_order: 'default',
     });
   });
 
@@ -28,6 +29,16 @@ describe('trackCreasePatternExported', () => {
     expect(runtime.track).toHaveBeenCalledWith('crease pattern exported', {
       format: 'svg',
       folded_figure: 'none',
+      folded_figure_layer_order: 'default',
+    });
+  });
+
+  it('says when the figure is in a layer order chosen in the Layer order dialog', () => {
+    trackCreasePatternExported({ format: 'svg', foldedFigure: 'export-style', layerOrder: 'chosen' });
+    expect(runtime.track).toHaveBeenCalledWith('crease pattern exported', {
+      format: 'svg',
+      folded_figure: 'export-style',
+      folded_figure_layer_order: 'chosen',
     });
   });
 });

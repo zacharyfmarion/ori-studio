@@ -107,7 +107,7 @@ describe('saving a crease pattern as an image', () => {
     expect(readJson(FOLDED_FIGURE_KEY, null)).toEqual({ style: 'builtin:diagram' });
     // The figure beside a pattern is remembered apart from the paper exports' options (X12).
     expect(localStorage.getItem(storageKey(STORAGE_KEYS.paperExport))).toBeNull();
-    expect(tracked('crease pattern exported')).toEqual([{ format: 'svg', folded_figure: 'diagram' }]);
+    expect(tracked('crease pattern exported')).toEqual([{ format: 'svg', folded_figure: 'diagram', folded_figure_layer_order: 'default' }]);
   });
 
   it('does the same for a PNG', async () => {
@@ -115,7 +115,7 @@ describe('saving a crease pattern as an image', () => {
       true
     );
     expect(useSettingsStore.getState().creasePatternFoldedFigureStyle).toBe('builtin:diagram');
-    expect(tracked('crease pattern exported')).toEqual([{ format: 'png', folded_figure: 'diagram' }]);
+    expect(tracked('crease pattern exported')).toEqual([{ format: 'png', folded_figure: 'diagram', folded_figure_layer_order: 'default' }]);
   });
 
   it('names a saved preset custom, from the presets Settings holds', async () => {
@@ -129,7 +129,7 @@ describe('saving a crease pattern as an image', () => {
       .getState()
       .exportSvg(fileService(true), { ...WITH_DIAGRAM_FIGURE, foldedFigureStyle: 'user:Mine' });
     expect(useSettingsStore.getState().creasePatternFoldedFigureStyle).toBe('user:Mine');
-    expect(tracked('crease pattern exported')).toEqual([{ format: 'svg', folded_figure: 'custom' }]);
+    expect(tracked('crease pattern exported')).toEqual([{ format: 'svg', folded_figure: 'custom', folded_figure_layer_order: 'default' }]);
   });
 
   it('reports no figure as none, and leaves the remembered style alone', async () => {
@@ -138,7 +138,7 @@ describe('saving a crease pattern as an image', () => {
     await expect(useWorkspaceStore.getState().exportSvg(fileService(true), withoutFigure)).resolves.toBe(true);
     expect(useSettingsStore.getState().creasePatternFoldedFigureStyle).toBe('builtin:default');
     expect(readJson(FOLDED_FIGURE_KEY, null)).toEqual({ style: 'builtin:default' });
-    expect(tracked('crease pattern exported')).toEqual([{ format: 'svg', folded_figure: 'none' }]);
+    expect(tracked('crease pattern exported')).toEqual([{ format: 'svg', folded_figure: 'none', folded_figure_layer_order: 'default' }]);
   });
 
   it('neither remembers nor reports a save the user dismissed', async () => {
@@ -169,9 +169,31 @@ describe('saving one pattern of a crease pattern as an image', () => {
         useWorkspaceStore.getState().exportOristudioCpSheet(format, 0, fileService(true))
       ).resolves.toBe(true);
       expect(useSettingsStore.getState().creasePatternFoldedFigureStyle).toBe('builtin:diagram');
-      expect(tracked('crease pattern exported')).toEqual([{ format, folded_figure: 'diagram' }]);
+      expect(tracked('crease pattern exported')).toEqual([{ format, folded_figure: 'diagram', folded_figure_layer_order: 'default' }]);
     }
   );
+
+  it('says when the figure the dialog drew is in a layer order chosen for it', async () => {
+    dialogs.requestCreasePatternExportOptions.mockResolvedValue({
+      options: { ...WITH_DIAGRAM_FIGURE, segmentId: 0 },
+      content: { foldedFigure: { schema_version: 1, fixture: null, pass: null, primitives: [] }, grid: null, foldedFigureLayerOrder: 'chosen' },
+    });
+    await useWorkspaceStore.getState().exportOristudioCpSheet('svg', 0, fileService(true));
+    expect(tracked('crease pattern exported')).toEqual([
+      { format: 'svg', folded_figure: 'diagram', folded_figure_layer_order: 'chosen' },
+    ]);
+  });
+
+  it('reports the default order when no figure was drawn, whatever the dialog held', async () => {
+    dialogs.requestCreasePatternExportOptions.mockResolvedValue({
+      options: { ...WITH_DIAGRAM_FIGURE, segmentId: 0 },
+      content: { foldedFigure: null, grid: null, foldedFigureLayerOrder: 'chosen' },
+    });
+    await useWorkspaceStore.getState().exportOristudioCpSheet('svg', 0, fileService(true));
+    expect(tracked('crease pattern exported')).toEqual([
+      { format: 'svg', folded_figure: 'diagram', folded_figure_layer_order: 'default' },
+    ]);
+  });
 
   it.each(['svg', 'png'] as const)(
     'neither remembers nor reports a %s save the user dismissed',
@@ -210,7 +232,20 @@ describe('publishing a crease-pattern share', () => {
     expect(useSettingsStore.getState().creasePatternFoldedFigureStyle).toBe('builtin:diagram');
     expect(readJson(FOLDED_FIGURE_KEY, null)).toEqual({ style: 'builtin:diagram' });
     expect(tracked('crease pattern shared')).toEqual([
-      expect.objectContaining({ had_title: true, folded_figure: 'diagram' }),
+      expect.objectContaining({ had_title: true, folded_figure: 'diagram', folded_figure_layer_order: 'default' }),
+    ]);
+  });
+
+  it('says when the card’s figure is in a layer order chosen for it', async () => {
+    await useWorkspaceStore.getState().publishOristudioCpShare({
+      title: 'Bird base',
+      author: null,
+      renderCard: async () => null,
+      foldedFigureStyle: 'builtin:diagram',
+      foldedFigureLayerOrder: 'chosen',
+    });
+    expect(tracked('crease pattern shared')).toEqual([
+      expect.objectContaining({ folded_figure: 'diagram', folded_figure_layer_order: 'chosen' }),
     ]);
   });
 

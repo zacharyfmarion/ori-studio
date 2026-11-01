@@ -25,20 +25,22 @@ import {
 import { cpFoldAngleDisplayLabel } from '../../i18n/enumLabels';
 import { shareCardTitle } from '../../lib/shareCardText';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
+import { useExportLayerOrder, useExportLayerOrderLookup } from '../export/useExportLayerOrder';
 import {
   creaseExportFigureColours,
   creaseExportFigureStyle,
   openingCreaseExportFigure,
   useCreaseExportPaper,
 } from '../../hooks/useCreaseExportPaper';
+import type { LayerOrderApplied } from '../../lib/layerOrder/layerOrderRequest';
 import { PAPER_EXPORT_STYLE_SLOT, type PaperExportStyleChoice } from '../../lib/paperExportSettings';
 import { useSettingsStore } from '../../store/settingsStore';
-import { PaperStylePicker } from '../../components/paperExport/PaperStylePicker';
+import { LayerOrderReadoutReserved, LayerOrderRow } from '../../components/paper/LayerOrderRow';
+import { PaperStyleRow } from '../../components/paperExport/PaperStylePicker';
 import { readRememberedAuthor } from './cpShareService';
 import { Button } from '../../components/ui/Button';
-import { ColorField } from '../../components/ui/ColorField';
 import { IconButton } from '../../components/ui/IconButton';
-import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { ColorRow, SegmentedRow } from '../../components/ui/fieldRows';
 import {
   Select,
   SelectContent,
@@ -48,6 +50,7 @@ import {
 } from '../../components/ui/Select';
 import { Toggle } from '../../components/ui/Toggle';
 import type { FoldedFigureSide } from '../../lib/foldedFigureSides';
+import styles from './ShareLinkModal.module.css';
 
 /**
  * The share modal for one crease pattern.
@@ -79,6 +82,7 @@ export function ShareLinkModal() {
   const dismiss = useWorkspaceStore((state) => state.dismissOristudioCpShare);
   const publish = useWorkspaceStore((state) => state.publishOristudioCpShare);
   const foldShareFigure = useWorkspaceStore((state) => state.foldOristudioCpShareFigure);
+  const shareLayerOrderHost = useWorkspaceStore((state) => state.oristudioCpShareLayerOrderHost);
   const hasDocument = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
 
   const [title, setTitle] = useState('');
@@ -92,6 +96,8 @@ export function ShareLinkModal() {
   const [figureStyle, setFigureStyle] = useState<PaperExportStyleChoice>(PAPER_EXPORT_STYLE_SLOT);
   const [frontColor, setFrontColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.frontColor);
   const [backColor, setBackColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.backColor);
+  // The kernel's own layer order the card shows, stepped by the Layer order row.
+  const [foldCase, setFoldCase] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.foldCase);
   const [publishing, setPublishing] = useState(false);
   const [justCopied, setJustCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -116,6 +122,7 @@ export function ShareLinkModal() {
     setFigureStyle(opening.style);
     setFrontColor(opening.colours.frontColor);
     setBackColor(opening.colours.backColor);
+    setFoldCase(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.foldCase);
   }, [open]);
 
   // A new style re-seeds Front and Back from its paper; editing them after
@@ -128,19 +135,6 @@ export function ShareLinkModal() {
     setFrontColor(colours.frontColor);
     setBackColor(colours.backColor);
   };
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      // An open Select or menu in the card closes itself first.
-      if (isOpenLayerTarget(event.target)) return;
-      event.preventDefault();
-      dismiss();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [dismiss, open]);
 
   // The layer-order solver assumes a flat-folded model, so a pattern with partial folds
   // has no figure to draw and fails inside the solver rather than at the boundary. Gate
@@ -171,23 +165,73 @@ export function ShareLinkModal() {
   );
 
   const foldedSettings: CreaseExportFoldedFigureSettings = useMemo(
-    () => ({ side, frontColor, backColor, foldCase: 1 }),
-    [side, frontColor, backColor]
+    () => ({ side, frontColor, backColor, foldCase }),
+    [side, frontColor, backColor, foldCase]
   );
 
   const foldFn = useCallback(
     (settings: CreaseExportFoldedFigureSettings) => foldShareFigure(settings),
     [foldShareFigure]
   );
+  const segment = useMemo(
+    () => (draft ? (draft.segments.find((entry) => entry.id === draft.segmentId) ?? null) : null),
+    [draft]
+  );
+  // The Layer order dialog's side of the card's figure, for the draft open now.
+  const layerOrderHost = useMemo(() => (draft ? shareLayerOrderHost() : null), [draft, shareLayerOrderHost]);
+  const foldInOrder = useCallback(
+    (settings: CreaseExportFoldedFigureSettings, order: LayerOrderApplied) => {
+      if (!layerOrderHost) throw new Error('This share cannot fold a chosen layer order');
+      return layerOrderHost.foldInOrder(segment, settings, order);
+    },
+    [layerOrderHost, segment]
+  );
+  const orderFor = useExportLayerOrderLookup();
 
   const folded = useFoldedFigurePreview({
     enabled: open && showFolded && canFold,
     settings: foldedSettings,
     fold: canFold ? foldFn : null,
+    foldInOrder: canFold && layerOrderHost ? foldInOrder : null,
+    orderFor,
     cacheKeyPrefix: String(draft?.segmentId ?? ''),
     onError: () => setShowFolded(false),
   });
   const paper = useCreaseExportPaper(figureStyle);
+  const trimmedAuthor = author.trim();
+  const editLayerOrderRef = useRef<HTMLButtonElement | null>(null);
+  const layerOrder = useExportLayerOrder({
+    surface: 'share_card',
+    host: layerOrderHost,
+    segment,
+    preview: folded,
+    settings: foldedSettings,
+    style: paper.style,
+    name: title.trim() || t('dialogs:share.titlePlaceholder', 'Untitled crease pattern'),
+    byline: trimmedAuthor ? t('dialogs:share.byline', 'by {{author}}', { author: trimmedAuthor }) : null,
+    setFoldCase,
+    // The card is uploaded once, as the link is made: after that it cannot change.
+    held: url
+      ? t('dialogs:share.layerOrderPublished', 'The link’s card is made. Create another link to change it.')
+      : null,
+    scope: draft,
+    editRef: editLayerOrderRef,
+    t,
+  });
+
+  useEffect(() => {
+    // While the Layer order dialog it opened is up, Escape is that dialog's.
+    if (!open || layerOrder.ordering) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      // An open Select or menu in the card closes itself first.
+      if (isOpenLayerTarget(event.target)) return;
+      event.preventDefault();
+      dismiss();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [dismiss, open, layerOrder.ordering]);
 
   // The card is composed from the same primitives the export dialog previews with, so
   // what is published is what was shown.
@@ -216,6 +260,7 @@ export function ShareLinkModal() {
         paper,
         foldedFigureTransform: folded.transform,
         grid: draft.grid,
+        ...(layerOrder.turnDeg !== 0 ? { foldedFigureTurnDeg: layerOrder.turnDeg } : {}),
       }
     );
     const page = composeCreaseExportSvg(artwork, EMPTY_CREASE_EXPORT_CAPTION);
@@ -230,6 +275,7 @@ export function ShareLinkModal() {
     folded.transform,
     foldedSettings,
     paper,
+    layerOrder.turnDeg,
   ]);
 
   // Exactly what the Worker will write into the OpenGraph tags — same helpers, so the
@@ -245,7 +291,9 @@ export function ShareLinkModal() {
     [card]
   );
 
-  if (!draft || !card) return null;
+  // Stepped aside while the Layer order dialog it opened is up, every hook
+  // above having run, so the draft's settings and its fold are here after.
+  if (!draft || !card || layerOrder.ordering) return null;
 
   const renderCard = async (): Promise<Uint8Array | null> => {
     try {
@@ -267,6 +315,7 @@ export function ShareLinkModal() {
         renderCard,
         // The style is the card's only when it carries the figure.
         foldedFigureStyle: showFolded && canFold ? figureStyle : null,
+        foldedFigureLayerOrder: showFolded && folded.figure !== null && layerOrder.chosen ? 'chosen' : 'default',
       });
     } finally {
       setPublishing(false);
@@ -298,7 +347,7 @@ export function ShareLinkModal() {
     >
       <div
         role="document"
-        className="simple-modal__document share-link-modal"
+        className={`simple-modal__document ${styles.modal}`}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="simple-modal__header">
@@ -317,10 +366,10 @@ export function ShareLinkModal() {
 
         {/* Controls left, preview right. The preview is the thing being judged, so it gets
             its own lit surface and stays put while the controls beside it change. */}
-        <div className="share-link-modal__columns">
-          <div className="share-link-modal__controls">
-            <label className="share-link-modal__field">
-              <span className="share-link-modal__field-label">
+        <div className={styles.columns}>
+          <div className={styles.controls}>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>
                 {t('dialogs:share.title', 'Title')}
               </span>
               <input
@@ -332,8 +381,8 @@ export function ShareLinkModal() {
                 placeholder={t('dialogs:share.titlePlaceholder', 'Untitled crease pattern')}
               />
             </label>
-            <label className="share-link-modal__field">
-              <span className="share-link-modal__field-label">
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>
                 {t('dialogs:share.author', 'Author')}
               </span>
               <input
@@ -346,11 +395,11 @@ export function ShareLinkModal() {
               />
             </label>
 
-            <div className="share-link-modal__divider" />
+            <div className={styles.divider} />
 
             {/* Only where there is an angle to encode; see `hasNonClassicCreases`. */}
             {hasFoldAngles && (
-              <div className="share-link-modal__toggle-row">
+              <div className={styles.toggleRow}>
                 <span>{t('dialogs:share.foldAngleDisplay', 'Fold angle style')}</span>
                 <Select
                   value={foldAngleDisplay}
@@ -375,7 +424,7 @@ export function ShareLinkModal() {
               </div>
             )}
 
-            <div className="share-link-modal__toggle-row">
+            <div className={styles.toggleRow}>
               <span>
                 {t('dialogs:share.grid', 'Show grid lines')}
                 {!draft.grid && (
@@ -395,7 +444,7 @@ export function ShareLinkModal() {
               />
             </div>
 
-            <div className="share-link-modal__toggle-row">
+            <div className={styles.toggleRow}>
               <span>
                 {t('dialogs:share.foldedFigure', 'Show folded figure')}
                 {!isFlat && (
@@ -404,11 +453,6 @@ export function ShareLinkModal() {
                       'dialogs:share.foldedFigureNeedsFlat',
                       'This preview folds flat only, and this pattern has creases that are not full folds'
                     )}
-                  </small>
-                )}
-                {folded.folding && (
-                  <small className="export-modal__hint">
-                    {t('dialogs:share.folding', 'Folding…')}
                   </small>
                 )}
                 {folded.error && (
@@ -429,50 +473,48 @@ export function ShareLinkModal() {
             </div>
 
             {showFolded && canFold && (
-              <div className="share-link-modal__folded">
-                <PaperStylePicker value={figureStyle} onChange={pickFigureStyle} />
-                <div className="share-link-modal__folded-row">
-                  <span className="share-link-modal__folded-label">
-                    {t('dialogs:share.side', 'Side')}
-                  </span>
-                  <SegmentedControl<FoldedFigureSide>
-                    aria-label={t('dialogs:share.side', 'Side')}
-                    value={side}
-                    onChange={setSide}
-                    options={[
-                      { value: 'Front0', label: t('dialogs:share.sideFront', 'Front') },
-                      { value: 'Back1', label: t('dialogs:share.sideBack', 'Back') },
-                    ]}
-                  />
-                </div>
-                {/* `inline`, not `row`: a dialog is not an options pane, and the ruled,
-                    padded rows a `FieldRow` draws made three settings look like a table. */}
-                <ColorField
-                  layout="inline"
-                  showValue
-                  label={t('dialogs:share.frontColor', 'Front color')}
-                  value={frontColor}
-                  onChange={setFrontColor}
+              // FieldRows, as the Export dialog's folded section and the sidebars draw them:
+              // the style, the side, its colours, then its layer order.
+              <div className={styles.folded}>
+                <PaperStyleRow value={figureStyle} onChange={pickFigureStyle} />
+                <SegmentedRow
+                  label={t('dialogs:share.side', 'Side')}
+                  value={side}
+                  options={[
+                    { id: 'Front0', label: t('dialogs:share.sideFront', 'Front') },
+                    { id: 'Back1', label: t('dialogs:share.sideBack', 'Back') },
+                  ]}
+                  onChange={(next) => setSide(next as FoldedFigureSide)}
                 />
-                <ColorField
-                  layout="inline"
-                  showValue
-                  label={t('dialogs:share.backColor', 'Back color')}
-                  value={backColor}
-                  onChange={setBackColor}
+                <ColorRow label={t('dialogs:share.frontColor', 'Front color')} value={frontColor} onChange={setFrontColor} />
+                <ColorRow label={t('dialogs:share.backColor', 'Back color')} value={backColor} onChange={setBackColor} />
+                <LayerOrderRow
+                  ref={editLayerOrderRef}
+                  pager={{
+                    previous: layerOrder.row.previous,
+                    next: layerOrder.row.next,
+                    readout: layerOrder.row.readout ?? <LayerOrderReadoutReserved />,
+                  }}
+                  edit={layerOrder.row.edit}
+                  disabled={layerOrder.row.disabled}
+                  note={layerOrder.row.note?.text}
+                  noteKind={layerOrder.row.note?.kind}
+                  onEditIntent={layerOrder.prefetch}
                 />
               </div>
             )}
           </div>
 
-          <div className="share-link-modal__preview-pane">
-            <span className="share-link-modal__field-label">
+          <div className={styles.previewPane}>
+            <span className={styles.fieldLabel}>
               {t('dialogs:share.linkPreview', 'Link preview')}
             </span>
 
-            <div className="share-embed">
+            <div className={styles.embed}>
+                {/* No status line while the figure folds: the last card stays, dimmed. */}
                 <div
-                  className="share-embed__image"
+                  className={styles.embedImage}
+                  aria-busy={folded.folding || undefined}
                   style={{
                     aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
                     // `svgToPngCard` fills the whole canvas with this before drawing, so the
@@ -483,14 +525,15 @@ export function ShareLinkModal() {
                 >
                   {previewSrc && (
                     <img
+                      data-busy={folded.folding || undefined}
                       src={previewSrc}
                       alt={t('dialogs:share.previewAlt', 'Preview of the shared crease pattern')}
                     />
                   )}
                 </div>
-              <div className="share-embed__meta">
-                <div className="share-embed__title">{shareCardTitle(cardText)}</div>
-                <div className="share-embed__host">{shareHost}</div>
+              <div className={styles.embedMeta}>
+                <div className={styles.embedTitle}>{shareCardTitle(cardText)}</div>
+                <div className={styles.embedHost}>{shareHost}</div>
               </div>
             </div>
           </div>
@@ -498,14 +541,14 @@ export function ShareLinkModal() {
 
         {/* The link and its primary action live in the footer, so the one thing the dialog
             exists to produce is always in the same place. */}
-        <footer className="simple-modal__footer share-link-modal__footer">
+        <footer className={`simple-modal__footer ${styles.footer}`}>
           {url ? (
             <>
               <input
                 ref={inputRef}
                 type="text"
                 readOnly
-                className="share-link-modal__url ph-no-capture"
+                className={`${styles.url} ph-no-capture`}
                 value={url}
                 aria-label={t('dialogs:shareLink.url', 'Share link')}
                 onFocus={(event) => event.currentTarget.select()}
@@ -522,7 +565,7 @@ export function ShareLinkModal() {
               {/* Same shape as the published state, so the footer does not jump when the
                   link appears — and it answers the question the button raises before it is
                   pressed: nothing has left this machine yet. */}
-              <span className="share-link-modal__status">
+              <span className={styles.status}>
                 {t('dialogs:share.notPublished', 'Nothing is published until you create the link.')}
               </span>
               <Button variant="primary" disabled={publishing} onClick={() => void onPublish()}>
@@ -537,7 +580,7 @@ export function ShareLinkModal() {
 
         {/* The note says what is true *now*: before publishing, that the settings are
             about to be frozen; after, what the recipient actually gets. */}
-        <p className="share-link-modal__note">
+        <p className={styles.note}>
           {url
             ? t(
                 'dialogs:share.scope',
@@ -545,7 +588,7 @@ export function ShareLinkModal() {
               )
             : t(
                 'dialogs:share.scopeDraft',
-                'Set the title, author and figure first: a link is a permanent snapshot — it cannot be edited or deleted afterwards, so changes mean creating another one. Carries the crease pattern only — not reference images, annotations, or saved simulations.'
+                'Set the title, author and figure first: a link is a permanent snapshot — it cannot be edited or deleted afterwards, so changes mean creating another one. Carries the crease pattern only — the folded figure appears in the preview, not in the link.'
               )}
         </p>
       </div>

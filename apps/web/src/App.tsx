@@ -18,6 +18,7 @@ import { DiagramReferencesModal } from './components/diagram/DiagramReferencesBr
 import { DiagramFoldModal } from './components/diagram/DiagramFoldModal';
 import { FoldImportOverlay } from './components/fold/FoldGate';
 import { LayerOrderDialogMount } from './components/layer-order/LayerOrderDialogMount';
+import { isLayerOrderDialogOpen } from './layer-order/dialog/layerOrderDialogGateway';
 import { SheetLayer } from './components/SheetLayer';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
@@ -140,7 +141,9 @@ export default function App() {
           const path = currentPath();
           return path !== null && sitePageForPath(path) !== null;
         },
-        isCommandDialogOpen: () => useCommandDialogStore.getState().dialog !== null,
+        // A Layer order dialog the Export dialog opened (it steps aside, still pending) owns
+        // the keys: its Undo and Redo reach its history through the barrier route.
+        isCommandDialogOpen: () => useCommandDialogStore.getState().dialog !== null && !isLayerOrderDialogOpen(),
         getActiveEditingContext: () => useWorkspaceStore.getState().activeEditingContext,
         getSelection: () => selectSelection(useWorkspaceStore.getState()),
         handleMenuAction,

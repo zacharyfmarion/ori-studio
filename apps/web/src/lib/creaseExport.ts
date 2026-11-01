@@ -40,7 +40,7 @@ import type {
   OristudioCpFoldedRenderSnapshot,
   OristudioCpGridMetadata,
 } from '../engine/oristudioCpTypes';
-import type { Point } from './geometry';
+import { turnClockwise, type Point } from './geometry';
 import type { FoldedFigureSide } from './foldedFigureSides';
 import {
   DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
@@ -838,6 +838,18 @@ export interface CreaseExportContent {
    * a TreeMaker design, or any fold with no editable crease-pattern document.
    */
   grid?: CreaseExportGridSource | null;
+  /**
+   * How far the folded figure is turned, clockwise on screen, in degrees: the
+   * Layer order dialog's Rotate, which every host takes (H11). Absent or a
+   * whole turn draws it as the kernel placed it, byte for byte as before.
+   */
+  foldedFigureTurnDeg?: number;
+  /**
+   * Whose layer order the figure is in: the kernel's own (`default`, absent)
+   * or one chosen in the Layer order dialog. Drawn the same either way — the
+   * picture is already in it — and read only to say which in analytics.
+   */
+  foldedFigureLayerOrder?: 'default' | 'chosen';
 }
 
 /**
@@ -882,11 +894,23 @@ export function creaseExportPaperStyle(
   style: PaperStyle,
   settings: Pick<CreaseExportFoldedFigureSettings, 'frontColor' | 'backColor'>
 ): PaperStyle {
-  const pinned = effectivePaperStyle(style, {
+  return surfacePaperStyle(creaseExportPinnedStyle(style, settings), PAPER_STYLE_POLICIES['folded-flat']);
+}
+
+/**
+ * The export style with the dialog's front and back colours pinned over its
+ * paper, before any surface reads it: what the Layer order dialog is handed
+ * with the flat figure's policy (`LayerOrderLook`), so its panes paint the
+ * figure as the inset is painted.
+ */
+export function creaseExportPinnedStyle(
+  style: PaperStyle,
+  settings: Pick<CreaseExportFoldedFigureSettings, 'frontColor' | 'backColor'>
+): PaperStyle {
+  return effectivePaperStyle(style, {
     'paper.front': parseHex(settings.frontColor),
     'paper.back': parseHex(settings.backColor),
   });
-  return surfacePaperStyle(pinned, PAPER_STYLE_POLICIES['folded-flat']);
 }
 
 export const EMPTY_CREASE_EXPORT_CONTENT: CreaseExportContent = { foldedFigure: null };
@@ -1175,10 +1199,14 @@ export function buildCreaseExportArtwork(
   const foldedSnapshot = options.includeFoldedFigure ? content.foldedFigure : null;
   const foldedScene = options.includeFoldedFigure ? (content.foldedFigureScene ?? null) : null;
   const foldedTransform = content.foldedFigureTransform ?? IDENTITY_CP_MODEL_TO_FOLD;
+  // The figure's turn (the Layer order dialog's Rotate), about the kernel's
+  // origin: the box below is fitted to whatever bounds that leaves, so where
+  // it turns about moves nothing. No turn is the identity, point for point.
+  const turnFolded = turnClockwise(content.foldedFigureTurnDeg ?? 0);
   // The figure comes back in kernel coordinates, which are not always the
   // fold's own — an imported fold is rescaled to the unit square.
   const projectFoldedPoint = (point: { x: number; y: number }) =>
-    projectPoint(applyCpModelToFold(point, foldedTransform));
+    projectPoint(applyCpModelToFold(turnFolded(point), foldedTransform));
   // Fit the figure's height to the drawn crease pattern's, so the two line up
   // top and bottom. The kernel's folded coordinates carry a display scale of
   // their own (an imported figure can come back twice the size of the paper it
