@@ -608,4 +608,28 @@ describe('the share card’s folded figure across shares', () => {
     expect(fold).toHaveBeenCalledTimes(2);
     expect(preview()).toContain(`fill="${DEFAULT_PAPER_STYLE.paper.back}"`);
   });
+
+  it('folds a sheet shared again after a change its creases do not show, such as an aux line', async () => {
+    const edited = (changeSerial: number) =>
+      useWorkspaceStore.setState({
+        oristudioCpDocument: { document: {}, summary: null, loadSerial: 1, changeSerial } as unknown as OristudioCpDocumentState,
+      });
+    edited(4);
+    let answer = foldResult();
+    const fold = vi.fn(async () => answer);
+    useWorkspaceStore.setState({ foldOristudioCpShareFigure: fold });
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
+    await share('T0NTMQEB');
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('[aria-label="Show folded figure"]')?.click();
+    });
+    expect(fold).toHaveBeenCalledTimes(1);
+
+    // An aux line drawn on the sheet: the payload is the same, the folded paper is not.
+    edited(5);
+    answer = turnedOver();
+    await share('T0NTMQEB');
+    expect(fold).toHaveBeenCalledTimes(2);
+    expect(preview()).toContain(`fill="${DEFAULT_PAPER_STYLE.paper.back}"`);
+  });
 });

@@ -199,11 +199,18 @@ export function ShareLinkModal() {
     [layerOrderHost, segment]
   );
   const orderFor = useExportLayerOrderLookup();
-  // The sheet's creases as well as its index: the modal stays mounted between
-  // shares, so a sheet edited since, or another file's, is folded again.
+  // The modal stays mounted between shares, and the fold reads the document as
+  // it stands, its aux lines and folded-figure settings as well as the sheet's
+  // creases: a share after any change to it, or of another file's sheet, is
+  // folded again, and one with nothing changed reuses its fold.
+  const documentVersion = useWorkspaceStore((state) =>
+    state.oristudioCpDocument
+      ? `${state.oristudioCpDocument.loadSerial}.${state.oristudioCpDocument.changeSerial ?? ''}`
+      : ''
+  );
   const cacheKeyPrefix = useMemo(
-    () => (draft ? `${draft.segmentId}:${keyDigest([draft.payload], 'shr1:')}` : ''),
-    [draft]
+    () => (draft ? `${draft.segmentId}:${documentVersion}:${keyDigest([draft.payload], 'shr1:')}` : ''),
+    [draft, documentVersion]
   );
 
   const folded = useFoldedFigurePreview({
