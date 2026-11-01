@@ -472,6 +472,15 @@ export type DiagramSpreadDirection =
  */
 export const DIAGRAM_SPREAD_PERCENT_BUCKETS = [2.5, 7.5, 12.5] as const;
 
+/**
+ * How far a Default (connected) spread goes, in percent as its Amount slider
+ * shows it — its height multiplier, 0 to 2, read as 0 to 100% — bucketed on
+ * a ladder of its own: `<=10` (Fold's 7% start), `<=25` (the 25% every other
+ * surface starts at), `<=50`, `>50`. The depth and affine ladder above would
+ * put the 25% default in its top bucket every time. Never the value.
+ */
+export const DIAGRAM_CONNECTED_SPREAD_PERCENT_BUCKETS = [10, 25, 50] as const;
+
 /** An affine spread's skew, in percent: none, some, most, all (the default). Never the value. */
 export const DIAGRAM_SPREAD_SKEW_PERCENT_BUCKETS = [0, 50, 99] as const;
 
