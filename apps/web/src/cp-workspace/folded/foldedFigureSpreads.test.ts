@@ -3,6 +3,7 @@ import type { OristudioCpFoldedFigureEntry, OristudioCpFoldedPaperScene } from '
 import { DEFAULT_FOLDED_MODEL } from '../../lib/orieditaNativeMetadata';
 import { foldedFigureRefoldKey } from './foldedFigureLayerOrders';
 import type { FoldedFigureSpread } from './foldedFigureSpread';
+import type { LayerSpreadOptions } from './foldedLayerSpread';
 import {
   FOLDED_FIGURE_SPREAD_SCENE_BUDGET_BYTES,
   FOLDED_FIGURE_SPREADS_KEY as KEY,
@@ -75,7 +76,7 @@ function scene(sheet = 1): OristudioCpFoldedPaperScene {
   };
 }
 
-const record = (spread = DEFAULT_CONNECTED_SPREAD): FoldedFigureSpread => ({ kind: 'record', spread });
+const record = (spread: LayerSpreadOptions = DEFAULT_CONNECTED_SPREAD): FoldedFigureSpread => ({ kind: 'record', spread });
 
 function spread(entry: OristudioCpFoldedFigureEntry, value = record(), withScene = true): OristudioCpFoldedFigureEntry {
   return { ...entry, spread: value, ...(withScene ? { spreadScene: scene() } : {}) };

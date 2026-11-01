@@ -36,7 +36,7 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import { FOLDED_FIGURE_SPREADS_KEY } from '../../cp-workspace/folded/foldedFigureSpreads';
-import { withoutSavedSpreadScene } from '../../cp-workspace/folded/foldedFigureSpread';
+import { foldedFigureSpreadOptions, withoutSavedSpreadScene } from '../../cp-workspace/folded/foldedFigureSpread';
 import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { InlineSimulation } from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import {
@@ -109,8 +109,10 @@ import {
   deleteFoldedFigure,
   dismissFoldedFigureDetachedLayerOrder,
   setFoldedFigurePlacementAsEntry,
+  setFoldedFigureSpreadAsEntry,
   showAnotherFoldedSolution,
   showPreviousFoldedSolution,
+  writeFoldedFigureSpreadEdit,
 } from '../../cp-workspace/folded/foldedFigureVerbs';
 import { endOpenCanvasSessions } from '../../cp-workspace/canvasObjects/canvasSessions';
 import { solutionFrontierOf } from '../../cp-workspace/folded/foldedSolutionFrontiers';
@@ -5779,6 +5781,109 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpError).toBe(
       'Select one or more foldable crease-pattern lines first'
     );
+  });
+
+  describe('a folded figure’s layer spread', () => {
+    const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
+    const spread = { kind: 'record' as const, spread: DEFAULT_CONNECTED_SPREAD };
+    const state = () => useWorkspaceStore.getState();
+    const figureNow = () => state().oristudioCpFoldedFigures[0]!;
+
+    async function foldOne(): Promise<OristudioCpFoldedFigureEntry> {
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        activePanelId: 'crease-pattern',
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+      });
+      await expect(state().foldOristudioCpDocument()).resolves.toBe(true);
+      return figureNow();
+    }
+
+    it('sets a spread as one “Change layer spread” entry, which undo takes back and redo puts back', async () => {
+      const figure = await foldOne();
+      const before = state().oristudioCpHistoryPast.length;
+
+      await expect(setFoldedFigureSpreadAsEntry(figure.id, spread, t)).resolves.toBe(true);
+      expect(figureNow().spread).toEqual(spread);
+      // Editing a figure's spread selects it and marks the project changed.
+      expect(state()).toMatchObject({ oristudioCpActiveFoldedFigureId: figure.id, dirty: true });
+      expect(state().oristudioCpHistoryPast).toHaveLength(before + 1);
+      expect(state().oristudioCpHistoryPast.at(-1)?.label).toBe('Change layer spread');
+
+      // The same spread again leaves the very list, and records nothing.
+      const list = state().oristudioCpFoldedFigures;
+      await setFoldedFigureSpreadAsEntry(figure.id, { kind: 'record', spread: { ...DEFAULT_CONNECTED_SPREAD } }, t);
+      expect(state().oristudioCpFoldedFigures).toBe(list);
+      expect(state().oristudioCpHistoryPast).toHaveLength(before + 1);
+
+      await state().undo();
+      expect(figureNow().spread ?? null).toBeNull();
+      await state().redo();
+      expect(figureNow().spread).toEqual(spread);
+    });
+
+    it('records a drag on the spread as one entry, whatever its moves', async () => {
+      const figure = await foldOne();
+      await setFoldedFigureSpreadAsEntry(figure.id, spread, t);
+      const before = state().oristudioCpHistoryPast.length;
+
+      const token = foldedFigureGesture.begin('pane:spreadAmount');
+      expect(token).not.toBeNull();
+      writeFoldedFigureSpreadEdit(figure.id, { verb: 'spread-amount', amount: 0.8, kind: 'connected' });
+      writeFoldedFigureSpreadEdit(figure.id, { verb: 'spread-amount', amount: 1.2, kind: 'connected' });
+      // An edit for another kind, as an undo under a drag can leave, changes nothing.
+      writeFoldedFigureSpreadEdit(figure.id, { verb: 'spread-direction', toward: 'up' });
+      await foldedFigureGesture.commit(token!, 'Change layer spread');
+
+      expect(foldedFigureSpreadOptions(figureNow())).toMatchObject({ kind: 'connected', amount: 1.2 });
+      expect(state().oristudioCpHistoryPast).toHaveLength(before + 1);
+      await state().undo();
+      expect(foldedFigureSpreadOptions(figureNow())).toEqual(DEFAULT_CONNECTED_SPREAD);
+    });
+
+    it('copies the spread to a duplicate', async () => {
+      const figure = await foldOne();
+      await setFoldedFigureSpreadAsEntry(figure.id, spread, t);
+      oristudioCpMocks.duplicateOristudioCpFoldedFigure.mockResolvedValueOnce({
+        handle: 12,
+        snapshot: foldedFigureSnapshot(),
+      });
+
+      await expect(state().duplicateOristudioCpFoldedFigure(figure.id)).resolves.toBe(true);
+
+      const [original, copy] = state().oristudioCpFoldedFigures;
+      expect(original!.spread).toEqual(spread);
+      expect(copy).toMatchObject({ handle: 12, spread });
+    });
+
+    it('keeps the spread through a refold, and drops the scene a file carried for it', async () => {
+      const figure = await foldOne();
+      const square = [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      ];
+      const carried: OristudioCpFoldedPaperScene = {
+        schema_version: 3,
+        flipped: false,
+        sheet: 1,
+        faces: [{ outline: square, points: [0, 1, 2], front_up: true, edges: [] }],
+        subfaces: [{ polygon: square, faces_top_to_bottom: [0] }],
+        aux_lines: [],
+        sheet_points: square,
+      };
+      // As a reopened file has it: no live fold, the scene its spread is drawn from.
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: [{ ...figure, handle: null, spread, spreadScene: carried }],
+      });
+
+      await expect(state().refoldOristudioCpFoldedFigure(figure.id)).resolves.toBe(true);
+
+      expect(figureNow().handle).not.toBeNull();
+      expect(figureNow().spread).toEqual(spread);
+      expect(figureNow()).not.toHaveProperty('spreadScene');
+    });
   });
 
   it('updates folded figure view state and manages duplicates', async () => {
