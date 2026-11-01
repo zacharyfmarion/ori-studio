@@ -45,7 +45,8 @@ afterEach(async () => { await act(async () => root.unmount()); host.remove(); })
 
 it('shows Default amount as 0–100%, preserving the full height range and resetting to 7%', () => {
   const amount = host.querySelector<HTMLInputElement>('input[aria-label="Spread amount"]')!;
-  expect([amount.min, amount.max, amount.value, amount.getAttribute('aria-valuetext')]).toEqual(['0', '100', '7', '7%']);
+  expect([amount.min, amount.max, amount.getAttribute('aria-valuetext')]).toEqual(['0', '100', '7%']);
+  expect(amount.valueAsNumber).toBeCloseTo(7);
   for (const [percent, multiplier] of [[100, 2], [0, 0]]) {
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(amount, String(percent));
@@ -56,7 +57,8 @@ it('shows Default amount as 0–100%, preserving the full height range and reset
   }
   act(() => host.querySelector<HTMLButtonElement>('button[aria-label="Reset Amount to default"]')!.click());
   expect(amountPreview).toHaveBeenLastCalledWith('amount', 0.14);
-  expect(amount.value).toBe('7');
+  expect(amount.valueAsNumber).toBeCloseTo(7);
+  expect(amount.getAttribute('aria-valuetext')).toBe('7%');
 });
 
 // Shown at the nearest whole percent, and left as saved until the slider moves.
