@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type {
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldSource,
+  OristudioCpFoldedFigureModel,
   OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
 } from '../engine/oristudioCpTypes';
@@ -11,8 +13,11 @@ import {
   cpModelToFoldTransform,
   foldableLineIdsForSegment,
   foldSegmentForExport,
+  foldSegmentInOrderForExport,
+  type CpFoldRuntime,
   type CreaseExportFoldRuntime,
 } from './creaseExportFold';
+import type { LayerOrderRecord } from './layerOrder/layerOrderRecord';
 
 /** Two disjoint squares, matching the document below line for line. */
 function twoPatternFold(): FoldDocument {
@@ -326,5 +331,150 @@ describe('foldSegmentForExport', () => {
 
     await expect(foldSegmentForExport(api, auxOnly, null)).rejects.toThrow(/no foldable creases/);
     expect(api.fold).not.toHaveBeenCalled();
+  });
+});
+
+const MODEL = {
+  state: 'Front0',
+  front_color: { red: 255, green: 255, blue: 50 },
+  back_color: { red: 233, green: 233, blue: 233 },
+} as unknown as OristudioCpFoldedFigureModel;
+
+function kernelSource(): OristudioCpFoldSource {
+  return {
+    segments: [
+      {
+        ...line(0, 0, 10, 10, 'Red1'),
+        active: 'ACTIVE_0',
+        selected: 0,
+        customized: 0,
+        customized_color: { red: 0, green: 0, blue: 0 },
+      },
+    ],
+    starting_face_id: 1,
+    aux_segments: [],
+    digest: 'fnv:abc',
+  };
+}
+
+describe('the export fold’s Layer order source', () => {
+  it('reads what the fold was made from before freeing it, with the model it folded with', async () => {
+    const calls: string[] = [];
+    const api = runtime({
+      free: vi.fn(async () => {
+        calls.push('free');
+      }),
+    });
+    const withSource = {
+      ...api,
+      source: vi.fn(async () => {
+        calls.push('source');
+        return kernelSource();
+      }),
+    };
+
+    const result = await foldSegmentForExport(withSource, document(), null, MODEL);
+
+    expect(calls).toEqual(['source', 'free']);
+    expect(withSource.source).toHaveBeenCalledWith(7);
+    expect(result.source).toEqual({
+      segments: kernelSource().segments,
+      startingFaceId: 1,
+      auxSegments: [],
+      model: MODEL,
+      digest: 'fnv:abc',
+    });
+  });
+
+  it('says where the fold stands among its layer orders, and whether it has one', async () => {
+    const api = {
+      ...runtime({
+        fold: vi.fn(async () => ({
+          handle: 7,
+          discoveredCases: 2,
+          displayStyle: 'Paper5' as const,
+          outcome: 'Solved' as const,
+          currentCase: 1,
+          hasNext: true,
+        })),
+      }),
+      source: vi.fn(async () => kernelSource()),
+    };
+    await expect(foldSegmentForExport(api, document(), null, MODEL)).resolves.toMatchObject({
+      discoveredCases: 2,
+      currentCase: 1,
+      hasNext: true,
+      ordered: true,
+    });
+    const seeThrough = runtime({
+      fold: vi.fn(async () => ({ handle: 7, discoveredCases: 0, displayStyle: 'Transparent3' as const })),
+    });
+    await expect(foldSegmentForExport(seeThrough, document(), null, MODEL)).resolves.toMatchObject({
+      ordered: false,
+      source: null,
+    });
+  });
+
+  it('folds through the same kernel calls as before: Order5 from face 1, then the case', async () => {
+    const api = runtime();
+    await foldSegmentForExport(api, document(), null, MODEL, 3);
+    expect(api.fold).toHaveBeenCalledWith(1, 'Order5', MODEL, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(api.foldToCase).toHaveBeenCalledWith(7, 3);
+  });
+});
+
+describe('foldSegmentInOrderForExport', () => {
+  const record: LayerOrderRecord = { faces: [], constraints: [], order: [] };
+  const relations = new Uint32Array([1, 0]);
+  const source = {
+    segments: kernelSource().segments,
+    startingFaceId: 1,
+    auxSegments: [],
+    model: MODEL,
+    digest: 'fnv:abc',
+  };
+
+  function orderedRuntime(foldWithOrder: CpFoldRuntime['foldWithOrder']): CpFoldRuntime {
+    return {
+      ...runtime(),
+      setModel: vi.fn(),
+      foldAnother: vi.fn(),
+      foldWithOrder,
+    } as CpFoldRuntime;
+  }
+
+  it('folds the relations on the source with the current model, reads the picture and frees it', async () => {
+    const back = { ...MODEL, state: 'Back1' } as OristudioCpFoldedFigureModel;
+    const foldWithOrder = vi.fn(async () => ({
+      status: 'folded' as const,
+      handle: 9,
+      discoveredCases: 1,
+      displayStyle: 'Paper5' as const,
+    }));
+    const api = orderedRuntime(foldWithOrder);
+
+    const folded = await foldSegmentInOrderForExport(api, { record, relations, source }, back);
+
+    expect(foldWithOrder).toHaveBeenCalledWith(
+      { segments: source.segments, starting_face_id: 1, aux_segments: [], digest: 'fnv:abc' },
+      relations,
+      back
+    );
+    expect(api.renderSnapshot).toHaveBeenCalledWith(9, 'Paper5');
+    expect(api.paperScene).toHaveBeenCalledWith(9);
+    expect(api.free).toHaveBeenCalledWith(9);
+    expect(folded).toMatchObject({ status: 'folded', result: { chosenOrder: true, source, scene: { faces: [expect.anything()] } } });
+  });
+
+  it('refuses with no figure when the kernel will not draw the order', async () => {
+    const api = orderedRuntime(
+      vi.fn(async () => ({ status: 'refused' as const, refusal: { code: 'digest_mismatch' } as never }))
+    );
+
+    await expect(foldSegmentInOrderForExport(api, { record, relations, source }, MODEL)).resolves.toEqual({
+      status: 'refused',
+    });
+    expect(api.renderSnapshot).not.toHaveBeenCalled();
+    expect(api.free).not.toHaveBeenCalled();
   });
 });

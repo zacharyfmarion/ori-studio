@@ -1,9 +1,5 @@
 import type {
   OristudioCpDocumentSnapshot,
-  OristudioCpFoldOrderRefusal,
-  OristudioCpFoldOutcome,
-  OristudioCpFoldSource,
-  OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
@@ -22,104 +18,31 @@ import {
   pointOnSegmentBoundary,
   type CpSegment,
 } from './creasePatternSegmentation';
+import {
+  hasFoldedLayerOrder,
+  openFold,
+  readFoldedPicture,
+  type CpFoldRuntime,
+  type CreaseExportFoldRuntime,
+  type FoldedFigureState,
+} from './cpFoldRuntime';
+import { foldAppliedOrder } from './layerOrder/layerOrderFold';
+import type { LayerOrderApplied, LayerOrderSource } from './layerOrder/layerOrderRequest';
+import { layerOrderSourceOf } from './layerOrder/layerOrderSource';
+import { EDIT_PAPER_FRAME } from './layerOrder/paperFrame';
 
-/**
- * The kernel calls an export needs to fold a pattern. Injected so this module
- * stays free of the wasm runtime — the store supplies the real bindings and
- * tests supply fakes.
- */
-export interface CreaseExportFoldRuntime {
-  fold: (
-    startingFaceId: number,
-    order: 'Order5',
-    model: OristudioCpFoldedFigureModel | undefined,
-    lineIds: number[]
-  ) => Promise<FoldedFigureState>;
-  /** Advance the figure to a later layer-ordering solution. */
-  foldToCase: (handle: number, objective: number) => Promise<Omit<FoldedFigureState, 'handle'>>;
-  renderSnapshot: (
-    handle: number,
-    displayStyle: OristudioCpFoldedFigureDisplayStyle
-  ) => Promise<OristudioCpFoldedRenderSnapshot | null>;
-  /**
-   * The kernel's paper scene for the figure — every face's folded outline and
-   * every subface's stack — or null when it has no paper picture to give.
-   */
-  paperScene: (handle: number) => Promise<OristudioCpFoldedPaperScene | null>;
-  free: (handle: number) => Promise<void>;
-}
-
-/**
- * A fold the caller holds on to and works with, rather than one read and freed
- * at once: the Diagram's capture session turns it over and steps through its
- * solutions on the same handle (D4).
- */
-export interface CpFoldRuntime extends CreaseExportFoldRuntime {
-  /** Put the figure in a new model (a side, a colour) without folding it again. */
-  setModel: (
-    handle: number,
-    model: OristudioCpFoldedFigureModel
-  ) => Promise<Omit<FoldedFigureState, 'handle'>>;
-  /** The next layer-ordering solution, on the same handle. */
-  foldAnother: (handle: number) => Promise<Omit<FoldedFigureState, 'handle'>>;
-  /**
-   * What the fold behind `handle` was made from, for the Layer order dialog.
-   * Optional: only a runtime over the CP kernel has one.
-   */
-  source?: (handle: number) => Promise<OristudioCpFoldSource>;
-  /**
-   * Fold `source` again with `relations` given (flat `[upper, lower]` face
-   * pairs), into a **new** handle; a refusal leaves none. How a host shows a
-   * chosen layer order (the Diagram's capture, among others): never a change
-   * to the handle it already holds.
-   */
-  foldWithOrder?: (
-    source: OristudioCpFoldSource,
-    relations: Uint32Array,
-    model: OristudioCpFoldedFigureModel | undefined
-  ) => Promise<FoldWithOrderOutcome>;
-}
-
-/** A fold with a given layer order: the new figure, or why there is none. */
-export type FoldWithOrderOutcome =
-  | ({ status: 'folded' } & FoldedFigureState)
-  | { status: 'refused'; refusal: OristudioCpFoldOrderRefusal };
-
-/** What a fold (or a jump to another case) leaves the figure in. */
-export interface FoldedFigureState {
-  handle: number;
-  discoveredCases: number;
-  /**
-   * The style the estimate actually reached. The kernel downgrades this when it
-   * cannot order the layers — a dense pattern often concludes at `Transparent3`
-   * — and rendering the figure as `Paper5` regardless comes back empty, which
-   * is how a real crease pattern ended up reported as "nothing to draw".
-   */
-  displayStyle: OristudioCpFoldedFigureDisplayStyle;
-  /**
-   * Whether the layers were ordered (`Solved`), shown to have no order
-   * (`NoSolutions`, `Contradiction`), or not tried. Absent from a kernel that
-   * predates it.
-   */
-  outcome?: OristudioCpFoldOutcome;
-  /** The 1-based solution being shown, when the runtime reports it. */
-  currentCase?: number;
-  /** Whether another solution can be searched for without starting over. */
-  hasNext?: boolean;
-}
-
-/** A fold's picture as the kernel draws it: its primitives, and its paper scene when it has one. */
-export interface FoldedPicture {
-  snapshot: OristudioCpFoldedRenderSnapshot;
-  /** The `Paper5` paper scene; null for a fold that did not reach it. */
-  scene: OristudioCpFoldedPaperScene | null;
-}
-
-/** A requested Order5 can stop at an earlier stage without throwing. */
-export function hasFoldedLayerOrder(state: Omit<FoldedFigureState, 'handle'>): boolean {
-  return state.displayStyle === 'Paper5' && state.discoveredCases > 0 &&
-    (state.outcome === undefined || state.outcome === 'Solved');
-}
+// The kernel's fold calls, which lived here before the Layer order hosts
+// shared them (`cpFoldRuntime.ts`); every importer still finds them here.
+export {
+  hasFoldedLayerOrder,
+  openFold,
+  readFoldedPicture,
+  type CpFoldRuntime,
+  type CreaseExportFoldRuntime,
+  type FoldWithOrderOutcome,
+  type FoldedFigureState,
+  type FoldedPicture,
+} from './cpFoldRuntime';
 
 export interface CreaseExportFoldResult {
   snapshot: OristudioCpFoldedRenderSnapshot;
@@ -134,6 +57,31 @@ export interface CreaseExportFoldResult {
   discoveredCases: number;
   /** Places the figure's kernel coordinates in the exported fold's space. */
   transform: CpModelToFoldTransform;
+  /**
+   * What the fold was made from, read from it before its handle was freed:
+   * the Layer order dialog's source (`LayerOrderRequest.source`), and the key
+   * a chosen order is kept by (its digest). Absent from a runtime that cannot
+   * say, or a fold made with no model.
+   */
+  source?: LayerOrderSource | null;
+  /**
+   * Where the fold stands among its layer orders, for the Layer order row's
+   * readout (`layerOrderCount`): the solution shown, 1-based, and whether the
+   * search may find another. Absent from a runtime that does not report them.
+   */
+  currentCase?: number;
+  hasNext?: boolean;
+  /**
+   * Whether the fold put its layers in order (D3): false for a fold the
+   * kernel left as its see-through development, which has no layer order to
+   * step through or choose. Absent from a runtime that does not report it.
+   */
+  ordered?: boolean;
+  /**
+   * The fold is in a layer order chosen in the Layer order dialog
+   * ({@link foldSegmentInOrderForExport}), not the kernel's own at a case.
+   */
+  chosenOrder?: boolean;
 }
 
 /**
@@ -347,50 +295,33 @@ export function foldableLineIdsForSegment(
   });
 }
 
-/**
- * Fold a set of crease-pattern lines, and hand the figure to the caller, who
- * owns its handle from here and frees it (`runtime.free`).
- */
-export async function openFold(
-  runtime: CreaseExportFoldRuntime,
-  lineIds: number[],
-  model?: OristudioCpFoldedFigureModel
-): Promise<FoldedFigureState> {
-  if (lineIds.length === 0) {
-    throw new Error('This crease pattern has no foldable creases');
-  }
-  return runtime.fold(1, 'Order5', model, lineIds);
-}
+/** The runtime an export folds with: the kernel's flat calls, and what a fold was made from when it can say. */
+export type CreaseExportFoldWith = CreaseExportFoldRuntime & Pick<CpFoldRuntime, 'source'>;
 
-/**
- * Read a held figure's picture at the style its fold reached: the drawing
- * primitives, and the paper scene when it is a `Paper5` figure. A fold the
- * kernel downgraded has no layer ordering, and its transparent development is
- * the snapshot alone.
- */
-export async function readFoldedPicture(
-  runtime: CreaseExportFoldRuntime,
-  handle: number,
-  displayStyle: OristudioCpFoldedFigureDisplayStyle
-): Promise<FoldedPicture> {
-  const snapshot = await runtime.renderSnapshot(handle, displayStyle);
-  if (!snapshot?.primitives.length) {
-    throw new Error('The folded figure produced nothing to draw');
-  }
-  const scene = displayStyle === 'Paper5' ? await runtime.paperScene(handle) : null;
-  return { snapshot, scene };
+/** Where a fold stands among its layer orders, as the export's result says it. */
+function solutionsOf(state: Omit<FoldedFigureState, 'handle'>, foldCase: number) {
+  return {
+    discoveredCases: Math.max(1, state.discoveredCases),
+    currentCase: state.currentCase ?? foldCase,
+    hasNext: state.hasNext ?? false,
+    ordered: hasFoldedLayerOrder(state),
+  };
 }
 
 /**
  * Fold one crease pattern and return its drawing primitives and its paper
- * scene: {@link openFold}, then {@link readFoldedPicture}, then free.
+ * scene: {@link openFold}, then {@link readFoldedPicture}, then free. With a
+ * runtime that can say what the fold was made from, its source too, read
+ * before the free, for the Layer order dialog: the dialog's faces are then
+ * this fold's (approach 2), and it is the source a chosen order folds again
+ * ({@link foldSegmentInOrderForExport}).
  *
  * Deliberately ephemeral: the figure never becomes a canvas entry, so exporting
  * adds nothing to the document, the undo stack, or the dirty flag — and the
  * kernel handle is freed whether or not the render succeeds.
  */
 export async function foldSegmentForExport(
-  runtime: CreaseExportFoldRuntime,
+  runtime: CreaseExportFoldWith,
   document: OristudioCpDocumentSnapshot,
   segment: CpSegment | null,
   model?: OristudioCpFoldedFigureModel,
@@ -402,13 +333,59 @@ export async function foldSegmentForExport(
   try {
     // Case 1 is what the fold already produced; later cases are reached by
     // asking the kernel to keep searching from the same handle.
-    let { discoveredCases, displayStyle } = folded;
-    if (foldCase > 1) {
-      ({ discoveredCases, displayStyle } = await runtime.foldToCase(handle, foldCase));
-    }
-    const { snapshot, scene } = await readFoldedPicture(runtime, handle, displayStyle);
-    return { snapshot, scene, discoveredCases: Math.max(1, discoveredCases), transform };
+    const state = foldCase > 1 ? await runtime.foldToCase(handle, foldCase) : folded;
+    const { snapshot, scene } = await readFoldedPicture(runtime, handle, state.displayStyle);
+    // A fold's source is the same at every case.
+    const kernel = runtime.source && model ? await runtime.source(handle) : null;
+    return {
+      snapshot,
+      scene,
+      transform,
+      ...solutionsOf(state, foldCase),
+      source: kernel && model ? layerOrderSourceOf(kernel, model) : null,
+    };
   } finally {
     await runtime.free(handle);
+  }
+}
+
+/**
+ * A fold in a chosen layer order: the export's figure in it, or why the
+ * kernel would not draw it. A refusal leaves no figure, and the caller keeps
+ * the picture it had.
+ */
+export type CreaseExportOrderedFold =
+  | { readonly status: 'folded'; readonly result: CreaseExportFoldResult }
+  | { readonly status: 'refused' };
+
+/**
+ * Fold an export's figure in an order chosen in the Layer order dialog:
+ * `order.relations` on `order.source`, exactly the fold the dialog analysed
+ * ({@link foldAppliedOrder}, the Diagram's too), into a new figure, then
+ * {@link readFoldedPicture}, then free. `model` is the one the export folds
+ * with now — the relations name faces from the starting face's front, so a
+ * side or a colour changed since the Apply refolds with the same order.
+ *
+ * Ephemeral as {@link foldSegmentForExport} is. The record stays in the crease
+ * pattern's coordinates (Edit's frame): it is only ever handed back to the
+ * dialog.
+ */
+export async function foldSegmentInOrderForExport(
+  runtime: CpFoldRuntime,
+  order: LayerOrderApplied,
+  model: OristudioCpFoldedFigureModel,
+  transform: CpModelToFoldTransform = IDENTITY_CP_MODEL_TO_FOLD
+): Promise<CreaseExportOrderedFold> {
+  const shown = await foldAppliedOrder(runtime, order, model, EDIT_PAPER_FRAME);
+  if (shown.kind === 'kept') return { status: 'refused' };
+  const { state } = shown;
+  try {
+    const { snapshot, scene } = await readFoldedPicture(runtime, state.handle, state.displayStyle);
+    return {
+      status: 'folded',
+      result: { snapshot, scene, transform, ...solutionsOf(state, 1), source: order.source, chosenOrder: true },
+    };
+  } finally {
+    await runtime.free(state.handle);
   }
 }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2397.71" height="1024.00" viewBox="0 0 2397.71 1024.00" role="img" aria-label="Crease pattern">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <polygon points="48.00,48.00 976.00,48.00 512.00,512.00" fill="#f8f5ec" stroke="none"/>
+  <polygon points="976.00,48.00 976.00,976.00 512.00,512.00" fill="#f8f5ec" stroke="none"/>
+  <polygon points="976.00,976.00 48.00,976.00 512.00,512.00" fill="#f8f5ec" stroke="none"/>
+  <polygon points="48.00,976.00 48.00,48.00 512.00,512.00" fill="#f8f5ec" stroke="none"/>
+  <line x1="48.00" y1="48.00" x2="976.00" y2="48.00" stroke="#111417" stroke-width="2.13" stroke-linecap="round"/>
+  <line x1="976.00" y1="48.00" x2="976.00" y2="976.00" stroke="#111417" stroke-width="2.13" stroke-linecap="round"/>
+  <line x1="976.00" y1="976.00" x2="48.00" y2="976.00" stroke="#111417" stroke-width="2.13" stroke-linecap="round"/>
+  <line x1="48.00" y1="976.00" x2="48.00" y2="48.00" stroke="#111417" stroke-width="2.13" stroke-linecap="round"/>
+  <line x1="48.00" y1="48.00" x2="512.00" y2="512.00" stroke="#ff4d5d" stroke-width="2.13" stroke-linecap="round"/>
+  <line x1="512.00" y1="512.00" x2="976.00" y2="976.00" stroke="#ff4d5d" stroke-width="2.13" stroke-linecap="round"/>
+  <line x1="976.00" y1="48.00" x2="512.00" y2="512.00" stroke="#60a5fa" stroke-width="2.13" stroke-linecap="round"/>
+  <line x1="512.00" y1="512.00" x2="48.00" y2="976.00" stroke="#60a5fa" stroke-width="2.13" stroke-linecap="round"/>
+  <g transform="translate(1024.00, 0.00)" stroke-linejoin="round">
+  <polygon points="0.00,48.00 1325.71,48.00 530.29,976.00" fill="#ffff32" stroke="#ffff32" stroke-width="0.50"/>
+  </g>
+</svg>
