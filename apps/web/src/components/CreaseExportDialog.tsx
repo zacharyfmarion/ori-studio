@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ChevronRight, Download, X } from 'lucide-react';
@@ -19,12 +19,7 @@ import {
   type CreaseExportTheme,
 } from '../lib/creaseExport';
 import { cpThumbnailSvg, type CpSegment } from '../lib/creasePatternSegmentation';
-import {
-  hasNonClassicCreases,
-  isFlatFoldableFold,
-  type CpModelToFoldTransform,
-  type CreaseExportFoldResult,
-} from '../lib/creaseExportFold';
+import { hasNonClassicCreases, isFlatFoldableFold } from '../lib/creaseExportFold';
 import {
   ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS,
   ORISTUDIO_CP_LINE_STYLES,
@@ -34,10 +29,7 @@ import {
   ORISTUDIO_CP_MAX_POINT_SIZE,
 } from '../lib/creasePatternViewport';
 import type { FoldDocument } from '../engine/types';
-import type {
-  OristudioCpFoldedPaperScene,
-  OristudioCpFoldedRenderSnapshot,
-} from '../engine/oristudioCpTypes';
+import { useFoldedFigurePreview } from '../cp-workspace/folded/useFoldedFigurePreview';
 import {
   creaseExportFigureColours,
   creaseExportFigureStyle,
@@ -147,15 +139,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   const [options, setOptions] = useState<CreaseExportOptions>(() =>
     withOpeningFigure(dialog.initialOptions)
   );
-  const [foldedFigure, setFoldedFigure] = useState<OristudioCpFoldedRenderSnapshot | null>(null);
-  const [foldedScene, setFoldedScene] = useState<OristudioCpFoldedPaperScene | null>(null);
   const paper = useCreaseExportPaper(options.foldedFigureStyle);
-  const [folding, setFolding] = useState(false);
-  const [foldError, setFoldError] = useState<string | null>(null);
-  const [discoveredCases, setDiscoveredCases] = useState(1);
-  const [foldedTransform, setFoldedTransform] = useState<CpModelToFoldTransform | undefined>(
-    undefined
-  );
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
     appearance: true,
     // Folding is the expensive, optional step: it stays out of the way until
@@ -163,10 +147,6 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     folded: false,
     text: true,
   });
-  // The document cannot change while the dialog is open, so a pattern folded
-  // with the same settings is reused instead of refolded.
-  const foldCache = useRef(new Map<string, CreaseExportFoldResult>());
-
   useEffect(() => {
     setOptions(withOpeningFigure(dialog.initialOptions));
   }, [dialog.initialOptions]);
@@ -209,55 +189,25 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   // has no single folded form to draw beside the sheet.
   const canFold = dialog.foldSegment !== null && (!multiPattern || segmentId !== null) && isFlat;
   const foldSegment = dialog.foldSegment;
-
-  useEffect(() => {
-    if (!includeFoldedFigure || !canFold || !foldSegment) {
-      setFoldedFigure(null);
-      setFoldedScene(null);
-      setFolding(false);
-      return undefined;
-    }
-
-    const key = `${segmentId ?? 'all'}:${foldedSettings.side}:${foldedSettings.frontColor}:${foldedSettings.backColor}:${foldedSettings.foldCase}`;
-    const cached = foldCache.current.get(key);
-    if (cached) {
-      setFoldedFigure(cached.snapshot);
-      setFoldedScene(cached.scene);
-      setDiscoveredCases(cached.discoveredCases);
-      setFoldedTransform(cached.transform);
-      setFoldError(null);
-      return undefined;
-    }
-
-    let cancelled = false;
-    setFolding(true);
-    setFoldError(null);
-    void foldSegment(scopedSegment, foldedSettings)
-      .then((result) => {
-        foldCache.current.set(key, result);
-        if (cancelled) return;
-        setFoldedFigure(result.snapshot);
-        setFoldedScene(result.scene);
-        setDiscoveredCases(result.discoveredCases);
-        setFoldedTransform(result.transform);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        // The preview is the contract: rather than export something the preview
-        // never showed, drop the figure and say why.
-        setFoldedFigure(null);
-        setFoldedScene(null);
-        setFoldError(error instanceof Error ? error.message : String(error));
-        setOptions((current) => ({ ...current, includeFoldedFigure: false }));
-      })
-      .finally(() => {
-        if (!cancelled) setFolding(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [includeFoldedFigure, canFold, foldSegment, segmentId, foldedSettings, scopedSegment]);
+  const foldScoped = useCallback(
+    (settings: CreaseExportFoldedFigureSettings) => {
+      if (!foldSegment) throw new Error('This export cannot fold');
+      return foldSegment(scopedSegment, settings);
+    },
+    [foldSegment, scopedSegment]
+  );
+  // The shared preview fold, the share modal's too: cached by pattern and
+  // settings for the dialog's life, since the document cannot change while it
+  // is open. A failure drops the figure and says why, rather than export
+  // something the preview never showed.
+  const folded = useFoldedFigurePreview({
+    enabled: includeFoldedFigure && canFold,
+    settings: foldedSettings,
+    fold: canFold && foldSegment ? foldScoped : null,
+    cacheKeyPrefix: String(segmentId ?? 'all'),
+    onError: () => setOptions((current) => ({ ...current, includeFoldedFigure: false })),
+  });
+  const { figure: foldedFigure, scene: foldedScene, transform: foldedTransform } = folded;
 
   const toggleSection = (id: SectionId) =>
     setOpenSections((current) => ({ ...current, [id]: !current[id] }));
@@ -601,14 +551,14 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                             )}
                     </small>
                   )}
-                  {folding && (
+                  {folded.folding && (
                     <small className="export-modal__hint">
                       {t('dialogs:export.folding', 'Folding…')}
                     </small>
                   )}
-                  {foldError && (
+                  {folded.error && (
                     <small className="export-modal__hint export-modal__hint--error" role="alert">
-                      {foldError}
+                      {folded.error}
                     </small>
                   )}
                 </div>
@@ -616,7 +566,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   checked={includeFoldedFigure}
                   disabled={!canFold}
                   onChange={(next) => {
-                    setFoldError(null);
+                    folded.clearError();
                     patch({ includeFoldedFigure: next });
                   }}
                   aria-label={t('dialogs:export.includeFoldedFigure', 'Include folded figure')}
@@ -675,7 +625,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   />
                   <small className="export-modal__hint">
                     {t('dialogs:export.foldedCasesFound', '{{count}} found so far', {
-                      count: discoveredCases,
+                      count: folded.discoveredCases,
                     })}
                   </small>
                 </div>

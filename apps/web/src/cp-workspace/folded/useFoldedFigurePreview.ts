@@ -42,10 +42,10 @@ export interface FoldedFigurePreviewOptions {
 /**
  * Fold a crease pattern for a preview, with caching and cancellation.
  *
- * Extracted from `CreaseExportDialog` so the share modal gets identical behaviour rather
- * than a second, subtly different copy. This is state and effect management, not
- * presentation — the two dialogs' *controls* differ (the share modal offers front/back
- * only, and no fold case), which is why only this part is shared.
+ * The one fold behind both the crease-pattern export dialog (`CreaseExportDialog`) and
+ * the share modal, so the two behave identically rather than as two subtly different
+ * copies. This is state and effect management, not presentation — the two dialogs'
+ * *controls* differ, which is why only this part is shared.
  *
  * The document cannot change while a modal is open, so a pattern folded with the same
  * settings is reused instead of refolded — folding is the expensive step, and a colour
