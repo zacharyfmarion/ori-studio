@@ -143,33 +143,10 @@ export function LayerSpreadRows({
               kind="segmented"
               title={spread.hint}
             >
-              <div
-                className={styles.compass}
-                role="group"
-                aria-label={t('panels:diagram.pose.spreadDirectionName', 'Spread direction')}
-              >
-                {spread.directions.map((direction) => {
-                  const Icon = ARROWS[direction.value];
-                  const held = direction.disabled || direction.waiting;
-                  return (
-                    <IconButton
-                      key={direction.value}
-                      size="sm"
-                      className={styles.direction}
-                      data-toward={direction.value}
-                      aria-label={direction.label}
-                      title={held && direction.hint ? direction.hint : direction.label}
-                      aria-pressed={direction.pressed}
-                      // Refused, but still holding the focus, as Pose's verbs are.
-                      aria-disabled={held || undefined}
-                      onClick={direction.run}
-                    >
-                      <Icon size={14} />
-                    </IconButton>
-                  );
-                })}
-                <Layers className={styles.centre} size={14} aria-hidden="true" />
-              </div>
+              <SpreadDirectionCompass
+                label={t('panels:diagram.pose.spreadDirectionName', 'Spread direction')}
+                directions={spread.directions}
+              />
             </FieldRow>
           ) : (
             <>
@@ -228,6 +205,53 @@ export function LayerSpreadRows({
         </>
       )}
     </>
+  );
+}
+
+/** One of a depth spread's eight ways, as the compass offers it: a spread choice's look and its verb. */
+export type SpreadDirectionCompassChoice = Pick<
+  LayerSpreadChoice<SpreadDirection>,
+  'value' | 'label' | 'pressed' | 'disabled' | 'waiting' | 'hint' | 'run'
+>;
+
+/**
+ * Which way a depth spread's deeper layers step: eight buttons round a
+ * centre. A refused one keeps its place and the focus a press gave it.
+ * Shared by the spread rows and the Properties sheet's `direction` field
+ * (`PropertySheetView`), so it reads the same in both.
+ */
+export function SpreadDirectionCompass({
+  label,
+  directions,
+}: {
+  /** The group's accessible name ("Spread direction"). */
+  label: string;
+  directions: readonly SpreadDirectionCompassChoice[];
+}) {
+  return (
+    <div className={styles.compass} role="group" aria-label={label}>
+      {directions.map((direction) => {
+        const Icon = ARROWS[direction.value];
+        const held = direction.disabled || direction.waiting;
+        return (
+          <IconButton
+            key={direction.value}
+            size="sm"
+            className={styles.direction}
+            data-toward={direction.value}
+            aria-label={direction.label}
+            title={held && direction.hint ? direction.hint : direction.label}
+            aria-pressed={direction.pressed}
+            // Refused, but still holding the focus, as Pose's verbs are.
+            aria-disabled={held || undefined}
+            onClick={direction.run}
+          >
+            <Icon size={14} />
+          </IconButton>
+        );
+      })}
+      <Layers className={styles.centre} size={14} aria-hidden="true" />
+    </div>
   );
 }
 
