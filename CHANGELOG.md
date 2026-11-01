@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-11-01
+
+A new Default layer spread that keeps the paper joined at its creases, in Fold and the Diagram, and spread and layer order for Edit's folded figures and in the Export and Share dialogs.
+
+### Added
+
+- Spread a flat fold's layers with the new **Default** spread in Fold and the Diagram. It lifts the layers apart while the paper stays joined at its creases, so the figure still reads as one sheet. Drag the **Layer reveal** pad, or use the arrow keys, to choose which way the layers open. In the Diagram's Pose, **Perspective 3D** shows the same spread from any angle. A new Diagram picture of a flat fold starts spread at 7%; in Fold, spread starts off, and Default starts at 7% when you turn it on. Saved files keep their Off, Affine or Depth choice, with Default offered beside them.
+- Spread a folded figure's layers in Edit, from the new **Spread** section of Properties: Spread layers, Spread by (Default, Affine or Depth), Amount and the reveal pad. X-ray draws the spread see-through. The spread is saved with the project and kept through copies and refolds, and a figure's own **Export…** writes it as the canvas draws it.
+- Choose the layer order and the spread of a folded figure when you export or share it. **Export crease pattern** and **Share** have **Edit Layer Order…**, which opens the Layer order dialog, and the same spread rows, and the exported file matches the preview. An order chosen there is used for the export only and does not change the project.
+
+### Improved
+
+- Set a spread's Amount in whole percents in every spread row, in Edit, Fold, the Diagram, Export and Share. Its readout keeps one width, so the slider no longer moves under the pointer while you drag.
+- Draw Fold's paper and the Diagram's Pose in the background, so the canvas keeps responding while a large fold redraws. Changing the spread or the view in Fold no longer replays the fold sequence.
+
 ## [0.8.0] - 2026-10-30
 
 A Layer order dialog that chooses how a flat folded figure's layers stack, in Edit, the Diagram, Pose and Fold, and empty Diagram steps that offer a pattern and an Import menu straight away.
