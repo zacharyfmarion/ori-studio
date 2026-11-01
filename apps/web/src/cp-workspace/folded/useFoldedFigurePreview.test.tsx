@@ -195,6 +195,26 @@ describe('a preview fold', () => {
     await render(SETTINGS, fold);
     expect(fold).toHaveBeenCalledTimes(3);
   });
+
+  it('stops folding when the settings go back to a fold it has while another still runs', async () => {
+    let landBack!: () => void;
+    const fold = vi.fn((settings: CreaseExportFoldedFigureSettings) =>
+      settings.side === 'Front0'
+        ? Promise.resolve(result(true, settings))
+        : new Promise<CreaseExportFoldResult>((resolve) => {
+            landBack = () => resolve(result(true, settings));
+          })
+    );
+    await render(SETTINGS, fold);
+    await render({ ...SETTINGS, side: 'Back1' }, fold);
+    expect(shown!.folding).toBe(true);
+    // Front again before Back lands: its fold is on show, and nothing it waits for is running.
+    await render(SETTINGS, fold);
+    expect(shown!.folding).toBe(false);
+    await act(async () => landBack());
+    expect(shown!.folding).toBe(false);
+    expect(fold).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('a preview fold in a chosen layer order', () => {

@@ -207,6 +207,8 @@ export function useFoldedFigurePreview({
     if (fits(cached)) {
       publish(cached.result);
       setOrderRefused(false);
+      // A fold still running is a replaced run's, which never says it is done.
+      setFolding(false);
       setError(null);
       return undefined;
     }
