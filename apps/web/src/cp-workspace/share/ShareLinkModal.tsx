@@ -530,7 +530,8 @@ export function ShareLinkModal() {
             {showFolded && canFold && (
               // FieldRows, as the Export dialog's folded section and the sidebars draw them:
               // the style, the side, its colours, its layer order, then its layers spread,
-              // head-on (no Presentation row).
+              // head-on (no Presentation row). Layer order and Spread by stand over their
+              // controls, which this column is too narrow to hold beside their labels.
               <div className={styles.folded}>
                 <PaperStyleRow value={figureStyle} onChange={pickFigureStyle} />
                 <SegmentedRow
@@ -546,6 +547,7 @@ export function ShareLinkModal() {
                 <ColorRow label={t('dialogs:share.backColor', 'Back color')} value={backColor} onChange={setBackColor} />
                 <LayerOrderRow
                   ref={editLayerOrderRef}
+                  layout="stacked"
                   pager={{
                     previous: layerOrder.row.previous,
                     next: layerOrder.row.next,
@@ -557,7 +559,7 @@ export function ShareLinkModal() {
                   noteKind={layerOrder.row.note?.kind}
                   onEditIntent={layerOrder.prefetch}
                 />
-                <LayerSpreadRows toggle={spread.rows.toggle} spread={spread.rows.spread} />
+                <LayerSpreadRows kindLayout="stacked" toggle={spread.rows.toggle} spread={spread.rows.spread} />
               </div>
             )}
           </div>

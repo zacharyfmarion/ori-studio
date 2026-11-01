@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowDown,
@@ -23,7 +24,7 @@ import { LayerRevealControl } from './LayerRevealControl';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { AffineSpreadCredit } from './AffineSpreadCredit';
 import { IconButton } from '../ui/IconButton';
-import { FieldRow, SegmentedRow, SliderRow, ToggleRow } from '../ui/fieldRows';
+import { FieldRow, SegmentedRow, SliderRow, StackedRow, ToggleRow } from '../ui/fieldRows';
 import styles from './LayerSpreadRows.module.css';
 
 const ARROWS: Record<SpreadDirection, LucideIcon> = {
@@ -59,14 +60,21 @@ export function LayerSpreadRows({
   toggle,
   spread,
   revealVisible = true,
+  kindLayout = 'row',
 }: {
   revealVisible?: boolean;
+  /**
+   * Spread by beside its label, or stacked under it with its choices across
+   * the row, for a column too narrow for both (the Share modal's).
+   */
+  kindLayout?: 'row' | 'stacked';
   /** Spread Layers; absent where the picture has no layers to offer it for. */
   toggle: LayerSpreadToggle | undefined;
   /** The spread while it is on; null while off. */
   spread: LayerSpreadDrag | null;
 }) {
   const { t, i18n } = useTranslation();
+  const kindLabelId = useId();
   if (!toggle) return null;
   const percent = (value: number) =>
     new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 0 }).format(value / 100);
@@ -76,6 +84,13 @@ export function LayerSpreadRows({
     });
   const shown = spread?.spread;
   const amount = shown ? spreadAmountSlider(shown.kind, shown.amount) : null;
+  const kinds =
+    spread?.kinds.map(({ value, label, disabled, waiting, hint }) => ({
+      value,
+      label,
+      disabled: disabled || waiting,
+      title: hint,
+    })) ?? [];
   return (
     <>
       <ToggleRow
@@ -89,16 +104,36 @@ export function LayerSpreadRows({
       />
       {spread && shown && amount && (
         <>
-          <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
-            <span className={styles.kind} aria-busy={spread.busy || undefined}>
-              <SegmentedControl size="sm" aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
+          {kindLayout === 'stacked' ? (
+            <StackedRow
+              label={t('panels:diagram.pose.spreadKind', 'Spread by')}
+              labelId={kindLabelId}
+              aside={shown.kind === 'affine' ? <AffineSpreadCredit /> : undefined}
+              title={spread.hint}
+              aria-busy={spread.busy || undefined}
+            >
+              <SegmentedControl
+                size="sm"
+                fill
+                aria-labelledby={kindLabelId}
                 value={shown.kind}
-                options={spread.kinds.map(({ value, label, disabled, waiting, hint }) => ({ value, label, disabled: disabled || waiting, title: hint }))}
+                options={kinds}
                 disabled={spread.disabled}
-                onChange={(value) => choose(spread.kinds, value)} />
-              {shown.kind === 'affine' && <AffineSpreadCredit />}
-            </span>
-          </FieldRow>
+                onChange={(value) => choose(spread.kinds, value)}
+              />
+            </StackedRow>
+          ) : (
+            <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
+              <span className={styles.kind} aria-busy={spread.busy || undefined}>
+                <SegmentedControl size="sm" aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
+                  value={shown.kind}
+                  options={kinds}
+                  disabled={spread.disabled}
+                  onChange={(value) => choose(spread.kinds, value)} />
+                {shown.kind === 'affine' && <AffineSpreadCredit />}
+              </span>
+            </FieldRow>
+          )}
           <SliderRow
             label={t('panels:diagram.pose.spreadAmount', 'Amount')}
             ariaLabel={t('panels:diagram.pose.spreadAmountName', 'Spread amount')}

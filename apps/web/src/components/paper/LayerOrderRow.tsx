@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { ControlVerb } from '../../lib/controlVerb';
 import { Button } from '../ui/Button';
 import { Pager } from '../ui/Pager';
-import { FieldRow } from '../ui/fieldRows';
+import { FieldRow, StackedRow } from '../ui/fieldRows';
 import styles from './LayerOrderRow.module.css';
 
 /** A way into the Layer order dialog, as the row's word button draws it. */
@@ -42,28 +42,49 @@ export const LayerOrderRow = forwardRef<
     disabled?: boolean;
     note?: string;
     noteKind?: 'reason' | 'status';
+    /**
+     * The pager and Edit… beside the label, or stacked under it with the note
+     * after them, for a column too narrow for both (the Share modal's).
+     */
+    layout?: 'row' | 'stacked';
     onEditIntent?: () => void;
   }
->(function LayerOrderRow({ pager, edit, disabled, note, noteKind, onEditIntent }, editRef) {
+>(function LayerOrderRow({ pager, edit, disabled, note, noteKind = 'reason', layout = 'row', onEditIntent }, editRef) {
   const { t } = useTranslation();
   const labelId = useId();
+  const label = t('panels:diagram.pose.layerOrder', 'Layer order');
+  const controls = (
+    <span className={styles.layerOrder} data-layout={layout}>
+      {pager && (
+        <Pager labelledBy={labelId} previous={pager.previous} next={pager.next}>
+          {pager.readout}
+        </Pager>
+      )}
+      {edit && <LayerOrderEntry ref={editRef} entry={edit} onIntent={onEditIntent} />}
+    </span>
+  );
+  if (layout === 'stacked') {
+    return (
+      <StackedRow label={label} labelId={labelId} disabled={disabled}>
+        {controls}
+        {note !== undefined && (
+          <span className={styles.note} data-note={noteKind}>
+            {note}
+          </span>
+        )}
+      </StackedRow>
+    );
+  }
   return (
     <FieldRow
-      label={t('panels:diagram.pose.layerOrder', 'Layer order')}
+      label={label}
       labelId={labelId}
       kind="text"
       disabled={disabled}
       note={note}
       noteKind={noteKind}
     >
-      <span className={styles.layerOrder}>
-        {pager && (
-          <Pager labelledBy={labelId} previous={pager.previous} next={pager.next}>
-            {pager.readout}
-          </Pager>
-        )}
-        {edit && <LayerOrderEntry ref={editRef} entry={edit} onIntent={onEditIntent} />}
-      </span>
+      {controls}
     </FieldRow>
   );
 });

@@ -13,10 +13,10 @@ const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const preview = vi.fn(), amountPreview = vi.fn(), commit = vi.fn(), choose = vi.fn();
 let disabled = false;
-function Harness({ initial = DEFAULT_CONNECTED_SPREAD, busy = false }: { initial?: LayerSpreadOptions; busy?: boolean }) {
+function Harness({ initial = DEFAULT_CONNECTED_SPREAD, busy = false, kindLayout }: { initial?: LayerSpreadOptions; busy?: boolean; kindLayout?: 'row' | 'stacked' }) {
   const [spread, setSpread] = useState<LayerSpreadOptions>(initial);
   const controls = layerSpreadControls(spread, { t, busy, hint: disabled ? 'Read-only' : undefined, kind: choose, direction: vi.fn(), keep: vi.fn() });
-  return <TooltipProvider><LayerSpreadRows toggle={{ pressed: true, disabled, run: vi.fn() }} spread={{ ...controls,
+  return <TooltipProvider><LayerSpreadRows kindLayout={kindLayout} toggle={{ pressed: true, disabled, run: vi.fn() }} spread={{ ...controls,
     start: () => !disabled, commit,
     preview: (field, value) => {
       amountPreview(field, value);
@@ -85,6 +85,27 @@ it('offers Default, Affine and Depth without extra captions or a busy-state layo
   expect(host.querySelector('[data-field-note]')).toBeNull();
   expect(host.textContent).not.toContain('Deeper layers');
   expect(pad().getAttribute('aria-valuetext')).toContain('Deeper layers');
+});
+
+it('stacks Spread by over its choices where asked, with the Affine credit beside its label', async () => {
+  const affine: LayerSpreadOptions = { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 };
+  await act(async () => root.render(<Harness key="stacked" initial={affine} kindLayout="stacked" />));
+  const group = [...host.querySelectorAll('[role="group"]')].find(
+    (candidate) => document.getElementById(candidate.getAttribute('aria-labelledby') ?? '')?.textContent === 'Spread by'
+  );
+  // Named once, by the label over it, and across the row rather than beside the label.
+  expect(group?.hasAttribute('aria-label')).toBe(false);
+  expect(group?.closest('[data-field-row]')).toBeNull();
+  expect(group?.hasAttribute('data-fill')).toBe(true);
+  const label = document.getElementById(group!.getAttribute('aria-labelledby')!)!;
+  const credit = host.querySelector('button[aria-label="About affine spreading"]');
+  expect(label.parentElement?.contains(credit)).toBe(true);
+  expect(label.parentElement?.contains(group!)).toBe(false);
+  act(() => [...group!.querySelectorAll('button')].find((option) => option.textContent === 'Depth')!.click());
+  expect(choose).toHaveBeenCalledWith('depth');
+
+  await act(async () => root.render(<Harness key="stacked" initial={affine} kindLayout="stacked" busy />));
+  expect(group?.closest('[aria-busy="true"]')).not.toBeNull();
 });
 
 it('clicks and drags both coordinates, caps the rim, and commits only on release', () => {

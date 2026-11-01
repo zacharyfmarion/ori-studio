@@ -328,8 +328,10 @@ describe('the share card’s layer order', () => {
     decodeURIComponent(
       document.querySelector('img[alt="Preview of the shared crease pattern"]')?.getAttribute('src') ?? ''
     );
+  /** The Layer order row, by its label. */
   const layerOrderRow = () =>
-    document.querySelector('button[aria-label="Edit Layer Order…"]')?.closest('[data-field-row]') ?? null;
+    Array.from(document.querySelectorAll('span')).find((element) => element.textContent === 'Layer order')
+      ?.parentElement ?? null;
   const nextButton = () => document.querySelector<HTMLButtonElement>('button[aria-label="Next Layer Order"]');
 
   beforeEach(() => {
@@ -516,10 +518,8 @@ describe('the share card’s layer spread', () => {
 
   it('puts Spread layers after Layer order, off the first time', async () => {
     await openWithFigure();
-    const labels = Array.from(
-      spreadSwitch()?.closest('[data-field-row]')?.parentElement?.querySelectorAll('[data-field-label]') ?? []
-    ).map((label) => label.textContent);
-    expect(labels.slice(-2)).toEqual(['Layer order', 'Spread layers']);
+    const rows = Array.from(spreadSwitch()?.closest('[data-field-row]')?.parentElement?.children ?? []);
+    expect(rows.slice(-2).map((row) => row.firstElementChild?.textContent)).toEqual(['Layer order', 'Spread layers']);
     expect(spreadSwitch()?.getAttribute('aria-checked')).toBe('false');
     await act(async () => createButton()?.click());
     expect(publish.mock.calls[0]?.[0]).toMatchObject({ foldedFigureSpread: null });
@@ -539,6 +539,17 @@ describe('the share card’s layer spread', () => {
     expect(document.querySelector('[aria-busy="true"]')).toBeNull();
     await act(async () => createButton()?.click());
     expect(publish.mock.calls[0]?.[0]).toMatchObject({ foldedFigureSpread: DEFAULT_CONNECTED_SPREAD });
+  });
+
+  it('stands Spread by and Layer order over their controls, in the card’s narrow column', async () => {
+    useSettingsStore.setState({ creasePatternFoldedFigureSpread: DEFAULT_CONNECTED_SPREAD });
+    await openWithFigure();
+    const namedBy = (name: string) =>
+      Array.from(document.querySelectorAll('[role="group"]')).find(
+        (group) => document.getElementById(group.getAttribute('aria-labelledby') ?? '')?.textContent === name
+      );
+    expect(namedBy('Spread by')?.closest('[data-field-row]')).toBeNull();
+    expect(namedBy('Layer order')?.closest('[data-field-row]')).toBeNull();
   });
 });
 
