@@ -271,6 +271,7 @@ import {
   clearOristudioCpKernelTexts,
   createBlankOristudioCpDocument,
   getOristudioCpFoldedFigurePaperScene,
+  getOristudioCpFoldedFigureSnapshot,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
   importAddOristudioCpDocumentFromText,
@@ -1991,14 +1992,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    * for the paper scene its spread is drawn from once reopened
    * (`foldedFiguresWithLiveSpreadScenes`), through the runtime, never the
    * canvas's side table. With the document's aux lines as they stand, as the
-   * canvas draws them.
+   * canvas draws them, and only from a handle that shows the figure's own
+   * layer order (an undo of Another solution leaves it on the later one).
    */
   const foldedFiguresForSave = (): Promise<OristudioCpFoldedFigureEntry[]> => {
     const documentHandle = get().oristudioCpDocument?.handle ?? null;
     return foldedFiguresWithLiveSpreadScenes(
       get().oristudioCpFoldedFigures,
       (handle) => getOristudioCpFoldedFigurePaperScene(handle, documentHandle),
-      (error) => reportError(error, { surface: 'folded-figure-spread:save' })
+      (error) => reportError(error, { surface: 'folded-figure-spread:save' }),
+      getOristudioCpFoldedFigureSnapshot
     );
   };
 

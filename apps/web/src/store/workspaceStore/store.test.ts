@@ -2806,6 +2806,16 @@ describe('workspace store slices', () => {
     );
     // The store's own figure is untouched: the scene went to the file alone.
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).not.toHaveProperty('spreadScene');
+
+    // An undo of Another solution puts the figure back, not its handle, which shows the later
+    // layer order: that scene is not the figure's, so none is saved, and the file reopens it flat.
+    oristudioCpMocks.getOristudioCpFoldedFigureSnapshot.mockResolvedValueOnce({
+      ...foldedFigureSnapshot(),
+      current_fold_case: 2,
+    });
+    oristudioCpMocks.getOristudioCpFoldedFigurePaperScene.mockResolvedValueOnce(paperScene(3));
+    await expect(useWorkspaceStore.getState().saveProjectAs(fileService)).resolves.toBe(true);
+    expect(written().extensions[FOLDED_FIGURE_SPREADS_KEY].figures['generated-4']).not.toHaveProperty('scene');
   });
 
   it('restores reference images from a native CP project', async () => {
