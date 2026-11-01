@@ -232,6 +232,7 @@
     "folded": {
       "appearance": "Aparência",
       "camera": "Câmera",
+      "changeSpread": "Alterar a separação das camadas",
       "changeView": "Alterar a vista do modelo dobrado",
       "chosenOrder": "Ordem escolhida",
       "chosenOrderAttention": "A ordem das camadas escolhida precisa de atenção",
@@ -271,6 +272,12 @@
       "refoldToChange": "Dobre novamente para alterar a aparência deste modelo",
       "rotation": "Rotação",
       "scale": "Escala",
+      "shadowSpread": "Camadas separadas são desenhadas sem sombras",
+      "spread": "Separação",
+      "spreadNeedsLook": "Só as aparências Papel e Raio X podem separar suas camadas",
+      "spreadNewer": "Feito com uma versão mais recente do Ori Studio: sua separação de camadas não pode ser alterada aqui.",
+      "spreadRefold": "Dobre novamente para mostrar a separação",
+      "spreadUnavailable": "Não foi possível separar estas camadas",
       "yaw": "Giro",
       "zoom": "Zoom"
     },

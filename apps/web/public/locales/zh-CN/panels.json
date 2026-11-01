@@ -222,6 +222,7 @@
     "folded": {
       "appearance": "外观",
       "camera": "相机",
+      "changeSpread": "更改层错开",
       "changeView": "更改折叠模型视角",
       "chosenOrder": "已选顺序",
       "chosenOrderAttention": "所选的层叠顺序需要处理",
@@ -247,6 +248,12 @@
       "refoldToChange": "重新折叠后才能更改此模型的外观",
       "rotation": "旋转",
       "scale": "缩放",
+      "shadowSpread": "错开层时不绘制阴影",
+      "spread": "错开",
+      "spreadNeedsLook": "只有纸张和透视样式可以错开层",
+      "spreadNewer": "由更新版本的 Ori Studio 制作：无法在此修改其层错开。",
+      "spreadRefold": "重新折叠后才能显示错开",
+      "spreadUnavailable": "无法错开这些层",
       "yaw": "转向",
       "zoom": "视距"
     },

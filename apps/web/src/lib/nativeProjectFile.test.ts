@@ -3,7 +3,20 @@ import type { PaperLineRole, PaperScene } from '@treemaker/origami-simulator';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedPaperScene,
 } from '../engine/oristudioCpTypes';
+import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
+import {
+  FOLDED_FIGURE_SPREADS_KEY,
+  foldedFigureSpreadFigureKey,
+  linkFoldedFigureSpreads,
+} from '../cp-workspace/folded/foldedFigureSpreads';
+import {
+  DEFAULT_AFFINE_SPREAD,
+  DEFAULT_CONNECTED_SPREAD,
+  DEFAULT_DEPTH_SPREAD,
+  writeLayerSpread,
+} from '../cp-workspace/folded/layerSpreadSettings';
 import {
   activeNativeDesign,
   createNativeBoxPleatProjectFile,
@@ -2395,18 +2408,23 @@ describe('a crease pattern’s layer orders', () => {
   }
 
   interface OpenOptions {
-    /** As a build that knows no layer orders opens it: the bag held as it came, nothing attached. */
+    /** As a build that knows no layer orders or spreads opens it: the bag held as it came, nothing attached. */
     older?: boolean;
   }
 
-  /** What a build installs from a saved crease pattern: its figures and its bag, as the store holds them. */
+  /**
+   * What a build installs from a saved crease pattern: its figures and its
+   * bag, as the store holds them — layer orders linked, then spreads
+   * (`nativeCpEditorState`).
+   */
   function opened(text: string, { older = false }: OpenOptions = {}) {
     const parsed = parseNativeProjectFile(text);
     const document = parsed.workspace.creasePattern;
     if (!document) throw new Error('expected CP document');
+    const layerOrders = linkFoldedFigureLayerOrders(document.extensions, document.viewState.foldedFigures);
     const installed = older
       ? { figures: document.viewState.foldedFigures, extensions: document.extensions }
-      : linkFoldedFigureLayerOrders(document.extensions, document.viewState.foldedFigures);
+      : linkFoldedFigureSpreads(layerOrders.extensions, layerOrders.figures);
     return { parsed, document, ...installed };
   }
 
@@ -2597,6 +2615,134 @@ describe('a crease pattern’s layer orders', () => {
       expect(detachedFoldedFigureLayerOrders(here.extensions)).toMatchObject([
         { figureId: 'generated-1', reason: 'order-not-given' },
       ]);
+    });
+  });
+
+  // Spreads are saved in the same bag, by the same rules
+  // (`implementation-plans/spread-and-layer-order-in-edit-export-share.md`).
+  describe('and its folded figures’ spreads', () => {
+    /** A small paper scene of the kernel's shape: one square face. */
+    function paperScene(): OristudioCpFoldedPaperScene {
+      const square = [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      ];
+      return {
+        schema_version: 3,
+        flipped: false,
+        sheet: 1,
+        faces: [{ outline: square, points: [0, 1, 2], front_up: true, edges: [] }],
+        subfaces: [{ polygon: square, faces_top_to_bottom: [0] }],
+        aux_lines: [],
+        sheet_points: square,
+      };
+    }
+
+    /** A flat figure spread as `spread` says, holding the scene a reopened figure draws it from. */
+    function spreadFigure(spread: LayerSpreadOptions = DEFAULT_CONNECTED_SPREAD): OristudioCpFoldedFigureEntry {
+      return { ...foldedFigure(), spread: { kind: 'record', spread }, spreadScene: paperScene() };
+    }
+
+    it('writes a project with no spread exactly as before spreads existed, fresh and reopened', async () => {
+      const unset = [{ ...foldedFigure(), spread: null, spreadScene: null }, { ...folded3dFigure(), spread: null }];
+      const text = serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput(unset)));
+      await expect(text).toMatchFileSnapshot(SAVED_BEFORE_LAYER_ORDERS);
+      await expect(resaved(text)).toMatchFileSnapshot(RESAVED_BEFORE_LAYER_ORDERS);
+      expect(Object.keys(bagOf(text))).toEqual(['futureDocFeature', 'zeta.other']);
+    });
+
+    it('never writes a spread or its scene on a figure', () => {
+      const text = serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput([spreadFigure(), folded3dFigure()])));
+      expect(figuresOf(text).filter((entry) => 'spread' in entry || 'spreadScene' in entry)).toEqual([]);
+    });
+
+    it.each<[string, LayerSpreadOptions]>([
+      ['Default', DEFAULT_CONNECTED_SPREAD],
+      ['Affine', DEFAULT_AFFINE_SPREAD],
+      ['Depth', DEFAULT_DEPTH_SPREAD],
+    ])('saves a %s spread with its scene in the bag, and attaches both back on open', (_kind, spread) => {
+      const figure = spreadFigure(spread);
+      const text = serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput([figure, folded3dFigure()])));
+      expect(bagOf(text)).toEqual({
+        futureDocFeature: { a: 1 },
+        'zeta.other': [1, 2],
+        [FOLDED_FIGURE_SPREADS_KEY]: {
+          figures: {
+            'generated-1': {
+              figureKey: foldedFigureSpreadFigureKey(figure),
+              refoldKey: foldedFigureRefoldKey(figure),
+              spread: writeLayerSpread(spread),
+              scene: JSON.stringify(paperScene()),
+            },
+          },
+        },
+      });
+      const { figures } = opened(text);
+      expect(figures[0]!.spread).toEqual({ kind: 'record', spread });
+      expect(figures[0]!.spreadScene).toEqual(paperScene());
+      expect(figures[1]!.spread).toBeUndefined();
+      const again = resaved(text);
+      expect(bagOf(again)).toEqual(bagOf(text));
+      expect(resaved(again)).toBe(again);
+    });
+
+    it('carries a newer build’s spread back as it came', () => {
+      const newer = {
+        figureKey: foldedFigureSpreadFigureKey(foldedFigure()),
+        refoldKey: foldedFigureRefoldKey(foldedFigure()),
+        spread: { kind: 'radial', version: 2, amount: 0.4 },
+      };
+      const text = serializeNativeProjectFile(
+        createNativeCreasePatternProjectFile(
+          cpInput([foldedFigure()], { [FOLDED_FIGURE_SPREADS_KEY]: { figures: { 'generated-1': newer } } })
+        )
+      );
+      const { figures } = opened(text);
+      expect(figures[0]!.spread).toEqual({ kind: 'newer', saved: newer });
+      expect(bagOf(resaved(text))[FOLDED_FIGURE_SPREADS_KEY]).toEqual({ figures: { 'generated-1': newer } });
+    });
+
+    it('drops a damaged spread', () => {
+      const damaged = { figureKey: 'fs1:x', refoldKey: foldedFigureRefoldKey(foldedFigure()), spread: { kind: 'depth' } };
+      const text = serializeNativeProjectFile(
+        createNativeCreasePatternProjectFile(
+          cpInput([foldedFigure()], { [FOLDED_FIGURE_SPREADS_KEY]: { figures: { 'generated-1': damaged } } })
+        )
+      );
+      expect(opened(text).figures[0]!.spread).toBeUndefined();
+      expect(bagOf(resaved(text))).not.toHaveProperty(FOLDED_FIGURE_SPREADS_KEY);
+    });
+
+    describe('through a build that knows no spreads', () => {
+      const text = () =>
+        serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput([spreadFigure(), folded3dFigure()])));
+
+      it('is carried in the bag as it came, and attaches again here, scene and all', () => {
+        const older = resaved(text(), { older: true });
+        expect(JSON.stringify(bagOf(older))).toBe(JSON.stringify(bagOf(text())));
+        expect(opened(older).figures[0]!.spread).toEqual(spreadFigure().spread);
+        expect(opened(older).figures[0]!.spreadScene).toEqual(paperScene());
+      });
+
+      it('keeps the spread once that build edits the creases and folds the figure again, but not the scene', () => {
+        const refolded = resaved(text(), { older: true }, (figures) =>
+          figures.map((entry) => (entry.snapshot ? { ...entry, sourceFingerprint: 'cs1:edited' } : entry))
+        );
+        const here = opened(refolded);
+        expect(here.figures[0]!.spread).toEqual(spreadFigure().spread);
+        expect(here.figures[0]!.spreadScene).toBeUndefined();
+      });
+
+      it('does not attach to a new figure that took its id', () => {
+        const reused = resaved(text(), { older: true }, () => [
+          { ...foldedFigure(), title: 'Folded model 1 again', sourceFingerprint: 'cs1:other' },
+        ]);
+        const here = opened(reused);
+        expect(here.figures[0]!.spread).toBeUndefined();
+        // Never dropped: written back as it came.
+        expect(bagOf(resaved(reused))[FOLDED_FIGURE_SPREADS_KEY]).toEqual(bagOf(text())[FOLDED_FIGURE_SPREADS_KEY]);
+      });
     });
   });
 });

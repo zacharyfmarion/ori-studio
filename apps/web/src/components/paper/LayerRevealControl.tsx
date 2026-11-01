@@ -9,56 +9,96 @@ import styles from './LayerRevealControl.module.css';
 
 const DIRECTIONS: SpreadDirection[] = ['left', 'up-left', 'up', 'up-right', 'right', 'down-right', 'down', 'down-left'];
 
-/** One two-dimensional edit: the dot follows the pointer, deeper layers move opposite it. */
+/** A Default spread's reveal, as the rows lay a spread out (`LayerSpreadRows`): its pad on the spread's drag. */
 export function LayerRevealControl({ spread }: { spread: LayerSpreadDrag }) {
+  if (spread.spread.kind !== 'connected') return null;
+  return (
+    <LayerRevealPad
+      value={spread.spread.reveal}
+      disabled={spread.disabled}
+      begin={spread.start}
+      update={spread.previewReveal}
+      end={spread.commit}
+    />
+  );
+}
+
+/**
+ * The reveal pad on the continuous protocol: `begin` opens an edit and may
+ * refuse it, `update` follows each move, `end` commits once — a drag, or one
+ * key's step. Its reset puts the default reveal back: `onReset` when the host
+ * records a reset as an edit of its own, else one edit through the same three.
+ * Shared by the spread rows (`LayerRevealControl`) and the Properties sheet's
+ * `reveal` field (`PropertySheetView`).
+ */
+export function LayerRevealPad({
+  value,
+  disabled,
+  title,
+  label: shownLabel,
+  begin,
+  update,
+  end,
+  onReset,
+}: {
+  /** The reveal shown: a drag's, while it is previewed. */
+  value: readonly [number, number];
+  disabled: boolean;
+  /** Why it is disabled, on hover, as a row says it. */
+  title?: string;
+  /** The row's label; "Layer reveal" when absent. */
+  label?: string;
+  begin: () => boolean;
+  update: (value: [number, number]) => void;
+  end: () => void;
+  onReset?: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const hintId = useId();
   const gesture = useRef<{ id: number; start: [number, number]; shown: [number, number] } | null>(null);
   // A pointer released after Undo or a file change cannot start a fresh edit.
   useEffect(() => registerCanvasSessionEnder(() => { gesture.current = null; }), []);
-  if (spread.spread.kind !== 'connected') return null;
-  const value = spread.spread.reveal;
   const radius = Math.hypot(...value);
   const percent = new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 0 }).format(radius / REVEAL_RADIUS.max);
   const direction = spreadDirectionLabel(DIRECTIONS[(Math.round(Math.atan2(value[1], value[0]) / (Math.PI / 4)) + 8) % 8]!, t);
-  const label = t('panels:diagram.spread.reveal', 'Layer reveal');
+  const label = shownLabel ?? t('panels:diagram.spread.reveal', 'Layer reveal');
   const point = (event: PointerEvent<HTMLButtonElement>) => {
     const g = gesture.current;
     if (!g || g.id !== event.pointerId) return;
     const box = event.currentTarget.getBoundingClientRect();
     const unit = Math.min(box.width, box.height) * 0.42 / REVEAL_RADIUS.max;
     g.shown = clampReveal([(event.clientX - box.left - box.width / 2) / unit, (event.clientY - box.top - box.height / 2) / unit], g.shown);
-    spread.previewReveal(g.shown);
+    update(g.shown);
   };
-  const end = (event: PointerEvent<HTMLButtonElement>) => {
+  const finish = (event: PointerEvent<HTMLButtonElement>) => {
     const g = gesture.current;
     if (!g || g.id !== event.pointerId) return;
     gesture.current = null;
-    if (event.type === 'pointercancel') spread.previewReveal(g.start);
-    spread.commit();
+    if (event.type === 'pointercancel') update(g.start);
+    end();
   };
   const edit = (next: [number, number]) => {
-    if (!spread.start()) return;
-    spread.previewReveal(clampReveal(next, value));
-    spread.commit();
+    if (!begin()) return;
+    update(clampReveal(next, value));
+    end();
   };
   return (
     <div className={styles.control} data-layer-reveal="">
-      <FieldRow label={label} kind="text" disabled={spread.disabled} divider={false}
-        onReset={() => edit([...DEFAULT_CONNECTED_SPREAD.reveal])}>
+      <FieldRow label={label} kind="text" disabled={disabled} divider={false} title={title}
+        onReset={onReset ?? (() => edit([...DEFAULT_CONNECTED_SPREAD.reveal]))}>
         {percent}
       </FieldRow>
-      <button type="button" role="slider" className={styles.pad} disabled={spread.disabled}
+      <button type="button" role="slider" className={styles.pad} disabled={disabled} title={title}
         aria-label={label} aria-describedby={hintId} aria-valuemin={radius < REVEAL_RADIUS.min ? 0 : 5} aria-valuemax={100}
         aria-valuenow={Math.round(radius / REVEAL_RADIUS.max * 100)} aria-valuetext={`${percent} · ${direction}`}
         onPointerDown={(event) => {
-          if (event.button !== 0 || gesture.current || !spread.start()) return;
+          if (event.button !== 0 || gesture.current || !begin()) return;
           event.preventDefault();
           event.currentTarget.focus();
           event.currentTarget.setPointerCapture(event.pointerId);
           gesture.current = { id: event.pointerId, start: [...value], shown: [...value] };
           point(event);
-        }} onPointerMove={point} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}
+        }} onPointerMove={point} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={finish}
         onKeyDown={(event) => {
           const delta = event.shiftKey ? 0.2 : 0.05;
           const [x, y] = value;

@@ -153,6 +153,12 @@ import {
   foldedFigureLayerOrdersAfterSave,
   linkFoldedFigureLayerOrders,
 } from '../../../cp-workspace/folded/foldedFigureLayerOrders';
+import {
+  figureIdsInFoldedFigureSpreads,
+  foldedFiguresWithLiveSpreadScenes,
+  foldedFigureSpreadsAfterSave,
+  linkFoldedFigureSpreads,
+} from '../../../cp-workspace/folded/foldedFigureSpreads';
 import { noteFoldedFigureIds } from '../../../cp-workspace/folded/foldedFigureIds';
 import { discardCpDocumentState } from '../cpDocumentState';
 import { cpHistoryDocumentOf, withCpHistoryEntry } from '../cpHistory';
@@ -256,6 +262,7 @@ import {
   shareFoldFrameAsLink,
   clearOristudioCpKernelTexts,
   createBlankOristudioCpDocument,
+  getOristudioCpFoldedFigurePaperScene,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
   importAddOristudioCpDocumentFromText,
@@ -1252,18 +1259,22 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     const restoredSelection = nativeDocument.viewState.selection ?? emptyOristudioCpSelection();
     // Folded figure ids, for the same reason: the file's, and every one its
-    // layer order bag names, so no figure folded this session takes the id a
-    // record, or a record a reload detached, was saved on.
+    // layer order and spread bags name, so no figure folded this session takes
+    // the id a record, a record a reload detached, or a spread was saved on.
     noteFoldedFigureIds([
       ...(nativeDocument.viewState.foldedFigures ?? []).map((figure) => figure.id),
       ...figureIdsInFoldedFigureLayerOrders(nativeDocument.extensions),
+      ...figureIdsInFoldedFigureSpreads(nativeDocument.extensions),
     ]);
     // Each figure's saved layer order, attached when it is still that
-    // figure's; the bag keeps the rest, written back as it came.
+    // figure's; the bag keeps the rest, written back as it came. Then each
+    // figure's spread, and the scene a reopened figure draws it from, by the
+    // same rule (`foldedFigureSpreads.ts`).
     const layerOrders = linkFoldedFigureLayerOrders(
       nativeDocument.extensions,
       nativeDocument.viewState.foldedFigures ?? []
     );
+    const linked = linkFoldedFigureSpreads(layerOrders.extensions, layerOrders.figures);
     return {
     // Overridden field-by-field below; spread for the fold side table,
     // which hydration only refills for the incoming windows.
@@ -1283,7 +1294,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // mesh to draw.
     oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
     oristudioCpFocusedInlineSimulationId: null,
-    oristudioCpDocumentExtensions: layerOrders.extensions,
+    oristudioCpDocumentExtensions: linked.extensions,
     oristudioCpCamvResult: camvResult,
     oristudioCpOperationDescriptors: documentState.operationDescriptors,
     oristudioCpError: null,
@@ -1293,7 +1304,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     oristudioCpSelection: restoredSelection,
     oristudioCpActiveDiagnosticId: null,
     oristudioCpRevision: 0,
-    oristudioCpFoldedFigures: layerOrders.figures,
+    oristudioCpFoldedFigures: linked.figures,
     // One holder at the boundary, as `takeCanvasSelection` keeps it everywhere
     // else: a file that carries both a crease selection and an active figure
     // (hand-edited, or written before the rule) opens with the creases.
@@ -1872,17 +1883,39 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   };
 
   /**
-   * The layer order bag the session holds once `input` is saved: what the
-   * save wrote (`foldedFigureLayerOrdersAfterSave`), so an entry it dropped
-   * stays dropped. Nothing when the bag was replaced meanwhile, by another
-   * document opened while the save dialog was up.
+   * The layer order and spread bags the session holds once `input` is saved:
+   * what the save wrote (`foldedFigureLayerOrdersAfterSave`,
+   * `foldedFigureSpreadsAfterSave`), so an entry it dropped stays dropped.
+   * Nothing when the bag was replaced meanwhile, by another document opened
+   * while the save dialog was up.
    */
   const layerOrdersAfterSave = (
     input: { extensions?: Record<string, unknown>; foldedFigures: OristudioCpFoldedFigureEntry[] } | null
   ): Partial<WorkspaceState> =>
     input?.extensions && input.extensions === get().oristudioCpDocumentExtensions
-      ? { oristudioCpDocumentExtensions: foldedFigureLayerOrdersAfterSave(input.extensions, input.foldedFigures) }
+      ? {
+          oristudioCpDocumentExtensions: foldedFigureSpreadsAfterSave(
+            foldedFigureLayerOrdersAfterSave(input.extensions, input.foldedFigures),
+            input.foldedFigures
+          ),
+        }
       : {};
+
+  /**
+   * The figures as the save writes them: a spread figure's live fold read
+   * for the paper scene its spread is drawn from once reopened
+   * (`foldedFiguresWithLiveSpreadScenes`), through the runtime, never the
+   * canvas's side table. With the document's aux lines as they stand, as the
+   * canvas draws them.
+   */
+  const foldedFiguresForSave = (): Promise<OristudioCpFoldedFigureEntry[]> => {
+    const documentHandle = get().oristudioCpDocument?.handle ?? null;
+    return foldedFiguresWithLiveSpreadScenes(
+      get().oristudioCpFoldedFigures,
+      (handle) => getOristudioCpFoldedFigurePaperScene(handle, documentHandle),
+      (error) => reportError(error, { surface: 'folded-figure-spread:save' })
+    );
+  };
 
   const currentEditableCreasePatternProjectInput = async (
     filename: string,
@@ -1916,7 +1949,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       selection: get().oristudioCpSelection,
       viewport: get().oristudioCpViewport,
       camera: get().oristudioCpCamera,
-      foldedFigures: get().oristudioCpFoldedFigures,
+      foldedFigures: await foldedFiguresForSave(),
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       ...(await referencesForSave(documentState)),
       lineage: get().oristudioCpLineage ?? importedCpLineage(),

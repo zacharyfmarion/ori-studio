@@ -232,6 +232,7 @@
     "folded": {
       "appearance": "Apparence",
       "camera": "Caméra",
+      "changeSpread": "Modifier l’écartement des couches",
       "changeView": "Modifier la vue du modèle plié",
       "chosenOrder": "Ordre choisi",
       "chosenOrderAttention": "L’ordre des couches choisi demande votre attention",
@@ -271,6 +272,12 @@
       "refoldToChange": "Repliez le modèle pour changer son apparence",
       "rotation": "Rotation",
       "scale": "Échelle",
+      "shadowSpread": "Les couches écartées sont dessinées sans ombres",
+      "spread": "Écartement",
+      "spreadNeedsLook": "Seuls les rendus Papier et Rayons X peuvent écarter leurs couches",
+      "spreadNewer": "Créé avec une version plus récente d’Ori Studio : son écartement des couches ne peut pas être modifié ici.",
+      "spreadRefold": "Repliez le modèle pour afficher l’écartement",
+      "spreadUnavailable": "Ces couches n’ont pas pu être écartées",
       "yaw": "Orientation",
       "zoom": "Zoom"
     },

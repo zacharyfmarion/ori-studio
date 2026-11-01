@@ -34,6 +34,7 @@ import {
 import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { withPaperStyleOverride } from '../../../lib/paper/paperStyle';
 import { sameSpread } from '../../../cp-workspace/folded/layerSpreadSettings';
+import { withoutSavedSpreadScene } from '../../../cp-workspace/folded/foldedFigureSpread';
 import { legacyPaperStyleOverrides } from '../../../lib/paper/paperStyleMigration';
 import {
   buildSegmentSimulationFold,
@@ -1299,7 +1300,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
         candidate.id === figure.id
           ? {
-              ...candidate,
+              // A new fold: its live scene supersedes one a file carried.
+              ...withoutSavedSpreadScene(candidate),
               handle: folded.handle,
               status: 'ready',
               snapshot: folded.snapshot,
@@ -1524,7 +1526,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
           candidate.id === figure.id
             ? {
-                ...candidate,
+                // A new fold: its live scene supersedes one a file carried.
+                ...withoutSavedSpreadScene(candidate),
                 handle: result.handle,
                 status: 'ready',
                 snapshot: result.snapshot,
@@ -3722,7 +3725,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
               candidate.id === figure.id
                 ? {
-                    ...candidate,
+                    // A 3D fold now: a flat scene a file carried has nothing left to draw.
+                    ...withoutSavedSpreadScene(candidate),
                     ...(layerOrder ? { layerOrder } : {}),
                     handle: result.handle,
                     status: 'ready',
@@ -3820,7 +3824,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? {
-                  ...candidate,
+                  // A new fold: its live scene supersedes one a file carried; its spread stays.
+                  ...withoutSavedSpreadScene(candidate),
                   handle: result.handle,
                   status: 'ready',
                   snapshot: result.snapshot,
@@ -4077,6 +4082,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // the session with its given order — so it keeps the record that
         // order was saved as, and saves it under its own id.
         ...(source.layerOrder ? { layerOrder: source.layerOrder } : {}),
+        // And its layer spread, which names no faces. Never the scene a file
+        // carried: the original is live, and so is the copy once it lands.
+        ...(source.spread ? { spread: source.spread } : {}),
         error: null,
       };
 
@@ -4415,7 +4423,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               set({
                 oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
                   candidate.id === id
-                    ? { ...figure, handle: folded.handle, status: 'ready', snapshot: folded.snapshot, error: null }
+                    ? {
+                        // Its fold live now, the same one: its scene supersedes the one the file carried.
+                        ...withoutSavedSpreadScene(figure),
+                        handle: folded.handle,
+                        status: 'ready',
+                        snapshot: folded.snapshot,
+                        error: null,
+                      }
                     : candidate
                 ),
               });

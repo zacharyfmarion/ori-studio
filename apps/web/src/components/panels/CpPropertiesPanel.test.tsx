@@ -166,11 +166,13 @@ describe('CpPropertiesPanel', () => {
     // Re-pinned for Phase 5: the flat figure's policy applies the aux crease
     // toggle, its pen and erode, and the sheet offers a row for each. Re-pinned
     // for H3a: laid out as the Step pane, Render as over its control (so no
-    // row label), then Pose, Appearance and Placement.
+    // row label), then Pose, Appearance and Placement. Re-pinned for the
+    // figure's spread: its own section after Pose, Spread layers while off.
     expect(labels()).toEqual([
       'Rotation',
       'Side',
       'Layer order',
+      'Spread layers',
       'Front color',
       'Back color',
       'Line color',
