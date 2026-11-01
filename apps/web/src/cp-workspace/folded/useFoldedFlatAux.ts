@@ -29,6 +29,7 @@ import {
   setFoldedFlatScene,
   subscribeFoldedFlatScenes,
 } from './foldedFlatScenes';
+import { foldedFigureWantsSpread } from './foldedFlatSpreadScene';
 
 /**
  * The flat figures' aux creases, for the canvas to draw over their fills.
@@ -64,6 +65,10 @@ import {
  * Returns the per-figure reader `cpFoldedToScene` takes. It is stable across
  * drags — the pieces are cut once per scene and erode — and changes when a
  * fetch lands or the display style moves.
+ *
+ * A figure whose layers are spread wants the same scene, whatever its aux
+ * style, since its spread is drawn from it (`useFoldedFlatSpread`): the fetch
+ * here serves both, and the reader still answers only for the aux overlay.
  */
 export function useFoldedFlatAux(
   figures: readonly OristudioCpFoldedFigureEntry[],
@@ -74,8 +79,13 @@ export function useFoldedFlatAux(
   const table = useSyncExternalStore(subscribeFoldedFlatScenes, foldedFlatScenes, foldedFlatScenes);
   const { documentHandle, auxKey } = source;
 
+  // A figure whose layers are spread is drawn from the same scene
+  // (`useFoldedFlatSpread`), so it asks for one whether or not it shows aux.
   const wanting = useMemo(
-    () => figures.filter((figure) => auxStyleOf(figure, display).auxCreases.visible),
+    () =>
+      figures.filter(
+        (figure) => auxStyleOf(figure, display).auxCreases.visible || foldedFigureWantsSpread(figure)
+      ),
     [figures, display]
   );
 
