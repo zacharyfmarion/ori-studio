@@ -857,7 +857,8 @@ export function paperSceneToFoldedGeometry(
   if (hasConnectedDrawing(scene)) return {
     fills: { position: new Float32Array(), color: new Float32Array(), count: 0 },
     strokes: { a: new Float32Array(), b: new Float32Array(), color: new Float32Array(), widthMul: new Float32Array(), count: 0 },
-    spread: spreadGeometry(scene, effective, ink),
+    // The pane's one picture: the whole depth range, in the pane's user space.
+    spreads: [{ key: 'scene', geometry: spreadGeometry(scene, effective, ink) }],
   };
   const local = foldedSceneLocalGeometry(scene, effective, ink);
   return {

@@ -258,10 +258,37 @@ export const EMPTY_SHADOW_GEOMETRY: ShadowGeometry = {
   edgeCount: 0,
 };
 
+/**
+ * One connected-spread picture on the folded channel, drawn by the spread pass
+ * before the channel's fills (`programs/spreadProgram`).
+ */
+export interface FoldedSpreadLayer {
+  /**
+   * Which picture this is from one upload to the next — on Edit's canvas, the
+   * figure's id. The renderer keeps one program per key and re-uploads only
+   * when the geometry object or the layout changes, so a drag that hands every
+   * figure over again on every frame uploads no spread geometry at all.
+   */
+  key: string;
+  /** In the picture's own coordinates; user space when there is no {@link transform}. */
+  geometry: import('./programs/spreadProgram').SpreadGeometry;
+  /** Band, fade and X-ray; the whole channel, opaque, when absent. */
+  layout?: import('./programs/spreadProgram').SpreadLayout;
+  /**
+   * The picture's coordinates to user space: a uniform scale, then a shift. A
+   * figure's move or resize changes only this, never the geometry.
+   */
+  transform?: { scale: number; x: number; y: number };
+}
+
 /** Folded-figure geometry: triangulated fills plus edge strokes (user coords). */
 export interface FoldedGeometry {
-  /** Optional connected spread pass; regular overlays still use the same canvas. */
-  spread?: import('./programs/spreadProgram').SpreadGeometry;
+  /**
+   * Connected-spread pictures, drawn before the fills in this order — far to
+   * near, each in its own band — while regular overlays still use the same
+   * canvas.
+   */
+  spreads?: readonly FoldedSpreadLayer[];
   fills: FillGeometry;
   strokes: StrokeGeometry;
   /**
