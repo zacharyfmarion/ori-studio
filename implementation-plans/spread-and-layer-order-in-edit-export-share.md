@@ -749,3 +749,36 @@ The findings as first reported:
   already scrolls today; canvas board B). Making the dialog taller is a
   change to the shared `.export-modal` block, so it needs the owner's call
   and its own PR.
+
+## Review fixes (2026-11-01, on draft PR #568)
+
+Zach's first pass through the built branch, and what each report came to.
+
+- **Amount moved under its own drag.** It stepped in half percents and read
+  out "47.5%", and the slider takes the room its readout leaves, so the
+  slider moved and the value under the pointer with it. Amount is in whole
+  percents everywhere now (`spreadAmountSlider`, one helper for Edit's sheet
+  and the shared rows; Depth and Affine start at 1%, not 0.5%), and a slider
+  row's readout keeps the width of its widest end (`SliderRow`).
+- **The PNG's figure lines were rough.** A Default spread's 300 dpi bitmap is
+  shrunk about 2.2 times onto the page, and the SVG renderer shrinks an
+  embedded bitmap with a cheap filter, which zippered the pens; the share
+  card, smaller again, was worse. A page with a bitmap is drawn at twice the
+  larger of its place and its own size, then shrunk by halves
+  (`drawSvgPage`). One large high-quality shrink is not enough: it left the
+  card's pens stair-stepped.
+- **Adding a crease pattern dropped a figure's spread until reselected.** An
+  import that adds aux lines refetches each figure's scene; the canvas asked
+  the leases by scene in the render before `sync` saw the new one. They
+  answer by fold now (`spreadFold`).
+- **"These layers couldn't be spread" after a layer order edit.** Not
+  reproduced as an Edit bug: on 9 designs a constraint applied through the
+  dialog re-solved on the chosen order and drew (fox, shoebill, lizard among
+  them). Every note seen came from the solver refusing the pose, the check at
+  `crates/oristudio-layer-spread/src/qp.rs:264` (mai-22-5: "relative warp
+  0.0038, slope 0.3553"; panda: "0.0129, 0.4002"), and both refused the
+  default order too. The heights are scaled to a slope of 0.349 in f64, cast
+  to f32, then checked against 0.351; f32 rounding on sliver faces tipping it
+  over is a guess, not shown. The note does not say which reason it was
+  (`foldedFlatSpreadLeases.ts` keeps only `unavailable`). Open: Zach's file,
+  to tell the gate from the 15 s budget in his case.
