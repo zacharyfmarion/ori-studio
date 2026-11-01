@@ -28,7 +28,7 @@ limits unchanged.
 - [x] Preserve crease boundary vertices while repairing degenerate triangulation.
 - [x] Preserve solved height precision and add numerical regression coverage.
 - [x] Rebuild WASM and verify the saved step through the production path.
-- [ ] Run relevant checks and update the existing PR.
+- [x] Run relevant checks and update the existing PR.
 
 The exact saved step now solves in about 7 ms in the rebuilt WASM, keeping all
 20 material vertices and 22 triangles. Its maximum slope is 0.133 (limit 0.351)
@@ -42,3 +42,17 @@ in both orientations, concavity, ordinary triangulation stability, legitimate
 narrow faces, and rejection of fully collinear faces. A separate Rust book-fold
 test reproduces the old rounded-height slope rejection (0.699); keeping doubles
 produces a valid 0.182 slope without weakening acceptance limits.
+
+Validation: lint, TypeScript, scoped Clippy, Rust formatting, the full Rust
+workspace, rebuilt spread WASM, production web build and explicit landing
+prerender passed. The full web run passed 17,828 tests and hit ten timing-only
+failures under concurrent compilation; all seven affected files passed in a
+single-worker rerun alongside the two source/triangulation suites (244 tests).
+No timeouts or performance assertions were relaxed. CI is tracked in PR #563.
+
+Representative rebuilt-WASM solves also accepted Bodo 147/168/204, Horse, Lotus
+and Ant. Bodo/Horse/Lotus inputs retained exactly their existing triangulations;
+Ant repaired slivers without changing its triangle count. On Bodo's 940-face
+case, isolated triangulation took 0.739 ms median versus 0.277 ms before (70
+interleaved measured runs after warmup). This work happens during preparation,
+not slider updates. This regression check is not a new all-Cpoogle sweep.
