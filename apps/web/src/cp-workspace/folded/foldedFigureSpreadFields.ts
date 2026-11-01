@@ -33,18 +33,14 @@ import {
 } from './foldedFigureSpread';
 import type { FoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
-import { layerSpreadControls, spreadSliderEdit, type LayerSpreadChoice } from './layerSpreadControls';
+import { layerSpreadControls, spreadAmountSlider, spreadSliderEdit, type LayerSpreadChoice } from './layerSpreadControls';
 import {
   DEFAULT_CONNECTED_SPREAD,
-  SPREAD_AMOUNT_RANGE,
   SPREAD_AXIS_RANGE,
   withSpreadField,
   type LayerSpreadEdit,
   type LayerSpreadStarts,
 } from './layerSpreadSettings';
-
-/** The amount slider moves in half percents, as the readout says them (`LayerSpreadRows`). */
-const AMOUNT_STEP_PERCENT = 0.5;
 
 /**
  * A value as a slider of `step` shows it: on its grid, with no float noise
@@ -168,7 +164,7 @@ function spreadValueFields(
     keep: (keep) => edit({ verb: 'spread-keep', keep }),
   });
   const percent = (value: number) =>
-    new Intl.NumberFormat(deps.locale, { style: 'percent', maximumFractionDigits: 1 }).format(value / 100);
+    new Intl.NumberFormat(deps.locale, { style: 'percent', maximumFractionDigits: 0 }).format(value / 100);
   const degrees = (value: number) =>
     t('panels:diagram.pose.spreadAxisDegrees', '{{degrees}}°', {
       degrees: new Intl.NumberFormat(deps.locale, { maximumFractionDigits: 0 }).format(value),
@@ -184,8 +180,7 @@ function spreadValueFields(
     held: deps.held,
   });
 
-  // Default's percentage covers its full height range; saved multipliers stay as they are.
-  const scale = shown.kind === 'connected' ? 100 / SPREAD_AMOUNT_RANGE.connected.max : 100;
+  const amount = spreadAmountSlider(shown.kind, shown.amount);
   const fields: PropertyField[] = [
     {
       id: 'spreadKind',
@@ -210,9 +205,9 @@ function spreadValueFields(
       ariaLabel: t('panels:diagram.pose.spreadAmountName', 'Spread amount'),
       ...support,
       undoLabel,
-      min: SPREAD_AMOUNT_RANGE[shown.kind].min * scale,
-      max: SPREAD_AMOUNT_RANGE[shown.kind].max * scale,
-      step: AMOUNT_STEP_PERCENT,
+      min: amount.min,
+      max: amount.max,
+      step: amount.step,
       format: percent,
       valueText: (value) =>
         shown.kind === 'connected'
@@ -224,8 +219,8 @@ function spreadValueFields(
                 '{{percent}} of the way back to the sheet along the axis',
                 { percent: percent(value) }
               ),
-      value: onSliderGrid(shown.amount * scale, AMOUNT_STEP_PERCENT),
-      ...drag('spread-amount', (value) => spreadSliderEdit('amount', shown.kind, value / scale)),
+      value: amount.value,
+      ...drag('spread-amount', (value) => spreadSliderEdit('amount', shown.kind, value / amount.scale)),
       // Default's amount has a way back to the default, there whatever the
       // value, so nothing moves under a drag; the others have none, as the
       // spread rows have it.

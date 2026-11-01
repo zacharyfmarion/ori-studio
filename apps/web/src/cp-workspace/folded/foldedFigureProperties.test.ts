@@ -1003,7 +1003,7 @@ describe('the Spread section', () => {
       ],
     });
     const amount = slider(sheet, 'spreadAmount');
-    expect(amount).toMatchObject({ label: 'Amount', ariaLabel: 'Spread amount', value: 25, min: 0, max: 100, step: 0.5 });
+    expect(amount).toMatchObject({ label: 'Amount', ariaLabel: 'Spread amount', value: 25, min: 0, max: 100, step: 1 });
     expect(amount.valueText?.(25)).toBe('25%');
     // A drag is one gesture under the pane's own owner, one entry.
     expect(amount.begin()).toBe(true);
@@ -1027,8 +1027,9 @@ describe('the Spread section', () => {
   });
 
   it('hands each slider a value on its grid, so a drag’s release opens no second gesture', () => {
-    // 1.13 × 50 and 0.57 × 100 are 56.49999999999999 and 56.99999999999999 in floats.
-    expect(slider(sheetFor(spreadOn({ ...DEFAULT_CONNECTED_SPREAD, amount: 1.13 })), 'spreadAmount').value).toBe(56.5);
+    // 1.13 × 50 and 0.57 × 100 are 56.49999999999999 and 56.99999999999999 in floats:
+    // the amount, in whole percents, rounds its 56.5 up.
+    expect(slider(sheetFor(spreadOn({ ...DEFAULT_CONNECTED_SPREAD, amount: 1.13 })), 'spreadAmount').value).toBe(57);
     const affine = sheetFor(spreadOn({ ...DEFAULT_AFFINE_SPREAD, skew: 0.57 }));
     expect(slider(affine, 'spreadSkew').value).toBe(57);
     expect(slider(affine, 'spreadAmount').value).toBe(3);
@@ -1041,10 +1042,11 @@ describe('the Spread section', () => {
 
     const sheet = sheetFor(spreadOn(DEFAULT_DEPTH_SPREAD), d);
     expect(spreadIds(sheet)).toEqual(['spreadLayers', 'spreadKind', 'spreadAmount', 'spreadDirection']);
-    // No reset on a depth amount, as the spread rows have it.
-    expect(slider(sheet, 'spreadAmount')).toMatchObject({ value: 2.5, max: 20 });
+    // No reset on a depth amount, as the spread rows have it. Whole percents:
+    // Depth's 2.5% shows at 3%, and its 0.5% end rounds in to 1%.
+    expect(slider(sheet, 'spreadAmount')).toMatchObject({ value: 3, min: 1, max: 20, step: 1 });
     expect(slider(sheet, 'spreadAmount').reset).toBeUndefined();
-    expect(slider(sheet, 'spreadAmount').valueText?.(2.5)).toBe('2.5% of the model');
+    expect(slider(sheet, 'spreadAmount').valueText?.(3)).toBe('3% of the model');
     const direction = field(sheet, 'spreadDirection');
     if (direction.kind !== 'direction') throw new Error('direction');
     expect(direction).toMatchObject({ label: 'Direction', groupLabel: 'Spread direction', value: 'down' });

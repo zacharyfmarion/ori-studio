@@ -12,12 +12,13 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
-import type {
-  LayerSpreadChoice,
-  LayerSpreadDrag,
-  LayerSpreadToggle,
+import {
+  spreadAmountSlider,
+  type LayerSpreadChoice,
+  type LayerSpreadDrag,
+  type LayerSpreadToggle,
 } from '../../cp-workspace/folded/layerSpreadControls';
-import { DEFAULT_CONNECTED_SPREAD, SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_CONNECTED_SPREAD, SPREAD_AXIS_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
 import { LayerRevealControl } from './LayerRevealControl';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { AffineSpreadCredit } from './AffineSpreadCredit';
@@ -35,9 +36,6 @@ const ARROWS: Record<SpreadDirection, LucideIcon> = {
   'down-left': ArrowDownLeft,
   left: ArrowLeft,
 };
-
-/** The amount slider moves in half percents, as the readout says them. */
-const AMOUNT_STEP_PERCENT = 0.5;
 
 /**
  * A flat picture's layers spread apart (Phase 13), as rows: Spread Layers on
@@ -71,14 +69,13 @@ export function LayerSpreadRows({
   const { t, i18n } = useTranslation();
   if (!toggle) return null;
   const percent = (value: number) =>
-    new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 1 }).format(value / 100);
+    new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 0 }).format(value / 100);
   const degrees = (value: number) =>
     t('panels:diagram.pose.spreadAxisDegrees', '{{degrees}}°', {
       degrees: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(value),
     });
   const shown = spread?.spread;
-  // Default's percentage covers its full height range; saved multipliers stay unchanged.
-  const amountPercentScale = shown?.kind === 'connected' ? 100 / SPREAD_AMOUNT_RANGE.connected.max : 100;
+  const amount = shown ? spreadAmountSlider(shown.kind, shown.amount) : null;
   return (
     <>
       <ToggleRow
@@ -90,7 +87,7 @@ export function LayerSpreadRows({
         // Waiting for a capture, the switch refuses, as the verb does.
         onChange={() => toggle.run()}
       />
-      {spread && shown && (
+      {spread && shown && amount && (
         <>
           <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
             <span className={styles.kind} aria-busy={spread.busy || undefined}>
@@ -105,10 +102,10 @@ export function LayerSpreadRows({
           <SliderRow
             label={t('panels:diagram.pose.spreadAmount', 'Amount')}
             ariaLabel={t('panels:diagram.pose.spreadAmountName', 'Spread amount')}
-            value={shown.amount * amountPercentScale}
-            min={SPREAD_AMOUNT_RANGE[shown.kind].min * amountPercentScale}
-            max={SPREAD_AMOUNT_RANGE[shown.kind].max * amountPercentScale}
-            step={AMOUNT_STEP_PERCENT}
+            value={amount.value}
+            min={amount.min}
+            max={amount.max}
+            step={amount.step}
             format={percent}
             valueText={(value) =>
               shown.kind === 'connected'
@@ -125,7 +122,7 @@ export function LayerSpreadRows({
             }
             disabled={spread.disabled}
             title={spread.hint}
-            onChange={(value) => spread.preview('amount', value / amountPercentScale)}
+            onChange={(value) => spread.preview('amount', value / amount.scale)}
             onGestureStart={spread.start}
             onGestureCommit={spread.commit}
             onReset={
