@@ -4,7 +4,7 @@
 
 Ship the accepted layer-spread prototype as the default spread method in
 **Fold** and **Diagram**, replacing affine. Fold starts with spread off and
-enables Default at 7%; new Diagram flat-folded pictures start spread at 25%.
+enables Default at 7%; new Diagram flat-folded pictures start spread at 7%.
 The accepted behavior is **Normalized 50 heights, a reference plane fitted to
 the whole visible surface, and layer-order correction**. It is not the earlier
 single-face anchor or the rejected experiment that pinned all visible faces.
@@ -326,10 +326,10 @@ which currently only admits crease-pattern and flat-folded render modes.
 Switching presentations keeps amount and remembers each presentation's view.
 It does not refold, lose the selected order, or overwrite Simulated's pose.
 
-Starting product values, revised 2026-10-31: amount **25%**, range **0–100%**,
+Starting product values, revised 2026-11-01: amount **7%**, range **0–100%**,
 reveal vector **(0.8, 0.6)**, whole-visible-surface reference and layer correction
-on. The display maps to the unchanged stored multiplier range **0–2**: 25% is
-0.5 and 100% is 2, retaining the prototype's maximum opening. Saved amounts
+on. The display maps to the unchanged stored multiplier range **0–2**: 7% is
+0.14 and 100% is 2, retaining the prototype's maximum opening. Saved amounts
 are not rescaled. Amount multiplies the nominal solved opening; it is not a
 guaranteed equal physical gap everywhere. Keep the simple
 label **Spread amount**; do not expose “Normalized 50”, reference-face selection
@@ -559,7 +559,7 @@ for annotation carry and first-pick mapping. Perspective camera changes retain
 the existing out-of-step annotation semantics.
 
 New Fold sequences store explicit off and enable Default at 7%; new Diagram
-flat captures start connected at 25%. Legacy off, affine and depth settings retain their
+flat captures start connected at 7%. Legacy off, affine and depth settings retain their
 readers and frozen pictures, with an explicit conversion control. Fold offers
 only the diagram presentation, plus an armed Adjust spread tool. Diagram adds
 full perspective orbit, view cube, upright, other side and camera reset. The
@@ -869,7 +869,8 @@ certification. Physical touch devices and other browser engines remain untested.
 
 - [x] Display Default spread as 0–100% in the shared Fold/Diagram controls,
   preserving the internal 0–2 range and existing saved poses.
-- [x] Use 25% (multiplier 0.5) for new defaults and Amount reset. Affine and
+- [x] Use 25% (multiplier 0.5) for new defaults and Amount reset (superseded by
+  7%, multiplier 0.14, on 2026-11-01). Affine and
   Depth retain their original percentage semantics.
 - [x] Verify range endpoints, reset, and unchanged saved values. All 228 tests
   across eight affected suites passed; web lint and TypeScript passed.

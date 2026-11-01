@@ -99,3 +99,29 @@ fn flat_subdivision_shares_a_plane_without_an_extra_layer() {
     );
     assert!(split.diagnostics.max_relative_warp < 0.002);
 }
+
+#[test]
+fn narrow_triangle_keeps_height_precision_through_validation() {
+    // A book with a nearly collinear extra boundary corner. Independently
+    // rounding its solved heights to Float32 inflates the reported slope above
+    // 0.35 even though the double-precision pose is comfortably within bounds.
+    let mut input = book();
+    input.xy.push([0.2, -1e-8]);
+    input.faces[0] = vec![0, 6, 1, 2, 3];
+    input.triangles.insert(0, [0, 6, 1]);
+    input.triangle_faces.insert(0, 0);
+    let angle: f64 = 0.2;
+    let transform = |[x, y]: [f64; 2]| {
+        [
+            angle.cos() * x - angle.sin() * y - 0.4,
+            angle.sin() * x + angle.cos() * y - 0.3,
+        ]
+    };
+    input.xy.iter_mut().for_each(|p| *p = transform(*p));
+    input.cells[0].point = transform(input.cells[0].point);
+    let result = solve(&input).unwrap();
+    assert!(result.diagnostics.max_slope <= 0.351);
+    assert!(result.diagnostics.max_relative_warp <= 0.051);
+    assert!(result.diagnostics.mean_gap > 0.1);
+    assert_eq!(result.heights.len(), input.xy.len());
+}
