@@ -344,3 +344,11 @@ it('withholds picking and host gestures while preparation blocks the pane', () =
   expect(down).not.toHaveBeenCalled();
   expect(onPick).not.toHaveBeenCalled();
 });
+
+it('requests the first external paper frame when async preparation becomes ready', () => {
+  mount();
+  const onFrame = vi.fn();
+  mount({ externalPaper: { layer: <div />, onFrame, presentedFrame: () => null, registerRedraw: () => () => {} } });
+  expect(onFrame).toHaveBeenCalled();
+  expect(channels.last.get('render')).toMatchObject({ clearColor: [0, 0, 0, 0] });
+});

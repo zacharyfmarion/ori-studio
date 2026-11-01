@@ -107,6 +107,9 @@ export interface CpSurfacePaperFrame {
   userView: ViewTransform;
   viewport: Viewport;
   widthPx: number;
+  /** Overlay sizing belongs to the displayed camera as well as its geometry. */
+  sizing?: { widthBoost: number; markerScalePx: number; pointScalePx: number; userScalePx: number };
+  widths?: CpSurfaceStrokeWidths;
 }
 export interface UseCpSurfaceOptions<Hit> {
   /** A separately rendered paper bitmap can sit below this transparent tool surface. */
@@ -415,8 +418,10 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
         ratio,
       });
       const widths = live.strokeWidths({ ratio, widthBoost });
-      live.onPaperFrame?.({ view: requestedView, userView: requestedUserView, viewport, widthPx: widths.foldedStrokeWidthPx ?? widths.strokeWidthPx });
+      live.onPaperFrame?.({ view: requestedView, userView: requestedUserView, viewport, widthPx: widths.foldedStrokeWidthPx ?? widths.strokeWidthPx,
+        sizing: { widthBoost, markerScalePx, pointScalePx, userScalePx: cam.zoom }, widths });
       const presented = live.presentedPaperFrame?.();
+      const sizing = presented?.sizing ?? { widthBoost, markerScalePx, pointScalePx, userScalePx: cam.zoom };
       const view = presented?.view ?? requestedView;
       const userView = presented?.userView ?? requestedUserView;
       // A layer over this canvas draws through the same camera, in CSS
@@ -425,22 +430,22 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
         origin: [view.origin[0] / ratio, view.origin[1] / ratio],
         ex: [view.ex[0] / ratio, view.ex[1] / ratio],
         ey: [view.ey[0] / ratio, view.ey[1] / ratio],
-        widthBoost,
+        widthBoost: sizing.widthBoost,
       });
       reportZoom(cam, ratio);
       renderer.render({
         clearColor: live.transparent ? [0, 0, 0, 0] : readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
         view,
         userView,
-        ...widths,
-        userScalePx: cam.zoom,
-        markerScalePx,
-        pointScalePx,
+        ...(presented?.widths ?? widths),
+        userScalePx: sizing.userScalePx,
+        markerScalePx: sizing.markerScalePx,
+        pointScalePx: sizing.pointScalePx,
         constantOutlinePx: POINT_OUTLINE_CSS * ratio,
-        markerOutlinePx: POINT_OUTLINE_CSS * markerScalePx,
+        markerOutlinePx: POINT_OUTLINE_CSS * sizing.markerScalePx,
         // No crowded point layer to fade: a surface here marks the points it
         // means, on the overlay channel, rather than every vertex.
-        pointOutlinePx: POINT_OUTLINE_CSS * pointScalePx,
+        pointOutlinePx: POINT_OUTLINE_CSS * sizing.pointScalePx,
         pointOpacity: 1,
       });
     };

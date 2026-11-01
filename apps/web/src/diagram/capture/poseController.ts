@@ -1020,7 +1020,14 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
         if (linked.render.mode !== 'folded-flat') return null;
         const {document, choice} = await creasesFor(begun, linked);
         if (choice.status !== 'found') return null;
-        await abandonOnEngineLoss(session.flat(document, choice.creases.foldLineIds, linked.render.side, linked.render.foldCase));
+        try {
+          await abandonOnEngineLoss(session.flat(document, choice.creases.foldLineIds, linked.render.side, linked.render.foldCase,
+            undefined, heldLayerOrderOf(linked)));
+        } catch (error) {
+          // Keep the saved picture when its order cannot be restored, just as a legacy preview does.
+          if (error instanceof LayerOrderNotShownError) return null;
+          throw error;
+        }
         const view = await abandonOnEngineLoss(session.connectedView());
         listener.connected?.(view, linkedFoldKey(stepId, linked) + ':' + linked.render.side + ':' + linked.render.foldCase);
         heldFor = {key: linkedFoldKey(stepId, linked), document};

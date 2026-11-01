@@ -175,3 +175,18 @@ Fold's Default spread now starts and resets to 7% (stored multiplier 0.14). Diag
 The merge with `main` retains its new `PaperPane` composition and `StackHitIndex`. The shared pane exposes a host-owned external paper layer with the same presented-camera contract, gesture interception and local readiness state; Fold supplies the worker adapter. Picking reuses the new stack index alongside its prepared CP data. Diagram's new recorded layer-order capture/editor paths use connected capture, preserve readiness and cancellation guards, and release their solution cursor on disposal.
 
 Validation: focused default/controls/shared-pane tests pass. Full merged-tree checks and browser smoke review are recorded in the PR handoff.
+
+Merged-main validation found and fixed two shared-pane integration gaps: an
+async paper layer now requests its first frame when it becomes ready, and
+camera-sized overlays keep the sizing of the worker frame being displayed.
+Reopening a Diagram pose also restores its saved layer order before preparing
+connected spread. The shared loading surface lives under `components/paper`,
+so Fold does not depend on Diagram components.
+
+Local validation after integration: 17,828 passing web tests across 1,383
+passing files (plus the subsequent first-frame regression: 11 passing
+PaperPane tests), full lint, typecheck, translation check, production build
+and landing prerender. Node 26 locally needs
+`NODE_OPTIONS=--no-experimental-webstorage` for jsdom; CI uses Node 22.
+Canary verified the 7% Fold default and Amount reset on the real imported Bodo
+fixture. Final CI status is recorded in the PR.

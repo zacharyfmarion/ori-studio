@@ -312,9 +312,10 @@ export function PaperPane<Hit>(props: PaperPaneProps<Hit>) {
 
   // One frame for whatever changed in this commit: a hover that moves the
   // overlay's fills and its points draws once, not once a channel.
+  const externalFrame = externalPaper?.onFrame;
   useEffect(() => {
     render();
-  }, [geometry, creases, underFills, fills, feedback, strokes, themeKey, rendererGeneration, render]);
+  }, [geometry, creases, underFills, fills, feedback, strokes, themeKey, rendererGeneration, externalFrame, render]);
 
   useEffect(() => {
     onHover?.(hovered);

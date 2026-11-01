@@ -1,3 +1,4 @@
+import '../../layer-spread/captureWorker.testSupport';
 /**
  * A Diagram step's layer order through the store's capture (layer order H7):
  * Refresh draws the record's order and commits it with the picture; a record

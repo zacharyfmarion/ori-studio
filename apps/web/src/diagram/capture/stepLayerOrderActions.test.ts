@@ -1,3 +1,4 @@
+import '../../layer-spread/captureWorker.testSupport';
 /**
  * The Layer order dialog on a Diagram step (layer order H7): Edit… and
  * Review… build the step's request from a fold of its creases, and only an

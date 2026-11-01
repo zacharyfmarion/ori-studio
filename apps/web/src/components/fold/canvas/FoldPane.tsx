@@ -4,7 +4,7 @@ import type { FoldLiveRenderer } from '../../../fold/canvas/foldRenderProtocol';
 import { FOLD_PANE_DISPLAY_DEFAULT, type FoldPaneDisplay } from '../../../fold/canvas/foldPaneScenes';
 import type { FoldRevealGesture } from '../../../fold/canvas/useFoldReveal';
 import { FoldPaperBitmap } from './FoldPaperBitmap';
-import { PoseLoading } from '../../diagram/PoseLoading';
+import { PoseLoading } from '../../paper/PoseLoading';
 import { ViewportStatusReadout } from '../../ui/ViewportStatusReadout';
 import { forwardRef, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import type { CpOverlayView } from '../../../cp-workspace/CreasePatternWebglCanvas';

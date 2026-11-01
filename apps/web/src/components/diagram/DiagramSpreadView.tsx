@@ -1,4 +1,4 @@
-import { PoseLoading } from './PoseLoading';
+import { PoseLoading } from '../paper/PoseLoading';
 import { spreadPosePictureFrame, type SpreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
 import { clampReveal, sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
 import { useSettledPosePicture } from '../../diagram/capture/useSettledPosePicture';

@@ -1064,6 +1064,23 @@ describe('a step with a layer order, posed (H7)', () => {
     expect(foldedFigureHandleRefCount(ORDERED_HANDLE)).toBe(0);
   });
 
+  it('prepares connected spread in the saved layer order when reopening Pose', async () => {
+    const stepId = await constrainedStep();
+    const first = createPoseController(stepId, listener());
+    await first.run({ verb: 'show-folded' });
+    first.dispose();
+    vi.clearAllMocks();
+    const heard = { ...listener(), connected: vi.fn() };
+    const reopened = createPoseController(stepId, heard);
+    await reopened.prepareConnected();
+    expect(hostEngine.resolveLayerOrder).toHaveBeenCalledOnce();
+    expect(bindings.runtime!.foldWithOrder).toHaveBeenCalledOnce();
+    expect(bindings.runtime!.paperScene).toHaveBeenLastCalledWith(ORDERED_HANDLE);
+    expect(heard.connected).toHaveBeenCalledOnce();
+    expect(foldedFigureHandleRefCount(ORDERED_HANDLE)).toBe(1);
+    reopened.dispose();
+  });
+
   it('keeps the picture and flags the record when the order cannot be drawn, as one undo step (D10)', async () => {
     const stepId = await constrainedStep();
     hostEngine.resolveLayerOrder.mockImplementation(async () => fakeLayerOrderResolutions.kept('clash', inSource));

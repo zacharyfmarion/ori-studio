@@ -1,4 +1,4 @@
-import { PoseLoading } from './PoseLoading';
+import { PoseLoading } from '../paper/PoseLoading';
 import { posePictureBounds, spreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
 import { sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
 import { DiagramSpreadView } from './DiagramSpreadView';
