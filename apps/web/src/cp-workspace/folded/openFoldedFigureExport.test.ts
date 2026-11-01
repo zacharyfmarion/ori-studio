@@ -53,10 +53,15 @@ vi.mock('sonner', () => ({ toast }));
 // in its own shape, and which handles it was asked for is part of the test.
 const kernel = vi.hoisted(() => ({
   paperScene: vi.fn(async (_handle: number, _document?: number | null): Promise<unknown> => null),
+  snapshot: vi.fn(async (_handle: number): Promise<unknown> => null),
 }));
 vi.mock('../../store/workspaceStore/oristudioCpRuntime', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../store/workspaceStore/oristudioCpRuntime')>();
-  return { ...actual, getOristudioCpFoldedFigurePaperScene: kernel.paperScene };
+  return {
+    ...actual,
+    getOristudioCpFoldedFigurePaperScene: kernel.paperScene,
+    getOristudioCpFoldedFigureSnapshot: kernel.snapshot,
+  };
 });
 
 const auxSync = vi.hoisted(() => ({
@@ -320,6 +325,11 @@ beforeEach(() => {
   toast.success.mockClear();
   kernel.paperScene.mockClear();
   kernel.paperScene.mockImplementation(async () => kernelScene());
+  // The kernel shows what the figure on that handle says, unless a test says otherwise.
+  kernel.snapshot.mockReset().mockImplementation(
+    async (handle: number) =>
+      useWorkspaceStore.getState().oristudioCpFoldedFigures.find((figure) => figure.handle === handle)?.snapshot ?? null
+  );
   auxSync.settled.mockClear();
   resetFoldedModelWriteQueueForTests();
   resetFolded3dRenderModels();
@@ -710,6 +720,7 @@ describe('where focus goes back to', () => {
 
     const opening = openFoldedFigureExport('flat-1', t);
     elsewhere.focus();
+    await vi.waitFor(() => expect(kernel.paperScene).toHaveBeenCalled());
     answer(kernelScene());
     await opening;
 
@@ -751,6 +762,18 @@ describe('opening the export of a flat folded figure whose layers are spread', (
 
     expect(kernel.paperScene).not.toHaveBeenCalled();
     expect(await firstScene(target)).toEqual(canvasPicture(figure, kernelScene()));
+  });
+
+  it('exports a figure as the canvas draws it when its handle shows another layer order', async () => {
+    // An undo of Another solution puts the figure back on its first solution, not its handle.
+    const figure = flat({ spread });
+    setFigures(figure);
+    kernel.snapshot.mockResolvedValueOnce({ ...figure.snapshot, current_fold_case: 2 });
+
+    const target = await openTarget('flat-1');
+
+    expect(kernel.paperScene).not.toHaveBeenCalled();
+    expect(target.fixedPicture?.svg).toContain('aria-label="Folded figure"');
   });
 
   it('exports a figure with its spread off exactly as before', async () => {

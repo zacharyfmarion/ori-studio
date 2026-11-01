@@ -16,14 +16,17 @@ import { focusedElement, usePaperExportUiStore } from '../../store/paperExportUi
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { folded3dAuxLinesSettled } from '../../store/workspaceStore/folded3dAuxLinesSync';
-import { getOristudioCpFoldedFigurePaperScene } from '../../store/workspaceStore/oristudioCpRuntime';
+import {
+  getOristudioCpFoldedFigurePaperScene,
+  getOristudioCpFoldedFigureSnapshot,
+} from '../../store/workspaceStore/oristudioCpRuntime';
 import { overlayCssPerModel } from '../annotations/annotationTransform';
 import { cpOverlayViewStore } from '../cpOverlayViewStore';
 import { folded3dAuxLinesOf } from './folded3dAuxLines';
 import { folded3dRenderModel } from './folded3dRenderModels';
 import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
 import { foldedFigureExportPicture, foldedFigureExportTarget } from './foldedFigureExportTarget';
-import { foldedFigureWantsSpread } from './foldedFlatSpreadScene';
+import { foldedFigureWantsSpread, sameFoldedPaperScene } from './foldedFlatSpreadScene';
 
 /**
  * CSS px per crease-pattern user unit at the mounted canvas — what a folded
@@ -46,7 +49,13 @@ export async function openFoldedFigureExport(figureId: string, t: TFunction): Pr
     // A figure the canvas draws spread exports its spread, from the same scene.
     const spreads = foldedFigureWantsSpread(figure);
     const kernel =
-      figure.handle != null && (foldedFlatFigureExportsScene(figure) || spreads)
+      figure.handle != null &&
+      (foldedFlatFigureExportsScene(figure) || spreads) &&
+      // An undo of Another solution puts the figure back, not its handle: one
+      // that shows another layer order has no scene of this figure's, which
+      // then exports as it is drawn.
+      figure.snapshot &&
+      sameFoldedPaperScene(await getOristudioCpFoldedFigureSnapshot(figure.handle), figure.snapshot)
         ? // The document's aux lines as they stand now, as the canvas draws them.
           await getOristudioCpFoldedFigurePaperScene(
             figure.handle,
