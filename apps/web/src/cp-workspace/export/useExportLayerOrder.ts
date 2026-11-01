@@ -146,6 +146,10 @@ export function useExportLayerOrder(options: ExportLayerOrderOptions): ExportLay
   const digest = source?.digest ?? null;
   const kept = useExportLayerOrders((state) => (digest ? (state.byDigest[digest] ?? null) : null));
   const chosen = kept?.chosen ?? null;
+  // The figure on show is drawn in its own creases' turn: while a newly picked
+  // pattern folds, the dimmed figure it replaces keeps the turn it had.
+  const shownDigest = preview.figureSource?.digest ?? null;
+  const turnDeg = useExportLayerOrders((state) => (shownDigest ? (state.byDigest[shownDigest]?.turnDeg ?? 0) : 0));
 
   // The dialog never outlives what its Apply would land in: the host dialog
   // closing, or its scope replaced (the command store's one slot, a new draft).
@@ -296,7 +300,7 @@ export function useExportLayerOrder(options: ExportLayerOrderOptions): ExportLay
 
   return {
     ordering,
-    turnDeg: kept?.turnDeg ?? 0,
+    turnDeg,
     chosen: shownChosen,
     busy,
     row: {

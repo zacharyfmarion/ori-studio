@@ -48,6 +48,12 @@ export interface FoldedFigurePreview {
    * chosen order's too; null until one has.
    */
   source: LayerOrderSource | null;
+  /**
+   * What the figure on show was folded from: `source` once this pattern's fold
+   * has landed, and until then the figure's it replaces, which stays on show,
+   * dimmed, in its own turn. Null with `figure`.
+   */
+  figureSource: LayerOrderSource | null;
   /** The chosen layer order the figure is drawn in, or null for the kernel's own. */
   order: FoldedFigureOrder | null;
   /**
@@ -143,6 +149,7 @@ export function useFoldedFigurePreview({
   });
   // What each pattern's last fold that landed was made from, by its cache prefix.
   const [sources, setSources] = useState<Readonly<Record<string, LayerOrderSource>>>({});
+  const [figureSource, setFigureSource] = useState<LayerOrderSource | null>(null);
   const [orderRefused, setOrderRefused] = useState(false);
   const [folding, setFolding] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -178,6 +185,7 @@ export function useFoldedFigurePreview({
       published.current = null;
       setFigure(null);
       setScene(null);
+      setFigureSource(null);
       setFolding(false);
       return undefined;
     }
@@ -193,6 +201,7 @@ export function useFoldedFigurePreview({
       published.current = { result, at: plainKey };
       setFigure(result.snapshot);
       setScene(result.scene);
+      setFigureSource(result.source ?? null);
       setDiscoveredCases(result.discoveredCases);
       setTransform(result.transform);
       setPlace({
@@ -288,6 +297,7 @@ export function useFoldedFigurePreview({
         published.current = null;
         setFigure(null);
         setScene(null);
+        setFigureSource(null);
         setError(message);
         onErrorRef.current?.(message);
       })
@@ -312,6 +322,7 @@ export function useFoldedFigurePreview({
     hasNext: place.hasNext,
     ordered: place.ordered,
     source,
+    figureSource,
     order,
     orderRefused,
     folding,

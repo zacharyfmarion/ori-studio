@@ -294,4 +294,27 @@ describe('a preview fold in a chosen layer order', () => {
     expect(shown!.orderRefused).toBe(true);
     expect(fold.mock.calls.map(([settings]) => settings.side)).toEqual(['Front0', 'Back1']);
   });
+
+  it('keeps the figure on show’s source while another pattern’s first fold runs', async () => {
+    let landTwo!: () => void;
+    const one = vi.fn(async () => foldOf('pattern-1'));
+    const two = vi.fn(
+      () =>
+        new Promise<CreaseExportFoldResult>((resolve) => {
+          landTwo = () => resolve(foldOf('pattern-2'));
+        })
+    );
+    await render(SETTINGS, one, { cacheKeyPrefix: '1' });
+    await render(SETTINGS, two, { cacheKeyPrefix: '2' });
+    // The new pattern has no fold yet; the figure on show is still the first's, dimmed.
+    expect(shown!.folding).toBe(true);
+    expect(shown!.source).toBeNull();
+    expect(drawn()).toBe('pattern-1');
+    expect(shown!.figureSource?.digest).toBe('pattern-1');
+
+    await act(async () => landTwo());
+    expect(drawn()).toBe('pattern-2');
+    expect(shown!.figureSource?.digest).toBe('pattern-2');
+    expect(shown!.source?.digest).toBe('pattern-2');
+  });
 });
