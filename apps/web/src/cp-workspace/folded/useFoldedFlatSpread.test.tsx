@@ -341,6 +341,27 @@ describe('useFoldedFlatSpread', () => {
     expect(status()).toBe('ready');
   });
 
+  it('lets go of a figure’s picture once the figure is gone or draws no spread', () => {
+    const entry = figure({
+      spread: { kind: 'record', spread: { kind: 'depth', amount: 0.05, toward: 'down' } },
+    });
+    const sceneOf = () => (drawn as Extract<FoldedFigureSpreadPicture, { kind: 'scene' }> | null)?.scene;
+    mount([entry]);
+    const first = sceneOf();
+    expect(first).toBeDefined();
+    // Deleted, then put back by an undo: built again, not handed a picture kept for it.
+    mount([]);
+    mount([entry]);
+    const back = sceneOf();
+    expect(back).toBeDefined();
+    expect(back).not.toBe(first);
+    // Its spread turned off, then on again.
+    mount([figure({ spread: null })]);
+    mount([entry]);
+    expect(sceneOf()).toBeDefined();
+    expect(sceneOf()).not.toBe(back);
+  });
+
   it('draws a reopened figure from the scene its file carried, and flat with none', async () => {
     const reopened = figure({ handle: null, spreadScene: KERNEL });
     mount([reopened]);

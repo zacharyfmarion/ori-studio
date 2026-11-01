@@ -117,6 +117,12 @@ export function useFoldedFlatSpread(
     [table, paperStyleOf, settled]
   );
 
+  // A figure that went — deleted, or its document closed — keeps no picture.
+  useEffect(() => {
+    const ids = new Set(figures.map((figure) => figure.id));
+    for (const id of pictures.current.keys()) if (!ids.has(id)) pictures.current.delete(id);
+  }, [figures]);
+
   // Where each figure's spread stands, for the Properties sheet.
   const reported = useRef(new Set<string>());
   useEffect(() => {
@@ -264,16 +270,19 @@ function buildSpread(
   cache: Map<string, CachedSpread>
 ): BuiltSpread | null {
   const spread = foldedFigureSpreadOptions(figure);
-  if (!spread || !foldedFigureSpreadDrawable(figure)) return null;
-  const kernel = foldedFigureSpreadScene(figure, table);
-  if (!kernel) return null;
+  const kernel = spread && foldedFigureSpreadDrawable(figure) ? foldedFigureSpreadScene(figure, table) : null;
   let prepared: PreparedConnectedSpread | null = null;
-  if (spread.kind === 'connected') {
+  if (spread?.kind === 'connected' && kernel) {
     // By its fold: the canvas reads this in the render a refetched scene
     // lands in, before the lease is told of the scene.
     const state = preparations?.state(figure.id, spreadFold(figure, kernel));
-    if (state?.status !== 'ready') return null;
-    prepared = state.prepared;
+    if (state?.status === 'ready') prepared = state.prepared;
+  }
+  // A figure that draws no spread now keeps no picture: its spread is off or
+  // cannot draw, its scene is not here, or its solve has not landed.
+  if (!spread || !kernel || (spread.kind === 'connected' && !prepared)) {
+    cache.delete(figure.id);
+    return null;
   }
   const frame = foldedFigureSpreadFrame(foldedFigurePivot(figure), figure.placement.rotation);
   // The style inks a Default picture's geometry; the folded channel inks a scene.
