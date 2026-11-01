@@ -1605,6 +1605,7 @@
       "pause": "Pause",
       "percent": "{{value}} %",
       "play": "Lecture",
+      "preparing": "Préparation de la pose…",
       "previousSolution": "Ordre des couches précédent",
       "reset": "Réinitialiser la pose",
       "resetHint": "Déjà dans sa pose de départ",
@@ -1642,6 +1643,7 @@
       "spreadKeepTop": "Dessus",
       "spreadKind": "Écarter par",
       "spreadKindAffine": "Affine",
+      "spreadKindConnected": "Par défaut",
       "spreadKindDepth": "Profondeur",
       "spreadLayers": "Écarter les couches",
       "spreadLayersRow": "Écarter les couches",
@@ -1745,6 +1747,15 @@
       "ways_many": "{{count}} façons",
       "ways_other": "{{count}} façons",
       "withTurnOver": "Avec le retournement qui précède"
+    },
+    "spread": {
+      "diagram": "Diagramme",
+      "drag": "Glisser pour révéler les couches",
+      "padHint": "Faites glisser pour révéler les couches. Ajustez avec les flèches ; Maj augmente le déplacement.",
+      "perspective": "Perspective 3D",
+      "presentation": "Présentation",
+      "reveal": "Décalage des couches",
+      "revealHint": "Glisser pour révéler les couches · Défiler pour zoomer"
     },
     "stepPane": {
       "annotate": "Annoter",
@@ -1925,6 +1936,7 @@
       "startsBranch": "Commence une nouvelle branche"
     },
     "canvas": {
+      "adjustSpread": "Ajuster l’écartement",
       "creasePattern": "Patron de plis",
       "creasePatternLabel": "Le patron de plis jusqu’ici, recto en haut. Cliquez sur ses points et ses plis pour situer un pliage.",
       "flatCreases": "Plis à plat",
@@ -3139,6 +3151,9 @@
       "switchBranch": "Changer de branche",
       "tagBranch": "Nouvelle branche",
       "tagNext": "Suivante"
+    },
+    "spread": {
+      "unavailable": "Écartement indisponible pour cet état"
     },
     "step": {
       "blocks": "Blocs",

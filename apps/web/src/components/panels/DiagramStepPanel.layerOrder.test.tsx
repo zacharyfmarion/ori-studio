@@ -121,7 +121,7 @@ function publishPose(
     layerOrder: constrained ? null : { count: '1' },
     layerOrderEdit: null,
     editLayerOrder,
-    spatial: null,
+    spatial: null, connected: null, connectedPreparing: false, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
     onCamera: () => {},
     registerLiveView: () => () => {},
     rotateTo: () => {},

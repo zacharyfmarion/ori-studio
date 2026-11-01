@@ -17,7 +17,8 @@ import type {
   LayerSpreadDrag,
   LayerSpreadToggle,
 } from '../../cp-workspace/folded/layerSpreadControls';
-import { SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_CONNECTED_SPREAD, SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
+import { LayerRevealControl } from './LayerRevealControl';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { AffineSpreadCredit } from './AffineSpreadCredit';
 import { IconButton } from '../ui/IconButton';
@@ -40,7 +41,8 @@ const AMOUNT_STEP_PERCENT = 0.5;
 
 /**
  * A flat picture's layers spread apart (Phase 13), as rows: Spread Layers on
- * or off, and while on, how — by depth or affine (13g). By depth: how far the
+ * or off, and while on, Default, Affine or Depth. Default has a height amount
+ * and a two-dimensional reveal pad. By depth: how far the
  * deepest layer steps, a slider whose drag previews the picture and commits
  * once, and which way, eight buttons round a centre. Affine: how far points
  * move back toward the sheet, which layer holds still, and the skew and its
@@ -55,7 +57,9 @@ const AMOUNT_STEP_PERCENT = 0.5;
 export function LayerSpreadRows({
   toggle,
   spread,
+  revealVisible = true,
 }: {
+  revealVisible?: boolean;
   /** Spread Layers; absent where the picture has no layers to offer it for. */
   toggle: LayerSpreadToggle | undefined;
   /** The spread while it is on; null while off. */
@@ -70,6 +74,8 @@ export function LayerSpreadRows({
       degrees: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(value),
     });
   const shown = spread?.spread;
+  // Default's percentage covers its full height range; saved multipliers stay unchanged.
+  const amountPercentScale = shown?.kind === 'connected' ? 100 / SPREAD_AMOUNT_RANGE.connected.max : 100;
   return (
     <>
       <ToggleRow
@@ -83,41 +89,60 @@ export function LayerSpreadRows({
       {spread && shown && (
         <>
           <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
-            <span className={styles.kind}>
-              <SegmentedControl
-                size="sm"
-                aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
+            <span className={styles.kind} aria-busy={spread.busy || undefined}>
+              <SegmentedControl size="sm" aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
                 value={shown.kind}
-                options={spread.kinds.map(({ value, label }) => ({ value, label }))}
+                options={spread.kinds.map(({ value, label, disabled, waiting, hint }) => ({ value, label, disabled: disabled || waiting, title: hint }))}
                 disabled={spread.disabled}
-                onChange={(value) => choose(spread.kinds, value)}
-              />
-              <AffineSpreadCredit />
+                onChange={(value) => choose(spread.kinds, value)} />
+              {shown.kind === 'affine' && <AffineSpreadCredit />}
             </span>
           </FieldRow>
           <SliderRow
             label={t('panels:diagram.pose.spreadAmount', 'Amount')}
             ariaLabel={t('panels:diagram.pose.spreadAmountName', 'Spread amount')}
-            value={shown.amount * 100}
-            min={SPREAD_AMOUNT_RANGE[shown.kind].min * 100}
-            max={SPREAD_AMOUNT_RANGE[shown.kind].max * 100}
+            value={shown.amount * amountPercentScale}
+            min={SPREAD_AMOUNT_RANGE[shown.kind].min * amountPercentScale}
+            max={SPREAD_AMOUNT_RANGE[shown.kind].max * amountPercentScale}
             step={AMOUNT_STEP_PERCENT}
             format={percent}
             valueText={(value) =>
-              shown.kind === 'depth'
-                ? t('panels:diagram.pose.spreadAmountValue', '{{percent}} of the model', { percent: percent(value) })
-                : t('panels:diagram.pose.spreadAffineAmountValue', '{{percent}} of the way back to the sheet along the axis', {
-                    percent: percent(value),
-                  })
+              shown.kind === 'connected'
+                ? percent(value)
+                : shown.kind === 'depth'
+                  ? t('panels:diagram.pose.spreadAmountValue', '{{percent}} of the model', { percent: percent(value) })
+                  : t(
+                      'panels:diagram.pose.spreadAffineAmountValue',
+                      '{{percent}} of the way back to the sheet along the axis',
+                      {
+                        percent: percent(value),
+                      },
+                    )
             }
             disabled={spread.disabled}
             title={spread.hint}
-            onChange={(value) => spread.preview('amount', value / 100)}
+            onChange={(value) => spread.preview('amount', value / amountPercentScale)}
             onGestureStart={spread.start}
             onGestureCommit={spread.commit}
+            onReset={
+              shown.kind === 'connected'
+                ? () => {
+                    if (spread.start()) {
+                      spread.preview('amount', spread.defaultAmount ?? DEFAULT_CONNECTED_SPREAD.amount);
+                      spread.commit();
+                    }
+                  }
+                : undefined
+            }
           />
-          {shown.kind === 'depth' ? (
-            <FieldRow label={t('panels:diagram.pose.spreadDirection', 'Direction')} kind="segmented" title={spread.hint}>
+          {shown.kind === 'connected' ? (
+            revealVisible ? <LayerRevealControl spread={spread} /> : null
+          ) : shown.kind === 'depth' ? (
+            <FieldRow
+              label={t('panels:diagram.pose.spreadDirection', 'Direction')}
+              kind="segmented"
+              title={spread.hint}
+            >
               <div
                 className={styles.compass}
                 role="group"
@@ -156,7 +181,7 @@ export function LayerSpreadRows({
                 title={spread.hint}
                 help={t(
                   'panels:diagram.pose.spreadKeepHelp',
-                  'The layer that does not move: the one on top, or the one at the bottom, as the front shows them.'
+                  'The layer that does not move: the one on top, or the one at the bottom, as the front shows them.',
                 )}
                 onChange={(value) => choose(spread.keeps, value)}
               />
@@ -169,7 +194,9 @@ export function LayerSpreadRows({
                 step={1}
                 format={percent}
                 valueText={(value) =>
-                  t('panels:diagram.pose.spreadSkewValue', '{{percent}} skewed about the axis', { percent: percent(value) })
+                  t('panels:diagram.pose.spreadSkewValue', '{{percent}} skewed about the axis', {
+                    percent: percent(value),
+                  })
                 }
                 disabled={spread.disabled}
                 title={spread.hint}

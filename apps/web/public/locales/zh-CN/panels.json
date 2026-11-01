@@ -1503,6 +1503,7 @@
       "pause": "暂停",
       "percent": "{{value}}%",
       "play": "播放",
+      "preparing": "正在准备姿态…",
       "previousSolution": "上一种层序",
       "reset": "重置姿态",
       "resetHint": "已处于初始姿态",
@@ -1540,6 +1541,7 @@
       "spreadKeepTop": "顶层",
       "spreadKind": "错开方式",
       "spreadKindAffine": "仿射",
+      "spreadKindConnected": "默认",
       "spreadKindDepth": "深度",
       "spreadLayers": "错开层",
       "spreadLayersRow": "错开层",
@@ -1621,6 +1623,15 @@
       "unreadableCard": "无法读取此卡片的图，因此无法添加。",
       "ways_other": "{{count}} 种方式",
       "withTurnOver": "连同前面的翻面"
+    },
+    "spread": {
+      "diagram": "图解",
+      "drag": "拖动以显示层次",
+      "padHint": "拖动以显露纸层。使用方向键调整，按住 Shift 可增大移动幅度。",
+      "perspective": "透视 3D",
+      "presentation": "显示方式",
+      "reveal": "层次显示",
+      "revealHint": "拖动以显示层次 · 滚动以缩放"
     },
     "stepPane": {
       "annotate": "标注",
@@ -1799,6 +1810,7 @@
       "startsBranch": "开始新的分支"
     },
     "canvas": {
+      "adjustSpread": "调整层间距",
       "creasePattern": "折痕图",
       "creasePatternLabel": "到目前为止的折痕图，正面朝上。单击其中的点和折痕来确定折线。",
       "flatCreases": "平折痕",
@@ -2579,6 +2591,9 @@
       "switchBranch": "切换分支",
       "tagBranch": "新分支",
       "tagNext": "下一步"
+    },
+    "spread": {
+      "unavailable": "此状态无法显示层间距"
     },
     "step": {
       "blocks": "整块",

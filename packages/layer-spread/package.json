@@ -1,0 +1,10 @@
+{
+  "name": "@oristudio/layer-spread",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": { "build": "tsc -p tsconfig.json", "test": "vitest run" },
+  "dependencies": { "earcut": "^3.2.3" },
+  "devDependencies": { "@types/earcut": "^3.0.0", "typescript": "~5.9.3", "vitest": "^4.0.18" }
+}

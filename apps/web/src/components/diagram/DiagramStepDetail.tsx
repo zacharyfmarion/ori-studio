@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react';
+import { PoseLoading } from '../paper/PoseLoading';
+import { posePictureBounds, spreadPosePicture } from '../../diagram/pictures/spreadPosePicture';
+import { sameSpread } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DiagramSpreadView } from './DiagramSpreadView';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
@@ -28,7 +32,6 @@ import {
   type DiagramStyle,
 } from '../../diagram/document/diagramDocument';
 import { stepPictureSource } from '../../diagram/pictures/paintDiagramStep';
-import { storedScene } from '../../diagram/pictures/pictureFrame';
 import { annotatedStepUrl, posedZoomUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { zoomedSource } from '../../diagram/zoom/paintZoomed';
 import { viewOfStep } from '../../diagram/zoom/stepView';
@@ -148,6 +151,10 @@ export function DiagramStepDetail({
 }) {
   const { t } = useTranslation();
   const root = useRef<HTMLDivElement | null>(null);
+  // Viewing scale belongs to this step, not the spread renderer's lifetime.
+  const [poseZoom, setPoseZoom] = useState({ step: step.id, value: 1 });
+  const zoom = poseZoom.step === step.id ? poseZoom.value : 1;
+  const changeZoom = useCallback((value: number) => setPoseZoom({ step: step.id, value }), [step.id]);
   const [poseRef, keepPoseFocus] = useKeepFocusWithin<HTMLDivElement>();
   useEffect(() => {
     root.current?.focus({ preventScroll: true });
@@ -156,7 +163,9 @@ export function DiagramStepDetail({
   const phone = useIsPhoneLayout();
   const locked = isLockedStep(step);
   // A Fold step's spread and its drag (plan D17), as a linked pattern's are.
-  const foldPose = useDiagramFoldStepPose(locked ? null : step);
+  const foldPose = useDiagramFoldStepPose(locked ? null : step, mode === 'pose');
+  const connectedPose = linkedPose?.connected ? linkedPose : foldPose?.connected ? foldPose : null;
+  const connectedRender = step.source && 'render' in step.source && step.source.render.mode === 'folded-flat' ? step.source.render : null;
   // In Pose, a spread being dragged shows in the step's place before it is committed (Phase 13).
   const posed = (mode === 'pose' && (linkedPose?.preview ?? foldPose?.preview)) || step;
   const source = useMemo(() => stepPictureSource(posed, assets), [posed, assets]);
@@ -187,16 +196,20 @@ export function DiagramStepDetail({
   // Over a live view (3D or simulated), the annotations drawn on its capture, while they are.
   // An enlarged step's frame is outlined over it, whatever its marks (Revision 2).
   const ghost = useMemo((): DiagramPoseAnnotations | null => {
-    if (step.picture?.kind !== 'scene') return null;
+    const bounds = posePictureBounds(step.picture);
+    if (!bounds) return null;
     const marks = annotationsOutOfStep(step) ? [] : annotations;
     const zoom = viewOfStep(step).zoom;
     if (marks.length === 0 && !zoom) return null;
-    const scene = storedScene(step.picture);
-    return scene ? { annotations: marks, bounds: scene.bounds, zoom } : null;
+    return { annotations: marks, bounds, zoom };
   }, [step, annotations]);
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
   // Enlarged is not Pose's: Annotate's Step pane turns it on (Zach's review of #436, 2026-10-08).
-  const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
+  const finalSpreadPicture = useMemo(() => spreadPosePicture(
+    connectedRender?.spread?.kind === 'connected' ? source : null, style, url),
+    [connectedRender?.spread?.kind, source, style, url]);
+  const picture = url && <img className={styles.picture} src={url} alt="" draggable={false}
+    style={connectedRender ? { transform: `scale(${zoom})` } : undefined} />;
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
   // The bar under the picture: a linked step's verbs, with `transport` (the
   // simulator's) between how it is shown and the rest, or an upload's.
@@ -212,6 +225,9 @@ export function DiagramStepDetail({
         >
           {transport}
         </DiagramLinkedPoseControls>
+      ) : foldPose?.perspectiveActions ? (
+        <><DiagramWayChooser choice={ways} readOnly={readOnly} />
+          <DiagramLinkedPoseControls actions={foldPose.perspectiveActions} keep={keepPoseFocus} /></>
       ) : (
         <>
           <DiagramWayChooser choice={ways} readOnly={readOnly} />
@@ -325,9 +341,11 @@ export function DiagramStepDetail({
       ) : (
       <div
         className={styles.stage}
+        aria-busy={linkedPose?.connectedPreparing || foldPose?.connectedPreparing || undefined}
         data-picture={url !== null || undefined}
         data-drop-target={dropping || undefined}
       >
+        {(linkedPose?.connectedPreparing || foldPose?.connectedPreparing) && <PoseLoading />}
         {locked && picture ? (
           // A newer build's step, drawn as far as this build reads it (decision 2): nothing to pose or annotate.
           picture
@@ -359,7 +377,13 @@ export function DiagramStepDetail({
           />
         ) : url || linkedPose ? (
           <>
-            {linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
+            {connectedPose?.connected && connectedPose.connectedSpread && connectedRender?.spread?.kind === 'connected' ? (
+              <DiagramSpreadView key={step.id} picture={finalSpreadPicture} capturedSpread={connectedRender.spread} view={connectedPose.connected} spread={connectedPose.connectedSpread}
+                zoom={zoom} onZoom={changeZoom}
+                presentation={connectedRender.presentation} rotationDeg={connectedRender.rotationDeg} style={style}
+                onCamera={connectedPose.onCamera} onReveal={connectedPose.onReveal}
+                ghost={sameSpread(connectedRender.spread ?? null, connectedPose.connectedSpread) ? ghost : null} registerLiveView={connectedPose.registerLiveView} readOnly={readOnly} fallback={url && picture} />
+            ) : linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
               <DiagramPose3dView
                 view={linkedPose.spatial}
                 camera={linked.render.camera}

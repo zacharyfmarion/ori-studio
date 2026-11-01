@@ -1,3 +1,5 @@
+import {hasConnectedDrawing} from '../../layer-spread/connectedScene';
+import {rasterConnected} from '../../layer-spread/rasterConnected';
 /**
  * A linked Diagram step's capture, run against the store (D4): choose the
  * step's creases from the crease pattern as it stands, fold them if its
@@ -65,7 +67,7 @@ import type { LayerOrderApplied } from '../../lib/layerOrder/layerOrderRequest';
 import type { PaperFrame } from '../../lib/layerOrder/paperFrame';
 import { paperPngSize, paperSvgToPng } from '../../lib/paper/paperPng';
 import type { PaperPage } from '../../lib/paper/paperPage';
-import { pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
+import { pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import { buildSegmentSimulationFold, resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
 import type { ProjectDocumentCommit } from './projectDocumentHistory';
@@ -168,6 +170,8 @@ export type DiagramCaptureOutcome =
 export interface DiagramCaptureRun {
   /** The fold run a Stop names; null while the creases are being chosen, or for a picture with no fold. */
   runId: number | null;
+  /** A discrete pose change is preparing its replacement picture. Live gesture captures do not block Pose. */
+  blocksPose?: true;
 }
 
 /** The store as a capture uses it. */
@@ -188,6 +192,8 @@ export interface StepCaptureGuard {
   stepId: string;
   loadId: number;
   revision: number;
+  /** Transient view edits can be superseded before they reach the document. */
+  current?: () => boolean;
 }
 
 /** A step's capture, begun: what it captures from, and the guard its commit checks. */
@@ -207,14 +213,15 @@ export interface StepCaptureStart {
  */
 export function beginStepCapture(
   store: DiagramCaptureStore,
-  stepId: string
+  stepId: string,
+  blocksPose = false
 ): StepCaptureStart | Extract<DiagramCaptureOutcome, { status: 'read-only' | 'no-pattern' | 'discarded' | 'busy' }> {
   const state = store.get();
   if (state.diagramReadOnly) return { status: 'read-only' };
   if (Object.hasOwn(state.diagramCaptures, stepId)) return { status: 'busy' };
   const cp = state.oristudioCpDocument;
   if (!cp) return { status: 'no-pattern' };
-  const run = beginCaptureRun(store, stepId);
+  const run = beginCaptureRun(store, stepId, blocksPose);
   if ('status' in run) return run;
   return {
     ...run,
@@ -235,14 +242,15 @@ export type CaptureRunStart = Pick<StepCaptureStart, 'guard' | 'style'>;
  */
 export function beginCaptureRun(
   store: DiagramCaptureStore,
-  stepId: string
+  stepId: string,
+  blocksPose = false
 ): CaptureRunStart | Extract<DiagramCaptureOutcome, { status: 'read-only' | 'discarded' | 'busy' }> {
   const state = store.get();
   if (state.diagramReadOnly) return { status: 'read-only' };
   if (Object.hasOwn(state.diagramCaptures, stepId)) return { status: 'busy' };
   const step = state.diagram ? stepById(state.diagram, stepId) : null;
   if (!step || isLockedStep(step)) return { status: 'discarded' };
-  setRun(store, stepId, { runId: null });
+  setRun(store, stepId, { runId: null, ...(blocksPose ? { blocksPose: true } : {}) });
   return {
     guard: { stepId, loadId: state.diagramLoadId, revision: step.revision },
     style: state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE,
@@ -275,7 +283,8 @@ export function runStepFold<T>(
       store,
       kind,
       (runId, stop, controls) => {
-        if (Object.hasOwn(store.get().diagramCaptures, stepId)) setRun(store, stepId, { runId });
+        const capture = store.get().diagramCaptures[stepId];
+        if (capture) setRun(store, stepId, { ...capture, runId });
         return work(createCpCaptureRuntime(runId, start.auxHandle), stop, controls);
       },
       options
@@ -302,11 +311,12 @@ export async function commitStepCapture(
   label: string,
   joinEntry?: object
 ): Promise<{ changed: boolean; tooDetailed: boolean; replaced?: number } | null> {
+  if (start.guard.current?.() === false) return null;
   const kept = await keptPicture(captured.picture, captured.source.render, start.style);
   const now = store.get();
   const { stepId, loadId, revision } = start.guard;
   const current = now.diagram ? stepById(now.diagram, stepId) : null;
-  if (now.diagramLoadId !== loadId || !current || current.revision !== revision) return null;
+  if (start.guard.current?.() === false || now.diagramLoadId !== loadId || !current || current.revision !== revision) return null;
   const join = joinEntry !== undefined && now.diagramHistory.past.at(-1) === joinEntry;
   // A step enlarged before it had a picture lands its frame on its first, or starts whole if that shows another
   // picture type than its run, in the same undo step (Revision 2; review fix 3).
@@ -569,6 +579,19 @@ export async function keptPicture(
   style: DiagramStyle
 ): Promise<{ picture: DiagramPicture; asset?: KnownDiagramAsset }> {
   if (captured.kind === 'picture') return { picture: captured.picture };
+  if (hasConnectedDrawing(captured.scene)) {
+    const raster = await rasterConnected(captured.scene, diagramScenePaintStyle(style, false), CAPTURE_RASTER_BOX_MM);
+    const src = `data:image/png;base64,${bytesToBase64(new Uint8Array(raster.png))}`;
+    const id = `asset-raster-${digest(src)}`;
+    return {
+      picture: {
+        kind: 'asset', assetId: id,
+        paperScale: captured.paperScale === null ? null : captured.paperScale * raster.scale,
+        styleKey: diagramStyleKey(style), key: `raster-${id}`, sceneFrame: raster.sceneFrame,
+      },
+      asset: { id, kind: 'raster', src, widthPx: raster.width, heightPx: raster.height, bytes: src.length },
+    };
+  }
   const pagePaper: PaperPage = {
     sheet: { mm: CAPTURE_RASTER_BOX_MM },
     paddingMm: 1,
@@ -587,8 +610,16 @@ export async function keptPicture(
   // The bitmap's own px per pattern unit: the scene's, through the page's scale.
   const pxPerScenePx = (pagePtPerPx(captured.scene, pagePaper, measure) * CAPTURE_RASTER_DPI) / 72;
   const paperScale = captured.paperScale === null ? null : captured.paperScale * pxPerScenePx;
+  const margin = pageMarginPt(diagramScenePaintStyle(style, pattern), pagePaper) * CAPTURE_RASTER_DPI / 72 / pxPerScenePx;
+  const sceneFrame: [number, number, number, number] = [
+    captured.scene.bounds.minX - margin, captured.scene.bounds.minY - margin,
+    width / pxPerScenePx, height / pxPerScenePx,
+  ];
   return {
-    picture: { kind: 'asset', assetId: id, paperScale, styleKey: diagramStyleKey(style), key: `raster-${id}` },
+    picture: {
+      kind: 'asset', assetId: id, paperScale, styleKey: diagramStyleKey(style), key: `raster-${id}`,
+      ...(render.mode === 'folded-flat' && render.spread?.kind === 'connected' ? { sceneFrame } : {}),
+    },
     asset: { id, kind: 'raster', src, widthPx: width, heightPx: height, bytes: src.length },
   };
 }

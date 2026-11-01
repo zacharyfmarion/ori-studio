@@ -1,3 +1,5 @@
+import { foldPickIndex, foldPickData } from './foldPicking';
+import { prepareFoldSheetBindings } from './foldPickPreparation';
 /**
  * The state view the canvas paints from: the step on screen's own scene once
  * it is in; while the next step loads, the last picture stays up — so the
@@ -70,7 +72,20 @@ const view = () => seen[seen.length - 1]!;
 const moveTo = (cursor: string | null) =>
   source.set({ reader: withFoldCursor(source.read().reader!, document, cursor) });
 
+// The same plain-data boundary as the worker, with asynchronous delivery.
+let preparationCount = 0;
+class PickingWorker {
+  constructor() { preparationCount++; }
+  onmessage: ((event: {data: unknown}) => void) | null = null;
+  stopped = false;
+  terminate() { this.stopped = true; }
+  async postMessage(data: import('./useFoldPickPreparation').FoldPickingRequest) {
+    await Promise.resolve();
+    if (!this.stopped) this.onmessage?.({ data: { kind: 'ready', index: foldPickData(foldPickIndex(data.scene, data.landmarks, data.marks)), bindings: prepareFoldSheetBindings(data.scene, data.landmarks) } });
+  }
+}
 beforeEach(async () => {
+  vi.stubGlobal('Worker', PickingWorker);
   seen = [];
   runtime = inProcessFoldRuntime(engine);
   source = memoryFoldDocument({
@@ -90,6 +105,7 @@ beforeEach(async () => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  vi.unstubAllGlobals();
   app.session?.dispose();
   app.session = null;
 });
@@ -100,6 +116,18 @@ function document_(): Document {
 }
 
 describe('the Fold canvas’s state view', () => {
+  it('keeps picking and material bindings across presentation-only edits', async () => {
+    const before = view(), count = preparationCount;
+    const doc = source.read().held!.document;
+    await act(async () => {
+      source.set({ held: { document: { ...doc, steps: doc.steps.map(step => ({ ...step, note: 'New note' })) }, readOnlyRaw: null } });
+      await settle();
+    });
+    expect(view().index).toBe(before.index);
+    expect(view().markPoints).toBe(before.markPoints);
+    expect(preparationCount).toBe(count);
+  });
+
   it('keeps the last picture up while the next step’s scene is on its way, with nothing to pick on it', async () => {
     const atA = view();
     expect(atA.scene).not.toBeNull();
@@ -142,7 +170,9 @@ describe('the Fold canvas’s state view', () => {
     });
     const committed = seen.find((shown) => shown.cursorId !== 'a');
     expect(committed?.landmarks).not.toBeNull();
-    expect(committed?.index).not.toBeNull();
+    expect(committed?.pickingStatus).toBe('preparing');
+    expect(committed?.index).toBeNull();
+    expect(view().index).not.toBeNull();
     await act(async () => {
       await runtime.open();
     });

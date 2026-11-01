@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { dashSlotUniforms, dashTableUniforms } from './strokeProgram';
+import { describe, expect, it, vi } from 'vitest';
+import type createREGL from 'regl';
+import { createStrokeProgram, dashSlotUniforms, dashTableUniforms } from './strokeProgram';
 import { MAX_DASH_SLOTS } from '../types';
 import {
   cpLineStyleDashPatterns,
@@ -134,5 +135,51 @@ describe('the slots the program reads', () => {
     expect(slots).toHaveLength(MAX_DASH_SLOTS);
     expect(period(slots[MAX_DASH_SLOTS - 1]!)).toBe(6);
     for (const slot of slots.slice(0, -1)) expect(period(slot)).toBe(0);
+  });
+});
+
+
+describe('shared stroke commands', () => {
+  function context() {
+    const draws: ReturnType<typeof vi.fn>[] = [];
+    const regl = Object.assign(vi.fn((_config: unknown) => { const draw = vi.fn(); draws.push(draw); return draw; }), {
+      buffer: vi.fn(() => Object.assign(vi.fn(), { destroy: vi.fn() })),
+    });
+    return { regl, draws, gl: regl as unknown as ReturnType<typeof createREGL> };
+  }
+  const geometry = (x: number) => ({
+    a: new Float32Array([x, 0]), b: new Float32Array([x, 1]), color: new Float32Array([1, 0, 0, 1]),
+    widthMul: new Float32Array([1]), count: 1,
+  });
+  const frame = { view: { origin: [0, 0], ex: [1, 0], ey: [0, 1] }, viewport: { width: 100, height: 100, dpr: 1 }, widthPx: 1 } as const;
+  it('compiles once for many faces, keeps their buffers independent and releases the last owner', () => {
+    const {regl, draws, gl} = context();
+    const a = createStrokeProgram(gl, {depthOrdered: true});
+    const b = createStrokeProgram(gl, {depthOrdered: true});
+    expect(regl).toHaveBeenCalledOnce();
+    const quad = regl.buffer.mock.results[0]!.value;
+    a.setData(geometry(1)); b.setData(geometry(2));
+    a.draw(frame); b.draw(frame);
+    const first = draws[0]!.mock.calls[0]![0], second = draws[0]!.mock.calls[1]![0];
+    expect(first.aBuf).not.toBe(second.aBuf);
+    a.dispose(); a.dispose();
+    expect(first.aBuf.destroy).toHaveBeenCalledOnce();
+    expect(second.aBuf.destroy).not.toHaveBeenCalled();
+    expect(quad.destroy).not.toHaveBeenCalled();
+    b.draw(frame);
+    expect(draws[0]).toHaveBeenCalledTimes(3);
+    b.dispose();
+    expect(quad.destroy).toHaveBeenCalledOnce();
+    const c = createStrokeProgram(gl, {depthOrdered: true});
+    expect(regl).toHaveBeenCalledTimes(2);
+    c.dispose();
+  });
+  it('never shares commands across contexts or different depth modes', () => {
+    const a = context(), b = context();
+    const owners = [createStrokeProgram(a.gl), createStrokeProgram(a.gl, {depthOrdered:true}), createStrokeProgram(b.gl)];
+    expect(a.regl).toHaveBeenCalledTimes(2); expect(b.regl).toHaveBeenCalledOnce();
+    expect(a.regl.mock.calls[0]![0]).toMatchObject({depth:{enable:false}});
+    expect(a.regl.mock.calls[1]![0]).toMatchObject({depth:{enable:true,mask:true,func:'lequal'}});
+    owners.forEach(owner=>owner.dispose());
   });
 });

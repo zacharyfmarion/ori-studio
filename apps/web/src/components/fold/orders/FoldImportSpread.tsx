@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { spreadStartsAmong } from '../../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_FOLD_SPREAD_STARTS } from '../../../fold/document/foldSpreadDefaults';
 import { useFoldImportOrderUi } from '../../../fold/orders/foldImportOrderUi';
 import { foldStepSpreadControls, type FoldSpreadSitting } from '../../../fold/sequence/foldStepSpreadControls';
 import { trackFoldSpreadChanged } from '../../../analytics/trackFold';
@@ -14,7 +14,7 @@ export function FoldImportSpread({ atSheet }: { atSheet: boolean }) {
   const { choosing, spread } = useFoldImportOrderUi();
   if (!atSheet || !choosing) return null;
   const controls = foldStepSpreadControls({
-    effective: { spread, origin: 'default', from: null }, starts: spreadStartsAmong([]), hint: undefined,
+    effective: { spread, origin: 'default', from: null }, starts: DEFAULT_FOLD_SPREAD_STARTS, hint: undefined,
   }, {
     t, sitting, newSession: () => 0,
     set: (setting) => { useFoldImportOrderUi.setState({ spread: setting === 'off' ? null : setting }); return true; },

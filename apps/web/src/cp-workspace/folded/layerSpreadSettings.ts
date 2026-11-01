@@ -1,3 +1,4 @@
+import type { ConnectedSpread } from '@oristudio/layer-spread';
 /**
  * A flat folded picture's layer spread as a setting (Phase 13 of the diagram
  * workspace, `implementation-plans/diagram-distortion.md`): how far each
@@ -32,6 +33,7 @@ import {
  * way back to the sheet along its axis (in every direction only at no skew).
  */
 export const SPREAD_AMOUNT_RANGE: Readonly<Record<SpreadKind, { readonly min: number; readonly max: number }>> = {
+  connected: { min: 0, max: 2 },
   depth: { min: 0.005, max: 0.2 },
   affine: { min: 0.005, max: 0.25 },
 };
@@ -65,11 +67,13 @@ export const DEFAULT_AFFINE_SPREAD: AffineSpreadOptions = {
 };
 
 /**
- * The spread a flat picture starts with when no earlier one has one, and
- * Spread Layers turned on takes then — Zach, 2026-10-05: "I want affine to be
- * the default option and the first displayed, and default to on".
+ * The spread a flat picture starts with when no earlier one has one.
+ * Amount is stored as a height multiplier (0–2); the UI shows 0–100%,
+ * so the default multiplier of 0.14 displays as 7%.
  */
-export const DEFAULT_LAYER_SPREAD: LayerSpreadOptions = DEFAULT_AFFINE_SPREAD;
+export const DEFAULT_CONNECTED_SPREAD: ConnectedSpread = { kind: 'connected', version: 1, amount: 0.14, reveal: [0.8, 0.6] };
+
+export const DEFAULT_LAYER_SPREAD: LayerSpreadOptions = DEFAULT_CONNECTED_SPREAD;
 
 /**
  * An amount a spread of `kind` may take: within {@link SPREAD_AMOUNT_RANGE},
@@ -77,7 +81,7 @@ export const DEFAULT_LAYER_SPREAD: LayerSpreadOptions = DEFAULT_AFFINE_SPREAD;
  */
 export function clampSpreadAmount(kind: SpreadKind, amount: number): number {
   const { min, max } = SPREAD_AMOUNT_RANGE[kind];
-  const fallback = kind === 'depth' ? DEFAULT_DEPTH_SPREAD.amount : DEFAULT_AFFINE_SPREAD.amount;
+  const fallback = kind === 'connected' ? DEFAULT_CONNECTED_SPREAD.amount : kind === 'depth' ? DEFAULT_DEPTH_SPREAD.amount : DEFAULT_AFFINE_SPREAD.amount;
   const within = Number.isFinite(amount) ? Math.min(max, Math.max(min, amount)) : fallback;
   return Number(within.toFixed(4));
 }
@@ -103,6 +107,7 @@ export interface LayerSpreadStarts {
   any: LayerSpreadOptions;
   depth: DepthSpreadOptions;
   affine: AffineSpreadOptions;
+  connected: ConnectedSpread;
 }
 
 /** The starts when there is nothing earlier to look in: the defaults. */
@@ -110,6 +115,7 @@ export const DEFAULT_SPREAD_STARTS: LayerSpreadStarts = {
   any: DEFAULT_LAYER_SPREAD,
   depth: DEFAULT_DEPTH_SPREAD,
   affine: DEFAULT_AFFINE_SPREAD,
+  connected: DEFAULT_CONNECTED_SPREAD,
 };
 
 /**
@@ -119,20 +125,23 @@ export const DEFAULT_SPREAD_STARTS: LayerSpreadStarts = {
  * is the spreads of the pictures before, nearest first; how a surface walks
  * back to them — a diagram's order, a Fold step's path — is its own.
  */
-export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>): LayerSpreadStarts {
+export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>, defaults: LayerSpreadStarts = DEFAULT_SPREAD_STARTS): LayerSpreadStarts {
   let any: LayerSpreadOptions | null = null;
   let depth: DepthSpreadOptions | null = null;
   let affine: AffineSpreadOptions | null = null;
+  let connected: ConnectedSpread | null = null;
   for (const spread of earlier) {
     any ??= spread;
     if (spread.kind === 'depth') depth ??= spread;
-    else affine ??= spread;
-    if (depth && affine) break;
+    else if (spread.kind === 'affine') affine ??= spread;
+    else connected ??= spread;
+    if (depth && affine && connected) break;
   }
   return {
-    any: any ?? DEFAULT_LAYER_SPREAD,
-    depth: depth ?? DEFAULT_DEPTH_SPREAD,
-    affine: affine ?? DEFAULT_AFFINE_SPREAD,
+    any: any ?? defaults.any,
+    depth: depth ?? defaults.depth,
+    affine: affine ?? defaults.affine,
+    connected: connected ?? defaults.connected,
   };
 }
 
@@ -140,6 +149,7 @@ export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>): LayerS
 export function sameSpread(a: LayerSpreadOptions | null | undefined, b: LayerSpreadOptions | null | undefined): boolean {
   if (a === b || (a == null && b == null)) return true;
   if (a == null || b == null || a.kind !== b.kind || a.amount !== b.amount) return false;
+  if (a.kind === 'connected') return b.kind === 'connected' && a.version === b.version && a.reveal[0] === b.reveal[0] && a.reveal[1] === b.reveal[1];
   if (a.kind === 'depth') return b.kind === 'depth' && a.toward === b.toward;
   return b.kind === 'affine' && a.keep === b.keep && a.skew === b.skew && a.axisDeg === b.axisDeg;
 }
@@ -151,6 +161,8 @@ export function sameSpread(a: LayerSpreadOptions | null | undefined, b: LayerSpr
  * an affine one's layer held still, skew or axis.
  */
 export type LayerSpreadEdit =
+  | { verb: 'spread-reveal'; reveal: [number, number] }
+  | { verb: 'spread-reveal-axis'; axis: 0 | 1; value: number }
   | { verb: 'spread-amount'; amount: number; kind?: SpreadKind }
   | { verb: 'spread-direction'; toward: SpreadDirection }
   | { verb: 'spread-keep'; keep: SpreadKeep }
@@ -160,6 +172,8 @@ export type LayerSpreadEdit =
 /** The verbs of {@link LayerSpreadEdit}. */
 export const LAYER_SPREAD_EDIT_VERBS: ReadonlySet<string> = new Set([
   'spread-amount',
+  'spread-reveal',
+  'spread-reveal-axis',
   'spread-direction',
   'spread-keep',
   'spread-skew',
@@ -173,6 +187,14 @@ export const LAYER_SPREAD_EDIT_VERBS: ReadonlySet<string> = new Set([
  */
 export function withSpreadField(spread: LayerSpreadOptions, edit: LayerSpreadEdit): LayerSpreadOptions {
   switch (edit.verb) {
+    case 'spread-reveal-axis': {
+      if (spread.kind !== 'connected') return spread;
+      const reveal: [number, number] = [...spread.reveal];
+      reveal[edit.axis] = edit.value;
+      return { ...spread, reveal: clampReveal(reveal, spread.reveal) };
+    }
+    case 'spread-reveal':
+      return spread.kind === 'connected' ? { ...spread, reveal: clampReveal(edit.reveal, spread.reveal) } : spread;
     case 'spread-amount':
       return edit.kind === undefined || edit.kind === spread.kind
         ? { ...spread, amount: clampSpreadAmount(spread.kind, edit.amount) }
@@ -201,6 +223,7 @@ export function weightedSpread(spread: LayerSpreadOptions | null, weight: number
 
 /** A spread's fields, by its kind: any other makes the spread a newer build's. */
 const SPREAD_FIELDS: Readonly<Record<SpreadKind, ReadonlySet<string>>> = {
+  connected: new Set(['kind', 'version', 'amount', 'reveal']),
   depth: new Set(['kind', 'amount', 'toward']),
   affine: new Set(['kind', 'amount', 'keep', 'skew', 'axisDeg']),
 };
@@ -223,8 +246,15 @@ export function readLayerSpread(value: unknown): LayerSpreadOptions | undefined 
   // A field it has no name for is news before a missing one is damage, as for an annotation.
   if (hasNewerKey(value, SPREAD_FIELDS[known])) return NEWER;
   const amount = finiteNumber(value.amount);
-  if (amount === null || amount <= 0) return null;
+  if (amount === null || amount < 0 || (amount === 0 && known !== 'connected')) return null;
   const past = amount > SPREAD_AMOUNT_RANGE[known].max;
+  if (known === 'connected') {
+    if (typeof value.version !== 'number' || !Array.isArray(value.reveal) || value.reveal.length !== 2) return null;
+    const x = finiteNumber(value.reveal[0]), y = finiteNumber(value.reveal[1]);
+    if (x === null || y === null) return null;
+    if (past || value.version !== 1 || Math.hypot(x, y) > 2.00001) return NEWER;
+    return { kind: 'connected', version: 1, amount, reveal: [x, y] };
+  }
   if (known === 'depth') {
     if (typeof value.toward !== 'string') return null;
     if (past || !(SPREAD_DIRECTIONS as readonly string[]).includes(value.toward)) return NEWER;
@@ -248,7 +278,28 @@ export function readLayerSpread(value: unknown): LayerSpreadOptions | undefined 
 
 /** A spread as a file holds it: every field named, in a fixed order, so a read and a write give back the same bytes. */
 export function writeLayerSpread(spread: LayerSpreadOptions): Record<string, unknown> {
+  if (spread.kind === 'connected') return { kind: spread.kind, version: spread.version, amount: spread.amount, reveal: [...spread.reveal] };
   return spread.kind === 'depth'
     ? { kind: spread.kind, amount: spread.amount, toward: spread.toward }
     : { kind: spread.kind, amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
+}
+
+/** The reveal pad excludes the inner 5% of its radius, for user edits only. */
+export const REVEAL_RADIUS = { min: 0.1, max: 2 } as const;
+
+/** Screen-space reveal. Saved documents are read unchanged, including zero. */
+export function clampReveal(
+  value: readonly [number, number],
+  previous: readonly [number, number] = DEFAULT_CONNECTED_SPREAD.reveal,
+): [number, number] {
+  if (!value.every(Number.isFinite)) return [...DEFAULT_CONNECTED_SPREAD.reveal];
+  const radius = Math.hypot(...value);
+  if (radius < 1e-12) {
+    const direction = previous.every(Number.isFinite) && Math.hypot(...previous) > 1e-12
+      ? previous : DEFAULT_CONNECTED_SPREAD.reveal;
+    const scale = REVEAL_RADIUS.min / Math.hypot(...direction);
+    return [direction[0] * scale, direction[1] * scale];
+  }
+  const scale = Math.max(REVEAL_RADIUS.min, Math.min(REVEAL_RADIUS.max, radius)) / radius;
+  return [value[0] * scale, value[1] * scale];
 }

@@ -137,6 +137,7 @@ export type FoldSpreadAction =
   | 'spread_direction'
   | 'spread_keep'
   | 'spread_skew'
+  | 'spread_reveal' | 'spread_presentation'
   | 'spread_axis';
 
 /** Where a Fold step's spread was changed: the Step pane's Spread section, or the canvas bar's toggle. */
@@ -422,6 +423,7 @@ export type DiagramPoseAction =
   | 'spread_direction'
   | 'spread_keep'
   | 'spread_skew'
+  | 'spread_reveal' | 'spread_presentation'
   | 'spread_axis'
   | 'paper_side'
   // A crease pattern on its back turned over side to side, or back (the Step pane's Flip creases).
@@ -448,6 +450,7 @@ export type DiagramSpreadKeep = 'top' | 'bottom';
  * held still, skew and axis. The numbers are bucketed when sent.
  */
 export type DiagramSpreadTracking =
+  | { kind: 'connected'; amount: number }
   | { kind: 'depth'; direction: DiagramSpreadDirection; amount: number }
   | { kind: 'affine'; amount: number; keep: DiagramSpreadKeep; skew: number; axisDeg: number };
 

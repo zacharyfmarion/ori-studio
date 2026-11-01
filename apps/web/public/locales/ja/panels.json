@@ -1503,6 +1503,7 @@
       "pause": "一時停止",
       "percent": "{{value}}%",
       "play": "再生",
+      "preparing": "ポーズを準備中…",
       "previousSolution": "前の重なり順",
       "reset": "ポーズをリセット",
       "resetHint": "すでに最初のポーズです",
@@ -1540,6 +1541,7 @@
       "spreadKeepTop": "上",
       "spreadKind": "ずらし方",
       "spreadKindAffine": "アフィン",
+      "spreadKindConnected": "デフォルト",
       "spreadKindDepth": "深さ",
       "spreadLayers": "層をずらす",
       "spreadLayersRow": "層をずらす",
@@ -1621,6 +1623,15 @@
       "unreadableCard": "このカードの図を読み込めないため、追加できません。",
       "ways_other": "{{count}} 通り",
       "withTurnOver": "直前の裏返しも含める"
+    },
+    "spread": {
+      "diagram": "図解",
+      "drag": "ドラッグして層を見せる",
+      "padHint": "ドラッグしてレイヤーを表示します。矢印キーで調整し、Shiftで移動量を大きくします。",
+      "perspective": "透視投影3D",
+      "presentation": "表示方式",
+      "reveal": "層のずれ",
+      "revealHint": "ドラッグして層を見せる · スクロールで拡大縮小"
     },
     "stepPane": {
       "annotate": "注記",
@@ -1799,6 +1810,7 @@
       "startsBranch": "新しい分岐を始めます"
     },
     "canvas": {
+      "adjustSpread": "層の間隔を調整",
       "creasePattern": "展開図",
       "creasePatternLabel": "ここまでの展開図（表を上）。点や折り筋をクリックして折りの位置を決めます。",
       "flatCreases": "平らな折り筋",
@@ -2579,6 +2591,9 @@
       "switchBranch": "分岐を切り替え",
       "tagBranch": "新しい分岐",
       "tagNext": "次"
+    },
+    "spread": {
+      "unavailable": "この状態では層の間隔を表示できません"
     },
     "step": {
       "blocks": "ブロック",

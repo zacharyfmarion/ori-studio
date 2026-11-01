@@ -186,7 +186,7 @@ interface PointCandidate {
 }
 
 /** One pane's targets, indexed. */
-interface PaneIndex {
+export interface PaneIndex {
   points: PointCandidate[];
   pointHits: LineHitIndex;
   segments: FoldSegmentPick[];
@@ -245,7 +245,7 @@ function visiblePortions(segment: Pick<FoldSegmentLandmark, 'visible'>, a: Point
 }
 
 /** Each segment's portions, indexed: `portionOf` says which segment an indexed id is part of. */
-function segmentIndex(portions: readonly [Point, Point][][]): { hits: LineHitIndex; portionOf: number[] } {
+function segmentIndex(portions: readonly (readonly [Point, Point][])[]): { hits: LineHitIndex; portionOf: number[] } {
   const indexed: IndexedSegment[] = [];
   const portionOf: number[] = [];
   portions.forEach((list, segment) => {
@@ -271,11 +271,19 @@ export function sheetToScene(scene: FoldScene, sheet: SheetPoint, epsilon = 1e-7
 }
 
 /** The first face whose paper holds a sheet point, with a transform to place it by; null off the sheet. */
+const sheetOutlines = new WeakMap<FoldScene, (Point[] | null)[]>();
 export function sheetFaceAt(scene: FoldScene, sheet: SheetPoint, epsilon = 1e-7): number | null {
   const p = toPoint(sheet);
-  for (const [face, { points }] of scene.faces.entries()) {
-    const outline = points.map((vertex) => scene.sheet_points[vertex]);
-    if (outline.some((corner) => corner === undefined)) continue;
+  let outlines = sheetOutlines.get(scene);
+  if (!outlines) {
+    outlines = scene.faces.map(({ points }) => {
+      const outline = points.map(vertex => scene.sheet_points[vertex]);
+      return outline.some(corner => corner === undefined) ? null : outline as Point[];
+    });
+    sheetOutlines.set(scene, outlines);
+  }
+  for (const [face, outline] of outlines.entries()) {
+    if (!outline) continue;
     if (!insideConvex(outline as Point[], p, epsilon)) continue;
     if (scene.face_transforms[face]) return face;
   }
@@ -461,14 +469,15 @@ export function foldPickIndex(
   scene: FoldScene,
   landmarks: FoldLandmarks | null,
   marks: readonly FoldMarkPoint[],
-  spread: FoldPaneSpreadMap | null = null
+  spread: FoldPaneSpreadMap | null = null,
+  base?: FoldPickIndex
 ): FoldPickIndex {
   const view = scene.view_transform;
   const back = invertIsometry(view);
   const toScene = (model: Point) => applyIsometry(view, model);
   const toModel = (point: Point) => applyIsometry(back, point);
   // The overlay's cells, as the painter reads them; convex by construction (plan D8).
-  const stacks = new StackHitIndex(scene.subfaces, { convex: true });
+  const stacks = base?.stacks ?? new StackHitIndex(scene.subfaces, { convex: true });
 
   // --- The folded pane: the engine's landmarks, as the viewer sees them.
   const foldedPoints: PointCandidate[] = [];
@@ -516,6 +525,31 @@ export function foldPickIndex(
   const folded = segmentIndex(foldedPortions);
   const foldedTargets = spread ? foldedPoints : onTopAtEachSpot(foldedPoints, scene, stacks);
 
+  const creasePattern = base?.creasePattern ?? creasePatternPickIndex(scene, landmarks, marks);
+
+  return {
+    scene,
+    toScene,
+    toModel,
+    stacks,
+    subfaces: stacks.cells,
+    folded: {
+      points: foldedTargets,
+      pointHits: pointIndex(foldedTargets),
+      segments: foldedSegments,
+      portions: foldedPortions,
+      portionOf: folded.portionOf,
+      segmentHits: folded.hits,
+      creaseMarks: foldedMarks,
+    },
+    creasePattern,
+    spread,
+  };
+}
+
+
+/** The unchanged sheet index, prepared once with the scene and landmarks. */
+function creasePatternPickIndex(scene: FoldScene, landmarks: FoldLandmarks | null, marks: readonly FoldMarkPoint[]): PaneIndex {
   // --- The crease-pattern pane: the sheet, every crease and vertex on it.
   const cpPoints: PointCandidate[] = [];
   const seenVertex = new Set<number>();
@@ -587,30 +621,36 @@ export function foldPickIndex(
   const cp = segmentIndex(cpPortions);
 
   return {
-    scene,
-    toScene,
-    toModel,
-    stacks,
-    subfaces: stacks.cells,
-    folded: {
-      points: foldedTargets,
-      pointHits: pointIndex(foldedTargets),
-      segments: foldedSegments,
-      portions: foldedPortions,
-      portionOf: folded.portionOf,
-      segmentHits: folded.hits,
-      creaseMarks: foldedMarks,
-    },
-    creasePattern: {
-      points: cpPoints,
-      pointHits: pointIndex(cpPoints),
-      segments: cpSegments,
-      portions: cpPortions,
-      portionOf: cp.portionOf,
-      segmentHits: cp.hits,
-      creaseMarks: cpMarks,
-    },
-    spread,
+    points: cpPoints, pointHits: pointIndex(cpPoints), segments: cpSegments,
+    portions: cpPortions, portionOf: cp.portionOf, segmentHits: cp.hits, creaseMarks: cpMarks,
+  };
+}
+
+/** Plain data across the worker boundary; spatial indexes and closures stay local. */
+export type PanePickData = Omit<PaneIndex, 'pointHits' | 'segmentHits' | 'portionOf'>;
+export interface FoldPickData {
+  folded: PanePickData;
+  creasePattern: PanePickData;
+}
+export function panePickData(pane: PaneIndex): PanePickData {
+  const { points, segments, portions, creaseMarks } = pane;
+  return { points, segments, portions, creaseMarks };
+}
+export function foldPickData(index: FoldPickIndex): FoldPickData {
+  return { folded: panePickData(index.folded), creasePattern: panePickData(index.creasePattern) };
+}
+export function hydratePanePick(data: PanePickData): PaneIndex {
+  const indexed = segmentIndex(data.portions);
+  return { ...data, pointHits: pointIndex(data.points), segmentHits: indexed.hits, portionOf: indexed.portionOf };
+}
+export function hydrateFoldPick(scene: FoldScene, data: FoldPickData): FoldPickIndex {
+  const inverse = invertIsometry(scene.view_transform);
+  const stacks = new StackHitIndex(scene.subfaces, { convex: true });
+  return {
+    scene, stacks, subfaces: stacks.cells,
+    toScene: point => applyIsometry(scene.view_transform, point),
+    toModel: point => applyIsometry(inverse, point),
+    folded: hydratePanePick(data.folded), creasePattern: hydratePanePick(data.creasePattern), spread: null,
   };
 }
 

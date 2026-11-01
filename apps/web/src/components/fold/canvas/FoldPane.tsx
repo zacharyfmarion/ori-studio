@@ -1,4 +1,12 @@
-import { forwardRef, useMemo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFoldPaperRenderer } from '../../../fold/canvas/useFoldPaperRenderer';
+import type { FoldLiveRenderer } from '../../../fold/canvas/foldRenderProtocol';
+import { FOLD_PANE_DISPLAY_DEFAULT, type FoldPaneDisplay } from '../../../fold/canvas/foldPaneScenes';
+import type { FoldRevealGesture } from '../../../fold/canvas/useFoldReveal';
+import { FoldPaperBitmap } from './FoldPaperBitmap';
+import { PoseLoading } from '../../paper/PoseLoading';
+import { ViewportStatusReadout } from '../../ui/ViewportStatusReadout';
+import { forwardRef, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import type { CpOverlayView } from '../../../cp-workspace/CreasePatternWebglCanvas';
 import type { FoldedSceneInk } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import type { UserBounds } from '../../../cp-workspace/renderer/camera';
@@ -19,9 +27,15 @@ import { sameFoldHit, type FoldHit, type FoldHitRadii, type FoldPaneId } from '.
 import { FOLD_PANE_ATTRIBUTE } from '../../../fold/canvas/useFoldCanvasShortcuts';
 import type { Point } from '../../../lib/geometry';
 
+const ORIGIN: Point = { x: 0, y: 0 };
+
 const FOLD_INK: FoldedSceneInk = { policy: PAPER_STYLE_POLICIES.fold };
 
 export interface FoldPaneProps {
+  spreadRenderer?: FoldLiveRenderer | null;
+  spreadDisplay?: FoldPaneDisplay;
+  preparing?: boolean;
+  revealGesture?: FoldRevealGesture;
   pane: FoldPaneId;
   /** The paper the pane paints, through the shared painter; null before the state's scene is in, or for none. */
   scene: PaperScene | null;
@@ -102,7 +116,18 @@ const takesPick = (hit: FoldHit) => hit.pick != null;
  * handle.
  */
 export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function FoldPane(props, ref) {
-  const { pane, scene, style, ink = FOLD_INK, creases = null, tint = null, offset, inkKey, ...surface } = props;
+  const { pane, scene, style, ink = FOLD_INK, creases = null, tint = null, offset, inkKey,
+    spreadRenderer, spreadDisplay, preparing, revealGesture, ...surface } = props;
+  const { t } = useTranslation();
+  const redraw = useRef<() => void>(() => undefined);
+  const afterPaint = useCallback(() => redraw.current(), []);
+  const registerRedraw = useCallback((render: () => void) => {
+    redraw.current = render;
+    return () => { redraw.current = () => undefined; };
+  }, []);
+  const paper = useFoldPaperRenderer(spreadRenderer ?? null, spreadDisplay ?? FOLD_PANE_DISPLAY_DEFAULT,
+    offset ?? ORIGIN, style, ink, afterPaint);
+  const blocked = preparing || (!!spreadRenderer && paper.status === 'preparing');
   const dx = offset?.x ?? 0;
   const dy = offset?.y ?? 0;
   const modelToSvg = useMemo(
@@ -114,6 +139,17 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
     <PaperPane<FoldHit>
       {...surface}
       ref={ref}
+      gesture={revealGesture}
+      blocked={blocked}
+      externalPaper={spreadRenderer ? {
+        layer: <FoldPaperBitmap canvasRef={paper.bitmapRef} />,
+        onFrame: paper.onFrame, presentedFrame: paper.presentedFrame, registerRedraw,
+      } : undefined}
+      hitTest={(point, radii) => paper.canPick() ? surface.hitTest(point, radii) : null}
+      status={<>
+        {blocked && <PoseLoading />}
+        {spreadRenderer && paper.status === 'error' && <ViewportStatusReadout>{t('panels:fold.spread.unavailable', 'Spread unavailable for this state')}</ViewportStatusReadout>}
+      </>}
       scene={scene}
       // The painter reads the 3D figure's surface when none is named.
       look={{ style, policy: ink.policy ?? PAPER_STYLE_POLICIES['folded-3d'], faceAlpha: ink.faceAlpha, faces: ink.faces }}

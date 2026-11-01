@@ -24,6 +24,7 @@
  */
 export const CP_GL_ATTRIBUTES: WebGLContextAttributes = {
   antialias: true,
+  stencil: true,
   alpha: false,
   premultipliedAlpha: true,
   // On-demand renderer: we only redraw on mount/resize/state change, not every

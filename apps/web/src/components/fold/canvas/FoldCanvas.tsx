@@ -1,3 +1,5 @@
+import {ViewportStatusReadout} from '../../ui/ViewportStatusReadout';
+import { useFoldReveal } from '../../../fold/canvas/useFoldReveal';
 import { useFoldOrderInspection } from '../../../fold/orders/useFoldOrderInspection';
 import { foldRegionTint } from '../../../fold/canvas/foldPaneOverlays';
 import { useFoldImportOrderUi } from '../../../fold/orders/foldImportOrderUi';
@@ -47,7 +49,7 @@ import { setFoldPaneDisplay, useFoldPaneDisplay } from '../../../fold/canvas/fol
 import type { FoldHit, FoldPaneId, FoldPick } from '../../../fold/canvas/foldPicking';
 import { useFoldPhonePane } from '../../../fold/canvas/foldPhonePane';
 import { useFoldCanvasInks } from '../../../fold/canvas/useFoldCanvasInks';
-import { restingSpread, useFoldCanvasPaint } from '../../../fold/canvas/useFoldCanvasPaint';
+import { foldedPreviewScene, restingSpread, useFoldCanvasPaint } from '../../../fold/canvas/useFoldCanvasPaint';
 import { useFoldCreasePatternStrokes } from '../../../fold/canvas/useFoldCreasePatternStrokes';
 import { foldCanvasChoice, marksMadeAt, useFoldCanvasVerbs } from '../../../fold/canvas/useFoldCanvasVerbs';
 import { useFoldCanvasShortcuts } from '../../../fold/canvas/useFoldCanvasShortcuts';
@@ -114,8 +116,9 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
   const orderScene = importChoice ? (importPreview?.status === 'ready' ? importPreview.scene : importChoice.displayed ?? null) : resolvingOrder ? preview.landed?.scene ?? null : null;
   const inspection = useFoldOrderInspection(importChoice ? `import:${importChoice.opened.import}` : resolvingOrder ? preview.orderResolution?.key ?? null : null, orderScene);
   const importSpread = useFoldImportOrderUi((s) => s.spread);
-  const shownSpread = importChoice && view.cursorId === null ? importSpread : resolvingOrder ? stepSpread : restingSpread(stepSpread, preview, picking);
-  const paneSpread = useFoldPaneSpread(view, shownSpread);
+  const reveal = useFoldReveal(view.cursorId, stepSpread, !picking && !resolvingOrder && preview.action === null && preview.analysis === null);
+  const shownSpread = importChoice && view.cursorId === null ? importSpread : resolvingOrder ? stepSpread : restingSpread(reveal.shown, preview, picking);
+  const paneSpread = useFoldPaneSpread(view, shownSpread, shownSpread ? foldedPreviewScene(preview, orderScene) : null);
   const { verbs, queued } = useFoldCanvasVerbs(session, tools, view, preview, paneSpread.index);
   useEffect(() => registerFoldCanvasVerbs(verbs), [verbs]);
   // The menus' and the step cards' Valley / Mountain / Precrease arm the tools' fold.
@@ -179,7 +182,7 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
   const squashMarks = useFoldSquashMarks(session, view.index, toolState);
   const pending = fanMarks?.pending ?? petalMarks.pending ?? swivelMarks.pending ?? takenLines ?? repeatCreases;
   const regions = fanMarks?.regions ?? petalMarks.regions ?? squashMarks.regions;
-  const paint = useFoldCanvasPaint(view, preview, display, toolState.hoveredFlap, inks, shownSpread, pending, orderScene);
+  const paint = useFoldCanvasPaint(view, preview, display, toolState.hoveredFlap, inks, shownSpread, pending, orderScene, paneSpread.connected ?? undefined, shownSpread?.kind === 'connected');
   const componentPairs = importChoice?.opened.components[importChoice.component]?.pairs ?? [];
   const orderTint = inks && resolvingOrder && !shownSpread ? foldRegionTint({
     polygons: [inspection.rows.filter((row) => inspection.selected === null ? row.changed || componentPairs.some(([a, b]) => row.faces_top_to_bottom.includes(a) && row.faces_top_to_bottom.includes(b)) : row.index === inspection.selected).map((row) => row.polygon)],
@@ -352,19 +355,26 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
             <FoldPane
               ref={folded}
               pane="folded"
+              revealGesture={reveal.gesture}
+              spreadRenderer={paneSpread.renderer}
+              spreadDisplay={display}
+              preparing={paneSpread.status === 'preparing' || view.pickingStatus === 'preparing'}
               scene={paint.folded.scene}
               ink={paint.folded.ink}
               tint={foldedTint}
               offset={paint.folded.offset}
-              contentBounds={paint.folded.contentBounds}
-              keepInViewKey={paint.folded.keepInView}
-              keepInViewBounds={paint.folded.formBounds}
+              contentBounds={paneSpread.bounds ?? paint.folded.contentBounds}
+              keepInViewKey={shownSpread?.kind === 'connected' && !paneSpread.bounds ? null : paint.folded.keepInView}
+              keepInViewBounds={paneSpread.bounds ?? paint.folded.formBounds}
               hitTest={(at, radii) => verbs.hitTest('folded', at, radii)}
               overlay={resolvingOrder ? () => ({ points: null, strokes: null }) : foldedOverlay}
               onHover={onFoldedHover}
               onZoomPercentChange={setZoomPercent}
               layers={(camera) => (
                 <>
+                  {(paneSpread.status === 'unavailable' || view.pickingStatus === 'error') && <ViewportStatusReadout>
+                    {t('panels:fold.spread.unavailable', 'Spread unavailable for this state')}
+                  </ViewportStatusReadout>}
                   {inks && (
                     <FoldActionLayer
                       action={resolvingOrder ? null : preview.action}
@@ -416,6 +426,7 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
           display={display}
           onDisplay={setFoldPaneDisplay}
           spread={spread?.toggle ?? null}
+          adjustSpread={reveal.action}
           phoneGroups={phoneGroups}
           sendToEdit={sendToEdit}
         />

@@ -11,7 +11,7 @@
  */
 import { DEFAULT_PAPER_SIZE_MM } from '../../lib/paper/paperPage';
 import { PT_PER_CSS_PX, PT_PER_MM } from '../../lib/paper/paperSvg';
-import { STEP_CARD_PADDING_MM } from './paintDiagramStep';
+import { STEP_CARD_PADDING_MM } from './pictureMetrics';
 
 /** The longer side, in CSS px, a step's scene picture opens at: its figure and the margin either side (`stepScenePage`). */
 export const STEP_PICTURE_EDGE_CSS_PX = ((DEFAULT_PAPER_SIZE_MM + 2 * STEP_CARD_PADDING_MM) * PT_PER_MM) / PT_PER_CSS_PX;

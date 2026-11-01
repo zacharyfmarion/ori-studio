@@ -1,0 +1,114 @@
+import { expect, it } from 'vitest';
+import { pickSpread, visibility, coveringTriangles, createWinner } from '../src/visibility.js';
+import { visibleFragments, visibleLine } from '../src/fragments.js';
+import { barycentric } from '../src/projection.js';
+import type { Point, Point3, ProjectedSpread, SpreadInput } from '../src/types.js';
+
+function rectangles(ranges: Point[], orders: Point[], planeGroups?: number[]): SpreadInput {
+  const xy: Point[] = ranges.flatMap(([lo, hi]) => [[lo, 0], [hi, 0], [hi, 1], [lo, 1]] as Point[]);
+  return { xy, faces: ranges.map((_, i) => [4*i, 4*i+1, 4*i+2, 4*i+3]),
+    triangles: ranges.flatMap((_, i) => [[4*i, 4*i+1, 4*i+2], [4*i, 4*i+2, 4*i+3]]),
+    triangleFaces: ranges.flatMap((_, i) => [i, i]), orders, planeGroups, cells: [] };
+}
+function posed(input: SpreadInput, depths: number[], shifts: number[], back = false): ProjectedSpread {
+  const positions: Point3[] = input.xy.map(([x,y], v) => [x+shifts[Math.floor(v/4)], y, depths[Math.floor(v/4)]]);
+  return { positions, triangles: input.triangles, triangleFaces: input.triangleFaces,
+    visibility: visibility(input.faces.length, input.orders, back, input.planeGroups) };
+}
+function assertFace(mesh: ProjectedSpread, point: Point, face: number) {
+  expect(pickSpread(mesh, point)?.face).toBe(face);
+  const fragments = visibleFragments(mesh);
+  const covers = fragments.filter(f => f.polygon.slice(2).some((p, i) => {
+    const w = barycentric(f.polygon[0], f.polygon[i + 1], p, point);
+    return w && Math.min(...w) > -1e-10;
+  }));
+  expect([...new Set(covers.map(f => f.face))]).toEqual([face]);
+  for (let f = 0; f < mesh.visibility.above.length; f++) {
+    const z = mesh.positions[4*f][2];
+    const a: Point3 = [point[0]-.001,point[1],z], b: Point3 = [point[0]+.001,point[1],z];
+    if (coveringTriangles(mesh, point).some(t => t.face === f))
+      expect(visibleLine(mesh,f,a,b).length > 0).toBe(f === face);
+  }
+}
+
+it.each([false,true])('keeps known pairs ordered across their entire new overlap (back=%s)', back => {
+  // Unrelated layers no longer force per-face masks on an acyclic stack.
+  const input = rectangles([[0,2], [1,3], [10,11]], [[0,1]]);
+  const mesh = posed(input, back ? [0,2,0] : [2,0,0], [.25,0,0], back);
+  expect(mesh.visibility.ranks).toEqual(back ? [1,0,0] : [0,1,0]);
+  expect(mesh.visibility.cyclic).toBe(false);
+  for (const x of [1.1,1.5,2.1]) assertFace(mesh, [x,.37], back ? 0 : 1);
+});
+
+it('enforces global order even when the intermediate layer is absent from a new overlap', () => {
+  const input = rectangles([[0,1],[.5,2.5],[2,3]], [[0,1],[1,2]]);
+  const mesh = posed(input, [3,0,1], [2,-5,0]);
+  expect(mesh.visibility.ranks).toEqual([0,1,2]);
+  assertFace(mesh, [2.2,.37], 2);
+  // With the intermediary covering the point, both direct relations apply.
+  const all = posed(input, [3,0,1], [2,1,0]);
+  assertFace(all, [2.2,.37], 2);
+});
+
+it('uses bands for every acyclic stack, including incomplete pair relations', () => {
+  expect(visibility(3, [[0,1],[1,2]]).ranks).toEqual([0,1,2]);
+  expect(visibility(3, [[0,1],[1,2],[0,2]]).ranks).toEqual([0,1,2]);
+  expect(visibility(3, [[0,2],[1,2]]).ranks).toEqual([0,0,1]);
+  expect(visibility(3, []).ranks).toEqual([0,0,0]);
+});
+
+it('keeps flat crease pieces in the same depth band', () => {
+  const input = rectangles([[0,1],[1,2],[0,2],[10,11]], [[0,2]], [0,0,1,2]);
+  const mesh = posed(input, [2,2,1,0], [.25,.25,0,0]);
+  expect(mesh.visibility.above).toEqual([[2],[2],[],[]]);
+  assertFace(mesh, [1.4,.37], 2);
+});
+
+it('keeps physical coverage when a projected cyclic conflict masks everyone', () => {
+  const mesh = posed(rectangles([[0,2],[0,2],[0,2]], [[0,1],[1,2],[2,0]]), [2,0,1], [0,0,0]);
+  expect(mesh.visibility.cyclic).toBe(true);
+  assertFace(mesh, [.4,.3], 0);
+});
+
+it('uses the same pair rule after perspective division', () => {
+  const mesh = posed(rectangles([[0,2],[1,3],[10,11]], [[0,1]]), [2,0,0], [.25,0,0]);
+  mesh.positions = mesh.positions.map(([x,y,z]) => [x/(4-z), y/(4-z), 1/(4-z)]);
+  assertFace(mesh, [.4,.17], 1);
+});
+
+it.each([0, 10_000_000])('keeps every visibility interval as occluders enter and leave a line (offset=%s)', offset => {
+  const spans: Point[] = [[0,100], ...Array.from({length:25}, (_, i) => [4*i+1,4*i+2] as Point)];
+  const mesh = posed(rectangles(spans, []), [1, ...Array(25).fill(2)], Array(26).fill(offset));
+  const intervals = visibleLine(mesh, 0, [offset,.5,1], [offset+100,.5,1]);
+  expect(intervals).toHaveLength(26);
+  for (let i=0; i<intervals.length; i++) {
+    expect(intervals[i][0]).toBeCloseTo(i ? (4*(i-1)+2)/100 : 0, 12);
+    expect(intervals[i][1]).toBeCloseTo(i < 25 ? (4*i+1)/100 : 1, 12);
+  }
+});
+
+
+it('uses global bands for acyclic subsets and direct blockers for genuinely cyclic stacks', () => {
+  let seed = 29;
+  for (let sample = 0; sample < 100; sample++) {
+    const edges: Point[] = [];
+    for (let a = 0; a < 4; a++) for (let b = a + 1; b < 4; b++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      if (seed % 3) edges.push(seed % 3 === 1 ? [a,b] : [b,a]);
+    }
+    for (const back of [false,true]) {
+      const direct = back ? edges.map(([a,b]) => [b,a]) : edges;
+      const order = visibility(4,edges,back);
+      const query = createWinner(order);
+      for (let subset = 1; subset < 16; subset++) {
+        const present = [0,1,2,3].filter(f => subset & (1 << f));
+        const highest = order.ranks ? Math.max(...present.map(f => order.ranks![f])) : null;
+        const survivors = present.filter(f => order.ranks ? order.ranks[f] === highest
+          : !direct.some(([a,b]) => a === f && present.includes(b)));
+        // Distinct physical depths deliberately oppose face index.
+        const expected = Math.min(...(survivors.length ? survivors : present));
+        expect(query(present.map(face => ({face,triangle:face,depth:4-face})))?.face).toBe(expected);
+      }
+    }
+  }
+});

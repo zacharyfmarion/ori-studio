@@ -37,7 +37,7 @@ function linkedPose(preview: DiagramStep | null, actions: DiagramLinkedPoseActio
     layerOrder: null,
     layerOrderEdit: null,
     editLayerOrder: async () => false,
-    spatial: null,
+    spatial: null, connected: null, connectedPreparing: false, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
     onCamera: () => {},
     registerLiveView: () => () => {},
     rotateTo: () => {},
@@ -56,7 +56,8 @@ function show(
   preview: DiagramStep | null,
   mode: 'pose' | 'annotate' = 'pose',
   actions: DiagramLinkedPoseAction[] = [],
-  onMode: (mode: 'pose' | 'annotate') => void = () => {}
+  onMode: (mode: 'pose' | 'annotate') => void = () => {},
+  preparing = false
 ) {
   host ??= document.body.appendChild(document.createElement('div'));
   root ??= createRoot(host);
@@ -74,7 +75,7 @@ function show(
           onMode={onMode}
           onAnnotateTool={() => {}}
           poseActions={[]}
-          linkedPose={linkedPose(preview, actions)}
+          linkedPose={{...linkedPose(preview, actions), connectedPreparing: preparing}}
           onBack={() => {}}
           onStep={() => {}}
           onUpload={() => {}}
@@ -249,4 +250,18 @@ describe('DiagramStepDetail in Annotate', () => {
     act(() => poseButton()!.click());
     expect(modes).toEqual(['pose']);
   });
+});
+
+it('shows startup over the model in Pose only, keeping navigation enabled', () => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+  const step = cpStep('step-1', FLAT);
+  show(step, null, 'pose', [], () => {}, true);
+  expect(host!.querySelector('[data-pose-loading]')).not.toBeNull();
+  expect(host!.querySelector('[aria-busy="true"]')).not.toBeNull();
+  const done = [...host!.querySelectorAll('button')].find(button=>button.textContent==='Done')!;
+  expect(done.disabled).toBe(false);
+  show(step, null);
+  expect(host!.querySelector('[data-pose-loading]')).toBeNull();
+  show(step, null, 'annotate', [], () => {}, true);
+  expect(host!.querySelector('[data-pose-loading]')).toBeNull();
 });

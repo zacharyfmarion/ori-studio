@@ -1,3 +1,4 @@
+import { createSpreadProgram } from './programs/spreadProgram';
 import createREGL from 'regl';
 import type { CpRenderFrame, CpRenderer } from './CpRenderer';
 import { EMPTY_SHADOW_GEOMETRY, type Rgba, type Viewport } from './types';
@@ -26,6 +27,8 @@ export interface ReglRendererOptions {
    * returned).
    */
   onAsyncLoad?: () => void;
+  /** Permit a separate paper canvas below the tool overlay. */
+  alpha?: boolean;
   /**
    * Invoked when the canvas loses its WebGL context. This is the one graphics
    * failure that strikes a device which was drawing fine a second ago: iOS
@@ -113,7 +116,7 @@ export function createReglRenderer(
     // Instanced strokes drive the whole renderer; require the extension up front
     // so failures surface here rather than at first draw.
     extensions: [CP_REQUIRED_EXTENSION],
-    attributes: CP_GL_ATTRIBUTES,
+    attributes: { ...CP_GL_ATTRIBUTES, alpha: options?.alpha ?? CP_GL_ATTRIBUTES.alpha },
   });
 
   // regl already owns the canvas's context-loss listeners: it preventDefault()s
@@ -152,6 +155,7 @@ export function createReglRenderer(
   // draws split in half, so without a depth test a crease behind a face draws
   // over it. Everything else here is genuinely 2D, and the imported forms below
   // are translucent, which a depth test would order wrongly.
+  let connectedSpread: ReturnType<typeof createSpreadProgram> | null = null;
   const foldedFills = createFillProgram(regl, { depthOrdered: true });
   // Layer shadows sit in the same stream, between a figure's fills and its
   // creases, and carry the same depth so they land there.
@@ -259,6 +263,8 @@ export function createReglRenderer(
 
     setFolded(folded) {
       if (disposed) return;
+      if(folded.spread)connectedSpread??=createSpreadProgram(regl);
+      connectedSpread?.setData(folded.spread ?? null);
       foldedFills.setData(folded.fills);
       foldedShadows.setData(folded.shadows ?? EMPTY_SHADOW_GEOMETRY);
       foldedStrokes.setData(folded.strokes);
@@ -450,6 +456,7 @@ export function createReglRenderer(
       // top of the paper. Fills first, then their edges; fold stroke widths are
       // non-scaling: the frame's base unit (device px per pt on the crease
       // pattern) times each segment's own multiplier (its pen width in pt).
+      connectedSpread?.draw({ view: frame.userView, viewport, widthPx: frame.foldedStrokeWidthPx ?? viewport.dpr });
       foldedFills.draw({ view: frame.userView, viewport });
       foldedShadows.draw({ view: frame.userView, viewport });
       foldedStrokes.draw({
@@ -517,6 +524,7 @@ export function createReglRenderer(
       for (const texture of imageTextures.values()) texture.destroy();
       imageTextures.clear();
       regions.dispose();
+      connectedSpread?.dispose();
       foldedFills.dispose();
       foldedShadows.dispose();
       foldedStrokes.dispose();

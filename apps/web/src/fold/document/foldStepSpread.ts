@@ -1,7 +1,8 @@
+import { DEFAULT_FOLD_SPREAD_STARTS } from './foldSpreadDefaults';
 /**
  * The layer spread a Fold step's folded picture shows (Wave 5): the Diagram's
- * start rule, read along the step's path rather than down a page. The default
- * is no spread — the paper lying flat, unlike a Diagram step's flat fold,
+ * start rule, read along the step's path rather than down a page. An old file with no saved default
+ * has no spread — the paper lying flat, unlike a Diagram step's flat fold,
  * which starts spread — and a step can toggle and adjust its own, which the
  * steps after it take. (Wave 5 first started every picture spread, as the
  * Diagram does; the default became off on 2026-10-18.)
@@ -10,7 +11,7 @@
  * - **Else the nearest earlier step's** on its path — the steps it folds
  *   from — so a spread set on step 2 reaches steps 3, 4 … until one of them
  *   says otherwise, and off is a setting that reaches them too.
- * - **Else off**, so Fold starts with the paper lying flat.
+ * - **Else the saved document default**, or off for a legacy sequence.
  *
  * A newer build's spread, carried, is no setting this build can show: the
  * step takes an earlier one's. The flat sheet has no setting and takes the
@@ -47,7 +48,6 @@ export interface FoldEffectiveSpread {
   from: string | null;
 }
 
-const DEFAULT: FoldEffectiveSpread = { spread: null, origin: 'default', from: null };
 
 /**
  * A node's own setting, when it has one this build reads. A locked node has
@@ -84,7 +84,7 @@ export function foldEffectiveSpread(document: FoldSequenceDocument, stepId: stri
     if (own === undefined) continue;
     return { spread: own === 'off' ? null : own, origin: node.id === stepId ? 'own' : 'earlier', from: node.id };
   }
-  return DEFAULT;
+  return {spread: document.defaultSpread === 'off' ? null : document.defaultSpread ?? null, origin: 'default', from: null};
 }
 
 /**
@@ -129,8 +129,9 @@ export function foldSpreadStarts(document: FoldSequenceDocument, stepId: string)
       const own = ownSetting(node);
       if (own !== undefined && own !== 'off') yield own;
     }
+    if (document.defaultSpread && document.defaultSpread !== 'off') yield document.defaultSpread;
   }
-  return spreadStartsAmong(earlier());
+  return spreadStartsAmong(earlier(), DEFAULT_FOLD_SPREAD_STARTS);
 }
 
 /** Whether a setting is what the steps before would give anyway: the same spread, or off and off. */
