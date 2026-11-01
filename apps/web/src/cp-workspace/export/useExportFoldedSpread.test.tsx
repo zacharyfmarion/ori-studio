@@ -11,7 +11,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import type { TFunction } from 'i18next';
 import type { Point3, SpreadSolution } from '@oristudio/layer-spread';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
+import type { OristudioCpFoldedPaperScene, OristudioCpFoldedRenderSnapshot } from '../../engine/oristudioCpTypes';
 import { connectedPaperScene, type ConnectedPaperScene, type PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import { connectedSpreadSource } from '../folded/connectedSpreadSource';
@@ -89,9 +89,11 @@ function Probe(props: ExportFoldedSpreadOptions) {
 }
 
 const kernel = plainBook();
+/** The fold's drawing, as the preview holds it beside its scene. */
+const DRAWING = { schema_version: 1, fixture: null, pass: null, primitives: [] } as unknown as OristudioCpFoldedRenderSnapshot;
 const base = (setting: LayerSpreadOptions | null, style: PaperStyle = DEFAULT_PAPER_STYLE): ExportFoldedSpreadOptions => ({
   enabled: true,
-  preview: { scene: kernel, ordered: true },
+  preview: { figure: DRAWING, scene: kernel, ordered: true },
   setting,
   setSetting,
   turnDeg: 0,
@@ -194,7 +196,7 @@ describe('a Default spread in an export', () => {
   it('lets its solve go with the fold, and prepares the next one', async () => {
     await render(base(DEFAULT_CONNECTED_SPREAD));
     const next = plainBook();
-    await render({ ...base(DEFAULT_CONNECTED_SPREAD), preview: { scene: next, ordered: true } });
+    await render({ ...base(DEFAULT_CONNECTED_SPREAD), preview: { figure: DRAWING, scene: next, ordered: true } });
     expect(workers.leases[0]!.released).toBe(true);
     expect(workers.leases[1]!.scene).toBe(next);
   });
@@ -208,9 +210,20 @@ describe('a figure that spreads at once, or not at all', () => {
   });
 
   it('draws unspread, keeping its setting, when the fold has no layer order', async () => {
-    await render({ ...base(DEFAULT_CONNECTED_SPREAD), preview: { scene: kernel, ordered: false } });
+    await render({ ...base(DEFAULT_CONNECTED_SPREAD), preview: { figure: DRAWING, scene: kernel, ordered: false } });
     expect(shown).toMatchObject({ picture: null, busy: false, spreadable: false, failed: false });
+    // A fold that landed with no paper scene — its see-through development — has none either.
+    await render({ ...base(DEFAULT_CONNECTED_SPREAD), preview: { figure: DRAWING, scene: null, ordered: false } });
+    expect(shown).toMatchObject({ picture: null, spreadable: false });
     expect(turnOff.calls()).toBe(0);
+    expect(workers.leases).toHaveLength(0);
+  });
+
+  it('says nothing for or against a spread while no fold has landed, keeping its setting on', async () => {
+    await render({ ...base(DEFAULT_CONNECTED_SPREAD), preview: { figure: null, scene: null, ordered: null } });
+    expect(shown).toMatchObject({ picture: null, busy: false, spreadable: null, failed: false });
+    expect(shown!.rows.toggle).toMatchObject({ pressed: true, disabled: false });
+    expect(shown!.rows.toggle.note).toBeUndefined();
     expect(workers.leases).toHaveLength(0);
   });
 

@@ -51,8 +51,8 @@ import { exportSpreadControls, type ExportSpreadControls } from './exportSpreadC
 export interface ExportFoldedSpreadOptions {
   /** Whether the figure is drawn: folding is on, and this pattern folds. */
   readonly enabled: boolean;
-  /** The fold the preview shows: its paper scene, and whether it found a layer order. */
-  readonly preview: Pick<FoldedFigurePreview, 'scene' | 'ordered'>;
+  /** The fold the preview shows: its drawing, its paper scene, and whether it found a layer order. */
+  readonly preview: Pick<FoldedFigurePreview, 'figure' | 'scene' | 'ordered'>;
   /** The spread setting, committed: the dialog's, null for none. */
   readonly setting: LayerSpreadOptions | null;
   /** Set the dialog's setting: its rows' commits, and off when its layers cannot be spread. */
@@ -71,8 +71,8 @@ export interface ExportFoldedSpread {
   readonly picture: CreaseExportSpreadPicture | null;
   /** A solve, a capture or a bitmap is being made: the preview keeps its last picture, dimmed. */
   readonly busy: boolean;
-  /** Whether this fold has layers to spread: a flat fold with a layer order. */
-  readonly spreadable: boolean;
+  /** Whether this fold has layers to spread — a flat fold with a layer order — or null while no fold has landed to say. */
+  readonly spreadable: boolean | null;
   /** The last spread could not be spread, and was turned off. */
   readonly failed: boolean;
   /** Its rows, as `LayerSpreadRows` lays them out. */
@@ -86,14 +86,20 @@ export interface ExportFoldedSpread {
  */
 export function exportFigureSpreads(
   enabled: boolean,
-  preview: Pick<FoldedFigurePreview, 'scene' | 'ordered'>,
+  preview: Pick<FoldedFigurePreview, 'figure' | 'scene' | 'ordered'>,
   setting: LayerSpreadOptions | null
 ): boolean {
-  return enabled && setting !== null && foldHasLayersToSpread(preview);
+  return enabled && setting !== null && foldSpreadability(preview) === true;
 }
 
-function foldHasLayersToSpread(preview: Pick<FoldedFigurePreview, 'scene' | 'ordered'>): boolean {
-  return preview.scene !== null && preview.scene.faces.length > 0 && preview.ordered !== false;
+/**
+ * Whether the fold the preview shows has layers to spread: a paper scene with
+ * faces and a layer order. False for a fold that landed without one — its
+ * see-through development — and null while none has landed to say.
+ */
+function foldSpreadability(preview: Pick<FoldedFigurePreview, 'figure' | 'scene' | 'ordered'>): boolean | null {
+  if (preview.scene !== null) return preview.scene.faces.length > 0 && preview.ordered !== false;
+  return preview.figure !== null ? false : null;
 }
 
 /** A settled Default spread, with what it was settled from, so a stale one is never shown as current. */
@@ -128,8 +134,8 @@ function rasterPens(style: PaperStyle, frame: CreaseExportSpreadFrame): SpreadRa
 export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): ExportFoldedSpread {
   const { enabled, preview, setting, setSetting, turnDeg, style, held, t } = options;
   const scene = enabled ? preview.scene : null;
-  const spreadable = scene !== null && foldHasLayersToSpread(preview);
-  const spread = spreadable ? setting : null;
+  const spreadable = enabled ? foldSpreadability(preview) : null;
+  const spread = spreadable === true ? setting : null;
   const connected = spread?.kind === 'connected';
   const frame = useMemo(() => (scene ? creaseExportSpreadFrame(scene, turnDeg) : null), [scene, turnDeg]);
 

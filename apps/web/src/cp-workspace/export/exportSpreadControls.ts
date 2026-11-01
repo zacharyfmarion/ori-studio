@@ -15,7 +15,8 @@
  *
  * Spread layers says, under its label, why it is off when it cannot be on:
  * a fold with no layer order has no layers to spread, and one whose layers
- * could not be spread was turned off.
+ * could not be spread was turned off. While the figure is still folding it
+ * shows the setting and says nothing, since nothing yet speaks against it.
  *
  * React-free and store-free, as `foldedFigureActions.ts` is.
  */
@@ -32,8 +33,12 @@ import { DEFAULT_CONNECTED_SPREAD, withSpreadField, type LayerSpreadStarts } fro
 export interface ExportSpreadControlsState {
   /** The dialog's setting, committed; null for none. */
   readonly setting: LayerSpreadOptions | null;
-  /** Whether the fold has layers to spread: a flat fold with a layer order. */
-  readonly spreadable: boolean;
+  /**
+   * Whether the fold has layers to spread — a flat fold with a layer order —
+   * or null while no fold has landed to say: the rows then show the setting,
+   * and say nothing against it.
+   */
+  readonly spreadable: boolean | null;
   /** The last spread could not be spread, and was turned off. */
   readonly failed: boolean;
   /** What Spread layers turned on, or a kind chosen, starts from. */
@@ -73,15 +78,16 @@ export function exportSpreadControls(
 ): ExportSpreadControls {
   const { setting, spreadable, failed, starts, held } = state;
   const { t } = deps;
-  const reason = !spreadable
-    ? t('panels:diagram.pose.spreadNeedsOrder', 'This fold has no layer order, so it has no layers to spread')
-    : failed
-      ? t('panels:cpProperties.folded.spreadUnavailable', 'These layers couldn’t be spread')
-      : undefined;
-  const refused = !spreadable || held !== undefined;
+  const reason =
+    spreadable === false
+      ? t('panels:diagram.pose.spreadNeedsOrder', 'This fold has no layer order, so it has no layers to spread')
+      : failed
+        ? t('panels:cpProperties.folded.spreadUnavailable', 'These layers couldn’t be spread')
+        : undefined;
+  const refused = spreadable === false || held !== undefined;
   const hint = reason ?? held;
   const toggle: LayerSpreadToggle = {
-    pressed: spreadable && setting !== null,
+    pressed: spreadable !== false && setting !== null,
     disabled: refused,
     ...(hint ? { hint } : {}),
     ...(reason ? { note: reason } : {}),
@@ -92,7 +98,7 @@ export function exportSpreadControls(
       deps.commit(setting ? null : starts.any);
     },
   };
-  if (!spreadable || !setting) return { toggle, spread: null };
+  if (spreadable === false || !setting) return { toggle, spread: null };
 
   const value = shown ?? setting;
   const press = (next: LayerSpreadOptions) => {

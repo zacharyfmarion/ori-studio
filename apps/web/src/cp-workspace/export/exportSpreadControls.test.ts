@@ -42,6 +42,13 @@ describe('a dialog figure’s Spread layers', () => {
     expect(deps.commit).not.toHaveBeenCalled();
   });
 
+  it('shows its setting and says nothing against it while the figure is still folding', () => {
+    const { toggle, spread } = controls({ setting: DEFAULT_CONNECTED_SPREAD, spreadable: null });
+    expect(toggle).toMatchObject({ pressed: true, disabled: false });
+    expect(toggle.note).toBeUndefined();
+    expect(spread).not.toBeNull();
+  });
+
   it('says a spread that could not be made was turned off, and can be turned on to try again', () => {
     const { toggle, deps } = controls({ failed: true });
     expect(toggle).toMatchObject({ pressed: false, disabled: false, note: 'These layers couldn’t be spread' });
