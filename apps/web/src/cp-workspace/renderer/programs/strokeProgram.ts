@@ -2,6 +2,7 @@ import type createREGL from 'regl';
 import {
   MAX_DASH_RUNS,
   MAX_DASH_SLOTS,
+  type ScissorBox,
   type StrokeGeometry,
   type ViewTransform,
   type Viewport,
@@ -185,11 +186,24 @@ export interface StrokeDrawProps {
   widthPx: number;
 }
 
+/** `count` segments from `first` on, drawn where `stencilBit` is clear in the stencil buffer, inside `box`. */
+export interface StrokeLaneRange {
+  first: number;
+  count: number;
+  stencilBit: number;
+  box: ScissorBox;
+}
+
 export interface StrokeProgram {
   /** Upload (or replace) the segment geometry. */
   setData(geometry: StrokeGeometry): void;
   /** Draw the current geometry. No-op until {@link setData} has been called. */
   draw(props: StrokeDrawProps): void;
+  /**
+   * Draw ranges of the current geometry, each against its own stencil bit,
+   * in one batch: the state they share is set once, not once a range.
+   */
+  drawMasked(props: StrokeDrawProps, ranges: readonly StrokeLaneRange[]): void;
   dispose(): void;
 }
 
@@ -228,7 +242,12 @@ interface StrokeDrawParams {
   depthEndBuf: Buffer;
   dashSlotBuf: Buffer;
   dashPhaseBuf: Buffer;
+  /** The first segment drawn: each per-segment attribute starts that many segments in. */
+  firstInstance: number;
   instanceCount: number;
+  /** For {@link StrokeProgram.drawMasked}: the stencil bit the range is drawn against, and its scissor. */
+  stencilBit?: number;
+  scissorBox?: ScissorBox;
 }
 
 /** Uniform key shapes for the regl command generic. */
@@ -291,26 +310,57 @@ export interface StrokeProgramOptions {
 /** Commands are expensive to build. Faces own their segment buffers, but share
  * one compiled command and unit quad per WebGL context/depth mode. Release the
  * quad with the last owner; no model geometry is retained by this cache. */
-const commands = new WeakMap<Regl, Map<boolean, ReturnType<typeof makeStrokeCommand>>>();
+const commands = new WeakMap<Regl, Map<string, ReturnType<typeof makeStrokeCommand>>>();
 
-function makeStrokeCommand(regl: Regl, depthOrdered: boolean) {
+/** A per-segment attribute of `floats` Float32s, read from the draw's first segment on. */
+function perSegment(buffer: (props: StrokeDrawParams) => Buffer, floats: number) {
+  return {
+    buffer: (_ctx: unknown, props: StrokeDrawParams) => buffer(props),
+    offset: (_ctx: unknown, props: StrokeDrawParams) =>
+      props.firstInstance * floats * Float32Array.BYTES_PER_ELEMENT,
+    divisor: 1,
+  };
+}
+
+/**
+ * Draws only where the item's `stencilBit` is clear, writing no stencil. regl
+ * evaluates a function nested in `stencil` on every draw, batches included;
+ * its types do not allow one there.
+ */
+const LANE_TESTED_STENCIL = {
+  enable: true,
+  mask: 0,
+  func: ((_ctx: unknown, props: StrokeDrawParams) => ({
+    cmp: 'equal',
+    ref: 0,
+    mask: props.stencilBit ?? 0,
+  })) as unknown as createREGL.StencilFunction,
+  opFront: { fail: 'keep', zfail: 'keep', zpass: 'keep' },
+  opBack: { fail: 'keep', zfail: 'keep', zpass: 'keep' },
+} as const;
+const LANE_SCISSOR = {
+  enable: true,
+  box: ((_ctx: unknown, props: StrokeDrawParams) => props.scissorBox) as unknown as createREGL.BoundingBox,
+} as const;
+
+function makeStrokeCommand(regl: Regl, depthOrdered: boolean, laneTested: boolean) {
   const quad = regl.buffer(QUAD);
   const draw = regl<StrokeUniforms, StrokeAttributes, StrokeDrawParams>({
     vert: VERT,
     frag: FRAG,
+    // Each per-segment attribute starts `firstInstance` segments in, at its
+    // own float count per segment: what lets a range of one upload be drawn
+    // alone, since WebGL has no base instance.
     attributes: {
       corner: quad,
-      aA: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.aBuf, divisor: 1 },
-      aB: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.bBuf, divisor: 1 },
-      aColor: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.colorBuf, divisor: 1 },
-      aWidthMul: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.widthMulBuf, divisor: 1 },
-      aDepthEnd: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.depthEndBuf, divisor: 1 },
-      aDepth: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.depthBuf, divisor: 1 },
-      aDashSlot: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashSlotBuf, divisor: 1 },
-      aDashPhase: {
-        buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashPhaseBuf,
-        divisor: 1,
-      },
+      aA: perSegment((props) => props.aBuf, 2),
+      aB: perSegment((props) => props.bBuf, 2),
+      aColor: perSegment((props) => props.colorBuf, 4),
+      aWidthMul: perSegment((props) => props.widthMulBuf, 1),
+      aDepthEnd: perSegment((props) => props.depthEndBuf, 1),
+      aDepth: perSegment((props) => props.depthBuf, 1),
+      aDashSlot: perSegment((props) => props.dashSlotBuf, 1),
+      aDashPhase: perSegment((props) => props.dashPhaseBuf, 1),
     },
     uniforms: {
       u_origin: (_ctx, props) => props.originArr,
@@ -340,6 +390,7 @@ function makeStrokeCommand(regl: Regl, depthOrdered: boolean) {
     depth: depthOrdered
       ? { enable: true, mask: true, func: 'lequal' }
       : { enable: false },
+    ...(laneTested ? { stencil: LANE_TESTED_STENCIL, scissor: LANE_SCISSOR } : {}),
     count: 6,
     instances: (_ctx, props) => props.instanceCount,
   });
@@ -347,16 +398,17 @@ function makeStrokeCommand(regl: Regl, depthOrdered: boolean) {
   return { draw, quad, refs: 0 };
 }
 
-function acquireStrokeCommand(regl: Regl, depthOrdered: boolean) {
+function acquireStrokeCommand(regl: Regl, depthOrdered: boolean, laneTested = false) {
   let modes = commands.get(regl);
   if (!modes) {
     modes = new Map();
     commands.set(regl, modes);
   }
-  let shared = modes.get(depthOrdered);
+  const mode = `${depthOrdered}:${laneTested}`;
+  let shared = modes.get(mode);
   if (!shared) {
-    shared = makeStrokeCommand(regl, depthOrdered);
-    modes.set(depthOrdered, shared);
+    shared = makeStrokeCommand(regl, depthOrdered, laneTested);
+    modes.set(mode, shared);
   }
   shared.refs++;
   return {
@@ -364,7 +416,7 @@ function acquireStrokeCommand(regl: Regl, depthOrdered: boolean) {
     release: disposeOnce(() => {
       if (--shared.refs === 0) {
         shared.quad.destroy();
-        modes.delete(depthOrdered);
+        modes.delete(mode);
       }
     }),
   };
@@ -385,6 +437,8 @@ export function createStrokeProgram(
   let dashPhaseBuf: Buffer | null = null;
   let count = 0;
   let dashPatterns: readonly (readonly number[])[] | undefined;
+  // The stencil-tested command, for `drawMasked`: acquired the first time it draws.
+  let laneTested: ReturnType<typeof acquireStrokeCommand> | null = null;
 
   return {
     setData(geometry) {
@@ -405,50 +459,23 @@ export function createStrokeProgram(
       dashSlotBuf = update(dashSlotBuf, dashSlots(geometry));
       dashPhaseBuf = update(dashPhaseBuf, geometry.dashPhase ?? new Float32Array(geometry.count));
     },
-    draw({ view, viewport, widthPx }) {
-      if (
-        count === 0 ||
-        !aBuf ||
-        !bBuf ||
-        !colorBuf ||
-        !widthMulBuf ||
-        !dashSlotBuf ||
-        !dashPhaseBuf ||
-        !depthBuf || !depthEndBuf
-      )
-        return;
-      const [slot1, slot2, slot3, slot4, slot5, slot6] = dashTableUniforms(dashPatterns, viewport.dpr);
-      draw({
-        originArr: [view.origin[0], view.origin[1]],
-        exArr: [view.ex[0], view.ex[1]],
-        eyArr: [view.ey[0], view.ey[1]],
-        viewportArr: [viewport.width, viewport.height],
-        widthPx: Math.max(1, widthPx),
-        dashOn1: slot1.on,
-        dashOff1: slot1.off,
-        dashOn2: slot2.on,
-        dashOff2: slot2.off,
-        dashOn3: slot3.on,
-        dashOff3: slot3.off,
-        dashOn4: slot4.on,
-        dashOff4: slot4.off,
-        dashOn5: slot5.on,
-        dashOff5: slot5.off,
-        dashOn6: slot6.on,
-        dashOff6: slot6.off,
-        aBuf,
-        bBuf,
-        colorBuf,
-        widthMulBuf,
-        depthBuf,
-        depthEndBuf,
-        dashSlotBuf,
-        dashPhaseBuf,
-        instanceCount: count,
-      });
+    draw(props) {
+      const params = drawParams(props);
+      if (params) draw(params);
+    },
+    drawMasked(props, ranges) {
+      const params = drawParams(props);
+      if (!params) return;
+      const batch = ranges.flatMap(({ first, count, stencilBit, box }) =>
+        count > 0 ? [{ ...params, firstInstance: first, instanceCount: count, stencilBit, scissorBox: box }] : []
+      );
+      if (batch.length === 0) return;
+      laneTested ??= acquireStrokeCommand(regl, !!options.depthOrdered, true);
+      laneTested.draw(batch);
     },
     dispose: disposeOnce(() => {
       release();
+      laneTested?.release();
       aBuf?.destroy();
       bBuf?.destroy();
       colorBuf?.destroy();
@@ -459,4 +486,50 @@ export function createStrokeProgram(
       dashPhaseBuf?.destroy();
     }),
   };
+
+  /** Everything a draw of the whole geometry takes; null until there is some. */
+  function drawParams({ view, viewport, widthPx }: StrokeDrawProps): StrokeDrawParams | null {
+    if (
+      count === 0 ||
+      !aBuf ||
+      !bBuf ||
+      !colorBuf ||
+      !widthMulBuf ||
+      !dashSlotBuf ||
+      !dashPhaseBuf ||
+      !depthBuf ||
+      !depthEndBuf
+    )
+      return null;
+    const [slot1, slot2, slot3, slot4, slot5, slot6] = dashTableUniforms(dashPatterns, viewport.dpr);
+    return {
+      originArr: [view.origin[0], view.origin[1]],
+      exArr: [view.ex[0], view.ex[1]],
+      eyArr: [view.ey[0], view.ey[1]],
+      viewportArr: [viewport.width, viewport.height],
+      widthPx: Math.max(1, widthPx),
+      dashOn1: slot1.on,
+      dashOff1: slot1.off,
+      dashOn2: slot2.on,
+      dashOff2: slot2.off,
+      dashOn3: slot3.on,
+      dashOff3: slot3.off,
+      dashOn4: slot4.on,
+      dashOff4: slot4.off,
+      dashOn5: slot5.on,
+      dashOff5: slot5.off,
+      dashOn6: slot6.on,
+      dashOff6: slot6.off,
+      aBuf,
+      bBuf,
+      colorBuf,
+      widthMulBuf,
+      depthBuf,
+      depthEndBuf,
+      dashSlotBuf,
+      dashPhaseBuf,
+      firstInstance: 0,
+      instanceCount: count,
+    };
+  }
 }

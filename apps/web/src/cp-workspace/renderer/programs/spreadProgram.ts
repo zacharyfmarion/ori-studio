@@ -1,6 +1,13 @@
 import type createREGL from 'regl';
 import type { Visibility } from '@oristudio/layer-spread';
-import { MAX_DASH_SLOTS, type FillGeometry, type StrokeGeometry, type ViewTransform, type Viewport } from '../types';
+import {
+  MAX_DASH_SLOTS,
+  type FillGeometry,
+  type ScissorBox,
+  type StrokeGeometry,
+  type ViewTransform,
+  type Viewport,
+} from '../types';
 import { createStrokeProgram, type StrokeProgram } from './strokeProgram';
 import { disposeOnce } from './disposeOnce';
 import { spreadInkDepthBias } from './spreadDepth';
@@ -171,6 +178,68 @@ interface Draw {
   widthPx: number;
 }
 
+/** A box in the picture's coordinates: min x, min y, max x, max y. */
+type PictureBox = readonly [number, number, number, number];
+
+/** The box around `count` points of a flat x, y array; empty (min above max) when there are none. */
+function boxOf(xy: ArrayLike<number>, count = xy.length / 2): PictureBox {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (let k = 0; k < count * 2; k += 2) {
+    const x = xy[k]!,
+      y = xy[k + 1]!;
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  }
+  return [minX, minY, maxX, maxY];
+}
+
+/**
+ * Where a box of the picture lands on the drawing buffer through `view`,
+ * `pad` device px wider all round, as a scissor rectangle; null when none of
+ * it is on the buffer.
+ */
+export function scissorOnBuffer(box: PictureBox, view: ViewTransform, viewport: Viewport, pad: number): ScissorBox | null {
+  const [x0, y0, x1, y1] = box;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const [x, y] of [
+    [x0, y0],
+    [x1, y0],
+    [x0, y1],
+    [x1, y1],
+  ] as const) {
+    const px = view.origin[0] + x * view.ex[0] + y * view.ey[0];
+    const py = view.origin[1] + x * view.ex[1] + y * view.ey[1];
+    minX = Math.min(minX, px);
+    maxX = Math.max(maxX, px);
+    minY = Math.min(minY, py);
+    maxY = Math.max(maxY, py);
+  }
+  const left = Math.max(0, Math.floor(minX - pad));
+  const right = Math.min(viewport.width, Math.ceil(maxX + pad));
+  const top = Math.max(0, Math.floor(minY - pad));
+  const bottom = Math.min(viewport.height, Math.ceil(maxY + pad));
+  if (!(right > left && bottom > top)) return null;
+  // Device px run down from the top; the scissor runs up from the bottom.
+  return { x: left, y: viewport.height - bottom, width: right - left, height: bottom - top };
+}
+
+/** The smallest scissor rectangle holding all of `boxes`. */
+function scissorUnion(boxes: readonly ScissorBox[]): ScissorBox {
+  const left = Math.min(...boxes.map(({ x }) => x));
+  const bottom = Math.min(...boxes.map(({ y }) => y));
+  const right = Math.max(...boxes.map(({ x, width }) => x + width));
+  const top = Math.max(...boxes.map(({ y, height }) => y + height));
+  return { x: left, y: bottom, width: right - left, height: top - bottom };
+}
+
 /**
  * Faces' fills in one set of buffers, one face's run of vertices after
  * another: a whole picture is one draw, and a face alone a range of it. The
@@ -191,11 +260,53 @@ interface FaceRange {
   count: number;
 }
 
-/** A cyclic picture's stencil mask for one face: its blockers' fills, in one buffer or by range. */
+/**
+ * A cyclic picture's stencil mask for one face: its blockers' fills, as its
+ * run of the picture's one mask buffer, or — past the budget — as the
+ * blockers' own ranges of the face-order fills.
+ */
 interface FaceMask {
-  position: Buffer;
+  first: number;
   count: number;
   blockers: number[];
+}
+
+/**
+ * How many faces a cyclic picture's corrected pass draws together, one
+ * stencil bit each: their masks stand side by side, so the masks go in one
+ * batch and the faces in another.
+ */
+const SPREAD_LANES = 8;
+
+/** A corrected face's stencil test: drawn where its bit is clear, and only inside `box`. */
+interface StencilLane {
+  stencilBit: number;
+  box: ScissorBox;
+}
+
+/**
+ * A stencil field read from each draw's props. regl evaluates a function
+ * nested in `stencil` on every draw, batches included; its types do not
+ * allow one there.
+ */
+function perDraw<P, T>(read: (props: P) => T): T {
+  return ((_ctx: unknown, props: P) => read(props)) as unknown as T;
+}
+
+/** The scissor to each item's `box`. */
+function scissorToBox(): createREGL.ScissorOptions {
+  return { enable: true, box: perDraw((p: { box: ScissorBox }) => p.box) };
+}
+
+/** The stencil state that draws only where the item's `stencilBit` is clear, writing none. */
+function laneTest(): createREGL.StencilOptions {
+  return {
+    enable: true,
+    mask: 0,
+    func: perDraw((p: StencilLane) => ({ cmp: 'equal' as const, ref: 0, mask: p.stencilBit })),
+    opFront: { fail: 'keep', zfail: 'keep', zpass: 'keep' },
+    opBack: { fail: 'keep', zfail: 'keep', zpass: 'keep' },
+  };
 }
 
 type DepthFunc = 'lequal' | 'equal' | 'always';
@@ -210,11 +321,18 @@ interface FillProps extends Draw {
   color: boolean;
   depthWrite: boolean;
   depthFunc: DepthFunc;
+  /** For a corrected face's fill: its stencil bit, and where it can draw. */
+  stencilBit?: number;
+  box?: ScissorBox;
 }
 interface MaskProps extends Draw {
   position: Buffer;
   first: number;
   count: number;
+  /** Written into the `writeMask` bits where the mask's triangles fall, inside `box`. */
+  ref: number;
+  writeMask: number;
+  box: ScissorBox;
 }
 const VERT = `precision highp float;
 attribute vec2 position;attribute vec4 color;attribute float depth;attribute float rank;
@@ -291,6 +409,29 @@ export function mergedSpreadInk(lines: readonly StrokeGeometry[]): StrokeGeometr
   };
 }
 
+/**
+ * Two triangles over every face's box, as mask positions: everywhere a
+ * cyclic picture's masks can fall, so drawing them puts the picture's stencil
+ * back to 0. Empty when no face has a fill.
+ */
+export function footprintTriangles(boxes: readonly (readonly number[])[]): Float32Array {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const [x0, y0, x1, y1] of boxes) {
+    minX = Math.min(minX, x0!);
+    minY = Math.min(minY, y0!);
+    maxX = Math.max(maxX, x1!);
+    maxY = Math.max(maxY, y1!);
+  }
+  if (!(minX <= maxX && minY <= maxY)) return new Float32Array(0);
+  // A margin, so a mask edge on the box's edge is covered however it rounds.
+  const pad = Math.max(maxX - minX, maxY - minY, 1) * 0.01;
+  [minX, minY, maxX, maxY] = [minX - pad, minY - pad, maxX + pad, maxY + pad];
+  return new Float32Array([minX, minY, maxX, minY, maxX, maxY, minX, minY, maxX, maxY, minX, maxY]);
+}
+
 /** Global depth bands in the existing CP context. No clipping or solver work.
  * Only genuinely cyclic stacks need local-order masks.
  * The uncorrected pass remains underneath projected cycles which suppress all
@@ -299,7 +440,8 @@ export function mergedSpreadInk(lines: readonly StrokeGeometry[]): StrokeGeometr
  * A pass over every face is one draw of the fills and one of the lines, so a
  * picture's cost per frame does not grow with its faces: a canvas of many
  * spread figures re-draws as it pans. Only a cyclic picture's corrected
- * passes go face by face, as their stencil masks need.
+ * passes go face by face, as their stencil masks need: a mask and a draw a
+ * face, in batches of eight, each face's mask in a stencil bit of its own.
  *
  * `setData` with the geometry it already holds uploads nothing, and with a new
  * layout only re-uploads the lines (their depth and alpha are baked in): a host
@@ -320,15 +462,30 @@ export function createSpreadProgram(regl: Regl) {
   // The fills in X-ray's back-to-front order: made the first time X-ray draws.
   let byXray: FillRun | null = null;
   let xrayStale = true;
-  // Each face's lines with its band and fade baked in, and every face's in one program.
+  // Each face's lines with its band and fade baked in, every face's in one
+  // program, and each face's range of it, for a cyclic picture's corrected pass.
   let lines: StrokeGeometry[] = [];
   let ink: StrokeProgram | null = null;
-  // A face's own lines, for a cyclic picture's corrected pass: made when first drawn.
+  let inkRanges: FaceRange[] = [];
+  // A face's own lines, for the corrected pass when they cannot join one
+  // program (`mergedSpreadInk`): made when first drawn.
   let faceInk: (StrokeProgram | undefined)[] = [];
   let masks: FaceMask[] = [];
+  let maskRun: Buffer | null = null;
+  // A cyclic picture's faces' boxes, for the corrected passes to leave out
+  // the faces off the drawing buffer and scissor the rest: each face's fills,
+  // and its lines with the widest pen among them.
+  let fillBoxes: PictureBox[] = [];
+  let inkBoxes: PictureBox[] = [];
+  let inkWidths: number[] = [];
+  // The vertices the mask buffer opens with: the picture's footprint.
+  let footprintCount = 0;
   const depthBits = Number(regl._gl.getParameter(regl._gl.DEPTH_BITS)) || 16;
-  // One command per depth mode; they share the compiled program.
-  const fillCommand = (mask: boolean, func: DepthFunc) =>
+  // A corrected chunk's faces, one stencil bit each.
+  const lanes = Math.max(1, Math.min(SPREAD_LANES, Number(regl._gl.getParameter(regl._gl.STENCIL_BITS)) || 8));
+  // One command per depth mode, and one for a corrected face's fill, tested
+  // against its stencil bit; they share the compiled program.
+  const fillCommand = (mask: boolean, func: DepthFunc, laneTested = false) =>
     regl<
       {
         origin: number[];
@@ -369,12 +526,14 @@ export function createSpreadProgram(regl: Regl) {
         enable: true,
         func: { srcRGB: 1, srcAlpha: 1, dstRGB: 'one minus src alpha', dstAlpha: 'one minus src alpha' },
       },
+      ...(laneTested ? { stencil: laneTest(), scissor: scissorToBox() } : {}),
     });
   const fills = {
     write: fillCommand(true, 'lequal'),
     test: fillCommand(false, 'lequal'),
     equal: fillCommand(false, 'equal'),
     always: fillCommand(true, 'always'),
+    corrected: fillCommand(true, 'lequal', true),
   };
   const drawFill = (props: FillProps) => {
     if (props.count === 0) return;
@@ -407,27 +566,19 @@ export function createSpreadProgram(regl: Regl) {
     count: (_, p) => p.count,
     colorMask: [false, false, false, false],
     depth: { enable: false, mask: false },
-  });
-  const drawMask = (props: MaskProps) => {
-    if (props.count > 0) maskCommand(props);
-  };
-  const mask = regl({
+    scissor: scissorToBox(),
     stencil: {
       enable: true,
-      mask: 255,
-      func: { cmp: 'always', ref: 1, mask: 255 },
+      mask: perDraw((p: MaskProps) => p.writeMask),
+      func: perDraw((p: MaskProps) => ({ cmp: 'always' as const, ref: p.ref, mask: 255 })),
       opFront: { fail: 'keep', zfail: 'keep', zpass: 'replace' },
       opBack: { fail: 'keep', zfail: 'keep', zpass: 'replace' },
     },
   });
-  const unmasked = regl({
-    stencil: {
-      enable: true,
-      mask: 0,
-      func: { cmp: 'equal', ref: 0, mask: 255 },
-      opFront: { fail: 'keep', zfail: 'keep', zpass: 'keep' },
-      opBack: { fail: 'keep', zfail: 'keep', zpass: 'keep' },
-    },
+  // A face's lines alone, against its stencil bit, when they could not join the picture's ink program.
+  const laneTested = regl<Record<string, never>, Record<string, never>, StencilLane>({
+    stencil: laneTest(),
+    scissor: scissorToBox(),
   });
   const plain = regl({
     stencil: { enable: false, mask: 255 },
@@ -478,10 +629,6 @@ export function createSpreadProgram(regl: Regl) {
     for (const program of faceInk) program?.dispose();
     faceInk = [];
   };
-  const destroyMasks = () => {
-    for (const face of masks) face.position.destroy();
-    masks = [];
-  };
   /** The lines carry their depth and alpha per segment, so a band or a fade is baked in here. */
   function uploadInk() {
     if (!held) return;
@@ -499,17 +646,37 @@ export function createSpreadProgram(regl: Regl) {
         depthEnd: depth(strokes.depthEnd),
       };
     });
-    faceInk.forEach((program, f) => program?.setData(lines[f]!));
+    if (!order?.ranks) {
+      inkBoxes = lines.map(({ a, b, count }) => {
+        const [ax0, ay0, ax1, ay1] = boxOf(a, count);
+        const [bx0, by0, bx1, by1] = boxOf(b, count);
+        return [Math.min(ax0, bx0), Math.min(ay0, by0), Math.max(ax1, bx1), Math.max(ay1, by1)] as const;
+      });
+      inkWidths = lines.map(({ widthMul, count }) => {
+        let widest = 0;
+        for (let k = 0; k < count; k++) widest = Math.max(widest, widthMul[k]!);
+        return widest;
+      });
+    }
     const merged = mergedSpreadInk(lines);
     if (merged) {
       ink ??= createStrokeProgram(regl, { depthOrdered: true });
       ink.setData(merged);
+      let first = 0;
+      inkRanges = lines.map(({ count }) => {
+        const range = { first, count };
+        first += count;
+        return range;
+      });
+      disposeFaceInk();
     } else {
       ink?.dispose();
       ink = null;
+      inkRanges = [];
+      faceInk.forEach((program, f) => program?.setData(lines[f]!));
     }
   }
-  function inkOf(f: number): StrokeProgram {
+  function faceInkOf(f: number): StrokeProgram {
     let program = faceInk[f];
     if (!program) {
       program = createStrokeProgram(regl, { depthOrdered: true });
@@ -535,8 +702,15 @@ export function createSpreadProgram(regl: Regl) {
     ranges = [];
     ink?.dispose();
     ink = null;
+    inkRanges = [];
     disposeFaceInk();
-    destroyMasks();
+    maskRun?.destroy();
+    maskRun = null;
+    masks = [];
+    footprintCount = 0;
+    fillBoxes = [];
+    inkBoxes = [];
+    inkWidths = [];
     lines = [];
   }
   function setData(data: SpreadGeometry | null, next: SpreadLayout = WHOLE_CHANNEL_SPREAD) {
@@ -573,24 +747,20 @@ export function createSpreadProgram(regl: Regl) {
     ranges = upload(byFace, data, all);
     xrayStale = true;
     disposeFaceInk();
-    destroyMasks();
+    masks = [];
     if (!order.ranks) {
-      const boxes = data.faces.map(({ fills }) => {
-        let minX = Infinity,
-          minY = Infinity,
-          maxX = -Infinity,
-          maxY = -Infinity;
-        for (let k = 0; k < fills.position.length; k += 2) {
-          const x = fills.position[k]!,
-            y = fills.position[k + 1]!;
-          minX = Math.min(minX, x);
-          maxX = Math.max(maxX, x);
-          minY = Math.min(minY, y);
-          maxY = Math.max(maxY, y);
-        }
-        return [minX, minY, maxX, maxY];
-      });
+      const boxes = data.faces.map(({ fills }) => boxOf(fills.position));
+      fillBoxes = boxes;
+      // Every face's mask, one after another, in one buffer: one upload for
+      // the picture, where a buffer per face made each new spread — every
+      // step of an Amount drag — create and fill hundreds of them. It opens
+      // with the picture's footprint, which puts the stencil back to 0
+      // between one batch of masks and the next.
+      const footprint = footprintTriangles(boxes);
+      let maskLength = footprint.length;
       let maskBytes = 0;
+      // The blockers each face's run of the buffer is made of.
+      const inBuffer: number[][] = [];
       masks = data.faces.map((_, f) => {
         const a = boxes[f]!;
         const blockers = order!.above[f]!.filter((b) => {
@@ -600,17 +770,26 @@ export function createSpreadProgram(regl: Regl) {
         const length = blockers.reduce((n, b) => n + data.faces[b]!.fills.position.length, 0);
         // Dense cyclic graphs must not multiply the mesh into unbounded GPU
         // storage. Above the shared budget, draw the blockers' own ranges.
-        if (maskBytes + length * 4 > 64 * 1024 * 1024) return { position: regl.buffer([]), count: 0, blockers };
+        if (maskBytes + length * 4 > 64 * 1024 * 1024) return { first: 0, count: 0, blockers };
         maskBytes += length * 4;
-        const positions = new Float32Array(length);
-        let offset = 0;
-        for (const blocker of blockers) {
+        inBuffer[f] = blockers;
+        const mask = { first: maskLength / 2, count: length / 2, blockers: [] };
+        maskLength += length;
+        return mask;
+      });
+      const positions = new Float32Array(maskLength);
+      positions.set(footprint);
+      footprintCount = footprint.length / 2;
+      masks.forEach(({ first }, f) => {
+        let offset = first * 2;
+        for (const blocker of inBuffer[f] ?? []) {
           const p = data.faces[blocker]!.fills.position;
           positions.set(p, offset);
           offset += p.length;
         }
-        return { position: regl.buffer(positions), count: length / 2, blockers: [] };
       });
+      maskRun ??= regl.buffer([]);
+      maskRun(positions);
     }
     plan = spreadDrawPlan(order, layout, all, xrayOrder);
     uploadInk();
@@ -620,20 +799,26 @@ export function createSpreadProgram(regl: Regl) {
     const faceRun = byFace;
     const { base, span } = layout.band;
     const alpha = layout.opacity;
+    const fillProps = (
+      run: FillRun,
+      first: number,
+      count: number,
+      depth: 'write' | 'equal' | 'test' | 'only'
+    ): FillProps => ({
+      ...props,
+      run,
+      first,
+      count,
+      bands,
+      base,
+      span,
+      alpha: depth === 'test' ? (layout.xray?.faceAlpha ?? 1) * alpha : alpha,
+      color: depth !== 'only',
+      depthWrite: depth === 'write' || depth === 'only',
+      depthFunc: depth === 'equal' ? 'equal' : 'lequal',
+    });
     const paint = (run: FillRun, first: number, count: number, depth: 'write' | 'equal' | 'test' | 'only') =>
-      drawFill({
-        ...props,
-        run,
-        first,
-        count,
-        bands,
-        base,
-        span,
-        alpha: depth === 'test' ? (layout.xray?.faceAlpha ?? 1) * alpha : alpha,
-        color: depth !== 'only',
-        depthWrite: depth === 'write' || depth === 'only',
-        depthFunc: depth === 'equal' ? 'equal' : 'lequal',
-      });
+      drawFill(fillProps(run, first, count, depth));
     const paintFaces = (faces: readonly number[], depth: 'write' | 'equal' | 'test' | 'only') => {
       if (faces === all) paint(faceRun, 0, faceRun.count, depth);
       else if (faces === xrayOrder) {
@@ -643,19 +828,56 @@ export function createSpreadProgram(regl: Regl) {
     };
     const inkFaces = (faces: readonly number[]) => {
       if (faces === all && ink) ink.draw(props);
-      else for (const f of faces) inkOf(f).draw(props);
+      else for (const f of faces) faceInkOf(f).draw(props);
     };
-    const corrected = (f: number, paintFace: () => void) => {
-      regl.clear({ stencil: 0 });
-      mask(() => {
+    // A cyclic picture's corrected faces go `lanes` at a time, in face order.
+    // Each marks its blockers into a stencil bit of its own, the chunk's masks
+    // in one batch, then each is drawn where its bit is clear, in another: the
+    // state they share is set once a batch, not once a face, and in WebKit
+    // every GL call goes to another process. The footprint opens each batch of
+    // masks, clearing the bits the last one set; the whole stencil is cleared
+    // once, since other pictures write it too.
+    //
+    // A face off the drawing buffer is left out, and the rest are scissored,
+    // mask and all, to where the face can draw: a mask is its blockers' whole
+    // fills, so zoomed in, unscissored masks filled the screen hundreds of
+    // times a frame.
+    type Lane = { face: number; box: ScissorBox };
+    const chunksOf = (boxOfFace: (f: number) => ScissorBox | null): Lane[][] => {
+      const onBuffer: Lane[] = [];
+      for (const face of all) {
+        const box = boxOfFace(face);
+        if (box) onBuffer.push({ face, box });
+      }
+      const chunks: Lane[][] = [];
+      for (let i = 0; i < onBuffer.length; i += lanes) chunks.push(onBuffer.slice(i, i + lanes));
+      return chunks;
+    };
+    let cleared = false;
+    const markChunk = (chunk: readonly Lane[]) => {
+      if (!cleared) {
+        regl.clear({ stencil: 0 });
+        cleared = true;
+      }
+      const marks: MaskProps[] = [];
+      if (footprintCount > 0) {
+        const box = scissorUnion(chunk.map(({ box }) => box));
+        marks.push({ ...props, position: maskRun!, first: 0, count: footprintCount, ref: 0, writeMask: 255, box });
+      }
+      chunk.forEach(({ face: f, box }, lane) => {
         const face = masks[f]!;
+        const mark = { ...props, ref: 255, writeMask: 1 << lane, box };
         if (face.blockers.length)
           for (const b of face.blockers)
-            drawMask({ ...props, position: faceRun.position, first: ranges[b]!.first, count: ranges[b]!.count });
-        else drawMask({ ...props, position: face.position, first: 0, count: face.count });
+            marks.push({ ...mark, position: faceRun.position, first: ranges[b]!.first, count: ranges[b]!.count });
+        else marks.push({ ...mark, position: maskRun!, first: face.first, count: face.count });
       });
-      unmasked(paintFace);
+      maskCommand(marks.filter(({ count }) => count > 0));
     };
+    // A face's fill is inside its box; its lines reach half their pen past theirs.
+    const fillBox = (f: number) => scissorOnBuffer(fillBoxes[f]!, props.view, props.viewport, 1);
+    const inkBox = (f: number) =>
+      scissorOnBuffer(inkBoxes[f]!, props.view, props.viewport, Math.max(1, Math.max(1, props.widthPx) * inkWidths[f]!) / 2 + 1);
     plain(() => {
       for (const pass of plan) {
         switch (pass.kind) {
@@ -687,10 +909,29 @@ export function createSpreadProgram(regl: Regl) {
             });
             break;
           case 'corrected-fills':
-            for (const f of all) corrected(f, () => paint(faceRun, ranges[f]!.first, ranges[f]!.count, 'write'));
+            for (const chunk of chunksOf(fillBox)) {
+              markChunk(chunk);
+              fills.corrected(
+                chunk.flatMap(({ face, box }, lane) => {
+                  const { first, count } = ranges[face]!;
+                  return count > 0 ? [{ ...fillProps(faceRun, first, count, 'write'), stencilBit: 1 << lane, box }] : [];
+                })
+              );
+            }
             break;
           case 'corrected-ink':
-            for (const f of all) corrected(f, () => inkOf(f).draw(props));
+            for (const chunk of chunksOf(inkBox)) {
+              markChunk(chunk);
+              if (ink)
+                ink.drawMasked(
+                  props,
+                  chunk.map(({ face, box }, lane) => ({ ...inkRanges[face]!, stencilBit: 1 << lane, box }))
+                );
+              else
+                chunk.forEach(({ face, box }, lane) =>
+                  laneTested({ stencilBit: 1 << lane, box }, () => faceInkOf(face).draw(props))
+                );
+            }
             break;
         }
       }
