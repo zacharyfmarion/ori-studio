@@ -42,6 +42,9 @@ import { foldedFigureExportDocument } from './foldedFigureExport';
 import { foldedFlatFigureScenePxPerUnit } from './foldedFlatFigureExport';
 import { resetFoldedModelWriteQueueForTests } from './foldedModelWriteQueue';
 import { foldedFigureCssPerUserUnit, openFoldedFigureExport } from './openFoldedFigureExport';
+import { foldedFigurePivot } from '../adapters/cpFoldedToScene';
+import { foldedFigureSpreadFrame } from './foldedFigureSpreadFrame';
+import { foldedFlatPaperScene } from './foldedFlatScene';
 
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
@@ -714,5 +717,51 @@ describe('where focus goes back to', () => {
     expect(usePaperExportUiStore.getState().request?.returnFocus).toBe(opener);
     opener.remove();
     elsewhere.remove();
+  });
+});
+
+describe('opening the export of a flat folded figure whose layers are spread', () => {
+  const DEPTH = { kind: 'depth', amount: 0.05, toward: 'down' } as const;
+  const spread = { kind: 'record', spread: DEPTH } as const;
+
+  /** The canvas's picture of a figure's spread (`useFoldedFlatSpread`), at its size on a 100% canvas. */
+  function canvasPicture(figure: Entry, scene: OristudioCpFoldedPaperScene) {
+    const frame = foldedFigureSpreadFrame(foldedFigurePivot(figure), figure.placement.rotation);
+    return foldedFlatPaperScene(scene, { markHidden: false, spread: DEPTH, toScenePx: frame.toScenePx, scale: frame.scale });
+  }
+
+  it('exports the spread the canvas draws, from the live fold’s scene, turned as the figure is', async () => {
+    const figure = flat({ spread, placement: { ...IDENTITY_FOLDED_PLACEMENT, rotation: Math.PI / 3 } });
+    setFigures(figure);
+    useWorkspaceStore.setState({ oristudioCpDocument: { handle: 3 } as never });
+
+    const target = await openTarget('flat-1');
+
+    expect(kernel.paperScene).toHaveBeenCalledWith(FLAT_HANDLE, 3);
+    expect(target.surface).toBe('folded-flat');
+    expect(target.buriesFaces).toBe(false);
+    expect(await firstScene(target)).toEqual(canvasPicture(figure, kernelScene()));
+  });
+
+  it('exports a reopened figure’s spread from the scene its file carried, asking the kernel nothing', async () => {
+    const figure = flat({ spread, handle: null, spreadScene: kernelScene() });
+    setFigures(figure);
+
+    const target = await openTarget('flat-1');
+
+    expect(kernel.paperScene).not.toHaveBeenCalled();
+    expect(await firstScene(target)).toEqual(canvasPicture(figure, kernelScene()));
+  });
+
+  it('exports a figure with its spread off exactly as before', async () => {
+    setFigures(flat({ spread: null }));
+    const target = await openTarget('flat-1');
+    expect(target.buriesFaces).toBe(true);
+    const scene = await firstScene(target);
+    // The kernel's scene unturned at the canvas's scale, every layer kept.
+    expect(scene!.bounds.maxX - scene!.bounds.minX).toBeCloseTo(
+      200 * foldedFlatFigureScenePxPerUnit(flat()),
+      6
+    );
   });
 });
