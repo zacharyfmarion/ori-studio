@@ -1,6 +1,6 @@
 import type createREGL from 'regl';
 import type { Visibility } from '@oristudio/layer-spread';
-import type { FillGeometry, StrokeGeometry, ViewTransform, Viewport } from '../types';
+import { MAX_DASH_SLOTS, type FillGeometry, type StrokeGeometry, type ViewTransform, type Viewport } from '../types';
 import { createStrokeProgram, type StrokeProgram } from './strokeProgram';
 import { disposeOnce } from './disposeOnce';
 import { spreadInkDepthBias } from './spreadDepth';
@@ -170,22 +170,39 @@ interface Draw {
   viewport: Viewport;
   widthPx: number;
 }
-interface FaceBuffers {
-  maskPosition: Buffer;
-  maskCount: number;
-  blockers: number[];
+
+/**
+ * Faces' fills in one set of buffers, one face's run of vertices after
+ * another: a whole picture is one draw, and a face alone a range of it. The
+ * face's rank rides on each vertex, so one draw sorts every face into its
+ * depth band as a draw per face did.
+ */
+interface FillRun {
   position: Buffer;
   color: Buffer;
   depth: Buffer;
+  rank: Buffer;
   count: number;
-  ink: StrokeProgram;
-  geometry: SpreadFaceGeometry;
 }
+
+/** A face's run of vertices in the face-order {@link FillRun}. */
+interface FaceRange {
+  first: number;
+  count: number;
+}
+
+/** A cyclic picture's stencil mask for one face: its blockers' fills, in one buffer or by range. */
+interface FaceMask {
+  position: Buffer;
+  count: number;
+  blockers: number[];
+}
+
 type DepthFunc = 'lequal' | 'equal' | 'always';
 interface FillProps extends Draw {
-  face: FaceBuffers;
-  usePosition?: boolean;
-  rank: number;
+  run: FillRun;
+  first: number;
+  count: number;
   bands: number;
   base: number;
   span: number;
@@ -194,19 +211,95 @@ interface FillProps extends Draw {
   depthWrite: boolean;
   depthFunc: DepthFunc;
 }
+interface MaskProps extends Draw {
+  position: Buffer;
+  first: number;
+  count: number;
+}
 const VERT = `precision highp float;
-attribute vec2 position;attribute vec4 color;attribute float depth;
-uniform vec2 origin,ex,ey,viewport;uniform float rank,bands,base,span,alpha;
+attribute vec2 position;attribute vec4 color;attribute float depth;attribute float rank;
+uniform vec2 origin,ex,ey,viewport;uniform float bands,base,span,alpha;
 varying vec4 ink;
 void main(){vec2 p=origin+position.x*ex+position.y*ey;
 float d=base+span*((rank+0.1+0.8*depth)/bands);
 gl_Position=vec4(p.x/viewport.x*2.0-1.0,1.0-p.y/viewport.y*2.0,1.0-2.0*d,1.0);ink=vec4(color.rgb,color.a*alpha);}`;
 const FRAG = `precision highp float;varying vec4 ink;void main(){gl_FragColor=vec4(ink.rgb*ink.a,ink.a);}`;
 
+/**
+ * Every face's lines as one geometry, in face order, so the picture's ink is
+ * one draw. Each face numbers its own dash patterns, so the tables are joined
+ * and each face's slots renumbered into the join. Null when the join needs
+ * more slots than the stroke program has: the faces then draw their own.
+ */
+export function mergedSpreadInk(lines: readonly StrokeGeometry[]): StrokeGeometry | null {
+  const table: (readonly number[])[] = [];
+  const slotOf = new Map<string, number>();
+  const remap = lines.map((line) =>
+    (line.dashPatterns ?? []).map((pattern) => {
+      const key = pattern.join(',');
+      let slot = slotOf.get(key);
+      if (slot === undefined) {
+        table.push(pattern);
+        slot = table.length;
+        slotOf.set(key, slot);
+      }
+      return slot;
+    })
+  );
+  if (table.length > MAX_DASH_SLOTS) return null;
+  const count = lines.reduce((total, line) => total + line.count, 0);
+  const a = new Float32Array(count * 2);
+  const b = new Float32Array(count * 2);
+  const color = new Float32Array(count * 4);
+  const widthMul = new Float32Array(count);
+  const depth = new Float32Array(count);
+  const depthEnd = new Float32Array(count);
+  const dashSlot = new Float32Array(count);
+  const dashPhase = new Float32Array(count);
+  let at = 0;
+  lines.forEach((line, f) => {
+    const n = line.count;
+    a.set(line.a.subarray(0, n * 2), at * 2);
+    b.set(line.b.subarray(0, n * 2), at * 2);
+    color.set(line.color.subarray(0, n * 4), at * 4);
+    widthMul.set(line.widthMul.subarray(0, n), at);
+    if (line.depth) depth.set(line.depth.subarray(0, n), at);
+    const end = line.depthEnd ?? line.depth;
+    if (end) depthEnd.set(end.subarray(0, n), at);
+    const slots = remap[f]!;
+    if (line.dashSlot) {
+      for (let k = 0; k < n; k++) {
+        const slot = Math.round(line.dashSlot[k]!);
+        dashSlot[at + k] = slot > 0 ? (slots[slot - 1] ?? 0) : 0;
+      }
+    } else if (slots.length) {
+      // A face with a table and no slots dashes every line with its first pattern.
+      dashSlot.fill(slots[0]!, at, at + n);
+    }
+    if (line.dashPhase) dashPhase.set(line.dashPhase.subarray(0, n), at);
+    at += n;
+  });
+  return {
+    a,
+    b,
+    color,
+    widthMul,
+    depth,
+    depthEnd,
+    count,
+    ...(table.length ? { dashPatterns: table, dashSlot, dashPhase } : {}),
+  };
+}
+
 /** Global depth bands in the existing CP context. No clipping or solver work.
  * Only genuinely cyclic stacks need local-order masks.
  * The uncorrected pass remains underneath projected cycles which suppress all
  * candidates; normal overlays resume with stencil disabled after this scope.
+ *
+ * A pass over every face is one draw of the fills and one of the lines, so a
+ * picture's cost per frame does not grow with its faces: a canvas of many
+ * spread figures re-draws as it pans. Only a cyclic picture's corrected
+ * passes go face by face, as their stencil masks need.
  *
  * `setData` with the geometry it already holds uploads nothing, and with a new
  * layout only re-uploads the lines (their depth and alpha are baked in): a host
@@ -214,7 +307,6 @@ const FRAG = `precision highp float;varying vec4 ink;void main(){gl_FragColor=ve
  * spread figures that did not change.
  */
 export function createSpreadProgram(regl: Regl) {
-  let faces: FaceBuffers[] = [];
   let order: Visibility | null = null;
   let held: SpreadGeometry | null = null;
   let layout: SpreadLayout = WHOLE_CHANNEL_SPREAD;
@@ -222,6 +314,18 @@ export function createSpreadProgram(regl: Regl) {
   let all: number[] = [];
   let xrayOrder: number[] = [];
   let plan: SpreadPass[] = [];
+  // The fills in face order, and each face's range in them.
+  let byFace: FillRun | null = null;
+  let ranges: FaceRange[] = [];
+  // The fills in X-ray's back-to-front order: made the first time X-ray draws.
+  let byXray: FillRun | null = null;
+  let xrayStale = true;
+  // Each face's lines with its band and fade baked in, and every face's in one program.
+  let lines: StrokeGeometry[] = [];
+  let ink: StrokeProgram | null = null;
+  // A face's own lines, for a cyclic picture's corrected pass: made when first drawn.
+  let faceInk: (StrokeProgram | undefined)[] = [];
+  let masks: FaceMask[] = [];
   const depthBits = Number(regl._gl.getParameter(regl._gl.DEPTH_BITS)) || 16;
   // One command per depth mode; they share the compiled program.
   const fillCommand = (mask: boolean, func: DepthFunc) =>
@@ -231,34 +335,34 @@ export function createSpreadProgram(regl: Regl) {
         ex: number[];
         ey: number[];
         viewport: number[];
-        rank: number;
         bands: number;
         base: number;
         span: number;
         alpha: number;
       },
-      { position: unknown; color: unknown; depth: unknown },
+      { position: unknown; color: unknown; depth: unknown; rank: unknown },
       FillProps
     >({
       vert: VERT,
       frag: FRAG,
       attributes: {
-        position: (_ctx: unknown, p: FillProps) => p.face.position,
-        color: (_ctx: unknown, p: FillProps) => p.face.color,
-        depth: (_ctx: unknown, p: FillProps) => p.face.depth,
+        position: (_ctx: unknown, p: FillProps) => p.run.position,
+        color: (_ctx: unknown, p: FillProps) => p.run.color,
+        depth: (_ctx: unknown, p: FillProps) => p.run.depth,
+        rank: (_ctx: unknown, p: FillProps) => p.run.rank,
       },
       uniforms: {
         origin: (_, p) => [...p.view.origin],
         ex: (_, p) => [...p.view.ex],
         ey: (_, p) => [...p.view.ey],
         viewport: (_, p) => [p.viewport.width, p.viewport.height],
-        rank: (_, p) => p.rank,
         bands: (_, p) => p.bands,
         base: (_, p) => p.base,
         span: (_, p) => p.span,
         alpha: (_, p) => p.alpha,
       },
-      count: (_, p) => p.face.count,
+      offset: (_, p) => p.first,
+      count: (_, p) => p.count,
       colorMask: (_, p) => (p.color ? [true, true, true, true] : [false, false, false, false]),
       depth: { enable: true, mask, func },
       blend: {
@@ -272,7 +376,8 @@ export function createSpreadProgram(regl: Regl) {
     equal: fillCommand(false, 'equal'),
     always: fillCommand(true, 'always'),
   };
-  const drawFill = (props: FillProps) =>
+  const drawFill = (props: FillProps) => {
+    if (props.count === 0) return;
     (props.depthFunc === 'always'
       ? fills.always
       : props.depthFunc === 'equal'
@@ -280,17 +385,17 @@ export function createSpreadProgram(regl: Regl) {
         : props.depthWrite
           ? fills.write
           : fills.test)(props);
-  const drawMask = regl<
+  };
+  const maskCommand = regl<
     { origin: number[]; ex: number[]; ey: number[]; viewport: number[] },
     { position: unknown },
-    Pick<FillProps, 'face' | 'usePosition' | 'view' | 'viewport'>
+    MaskProps
   >({
     vert: `precision highp float;attribute vec2 position;uniform vec2 origin,ex,ey,viewport;
       void main(){vec2 p=origin+position.x*ex+position.y*ey;gl_Position=vec4(p.x/viewport.x*2.0-1.0,1.0-p.y/viewport.y*2.0,0.0,1.0);}`,
     frag: `precision highp float;void main(){gl_FragColor=vec4(0.0);}`,
     attributes: {
-      position: (_ctx: unknown, p: Pick<FillProps, 'face' | 'usePosition'>) =>
-        p.usePosition ? p.face.position : p.face.maskPosition,
+      position: (_ctx: unknown, p: MaskProps) => p.position,
     },
     uniforms: {
       origin: (_, p) => [...p.view.origin],
@@ -298,10 +403,14 @@ export function createSpreadProgram(regl: Regl) {
       ey: (_, p) => [...p.view.ey],
       viewport: (_, p) => [p.viewport.width, p.viewport.height],
     },
-    count: (_, p) => (p.usePosition ? p.face.count : p.face.maskCount),
+    offset: (_, p) => p.first,
+    count: (_, p) => p.count,
     colorMask: [false, false, false, false],
     depth: { enable: false, mask: false },
   });
+  const drawMask = (props: MaskProps) => {
+    if (props.count > 0) maskCommand(props);
+  };
   const mask = regl({
     stencil: {
       enable: true,
@@ -325,49 +434,114 @@ export function createSpreadProgram(regl: Regl) {
     depth: { enable: true, mask: true, func: 'lequal' },
     colorMask: [true, true, true, true],
   });
-  const make = (geometry: SpreadFaceGeometry): FaceBuffers => {
-    const ink = createStrokeProgram(regl, { depthOrdered: true });
-    return {
-      maskPosition: regl.buffer([]),
-      maskCount: 0,
-      blockers: [],
-      position: regl.buffer(geometry.fills.position),
-      color: regl.buffer(geometry.fills.color),
-      depth: regl.buffer(geometry.fills.depth ?? []),
-      count: geometry.fills.count,
-      ink,
-      geometry,
-    };
+  const emptyRun = (): FillRun => ({
+    position: regl.buffer([]),
+    color: regl.buffer([]),
+    depth: regl.buffer([]),
+    rank: regl.buffer([]),
+    count: 0,
+  });
+  const destroyRun = (run: FillRun | null) => {
+    run?.position.destroy();
+    run?.color.destroy();
+    run?.depth.destroy();
+    run?.rank.destroy();
   };
-  const destroy = (f: FaceBuffers) => {
-    f.maskPosition.destroy();
-    f.position.destroy();
-    f.color.destroy();
-    f.depth.destroy();
-    f.ink.dispose();
+  /** Fill `run` with the faces of `data` in the order given; returns where each landed. */
+  function upload(run: FillRun, data: SpreadGeometry, faceOrder: readonly number[]): FaceRange[] {
+    let count = 0;
+    for (const f of faceOrder) count += data.faces[f]!.fills.count;
+    const position = new Float32Array(count * 2);
+    const color = new Float32Array(count * 4);
+    const depth = new Float32Array(count);
+    const rank = new Float32Array(count);
+    const placed: FaceRange[] = [];
+    let at = 0;
+    for (const f of faceOrder) {
+      const { fills: face } = data.faces[f]!;
+      const n = face.count;
+      position.set(face.position.subarray(0, n * 2), at * 2);
+      color.set(face.color.subarray(0, n * 4), at * 4);
+      if (face.depth) depth.set(face.depth.subarray(0, n), at);
+      rank.fill(order?.ranks?.[f] ?? 0, at, at + n);
+      placed[f] = { first: at, count: n };
+      at += n;
+    }
+    run.position(position);
+    run.color(color);
+    run.depth(depth);
+    run.rank(rank);
+    run.count = count;
+    return placed;
+  }
+  const disposeFaceInk = () => {
+    for (const program of faceInk) program?.dispose();
+    faceInk = [];
+  };
+  const destroyMasks = () => {
+    for (const face of masks) face.position.destroy();
+    masks = [];
   };
   /** The lines carry their depth and alpha per segment, so a band or a fade is baked in here. */
   function uploadInk() {
+    if (!held) return;
     const { base, span } = layout.band;
     const inkBias = spreadInkDepthBias(bands, depthBits, span);
-    faces.forEach((target, f) => {
-      const { strokes } = target.geometry;
+    const opacity = layout.opacity;
+    lines = held.faces.map(({ strokes }, f) => {
       const rank = order?.ranks?.[f] ?? 0;
       const depth = (a: Float32Array | undefined) =>
         a?.map((v) => base + span * ((rank + 0.1 + 0.8 * v) / bands) + inkBias);
-      const opacity = layout.opacity;
-      target.ink.setData({
+      return {
         ...strokes,
         ...(opacity < 1 ? { color: strokes.color.map((v, k) => (k % 4 === 3 ? v * opacity : v)) } : {}),
         depth: depth(strokes.depth),
         depthEnd: depth(strokes.depthEnd),
-      });
+      };
     });
+    faceInk.forEach((program, f) => program?.setData(lines[f]!));
+    const merged = mergedSpreadInk(lines);
+    if (merged) {
+      ink ??= createStrokeProgram(regl, { depthOrdered: true });
+      ink.setData(merged);
+    } else {
+      ink?.dispose();
+      ink = null;
+    }
+  }
+  function inkOf(f: number): StrokeProgram {
+    let program = faceInk[f];
+    if (!program) {
+      program = createStrokeProgram(regl, { depthOrdered: true });
+      program.setData(lines[f]!);
+      faceInk[f] = program;
+    }
+    return program;
+  }
+  function xrayRun(): FillRun {
+    byXray ??= emptyRun();
+    if (xrayStale && held) {
+      upload(byXray, held, xrayOrder);
+      xrayStale = false;
+    }
+    return byXray;
+  }
+  function release() {
+    destroyRun(byFace);
+    destroyRun(byXray);
+    byFace = null;
+    byXray = null;
+    xrayStale = true;
+    ranges = [];
+    ink?.dispose();
+    ink = null;
+    disposeFaceInk();
+    destroyMasks();
+    lines = [];
   }
   function setData(data: SpreadGeometry | null, next: SpreadLayout = WHOLE_CHANNEL_SPREAD) {
     if (!data) {
-      faces.forEach(destroy);
-      faces = [];
+      release();
       order = null;
       held = null;
       plan = [];
@@ -384,70 +558,6 @@ export function createSpreadProgram(regl: Regl) {
     layout = next;
     order = data.visibility;
     bands = order.ranks ? Math.max(...order.ranks) + 1 : 1;
-    const boxes = order.ranks ? [] : data.faces.map(({ fills }) => {
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
-      for (let k = 0; k < fills.position.length; k += 2) {
-        const x = fills.position[k]!,
-          y = fills.position[k + 1]!;
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-      }
-      return [minX, minY, maxX, maxY];
-    });
-    let maskBytes = 0;
-    while (faces.length > data.faces.length) destroy(faces.pop()!);
-    data.faces.forEach((geometry, f) => {
-      let target = faces[f];
-      if (!target) {
-        target = make(geometry);
-        faces.push(target);
-      } else {
-        target.position(geometry.fills.position);
-        target.color(geometry.fills.color);
-        target.depth(geometry.fills.depth ?? []);
-        target.count = geometry.fills.count;
-        target.geometry = geometry;
-      }
-      if (order?.ranks) {
-        // Release any buffers retained from a previously cyclic scene.
-        if (target.maskCount || target.blockers.length) {
-          target.maskPosition([]);
-          target.maskCount = 0;
-          target.blockers = [];
-        }
-      } else {
-        const a = boxes[f]!;
-        const blockers = order!.above[f]!.filter((b) => {
-          const box = boxes[b]!;
-          return a[0]! <= box[2]! && a[2]! >= box[0]! && a[1]! <= box[3]! && a[3]! >= box[1]!;
-        });
-        const length = blockers.reduce((n, b) => n + data.faces[b]!.fills.position.length, 0);
-        // Dense cyclic graphs must not multiply the mesh into unbounded GPU
-        // storage. Above the shared budget, draw the existing blocker buffers.
-        if (maskBytes + length * 4 > 64 * 1024 * 1024) {
-          target.blockers = blockers;
-          target.maskPosition([]);
-          target.maskCount = 0;
-        } else {
-          maskBytes += length * 4;
-          target.blockers = [];
-          const positions = new Float32Array(length);
-          let offset = 0;
-          for (const blocker of blockers) {
-            const p = data.faces[blocker]!.fills.position;
-            positions.set(p, offset);
-            offset += p.length;
-          }
-          target.maskPosition(positions);
-          target.maskCount = length / 2;
-        }
-      }
-    });
     all = data.faces.map((_, f) => f);
     xrayOrder = spreadXrayOrder(
       order,
@@ -459,19 +569,63 @@ export function createSpreadProgram(regl: Regl) {
         return sum / depth.length;
       })
     );
+    byFace ??= emptyRun();
+    ranges = upload(byFace, data, all);
+    xrayStale = true;
+    disposeFaceInk();
+    destroyMasks();
+    if (!order.ranks) {
+      const boxes = data.faces.map(({ fills }) => {
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        for (let k = 0; k < fills.position.length; k += 2) {
+          const x = fills.position[k]!,
+            y = fills.position[k + 1]!;
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+        return [minX, minY, maxX, maxY];
+      });
+      let maskBytes = 0;
+      masks = data.faces.map((_, f) => {
+        const a = boxes[f]!;
+        const blockers = order!.above[f]!.filter((b) => {
+          const box = boxes[b]!;
+          return a[0]! <= box[2]! && a[2]! >= box[0]! && a[1]! <= box[3]! && a[3]! >= box[1]!;
+        });
+        const length = blockers.reduce((n, b) => n + data.faces[b]!.fills.position.length, 0);
+        // Dense cyclic graphs must not multiply the mesh into unbounded GPU
+        // storage. Above the shared budget, draw the blockers' own ranges.
+        if (maskBytes + length * 4 > 64 * 1024 * 1024) return { position: regl.buffer([]), count: 0, blockers };
+        maskBytes += length * 4;
+        const positions = new Float32Array(length);
+        let offset = 0;
+        for (const blocker of blockers) {
+          const p = data.faces[blocker]!.fills.position;
+          positions.set(p, offset);
+          offset += p.length;
+        }
+        return { position: regl.buffer(positions), count: length / 2, blockers: [] };
+      });
+    }
     plan = spreadDrawPlan(order, layout, all, xrayOrder);
     uploadInk();
   }
   function draw(props: Draw) {
-    if (!order) return;
-    const ranks = order.ranks;
+    if (!order || !byFace) return;
+    const faceRun = byFace;
     const { base, span } = layout.band;
     const alpha = layout.opacity;
-    const fill = (f: number, depth: 'write' | 'equal' | 'test' | 'only') =>
+    const paint = (run: FillRun, first: number, count: number, depth: 'write' | 'equal' | 'test' | 'only') =>
       drawFill({
         ...props,
-        face: faces[f]!,
-        rank: ranks?.[f] ?? 0,
+        run,
+        first,
+        count,
         bands,
         base,
         span,
@@ -480,25 +634,36 @@ export function createSpreadProgram(regl: Regl) {
         depthWrite: depth === 'write' || depth === 'only',
         depthFunc: depth === 'equal' ? 'equal' : 'lequal',
       });
-    const ink = (f: number) => faces[f]!.ink.draw(props);
-    const corrected = (f: number, paint: () => void) => {
+    const paintFaces = (faces: readonly number[], depth: 'write' | 'equal' | 'test' | 'only') => {
+      if (faces === all) paint(faceRun, 0, faceRun.count, depth);
+      else if (faces === xrayOrder) {
+        const run = xrayRun();
+        paint(run, 0, run.count, depth);
+      } else for (const f of faces) paint(faceRun, ranges[f]!.first, ranges[f]!.count, depth);
+    };
+    const inkFaces = (faces: readonly number[]) => {
+      if (faces === all && ink) ink.draw(props);
+      else for (const f of faces) inkOf(f).draw(props);
+    };
+    const corrected = (f: number, paintFace: () => void) => {
       regl.clear({ stencil: 0 });
       mask(() => {
-        const face = faces[f]!;
+        const face = masks[f]!;
         if (face.blockers.length)
-          for (const b of face.blockers) drawMask({ ...props, face: faces[b]!, usePosition: true });
-        else drawMask({ ...props, face });
+          for (const b of face.blockers)
+            drawMask({ ...props, position: faceRun.position, first: ranges[b]!.first, count: ranges[b]!.count });
+        else drawMask({ ...props, position: face.position, first: 0, count: face.count });
       });
-      unmasked(paint);
+      unmasked(paintFace);
     };
     plain(() => {
       for (const pass of plan) {
         switch (pass.kind) {
           case 'fills':
-            for (const f of pass.faces) fill(f, pass.depth);
+            paintFaces(pass.faces, pass.depth);
             break;
           case 'ink':
-            for (const f of pass.faces) ink(f);
+            inkFaces(pass.faces);
             break;
           case 'clear-depth':
             regl.clear({ depth: 1 });
@@ -507,25 +672,25 @@ export function createSpreadProgram(regl: Regl) {
             // Every face's fill at one depth, the band's floor: what the
             // baseline wrote is forgotten, and what lies outside this figure
             // is left as the figures drawn before it wrote it.
-            for (let f = 0; f < faces.length; f++)
-              drawFill({
-                ...props,
-                face: faces[f]!,
-                rank: 0,
-                bands: 1,
-                base: base + span * RESET_DEPTH,
-                span: 0,
-                alpha: 0,
-                color: false,
-                depthWrite: true,
-                depthFunc: 'always',
-              });
+            drawFill({
+              ...props,
+              run: faceRun,
+              first: 0,
+              count: faceRun.count,
+              bands: 1,
+              base: base + span * RESET_DEPTH,
+              span: 0,
+              alpha: 0,
+              color: false,
+              depthWrite: true,
+              depthFunc: 'always',
+            });
             break;
           case 'corrected-fills':
-            for (let f = 0; f < faces.length; f++) corrected(f, () => fill(f, 'write'));
+            for (const f of all) corrected(f, () => paint(faceRun, ranges[f]!.first, ranges[f]!.count, 'write'));
             break;
           case 'corrected-ink':
-            for (let f = 0; f < faces.length; f++) corrected(f, () => ink(f));
+            for (const f of all) corrected(f, () => inkOf(f).draw(props));
             break;
         }
       }
@@ -537,8 +702,9 @@ export function createSpreadProgram(regl: Regl) {
     /** {@link spreadSeesThrough} for the picture and layout held; false while there is none. */
     seesThrough: () => (order ? spreadSeesThrough(order, layout) : false),
     dispose: disposeOnce(() => {
-      faces.forEach(destroy);
-      faces = [];
+      release();
+      order = null;
+      held = null;
     }),
   };
 }

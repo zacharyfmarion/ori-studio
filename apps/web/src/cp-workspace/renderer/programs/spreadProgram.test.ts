@@ -2,7 +2,9 @@
  * The spread pass's draws, on a recording regl: what a pane of its own —
  * Fold's, the Diagram's, a capture — is drawn with stays #563's to the value
  * (`WHOLE_CHANNEL_SPREAD`), and what Edit's canvas adds for its figures — a
- * band per figure, a fade, X-ray — stays inside the figure's band.
+ * band per figure, a fade, X-ray — stays inside the figure's band. A pass over
+ * every face is one draw however many faces there are; only a cycle's
+ * corrected passes go face by face.
  */
 import type { Visibility } from '@oristudio/layer-spread';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -27,6 +29,7 @@ vi.mock('./strokeProgram', () => ({
 
 const {
   createSpreadProgram,
+  mergedSpreadInk,
   placedSpreadView,
   spreadDrawPlan,
   spreadSeesThrough,
@@ -38,7 +41,10 @@ type SpreadLayout = import('./spreadProgram').SpreadLayout;
 
 const DEPTH_BITS = 24;
 
-/** A regl that records each draw by its depth state, and each clear. */
+/** A buffer as the recording regl hands it out: what it was last given. */
+type RecordedBuffer = ((data: unknown) => void) & { data: unknown; destroy: () => void };
+
+/** A regl that records each draw by its depth state, each clear, and what each buffer holds. */
 function recordingRegl() {
   const command = (config: Record<string, unknown>) => {
     const depth = config.depth as { enable: boolean; mask?: boolean; func?: string } | undefined;
@@ -54,7 +60,14 @@ function recordingRegl() {
       body?.();
     };
   };
-  const buffer = () => Object.assign(() => {}, { destroy: () => {} });
+  const buffer = (initial?: unknown) => {
+    const handle = ((data: unknown) => {
+      handle.data = data;
+    }) as RecordedBuffer;
+    handle.data = initial;
+    handle.destroy = () => {};
+    return handle;
+  };
   return Object.assign(command, {
     buffer,
     clear: (options: Record<string, unknown>) =>
@@ -99,6 +112,9 @@ const BAND: SpreadLayout = { band: { base: 0.5, span: 0.25 }, opacity: 1, xray: 
 
 const fills = () => recorded.draws.filter(({ command }) => command.startsWith('fill'));
 const commands = () => recorded.draws.map(({ command }) => command);
+/** The rank on each vertex a fill draw is drawn from, in buffer order. */
+const ranksOf = (draw: { props?: Record<string, unknown> }) =>
+  Array.from((draw.props!.run as { rank: RecordedBuffer }).rank.data as Float32Array);
 
 beforeEach(() => {
   recorded.draws.length = 0;
@@ -190,19 +206,37 @@ describe('placedSpreadView', () => {
 });
 
 describe('createSpreadProgram', () => {
-  it('draws a whole-channel picture exactly as #563 did', () => {
+  it('draws a whole-channel picture as #563 did, every fill in one draw and every line in one', () => {
     const program = createSpreadProgram(recordingRegl());
     const picture = geometry([0.25, 0.75], ACYCLIC);
     program.setData(picture);
     program.draw(DRAW);
-    expect(commands()).toEqual(['fill:write:lequal', 'fill:write:lequal', 'ink:0', 'ink:1']);
-    for (const { props } of fills()) expect(props).toMatchObject({ base: 0, span: 1, alpha: 1, bands: 2, color: true });
-    // #563's line depth, to the bit: (rank + 0.1 + 0.8 z) / bands + bias.
+    expect(commands()).toEqual(['fill:write:lequal', 'ink:0']);
+    const [every] = fills();
+    expect(every!.props).toMatchObject({ base: 0, span: 1, alpha: 1, bands: 2, color: true, first: 0, count: 6 });
+    // Each face's rank on its own vertices, in face order: the band a draw per face set.
+    expect(ranksOf(every!)).toEqual([1, 1, 1, 0, 0, 0]);
+    // #563's line depth, to the bit, face by face: (rank + 0.1 + 0.8 z) / bands + bias.
     const bias = spreadInkDepthBias(2, DEPTH_BITS);
-    expect(Array.from(recorded.ink[0]!.depth!)).toEqual(Array.from(Float32Array.of((1 + 0.1 + 0.8 * 0.25) / 2 + bias)));
-    expect(Array.from(recorded.ink[1]!.depth!)).toEqual(Array.from(Float32Array.of((0 + 0.1 + 0.8 * 0.75) / 2 + bias)));
-    // Its own colours, handed over as they came.
-    expect(recorded.ink[0]!.color).toBe(picture.faces[0]!.strokes.color);
+    expect(Array.from(recorded.ink[0]!.depth!)).toEqual(
+      Array.from(Float32Array.of((1 + 0.1 + 0.8 * 0.25) / 2 + bias, (0 + 0.1 + 0.8 * 0.75) / 2 + bias))
+    );
+    // Their own colours, face after face.
+    expect(Array.from(recorded.ink[0]!.color)).toEqual([
+      ...picture.faces[0]!.strokes.color,
+      ...picture.faces[1]!.strokes.color,
+    ]);
+  });
+
+  it('draws any number of faces in one fill draw and one line draw', () => {
+    const program = createSpreadProgram(recordingRegl());
+    const heights = Array.from({ length: 500 }, (_, f) => f / 500);
+    program.setData(geometry(heights, { ranks: heights.map((_, f) => f % 7), cyclic: false, above: heights.map(() => []) }));
+    program.draw(DRAW);
+    expect(commands()).toEqual(['fill:write:lequal', 'ink:0']);
+    expect(fills()[0]!.props).toMatchObject({ first: 0, count: 1500, bands: 7 });
+    expect(recorded.ink[0]!.count).toBe(500);
+    expect(recorded.inkPrograms).toBe(1);
   });
 
   it('clears depth for a whole-channel cycle and resets only its footprint inside a band', () => {
@@ -218,66 +252,152 @@ describe('createSpreadProgram', () => {
     banded.draw(DRAW);
     expect(commands()).not.toContain('clear:depth');
     const resets = recorded.draws.filter(({ command }) => command === 'fill:write:always');
-    expect(resets).toHaveLength(2);
+    expect(resets).toHaveLength(1);
     // At the band's floor, below every fill of the figure and above every band beneath it.
-    for (const { props } of resets) expect(props).toMatchObject({ base: 0.5 + 0.25 * 0.05, span: 0, color: false });
+    expect(resets[0]!.props).toMatchObject({ base: 0.5 + 0.25 * 0.05, span: 0, color: false, first: 0, count: 6 });
+  });
+
+  it('draws a cycle’s corrected faces one at a time, each inside its blockers’ mask', () => {
+    const program = createSpreadProgram(recordingRegl());
+    program.setData(geometry([0.25, 0.75], CYCLIC), BAND);
+    program.draw(DRAW);
+    expect(commands()).toEqual([
+      'fill:write:lequal',
+      'ink:0',
+      'fill:write:always',
+      'clear:stencil',
+      'mask',
+      'fill:write:lequal',
+      'clear:stencil',
+      'mask',
+      'fill:write:lequal',
+      'clear:stencil',
+      'mask',
+      'ink:1',
+      'clear:stencil',
+      'mask',
+      'ink:2',
+    ]);
+    // Each corrected fill is its own face's range of the one buffer.
+    const corrected = fills().filter(({ command }) => command === 'fill:write:lequal').slice(1);
+    expect(corrected.map(({ props }) => [props!.first, props!.count])).toEqual([
+      [0, 3],
+      [3, 3],
+    ]);
+    // Each mask is the face's blocker: one triangle.
+    for (const draw of recorded.draws.filter(({ command }) => command === 'mask')) expect(draw.props).toMatchObject({ first: 0, count: 3 });
+    // A face's own lines, for its corrected pass: its own depth.
+    expect(recorded.ink.slice(1).map((ink) => ink.count)).toEqual([1, 1]);
+    expect(recorded.ink[1]!.depth![0]).toBe(recorded.ink[0]!.depth![0]);
+    expect(recorded.ink[2]!.depth![0]).toBe(recorded.ink[0]!.depth![1]);
   });
 
   it('keeps a banded figure’s fills and lines inside its band, faded by its opacity', () => {
     const program = createSpreadProgram(recordingRegl());
     program.setData(geometry([0, 1], ACYCLIC), { ...BAND, opacity: 0.45 });
     program.draw(DRAW);
-    expect(commands()).toEqual([
-      'fill:write:lequal',
-      'fill:write:lequal',
-      'fill:keep:equal',
-      'fill:keep:equal',
-      'ink:0',
-      'ink:1',
-    ]);
-    const [prepass, , colour] = fills();
+    expect(commands()).toEqual(['fill:write:lequal', 'fill:keep:equal', 'ink:0']);
+    const [prepass, colour] = fills();
     expect(prepass!.props).toMatchObject({ color: false, base: 0.5, span: 0.25 });
     expect(colour!.props).toMatchObject({ color: true, alpha: 0.45 });
     const bias = spreadInkDepthBias(2, DEPTH_BITS, 0.25);
-    for (const ink of recorded.ink) {
-      const depth = ink.depth![0]!;
-      expect(depth).toBeGreaterThan(0.5);
-      expect(depth).toBeLessThan(0.75);
-      expect(ink.color[3]).toBeCloseTo(0.45, 6);
+    const [ink] = recorded.ink;
+    for (let segment = 0; segment < ink!.count; segment++) {
+      expect(ink!.depth![segment]).toBeGreaterThan(0.5);
+      expect(ink!.depth![segment]).toBeLessThan(0.75);
+      expect(ink!.color[segment * 4 + 3]).toBeCloseTo(0.45, 6);
     }
-    expect(recorded.ink[0]!.depth![0]).toBeCloseTo(0.5 + 0.25 * ((1 + 0.1) / 2) + bias, 6);
+    expect(ink!.depth![0]).toBeCloseTo(0.5 + 0.25 * ((1 + 0.1) / 2) + bias, 6);
   });
 
   it('draws X-ray see-through: back to front at its alpha, writing no depth, lines after, depth last', () => {
     const program = createSpreadProgram(recordingRegl());
     program.setData(geometry([0.25, 0.75], ACYCLIC), { ...BAND, opacity: 0.5, xray: { faceAlpha: 0.4 } });
     program.draw(DRAW);
-    expect(commands()).toEqual([
-      'fill:keep:lequal',
-      'fill:keep:lequal',
-      'ink:0',
-      'ink:1',
-      'fill:write:lequal',
-      'fill:write:lequal',
-    ]);
-    const [back, front] = fills();
-    // Face 1 has rank 0: it is drawn first.
-    expect(back!.props).toMatchObject({ rank: 0, alpha: 0.4 * 0.5, color: true });
-    expect(front!.props).toMatchObject({ rank: 1 });
-    for (const pass of fills().slice(2)) expect(pass.props).toMatchObject({ color: false });
+    expect(commands()).toEqual(['fill:keep:lequal', 'ink:0', 'fill:write:lequal']);
+    const [see, depth] = fills();
+    expect(see!.props).toMatchObject({ alpha: 0.4 * 0.5, color: true, first: 0, count: 6 });
+    // Back to front: face 1 (rank 0) is drawn first, then face 0.
+    expect(ranksOf(see!)).toEqual([0, 0, 0, 1, 1, 1]);
+    expect(depth!.props).toMatchObject({ color: false });
+    expect(ranksOf(depth!)).toEqual([1, 1, 1, 0, 0, 0]);
+  });
+
+  it('draws each face’s lines alone when their dashes need more slots than the program has', () => {
+    const program = createSpreadProgram(recordingRegl());
+    const picture = geometry([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7], {
+      ranks: [0, 1, 2, 3, 4, 5, 6],
+      cyclic: false,
+      above: [[], [], [], [], [], [], []],
+    });
+    picture.faces.forEach((face, f) => {
+      face.strokes = { ...face.strokes, dashPatterns: [[f + 1, 1]], dashSlot: Float32Array.of(1) };
+    });
+    program.setData(picture);
+    program.draw(DRAW);
+    expect(commands()).toEqual(['fill:write:lequal', 'ink:0', 'ink:1', 'ink:2', 'ink:3', 'ink:4', 'ink:5', 'ink:6']);
   });
 
   it('uploads nothing for the picture it holds, and only the lines for a new layout', () => {
     const program = createSpreadProgram(recordingRegl());
     const picture = geometry([0.25, 0.75], ACYCLIC);
     program.setData(picture, BAND);
-    expect(recorded.ink).toHaveLength(2);
+    expect(recorded.ink).toHaveLength(1);
     program.setData(picture, { ...BAND });
-    expect(recorded.ink).toHaveLength(2);
-    expect(recorded.inkPrograms).toBe(2);
+    expect(recorded.ink).toHaveLength(1);
+    expect(recorded.inkPrograms).toBe(1);
     program.setData(picture, { ...BAND, band: { base: 0.25, span: 0.25 } });
-    expect(recorded.ink).toHaveLength(4);
-    expect(recorded.inkPrograms).toBe(2);
-    expect(recorded.ink[2]!.depth![0]).toBeLessThan(0.5);
+    expect(recorded.ink).toHaveLength(2);
+    expect(recorded.inkPrograms).toBe(1);
+    expect(recorded.ink[1]!.depth![0]).toBeLessThan(0.5);
+  });
+});
+
+describe('mergedSpreadInk', () => {
+  /** Lines with a dash table of their own and a slot per line. */
+  function dashed(patterns: number[][] | undefined, slots: number[] | undefined, count: number): StrokeGeometry {
+    return {
+      a: new Float32Array(count * 2),
+      b: new Float32Array(count * 2).fill(1),
+      color: new Float32Array(count * 4).fill(1),
+      widthMul: new Float32Array(count).fill(1),
+      count,
+      depth: Float32Array.from({ length: count }, (_, k) => k / 10),
+      ...(patterns ? { dashPatterns: patterns } : {}),
+      ...(slots ? { dashSlot: Float32Array.from(slots), dashPhase: Float32Array.from(slots, (_, k) => k + 1) } : {}),
+    };
+  }
+  const valley = [4, 2];
+  const mountain = [6, 2, 1, 2];
+
+  it('joins the faces’ dash tables and renumbers each face’s slots into the join', () => {
+    const merged = mergedSpreadInk([
+      dashed([valley], [0, 1], 2),
+      dashed([mountain, valley], [1, 2, 0], 3),
+      dashed(undefined, undefined, 1),
+    ]);
+    expect(merged!.dashPatterns).toEqual([valley, mountain]);
+    expect(Array.from(merged!.dashSlot!)).toEqual([0, 1, 2, 1, 0, 0]);
+    expect(Array.from(merged!.dashPhase!)).toEqual([1, 2, 1, 2, 3, 0]);
+    expect(merged!.count).toBe(6);
+    // A line's end depth is its start's where it has none of its own.
+    expect(Array.from(merged!.depthEnd!)).toEqual(Array.from(merged!.depth!));
+  });
+
+  it('dashes a face with a table and no slots by its first pattern, as the stroke program does', () => {
+    const merged = mergedSpreadInk([dashed([valley], [1], 1), dashed([mountain], undefined, 2)]);
+    expect(merged!.dashPatterns).toEqual([valley, mountain]);
+    expect(Array.from(merged!.dashSlot!)).toEqual([1, 2, 2]);
+  });
+
+  it('leaves solid lines without a table', () => {
+    const merged = mergedSpreadInk([dashed(undefined, undefined, 2), dashed(undefined, undefined, 1)]);
+    expect(merged).not.toHaveProperty('dashPatterns');
+    expect(merged!.count).toBe(3);
+  });
+
+  it('is null when the join needs more slots than the stroke program has', () => {
+    expect(mergedSpreadInk(Array.from({ length: 7 }, (_, k) => dashed([[k + 1, 1]], [1], 1)))).toBeNull();
+    expect(mergedSpreadInk(Array.from({ length: 6 }, (_, k) => dashed([[k + 1, 1]], [1], 1)))).not.toBeNull();
   });
 });
