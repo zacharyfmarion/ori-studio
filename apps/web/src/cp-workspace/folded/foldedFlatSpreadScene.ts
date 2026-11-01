@@ -21,25 +21,21 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
-import { isFolded3dFigure } from './foldedFigureCapabilities';
-import { foldedFigureSpreadOptions } from './foldedFigureSpread';
+import { foldedFigureSpreadBlock, foldedFigureSpreadOptions } from './foldedFigureSpread';
+import { foldedFigureHasLayerOrder } from './foldedFigureState';
 import { foldedFlatScene, type FoldedFlatSceneTable } from './foldedFlatScenes';
 
-/** Whether the figure draws its layers spread when its spread is on. */
-export function foldedFigureSpreadDrawable(
-  figure: Pick<OristudioCpFoldedFigureEntry, 'folded3d' | 'snapshot' | 'displayStyle'>
-): boolean {
-  return (
-    !isFolded3dFigure(figure) &&
-    figure.snapshot?.outcome === 'Solved' &&
-    (figure.displayStyle === 'Paper5' || figure.displayStyle === 'Transparent3')
-  );
+/**
+ * Whether the figure draws its layers spread when its spread is on: when the
+ * Properties sheet has no reason against it, and its fold has said it has
+ * layers.
+ */
+export function foldedFigureSpreadDrawable(figure: OristudioCpFoldedFigureEntry): boolean {
+  return foldedFigureSpreadBlock(figure, null) === null && foldedFigureHasLayerOrder(figure) === true;
 }
 
 /** Whether the figure's spread is on and it can draw it: what asks the kernel for its scene. */
-export function foldedFigureWantsSpread(
-  figure: Pick<OristudioCpFoldedFigureEntry, 'spread' | 'folded3d' | 'snapshot' | 'displayStyle'>
-): boolean {
+export function foldedFigureWantsSpread(figure: OristudioCpFoldedFigureEntry): boolean {
   return foldedFigureSpreadOptions(figure) !== null && foldedFigureSpreadDrawable(figure);
 }
 

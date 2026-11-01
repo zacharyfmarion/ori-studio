@@ -584,16 +584,16 @@ builds before typecheck, tests or the browser mean anything.
   added as decision 7).
 - [x] #563 merges main (cd279bbab) and fixes S1 and S3 (f11ccb7cc); S2 left
   to #563.
-- [ ] Scaffold commit: `spread`/`spreadScene` fields,
+- [x] Scaffold commit: `spread`/`spreadScene` fields,
   `foldedFigureSpreadOptions`, `setOristudioCpFoldedFigureSpread`.
-- [ ] PR A pre-work: Export on `useFoldedFigurePreview`; Share's CSS moves
+- [x] PR A pre-work: Export on `useFoldedFigurePreview`; Share's CSS moves
   to a module (no visual change, computed styles checked).
-- [ ] PR A: fold plumbing (source, `foldWithOrder`, shared helpers),
+- [x] PR A: fold plumbing (source, `foldWithOrder`, shared helpers),
   byte-identity test.
-- [ ] PR A: request builder, `useExportLayerOrder`, outcomes, figure turn.
-- [ ] PR A: step-aside (unmount, Escape, keyboard gate, focus, withdraw)
+- [x] PR A: request builder, `useExportLayerOrder`, outcomes, figure turn.
+- [x] PR A: step-aside (unmount, Escape, keyboard gate, focus, withdraw)
   with tests.
-- [ ] PR A: Layer order row in both dialogs; Fold case replaced; section opens
+- [x] PR A: Layer order row in both dialogs; Fold case replaced; section opens
   on toggle; analytics surfaces; i18n.
 - [ ] PR B: `settledSpreadPicture` extracted and adopted by Fold and the
   Diagram; raster policy parameter.
@@ -601,17 +601,48 @@ builds before typecheck, tests or the browser mean anything.
   raster embed); colour edits repaint only.
 - [ ] PR B: spread rows in both dialogs; remembered `{style, spread}`; Share
   waits before Create; X-ray when spread; analytics and buckets; i18n.
-- [ ] PR C0: size and timing measurements; budget for decision 2.
-- [ ] PR C: data and bag storage, zero-bytes and round-trip tests, Duplicate.
-- [ ] PR C: setter, verbs, gestures, undo label.
-- [ ] PR C: `reveal` and `direction` field kinds; the Spread section and its
+- [x] PR C0: size and timing measurements; budget for decision 2 (see
+  [What the work found](#what-the-work-found)).
+- [x] PR C: data and bag storage, zero-bytes and round-trip tests, Duplicate.
+- [x] PR C: setter, verbs, gestures, undo label.
+- [x] PR C: `reveal` and `direction` field kinds; the Spread section and its
   reasons; Shadow reason.
-- [ ] PR C: `useFoldedFlatSpread`, frame adapter, per-figure renderer
+- [x] PR C: `useFoldedFlatSpread`, frame adapter, per-figure renderer
   entries, box and pivot rules, fallback.
-- [ ] PR C: X-ray see-through spread (`spreadProgram` option).
-- [ ] PR C: reopen per decision 2 (saved scene under a budget).
+- [x] PR C: X-ray see-through spread (`spreadProgram` option).
+- [x] PR C: reopen per decision 2 (saved scene under a budget).
 - [ ] PR B: each figure's own Export… writes the spread.
 - PR D: not built (decision 4).
+
+## What the work found
+
+Recorded as each part landed, for whoever picks the work up next.
+
+- **C0, saved-scene size** (54 cpoogle designs, every 9th of 484, each folded
+  whole): the paper scene as compact JSON is p50 103 KB, p95 539 KB, max
+  3.42 MB. The budget is 2 MiB, the Diagram's precedent; 1 of the 54 is over
+  it. A save reads each live spread figure's scene from the kernel (p50 1 ms,
+  max 64 ms).
+- **C0, Edit solve timing** (headless Chromium, software GL): a cold Default
+  solve on an 842-face design took 2.9 s and the canvas kept drawing
+  (p95 frame gap 9.9 ms). A spread change costs about 10 ms to build; the
+  buffer upload dominates on software GL.
+- **Deviations from the design:**
+  - Edit's *Spread by* is stacked (label above, choices across). At Edit's
+    260 px pane the Diagram's side-by-side row cut the labels to "Def…".
+  - The *Spread layers* switch stays live when the canvas could not spread
+    a figure ("These layers couldn’t be spread"), so it can be turned off.
+  - One reason string beyond the design: a spread saved by a newer build.
+  - Edit's sheet has no "About affine spreading" credit popover yet; it needs
+    a descriptor part of its own.
+- **One predicate.** Whether a figure can draw its spread is the Properties
+  sheet's `foldedFigureSpreadBlock`; the canvas's `foldedFigureSpreadDrawable`
+  derives from it, so the two never disagree.
+- **Known limits of Edit's spread drawing:** a faded (stale) figure with a
+  cyclic stack blends approximately; a see-through spread figure behind a
+  translucent plain figure is hidden by it rather than showing through; the
+  selection box grows symmetrically about the pivot, so it is looser than the
+  spread on turned figures.
 
 ## Findings for #563
 

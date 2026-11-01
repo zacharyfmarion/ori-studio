@@ -21,6 +21,7 @@ import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import type { FoldedFigureSpreadPicture } from '../adapters/cpFoldedToScene';
 import { connectedSpreadSource } from './connectedSpreadSource';
 import { foldedFigureGesture } from './foldedFigureGesture';
+import { foldedFigureSpreadBlock } from './foldedFigureSpread';
 import { foldedFigureSpreadReach, resetFoldedFigureSpreadReach } from './foldedFigureSpreadReach';
 import { useFoldedFigureSpreadStatusStore } from './foldedFigureSpreadStatus';
 import { resetFoldedFlatScenes, setFoldedFlatScene } from './foldedFlatScenes';
@@ -74,7 +75,8 @@ function solved(kernel: OristudioCpFoldedPaperScene): PreparedConnectedSpread {
 }
 
 const HANDLE = 7;
-const snapshotOf = (): OristudioCpFoldedFigureSnapshot => ({ outcome: 'Solved' }) as OristudioCpFoldedFigureSnapshot;
+const snapshotOf = (): OristudioCpFoldedFigureSnapshot =>
+  ({ outcome: 'Solved', display_style: 'Paper5', discovered_fold_cases: 1 }) as OristudioCpFoldedFigureSnapshot;
 
 function figure(overrides: Partial<OristudioCpFoldedFigureEntry> = {}): OristudioCpFoldedFigureEntry {
   return {
@@ -266,6 +268,22 @@ describe('useFoldedFlatSpread', () => {
     mount([bare]);
     expect(picture(bare)).toBeNull();
     expect(status()).toBeNull();
+  });
+
+  it('draws flat whenever the Properties sheet gives a reason against the spread', () => {
+    // The sheet says "Refold to show the spread" for a fold that failed, and
+    // "no layer order" for one that found none: the canvas agrees.
+    const failed = figure({ status: 'error', error: 'The fold failed' });
+    const unordered = figure({
+      snapshot: { outcome: 'Solved', display_style: 'Paper5', discovered_fold_cases: 0 } as OristudioCpFoldedFigureSnapshot,
+    });
+    for (const entry of [failed, unordered]) {
+      expect(foldedFigureSpreadBlock(entry, null)).not.toBeNull();
+      mount([entry]);
+      expect(leases.taken).toHaveLength(0);
+      expect(picture(entry)).toBeNull();
+      expect(status()).toBeNull();
+    }
   });
 
   it('keeps the chrome still while an edit is mid gesture, and measures it once the gesture ends', async () => {
