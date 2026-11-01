@@ -59,9 +59,10 @@ it('shows Default amount as 0–100%, preserving the full height range and reset
   expect(amount.value).toBe('25');
 });
 
+// Shown at the nearest whole percent, and left as saved until the slider moves.
 it.each<{ initial: LayerSpreadOptions; shown: string; max: string }>([
-  { initial: { ...DEFAULT_CONNECTED_SPREAD, amount: 1.03 }, shown: '51.5', max: '100' },
-  { initial: { kind: 'depth', amount: 0.025, toward: 'down' }, shown: '2.5', max: '20' },
+  { initial: { ...DEFAULT_CONNECTED_SPREAD, amount: 1.03 }, shown: '52', max: '100' },
+  { initial: { kind: 'depth', amount: 0.025, toward: 'down' }, shown: '3', max: '20' },
   { initial: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 }, shown: '3', max: '25' },
 ])('displays saved $initial.kind amounts without rewriting them', async ({ initial, shown, max }) => {
   await act(async () => root.render(<Harness key="saved" initial={initial} />));
