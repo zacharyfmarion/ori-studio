@@ -26,7 +26,7 @@ import {
 } from './foldedFigureSpreadFrame';
 import { foldedFigureSpreadReachIds, setFoldedFigureSpreadReach } from './foldedFigureSpreadReach';
 import { setFoldedFigureSpreadStatus, type FoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
-import { FoldedSpreadPreparations, type SpreadPreparationRequest } from './foldedFlatSpreadLeases';
+import { FoldedSpreadPreparations, type SpreadFold, type SpreadPreparationRequest } from './foldedFlatSpreadLeases';
 import { foldedFigureSpreadDrawable, foldedFigureSpreadScene, foldedPaperSceneKey } from './foldedFlatSpreadScene';
 import { foldedFlatPaperScene } from './foldedFlatScene';
 import { foldedFlatScenes, subscribeFoldedFlatScenes, type FoldedFlatSceneTable } from './foldedFlatScenes';
@@ -211,7 +211,7 @@ export function spreadRequests(
  * changes and a write of its colours or an aux-line refetch keeps; the
  * snapshot, or the scene itself, for a reopened figure.
  */
-function spreadFold(figure: OristudioCpFoldedFigureEntry, scene: OristudioCpFoldedPaperScene): unknown {
+function spreadFold(figure: OristudioCpFoldedFigureEntry, scene: OristudioCpFoldedPaperScene): SpreadFold {
   // Handle 0 is a valid wasm slot index; only null/undefined means "not ready".
   if (figure.handle != null && figure.snapshot) return `${figure.handle} ${foldedPaperSceneKey(figure.snapshot)}`;
   return figure.snapshot ?? scene;

@@ -30,10 +30,13 @@ import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes'
 import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 import { prepareConnected, type ConnectedLease } from '../../layer-spread/prepareConnected';
 
+/** What a lease is held for: a value key, or an object compared by identity. Never nullish, so no figure's absent lease matches. */
+export type SpreadFold = string | object;
+
 export interface SpreadPreparationRequest {
   readonly id: string;
   /** The fold the scene is of, compared with `===`: the key the drawing side holds it by (`spreadFold`). */
-  readonly fold: unknown;
+  readonly fold: SpreadFold;
   readonly scene: OristudioCpFoldedPaperScene;
   /** 1 for the selected figure and the ones in view, 0 for the rest. */
   readonly priority: number;
@@ -49,7 +52,7 @@ const PREPARING: SpreadPreparationState = { status: 'preparing' };
 type Prepare = (scene: OristudioCpFoldedPaperScene, yUp: boolean, priority: number) => ConnectedLease;
 
 interface Held {
-  readonly fold: unknown;
+  readonly fold: SpreadFold;
   /** The fold's latest scene: what the figure is drawn from. */
   scene: OristudioCpFoldedPaperScene;
   priority: number;
@@ -99,7 +102,7 @@ export class FoldedSpreadPreparations {
    * the same fold has its solve at once: in the very render that brings the
    * scene, before `sync` is told of it.
    */
-  state(id: string, fold: unknown): SpreadPreparationState {
+  state(id: string, fold: SpreadFold): SpreadPreparationState {
     const held = this.held.get(id);
     return held?.fold === fold ? held.state : PREPARING;
   }
