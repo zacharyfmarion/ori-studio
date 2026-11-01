@@ -6,7 +6,7 @@ import {
   type CpSegment,
 } from './creasePatternSegmentation';
 import { escapeXml } from './xmlEscape';
-import { svgToPng } from './svgToPng';
+import { drawSvgPage, svgToPng } from './svgToPng';
 import { foldedFigureSvgBody, projectedFoldedFigureBounds } from './foldedFigureSvg';
 import {
   applyCpModelToFold,
@@ -1572,7 +1572,7 @@ export async function svgToPngCard(
     // which several platforms composite onto black.
     ctx.fillStyle = options.background;
     ctx.fillRect(0, 0, cardWidth, cardHeight);
-    ctx.drawImage(image, frame.x, frame.y, frame.width, frame.height);
+    drawSvgPage(ctx, image, svg, frame, { width: sourceWidth, height: sourceHeight });
 
     const pngBlob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((result) => {
