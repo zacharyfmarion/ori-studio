@@ -69,6 +69,10 @@ import {
 import { folded3dFrameHalfSide } from '../folded/folded3dFrame';
 import { folded3dStylePlan } from '../folded/folded3dStyle';
 import type { FoldedFlatAuxSegment } from '../folded/foldedFlatAux';
+import { foldedFigureSpreadReach } from '../folded/foldedFigureSpreadReach';
+import { foldedFigureSpreadPlacement } from '../folded/foldedFigureSpreadFrame';
+import type { SpreadGeometry } from '../renderer/programs/spreadProgram';
+import type { FoldedSpreadLayer } from '../renderer/types';
 
 /** Steps used to flatten quadratic/cubic path curves into polylines. */
 const CURVE_STEPS = 12;
@@ -624,7 +628,39 @@ export interface FoldedFigureLocalGeometry {
 export type FoldedFigureDrawing = Pick<
   OristudioCpFoldedFigureEntry,
   'renderSnapshot' | 'scene' | 'placement' | 'frameRadius' | 'displayStyle'
->;
+> &
+  /**
+   * Which figure and fold, when the drawing is a figure's: what its spread's
+   * reach is looked up by (`folded/foldedFigureSpreadReach.ts`). A drawing
+   * without them has the box of its flat picture.
+   */
+  Partial<Pick<OristudioCpFoldedFigureEntry, 'id' | 'snapshot'>>;
+
+/**
+ * A flat figure drawn with its layers spread, as `useFoldedFlatSpread` hands
+ * it to {@link cpFoldedToScene}: built in the figure's spread frame — Edit's
+ * paper map, then the figure's turn about `pivot` — and placed by the figure's
+ * scale about `pivot`, then its offset (`folded/foldedFigureSpreadFrame.ts`).
+ * It stands in for the figure's render snapshot, its aux overlay and its
+ * shadows.
+ */
+export type FoldedFigureSpreadPicture =
+  | {
+      /** Default spread: drawn by the renderer's spread pass, in the figure's band. */
+      kind: 'connected';
+      geometry: SpreadGeometry;
+      /** X-ray's see-through fills; null for paper. */
+      xray: { faceAlpha: number } | null;
+      pivot: Point;
+    }
+  | {
+      /** Affine and Depth: a painter-ordered scene, inked on the folded channel as a stored scene is. */
+      kind: 'scene';
+      scene: PaperScene;
+      /** Every face's fill alpha: 1 for paper, X-ray's below it. */
+      faceAlpha: number;
+      pivot: Point;
+    };
 
 /** A figure's aux creases as the folded channel strokes them. */
 export interface FoldedFigureAuxStrokes {
@@ -1049,8 +1085,14 @@ export function foldedFigurePicture(
  * At rotation 0 and scale 1 the pivot terms cancel in {@link placementAffine},
  * so switching a figure from one to the other does not move it — only what its
  * rotation and scale turn about.
+ *
+ * A spread never moves it: a spread figure turns and scales about its flat
+ * picture's centre, and its box grows about that same point
+ * (`folded/foldedFigureSpreadFrame.ts`).
  */
-function foldedFigurePivot(figure: FoldedFigureDrawing): Point {
+export function foldedFigurePivot(
+  figure: Pick<FoldedFigureDrawing, 'renderSnapshot' | 'scene' | 'frameRadius'>
+): Point {
   const frameRadius = figure.frameRadius ?? null;
   if (frameRadius !== null && frameRadius > 0) return FRAMED_PIVOT;
   return foldedFigureLocalBounds(figure)?.center ?? FRAMED_PIVOT;
@@ -1066,7 +1108,7 @@ function foldedFigurePivot(figure: FoldedFigureDrawing): Point {
  * geometry cache, which is where they have always come from.
  */
 function foldedFigureLocalBounds(
-  figure: FoldedFigureDrawing
+  figure: Pick<FoldedFigureDrawing, 'renderSnapshot' | 'scene'>
 ): { bounds: Aabb; center: Point } | null {
   const scene = figure.scene;
   if (scene) {
@@ -1204,8 +1246,17 @@ export function cpFoldedToScene(
    * two functions the SVG painter uses. Defaults to the app default, so a test
    * or a surface with no style still draws a scene.
    */
-  figurePaperStyle?: (figure: OristudioCpFoldedFigureEntry) => PaperStyle
+  figurePaperStyle?: (figure: OristudioCpFoldedFigureEntry) => PaperStyle,
+  /**
+   * Per-figure spread picture, or null for a figure drawn as its render
+   * snapshot (`useFoldedFlatSpread`). A figure with one is drawn from it in
+   * its own band, at its opacity, in place of its snapshot fills, strokes,
+   * shadows and aux overlay; until its spread is ready, or if it cannot be,
+   * the reader answers null and the figure draws its snapshot as it always has.
+   */
+  figureSpread?: (figure: OristudioCpFoldedFigureEntry) => FoldedFigureSpreadPicture | null
 ): FoldedGeometry {
+  const spreads: FoldedSpreadLayer[] = [];
   const fillPos: number[] = [];
   const fillColor: number[] = [];
   const strokeA: number[] = [];
@@ -1232,21 +1283,40 @@ export function cpFoldedToScene(
   let bandIndex = -1;
 
   for (const figure of figures) {
-    const local = foldedFigurePicture(
-      figure,
-      figurePaperStyle?.(figure) ?? DEFAULT_PAPER_STYLE
-    );
-    if (!local) continue;
+    const spread = figureSpread?.(figure) ?? null;
+    const style = figurePaperStyle?.(figure) ?? DEFAULT_PAPER_STYLE;
+    const local =
+      spread?.kind === 'connected'
+        ? null
+        : spread
+          ? foldedSceneLocalGeometry(spread.scene, style, {
+              policy: PAPER_STYLE_POLICIES['folded-flat'],
+              faceAlpha: spread.faceAlpha,
+            })
+          : foldedFigurePicture(figure, style);
+    if (!local && spread?.kind !== 'connected') continue;
     bandIndex += 1;
     // Later figures are nearer, so their band sits closer to 1.
     const bandBase = bandIndex / bands;
     const bandSpan = 1 / bands;
     const opacity = figureOpacity?.(figure) ?? 1;
+    // A spread picture is built turned; only its scale and offset remain.
+    const placed = spread ? spreadPictureAffine(figure.placement, spread.pivot) : null;
+    if (spread?.kind === 'connected') {
+      spreads.push({
+        key: figure.id,
+        geometry: spread.geometry,
+        layout: { band: { base: bandBase, span: bandSpan }, opacity, xray: spread.xray },
+        transform: { scale: placed!.a, x: placed!.tx, y: placed!.ty },
+      });
+      continue;
+    }
+    if (!local) continue;
     // A scene's lines already carry their role's pen, in pt, because the style
     // is what inked them; only the kernel's stream needs the figure's edge pen
     // multiplied in on the way past.
-    const strokeWidth = figure.scene ? 1 : (figureStrokeWidth?.(figure) ?? 1);
-    const { a, b, tx, ty } = placementAffine(figure.placement, foldedFigurePivot(figure));
+    const strokeWidth = figure.scene || spread ? 1 : (figureStrokeWidth?.(figure) ?? 1);
+    const { a, b, tx, ty } = placed ?? placementAffine(figure.placement, foldedFigurePivot(figure));
 
     for (let i = 0; i < local.fillPos.length; i += 2) {
       const x = local.fillPos[i];
@@ -1316,7 +1386,8 @@ export function cpFoldedToScene(
       );
     }
 
-    const aux = figureAux?.(figure);
+    // A spread picture carries its aux creases as lines of its own faces.
+    const aux = spread ? null : figureAux?.(figure);
     if (!aux || aux.segments.length === 0) continue;
     const [r, g, bl, alpha] = aux.color;
     const auxDepth = bandBase + local.auxDepth * bandSpan;
@@ -1347,6 +1418,8 @@ export function cpFoldedToScene(
   };
 
   return {
+    // Only when a figure is spread: a channel without one is what it always was.
+    ...(spreads.length > 0 ? { spreads } : {}),
     fills: {
       position: new Float32Array(fillPos),
       color: new Float32Array(fillColor),
@@ -1372,6 +1445,19 @@ export function cpFoldedToScene(
     },
     shadows,
   };
+}
+
+/**
+ * The affine a spread picture is drawn through, in {@link placementAffine}'s
+ * flat form: the figure's scale about the pivot it was built about, then its
+ * offset. Its turn is in the picture already (`foldedFigureSpreadFrame.ts`).
+ */
+function spreadPictureAffine(
+  placement: FoldedFigurePlacement,
+  pivot: Point
+): { a: number; b: number; tx: number; ty: number } {
+  const { scale, x, y } = foldedFigureSpreadPlacement(placement, pivot);
+  return { a: scale, b: 0, tx: x, ty: y };
 }
 
 /**
@@ -1479,14 +1565,20 @@ export function foldedFigureBox(figure: FoldedFigureDrawing): {
   }
 
   const { minX, minY, maxX, maxY } = local.bounds;
+  // A spread figure's box takes its spread picture in once it is drawn, grown
+  // about the same centre, so the pivot — and so every turn, resize and drag
+  // the overlay writes back — is the flat figure's.
+  const reach = foldedFigureSpreadReach(figure);
+  const halfWidth = Math.max((maxX - minX) / 2, reach?.halfWidth ?? 0);
+  const halfHeight = Math.max((maxY - minY) / 2, reach?.halfHeight ?? 0);
   return {
     // The local centre is the placement's pivot, so it only ever translates.
     center: {
       x: local.center.x + figure.placement.offset.x,
       y: local.center.y + figure.placement.offset.y,
     },
-    width: (maxX - minX) * figure.placement.scale,
-    height: (maxY - minY) * figure.placement.scale,
+    width: 2 * halfWidth * figure.placement.scale,
+    height: 2 * halfHeight * figure.placement.scale,
     rotation: figure.placement.rotation,
   };
 }

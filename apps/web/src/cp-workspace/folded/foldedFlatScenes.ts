@@ -6,10 +6,11 @@
  * `implementation-plans/unified-paper-style-and-export.md`): every face's
  * folded outline, every subface's stack and the document's aux lines carried
  * through the fold, in the render snapshot's coordinates. It is fetched only
- * while a figure's effective `auxCreases.visible` is on — it is a face-and-
- * stack description of the whole figure, not a ~2 KB picture — and it is never
- * persisted: the `.osf` carries the picture, and a reopened figure has no
- * handle to ask until it is rehydrated.
+ * while a figure's effective `auxCreases.visible` is on, or its layers are
+ * spread, which draws the figure from it (`useFoldedFlatSpread`) — it is a
+ * face-and-stack description of the whole figure, not a ~2 KB picture — and
+ * this table is never persisted: the `.osf` carries the picture, and a
+ * reopened figure has no handle to ask until it is rehydrated.
  *
  * Keyed by the wasm handle like the 3D render models (`folded3dRenderModels.ts`)
  * and released with it, so a figure that scrolls off the undo stack drops its
