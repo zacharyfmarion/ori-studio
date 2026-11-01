@@ -1,8 +1,8 @@
-import earcut from 'earcut';
 import type { Point as Pair, SpreadInput, Triangle } from '@oristudio/layer-spread';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import { foldedDisplayLayers, namedFaces } from './foldedDisplayLayers';
+import { triangulateSpreadFace } from './triangulateSpreadFace';
 
 export interface ConnectedSpreadSource {
   input: SpreadInput;
@@ -63,11 +63,8 @@ export function connectedSpreadSource(scene: OristudioCpFoldedPaperScene, yUp = 
   const triangles: Triangle[] = [],
     triangleFaces: number[] = [];
   faces.forEach((ids, face) => {
-    const flat = ids.flatMap((v) => xy[v]!);
-    const corners = earcut(flat);
-    if (corners.length < 3) throw new Error('Layer spread could not triangulate a face');
-    for (let i = 0; i < corners.length; i += 3) {
-      triangles.push([ids[corners[i]!]!, ids[corners[i + 1]!]!, ids[corners[i + 2]!]!]);
+    for (const triangle of triangulateSpreadFace(ids, xy)) {
+      triangles.push(triangle);
       triangleFaces.push(face);
     }
   });

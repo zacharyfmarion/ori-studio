@@ -259,7 +259,10 @@ pub fn solve(input: &Input, p: &Prepared) -> Result<Solution, SpreadError> {
             .min((SPAN - 0.001) / lo.abs().max(hi.abs()).max(1e-12))
             .min(100.)
     };
-    let heights: Vec<_> = raw.iter().map(|v| f64::from((v * scale) as f32)).collect();
+    // Keep the solve's precision through validation and projection. Rounding
+    // heights individually to Float32 can amplify slopes on narrow triangles;
+    // only the renderer's final position buffers need that conversion.
+    let heights: Vec<_> = raw.iter().map(|v| v * scale).collect();
     let (warp, slope) = geometric_limits(input, p, &faces, &heights);
     if warp > 1.02 * WARP || slope > 0.351 {
         return Err(SpreadError::Solve(format!(
