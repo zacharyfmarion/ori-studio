@@ -6695,7 +6695,6 @@
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
-    "panels:diagram.spread.preparing": "2c836c15a640",
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
@@ -6704,7 +6703,14 @@
     "panels:diagram.spread.padHint": "f127f084029a",
     "panels:diagram.pose.preparing": "2067de2d3d51",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "panels:cpProperties.folded.changeSpread": "38eef8ddcf77",
+    "panels:cpProperties.folded.shadowSpread": "8b017639bf32",
+    "panels:cpProperties.folded.spread": "b11fb1f593a8",
+    "panels:cpProperties.folded.spreadNeedsLook": "8f35023b30fc",
+    "panels:cpProperties.folded.spreadNewer": "5745be9ad4c4",
+    "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
+    "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13402,7 +13408,6 @@
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
-    "panels:diagram.spread.preparing": "2c836c15a640",
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
@@ -13411,7 +13416,14 @@
     "panels:diagram.spread.padHint": "f127f084029a",
     "panels:diagram.pose.preparing": "2067de2d3d51",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "panels:cpProperties.folded.changeSpread": "38eef8ddcf77",
+    "panels:cpProperties.folded.shadowSpread": "8b017639bf32",
+    "panels:cpProperties.folded.spread": "b11fb1f593a8",
+    "panels:cpProperties.folded.spreadNeedsLook": "8f35023b30fc",
+    "panels:cpProperties.folded.spreadNewer": "5745be9ad4c4",
+    "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
+    "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20111,7 +20123,6 @@
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
-    "panels:diagram.spread.preparing": "2c836c15a640",
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
@@ -20120,7 +20131,14 @@
     "panels:diagram.spread.padHint": "f127f084029a",
     "panels:diagram.pose.preparing": "2067de2d3d51",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "panels:cpProperties.folded.changeSpread": "38eef8ddcf77",
+    "panels:cpProperties.folded.shadowSpread": "8b017639bf32",
+    "panels:cpProperties.folded.spread": "b11fb1f593a8",
+    "panels:cpProperties.folded.spreadNeedsLook": "8f35023b30fc",
+    "panels:cpProperties.folded.spreadNewer": "5745be9ad4c4",
+    "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
+    "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26440,7 +26458,6 @@
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
-    "panels:diagram.spread.preparing": "2c836c15a640",
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
@@ -26449,7 +26466,14 @@
     "panels:diagram.spread.padHint": "f127f084029a",
     "panels:diagram.pose.preparing": "2067de2d3d51",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "panels:cpProperties.folded.changeSpread": "38eef8ddcf77",
+    "panels:cpProperties.folded.shadowSpread": "8b017639bf32",
+    "panels:cpProperties.folded.spread": "b11fb1f593a8",
+    "panels:cpProperties.folded.spreadNeedsLook": "8f35023b30fc",
+    "panels:cpProperties.folded.spreadNewer": "5745be9ad4c4",
+    "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
+    "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32769,7 +32793,6 @@
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
-    "panels:diagram.spread.preparing": "2c836c15a640",
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
@@ -32778,7 +32801,14 @@
     "panels:diagram.spread.padHint": "f127f084029a",
     "panels:diagram.pose.preparing": "2067de2d3d51",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "panels:cpProperties.folded.changeSpread": "38eef8ddcf77",
+    "panels:cpProperties.folded.shadowSpread": "8b017639bf32",
+    "panels:cpProperties.folded.spread": "b11fb1f593a8",
+    "panels:cpProperties.folded.spreadNeedsLook": "8f35023b30fc",
+    "panels:cpProperties.folded.spreadNewer": "5745be9ad4c4",
+    "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
+    "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39476,7 +39506,6 @@
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
-    "panels:diagram.spread.preparing": "2c836c15a640",
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
@@ -39485,7 +39514,14 @@
     "panels:diagram.spread.padHint": "f127f084029a",
     "panels:diagram.pose.preparing": "2067de2d3d51",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "panels:cpProperties.folded.changeSpread": "38eef8ddcf77",
+    "panels:cpProperties.folded.shadowSpread": "8b017639bf32",
+    "panels:cpProperties.folded.spread": "b11fb1f593a8",
+    "panels:cpProperties.folded.spreadNeedsLook": "8f35023b30fc",
+    "panels:cpProperties.folded.spreadNewer": "5745be9ad4c4",
+    "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
+    "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46183,7 +46219,6 @@
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
-    "panels:diagram.spread.preparing": "2c836c15a640",
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
@@ -46192,7 +46227,14 @@
     "panels:diagram.spread.padHint": "f127f084029a",
     "panels:diagram.pose.preparing": "2067de2d3d51",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "panels:cpProperties.folded.changeSpread": "38eef8ddcf77",
+    "panels:cpProperties.folded.shadowSpread": "8b017639bf32",
+    "panels:cpProperties.folded.spread": "b11fb1f593a8",
+    "panels:cpProperties.folded.spreadNeedsLook": "8f35023b30fc",
+    "panels:cpProperties.folded.spreadNewer": "5745be9ad4c4",
+    "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
+    "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52512,7 +52554,6 @@
     "panels:diagram.spread.diagram": "913c5e96ccce",
     "panels:diagram.spread.drag": "c41156b14703",
     "panels:diagram.spread.perspective": "6274ea623c06",
-    "panels:diagram.spread.preparing": "2c836c15a640",
     "panels:diagram.spread.presentation": "5d5ee1577500",
     "panels:diagram.spread.reveal": "5182a3bbf355",
     "panels:diagram.spread.revealHint": "de2d7128211a",
@@ -52521,6 +52562,13 @@
     "panels:diagram.spread.padHint": "f127f084029a",
     "panels:diagram.pose.preparing": "2067de2d3d51",
     "dialogs:layerOrder.zoom.foldedRotateLeft": "1e8977c24ee3",
-    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887"
+    "dialogs:layerOrder.zoom.foldedRotateRight": "d2f132124887",
+    "panels:cpProperties.folded.changeSpread": "38eef8ddcf77",
+    "panels:cpProperties.folded.shadowSpread": "8b017639bf32",
+    "panels:cpProperties.folded.spread": "b11fb1f593a8",
+    "panels:cpProperties.folded.spreadNeedsLook": "8f35023b30fc",
+    "panels:cpProperties.folded.spreadNewer": "5745be9ad4c4",
+    "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
+    "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76"
   }
 }

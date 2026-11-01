@@ -3,7 +3,15 @@ import type { TFunction } from 'i18next';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
 import { DEFAULT_PAPER_STYLE, applyCreaseStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
-import type { PropertyField, PropertySheet, StepperField } from '../../lib/propertyDescriptors';
+import type {
+  PropertyField,
+  PropertySheet,
+  SegmentedField,
+  SliderField,
+  StepperField,
+  ToggleField,
+} from '../../lib/propertyDescriptors';
+import type { LayerSpreadOptions } from './foldedLayerSpread';
 import { FIGURE } from '../canvasObjects/canvasObjectKinds.fixtures';
 import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCamera';
 import { buildFoldedFigureProperties, type FoldedFigurePropertyDeps } from './foldedFigureProperties';
@@ -11,6 +19,12 @@ import { noteSolutionFrontier, resetSolutionFrontiers } from './foldedSolutionFr
 import { foldedFigureLayerOrder } from '../../lib/layerOrder/foldedFigureLayerOrder';
 import { twoConstraintRecord } from '../../lib/layerOrder/layerOrderRecord.fixtures';
 import { dropFoldedSolutionCursor } from './foldedSolutionCursor';
+import {
+  DEFAULT_AFFINE_SPREAD,
+  DEFAULT_CONNECTED_SPREAD,
+  DEFAULT_DEPTH_SPREAD,
+  DEFAULT_SPREAD_STARTS,
+} from './layerSpreadSettings';
 import { landedAt, scriptedSolutionCursor, seatFoldedSolutionCursor } from './foldedSolutionCursor.fixtures';
 
 /** The host engine's door: a constrained figure's cursor is the test's to script (H6). */
@@ -102,6 +116,11 @@ function deps(
     openLayerOrder: vi.fn(),
     reviewLayerOrder: vi.fn(),
     dismissDetachedLayerOrder: vi.fn(),
+    locale: 'en',
+    spreadStatus: null,
+    spreadStarts: () => DEFAULT_SPREAD_STARTS,
+    setSpread: vi.fn(),
+    writeSpread: vi.fn(),
     ...overrides,
   };
 }
@@ -146,18 +165,20 @@ describe('buildFoldedFigureProperties', () => {
     expect(sheetFor(FLAT, deps({ stale: true })).subtitle).toBe('Stale');
   });
 
-  it('lays a flat figure out as the Step pane: Render as, Pose, Appearance, Placement', () => {
+  it('lays a flat figure out as the Step pane: Render as, Pose, Spread, Appearance, Placement', () => {
     const sheet = sheetFor(FLAT);
-    expect(sheet.sections.map((s) => s.id)).toEqual(['render', 'pose', 'appearance', 'placement']);
+    expect(sheet.sections.map((s) => s.id)).toEqual(['render', 'pose', 'spread', 'appearance', 'placement']);
     // Render as heads the pane untitled, over a control across it.
     expect(sheet.sections[0]?.title).toBeUndefined();
     expect(field(sheet, 'displayStyle')).toMatchObject({ kind: 'segmented', layout: 'stacked' });
     expect(sheet.sections[1]).toMatchObject({ title: 'Pose', spaced: true });
+    expect(sheet.sections[2]).toMatchObject({ title: 'Spread' });
     expect(visibleIds(sheet)).toEqual([
       'displayStyle',
       'rotation',
       'side',
       'layerOrder',
+      'spreadLayers',
       'frontColor',
       'backColor',
       'lineColor',
@@ -580,7 +601,7 @@ describe('buildFoldedFigureProperties', () => {
 
   it('disables side with its reason on a 3D figure, offers its light, and adds the camera', () => {
     const sheet = sheetFor(SPATIAL);
-    expect(sheet.sections.map((s) => s.id)).toEqual(['render', 'pose', 'camera', 'appearance', 'placement']);
+    expect(sheet.sections.map((s) => s.id)).toEqual(['render', 'pose', 'camera', 'spread', 'appearance', 'placement']);
     // Its pose is its camera: its turn on the page stays with where it sits.
     expect(sheet.sections.find((s) => s.id === 'pose')?.fields.map((f) => f.id)).toEqual(['side', 'layerOrder']);
     expect(sheet.sections.find((s) => s.id === 'placement')?.fields.map((f) => f.id)).toEqual(['scale', 'rotation']);
@@ -929,5 +950,218 @@ describe('buildFoldedFigureProperties', () => {
     ];
     expect(patch.rotation).toBeCloseTo(-Math.PI / 4);
     expect(label).toBe('Rotate folded form');
+  });
+});
+
+describe('the Spread section', () => {
+  const record = (spread: LayerSpreadOptions = DEFAULT_CONNECTED_SPREAD) => ({ kind: 'record' as const, spread });
+  const spreadOn = (spread?: LayerSpreadOptions, figure = FLAT): OristudioCpFoldedFigureEntry => ({
+    ...figure,
+    spread: record(spread),
+  });
+  const spreadIds = (sheet: PropertySheet) => sheet.sections.find((s) => s.id === 'spread')?.fields.map((f) => f.id);
+  function toggle(sheet: PropertySheet): ToggleField {
+    const found = field(sheet, 'spreadLayers');
+    if (found.kind !== 'toggle') throw new Error('toggle');
+    return found;
+  }
+  function slider(sheet: PropertySheet, id: string): SliderField {
+    const found = field(sheet, id);
+    if (found.kind !== 'slider') throw new Error('slider');
+    return found;
+  }
+  function segmented(sheet: PropertySheet, id: string): SegmentedField {
+    const found = field(sheet, id);
+    if (found.kind !== 'segmented') throw new Error('segmented');
+    return found;
+  }
+
+  it('offers Spread layers alone while off, and turns it on from the most recent spread', () => {
+    const wide = { ...DEFAULT_CONNECTED_SPREAD, amount: 1.2 };
+    const d = deps({ spreadStarts: () => ({ ...DEFAULT_SPREAD_STARTS, any: wide }) });
+    const sheet = sheetFor(FLAT, d);
+    expect(spreadIds(sheet)).toEqual(['spreadLayers']);
+    expect(toggle(sheet)).toMatchObject({ label: 'Spread layers', support: 'supported', value: false });
+    expect(toggle(sheet).note).toBeUndefined();
+    toggle(sheet).commit(true);
+    expect(d.setSpread).toHaveBeenCalledWith(record(wide));
+    toggle(sheetFor(spreadOn(), d)).commit(false);
+    expect(d.setSpread).toHaveBeenLastCalledWith(null);
+  });
+
+  it('lays a Default spread out as the spread rows do: kind, Amount with its reset, and the reveal pad', () => {
+    const d = deps();
+    const sheet = sheetFor(spreadOn(), d);
+    expect(spreadIds(sheet)).toEqual(['spreadLayers', 'spreadKind', 'spreadAmount', 'spreadReveal']);
+    expect(field(sheet, 'spreadKind')).toMatchObject({
+      label: 'Spread by',
+      value: 'connected',
+      options: [
+        { id: 'connected', label: 'Default' },
+        { id: 'affine', label: 'Affine' },
+        { id: 'depth', label: 'Depth' },
+      ],
+    });
+    const amount = slider(sheet, 'spreadAmount');
+    expect(amount).toMatchObject({ label: 'Amount', ariaLabel: 'Spread amount', value: 25, min: 0, max: 100, step: 0.5 });
+    expect(amount.valueText?.(25)).toBe('25%');
+    // A drag is one gesture under the pane's own owner, one entry.
+    expect(amount.begin()).toBe(true);
+    expect(d.begin).toHaveBeenCalledWith('spread-amount');
+    amount.update(30);
+    expect(d.writeSpread).toHaveBeenCalledWith({ verb: 'spread-amount', amount: 0.6, kind: 'connected' });
+    amount.end();
+    expect(d.end).toHaveBeenCalledWith('Change layer spread');
+    amount.reset?.();
+    expect(d.setSpread).toHaveBeenLastCalledWith(record(DEFAULT_CONNECTED_SPREAD));
+
+    const reveal = field(sheet, 'spreadReveal');
+    if (reveal.kind !== 'reveal') throw new Error('reveal');
+    expect(reveal).toMatchObject({ label: 'Layer reveal', value: [0.8, 0.6], support: 'supported' });
+    reveal.begin();
+    expect(d.begin).toHaveBeenLastCalledWith('spread-reveal');
+    reveal.update([1, 0]);
+    expect(d.writeSpread).toHaveBeenLastCalledWith({ verb: 'spread-reveal', reveal: [1, 0] });
+    reveal.reset?.();
+    expect(d.setSpread).toHaveBeenLastCalledWith(record(DEFAULT_CONNECTED_SPREAD));
+  });
+
+  it('switches kind from what the starts say, and lays Depth out with its compass', () => {
+    const d = deps();
+    segmented(sheetFor(spreadOn(), d), 'spreadKind').commit('depth');
+    expect(d.setSpread).toHaveBeenCalledWith(record(DEFAULT_DEPTH_SPREAD));
+
+    const sheet = sheetFor(spreadOn(DEFAULT_DEPTH_SPREAD), d);
+    expect(spreadIds(sheet)).toEqual(['spreadLayers', 'spreadKind', 'spreadAmount', 'spreadDirection']);
+    // No reset on a depth amount, as the spread rows have it.
+    expect(slider(sheet, 'spreadAmount')).toMatchObject({ value: 2.5, max: 20 });
+    expect(slider(sheet, 'spreadAmount').reset).toBeUndefined();
+    expect(slider(sheet, 'spreadAmount').valueText?.(2.5)).toBe('2.5% of the model');
+    const direction = field(sheet, 'spreadDirection');
+    if (direction.kind !== 'direction') throw new Error('direction');
+    expect(direction).toMatchObject({ label: 'Direction', groupLabel: 'Spread direction', value: 'down' });
+    expect(direction.options).toHaveLength(8);
+    expect(direction.options[0]).toEqual({ id: 'up-left', label: 'Deeper layers up and left' });
+    direction.commit('up');
+    expect(d.setSpread).toHaveBeenLastCalledWith(record({ ...DEFAULT_DEPTH_SPREAD, toward: 'up' }));
+  });
+
+  it('lays Affine out with Keep still, Skew and Axis', () => {
+    const d = deps();
+    const sheet = sheetFor(spreadOn(DEFAULT_AFFINE_SPREAD), d);
+    expect(spreadIds(sheet)).toEqual(['spreadLayers', 'spreadKind', 'spreadAmount', 'spreadKeep', 'spreadSkew', 'spreadAxis']);
+    expect(field(sheet, 'spreadKeep')).toMatchObject({ label: 'Keep still', value: 'top' });
+    expect(field(sheet, 'spreadKeep').help).toContain('The layer that does not move');
+    segmented(sheet, 'spreadKeep').commit('bottom');
+    expect(d.setSpread).toHaveBeenLastCalledWith(record({ ...DEFAULT_AFFINE_SPREAD, keep: 'bottom' }));
+    expect(slider(sheet, 'spreadSkew')).toMatchObject({ ariaLabel: 'Spread skew', value: 100 });
+    slider(sheet, 'spreadSkew').begin();
+    expect(d.begin).toHaveBeenLastCalledWith('spread-skew');
+    slider(sheet, 'spreadSkew').update(40);
+    expect(d.writeSpread).toHaveBeenLastCalledWith({ verb: 'spread-skew', skew: 0.4 });
+    expect(slider(sheet, 'spreadAxis')).toMatchObject({ ariaLabel: 'Spread axis', value: 81, min: 0, max: 179 });
+    expect(slider(sheet, 'spreadAxis').valueText?.(81)).toBe('Axis at 81° on the sheet');
+  });
+
+  it.each<[string, OristudioCpFoldedFigureEntry, string]>([
+    ['a 3D figure', SPATIAL, 'Only a flat folded picture has layers to spread'],
+    [
+      'a fold with no layer order',
+      { ...FLAT, snapshot: { ...FLAT.snapshot!, discovered_fold_cases: 0 } },
+      'This fold has no layer order, so it has no layers to spread',
+    ],
+    ['the Wireframe look', { ...FLAT, displayStyle: 'Wire2' }, 'Only the Paper and X-ray looks can spread their layers'],
+    ['a figure reopened without its scene', { ...FLAT, handle: null }, 'Refold to show the spread'],
+  ])('holds every row on %s, the setting kept, and says why under Spread layers', (_case, figure, reason) => {
+    for (const shown of [figure, spreadOn(DEFAULT_CONNECTED_SPREAD, figure)]) {
+      const sheet = sheetFor(shown);
+      expect(toggle(sheet)).toMatchObject({
+        support: 'unsupported',
+        reason,
+        note: { kind: 'reason', text: reason },
+        value: shown.spread != null,
+      });
+      for (const f of sheet.sections.find((s) => s.id === 'spread')!.fields) {
+        expect(f.support, f.id).toBe('unsupported');
+        expect(f.reason, f.id).toBe(reason);
+      }
+    }
+    // Rows stay in place while held: the spread's own rows are all there.
+    expect(spreadIds(sheetFor(spreadOn(DEFAULT_CONNECTED_SPREAD, figure)))).toEqual([
+      'spreadLayers',
+      'spreadKind',
+      'spreadAmount',
+      'spreadReveal',
+    ]);
+  });
+
+  it('spreads under X-ray, and a reopened figure that kept its scene', () => {
+    const square = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ];
+    const scene = {
+      schema_version: 3,
+      flipped: false,
+      sheet: 1,
+      faces: [{ outline: square, points: [0, 1, 2], front_up: true, edges: [] }],
+      subfaces: [{ polygon: square, faces_top_to_bottom: [0] }],
+      aux_lines: [],
+      sheet_points: square,
+    };
+    for (const figure of [
+      { ...spreadOn(), displayStyle: 'Transparent3' as const },
+      { ...spreadOn(), handle: null, spreadScene: scene },
+    ]) {
+      const sheet = sheetFor(figure);
+      for (const f of sheet.sections.find((s) => s.id === 'spread')!.fields) expect(f.support, f.id).toBe('supported');
+      expect(toggle(sheet).note).toBeUndefined();
+    }
+  });
+
+  it('keeps the switch for a spread the canvas couldn’t draw, so it can be turned off, and holds the rest', () => {
+    const d = deps({ spreadStatus: 'unavailable' });
+    const sheet = sheetFor(spreadOn(), d);
+    const reason = 'These layers couldn’t be spread';
+    expect(toggle(sheet)).toMatchObject({ support: 'supported', value: true, note: { kind: 'reason', text: reason } });
+    for (const id of ['spreadKind', 'spreadAmount', 'spreadReveal']) {
+      expect(field(sheet, id)).toMatchObject({ support: 'unsupported', reason });
+    }
+    toggle(sheet).commit(false);
+    expect(d.setSpread).toHaveBeenCalledWith(null);
+    // Preparing says nothing: the figure draws flat until its solve lands.
+    expect(toggle(sheetFor(spreadOn(), deps({ spreadStatus: 'preparing' }))).note).toBeUndefined();
+  });
+
+  it('holds a newer build’s spread, on, with why', () => {
+    const newer = { ...FLAT, spread: { kind: 'newer' as const, saved: { spread: { kind: 'radial' } } } };
+    const sheet = sheetFor(newer);
+    expect(spreadIds(sheet)).toEqual(['spreadLayers']);
+    expect(toggle(sheet)).toMatchObject({
+      support: 'unsupported',
+      value: true,
+      note: { text: 'Made with a newer Ori Studio: its layer spread can’t be changed here.' },
+    });
+  });
+
+  it('holds Shadow while the layers are spread, and only then', () => {
+    const shadow = 'Spread layers draw without shadows';
+    expect(field(sheetFor(spreadOn()), 'shadows')).toMatchObject({
+      support: 'unsupported',
+      reason: shadow,
+      note: { kind: 'reason', text: shadow },
+    });
+    // While a solve runs too: the spread is on its way, and Shadow must not flicker.
+    expect(field(sheetFor(spreadOn(), deps({ spreadStatus: 'preparing' })), 'shadows').support).toBe('unsupported');
+    for (const [figure, status] of [
+      [FLAT, null],
+      [{ ...spreadOn(), displayStyle: 'Wire2' as const }, null],
+      [spreadOn(), 'unavailable' as const],
+    ] as const) {
+      const shadows = field(sheetFor(figure, deps({ spreadStatus: status })), 'shadows');
+      expect(shadows.support).toBe('supported');
+      expect(shadows).not.toHaveProperty('note');
+    }
   });
 });

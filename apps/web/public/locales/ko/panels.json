@@ -222,6 +222,7 @@
     "folded": {
       "appearance": "모양",
       "camera": "카메라",
+      "changeSpread": "층 벌림 변경",
       "changeView": "접힌 모델 보기 변경",
       "chosenOrder": "선택한 순서",
       "chosenOrderAttention": "선택한 겹침 순서를 확인해야 합니다",
@@ -247,6 +248,12 @@
       "refoldToChange": "이 모델의 모양을 바꾸려면 다시 접으세요",
       "rotation": "회전",
       "scale": "크기",
+      "shadowSpread": "층을 벌린 그림에는 그림자가 그려지지 않습니다",
+      "spread": "층 벌림",
+      "spreadNeedsLook": "종이와 투시 보기만 층을 벌릴 수 있습니다",
+      "spreadNewer": "더 새로운 Ori Studio로 만들어졌습니다. 여기서는 층 벌림을 바꿀 수 없습니다.",
+      "spreadRefold": "벌림을 보려면 다시 접으세요",
+      "spreadUnavailable": "이 층들을 벌릴 수 없습니다",
       "yaw": "회전 각도",
       "zoom": "확대"
     },

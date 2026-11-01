@@ -23,6 +23,9 @@ import { getFolded3dOrbit, subscribeFolded3dOrbit } from './folded3dRuntime';
 import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCamera';
 import { foldedFigureGesture } from './foldedFigureGesture';
 import { buildFoldedFigureProperties, type FoldedFigurePropertyDeps } from './foldedFigureProperties';
+import type { FoldedFigureSpread } from './foldedFigureSpread';
+import { foldedFigureSpreadStarts } from './foldedFigureSpreadStarts';
+import { useFoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import { isFoldedFigureStale } from './foldedFigureStaleness';
 import { foldedSolutionCursorVersion, subscribeFoldedSolutionCursor } from './foldedSolutionCursor';
 import {
@@ -33,10 +36,13 @@ import {
   setFolded3dCamera,
   setFoldedFigureDisplayStyle,
   setFoldedFigurePlacementAsEntry,
+  setFoldedFigureSpreadAsEntry,
   showAnotherFoldedSolution,
   showPreviousFoldedSolution,
   updateFoldedFigureModelAsEntry,
+  writeFoldedFigureSpreadEdit,
 } from './foldedFigureVerbs';
+import type { LayerSpreadEdit } from './layerSpreadSettings';
 import { openFoldedFigureLayerOrder } from './openFoldedFigureLayerOrder';
 
 /**
@@ -54,7 +60,7 @@ import { openFoldedFigureLayerOrder } from './openFoldedFigureLayerOrder';
  * stored camera otherwise — the same rule `useFoldedFigures` applies.
  */
 export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): PropertySheet {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const document = useWorkspaceStore((state) => state.oristudioCpDocument?.document);
   const figure = target.figure;
   const id = target.id;
@@ -126,6 +132,29 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
     },
     [id]
   );
+  // The figure's layer spread: discrete edits one entry each, a drag's moves
+  // inside the pane's open gesture, and where it stands on the canvas, which
+  // the drawing side writes and this only reads.
+  const spreadStatus = useFoldedFigureSpreadStatus(id);
+  const setSpread = useCallback(
+    (spread: FoldedFigureSpread | null) => {
+      void setFoldedFigureSpreadAsEntry(id, spread, t);
+    },
+    [id, t]
+  );
+  const writeSpread = useCallback(
+    (edit: LayerSpreadEdit) => {
+      // Aborted underneath (an undo from the menu bar): a write now would land
+      // a change no entry covers. The next move begins a fresh gesture.
+      if (!gesture.isOpen()) return;
+      writeFoldedFigureSpreadEdit(id, edit);
+    },
+    [gesture, id]
+  );
+  const spreadStarts = useCallback(
+    () => foldedFigureSpreadStarts(useWorkspaceStore.getState().oristudioCpFoldedFigures, id),
+    [id]
+  );
   // The figure's verbs, as the floating toolbar runs them: each one entry
   // under the toolbar's own label, through the same React-free functions.
   const verbs = useMemo(
@@ -159,6 +188,7 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
   const deps = useMemo<FoldedFigurePropertyDeps>(
     () => ({
       t,
+      locale: i18n.language,
       stale,
       held: gesture.held,
       begin: gesture.begin,
@@ -173,11 +203,16 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       setCamera,
       liveCamera,
       setPlacement,
+      spreadStatus,
+      spreadStarts,
+      setSpread,
+      writeSpread,
       ...verbs,
     }),
     [
       verbs,
       t,
+      i18n.language,
       stale,
       gesture.held,
       gesture.begin,
@@ -192,6 +227,10 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       setCamera,
       liveCamera,
       setPlacement,
+      spreadStatus,
+      spreadStarts,
+      setSpread,
+      writeSpread,
     ]
   );
   return useMemo(

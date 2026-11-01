@@ -37,7 +37,7 @@ import type {
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import { FOLDED_FIGURE_SPREADS_KEY } from '../../cp-workspace/folded/foldedFigureSpreads';
 import { foldedFigureSpreadOptions, withoutSavedSpreadScene } from '../../cp-workspace/folded/foldedFigureSpread';
-import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_CONNECTED_SPREAD, DEFAULT_SPREAD_STARTS } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { InlineSimulation } from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import {
   inlineSimulationSourceCount,
@@ -13140,6 +13140,11 @@ describe('a chosen layer order on an Edit folded figure (H3)', () => {
             openLayerOrder: vi.fn(),
             reviewLayerOrder: vi.fn(),
             dismissDetachedLayerOrder: vi.fn(),
+            locale: 'en',
+            spreadStatus: null,
+            spreadStarts: () => DEFAULT_SPREAD_STARTS,
+            setSpread: vi.fn(),
+            writeSpread: vi.fn(),
           });
         }
         // The idle queue's 3D rehydrate.
@@ -13297,6 +13302,11 @@ describe('a chosen layer order on an Edit folded figure (H3)', () => {
         openLayerOrder: vi.fn(),
         reviewLayerOrder: vi.fn(),
         dismissDetachedLayerOrder: vi.fn(),
+        locale: 'en',
+        spreadStatus: null,
+        spreadStarts: () => DEFAULT_SPREAD_STARTS,
+        setSpread: vi.fn(),
+        writeSpread: vi.fn(),
       });
       await flushMicrotasks();
       expect(spawned).toEqual([]);

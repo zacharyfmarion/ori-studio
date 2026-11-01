@@ -14,16 +14,20 @@ import {
   visiblePropertyFields,
   type ColorField,
   type ControlVerb,
+  type DirectionField,
   type NumberField,
   type PropertyField,
   type PropertyNotice,
   type PropertySection,
   type PropertySheet,
   type PropertySheetAction,
+  type RevealField,
   type SegmentedField,
   type SliderField,
   type StepperField,
 } from '../../lib/propertyDescriptors';
+import { LayerRevealPad } from '../paper/LayerRevealControl';
+import { SpreadDirectionCompass } from '../paper/LayerSpreadRows';
 import { Button } from '../ui/Button';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { IconButton } from '../ui/IconButton';
@@ -77,7 +81,7 @@ const ACTION_ICONS: Record<string, LucideIcon> = {
 /**
  * One {@link PropertySheet}, rendered.
  *
- * The renderer knows the eight field kinds and the four commit protocols and
+ * The renderer knows the ten field kinds and the four commit protocols and
  * nothing else — not which object the sheet describes, nor where its values
  * live. Every decision that could differ per kind is data on the field:
  * `support` hides (`not-applicable`) or disables with `reason` (`unsupported`),
@@ -92,9 +96,9 @@ const ACTION_ICONS: Record<string, LucideIcon> = {
  * seeing values. `onAction(actionId)` fires once per press of a header verb.
  *
  * The parts only some kinds use — header `actions`, a warning subtitle, a
- * `stacked` segmented field, a stepper, a `note`, a `spaced` section, a
- * section's `notice` — draw nothing for a kind that leaves them out, which
- * renders as it always has.
+ * `stacked` segmented field, a stepper, a reveal pad, a direction compass, a
+ * `note`, a `help` mark, a `spaced` section, a section's `notice` — draw
+ * nothing for a kind that leaves them out, which renders as it always has.
  */
 export function PropertySheetView({
   sheet,
@@ -217,6 +221,8 @@ function FieldView({
       return (
         <ToggleRow
           label={field.label}
+          help={field.help}
+          note={field.note?.text}
           checked={field.value}
           inherited={field.inherited}
           disabled={disabled}
@@ -260,6 +266,7 @@ function FieldView({
       return (
         <SegmentedRow
           label={field.label}
+          help={field.help}
           value={field.value}
           options={field.options}
           disabled={disabled}
@@ -321,7 +328,89 @@ function FieldView({
       return (
         <StepperFieldView field={field} disabled={disabled} title={title} onCommit={committed} />
       );
+    case 'reveal':
+      return (
+        <RevealFieldView field={field} disabled={disabled} title={title} onCommit={committed} onReset={reset} />
+      );
+    case 'direction':
+      return <DirectionFieldView field={field} disabled={disabled} title={title} onCommit={committed} />;
   }
+}
+
+/**
+ * The continuous protocol on the reveal pad (`LayerRevealPad`, the spread
+ * rows' own): a drag opens the gesture once, follows each move, and ends it
+ * once on release; an arrow key is a gesture of its own. A refused `begin`
+ * leaves the dot where the value is, and `held` disables the pad while
+ * another surface has the layer.
+ */
+function RevealFieldView({
+  field,
+  disabled,
+  title,
+  onCommit,
+  onReset,
+}: {
+  field: RevealField;
+  disabled: boolean;
+  title?: string;
+  onCommit: () => void;
+  onReset?: () => void;
+}) {
+  return (
+    <LayerRevealPad
+      label={field.label}
+      value={field.value}
+      disabled={disabled || field.held}
+      title={title}
+      begin={field.begin}
+      update={field.update}
+      end={() => {
+        field.end();
+        onCommit();
+      }}
+      onReset={onReset}
+    />
+  );
+}
+
+/**
+ * Eight buttons round a centre (`SpreadDirectionCompass`, the spread rows'
+ * own), the chosen one pressed. A press of another is one commit; a refused
+ * one — every one on an unsupported field, with its reason — keeps its place
+ * and the focus, and does nothing.
+ */
+function DirectionFieldView({
+  field,
+  disabled,
+  title,
+  onCommit,
+}: {
+  field: DirectionField;
+  disabled: boolean;
+  title?: string;
+  onCommit: () => void;
+}) {
+  return (
+    <FieldRow label={field.label} kind="segmented" disabled={disabled} title={title}>
+      <SpreadDirectionCompass
+        label={field.groupLabel ?? field.label}
+        directions={field.options.map((option) => ({
+          value: option.id,
+          label: option.label,
+          pressed: option.id === field.value,
+          disabled,
+          waiting: false,
+          hint: disabled ? field.reason : undefined,
+          run: () => {
+            if (disabled || option.id === field.value) return;
+            field.commit(option.id);
+            onCommit();
+          },
+        }))}
+      />
+    </FieldRow>
+  );
 }
 
 /**
@@ -554,6 +643,9 @@ function SliderFieldView({
   return (
     <SliderRow
       label={field.label}
+      help={field.help}
+      ariaLabel={field.ariaLabel}
+      valueText={field.valueText}
       value={field.value}
       min={field.min}
       max={field.max}
