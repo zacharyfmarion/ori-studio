@@ -208,6 +208,21 @@ describe('a spread figure’s export', () => {
     expect(workers.raster.mock.calls[1]![2]).toBe(120);
   });
 
+  it('draws another page’s bitmap again when it failed, once asked again', async () => {
+    const bitmap = { png: new ArrayBuffer(4), width: 40, height: 20, scale: 1, sceneFrame: [-1, -1, 12, 7] };
+    workers.capture.mockImplementation(async (live: unknown) => live);
+    workers.raster
+      .mockResolvedValueOnce(bitmap)
+      .mockRejectedValueOnce(new Error('Spread raster worker failed'))
+      .mockResolvedValue(bitmap);
+    const target = targetOf(figure(record(DEFAULT_CONNECTED_SPREAD)), plainBook());
+    await target.buildScene(input(50));
+    await expect(target.buildScene(input(120))).rejects.toThrow('Spread raster worker failed');
+    const again = await target.buildScene(input(120));
+    expect(workers.raster).toHaveBeenCalledTimes(3);
+    expect(again!.items[0]).toMatchObject({ kind: 'markup', svg: expect.stringContaining('<image') });
+  });
+
   it('draws the figure unspread when its spread cannot be made', async () => {
     workers.capture.mockRejectedValue(new Error('Spread capture worker failed'));
     const kernel = plainBook();

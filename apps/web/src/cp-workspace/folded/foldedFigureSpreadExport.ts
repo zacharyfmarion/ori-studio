@@ -129,8 +129,13 @@ export function foldedFigureSpreadExport(
       if (page === firstPage) return rasterScene(settled, settled.scene.sheet);
       let bitmap = bitmaps.get(page);
       if (!bitmap) {
-        bitmap = rasterSpreadScene(settled.scene, { style, policy: 'folded-flat', mm }, controller.signal);
-        bitmaps.set(page, bitmap);
+        const drawing = rasterSpreadScene(settled.scene, { style, policy: 'folded-flat', mm }, controller.signal);
+        bitmap = drawing;
+        bitmaps.set(page, drawing);
+        // A bitmap that fails is not kept, so asking for its page again draws it again.
+        drawing.catch(() => {
+          if (bitmaps.get(page) === drawing) bitmaps.delete(page);
+        });
         for (const oldest of bitmaps.keys()) {
           if (bitmaps.size <= KEPT_BITMAPS) break;
           bitmaps.delete(oldest);
