@@ -52,7 +52,8 @@ it, go with your other recs, and implmeent". "It" is spread under X-ray; the
    Edit's default picture stays Oriedita's drawing, and files that never use
    spread keep their bytes. Turning it on starts from the spread most
    recently set on another figure in the document, else
-   `DEFAULT_CONNECTED_SPREAD` (Default 25%, reveal (0.8, 0.6)).
+   `DEFAULT_CONNECTED_SPREAD` (Default 7% since #563's 9f45241ec, reveal
+   (0.8, 0.6)).
 2. **A reopened spread figure re-spreads a moment after opening.** For spread
    figures only, the figure's paper scene is saved with its spread (a
    reopened flat figure has no live fold, and the spread needs the fold's
@@ -614,6 +615,12 @@ builds before typecheck, tests or the browser mean anything.
 - [x] PR B: each figure's own Export… writes the spread.
 - [x] Final check on the merged branch: full web suite, typecheck, lint, and
   a browser pass through the real controls (see below).
+- [x] Owner's first test pass: four reports, each answered (see
+  [Review fixes](#review-fixes-2026-11-01-on-draft-pr-568)).
+- [x] #563's precision fix and seven percent default merged in (3ff03854e),
+  then main once #563 merged (97febe4c2).
+- [x] Pre-merge review: twelve confirmed findings, each fixed with a test that
+  fails without it (see [Pre-merge review](#pre-merge-review-2026-11-01)).
 - PR D: not built (decision 4).
 
 ## What the work found
@@ -670,7 +677,8 @@ Recorded as each part landed, for whoever picks the work up next.
     on show, as it already writes the last fold while one is folding.
   - Some designs do not solve (honeybee, xenomorph, cockroach); Spread layers
     turns itself off with "These layers couldn’t be spread", and the file is
-    the flat figure, as the preview is.
+    the flat figure, as the preview is. Still so after #563's precision fix
+    (re-checked 2026-11-01, Export's own toggle, SVG and PNG).
   - The remembered `{style, spread}` is shared, so a share overwrites the
     export's, as the style already does.
   - The drag in progress lives in one module-level object, which assumes one
@@ -780,5 +788,55 @@ Zach's first pass through the built branch, and what each report came to.
   default order too. The heights are scaled to a slope of 0.349 in f64, cast
   to f32, then checked against 0.351; f32 rounding on sliver faces tipping it
   over is a guess, not shown. The note does not say which reason it was
-  (`foldedFlatSpreadLeases.ts` keeps only `unavailable`). Open: Zach's file,
-  to tell the gate from the 15 s budget in his case.
+  (`foldedFlatSpreadLeases.ts` keeps only `unavailable`).
+  **Cured by #563's d681aae81**, merged here in 3ff03854e: the heights stay
+  f64 through that check, and sliver triangles are repaired. Re-run through
+  the dialog, panda and mai-22-5 now spread in the default order and in the
+  constrained one (panda ready in 107 ms, mai-22-5 in 754 ms).
+
+## Pre-merge review (2026-11-01)
+
+Four reviewers (Edit's model, Edit's drawing, Export and Share, UI and
+analytics), each finding then checked by another agent trying to refute it.
+Twelve held, two of them one bug seen from both sides; each is fixed in a
+commit of its own with a test that fails without it, and each fix was
+checked the same way.
+
+- **Export and Share preview** (`useFoldedFigurePreview`):
+  - the blocker: after picking another pattern, its fold used the order chosen
+    for the previous one. Each pattern keeps its own source now (25bf8a8c2);
+  - a refused order with no picture on show drew nothing: it draws the
+    kernel's own order (ece709a9a); and it keeps the picture on show only at
+    the pattern, side and case that picture was folded at, so switching Side
+    no longer leaves the other side's figure on show and in the file
+    (ec7ca7c89);
+  - a cache hit that replaced a running fold left `folding` on, so Share's
+    Create link stayed disabled (442c61177);
+  - while a newly picked pattern folds, the dimmed figure it replaces keeps
+    its own turn (370f4b17a);
+  - the preview keeps its twelve newest folds; the Share modal's lasted the
+    session and grew with every edited re-share (cddd02922).
+- **Share:** the Layer order ‹ › stand still once the link is made
+  (d491cc0cc); a re-shared sheet folds again after its creases change
+  (ec0b6db12) or anything else in its document does, such as an aux line,
+  which the shared creases do not show (e2eeeea96); Spread by and Layer order
+  stand over their controls rather than overflowing the label (86bcdf2bb).
+- **Edit:**
+  - a write of a figure's colours (a pin, the paper-style mirror, the model
+    reconcile every undo runs) dropped its spread to flat and solved it
+    again; the solve is held by the paper scene the snapshot shows now
+    (369607295, its key typed in 11ef81ec2);
+  - after an undo of Another solution the handle shows the later order:
+    the canvas takes no scene from it (7e5881caf), the save writes none
+    (db2cb25e2), and the figure's own Export draws it as the canvas does
+    (577fe044d);
+  - the spread pictures' cache lets go of a figure that no longer draws
+    spread (2a9155e8d).
+- **Drawing and export:** X-ray with Affine or Depth draws every layer's
+  lines over the fills, not just the top one's (71aee56ef); a figure's
+  export bitmap that fails is forgotten, so asking again draws it
+  (f6285f99d).
+- **Known limit found on the way:** a chosen layer order folds the source it
+  was chosen on (`foldSegmentInOrderForExport`), aux lines included, so an
+  aux line drawn after the choice is missing from that order's figure until
+  the order is chosen again.
