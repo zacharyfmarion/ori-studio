@@ -23,8 +23,7 @@ import { folded3dAuxLinesOf } from './folded3dAuxLines';
 import { folded3dRenderModel } from './folded3dRenderModels';
 import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
 import { foldedFigureExportPicture, foldedFigureExportTarget } from './foldedFigureExportTarget';
-import { foldedFigureSpreadOptions } from './foldedFigureSpread';
-import { foldedFigureSpreadDrawable } from './foldedFlatSpreadScene';
+import { foldedFigureWantsSpread } from './foldedFlatSpreadScene';
 
 /**
  * CSS px per crease-pattern user unit at the mounted canvas — what a folded
@@ -45,7 +44,7 @@ export async function openFoldedFigureExport(figureId: string, t: TFunction): Pr
   try {
     if (figure.folded3d) await folded3dAuxLinesSettled(store, figure.handle);
     // A figure the canvas draws spread exports its spread, from the same scene.
-    const spreads = foldedFigureSpreadOptions(figure) !== null && foldedFigureSpreadDrawable(figure);
+    const spreads = foldedFigureWantsSpread(figure);
     const kernel =
       figure.handle != null && (foldedFlatFigureExportsScene(figure) || spreads)
         ? // The document's aux lines as they stand now, as the canvas draws them.
