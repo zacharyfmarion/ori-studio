@@ -6,6 +6,14 @@
  */
 
 /** Drawing-buffer dimensions in device pixels, plus the ratio they encode. */
+/** A scissor rectangle on the drawing buffer, device px, from its bottom left (GL window coordinates). */
+export interface ScissorBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface Viewport {
   /** Backing-store width in device pixels. */
   width: number;

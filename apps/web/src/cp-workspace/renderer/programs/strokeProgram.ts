@@ -2,6 +2,7 @@ import type createREGL from 'regl';
 import {
   MAX_DASH_RUNS,
   MAX_DASH_SLOTS,
+  type ScissorBox,
   type StrokeGeometry,
   type ViewTransform,
   type Viewport,
@@ -185,11 +186,12 @@ export interface StrokeDrawProps {
   widthPx: number;
 }
 
-/** `count` segments from `first` on, drawn where `stencilBit` is clear in the stencil buffer. */
+/** `count` segments from `first` on, drawn where `stencilBit` is clear in the stencil buffer, inside `box`. */
 export interface StrokeLaneRange {
   first: number;
   count: number;
   stencilBit: number;
+  box: ScissorBox;
 }
 
 export interface StrokeProgram {
@@ -243,8 +245,9 @@ interface StrokeDrawParams {
   /** The first segment drawn: each per-segment attribute starts that many segments in. */
   firstInstance: number;
   instanceCount: number;
-  /** For {@link StrokeProgram.drawMasked}: the stencil bit the range is drawn against. */
+  /** For {@link StrokeProgram.drawMasked}: the stencil bit the range is drawn against, and its scissor. */
   stencilBit?: number;
+  scissorBox?: ScissorBox;
 }
 
 /** Uniform key shapes for the regl command generic. */
@@ -335,6 +338,10 @@ const LANE_TESTED_STENCIL = {
   opFront: { fail: 'keep', zfail: 'keep', zpass: 'keep' },
   opBack: { fail: 'keep', zfail: 'keep', zpass: 'keep' },
 } as const;
+const LANE_SCISSOR = {
+  enable: true,
+  box: ((_ctx: unknown, props: StrokeDrawParams) => props.scissorBox) as unknown as createREGL.BoundingBox,
+} as const;
 
 function makeStrokeCommand(regl: Regl, depthOrdered: boolean, laneTested: boolean) {
   const quad = regl.buffer(QUAD);
@@ -383,7 +390,7 @@ function makeStrokeCommand(regl: Regl, depthOrdered: boolean, laneTested: boolea
     depth: depthOrdered
       ? { enable: true, mask: true, func: 'lequal' }
       : { enable: false },
-    ...(laneTested ? { stencil: LANE_TESTED_STENCIL } : {}),
+    ...(laneTested ? { stencil: LANE_TESTED_STENCIL, scissor: LANE_SCISSOR } : {}),
     count: 6,
     instances: (_ctx, props) => props.instanceCount,
   });
@@ -459,8 +466,8 @@ export function createStrokeProgram(
     drawMasked(props, ranges) {
       const params = drawParams(props);
       if (!params) return;
-      const batch = ranges.flatMap(({ first, count, stencilBit }) =>
-        count > 0 ? [{ ...params, firstInstance: first, instanceCount: count, stencilBit }] : []
+      const batch = ranges.flatMap(({ first, count, stencilBit, box }) =>
+        count > 0 ? [{ ...params, firstInstance: first, instanceCount: count, stencilBit, scissorBox: box }] : []
       );
       if (batch.length === 0) return;
       laneTested ??= acquireStrokeCommand(regl, !!options.depthOrdered, true);

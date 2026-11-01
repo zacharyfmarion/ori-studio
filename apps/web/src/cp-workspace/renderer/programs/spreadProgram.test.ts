@@ -25,6 +25,7 @@ vi.mock('./strokeProgram', () => ({
       drawMasked: (_props: unknown, ranges: readonly { first: number; count: number; stencilBit: number }[]) =>
         recorded.draws.push({
           command: `ink:${id}[${ranges.map(({ first, count, stencilBit }) => `${first}+${count}@${stencilBit}`).join(' ')}]`,
+          props: { ranges },
         }),
       dispose: () => {},
     };
@@ -35,6 +36,7 @@ const {
   createSpreadProgram,
   footprintTriangles,
   mergedSpreadInk,
+  scissorOnBuffer,
   placedSpreadView,
   spreadDrawPlan,
   spreadSeesThrough,
@@ -325,6 +327,36 @@ describe('createSpreadProgram', () => {
     expect(recorded.inkPrograms).toBe(1);
   });
 
+  it('leaves a cycle’s faces off the buffer out of its corrected passes, and scissors the rest', () => {
+    // Faces 0 and 1 cover each other on the 10 px buffer; face 2 sits far off it.
+    const picture = geometry([0.25, 0.75, 0.5], { ranks: null, cyclic: true, above: [[1], [0], [1]] });
+    const far = picture.faces[2]!;
+    far.fills.position = far.fills.position.map((v) => v + 1000);
+    far.strokes.a = far.strokes.a.map((v) => v + 1000);
+    far.strokes.b = far.strokes.b.map((v) => v + 1000);
+    const program = createSpreadProgram(recordingRegl());
+    program.setData(picture, BAND);
+    program.draw(DRAW);
+    const corrected = fills().filter(({ command }) => command.startsWith('fill:write:lequal@'));
+    expect(corrected.map(({ props }) => props!.first)).toEqual([0, 3]);
+    // A fill's scissor is its triangle's box and a pixel more, from the
+    // buffer's bottom left; its mask's is the same, and the chunk's footprint
+    // covers them all.
+    const fillBox = { x: 0, y: 8, width: 2, height: 2 };
+    for (const { props } of corrected) expect(props!.box).toEqual(fillBox);
+    const marks = recorded.draws.filter(({ command }) => command.startsWith('mask@'));
+    expect(marks.slice(0, 3).map(({ command, props }) => [command, props!.box])).toEqual([
+      ['mask@clear', fillBox],
+      ['mask@1', fillBox],
+      ['mask@2', fillBox],
+    ]);
+    // The lines' scissor reaches half the pen and a pixel past their box.
+    const ink = recorded.draws.filter(({ command }) => command.startsWith('ink:0['));
+    expect(ink.map(({ command }) => command)).toEqual(['ink:0[0+1@1 1+1@2]']);
+    const { ranges } = ink[0]!.props as { ranges: { box: unknown }[] };
+    for (const range of ranges) expect(range.box).toEqual({ x: 0, y: 8, width: 3, height: 2 });
+  });
+
   it('goes through a cycle eight faces at a time, in face order, clearing the stencil once', () => {
     // A ring of faces, each under the next.
     const count = 20;
@@ -416,6 +448,23 @@ describe('createSpreadProgram', () => {
     expect(recorded.ink).toHaveLength(2);
     expect(recorded.inkPrograms).toBe(1);
     expect(recorded.ink[1]!.depth![0]).toBeLessThan(0.5);
+  });
+});
+
+describe('scissorOnBuffer', () => {
+  const viewport = { width: 100, height: 50, dpr: 1 };
+  it('maps a box through the view, from the bottom left of the buffer', () => {
+    const view = { origin: [20, 10] as const, ex: [2, 0] as const, ey: [0, 2] as const };
+    expect(scissorOnBuffer([0, 0, 10, 5], view, viewport, 0)).toEqual({ x: 20, y: 30, width: 20, height: 10 });
+  });
+
+  it('pads it, rounds it out to whole pixels and keeps it on the buffer', () => {
+    expect(scissorOnBuffer([0.5, 0.5, 10.2, 5.2], VIEW, viewport, 1)).toEqual({ x: 0, y: 43, width: 12, height: 7 });
+  });
+
+  it('is null off the buffer, and for a face with no fill', () => {
+    expect(scissorOnBuffer([200, 200, 300, 300], VIEW, viewport, 1)).toBeNull();
+    expect(scissorOnBuffer([Infinity, Infinity, -Infinity, -Infinity], VIEW, viewport, 1)).toBeNull();
   });
 });
 
