@@ -44,7 +44,8 @@ export interface FoldedFigurePreview {
   ordered: boolean | null;
   /**
    * What the fold was made from, for the Layer order dialog: the source of
-   * the last fold that landed, which is a chosen order's too.
+   * the last fold of this pattern (`cacheKeyPrefix`) that landed, which is a
+   * chosen order's too; null until one has.
    */
   source: LayerOrderSource | null;
   /** The chosen layer order the figure is drawn in, or null for the kernel's own. */
@@ -81,7 +82,10 @@ export interface FoldedFigurePreviewOptions {
    * figure folded again opens on its chosen order rather than flashing the kernel's.
    */
   orderFor?: (digest: string) => FoldedFigureOrder | null;
-  /** Extra cache-key input, for callers whose fold depends on more than `settings`. */
+  /**
+   * Extra cache-key input, for callers whose fold depends on more than `settings`: the
+   * pattern folded. Each keeps the source its folds landed with, and so its own order.
+   */
   cacheKeyPrefix?: string;
   /** Called when a fold fails, so the caller can untick its own toggle. */
   onError?: (message: string) => void;
@@ -113,10 +117,11 @@ interface CachedFold {
  * when a colour changes is waited for, not started again.
  *
  * **A chosen layer order.** Once the creases have an order chosen for them (`orderFor`,
- * by the fold's source digest), the figure is folded in it (`foldInOrder`) at every
- * side, and cached under the order's key too; with none, the fold is the kernel's own at
- * `foldCase`, exactly as before. The kernel refusing the order keeps the picture there
- * was, or with none shows the kernel's own order, and says so (`orderRefused`).
+ * by the source digest of the pattern's last fold, which each `cacheKeyPrefix` keeps for
+ * itself), the figure is folded in it (`foldInOrder`) at every side, and cached under
+ * the order's key too; with none, the fold is the kernel's own at `foldCase`, exactly as
+ * before. The kernel refusing the order keeps the picture of them there was, or with none
+ * shows the kernel's own order, and says so (`orderRefused`).
  */
 export function useFoldedFigurePreview({
   enabled,
@@ -136,7 +141,8 @@ export function useFoldedFigurePreview({
     hasNext: false,
     ordered: null,
   });
-  const [source, setSource] = useState<LayerOrderSource | null>(null);
+  // What each pattern's last fold that landed was made from, by its cache prefix.
+  const [sources, setSources] = useState<Readonly<Record<string, LayerOrderSource>>>({});
   const [orderRefused, setOrderRefused] = useState(false);
   const [folding, setFolding] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,8 +164,9 @@ export function useFoldedFigurePreview({
     settingsRef.current = settings;
   }, [onError, orderFor, settings]);
 
-  // The order chosen for the creases the last fold was made from: every fold of them
-  // after this one is in it.
+  // The order chosen for the creases this pattern's last fold was made from: every fold
+  // of them after that one is in it.
+  const source = sources[cacheKeyPrefix] ?? null;
   const order = source && orderFor && foldInOrder ? orderFor(source.digest) : null;
   const orderKey = order?.key ?? '';
   const { side, foldCase } = settings;
@@ -193,7 +200,8 @@ export function useFoldedFigurePreview({
         // A runtime that does not say: a chosen order, or a paper scene, is an order.
         ordered: result.ordered ?? (result.chosenOrder === true || result.scene !== null),
       });
-      if (result.source) setSource(result.source);
+      const landed = result.source;
+      if (landed) setSources((all) => (all[cacheKeyPrefix] === landed ? all : { ...all, [cacheKeyPrefix]: landed }));
     };
     const cached = cache.current.get(keyOf(order));
     if (fits(cached)) {
@@ -244,8 +252,9 @@ export function useFoldedFigurePreview({
       if (order) {
         const result = await inOrder(order);
         if (result) return { result, refused: false };
-        // Refused: the picture on show stays; with none, the figure is the kernel's own order.
-        if (published.current) return { result: null, refused: true };
+        // Refused: a picture of these creases on show stays; with none (another pattern's
+        // may be on show), the figure is the kernel's own order.
+        if (published.current?.source?.digest === order.applied.source.digest) return { result: null, refused: true };
         const plainFold = await folded(plainKey, () => fold(current));
         return { result: plainFold?.result ?? null, refused: true };
       }

@@ -14,7 +14,7 @@ import {
   type CreaseExportFoldResult,
   type CreaseExportOrderedFold,
 } from '../../lib/creaseExportFold';
-import type { LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
+import type { LayerOrderApplied, LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
 import { DEFAULT_FOLDED_MODEL } from '../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedPaperScene, OristudioCpFoldedRenderSnapshot } from '../../engine/oristudioCpTypes';
 import {
@@ -78,6 +78,13 @@ const lookup =
   (...orders: FoldedFigureOrder[]) =>
   (digest: string) =>
     orders.find((order) => order.applied.source.digest === digest) ?? null;
+
+/** A fold in a chosen order, as the workspace's: it folds the creases the order was chosen on. */
+const foldsInOrder = () =>
+  vi.fn(async (_settings: unknown, order: LayerOrderApplied): Promise<CreaseExportOrderedFold> => ({
+    status: 'folded',
+    result: foldOf(order.source.digest, true),
+  }));
 
 /** The kernel will not draw the order. */
 const refusesOrder = () => vi.fn(async (): Promise<CreaseExportOrderedFold> => ({ status: 'refused' }));
@@ -210,5 +217,42 @@ describe('a preview fold in a chosen layer order', () => {
     expect(shown!.orderRefused).toBe(true);
     expect(shown!.folding).toBe(false);
     expect(fold).toHaveBeenCalledTimes(1);
+  });
+
+  it('folds another pattern in its own order, not the one chosen for the pattern folded before', async () => {
+    const one = vi.fn(async () => foldOf('pattern-1'));
+    const two = vi.fn(async () => foldOf('pattern-2'));
+    const foldInOrder = foldsInOrder();
+    const orderFor = lookup(orderOn('pattern-1'));
+    await render(SETTINGS, one, { cacheKeyPrefix: '1', foldInOrder, orderFor });
+    expect(drawn()).toBe('pattern-1 in its order');
+
+    // Another pattern, with no order chosen for its creases: its own fold, in the kernel's order.
+    await render(SETTINGS, two, { cacheKeyPrefix: '2', foldInOrder, orderFor });
+    expect(two).toHaveBeenCalledTimes(1);
+    expect(drawn()).toBe('pattern-2');
+    expect(shown!.source?.digest).toBe('pattern-2');
+    expect(shown!.order).toBeNull();
+
+    // Back to the first: in its order again, from the cache.
+    await render(SETTINGS, one, { cacheKeyPrefix: '1', foldInOrder, orderFor });
+    expect(drawn()).toBe('pattern-1 in its order');
+    expect(shown!.order?.key).toBe('order:pattern-1');
+    expect(one).toHaveBeenCalledTimes(1);
+    expect(foldInOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a pattern’s own figure when its order is refused, not another pattern’s on show', async () => {
+    const one = vi.fn(async () => foldOf('pattern-1'));
+    const two = vi.fn(async () => foldOf('pattern-2'));
+    const foldInOrder = refusesOrder();
+    const orderFor = lookup(orderOn('pattern-1'));
+    await render(SETTINGS, one, { cacheKeyPrefix: '1', foldInOrder, orderFor });
+    await render(SETTINGS, two, { cacheKeyPrefix: '2', foldInOrder, orderFor });
+    expect(drawn()).toBe('pattern-2');
+
+    await render(SETTINGS, one, { cacheKeyPrefix: '1', foldInOrder, orderFor });
+    expect(drawn()).toBe('pattern-1');
+    expect(shown!.orderRefused).toBe(true);
   });
 });
