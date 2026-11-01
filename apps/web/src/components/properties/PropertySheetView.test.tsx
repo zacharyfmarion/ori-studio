@@ -573,6 +573,42 @@ describe('PropertySheetView', () => {
     expect(onCommit.mock.calls).toEqual([['displayStyle']]);
   });
 
+  it('draws a segmented field’s credit beside its label, in either layout, and none for a field without one', () => {
+    const spreadBy = (layout: 'beside' | 'stacked', credit?: 'affine-spread'): PropertyField => ({
+      id: 'spreadKind',
+      kind: 'segmented',
+      layout,
+      label: 'Spread by',
+      support: 'supported',
+      options: [
+        { id: 'connected', label: 'Default' },
+        { id: 'affine', label: 'Affine' },
+      ],
+      ...(credit ? { credit } : {}),
+      protocol: 'discrete',
+      value: 'affine',
+      commit: vi.fn(),
+    });
+    const credit = () => container?.querySelector('button[aria-label="About affine spreading"]') ?? null;
+    const label = () =>
+      [...(container?.querySelectorAll<HTMLElement>('span, label') ?? [])].find(
+        (element) => element.firstChild?.textContent === 'Spread by'
+      ) ?? null;
+
+    render(sheetOf(spreadBy('stacked', 'affine-spread')));
+    // Beside the label it credits, not among the choices.
+    expect(credit()).not.toBeNull();
+    expect(credit()!.closest('[role="group"]')).toBeNull();
+    expect(label()!.parentElement?.contains(credit())).toBe(true);
+
+    render(sheetOf(spreadBy('beside', 'affine-spread')));
+    expect(credit()).not.toBeNull();
+    expect(credit()!.closest('[data-field-label]')).not.toBeNull();
+
+    render(sheetOf(spreadBy('stacked')));
+    expect(credit()).toBeNull();
+  });
+
   it('steps with ‹ and ›, one commit per press, and does nothing for a refused verb', () => {
     const previous = vi.fn();
     const next = vi.fn();

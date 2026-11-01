@@ -32,6 +32,7 @@ export function FieldRow({
   label,
   labelId,
   help,
+  aside,
   htmlFor,
   noteId,
   note,
@@ -60,6 +61,11 @@ export function FieldRow({
    * after the label that explains on hover or focus.
    */
   help?: string;
+  /**
+   * A mark of the caller's own after the label and its help mark: a credit
+   * with its own popover (the Affine spread's, `AffineSpreadCredit`).
+   */
+  aside?: ReactNode;
   /** Set when the control is a native input the label can point at. */
   htmlFor?: string;
   /**
@@ -172,11 +178,13 @@ export function FieldRow({
         <label className={styles.label} data-field-label="" htmlFor={htmlFor} id={labelId}>
           {label}
           {helpMark}
+          {aside}
         </label>
       ) : (
         <span className={styles.label} data-field-label="" id={labelId}>
           {label}
           {helpMark}
+          {aside}
         </span>
       )}
       <div

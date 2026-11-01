@@ -20,6 +20,7 @@ export function SegmentedRow({
   disabled,
   title,
   help,
+  aside,
   onChange,
   onReset,
 }: {
@@ -30,11 +31,21 @@ export function SegmentedRow({
   title?: string;
   /** What the row means, behind a help mark beside its label: reachable by keyboard and touch, where a title is not. */
   help?: string;
+  /** A mark of the caller's own beside the label (`FieldRow.aside`). */
+  aside?: ReactNode;
   onChange: (value: string) => void;
   onReset?: () => void;
 }) {
   return (
-    <FieldRow label={label} kind="segmented" disabled={disabled} title={title} help={help} onReset={onReset}>
+    <FieldRow
+      label={label}
+      kind="segmented"
+      disabled={disabled}
+      title={title}
+      help={help}
+      aside={aside}
+      onReset={onReset}
+    >
       <SegmentedControl
         size="sm"
         aria-label={label}

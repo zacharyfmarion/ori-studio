@@ -197,6 +197,8 @@ function spreadValueFields(
       ...support,
       undoLabel,
       options: controls.kinds.map(({ value, label }) => ({ id: value, label })),
+      // Where affine spreading comes from, beside Spread by as the spread rows have it.
+      ...(shown.kind === 'affine' ? { credit: 'affine-spread' as const } : {}),
       protocol: 'discrete',
       value: shown.kind,
       commit: choose(controls.kinds),

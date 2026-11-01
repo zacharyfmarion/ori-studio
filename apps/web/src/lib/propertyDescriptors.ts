@@ -23,7 +23,9 @@
  * than standing in for a verb. Two kinds were added on purpose, as the
  * stepper was, for a flat folded figure's layer spread, laid out as the
  * spread rows every other workspace uses (`components/paper/LayerSpreadRows`):
- * `reveal`, a point dragged on a pad, and `direction`, one of eight ways.
+ * `reveal`, a point dragged on a pad, and `direction`, one of eight ways; and
+ * one part, a segmented field's `credit`, names the note the spread rows draw
+ * beside Spread by while Affine is chosen.
  * Every one of these parts is optional: a kind that uses none renders as it
  * always has. Every verb, wherever it sits, is a {@link ControlVerb}.
  */
@@ -132,6 +134,14 @@ export type SelectField = FieldBase & {
   options: readonly PropertyOption[];
   placeholder?: string;
 } & DiscreteCommit<string | null>;
+/**
+ * A credit a renderer draws beside a field's label, by name — the catalog is
+ * JSX-free, as an icon's name keeps it: `affine-spread` is where affine
+ * spreading comes from (DEFOX), the note the spread rows draw beside Spread by
+ * (`AffineSpreadCredit`).
+ */
+export type PropertyCredit = 'affine-spread';
+
 export type SegmentedField = FieldBase & {
   kind: 'segmented';
   options: readonly PropertyOption[];
@@ -141,6 +151,8 @@ export type SegmentedField = FieldBase & {
    * their label in a narrow pane. Beside it otherwise.
    */
   layout?: 'beside' | 'stacked';
+  /** A credit beside the label while it applies: Spread by while Affine is chosen. */
+  credit?: PropertyCredit;
 } & DiscreteCommit<string | null>;
 export type NumberField = FieldBase & {
   kind: 'number';

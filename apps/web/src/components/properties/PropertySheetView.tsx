@@ -1,4 +1,4 @@
-import { useId, useRef, useSyncExternalStore } from 'react';
+import { useId, useRef, useSyncExternalStore, type ComponentType, type ReactNode } from 'react';
 import {
   Copy,
   FileDown,
@@ -16,6 +16,7 @@ import {
   type ControlVerb,
   type DirectionField,
   type NumberField,
+  type PropertyCredit,
   type PropertyField,
   type PropertyNotice,
   type PropertySection,
@@ -26,6 +27,7 @@ import {
   type SliderField,
   type StepperField,
 } from '../../lib/propertyDescriptors';
+import { AffineSpreadCredit } from '../paper/AffineSpreadCredit';
 import { LayerRevealPad } from '../paper/LayerRevealControl';
 import { SpreadDirectionCompass } from '../paper/LayerSpreadRows';
 import { Button } from '../ui/Button';
@@ -79,6 +81,20 @@ const ACTION_ICONS: Record<string, LucideIcon> = {
 };
 
 /**
+ * The credits a segmented field may name (`SegmentedField.credit`), drawn
+ * beside its label: the same component the spread rows draw beside Spread by.
+ */
+const CREDITS: Record<PropertyCredit, ComponentType> = {
+  'affine-spread': AffineSpreadCredit,
+};
+
+/** A field's credit, or nothing for a field that names none. */
+function creditOf(credit: PropertyCredit | undefined): ReactNode {
+  const Credit = credit ? CREDITS[credit] : undefined;
+  return Credit ? <Credit /> : undefined;
+}
+
+/**
  * One {@link PropertySheet}, rendered.
  *
  * The renderer knows the ten field kinds and the four commit protocols and
@@ -96,9 +112,10 @@ const ACTION_ICONS: Record<string, LucideIcon> = {
  * seeing values. `onAction(actionId)` fires once per press of a header verb.
  *
  * The parts only some kinds use — header `actions`, a warning subtitle, a
- * `stacked` segmented field, a stepper, a reveal pad, a direction compass, a
- * `note`, a `help` mark, a `spaced` section, a section's `notice` — draw
- * nothing for a kind that leaves them out, which renders as it always has.
+ * `stacked` segmented field, a segmented field's `credit`, a stepper, a
+ * reveal pad, a direction compass, a `note`, a `help` mark, a `spaced`
+ * section, a section's `notice` — draw nothing for a kind that leaves them
+ * out, which renders as it always has.
  */
 export function PropertySheetView({
   sheet,
@@ -267,6 +284,7 @@ function FieldView({
         <SegmentedRow
           label={field.label}
           help={field.help}
+          aside={creditOf(field.credit)}
           value={field.value}
           options={field.options}
           disabled={disabled}
@@ -482,7 +500,13 @@ function StackedSegmentedFieldView({
 }) {
   const labelId = useId();
   return (
-    <StackedRow label={field.label} labelId={labelId} disabled={disabled} title={title}>
+    <StackedRow
+      label={field.label}
+      labelId={labelId}
+      aside={creditOf(field.credit)}
+      disabled={disabled}
+      title={title}
+    >
       <SegmentedControl
         size="sm"
         fill

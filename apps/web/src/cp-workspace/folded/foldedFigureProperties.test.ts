@@ -1054,6 +1054,12 @@ describe('the Spread section', () => {
     expect(d.setSpread).toHaveBeenLastCalledWith(record({ ...DEFAULT_DEPTH_SPREAD, toward: 'up' }));
   });
 
+  it('credits affine spreading beside Spread by while Affine is chosen, and only then', () => {
+    expect(segmented(sheetFor(spreadOn(DEFAULT_AFFINE_SPREAD)), 'spreadKind').credit).toBe('affine-spread');
+    expect(segmented(sheetFor(spreadOn()), 'spreadKind').credit).toBeUndefined();
+    expect(segmented(sheetFor(spreadOn(DEFAULT_DEPTH_SPREAD)), 'spreadKind').credit).toBeUndefined();
+  });
+
   it('lays Affine out with Keep still, Skew and Axis', () => {
     const d = deps();
     const sheet = sheetFor(spreadOn(DEFAULT_AFFINE_SPREAD), d);
