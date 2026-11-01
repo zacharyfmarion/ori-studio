@@ -120,8 +120,8 @@ interface CachedFold {
  * by the source digest of the pattern's last fold, which each `cacheKeyPrefix` keeps for
  * itself), the figure is folded in it (`foldInOrder`) at every side, and cached under
  * the order's key too; with none, the fold is the kernel's own at `foldCase`, exactly as
- * before. The kernel refusing the order keeps the picture of them there was, or with none
- * shows the kernel's own order, and says so (`orderRefused`).
+ * before. The kernel refusing the order keeps the picture there was at these settings, or
+ * with none shows the kernel's own order, and says so (`orderRefused`).
  */
 export function useFoldedFigurePreview({
   enabled,
@@ -149,8 +149,9 @@ export function useFoldedFigurePreview({
   const cache = useRef(new Map<string, CachedFold>());
   // Folds still running, by their key: a colour edit while one runs waits for it.
   const running = useRef(new Map<string, Promise<CachedFold | null>>());
-  // The fold the preview shows: a cache hit already on show sets nothing, and a refused order keeps it.
-  const published = useRef<CreaseExportFoldResult | null>(null);
+  // The fold the preview shows, and the pattern, side and case it was folded at: a
+  // cache hit already on show sets nothing, and a refused order keeps it at those.
+  const published = useRef<{ readonly result: CreaseExportFoldResult; readonly at: string } | null>(null);
   // Held in a ref so a caller passing an inline arrow does not re-run the fold, and
   // written in an effect rather than during render — a ref mutated mid-render is exactly
   // the pattern that makes a component miss an update. Declared before the fold's effect,
@@ -188,8 +189,8 @@ export function useFoldedFigurePreview({
     const fits = (entry: CachedFold | null | undefined): entry is CachedFold =>
       entry != null && (entry.result.scene !== null || entry.colours === colours);
     const publish = (result: CreaseExportFoldResult) => {
-      if (published.current === result) return;
-      published.current = result;
+      if (published.current?.result === result) return;
+      published.current = { result, at: plainKey };
       setFigure(result.snapshot);
       setScene(result.scene);
       setDiscoveredCases(result.discoveredCases);
@@ -254,9 +255,10 @@ export function useFoldedFigurePreview({
       if (order) {
         const result = await inOrder(order);
         if (result) return { result, refused: false };
-        // Refused: a picture of these creases on show stays; with none (another pattern's
-        // may be on show), the figure is the kernel's own order.
-        if (published.current?.source?.digest === order.applied.source.digest) return { result: null, refused: true };
+        // Refused: the picture on show stays if it is of this pattern at this side and
+        // case; with none (another pattern's, or another side's, may be on show), the
+        // figure is the kernel's own order.
+        if (published.current?.at === plainKey) return { result: null, refused: true };
         const plainFold = await folded(plainKey, () => fold(current));
         return { result: plainFold?.result ?? null, refused: true };
       }

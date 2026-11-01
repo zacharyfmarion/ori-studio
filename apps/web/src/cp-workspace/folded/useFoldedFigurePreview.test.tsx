@@ -275,4 +275,23 @@ describe('a preview fold in a chosen layer order', () => {
     expect(drawn()).toBe('pattern-1');
     expect(shown!.orderRefused).toBe(true);
   });
+
+  it('shows the side asked for when its order is refused, not the other side on show', async () => {
+    // The creases' digest is the same at either side; the snapshot says which side it is.
+    const fold = vi.fn(async (settings: CreaseExportFoldedFigureSettings) => {
+      const result = foldOf('pattern-1');
+      return { ...result, snapshot: { primitives: [], drawn: settings.side } as unknown as OristudioCpFoldedRenderSnapshot };
+    });
+    const foldInOrder = refusesOrder();
+    await render(SETTINGS, fold, { foldInOrder, orderFor: lookup() });
+    const orderFor = lookup(orderOn('pattern-1'));
+    await render(SETTINGS, fold, { foldInOrder, orderFor });
+    expect(drawn()).toBe('Front0');
+    expect(shown!.orderRefused).toBe(true);
+
+    await render({ ...SETTINGS, side: 'Back1' }, fold, { foldInOrder, orderFor });
+    expect(drawn()).toBe('Back1');
+    expect(shown!.orderRefused).toBe(true);
+    expect(fold.mock.calls.map(([settings]) => settings.side)).toEqual(['Front0', 'Back1']);
+  });
 });
