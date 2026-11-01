@@ -17,7 +17,9 @@ exports[`CpPropertiesPanel markup > draws the image sheet as it always has 1`] =
       <div data-field-value="slider">
         <input aria-label="Opacity">
         <span data-field-readout="">
-          "100%"
+          <span data-max="100%" data-min="0%">
+            <span>
+              "100%"
     <div data-field-row="">
       <label data-field-label="">
         "Rotation"
@@ -174,7 +176,9 @@ exports[`CpPropertiesPanel markup > draws the suppression region sheet as it alw
         <div data-field-value="slider">
           <input aria-label="Opacity">
           <span data-field-readout="">
-            "100%"
+            <span data-max="100%" data-min="0%">
+              <span>
+                "100%"
   <div data-open="true">
     <div>
       <span>
@@ -237,5 +241,7 @@ exports[`CpPropertiesPanel markup > draws the text sheet as it always has 1`] = 
       <div data-field-value="slider">
         <input aria-label="Opacity">
         <span data-field-readout="">
-          "100%""
+          <span data-max="100%" data-min="0%">
+            <span>
+              "100%""
 `;
