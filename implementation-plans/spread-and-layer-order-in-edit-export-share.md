@@ -595,11 +595,11 @@ builds before typecheck, tests or the browser mean anything.
   with tests.
 - [x] PR A: Layer order row in both dialogs; Fold case replaced; section opens
   on toggle; analytics surfaces; i18n.
-- [ ] PR B: `settledSpreadPicture` extracted and adopted by Fold and the
+- [x] PR B: `settledSpreadPicture` extracted and adopted by Fold and the
   Diagram; raster policy parameter.
-- [ ] PR B: export content and painter (hidden rings, flat-bounds fit,
+- [x] PR B: export content and painter (hidden rings, flat-bounds fit,
   raster embed); colour edits repaint only.
-- [ ] PR B: spread rows in both dialogs; remembered `{style, spread}`; Share
+- [x] PR B: spread rows in both dialogs; remembered `{style, spread}`; Share
   waits before Create; X-ray when spread; analytics and buckets; i18n.
 - [x] PR C0: size and timing measurements; budget for decision 2 (see
   [What the work found](#what-the-work-found)).
@@ -611,7 +611,9 @@ builds before typecheck, tests or the browser mean anything.
   entries, box and pivot rules, fallback.
 - [x] PR C: X-ray see-through spread (`spreadProgram` option).
 - [x] PR C: reopen per decision 2 (saved scene under a budget).
-- [ ] PR B: each figure's own Export… writes the spread.
+- [x] PR B: each figure's own Export… writes the spread.
+- [x] Final check on the merged branch: full web suite, typecheck, lint, and
+  a browser pass through the real controls (see below).
 - PR D: not built (decision 4).
 
 ## What the work found
@@ -633,8 +635,10 @@ Recorded as each part landed, for whoever picks the work up next.
   - The *Spread layers* switch stays live when the canvas could not spread
     a figure ("These layers couldn’t be spread"), so it can be turned off.
   - One reason string beyond the design: a spread saved by a newer build.
-  - Edit's sheet has no "About affine spreading" credit popover yet; it needs
-    a descriptor part of its own.
+  - Edit's sheet shows the "About affine spreading" credit beside Spread by
+    while Affine is chosen, through a descriptor part of its own
+    (`SegmentedField.credit: 'affine-spread'`) and an `aside` slot on
+    `FieldRow`, `SegmentedRow` and `StackedRow`.
 - **One predicate.** Whether a figure can draw its spread is the Properties
   sheet's `foldedFigureSpreadBlock`; the canvas's `foldedFigureSpreadDrawable`
   derives from it, so the two never disagree.
@@ -643,6 +647,50 @@ Recorded as each part landed, for whoever picks the work up next.
   translucent plain figure is hidden by it rather than showing through; the
   selection box grows symmetrically about the pivot, so it is looser than the
   spread on turned figures.
+- **PR B, beyond the design:**
+  - A Default spread's bitmap is sized in the inch the figure's pens are
+    drawn in, for the pattern's drawn height, so its pens match the vector's
+    (about 2.2 bitmap px per SVG px). A PNG exported above about 2x scales
+    the bitmap up; a sharper one needs the raster worker to take a pen scale.
+  - `settledSpreadPicture` also takes the host's own solve (`prepared`), so
+    one prepare serves every capture, and a bitmap size that depends on the
+    scene drawn.
+  - Whether a dialog's figure can spread is true, false, or null while no
+    fold has landed; while null the rows say nothing against it.
+  - `LayerSpreadToggle` gained a `note` (the reason under Spread layers), and
+    `useExportLayerOrder` exposes `busy`, which Share's wait reads. Share
+    reports what its card drew (`foldedFigureSpreadDrawn`), not what was
+    asked.
+  - No CSS changed: `.simple-modal` and `.export-modal` gained no rules.
+- **Known limits of spread in Export and Share:**
+  - A large Default spread can take about 10 s to capture
+    (alice-margatroid: 9.8 s, vector). The preview stays dimmed meanwhile,
+    and Share's Create waits.
+  - Export's save does not wait for a capture: it writes the dimmed picture
+    on show, as it already writes the last fold while one is folding.
+  - Some designs do not solve (honeybee, xenomorph, cockroach); Spread layers
+    turns itself off with "These layers couldn’t be spread", and the file is
+    the flat figure, as the preview is.
+  - The remembered `{style, spread}` is shared, so a share overwrites the
+    export's, as the style already does.
+  - The drag in progress lives in one module-level object, which assumes one
+    Export or Share dialog at a time.
+  - A fold that lands without a paper scene still refolds on a colour edit:
+    its colours are in its drawing.
+- **Final check (2026-10-31, on d7cce891c; the one-predicate cleanup after
+  it, a258ee4c0, re-ran its tests, typecheck and lint):** the full web suite
+  (1402 files, 18043 tests), typecheck and the full lint pass. A browser pass
+  through the real controls, on kabuto and on cpoogle camel (298 creases),
+  light and dark: Spread layers on from Properties, Amount by keyboard, the
+  Affine credit, X-ray keeps the spread, Wireframe says why and draws flat;
+  saved, the file carries the bag, and reopened (no fold) the figure draws
+  its spread from the saved scene. Export: the Layer order row and Spread
+  layers rows, Edit… steps the dialog aside and opens the Layer order dialog
+  on X-ray, closing it returns focus to Edit… with the spread still on, the
+  written SVG equals the preview, and the next Export opens on the
+  remembered spread. Share: Create link waits ("Create link waits for the
+  folded figure to be drawn.") until the card is drawn, then opens on the
+  remembered spread. No console errors.
 
 ## Findings for #563
 
@@ -692,10 +740,12 @@ The findings as first reported:
 - **Share layout.** Share's Style picker overflows its 296px column (screen
   D), and the modal has no layout below 720px.
 - **Share during folding.** Create link while the figure is still folding
-  publishes a card without it.
-- **Export's column overflows.** Its controls column shows about 535px at
-  980x655. Toggle, Folded figure section and Default spread rows come to
-  about 650px at real FieldRow sizes, so the reveal pad lands below the fold
-  and the column scrolls (it already scrolls today; canvas board B). Making
-  the dialog taller is a change to the shared `.export-modal` block, so it
-  needs the owner's call and its own PR.
+  published a card without it. Fixed in PR B: Create waits for the fold, the
+  order and the spread, and says so in the footer.
+- **Export's column overflows.** Its controls column shows 536px at
+  1440x900 and 431px at 980x655. With the folded figure and Default spread
+  rows, its content is 1222px (the folded section 545px, the spread rows
+  319px), so the reveal pad lands below the fold and the column scrolls (it
+  already scrolls today; canvas board B). Making the dialog taller is a
+  change to the shared `.export-modal` block, so it needs the owner's call
+  and its own PR.
