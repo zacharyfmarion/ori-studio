@@ -541,3 +541,60 @@ describe('the share card’s layer spread', () => {
     expect(publish.mock.calls[0]?.[0]).toMatchObject({ foldedFigureSpread: DEFAULT_CONNECTED_SPREAD });
   });
 });
+
+describe('the share card’s folded figure across shares', () => {
+  let host: HTMLElement;
+  let root: Root;
+  const preview = () =>
+    decodeURIComponent(
+      document.querySelector('img[alt="Preview of the shared crease pattern"]')?.getAttribute('src') ?? ''
+    );
+  /** The card's one face turned over, as an edit of its creases might leave it: the card paints its back. */
+  const turnedOver = (): CreaseExportFoldResult => {
+    const result = foldResult();
+    const face = { ...result.scene!.faces[0]!, front_up: false };
+    return { ...result, scene: { ...result.scene!, faces: [face] } };
+  };
+
+  beforeEach(() => {
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    useWorkspaceStore.setState({
+      oristudioCpDocument: { document: {}, summary: null } as unknown as OristudioCpDocumentState,
+    });
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    host.remove();
+    useWorkspaceStore.setState({ ...original, oristudioCpShareDraft: null, oristudioCpDocument: null });
+  });
+
+  /** Shares sheet 0 as `payload` encodes it, in the card that stays mounted between shares. */
+  async function share(payload: string) {
+    await act(async () => useWorkspaceStore.getState().dismissOristudioCpShare());
+    await act(async () => useWorkspaceStore.setState({ oristudioCpShareDraft: { ...draftFor(square()), payload } }));
+  }
+
+  it('folds a sheet shared again only when its creases changed since', async () => {
+    let answer = foldResult();
+    const fold = vi.fn(async () => answer);
+    useWorkspaceStore.setState({ foldOristudioCpShareFigure: fold });
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
+    await share('T0NTMQEB');
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('[aria-label="Show folded figure"]')?.click();
+    });
+    expect(fold).toHaveBeenCalledTimes(1);
+
+    await share('T0NTMQEB');
+    expect(fold).toHaveBeenCalledTimes(1);
+    expect(preview()).toContain(`fill="${DEFAULT_PAPER_STYLE.paper.front}"`);
+
+    answer = turnedOver();
+    await share('T0NTMQEC');
+    expect(fold).toHaveBeenCalledTimes(2);
+    expect(preview()).toContain(`fill="${DEFAULT_PAPER_STYLE.paper.back}"`);
+  });
+});

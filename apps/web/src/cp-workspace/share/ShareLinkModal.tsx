@@ -27,6 +27,7 @@ import {
 } from '../../lib/creasePatternViewport';
 import { cpFoldAngleDisplayLabel } from '../../i18n/enumLabels';
 import { shareCardTitle } from '../../lib/shareCardText';
+import { keyDigest } from '../../lib/keyDigest';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
 import { useExportLayerOrder, useExportLayerOrderLookup } from '../export/useExportLayerOrder';
 import { exportFigureSpreads, useExportFoldedSpread } from '../export/useExportFoldedSpread';
@@ -198,6 +199,12 @@ export function ShareLinkModal() {
     [layerOrderHost, segment]
   );
   const orderFor = useExportLayerOrderLookup();
+  // The sheet's creases as well as its index: the modal stays mounted between
+  // shares, so a sheet edited since, or another file's, is folded again.
+  const cacheKeyPrefix = useMemo(
+    () => (draft ? `${draft.segmentId}:${keyDigest([draft.payload], 'shr1:')}` : ''),
+    [draft]
+  );
 
   const folded = useFoldedFigurePreview({
     enabled: open && showFolded && canFold,
@@ -205,7 +212,7 @@ export function ShareLinkModal() {
     fold: canFold ? foldFn : null,
     foldInOrder: canFold && layerOrderHost ? foldInOrder : null,
     orderFor,
-    cacheKeyPrefix: String(draft?.segmentId ?? ''),
+    cacheKeyPrefix,
     onError: () => setShowFolded(false),
   });
   const paper = useCreaseExportPaper(figureStyle);
