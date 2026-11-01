@@ -11,6 +11,13 @@ import { ShareLinkModal } from './ShareLinkModal';
 import { TooltipProvider } from '../../components/ui/Tooltip';
 import type { FoldDocument } from '../../engine/types';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
+import { FAKE_LAYER_ORDER_SOURCE } from '../../layer-order/engine/layerOrderEngine.fixtures';
+import type { CreaseExportLayerOrderHost } from '../../lib/creaseExportFold';
+import {
+  exportLayerOrderAfter,
+  rememberExportLayerOrder,
+  resetExportLayerOrdersForTest,
+} from '../export/exportLayerOrders';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -265,6 +272,112 @@ describe('the share card’s folded figure style', () => {
     await createLink();
 
     expect(publish).toHaveBeenCalledTimes(1);
-    expect(publish.mock.calls[0]?.[0]).toMatchObject({ foldedFigureStyle: null });
+    expect(publish.mock.calls[0]?.[0]).toMatchObject({ foldedFigureStyle: null, foldedFigureLayerOrder: 'default' });
+  });
+});
+
+describe('the share card’s layer order', () => {
+  const publish = vi.fn<typeof store.publishOristudioCpShare>(async () => true);
+  const source = { ...FAKE_LAYER_ORDER_SOURCE, digest: 'share-card-fold' };
+  let host: HTMLElement;
+  let root: Root;
+  let orderHost: CreaseExportLayerOrderHost;
+
+  /** The kernel's own order: its one face front up. */
+  const plain = (): CreaseExportFoldResult => ({ ...foldResult(), source, currentCase: 1, hasNext: false, ordered: true });
+  /** The order chosen for these creases: the same face turned over, so the card paints its back. */
+  const ordered = (): CreaseExportFoldResult => {
+    const result = foldResult();
+    const face = { ...result.scene!.faces[0]!, front_up: false };
+    return { ...result, scene: { ...result.scene!, faces: [face] }, source, ordered: true, chosenOrder: true };
+  };
+  const preview = () =>
+    decodeURIComponent(
+      document.querySelector('img[alt="Preview of the shared crease pattern"]')?.getAttribute('src') ?? ''
+    );
+  const layerOrderRow = () =>
+    document.querySelector('button[aria-label="Edit Layer Order…"]')?.closest('[data-field-row]') ?? null;
+
+  beforeEach(() => {
+    publish.mockClear();
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    orderHost = {
+      foldInOrder: vi.fn(async () => ({ status: 'folded' as const, result: ordered() })),
+      region: vi.fn(async () => null),
+      lineStyle: 'color',
+      lineWidth: 1,
+      documentName: 'Kabuto',
+    };
+    useWorkspaceStore.setState({
+      oristudioCpDocument: { document: {}, summary: null } as unknown as OristudioCpDocumentState,
+      publishOristudioCpShare: publish,
+      foldOristudioCpShareFigure: vi.fn(async () => plain()),
+      oristudioCpShareLayerOrderHost: () => orderHost,
+    });
+    // Chosen for these creases earlier this session, in Export or Share.
+    rememberExportLayerOrder(
+      source.digest,
+      exportLayerOrderAfter(null, {
+        kind: 'applied',
+        applied: {
+          record: { faces: [{ at: [0.5, 0.2], area: 0.5 }, { at: [0.2, 0.5], area: 0.5 }], constraints: [[0, 1, 1]], order: [] },
+          relations: new Uint32Array([0, 1]),
+          source,
+        },
+      })!
+    );
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    host.remove();
+    useWorkspaceStore.setState({
+      ...original,
+      oristudioCpShareLayerOrderHost: store.oristudioCpShareLayerOrderHost,
+      oristudioCpShareDraft: null,
+      oristudioCpDocument: null,
+    });
+    resetExportLayerOrdersForTest();
+  });
+
+  async function openWithFigure(url: string | null = null) {
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
+    useWorkspaceStore.setState({ oristudioCpShareDraft: { ...draftFor(square()), url } });
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('[aria-label="Show folded figure"]')?.click();
+    });
+    for (let i = 0; i < 4; i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
+  }
+
+  it('draws the card in the order chosen for its creases, and says so at publish', async () => {
+    await openWithFigure();
+
+    expect(orderHost.foldInOrder).toHaveBeenCalledTimes(1);
+    // The order's picture, not the kernel's: the face it turned over shows its back.
+    expect(preview()).toContain(`fill="${DEFAULT_PAPER_STYLE.paper.back}"`);
+    expect(preview()).not.toContain(`fill="${DEFAULT_PAPER_STYLE.paper.front}"`);
+    expect(layerOrderRow()?.textContent).toContain('1 constraint');
+
+    await act(async () => {
+      Array.from(document.querySelectorAll<HTMLButtonElement>('button'))
+        .find((element) => element.textContent?.trim() === 'Create link')
+        ?.click();
+    });
+    expect(publish.mock.calls[0]?.[0]).toMatchObject({ foldedFigureLayerOrder: 'chosen' });
+  });
+
+  it('holds the row once the link exists, since its card is made', async () => {
+    await openWithFigure('https://ori.studio/s/a3bK9xmQ');
+
+    const edit = document.querySelector('button[aria-label="Edit Layer Order…"]');
+    expect(edit?.getAttribute('aria-disabled')).toBe('true');
+    expect(layerOrderRow()?.textContent).toContain('The link’s card is made. Create another link to change it.');
   });
 });
