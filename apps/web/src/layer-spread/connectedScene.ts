@@ -37,6 +37,18 @@ export interface ConnectedPaperScene extends PaperScene {
 }
 export const hasConnectedDrawing = (scene: PaperScene): scene is ConnectedPaperScene => 'connected' in scene;
 
+const visibilityCache = new WeakMap<ConnectedSpreadSource, ReturnType<typeof visibility>>();
+/** Topology and side are fixed for a source; no camera/amount edit changes them. */
+export function connectedVisibility(source: ConnectedSpreadSource): ReturnType<typeof visibility> {
+  let result = visibilityCache.get(source);
+  if (!result) {
+    const { input, back } = source;
+    result = visibility(input.faces.length, input.orders, back, input.planeGroups);
+    visibilityCache.set(source, result);
+  }
+  return result;
+}
+
 /** Shared placed geometry. Reveal is screen-relative, after the host's turn.
  * Solve coordinates and reference planes never change with a camera gesture.
  */
@@ -66,7 +78,7 @@ export function connectedDrawing(
     positions,
     triangles: input.triangles,
     triangleFaces: input.triangleFaces,
-    visibility: visibility(input.faces.length, input.orders, back, input.planeGroups),
+    visibility: connectedVisibility(source),
   };
   const ink: ConnectedInk[] = preparedInk(source, baseInk).map((edge) => {
     const a = interpolate(edge.ids, edge.a, positions),

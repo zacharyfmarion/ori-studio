@@ -476,3 +476,20 @@ describe('useCpSurface renderer lifecycle', () => {
     expect(surface().rendererStatus).toBeNull();
   });
 });
+
+
+it('keeps tool overlays on the displayed paper camera while a new camera is rendering', () => {
+  stubWebgl();
+  const onViewChange = vi.fn();
+  const frames: import('./useCpSurface').CpSurfacePaperFrame[] = [];
+  let shown: import('./useCpSurface').CpSurfacePaperFrame | null = null;
+  mount({ onViewChange, onPaperFrame: frame => { frames.push(frame); }, presentedPaperFrame: () => shown });
+  shown = frames.at(-1)!;
+  const old = onViewChange.mock.lastCall![0];
+  act(() => surface().controls.zoomIn());
+  expect(frames.at(-1)!.view).not.toEqual(shown.view);
+  expect(onViewChange.mock.lastCall![0]).toEqual(old);
+  shown = frames.at(-1)!;
+  act(() => surface().render());
+  expect(onViewChange.mock.lastCall![0]).not.toEqual(old);
+});

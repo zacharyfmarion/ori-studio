@@ -71,6 +71,11 @@ export function restingSpread(
 }
 const NO_OFFSET: Point = { x: 0, y: 0 };
 
+/** Both the live worker and the flat painter must select the same preview. */
+export function foldedPreviewScene(preview: Pick<FoldToolPreview, 'turned'>, resolved: import('../engine/foldEngineWire').FoldScene | null) {
+  return resolved ?? preview.turned;
+}
+
 /**
  * Which step's form the folded pane shows — the sheet's key for the sheet —
  * once it is the step on screen's own: the pick index is built from that
@@ -126,13 +131,14 @@ export function useFoldCanvasPaint(
   spread: LayerSpreadOptions | null = null,
   pending: FoldPendingCreases | null = null,
   resolvedScene: import('../engine/foldEngineWire').FoldScene | null = null,
-  connected?: PreparedConnectedSpread
+  connected?: PreparedConnectedSpread,
+  workerPaper = false
 ): FoldCanvasPaint {
   const { summary, index } = view;
   // Rotate's preview: the model turned as it will be, in place of the state
   // on screen, turning about the sheet's middle as the offset places it. The
   // crease pattern, front up, stays the state on screen's.
-  const scene = resolvedScene ?? preview.turned ?? view.scene;
+  const scene = foldedPreviewScene(preview, resolvedScene) ?? view.scene;
   const sheet = summary?.sheet;
   const offset = useMemo(() => (scene && sheet ? foldedDisplayOffset(scene, sheet) : NO_OFFSET), [scene, sheet]);
   const sheetBounds = useMemo(() => (sheet ? boundsOf(sheet.map(([x, y]) => ({ x, y }))) : null), [sheet]);
@@ -146,7 +152,7 @@ export function useFoldCanvasPaint(
   const pendingSheet = pending?.creasePattern;
   const vertexCreases = useFoldVertexCreases(index, preview.vertex);
   const foldedScene = useMemo(() => {
-    if (!scene) return null;
+    if (!scene || workerPaper) return null;
     const base = foldedPaneScene(scene, display, offset, spread, connected);
     if (resolvedScene) return base;
     return withPreviewCreases(
@@ -154,7 +160,7 @@ export function useFoldCanvasPaint(
       { action: preview.action, second: secondLine, vertex: vertexCreases, pending: pendingFolded },
       offset
     );
-  }, [scene, resolvedScene, display, offset, spread, connected, preview.action, secondLine, vertexCreases, pendingFolded]);
+  }, [workerPaper, scene, resolvedScene, display, offset, spread, connected, preview.action, secondLine, vertexCreases, pendingFolded]);
   const foldedInk = useMemo<FoldedSceneInk>(
     () => ({
       policy: PAPER_STYLE_POLICIES.fold,

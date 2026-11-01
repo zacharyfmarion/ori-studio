@@ -1,0 +1,2 @@
+/* The input and tool canvas sits above the worker's paper bitmap. */
+.overlay { position: relative; }

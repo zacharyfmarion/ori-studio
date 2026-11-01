@@ -1,5 +1,12 @@
+import { useFoldPaperRenderer } from '../../../fold/canvas/useFoldPaperRenderer';
+import type { FoldLiveRenderer } from '../../../fold/canvas/foldRenderProtocol';
+import { FOLD_PANE_DISPLAY_DEFAULT, type FoldPaneDisplay } from '../../../fold/canvas/foldPaneScenes';
+import { FoldPaperBitmap } from './FoldPaperBitmap';
+import { PoseLoading } from '../../diagram/PoseLoading';
+import { ViewportStatusReadout } from '../../ui/ViewportStatusReadout';
+import { useTranslation } from 'react-i18next';
 import type { FoldRevealGesture } from '../../../fold/canvas/useFoldReveal';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type ReactNode } from 'react';
+import { forwardRef, useCallback, useLayoutEffect, useRef, useEffect, useImperativeHandle, useMemo, useState, type ReactNode } from 'react';
 import { CpRendererUnavailable } from '../../../cp-workspace/CpRendererUnavailable';
 import type { CpOverlayView } from '../../../cp-workspace/CreasePatternWebglCanvas';
 import { cpCanvasCursor } from '../../../cp-workspace/cpCanvasCursor';
@@ -26,6 +33,7 @@ import { joinFills, type FoldPaneOverlay } from '../../../fold/canvas/foldPaneOv
 import { sameFoldHit, type FoldHit, type FoldHitRadii, type FoldPaneId } from '../../../fold/canvas/foldPicking';
 import type { Point } from '../../../lib/geometry';
 import styles from './FoldCanvas.module.css';
+import paneStyles from './FoldPane.module.css';
 
 const EMPTY_STROKES: StrokeGeometry = {
   a: new Float32Array(0),
@@ -40,9 +48,14 @@ const EMPTY_FOLDED: FoldedGeometry = {
   strokes: EMPTY_STROKES,
 };
 
+const ORIGIN: Point = { x: 0, y: 0 };
+
 const FOLD_INK: FoldedSceneInk = { policy: PAPER_STYLE_POLICIES.fold };
 
 export interface FoldPaneProps {
+  spreadRenderer?: FoldLiveRenderer | null;
+  spreadDisplay?: FoldPaneDisplay;
+  preparing?: boolean;
   revealGesture?: FoldRevealGesture;
   pane: FoldPaneId;
   /** The paper the pane paints, through the shared painter; null before the state's scene is in, or for none. */
@@ -142,6 +155,7 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
     layers,
     ariaLabel,
   } = props;
+  const { t } = useTranslation();
   const [view, setView] = useState<CpOverlayView | null>(null);
   const dx = offset?.x ?? 0;
   const dy = offset?.y ?? 0;
@@ -150,9 +164,17 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
     [dx, dy]
   );
 
+  const redraw = useRef<() => void>(() => undefined);
+  const afterPaint = useCallback(() => redraw.current(), []);
+  const paper = useFoldPaperRenderer(props.spreadRenderer ?? null, props.spreadDisplay ?? FOLD_PANE_DISPLAY_DEFAULT,
+    offset ?? ORIGIN, style, ink, afterPaint);
   const { canvasRef, rendererRef, rendererGeneration, rendererStatus, hovered, dragging, render, controls } =
     useCpSurface<FoldHit>({
       modelToSvg,
+      alpha: true,
+      transparent: !!props.spreadRenderer,
+      onPaperFrame: paper.onFrame,
+      presentedPaperFrame: paper.presentedFrame,
       contentBounds,
       framingKey,
       keepInViewKey,
@@ -162,7 +184,7 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
       snapRadius,
       // The surface measures radii in Edit's units; the same share of a Fold sheet.
       hitTest: (point, radii) =>
-        hitTest(point, { point: radii.point * FOLD_UNITS_PER_CP_UNIT, line: radii.line * FOLD_UNITS_PER_CP_UNIT }),
+        paper.canPick() ? hitTest(point, { point: radii.point * FOLD_UNITS_PER_CP_UNIT, line: radii.line * FOLD_UNITS_PER_CP_UNIT }) : null,
       sameHit: sameFoldHit,
       onPick,
       strokeWidths: ({ ratio, widthBoost }) => ({
@@ -177,6 +199,7 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
       errorSurface: `fold:${pane}-webgl`,
     });
 
+  useLayoutEffect(() => { redraw.current = render; }, [render]);
   useImperativeHandle(ref, () => controls, [controls]);
 
   // The paper: the scene through the painter, in the user's style.
@@ -221,6 +244,7 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
     onHover?.(hovered);
   }, [onHover, hovered]);
 
+  const preparing = props.preparing || (!!props.spreadRenderer && paper.status === 'preparing');
   const cursor = cpCanvasCursor({
     panToolActive: false,
     panModifierHeld: false,
@@ -243,21 +267,25 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
       onPointerUpCapture={event => { if (!props.revealGesture?.end(event)) syncHeldModifiersFromEvent(event); }}
       onPointerCancelCapture={event => { props.revealGesture?.end(event); }}
       onPointerDownCapture={(event) => {
+        if (preparing) { event.stopPropagation(); event.preventDefault(); return; }
         if (props.revealGesture?.down(event)) return;
         syncHeldModifiersFromEvent(event);
         onActivate?.();
         if (document.activeElement !== event.currentTarget) event.currentTarget.focus({ preventScroll: true });
       }}
     >
+      {props.spreadRenderer && <FoldPaperBitmap canvasRef={paper.bitmapRef} />}
       <canvas
         ref={canvasRef}
-        className={styles.surface}
+        className={`${styles.surface} ${paneStyles.overlay}`}
         role="img"
         aria-label={ariaLabel}
         data-testid={`fold-${pane}-canvas`}
         style={cursor ? { cursor } : undefined}
       />
       {view && layers?.(view)}
+      {preparing && <PoseLoading />}
+      {props.spreadRenderer && paper.status === 'error' && <ViewportStatusReadout>{t('panels:fold.spread.unavailable', 'Spread unavailable for this state')}</ViewportStatusReadout>}
       {rendererStatus && <CpRendererUnavailable status={rendererStatus} />}
     </div>
   );

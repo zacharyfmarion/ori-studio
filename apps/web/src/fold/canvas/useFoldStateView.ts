@@ -1,3 +1,4 @@
+import { useFoldPickPreparation, type FoldPickPreparation } from './useFoldPickPreparation';
 import { isSequenceTool } from '../tools/foldToolCatalog';
 import { useFoldTools } from '../tools/foldToolState';
 import { useEffect, useMemo, useState } from 'react';
@@ -10,7 +11,7 @@ import type { FoldStateCall } from '../session/foldSession';
 import type { FoldSessionNode } from '../session/foldSessionState';
 import { FOLD_SCENE_QUERY, foldLandmarksQuery } from '../session/foldStateQueries';
 import { useFoldStateQuery, useFoldCursor, useFoldSessionState } from '../session/useFoldSession';
-import { foldPickIndex, type FoldMarkPoint, type FoldPickIndex } from './foldPicking';
+import { type FoldMarkPoint, type FoldPickIndex } from './foldPicking';
 
 /** What the canvas knows about the state on screen, from the engine and the document. */
 export interface FoldStateView {
@@ -52,6 +53,8 @@ export interface FoldStateView {
    * on screen's own scene is in, so nothing is located on the one before.
    */
   index: FoldPickIndex | null;
+  picking?: FoldPickPreparation | null;
+  pickingStatus?: 'idle' | 'preparing' | 'ready' | 'error';
 }
 
 /** A state the panes can show: its scene and its summary, together, the step count of the state before it, and whether an import landed it. */
@@ -103,7 +106,12 @@ export function useFoldStateView(): FoldStateView {
   const pending = useFoldSessionState((s) => s.pending);
   const returned = isSequenceTool(tool) && pending.status === 'landed' && pending.request.op.kind === tool ? pending : null;
   const marks = useMemo(() => foldMarksAt(sequence, cursorId), [sequence, cursorId]);
-  const points = useMemo(() => foldMarkPoints(marks), [marks]);
+  const candidatePoints = useMemo(() => foldMarkPoints(marks), [marks]);
+  // View-only sequence edits recreate the marks array. Picking is keyed by
+  // material references, not document identity or the spread controls.
+  const marksKey = JSON.stringify(candidatePoints);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const points = useMemo(() => candidatePoints, [marksKey]);
   // The landmarks with the marks as point landmarks: a new call when the
   // marks change, the same call (and no new ask) while they stay.
   const pointsKey = points.map(({ at }) => `${at[0]},${at[1]}`).join(';');
@@ -138,7 +146,8 @@ export function useFoldStateView(): FoldStateView {
     [scene, summary, op]
   );
   const picture = usePicture(fresh, loading(cursor));
-  const index = useMemo(() => (scene ? foldPickIndex(scene, landmarks, points) : null), [scene, landmarks, points]);
+  const picking = useFoldPickPreparation(scene, landmarks, points);
+  const index = picking.prepared?.index ?? null;
   return {
     cursorId,
     summary: picture?.summary ?? summary,
@@ -149,6 +158,8 @@ export function useFoldStateView(): FoldStateView {
     marks,
     markPoints: points,
     // Unfold to step takes no clicks; Repeat's axis may be drawn on its own preview, as on the step before it.
+    picking: picking.prepared,
+    pickingStatus: picking.status,
     index: tool === 'unfold-to' ? null : index,
   };
 }

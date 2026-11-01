@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { SpreadFrame, SpreadRenderMessage } from './renderProtocol';
 
 const mocks = vi.hoisted(() => ({
+  lost: null as null | (() => void),
   setData: vi.fn(), draw: vi.fn(), poll: vi.fn(), clear: vi.fn(),
   project: vi.fn(() => ({ connected: {}, bounds: { minX: 0, minY: 0, maxX: 100, maxY: 50 } })), geometry: vi.fn(() => ({})),
 }));
@@ -20,8 +21,8 @@ const frame = (): SpreadFrame => ({
   spread: { kind: 'connected', version: 1, amount: 1, reveal: [0.8, 0.6] },
   rotationDeg: 0, width: 800, height: 600, zoom: 1, style: {} as SpreadFrame['style'],
 });
-const send = (f: SpreadFrame) => worker.onmessage({ data: { kind: 'frame', frame: f } });
-const source = () => worker.onmessage({ data: { kind: 'source', view: {} as never } });
+const send = (f: SpreadFrame) => worker.onmessage({ data: { kind: 'frame', id: 1, frame: f } });
+const source = () => worker.onmessage({ data: { kind: 'source', source: {} as never } });
 beforeEach(async () => {
   vi.resetModules();
   vi.clearAllMocks();
@@ -29,7 +30,8 @@ beforeEach(async () => {
   vi.stubGlobal('self', worker);
   vi.stubGlobal('OffscreenCanvas', class {
     constructor(public width: number, public height: number) {}
-    getContext() { return {}; }
+    addEventListener(_name: string, callback: () => void) { mocks.lost = callback; }
+    getContext() { return { isContextLost: () => false }; }
     transferToImageBitmap() { return {}; }
   });
   await import('./render.worker');
@@ -67,4 +69,13 @@ it('invalidates resident geometry for every pose/style edit and source replaceme
   const count = mocks.setData.mock.calls.length;
   source(); send(f);
   expect(mocks.setData).toHaveBeenCalledTimes(count + 1);
+});
+
+it('reports context loss and never sends another unusable bitmap', () => {
+  send(frame());
+  mocks.lost!();
+  expect(worker.postMessage.mock.lastCall![0]).toMatchObject({kind:'error'});
+  send(frame());
+  expect(worker.postMessage.mock.lastCall![0]).toMatchObject({kind:'error'});
+  expect(mocks.draw).toHaveBeenCalledOnce();
 });

@@ -12,4 +12,4 @@ export interface SpreadFrame {
   pixelRatio?: number;
   style: PaperStyle;
 }
-export type SpreadRenderMessage = { kind: 'source'; view: ConnectedSpreadView } | { kind: 'frame'; frame: SpreadFrame };
+export type SpreadRenderMessage = import('./useBitmapRenderer').BitmapRequest<ConnectedSpreadView, SpreadFrame>;

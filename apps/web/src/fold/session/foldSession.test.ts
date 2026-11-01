@@ -144,6 +144,23 @@ describe('the Fold session: replay', () => {
     expect(engine().log).toEqual(['sheet']);
   });
 
+  it('publishes spread edits without scheduling replay or replacing landed nodes', async () => {
+    const { session, source, snapshot, engine } = setup();
+    session.retain();
+    await settle();
+    const before = snapshot();
+    const document = source.read().held!.document;
+    const notifications: FoldSessionSnapshot[] = [];
+    const stop = session.store.subscribe(s => notifications.push(s));
+    source.set({ held: { document: { ...document, steps: document.steps.map(step => ({ ...step, note: 'A presentation edit' })) }, readOnlyRaw: null } });
+    await settle();
+    stop();
+    expect(notifications).toHaveLength(1);
+    expect(snapshot().nodes).toBe(before.nodes);
+    expect(snapshot().progress).toBe(before.progress);
+    expect(engine().log).toHaveLength(4);
+  });
+
   it('replays after every change, asking the engine only for what is new', async () => {
     const { session, source, engine, statuses, snapshot } = setup();
     session.retain();

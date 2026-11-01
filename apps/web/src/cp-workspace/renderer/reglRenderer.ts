@@ -27,6 +27,8 @@ export interface ReglRendererOptions {
    * returned).
    */
   onAsyncLoad?: () => void;
+  /** Permit a separate paper canvas below the tool overlay. */
+  alpha?: boolean;
   /**
    * Invoked when the canvas loses its WebGL context. This is the one graphics
    * failure that strikes a device which was drawing fine a second ago: iOS
@@ -114,7 +116,7 @@ export function createReglRenderer(
     // Instanced strokes drive the whole renderer; require the extension up front
     // so failures surface here rather than at first draw.
     extensions: [CP_REQUIRED_EXTENSION],
-    attributes: CP_GL_ATTRIBUTES,
+    attributes: { ...CP_GL_ATTRIBUTES, alpha: options?.alpha ?? CP_GL_ATTRIBUTES.alpha },
   });
 
   // regl already owns the canvas's context-loss listeners: it preventDefault()s

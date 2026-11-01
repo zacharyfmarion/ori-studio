@@ -6,7 +6,7 @@ Make Default spread responsive in the Fold workspace by removing repeated pickin
 
 **Keep the existing line-width difference:** Fold uses screen-sized pens; Diagram Pose uses picture/page scaling. Preserve each surface's paper style, zoom, framing and camera controls. This is a performance and ownership refactor, not a new rendering policy or solver change.
 
-Status: measured baseline and implementation plan only. The profiling experiments are local, ignored files; no production implementation has changed for this plan.
+Status: implemented and validated; remaining performance limits are recorded below. Geometry, the solver and global layer ordering are unchanged. Fold and Diagram retain their own line-width policies.
 
 ## Approach
 
@@ -126,16 +126,44 @@ Acceptance targets on the same local benchmark device (targets, not current resu
 - [x] Confirm the hot function with a sampled CPU profile.
 - [x] Test static CP-index reuse in an ignored counterfactual and compare returned data.
 - [x] Record scope, evidence, limitations and unchanged line-width semantics.
-- [ ] Capture full-workspace interaction traces before implementation.
-- [ ] Extract static picking preparation and reuse the CP index.
-- [ ] Precompute material bindings and make initial preparation asynchronous/cancellable.
-- [ ] Reprofile picking before changing renderer ownership.
-- [ ] Extract the shared worker controller/protocol and host adapters.
-- [ ] Compose Fold paper and tool overlays with atomic displayed-frame/picking updates.
-- [ ] Verify cancellation, stale frames, failure fallback, context loss and memory disposal.
-- [ ] Check geometry, line visibility, widths, picking and Fold tool behavior against the baseline.
-- [ ] Benchmark Bodo plus representative Cpoogle models, including realistic Retina viewports.
-- [ ] Run web lint/typecheck and focused picking, renderer, Fold and Diagram tests; run a normal web build for worker bundling. Rust/oracle/native suites are unnecessary unless implementation expands into engine or shell behavior.
-- [ ] Complete Canary/full-app review and record measured acceptance results and remaining limits.
+- [x] Capture full-workspace interaction traces before implementation.
+- [x] Extract static picking preparation and reuse the CP index.
+- [x] Precompute material bindings and make initial preparation asynchronous/cancellable.
+- [x] Reprofile picking before changing renderer ownership.
+- [x] Extract the shared worker controller/protocol and host adapters.
+- [x] Compose Fold paper and tool overlays with atomic displayed-frame/picking updates.
+- [x] Verify cancellation, stale frames, failure handling, context loss and explicit worker/bitmap disposal in lifecycle tests.
+- [ ] Measure retained-memory plateau over prolonged real-browser model switching (not established by the lifecycle tests).
+- [x] Check geometry, line visibility, widths and picking against the baseline; verify Rotate/Fit in IAB and Canary.
+- [x] Benchmark Bodo plus representative Cpoogle models, including realistic Retina viewports.
+- [x] Run full web lint, TypeScript, 435 tests across 68 focused picking/renderer/Fold/Diagram suites, and the production build with fresh WASM and landing prerender. Rust/oracle/native suites are unnecessary: no engine or shell behavior changed.
+- [x] Complete Canary/full-app review and record measured acceptance results and remaining limits.
 
-Plan validation: profiling harnesses completed for five models; `git diff --check`. Product tests/build are not rerun for this plan-only change. The actual refactor remains unimplemented pending review.
+### Implementation and measured results
+
+- Fold prepares CP picking and material bindings in a short-lived worker, then reuses them. The rendering worker updates only the folded targets and the spread drawing. GPU geometry remains resident for camera-only frames.
+- Fold and Diagram share `useBitmapRenderer` and `createSpreadBitmapRenderer`. Hosts retain placement, style and camera semantics. The controller has one in-flight request and one replaceable pending request, generation/ID checks, timeouts, and late-bitmap disposal.
+- The Fold paper bitmap, target positions and displayed camera publish together. Tool overlays use that displayed camera; hits are withheld while a requested camera differs. Picking/previewing a fold still returns to unspread paper.
+- Presentation-only document edits no longer replay the Fold sequence. The full-workspace trace found cached replay still taking up to about 100 ms per spread change. Operation, paper, topology, choices, load and drift-expectation changes still replay; failure/retry behavior remains.
+- Rotate and import-order previews now supply the same scene to the worker and flat painter. Fit uses the actual bounds delivered with the spread bitmap. A new preview does not refit against temporary flat bounds while its worker is preparing.
+- Startup is pane-local, with the normal cursor. Worker failure clears the loading state and reports unavailable rather than synchronously rebuilding Default spread on the main thread. Spread can be disabled or changed through the inspector. There is no new cross-model cache; weak references and current-source ownership bound the added state. The height cache remains unchanged.
+
+Final isolated production-function benchmark, same five input scenes/style/reveal sequence and 800 × 600 CSS viewport, 3 warmups + 20 samples. Request-to-bitmap figures include worker delivery and main presentation but exclude React/store work. Baseline includes the old synchronous picking/drawing pipeline, excluding GPU completion. These are different timing boundaries, so their ratio is not a frame-rate claim.
+
+| Model | Original main-thread pipeline median | Worker bitmap median / p95 at 1× | Main pick hydration + bitmap presentation p95 | Worker median / p95 at 2× |
+| --- | ---: | ---: | ---: | ---: |
+| Bodo 147 | 137.2 ms | 26.3 / 34.0 ms | 0.24 ms | 25.8 / 28.4 ms |
+| Bodo 168 | 149.2 ms | 26.7 / 30.2 ms | 0.21 ms | 26.2 / 30.8 ms |
+| Bodo 204 | 193.6 ms | 35.9 / 53.3 ms | 0.16 ms | 28.8 / 35.0 ms |
+| Horse | 22.3 ms | 13.2 / 17.1 ms | 0.08 ms | 16.3 / 19.6 ms |
+| Ant | 15.9 ms | 10.3 / 12.9 ms | 0.08 ms | 58.2 / 92.6 ms |
+
+The 2× run shows substantial case/run variance (especially Ant); it is not uniformly faster or guaranteed under 50 ms. Both resolutions match the original painter exactly at the checked pose: zero differing RGBA channels in all five cases. Maximum target-coordinate error is below 2.3e-16 sheet units. The worker returns original precision for picking; this is not an approximate geometry shortcut.
+
+The full-workspace development-app trace improved store-change→two-animation-frames from median 65.2 ms / max 153.3 ms to median 21.8 ms / max 54.6 ms after replay elimination. This is not final bitmap latency. A separate final full-app run measured store-change→bitmap median 91.6 ms / p95 108.2 ms at the actual workspace viewport, with 50–74 ms long tasks. This run uses one imported Bodo state, not the full 205-step book. A native Chrome Canary CPU trace attributes substantial remaining development-build cost to React debug `createTask` / console tasks under `startUpdateTimerByLane`, triggered by store notifications. Instrumented Fold component bodies and overlay drawing do not account for that overhead.
+
+The same 20-change workload in a production bundle measured store-change→bitmap median **44.1 ms / p95 52.6 ms**, with **no >50 ms main-thread long tasks** observed. Store updates themselves were below 0.9 ms; the double-animation-frame metric was median 7.6 ms / p95 9.6 ms. This uses the actual Fold workspace on one imported Bodo state at the test viewport, not the full 205-step book. The production-vs-development difference confirms that the development server overstates shipping interaction cost; it does not erase remaining worker/transfer/GPU latency. The strict under-50-ms target is **not universally met**. Do not describe this as an all-Cpoogle benchmark or a complete production performance certification.
+
+Evidence additionally saved under ignored `artifacts/fold-spread-profile/`: `worker-final-1x.json`, `worker-final-2x.json`, `full-app-before-replay-skip.json`, `full-app-final.json`, `full-app-microtasks.json`, `full-app-components.json`, `full-app-surface.json`, `full-app-presented.json`, `full-app-effects.json`, `full-app-pane.json`, `full-app-production.json`, `canary-main-trace.json.gz`. The production harness bundles the real app and workers with Vite production settings; its loader/profiler remains ignored. All timers/probes in production source were removed. No corpus inputs are tracked.
+
+Chrome Canary review: loaded the real imported Bodo engine state, switched Affine → Default and observed Preparing pose until paper was ready; tested quarter/eighth-turn previews, cancellation and Fit. At the quarter turn Fit framed the actual spread form at 200% on that viewport. IAB independently verified the rotated bitmap, matching preview thumbnail and Fit. Startup keeps the normal cursor. Browser screenshots/traces remain local, and no user-owned tabs or source files were altered.

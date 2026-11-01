@@ -50,12 +50,12 @@ it('retains one pending frame and closes late bitmaps after unmount', async () =
   });
   expect(worker.postMessage.mock.calls.map((call) => call[0].kind)).toEqual(['source', 'frame']);
   const bitmap = { close: vi.fn() } as unknown as ImageBitmap;
-  await act(async () => worker.onmessage!({ data: { kind: 'frame', bitmap } }));
+  await act(async () => worker.onmessage!({ data: { kind: 'frame', id: 1, bitmap } }));
   expect(paint).toHaveBeenCalledWith(bitmap);
   expect(worker.postMessage.mock.lastCall![0].frame.zoom).toBe(3);
   await act(async () => root!.unmount());
   root = null;
-  worker.onmessage!({ data: { kind: 'frame', bitmap } });
+  worker.onmessage!({ data: { kind: 'frame', id: 1, bitmap } });
   expect(bitmap.close).toHaveBeenCalledOnce();
   expect(worker.terminate).toHaveBeenCalledOnce();
 });
@@ -84,7 +84,7 @@ it('falls back if a graphics worker stops responding and closes a late frame', a
   expect(render.status).toBe('error');
   expect(worker.terminate).toHaveBeenCalledOnce();
   const bitmap = { close: vi.fn() } as unknown as ImageBitmap;
-  await act(async () => worker.onmessage!({ data: { kind: 'frame', bitmap } }));
+  await act(async () => worker.onmessage!({ data: { kind: 'frame', id: 1, bitmap } }));
   expect(paint).not.toHaveBeenCalled();
   expect(bitmap.close).toHaveBeenCalledOnce();
 });
@@ -98,16 +98,39 @@ it('waits for layout and a painted frame, resetting readiness when the model cha
   expect(workers[0]!.postMessage).toHaveBeenCalledTimes(1);
   await act(async () => render.request(frame(1)));
   const bitmap = {close:vi.fn()} as unknown as ImageBitmap;
-  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',bitmap}}));
+  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',id:workers[0]!.postMessage.mock.lastCall![0].id,bitmap}}));
   expect(paint).toHaveBeenCalledWith(bitmap); expect(render.status).toBe('ready');
   const readyCommits = commits;
   await act(async () => render.request(frame(2)));
-  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',bitmap}}));
+  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',id:workers[0]!.postMessage.mock.lastCall![0].id,bitmap}}));
   expect(commits).toBe(readyCommits); // Painting a live frame must not re-render React.
   await act(async () => render.request(frame(3)));
   expect(render.status).toBe('ready'); // Live updates do not re-block Pose.
   await act(async () => root!.render(<Harness source={{} as ConnectedSpreadView} paint={paint} />));
   expect(render.status).toBe('preparing');
-  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',bitmap}}));
+  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',id:workers[0]!.postMessage.mock.lastCall![0].id,bitmap}}));
   expect(render.status).toBe('preparing'); expect(bitmap.close).toHaveBeenCalledOnce();
+});
+
+it('ignores wrong frame IDs without consuming the current request or its watchdog', async () => {
+  vi.stubGlobal('Worker', WorkerMock); root = createRoot(host); const paint = vi.fn();
+  await act(async () => root!.render(<Harness paint={paint} />));
+  await act(async () => render.request(frame(1)));
+  const stale = {close:vi.fn()} as unknown as ImageBitmap;
+  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',id:999,bitmap:stale}}));
+  expect(stale.close).toHaveBeenCalledOnce(); expect(paint).not.toHaveBeenCalled();
+  const current = {close:vi.fn()} as unknown as ImageBitmap;
+  await act(async () => workers[0]!.onmessage!({data:{kind:'frame',id:1,bitmap:current}}));
+  expect(paint).toHaveBeenCalledWith(current);
+});
+
+it('does not let an obsolete worker error disable its replacement', async () => {
+  vi.stubGlobal('Worker', WorkerMock); root = createRoot(host);
+  await act(async () => root!.render(<Harness paint={() => {}} />));
+  const obsolete = workers[0]!;
+  await act(async () => root!.render(<Harness source={{} as ConnectedSpreadView} paint={() => {}} />));
+  await act(async () => obsolete.onerror!());
+  await act(async () => render.request(frame(4)));
+  expect(workers[1]!.postMessage.mock.lastCall![0]).toMatchObject({kind:'frame', frame:{zoom:4}});
+  expect(workers[1]!.terminate).not.toHaveBeenCalled();
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { Point } from '../../lib/geometry';
 import type { WheelGesturePreference } from '../../lib/wheelGesture';
 import { reportError } from '../../monitoring';
@@ -26,7 +26,7 @@ import {
 import type { CpRenderer } from '../renderer/CpRenderer';
 import { readCssVarColor } from '../renderer/cssColor';
 import { createReglRenderer } from '../renderer/reglRenderer';
-import type { ModelPoint, Rgba, Viewport } from '../renderer/types';
+import type { ModelPoint, Rgba, Viewport, ViewTransform } from '../renderer/types';
 import {
   awaitContextRestore,
   classifyCpWebglFailure,
@@ -92,7 +92,20 @@ export interface CpSurfaceStrokeWidths {
   foldedStrokeWidthPx?: number;
 }
 
+export interface CpSurfacePaperFrame {
+  view: ViewTransform;
+  userView: ViewTransform;
+  viewport: Viewport;
+  widthPx: number;
+}
 export interface UseCpSurfaceOptions<Hit> {
+  /** A separately rendered paper bitmap can sit below this transparent tool surface. */
+  transparent?: boolean;
+  /** Fixed at mount: this surface may become a transparent tool overlay. */
+  alpha?: boolean;
+  /** Draw overlays through the camera of the displayed asynchronous paper. */
+  presentedPaperFrame?: () => CpSurfacePaperFrame | null;
+  onPaperFrame?: (frame: CpSurfacePaperFrame) => void;
   /** Model → SVG user space, the map the camera is built from; a change redraws. */
   modelToSvg: (point: Point) => Point;
   /** What the camera fits, in user space; null before there is anything to frame. */
@@ -272,7 +285,7 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
   // Declared before every effect below, and the caller's effects come after
   // this hook's, so within one commit the handlers and uploads read this
   // render's values.
-  useEffect(() => {
+  useLayoutEffect(() => {
     liveRef.current = { ...options, pointFloorCss, lineFloorCss };
   });
 
@@ -290,6 +303,7 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
     let renderer: CpRenderer;
     try {
       renderer = createReglRenderer(canvas, {
+        alpha: liveRef.current.alpha,
         onContextLost: () => {
           preservedCameraRef.current = cameraRef.current;
           setRendererStatus({ kind: 'context-lost' });
@@ -370,8 +384,8 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
       const cam = ensureCamera(viewport);
       if (!cam) return;
       const live = liveRef.current;
-      const view = modelViewFromCamera(cam, viewport, live.modelToSvg);
-      const userView = userCameraToView(cam, viewport);
+      const requestedView = modelViewFromCamera(cam, viewport, live.modelToSvg);
+      const requestedUserView = userCameraToView(cam, viewport);
       const bounds = live.contentBounds;
       const fitZoom = bounds ? fitUserCamera(bounds, viewport).zoom : cam.zoom;
       const { widthBoost, markerScalePx, pointScalePx } = cpSizingScales({
@@ -379,6 +393,11 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
         fitZoom,
         ratio,
       });
+      const widths = live.strokeWidths({ ratio, widthBoost });
+      live.onPaperFrame?.({ view: requestedView, userView: requestedUserView, viewport, widthPx: widths.foldedStrokeWidthPx ?? widths.strokeWidthPx });
+      const presented = live.presentedPaperFrame?.();
+      const view = presented?.view ?? requestedView;
+      const userView = presented?.userView ?? requestedUserView;
       // A layer over this canvas draws through the same camera, in CSS
       // pixels rather than device ones.
       reportView({
@@ -388,10 +407,10 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
       });
       reportZoom(cam, ratio);
       renderer.render({
-        clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
+        clearColor: live.transparent ? [0, 0, 0, 0] : readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
         view,
         userView,
-        ...live.strokeWidths({ ratio, widthBoost }),
+        ...widths,
         userScalePx: cam.zoom,
         markerScalePx,
         pointScalePx,

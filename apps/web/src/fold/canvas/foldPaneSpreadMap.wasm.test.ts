@@ -136,3 +136,65 @@ describe.skipIf(!available)('the spread folded pane, picked where it is drawn', 
     expect(restingSpread(DEFAULT_AFFINE_SPREAD, none, true)).toBeNull();
   });
 });
+
+// The worker adapter must keep the material references of the original
+// picking path under strong spread, turn-over and offset placement.
+import { connectedSpreadSource } from '../../cp-workspace/folded/connectedSpreadSource';
+import { foldPickData, hydratePanePick } from './foldPicking';
+import { prepareFoldRender, foldPickDrawing } from './foldRenderGeometry';
+import type { SpreadSolution } from '@oristudio/layer-spread';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
+
+describe.skipIf(!available)('worker Fold projection and picking equivalence', () => {
+  it('preserves targets and free-point material coordinates across side, offset and spread', async () => {
+    const { calls, state } = await bookAndCorner();
+    for (const id of [state, landed(calls.step(state, {kind:'turn',axis:'vertical'})).state]) {
+      const scene = calls.scene(id), landmarks = calls.landmarks(id, []);
+      const source = connectedSpreadSource(scene, true);
+      const reference = {plane:[0,0,0] as [number,number,number],center:[0,0,0] as [number,number,number],samples:0,rms:0};
+      const solution: SpreadSolution = {version:'normalized-50-v1',heights:source.input.xy.map((_,i)=>.01*Math.sin(i)),references:[reference,reference],diagnostics:{} as SpreadSolution['diagnostics']};
+      const prepared = {source,solution};
+      const base = foldPickIndex(scene, landmarks, []);
+      const renderSource = {scene,landmarks,prepared,marks:[],picking:foldPickData(base)};
+      const render = prepareFoldRender(renderSource);
+      let bindings: import('./foldPickPreparation').FoldSheetBindings | undefined;
+      for (const amount of [0,.00001,.5,2]) {
+        const spread = {kind:'connected',version:1,amount,reveal:[1.5,-.8]} as const;
+        const recipe = {...spread,reveal:[...spread.reveal] as [number,number]};
+        const built = render({spread:recipe,display:FOLD_PANE_DISPLAY_DEFAULT,offset:{x:.23,y:-.71},style:DEFAULT_PAPER_STYLE,ink:{policy:PAPER_STYLE_POLICIES.fold},width:800,height:600,widthPx:2,view:{origin:[0,0],ex:[1,0],ey:[0,1]}});
+        bindings = built.payload.bindings ?? bindings;
+        // Fit consumes the worker's displayed outline, including offsets and
+        // spread; a flat-sheet bound must not make revealed layers disappear.
+        const bounds = built.payload.bounds;
+        for (const [x,y] of built.payload.positions) {
+          const px = (x + .23) * FOLD_USER_PER_UNIT, py = (y + .71) * FOLD_USER_PER_UNIT;
+          expect(px).toBeGreaterThanOrEqual(bounds.minX - 1e-7);
+          expect(px).toBeLessThanOrEqual(bounds.maxX + 1e-7);
+          expect(py).toBeGreaterThanOrEqual(bounds.minY - 1e-7);
+          expect(py).toBeLessThanOrEqual(bounds.maxY + 1e-7);
+        }
+        const oldMap = foldPaneSpreadMap(scene, recipe, prepared)!;
+        const map = foldPaneSpreadMap(scene, recipe, prepared, bindings, foldPickDrawing(renderSource,built.payload.positions))!;
+        const expected = foldPickIndex(scene,landmarks,[],oldMap);
+        const actual = {...base,spread:map,folded:hydratePanePick(built.payload.folded)};
+        expect(actual.folded.points.length).toBe(expected.folded.points.length);
+        actual.folded.points.forEach((p,k)=>{
+          const q=expected.folded.points[k]!;
+          expect({...p,at:q.at}).toEqual(q);
+          expect(Math.hypot(p.at.x-q.at.x,p.at.y-q.at.y)).toBeLessThan(1e-12);
+          const found=resolveFoldPick(actual,'folded',p.at,RADII,POINT);
+          expect(found?.kind).toBe('point');
+        });
+        expect(actual.folded.segments).toEqual(expected.folded.segments);
+        for (const face of scene.faces) {
+          const mid = face.outline.reduce((a,p)=>({x:a.x+p.x/face.outline.length,y:a.y+p.y/face.outline.length}),{x:0,y:0});
+          const at=oldMap.onFace(scene.faces.indexOf(face),mid);
+          const old=oldMap.under(at), now=map.under(at);
+          expect(now?.face).toBe(old?.face);
+          if(old&&now) expect(Math.hypot(old.sheet[0]-now.sheet[0],old.sheet[1]-now.sheet[1])).toBeLessThan(1e-10);
+        }
+      }
+    }
+  });
+});
