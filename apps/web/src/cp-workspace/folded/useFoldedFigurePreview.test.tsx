@@ -318,3 +318,17 @@ describe('a preview fold in a chosen layer order', () => {
     expect(shown!.source?.digest).toBe('pattern-2');
   });
 });
+
+describe('the folds a preview keeps', () => {
+  it('folds a pattern again once a dozen newer folds have pushed it out', async () => {
+    const fold = vi.fn(async () => foldOf('pattern'));
+    for (let pattern = 0; pattern <= 12; pattern += 1) await render(SETTINGS, fold, { cacheKeyPrefix: String(pattern) });
+    expect(fold).toHaveBeenCalledTimes(13);
+    // The twelve newest are kept, the first is not.
+    await render(SETTINGS, fold, { cacheKeyPrefix: '12' });
+    await render(SETTINGS, fold, { cacheKeyPrefix: '1' });
+    expect(fold).toHaveBeenCalledTimes(13);
+    await render(SETTINGS, fold, { cacheKeyPrefix: '0' });
+    expect(fold).toHaveBeenCalledTimes(14);
+  });
+});

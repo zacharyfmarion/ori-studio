@@ -104,6 +104,23 @@ interface CachedFold {
 }
 
 /**
+ * How many folds a preview keeps, and how many patterns it keeps the source of.
+ * The share modal's preview stays mounted between shares, and each share of an
+ * edited document folds anew, so its oldest go.
+ */
+const KEPT_FOLDS = 12;
+
+/** Set `key` as `map`'s newest entry, dropping its oldest past `KEPT_FOLDS`. */
+function keepNewest<V>(map: Map<string, V>, key: string, value: V): void {
+  map.delete(key);
+  map.set(key, value);
+  for (const oldest of map.keys()) {
+    if (map.size <= KEPT_FOLDS) break;
+    map.delete(oldest);
+  }
+}
+
+/**
  * Fold a crease pattern for a preview, with caching and cancellation.
  *
  * The one fold behind both the crease-pattern export dialog (`CreaseExportDialog`) and
@@ -148,7 +165,7 @@ export function useFoldedFigurePreview({
     ordered: null,
   });
   // What each pattern's last fold that landed was made from, by its cache prefix.
-  const [sources, setSources] = useState<Readonly<Record<string, LayerOrderSource>>>({});
+  const [sources, setSources] = useState<ReadonlyMap<string, LayerOrderSource>>(() => new Map());
   const [figureSource, setFigureSource] = useState<LayerOrderSource | null>(null);
   const [orderRefused, setOrderRefused] = useState(false);
   const [folding, setFolding] = useState(false);
@@ -174,7 +191,7 @@ export function useFoldedFigurePreview({
 
   // The order chosen for the creases this pattern's last fold was made from: every fold
   // of them after that one is in it.
-  const source = sources[cacheKeyPrefix] ?? null;
+  const source = sources.get(cacheKeyPrefix) ?? null;
   const order = source && orderFor && foldInOrder ? orderFor(source.digest) : null;
   const orderKey = order?.key ?? '';
   const { side, foldCase } = settings;
@@ -211,7 +228,13 @@ export function useFoldedFigurePreview({
         ordered: result.ordered ?? (result.chosenOrder === true || result.scene !== null),
       });
       const landed = result.source;
-      if (landed) setSources((all) => (all[cacheKeyPrefix] === landed ? all : { ...all, [cacheKeyPrefix]: landed }));
+      if (!landed) return;
+      setSources((all) => {
+        if (all.get(cacheKeyPrefix) === landed) return all;
+        const next = new Map(all);
+        keepNewest(next, cacheKeyPrefix, landed);
+        return next;
+      });
     };
     const cached = cache.current.get(keyOf(order));
     if (fits(cached)) {
@@ -241,7 +264,7 @@ export function useFoldedFigurePreview({
       const started = make().then((result) => {
         if (!result) return null;
         const entry = { result, colours };
-        cache.current.set(key, entry);
+        keepNewest(cache.current, key, entry);
         return entry;
       });
       running.current.set(key, started);
