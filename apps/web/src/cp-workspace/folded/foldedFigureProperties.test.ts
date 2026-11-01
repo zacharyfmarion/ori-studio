@@ -1003,8 +1003,8 @@ describe('the Spread section', () => {
       ],
     });
     const amount = slider(sheet, 'spreadAmount');
-    expect(amount).toMatchObject({ label: 'Amount', ariaLabel: 'Spread amount', value: 25, min: 0, max: 100, step: 1 });
-    expect(amount.valueText?.(25)).toBe('25%');
+    expect(amount).toMatchObject({ label: 'Amount', ariaLabel: 'Spread amount', value: 7, min: 0, max: 100, step: 1 });
+    expect(amount.valueText?.(7)).toBe('7%');
     // A drag is one gesture under the pane's own owner, one entry.
     expect(amount.begin()).toBe(true);
     expect(d.begin).toHaveBeenCalledWith('spread-amount');
