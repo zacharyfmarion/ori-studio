@@ -11,6 +11,7 @@ import {
   buildCreaseExportArtwork,
   composeCreaseExportSvg,
   creaseExportPalette,
+  creaseExportPaperStyle,
   DEFAULT_CREASE_EXPORT_OPTIONS,
   type CreaseExportCaption,
   type CreaseExportFoldedFigureSettings,
@@ -31,6 +32,7 @@ import {
 import type { FoldDocument } from '../engine/types';
 import { useFoldedFigurePreview } from '../cp-workspace/folded/useFoldedFigurePreview';
 import { useExportLayerOrder, useExportLayerOrderLookup } from '../cp-workspace/export/useExportLayerOrder';
+import { useExportFoldedSpread } from '../cp-workspace/export/useExportFoldedSpread';
 import {
   creaseExportFigureColours,
   creaseExportFigureStyle,
@@ -248,6 +250,29 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   const foldedTurnDeg = layerOrder.turnDeg;
   // The dialog's Escape stands down while the Layer order dialog it opened is up.
   useCommandDialogEscape(dialog.id, layerOrder.ordering);
+  // The figure's layers spread, settled into the picture the page paints:
+  // prepared once per fold, captured as a setting commits, its bitmap (if it
+  // needs one) drawn in the figure's colours.
+  const { frontColor, backColor } = foldedSettings;
+  const figureStyle = useMemo(
+    () => creaseExportPaperStyle(paper.style, { frontColor, backColor }),
+    [paper.style, frontColor, backColor]
+  );
+  const turnSpreadOff = useCallback(
+    () => setOptions((current) => ({ ...current, foldedFigure: { ...current.foldedFigure, spread: null } })),
+    []
+  );
+  const spread = useExportFoldedSpread({
+    enabled: includeFoldedFigure && canFold,
+    preview: folded,
+    setting: foldedSettings.spread ?? null,
+    turnOff: turnSpreadOff,
+    turnDeg: foldedTurnDeg,
+    style: figureStyle,
+  });
+  const foldedSpread = spread.picture;
+  // No status line while the figure folds or spreads: the last picture stays, dimmed.
+  const previewBusy = folded.folding || spread.busy;
 
   const toggleSection = (id: SectionId) =>
     setOpenSections((current) => ({ ...current, [id]: !current[id] }));
@@ -302,6 +327,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
           foldedFigureTransform: foldedTransform,
           grid: dialog.grid,
           ...(foldedTurnDeg !== 0 ? { foldedFigureTurnDeg: foldedTurnDeg } : {}),
+          ...(foldedSpread ? { foldedFigureSpread: foldedSpread } : {}),
         }
       ),
     [
@@ -324,6 +350,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       paper,
       foldedTransform,
       foldedTurnDeg,
+      foldedSpread,
     ]
   );
 
@@ -388,6 +415,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                 grid: dialog.grid,
                 ...(foldedTurnDeg !== 0 ? { foldedFigureTurnDeg: foldedTurnDeg } : {}),
                 foldedFigureLayerOrder: layerOrder.chosen ? 'chosen' : 'default',
+                ...(foldedSpread ? { foldedFigureSpread: foldedSpread } : {}),
               },
             });
           }}
@@ -425,13 +453,13 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
               ))}
             </div>
           )}
-          {/* No status line while the figure folds: the last picture stays, dimmed. */}
+          {/* No status line while the figure folds or spreads: the last picture stays, dimmed. */}
           <div
             className="export-modal__preview"
             aria-label={t('dialogs:export.preview', 'Export preview')}
-            aria-busy={folded.folding || undefined}
+            aria-busy={previewBusy || undefined}
           >
-            <img className={styles.previewImage} data-busy={folded.folding || undefined} src={previewSrc} alt="" />
+            <img className={styles.previewImage} data-busy={previewBusy || undefined} src={previewSrc} alt="" />
           </div>
           <div className="export-modal__controls">
             <ExportSection

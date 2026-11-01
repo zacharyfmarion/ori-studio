@@ -8,6 +8,7 @@ import { copyToClipboard } from '../../lib/shareLink';
 import {
   buildCreaseExportArtwork,
   composeCreaseExportSvg,
+  creaseExportPaperStyle,
   DEFAULT_CREASE_EXPORT_FOLDED_FIGURE,
   DEFAULT_CREASE_EXPORT_OPTIONS,
   EMPTY_CREASE_EXPORT_CAPTION,
@@ -26,6 +27,8 @@ import { cpFoldAngleDisplayLabel } from '../../i18n/enumLabels';
 import { shareCardTitle } from '../../lib/shareCardText';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
 import { useExportLayerOrder, useExportLayerOrderLookup } from '../export/useExportLayerOrder';
+import { useExportFoldedSpread } from '../export/useExportFoldedSpread';
+import type { LayerSpreadOptions } from '../folded/foldedLayerSpread';
 import {
   creaseExportFigureColours,
   creaseExportFigureStyle,
@@ -98,6 +101,8 @@ export function ShareLinkModal() {
   const [backColor, setBackColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.backColor);
   // The kernel's own layer order the card shows, stepped by the Layer order row.
   const [foldCase, setFoldCase] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.foldCase);
+  // The card's figure with its layers spread, or null for none: the card's own setting.
+  const [spreadSetting, setSpreadSetting] = useState<LayerSpreadOptions | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [justCopied, setJustCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -123,6 +128,7 @@ export function ShareLinkModal() {
     setFrontColor(opening.colours.frontColor);
     setBackColor(opening.colours.backColor);
     setFoldCase(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.foldCase);
+    setSpreadSetting(null);
   }, [open]);
 
   // A new style re-seeds Front and Back from its paper; editing them after
@@ -165,8 +171,8 @@ export function ShareLinkModal() {
   );
 
   const foldedSettings: CreaseExportFoldedFigureSettings = useMemo(
-    () => ({ side, frontColor, backColor, foldCase }),
-    [side, frontColor, backColor, foldCase]
+    () => ({ side, frontColor, backColor, foldCase, spread: spreadSetting }),
+    [side, frontColor, backColor, foldCase, spreadSetting]
   );
 
   const foldFn = useCallback(
@@ -218,6 +224,23 @@ export function ShareLinkModal() {
     editRef: editLayerOrderRef,
     t,
   });
+  // The figure's layers spread, settled into the picture the card paints.
+  const paintedStyle = useMemo(
+    () => creaseExportPaperStyle(paper.style, { frontColor, backColor }),
+    [paper.style, frontColor, backColor]
+  );
+  const turnSpreadOff = useCallback(() => setSpreadSetting(null), []);
+  const spread = useExportFoldedSpread({
+    enabled: open && showFolded && canFold,
+    preview: folded,
+    setting: spreadSetting,
+    turnOff: turnSpreadOff,
+    turnDeg: layerOrder.turnDeg,
+    style: paintedStyle,
+  });
+  const foldedSpread = spread.picture;
+  // No status line while the figure folds or spreads: the last card stays, dimmed.
+  const cardBusy = folded.folding || spread.busy;
 
   useEffect(() => {
     // While the Layer order dialog it opened is up, Escape is that dialog's.
@@ -261,6 +284,7 @@ export function ShareLinkModal() {
         foldedFigureTransform: folded.transform,
         grid: draft.grid,
         ...(layerOrder.turnDeg !== 0 ? { foldedFigureTurnDeg: layerOrder.turnDeg } : {}),
+        ...(foldedSpread ? { foldedFigureSpread: foldedSpread } : {}),
       }
     );
     const page = composeCreaseExportSvg(artwork, EMPTY_CREASE_EXPORT_CAPTION);
@@ -276,6 +300,7 @@ export function ShareLinkModal() {
     foldedSettings,
     paper,
     layerOrder.turnDeg,
+    foldedSpread,
   ]);
 
   // Exactly what the Worker will write into the OpenGraph tags — same helpers, so the
@@ -511,10 +536,10 @@ export function ShareLinkModal() {
             </span>
 
             <div className={styles.embed}>
-                {/* No status line while the figure folds: the last card stays, dimmed. */}
+                {/* No status line while the figure folds or spreads: the last card stays, dimmed. */}
                 <div
                   className={styles.embedImage}
-                  aria-busy={folded.folding || undefined}
+                  aria-busy={cardBusy || undefined}
                   style={{
                     aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
                     // `svgToPngCard` fills the whole canvas with this before drawing, so the
@@ -525,7 +550,7 @@ export function ShareLinkModal() {
                 >
                   {previewSrc && (
                     <img
-                      data-busy={folded.folding || undefined}
+                      data-busy={cardBusy || undefined}
                       src={previewSrc}
                       alt={t('dialogs:share.previewAlt', 'Preview of the shared crease pattern')}
                     />

@@ -46,8 +46,12 @@ export interface SpreadRasterPens {
   readonly style: PaperStyle;
   /** The surface whose policy reads the style's pens: the vector picture's, so the two agree. */
   readonly policy: PaperSurface;
-  /** The picture's longer side on the page, mm: at 300 dpi, how many pixels it gets. */
-  readonly mm: number;
+  /**
+   * The picture's longer side on the page, mm: at 300 dpi, how many pixels it
+   * gets. Asked of the scene drawn, for a host whose page size depends on how
+   * far the layers reach.
+   */
+  readonly mm: number | ((scene: ConnectedPaperScene) => number);
 }
 
 /** A live scene after its capture: clipped, or too complex to clip in time. */
@@ -116,7 +120,8 @@ export async function rasterSpreadScene(
   pens: SpreadRasterPens,
   signal?: AbortSignal
 ): Promise<SpreadRasterPicture> {
-  const raster = await rasterConnected(scene, pens.style, pens.mm, signal, pens.policy);
+  const mm = typeof pens.mm === 'function' ? pens.mm(scene) : pens.mm;
+  const raster = await rasterConnected(scene, pens.style, mm, signal, pens.policy);
   return { kind: 'raster', raster, frame: raster.sceneFrame, scene };
 }
 

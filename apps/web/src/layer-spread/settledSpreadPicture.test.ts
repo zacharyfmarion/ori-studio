@@ -141,4 +141,12 @@ describe('the stages a split host calls', () => {
     });
     expect(spread.raster).toHaveBeenCalledWith(unresolved, pens.style, pens.mm, undefined, 'fold');
   });
+
+  it('asks a host whose page depends on the layers’ reach how large the bitmap is drawn', async () => {
+    spread.raster.mockResolvedValue(raster);
+    const mm = vi.fn(() => 42);
+    await rasterSpreadScene(unresolved, { ...pens, mm });
+    expect(mm).toHaveBeenCalledWith(unresolved);
+    expect(spread.raster).toHaveBeenCalledWith(unresolved, pens.style, 42, undefined, 'folded-flat');
+  });
 });
