@@ -98,6 +98,7 @@ const base = (setting: LayerSpreadOptions | null, style: PaperStyle = DEFAULT_PA
   setSetting,
   turnDeg: 0,
   style,
+  figureHeight: 928,
   t,
 });
 

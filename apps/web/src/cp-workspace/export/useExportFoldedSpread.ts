@@ -61,6 +61,8 @@ export interface ExportFoldedSpreadOptions {
   readonly turnDeg: number;
   /** The style the figure is painted in, its colours pinned (`creaseExportPaperStyle`): what a bitmap is drawn in. */
   readonly style: PaperStyle;
+  /** The page px the figure's flat height is fitted to (`creaseExportFigureHeight`): what a bitmap is sized by. */
+  readonly figureHeight: number;
   /** Why the rows can do nothing now — the share card made — or undefined while they can. */
   readonly held?: string;
   readonly t: TFunction;
@@ -127,12 +129,16 @@ interface Solve {
 const drag: { current: LayerSpreadOptions | null } = { current: null };
 
 /** A bitmap's pens: the figure's style read as the flat figure's, at the size the page draws it. */
-function rasterPens(style: PaperStyle, frame: CreaseExportSpreadFrame): SpreadRasterPens {
-  return { style, policy: 'folded-flat', mm: (scene) => creaseExportSpreadRasterMm(frame.flat, scene.bounds) };
+function rasterPens(style: PaperStyle, frame: CreaseExportSpreadFrame, figureHeight: number): SpreadRasterPens {
+  return {
+    style,
+    policy: 'folded-flat',
+    mm: (scene) => creaseExportSpreadRasterMm(frame.flat, scene.bounds, figureHeight),
+  };
 }
 
 export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): ExportFoldedSpread {
-  const { enabled, preview, setting, setSetting, turnDeg, style, held, t } = options;
+  const { enabled, preview, setting, setSetting, turnDeg, style, figureHeight, held, t } = options;
   const scene = enabled ? preview.scene : null;
   const spreadable = enabled ? foldSpreadability(preview) : null;
   const spread = spreadable === true ? setting : null;
@@ -142,11 +148,13 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
   // Read when a capture starts and when a failure lands, not followed: a new
   // style redraws a bitmap below, and a new caller's arrow re-runs nothing.
   const styleRef = useRef(style);
+  const heightRef = useRef(figureHeight);
   const setSettingRef = useRef(setSetting);
   useEffect(() => {
     styleRef.current = style;
+    heightRef.current = figureHeight;
     setSettingRef.current = setSetting;
-  }, [style, setSetting]);
+  }, [style, figureHeight, setSetting]);
 
   // A spread that could not be spread turns itself off, and says so until it
   // is turned on again. The clearing is declared first, so a setting that
@@ -213,7 +221,7 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
     settledSpreadPicture(scene, spread, {
       prepared,
       live: (solution) => creaseExportSpreadScene(scene, spread, frame, solution),
-      raster: rasterPens(drawn, frame),
+      raster: rasterPens(drawn, frame, heightRef.current),
       signal: controller.signal,
     }).then(
       (settled) => {
@@ -237,7 +245,7 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
     const kept = capturedNow;
     const unresolved = capturedNow.settled.scene;
     setRedrawing(true);
-    rasterSpreadScene(unresolved, rasterPens(style, kept.frame), controller.signal).then(
+    rasterSpreadScene(unresolved, rasterPens(style, kept.frame, heightRef.current), controller.signal).then(
       (settled) => {
         setRedrawing(false);
         const picture = creaseExportSpreadPicture(settled, kept.spread, kept.frame);

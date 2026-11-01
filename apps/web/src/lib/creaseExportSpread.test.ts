@@ -254,6 +254,22 @@ describe('Affine and Depth beside the pattern', () => {
   });
 });
 
+describe('a Default spread’s bitmap', () => {
+  it('is drawn so its 300 dpi pens come out at the vector’s width on the page', async () => {
+    const { creaseExportSpreadRasterMm } = await import('./creaseExportSpread');
+    const { CREASE_EXPORT_FIGURE_UNITS_PER_PT } = await import('./creaseExport');
+    const flat = { minX: 0, minY: 0, maxX: 100, maxY: 50 };
+    const drawn = { minX: 0, minY: -10, maxX: 120, maxY: 60 };
+    for (const figureHeight of [928, 464]) {
+      const mm = creaseExportSpreadRasterMm(flat, drawn, figureHeight);
+      // The raster worker: `mm` across the drawn scene's longer side, 300 px an inch, a pen 300/72 px a pt.
+      const bitmapPxPerUnit = (mm * (300 / 25.4)) / 120;
+      const pagePxPerUnit = figureHeight / 50;
+      expect(((300 / 72) * pagePxPerUnit) / bitmapPxPerUnit).toBeCloseTo(CREASE_EXPORT_FIGURE_UNITS_PER_PT, 9);
+    }
+  });
+});
+
 describe('the frame a spread is built in', () => {
   it('is the figure turned as the dialog turned it, its sheet a fixed span', () => {
     const kernel = stripScene();

@@ -30,15 +30,15 @@ import type { OristudioCpFoldedPaperScene } from '../engine/oristudioCpTypes';
 import type { PreparedConnectedSpread } from '../layer-spread/connectedScene';
 import type { SettledSpreadPicture } from '../layer-spread/settledSpreadPicture';
 import { bytesToBase64 } from './base64';
-import { CREASE_EXPORT_FIGURE_SPAN } from './creaseExport';
+import { CREASE_EXPORT_FIGURE_SPAN, CREASE_EXPORT_FIGURE_UNITS_PER_PT } from './creaseExport';
 import { turnClockwise, type Point } from './geometry';
 import type { PaperScene, SceneBounds, ScenePoint } from './paper/paperScene';
 
 /** How far the unfolded sheet spans in a spread picture's frame, in its units. */
 export const SPREAD_FRAME_SHEET = 1000;
 
-/** CSS px per inch, which an export's page is drawn in. */
-const CSS_PX_PER_INCH = 96;
+const MM_PER_INCH = 25.4;
+const PT_PER_INCH = 72;
 
 /**
  * The frame a figure's spread picture is built in: its kernel coordinates
@@ -120,14 +120,20 @@ export function creaseExportSpreadScene(
 }
 
 /**
- * How large a Default spread's bitmap is drawn, mm across its longer side:
- * 300 dpi on the page at the largest the inset is drawn — its flat height the
- * pattern's whole drawn span — so it is sharp on any page it is painted on.
+ * How large a Default spread's bitmap is drawn, mm across its longer side,
+ * for an inset whose flat height is fitted to `figureHeight` page px (the
+ * pattern's drawn height, `creaseExportFigureHeight`). Measured in the inch
+ * the figure's pens are drawn in (72 pt, at the page's px per pt), so the
+ * bitmap's 300 dpi pens come out at the vector's width on the page.
  */
-export function creaseExportSpreadRasterMm(flat: SceneBounds, drawn: SceneBounds): number {
+export function creaseExportSpreadRasterMm(
+  flat: SceneBounds,
+  drawn: SceneBounds,
+  figureHeight: number = CREASE_EXPORT_FIGURE_SPAN
+): number {
   const flatHeight = flat.maxY - flat.minY;
   const longer = Math.max(drawn.maxX - drawn.minX, drawn.maxY - drawn.minY);
-  const pageMm = (CREASE_EXPORT_FIGURE_SPAN * 25.4) / CSS_PX_PER_INCH;
+  const pageMm = (figureHeight * MM_PER_INCH) / (PT_PER_INCH * CREASE_EXPORT_FIGURE_UNITS_PER_PT);
   return flatHeight > 0 && longer > 0 ? (pageMm * longer) / flatHeight : pageMm;
 }
 

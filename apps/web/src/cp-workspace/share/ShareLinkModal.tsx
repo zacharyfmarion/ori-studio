@@ -8,6 +8,8 @@ import { copyToClipboard } from '../../lib/shareLink';
 import {
   buildCreaseExportArtwork,
   composeCreaseExportSvg,
+  CREASE_EXPORT_FIGURE_SPAN,
+  creaseExportFigureHeight,
   creaseExportPaperStyle,
   DEFAULT_CREASE_EXPORT_FOLDED_FIGURE,
   DEFAULT_CREASE_EXPORT_OPTIONS,
@@ -235,6 +237,10 @@ export function ShareLinkModal() {
     () => creaseExportPaperStyle(paper.style, { frontColor, backColor }),
     [paper.style, frontColor, backColor]
   );
+  const figureHeight = useMemo(
+    () => (draft ? creaseExportFigureHeight(draft.fold, draft.segments, draft.segmentId) : CREASE_EXPORT_FIGURE_SPAN),
+    [draft]
+  );
   const spread = useExportFoldedSpread({
     enabled: open && showFolded && canFold,
     preview: folded,
@@ -242,6 +248,7 @@ export function ShareLinkModal() {
     setSetting: setSpreadSetting,
     turnDeg: layerOrder.turnDeg,
     style: paintedStyle,
+    figureHeight,
     held: cardMade,
     t,
   });

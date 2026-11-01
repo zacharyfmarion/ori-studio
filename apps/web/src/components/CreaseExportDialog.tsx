@@ -10,6 +10,7 @@ import {
 import {
   buildCreaseExportArtwork,
   composeCreaseExportSvg,
+  creaseExportFigureHeight,
   creaseExportPalette,
   creaseExportPaperStyle,
   DEFAULT_CREASE_EXPORT_OPTIONS,
@@ -268,6 +269,10 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       setOptions((current) => ({ ...current, foldedFigure: { ...current.foldedFigure, spread } })),
     []
   );
+  const figureHeight = useMemo(
+    () => creaseExportFigureHeight(dialog.fold, dialog.segments, segmentId),
+    [dialog.fold, dialog.segments, segmentId]
+  );
   const spread = useExportFoldedSpread({
     enabled: includeFoldedFigure && canFold,
     preview: folded,
@@ -275,6 +280,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     setSetting: setSpreadSetting,
     turnDeg: foldedTurnDeg,
     style: figureStyle,
+    figureHeight,
     t,
   });
   const foldedSpread = spread.picture;

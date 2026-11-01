@@ -70,6 +70,13 @@ export const CREASE_EXPORT_FIGURE_SPAN = CP_SIZE - MARGIN * 2;
 // Export viewBox (1024) is larger than the editable canvas viewBox (~720); scale
 // stroke widths / point radii so exports look like the live crease-pattern view.
 const VIEW_SCALE = CP_SIZE / 720;
+/**
+ * Page px a folded figure's pen draws per pt: a pen is stated in pt and drawn
+ * on screen at 4/3 CSS px per pt, and the page is the screen at `VIEW_SCALE`,
+ * as the creases beside it are. A bitmap of the figure is drawn at this scale
+ * too, so its pens are the vector's (`creaseExportSpreadRasterMm`).
+ */
+export const CREASE_EXPORT_FIGURE_UNITS_PER_PT = PT_TO_CSS_PX * VIEW_SCALE;
 
 /**
  * Grid stroke width, in the same page units as the crease strokes.
@@ -1168,6 +1175,16 @@ function spreadRasterElement(
   return `  <image x="${left.toFixed(2)}" y="${top.toFixed(2)}" width="${(right - left).toFixed(2)}" height="${(bottom - top).toFixed(2)}" preserveAspectRatio="none" href="${picture.href}"/>`;
 }
 
+/**
+ * The page px a folded figure's flat height is fitted to beside `segmentId`'s
+ * pattern (all of them for null): the pattern's drawn height. What a bitmap of
+ * a spread figure is sized by (`creaseExportSpreadRasterMm`).
+ */
+export function creaseExportFigureHeight(fold: FoldDocument, segments: CpSegment[], segmentId: number | null): number {
+  const segment = segmentId != null ? segments.find((entry) => entry.id === segmentId) : undefined;
+  return foldProjector(segment ? buildSegmentFold(fold, segment) : fold).contentHeight;
+}
+
 export function buildCreaseExportArtwork(
   fold: FoldDocument,
   segments: CpSegment[],
@@ -1313,7 +1330,7 @@ export function buildCreaseExportArtwork(
             creaseExportPaperStyle((content.paper ?? DEFAULT_CREASE_EXPORT_PAPER).style, options.foldedFigure),
             {
               project: placed.project,
-              unitsPerPt: PT_TO_CSS_PX * VIEW_SCALE,
+              unitsPerPt: CREASE_EXPORT_FIGURE_UNITS_PER_PT,
               // A Default scene's hidden rings are anchors, not paper: kept,
               // every face would be written twice.
               keepHiddenFaces: false,
