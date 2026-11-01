@@ -840,3 +840,37 @@ checked the same way.
   was chosen on (`foldSegmentInOrderForExport`), aux lines included, so an
   aux line drawn after the choice is missing from that order's figure until
   the order is chosen again.
+
+## Second test pass (2026-11-01, on PR #568)
+
+- **The Share modal grew to the window's height** once the folded figure's
+  Layer order and spread rows showed, its controls and preview scrolling
+  together. It has a working height now, as the Export dialog has
+  (`min(440px, 100vh - 220px)` for its columns): the controls scroll on their
+  own beside a preview that holds still, and the dialog keeps one size as rows
+  appear (603 px at 1000x700 and 1440x900; 503 px at 900x560, where the
+  preview still fits).
+- **Panning Edit lagged with many spread figures.** Measured on Zach's file
+  (16 figures, 504 faces each, Default spread; headless Chromium on Metal, an
+  M1 Max), one pan of 90 wheel steps:
+  - with the spreads on, 774,144 draw calls and 1,548,576 program switches,
+    p95 frame 41 ms, 83 frames over 33 ms, 6 long tasks (448 ms); with them
+    off, 94 draws and p95 9.2 ms. The CPU profile was WebGL call overhead
+    (`vertexAttribPointer`, `uniform*`, `bindBuffer`, regl's checks).
+  - **Root cause:** `createSpreadProgram` kept buffers and a stroke program
+    for every face and drew one fill and one ink draw per face per frame:
+    16 x 504 x 2 = 16,128 draws a frame, and about twelve WebGL buffers per
+    face (some 97,000 for the file).
+  - **Fix:** a picture's fills are one buffer set in face order, the face's
+    rank a vertex attribute rather than a uniform (X-ray's back-to-front
+    order a second set, made when X-ray first draws), and every face's lines
+    one stroke program, with each face's dash table joined into one
+    (`mergedSpreadInk`; past the program's six slots each face draws its
+    own). A pass over every face is one draw. A cyclic picture's corrected
+    passes still go face by face, as ranges of the one buffer.
+  - **After:** the same pan makes 1,504 draws and 3,290 program switches, p95
+    9.2 ms, 1 frame over 33 ms, no long tasks, as with the spreads off. The
+    file's renders are pixel-identical before and after (paper, X-ray and
+    faded, zoomed in and fitted), and so is a raster-worker bitmap export.
+    Not seen on a real design: a cyclic picture (none among those tried);
+    its passes are pinned by the program's tests.
