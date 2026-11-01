@@ -58,6 +58,13 @@ import { openFoldedFigureLayerOrder } from './openFoldedFigureLayerOrder';
  * overridden`) once per field per adjustment, never per pointer move. The
  * camera rows read the live orbit frame while a drag turns the figure and the
  * stored camera otherwise — the same rule `useFoldedFigures` applies.
+ *
+ * The figure's layer spread (`foldedFigureSpreadFields.ts`) edits the same
+ * way: a discrete edit is one entry (`setFoldedFigureSpreadAsEntry`), a drag
+ * writes per move inside the pane's open gesture and records once, and a
+ * spread turned on starts from the one most recently set on another figure
+ * (`foldedFigureSpreadStarts.ts`). Where its spread stands on the canvas is
+ * the drawing side's to write; the sheet only reads it.
  */
 export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): PropertySheet {
   const { t, i18n } = useTranslation();
