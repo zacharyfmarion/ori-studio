@@ -14,7 +14,9 @@
  * forgets it when the figure stops drawing spread. So the chrome keeps still
  * while a slider or a drag is moving the picture, and settles when it ends.
  * Each reach remembers the fold it was measured on, and answers for no other:
- * a figure folded again is flat until its new picture is measured.
+ * a figure folded again is flat until its new picture is measured. A write of
+ * the figure's colours replaces its snapshot and keeps its fold, so its reach
+ * answers on (`sameFoldedPaperScene`).
  *
  * Runtime state only: never saved, never in history. An external store; the
  * table is replaced, never mutated, and its version is what memos over boxes
@@ -26,10 +28,13 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureSnapshot,
 } from '../../engine/oristudioCpTypes';
+import { sameFoldedPaperScene } from './foldedFlatSpreadScene';
 
 export interface FoldedFigureSpreadReach {
   /** The fold the reach was measured on (the figure's kernel snapshot). */
   readonly snapshot: OristudioCpFoldedFigureSnapshot;
+  /** The figure's kernel handle then, if it had one. */
+  readonly handle?: number | null;
   /** Along the figure's own axes from its pivot, before its scale: local user units. */
   readonly halfWidth: number;
   readonly halfHeight: number;
@@ -52,7 +57,7 @@ export function setFoldedFigureSpreadReach(id: string, reach: FoldedFigureSpread
   if (
     held &&
     reach &&
-    held.snapshot === reach.snapshot &&
+    measuredOn(held, reach) &&
     held.halfWidth === reach.halfWidth &&
     held.halfHeight === reach.halfHeight
   )
@@ -65,11 +70,24 @@ export function setFoldedFigureSpreadReach(id: string, reach: FoldedFigureSpread
 
 /** The reach measured on this figure's current fold, or null when there is none. */
 export function foldedFigureSpreadReach(
-  figure: Partial<Pick<OristudioCpFoldedFigureEntry, 'id' | 'snapshot'>>
+  figure: Partial<Pick<OristudioCpFoldedFigureEntry, 'id' | 'handle' | 'snapshot'>>
 ): FoldedFigureSpreadReach | null {
   if (figure.id === undefined || !figure.snapshot) return null;
   const reach = reaches.get(figure.id);
-  return reach && reach.snapshot === figure.snapshot ? reach : null;
+  return reach && measuredOn(reach, { handle: figure.handle, snapshot: figure.snapshot }) ? reach : null;
+}
+
+/**
+ * Whether the reach was measured on this fold: on this very snapshot, or on
+ * one of the same handle that shows the same paper scene.
+ */
+function measuredOn(
+  reach: FoldedFigureSpreadReach,
+  fold: Pick<FoldedFigureSpreadReach, 'handle' | 'snapshot'>
+): boolean {
+  if (reach.snapshot === fold.snapshot) return true;
+  // Handle 0 is a valid wasm slot index; only null/undefined means "not ready".
+  return fold.handle != null && reach.handle === fold.handle && sameFoldedPaperScene(reach.snapshot, fold.snapshot);
 }
 
 /** The figures with a reach recorded. For the drawing side, which forgets the ones that went. */

@@ -1,9 +1,10 @@
 /**
  * The canvas's spread figures, end to end short of the GPU: the scene comes
  * from the handle's table, a Default spread waits on its own lease and draws
- * once its solve lands, a late solve never lands on a refolded figure, a move
- * redraws the picture it has, X-ray is see-through, and the chrome measures
- * the picture only once no edit is mid gesture.
+ * once its solve lands, a late solve never lands on a refolded figure, a
+ * write of the figure's colours keeps its solve, a move redraws the picture
+ * it has, X-ray is see-through, and the chrome measures the picture only once
+ * no edit is mid gesture.
  */
 import { act, useEffect, useMemo } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -17,7 +18,8 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 import { stackDepth, xrayFaceAlpha } from '../../layer-order/panes/layerPaneFigure';
-import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { DEFAULT_FOLDED_MODEL } from '../../lib/orieditaNativeMetadata';
+import { DEFAULT_PAPER_STYLE, effectivePaperStyle } from '../../lib/paper/paperStyle';
 import type { FoldedFigureSpreadPicture } from '../adapters/cpFoldedToScene';
 import { connectedSpreadSource } from './connectedSpreadSource';
 import { foldedFigureGesture } from './foldedFigureGesture';
@@ -76,7 +78,14 @@ function solved(kernel: OristudioCpFoldedPaperScene): PreparedConnectedSpread {
 
 const HANDLE = 7;
 const snapshotOf = (): OristudioCpFoldedFigureSnapshot =>
-  ({ outcome: 'Solved', display_style: 'Paper5', discovered_fold_cases: 1 }) as OristudioCpFoldedFigureSnapshot;
+  ({
+    model: DEFAULT_FOLDED_MODEL,
+    outcome: 'Solved',
+    display_style: 'Paper5',
+    discovered_fold_cases: 1,
+  }) as OristudioCpFoldedFigureSnapshot;
+/** The display style with the figure's own pins on top, as the canvas inks a figure. */
+const styleOf = (entry: OristudioCpFoldedFigureEntry) => effectivePaperStyle(DEFAULT_PAPER_STYLE, entry.appearance);
 
 function figure(overrides: Partial<OristudioCpFoldedFigureEntry> = {}): OristudioCpFoldedFigureEntry {
   return {
@@ -129,7 +138,7 @@ let reader: ((figure: OristudioCpFoldedFigureEntry) => FoldedFigureSpreadPicture
 let drawn: FoldedFigureSpreadPicture | null = null;
 
 function Probe({ figures }: { figures: readonly OristudioCpFoldedFigureEntry[] }): null {
-  const read = useFoldedFlatSpread(figures, () => DEFAULT_PAPER_STYLE);
+  const read = useFoldedFlatSpread(figures, styleOf);
   const inRender = useMemo(() => (figures[0] ? read(figures[0]) : null), [read, figures]);
   useEffect(() => {
     reader = read;
@@ -207,11 +216,11 @@ describe('useFoldedFlatSpread', () => {
   it('never lands a late solve on a refolded figure', async () => {
     mount([figure()]);
     const before = KERNEL;
-    // Refolded: a new fold, a new scene for the same handle.
+    // Refolded: a new fold on a new handle, and its scene.
     const refolded = snapshotOf();
     const after = plainBook();
-    act(() => setFoldedFlatScene(HANDLE, refolded, after));
-    const entry = figure({ snapshot: refolded });
+    act(() => setFoldedFlatScene(HANDLE + 1, refolded, after));
+    const entry = figure({ handle: HANDLE + 1, snapshot: refolded });
     mount([entry]);
     expect(leases.taken).toHaveLength(2);
     expect(leases.taken[0]!.released).toBe(true);
@@ -237,6 +246,61 @@ describe('useFoldedFlatSpread', () => {
     expect(drawn?.kind).toBe('connected');
     expect(leases.taken).toHaveLength(1);
     expect(status()).toBe('ready');
+  });
+
+  it('keeps drawing spread through a write of the figure’s colours, repainted from the solve it has', async () => {
+    mount([figure()]);
+    leases.taken[0]!.resolve(solved(KERNEL));
+    await settle();
+    const geometryOf = () => (drawn as Extract<FoldedFigureSpreadPicture, { kind: 'connected' }> | null)?.geometry;
+    const flat = geometryOf();
+    // A colour dragged in the Style menu: a run of model writes in one gesture.
+    let token: ReturnType<typeof foldedFigureGesture.begin> = null;
+    act(() => {
+      token = foldedFigureGesture.begin('scope:paper-front');
+    });
+    // The pin repaints the picture at once.
+    mount([figure({ appearance: { 'paper.front': '#ff0000' } })]);
+    expect(drawn?.kind).toBe('connected');
+    const repainted = geometryOf();
+    expect(repainted).not.toBe(flat);
+    // The paper-style mirror writes the colour, and the kernel answers with a
+    // new snapshot of the same fold: the same picture, and its box with it.
+    const written = figure({
+      appearance: { 'paper.front': '#ff0000' },
+      snapshot: { ...SNAPSHOT, model: { ...SNAPSHOT.model, front_color: { red: 255, green: 0, blue: 0 } } },
+    });
+    mount([written]);
+    expect(drawn?.kind).toBe('connected');
+    expect(geometryOf()).toBe(repainted);
+    expect(foldedFigureSpreadReach(written)).not.toBeNull();
+    // The scene fetched again for the new snapshot lands.
+    act(() => setFoldedFlatScene(HANDLE, written.snapshot!, plainBook()));
+    await settle();
+    expect(drawn?.kind).toBe('connected');
+    act(() => foldedFigureGesture.abort(token!));
+    expect(leases.taken).toHaveLength(1);
+    expect(leases.taken[0]!.released).toBe(false);
+    expect(status()).toBe('ready');
+  });
+
+  it('solves again for another solution or a side flip on the same handle', async () => {
+    mount([figure()]);
+    leases.taken[0]!.resolve(solved(KERNEL));
+    await settle();
+    const another = { ...SNAPSHOT, discovered_fold_cases: 2, current_fold_case: 2 };
+    const second = figure({ snapshot: another });
+    mount([second]);
+    expect(drawn).toBeNull();
+    expect(foldedFigureSpreadReach(second)).toBeNull();
+    act(() => setFoldedFlatScene(HANDLE, another, plainBook()));
+    expect(leases.taken).toHaveLength(2);
+    expect(leases.taken[0]!.released).toBe(true);
+    const flipped = { ...another, model: { ...another.model, state: 'Back1' as const } };
+    mount([figure({ snapshot: flipped })]);
+    act(() => setFoldedFlatScene(HANDLE, flipped, plainBook()));
+    expect(leases.taken).toHaveLength(3);
+    expect(leases.taken[1]!.released).toBe(true);
   });
 
   it('lets go when the spread is turned off, and reports nothing for it', async () => {

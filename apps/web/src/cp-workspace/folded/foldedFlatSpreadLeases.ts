@@ -6,9 +6,11 @@
  * Amount drag re-projects the prepared solve and solves nothing. It goes when
  * the figure does, when its spread is turned off or can no longer draw, and
  * when its fold is replaced — a refold, another solution, a side flip, an
- * undo, another document — since each of those hands the figure a new fold.
- * A late answer is checked against the lease it was asked with, so a solve
- * never lands on a fold that has been superseded.
+ * undo or redo across one, another document — since each of those hands the
+ * figure a new fold. A write of its colours, which the kernel answers with a
+ * new snapshot of the same fold, does not. A late answer is checked against
+ * the lease it was asked with, so a solve never lands on a fold that has been
+ * superseded.
  *
  * A new scene of the same fold — the kernel asked again because the
  * document's aux lines changed — has the same faces and stacks, so the solve
@@ -30,8 +32,8 @@ import { prepareConnected, type ConnectedLease } from '../../layer-spread/prepar
 
 export interface SpreadPreparationRequest {
   readonly id: string;
-  /** The fold the scene is of — the figure's kernel snapshot; identity is the key. */
-  readonly fold: object;
+  /** The fold the scene is of, compared with `===`: the key the drawing side holds it by (`spreadFold`). */
+  readonly fold: unknown;
   readonly scene: OristudioCpFoldedPaperScene;
   /** 1 for the selected figure and the ones in view, 0 for the rest. */
   readonly priority: number;
@@ -47,7 +49,7 @@ const PREPARING: SpreadPreparationState = { status: 'preparing' };
 type Prepare = (scene: OristudioCpFoldedPaperScene, yUp: boolean, priority: number) => ConnectedLease;
 
 interface Held {
-  readonly fold: object;
+  readonly fold: unknown;
   /** The fold's latest scene: what the figure is drawn from. */
   scene: OristudioCpFoldedPaperScene;
   priority: number;
@@ -97,7 +99,7 @@ export class FoldedSpreadPreparations {
    * the same fold has its solve at once: in the very render that brings the
    * scene, before `sync` is told of it.
    */
-  state(id: string, fold: object): SpreadPreparationState {
+  state(id: string, fold: unknown): SpreadPreparationState {
     const held = this.held.get(id);
     return held?.fold === fold ? held.state : PREPARING;
   }

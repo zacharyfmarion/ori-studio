@@ -27,7 +27,7 @@ import {
 import { foldedFigureSpreadReachIds, setFoldedFigureSpreadReach } from './foldedFigureSpreadReach';
 import { setFoldedFigureSpreadStatus, type FoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import { FoldedSpreadPreparations, type SpreadPreparationRequest } from './foldedFlatSpreadLeases';
-import { foldedFigureSpreadDrawable, foldedFigureSpreadScene } from './foldedFlatSpreadScene';
+import { foldedFigureSpreadDrawable, foldedFigureSpreadScene, foldedPaperSceneKey } from './foldedFlatSpreadScene';
 import { foldedFlatPaperScene } from './foldedFlatScene';
 import { foldedFlatScenes, subscribeFoldedFlatScenes, type FoldedFlatSceneTable } from './foldedFlatScenes';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
@@ -148,7 +148,7 @@ export function useFoldedFlatSpread(
       const built = build(figure);
       if (!built || !figure.snapshot) continue;
       kept.add(figure.id);
-      setFoldedFigureSpreadReach(figure.id, { snapshot: figure.snapshot, ...built.reach });
+      setFoldedFigureSpreadReach(figure.id, { snapshot: figure.snapshot, handle: figure.handle, ...built.reach });
     }
     for (const id of foldedFigureSpreadReachIds()) if (!kept.has(id)) setFoldedFigureSpreadReach(id, null);
   }, [figures, build, gesture]);
@@ -199,11 +199,15 @@ export function spreadRequests(
 }
 
 /**
- * The fold a figure's scene is of, which its lease is held for: its kernel
- * snapshot, which a refold, another solution or a side flip replaces and an
- * aux-line refetch keeps; the scene itself for a reopened figure.
+ * The fold a figure's scene is of, which its lease is held for: a live
+ * figure's handle and the paper scene its snapshot shows
+ * (`foldedPaperSceneKey`), which a refold, another solution or a side flip
+ * changes and a write of its colours or an aux-line refetch keeps; the
+ * snapshot, or the scene itself, for a reopened figure.
  */
-function spreadFold(figure: OristudioCpFoldedFigureEntry, scene: OristudioCpFoldedPaperScene): object {
+function spreadFold(figure: OristudioCpFoldedFigureEntry, scene: OristudioCpFoldedPaperScene): unknown {
+  // Handle 0 is a valid wasm slot index; only null/undefined means "not ready".
+  if (figure.handle != null && figure.snapshot) return `${figure.handle} ${foldedPaperSceneKey(figure.snapshot)}`;
   return figure.snapshot ?? scene;
 }
 
