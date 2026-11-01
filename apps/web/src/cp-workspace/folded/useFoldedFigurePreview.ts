@@ -51,7 +51,7 @@ export interface FoldedFigurePreview {
   order: FoldedFigureOrder | null;
   /**
    * The kernel would not draw the chosen order: the figure kept the picture
-   * it had (or, on a first fold, shows the kernel's own order).
+   * it had (or, with none on show, shows the kernel's own order).
    */
   orderRefused: boolean;
   folding: boolean;
@@ -116,7 +116,7 @@ interface CachedFold {
  * by the fold's source digest), the figure is folded in it (`foldInOrder`) at every
  * side, and cached under the order's key too; with none, the fold is the kernel's own at
  * `foldCase`, exactly as before. The kernel refusing the order keeps the picture there
- * was and says so (`orderRefused`).
+ * was, or with none shows the kernel's own order, and says so (`orderRefused`).
  */
 export function useFoldedFigurePreview({
   enabled,
@@ -143,7 +143,7 @@ export function useFoldedFigurePreview({
   const cache = useRef(new Map<string, CachedFold>());
   // Folds still running, by their key: a colour edit while one runs waits for it.
   const running = useRef(new Map<string, Promise<CachedFold | null>>());
-  // The fold the preview shows, so a cache hit that is already on show sets nothing.
+  // The fold the preview shows: a cache hit already on show sets nothing, and a refused order keeps it.
   const published = useRef<CreaseExportFoldResult | null>(null);
   // Held in a ref so a caller passing an inline arrow does not re-run the fold, and
   // written in an effect rather than during render — a ref mutated mid-render is exactly
@@ -243,7 +243,11 @@ export function useFoldedFigurePreview({
     const run = async (): Promise<{ result: CreaseExportFoldResult | null; refused: boolean }> => {
       if (order) {
         const result = await inOrder(order);
-        return { result, refused: result === null };
+        if (result) return { result, refused: false };
+        // Refused: the picture on show stays; with none, the figure is the kernel's own order.
+        if (published.current) return { result: null, refused: true };
+        const plainFold = await folded(plainKey, () => fold(current));
+        return { result: plainFold?.result ?? null, refused: true };
       }
       const plainFold = await folded(plainKey, () => fold(current));
       // The kernel's own order is never refused; a fold that fails throws.

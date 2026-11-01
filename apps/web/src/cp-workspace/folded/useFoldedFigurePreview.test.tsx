@@ -9,9 +9,20 @@ import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreaseExportFoldedFigureSettings } from '../../lib/creaseExport';
-import { IDENTITY_CP_MODEL_TO_FOLD, type CreaseExportFoldResult } from '../../lib/creaseExportFold';
+import {
+  IDENTITY_CP_MODEL_TO_FOLD,
+  type CreaseExportFoldResult,
+  type CreaseExportOrderedFold,
+} from '../../lib/creaseExportFold';
+import type { LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
+import { DEFAULT_FOLDED_MODEL } from '../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedPaperScene, OristudioCpFoldedRenderSnapshot } from '../../engine/oristudioCpTypes';
-import { useFoldedFigurePreview, type FoldedFigurePreview } from './useFoldedFigurePreview';
+import {
+  useFoldedFigurePreview,
+  type FoldedFigureOrder,
+  type FoldedFigurePreview,
+  type FoldedFigurePreviewOptions,
+} from './useFoldedFigurePreview';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -32,27 +43,78 @@ function result(withScene: boolean, settings: CreaseExportFoldedFigureSettings):
   };
 }
 
+/** What a fold of the creases `digest` names was made from. */
+const sourceOf = (digest: string): LayerOrderSource => ({
+  segments: [],
+  startingFaceId: 1,
+  auxSegments: [],
+  model: DEFAULT_FOLDED_MODEL,
+  digest,
+});
+
+/** A fold of the creases `digest` names, its snapshot saying which, and whether in their chosen order. */
+function foldOf(digest: string, chosenOrder = false): CreaseExportFoldResult {
+  return {
+    snapshot: { primitives: [], drawn: chosenOrder ? `${digest} in its order` : digest } as unknown as
+      OristudioCpFoldedRenderSnapshot,
+    scene: { faces: [] } as unknown as OristudioCpFoldedPaperScene,
+    discoveredCases: 1,
+    transform: IDENTITY_CP_MODEL_TO_FOLD,
+    source: sourceOf(digest),
+    chosenOrder,
+  };
+}
+
+/** An order chosen in the Layer order dialog for the creases `digest` names. */
+function orderOn(digest: string): FoldedFigureOrder {
+  return {
+    applied: { record: { faces: [], constraints: [], order: [] }, relations: new Uint32Array(0), source: sourceOf(digest) },
+    key: `order:${digest}`,
+  };
+}
+
+/** The session's chosen orders, looked up as the dialogs do: by the digest of the creases they were chosen on. */
+const lookup =
+  (...orders: FoldedFigureOrder[]) =>
+  (digest: string) =>
+    orders.find((order) => order.applied.source.digest === digest) ?? null;
+
+/** The kernel will not draw the order. */
+const refusesOrder = () => vi.fn(async (): Promise<CreaseExportOrderedFold> => ({ status: 'refused' }));
+
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 let shown: FoldedFigurePreview | null = null;
 
+/** What the figure on show is a fold of. */
+const drawn = () => (shown!.figure as unknown as { drawn: string } | null)?.drawn ?? null;
+
+/** The hook's options a test sets beyond the settings and the fold. */
+type ProbeOptions = Partial<Omit<FoldedFigurePreviewOptions, 'settings' | 'fold'>>;
+
 function Probe({
   settings,
   fold,
+  options,
 }: {
   settings: CreaseExportFoldedFigureSettings;
   fold: (settings: CreaseExportFoldedFigureSettings) => Promise<CreaseExportFoldResult>;
+  options?: ProbeOptions;
 }) {
-  const preview = useFoldedFigurePreview({ enabled: true, settings, fold, cacheKeyPrefix: '1' });
+  const preview = useFoldedFigurePreview({ enabled: true, settings, fold, cacheKeyPrefix: '1', ...options });
   useEffect(() => {
     shown = preview;
   });
   return null;
 }
 
-async function render(settings: CreaseExportFoldedFigureSettings, fold: Parameters<typeof Probe>[0]['fold']) {
+async function render(
+  settings: CreaseExportFoldedFigureSettings,
+  fold: Parameters<typeof Probe>[0]['fold'],
+  options?: ProbeOptions
+) {
   await act(async () => {
-    root!.render(<Probe settings={settings} fold={fold} />);
+    root!.render(<Probe settings={settings} fold={fold} options={options} />);
   });
 }
 
@@ -125,5 +187,28 @@ describe('a preview fold', () => {
     // Each geometry is folded once for the dialog's life.
     await render(SETTINGS, fold);
     expect(fold).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('a preview fold in a chosen layer order', () => {
+  it('shows the kernel’s own order when the chosen one is refused with no picture on show', async () => {
+    const fold = vi.fn(async () => foldOf('pattern-1'));
+    const foldInOrder = refusesOrder();
+    await render(SETTINGS, fold, { foldInOrder, orderFor: lookup() });
+    // An order chosen that the kernel will not draw: the picture there was stays, and says so.
+    const orderFor = lookup(orderOn('pattern-1'));
+    await render(SETTINGS, fold, { foldInOrder, orderFor });
+    expect(foldInOrder).toHaveBeenCalledTimes(1);
+    expect(drawn()).toBe('pattern-1');
+    expect(shown!.orderRefused).toBe(true);
+
+    // The figure off and on: nothing on show to keep, so the kernel's own order rather than none.
+    await render(SETTINGS, fold, { enabled: false, foldInOrder, orderFor });
+    expect(shown!.figure).toBeNull();
+    await render(SETTINGS, fold, { foldInOrder, orderFor });
+    expect(drawn()).toBe('pattern-1');
+    expect(shown!.orderRefused).toBe(true);
+    expect(shown!.folding).toBe(false);
+    expect(fold).toHaveBeenCalledTimes(1);
   });
 });
