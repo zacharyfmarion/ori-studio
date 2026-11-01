@@ -1,18 +1,6 @@
-/* The Step pane's Pose section (DiagramStepPose.tsx). Its layer order pager
-   is the shared one (components/ui/Pager). */
+/* The Step pane's Pose section (DiagramStepPose.tsx). Its Layer order row is
+   the shared one (components/paper/LayerOrderRow). */
 .pose {
   display: grid;
   gap: var(--space-1);
-}
-
-/* The Layer order row's value: the pager, then Edit…, apart as a row's controls are. */
-.layerOrder {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* A constrained step's count, which the host never runs (D11): its width kept, nothing shown. */
-.reserved {
-  visibility: hidden;
 }
