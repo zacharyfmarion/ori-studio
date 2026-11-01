@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ChevronRight, Download, X } from 'lucide-react';
@@ -30,20 +30,24 @@ import {
 } from '../lib/creasePatternViewport';
 import type { FoldDocument } from '../engine/types';
 import { useFoldedFigurePreview } from '../cp-workspace/folded/useFoldedFigurePreview';
+import { useExportLayerOrder, useExportLayerOrderLookup } from '../cp-workspace/export/useExportLayerOrder';
 import {
   creaseExportFigureColours,
   creaseExportFigureStyle,
   openingCreaseExportFigure,
   useCreaseExportPaper,
 } from '../hooks/useCreaseExportPaper';
+import type { LayerOrderApplied } from '../lib/layerOrder/layerOrderRequest';
 import type { PaperExportStyleChoice } from '../lib/paperExportSettings';
 import { useSettingsStore } from '../store/settingsStore';
-import { PaperStylePicker } from './paperExport/PaperStylePicker';
+import { useCommandDialogEscape } from './commandDialogEscape';
+import { LayerOrderReadoutReserved, LayerOrderRow } from './paper/LayerOrderRow';
+import { PaperStyleRow } from './paperExport/PaperStylePicker';
 import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../lib/foldedFigureSides';
 import { cpFoldAngleDisplayLabel, cpLineStyleLabel } from '../i18n/enumLabels';
 import { Button } from './ui/Button';
-import { ColorField } from './ui/ColorField';
 import { IconButton } from './ui/IconButton';
+import { ColorRow, SegmentedRow } from './ui/fieldRows';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Slider } from './ui/Slider';
 import {
@@ -54,6 +58,7 @@ import {
   SelectValue,
 } from './ui/Select';
 import { Toggle } from './ui/Toggle';
+import styles from './CreaseExportDialog.module.css';
 
 const THUMBNAIL_SIZE = 104;
 
@@ -196,18 +201,53 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     },
     [foldSegment, scopedSegment]
   );
+  const layerOrderHost = dialog.layerOrderHost ?? null;
+  const foldScopedInOrder = useCallback(
+    (settings: CreaseExportFoldedFigureSettings, order: LayerOrderApplied) => {
+      if (!layerOrderHost) throw new Error('This export cannot fold a chosen layer order');
+      return layerOrderHost.foldInOrder(scopedSegment, settings, order);
+    },
+    [layerOrderHost, scopedSegment]
+  );
+  const orderFor = useExportLayerOrderLookup();
   // The shared preview fold, the share modal's too: cached by pattern and
   // settings for the dialog's life, since the document cannot change while it
-  // is open. A failure drops the figure and says why, rather than export
-  // something the preview never showed.
+  // is open, and folded in the layer order chosen for these creases, if one
+  // is. A failure drops the figure and says why, rather than export something
+  // the preview never showed.
   const folded = useFoldedFigurePreview({
     enabled: includeFoldedFigure && canFold,
     settings: foldedSettings,
     fold: canFold && foldSegment ? foldScoped : null,
+    foldInOrder: canFold && layerOrderHost ? foldScopedInOrder : null,
+    orderFor,
     cacheKeyPrefix: String(segmentId ?? 'all'),
     onError: () => setOptions((current) => ({ ...current, includeFoldedFigure: false })),
   });
   const { figure: foldedFigure, scene: foldedScene, transform: foldedTransform } = folded;
+  const patternIndex = segmentId === null ? -1 : dialog.segments.findIndex((entry) => entry.id === segmentId);
+  const editLayerOrderRef = useRef<HTMLButtonElement | null>(null);
+  const layerOrder = useExportLayerOrder({
+    surface: 'crease_export',
+    host: layerOrderHost,
+    segment: scopedSegment,
+    preview: folded,
+    settings: foldedSettings,
+    style: paper.style,
+    // One pattern of several by its label, as the pattern list names it; else the document.
+    name:
+      multiPattern && patternIndex >= 0
+        ? t('dialogs:export.patternN', 'Pattern {{index}}', { index: patternIndex + 1 })
+        : (layerOrderHost?.documentName ?? ''),
+    setFoldCase: (foldCase) =>
+      setOptions((current) => ({ ...current, foldedFigure: { ...current.foldedFigure, foldCase } })),
+    scope: dialog.id,
+    editRef: editLayerOrderRef,
+    t,
+  });
+  const foldedTurnDeg = layerOrder.turnDeg;
+  // The dialog's Escape stands down while the Layer order dialog it opened is up.
+  useCommandDialogEscape(dialog.id, layerOrder.ordering);
 
   const toggleSection = (id: SectionId) =>
     setOpenSections((current) => ({ ...current, [id]: !current[id] }));
@@ -261,6 +301,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
           paper,
           foldedFigureTransform: foldedTransform,
           grid: dialog.grid,
+          ...(foldedTurnDeg !== 0 ? { foldedFigureTurnDeg: foldedTurnDeg } : {}),
         }
       ),
     [
@@ -282,6 +323,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       foldedScene,
       paper,
       foldedTransform,
+      foldedTurnDeg,
     ]
   );
 
@@ -291,6 +333,12 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   }, [artwork, caption]);
 
   const patterns = usePatternOptions(dialog.fold, dialog.segments, palette, t);
+
+  // Stepped aside while the Layer order dialog it opened is up: that dialog is
+  // workspace-sized and over this one anyway, and a dialog hidden rather than
+  // gone would still count as the one on top. Every hook above has run, so the
+  // settings and the fold cache are here when it comes back.
+  if (layerOrder.ordering) return null;
 
   const confirmLabel =
     dialog.confirmLabel ??
@@ -338,6 +386,8 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                 paper,
                 foldedFigureTransform: foldedTransform,
                 grid: dialog.grid,
+                ...(foldedTurnDeg !== 0 ? { foldedFigureTurnDeg: foldedTurnDeg } : {}),
+                foldedFigureLayerOrder: layerOrder.chosen ? 'chosen' : 'default',
               },
             });
           }}
@@ -375,11 +425,13 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
               ))}
             </div>
           )}
+          {/* No status line while the figure folds: the last picture stays, dimmed. */}
           <div
             className="export-modal__preview"
             aria-label={t('dialogs:export.preview', 'Export preview')}
+            aria-busy={folded.folding || undefined}
           >
-            <img src={previewSrc} alt="" />
+            <img className={styles.previewImage} data-busy={folded.folding || undefined} src={previewSrc} alt="" />
           </div>
           <div className="export-modal__controls">
             <ExportSection
@@ -551,11 +603,6 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                             )}
                     </small>
                   )}
-                  {folded.folding && (
-                    <small className="export-modal__hint">
-                      {t('dialogs:export.folding', 'Folding…')}
-                    </small>
-                  )}
                   {folded.error && (
                     <small className="export-modal__hint export-modal__hint--error" role="alert">
                       {folded.error}
@@ -568,6 +615,9 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   onChange={(next) => {
                     folded.clearError();
                     patch({ includeFoldedFigure: next });
+                    // Its section below opens with it, so its rows are there to see; it
+                    // appears under the switch, so nothing being edited moves.
+                    if (next) setOpenSections((current) => ({ ...current, folded: true }));
                   }}
                   aria-label={t('dialogs:export.includeFoldedFigure', 'Include folded figure')}
                 />
@@ -579,55 +629,40 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                 title={t('dialogs:export.foldedFigureSection', 'Folded figure')}
                 open={openSections.folded}
                 onToggle={toggleSection}
-            >
-                <PaperStylePicker value={options.foldedFigureStyle} onChange={pickFoldedStyle} />
-                <div className="export-modal__field-row">
-                  <span className="export-modal__label">
-                    {t('dialogs:export.foldedSide', 'Side')}
-                  </span>
-                  <SegmentedControl<FoldedFigureSide>
-                    aria-label={t('dialogs:export.foldedSide', 'Side')}
+              >
+                {/* Rows as the Diagram export's and the sidebars' are: the figure's
+                    style, the side it shows, its colours, then its layer order. */}
+                <div className={styles.foldedRows}>
+                  <PaperStyleRow value={options.foldedFigureStyle} onChange={pickFoldedStyle} />
+                  <SegmentedRow
+                    label={t('dialogs:export.foldedSide', 'Side')}
                     value={foldedSettings.side}
-                    onChange={(side) => patchFolded({ side })}
-                    options={FOLDED_FIGURE_SIDES.map((value) => ({
-                      value,
-                      label: foldedSideLabel(t, value),
-                    }))}
+                    options={FOLDED_FIGURE_SIDES.map((value) => ({ id: value, label: foldedSideLabel(t, value) }))}
+                    onChange={(side) => patchFolded({ side: side as FoldedFigureSide })}
                   />
-                </div>
-                <div className="export-modal__colors">
-                  <ColorField
-                    label={t('dialogs:export.foldedFrontColor', 'Front')}
+                  <ColorRow
+                    label={t('dialogs:share.frontColor', 'Front color')}
                     value={foldedSettings.frontColor}
                     onChange={(frontColor) => patchFolded({ frontColor })}
                   />
-                  <ColorField
-                    label={t('dialogs:export.foldedBackColor', 'Back')}
+                  <ColorRow
+                    label={t('dialogs:share.backColor', 'Back color')}
                     value={foldedSettings.backColor}
                     onChange={(backColor) => patchFolded({ backColor })}
                   />
-                </div>
-                <div className="export-modal__control-group">
-                  <label className="export-modal__label" htmlFor="export-fold-case">
-                    {t('dialogs:export.foldedCase', 'Fold case')}
-                  </label>
-                  <input
-                    id="export-fold-case"
-                    type="number"
-                    min={1}
-                    step={1}
-                    className="export-modal__input"
-                    value={foldedSettings.foldCase}
-                    onChange={(event) => {
-                      const next = Number.parseInt(event.currentTarget.value, 10);
-                      patchFolded({ foldCase: Number.isFinite(next) ? Math.max(1, next) : 1 });
+                  <LayerOrderRow
+                    ref={editLayerOrderRef}
+                    pager={{
+                      previous: layerOrder.row.previous,
+                      next: layerOrder.row.next,
+                      readout: layerOrder.row.readout ?? <LayerOrderReadoutReserved />,
                     }}
+                    edit={layerOrder.row.edit}
+                    disabled={layerOrder.row.disabled}
+                    note={layerOrder.row.note?.text}
+                    noteKind={layerOrder.row.note?.kind}
+                    onEditIntent={layerOrder.prefetch}
                   />
-                  <small className="export-modal__hint">
-                    {t('dialogs:export.foldedCasesFound', '{{count}} found so far', {
-                      count: folded.discoveredCases,
-                    })}
-                  </small>
                 </div>
               </ExportSection>
             )}

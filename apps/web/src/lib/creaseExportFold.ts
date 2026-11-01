@@ -5,6 +5,8 @@ import type {
   OristudioCpFoldedRenderSnapshot,
 } from '../engine/oristudioCpTypes';
 import type { FoldDocument } from '../engine/types';
+import type { CreaseExportFoldedFigureSettings } from './creaseExport';
+import type { OristudioCpLineStyle } from './creasePatternViewport';
 import type { Point } from './geometry';
 import {
   isOrieditaFoldableLineColor,
@@ -27,7 +29,7 @@ import {
   type FoldedFigureState,
 } from './cpFoldRuntime';
 import { foldAppliedOrder } from './layerOrder/layerOrderFold';
-import type { LayerOrderApplied, LayerOrderSource } from './layerOrder/layerOrderRequest';
+import type { LayerOrderApplied, LayerOrderRegion, LayerOrderSource } from './layerOrder/layerOrderRequest';
 import { layerOrderSourceOf } from './layerOrder/layerOrderSource';
 import { EDIT_PAPER_FRAME } from './layerOrder/paperFrame';
 
@@ -347,6 +349,28 @@ export async function foldSegmentForExport(
   } finally {
     await runtime.free(handle);
   }
+}
+
+/**
+ * What an export's Layer order dialog needs from the workspace, injected
+ * beside the fold (`CreasePatternExportDialogOptions.layerOrderHost`, the
+ * share draft's `oristudioCpShareLayerOrderHost`) so the dialogs stay free of
+ * the kernel and the document.
+ */
+export interface CreaseExportLayerOrderHost {
+  /** Fold `segment`'s figure in a chosen order, with the dialog's settings ({@link foldSegmentInOrderForExport}). */
+  foldInOrder(
+    segment: CpSegment | null,
+    settings: CreaseExportFoldedFigureSettings,
+    order: LayerOrderApplied
+  ): Promise<CreaseExportOrderedFold>;
+  /** The sheet `segment`'s creases lie on, which the dialog's crease-pattern pane shows alone; null for none. */
+  region(segment: CpSegment | null): Promise<LayerOrderRegion | null>;
+  /** Edit's view pen, which the dialog's crease-pattern pane draws in (D18). */
+  readonly lineStyle: OristudioCpLineStyle;
+  readonly lineWidth: number;
+  /** The document's name, which the dialog's title row shows for the whole pattern. */
+  readonly documentName: string;
 }
 
 /**

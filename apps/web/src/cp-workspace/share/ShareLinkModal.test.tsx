@@ -8,6 +8,7 @@ import { IDENTITY_CP_MODEL_TO_FOLD, type CreaseExportFoldResult } from '../../li
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { builtInPaperPreset } from '../../lib/paper/paperPresets';
 import { ShareLinkModal } from './ShareLinkModal';
+import { TooltipProvider } from '../../components/ui/Tooltip';
 import type { FoldDocument } from '../../engine/types';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 
@@ -141,9 +142,9 @@ describe('the share card’s folded figure style', () => {
 
   /** Opens the card the way the app does: mounted first, then handed a draft. */
   async function open() {
-    await act(async () => root.render(<ShareLinkModal />));
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
     useWorkspaceStore.setState({ oristudioCpShareDraft: draftFor(square()) });
-    await act(async () => root.render(<ShareLinkModal />));
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
   }
 
   async function showFolded() {
@@ -230,10 +231,10 @@ describe('the share card’s folded figure style', () => {
 
   it('reads the remembered style when it opens, not when it mounted', async () => {
     // The card stays mounted between shares: a style remembered since opens it.
-    await act(async () => root.render(<ShareLinkModal />));
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
     useSettingsStore.setState({ creasePatternFoldedFigureStyle: 'builtin:diagram' });
     useWorkspaceStore.setState({ oristudioCpShareDraft: draftFor(square()) });
-    await act(async () => root.render(<ShareLinkModal />));
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
     await showFolded();
 
     expect(styleTrigger()?.textContent).toBe('Diagram');

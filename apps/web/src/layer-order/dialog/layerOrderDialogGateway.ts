@@ -117,6 +117,18 @@ export function useLayerOrderDialogOpening(): LayerOrderDialogOpening | null {
 }
 
 /**
+ * Whether a Layer order dialog is open now, from any host: set as an open
+ * begins, before its code has loaded, and cleared as it settles. For the app
+ * keyboard, which leaves the open dialog its keys (its Undo and Redo) while
+ * a command dialog it was opened from (the Export crease pattern dialog)
+ * waits behind it; and for a host that steps aside only once the dialog
+ * really opened, rather than on `busy` or `unavailable`. Loads nothing.
+ */
+export function isLayerOrderDialogOpen(): boolean {
+  return useLayerOrderDialogStore.getState().opening !== null;
+}
+
+/**
  * The dialog of opening `id` crashed: its host hears `cancelled` at once, so
  * it never waits on a dialog that is gone and the next open is not `busy`.
  * For the mount's error boundary. Whether it was still waiting.

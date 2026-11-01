@@ -143,6 +143,16 @@ describe('an export in the kernel’s own layer order', () => {
     expect(rasterized).toEqual([serializeCreasePatternSvg(fold, segments, options, content)]);
   });
 
+  it('draws the same bytes for a whole turn and the default order said outright', async () => {
+    const svg = serializeCreasePatternSvg(fold, segments, options, {
+      foldedFigure: foldedSnapshot(),
+      foldedFigureScene: foldedScene(),
+      foldedFigureTurnDeg: 360,
+      foldedFigureLayerOrder: 'default',
+    });
+    await expect(svg).toMatchFileSnapshot('./__snapshots__/creaseExportDefaultOrder.scene.svg');
+  });
+
   it('draws the share card’s figure as it did before', async () => {
     const page = composeCreaseExportSvg(
       buildCreaseExportArtwork(fold, segments, options, {
@@ -152,5 +162,31 @@ describe('an export in the kernel’s own layer order', () => {
       EMPTY_CREASE_EXPORT_CAPTION
     );
     await expect(page.svg).toMatchFileSnapshot('./__snapshots__/creaseExportDefaultOrder.scene.svg');
+  });
+});
+
+describe('a figure the Layer order dialog turned', () => {
+  const content = { foldedFigure: foldedSnapshot(), foldedFigureScene: foldedScene() };
+
+  it('is drawn turned, still fitted to the pattern’s height', () => {
+    // The strip lies 1 wide and 0.5 high: a quarter turn stands it up.
+    const flat = buildCreaseExportArtwork(fold, segments, options, content).foldedBox!;
+    const turned = buildCreaseExportArtwork(fold, segments, options, { ...content, foldedFigureTurnDeg: 90 }).foldedBox!;
+    expect(turned.height).toBeCloseTo(flat.height, 6);
+    expect(flat.width / turned.width).toBeCloseTo(4, 6);
+  });
+
+  it('turns the drawing of a fold with no paper scene the same way', () => {
+    const flat = buildCreaseExportArtwork(fold, segments, options, { foldedFigure: foldedSnapshot() }).foldedBox!;
+    const half = buildCreaseExportArtwork(fold, segments, options, {
+      foldedFigure: foldedSnapshot(),
+      foldedFigureTurnDeg: 180,
+    }).foldedBox!;
+    // A half turn keeps the box, and moves the picture in it.
+    expect(half.width).toBeCloseTo(flat.width, 6);
+    expect(
+      buildCreaseExportArtwork(fold, segments, options, { foldedFigure: foldedSnapshot(), foldedFigureTurnDeg: 180 })
+        .folded
+    ).not.toBe(buildCreaseExportArtwork(fold, segments, options, { foldedFigure: foldedSnapshot() }).folded);
   });
 });
