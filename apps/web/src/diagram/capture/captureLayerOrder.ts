@@ -28,32 +28,34 @@ import type {
   OristudioCpFoldedPaperScene,
   OristudioCpFoldSource,
 } from '../../engine/oristudioCpTypes';
-import type { LayerOrderLossCause, LayerOrderResolution } from '../../layer-order/host/hostEngineGateway';
-import { routed3dLayerOrderRecord, withLayerOrderAttention } from '../../layer-order/host/layerOrderResolution';
+import type { LayerOrderResolution } from '../../layer-order/host/hostEngineGateway';
+import { routed3dLayerOrderRecord } from '../../layer-order/host/layerOrderResolution';
 import { NEWER } from '../../lib/documentFile';
 import { keyDigest } from '../../lib/keyDigest';
-import { openFold, type CpFoldRuntime, type FoldedFigureState } from '../../lib/creaseExportFold';
+import type { CpFoldRuntime } from '../../lib/creaseExportFold';
 import {
-  encodeLayerOrderRecord,
-  readLayerOrderRecord,
-  type LayerOrderAttention,
-  type LayerOrderRecord,
-} from '../../lib/layerOrder/layerOrderRecord';
-import type { LayerOrderApplied, LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
-import { kernelFoldSourceOf, layerOrderSourceOf } from '../../lib/layerOrder/layerOrderSource';
-import {
-  layerOrderRecordFromSource,
-  layerOrderRecordToSource,
-  paperFrameAbout,
-  type PaperFrame,
-} from '../../lib/layerOrder/paperFrame';
+  flaggedLayerOrder,
+  foldAppliedOrder,
+  heldFoldSource as heldFoldSourceIn,
+  keptLayerOrder,
+  stepFoldSource as stepFoldSourceIn,
+  type FoldSource,
+  type HeldLayerOrder,
+  type LayerOrderShown,
+  type PaperFrameOf,
+} from '../../lib/layerOrder/layerOrderFold';
+import { readLayerOrderRecord, type LayerOrderAttention, type LayerOrderRecord } from '../../lib/layerOrder/layerOrderRecord';
+import type { LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
+import { layerOrderRecordToSource, paperFrameAbout, type PaperFrame } from '../../lib/layerOrder/paperFrame';
 import { paperBoxCentre } from './capturePaperFaces';
 
+// The fold helpers every kernel-folding host shares (`lib/layerOrder/layerOrderFold.ts`),
+// under the names the Diagram's capture has always used.
+export { flaggedLayerOrder, foldAppliedOrder };
+export type { LayerOrderKeptOutcome, LayerOrderShown } from '../../lib/layerOrder/layerOrderFold';
+
 /** A step's record as this build reads it, and as its source keeps it. */
-export interface StepLayerOrder {
-  readonly record: LayerOrderRecord;
-  readonly json: string;
-}
+export type StepLayerOrder = HeldLayerOrder;
 
 /**
  * The record a step's source keeps, read; null when it keeps none. A newer
@@ -159,11 +161,6 @@ let digestedChars = 0;
 /** About 4 MB of record text: a few of the largest records, or hundreds of usual ones. */
 const DIGESTED_CHARS = 2 * 1024 * 1024;
 
-/** `layerOrder` with its summary set (or cleared, for null), as its source keeps it. */
-export function flaggedLayerOrder(layerOrder: StepLayerOrder, attention: LayerOrderAttention | null): StepLayerOrder {
-  return keptLayerOrder(withLayerOrderAttention(layerOrder.record, attention));
-}
-
 /**
  * A step's record once its creases fold in 3D (D13): kept, with every
  * constraint waiting until they fold flat again; already so, as it was.
@@ -197,97 +194,39 @@ function segmentsFrame(source: OristudioCpFoldSource): PaperFrame {
   return diagramLayerOrderFrame({ sheet_points });
 }
 
+/** A step's frame for a fold just read: about its paper's box, or its creases' when it drew no paper. */
+const stepFrameOf: PaperFrameOf = (paper, kernel) =>
+  paper && paper.sheet_points.length > 0 ? diagramLayerOrderFrame(paper) : segmentsFrame(kernel);
+
 /** What a fold of a step's creases was made from, as the host engine and the dialog take it. */
-export interface StepFoldSource {
-  readonly source: LayerOrderSource;
-  /** The step's paper frame, for its record's points. */
-  readonly frame: PaperFrame;
-  /** The kernel's paper scene of the fold, in the order asked for; null for one it drew none of. */
-  readonly scene: OristudioCpFoldedPaperScene | null;
-}
+export type StepFoldSource = FoldSource;
 
 /**
  * Fold a step's creases as a capture does — stepped to `foldCase`, the
  * kernel's layer order the step shows, when that is past the first — read
- * what the fold was made from and the paper it lies on ({@link heldFoldSource}),
- * and free it. A fold's source is the same at every case; its scene is the case's.
+ * what the fold was made from and the paper it lies on, in the step's frame,
+ * and free it (`layerOrderFold.ts`).
  */
-export async function stepFoldSource(
+export function stepFoldSource(
   runtime: CpFoldRuntime,
   lineIds: readonly number[],
   model: OristudioCpFoldedFigureModel,
   foldCase = 1
 ): Promise<StepFoldSource> {
-  if (!runtime.source) throw new Error('This crease kernel cannot say what a fold was made from');
-  const folded = await openFold(runtime, [...lineIds], model);
-  try {
-    if (foldCase > 1) await runtime.foldToCase(folded.handle, foldCase);
-    return await heldFoldSource(runtime, folded.handle, model);
-  } finally {
-    await runtime.free(folded.handle);
-  }
+  return stepFoldSourceIn(runtime, lineIds, model, stepFrameOf, foldCase);
 }
 
 /**
- * What a flat fold someone holds was made from, and the paper it lies on, as
- * it stands — Pose's held fold (H8), in the kernel's order at its case or in a
- * record's (`fold_with_order` folds exactly the source it is given, so its
- * source is the plain fold's). `model` is the one it was folded or last set
- * with; `scene`, its paper scene when the holder has read it already.
+ * What a flat fold someone holds was made from, and the paper it lies on, in
+ * the step's frame — Pose's held fold (H8; `layerOrderFold.ts`).
  */
-export async function heldFoldSource(
+export function heldFoldSource(
   runtime: CpFoldRuntime,
   handle: number,
   model: OristudioCpFoldedFigureModel,
   scene?: OristudioCpFoldedPaperScene | null
 ): Promise<StepFoldSource> {
-  if (!runtime.source) throw new Error('This crease kernel cannot say what a fold was made from');
-  const kernel = await runtime.source(handle);
-  const paper = scene === undefined ? await runtime.paperScene(handle) : scene;
-  return {
-    source: layerOrderSourceOf(kernel, model),
-    frame: paper && paper.sheet_points.length > 0 ? diagramLayerOrderFrame(paper) : segmentsFrame(kernel),
-    scene: paper,
-  };
-}
-
-/** Why a record's order was not drawn: the host engine's answer, or the kernel refusing to draw it. */
-export type LayerOrderKeptOutcome = 'clash' | 'timed_out' | 'refused';
-
-/** A fold in a record's order, or why the step keeps its picture. */
-export type LayerOrderShown =
-  /**
-   * Drawn: the new figure, which the caller owns and frees; the record of
-   * the order it shows (the host engine's save of it), and its summary.
-   */
-  | {
-      readonly kind: 'shown';
-      readonly state: FoldedFigureState;
-      readonly layerOrder: StepLayerOrder;
-      readonly attention: LayerOrderAttention | null;
-    }
-  /** Not drawn (D10): the step keeps its picture, and this record, flagged. */
-  | {
-      readonly kind: 'kept';
-      readonly layerOrder: StepLayerOrder;
-      readonly attention: LayerOrderAttention;
-      readonly outcome: LayerOrderKeptOutcome;
-    }
-  /**
-   * The host engine was not there to answer — offline, or it crashed. Nothing
-   * was checked, so nothing is kept: the step stays as it was, its record
-   * unflagged. `cause` is the host engine's, `load` when the browser did not
-   * load it (`isLayerOrderLoadFailure`).
-   */
-  | { readonly kind: 'lost'; readonly cause: LayerOrderLossCause }
-  /** A Stop: nothing to keep. */
-  | { readonly kind: 'cancelled' };
-
-/** The record a step saves, encoded once; a record past the budget is no answer the step can keep. */
-function keptLayerOrder(record: LayerOrderRecord): StepLayerOrder {
-  const encoded = encodeLayerOrderRecord(record);
-  if (!encoded.ok) throw new Error(`The step's layer order cannot be saved (${encoded.reason})`);
-  return { record, json: encoded.json };
+  return heldFoldSourceIn(runtime, handle, model, stepFrameOf, scene);
 }
 
 /**
@@ -317,32 +256,6 @@ export async function foldWithLayerOrder(
   if (shown.kind === 'shown') return { ...shown, attention: resolution.attention };
   // The record asked about, flagged, as for any order not drawn.
   return { ...shown, layerOrder: flaggedLayerOrder(layerOrder, shown.attention) };
-}
-
-/**
- * Fold an order the dialog applied, or the host engine restored, into a new
- * figure: `applied.relations` on `applied.source`, exactly what was analysed.
- * Its record is saved in the step's frame, with the summary it came with —
- * encoded first, so a record that cannot be saved never leaves a figure
- * behind. A kernel that cannot draw the order refuses (a typed refusal, no
- * figure): `kept`, the record flagged with every constraint, which a restore
- * keeps and the dialog's Apply does not (`captureInLayerOrder`).
- */
-export async function foldAppliedOrder(
-  runtime: CpFoldRuntime,
-  applied: LayerOrderApplied,
-  model: OristudioCpFoldedFigureModel,
-  frame: PaperFrame
-): Promise<Exclude<LayerOrderShown, { kind: 'lost' | 'cancelled' }>> {
-  if (!runtime.foldWithOrder) throw new Error('This crease kernel cannot fold a given layer order');
-  const layerOrder = keptLayerOrder(layerOrderRecordFromSource(applied.record, frame));
-  const folded = await runtime.foldWithOrder(kernelFoldSourceOf(applied.source), applied.relations, model);
-  if (folded.status === 'refused') {
-    const attention: LayerOrderAttention = { reason: 'unresolved', count: applied.record.constraints.length };
-    return { kind: 'kept', layerOrder: flaggedLayerOrder(layerOrder, attention), attention, outcome: 'refused' };
-  }
-  const { status: _folded, ...state } = folded;
-  return { kind: 'shown', state, layerOrder, attention: applied.record.attention ?? null };
 }
 
 /**

@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowDown,
@@ -12,17 +13,18 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
-import type {
-  LayerSpreadChoice,
-  LayerSpreadDrag,
-  LayerSpreadToggle,
+import {
+  spreadAmountSlider,
+  type LayerSpreadChoice,
+  type LayerSpreadDrag,
+  type LayerSpreadToggle,
 } from '../../cp-workspace/folded/layerSpreadControls';
-import { DEFAULT_CONNECTED_SPREAD, SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_CONNECTED_SPREAD, SPREAD_AXIS_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
 import { LayerRevealControl } from './LayerRevealControl';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { AffineSpreadCredit } from './AffineSpreadCredit';
 import { IconButton } from '../ui/IconButton';
-import { FieldRow, SegmentedRow, SliderRow, ToggleRow } from '../ui/fieldRows';
+import { FieldRow, SegmentedRow, SliderRow, StackedRow, ToggleRow } from '../ui/fieldRows';
 import styles from './LayerSpreadRows.module.css';
 
 const ARROWS: Record<SpreadDirection, LucideIcon> = {
@@ -36,9 +38,6 @@ const ARROWS: Record<SpreadDirection, LucideIcon> = {
   left: ArrowLeft,
 };
 
-/** The amount slider moves in half percents, as the readout says them. */
-const AMOUNT_STEP_PERCENT = 0.5;
-
 /**
  * A flat picture's layers spread apart (Phase 13), as rows: Spread Layers on
  * or off, and while on, Default, Affine or Depth. Default has a height amount
@@ -50,61 +49,98 @@ const AMOUNT_STEP_PERCENT = 0.5;
  *
  * Every surface that spreads a picture lays its spread out with these — a
  * Diagram step's Pose section, whose verbs are the open step's pose
- * controller's (`useDiagramLinkedPose`), and Fold's Step pane, whose edit the
- * step (`useFoldStepSpread`) — so it reads and works the same in both. This
- * only lays the verbs out (`layerSpreadControls.ts`).
+ * controller's (`useDiagramLinkedPose`), Fold's Step pane, whose edit the
+ * step (`useFoldStepSpread`), and the Export and Share dialogs' folded
+ * figure, whose setting is the dialog's own (`useExportFoldedSpread`) — so it
+ * reads and works the same in each. This only lays the verbs out
+ * (`layerSpreadControls.ts`), and says under Spread layers why it is off
+ * where a surface says so (`LayerSpreadToggle.note`).
  */
 export function LayerSpreadRows({
   toggle,
   spread,
   revealVisible = true,
+  kindLayout = 'row',
 }: {
   revealVisible?: boolean;
+  /**
+   * Spread by beside its label, or stacked under it with its choices across
+   * the row, for a column too narrow for both (the Share modal's).
+   */
+  kindLayout?: 'row' | 'stacked';
   /** Spread Layers; absent where the picture has no layers to offer it for. */
   toggle: LayerSpreadToggle | undefined;
   /** The spread while it is on; null while off. */
   spread: LayerSpreadDrag | null;
 }) {
   const { t, i18n } = useTranslation();
+  const kindLabelId = useId();
   if (!toggle) return null;
   const percent = (value: number) =>
-    new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 1 }).format(value / 100);
+    new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 0 }).format(value / 100);
   const degrees = (value: number) =>
     t('panels:diagram.pose.spreadAxisDegrees', '{{degrees}}°', {
       degrees: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(value),
     });
   const shown = spread?.spread;
-  // Default's percentage covers its full height range; saved multipliers stay unchanged.
-  const amountPercentScale = shown?.kind === 'connected' ? 100 / SPREAD_AMOUNT_RANGE.connected.max : 100;
+  const amount = shown ? spreadAmountSlider(shown.kind, shown.amount) : null;
+  const kinds =
+    spread?.kinds.map(({ value, label, disabled, waiting, hint }) => ({
+      value,
+      label,
+      disabled: disabled || waiting,
+      title: hint,
+    })) ?? [];
   return (
     <>
       <ToggleRow
         label={t('panels:diagram.pose.spreadLayersRow', 'Spread layers')}
+        note={toggle.note}
         checked={toggle.pressed ?? false}
         disabled={toggle.disabled}
         title={toggle.disabled ? toggle.hint : undefined}
         // Waiting for a capture, the switch refuses, as the verb does.
         onChange={() => toggle.run()}
       />
-      {spread && shown && (
+      {spread && shown && amount && (
         <>
-          <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
-            <span className={styles.kind} aria-busy={spread.busy || undefined}>
-              <SegmentedControl size="sm" aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
+          {kindLayout === 'stacked' ? (
+            <StackedRow
+              label={t('panels:diagram.pose.spreadKind', 'Spread by')}
+              labelId={kindLabelId}
+              aside={shown.kind === 'affine' ? <AffineSpreadCredit /> : undefined}
+              title={spread.hint}
+              aria-busy={spread.busy || undefined}
+            >
+              <SegmentedControl
+                size="sm"
+                fill
+                aria-labelledby={kindLabelId}
                 value={shown.kind}
-                options={spread.kinds.map(({ value, label, disabled, waiting, hint }) => ({ value, label, disabled: disabled || waiting, title: hint }))}
+                options={kinds}
                 disabled={spread.disabled}
-                onChange={(value) => choose(spread.kinds, value)} />
-              {shown.kind === 'affine' && <AffineSpreadCredit />}
-            </span>
-          </FieldRow>
+                onChange={(value) => choose(spread.kinds, value)}
+              />
+            </StackedRow>
+          ) : (
+            <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
+              <span className={styles.kind} aria-busy={spread.busy || undefined}>
+                <SegmentedControl size="sm" aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
+                  value={shown.kind}
+                  options={kinds}
+                  disabled={spread.disabled}
+                  onChange={(value) => choose(spread.kinds, value)} />
+                {shown.kind === 'affine' && <AffineSpreadCredit />}
+              </span>
+            </FieldRow>
+          )}
           <SliderRow
             label={t('panels:diagram.pose.spreadAmount', 'Amount')}
             ariaLabel={t('panels:diagram.pose.spreadAmountName', 'Spread amount')}
-            value={shown.amount * amountPercentScale}
-            min={SPREAD_AMOUNT_RANGE[shown.kind].min * amountPercentScale}
-            max={SPREAD_AMOUNT_RANGE[shown.kind].max * amountPercentScale}
-            step={AMOUNT_STEP_PERCENT}
+            value={amount.value}
+            min={amount.min}
+            max={amount.max}
+            step={amount.step}
             format={percent}
             valueText={(value) =>
               shown.kind === 'connected'
@@ -121,7 +157,7 @@ export function LayerSpreadRows({
             }
             disabled={spread.disabled}
             title={spread.hint}
-            onChange={(value) => spread.preview('amount', value / amountPercentScale)}
+            onChange={(value) => spread.preview('amount', value / amount.scale)}
             onGestureStart={spread.start}
             onGestureCommit={spread.commit}
             onReset={
@@ -143,33 +179,10 @@ export function LayerSpreadRows({
               kind="segmented"
               title={spread.hint}
             >
-              <div
-                className={styles.compass}
-                role="group"
-                aria-label={t('panels:diagram.pose.spreadDirectionName', 'Spread direction')}
-              >
-                {spread.directions.map((direction) => {
-                  const Icon = ARROWS[direction.value];
-                  const held = direction.disabled || direction.waiting;
-                  return (
-                    <IconButton
-                      key={direction.value}
-                      size="sm"
-                      className={styles.direction}
-                      data-toward={direction.value}
-                      aria-label={direction.label}
-                      title={held && direction.hint ? direction.hint : direction.label}
-                      aria-pressed={direction.pressed}
-                      // Refused, but still holding the focus, as Pose's verbs are.
-                      aria-disabled={held || undefined}
-                      onClick={direction.run}
-                    >
-                      <Icon size={14} />
-                    </IconButton>
-                  );
-                })}
-                <Layers className={styles.centre} size={14} aria-hidden="true" />
-              </div>
+              <SpreadDirectionCompass
+                label={t('panels:diagram.pose.spreadDirectionName', 'Spread direction')}
+                directions={spread.directions}
+              />
             </FieldRow>
           ) : (
             <>
@@ -228,6 +241,53 @@ export function LayerSpreadRows({
         </>
       )}
     </>
+  );
+}
+
+/** One of a depth spread's eight ways, as the compass offers it: a spread choice's look and its verb. */
+export type SpreadDirectionCompassChoice = Pick<
+  LayerSpreadChoice<SpreadDirection>,
+  'value' | 'label' | 'pressed' | 'disabled' | 'waiting' | 'hint' | 'run'
+>;
+
+/**
+ * Which way a depth spread's deeper layers step: eight buttons round a
+ * centre. A refused one keeps its place and the focus a press gave it.
+ * Shared by the spread rows and the Properties sheet's `direction` field
+ * (`PropertySheetView`), so it reads the same in both.
+ */
+export function SpreadDirectionCompass({
+  label,
+  directions,
+}: {
+  /** The group's accessible name ("Spread direction"). */
+  label: string;
+  directions: readonly SpreadDirectionCompassChoice[];
+}) {
+  return (
+    <div className={styles.compass} role="group" aria-label={label}>
+      {directions.map((direction) => {
+        const Icon = ARROWS[direction.value];
+        const held = direction.disabled || direction.waiting;
+        return (
+          <IconButton
+            key={direction.value}
+            size="sm"
+            className={styles.direction}
+            data-toward={direction.value}
+            aria-label={direction.label}
+            title={held && direction.hint ? direction.hint : direction.label}
+            aria-pressed={direction.pressed}
+            // Refused, but still holding the focus, as Pose's verbs are.
+            aria-disabled={held || undefined}
+            onClick={direction.run}
+          >
+            <Icon size={14} />
+          </IconButton>
+        );
+      })}
+      <Layers className={styles.centre} size={14} aria-hidden="true" />
+    </div>
   );
 }
 

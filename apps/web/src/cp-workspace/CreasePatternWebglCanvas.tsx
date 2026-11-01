@@ -110,6 +110,8 @@ import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
 import { cpAuxLinesKey } from './folded/foldedAuxSource';
 import { useFoldedFlatAux } from './folded/useFoldedFlatAux';
+import { useFoldedFlatSpread, type FoldedSpreadCanvasView } from './folded/useFoldedFlatSpread';
+import { useFoldedFigureSpreadReachVersion } from './folded/foldedFigureSpreadReach';
 import { useObjectEdgePenWidth, useObjectPaperStyleOf } from './paper/objectPaperStyle';
 import { ptToDevicePx } from '../lib/paper/paperStyle';
 import type { CpContextMenuRequest } from './contextMenuTarget';
@@ -1191,9 +1193,13 @@ export function CreasePatternWebglCanvas({
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
+  // A spread figure's box takes its spread in once it is drawn
+  // (`folded/foldedFigureSpreadReach.ts`): what Fit and the hit test read.
+  const foldedSpreadReach = useFoldedFigureSpreadReachVersion();
   const contentBounds = useMemo<UserBounds | null>(
     () => cpContentBounds({ lineSegments, images, overlayBoxes, foldedFigures, modelToSvg }),
-    [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the reach is read through the figures' boxes
+    [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg, foldedSpreadReach]
   );
   // What stroke/marker sizing measures against, which is deliberately *not*
   // `contentBounds` — see `cpSizingBounds`. Framing must include a far-flung
@@ -1240,7 +1246,8 @@ export function CreasePatternWebglCanvas({
   // Folded-figure pick boxes (SVG user coords) for cmd-drag move, in draw order.
   const foldedBounds = useMemo<FoldedFigureBounds[]>(
     () => foldedFigureUserBounds(foldedFigures),
-    [foldedFigures]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the reach is read through the figures' boxes
+    [foldedFigures, foldedSpreadReach]
   );
   // Selected line ids as a set, for "is the press on a selected line" (move-drag).
   const selectedLineSet = useMemo(() => new Set(selectedLineIds), [selectedLineIds]);
@@ -1631,6 +1638,14 @@ export function CreasePatternWebglCanvas({
     [cpDocumentHandle, foldedAuxKey]
   );
   const foldedAux = useFoldedFlatAux(sceneFoldedFigures, foldedAuxSource);
+  // A flat figure whose layers are spread draws its spread picture in place of
+  // its snapshot, through the renderer's spread pass (`useFoldedFlatSpread`).
+  const foldedSpreadView = useCallback((): FoldedSpreadCanvasView | null => {
+    const camera = cameraRef.current;
+    const canvas = canvasRef.current;
+    return camera && canvas ? { camera, width: canvas.width, height: canvas.height } : null;
+  }, []);
+  const foldedSpread = useFoldedFlatSpread(sceneFoldedFigures, foldedPaperStyle, foldedSpreadView);
   const foldedGeometry = useMemo(
     () =>
       cpFoldedToScene(
@@ -1638,9 +1653,10 @@ export function CreasePatternWebglCanvas({
         (figure) => (staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1),
         foldedPenWidth,
         foldedAux,
-        foldedPaperStyle
+        foldedPaperStyle,
+        foldedSpread
       ),
-    [drawnFoldedFigures, staleFoldedFigureIds, foldedPenWidth, foldedAux, foldedPaperStyle]
+    [drawnFoldedFigures, staleFoldedFigureIds, foldedPenWidth, foldedAux, foldedPaperStyle, foldedSpread]
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global

@@ -1,0 +1,16 @@
+/*
+ * The Export crease pattern dialog's own pieces (CreaseExportDialog.tsx). Its
+ * frame and its other sections are the shared `simple-modal` and
+ * `export-modal` blocks, which gain nothing here.
+ */
+
+/* While the folded figure folds, the last picture stays, dimmed: in place of a
+   status line (aria-busy says it on the preview). */
+.previewImage[data-busy] {
+  opacity: 0.55;
+}
+
+/* The Folded figure section's rows: FieldRows, stacked as a pane's are. */
+.foldedRows {
+  display: grid;
+}

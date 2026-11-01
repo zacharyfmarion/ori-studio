@@ -2,17 +2,18 @@
 import createREGL from 'regl';
 import { createSpreadProgram } from '../cp-workspace/renderer/programs/spreadProgram';
 import { PAPER_STYLE_POLICIES } from '../lib/paper/paperStyleResolve';
-import type { PaperStyle } from '../lib/paper/paperStyle';
-import type { ConnectedPaperScene } from './connectedScene';
+import type { SpreadRasterRequest } from './rasterConnected';
 import { spreadGeometry } from './spreadGeometry';
 
 /** A capture which exceeds vector complexity still uses exactly the live
- * visibility policy. Never flatten an unresolved scene in painter order. */
-self.onmessage = async ({ data }: MessageEvent<{ scene: ConnectedPaperScene; style: PaperStyle; mm: number }>) => {
+ * visibility policy. Never flatten an unresolved scene in painter order. Its
+ * pens are read through the asking surface's policy, Fold's when it names none. */
+self.onmessage = async ({ data }: MessageEvent<SpreadRasterRequest>) => {
   let regl: ReturnType<typeof createREGL> | undefined;
   try {
     const { scene, style, mm } = data,
       b = scene.bounds;
+    const policy = PAPER_STYLE_POLICIES[data.policy ?? 'fold'] ?? PAPER_STYLE_POLICIES.fold;
     const span = Math.max(b.maxX - b.minX, b.maxY - b.minY);
     if (!(span > 0)) throw new Error('Empty spread capture');
     const pixelsPerMm = 300 / 25.4,
@@ -25,7 +26,7 @@ self.onmessage = async ({ data }: MessageEvent<{ scene: ConnectedPaperScene; sty
     if (!gl) throw new Error('Spread capture graphics unavailable');
     regl = createREGL({ gl: gl as WebGLRenderingContext, extensions: ['ANGLE_instanced_arrays'] });
     const renderer = createSpreadProgram(regl);
-    renderer.setData(spreadGeometry(scene, style, { policy: PAPER_STYLE_POLICIES.fold }));
+    renderer.setData(spreadGeometry(scene, style, { policy }));
     regl.clear({ color: [0, 0, 0, 0], depth: 1, stencil: 0 });
     renderer.draw({
       view: { origin: [pad - b.minX * scale, pad - b.minY * scale], ex: [scale, 0], ey: [0, scale] },

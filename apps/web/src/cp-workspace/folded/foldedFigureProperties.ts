@@ -65,8 +65,13 @@ import {
 } from './foldedFigureState';
 import type { PaperStyleOverrideEdit } from '../paper/objectPaperStyle';
 import { auxAndErodeFields, edgeInkEdits, foldPenFields } from '../paper/paperStyleFields';
+import {
+  foldedFigureShadowWhileSpread,
+  foldedFigureSpreadSection,
+  type FoldedFigureSpreadFieldDeps,
+} from './foldedFigureSpreadFields';
 
-export interface FoldedFigurePropertyDeps {
+export interface FoldedFigurePropertyDeps extends FoldedFigureSpreadFieldDeps {
   t: TFunction;
   /** Whether the figure's source creases have changed since it was folded. */
   stale: boolean;
@@ -116,8 +121,9 @@ export interface FoldedFigurePropertyDeps {
  * (the approved Properties board, A4): the figure's verbs in the header
  * (Export…, Duplicate, Delete — the toolbar's last group, from the catalog),
  * Render as over a control across the pane, then Pose (a flat figure's
- * Rotation, its Side, and its Layer order: ‹ where it stands ›), Camera on a
- * 3D figure, Appearance (what the kernel or the canvas draws) and Placement
+ * Rotation, its Side, and its Layer order: ‹ where it stands ›), Spread (its
+ * layers spread apart, `foldedFigureSpreadFields.ts`), Camera on a 3D figure,
+ * Appearance (what the kernel or the canvas draws) and Placement
  * (where it sits on the paper; a 3D figure's Rotation stays here, since its
  * pose is its camera). The title is the figure's own and the subtitle a state
  * — stale, folding, failed, a 3D verdict — context, not a field; which layer
@@ -186,6 +192,17 @@ export function buildFoldedFigureProperties(
       default:
         return null;
     }
+  };
+
+  /**
+   * Shadow's support: the oracle's, and held while the figure's layers are
+   * spread, since a spread picture carries no shadow paint — said under its
+   * label (`foldedFigureShadowWhileSpread`). The setting is kept.
+   */
+  const shadowSupport = (): { support: PropertySupport; reason?: string; note?: FieldNote & { kind: 'reason' } } => {
+    const answer = appearance('shadow');
+    if (answer.support !== 'supported') return answer;
+    return foldedFigureShadowWhileSpread(figure, deps.spreadStatus, t) ?? answer;
   };
 
   const { style, overrides, held } = deps;
@@ -284,7 +301,7 @@ export function buildFoldedFigureProperties(
             id: 'shadows',
             kind: 'toggle',
             label: t('panels:creasePattern.shadow', 'Shadow'),
-            ...appearance('shadow'),
+            ...shadowSupport(),
             undoLabel: changeModel,
             protocol: 'discrete',
             value: model?.display_shadows ?? false,
@@ -408,6 +425,10 @@ export function buildFoldedFigureProperties(
   }
 
   sections.push(
+    // A section of its own, after the pose rather than in it, so Pose's
+    // notice stays beside the Layer order row it is about. On a 3D figure
+    // too, after its camera, held and saying why, as its Layer order row is.
+    foldedFigureSpreadSection(figure, deps),
     {
       id: 'appearance',
       title: t('panels:cpProperties.folded.appearance', 'Appearance'),

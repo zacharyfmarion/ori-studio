@@ -6,7 +6,7 @@ import {
   type CpSegment,
 } from './creasePatternSegmentation';
 import { escapeXml } from './xmlEscape';
-import { svgToPng } from './svgToPng';
+import { drawSvgPage, svgToPng } from './svgToPng';
 import { foldedFigureSvgBody, projectedFoldedFigureBounds } from './foldedFigureSvg';
 import {
   applyCpModelToFold,
@@ -40,7 +40,7 @@ import type {
   OristudioCpFoldedRenderSnapshot,
   OristudioCpGridMetadata,
 } from '../engine/oristudioCpTypes';
-import type { Point } from './geometry';
+import { turnClockwise, type Point } from './geometry';
 import type { FoldedFigureSide } from './foldedFigureSides';
 import {
   DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
@@ -54,12 +54,29 @@ import {
 } from './creasePatternViewport';
 import { alternateDashRuns, cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
 
+import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
+import type { CreaseExportSpreadPicture } from './creaseExportSpread';
+import type { ScenePoint } from './paper/paperScene';
+
 /** Side of the square content box the crease pattern is drawn into. */
 const CP_SIZE = 1024;
 const MARGIN = 48;
+/**
+ * The most the pattern is drawn across inside its box, page px: the folded
+ * figure beside it is fitted to the pattern's height, so it is never drawn
+ * taller (`creaseExportSpreadRasterMm`).
+ */
+export const CREASE_EXPORT_FIGURE_SPAN = CP_SIZE - MARGIN * 2;
 // Export viewBox (1024) is larger than the editable canvas viewBox (~720); scale
 // stroke widths / point radii so exports look like the live crease-pattern view.
 const VIEW_SCALE = CP_SIZE / 720;
+/**
+ * Page px a folded figure's pen draws per pt: a pen is stated in pt and drawn
+ * on screen at 4/3 CSS px per pt, and the page is the screen at `VIEW_SCALE`,
+ * as the creases beside it are. A bitmap of the figure is drawn at this scale
+ * too, so its pens are the vector's (`creaseExportSpreadRasterMm`).
+ */
+export const CREASE_EXPORT_FIGURE_UNITS_PER_PT = PT_TO_CSS_PX * VIEW_SCALE;
 
 /**
  * Grid stroke width, in the same page units as the crease strokes.
@@ -115,8 +132,9 @@ export type CreaseExportFormat = 'svg' | 'png';
 export type CreaseExportTheme = 'light' | 'dark';
 
 /**
- * How the folded figure is folded and painted. These go to the kernel as a
- * folded-figure model, so changing any of them means re-folding.
+ * How the folded figure is folded and painted. The side, the colours and the
+ * case go to the kernel as a folded-figure model; the spread does not, since
+ * a spread is drawn from the fold the kernel made.
  */
 export interface CreaseExportFoldedFigureSettings {
   /** Which surface the figure shows. Front and back are the offered views. */
@@ -126,6 +144,12 @@ export interface CreaseExportFoldedFigureSettings {
   backColor: string;
   /** 1-based layer-ordering solution to show. */
   foldCase: number;
+  /**
+   * The figure's layers spread apart, or null or absent for none — the
+   * setting. What is painted is the picture it settled to,
+   * `CreaseExportContent.foldedFigureSpread`, so the file is the preview.
+   */
+  spread?: LayerSpreadOptions | null;
 }
 
 export const DEFAULT_CREASE_EXPORT_FOLDED_FIGURE: CreaseExportFoldedFigureSettings = {
@@ -838,6 +862,25 @@ export interface CreaseExportContent {
    * a TreeMaker design, or any fold with no editable crease-pattern document.
    */
   grid?: CreaseExportGridSource | null;
+  /**
+   * How far the folded figure is turned, clockwise on screen, in degrees: the
+   * Layer order dialog's Rotate, which every host takes (H11). Absent or a
+   * whole turn draws it as the kernel placed it, byte for byte as before.
+   */
+  foldedFigureTurnDeg?: number;
+  /**
+   * Whose layer order the figure is in: the kernel's own (`default`, absent)
+   * or one chosen in the Layer order dialog. Drawn the same either way — the
+   * picture is already in it — and read only to say which in analytics.
+   */
+  foldedFigureLayerOrder?: 'default' | 'chosen';
+  /**
+   * The figure with its layers spread, as its spread setting settled
+   * (`creaseExportSpread.ts`): painted in place of `foldedFigureScene`,
+   * fitted by the figure unspread. Absent or null draws the figure as it
+   * always was, byte for byte.
+   */
+  foldedFigureSpread?: CreaseExportSpreadPicture | null;
 }
 
 /**
@@ -882,11 +925,23 @@ export function creaseExportPaperStyle(
   style: PaperStyle,
   settings: Pick<CreaseExportFoldedFigureSettings, 'frontColor' | 'backColor'>
 ): PaperStyle {
-  const pinned = effectivePaperStyle(style, {
+  return surfacePaperStyle(creaseExportPinnedStyle(style, settings), PAPER_STYLE_POLICIES['folded-flat']);
+}
+
+/**
+ * The export style with the dialog's front and back colours pinned over its
+ * paper, before any surface reads it: what the Layer order dialog is handed
+ * with the flat figure's policy (`LayerOrderLook`), so its panes paint the
+ * figure as the inset is painted.
+ */
+export function creaseExportPinnedStyle(
+  style: PaperStyle,
+  settings: Pick<CreaseExportFoldedFigureSettings, 'frontColor' | 'backColor'>
+): PaperStyle {
+  return effectivePaperStyle(style, {
     'paper.front': parseHex(settings.frontColor),
     'paper.back': parseHex(settings.backColor),
   });
-  return surfacePaperStyle(pinned, PAPER_STYLE_POLICIES['folded-flat']);
 }
 
 export const EMPTY_CREASE_EXPORT_CONTENT: CreaseExportContent = { foldedFigure: null };
@@ -1074,6 +1129,62 @@ function foldOutlineLoops(fold: FoldDocument): number[][] {
   return loops;
 }
 
+/**
+ * Where a spread picture goes in the inset: fitted by the figure unspread,
+ * its flat top on the pattern's, as the figure is drawn with no spread — so
+ * raising Amount spreads the layers apart rather than shrinking the figure —
+ * and boxed by all it draws, with room made above should the layers reach
+ * past the page's top. `toPage` takes a point of the picture's frame to the
+ * pattern's page: a scale and a shift.
+ */
+function placeSpreadPicture(
+  picture: CreaseExportSpreadPicture,
+  toPage: (x: number, y: number) => Point,
+  contentTop: number,
+  contentHeight: number
+): { project: (point: ScenePoint) => ScenePoint; box: CreaseExportFoldedBox } {
+  const drawn = picture.kind === 'scene' ? picture.scene.bounds : picture.bounds;
+  const flatTop = toPage(picture.flat.minX, picture.flat.minY);
+  const flatBottom = toPage(picture.flat.maxX, picture.flat.maxY);
+  const drawnTop = toPage(drawn.minX, drawn.minY);
+  const drawnBottom = toPage(drawn.maxX, drawn.maxY);
+  const flatHeight = flatBottom.y - flatTop.y;
+  const fit = flatHeight > 0 ? contentHeight / flatHeight : 1;
+  const above = Math.max(0, (flatTop.y - drawnTop.y) * fit - contentTop);
+  const project = ([x, y]: ScenePoint): ScenePoint => {
+    const page = toPage(x, y);
+    return [(page.x - drawnTop.x) * fit, (page.y - flatTop.y) * fit + contentTop + above];
+  };
+  return {
+    project,
+    box: {
+      width: (drawnBottom.x - drawnTop.x) * fit,
+      height: Math.max(contentTop + contentHeight, (drawnBottom.y - flatTop.y) * fit + contentTop) + above,
+    },
+  };
+}
+
+/** A Default spread's bitmap on the page, at its frame: the one form of a figure too complex to clip. */
+function spreadRasterElement(
+  picture: Extract<CreaseExportSpreadPicture, { kind: 'raster' }>,
+  project: (point: ScenePoint) => ScenePoint
+): string {
+  const [x, y, width, height] = picture.frame;
+  const [left, top] = project([x, y]);
+  const [right, bottom] = project([x + width, y + height]);
+  return `  <image x="${left.toFixed(2)}" y="${top.toFixed(2)}" width="${(right - left).toFixed(2)}" height="${(bottom - top).toFixed(2)}" preserveAspectRatio="none" href="${picture.href}"/>`;
+}
+
+/**
+ * The page px a folded figure's flat height is fitted to beside `segmentId`'s
+ * pattern (all of them for null): the pattern's drawn height. What a bitmap of
+ * a spread figure is sized by (`creaseExportSpreadRasterMm`).
+ */
+export function creaseExportFigureHeight(fold: FoldDocument, segments: CpSegment[], segmentId: number | null): number {
+  const segment = segmentId != null ? segments.find((entry) => entry.id === segmentId) : undefined;
+  return foldProjector(segment ? buildSegmentFold(fold, segment) : fold).contentHeight;
+}
+
 export function buildCreaseExportArtwork(
   fold: FoldDocument,
   segments: CpSegment[],
@@ -1175,10 +1286,14 @@ export function buildCreaseExportArtwork(
   const foldedSnapshot = options.includeFoldedFigure ? content.foldedFigure : null;
   const foldedScene = options.includeFoldedFigure ? (content.foldedFigureScene ?? null) : null;
   const foldedTransform = content.foldedFigureTransform ?? IDENTITY_CP_MODEL_TO_FOLD;
+  // The figure's turn (the Layer order dialog's Rotate), about the kernel's
+  // origin: the box below is fitted to whatever bounds that leaves, so where
+  // it turns about moves nothing. No turn is the identity, point for point.
+  const turnFolded = turnClockwise(content.foldedFigureTurnDeg ?? 0);
   // The figure comes back in kernel coordinates, which are not always the
   // fold's own — an imported fold is rescaled to the unit square.
   const projectFoldedPoint = (point: { x: number; y: number }) =>
-    projectPoint(applyCpModelToFold(point, foldedTransform));
+    projectPoint(applyCpModelToFold(turnFolded(point), foldedTransform));
   // Fit the figure's height to the drawn crease pattern's, so the two line up
   // top and bottom. The kernel's folded coordinates carry a display scale of
   // their own (an imported figure can come back twice the size of the paper it
@@ -1196,7 +1311,33 @@ export function buildCreaseExportArtwork(
       box: { width: (bounds.maxX - bounds.minX) * fit, height: contentTop + contentHeight },
     };
   };
-  if (foldedScene) {
+  const spreadPicture = options.includeFoldedFigure ? (content.foldedFigureSpread ?? null) : null;
+  if (spreadPicture) {
+    // The figure with its layers spread, as the dialog settled it: placed
+    // from its own frame by the pattern's projector, a scale and a shift.
+    const { scale: frameScale } = spreadPicture;
+    const placed = placeSpreadPicture(
+      spreadPicture,
+      (x, y) => projectPoint(applyCpModelToFold({ x: x / frameScale, y: y / frameScale }, foldedTransform)),
+      contentTop,
+      contentHeight
+    );
+    foldedBox = placed.box;
+    folded =
+      spreadPicture.kind === 'scene'
+        ? paperSceneSvgBody(
+            spreadPicture.scene,
+            creaseExportPaperStyle((content.paper ?? DEFAULT_CREASE_EXPORT_PAPER).style, options.foldedFigure),
+            {
+              project: placed.project,
+              unitsPerPt: CREASE_EXPORT_FIGURE_UNITS_PER_PT,
+              // A Default scene's hidden rings are anchors, not paper: kept,
+              // every face would be written twice.
+              keepHiddenFaces: false,
+            }
+          )
+        : spreadRasterElement(spreadPicture, placed.project);
+  } else if (foldedScene) {
     // The kernel's paper scene through the shared painter: whole faces in
     // painter's order with every layer present, at the pens the export style
     // states — the same picture the figure exports on its own, on this page.
@@ -1431,7 +1572,7 @@ export async function svgToPngCard(
     // which several platforms composite onto black.
     ctx.fillStyle = options.background;
     ctx.fillRect(0, 0, cardWidth, cardHeight);
-    ctx.drawImage(image, frame.x, frame.y, frame.width, frame.height);
+    drawSvgPage(ctx, image, svg, frame, { width: sourceWidth, height: sourceHeight });
 
     const pngBlob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((result) => {

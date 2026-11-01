@@ -658,8 +658,8 @@ describe('DiagramStepPanel', () => {
 
       // A drag previews every move, and commits once, as the native change says it ended.
       setField(amount()!, '10');
-      setField(amount()!, '12.5');
-      expect(verbs.preview.mock.calls).toEqual([['amount', 0.1], ['amount', 0.125]]);
+      setField(amount()!, '12');
+      expect(verbs.preview.mock.calls).toEqual([['amount', 0.1], ['amount', 0.12]]);
       expect(verbs.commit).not.toHaveBeenCalled();
       act(() => amount()!.dispatchEvent(new Event('change', { bubbles: true })));
       expect(verbs.commit).toHaveBeenCalledOnce();

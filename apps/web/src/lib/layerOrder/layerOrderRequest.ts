@@ -104,8 +104,10 @@ export interface LayerOrderLook {
  * - `diagram_step`: a Diagram step's Layer order row;
  * - `pose`: the Pose toolbar;
  * - `fold_import`: Fold's Import CP, choosing an imported crease pattern's order (H10).
+ * - `crease_export`: the Export crease pattern dialog's folded figure;
+ * - `share_card`: the Share modal's card figure.
  */
-export type LayerOrderRequestSurface = 'edit_figure' | 'edit_pattern' | 'diagram_step' | 'pose' | 'fold_import';
+export type LayerOrderRequestSurface = 'edit_figure' | 'edit_pattern' | 'diagram_step' | 'pose' | 'fold_import' | 'crease_export' | 'share_card';
 
 export interface LayerOrderRequest {
   /** Which host asked, for the dialog's analytics (`LayerOrderRequestSurface`). */

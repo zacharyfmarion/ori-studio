@@ -227,6 +227,7 @@
     "folded": {
       "appearance": "Appearance",
       "camera": "Camera",
+      "changeSpread": "Change layer spread",
       "changeView": "Change folded model view",
       "chosenOrder": "Chosen order",
       "chosenOrderAttention": "Chosen layer order needs attention",
@@ -259,6 +260,12 @@
       "refoldToChange": "Refold to change how this figure looks",
       "rotation": "Rotation",
       "scale": "Scale",
+      "shadowSpread": "Spread layers draw without shadows",
+      "spread": "Spread",
+      "spreadNeedsLook": "Only the Paper and X-ray looks can spread their layers",
+      "spreadNewer": "Made with a newer Ori Studio: its layer spread can’t be changed here.",
+      "spreadRefold": "Refold to show the spread",
+      "spreadUnavailable": "These layers couldn’t be spread",
       "yaw": "Turn",
       "zoom": "Zoom"
     },

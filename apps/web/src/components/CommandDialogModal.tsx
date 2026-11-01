@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { isOpenLayerTarget } from '../keyboard/shortcutDispatcher';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, Ruler, X } from 'lucide-react';
 import {
@@ -9,6 +8,7 @@ import {
   resolveCommandDialog,
   useCommandDialogStore,
 } from '../store/commandDialogStore';
+import { listenForCommandDialogEscape } from './commandDialogEscape';
 import { CreaseExportDialog } from './CreaseExportDialog';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -63,17 +63,10 @@ export function CommandDialogModal() {
   }, [dialog]);
 
   useEffect(() => {
-    if (!dialog) return undefined;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      // An open Select or menu in the dialog closes itself first.
-      if (isOpenLayerTarget(event.target)) return;
-      event.preventDefault();
-      cancelCommandDialog(dialog.id);
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
+    // The export dialog keeps its own Escape (`useCommandDialogEscape`): it stands down
+    // while the Layer order dialog it opened is up, whose Escape it is.
+    if (!dialog || dialog.type === 'crease-export') return undefined;
+    return listenForCommandDialogEscape(dialog.id);
   }, [dialog]);
 
   if (!dialog) return null;
@@ -81,7 +74,9 @@ export function CommandDialogModal() {
   const cancelLabel = dialog.cancelLabel ?? t('dialogs:common.cancel', 'Cancel');
 
   if (dialog.type === 'crease-export') {
-    return <CreaseExportDialog dialog={dialog} />;
+    // One instance per export: a dialog that replaces it (the store's one slot) unmounts
+    // it, which withdraws whatever it had asked.
+    return <CreaseExportDialog key={dialog.id} dialog={dialog} />;
   }
 
   if (dialog.type === 'confirm') {

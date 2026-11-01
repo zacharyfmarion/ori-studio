@@ -5,3 +5,27 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* The readout keeps one width: the value shares a cell with the slider's two
+   ends, unseen, so the cell is as wide as the widest of the three. The ends
+   are generated content, so the readout's text is still only the value. */
+.readout {
+  display: inline-grid;
+  justify-items: end;
+}
+
+.readout::before,
+.readout::after,
+.readoutValue {
+  grid-area: 1 / 1;
+}
+
+.readout::before {
+  content: attr(data-min);
+  visibility: hidden;
+}
+
+.readout::after {
+  content: attr(data-max);
+  visibility: hidden;
+}

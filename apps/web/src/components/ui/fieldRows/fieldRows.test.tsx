@@ -424,6 +424,17 @@ describe('SliderRow', () => {
     );
     expect(view.querySelector('[data-field-readout]')?.textContent).toBe('0.7');
   });
+
+  it('sizes its readout by both ends, in the row\'s format, and reads only the value', () => {
+    const view = render(
+      <SliderRow label="Amount" min={0} max={100} value={7} format={(value) => `${value}%`} onChange={() => {}} />
+    );
+    const readout = view.querySelector('[data-field-readout]');
+    // The ends are the CSS's to draw unseen, so "7%" holds the width of "100%".
+    const sizer = readout?.querySelector('[data-min]');
+    expect([sizer?.getAttribute('data-min'), sizer?.getAttribute('data-max')]).toEqual(['0%', '100%']);
+    expect(readout?.textContent).toBe('7%');
+  });
 });
 
 describe('TextRow', () => {

@@ -18,7 +18,13 @@ import {
   type SpreadKeep,
   type SpreadKind,
 } from './foldedLayerSpread';
-import { clampSpreadAmount, clampSpreadAxis, clampSpreadSkew, type LayerSpreadEdit } from './layerSpreadSettings';
+import {
+  clampSpreadAmount,
+  clampSpreadAxis,
+  clampSpreadSkew,
+  SPREAD_AMOUNT_RANGE,
+  type LayerSpreadEdit,
+} from './layerSpreadSettings';
 
 /** The sliders a spread is dragged by: its amount, and an affine one's skew and axis. */
 export type SpreadSlider = 'amount' | 'skew' | 'axis' | 'reveal-x' | 'reveal-y';
@@ -32,6 +38,12 @@ export interface LayerSpreadToggle {
   pressed?: boolean;
   disabled: boolean;
   hint?: string;
+  /**
+   * Why the layers are not spread, said under the switch's label rather than
+   * only on hover: a fold with no layers to spread, or a spread that could not
+   * be made and was turned off. Absent where a surface says nothing there.
+   */
+  note?: string;
   /** Turn it the other way; refuses while it cannot. */
   run: () => void;
 }
@@ -156,6 +168,31 @@ export function spreadSliderEdit(slider: SpreadSlider, kind: SpreadKind, value: 
     case 'axis':
       return { verb: 'spread-axis', axisDeg: clampSpreadAxis(value) };
   }
+}
+
+/** The amount slider of a kind: in percents, and the factor from the spread's amount to them. */
+export interface SpreadAmountSlider {
+  scale: number;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+}
+
+/**
+ * The amount slider as every spread surface lays it out: in whole percents,
+ * so its readout never shows a decimal, between the kind's range's ends
+ * rounded inward. Default's percentage covers its full height range. An
+ * amount between whole percents shows at the nearest one, and stays as it is
+ * until the slider moves.
+ */
+export function spreadAmountSlider(kind: SpreadKind, amount: number): SpreadAmountSlider {
+  const scale = kind === 'connected' ? 100 / SPREAD_AMOUNT_RANGE.connected.max : 100;
+  // To a millionth first, so float noise never tips a whole percent (1.13 × 50 is 56.49999999999999).
+  const percent = (fraction: number) => Number((fraction * scale).toFixed(6));
+  const min = Math.ceil(percent(SPREAD_AMOUNT_RANGE[kind].min));
+  const max = Math.floor(percent(SPREAD_AMOUNT_RANGE[kind].max));
+  return { scale, min, max, step: 1, value: Math.min(max, Math.max(min, Math.round(percent(amount)))) };
 }
 
 /** A kind's name, as its segment says it. */

@@ -83,7 +83,7 @@ describe('fold angles on the share card', () => {
 
   function preview(): string {
     return decodeURIComponent(
-      document.querySelector('.share-embed__image img')?.getAttribute('src') ?? ''
+      document.querySelector('img[alt="Preview of the shared crease pattern"]')?.getAttribute('src') ?? ''
     );
   }
 

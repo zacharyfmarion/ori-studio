@@ -232,6 +232,7 @@
     "folded": {
       "appearance": "Apariencia",
       "camera": "Cámara",
+      "changeSpread": "Cambiar la separación de capas",
       "changeView": "Cambiar la vista del modelo plegado",
       "chosenOrder": "Orden elegido",
       "chosenOrderAttention": "El orden de capas elegido necesita atención",
@@ -271,6 +272,12 @@
       "refoldToChange": "Vuelve a plegar para cambiar el aspecto de este modelo",
       "rotation": "Rotación",
       "scale": "Escala",
+      "shadowSpread": "Las capas separadas se dibujan sin sombras",
+      "spread": "Separación",
+      "spreadNeedsLook": "Solo los aspectos Papel y Rayos X pueden separar sus capas",
+      "spreadNewer": "Hecho con una versión más reciente de Ori Studio: su separación de capas no se puede cambiar aquí.",
+      "spreadRefold": "Vuelve a plegar para mostrar la separación",
+      "spreadUnavailable": "No se pudieron separar estas capas",
       "yaw": "Giro",
       "zoom": "Zoom"
     },

@@ -61,6 +61,27 @@ describe('trackDiagramPicturePosed', () => {
     });
   });
 
+  it('buckets a Default spread’s amount as its slider shows it, on a ladder of its own', () => {
+    // The height multiplier 0–2 reads 0–100%: the 25% default is in its own
+    // bucket, not the top of the depth and affine ladder, where it always fell.
+    const bucketOf = (amount: number) => {
+      trackDiagramPicturePosed('spread_amount', 'flat', { spread: { kind: 'connected', amount } });
+      return (runtime.track.mock.lastCall![1] as Record<string, unknown>).spread_amount_bucket;
+    };
+    expect(bucketOf(0.5)).toBe('<=25');
+    expect(bucketOf(0.14)).toBe('<=10');
+    expect(bucketOf(0)).toBe('<=10');
+    expect(bucketOf(0.51)).toBe('<=50');
+    expect(bucketOf(1)).toBe('<=50');
+    expect(bucketOf(2)).toBe('>50');
+    expect(runtime.track.mock.lastCall![1]).toEqual({
+      action: 'spread_amount',
+      picture: 'flat',
+      spread_kind: 'connected',
+      spread_amount_bucket: '>50',
+    });
+  });
+
   it('sends an affine spread as its kind, the layer held still, and its amount, skew and axis bucketed', () => {
     trackDiagramPicturePosed('spread_axis', 'flat', {
       spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 },

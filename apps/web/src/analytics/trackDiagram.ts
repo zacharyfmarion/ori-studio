@@ -5,6 +5,7 @@ import {
   DIAGRAM_PAGE_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_KB_BUCKETS,
+  DIAGRAM_CONNECTED_SPREAD_PERCENT_BUCKETS,
   DIAGRAM_SPREAD_AXIS_DEGREE_BUCKETS,
   DIAGRAM_SPREAD_PERCENT_BUCKETS,
   DIAGRAM_SPREAD_SKEW_PERCENT_BUCKETS,
@@ -72,6 +73,7 @@ import type {
   DiagramView,
 } from './events';
 import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
+import { SPREAD_AMOUNT_RANGE } from '../cp-workspace/folded/layerSpreadSettings';
 import { track } from './runtime';
 
 /**
@@ -271,14 +273,31 @@ export function spreadTracking(spread: LayerSpreadOptions): DiagramSpreadTrackin
     : { kind: 'affine', amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
 }
 
-/** A spread's enum and bucketed properties: never a value itself. */
+/**
+ * A Default spread's amount, in percent as its slider shows it: the height
+ * multiplier's range, 0 to 2, read as 0 to 100% (`LayerSpreadRows`).
+ */
+const CONNECTED_SPREAD_PERCENT_PER_AMOUNT = 100 / SPREAD_AMOUNT_RANGE.connected.max;
+
+/**
+ * A spread's enum and bucketed properties: never a value itself. A Default
+ * spread's amount is a height multiplier, bucketed as its slider shows it on
+ * a ladder of its own; the others' are a share of the model or of the way
+ * back to the sheet.
+ */
 export function spreadProperties(spread: DiagramSpreadTracking): Record<string, string> {
   const percent = (fraction: number) => Math.round(fraction * 10_000) / 100;
+  if (spread.kind === 'connected') {
+    const shown = Math.round(spread.amount * CONNECTED_SPREAD_PERCENT_PER_AMOUNT * 100) / 100;
+    return {
+      spread_kind: spread.kind,
+      spread_amount_bucket: bucketCount(shown, DIAGRAM_CONNECTED_SPREAD_PERCENT_BUCKETS),
+    };
+  }
   const common = {
     spread_kind: spread.kind,
     spread_amount_bucket: bucketCount(percent(spread.amount), DIAGRAM_SPREAD_PERCENT_BUCKETS),
   };
-  if (spread.kind === 'connected') return common;
   return spread.kind === 'depth'
     ? { ...common, spread_direction: spread.direction }
     : {

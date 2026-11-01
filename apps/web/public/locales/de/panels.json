@@ -227,6 +227,7 @@
     "folded": {
       "appearance": "Darstellung",
       "camera": "Kamera",
+      "changeSpread": "Lagenauffächerung ändern",
       "changeView": "Ansicht des gefalteten Modells ändern",
       "chosenOrder": "Gewählte Reihenfolge",
       "chosenOrderAttention": "Gewählte Lagenreihenfolge muss geprüft werden",
@@ -259,6 +260,12 @@
       "refoldToChange": "Neu falten, um das Aussehen dieses Modells zu ändern",
       "rotation": "Drehung",
       "scale": "Maßstab",
+      "shadowSpread": "Aufgefächerte Lagen werden ohne Schatten gezeichnet",
+      "spread": "Auffächerung",
+      "spreadNeedsLook": "Nur die Darstellungen Papier und Röntgen können ihre Lagen auffächern",
+      "spreadNewer": "Mit einem neueren Ori Studio erstellt: Seine Lagenauffächerung kann hier nicht geändert werden.",
+      "spreadRefold": "Neu falten, um die Auffächerung zu zeigen",
+      "spreadUnavailable": "Diese Lagen konnten nicht aufgefächert werden",
       "yaw": "Drehwinkel",
       "zoom": "Zoom"
     },

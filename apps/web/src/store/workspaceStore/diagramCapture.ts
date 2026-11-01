@@ -1,5 +1,5 @@
 import {hasConnectedDrawing} from '../../layer-spread/connectedScene';
-import {rasterConnected} from '../../layer-spread/rasterConnected';
+import {rasterSpreadScene} from '../../layer-spread/settledSpreadPicture';
 /**
  * A linked Diagram step's capture, run against the store (D4): choose the
  * step's creases from the crease pattern as it stands, fold them if its
@@ -571,7 +571,10 @@ function clearRun(store: DiagramCaptureStore, stepId: string): void {
 
 /**
  * The picture a step keeps: the capture's own, or — for a scene past the
- * budget — a bitmap of it in the diagram's pens, kept as an asset.
+ * budget — a bitmap of it in the diagram's pens, kept as an asset. A spread
+ * the capture could not clip is drawn by the shared bitmap stage
+ * (`rasterSpreadScene`), through the policy every bitmap was drawn in before
+ * a surface could name its own.
  */
 export async function keptPicture(
   captured: CapturedPicture,
@@ -580,7 +583,11 @@ export async function keptPicture(
 ): Promise<{ picture: DiagramPicture; asset?: KnownDiagramAsset }> {
   if (captured.kind === 'picture') return { picture: captured.picture };
   if (hasConnectedDrawing(captured.scene)) {
-    const raster = await rasterConnected(captured.scene, diagramScenePaintStyle(style, false), CAPTURE_RASTER_BOX_MM);
+    const { raster } = await rasterSpreadScene(captured.scene, {
+      style: diagramScenePaintStyle(style, false),
+      policy: 'fold',
+      mm: CAPTURE_RASTER_BOX_MM,
+    });
     const src = `data:image/png;base64,${bytesToBase64(new Uint8Array(raster.png))}`;
     const id = `asset-raster-${digest(src)}`;
     return {
