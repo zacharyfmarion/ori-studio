@@ -1,8 +1,7 @@
-import { captureConnected } from '../../layer-spread/captureConnected';
-import { hasConnectedDrawing } from '../../layer-spread/connectedScene';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
 import { prepareConnected } from '../../layer-spread/prepareConnected';
 import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
+import { captureSpreadScene } from '../../layer-spread/settledSpreadPicture';
 /**
  * A linked step's picture, captured (D2, D4, D5): the crease pattern itself,
  * the flat folded model, or the folded model in 3D — each made from the
@@ -629,12 +628,19 @@ export function flatSceneCanvas(scene: OristudioCpFoldedPaperScene, rotationDeg:
     scale: CAPTURE_PX_PER_UNIT, toScenePx: p => {const at=turn(p);return [at.x*CAPTURE_PX_PER_UNIT,at.y*CAPTURE_PX_PER_UNIT];} });
 }
 
+/**
+ * A spread step's picture, captured by the shared capture stage
+ * (`captureSpreadScene`): clipped, or — too complex to clip in time — over the
+ * budget, for the store to keep as a bitmap in the diagram's pens
+ * (`keptPicture`), never painted in painter's order.
+ */
 export async function captureFlatScenePicture(scene: OristudioCpFoldedPaperScene, rotationDeg: number,
   spread: LayerSpreadOptions, connected: PreparedConnectedSpread, presentation?: SpreadPresentation): Promise<CapturedPicture> {
-  const live = flatSceneCanvas(scene, rotationDeg, spread, connected, presentation);
-  const resolved = hasConnectedDrawing(live) ? await captureConnected(live) : live;
-  if(hasConnectedDrawing(resolved))return {kind:'over-budget',scene:resolved,paperScale:presentation?.kind==='perspective'?null:CAPTURE_PX_PER_UNIT};
-  return flatScenePicture(scene, rotationDeg, spread, { connected, presentation, resolved });
+  const captured = await captureSpreadScene(flatSceneCanvas(scene, rotationDeg, spread, connected, presentation));
+  if (captured.kind === 'over-budget') {
+    return { kind: 'over-budget', scene: captured.scene, paperScale: presentation?.kind === 'perspective' ? null : CAPTURE_PX_PER_UNIT };
+  }
+  return flatScenePicture(scene, rotationDeg, spread, { connected, presentation, resolved: captured.scene });
 }
 
 /**
