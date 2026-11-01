@@ -28,12 +28,16 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldSource,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
+import { FOLDED_FIGURE_SPREADS_KEY } from '../../cp-workspace/folded/foldedFigureSpreads';
+import { withoutSavedSpreadScene } from '../../cp-workspace/folded/foldedFigureSpread';
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { InlineSimulation } from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import {
   inlineSimulationSourceCount,
@@ -116,7 +120,7 @@ import {
   foldedFigureRefoldKey,
   withFoldedFigureLayerOrders,
 } from '../../cp-workspace/folded/foldedFigureLayerOrders';
-import { resetFoldedFigureIds } from '../../cp-workspace/folded/foldedFigureIds';
+import { nextFoldedFigureId, resetFoldedFigureIds } from '../../cp-workspace/folded/foldedFigureIds';
 import { foldedFigureNotice } from '../../cp-workspace/folded/foldedFigureNotice';
 import { foldedFigureLayerOrder } from '../../lib/layerOrder/foldedFigureLayerOrder';
 import type { LayerOrderAttention } from '../../lib/layerOrder/layerOrderRecord';
@@ -2706,6 +2710,100 @@ describe('workspace store slices', () => {
     );
     expect(written.workspace.creasePattern.extensions).toEqual(savedBag);
     expect(written.workspace.creasePattern.viewState.foldedFigures[0]).not.toHaveProperty('layerOrder');
+  });
+
+  it('attaches a saved spread and its scene on open, and saves the scene a live fold has now', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const square = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ];
+    const paperScene = (sheet: number): OristudioCpFoldedPaperScene => ({
+      schema_version: 3,
+      flipped: false,
+      sheet,
+      faces: [{ outline: square, points: [0, 1, 2], front_up: true, edges: [] }],
+      subfaces: [{ polygon: square, faces_top_to_bottom: [0] }],
+      aux_lines: [],
+      sheet_points: square,
+    });
+    const spread = { kind: 'record' as const, spread: DEFAULT_CONNECTED_SPREAD };
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-4',
+      title: 'Folded model 4',
+      handle: 99,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      sourceFingerprint: 'cs1:folded',
+      error: null,
+      spread,
+      spreadScene: paperScene(1),
+    };
+    const nativeText = serializeNativeProjectFile(
+      createNativeCreasePatternProjectFile({
+        title: 'Native CP',
+        filename: 'spread.osf',
+        path: '/tmp/spread.osf',
+        document: blankCpDocumentState().document,
+        source: null,
+        foldProjection: JSON.parse(editableCpFoldText) as FoldDocument,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf',
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [figure],
+        activeFoldedFigureId: null,
+        lineage: importedCpLineage(),
+        extensions: { futureDocFeature: { a: 1 } },
+        appVersion: '0.1.1',
+      })
+    );
+    const savedBag = JSON.parse(nativeText).workspace.creasePattern.extensions;
+    expect(Object.keys(savedBag)).toEqual(['futureDocFeature', FOLDED_FIGURE_SPREADS_KEY]);
+
+    await expect(
+      useWorkspaceStore
+        .getState()
+        .openProject(createFileService({ text: nativeText, name: 'spread.osf', path: '/tmp/spread.osf' }))
+    ).resolves.toBe(true);
+    const opened = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(opened).toMatchObject({ handle: null, spread, spreadScene: paperScene(1) });
+    // A figure folded this session never takes the id the bag names.
+    expect(nextFoldedFigureId()).toBe('generated-5');
+
+    // Reopened, no live fold: the scene its file carried is written back.
+    const fileService = createFileService();
+    await expect(useWorkspaceStore.getState().saveProjectAs(fileService)).resolves.toBe(true);
+    const written = () =>
+      JSON.parse((fileService.saveTextFile.mock.calls.at(-1)?.[0] as SaveTextFileOptions).contents).workspace
+        .creasePattern;
+    expect(written().extensions).toEqual(savedBag);
+    expect(written().viewState.foldedFigures[0]).not.toHaveProperty('spread');
+    expect(oristudioCpMocks.getOristudioCpFoldedFigurePaperScene).not.toHaveBeenCalled();
+
+    // Folded again, live: the save reads the scene its fold has now from the kernel.
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [{ ...withoutSavedSpreadScene(opened), handle: 7, status: 'ready' }],
+    });
+    oristudioCpMocks.getOristudioCpFoldedFigurePaperScene.mockResolvedValueOnce(paperScene(2));
+    await expect(useWorkspaceStore.getState().saveProjectAs(fileService)).resolves.toBe(true);
+    expect(oristudioCpMocks.getOristudioCpFoldedFigurePaperScene).toHaveBeenCalledWith(
+      7,
+      useWorkspaceStore.getState().oristudioCpDocument?.handle ?? null
+    );
+    expect(written().extensions[FOLDED_FIGURE_SPREADS_KEY].figures['generated-4'].scene).toBe(
+      JSON.stringify(paperScene(2))
+    );
+    // The store's own figure is untouched: the scene went to the file alone.
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).not.toHaveProperty('spreadScene');
   });
 
   it('restores reference images from a native CP project', async () => {
