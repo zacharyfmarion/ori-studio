@@ -1026,6 +1026,14 @@ describe('the Spread section', () => {
     expect(d.setSpread).toHaveBeenLastCalledWith(record(DEFAULT_CONNECTED_SPREAD));
   });
 
+  it('hands each slider a value on its grid, so a drag’s release opens no second gesture', () => {
+    // 1.13 × 50 and 0.57 × 100 are 56.49999999999999 and 56.99999999999999 in floats.
+    expect(slider(sheetFor(spreadOn({ ...DEFAULT_CONNECTED_SPREAD, amount: 1.13 })), 'spreadAmount').value).toBe(56.5);
+    const affine = sheetFor(spreadOn({ ...DEFAULT_AFFINE_SPREAD, skew: 0.57 }));
+    expect(slider(affine, 'spreadSkew').value).toBe(57);
+    expect(slider(affine, 'spreadAmount').value).toBe(3);
+  });
+
   it('switches kind from what the starts say, and lays Depth out with its compass', () => {
     const d = deps();
     segmented(sheetFor(spreadOn(), d), 'spreadKind').commit('depth');

@@ -46,6 +46,17 @@ import {
 /** The amount slider moves in half percents, as the readout says them (`LayerSpreadRows`). */
 const AMOUNT_STEP_PERCENT = 0.5;
 
+/**
+ * A value as a slider of `step` shows it: on its grid, with no float noise
+ * (0.57 × 100 is 56.99999999999999). A controlled range input given a value
+ * off its grid shows the grid's, and React then reads the release's native
+ * `change` as one more input — which would open a second gesture after the
+ * drag's commit, and hold the folded layer's bracket open under it.
+ */
+function onSliderGrid(value: number, step: number): number {
+  return Number((Math.round(value / step) * step).toFixed(6));
+}
+
 export interface FoldedFigureSpreadFieldDeps {
   t: TFunction;
   /** The language numbers are written in. */
@@ -179,6 +190,9 @@ function spreadValueFields(
     {
       id: 'spreadKind',
       kind: 'segmented',
+      // Over a control across the pane, as Render as is: Default, Affine and
+      // Depth are too wide to sit beside their label in Edit's narrower pane.
+      layout: 'stacked',
       label: t('panels:diagram.pose.spreadKind', 'Spread by'),
       ...support,
       undoLabel,
@@ -208,7 +222,7 @@ function spreadValueFields(
                 '{{percent}} of the way back to the sheet along the axis',
                 { percent: percent(value) }
               ),
-      value: shown.amount * scale,
+      value: onSliderGrid(shown.amount * scale, AMOUNT_STEP_PERCENT),
       ...drag('spread-amount', (value) => spreadSliderEdit('amount', shown.kind, value / scale)),
       // Default's amount has a way back to the default, there whatever the
       // value, so nothing moves under a drag; the others have none, as the
@@ -279,7 +293,7 @@ function spreadValueFields(
         format: percent,
         valueText: (value) =>
           t('panels:diagram.pose.spreadSkewValue', '{{percent}} skewed about the axis', { percent: percent(value) }),
-        value: shown.skew * 100,
+        value: onSliderGrid(shown.skew * 100, 1),
         ...drag('spread-skew', (value) => spreadSliderEdit('skew', shown.kind, value / 100)),
       },
       {
@@ -295,7 +309,7 @@ function spreadValueFields(
         format: degrees,
         valueText: (value) =>
           t('panels:diagram.pose.spreadAxisValue', 'Axis at {{degrees}} on the sheet', { degrees: degrees(value) }),
-        value: shown.axisDeg,
+        value: onSliderGrid(shown.axisDeg, 1),
         ...drag('spread-axis', (value) => spreadSliderEdit('axis', shown.kind, value)),
       }
     );
