@@ -109,7 +109,7 @@ describe('the share card’s folded figure style', () => {
     document.querySelector<HTMLInputElement>(`input[type="color"][aria-label="${label}"]`);
   const preview = () =>
     decodeURIComponent(
-      document.querySelector('.share-embed__image img')?.getAttribute('src') ?? ''
+      document.querySelector('img[alt="Preview of the shared crease pattern"]')?.getAttribute('src') ?? ''
     );
   const button = (name: string) =>
     Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(

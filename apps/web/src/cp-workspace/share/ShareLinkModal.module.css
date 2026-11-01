@@ -1,0 +1,220 @@
+/*
+ * The share-link dialog (ShareLinkModal.tsx): controls on the left, the link
+ * preview on its own lit surface to the right. The preview is the thing being
+ * judged, so it holds still while the controls beside it change, and it never
+ * has to compete with them for width. Its frame is the shared `simple-modal`.
+ *
+ * Height-capped and scrolling like the export dialog, because the folded
+ * controls plus the preview can exceed a laptop viewport.
+ */
+
+/* `div.modal` outranks the shared `.simple-modal__document` the same element
+   wears, rather than tying with it, which a module's load order would decide. */
+div.modal {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - var(--space-6)));
+  max-height: calc(100vh - var(--space-6));
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 296px minmax(0, 1fr);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.controls > * {
+  flex: 0 0 auto;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.previewPane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  background: var(--bg-primary);
+}
+
+/* Section and field micro-labels. Uppercase and small so they read as captions
+   on the controls rather than as content competing with them. */
+.fieldLabel {
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.field input {
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+}
+
+.field input:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
+.toggleRow > span {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* A plain stack, not a boxed table: three settings under a toggle are a short
+   list, and ruling and boxing them implies a structure they do not have. */
+.folded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-1);
+}
+
+.foldedRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.foldedLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* Deliberately light regardless of theme: this is a mock of someone else's chat
+   client, not part of the app's own surface, and every one of them renders link
+   cards on white. */
+.embed {
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-lg, 10px);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+}
+
+.embedImage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.embedImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.embedMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-2) var(--space-3) 11px;
+  background: #ededed;
+}
+
+.embedTitle {
+  overflow: hidden;
+  color: #1c1c1e;
+  font-size: 0.83rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.embedHost {
+  color: #8e8e93;
+  font-size: 0.73rem;
+}
+
+/* The link is the one thing this dialog exists to produce, so its row gets real
+   padding and a divider rather than floating flush against the columns above
+   it: wider than the base footer's, and a subtler rule than the one a footer
+   beside the body gets by default. Through the dialog, so it outranks the
+   shared footer rules (`.simple-modal__document > .simple-modal__footer`)
+   rather than tying with them. */
+div.modal > .footer {
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Takes the width the URL field will, so the button does not move when the
+   link lands. */
+.status {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.url {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+}
+
+.note {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+/* Safari zooms the whole page in when a field below 16px takes focus, so on
+   touch the size is a correctness constraint: restated at this rule's own
+   specificity, as `theme.css`'s coarse-pointer block restates every field's. */
+@media (pointer: coarse) {
+  .field input {
+    font-size: 16px;
+  }
+}

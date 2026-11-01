@@ -48,6 +48,7 @@ import {
 } from '../../components/ui/Select';
 import { Toggle } from '../../components/ui/Toggle';
 import type { FoldedFigureSide } from '../../lib/foldedFigureSides';
+import styles from './ShareLinkModal.module.css';
 
 /**
  * The share modal for one crease pattern.
@@ -298,7 +299,7 @@ export function ShareLinkModal() {
     >
       <div
         role="document"
-        className="simple-modal__document share-link-modal"
+        className={`simple-modal__document ${styles.modal}`}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="simple-modal__header">
@@ -317,10 +318,10 @@ export function ShareLinkModal() {
 
         {/* Controls left, preview right. The preview is the thing being judged, so it gets
             its own lit surface and stays put while the controls beside it change. */}
-        <div className="share-link-modal__columns">
-          <div className="share-link-modal__controls">
-            <label className="share-link-modal__field">
-              <span className="share-link-modal__field-label">
+        <div className={styles.columns}>
+          <div className={styles.controls}>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>
                 {t('dialogs:share.title', 'Title')}
               </span>
               <input
@@ -332,8 +333,8 @@ export function ShareLinkModal() {
                 placeholder={t('dialogs:share.titlePlaceholder', 'Untitled crease pattern')}
               />
             </label>
-            <label className="share-link-modal__field">
-              <span className="share-link-modal__field-label">
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>
                 {t('dialogs:share.author', 'Author')}
               </span>
               <input
@@ -346,11 +347,11 @@ export function ShareLinkModal() {
               />
             </label>
 
-            <div className="share-link-modal__divider" />
+            <div className={styles.divider} />
 
             {/* Only where there is an angle to encode; see `hasNonClassicCreases`. */}
             {hasFoldAngles && (
-              <div className="share-link-modal__toggle-row">
+              <div className={styles.toggleRow}>
                 <span>{t('dialogs:share.foldAngleDisplay', 'Fold angle style')}</span>
                 <Select
                   value={foldAngleDisplay}
@@ -375,7 +376,7 @@ export function ShareLinkModal() {
               </div>
             )}
 
-            <div className="share-link-modal__toggle-row">
+            <div className={styles.toggleRow}>
               <span>
                 {t('dialogs:share.grid', 'Show grid lines')}
                 {!draft.grid && (
@@ -395,7 +396,7 @@ export function ShareLinkModal() {
               />
             </div>
 
-            <div className="share-link-modal__toggle-row">
+            <div className={styles.toggleRow}>
               <span>
                 {t('dialogs:share.foldedFigure', 'Show folded figure')}
                 {!isFlat && (
@@ -429,10 +430,10 @@ export function ShareLinkModal() {
             </div>
 
             {showFolded && canFold && (
-              <div className="share-link-modal__folded">
+              <div className={styles.folded}>
                 <PaperStylePicker value={figureStyle} onChange={pickFigureStyle} />
-                <div className="share-link-modal__folded-row">
-                  <span className="share-link-modal__folded-label">
+                <div className={styles.foldedRow}>
+                  <span className={styles.foldedLabel}>
                     {t('dialogs:share.side', 'Side')}
                   </span>
                   <SegmentedControl<FoldedFigureSide>
@@ -465,14 +466,14 @@ export function ShareLinkModal() {
             )}
           </div>
 
-          <div className="share-link-modal__preview-pane">
-            <span className="share-link-modal__field-label">
+          <div className={styles.previewPane}>
+            <span className={styles.fieldLabel}>
               {t('dialogs:share.linkPreview', 'Link preview')}
             </span>
 
-            <div className="share-embed">
+            <div className={styles.embed}>
                 <div
-                  className="share-embed__image"
+                  className={styles.embedImage}
                   style={{
                     aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
                     // `svgToPngCard` fills the whole canvas with this before drawing, so the
@@ -488,9 +489,9 @@ export function ShareLinkModal() {
                     />
                   )}
                 </div>
-              <div className="share-embed__meta">
-                <div className="share-embed__title">{shareCardTitle(cardText)}</div>
-                <div className="share-embed__host">{shareHost}</div>
+              <div className={styles.embedMeta}>
+                <div className={styles.embedTitle}>{shareCardTitle(cardText)}</div>
+                <div className={styles.embedHost}>{shareHost}</div>
               </div>
             </div>
           </div>
@@ -498,14 +499,14 @@ export function ShareLinkModal() {
 
         {/* The link and its primary action live in the footer, so the one thing the dialog
             exists to produce is always in the same place. */}
-        <footer className="simple-modal__footer share-link-modal__footer">
+        <footer className={`simple-modal__footer ${styles.footer}`}>
           {url ? (
             <>
               <input
                 ref={inputRef}
                 type="text"
                 readOnly
-                className="share-link-modal__url ph-no-capture"
+                className={`${styles.url} ph-no-capture`}
                 value={url}
                 aria-label={t('dialogs:shareLink.url', 'Share link')}
                 onFocus={(event) => event.currentTarget.select()}
@@ -522,7 +523,7 @@ export function ShareLinkModal() {
               {/* Same shape as the published state, so the footer does not jump when the
                   link appears — and it answers the question the button raises before it is
                   pressed: nothing has left this machine yet. */}
-              <span className="share-link-modal__status">
+              <span className={styles.status}>
                 {t('dialogs:share.notPublished', 'Nothing is published until you create the link.')}
               </span>
               <Button variant="primary" disabled={publishing} onClick={() => void onPublish()}>
@@ -537,7 +538,7 @@ export function ShareLinkModal() {
 
         {/* The note says what is true *now*: before publishing, that the settings are
             about to be frozen; after, what the recipient actually gets. */}
-        <p className="share-link-modal__note">
+        <p className={styles.note}>
           {url
             ? t(
                 'dialogs:share.scope',
