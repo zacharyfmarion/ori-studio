@@ -170,7 +170,7 @@ Chrome Canary review: loaded the real imported Bodo engine state, switched Affin
 
 ### Main integration and Fold default (2026-10-31)
 
-Fold's Default spread now starts and resets to 7% (stored multiplier 0.14). Diagram retains 25%, and existing saved/inherited values remain unchanged. New Fold documents, enabling spread without a prior setting, switching to Default and the CP import preview share the Fold default.
+New Fold documents start with spread off. When enabled, Fold's Default spread starts and resets to 7% (stored multiplier 0.14). Diagram retains 25%, and existing saved/inherited values remain unchanged. Enabling spread without a prior setting, switching to Default and the CP import preview share the Fold default.
 
 The merge with `main` retains its new `PaperPane` composition and `StackHitIndex`. The shared pane exposes a host-owned external paper layer with the same presented-camera contract, gesture interception and local readiness state; Fold supplies the worker adapter. Picking reuses the new stack index alongside its prepared CP data. Diagram's new recorded layer-order capture/editor paths use connected capture, preserve readiness and cancellation guards, and release their solution cursor on disposal.
 
@@ -188,5 +188,8 @@ passing files (plus the subsequent first-frame regression: 11 passing
 PaperPane tests), full lint, typecheck, translation check, production build
 and landing prerender. Node 26 locally needs
 `NODE_OPTIONS=--no-experimental-webstorage` for jsdom; CI uses Node 22.
-Canary verified the 7% Fold default and Amount reset on the real imported Bodo
-fixture. Final CI status is recorded in the PR.
+Canary verified that a new Fold sequence starts with spread off and enabling
+Default shows 7% on the real imported Bodo fixture; Amount reset also returns
+to 7%. Regression tests cover the off-to-7% transition and saved amounts.
+Fold-derived Diagram capture tests explicitly enable spread in their fixtures.
+Final CI status is recorded in the PR.

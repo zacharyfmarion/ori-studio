@@ -2,8 +2,9 @@
 
 ## Goal
 
-Ship the accepted layer-spread prototype as the default presentation of new
-flat-folded pictures in **Fold** and **Diagram**, replacing the affine default.
+Ship the accepted layer-spread prototype as the default spread method in
+**Fold** and **Diagram**, replacing affine. Fold starts with spread off and
+enables Default at 7%; new Diagram flat-folded pictures start spread at 25%.
 The accepted behavior is **Normalized 50 heights, a reference plane fitted to
 the whole visible surface, and layer-order correction**. It is not the earlier
 single-face anchor or the rejected experiment that pinned all visible faces.
@@ -341,8 +342,8 @@ drawing path applies the extra height to faces and ink for live and final output
 
 Compatibility must distinguish absent legacy fields from new defaults:
 
-- New Fold sequences explicitly store the connected default, so branch
-  inheritance and explicit off continue to work. An old sequence without that
+- New Fold sequences explicitly store spread off; enabling Default starts at
+  7%. Branch inheritance and explicit off continue to work. An old sequence without that
   default retains its historical off behavior. Snapshot the document default
   so a future application default cannot alter a saved sequence.
 - New Diagram flat poses start connected. Existing affine/depth pictures and
@@ -478,7 +479,7 @@ and a bounded 12 s cold-solve ceiling matching the prototype. Use the spike to
 set a measured typical-model target; those numbers are goals, not claims of
 current performance. Keep UI usable while any cold solve runs.
 
-**Product tests:** default on in new Fold and Diagram documents, legacy default
+**Product tests:** Fold starts off and enables Default at 7%; Diagram starts on, legacy default
 preservation, explicit off/inheritance, one undo per gesture, saved/reopened
 presentation, switching Diagram/3D without losing either view, both Diagram
 source kinds, mapped Fold picks/tool marks, annotations, read-only/unknown
@@ -557,8 +558,8 @@ Original material face IDs, drawn corner positions and triangulation are stored
 for annotation carry and first-pick mapping. Perspective camera changes retain
 the existing out-of-step annotation semantics.
 
-New Fold sequences store an explicit connected default; new Diagram flat
-captures start connected. Legacy off, affine and depth settings retain their
+New Fold sequences store explicit off and enable Default at 7%; new Diagram
+flat captures start connected at 25%. Legacy off, affine and depth settings retain their
 readers and frozen pictures, with an explicit conversion control. Fold offers
 only the diagram presentation, plus an armed Adjust spread tool. Diagram adds
 full perspective orbit, view cube, upright, other side and camera reset. The
