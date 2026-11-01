@@ -1206,7 +1206,8 @@
     "sideBack": "Verso",
     "sideFront": "Frente",
     "title": "Título",
-    "titlePlaceholder": "Padrão de vincos sem título"
+    "titlePlaceholder": "Padrão de vincos sem título",
+    "waitingForFigure": "“Criar link” espera a figura dobrada terminar de ser desenhada."
   },
   "shareLink": {
     "close": "Fechar compartilhamento",

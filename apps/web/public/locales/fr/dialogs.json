@@ -1206,7 +1206,8 @@
     "sideBack": "Verso",
     "sideFront": "Recto",
     "title": "Titre",
-    "titlePlaceholder": "Patron de pliage sans titre"
+    "titlePlaceholder": "Patron de pliage sans titre",
+    "waitingForFigure": "« Créer le lien » attend que la figure pliée soit dessinée."
   },
   "shareLink": {
     "close": "Fermer le partage",

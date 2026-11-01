@@ -87,6 +87,8 @@ import {
   type CreaseExportDialogResult,
 } from '../../store/commandDialogStore';
 import { exportLayerOrderFor, resetExportLayerOrdersForTest } from './exportLayerOrders';
+import { useSettingsStore } from '../../store/settingsStore';
+import { plainBook } from '../folded/foldedPrecrease.fixtures';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -213,7 +215,10 @@ async function settle() {
 }
 
 /** Open the export on a foldable pattern with its figure included, as File ▸ Export does. */
-async function openExport(hostForOrder: CreaseExportLayerOrderHost = layerOrderHost()) {
+async function openExport(
+  hostForOrder: CreaseExportLayerOrderHost = layerOrderHost(),
+  folds: NonNullable<Parameters<typeof requestCreasePatternExportOptions>[0]['foldSegment']> = foldSegment()
+) {
   const fold = squareFold();
   let result = Promise.resolve<CreaseExportDialogResult | null>(null);
   act(() => {
@@ -224,7 +229,7 @@ async function openExport(hostForOrder: CreaseExportLayerOrderHost = layerOrderH
       segments: segmentFoldDocument(fold),
       initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
       grid: null,
-      foldSegment: foldSegment(),
+      foldSegment: folds,
       layerOrderHost: hostForOrder,
       confirmLabel: 'Export SVG',
     });
@@ -378,5 +383,39 @@ describe('Layer order from the Export crease pattern dialog', () => {
     expect(editButton()!.closest('[data-field-row]')?.textContent).toContain(
       'Layer order couldn’t fold these creases in this order.'
     );
+  });
+});
+
+describe('a spread figure’s Layer order dialog', () => {
+  /** A fold with a paper scene, which a spread is drawn from. */
+  const withScene = () =>
+    vi.fn(async () => ({
+      snapshot: snapshot(10),
+      scene: plainBook(),
+      discoveredCases: 2,
+      transform: IDENTITY_CP_MODEL_TO_FOLD,
+      source: SOURCE,
+      currentCase: 1,
+      hasNext: true,
+      ordered: true,
+    }));
+
+  afterEach(() => {
+    useSettingsStore.setState(useSettingsStore.getInitialState(), true);
+  });
+
+  it('opens on X-ray, so its stepper walks the orders the spread tells apart', async () => {
+    useSettingsStore.setState({ creasePatternFoldedFigureSpread: { kind: 'depth', amount: 0.05, toward: 'down' } });
+    await openExport(layerOrderHost(), withScene());
+    await act(async () => editButton()!.click());
+    await settle();
+    expect((stub.openings[0] as LayerOrderDialogOpening).request.look.xray).toBe(true);
+  });
+
+  it('opens as it always has with the spread off', async () => {
+    await openExport(layerOrderHost(), withScene());
+    await act(async () => editButton()!.click());
+    await settle();
+    expect((stub.openings[0] as LayerOrderDialogOpening).request.look.xray).toBe(false);
   });
 });

@@ -50,9 +50,12 @@ const AMOUNT_STEP_PERCENT = 0.5;
  *
  * Every surface that spreads a picture lays its spread out with these — a
  * Diagram step's Pose section, whose verbs are the open step's pose
- * controller's (`useDiagramLinkedPose`), and Fold's Step pane, whose edit the
- * step (`useFoldStepSpread`) — so it reads and works the same in both. This
- * only lays the verbs out (`layerSpreadControls.ts`).
+ * controller's (`useDiagramLinkedPose`), Fold's Step pane, whose edit the
+ * step (`useFoldStepSpread`), and the Export and Share dialogs' folded
+ * figure, whose setting is the dialog's own (`useExportFoldedSpread`) — so it
+ * reads and works the same in each. This only lays the verbs out
+ * (`layerSpreadControls.ts`), and says under Spread layers why it is off
+ * where a surface says so (`LayerSpreadToggle.note`).
  */
 export function LayerSpreadRows({
   toggle,
@@ -80,6 +83,7 @@ export function LayerSpreadRows({
     <>
       <ToggleRow
         label={t('panels:diagram.pose.spreadLayersRow', 'Spread layers')}
+        note={toggle.note}
         checked={toggle.pressed ?? false}
         disabled={toggle.disabled}
         title={toggle.disabled ? toggle.hint : undefined}

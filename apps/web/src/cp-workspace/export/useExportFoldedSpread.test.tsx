@@ -8,6 +8,7 @@
  */
 import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import type { TFunction } from 'i18next';
 import type { Point3, SpreadSolution } from '@oristudio/layer-spread';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
@@ -75,7 +76,9 @@ const RASTER = { png: new ArrayBuffer(4), width: 4, height: 2, scale: 1, sceneFr
 
 let root: Root | null = null;
 let shown: ExportFoldedSpread | null = null;
-const turnOff = vi.fn();
+const setSetting = vi.fn();
+const turnOff = { calls: () => setSetting.mock.calls.filter(([next]) => next === null).length };
+const t = ((key: string, fallback?: unknown) => (typeof fallback === 'string' ? fallback : key)) as unknown as TFunction;
 
 function Probe(props: ExportFoldedSpreadOptions) {
   const spread = useExportFoldedSpread(props);
@@ -90,9 +93,10 @@ const base = (setting: LayerSpreadOptions | null, style: PaperStyle = DEFAULT_PA
   enabled: true,
   preview: { scene: kernel, ordered: true },
   setting,
-  turnOff,
+  setSetting,
   turnDeg: 0,
   style,
+  t,
 });
 
 async function render(props: ExportFoldedSpreadOptions) {
@@ -110,7 +114,7 @@ beforeEach(() => {
   workers.leases.length = 0;
   workers.captures.length = 0;
   workers.rasters.length = 0;
-  turnOff.mockClear();
+  setSetting.mockClear();
   root = createRoot(document.createElement('div'));
   shown = null;
 });
@@ -177,7 +181,7 @@ describe('a Default spread in an export', () => {
   it('turns itself off, and says so, when its layers cannot be solved', async () => {
     await render(base(DEFAULT_CONNECTED_SPREAD));
     await settle(() => workers.leases[0]!.reject(new Error('Conflicting material layer order')));
-    expect(turnOff).toHaveBeenCalledOnce();
+    expect(turnOff.calls()).toBe(1);
     // The dialog turns its setting off.
     await render(base(null));
     expect(shown).toMatchObject({ picture: null, busy: false, failed: true });
@@ -206,7 +210,7 @@ describe('a figure that spreads at once, or not at all', () => {
   it('draws unspread, keeping its setting, when the fold has no layer order', async () => {
     await render({ ...base(DEFAULT_CONNECTED_SPREAD), preview: { scene: kernel, ordered: false } });
     expect(shown).toMatchObject({ picture: null, busy: false, spreadable: false, failed: false });
-    expect(turnOff).not.toHaveBeenCalled();
+    expect(turnOff.calls()).toBe(0);
     expect(workers.leases).toHaveLength(0);
   });
 

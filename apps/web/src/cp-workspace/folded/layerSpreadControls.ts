@@ -32,6 +32,12 @@ export interface LayerSpreadToggle {
   pressed?: boolean;
   disabled: boolean;
   hint?: string;
+  /**
+   * Why the layers are not spread, said under the switch's label rather than
+   * only on hover: a fold with no layers to spread, or a spread that could not
+   * be made and was turned off. Absent where a surface says nothing there.
+   */
+  note?: string;
   /** Turn it the other way; refuses while it cannot. */
   run: () => void;
 }

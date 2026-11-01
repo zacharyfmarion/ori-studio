@@ -6705,7 +6705,8 @@
     "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
-    "dialogs:share.layerOrderPublished": "578069036e1a"
+    "dialogs:share.layerOrderPublished": "578069036e1a",
+    "dialogs:share.waitingForFigure": "038913417dd7"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13413,7 +13414,8 @@
     "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
-    "dialogs:share.layerOrderPublished": "578069036e1a"
+    "dialogs:share.layerOrderPublished": "578069036e1a",
+    "dialogs:share.waitingForFigure": "038913417dd7"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20123,7 +20125,8 @@
     "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
-    "dialogs:share.layerOrderPublished": "578069036e1a"
+    "dialogs:share.layerOrderPublished": "578069036e1a",
+    "dialogs:share.waitingForFigure": "038913417dd7"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26454,7 +26457,8 @@
     "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
-    "dialogs:share.layerOrderPublished": "578069036e1a"
+    "dialogs:share.layerOrderPublished": "578069036e1a",
+    "dialogs:share.waitingForFigure": "038913417dd7"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32785,7 +32789,8 @@
     "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
-    "dialogs:share.layerOrderPublished": "578069036e1a"
+    "dialogs:share.layerOrderPublished": "578069036e1a",
+    "dialogs:share.waitingForFigure": "038913417dd7"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39493,7 +39498,8 @@
     "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
-    "dialogs:share.layerOrderPublished": "578069036e1a"
+    "dialogs:share.layerOrderPublished": "578069036e1a",
+    "dialogs:share.waitingForFigure": "038913417dd7"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46201,7 +46207,8 @@
     "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
-    "dialogs:share.layerOrderPublished": "578069036e1a"
+    "dialogs:share.layerOrderPublished": "578069036e1a",
+    "dialogs:share.waitingForFigure": "038913417dd7"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52532,6 +52539,7 @@
     "panels:cpProperties.folded.spreadRefold": "19b4642b789e",
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
-    "dialogs:share.layerOrderPublished": "578069036e1a"
+    "dialogs:share.layerOrderPublished": "578069036e1a",
+    "dialogs:share.waitingForFigure": "038913417dd7"
   }
 }

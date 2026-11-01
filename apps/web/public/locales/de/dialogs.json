@@ -1169,7 +1169,8 @@
     "sideBack": "Rückseite",
     "sideFront": "Vorderseite",
     "title": "Titel",
-    "titlePlaceholder": "Unbenanntes Faltmuster"
+    "titlePlaceholder": "Unbenanntes Faltmuster",
+    "waitingForFigure": "„Link erstellen“ wartet, bis die gefaltete Figur gezeichnet ist."
   },
   "shareLink": {
     "close": "Teilen schließen",

@@ -27,8 +27,9 @@ import { cpFoldAngleDisplayLabel } from '../../i18n/enumLabels';
 import { shareCardTitle } from '../../lib/shareCardText';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
 import { useExportLayerOrder, useExportLayerOrderLookup } from '../export/useExportLayerOrder';
-import { useExportFoldedSpread } from '../export/useExportFoldedSpread';
+import { exportFigureSpreads, useExportFoldedSpread } from '../export/useExportFoldedSpread';
 import type { LayerSpreadOptions } from '../folded/foldedLayerSpread';
+import { LayerSpreadRows } from '../../components/paper/LayerSpreadRows';
 import {
   creaseExportFigureColours,
   creaseExportFigureStyle,
@@ -128,7 +129,8 @@ export function ShareLinkModal() {
     setFrontColor(opening.colours.frontColor);
     setBackColor(opening.colours.backColor);
     setFoldCase(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.foldCase);
-    setSpreadSetting(null);
+    // The spread last saved or shared with, shared with the export: off the first time.
+    setSpreadSetting(opening.spread);
   }, [open]);
 
   // A new style re-seeds Front and Back from its paper; editing them after
@@ -206,6 +208,9 @@ export function ShareLinkModal() {
   const paper = useCreaseExportPaper(figureStyle);
   const trimmedAuthor = author.trim();
   const editLayerOrderRef = useRef<HTMLButtonElement | null>(null);
+  const cardMade = url
+    ? t('dialogs:share.layerOrderPublished', 'The link’s card is made. Create another link to change it.')
+    : undefined;
   const layerOrder = useExportLayerOrder({
     surface: 'share_card',
     host: layerOrderHost,
@@ -217,9 +222,9 @@ export function ShareLinkModal() {
     byline: trimmedAuthor ? t('dialogs:share.byline', 'by {{author}}', { author: trimmedAuthor }) : null,
     setFoldCase,
     // The card is uploaded once, as the link is made: after that it cannot change.
-    held: url
-      ? t('dialogs:share.layerOrderPublished', 'The link’s card is made. Create another link to change it.')
-      : null,
+    held: cardMade ?? null,
+    // A spread figure opens the dialog on X-ray, so its stepper walks the orders the spread tells apart (D5).
+    xray: exportFigureSpreads(open && showFolded && canFold, folded, spreadSetting),
     scope: draft,
     editRef: editLayerOrderRef,
     t,
@@ -229,18 +234,23 @@ export function ShareLinkModal() {
     () => creaseExportPaperStyle(paper.style, { frontColor, backColor }),
     [paper.style, frontColor, backColor]
   );
-  const turnSpreadOff = useCallback(() => setSpreadSetting(null), []);
   const spread = useExportFoldedSpread({
     enabled: open && showFolded && canFold,
     preview: folded,
     setting: spreadSetting,
-    turnOff: turnSpreadOff,
+    setSetting: setSpreadSetting,
     turnDeg: layerOrder.turnDeg,
     style: paintedStyle,
+    held: cardMade,
+    t,
   });
   const foldedSpread = spread.picture;
   // No status line while the figure folds or spreads: the last card stays, dimmed.
   const cardBusy = folded.folding || spread.busy;
+  // Create link waits for the figure the card shows — its fold, its layer
+  // order, its spread — so a link is never made with a card that lacks it.
+  const figureWaits =
+    showFolded && canFold && ((folded.figure === null && folded.error === null) || cardBusy || layerOrder.busy);
 
   useEffect(() => {
     // While the Layer order dialog it opened is up, Escape is that dialog's.
@@ -332,6 +342,8 @@ export function ShareLinkModal() {
   };
 
   const onPublish = async () => {
+    // The card shows its figure as it will be uploaded, or not at all: never on its way.
+    if (figureWaits) return;
     setPublishing(true);
     try {
       await publish({
@@ -340,6 +352,7 @@ export function ShareLinkModal() {
         renderCard,
         // The style is the card's only when it carries the figure.
         foldedFigureStyle: showFolded && canFold ? figureStyle : null,
+        foldedFigureSpread: showFolded && canFold ? spreadSetting : null,
         foldedFigureLayerOrder: showFolded && folded.figure !== null && layerOrder.chosen ? 'chosen' : 'default',
       });
     } finally {
@@ -499,7 +512,8 @@ export function ShareLinkModal() {
 
             {showFolded && canFold && (
               // FieldRows, as the Export dialog's folded section and the sidebars draw them:
-              // the style, the side, its colours, then its layer order.
+              // the style, the side, its colours, its layer order, then its layers spread,
+              // head-on (no Presentation row).
               <div className={styles.folded}>
                 <PaperStyleRow value={figureStyle} onChange={pickFigureStyle} />
                 <SegmentedRow
@@ -526,6 +540,7 @@ export function ShareLinkModal() {
                   noteKind={layerOrder.row.note?.kind}
                   onEditIntent={layerOrder.prefetch}
                 />
+                <LayerSpreadRows toggle={spread.rows.toggle} spread={spread.rows.spread} />
               </div>
             )}
           </div>
@@ -589,11 +604,13 @@ export function ShareLinkModal() {
             <>
               {/* Same shape as the published state, so the footer does not jump when the
                   link appears — and it answers the question the button raises before it is
-                  pressed: nothing has left this machine yet. */}
+                  pressed: nothing has left this machine yet, or why it cannot yet be made. */}
               <span className={styles.status}>
-                {t('dialogs:share.notPublished', 'Nothing is published until you create the link.')}
+                {figureWaits
+                  ? t('dialogs:share.waitingForFigure', 'Create link waits for the folded figure to be drawn.')
+                  : t('dialogs:share.notPublished', 'Nothing is published until you create the link.')}
               </span>
-              <Button variant="primary" disabled={publishing} onClick={() => void onPublish()}>
+              <Button variant="primary" disabled={publishing || figureWaits} onClick={() => void onPublish()}>
                 <Link2 size={14} aria-hidden="true" />
                 {publishing
                   ? t('dialogs:share.creating', 'Creating link…')

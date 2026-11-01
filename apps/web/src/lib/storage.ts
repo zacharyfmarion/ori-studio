@@ -56,9 +56,10 @@ export const STORAGE_KEYS = {
    */
   paperExport: 'paper-export',
   /**
-   * The style the folded figure beside a crease pattern is drawn in, picked in
-   * the crease-pattern export dialog or the share card and remembered for
-   * both — apart from the folded figure's own export (X12).
+   * The style the folded figure beside a crease pattern is drawn in, and its
+   * layer spread, `{ style, spread? }`: picked in the crease-pattern export
+   * dialog or the share card and remembered for both — apart from the folded
+   * figure's own export (X12). No `spread` is none.
    */
   creasePatternFoldedFigure: 'crease-pattern-folded-figure',
   /**

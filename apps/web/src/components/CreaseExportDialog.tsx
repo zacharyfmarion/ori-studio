@@ -32,7 +32,9 @@ import {
 import type { FoldDocument } from '../engine/types';
 import { useFoldedFigurePreview } from '../cp-workspace/folded/useFoldedFigurePreview';
 import { useExportLayerOrder, useExportLayerOrderLookup } from '../cp-workspace/export/useExportLayerOrder';
-import { useExportFoldedSpread } from '../cp-workspace/export/useExportFoldedSpread';
+import { exportFigureSpreads, useExportFoldedSpread } from '../cp-workspace/export/useExportFoldedSpread';
+import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
+import { LayerSpreadRows } from './paper/LayerSpreadRows';
 import {
   creaseExportFigureColours,
   creaseExportFigureStyle,
@@ -130,14 +132,15 @@ interface PatternOption {
 
 /**
  * The dialog's options as it opens: the folded figure on the style last picked
- * for it, its Front and Back from that style's paper (E15).
+ * for it, its Front and Back from that style's paper (E15), and the layer
+ * spread last saved or shared with, if any (decision 5).
  */
 function withOpeningFigure(options: CreaseExportOptions): CreaseExportOptions {
-  const { style, colours } = openingCreaseExportFigure();
+  const { style, colours, spread } = openingCreaseExportFigure();
   return {
     ...options,
     foldedFigureStyle: style,
-    foldedFigure: { ...options.foldedFigure, ...colours },
+    foldedFigure: { ...options.foldedFigure, ...colours, ...(spread ? { spread } : {}) },
   };
 }
 
@@ -236,6 +239,8 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     preview: folded,
     settings: foldedSettings,
     style: paper.style,
+    // A spread figure opens the dialog on X-ray, so its stepper walks the orders the spread tells apart (D5).
+    xray: exportFigureSpreads(includeFoldedFigure && canFold, folded, foldedSettings.spread ?? null),
     // One pattern of several by its label, as the pattern list names it; else the document.
     name:
       multiPattern && patternIndex >= 0
@@ -258,17 +263,19 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     () => creaseExportPaperStyle(paper.style, { frontColor, backColor }),
     [paper.style, frontColor, backColor]
   );
-  const turnSpreadOff = useCallback(
-    () => setOptions((current) => ({ ...current, foldedFigure: { ...current.foldedFigure, spread: null } })),
+  const setSpreadSetting = useCallback(
+    (spread: LayerSpreadOptions | null) =>
+      setOptions((current) => ({ ...current, foldedFigure: { ...current.foldedFigure, spread } })),
     []
   );
   const spread = useExportFoldedSpread({
     enabled: includeFoldedFigure && canFold,
     preview: folded,
     setting: foldedSettings.spread ?? null,
-    turnOff: turnSpreadOff,
+    setSetting: setSpreadSetting,
     turnDeg: foldedTurnDeg,
     style: figureStyle,
+    t,
   });
   const foldedSpread = spread.picture;
   // No status line while the figure folds or spreads: the last picture stays, dimmed.
@@ -659,7 +666,8 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                 onToggle={toggleSection}
               >
                 {/* Rows as the Diagram export's and the sidebars' are: the figure's
-                    style, the side it shows, its colours, then its layer order. */}
+                    style, the side it shows, its colours, its layer order, then
+                    its layers spread, head-on (no Presentation row). */}
                 <div className={styles.foldedRows}>
                   <PaperStyleRow value={options.foldedFigureStyle} onChange={pickFoldedStyle} />
                   <SegmentedRow
@@ -691,6 +699,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                     noteKind={layerOrder.row.note?.kind}
                     onEditIntent={layerOrder.prefetch}
                   />
+                  <LayerSpreadRows toggle={spread.rows.toggle} spread={spread.rows.spread} />
                 </div>
               </ExportSection>
             )}

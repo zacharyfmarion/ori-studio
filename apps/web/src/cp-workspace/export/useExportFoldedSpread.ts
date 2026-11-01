@@ -24,6 +24,7 @@
  *   switch until it is turned on again, so the preview and the file agree.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { TFunction } from 'i18next';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 import { prepareConnected } from '../../layer-spread/prepareConnected';
@@ -43,7 +44,9 @@ import {
 } from '../../lib/creaseExportSpread';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import type { LayerSpreadOptions } from '../folded/foldedLayerSpread';
+import { spreadStartsAmong } from '../folded/layerSpreadSettings';
 import type { FoldedFigurePreview } from '../folded/useFoldedFigurePreview';
+import { exportSpreadControls, type ExportSpreadControls } from './exportSpreadControls';
 
 export interface ExportFoldedSpreadOptions {
   /** Whether the figure is drawn: folding is on, and this pattern folds. */
@@ -52,12 +55,15 @@ export interface ExportFoldedSpreadOptions {
   readonly preview: Pick<FoldedFigurePreview, 'scene' | 'ordered'>;
   /** The spread setting, committed: the dialog's, null for none. */
   readonly setting: LayerSpreadOptions | null;
-  /** Turn the setting off: its layers could not be spread. */
-  readonly turnOff: () => void;
+  /** Set the dialog's setting: its rows' commits, and off when its layers cannot be spread. */
+  readonly setSetting: (next: LayerSpreadOptions | null) => void;
   /** The figure's turn on the page, clockwise in degrees (the Layer order dialog's Rotate). */
   readonly turnDeg: number;
   /** The style the figure is painted in, its colours pinned (`creaseExportPaperStyle`): what a bitmap is drawn in. */
   readonly style: PaperStyle;
+  /** Why the rows can do nothing now — the share card made — or undefined while they can. */
+  readonly held?: string;
+  readonly t: TFunction;
 }
 
 export interface ExportFoldedSpread {
@@ -69,6 +75,25 @@ export interface ExportFoldedSpread {
   readonly spreadable: boolean;
   /** The last spread could not be spread, and was turned off. */
   readonly failed: boolean;
+  /** Its rows, as `LayerSpreadRows` lays them out. */
+  readonly rows: ExportSpreadControls;
+}
+
+/**
+ * Whether a dialog's figure is drawn with its layers spread: it is drawn, its
+ * fold has layers to spread, and its spread is on. What the Layer order
+ * dialog opens on X-ray for (D5), read before the spread is settled.
+ */
+export function exportFigureSpreads(
+  enabled: boolean,
+  preview: Pick<FoldedFigurePreview, 'scene' | 'ordered'>,
+  setting: LayerSpreadOptions | null
+): boolean {
+  return enabled && setting !== null && foldHasLayersToSpread(preview);
+}
+
+function foldHasLayersToSpread(preview: Pick<FoldedFigurePreview, 'scene' | 'ordered'>): boolean {
+  return preview.scene !== null && preview.scene.faces.length > 0 && preview.ordered !== false;
 }
 
 /** A settled Default spread, with what it was settled from, so a stale one is never shown as current. */
@@ -88,15 +113,22 @@ interface Solve {
   readonly prepared: PreparedConnectedSpread | null;
 }
 
+/**
+ * The spread drag in progress, wherever it is — one at a time, as Fold keeps
+ * its own (`useFoldStepSpread`): kept here, not in the rows, which each move
+ * of the drag rebuilds.
+ */
+const drag: { current: LayerSpreadOptions | null } = { current: null };
+
 /** A bitmap's pens: the figure's style read as the flat figure's, at the size the page draws it. */
 function rasterPens(style: PaperStyle, frame: CreaseExportSpreadFrame): SpreadRasterPens {
   return { style, policy: 'folded-flat', mm: (scene) => creaseExportSpreadRasterMm(frame.flat, scene.bounds) };
 }
 
 export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): ExportFoldedSpread {
-  const { enabled, preview, setting, turnOff, turnDeg, style } = options;
+  const { enabled, preview, setting, setSetting, turnDeg, style, held, t } = options;
   const scene = enabled ? preview.scene : null;
-  const spreadable = scene !== null && scene.faces.length > 0 && preview.ordered !== false;
+  const spreadable = scene !== null && foldHasLayersToSpread(preview);
   const spread = spreadable ? setting : null;
   const connected = spread?.kind === 'connected';
   const frame = useMemo(() => (scene ? creaseExportSpreadFrame(scene, turnDeg) : null), [scene, turnDeg]);
@@ -104,11 +136,11 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
   // Read when a capture starts and when a failure lands, not followed: a new
   // style redraws a bitmap below, and a new caller's arrow re-runs nothing.
   const styleRef = useRef(style);
-  const turnOffRef = useRef(turnOff);
+  const setSettingRef = useRef(setSetting);
   useEffect(() => {
     styleRef.current = style;
-    turnOffRef.current = turnOff;
-  }, [style, turnOff]);
+    setSettingRef.current = setSetting;
+  }, [style, setSetting]);
 
   // A spread that could not be spread turns itself off, and says so until it
   // is turned on again. The clearing is declared first, so a setting that
@@ -119,7 +151,7 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
   }, [setting]);
   const fail = useCallback((on: OristudioCpFoldedPaperScene) => {
     setFailedOn(on);
-    turnOffRef.current();
+    setSettingRef.current(null);
   }, []);
 
   // The solve: one lease per fold, while it is spread by Default.
@@ -230,10 +262,35 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
     if (current !== undefined) setLastSettled(current);
   }, [current]);
 
+  // The rows: a drag's value shown as it moves, the setting committed as it ends.
+  const failed = failedOn !== null && failedOn === scene;
+  const [draft, setDraft] = useState<LayerSpreadOptions | null>(null);
+  // The spreads set in this dialog, newest first: what a kind switched back to starts from.
+  const [seen, setSeen] = useState<readonly LayerSpreadOptions[]>([]);
+  const starts = useMemo(() => spreadStartsAmong(setting ? [setting, ...seen] : seen), [setting, seen]);
+  const commit = useCallback(
+    (next: LayerSpreadOptions | null) => {
+      if (next) setSeen((before) => [next, ...before.filter((each) => each.kind !== next.kind)]);
+      setSetting(next);
+    },
+    [setSetting]
+  );
+  const rows = useMemo(
+    () =>
+      exportSpreadControls({ setting, spreadable, failed, starts, held }, draft, {
+        t,
+        commit,
+        preview: setDraft,
+        sitting: drag,
+      }),
+    [setting, spreadable, failed, starts, held, draft, t, commit]
+  );
+
   return {
     picture: current !== undefined ? current : lastSettled,
     busy: current === undefined || redrawing,
     spreadable,
-    failed: failedOn !== null && failedOn === scene,
+    failed,
+    rows,
   };
 }

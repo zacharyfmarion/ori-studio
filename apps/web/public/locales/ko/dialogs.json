@@ -1132,7 +1132,8 @@
     "sideBack": "뒷면",
     "sideFront": "앞면",
     "title": "제목",
-    "titlePlaceholder": "제목 없는 전개도"
+    "titlePlaceholder": "제목 없는 전개도",
+    "waitingForFigure": "접힌 도형이 다 그려질 때까지 '링크 만들기'는 기다립니다."
   },
   "shareLink": {
     "close": "공유 닫기",

@@ -1169,7 +1169,8 @@
     "sideBack": "Back",
     "sideFront": "Front",
     "title": "Title",
-    "titlePlaceholder": "Untitled crease pattern"
+    "titlePlaceholder": "Untitled crease pattern",
+    "waitingForFigure": "Create link waits for the folded figure to be drawn."
   },
   "shareLink": {
     "close": "Close share",

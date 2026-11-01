@@ -308,9 +308,9 @@ function creasePatternFoldedFigureName(style: PaperExportStyleChoice | null): Cr
 }
 
 /**
- * A crease pattern saved as an image: remember the style its folded figure
- * took, for the next export and share (X12), and say which it was, and whose
- * layer order it was drawn in.
+ * A crease pattern saved as an image: remember the style and the spread its
+ * folded figure took, for the next export and share (X12, decision 5), and
+ * say which it was, and whose layer order it was drawn in.
  */
 function recordCreasePatternImageExport(
   format: 'svg' | 'png',
@@ -318,7 +318,11 @@ function recordCreasePatternImageExport(
   content: Pick<CreaseExportContent, 'foldedFigure' | 'foldedFigureLayerOrder'>
 ): void {
   const style = options.includeFoldedFigure ? options.foldedFigureStyle : null;
-  if (style !== null) useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle(style);
+  if (style !== null) {
+    useSettingsStore
+      .getState()
+      .rememberCreasePatternFoldedFigure({ style, spread: options.foldedFigure.spread ?? null });
+  }
   trackCreasePatternExported({
     format,
     foldedFigure: creasePatternFoldedFigureName(style),
@@ -3377,6 +3381,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       author,
       renderCard,
       foldedFigureStyle = null,
+      foldedFigureSpread = null,
       foldedFigureLayerOrder = 'default',
     }) => {
       const draft = get().oristudioCpShareDraft;
@@ -3394,7 +3399,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         }
         if (author) rememberAuthor(author);
         if (foldedFigureStyle !== null) {
-          useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle(foldedFigureStyle);
+          useSettingsStore
+            .getState()
+            .rememberCreasePatternFoldedFigure({ style: foldedFigureStyle, spread: foldedFigureSpread });
         }
         // The published link and its geometry are never sent — only that a share
         // was created, a bucketed size, whether it was titled/attributed, and

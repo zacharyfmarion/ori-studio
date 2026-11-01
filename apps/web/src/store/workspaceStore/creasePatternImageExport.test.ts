@@ -133,7 +133,7 @@ describe('saving a crease pattern as an image', () => {
   });
 
   it('reports no figure as none, and leaves the remembered style alone', async () => {
-    useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle('builtin:default');
+    useSettingsStore.getState().rememberCreasePatternFoldedFigure({ style: 'builtin:default', spread: null });
     const withoutFigure = { ...WITH_DIAGRAM_FIGURE, includeFoldedFigure: false };
     await expect(useWorkspaceStore.getState().exportSvg(fileService(true), withoutFigure)).resolves.toBe(true);
     expect(useSettingsStore.getState().creasePatternFoldedFigureStyle).toBe('builtin:default');

@@ -998,6 +998,110 @@ describe('CommandDialogModal', () => {
     });
   });
 
+  describe('folded figure layer spread', () => {
+    const DEPTH = { kind: 'depth', amount: 0.05, toward: 'down' } as const;
+    const spreadSwitch = () => container?.querySelector<HTMLButtonElement>('[aria-label="Spread layers"]') ?? null;
+    const preview = () =>
+      decodeURIComponent(container?.querySelector('.export-modal__preview img')?.getAttribute('src') ?? '');
+    const rowLabels = () =>
+      Array.from(
+        spreadSwitch()?.closest('.export-modal__section')?.querySelectorAll('[data-field-label]') ?? []
+      ).map((label) => label.textContent);
+
+    afterEach(() => {
+      useSettingsStore.setState(useSettingsStore.getInitialState(), true);
+    });
+
+    async function openWithFigure(scene: ReturnType<typeof foldedScene> | null = foldedScene()) {
+      const rendered = renderModalHost();
+      const fold = exportFold();
+      let result = Promise.resolve<CreaseExportDialogResult | null>(null);
+      act(() => {
+        result = requestCreasePatternExportOptions({
+          title: 'Export SVG',
+          format: 'svg',
+          fold,
+          segments: segmentFoldDocument(fold),
+          initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+          grid: null,
+          foldSegment: vi.fn(async () => ({
+            snapshot: foldedSnapshot(),
+            scene,
+            discoveredCases: 1,
+            transform: IDENTITY_CP_MODEL_TO_FOLD,
+          })),
+          confirmLabel: 'Export SVG',
+        });
+      });
+      await act(async () => {
+        (rendered.querySelector('[aria-label="Include folded figure"]') as HTMLButtonElement).click();
+      });
+      return { result };
+    }
+
+    async function submit(result: Promise<CreaseExportDialogResult | null>) {
+      await act(async () => {
+        findButton('Export SVG').click();
+        await result;
+      });
+      return result;
+    }
+
+    it('puts Spread layers after Layer order, off the first time, and exports as before', async () => {
+      const { result } = await openWithFigure();
+      expect(rowLabels()).toEqual(['Style', 'Side', 'Front color', 'Back color', 'Layer order', 'Spread layers']);
+      expect(spreadSwitch()?.getAttribute('aria-checked')).toBe('false');
+      // No Presentation row: the figure is head-on.
+      expect(container?.textContent).not.toContain('Presentation');
+      const resolved = await submit(result);
+      expect(resolved?.content.foldedFigureSpread).toBeUndefined();
+      expect(resolved?.options.foldedFigure.spread).toBeUndefined();
+    });
+
+    it('opens on the spread last saved, paints it, and exports the picture it shows', async () => {
+      useSettingsStore.setState({ creasePatternFoldedFigureSpread: DEPTH });
+      const { result } = await openWithFigure();
+      expect(spreadSwitch()?.getAttribute('aria-checked')).toBe('true');
+      expect(rowLabels()).toEqual([
+        'Style',
+        'Side',
+        'Front color',
+        'Back color',
+        'Layer order',
+        'Spread layers',
+        'Spread by',
+        'Amount',
+        'Direction',
+      ]);
+      const shown = preview();
+      const resolved = await submit(result);
+      expect(resolved?.options.foldedFigure.spread).toEqual(DEPTH);
+      expect(resolved?.content.foldedFigureSpread).toMatchObject({ kind: 'scene', spread: 'depth' });
+      // The file is the preview: the content painted is the content resolved.
+      expect(shown).toContain('<path');
+    });
+
+    it('turns the spread off from its switch, and the figure is drawn as before', async () => {
+      useSettingsStore.setState({ creasePatternFoldedFigureSpread: DEPTH });
+      const { result } = await openWithFigure();
+      await act(async () => spreadSwitch()!.click());
+      expect(spreadSwitch()?.getAttribute('aria-checked')).toBe('false');
+      const resolved = await submit(result);
+      expect(resolved?.options.foldedFigure.spread).toBeNull();
+      expect(resolved?.content.foldedFigureSpread).toBeUndefined();
+    });
+
+    it('holds Spread layers off, saying why, for a fold with no layer order', async () => {
+      useSettingsStore.setState({ creasePatternFoldedFigureSpread: DEPTH });
+      await openWithFigure(null);
+      expect(spreadSwitch()?.getAttribute('aria-checked')).toBe('false');
+      expect(spreadSwitch()?.hasAttribute('disabled')).toBe(true);
+      expect(spreadSwitch()?.closest('[data-field-row]')?.textContent).toContain(
+        'This fold has no layer order, so it has no layers to spread'
+      );
+    });
+  });
+
   describe('choice dialog', () => {
     const dropChoice = {
       title: 'Open or import design.cp?',

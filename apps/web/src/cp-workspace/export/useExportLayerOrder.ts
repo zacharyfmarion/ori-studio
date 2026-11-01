@@ -114,6 +114,8 @@ export interface ExportLayerOrderState {
   readonly turnDeg: number;
   /** The figure is drawn in a layer order chosen in the dialog, not the kernel's own. */
   readonly chosen: boolean;
+  /** The figure is being folded, or stepped to another of its layer orders: what Share's Create link waits for. */
+  readonly busy: boolean;
   readonly row: ExportLayerOrderRow;
   /** Load the dialog's code ahead of a press. Spawns nothing. */
   readonly prefetch: () => void;
@@ -296,6 +298,7 @@ export function useExportLayerOrder(options: ExportLayerOrderOptions): ExportLay
     ordering,
     turnDeg: kept?.turnDeg ?? 0,
     chosen: shownChosen,
+    busy,
     row: {
       previous,
       next,

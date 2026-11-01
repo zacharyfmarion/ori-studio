@@ -13,6 +13,7 @@ import type { RegionReference } from '../../cp-workspace/regions/regionReference
 import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import type { DocumentPaperStyle } from '../../lib/paper/documentPaperStyle';
 import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
+import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import type { PinSet } from '../../simulator/tools/pinSet';
 import type {
   SimulatorToolId,
@@ -543,6 +544,11 @@ export interface ProjectSliceActions {
      * share and crease-pattern export; null when the card shows no figure.
      */
     foldedFigureStyle?: PaperExportStyleChoice | null;
+    /**
+     * The card's figure's layer spread setting, remembered with its style for
+     * the next share and crease-pattern export; null for none.
+     */
+    foldedFigureSpread?: LayerSpreadOptions | null;
     /** Whose layer order the card's figure is drawn in: one chosen in the Layer order dialog, or the kernel's. */
     foldedFigureLayerOrder?: 'default' | 'chosen';
   }) => Promise<boolean>;

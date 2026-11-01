@@ -1132,7 +1132,8 @@
     "sideBack": "背面",
     "sideFront": "正面",
     "title": "标题",
-    "titlePlaceholder": "未命名折痕图"
+    "titlePlaceholder": "未命名折痕图",
+    "waitingForFigure": "“创建链接”会等待折叠图形绘制完成。"
   },
   "shareLink": {
     "close": "关闭共享",

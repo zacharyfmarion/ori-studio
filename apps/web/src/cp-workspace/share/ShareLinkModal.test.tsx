@@ -18,8 +18,32 @@ import {
   rememberExportLayerOrder,
   resetExportLayerOrdersForTest,
 } from '../export/exportLayerOrders';
+import type { Point3, SpreadSolution } from '@oristudio/layer-spread';
+import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
+import { connectedSpreadSource } from '../folded/connectedSpreadSource';
+import { DEFAULT_CONNECTED_SPREAD } from '../folded/layerSpreadSettings';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// A Default spread's solve and capture, by hand: each lease waits for its test.
+const spreadWorkers = vi.hoisted(() => ({
+  leases: [] as Array<{ scene: unknown; resolve: (prepared: unknown) => void }>,
+}));
+vi.mock('../../layer-spread/prepareConnected', () => ({
+  prepareConnected: (scene: unknown) => {
+    let resolve!: (prepared: unknown) => void;
+    const promise = new Promise((yes) => (resolve = yes));
+    spreadWorkers.leases.push({ scene, resolve });
+    return { promise, release: () => {} };
+  },
+}));
+vi.mock('../../layer-spread/captureConnected', async () => {
+  const { connectedPaperScene } = await import('../../layer-spread/connectedScene');
+  return {
+    captureConnected: async (scene: import('../../layer-spread/connectedScene').ConnectedPaperScene) =>
+      connectedPaperScene(scene.connected, scene.sheet, true),
+  };
+});
 
 class ResizeObserverStub {
   observe(): void {}
@@ -379,5 +403,109 @@ describe('the share card’s layer order', () => {
     const edit = document.querySelector('button[aria-label="Edit Layer Order…"]');
     expect(edit?.getAttribute('aria-disabled')).toBe('true');
     expect(layerOrderRow()?.textContent).toContain('The link’s card is made. Create another link to change it.');
+  });
+});
+
+describe('the share card’s layer spread', () => {
+  const publish = vi.fn<typeof store.publishOristudioCpShare>(async () => true);
+  let host: HTMLElement;
+  let root: Root;
+  const createButton = () =>
+    Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+      (element) => element.textContent?.trim() === 'Create link'
+    );
+  const footer = () => createButton()?.closest('footer')?.textContent ?? '';
+  const spreadSwitch = () => document.querySelector<HTMLButtonElement>('[aria-label="Spread layers"]');
+
+  /** A solve by hand for the card's one face: flat, as one layer is. */
+  function solved(scene: NonNullable<CreaseExportFoldResult['scene']>): PreparedConnectedSpread {
+    const source = connectedSpreadSource(scene);
+    const reference = { plane: [0, 0, 0] as Point3, center: [0, 0, 0] as Point3, samples: 1, rms: 0 };
+    const solution = {
+      version: 'normalized-50-v1',
+      heights: source.vertices.map(() => 0),
+      references: [reference, reference],
+      diagnostics: {},
+    } as unknown as SpreadSolution;
+    return { source, solution };
+  }
+
+  async function settle() {
+    for (let i = 0; i < 4; i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
+  }
+
+  async function openWithFigure(fold: () => Promise<CreaseExportFoldResult> = async () => foldResult()) {
+    useWorkspaceStore.setState({ foldOristudioCpShareFigure: vi.fn(fold) });
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
+    useWorkspaceStore.setState({ oristudioCpShareDraft: draftFor(square()) });
+    await act(async () => root.render(<TooltipProvider><ShareLinkModal /></TooltipProvider>));
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('[aria-label="Show folded figure"]')?.click();
+    });
+    await settle();
+  }
+
+  beforeEach(() => {
+    publish.mockClear();
+    spreadWorkers.leases.length = 0;
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    useWorkspaceStore.setState({
+      oristudioCpDocument: { document: {}, summary: null } as unknown as OristudioCpDocumentState,
+      publishOristudioCpShare: publish,
+    });
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    host.remove();
+    useWorkspaceStore.setState({ ...original, oristudioCpShareDraft: null, oristudioCpDocument: null });
+    useSettingsStore.setState(useSettingsStore.getInitialState(), true);
+  });
+
+  it('waits for the folded figure before it makes a link, and says why where the note was', async () => {
+    let land!: () => void;
+    await openWithFigure(() => new Promise((resolve) => (land = () => resolve(foldResult()))));
+    expect(createButton()?.disabled).toBe(true);
+    expect(footer()).toContain('Create link waits for the folded figure to be drawn.');
+    await act(async () => createButton()?.click());
+    expect(publish).not.toHaveBeenCalled();
+
+    await act(async () => land());
+    await settle();
+    expect(createButton()?.disabled).toBe(false);
+    expect(footer()).toContain('Nothing is published until you create the link.');
+  });
+
+  it('puts Spread layers after Layer order, off the first time', async () => {
+    await openWithFigure();
+    const labels = Array.from(
+      spreadSwitch()?.closest('[data-field-row]')?.parentElement?.querySelectorAll('[data-field-label]') ?? []
+    ).map((label) => label.textContent);
+    expect(labels.slice(-2)).toEqual(['Layer order', 'Spread layers']);
+    expect(spreadSwitch()?.getAttribute('aria-checked')).toBe('false');
+    await act(async () => createButton()?.click());
+    expect(publish.mock.calls[0]?.[0]).toMatchObject({ foldedFigureSpread: null });
+  });
+
+  it('waits for a Default spread to be solved, then publishes the card with it, remembered', async () => {
+    useSettingsStore.setState({ creasePatternFoldedFigureSpread: DEFAULT_CONNECTED_SPREAD });
+    await openWithFigure();
+    expect(spreadSwitch()?.getAttribute('aria-checked')).toBe('true');
+    expect(spreadWorkers.leases).toHaveLength(1);
+    expect(createButton()?.disabled).toBe(true);
+    expect(document.querySelector('[aria-busy="true"] img')).not.toBeNull();
+
+    await act(async () => spreadWorkers.leases[0]!.resolve(solved(foldResult().scene!)));
+    await settle();
+    expect(createButton()?.disabled).toBe(false);
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+    await act(async () => createButton()?.click());
+    expect(publish.mock.calls[0]?.[0]).toMatchObject({ foldedFigureSpread: DEFAULT_CONNECTED_SPREAD });
   });
 });

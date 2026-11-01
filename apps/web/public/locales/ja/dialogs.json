@@ -1132,7 +1132,8 @@
     "sideBack": "裏",
     "sideFront": "表",
     "title": "タイトル",
-    "titlePlaceholder": "無題の展開図"
+    "titlePlaceholder": "無題の展開図",
+    "waitingForFigure": "折り上がり図の描画が終わるまで、「リンクを作成」は待機します。"
   },
   "shareLink": {
     "close": "共有を閉じる",

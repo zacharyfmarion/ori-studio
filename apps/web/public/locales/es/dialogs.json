@@ -1206,7 +1206,8 @@
     "sideBack": "Reverso",
     "sideFront": "Anverso",
     "title": "Título",
-    "titlePlaceholder": "Patrón de pliegues sin título"
+    "titlePlaceholder": "Patrón de pliegues sin título",
+    "waitingForFigure": "«Crear enlace» espera a que se dibuje la figura plegada."
   },
   "shareLink": {
     "close": "Cerrar compartir",

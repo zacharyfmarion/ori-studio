@@ -1,0 +1,141 @@
+/**
+ * The Export and Share dialogs' folded figure's layer spread as its rows
+ * offer it (`components/paper/LayerSpreadRows`), in the same words and order
+ * as everywhere else: Spread layers, then, while on, Spread by and its
+ * values. Head-on only, so no Presentation row.
+ *
+ * The setting is the dialog's own (decision 3): nothing reaches the document
+ * or its history. A press — the switch, a kind, a direction, the layer held
+ * still, a reset, a key — commits at once. A drag — a slider, the reveal pad —
+ * shows its value in the rows as it moves (`preview`) and commits once as it
+ * ends, so the figure is captured once per gesture, with its last settled
+ * picture up meanwhile. The drag's value is kept in a sitting the host holds
+ * across the renders its own previews cause, as Fold's is, so the end of a
+ * drag commits its last move even when both arrive in one event.
+ *
+ * Spread layers says, under its label, why it is off when it cannot be on:
+ * a fold with no layer order has no layers to spread, and one whose layers
+ * could not be spread was turned off.
+ *
+ * React-free and store-free, as `foldedFigureActions.ts` is.
+ */
+import type { TFunction } from 'i18next';
+import type { LayerSpreadOptions } from '../folded/foldedLayerSpread';
+import {
+  layerSpreadControls,
+  spreadSliderEdit,
+  type LayerSpreadDrag,
+  type LayerSpreadToggle,
+} from '../folded/layerSpreadControls';
+import { DEFAULT_CONNECTED_SPREAD, withSpreadField, type LayerSpreadStarts } from '../folded/layerSpreadSettings';
+
+export interface ExportSpreadControlsState {
+  /** The dialog's setting, committed; null for none. */
+  readonly setting: LayerSpreadOptions | null;
+  /** Whether the fold has layers to spread: a flat fold with a layer order. */
+  readonly spreadable: boolean;
+  /** The last spread could not be spread, and was turned off. */
+  readonly failed: boolean;
+  /** What Spread layers turned on, or a kind chosen, starts from. */
+  readonly starts: LayerSpreadStarts;
+  /**
+   * Why nothing can be changed now — the share card is made — or undefined.
+   * On hover only: the Layer order row above says it.
+   */
+  readonly held?: string;
+}
+
+export interface ExportSpreadControlsDeps {
+  readonly t: TFunction;
+  /** Commit a setting: a press, or a drag's end. Null turns the spread off. */
+  readonly commit: (next: LayerSpreadOptions | null) => void;
+  /** Show a drag's value in the rows before it commits; null once it has. */
+  readonly preview: (next: LayerSpreadOptions | null) => void;
+  /** The drag in progress, kept across the renders its previews cause. */
+  readonly sitting: { current: LayerSpreadOptions | null };
+}
+
+export interface ExportSpreadControls {
+  /** Spread layers; absent while the figure is not drawn. */
+  readonly toggle: LayerSpreadToggle;
+  /** Its kind and values while it is on; null while it is off. */
+  readonly spread: LayerSpreadDrag | null;
+}
+
+/**
+ * The rows of a dialog's figure spread. `shown` is the setting, or a drag's
+ * value while it lasts.
+ */
+export function exportSpreadControls(
+  state: ExportSpreadControlsState,
+  shown: LayerSpreadOptions | null,
+  deps: ExportSpreadControlsDeps
+): ExportSpreadControls {
+  const { setting, spreadable, failed, starts, held } = state;
+  const { t } = deps;
+  const reason = !spreadable
+    ? t('panels:diagram.pose.spreadNeedsOrder', 'This fold has no layer order, so it has no layers to spread')
+    : failed
+      ? t('panels:cpProperties.folded.spreadUnavailable', 'These layers couldn’t be spread')
+      : undefined;
+  const refused = !spreadable || held !== undefined;
+  const hint = reason ?? held;
+  const toggle: LayerSpreadToggle = {
+    pressed: spreadable && setting !== null,
+    disabled: refused,
+    ...(hint ? { hint } : {}),
+    ...(reason ? { note: reason } : {}),
+    run: () => {
+      if (refused) return;
+      deps.sitting.current = null;
+      deps.preview(null);
+      deps.commit(setting ? null : starts.any);
+    },
+  };
+  if (!spreadable || !setting) return { toggle, spread: null };
+
+  const value = shown ?? setting;
+  const press = (next: LayerSpreadOptions) => {
+    if (held !== undefined) return;
+    deps.sitting.current = null;
+    deps.preview(null);
+    deps.commit(next);
+  };
+  const controls = layerSpreadControls(value, {
+    hint: held,
+    // A capture never holds a choice back: a newer setting takes its place.
+    busy: false,
+    t,
+    kind: (kind) => press(starts[kind]),
+    direction: (toward) => press(withSpreadField(setting, { verb: 'spread-direction', toward })),
+    keep: (keep) => press(withSpreadField(setting, { verb: 'spread-keep', keep })),
+  });
+  const move = (next: LayerSpreadOptions) => {
+    if (held !== undefined) return;
+    deps.sitting.current = next;
+    deps.preview(next);
+  };
+  return {
+    toggle,
+    spread: {
+      ...controls,
+      defaultAmount: DEFAULT_CONNECTED_SPREAD.amount,
+      start: () => {
+        deps.sitting.current = null;
+        return held === undefined;
+      },
+      preview: (slider, at) =>
+        move(withSpreadField(deps.sitting.current ?? setting, spreadSliderEdit(slider, setting.kind, at))),
+      previewReveal: (reveal) => {
+        if (setting.kind !== 'connected') return;
+        move(withSpreadField(deps.sitting.current ?? setting, { verb: 'spread-reveal', reveal }));
+      },
+      commit: () => {
+        const moved = deps.sitting.current;
+        deps.sitting.current = null;
+        deps.preview(null);
+        if (moved) deps.commit(moved);
+      },
+    },
+  };
+}
