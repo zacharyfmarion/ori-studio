@@ -14,6 +14,7 @@ import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyl
 import type { DocumentPaperStyle } from '../../lib/paper/documentPaperStyle';
 import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { CreasePatternSpreadDrawn } from '../../analytics/trackCreasePatternExport';
 import type { PinSet } from '../../simulator/tools/pinSet';
 import type {
   SimulatorToolId,
@@ -549,6 +550,11 @@ export interface ProjectSliceActions {
      * the next share and crease-pattern export; null for none.
      */
     foldedFigureSpread?: LayerSpreadOptions | null;
+    /**
+     * How the card's figure's layers are spread in the card, for analytics: its
+     * kind and whether vector or a bitmap; null for none, or no figure.
+     */
+    foldedFigureSpreadDrawn?: CreasePatternSpreadDrawn | null;
     /** Whose layer order the card's figure is drawn in: one chosen in the Layer order dialog, or the kernel's. */
     foldedFigureLayerOrder?: 'default' | 'chosen';
   }) => Promise<boolean>;

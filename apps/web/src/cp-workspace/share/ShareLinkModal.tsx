@@ -28,6 +28,7 @@ import { shareCardTitle } from '../../lib/shareCardText';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
 import { useExportLayerOrder, useExportLayerOrderLookup } from '../export/useExportLayerOrder';
 import { exportFigureSpreads, useExportFoldedSpread } from '../export/useExportFoldedSpread';
+import { creaseExportSpreadDrawn } from '../../lib/creaseExportSpread';
 import type { LayerSpreadOptions } from '../folded/foldedLayerSpread';
 import { LayerSpreadRows } from '../../components/paper/LayerSpreadRows';
 import {
@@ -353,6 +354,8 @@ export function ShareLinkModal() {
         // The style is the card's only when it carries the figure.
         foldedFigureStyle: showFolded && canFold ? figureStyle : null,
         foldedFigureSpread: showFolded && canFold ? spreadSetting : null,
+        // What the card has, not what was asked: a spread that could not be made is none.
+        foldedFigureSpreadDrawn: showFolded && folded.figure !== null ? creaseExportSpreadDrawn(foldedSpread) : null,
         foldedFigureLayerOrder: showFolded && folded.figure !== null && layerOrder.chosen ? 'chosen' : 'default',
       });
     } finally {

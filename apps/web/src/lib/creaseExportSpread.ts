@@ -132,6 +132,18 @@ export function creaseExportSpreadRasterMm(flat: SceneBounds, drawn: SceneBounds
 }
 
 /**
+ * How a written figure's layers are spread, as analytics counts it: the kind
+ * its picture was settled from, and whether it is vector or a bitmap; null
+ * for a figure drawn unspread, or none at all.
+ */
+export function creaseExportSpreadDrawn(
+  picture: CreaseExportSpreadPicture | null | undefined
+): { kind: SpreadKind; render: 'vector' | 'raster' } | null {
+  if (!picture) return null;
+  return { kind: picture.spread, render: picture.kind === 'raster' ? 'raster' : 'vector' };
+}
+
+/**
  * The picture a settled spread paints, in `frame`; null for one that settled
  * flat, which the figure is then drawn as.
  */

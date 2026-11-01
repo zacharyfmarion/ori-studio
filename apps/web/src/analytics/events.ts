@@ -1000,6 +1000,16 @@ export type PaperExportResolution = '1x' | '2x' | '3x' | '4x' | '300' | '600' | 
 /** The folded figure beside a crease pattern: the style it was drawn in, or none. */
 export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
 
+/**
+ * How that figure's layers were spread in the picture written: not at all
+ * (`none`, also without a figure), or by kind — Default (`connected`),
+ * `affine` or `depth`. Never a value of the spread.
+ */
+export type CreasePatternFoldedFigureSpread = 'none' | 'connected' | 'affine' | 'depth';
+
+/** How a spread figure was written: as vector, or — a Default spread too complex to clip — a 300 dpi bitmap. */
+export type CreasePatternSpreadRender = 'vector' | 'raster';
+
 /** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
 export type PaperExportScope = 'this' | 'all';
 
@@ -1736,12 +1746,19 @@ export const ANALYTICS_EVENTS = {
    */
   simulatorPoseReleased: 'simulator pose released',
   foldedFigureRehydrated: 'folded figure rehydrated',
+  /**
+   * A share link was published. Its card's folded figure: the style it was
+   * drawn in, whose layer order, and how its layers were spread
+   * (`folded_figure_spread`, with `spread_render` when spread).
+   */
   creasePatternShared: 'crease pattern shared',
   /**
    * A crease pattern was saved as an SVG or PNG image from its export dialog.
    * `folded_figure` is the style the folded figure beside it was drawn in —
    * the export slot or a preset by kind — or `none` without one: whether the
-   * figure is used, and whether its picker earns its place. The menu
+   * figure is used, and whether its picker earns its place.
+   * `folded_figure_spread` is how its layers were spread, and `spread_render`
+   * whether that spread was written as vector or as a bitmap. The menu
    * chokepoint sees only the command, not what the dialog made of it.
    */
   creasePatternExported: 'crease pattern exported',

@@ -25,6 +25,8 @@ export type {
   ContextMenuTargetKind,
   CpFavoriteSurface,
   CreasePatternFoldedFigure,
+  CreasePatternFoldedFigureSpread,
+  CreasePatternSpreadRender,
   DesignMethod,
   DesignTabSource,
   DesignVariant,
@@ -177,7 +179,11 @@ export { trackDiagramEnlargementChanged, trackDiagramStepEnlarged } from './trac
 export { trackDesktopDownload } from './trackDesktopDownload';
 export { trackFoldChoiceOffered, trackFoldRefused, trackFoldSpreadChanged, trackFoldStepAdded } from './trackFold';
 export { trackLayerConstraintsDismissed, trackLayerConstraintsNeedAttention } from './trackLayerOrder';
-export { trackCreasePatternExported } from './trackCreasePatternExport';
+export {
+  creasePatternSpreadProperties,
+  trackCreasePatternExported,
+  type CreasePatternSpreadDrawn,
+} from './trackCreasePatternExport';
 export {
   trackPaperExportDismissed,
   trackPaperExported,

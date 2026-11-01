@@ -78,12 +78,14 @@ import { hexToRgbColor } from '../../../lib/rgbColor';
 import {
   bucketCount,
   COUNT_BUCKETS,
+  creasePatternSpreadProperties,
   DESIGN_TAB_COUNT_BUCKETS,
   track,
   trackCreasePatternExported,
   type CreasePatternFoldedFigure,
   type DesignTabSource,
 } from '../../../analytics';
+import { creaseExportSpreadDrawn } from '../../../lib/creaseExportSpread';
 import type { PaperExportStyleChoice } from '../../../lib/paperExportSettings';
 import { paperPresetRows, paperStyleChoiceName } from '../../../lib/paperPresetRows';
 import { useSettingsStore } from '../../settingsStore';
@@ -315,7 +317,7 @@ function creasePatternFoldedFigureName(style: PaperExportStyleChoice | null): Cr
 function recordCreasePatternImageExport(
   format: 'svg' | 'png',
   options: CreaseExportOptions,
-  content: Pick<CreaseExportContent, 'foldedFigure' | 'foldedFigureLayerOrder'>
+  content: Pick<CreaseExportContent, 'foldedFigure' | 'foldedFigureLayerOrder' | 'foldedFigureSpread'>
 ): void {
   const style = options.includeFoldedFigure ? options.foldedFigureStyle : null;
   if (style !== null) {
@@ -323,10 +325,13 @@ function recordCreasePatternImageExport(
       .getState()
       .rememberCreasePatternFoldedFigure({ style, spread: options.foldedFigure.spread ?? null });
   }
+  const drawn = style !== null && content.foldedFigure !== null;
   trackCreasePatternExported({
     format,
     foldedFigure: creasePatternFoldedFigureName(style),
-    layerOrder: foldedFigureLayerOrderName(style !== null && content.foldedFigure !== null, content.foldedFigureLayerOrder),
+    layerOrder: foldedFigureLayerOrderName(drawn, content.foldedFigureLayerOrder),
+    // What the file has, not what was asked: a spread that could not be made is none.
+    spread: drawn ? creaseExportSpreadDrawn(content.foldedFigureSpread) : null,
   });
 }
 
@@ -3382,6 +3387,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       renderCard,
       foldedFigureStyle = null,
       foldedFigureSpread = null,
+      foldedFigureSpreadDrawn = null,
       foldedFigureLayerOrder = 'default',
     }) => {
       const draft = get().oristudioCpShareDraft;
@@ -3405,13 +3411,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         }
         // The published link and its geometry are never sent — only that a share
         // was created, a bucketed size, whether it was titled/attributed, and
-        // which style its folded figure took, if it had one, in whose layer order.
+        // which style its folded figure took, if it had one, in whose layer
+        // order, and how its layers were spread in the card.
         track('crease pattern shared', {
           crease_count_bucket: bucketCount(draft.fold.edges_vertices?.length ?? 0, COUNT_BUCKETS),
           had_title: Boolean(title),
           had_author: Boolean(author),
           folded_figure: creasePatternFoldedFigureName(foldedFigureStyle),
           folded_figure_layer_order: foldedFigureLayerOrderName(foldedFigureStyle !== null, foldedFigureLayerOrder),
+          ...creasePatternSpreadProperties(foldedFigureStyle !== null ? foldedFigureSpreadDrawn : null),
         });
 
         void (async () => {
