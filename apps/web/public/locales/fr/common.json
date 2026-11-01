@@ -162,7 +162,7 @@
     "foldSendToDiagram": "Envoyer l’étape vers Diagramme",
     "foldSendToDiagramHint": "Ajouter à la fin du diagramme l’étape affichée, liée à elle",
     "foldSendToEdit": "Envoyer vers Édition",
-    "foldSendToEditHint": "Envoyer le patron de plis des étapes affichées vers le canevas Édition",
+    "foldSendToEditHint": "Envoyer le patron de plis de l’étape active vers le canevas Édition",
     "foldSheetNoStep": "La feuille à plat est le point de départ des étapes : il n’y a pas d’étape à supprimer",
     "foldStartFromEditFigure": "Partir du modèle plié d’Édition",
     "foldStartFromEditFigureHint": "Ajouter une étape qui replie le papier comme le modèle plié d’Édition",

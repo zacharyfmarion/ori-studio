@@ -131,3 +131,11 @@ it('previews a radial reveal as one Fold undo sitting and one analytics event', 
   controls.spread!.commit();
   expect(changed).toHaveBeenCalledExactlyOnceWith('spread_reveal', { ...DEFAULT_CONNECTED_SPREAD, reveal: [0.4, -0.8] });
 });
+
+it('keeps a saved amount while offering the Fold-specific 7% reset', () => {
+  const saved = { ...DEFAULT_CONNECTED_SPREAD, amount: 1.2 };
+  const { controls, set } = build(on(saved));
+  expect(controls.spread?.spread.amount).toBe(1.2);
+  expect(controls.spread?.defaultAmount).toBe(0.14);
+  expect(set).not.toHaveBeenCalled();
+});

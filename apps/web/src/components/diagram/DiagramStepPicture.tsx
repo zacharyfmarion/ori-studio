@@ -7,6 +7,7 @@ import {
   type DiagramStepAction,
   type DiagramStepActionId,
 } from '../../diagram/actions/diagramActions';
+import type { DiagramStepLayerOrderFlag } from '../../diagram/actions/diagramStepLayerOrderActions';
 import type { DiagramLinkStatus } from '../../diagram/capture/linkStatus';
 import {
   creasesFlipped,
@@ -71,6 +72,7 @@ export function DiagramStepPicture({
   picker,
   detailOpen,
   annotating,
+  layerOrderFlag = null,
 }: {
   step: DiagramStep;
   /** The upload the step shows, or null for a step without one. */
@@ -90,6 +92,11 @@ export function DiagramStepPicture({
   detailOpen: boolean;
   /** The step is open in Annotate, whose notice offers Make Editable itself, right above (17e). */
   annotating: boolean;
+  /**
+   * Why the step's layer constraints need a look, from its saved record,
+   * with Review… (H7, D14); null while they need none.
+   */
+  layerOrderFlag?: DiagramStepLayerOrderFlag | null;
 }) {
   const { t } = useTranslation();
   const source =
@@ -165,6 +172,28 @@ export function DiagramStepPicture({
               'panels:diagram.picture.noLayerOrder',
               'Its layers couldn’t be put in order, so it shows the folded paper see-through.'
             )}
+          </Notice>
+        </div>
+      )}
+      {layerOrderFlag && (
+        // Where the link status is: the record's own summary, at rest (States board).
+        <div className={styles.notice}>
+          <Notice
+            tone="warning"
+            actions={
+              layerOrderFlag.review
+                ? [
+                    {
+                      id: 'review-layer-order',
+                      label: layerOrderFlag.review.label,
+                      disabled: layerOrderFlag.review.disabled || layerOrderFlag.review.waiting,
+                      run: layerOrderFlag.review.run,
+                    },
+                  ]
+                : []
+            }
+          >
+            {layerOrderFlag.sentence}
           </Notice>
         </div>
       )}

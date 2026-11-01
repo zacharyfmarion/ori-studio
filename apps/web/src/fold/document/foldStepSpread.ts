@@ -1,3 +1,4 @@
+import { DEFAULT_FOLD_SPREAD_STARTS } from './foldSpreadDefaults';
 /**
  * The layer spread a Fold step's folded picture shows (Wave 5): the Diagram's
  * start rule, read along the step's path rather than down a page. An old file with no saved default
@@ -130,7 +131,7 @@ export function foldSpreadStarts(document: FoldSequenceDocument, stepId: string)
     }
     if (document.defaultSpread && document.defaultSpread !== 'off') yield document.defaultSpread;
   }
-  return spreadStartsAmong(earlier());
+  return spreadStartsAmong(earlier(), DEFAULT_FOLD_SPREAD_STARTS);
 }
 
 /** Whether a setting is what the steps before would give anyway: the same spread, or off and off. */

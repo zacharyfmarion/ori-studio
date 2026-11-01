@@ -1,8 +1,7 @@
 /**
  * Waiting for the Fold session to have the states a hand-off needs: the step
- * on screen, for an import after it, and the whole active path, for Send to
- * Edit and the exports (plan D6: the active path is what exports and Send to
- * Edit follow).
+ * on screen, for an import after it or Send to Edit, and the whole active
+ * path for the sequence exports.
  *
  * A hold on the session starts a replay; these resolve once it has landed
  * what they ask for, or as soon as it cannot: the session is not held, the
@@ -21,7 +20,7 @@ import { selectFoldCursorNode, type FoldSessionNode, type FoldSessionSnapshot } 
 
 export type FoldWaitUnavailable = { readonly status: 'unavailable'; readonly reason: 'not-live' | 'read-only' | 'no-state' };
 
-/** The step on screen, landed: where an import is added. */
+/** The step on screen, landed: where an import is added or Send to Edit reads from. */
 export interface FoldCursorReady {
   readonly status: 'ready';
   readonly state: FoldEngineStateHandle;
@@ -70,11 +69,15 @@ function landedState(node: FoldSessionNode, snapshot: FoldSessionSnapshot): Fold
   return snapshot.error ? null : undefined;
 }
 
-/** The step on screen once the replay has landed it, or why nothing can be added after it. */
-export function foldCursorReady(session: FoldSession, at?: string | null): Promise<FoldCursorReady | FoldWaitUnavailable> {
+/** The selected state once replay lands it. Read access also accepts a read-only sequence. */
+export function foldCursorReady(
+  session: FoldSession,
+  at?: string | null,
+  access: 'edit' | 'read' = 'edit'
+): Promise<FoldCursorReady | FoldWaitUnavailable> {
   return untilAnswered(session, (snapshot) => {
     if (!snapshot.live) return unavailable('not-live');
-    if (snapshot.readOnly) return unavailable('read-only');
+    if (access === 'edit' && snapshot.readOnly) return unavailable('read-only');
     const node = at === undefined ? selectFoldCursorNode(snapshot) : at === null ? snapshot.sheet : snapshot.nodes.get(at);
     if (!node) return unavailable('no-state');
     const state = landedState(node, snapshot);

@@ -140,6 +140,9 @@ const UNCACHEABLE_PATTERNS: readonly RegExp[] = [
  *   when the Fold workspace or a linked Diagram step first needs it
  *   (`store/workspaceStore/foldSequenceRuntime.ts`). Fold works offline after
  *   its first online use.
+ * - The Layer order engine's worker, fetched when the Layer order dialog or a
+ *   host's engine first spawns one (`layer-order/engine/layerOrderRuntime.ts`).
+ *   It loads the Fold engine's wasm, excluded above by its own name.
  */
 const UNWARMED_PATTERNS: readonly RegExp[] = [
   /^assets\/diagramPdfWorker-[^/]+\.js$/,
@@ -147,6 +150,7 @@ const UNWARMED_PATTERNS: readonly RegExp[] = [
   /^assets\/harfbuzz-subset-[^/]+\.wasm$/,
   /^assets\/foldSequenceWorker-[^/]+\.js$/,
   /^assets\/oristudio_fold_wasm_bg-[^/]+\.wasm$/,
+  /^assets\/layerOrderWorker-[^/]+\.js$/,
 ];
 
 /** Where {@link simPerfLogSink} appends. Gitignored (`artifacts/`). */

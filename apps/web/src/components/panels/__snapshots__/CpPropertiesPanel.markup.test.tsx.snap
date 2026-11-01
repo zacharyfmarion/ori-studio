@@ -1,0 +1,241 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CpPropertiesPanel markup > draws the image sheet as it always has 1`] = `
+"<div data-cp-companion="" data-property-sheet="">
+  <header>
+    <span>
+      <svg aria-hidden="true">
+    <div>
+      <h2>
+        "Image"
+      <span data-property-sheet-subtitle="">
+        "10 × 10"
+  <div data-property-sheet-section="">
+    <div data-field-row="">
+      <span data-field-label="">
+        "Opacity"
+      <div data-field-value="slider">
+        <input aria-label="Opacity">
+        <span data-field-readout="">
+          "100%"
+    <div data-field-row="">
+      <label data-field-label="">
+        "Rotation"
+      <div data-field-value="input">
+        <span>
+          <button aria-label="Decrease Rotation" data-direction="down">
+            <svg aria-hidden="true">
+          <label>
+            <span>
+              <span aria-hidden="true">
+                "00"
+              <input aria-describedby="#1" aria-label="Rotation" data-number-field="">
+            <span>
+              "°"
+          <button aria-label="Increase Rotation" data-direction="up">
+            <svg aria-hidden="true">"
+`;
+
+exports[`CpPropertiesPanel markup > draws the simulation window sheet as it always has 1`] = `
+"<div data-cp-companion="" data-property-sheet="">
+  <header>
+    <span>
+      <svg aria-hidden="true">
+    <div>
+      <h2>
+        "Simulation window"
+  <div data-open="true">
+    <div>
+      <span>
+        "Simulator settings"
+    <div aria-label="Simulator settings" role="group">
+      <p>
+        "Shared with the Simulate workspace and every window"
+      <div data-field-row="">
+        <span data-field-label="">
+          "Color"
+        <div data-field-value="select">
+          <button aria-autocomplete="none" aria-controls="#1" aria-expanded="false" aria-label="Color" data-state="closed" role="combobox">
+            <span>
+              "Paper"
+            <svg aria-hidden="true">
+      <div data-field-row="">
+        <span data-field-label="">
+          "Crease lines"
+        <div data-field-value="toggle">
+          <button aria-checked="true" aria-label="Crease lines" data-state="checked" role="switch">
+            <span data-state="checked">
+  <div data-open="true">
+    <div>
+      <span>
+        "Paper"
+    <div aria-label="Paper" role="group">
+      <p>
+        "Follows the paper style unless overridden"
+      <div data-field-row="">
+        <label data-field-label="">
+          "Front"
+        <div data-field-value="color">
+          <input aria-label="Front">
+      <div data-field-row="">
+        <label data-field-label="">
+          "Back"
+        <div data-field-value="color">
+          <input aria-label="Back">
+      <div data-field-row="">
+        <label data-field-label="">
+          "Edge"
+        <div data-field-value="color">
+          <input aria-label="Edge">
+      <div data-field-row="" data-noted="true">
+        <span data-field-label="">
+          "Render all creases as edges"
+        <div data-field-value="toggle">
+          <button aria-checked="false" aria-label="Render all creases as edges" data-state="unchecked" role="switch">
+            <span data-state="unchecked">
+        <span data-field-note="">
+      <div data-field-row="">
+        <label data-field-label="">
+          "Mountain"
+        <div data-field-value="color">
+          <input aria-label="Mountain">
+      <div data-field-row="">
+        <label data-field-label="">
+          "Valley"
+        <div data-field-value="color">
+          <input aria-label="Valley">
+      <div data-field-row="" data-noted="true">
+        <span data-field-label="">
+          "Lighting"
+        <div data-field-value="toggle">
+          <button aria-checked="true" aria-label="Lighting" data-state="checked" role="switch">
+            <span data-state="checked">
+        <span data-field-note="">
+      <div data-field-row="" data-noted="true">
+        <span data-field-label="">
+          "Auxiliary creases"
+        <div data-field-value="toggle">
+          <button aria-checked="true" aria-label="Auxiliary creases" data-state="checked" role="switch">
+            <span data-state="checked">
+        <span data-field-note="">
+      <div data-field-row="">
+        <label data-field-label="">
+          "Aux crease color"
+        <div data-field-value="color">
+          <input aria-label="Aux crease color">
+      <div data-field-row="">
+        <label data-field-label="">
+          "Aux crease width (pt)"
+        <div data-field-value="input">
+          <span>
+            <button aria-label="Decrease Aux crease width (pt)" data-direction="down">
+              <svg aria-hidden="true">
+            <label>
+              <span>
+                <span aria-hidden="true">
+                  "0.5"
+                <input aria-label="Aux crease width (pt)" data-number-field="">
+            <button aria-label="Increase Aux crease width (pt)" data-direction="up">
+              <svg aria-hidden="true">
+      <div data-field-row="">
+        <label data-field-label="">
+          "Erode (% of sheet)"
+        <div data-field-value="input">
+          <span>
+            <button aria-label="Decrease Erode (% of sheet)" data-direction="down">
+              <svg aria-hidden="true">
+            <label>
+              <span>
+                <span aria-hidden="true">
+                  "00"
+                <input aria-describedby="#2" aria-label="Erode (% of sheet)" data-number-field="">
+              <span>
+                "%"
+            <button aria-label="Increase Erode (% of sheet)" data-direction="up">
+              <svg aria-hidden="true">"
+`;
+
+exports[`CpPropertiesPanel markup > draws the suppression region sheet as it always has 1`] = `
+"<div data-cp-companion="" data-property-sheet="">
+  <header>
+    <span>
+      <svg aria-hidden="true">
+    <div>
+      <h2>
+        "Suppression region"
+  <div data-open="true">
+    <div>
+      <span>
+        "Region"
+    <div aria-label="Region" role="group">
+      <div data-field-row="">
+        <span data-field-label="">
+          "Opacity"
+        <div data-field-value="slider">
+          <input aria-label="Opacity">
+          <span data-field-readout="">
+            "100%"
+  <div data-open="true">
+    <div>
+      <span>
+        "Suppressed checks"
+    <div aria-label="Suppressed checks" role="group">
+      <div data-field-row="">
+        <span data-field-label="">
+          "Kawasaki (angles)"
+        <div data-field-value="toggle">
+          <button aria-checked="true" aria-label="Kawasaki (angles)" data-state="checked" role="switch">
+            <span data-state="checked">
+      <div data-field-row="">
+        <span data-field-label="">
+          "Big-little-big"
+        <div data-field-value="toggle">
+          <button aria-checked="true" aria-label="Big-little-big" data-state="checked" role="switch">
+            <span data-state="checked">
+      <div data-field-row="">
+        <span data-field-label="">
+          "Maekawa (parity)"
+        <div data-field-value="toggle">
+          <button aria-checked="true" aria-label="Maekawa (parity)" data-state="checked" role="switch">
+            <span data-state="checked">
+      <div data-field-row="">
+        <span data-field-label="">
+          "Vertex closure"
+        <div data-field-value="toggle">
+          <button aria-checked="true" aria-label="Vertex closure" data-state="checked" role="switch">
+            <span data-state="checked">"
+`;
+
+exports[`CpPropertiesPanel markup > draws the text sheet as it always has 1`] = `
+"<div data-cp-companion="" data-property-sheet="">
+  <header>
+    <span>
+      <svg aria-hidden="true">
+    <div>
+      <h2>
+        "Text"
+  <div data-property-sheet-section="">
+    <div data-field-row="">
+      <label data-field-label="">
+        "Size"
+      <div data-field-value="input">
+        <span>
+          <button aria-label="Decrease Size" data-direction="down">
+            <svg aria-hidden="true">
+          <label>
+            <span>
+              <span aria-hidden="true">
+                "0.01"
+              <input aria-describedby="#1" aria-label="Size" data-number-field="">
+            <span>
+              "%"
+          <button aria-label="Increase Size" data-direction="up">
+            <svg aria-hidden="true">
+    <div data-field-row="">
+      <span data-field-label="">
+        "Opacity"
+      <div data-field-value="slider">
+        <input aria-label="Opacity">
+        <span data-field-readout="">
+          "100%""
+`;

@@ -387,6 +387,36 @@ pub struct FoldedFigureSnapshot {
     /// rather than failing to load.
     #[serde(default)]
     pub outcome: FoldOutcome,
+    /// Whether the layer order on show is Oriedita's own or one the fold was
+    /// given ([`ShownOrder`]). Written only when one was given, so the snapshot
+    /// of every other figure, and every file that saves one, keeps its bytes;
+    /// absent reads back as [`ShownOrder::Searched`].
+    #[serde(default, skip_serializing_if = "ShownOrder::is_searched")]
+    pub shown_order: ShownOrder,
+}
+
+/// Where a flat figure's layer order came from.
+///
+/// **Ori Studio native**, and additive: the Layer order dialog's hosts fold a
+/// chosen order through [`FoldingEstimateSession::with_seeds`]
+/// (`implementation-plans/layer-order-dialog.md`, approach 4), and a saved
+/// figure says which kind it is so a record of that choice can tell whether it
+/// still belongs to the figure. Nothing the fold does reads it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShownOrder {
+    /// Oriedita's search from the creases alone: every unseeded fold.
+    #[default]
+    Searched,
+    /// A search that started from a given order as well as the creases.
+    Given,
+}
+
+impl ShownOrder {
+    /// Whether this is the default, which a snapshot does not write.
+    pub fn is_searched(&self) -> bool {
+        *self == Self::Searched
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1426,6 +1456,12 @@ impl FoldingEstimateError {
 pub struct FoldingEstimateSession {
     segments: Vec<LineSegment>,
     starting_face_id: i32,
+    /// Layer-order relations every search of this figure starts from, beside
+    /// the creases' letters: its first fold, a restart, the wrap of "another
+    /// solution" and a render's fallback search alike, so a seeded figure never
+    /// shows the order an unseeded search would find. Empty is upstream's fold.
+    /// Ori Studio native; see [`Self::with_seeds`].
+    seeds: Vec<HierarchyRelation>,
     estimate: FoldingEstimate,
     worker: Option<WorkerOverlapEnumerator>,
 }
@@ -1903,9 +1939,34 @@ pub fn additional_estimation_from_segments(
 
 impl FoldingEstimateSession {
     pub fn new(segments: &[LineSegment], starting_face_id: i32) -> Self {
+        Self::with_seeds(segments, starting_face_id, Vec::new())
+    }
+
+    /// A figure whose layer-order search starts from `seeds` as well as the
+    /// creases' letters, each `upper_face` above its `lower_face` in
+    /// Oriedita's frame (nearer a viewer of the starting face's front).
+    ///
+    /// **Ori Studio native**, and additive: the seeded core of the Layer order
+    /// dialog (`implementation-plans/layer-order-dialog.md`, E1). Seeded with
+    /// the full relations of an order, the fold reproduces that order; with no
+    /// seeds this is [`Self::new`]. Seeds are checked when the fold reaches
+    /// `Order4`, where the faces are known: a bad one is
+    /// [`WorkerOverlapSearchError::Seed`], and a search that cannot settle
+    /// within [`SEEDED_FOLD_ITERATION_BUDGET`] is
+    /// [`WorkerOverlapSearchError::Exhausted`].
+    ///
+    /// Hosts reach it through `CpSession::folded_figure_fold_with_order`
+    /// (`crate::session`), which folds into a new handle and turns these
+    /// errors into typed refusals.
+    pub fn with_seeds(
+        segments: &[LineSegment],
+        starting_face_id: i32,
+        seeds: Vec<HierarchyRelation>,
+    ) -> Self {
         Self {
             segments: segments.to_vec(),
             starting_face_id,
+            seeds,
             estimate: FoldingEstimate {
                 estimation_step: EstimationStep::Step0,
                 display_style: DisplayStyle::None0,
@@ -1923,6 +1984,22 @@ impl FoldingEstimateSession {
 
     pub fn estimate(&self) -> &FoldingEstimate {
         &self.estimate
+    }
+
+    /// The creases this figure folds, exactly as it was given them.
+    pub fn segments(&self) -> &[LineSegment] {
+        &self.segments
+    }
+
+    /// The face the fold starts from, as it was given (Oriedita's 1-based id).
+    pub fn starting_face_id(&self) -> i32 {
+        self.starting_face_id
+    }
+
+    /// The relations every search of this figure starts from beside the
+    /// letters ([`Self::with_seeds`]); empty for an unseeded figure.
+    pub fn seeds(&self) -> &[HierarchyRelation] {
+        &self.seeds
     }
 
     /// Oriedita `FoldedFigure.folding_estimated(...)` on a reusable folded
@@ -2015,7 +2092,11 @@ impl FoldingEstimateSession {
         if self.estimate.estimation_step == EstimationStep::Step3
             && order.is_at_least(EstimationOrder::Order4)
         {
-            match overlap_enumerator_from_segments(&self.segments, self.starting_face_id) {
+            match overlap_enumerator_from_segments_seeded(
+                &self.segments,
+                self.starting_face_id,
+                &self.seeds,
+            ) {
                 Ok(worker) => {
                     self.worker = worker;
                     self.estimate.estimation_step = EstimationStep::Step4;
@@ -2138,7 +2219,9 @@ impl FoldingEstimateSession {
             outcome: FoldOutcome::NotAttempted,
         };
         // `_inner`, not the public method: `restart` is already inside the
-        // transaction its own caller opened.
+        // transaction its own caller opened. It rebuilds the worker from
+        // `self.seeds`, so a seeded figure restarts, and "another solution"
+        // wraps, onto its own order rather than the unseeded first one.
         let outcome = self.folding_estimated_inner(EstimationOrder::Order5);
         if matches!(&outcome, Err(error) if error.is_cancelled()) {
             // The original worker, not the half-rebuilt one: the enclosing
@@ -2398,6 +2481,11 @@ fn folded_figure_snapshot_with_wireframe(
         contradiction: estimate.contradiction,
         contradiction_faces,
         outcome: estimate.outcome,
+        shown_order: if session.seeds.is_empty() {
+            ShownOrder::Searched
+        } else {
+            ShownOrder::Given
+        },
     }
 }
 
@@ -2415,6 +2503,9 @@ pub struct FoldedRenderInputs {
     /// `None` when the wireframe has no subfaces — a result, not a failure —
     /// and the styles that need them render nothing, as they always have.
     subfaces: Option<(FoldGraph, SubFaceConfiguration)>,
+    /// The starting face the fold was asked for, as given: part of
+    /// [`Self::face_ring_digest`].
+    starting_face_id: i32,
 }
 
 impl FoldedRenderInputs {
@@ -2440,7 +2531,173 @@ impl FoldedRenderInputs {
             graph,
             folded,
             subfaces,
+            starting_face_id,
         }))
+    }
+
+    // The accessors below are **Ori Studio native** and read-only: what the
+    // Layer order dialog's solver source (`LayerSource::from_oriedita`,
+    // `implementation-plans/layer-order-dialog.md` approach 2) reads to see
+    // exactly Edit's faces, without building the graph a second time.
+
+    /// Every wireframe point where it lies on the unfolded sheet: the crease
+    /// pattern's own coordinates, indexed as [`FoldedWireframe::points`] (the
+    /// wireframe folds these points in place), so a face ring names both.
+    pub fn flat_points(&self) -> &[Point] {
+        &self.graph.points
+    }
+
+    /// The folded wireframe: folded points, face rings (face `k` is the
+    /// figure's face `k`, as the snapshot, the scene and a contradiction name
+    /// it), Oriedita's face positions (odd is the starting face's side), and
+    /// one line per input segment with its colour.
+    pub fn wireframe(&self) -> &FoldedWireframe {
+        &self.folded
+    }
+
+    /// For each subface of the folded arrangement, the faces that cover it, in
+    /// face order: the overlaps the layer search orders and the drawer stacks.
+    /// Empty when the figure has no subfaces.
+    pub fn subface_face_ids(&self) -> impl Iterator<Item = &[usize]> {
+        self.subfaces.iter().flat_map(|(_, configuration)| {
+            configuration
+                .subfaces
+                .iter()
+                .map(|subface| subface.face_ids.as_slice())
+        })
+    }
+
+    /// The faces under each subface the paper scene draws, in the scene's
+    /// order: whatever the order, [`FoldedPaperScene::subfaces`]`[i]` stacks
+    /// exactly the faces of entry `i`. These are the subfaces of
+    /// [`Self::subface_face_ids`] less the ones the drawer skips (no face
+    /// under it, or a ring of fewer than three points), so a caller that
+    /// stacks an order itself, as the Layer order dialog does between scenes,
+    /// numbers its stacks as the scene numbers its subfaces.
+    pub fn scene_subface_face_ids(&self) -> impl Iterator<Item = &[usize]> {
+        self.subfaces.iter().flat_map(|(graph, configuration)| {
+            drawn_subfaces(graph, configuration).map(|(_, subface)| subface.face_ids.as_slice())
+        })
+    }
+
+    /// The lowest and highest face with wireframe line `line_index` on its
+    /// border: two faces for a line the paper folds across, the same face
+    /// twice for one on the paper's edge, `None` for a line no face borders.
+    ///
+    /// This, and not the line's colour, is Oriedita's edge rule: every line
+    /// between two faces is a fold, a mountain when it is `Red1` and a valley
+    /// otherwise, so an interior `Black0` line folds as a valley
+    /// (`initial_hierarchy_from_graph`).
+    pub fn line_face_border(&self, line_index: usize) -> Option<(usize, usize)> {
+        self.graph.line_face_border(line_index)
+    }
+
+    /// The digest of which face is which: see [`FaceRingDigest`].
+    pub fn face_ring_digest(&self) -> FaceRingDigest {
+        face_ring_digest(
+            &self.graph.segments,
+            self.starting_face_id,
+            &self.graph.faces,
+        )
+    }
+}
+
+/// Which faces a flat fold of some creases has, and how they are numbered.
+///
+/// **Ori Studio native.** The Layer order dialog analyses a figure in one
+/// kernel (the Fold wasm) and its host draws the chosen order in another (the
+/// CP wasm on the web, native on desktop), and both name faces by Oriedita's
+/// index. The two run the same code on the same input, but nothing proves
+/// they number the faces alike, so each computes this digest and the dialog
+/// refuses a mismatch (`implementation-plans/layer-order-dialog.md`,
+/// approach 2).
+///
+/// It is FNV-1a over the inputs and the integer result only: each segment's
+/// colour and coordinates exactly as given, the starting face as given, and
+/// every face ring's vertex indices. No folded or derived coordinate enters
+/// it, so a libm that rounds a reflection differently cannot change it while
+/// the faces stay the same. A zero coordinate is hashed as `+0.0`, because a
+/// trip through JavaScript's JSON writes `-0` as `0`.
+///
+/// It names faces; it is not a security check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FaceRingDigest(u64);
+
+impl FaceRingDigest {
+    pub const fn as_u64(self) -> u64 {
+        self.0
+    }
+}
+
+/// Sixteen lowercase hex digits: how the digest crosses a bridge, since a
+/// JavaScript number cannot hold every `u64`.
+impl fmt::Display for FaceRingDigest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:016x}", self.0)
+    }
+}
+
+/// [`FaceRingDigest`] of the faces `segments` trace from `starting_face_id`,
+/// building only the fold graph (no fold, no wireframe, no subfaces), or
+/// `None` when they trace no faces.
+pub fn face_ring_digest_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+) -> Option<FaceRingDigest> {
+    if segments.is_empty() {
+        return None;
+    }
+    let graph = FoldGraph::from_sheet_segments(segments);
+    if graph.faces.is_empty() {
+        return None;
+    }
+    Some(face_ring_digest(segments, starting_face_id, &graph.faces))
+}
+
+fn face_ring_digest(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    faces: &[Vec<usize>],
+) -> FaceRingDigest {
+    // Named, so a change to what is hashed changes every digest at once.
+    const DOMAIN: &[u8] = b"oristudio-face-rings/1";
+    let mut hash = Fnv1a64::new();
+    hash.write(DOMAIN);
+    hash.write_u64(segments.len() as u64);
+    for segment in segments {
+        hash.write_u64(segment.color.number() as u64);
+        for value in [segment.a.x, segment.a.y, segment.b.x, segment.b.y] {
+            hash.write_u64(if value == 0.0 { 0 } else { value.to_bits() });
+        }
+    }
+    hash.write_u64(i64::from(starting_face_id) as u64);
+    hash.write_u64(faces.len() as u64);
+    for ring in faces {
+        hash.write_u64(ring.len() as u64);
+        for &point in ring {
+            hash.write_u64(point as u64);
+        }
+    }
+    FaceRingDigest(hash.0)
+}
+
+/// 64-bit FNV-1a, little-endian words.
+struct Fnv1a64(u64);
+
+impl Fnv1a64 {
+    fn new() -> Self {
+        Self(0xcbf2_9ce4_8422_2325)
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for byte in bytes {
+            self.0 ^= u64::from(*byte);
+            self.0 = self.0.wrapping_mul(0x0100_0000_01b3);
+        }
+    }
+
+    fn write_u64(&mut self, value: u64) {
+        self.write(&value.to_le_bytes());
     }
 }
 
@@ -2449,10 +2706,13 @@ enum HierarchySource<'a> {
     /// The owning session's solved ordering.
     Solved(&'a InitialHierarchy),
     /// Search it from the segments — the from-segments path, with no session
-    /// to ask, and a session whose search found nothing.
+    /// to ask, and a session whose search found nothing. `seeds` are the
+    /// session's ([`FoldingEstimateSession::with_seeds`]), so a seeded
+    /// figure's fallback searches its own order; empty on every unseeded path.
     Search {
         segments: &'a [LineSegment],
         starting_face_id: i32,
+        seeds: &'a [HierarchyRelation],
     },
 }
 
@@ -2475,6 +2735,7 @@ pub fn folded_figure_render_snapshot_from_session(
         None => HierarchySource::Search {
             segments: &session.segments,
             starting_face_id: session.starting_face_id,
+            seeds: &session.seeds,
         },
     };
     render_snapshot_impl(inputs, hierarchy, display_style, model, options)
@@ -2609,6 +2870,7 @@ pub fn folded_figure_render_snapshot_from_segments(
         HierarchySource::Search {
             segments,
             starting_face_id,
+            seeds: &[],
         },
         display_style,
         model,
@@ -2809,9 +3071,10 @@ fn paper_hierarchy_table(
         HierarchySource::Search {
             segments,
             starting_face_id,
+            seeds,
         } => {
             let Some(mut enumerator) =
-                overlap_enumerator_from_segments(segments, starting_face_id)?
+                overlap_enumerator_from_segments_seeded(segments, starting_face_id, seeds)?
             else {
                 return Ok(None);
             };
@@ -2860,6 +3123,42 @@ pub fn folded_figure_paper_scene_from_session(
     )
 }
 
+/// The paper scene of `inputs` stacked by a given layer order, each relation's
+/// `upper_face` above its `lower_face` in Oriedita's frame (nearer a viewer of
+/// the starting face's front).
+///
+/// **Ori Studio native**, and read-only: the Layer order dialog's panes draw
+/// an order the user is choosing through this, the same builder
+/// [`folded_figure_paper_scene_from_session`] draws a solved figure through
+/// (`implementation-plans/layer-order-dialog.md`, approach 3). Given the full
+/// relations of an order, it is the scene of a figure folded with that order
+/// (`CpSession::folded_figure_fold_with_order`), so the dialog shows what its
+/// Apply will. A pair the order leaves out is unplaced, and the drawer leaves
+/// it out of its subface's stack, as it does for any unplaced pair.
+///
+/// A relation naming a face the figure lacks, putting a face above itself or
+/// reversing an earlier relation is refused as
+/// [`WorkerOverlapSearchError::Seed`], as a seed would be. `Ok(None)` when the
+/// figure has no subfaces.
+pub fn folded_paper_scene_with_order(
+    inputs: &FoldedRenderInputs,
+    order: &[HierarchyRelation],
+    aux_lines: &[LineSegment],
+    model: &FoldedFigureModel,
+) -> Result<Option<FoldedPaperScene>, FoldingEstimateError> {
+    let mut hierarchy = InitialHierarchy {
+        faces_total: inputs.folded.faces.len(),
+        relations: Vec::new(),
+    };
+    seed_initial_hierarchy(&mut hierarchy, order)?;
+    paper_scene_impl(
+        inputs,
+        HierarchySource::Solved(&hierarchy),
+        aux_lines,
+        model,
+    )
+}
+
 /// [`FoldedPaperScene`] straight from segments, searching the ordering — the
 /// same path [`folded_figure_render_snapshot_from_segments`] takes, for tests
 /// that want the scene and the `Paper5` snapshot of one fold side by side.
@@ -2879,6 +3178,7 @@ pub fn folded_figure_paper_scene_from_segments(
         HierarchySource::Search {
             segments,
             starting_face_id,
+            seeds: &[],
         },
         aux_lines,
         model,
@@ -3118,26 +3418,40 @@ fn paper_scene_subfaces(
     hierarchy: &HierarchyTable,
     pass: OrieditaPaperRenderPass,
 ) -> Vec<FoldedPaperSubface> {
+    drawn_subfaces(subface_graph, subfaces)
+        .map(|(ring, subface)| FoldedPaperSubface {
+            polygon: ring
+                .map(|point| pass.camera.object_to_tv(point))
+                .collect::<Vec<_>>(),
+            faces_top_to_bottom: subface_stack_as_seen(subface, hierarchy, pass.flipped),
+        })
+        .collect()
+}
+
+/// The subfaces the paper scene draws, in the drawer's order, each with the
+/// points of its ring: every subface with a face under it (the stack the
+/// drawer paints falls back to those faces, so it is never empty) and a ring
+/// of at least three points. The one rule [`paper_scene_subfaces`] and
+/// [`FoldedRenderInputs::scene_subface_face_ids`] share, so the scene's
+/// subfaces and a stack list built beside it are numbered alike.
+fn drawn_subfaces<'a>(
+    subface_graph: &'a FoldGraph,
+    subfaces: &'a SubFaceConfiguration,
+) -> impl Iterator<Item = (impl Iterator<Item = Point> + 'a, &'a SubFace)> + 'a {
+    let ring = move |face: &'a Vec<usize>| {
+        face.iter()
+            .filter_map(move |point_index| subface_graph.points.get(*point_index).copied())
+    };
     subface_graph
         .faces
         .iter()
         .enumerate()
-        .filter_map(|(subface_index, face)| {
+        .filter_map(move |(subface_index, face)| {
             let subface = subfaces.subfaces.get(subface_index)?;
-            let faces_top_to_bottom = subface_stack_as_seen(subface, hierarchy, pass.flipped);
             // The drawer's own skip: nothing to paint there.
-            faces_top_to_bottom.first()?;
-            let polygon = face
-                .iter()
-                .filter_map(|point_index| subface_graph.points.get(*point_index).copied())
-                .map(|point| pass.camera.object_to_tv(point))
-                .collect::<Vec<_>>();
-            (polygon.len() >= 3).then_some(FoldedPaperSubface {
-                polygon,
-                faces_top_to_bottom,
-            })
+            subface.face_ids.first()?;
+            (ring(face).count() >= 3).then(|| (ring(face), subface))
         })
-        .collect()
 }
 
 /// `subface_top_stack` read the way `visible_subface_face` reads it: from the
@@ -3248,6 +3562,51 @@ fn overlap_enumerator_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
 ) -> Result<Option<WorkerOverlapEnumerator>, WorkerOverlapSearchError> {
+    overlap_enumerator_from_segments_seeded(segments, starting_face_id, &[])
+}
+
+/// Outer iterations a seeded flat search may spend, per search.
+///
+/// A whole layer order seeded leaves the search next to nothing to choose, so
+/// it settles at once: when this landed, every seeded search in
+/// `tests/folding_seeded.rs` (38 orders over eleven fixtures) took a single
+/// outer iteration. The number is the one the seeded verification oracle runs
+/// every Fold state under (`crates/oracle-tests/tests/fold_support/oriedita.rs`).
+///
+/// It is a backstop, as [`FOLD_3D_ITERATION_BUDGET`] is: a stall becomes
+/// [`WorkerOverlapSearchError::Exhausted`], a refusal the host can name,
+/// rather than a fold only Stop can end. **Iterations, never wall clock**, for
+/// the reason that constant gives. An unseeded search has no budget, as
+/// upstream has none.
+pub const SEEDED_FOLD_ITERATION_BUDGET: u64 = 100_000;
+
+/// [`overlap_enumerator_from_segments`] with layer-order relations added to
+/// the creases' own letters before any deduction runs.
+///
+/// **Ori Studio native**, and additive: the seeded core of the Layer order
+/// dialog (`implementation-plans/layer-order-dialog.md`, approach 4). With no
+/// seeds it takes exactly the shipped steps, and the unseeded entry is this
+/// call with `&[]`. With seeds:
+///
+/// 1. they join the letters' hierarchy, each checked first against the table
+///    the unseeded fold reads ([`seed_initial_hierarchy`]), because
+///    [`HierarchyTable::from_initial`] keeps the first of two contradictory
+///    relations silently;
+/// 2. every deduction the shipped fold makes then runs over letters and seeds
+///    together, in the shipped order: the equivalence conditions, Oriedita's
+///    setup-time `removeMode` AEA round (the step a pipeline assembled from
+///    the public stages can skip), the subface priority and guide maps; the
+///    search adds the realtime AEA and the final AEA at each candidate;
+/// 3. the enumerator searches within [`SEEDED_FOLD_ITERATION_BUDGET`].
+///
+/// A seed the closure contradicts is reported as the creases' contradictions
+/// are, as `AdditionalEstimation(Contradiction)`: the closure cannot say
+/// whether the seeds or the letters led to it.
+fn overlap_enumerator_from_segments_seeded(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    seeds: &[HierarchyRelation],
+) -> Result<Option<WorkerOverlapEnumerator>, WorkerOverlapSearchError> {
     if segments.is_empty() {
         return Ok(None);
     }
@@ -3260,14 +3619,24 @@ fn overlap_enumerator_from_segments(
     fold_phase_timer!("fold graph built");
 
     let positions = graph.face_positions(starting_face_id)?;
-    let initial = initial_hierarchy_from_graph(&graph, &positions)?;
+    let mut initial = initial_hierarchy_from_graph(&graph, &positions)?;
+    if !seeds.is_empty() {
+        seed_initial_hierarchy(&mut initial, seeds)?;
+    }
+    let budgeted = |enumerator: WorkerOverlapEnumerator| {
+        if seeds.is_empty() {
+            enumerator
+        } else {
+            enumerator.within_iteration_budget(SEEDED_FOLD_ITERATION_BUDGET)
+        }
+    };
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments)?;
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
         return WorkerOverlapEnumerator::from_ordered_subfaces(&[], &[], 0, &initial, None)
-            .map(Some);
+            .map(|enumerator| Some(budgeted(enumerator)));
     }
     fold_phase_timer!("subface graph built");
 
@@ -3294,7 +3663,7 @@ fn overlap_enumerator_from_segments(
         &configured_hierarchy,
         Some(&conditions),
     )
-    .map(Some);
+    .map(|enumerator| Some(budgeted(enumerator)));
     fold_phase_timer!("worker enumerator built");
     enumerator
 }
@@ -5253,6 +5622,71 @@ pub fn validate_initial_hierarchy(
     Ok(())
 }
 
+/// Why a seeded flat search refused its seeds before searching.
+///
+/// **Ori Studio native**, beside the seeded core
+/// ([`FoldingEstimateSession::with_seeds`]). A refusal names the seed, and it
+/// is an error, never a [`FoldOutcome::Contradiction`]: that outcome is a
+/// statement about the creases, and draws their faces red.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HierarchySeedError {
+    /// A seed names a face the fold does not have.
+    UnknownFace { face: usize, faces_total: usize },
+    /// A seed puts a face above itself.
+    SameFace { face: usize },
+    /// A seed orders a pair the other way from the letters' table, the one the
+    /// unseeded fold reads, or from an earlier seed. The refused relation is
+    /// always the seed, never a letter: the letters can disagree among
+    /// themselves (two collinear creases of different letters between the same
+    /// two faces), and the table settles that before any seed is checked.
+    Contradiction {
+        upper_face: usize,
+        lower_face: usize,
+    },
+}
+
+/// Add `seeds` to the letters' hierarchy `initial`, refusing any that name no
+/// face, relate a face to itself, or contradict what is already known.
+///
+/// Each seed is checked against [`HierarchyTable::from_initial`] of the
+/// letters, the table the unseeded fold reads, with the seeds before it added
+/// in turn. So only a seed is ever named, and the order an unseeded fold found
+/// always passes as seeds. ([`validate_initial_hierarchy`] over letters and
+/// seeds together would name a letter when two letters disagree, which
+/// `from_initial` resolves silently by keeping the first.)
+fn seed_initial_hierarchy(
+    initial: &mut InitialHierarchy,
+    seeds: &[HierarchyRelation],
+) -> Result<(), WorkerOverlapSearchError> {
+    let faces_total = initial.faces_total;
+    let refuse = |error| Err(WorkerOverlapSearchError::Seed(error));
+    let mut table = HierarchyTable::from_initial(initial);
+    for seed in seeds {
+        for face in [seed.upper_face, seed.lower_face] {
+            if face >= faces_total {
+                return refuse(HierarchySeedError::UnknownFace { face, faces_total });
+            }
+        }
+        if seed.upper_face == seed.lower_face {
+            return refuse(HierarchySeedError::SameFace {
+                face: seed.upper_face,
+            });
+        }
+        match table.infer_above(seed.upper_face, seed.lower_face) {
+            Ok(_) => {}
+            Err(AdditionalEstimationError::Contradiction { .. }) => {
+                return refuse(HierarchySeedError::Contradiction {
+                    upper_face: seed.upper_face,
+                    lower_face: seed.lower_face,
+                });
+            }
+            Err(other) => return Err(WorkerOverlapSearchError::AdditionalEstimation(other)),
+        }
+    }
+    initial.relations.extend_from_slice(seeds);
+    Ok(())
+}
+
 impl HierarchyTable {
     fn from_initial(initial: &InitialHierarchy) -> Self {
         crate::fold_profiling::bump_table_from_initial();
@@ -5674,6 +6108,7 @@ mod paper_scene_tests {
             let hierarchy = paper_hierarchy_table(HierarchySource::Search {
                 segments: &segments,
                 starting_face_id: 1,
+                seeds: &[],
             })
             .expect("search")
             .expect("ordering");
@@ -6200,5 +6635,132 @@ mod seeded_closure_tests {
             close_initial_hierarchy(&seeded, &subfaces, &mut conditions.clone()),
             Err(AdditionalEstimationError::Contradiction { .. })
         ));
+    }
+
+    fn seeded_enumerator(
+        segments: &[LineSegment],
+        seeds: &[HierarchyRelation],
+    ) -> Result<WorkerOverlapEnumerator, WorkerOverlapSearchError> {
+        overlap_enumerator_from_segments_seeded(segments, 1, seeds)
+            .map(|enumerator| enumerator.expect("faces"))
+    }
+
+    fn reversed(relation: HierarchyRelation) -> HierarchyRelation {
+        HierarchyRelation {
+            upper_face: relation.lower_face,
+            lower_face: relation.upper_face,
+        }
+    }
+
+    /// The unseeded search keeps upstream's unbounded loop; a seeded one is
+    /// bounded.
+    #[test]
+    fn only_a_seeded_enumerator_carries_a_budget() {
+        let segments = kabuto_segments();
+        let (initial, _, _) = stages(&segments);
+        let unseeded = overlap_enumerator_from_segments(&segments, 1)
+            .expect("enumerator")
+            .expect("faces");
+        assert_eq!(unseeded.iteration_budget(), None);
+        let seeded = seeded_enumerator(&segments, &initial.relations[..1]).expect("enumerator");
+        assert_eq!(
+            seeded.iteration_budget(),
+            Some(SEEDED_FOLD_ITERATION_BUDGET)
+        );
+    }
+
+    /// A seed that names no face, relates a face to itself, or reverses one of
+    /// the letters is refused by name, before any deduction runs.
+    #[test]
+    fn seeds_the_letters_cannot_take_are_refused_by_name() {
+        let segments = kabuto_segments();
+        let (initial, _, _) = stages(&segments);
+        let faces_total = initial.faces_total;
+        let letter = initial.relations[0];
+
+        let unknown = HierarchyRelation {
+            upper_face: 0,
+            lower_face: faces_total,
+        };
+        assert_eq!(
+            seeded_enumerator(&segments, &[unknown]).err(),
+            Some(WorkerOverlapSearchError::Seed(
+                HierarchySeedError::UnknownFace {
+                    face: faces_total,
+                    faces_total,
+                }
+            ))
+        );
+        let same = HierarchyRelation {
+            upper_face: 3,
+            lower_face: 3,
+        };
+        assert_eq!(
+            seeded_enumerator(&segments, &[same]).err(),
+            Some(WorkerOverlapSearchError::Seed(
+                HierarchySeedError::SameFace { face: 3 }
+            ))
+        );
+        assert_eq!(
+            seeded_enumerator(&segments, &[reversed(letter)]).err(),
+            Some(WorkerOverlapSearchError::Seed(
+                HierarchySeedError::Contradiction {
+                    upper_face: letter.lower_face,
+                    lower_face: letter.upper_face,
+                }
+            ))
+        );
+        // Two seeds that disagree with each other, on a pair the letters leave
+        // open, are refused the same way: the second is named.
+        let open = (0..faces_total)
+            .flat_map(|a| (0..faces_total).map(move |b| (a, b)))
+            .find(|&(a, b)| {
+                a < b
+                    && !initial.relations.iter().any(|r| {
+                        (r.upper_face, r.lower_face) == (a, b)
+                            || (r.upper_face, r.lower_face) == (b, a)
+                    })
+            })
+            .expect("kabuto's letters leave a pair open");
+        let seed = HierarchyRelation {
+            upper_face: open.0,
+            lower_face: open.1,
+        };
+        assert_eq!(
+            seeded_enumerator(&segments, &[seed, reversed(seed)]).err(),
+            Some(WorkerOverlapSearchError::Seed(
+                HierarchySeedError::Contradiction {
+                    upper_face: open.1,
+                    lower_face: open.0,
+                }
+            ))
+        );
+    }
+
+    /// The seeded core runs the shipped fold's deductions over the seeds, the
+    /// setup-time `removeMode` closure among them: a seed against a pair only
+    /// the closure derives passes the letters' check and is refused there.
+    /// (`a_seed_against_the_closure_is_a_contradiction` shows the same of the
+    /// public stages.)
+    #[test]
+    fn the_seeded_enumerator_closes_the_seeds_with_the_letters() {
+        let segments = kabuto_segments();
+        let (initial, subfaces, conditions) = stages(&segments);
+        let closed = close_initial_hierarchy(&initial, &subfaces, &mut conditions.clone())
+            .expect("kabuto's letters close");
+        let derived = closed
+            .relations
+            .iter()
+            .find(|relation| !initial.relations.contains(relation))
+            .copied()
+            .expect("a derived pair");
+        assert!(matches!(
+            seeded_enumerator(&segments, &[reversed(derived)]).err(),
+            Some(WorkerOverlapSearchError::AdditionalEstimation(
+                AdditionalEstimationError::Contradiction { .. }
+            ))
+        ));
+        // Seeded the way the closure already goes, it builds.
+        assert!(seeded_enumerator(&segments, &[derived]).is_ok());
     }
 }

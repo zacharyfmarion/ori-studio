@@ -1,14 +1,12 @@
 /**
  * What leaves a Fold sequence (plan D6, D10, D11): Send to Edit, the FOLD
- * export and the paper export of its steps. Each follows the active path —
- * root, the active child of each step, to the tip — whichever step is on
- * screen.
+ * export and the paper export of its steps. Send to Edit follows the cursor;
+ * the sequence exports follow the complete active path.
  *
  * Each holds the engine for as long as it works, so it runs from the menu
  * with no Fold surface mounted: the session replays the path if it must, and
- * a hand-off waits for every step of it to land. A path with a step that no
- * longer folds, or one this build cannot read, is not handed off: it would be
- * half a sequence.
+ * a hand-off waits for the states it needs to land. A sequence export refuses
+ * a path with a step that no longer folds or that this build cannot read.
  *
  * The app's stores, toasts and file dialogs are injected
  * (`FoldHandOffDeps`), so the hand-offs are tested over a fake session; the
@@ -26,7 +24,7 @@ import type { FoldEngineStateHandle } from '../engine/foldEnginePort';
 import { foldSendToEditPayload } from '../engine/foldEngineIoSendToEdit';
 import type { FoldEngineRefused } from '../engine/foldEngineWire';
 import type { FoldSession, FoldSessionWorker } from '../session/foldSession';
-import { foldPathReady, type FoldPathReady } from './foldSessionWaits';
+import { foldCursorReady, foldPathReady, type FoldPathReady } from './foldSessionWaits';
 import {
   foldStepCreaseDiagram,
   foldStepIsNumbered,
@@ -118,15 +116,22 @@ async function ask<T>(
 }
 
 /**
- * Send to Edit (plan D10): the tip's crease pattern as FOLD, merged into
+ * Send to Edit (plan D10): the selected step's crease pattern as FOLD, merged into
  * Edit's through `importAddOristudioCpText` with its undo entry. Precreases
  * arrive as auxiliary lines (`foldSendToEditPayload`); the folds keep their
  * letters.
  */
 export async function sendFoldSequenceToEdit(deps: FoldHandOffDeps): Promise<boolean> {
-  return withLandedPath(deps, async (path) => {
+  const cursor = deps.session.store.getState().cursor;
+  const release = deps.session.retain();
+  try {
+    const selected = await foldCursorReady(deps.session, cursor, 'read');
+    if (selected.status !== 'ready') {
+      deps.blocked(selected.reason === 'no-state' ? 'path-broken' : 'unavailable');
+      return false;
+    }
     const title = stem(deps.title());
-    const text = await ask(deps, tipOf(path), (engine, id) => engine.sendToEdit(id, title));
+    const text = await ask(deps, selected.state, (engine, id) => engine.sendToEdit(id, title));
     if (text === null) return false;
     const payload = foldSendToEditPayload(text, {
       label: deps.t('common:toolbar.sendToEdit', 'Send to Edit'),
@@ -135,7 +140,9 @@ export async function sendFoldSequenceToEdit(deps: FoldHandOffDeps): Promise<boo
     const sent = await deps.sendToEdit(payload);
     if (sent) deps.sentToEdit();
     return sent;
-  });
+  } finally {
+    release();
+  }
 }
 
 /** The FOLD export (plan D10): the active path, the sheet first, one frame per state, saved through the platform's dialog. */

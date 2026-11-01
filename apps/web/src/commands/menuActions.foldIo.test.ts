@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const io = vi.hoisted(() => ({
   runFoldIoCommand: vi.fn<(command: unknown, fileService?: unknown) => Promise<boolean>>(async () => true),
@@ -7,9 +7,25 @@ const io = vi.hoisted(() => ({
 }));
 vi.mock('../fold/io/foldIoCommands', () => ({ runFoldIoCommand: io.runFoldIoCommand }));
 vi.mock('../diagram/fold/foldBrowserActions', () => ({ sendFoldStepsToDiagram: io.sendFoldStepsToDiagram }));
+const analytics = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../analytics')>()),
+  track: analytics.track,
+}));
+// `handleMenuAction` asks the store's capabilities, which want Fold on screen
+// with a sequence to send. That gate is not what the modal tests below are about.
+vi.mock('../store/workspaceStore/capabilities', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../store/workspaceStore/capabilities')>()),
+  selectWorkspaceCapabilities: () => ({}),
+}));
 
 import { getMenuBarDef, type MenuItemDef } from '../menus/menuDefinition';
-import { createMenuActionHandler, isMenuActionId, type MenuActionDependencies } from './menuActions';
+import { loadFold } from '../workspaces/foldGateway';
+import { createMenuActionHandler, handleMenuAction, isMenuActionId, type MenuActionDependencies } from './menuActions';
+
+// Fold's code loads on first use, and the dispatcher waits on it. Cold, beside
+// a full parallel run, that load outlasted the first test's timeout: load it once.
+beforeAll(() => loadFold(), 30_000);
 
 function actionIds(items: MenuItemDef[]): string[] {
   return items.flatMap((item) =>
@@ -82,5 +98,69 @@ describe('Fold’s imports and hand-offs in the menu', () => {
     await expect(handle('fold.export-fold')).resolves.toBe(false);
     expect(io.runFoldIoCommand).not.toHaveBeenCalled();
     info.mockRestore();
+  });
+});
+
+/**
+ * Through `handleMenuAction`, the path the native Fold menu takes: each import
+ * and hand-off would replace the document under an open dialog, or load one
+ * into it. The samples are held by their prefix, not by a list.
+ */
+describe('Fold’s imports and hand-offs behind a modal dialog', () => {
+  const HELD = [
+    'fold.import-cp',
+    'fold.import-sample-preliminary-base',
+    'fold.import-sample-waterbomb-base',
+    'fold.import-sample-pleat-in-eighths',
+    'fold.start-from-edit-folded-figure',
+    'fold.send-to-edit',
+    'fold.send-to-diagram',
+    'fold.send-path-to-diagram',
+  ];
+  const runs = () => io.runFoldIoCommand.mock.calls.length + io.sendFoldStepsToDiagram.mock.calls.length;
+  let dialog: HTMLElement | null = null;
+
+  /** What every modal the app marks a barrier renders (`useModalDialog`). */
+  function openModal() {
+    dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-shortcut-barrier', '');
+    document.body.append(dialog);
+  }
+
+  beforeEach(() => {
+    io.runFoldIoCommand.mockClear();
+    io.sendFoldStepsToDiagram.mockClear();
+    analytics.track.mockClear();
+  });
+
+  afterEach(() => {
+    dialog?.remove();
+    dialog = null;
+  });
+
+  it.each(HELD)('holds %s back, runs nothing, and counts nothing', async (id) => {
+    openModal();
+
+    await expect(handleMenuAction(id)).resolves.toBe(false);
+
+    expect(runs()).toBe(0);
+    expect(analytics.track).not.toHaveBeenCalled();
+  });
+
+  it.each(HELD)('runs %s as before with no dialog open', async (id) => {
+    await expect(handleMenuAction(id)).resolves.toBe(true);
+
+    expect(runs()).toBe(1);
+    expect(analytics.track).toHaveBeenCalledWith('command invoked', expect.objectContaining({ command_id: id }));
+  });
+
+  it('still exports over a dialog, as the File menu’s exports do', async () => {
+    openModal();
+
+    await expect(handleMenuAction('fold.export-fold')).resolves.toBe(true);
+
+    expect(io.runFoldIoCommand.mock.calls[0]?.[0]).toEqual({ kind: 'export-fold' });
   });
 });

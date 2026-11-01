@@ -167,3 +167,11 @@ The same 20-change workload in a production bundle measured store-change→bitma
 Evidence additionally saved under ignored `artifacts/fold-spread-profile/`: `worker-final-1x.json`, `worker-final-2x.json`, `full-app-before-replay-skip.json`, `full-app-final.json`, `full-app-microtasks.json`, `full-app-components.json`, `full-app-surface.json`, `full-app-presented.json`, `full-app-effects.json`, `full-app-pane.json`, `full-app-production.json`, `canary-main-trace.json.gz`. The production harness bundles the real app and workers with Vite production settings; its loader/profiler remains ignored. All timers/probes in production source were removed. No corpus inputs are tracked.
 
 Chrome Canary review: loaded the real imported Bodo engine state, switched Affine → Default and observed Preparing pose until paper was ready; tested quarter/eighth-turn previews, cancellation and Fit. At the quarter turn Fit framed the actual spread form at 200% on that viewport. IAB independently verified the rotated bitmap, matching preview thumbnail and Fit. Startup keeps the normal cursor. Browser screenshots/traces remain local, and no user-owned tabs or source files were altered.
+
+### Main integration and Fold default (2026-10-31)
+
+Fold's Default spread now starts and resets to 7% (stored multiplier 0.14). Diagram retains 25%, and existing saved/inherited values remain unchanged. New Fold documents, enabling spread without a prior setting, switching to Default and the CP import preview share the Fold default.
+
+The merge with `main` retains its new `PaperPane` composition and `StackHitIndex`. The shared pane exposes a host-owned external paper layer with the same presented-camera contract, gesture interception and local readiness state; Fold supplies the worker adapter. Picking reuses the new stack index alongside its prepared CP data. Diagram's new recorded layer-order capture/editor paths use connected capture, preserve readiness and cancellation guards, and release their solution cursor on disposal.
+
+Validation: focused default/controls/shared-pane tests pass. Full merged-tree checks and browser smoke review are recorded in the PR handoff.

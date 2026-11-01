@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { fitSheetThumbnail, type SheetStroke } from '../../cp-workspace/sheets/sheetThumbnail';
 import { createNativeProjectFile, serializeNativeProjectFile } from '../../lib/nativeProjectFile';
 import { craneStep } from '../zoom/zoom.fixtures';
-import { createDiagram, insertSteps, type DiagramCpSource } from './diagramDocument';
+import { LAYER_ORDER_RECORD_MAX_BYTES, encodeLayerOrderRecord } from '../../lib/layerOrder/layerOrderRecord';
+import { layerOrderRecordOfSize } from '../../lib/layerOrder/layerOrderRecord.fixtures';
+import { createDiagram, insertSteps, type DiagramCpSource, type DiagramStep } from './diagramDocument';
 import { readDiagram, writeDiagram } from './diagramFile';
 
 /**
@@ -43,5 +45,29 @@ describe('what a diagram costs in the file', () => {
     const read = readDiagram(JSON.parse(JSON.stringify(written)))!;
     expect(read.document.steps).toHaveLength(50);
     expect(read.document.steps.every((step) => (step as { source: DiagramCpSource }).source.thumbnail.strokes.length === 2000)).toBe(true);
+  });
+
+  it('writes a step’s layer order as one string: a record at the budget costs about its own size', () => {
+    const encoded = encodeLayerOrderRecord(layerOrderRecordOfSize(LAYER_ORDER_RECORD_MAX_BYTES));
+    if (!encoded.ok) throw new Error(encoded.reason);
+    const step = craneStep('S.none');
+    const constrained = { ...step, source: { ...(step.source as DiagramCpSource), layerOrder: encoded.json } };
+    const fileOf = (steps: DiagramStep[]) =>
+      serializeNativeProjectFile(
+        createNativeProjectFile({
+          workspaceTitle: 'Constrained',
+          filename: 'c.osf',
+          path: null,
+          designs: [],
+          diagrams: [writeDiagram(insertSteps(createDiagram({ title: 'Constrained' }), steps, 0))],
+          appVersion: '0',
+        })
+      );
+    // Never a line per number: the record's own bytes, and a backslash before each of its quotes.
+    const grown = fileOf([constrained]).length - fileOf([step]).length;
+    expect(grown).toBeGreaterThan(LAYER_ORDER_RECORD_MAX_BYTES);
+    expect(grown).toBeLessThan(LAYER_ORDER_RECORD_MAX_BYTES * 1.2);
+    const read = readDiagram(JSON.parse(fileOf([constrained])).workspace.diagrams[0])!;
+    expect((read.document.steps[0] as { source: DiagramCpSource }).source.layerOrder).toBe(encoded.json);
   });
 });

@@ -138,6 +138,9 @@ describe('the step tree', () => {
       { kind: 'turn', axis: 'diagonal' },
       { kind: 'rotate', rotate: { amount: 'third', direction: 'cw' } },
       { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'my-file.cp' },
+      // The Layer order dialog's turn on an import: degrees, at most half a turn either way.
+      { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'cp', turnDeg: 'a quarter' },
+      { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'cp', turnDeg: 270 },
       // A crimp's second line has no root to replay with, and its kind is one of two.
       { ...valleyOp, kind: 'crimp', second: valleyOp.line, crimp: 'sideways' },
       { ...valleyOp, kind: 'crimp', crimp: 'inside' },
@@ -163,6 +166,16 @@ describe('the step tree', () => {
       const { document } = readSteps([raw('a', null, { op }), raw('b', 'a')]);
       expect(ids(document.steps), JSON.stringify(op)).toEqual(['a', 'b']);
       expect(isLockedStep(document.steps[0]), JSON.stringify(op)).toBe(true);
+    }
+  });
+
+  it('reads an import’s turn, and writes it back only when there is one', () => {
+    const jump: Record<string, unknown> & { turnDeg?: number } = { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'cp' };
+    for (const op of [{ ...jump, turnDeg: -45 }, jump, { ...jump, turnDeg: 0 }]) {
+      const held = readSteps([raw('a', null, { op })]);
+      expect(isLockedStep(held.document.steps[0]), JSON.stringify(op)).toBe(false);
+      const written = (writeFoldSequence(held).steps as { op: Record<string, unknown> }[])[0]!.op;
+      expect(written.turnDeg, JSON.stringify(op)).toBe(op.turnDeg ? op.turnDeg : undefined);
     }
   });
 

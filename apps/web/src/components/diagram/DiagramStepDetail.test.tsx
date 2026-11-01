@@ -33,7 +33,10 @@ const FLAT = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg
 function linkedPose(preview: DiagramStep | null, actions: DiagramLinkedPoseAction[] = []): DiagramLinkedPose {
   return {
     actions,
+    toolbar: actions,
     layerOrder: null,
+    layerOrderEdit: null,
+    editLayerOrder: async () => false,
     spatial: null, connected: null, connectedPreparing: false, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
     onCamera: () => {},
     registerLiveView: () => () => {},

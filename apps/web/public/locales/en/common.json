@@ -162,7 +162,7 @@
     "foldSendToDiagram": "Send Step to Diagram",
     "foldSendToDiagramHint": "Add the step on screen to the end of the diagram, linked to it",
     "foldSendToEdit": "Send to Edit",
-    "foldSendToEditHint": "Send the crease pattern of the steps shown to the Edit canvas",
+    "foldSendToEditHint": "Send the active step’s crease pattern to the Edit canvas",
     "foldSheetNoStep": "The flat sheet is where the steps start: there is no step to delete",
     "foldStartFromEditFigure": "Start from Edit’s Folded Figure",
     "foldStartFromEditFigureHint": "Add a step that collapses the paper into Edit’s folded figure",

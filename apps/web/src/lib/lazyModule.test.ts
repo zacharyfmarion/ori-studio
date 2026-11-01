@@ -33,6 +33,15 @@ describe('lazyModule', () => {
     expect(importer).toHaveBeenCalledTimes(2);
   });
 
+  it('with reload off, imports plainly: a chunk that is not there fails the load and never reloads the page', async () => {
+    const missing = new TypeError('Failed to fetch dynamically imported module: /src/x.ts');
+    const importer = vi.fn<() => Promise<{ value: number }>>().mockRejectedValueOnce(missing).mockResolvedValueOnce({ value: 4 });
+    const chunk = lazyModule(importer, { reload: false });
+    await expect(chunk.load()).rejects.toBe(missing);
+    expect(importMocks.importOrReload).not.toHaveBeenCalled();
+    await expect(chunk.load()).resolves.toEqual({ value: 4 });
+  });
+
   it('resets for a test', async () => {
     const chunk = lazyModule(async () => ({ value: 3 }));
     await chunk.load();

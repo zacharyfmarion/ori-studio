@@ -82,7 +82,8 @@ function floating(): string[] {
   return FLOATING.filter((selector) => document.querySelector(selector) !== null);
 }
 
-const sheetTitle = () => document.querySelector('.property-sheet__title')?.textContent ?? null;
+const sheetTitle = () =>
+  document.querySelector('[data-property-sheet] header h2')?.textContent ?? null;
 
 beforeEach(() => {
   Object.defineProperty(Element.prototype, 'getBoundingClientRect', {

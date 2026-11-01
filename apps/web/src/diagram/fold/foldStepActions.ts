@@ -29,8 +29,8 @@ import { humanizeError } from '../../lib/toastMessages';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramFoldCaptureOutcome } from '../../store/workspaceStore/diagramFoldCapture';
-import { turnedOverFrom, type LinkedPoseRequest } from '../capture/linkedPose';
-import { poseCaptureBlocksViewport, trackPose } from '../capture/poseController';
+import { turnedOverFrom } from '../capture/linkedPose';
+import { poseCaptureBlocksViewport, trackPose, type TrackedPoseVerb } from '../capture/poseController';
 import {
   creasePatternSide,
   isLockedStep,
@@ -215,7 +215,7 @@ async function poseAs(
   stepId: string,
   source: DiagramFoldStepSource,
   render: DiagramCpRender,
-  verb: LinkedPoseRequest['verb'],
+  verb: TrackedPoseVerb,
   current?: () => boolean,
   blocksPose = poseCaptureBlocksViewport(verb)
 ): Promise<boolean> {

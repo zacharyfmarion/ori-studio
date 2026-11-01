@@ -147,7 +147,8 @@
    a second grid line under the label, so the line the switch sits on — and the
    switch with it — stays exactly where it was. The line is one fixed height,
    empty or not and never wrapped, so a toggle that can be overridden is one
-   height whichever it is (`FieldRow.overridable`). */
+   height whichever it is (`FieldRow.overridable`). A status note
+   (`noteKind: 'status'`, "3 constraints") is drawn the same quiet way. */
 .row[data-noted] {
   row-gap: 1px;
 }

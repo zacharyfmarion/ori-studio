@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  adoptTransientFoldedFigureHandle,
   foldedFigureHandleRefCount,
   releaseFoldedFigureHandle,
   releaseFoldedFigureHandles,
@@ -8,6 +9,8 @@ import {
   retainFoldedFigureHandles,
   setFoldedFigureHandleFree,
 } from './foldedFigureHandles';
+import { noteSolutionFrontier, solutionFrontierOf } from './foldedSolutionFrontiers';
+import { UNSEARCHED_FRONTIER } from '../../lib/layerOrderPlace';
 
 const free = vi.fn();
 
@@ -29,6 +32,22 @@ describe('folded figure handle ownership', () => {
     releaseFoldedFigureHandle(7);
     expect(free).toHaveBeenCalledExactlyOnceWith(7);
     expect(foldedFigureHandleRefCount(7)).toBe(0);
+  });
+
+  it('forgets how far a handle’s layer-order search reached when the slot is freed', () => {
+    retainFoldedFigureHandle(7);
+    retainFoldedFigureHandle(7);
+    noteSolutionFrontier(7, { discovered: 4, hasNext: false });
+    // Still held by an undo entry: what its search found stays found.
+    releaseFoldedFigureHandle(7);
+    expect(solutionFrontierOf(7)).toEqual({ cases: 4, complete: true });
+    // The last reference gone, the kernel may give the slot to a new fold.
+    releaseFoldedFigureHandle(7);
+    expect(solutionFrontierOf(7)).toEqual(UNSEARCHED_FRONTIER);
+
+    noteSolutionFrontier(8, { discovered: 2, hasNext: true });
+    resetFoldedFigureHandles();
+    expect(solutionFrontierOf(8)).toEqual(UNSEARCHED_FRONTIER);
   });
 
   it('treats handle 0 as a real slot, not as absent', () => {
@@ -91,6 +110,28 @@ describe('folded figure handle ownership', () => {
     void resetFoldedFigureHandles();
     expect(foldedFigureHandleRefCount(9)).toBe(0);
     expect(free).toHaveBeenCalledExactlyOnceWith(9);
+  });
+});
+
+describe('a fold a press keeps a while', () => {
+  it('is held by the count until its release, which lets go once', () => {
+    const release = adoptTransientFoldedFigureHandle(7);
+    expect(foldedFigureHandleRefCount(7)).toBe(1);
+
+    release();
+    release();
+    expect(free).toHaveBeenCalledExactlyOnceWith(7);
+  });
+
+  it('is not let go across a replaced document, whose next fold may have its slot', async () => {
+    const release = adoptTransientFoldedFigureHandle(7);
+    await resetFoldedFigureHandles();
+    retainFoldedFigureHandle(7);
+    free.mockClear();
+
+    release();
+    expect(free).not.toHaveBeenCalled();
+    expect(foldedFigureHandleRefCount(7)).toBe(1);
   });
 });
 

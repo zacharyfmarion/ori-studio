@@ -162,7 +162,7 @@
     "foldSendToDiagram": "이 단계를 도해로 보내기",
     "foldSendToDiagramHint": "화면의 단계를 연결된 채로 도해 끝에 추가합니다",
     "foldSendToEdit": "편집으로 보내기",
-    "foldSendToEditHint": "표시된 단계의 전개도를 편집 캔버스로 보냅니다",
+    "foldSendToEditHint": "현재 단계의 전개도를 편집 캔버스로 보냅니다",
     "foldSheetNoStep": "평평한 종이에서 단계가 시작됩니다. 삭제할 단계가 없습니다",
     "foldStartFromEditFigure": "편집의 접힌 모델에서 시작",
     "foldStartFromEditFigureHint": "종이를 편집의 접힌 모델대로 접는 단계 추가",

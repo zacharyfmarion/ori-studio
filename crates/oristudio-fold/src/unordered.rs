@@ -24,8 +24,7 @@ use std::sync::Arc;
 
 use oristudio_geometry::convex;
 use oristudio_layer_order::{
-    ConstraintProblem, EdgeKind, FoldedView, LayerOrder, Letter, MAX_STACKED_TRIPLES,
-    derived_letter,
+    ConstraintProblem, FoldedView, LayerOrder, MAX_STACKED_TRIPLES, derived_letter,
 };
 
 use crate::complete::{
@@ -162,6 +161,13 @@ impl Unordered {
         &self.parts
     }
 
+    /// Turn the view every state of these parts is seen in by `angle`
+    /// radians, counter-clockwise on the display, as a rotate step turns
+    /// it. Only the view: no face, crease, letter or constraint moves.
+    pub(crate) fn rotate_view(&mut self, angle: f64) {
+        self.parts.view = self.parts.view.rotated(angle);
+    }
+
     /// The folded creases whose letter the order decides.
     pub fn unknown_letters(&self) -> &BTreeSet<EdgeId> {
         &self.unknown
@@ -212,32 +218,10 @@ impl Unordered {
     }
 
     /// The orders the known letters fix, as seeds: a valley's front-up face
-    /// lies below the other, a mountain's above (research §3.1).
+    /// lies below the other, a mountain's above (research §3.1;
+    /// [`complete::letter_seeds`], the rule every source of letters shares).
     pub fn letter_seeds(&self) -> Vec<FixedPair> {
-        self.view
-            .edges()
-            .iter()
-            .filter_map(|edge| {
-                let EdgeKind::Folded(Some(letter)) = edge.kind else {
-                    return None;
-                };
-                let [f, g] = edge.faces;
-                let (up, other) = if self.view.front_up(f)? {
-                    (f, g)
-                } else {
-                    (g, f)
-                };
-                let (upper, lower) = match letter {
-                    Letter::Valley => (other, up),
-                    Letter::Mountain => (up, other),
-                };
-                Some(FixedPair {
-                    upper,
-                    lower,
-                    kind: FixedKind::Seed,
-                })
-            })
-            .collect()
+        complete::letter_seeds(&self.view)
     }
 
     /// Every order `fixed` and the constraints allow. After an operation, the
@@ -346,7 +330,7 @@ fn sheet_polygon(parts: &StateParts, f: usize) -> Vec<Point> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pattern::{Crease, Face, VertexId};
+    use crate::pattern::{Crease, Face, Letter, VertexId};
     use crate::sheet::Sheet;
     use crate::view::View;
 

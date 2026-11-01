@@ -73,17 +73,19 @@ import type { CanvasLayerBinding } from '../canvasObjects/canvasLayerBindings';
 import { foldedFigureGesture } from './foldedFigureGesture';
 import { foldedFigureMenuItemsWith } from './foldedFigureMenuItems';
 import { queueFoldedModelWrite } from './foldedModelWriteQueue';
-import { deleteFoldedFigure, setFoldedFigureDisplayStyle } from './foldedFigureVerbs';
-import { openFoldedFigureExport } from './openFoldedFigureExport';
+import {
+  deleteFoldedFigure,
+  duplicateFoldedFigure,
+  exportFoldedFigure,
+  foldCreases,
+  refoldFoldedFigure,
+  setFoldedFigureDisplayStyle,
+  showAnotherFoldedSolution,
+} from './foldedFigureVerbs';
 import { useSettingsStore } from '../../store/settingsStore';
 import { effectiveObjectPaperStyle, setFoldedFigureAppearance } from '../paper/objectPaperStyle';
-
-/**
- * The face folding holds fixed. Oriedita lets this be chosen and the kernel still
- * takes it per fold, but the product does not offer the choice: the picker was the
- * only thing that ever set it, so every fold was already from face 1.
- */
-const FOLD_STARTING_FACE_ID = 1;
+import { openFoldedFigureLayerOrder } from './openFoldedFigureLayerOrder';
+import { foldSelectionWithLayerOrder } from './foldSelectionWithLayerOrder';
 
 /**
  * How long a wheel must go quiet before a figure's zoom is written to the
@@ -154,10 +156,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
     (state) => state.setOristudioCpActiveFoldedFigure
   );
-  const foldOristudioCpDocument = useWorkspaceStore((state) => state.foldOristudioCpDocument);
-  const foldAnotherOristudioCpFigure = useWorkspaceStore(
-    (state) => state.foldAnotherOristudioCpFigure
-  );
   const setOristudioCpFoldedFigurePlacement = useWorkspaceStore(
     (state) => state.setOristudioCpFoldedFigurePlacement
   );
@@ -166,12 +164,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   );
   const updateOristudioCpFoldedFigureModel = useWorkspaceStore(
     (state) => state.updateOristudioCpFoldedFigureModel
-  );
-  const duplicateOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.duplicateOristudioCpFoldedFigure
-  );
-  const refoldOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.refoldOristudioCpFoldedFigure
   );
   const setOristudioCpViewportOption = useWorkspaceStore(
     (state) => state.setOristudioCpViewportOption
@@ -738,21 +730,32 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     [setOristudioCpFoldedFigurePlacement]
   );
 
+  // Fold, and Fold with layer order…, on given creases: the selection
+  // toolbar's sheet, or the selection `G` and its sibling key fold. A colour
+  // run still open lands as its own entry first, as for every verb run
+  // through `runFoldedFigureAction`.
+  const handleFoldLines = useCallback(
+    (lineIds: readonly number[]) => {
+      endOpenMenuGesture();
+      void foldCreases(lineIds, t);
+    },
+    [endOpenMenuGesture, t]
+  );
+  const handleFoldLinesWithLayerOrder = useCallback(
+    (lineIds: readonly number[]) => {
+      endOpenMenuGesture();
+      void foldSelectionWithLayerOrder(lineIds, t);
+    },
+    [endOpenMenuGesture, t]
+  );
+
   const handleFoldModel = useCallback(() => {
-    if (!canFoldSelectedModel) return;
-    runFoldedFigureAction(t('panels:creasePattern.foldModelAction', 'Fold model'), () =>
-      foldOristudioCpDocument({
-        startingFaceId: FOLD_STARTING_FACE_ID,
-        lineIds: selectedFoldLineIds,
-      })
-    );
-  }, [
-    canFoldSelectedModel,
-    foldOristudioCpDocument,
-    selectedFoldLineIds,
-    runFoldedFigureAction,
-    t,
-  ]);
+    if (canFoldSelectedModel) handleFoldLines(selectedFoldLineIds);
+  }, [canFoldSelectedModel, handleFoldLines, selectedFoldLineIds]);
+
+  const handleFoldModelWithLayerOrder = useCallback(() => {
+    if (canFoldSelectedModel) handleFoldLinesWithLayerOrder(selectedFoldLineIds);
+  }, [canFoldSelectedModel, handleFoldLinesWithLayerOrder, selectedFoldLineIds]);
 
   const trackStyled = useCallback(
     (figure: OristudioCpFoldedFigureEntry, options: readonly FoldedFigureStyleOption[]) => {
@@ -870,12 +873,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
 
   const handleDuplicateFoldedFigure = useCallback(() => {
     if (!activeFoldedFigure) return;
-    const id = activeFoldedFigure.id;
-    runFoldedFigureAction(
-      t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
-      () => duplicateOristudioCpFoldedFigure(id)
-    );
-  }, [activeFoldedFigure, duplicateOristudioCpFoldedFigure, runFoldedFigureAction, t]);
+    endOpenMenuGesture();
+    void duplicateFoldedFigure(activeFoldedFigure.id, t);
+  }, [activeFoldedFigure, endOpenMenuGesture, t]);
 
   /** Delete a folded figure by id, defaulting to the one the menu is acting on. */
   const handleDeleteFoldedFigure = useCallback(
@@ -948,22 +948,23 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       paperStyle: foldedPaperStyle,
       inheritedPaperStyle: displayPaperStyle,
       setAppearance: setFoldedAppearance,
-      foldAnother: (figure) =>
-        runFoldedFigureAction(
-          t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
-          () => foldAnotherOristudioCpFigure(figure.id)
-        ),
-      duplicate: (figure) =>
-        runFoldedFigureAction(
-          t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
-          () => duplicateOristudioCpFoldedFigure(figure.id)
-        ),
+      // The Properties pane runs these same verbs (`foldedFigureVerbs.ts`); a
+      // colour run the menu still has open is committed first, under its own
+      // label, as `runFoldedFigureAction` does for every verb here.
+      foldAnother: (figure) => {
+        endOpenMenuGesture();
+        void showAnotherFoldedSolution(figure.id, t);
+      },
+      duplicate: (figure) => {
+        endOpenMenuGesture();
+        void duplicateFoldedFigure(figure.id, t);
+      },
       remove: (figure) => void deleteFoldedFigure(figure.id, t),
-      refold: (figure) =>
-        runFoldedFigureAction(
-          t('panels:creasePattern.refoldFoldedModelAction', 'Refold folded model'),
-          () => refoldOristudioCpFoldedFigure(figure.id)
-        ),
+      // A chosen layer order refolds with it (H4), saying what it came to.
+      refold: (figure) => {
+        endOpenMenuGesture();
+        void refoldFoldedFigure(figure.id, t);
+      },
       // Derived, not stamped: an edit outside a figure's source region leaves it
       // alone, which is the whole point of porting Oriedita's box + content
       // check. Memoized on the document so a pan or a selection does not re-run
@@ -971,8 +972,12 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       isStale: (figure) => staleFoldedFigureIds.has(figure.id),
       // Not wrapped in runFoldedFigureAction: saving a file changes nothing
       // about the document, so it is not an undo step.
-      exportFigure: (figure) => {
-        void openFoldedFigureExport(figure.id, t);
+      exportFigure: (figure) => exportFoldedFigure(figure.id, t),
+      // Opening the dialog writes nothing; its Apply is the one entry, which
+      // the verb brackets itself, after the dialog has answered.
+      openLayerOrder: (figure) => {
+        endOpenMenuGesture();
+        void openFoldedFigureLayerOrder(figure.id, t);
       },
       // What a 3D verdict offers to do about itself. None of the three is an
       // undo step: two only change what is shown, and the third opens a
@@ -1009,6 +1014,11 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
             void simulateOristudioCpCreaseRegion(lineIds);
             return;
           }
+          // Layer constraints that need a look since an edit: the dialog, on them (D14).
+          case 'review-layer-order':
+            endOpenMenuGesture();
+            void openFoldedFigureLayerOrder(figure.id, t, { via: 'review' });
+            return;
           case undefined:
             return;
         }
@@ -1023,9 +1033,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       setFoldedAppearance,
       trackStyled,
       setOristudioCpFolded3dCamera,
-      foldAnotherOristudioCpFigure,
-      duplicateOristudioCpFoldedFigure,
-      refoldOristudioCpFoldedFigure,
+      endOpenMenuGesture,
       runFoldedFigureAction,
       setOristudioCpViewportOption,
       requestOristudioCpAction,
@@ -1120,6 +1128,11 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     gestureLabel: foldedGestureLabel,
     applyBoxUpdate: handleFoldedFigureBoxUpdate,
     foldModel: handleFoldModel,
+    /** Fold with layer order… on the selection, for its key (row H5). */
+    foldModelWithLayerOrder: handleFoldModelWithLayerOrder,
+    /** Fold given creases, and Fold with layer order… on them: the selection toolbar's two fold verbs. */
+    foldLines: handleFoldLines,
+    foldLinesWithLayerOrder: handleFoldLinesWithLayerOrder,
     duplicate: handleDuplicateFoldedFigure,
     remove: handleDeleteFoldedFigure,
   };

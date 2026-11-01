@@ -30,6 +30,21 @@ use crate::state::State;
 
 type Point = [f64; 2];
 
+/// FOLD's `faceOrders` sign rule, which every stored pair is written by:
+/// whether face `f` lies on face `g`'s front side (`s = 1`), given whether
+/// `f` lies above `g` in the model frame and whether `g` shows its front.
+/// `g`'s front side is the side above it exactly when it shows its front.
+pub fn on_front_side(f_above_g: bool, g_front_up: bool) -> bool {
+    f_above_g == g_front_up
+}
+
+/// The rule read back: whether `f` lies above `g` in the model frame, given
+/// whether `f` lies on `g`'s front side (`s = 1`) and whether `g` shows its
+/// front.
+pub fn above_by_side(f_on_g_front: bool, g_front_up: bool) -> bool {
+    f_on_g_front == g_front_up
+}
+
 /// Pairs of a layer order with every face named by a witness.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WitnessOrder {
@@ -108,8 +123,11 @@ impl WitnessOrder {
         };
         let mut orders = Vec::with_capacity(pairs.len());
         for &[upper, lower] in pairs {
-            // Upper lies on lower's front side iff lower shows its front.
-            let sign = if front_up(lower)? { 1 } else { -1 };
+            let sign = if on_front_side(true, front_up(lower)?) {
+                1
+            } else {
+                -1
+            };
             orders.push((index(upper)?, index(lower)?, sign));
         }
         Some(WitnessOrder { faces, orders })
@@ -189,7 +207,11 @@ impl WitnessOrder {
                     return Err(BrokenWitness::InvalidSign { order, sign });
                 }
                 let ((f, _), (g, g_up)) = (face(f)?, face(g)?);
-                Ok(if (sign == 1) == g_up { [f, g] } else { [g, f] })
+                Ok(if above_by_side(sign == 1, g_up) {
+                    [f, g]
+                } else {
+                    [g, f]
+                })
             })
             .collect()
     }

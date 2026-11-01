@@ -144,6 +144,8 @@ export function foldedFigureMenuItems(
           disabled: action.disabled,
           items: styleMenuItems(action),
         };
+      // A verb with no glyph (Layer order…) leaves the icon column empty, so
+      // its label lines up with the rest; a disabled one says why on hover.
       case 'command':
         return {
           kind: 'action',
@@ -151,6 +153,7 @@ export function foldedFigureMenuItems(
           label: action.label,
           icon: foldedFigureActionIconNode(action.icon),
           disabled: action.disabled,
+          ...(action.disabled && action.hint ? { hint: action.hint } : {}),
           danger: action.danger,
           onSelect: action.run,
         };

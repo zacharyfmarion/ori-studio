@@ -1,0 +1,706 @@
+[
+  {
+    "fixture": "square_with_diagonal",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 1,
+        "digest": "692558b056101a44"
+      },
+      {
+        "press": 1,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 1,
+        "digest": "692558b056101a44"
+      }
+    ]
+  },
+  {
+    "fixture": "two_square_strip",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 1,
+        "digest": "692558b056101a44"
+      },
+      {
+        "press": 1,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 1,
+        "digest": "692558b056101a44"
+      }
+    ]
+  },
+  {
+    "fixture": "quartered_square",
+    "cases": [
+      {
+        "press": 0,
+        "case": 0,
+        "discovered": 0,
+        "another": false,
+        "outcome": "Contradiction",
+        "step": "Step3",
+        "contradiction": [
+          1,
+          3
+        ],
+        "relations": 0,
+        "digest": "none"
+      },
+      {
+        "press": 1,
+        "case": 0,
+        "discovered": 0,
+        "another": false,
+        "outcome": "Contradiction",
+        "step": "Step3",
+        "contradiction": [
+          1,
+          3
+        ],
+        "relations": 0,
+        "digest": "none"
+      }
+    ]
+  },
+  {
+    "fixture": "solution_sample_1",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "1f69a66b7af722e3"
+      },
+      {
+        "press": 1,
+        "case": 2,
+        "discovered": 2,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "b9cacf94249deaa3"
+      },
+      {
+        "press": 2,
+        "case": 3,
+        "discovered": 3,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "b2f89c468e10c963"
+      },
+      {
+        "press": 3,
+        "case": 4,
+        "discovered": 4,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "60bba5f875620d23"
+      },
+      {
+        "press": 4,
+        "case": 5,
+        "discovered": 5,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "79c3cddb47ffb363"
+      },
+      {
+        "press": 5,
+        "case": 6,
+        "discovered": 6,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "d3cc9769f39ed023"
+      },
+      {
+        "press": 6,
+        "case": 7,
+        "discovered": 7,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "7ec0c0bad4008ee3"
+      },
+      {
+        "press": 7,
+        "case": 8,
+        "discovered": 8,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "1040ffa1702fa2a3"
+      },
+      {
+        "press": 8,
+        "case": 9,
+        "discovered": 9,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "f6d51994bb4797e3"
+      },
+      {
+        "press": 9,
+        "case": 10,
+        "discovered": 10,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "0cefc9186c153523"
+      },
+      {
+        "press": 10,
+        "case": 11,
+        "discovered": 11,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "30cdc4e416787e63"
+      },
+      {
+        "press": 11,
+        "case": 12,
+        "discovered": 12,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "7dfb31df82b097a3"
+      },
+      {
+        "press": 12,
+        "case": 13,
+        "discovered": 13,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "7685ecdcf1f457e3"
+      },
+      {
+        "press": 13,
+        "case": 14,
+        "discovered": 14,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "e8d0d3cfd7164a23"
+      },
+      {
+        "press": 14,
+        "case": 15,
+        "discovered": 15,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "295ff81eef57f363"
+      },
+      {
+        "press": 15,
+        "case": 16,
+        "discovered": 16,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "0e3ae7103904dca3"
+      },
+      {
+        "press": 16,
+        "case": 1,
+        "discovered": 1,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 76,
+        "digest": "1f69a66b7af722e3"
+      }
+    ]
+  },
+  {
+    "fixture": "failing_global_flat_fold",
+    "cases": [
+      {
+        "press": 0,
+        "case": 0,
+        "discovered": 0,
+        "another": false,
+        "outcome": "Contradiction",
+        "step": "Step3",
+        "contradiction": [
+          26,
+          12
+        ],
+        "relations": 0,
+        "digest": "none"
+      },
+      {
+        "press": 1,
+        "case": 0,
+        "discovered": 0,
+        "another": false,
+        "outcome": "Contradiction",
+        "step": "Step3",
+        "contradiction": [
+          26,
+          12
+        ],
+        "relations": 0,
+        "digest": "none"
+      }
+    ]
+  },
+  {
+    "fixture": "holed_sheet_spiral",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 509,
+        "digest": "d6abc525d7803544"
+      },
+      {
+        "press": 1,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 509,
+        "digest": "d6abc525d7803544"
+      }
+    ]
+  },
+  {
+    "fixture": "holed_frame_collinear",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 1,
+        "digest": "692558b056101a44"
+      },
+      {
+        "press": 1,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 1,
+        "digest": "692558b056101a44"
+      }
+    ]
+  },
+  {
+    "fixture": "kabuto",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "5e7db6b66f1394c4"
+      },
+      {
+        "press": 1,
+        "case": 2,
+        "discovered": 2,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "c8c80d68c16ee684"
+      },
+      {
+        "press": 2,
+        "case": 3,
+        "discovered": 3,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "323ea261c6fa9fc4"
+      },
+      {
+        "press": 3,
+        "case": 4,
+        "discovered": 4,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "ac4388059fd11d44"
+      },
+      {
+        "press": 4,
+        "case": 5,
+        "discovered": 5,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "845acd90ae4afc04"
+      },
+      {
+        "press": 5,
+        "case": 6,
+        "discovered": 6,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "b8ff877fd47d36c4"
+      },
+      {
+        "press": 6,
+        "case": 7,
+        "discovered": 7,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "5251cdebe8411dc4"
+      },
+      {
+        "press": 7,
+        "case": 8,
+        "discovered": 8,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "86cbd4a519185344"
+      },
+      {
+        "press": 8,
+        "case": 9,
+        "discovered": 9,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "7876f3f9a73b3e44"
+      },
+      {
+        "press": 9,
+        "case": 1,
+        "discovered": 1,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 117,
+        "digest": "5e7db6b66f1394c4"
+      }
+    ]
+  },
+  {
+    "fixture": "bad_twist",
+    "cases": [
+      {
+        "press": 0,
+        "case": 0,
+        "discovered": 0,
+        "another": false,
+        "outcome": "Contradiction",
+        "step": "Step3",
+        "contradiction": [
+          2,
+          8
+        ],
+        "relations": 0,
+        "digest": "none"
+      },
+      {
+        "press": 1,
+        "case": 0,
+        "discovered": 0,
+        "another": false,
+        "outcome": "Contradiction",
+        "step": "Step3",
+        "contradiction": [
+          2,
+          8
+        ],
+        "relations": 0,
+        "digest": "none"
+      }
+    ]
+  },
+  {
+    "fixture": "r069-s07",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 45,
+        "digest": "9f7fb656236c2084"
+      },
+      {
+        "press": 1,
+        "case": 2,
+        "discovered": 2,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 45,
+        "digest": "486b33112e59f924"
+      },
+      {
+        "press": 2,
+        "case": 3,
+        "discovered": 3,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 45,
+        "digest": "f84cea03d140ee44"
+      },
+      {
+        "press": 3,
+        "case": 4,
+        "discovered": 4,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 45,
+        "digest": "2bb56522e19b8f44"
+      },
+      {
+        "press": 4,
+        "case": 5,
+        "discovered": 5,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 45,
+        "digest": "9540e07163ea4404"
+      },
+      {
+        "press": 5,
+        "case": 5,
+        "discovered": 5,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 0,
+        "digest": "none"
+      },
+      {
+        "press": 6,
+        "case": 1,
+        "discovered": 1,
+        "another": true,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 45,
+        "digest": "9f7fb656236c2084"
+      }
+    ]
+  },
+  {
+    "fixture": "r271-s03",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 28,
+        "digest": "ed602f988f83e565"
+      },
+      {
+        "press": 1,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 28,
+        "digest": "ed602f988f83e565"
+      }
+    ]
+  },
+  {
+    "fixture": "pleat-in-eighths",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 28,
+        "digest": "0e80f1a7db8954a5"
+      },
+      {
+        "press": 1,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 28,
+        "digest": "0e80f1a7db8954a5"
+      }
+    ]
+  },
+  {
+    "fixture": "preliminary-base",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 11,
+        "digest": "4c08648be6744cc4"
+      },
+      {
+        "press": 1,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 11,
+        "digest": "4c08648be6744cc4"
+      }
+    ]
+  },
+  {
+    "fixture": "waterbomb-base",
+    "cases": [
+      {
+        "press": 0,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 11,
+        "digest": "4c08648be6744cc4"
+      },
+      {
+        "press": 1,
+        "case": 1,
+        "discovered": 1,
+        "another": false,
+        "outcome": "Solved",
+        "step": "Step5",
+        "contradiction": null,
+        "relations": 11,
+        "digest": "4c08648be6744cc4"
+      }
+    ]
+  }
+]

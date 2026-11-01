@@ -17,6 +17,7 @@ import { DiagramExportModal } from './components/diagram/DiagramExportModal';
 import { DiagramReferencesModal } from './components/diagram/DiagramReferencesBrowser';
 import { DiagramFoldModal } from './components/diagram/DiagramFoldModal';
 import { FoldImportOverlay } from './components/fold/FoldGate';
+import { LayerOrderDialogMount } from './components/layer-order/LayerOrderDialogMount';
 import { SheetLayer } from './components/SheetLayer';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
@@ -188,6 +189,12 @@ export default function App() {
       {/* Fold's Import CP, under every other modal for the same reason. */}
       <OverlayErrorBoundary id="fold-import">
         <FoldImportOverlay />
+      </OverlayErrorBoundary>
+      {/* Layer order, from Edit's figures, the Diagram's steps and Pose, under
+          every other modal for the same reason. Nothing until a host opens it
+          (`layer-order/dialog/layerOrderDialogGateway.ts`). */}
+      <OverlayErrorBoundary id="layer-order">
+        <LayerOrderDialogMount />
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="help">
         <HelpModal />

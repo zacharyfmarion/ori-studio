@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useCreasePatternSide } from '../../diagram/capture/useCreasePatternSide';
+import { useDiagramStepLayerOrder } from '../../diagram/capture/useDiagramStepLayerOrder';
 import { useDiagramStepLink } from '../../diagram/capture/useStepLink';
 import { stepCanBeAnnotated } from '../../diagram/pictures/pictureFrame';
 import { useDiagramPoseActions, useDiagramStepActions, useDiagramTurn } from '../../diagram/useDiagramActions';
@@ -85,6 +86,8 @@ export function DiagramStepPanel() {
   const { link, patternOpen, capture, picker } = useDiagramStepLink(step);
   // Shown as its crease pattern: its paper's colour, front or back, under Show as.
   const side = useCreasePatternSide(step);
+  // Its way into the Layer order dialog, and its flag, from its saved record (H7).
+  const layerOrder = useDiagramStepLayerOrder(step);
 
   if (turn) {
     return (
@@ -152,7 +155,7 @@ export function DiagramStepPanel() {
           </CollapsibleSection>
         )}
         {!locked && <DiagramStepShowAs actions={actions} side={side} />}
-        {detailOpen && !annotating && <DiagramStepPose step={step} actions={poseActions} />}
+        {detailOpen && !annotating && <DiagramStepPose step={step} actions={poseActions} layerOrder={layerOrder.row} />}
         {!locked && annotating && <DiagramStepEnlarged step={step} actions={actions} />}
         {!locked && !annotating && (!detailOpen || !annotatable) && <DiagramStepZoomStatus step={step} actions={actions} />}
         {!locked && (
@@ -167,6 +170,7 @@ export function DiagramStepPanel() {
               capture={capture}
               detailOpen={detailOpen}
               annotating={annotating}
+              layerOrderFlag={layerOrder.flag}
               picker={
                 picker && (
                   <DiagramPatternPicker

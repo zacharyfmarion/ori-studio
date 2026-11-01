@@ -148,6 +148,12 @@ import {
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
 import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
+import {
+  figureIdsInFoldedFigureLayerOrders,
+  foldedFigureLayerOrdersAfterSave,
+  linkFoldedFigureLayerOrders,
+} from '../../../cp-workspace/folded/foldedFigureLayerOrders';
+import { noteFoldedFigureIds } from '../../../cp-workspace/folded/foldedFigureIds';
 import { discardCpDocumentState } from '../cpDocumentState';
 import { cpHistoryDocumentOf, withCpHistoryEntry } from '../cpHistory';
 import {
@@ -271,6 +277,7 @@ import type {
   WorkspaceState,
 } from '../types';
 import { retainFoldedFigureHandles } from '../../../cp-workspace/folded/foldedFigureHandles';
+import { foldedFiguresAtRest, foldedSelectionAtRest } from '../../../cp-workspace/folded/foldedFiguresAtRest';
 import { folded3dExportHandles } from '../../../cp-workspace/folded/foldedFigureInterchange';
 import type { FoldDocument } from '../../../engine/types';
 import type {
@@ -317,9 +324,12 @@ function cpHistoryEntry(
   activeFoldedFigureId: string | null,
   inlineSimulations: InlineSimulation[]
 ): OristudioCpHistoryEntry {
+  // As they were before any press still running: never a figure that waits on a
+  // fold an undo will have taken from it (`foldedFiguresAtRest.ts`).
+  const rested = foldedFiguresAtRest(foldedFigures);
   // The entry keeps these figures' wasm handles alive for as long as undo can
   // reach it — see cp-workspace/foldedFigureHandles.
-  retainFoldedFigureHandles(foldedFigures);
+  retainFoldedFigureHandles(rested);
   return {
     ...(document ? { document } : {}),
     selection,
@@ -327,8 +337,8 @@ function cpHistoryEntry(
     // Captured so undo restores the figures a crease edit was made alongside —
     // including their recorded source region, which is what decides whether they
     // read as out of date (see lib/foldedFigureStaleness.ts).
-    foldedFigures,
-    activeFoldedFigureId,
+    foldedFigures: rested,
+    activeFoldedFigureId: foldedSelectionAtRest(activeFoldedFigureId, foldedFigures),
     // Same reason as the figures above: undo restores the simulation windows the
     // crease edit was made alongside, with the provenance that decides whether
     // they read as out of date.
@@ -363,6 +373,17 @@ function importedSourceFromNativeSource(
 // schedule this instead. The short debounce coalesces bursts (e.g. held cmd+z).
 const CAMV_REFRESH_DEBOUNCE_MS = 120;
 let camvRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Drop a refresh still waiting out its debounce. The timer is module-level, so
+ * it outlives the document it was scheduled for: closing that document drops
+ * it here, and a test's store reset must too, or a refresh one test scheduled
+ * runs a check against the next test's document when its 120ms come round.
+ */
+export function cancelOristudioCamvRefresh(): void {
+  if (camvRefreshTimer !== null) clearTimeout(camvRefreshTimer);
+  camvRefreshTimer = null;
+}
 
 /**
  * Synchronous, eager CAMV refresh (runs CheckCamv + re-snapshots). Still used by the
@@ -1230,6 +1251,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       documentState.loadSerial
     );
     const restoredSelection = nativeDocument.viewState.selection ?? emptyOristudioCpSelection();
+    // Folded figure ids, for the same reason: the file's, and every one its
+    // layer order bag names, so no figure folded this session takes the id a
+    // record, or a record a reload detached, was saved on.
+    noteFoldedFigureIds([
+      ...(nativeDocument.viewState.foldedFigures ?? []).map((figure) => figure.id),
+      ...figureIdsInFoldedFigureLayerOrders(nativeDocument.extensions),
+    ]);
+    // Each figure's saved layer order, attached when it is still that
+    // figure's; the bag keeps the rest, written back as it came.
+    const layerOrders = linkFoldedFigureLayerOrders(
+      nativeDocument.extensions,
+      nativeDocument.viewState.foldedFigures ?? []
+    );
     return {
     // Overridden field-by-field below; spread for the fold side table,
     // which hydration only refills for the incoming windows.
@@ -1249,7 +1283,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // mesh to draw.
     oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
     oristudioCpFocusedInlineSimulationId: null,
-    oristudioCpDocumentExtensions: nativeDocument.extensions,
+    oristudioCpDocumentExtensions: layerOrders.extensions,
     oristudioCpCamvResult: camvResult,
     oristudioCpOperationDescriptors: documentState.operationDescriptors,
     oristudioCpError: null,
@@ -1259,7 +1293,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     oristudioCpSelection: restoredSelection,
     oristudioCpActiveDiagnosticId: null,
     oristudioCpRevision: 0,
-    oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
+    oristudioCpFoldedFigures: layerOrders.figures,
     // One holder at the boundary, as `takeCanvasSelection` keeps it everywhere
     // else: a file that carries both a crease selection and an active figure
     // (hand-edited, or written before the rule) opens with the creases.
@@ -1781,6 +1815,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       currentFilePath: result.path,
       dirty: projectDocumentsChangedSince(written, get()),
       projectMessage: savedMessageFor(result.name, embeddedBytes),
+      ...layerOrdersAfterSave(creasePatternCompanion),
       ...(document
         ? {
             ...patchBoxPleatDesign(
@@ -1835,6 +1870,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       return { referencesReaderState: null, referencesPlanCache: null };
     }
   };
+
+  /**
+   * The layer order bag the session holds once `input` is saved: what the
+   * save wrote (`foldedFigureLayerOrdersAfterSave`), so an entry it dropped
+   * stays dropped. Nothing when the bag was replaced meanwhile, by another
+   * document opened while the save dialog was up.
+   */
+  const layerOrdersAfterSave = (
+    input: { extensions?: Record<string, unknown>; foldedFigures: OristudioCpFoldedFigureEntry[] } | null
+  ): Partial<WorkspaceState> =>
+    input?.extensions && input.extensions === get().oristudioCpDocumentExtensions
+      ? { oristudioCpDocumentExtensions: foldedFigureLayerOrdersAfterSave(input.extensions, input.foldedFigures) }
+      : {};
 
   const currentEditableCreasePatternProjectInput = async (
     filename: string,
@@ -2098,6 +2146,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       currentFilePath: result.path,
       dirty: projectDocumentsChangedSince(written, get()),
       projectMessage: savedMessageFor(result.name, embeddedBytes),
+      ...layerOrdersAfterSave(input),
       oristudioCpDocument: {
         ...documentState,
         source,
@@ -2760,6 +2809,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     clearOristudioCpDocument: async () => {
+      // Its pending check has no document left to check.
+      cancelOristudioCamvRefresh();
       await releaseEditableCreasePattern();
       set({
         // Nothing to override: closing the document keeps none of its state.

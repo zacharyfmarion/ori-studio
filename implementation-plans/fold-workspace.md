@@ -376,8 +376,9 @@ sheet.
     the sheet;
   - an active child that is gone is dropped (the newest child applies);
   - redo moves the cursor to the node it restores.
-- **The active path** (root → active child … → tip) is what exports, the Steps
-  grid, the strip and Send to Edit follow.
+- **The active path** (root → active child … → tip) is what sequence exports,
+  the Steps grid and the strip follow. Send to Edit takes the current step's
+  crease pattern (see `send-active-fold-step-to-edit.md`).
 
 ### D7 — The document: an array of sequences
 

@@ -196,17 +196,15 @@ describe('buildFoldActions', () => {
     });
   });
 
-  it('sends and exports the active path once it has folded, read-only or not', () => {
+  it('exports the active path once it has folded, read-only or not', () => {
     const bound = deps();
     const actions = buildFoldActions(at({ readOnly: true, state: 'broken' }), bound);
-    const out = ['send-to-edit', 'export-fold', 'export-steps'] as const;
+    const out = ['export-fold', 'export-steps'] as const;
     expect(out.map((id) => [command(actions, id).label, command(actions, id).disabled])).toEqual([
-      ['Send to Edit', false],
       ['Export FOLD…', false],
       ['Export steps…', false],
     ]);
     for (const id of out) command(actions, id).run();
-    expect(bound.sendToEdit).toHaveBeenCalledOnce();
     expect(bound.exportFold).toHaveBeenCalledOnce();
     expect(bound.exportSteps).toHaveBeenCalledOnce();
 
@@ -224,6 +222,31 @@ describe('buildFoldActions', () => {
     for (const id of out) expect(command(empty, id)).toMatchObject({ disabled: true, hint: 'Fold a step first' });
   });
 
+  it('sends the ready selected state to Edit regardless of later steps or read-only status', () => {
+    const bound = deps();
+    for (const path of ['ready', 'replaying', 'broken', 'locked'] as const) {
+      const send = command(buildFoldActions(at({ path, readOnly: true }), bound), 'send-to-edit');
+      expect(send).toMatchObject({ label: 'Send to Edit', disabled: false });
+    }
+    command(buildFoldActions(CONTEXT, bound), 'send-to-edit').run();
+    expect(bound.sendToEdit).toHaveBeenCalledOnce();
+  });
+
+  it('blocks Send to Edit when the selected state is unavailable, or the sequence has no steps', () => {
+    const cases = [
+      ['replaying', 'Still folding the steps before this one.'],
+      ['broken', 'This step no longer folds.'],
+      ['locked', 'This step was made with a newer Ori Studio.'],
+    ] as const;
+    for (const [state, hint] of cases) {
+      expect(command(buildFoldActions(at({ state }), deps()), 'send-to-edit')).toMatchObject({ disabled: true, hint });
+    }
+    expect(command(buildFoldActions(at({ stepCount: 0 }), deps()), 'send-to-edit')).toMatchObject({
+      disabled: true, hint: 'Fold a step first',
+    });
+    expect(command(buildFoldActions(at({ step: null }), deps()), 'send-to-edit').disabled).toBe(false);
+  });
+
   it('opens Import CP through its binding', () => {
     const bound = deps();
     command(buildFoldActions(CONTEXT, bound), 'import-cp').run();
@@ -234,7 +257,7 @@ describe('buildFoldActions', () => {
 describe('foldSendToEditSource', () => {
   it('gives the shared Send to Edit button Fold’s own tooltip and no caret: precreases always go as aux lines', () => {
     expect(foldSendToEditSource(t)).toEqual({
-      title: 'Send the crease pattern of the steps shown to the Edit canvas',
+      title: 'Send the active step’s crease pattern to the Edit canvas',
     });
   });
 });

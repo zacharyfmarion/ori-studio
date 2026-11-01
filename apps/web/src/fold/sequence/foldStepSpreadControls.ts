@@ -1,3 +1,4 @@
+import { DEFAULT_FOLD_CONNECTED_SPREAD } from '../document/foldSpreadDefaults';
 /**
  * A Fold step's layer spread as its controls offer it (Wave 5): Spread Layers
  * on or off — the Step pane's switch and the canvas bar's toggle — and while
@@ -139,6 +140,7 @@ export function foldStepSpreadControls(state: FoldStepSpreadState, deps: FoldSte
     origin: effective.origin,
     spread: {
       ...controls,
+      defaultAmount: DEFAULT_FOLD_CONNECTED_SPREAD.amount,
       start: () => {
         if (disabled) return false;
         open();

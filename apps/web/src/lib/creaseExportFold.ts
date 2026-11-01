@@ -1,6 +1,8 @@
 import type {
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldOrderRefusal,
   OristudioCpFoldOutcome,
+  OristudioCpFoldSource,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedPaperScene,
@@ -60,7 +62,28 @@ export interface CpFoldRuntime extends CreaseExportFoldRuntime {
   ) => Promise<Omit<FoldedFigureState, 'handle'>>;
   /** The next layer-ordering solution, on the same handle. */
   foldAnother: (handle: number) => Promise<Omit<FoldedFigureState, 'handle'>>;
+  /**
+   * What the fold behind `handle` was made from, for the Layer order dialog.
+   * Optional: only a runtime over the CP kernel has one.
+   */
+  source?: (handle: number) => Promise<OristudioCpFoldSource>;
+  /**
+   * Fold `source` again with `relations` given (flat `[upper, lower]` face
+   * pairs), into a **new** handle; a refusal leaves none. How a host shows a
+   * chosen layer order (the Diagram's capture, among others): never a change
+   * to the handle it already holds.
+   */
+  foldWithOrder?: (
+    source: OristudioCpFoldSource,
+    relations: Uint32Array,
+    model: OristudioCpFoldedFigureModel | undefined
+  ) => Promise<FoldWithOrderOutcome>;
 }
+
+/** A fold with a given layer order: the new figure, or why there is none. */
+export type FoldWithOrderOutcome =
+  | ({ status: 'folded' } & FoldedFigureState)
+  | { status: 'refused'; refusal: OristudioCpFoldOrderRefusal };
 
 /** What a fold (or a jump to another case) leaves the figure in. */
 export interface FoldedFigureState {

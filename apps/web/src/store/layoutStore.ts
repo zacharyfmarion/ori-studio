@@ -762,3 +762,14 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     get().saveLayout(workspace);
   },
 }));
+
+/**
+ * Call `listener` whenever the active workspace changes, from any route there:
+ * for work a workspace keeps only while it is on screen (a Layer order
+ * solutions cursor's worker, H6 and H9). Returns the unsubscribe.
+ */
+export function onWorkspaceSwitch(listener: () => void): () => void {
+  return useLayoutStore.subscribe((state, previous) => {
+    if (state.activeWorkspace !== previous.activeWorkspace) listener();
+  });
+}

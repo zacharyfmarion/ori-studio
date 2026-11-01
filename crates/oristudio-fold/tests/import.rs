@@ -284,6 +284,38 @@ fn a_book_fold_has_one_order_with_its_letter_and_two_without() {
 }
 
 #[test]
+fn a_turned_import_lands_in_the_turned_view_and_nothing_else_moves() {
+    // The Layer order dialog's Rotate on an import: the step it lands is seen
+    // turned, from either start side, and its order and letters are the
+    // untouched import's.
+    for start in [StartSide::Front, StartSide::Back] {
+        let input = preliminary(true);
+        let plain = imported(&input, ImportTarget::Empty { start });
+        let mut turned = imported(&input, ImportTarget::Empty { start });
+        let quarter = std::f64::consts::FRAC_PI_2;
+        turned.rotate_view(quarter);
+        turned.rotate_view(quarter / 3.0);
+        let (was, now) = (only_state(&plain), only_state(&turned));
+        let want = was.view().rotated(quarter + quarter / 3.0);
+        assert!(
+            (now.view().rotation - want.rotation).abs() < 1e-12,
+            "{start:?}: {:?}",
+            now.view()
+        );
+        assert_eq!(now.view().flipped, was.view().flipped, "{start:?}");
+        assert!(same_order(&was, &now), "{start:?}: the same order");
+        assert!(
+            letters_reproduced(&input, &now),
+            "{start:?}: the same letters"
+        );
+        assert_eq!(now.step(), was.step(), "{start:?}: no step of its own");
+        // Not a number is no turn.
+        turned.rotate_view(f64::NAN);
+        assert_eq!(only_state(&turned).view(), now.view(), "{start:?}");
+    }
+}
+
+#[test]
 fn the_bases_import_to_one_order_with_their_letters_and_eighteen_without() {
     for (name, base) in [
         ("preliminary", preliminary as fn(bool) -> CreasePatternInput),

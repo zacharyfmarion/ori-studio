@@ -7,7 +7,10 @@
 //! The one document shape here is the `cp-jump` op ([`CpJump`]), which a
 //! pick returns ready to store and every replay hands back unchanged.
 
+use oristudio_cp::folding::FoldedPaperScene;
+use oristudio_cp::session::FoldSource;
 use oristudio_fold::complete::{BudgetLimit, CheckLimits, CompletionLimits, ConstraintFamily};
+use oristudio_fold::steer::ImportedLook;
 use oristudio_fold::{
     Broken, CheckStage, ChoiceCount, FaceId, ImportRefusal, ImportSummary, SheetShape, StartSide,
 };
@@ -86,7 +89,7 @@ impl CpFile {
 }
 
 /// Import CP's step (`FoldCpJumpOp` without its `kind`): see [`crate::io`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CpJump {
     /// The crease pattern, as the kernel's FOLD writer writes it
@@ -95,6 +98,18 @@ pub struct CpJump {
     /// The order, as a [`oristudio_fold::WitnessOrder`].
     pub order_json: String,
     pub origin: CpOrigin,
+    /// How far the step's view turns, in degrees clockwise on screen, from
+    /// the view of the step it lands after (which an import keeps, plan D16):
+    /// the Layer order dialog's Rotate on the import
+    /// ([`crate::io::Imports::turn`]), so no rotate step need follow it. In
+    /// (−180, 180]; 0, and left out of the op, for none, as every step from
+    /// before it was.
+    #[serde(default, skip_serializing_if = "is_unturned")]
+    pub turn_deg: f64,
+}
+
+fn is_unturned(turn_deg: &f64) -> bool {
+    *turn_deg == 0.0
 }
 
 /// Where an import lands.
@@ -288,7 +303,7 @@ impl AdoptedPaper {
 }
 
 /// A `cp-jump` op as the document stores it: `{ kind: 'cp-jump', … }`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind")]
 pub enum JumpOp {
     #[serde(rename = "cp-jump")]
@@ -308,6 +323,22 @@ pub struct Landed {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Exported {
     pub text: String,
+}
+
+/// What the Layer order dialog opens on for a held import
+/// (`implementation-plans/layer-order-dialog.md`, row H10).
+#[derive(Debug, Clone, Serialize)]
+pub struct LayerOpening {
+    /// The fold the dialog analyses: the import's stored crease pattern as
+    /// Edit folds it whole, the CP bridge's `FoldSource` shape. Its digest is
+    /// what `import_pick_layer_order` takes back.
+    pub source: FoldSource,
+    /// The order the choice picks, drawn over the source's faces by the CP
+    /// kernel (its front pass): the dialog opens on it, so an Apply that
+    /// changed nothing is that choice.
+    pub shown: FoldedPaperScene,
+    /// The side Fold shows the state from, and how far it turns it.
+    pub look: ImportedLook,
 }
 
 // ---------------------------------------------------------------------------
@@ -360,6 +391,12 @@ pub enum IoRefusal {
     FigureIncomplete { gap: FigureGap },
     #[error("the FOLD file would hold {elements} elements, over the {cap} cap")]
     ExportTooLarge { elements: usize, cap: usize },
+    /// The Layer order dialog cannot open on this import (row H10): Edit's
+    /// fold of its creases is refused (`reason` is the kernel's or the
+    /// dialog source's code), or traces other faces than the import
+    /// (`faces_differ`). The import keeps its own chooser.
+    #[error("the Layer order dialog cannot open on this import: {reason}")]
+    LayerUnavailable { reason: &'static str },
 }
 
 impl IoRefusal {
@@ -373,6 +410,7 @@ impl IoRefusal {
             IoRefusal::OrderBroken { .. } => "import_order_broken",
             IoRefusal::FigureIncomplete { .. } => "import_figure_incomplete",
             IoRefusal::ExportTooLarge { .. } => "fold_export_too_large",
+            IoRefusal::LayerUnavailable { .. } => "import_layer_unavailable",
         }
     }
 
@@ -394,6 +432,7 @@ impl IoRefusal {
             IoRefusal::ExportTooLarge { elements, cap } => {
                 json!({ "code": code, "elements": elements, "cap": cap })
             }
+            IoRefusal::LayerUnavailable { reason } => json!({ "code": code, "reason": reason }),
         })
     }
 }
@@ -523,6 +562,7 @@ mod tests {
             cp_json: "{}".to_string(),
             order_json: "[]".to_string(),
             origin: CpOrigin::EditFoldedFigure,
+            turn_deg: 0.0,
         });
         assert_eq!(
             serde_json::to_value(&op).unwrap_or_default(),
@@ -531,6 +571,19 @@ mod tests {
                 "origin": "edit_folded_figure"
             })
         );
+        // A turned one says how far; one from before the turn reads as none.
+        let JumpOp::CpJump(jump) = &op;
+        let turned = JumpOp::CpJump(CpJump {
+            turn_deg: -15.0,
+            ..jump.clone()
+        });
+        assert_eq!(
+            serde_json::to_value(&turned).unwrap_or_default()["turnDeg"],
+            json!(-15.0)
+        );
+        let before: Result<CpJump, _> =
+            serde_json::from_value(json!({ "cpJson": "{}", "orderJson": "[]", "origin": "fold" }));
+        assert_eq!(before.map(|jump| jump.turn_deg).ok(), Some(0.0));
         let target: Target = serde_json::from_value(json!({ "kind": "empty" }))
             .unwrap_or(Target::After { state: 0 });
         assert_eq!(

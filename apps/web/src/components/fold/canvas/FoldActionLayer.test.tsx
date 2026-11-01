@@ -43,11 +43,15 @@ const SQUARE = [
 const VIEW = { origin: [100, 500] as const, ex: [400, 0] as const, ey: [0, -400] as const };
 
 describe('FoldActionLayer', () => {
-  it('letters at the References view’s size whatever the pen it draws with', () => {
+  it('sizes letters, rings and arrowheads like the References view whatever the pen it draws with', () => {
     for (const ink of [0.4, 1, 2.5]) {
       const marks = foldActionMarks(ink);
-      expect(marks.labelSize * ink).toBeCloseTo(REFERENCES_LETTER_PX, 9);
-      expect(marks.arrowheadLength).toBe(DIAGRAM_MARKS.arrowheadLength);
+      for (const mark of ['labelSize', 'ringRadius', 'arrowheadLength'] as const) {
+        expect(marks[mark] * ink).toBeCloseTo(
+          REFERENCES_VIEW_MARKS[mark] * canvasDiagramInk(DEFAULT_ORISTUDIO_CP_LINE_WIDTH),
+          9
+        );
+      }
     }
   });
 

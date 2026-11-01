@@ -12,6 +12,7 @@ import {
 import { annotationGesture } from '../../cp-workspace/annotations/annotationGesture';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
+import { TooltipProvider } from '../ui/Tooltip';
 import { CpPropertiesPanel } from './CpPropertiesPanel';
 
 /**
@@ -45,10 +46,19 @@ function mount(patch: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
     oristudioCpInlineSimulations: [WINDOW],
     ...patch,
   });
-  act(() => root?.render(<CpPropertiesPanel />));
+  act(() =>
+    root?.render(
+      <TooltipProvider>
+        <CpPropertiesPanel />
+      </TooltipProvider>
+    )
+  );
 }
 
 const text = (selector: string) => host?.querySelector(selector)?.textContent ?? null;
+/** The sheet's heading: the selected object's name. */
+const TITLE = '[data-property-sheet] header h2';
+const SUBTITLE = '[data-property-sheet-subtitle]';
 const labels = () =>
   [...(host?.querySelectorAll('[data-field-label]') ?? [])].map((label) => label.textContent);
 
@@ -88,8 +98,8 @@ describe('CpPropertiesPanel', () => {
 
   it('shows an image sheet with its natural size and edits opacity as one entry', () => {
     mount({ oristudioCpSelectedAnnotationId: IMAGE.id });
-    expect(text('.property-sheet__title')).toBe('Image');
-    expect(text('.property-sheet__subtitle')).toBe('10 × 10');
+    expect(text(TITLE)).toBe('Image');
+    expect(text(SUBTITLE)).toBe('10 × 10');
     expect(labels()).toEqual(['Opacity', 'Rotation']);
 
     const slider = host?.querySelector<HTMLInputElement>('input[aria-label="Opacity"]');
@@ -108,7 +118,7 @@ describe('CpPropertiesPanel', () => {
 
   it('shows a text sheet with the box-level fields and steps the size as one entry', async () => {
     mount({ oristudioCpSelectedAnnotationId: TEXT.id });
-    expect(text('.property-sheet__title')).toBe('Text');
+    expect(text(TITLE)).toBe('Text');
     // The content's formatting is the editing toolbar's, per selection.
     expect(labels()).toEqual(['Size', 'Opacity']);
     const step = [...(host?.querySelectorAll<HTMLButtonElement>('button[data-direction]') ?? [])].at(-1);
@@ -128,7 +138,7 @@ describe('CpPropertiesPanel', () => {
 
   it('shows a region sheet and toggles a suppressed check as one entry', async () => {
     mount({ oristudioCpSelectedAnnotationId: REGION.id });
-    expect(text('.property-sheet__title')).toBe('Suppression region');
+    expect(text(TITLE)).toBe('Suppression region');
     expect(labels()).toEqual([
       'Opacity',
       'Kawasaki (angles)',
@@ -151,13 +161,16 @@ describe('CpPropertiesPanel', () => {
 
   it('shows a folded figure sheet with its title and status', () => {
     mount({ oristudioCpActiveFoldedFigureId: FIGURE.id });
-    expect(text('.property-sheet__title')).toBe(FIGURE.title);
-    expect(text('.property-sheet__subtitle')).toBe('Folding…');
+    expect(text(TITLE)).toBe(FIGURE.title);
+    expect(text(SUBTITLE)).toBe('Folding…');
     // Re-pinned for Phase 5: the flat figure's policy applies the aux crease
-    // toggle, its pen and erode, and the sheet offers a row for each.
+    // toggle, its pen and erode, and the sheet offers a row for each. Re-pinned
+    // for H3a: laid out as the Step pane, Render as over its control (so no
+    // row label), then Pose, Appearance and Placement.
     expect(labels()).toEqual([
-      'Render as',
+      'Rotation',
       'Side',
+      'Layer order',
       'Front color',
       'Back color',
       'Line color',
@@ -167,20 +180,27 @@ describe('CpPropertiesPanel', () => {
       'Aux crease width (pt)',
       'Erode (% of sheet)',
       'Scale',
-      'Rotation',
     ]);
+    const renderAs = [...(host?.querySelectorAll('[role="group"]') ?? [])].find(
+      (group) =>
+        document.getElementById(group.getAttribute('aria-labelledby') ?? '')?.textContent === 'Render as'
+    );
+    expect(renderAs).toBeDefined();
     // Not ready: the appearance is offered, disabled, with the reason; the
     // placement — where it sits — stays editable.
-    expect(host?.querySelector('[data-field-row]')?.getAttribute('title')).toBe(
-      'Refold to change how this figure looks'
-    );
+    const sideRow = [...(host?.querySelectorAll('[data-field-label]') ?? [])]
+      .find((label) => label.textContent === 'Side')
+      ?.closest('[data-field-row]');
+    expect(sideRow?.getAttribute('title')).toBe('Refold to change how this figure looks');
     const scale = host?.querySelector<HTMLInputElement>('input[aria-label="Scale"]');
     expect(scale?.disabled).toBe(false);
+    const rotation = host?.querySelector<HTMLInputElement>('input[aria-label="Rotation"]');
+    expect(rotation?.disabled).toBe(false);
   });
 
   it('shows the shared simulator settings for a window and writes them app-wide', () => {
     mount({ oristudioCpFocusedInlineSimulationId: WINDOW.id });
-    expect(text('.property-sheet__title')).toBe('Simulation window');
+    expect(text(TITLE)).toBe('Simulation window');
     expect(text('.collapsible-section__hint')).toBe(
       'Shared with the Simulate workspace and every window'
     );
@@ -194,14 +214,14 @@ describe('CpPropertiesPanel', () => {
 
   it('follows the selection from one object to another', () => {
     mount({ oristudioCpSelectedAnnotationId: IMAGE.id });
-    expect(text('.property-sheet__title')).toBe('Image');
+    expect(text(TITLE)).toBe('Image');
     act(() =>
       useWorkspaceStore.setState({
         oristudioCpSelectedAnnotationId: null,
         oristudioCpFocusedInlineSimulationId: WINDOW.id,
       })
     );
-    expect(text('.property-sheet__title')).toBe('Simulation window');
+    expect(text(TITLE)).toBe('Simulation window');
     act(() => useWorkspaceStore.setState({ oristudioCpFocusedInlineSimulationId: null }));
     expect(host?.querySelector('.empty-note')).not.toBeNull();
   });

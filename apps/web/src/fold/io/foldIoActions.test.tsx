@@ -73,6 +73,6 @@ describe('Fold’s io verbs beside the menu', () => {
     act(() => root.render(<Probe command={{ disabled: true, hint: 'A step on this path no longer folds.' }} />));
     expect(seen.model).toMatchObject({ disabled: true, title: 'A step on this path no longer folds.' });
     act(() => root.render(<Probe command={{ disabled: false }} />));
-    expect(seen.model).toMatchObject({ disabled: false, title: 'Send the crease pattern of the steps shown to the Edit canvas' });
+    expect(seen.model).toMatchObject({ disabled: false, title: 'Send the active step’s crease pattern to the Edit canvas' });
   });
 });

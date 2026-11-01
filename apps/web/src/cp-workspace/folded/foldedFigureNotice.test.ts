@@ -491,10 +491,11 @@ describe('foldedFigureSubtitle', () => {
     expect(foldedFigureSubtitle(t, figure({ status: 'stale' }), false)).toBe('Stale');
   });
 
-  it('prefers stale, then the verdict, then the solution', () => {
+  it('prefers stale, then the verdict, and says nothing of a figure that folded cleanly', () => {
     const crossing = spatial({ verdict: 'local_crossing', vertices: 1 });
     expect(foldedFigureSubtitle(t, crossing, true)).toBe('Stale');
     expect(foldedFigureSubtitle(t, crossing, false)).toBe('Passes through itself');
-    expect(foldedFigureSubtitle(t, spatial({ verdict: 'folded' }), false)).toBe('Case 1');
+    // Which solution it shows is the Layer order row's (D11): states only here.
+    expect(foldedFigureSubtitle(t, spatial({ verdict: 'folded' }), false)).toBeUndefined();
   });
 });

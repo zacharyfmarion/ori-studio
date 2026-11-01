@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { turnClockwise } from '../../lib/geometry';
+import {
+  encodeLayerOrderRecord,
+  type LayerOrderAttention,
+  type LayerOrderRecord,
+} from '../../lib/layerOrder/layerOrderRecord';
 import type { PaperItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import {
   annotationsOutOfStep,
@@ -914,6 +919,57 @@ describe('a linked picture turned about its middle', () => {
         expect(moved.annotations).toEqual([ARROW]);
         expect(annotationsOutOfStep(moved)).toBe(true);
       }
+    });
+
+    // A chosen layer order is the record's, whatever case the render says (layer order H7).
+    describe('with a layer order record', () => {
+      const record = (constraints: LayerOrderRecord['constraints'], order: LayerOrderRecord['order'], attention?: LayerOrderAttention) =>
+        encodeLayerOrderRecord({
+          faces: [
+            { at: [0.2, 0.2], area: 0.5 },
+            { at: [0.8, 0.8], area: 0.5 },
+          ],
+          constraints,
+          order,
+          ...(attention ? { attention } : {}),
+        });
+      const json = (...args: Parameters<typeof record>) => {
+        const encoded = record(...args);
+        if (!encoded.ok) throw new Error('encodes');
+        return encoded.json;
+      };
+      const respread = (from: string | undefined, to: string | undefined) => {
+        const before = scenePicture();
+        const after = { ...before, sceneJson: storedSceneJson(spreadScene(storedScene(before)!))!, key: 'scene-respread' };
+        const step = cpStep('step-1', FLAT);
+        const document = annotated({ ...step, source: { ...cpSource(FLAT), ...(from ? { layerOrder: from } : {}) } });
+        return setLinkedPicture(document, 'step-1', {
+          source: { ...cpSource({ ...FLAT, spread: SPREAD }), ...(to ? { layerOrder: to } : {}) },
+          picture: after,
+        }).steps[0] as DiagramStep;
+      };
+
+      it('carries them through a respread of the same order: what its constraints say, or a flag, draws nothing', () => {
+        const shown = json([[0, 1, 1]], [[0, 1, 1]]);
+        expect(respread(shown, shown).annotatedPictureKey).toBe('scene-respread');
+        // The same order, another constraint list and a flag: the same picture.
+        expect(respread(shown, json([], [[0, 1, 1]], { reason: 'unresolved', count: 1 })).annotatedPictureKey).toBe(
+          'scene-respread'
+        );
+      });
+
+      it('never mistakes a change of order for a turn: another order, or a record put on or taken off', () => {
+        const shown = json([[0, 1, 1]], [[0, 1, 1]]);
+        for (const [from, to] of [
+          [shown, json([[1, 0, 1]], [[1, 0, 1]])],
+          [undefined, shown],
+          [shown, undefined],
+        ] as const) {
+          const moved = respread(from, to);
+          expect(moved.annotations).toEqual([ARROW]);
+          expect(annotationsOutOfStep(moved)).toBe(true);
+        }
+      });
     });
   });
 

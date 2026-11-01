@@ -24,6 +24,8 @@ import type {
   OristudioCpFoldedFigureSnapshot,
   OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
+  OristudioCpFoldSource,
+  OristudioCpFoldWithOrderResult,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
   OristudioCpSelectedLines,
@@ -466,6 +468,43 @@ async function exportWithTexts(
       runId = 0
     ): Promise<OristudioCpFoldedFigureBatchResult> {
       return callSession('cp_folded_figure_fold_to_case', { handle, objective, initialOrder, runId });
+    },
+    async foldedFigureSource(
+      handle: number,
+      documentHandle?: number | null
+    ): Promise<OristudioCpFoldSource> {
+      return callSession('cp_folded_figure_source', {
+        handle,
+        documentHandle: documentHandle ?? null,
+      });
+    },
+    async foldSourceOfSelection(
+      handle: number,
+      selectedLineIds: number[],
+      startingFaceId = 1
+    ): Promise<OristudioCpFoldSource> {
+      return callSession('cp_fold_source_of_selection', {
+        documentHandle: handle,
+        selectedLineIds,
+        startingFaceId,
+      });
+    },
+    /** `relations` crosses as a number array: the command takes `Vec<u32>`. */
+    async foldFigureWithOrder(
+      source: OristudioCpFoldSource,
+      relations: Uint32Array,
+      model?: OristudioCpFoldedFigureModel,
+      runId = 0
+    ): Promise<OristudioCpFoldWithOrderResult> {
+      return callSession('cp_folded_figure_fold_with_order', {
+        source,
+        relations: Array.from(relations),
+        model: model ?? null,
+        runId,
+      });
+    },
+    async foldedFigureDigest(handle: number): Promise<string> {
+      return callSession('cp_folded_figure_digest', { handle });
     },
     async fold3d(
       handle: number,

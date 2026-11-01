@@ -22,7 +22,9 @@
   "diagram": {
     "addedAsStep": "{{number}}단계로 추가했습니다",
     "capture": {
+      "chosenOrderKept": "이 단계에서 선택한 겹침 순서를 확인해야 해서 그림을 그대로 둡니다.",
       "failed": "그림을 캡처하지 못했습니다",
+      "layerOrderKept": "이 단계의 겹침 제약을 확인해야 해서 그림을 그대로 둡니다.",
       "missing": "그 패턴은 더 이상 전개도에 없습니다.",
       "needsPose": "시뮬레이터에서 일부만 접은 단계는 포즈에서 캡처합니다. 포즈 조정으로 여세요.",
       "noLayerOrder": "층 순서를 정하지 못해 이 단계는 접은 종이를 투명하게 보여 줍니다.",
@@ -48,6 +50,22 @@
       "otherWorkspaceFirst": "먼저 다른 작업 공간에서 이후 편집을 실행 취소하거나 다시 실행하세요. 가져오기가 편집과 도해를 모두 바꿨습니다.",
       "restoreFailed": "가져온 단계를 복원하지 못했습니다."
     },
+    "layerOrder": {
+      "chosenOrderRemoved": "이 단계에서 선택한 겹침 순서는 이전 패턴의 것이어서 제거했습니다. 실행 취소하면 되돌아옵니다.",
+      "copyNotFolded": "이 단계의 겹침 제약을 확인해야 해서 복사본을 접은 모양으로 보여 줄 수 없었습니다.",
+      "copyNotFoldedChosenOrder": "이 단계에서 선택한 겹침 순서를 확인해야 해서 복사본을 접은 모양으로 보여 줄 수 없었습니다.",
+      "folds3d": "이 단계의 접는 선은 이제 3D로 접히고, 겹침 순서는 평평한 접기에서 쓸 수 있습니다. 단계를 새로 고쳐 확인하세요.",
+      "lost": "겹침 순서가 예기치 않게 멈춰 이 단계를 바꾸지 않았습니다.",
+      "lostLoadOffline": "오프라인 상태라 겹침 순서를 불러오지 못해 이 단계를 바꾸지 않았습니다. 다시 연결한 뒤 Ori Studio를 새로 고쳐 다시 시도하세요.",
+      "lostLoadReload": "겹침 순서를 불러오지 못해 이 단계를 바꾸지 않았습니다. Ori Studio를 새로 고쳐 다시 시도하세요.",
+      "refused": "이 겹침 순서를 그릴 수 없어 아무것도 바꾸지 않았습니다.",
+      "removed_other": "이 단계의 겹침 제약 {{count}}개는 이전 패턴의 것이어서 제거했습니다. 실행 취소하면 되돌아옵니다.",
+      "stepCheckTimedOut": "제시간에 이 단계의 겹침 제약을 확인하지 못해 이 단계를 바꾸지 않았습니다.",
+      "stepClash": "이 단계의 겹침 제약이 지금의 패턴과 충돌해 해를 넘겨 볼 수 없습니다. 겹침 순서를 편집해 확인하세요.",
+      "stepNotFoundInTime": "제시간에 다른 해를 찾지 못해 이 단계를 바꾸지 않았습니다.",
+      "stepRefused": "겹침 순서로 이 단계의 해를 넘겨 볼 수 없어 이 단계를 바꾸지 않았습니다.",
+      "stepTooLarge": "다음 겹침 순서는 이 단계와 함께 저장하기에 너무 커서 이 단계를 바꾸지 않았습니다."
+    },
     "placementsReflowed_other": "이동한 {{count}}단계가 원래 칸으로 돌아갔습니다",
     "references": {
       "addedSteps": "{{first}}–{{last}}단계로 추가했습니다",
@@ -63,6 +81,11 @@
       "tooLarge": "이 단계는 너무 세밀해서 도해에 보관할 수 없습니다.",
       "undoReplaced": "실행 취소"
     },
+    "refreshAllChosenOrderKept_other": "{{count}}개 단계에서 선택한 겹침 순서를 확인해야 해서 그림을 그대로 둡니다.",
+    "refreshAllLayerOrderKept_other": "{{count}}개 단계의 겹침 제약을 확인해야 해서 그림을 그대로 둡니다.",
+    "refreshAllLayerOrderLost_other": "겹침 순서가 예기치 않게 멈춰 {{count}}개 단계를 바꾸지 않았습니다.",
+    "refreshAllLayerOrderLostLoadOffline_other": "오프라인 상태라 겹침 순서를 불러오지 못해 {{count}}개 단계를 바꾸지 않았습니다. 다시 연결한 뒤 Ori Studio를 새로 고쳐 다시 시도하세요.",
+    "refreshAllLayerOrderLostLoadReload_other": "겹침 순서를 불러오지 못해 {{count}}개 단계를 바꾸지 않았습니다. Ori Studio를 새로 고쳐 다시 시도하세요.",
     "refreshedAll_other": "{{count}}개 단계를 새로 고쳤습니다",
     "uploadFailed_other": "그림 {{count}}개를 추가하지 못했습니다",
     "uploadFailureLine": "{{name}}: {{reason}}",
@@ -91,6 +114,9 @@
     "ignoredFile": "{{name}}을(를) 사용했습니다. 놓은 다른 파일 1개는 무시되었습니다.",
     "ignoredFiles": "{{name}}을(를) 사용했습니다. 놓은 다른 파일 {{others}}개는 무시되었습니다."
   },
+  "fileOpen": {
+    "closeDialog": "다른 파일을 열려면 대화 상자를 닫으세요"
+  },
   "foldedFigureExport": {
     "empty": "이 접힌 모델에는 아직 내보낼 것이 없습니다",
     "failed": "이 접힌 모델을 내보낼 수 없습니다"
@@ -115,6 +141,23 @@
     "solveStopping": "취소하는 중…",
     "solving": "푸는 중…",
     "solvingLong": "아직 푸는 중입니다 — 시간이 걸릴 수 있습니다"
+  },
+  "layerOrder": {
+    "foldImportBusy": "겹침 순서가 이미 열려 있어 이 전개도의 겹침 순서는 캔버스에서 고르세요.",
+    "folds3d": "이 모델의 접는 선은 이제 3D로 접히고, 겹침 순서는 평평한 접기에서 쓸 수 있습니다. 다시 접어 확인하세요.",
+    "refoldKept": "{{name}}의 겹침 제약을 확인해야 해서 그림을 그대로 둡니다.",
+    "refoldKeptChosenOrder": "{{name}}에서 선택한 겹침 순서를 확인해야 해서 그림을 그대로 둡니다.",
+    "refoldLost": "겹침 순서가 예기치 않게 멈춰 {{name}}을(를) 다시 접지 않았습니다.",
+    "refoldLostLoadOffline": "오프라인 상태라 겹침 순서를 불러오지 못해 {{name}}을(를) 다시 접지 않았습니다. 다시 연결한 뒤 Ori Studio를 새로 고쳐 다시 시도하세요.",
+    "refoldLostLoadReload": "겹침 순서를 불러오지 못해 {{name}}을(를) 다시 접지 않았습니다. Ori Studio를 새로 고쳐 다시 시도하세요.",
+    "stepCheckTimedOut": "제시간에 이 모델의 겹침 제약을 확인하지 못해 모델을 바꾸지 않았습니다.",
+    "stepLost": "겹침 순서가 예기치 않게 멈춰 모델을 바꾸지 않았습니다.",
+    "stepLostLoadOffline": "오프라인 상태라 겹침 순서를 불러오지 못해 모델을 바꾸지 않았습니다. 다시 연결한 뒤 Ori Studio를 새로 고쳐 다시 시도하세요.",
+    "stepLostLoadReload": "겹침 순서를 불러오지 못해 모델을 바꾸지 않았습니다. Ori Studio를 새로 고쳐 다시 시도하세요.",
+    "stepNotFoundInTime": "제시간에 다른 해를 찾지 못해 모델을 바꾸지 않았습니다.",
+    "stepUnrestored": "이 모델의 겹침 제약을 확인해야 해서 해를 넘겨 볼 수 없습니다. ‘겹침 순서…’를 열어 확인하세요.",
+    "unavailableOffline": "오프라인 상태라 겹침 순서를 불러오지 못했습니다. 다시 연결한 뒤 Ori Studio를 새로 고쳐 다시 시도하세요.",
+    "unavailableReload": "겹침 순서를 불러오지 못했습니다. Ori Studio를 새로 고쳐 다시 시도하세요."
   },
   "paperExport": {
     "saved": "{{name}} 내보냄"

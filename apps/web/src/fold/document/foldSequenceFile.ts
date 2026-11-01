@@ -364,7 +364,7 @@ const OP_KEYS = new Map<string, ReadonlySet<string>>([
   ['refold', new Set(['kind', 'crease', 'direction', 'moving', 'seed'])],
   ['turn', new Set(['kind', 'axis'])],
   ['rotate', new Set(['kind', 'rotate'])],
-  ['cp-jump', new Set(['kind', 'cpJson', 'orderJson', 'origin', 'source'])],
+  ['cp-jump', new Set(['kind', 'cpJson', 'orderJson', 'origin', 'source', 'turnDeg'])],
   // Compound folds (plan D4), one block per family.
   ['inside-reverse', ALONG_LINE_KEYS],
   ['outside-reverse', ALONG_LINE_KEYS],
@@ -497,10 +497,15 @@ function readOp(value: unknown, depth = 0, budget = { remaining: 256 }): FoldOp 
         typeof source.revision !== 'string' || !source.revision)) return null;
       const region = isRecord(source) && source.region !== undefined ? readRegionReference(source.region) : undefined;
       if (region === null) return null;
+      // The dialog's turn on the import: a number of degrees, at most half a turn either way.
+      const { turnDeg } = value;
+      if (turnDeg !== undefined && (typeof turnDeg !== 'number' || !Number.isFinite(turnDeg) || Math.abs(turnDeg) > 180)) {
+        return null;
+      }
       return origin && typeof cpJson === 'string' && typeof orderJson === 'string'
         ? { kind, cpJson, orderJson, origin, ...(source ? { source: {
           documentId: source.documentId as string, revision: source.revision as string, ...(region ? { region } : {}),
-        } } : {}) }
+        } } : {}), ...(turnDeg ? { turnDeg } : {}) }
         : null;
     }
     // Compound folds (plan D4), one block per family.
@@ -1110,7 +1115,14 @@ export function writeFoldOp(op: FoldOp): Record<string, unknown> {
     case 'unfold-to':
       return { kind: op.kind, target: op.target, source: { ...op.source } };
     case 'cp-jump':
-      return { kind: op.kind, cpJson: op.cpJson, orderJson: op.orderJson, origin: op.origin, ...(op.source ? { source: { ...op.source } } : {}) };
+      return {
+        kind: op.kind,
+        cpJson: op.cpJson,
+        orderJson: op.orderJson,
+        origin: op.origin,
+        ...(op.source ? { source: { ...op.source } } : {}),
+        ...(op.turnDeg ? { turnDeg: op.turnDeg } : {}),
+      };
     // Compound folds (plan D4), one block per family.
     case 'inside-reverse':
     case 'outside-reverse':

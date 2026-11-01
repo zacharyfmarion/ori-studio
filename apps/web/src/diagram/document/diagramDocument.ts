@@ -447,6 +447,16 @@ export interface DiagramCpSource {
    * order back. Never holds the way the step is shown now; absent when empty.
    */
   remembered?: Partial<Record<DiagramShowAs, DiagramCpRender>>;
+  /**
+   * The layer order chosen for the step in the Layer order dialog, as the
+   * record's compact JSON (`lib/layerOrder/layerOrderRecord.ts`): its
+   * constraints and the order shown, never a case number. On the source, so
+   * it survives Show as and a switch to 3D; each constrained step carries its
+   * own. Absent when the step has none, so a step without one is written as
+   * before. A build without the field carries the step locked, as any source
+   * field it has no name for, and so does this one a newer build's record.
+   */
+  layerOrder?: string;
 }
 
 /**
@@ -2020,6 +2030,20 @@ export function setLinkedPicture(
       )
     )
   );
+}
+
+/**
+ * A linked step's layer order record set, its picture as it is: what a
+ * capture keeps when the record's order could not be drawn (layer order D10)
+ * — the record, flagged — so the step says so at rest. Nothing else of the
+ * source changes, so its link still says whether the picture is behind its
+ * pattern. The same record again is no edit.
+ */
+export function setLinkedLayerOrder(document: DiagramDocument, stepId: string, layerOrder: string): DiagramDocument {
+  return updateStep(document, stepId, (step) => {
+    if (step.source?.kind !== 'cp' || step.source.layerOrder === layerOrder) return step;
+    return { ...step, source: { ...step.source, layerOrder }, revision: step.revision + 1 };
+  });
 }
 
 /** A Fold step's capture: its source and picture, and the marks its fold brings (plan D17). */

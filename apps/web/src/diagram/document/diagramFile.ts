@@ -104,6 +104,7 @@ import { TEXT_OFFSET_PT_MAX, TEXT_SIZE_PT } from '../annotate/textStyle';
 import { windowReach } from '../zoom/zoomModel';
 import { digest } from '../pictures/pictureKey';
 import { NEWER_PAPER_FACES, SCENE_JSON_MAX_BYTES, readPaperFaces } from './paperFacesFile';
+import { readLayerOrderRecord } from '../../lib/layerOrder/layerOrderRecord';
 import {
   EMBEDDED_RASTER_MAX_SIDE,
   SVG_STORED_MAX_BYTES,
@@ -790,7 +791,7 @@ function writeAsset(asset: DiagramAsset): Record<string, unknown> {
  */
 const SOURCE_KEYS: Readonly<Record<DiagramStepSource['kind'], ReadonlySet<string>>> = {
   upload: new Set(['kind', 'assetId', 'rotationQuarterTurns', 'mirrored']),
-  cp: new Set(['kind', 'scope', 'fingerprint', 'thumbnail', 'render', 'remembered']),
+  cp: new Set(['kind', 'scope', 'fingerprint', 'thumbnail', 'render', 'remembered', 'layerOrder']),
   'references-step': new Set([
     'kind',
     'region',
@@ -1094,10 +1095,10 @@ function isNewerFoldSource(value: Record<string, unknown>): boolean {
 
 /**
  * A crease-pattern source a newer build wrote: a field, a scope, a render —
- * the one shown, or one remembered for another way of showing (D19) — or a
- * thumbnail this build has no name for. Read here, such a source would be
- * written back without what this build cannot name, so the step is carried
- * whole instead.
+ * the one shown, or one remembered for another way of showing (D19) — a
+ * thumbnail or a layer order this build has no name for. Read here, such a
+ * source would be written back without what this build cannot name, so the
+ * step is carried whole instead.
  */
 function isNewerCpSource(value: Record<string, unknown>): boolean {
   return (
@@ -1105,7 +1106,8 @@ function isNewerCpSource(value: Record<string, unknown>): boolean {
     isNewerScope(value.scope) ||
     isNewerRender(value.render) ||
     isNewerRemembered(value.remembered) ||
-    isNewerSheetThumbnail(value.thumbnail)
+    isNewerSheetThumbnail(value.thumbnail) ||
+    (value.layerOrder !== undefined && readLayerOrderRecord(value.layerOrder) === NEWER)
   );
 }
 
@@ -1321,7 +1323,11 @@ export function storedCpSource(source: DiagramCpSource): DiagramCpSource | null 
   return readCpSource(JSON.parse(JSON.stringify(source)) as Record<string, unknown>);
 }
 
-/** A crease-pattern source, every field checked; null when any does not read. */
+/**
+ * A crease-pattern source, every field checked; null when any does not read.
+ * A layer order that does not read is dropped alone, and the step keeps its
+ * picture; a newer build's locks the step ({@link isNewerCpSource}).
+ */
 function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   const scope = readCpScope(value.scope);
   const render = readCpRender(value.render);
@@ -1330,7 +1336,16 @@ function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   if (!scope || !render || !thumbnail) return null;
   if (typeof fingerprint !== 'string' || fingerprint.length === 0) return null;
   const remembered = readRememberedPoses(value.remembered, render);
-  return { kind: 'cp', scope, fingerprint, thumbnail, render, ...(remembered ? { remembered } : {}) };
+  const layerOrder = value.layerOrder === undefined ? null : readLayerOrderRecord(value.layerOrder);
+  return {
+    kind: 'cp',
+    scope,
+    fingerprint,
+    thumbnail,
+    render,
+    ...(remembered ? { remembered } : {}),
+    ...(layerOrder && layerOrder !== NEWER && layerOrder.ok ? { layerOrder: layerOrder.json } : {}),
+  };
 }
 
 /**

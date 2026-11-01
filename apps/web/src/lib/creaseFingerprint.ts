@@ -16,15 +16,17 @@ const COORD_QUANTIZE = 1e6;
  * millisecond for a 6k-crease pattern against a ~1s recompute — and changes
  * exactly when the exported fold would.
  */
-function computeCreaseFingerprint(document: OristudioCpDocumentSnapshot): string {
-  const lines = document.crease_pattern.line_segments;
+/** A line as a crease fingerprint reads it: its ends, its kind (mountain, valley, edge, aux) and its fold magnitude. */
+type CreaseLine = OristudioCpDocumentSnapshot['crease_pattern']['line_segments'][number];
+
+/** Hash `lines` as {@link creaseFingerprint} does: what folding them depends on, nothing else. */
+function hashCreaseLines(lines: Iterable<CreaseLine>): number {
   let hash = 0x811c9dc5;
   const mix = (value: number) => {
     hash ^= value | 0;
     hash = Math.imul(hash, 0x01000193);
   };
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i]!;
+  for (const line of lines) {
     mix(Math.round(line.a.x * COORD_QUANTIZE));
     mix(Math.round(line.a.y * COORD_QUANTIZE));
     mix(Math.round(line.b.x * COORD_QUANTIZE));
@@ -36,7 +38,34 @@ function computeCreaseFingerprint(document: OristudioCpDocumentSnapshot): string
     // that reaches the export and share cards from them — keep the old angles.
     mix(line.fold_magnitude ?? -1);
   }
-  return `${lines.length}:${hash >>> 0}`;
+  return hash >>> 0;
+}
+
+function computeCreaseFingerprint(document: OristudioCpDocumentSnapshot): string {
+  const lines = document.crease_pattern.line_segments;
+  return `${lines.length}:${hashCreaseLines(lines)}`;
+}
+
+/**
+ * The same identity for some of the lines only — those of `lineIds` (the
+ * kernel's ids, from 1), in that order: what a fold of exactly those lines
+ * depends on. Their geometry, kind and magnitude, never their ids, so the
+ * same lines chosen again under other ids (a line added or removed elsewhere
+ * renumbers them) fingerprint alike; and a custom colour or a selection
+ * changes nothing. Null when an id names no line.
+ */
+export function creaseLinesFingerprint(
+  document: OristudioCpDocumentSnapshot,
+  lineIds: readonly number[]
+): string | null {
+  const lines = document.crease_pattern.line_segments;
+  const chosen: CreaseLine[] = [];
+  for (const id of lineIds) {
+    const line = lines[id - 1];
+    if (!line) return null;
+    chosen.push(line);
+  }
+  return `${chosen.length}:${hashCreaseLines(chosen)}`;
 }
 
 /** Memoized per snapshot, so only a genuinely new snapshot pays the O(n) hash. */

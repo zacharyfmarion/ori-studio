@@ -217,9 +217,10 @@ export function DiagramStepDetail({
     <Toolbar ref={poseRef} className={styles.pose} aria-label={t('panels:diagram.detail.pose', 'Pose')}>
       {linkedPose ? (
         <DiagramLinkedPoseControls
-          // A phone's Step drawer has Spread Layers with its amount; the toolbar would wrap a row for it.
-          actions={phone ? linkedPose.actions.filter((action) => action.id !== 'spread-layers') : linkedPose.actions}
-          layerOrder={linkedPose.layerOrder?.label ?? null}
+          // A phone's Step drawer has Spread Layers with its amount, and Edit… on the Layer order row;
+          // the toolbar would wrap a row for them.
+          actions={phone ? linkedPose.toolbar.filter((action) => action.id !== 'spread-layers') : linkedPose.toolbar}
+          layerOrder={phone ? null : linkedPose.layerOrderEdit}
           keep={keepPoseFocus}
         >
           {transport}

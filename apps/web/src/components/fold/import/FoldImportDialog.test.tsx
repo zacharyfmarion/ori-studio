@@ -144,6 +144,23 @@ describe('Import CP’s dialog', () => {
     expect(harness.flow.commit).not.toHaveBeenCalled();
   });
 
+  it('steps aside while the Layer order dialog chooses the order, and comes back to say how the import went', () => {
+    open();
+    const request = { kind: 'file' as const, name: 'kabuto.fold', source: { format: 'fold' as const, text: '{}' } };
+    act(() => harness.store.setState({ phase: 'ordering', request }, true));
+    expect(dialog()).toBeNull();
+    // Still open underneath: the import is under way, and its refusal is said here.
+    expect(useFoldImportUiStore.getState().opening).not.toBeNull();
+    act(() =>
+      harness.store.setState(
+        { phase: 'refused', request, refusal: { kind: 'engine', refused: { refusal: { code: 'import_no_order' } } } },
+        true
+      )
+    );
+    expect(dialog()).not.toBeNull();
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+  });
+
   it('closes itself once the step is committed', () => {
     open();
     expect(dialog()).not.toBeNull();

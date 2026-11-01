@@ -122,8 +122,13 @@ fn a_seed_conflict_names_the_faces_upstream_names() {
             constraint: ConstraintKind::Transitivity,
             faces: vec![2, 3, 1],
             error_faces: vec![0, 1, 2, 3],
+            // Ours: the letters it traces back to, as variables.
+            roots: vec![0, 1, 2, 3],
         }))
     );
+    for root in 0..4 {
+        assert!(problem.fixed.iter().any(|fixed| fixed.variable == root));
+    }
 }
 
 #[test]

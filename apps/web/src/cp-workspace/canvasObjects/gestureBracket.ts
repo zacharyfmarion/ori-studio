@@ -72,6 +72,17 @@ export interface GestureBracketSpec<S> {
   /** Push the history entry: the store's `record*History` action for the layer. */
   record(before: S, label: string): void;
   /**
+   * Called once with the snapshot `begin` took, the moment the bracket takes it,
+   * and {@link release} once when it lets it go: after `record`, when nothing
+   * changed, or on an abort. For a layer whose snapshot holds resources the
+   * gesture may let go of before the entry is recorded — a folded figure's
+   * kernel handle, which a Delete or a Refold releases inside the act, while
+   * the entry that would keep it for undo is recorded only after.
+   */
+  hold?(before: S): void;
+  /** Let go of what {@link hold} took. */
+  release?(before: S): void;
+  /**
    * Awaited before the record when it returns a promise — every layer drains
    * the folded figures' in-flight kernel writes. Null when there is nothing to
    * wait for, which keeps the commit synchronous: a click's commit must not
@@ -116,7 +127,9 @@ export function createGestureBracket<S>(spec: GestureBracketSpec<S>): GestureBra
       if (anyGestureDraining()) return null;
       seq += 1;
       const token: GestureToken = { layer: spec.layer, owner, seq };
-      open = { token, before: spec.snapshot(), draining: false };
+      const before = spec.snapshot();
+      spec.hold?.(before);
+      open = { token, before, draining: false };
       notify();
       return token;
     },
@@ -137,17 +150,26 @@ export function createGestureBracket<S>(spec: GestureBracketSpec<S>): GestureBra
       const before = open.before;
       open = null;
       notify();
-      if (!spec.unchanged(before, spec.snapshot())) spec.record(before, label);
+      try {
+        if (!spec.unchanged(before, spec.snapshot())) spec.record(before, label);
+      } finally {
+        // After the record, so the entry has taken what it keeps first.
+        spec.release?.(before);
+      }
     },
     abort(token) {
       if (!open || open.token !== token) return;
+      const { before } = open;
       open = null;
       notify();
+      spec.release?.(before);
     },
     abortAll() {
       if (!open) return;
+      const { before } = open;
       open = null;
       notify();
+      spec.release?.(before);
     },
     async run(owner, label, act) {
       const token = bracket.begin(owner);

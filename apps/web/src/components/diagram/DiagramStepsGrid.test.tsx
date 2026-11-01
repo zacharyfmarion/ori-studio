@@ -5,6 +5,7 @@ import {
   createStep,
   DEFAULT_DIAGRAM_STYLE,
   type DiagramAsset,
+  type DiagramCpSource,
   type DiagramEntry,
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
@@ -533,6 +534,32 @@ describe('DiagramStepsGrid', () => {
     );
     act(() => stopButton?.click());
     expect(stop).toHaveBeenCalledWith('step-d');
+  });
+
+  it('says a step whose layer constraints need a look needs attention, not that it is out of date (layer order D10)', () => {
+    const withRecord = (id: string, attention?: { reason: 'conflict' | 'route-3d'; count: number }): DiagramStep => {
+      const step = cpStep(id);
+      const record = { v: 1, faces: [{ at: [0, 0], area: 1 }], constraints: [], order: [], ...(attention ? { attention } : {}) };
+      return { ...step, source: { ...(step.source as DiagramCpSource), layerOrder: JSON.stringify(record) } };
+    };
+    const chip = (card: HTMLElement) => card.querySelector('[data-tone]')?.textContent ?? null;
+    render(null, vi.fn(), {
+      steps: [
+        withRecord('step-kept', { reason: 'conflict', count: 0 }),
+        withRecord('step-drawn', { reason: 'conflict', count: 0 }),
+        withRecord('step-waiting', { reason: 'route-3d', count: 0 }),
+        withRecord('step-fine'),
+      ],
+      links: {
+        statuses: new Map([
+          ['step-kept', 'stale'],
+          ['step-drawn', 'current'],
+          ['step-waiting', 'stale'],
+          ['step-fine', 'stale'],
+        ]),
+      },
+    });
+    expect(options().map(chip)).toEqual(['Needs attention', 'Needs attention', 'Out of date', 'Out of date']);
   });
 
   it('says a 3D step was lit by another style and that the pages cut a step’s text, and nothing of a flow step past its place', () => {

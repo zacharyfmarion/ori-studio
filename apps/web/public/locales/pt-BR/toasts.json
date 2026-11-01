@@ -24,7 +24,9 @@
   "diagram": {
     "addedAsStep": "Adicionado como passo {{number}}",
     "capture": {
+      "chosenOrderKept": "A ordem das camadas escolhida para este passo precisa de atenção, então ele mantém sua imagem.",
       "failed": "Não foi possível capturar a imagem",
+      "layerOrderKept": "As restrições de camadas deste passo precisam de atenção, então ele mantém sua imagem.",
       "missing": "Esse padrão não está mais no padrão de vincos.",
       "needsPose": "Um passo dobrado em parte no simulador é capturado em Pose: abra-o com Ajustar pose.",
       "noLayerOrder": "Não foi possível ordenar as camadas, então o passo mostra o papel dobrado em transparência.",
@@ -54,6 +56,24 @@
       "otherWorkspaceFirst": "Primeiro desfaça ou refaça as edições posteriores no outro workspace: a importação mudou a Edição e o Diagrama.",
       "restoreFailed": "Não foi possível restaurar os passos importados."
     },
+    "layerOrder": {
+      "chosenOrderRemoved": "A ordem das camadas escolhida para o passo era do padrão antigo, então foi removida. Desfazer a traz de volta.",
+      "copyNotFolded": "Não foi possível mostrar a cópia dobrada, porque as restrições de camadas deste passo precisam de atenção.",
+      "copyNotFoldedChosenOrder": "Não foi possível mostrar a cópia dobrada, porque a ordem das camadas escolhida para este passo precisa de atenção.",
+      "folds3d": "Os vincos deste passo agora dobram em 3D, e a ordem das camadas funciona em dobras planas. Atualize o passo para vê-lo.",
+      "lost": "A ordem das camadas parou inesperadamente, então este passo não foi alterado.",
+      "lostLoadOffline": "Não foi possível carregar a ordem das camadas offline, então este passo não foi alterado. Reconecte-se e recarregue o Ori Studio para tentar novamente.",
+      "lostLoadReload": "Não foi possível carregar a ordem das camadas, então este passo não foi alterado. Recarregue o Ori Studio para tentar novamente.",
+      "refused": "Não foi possível desenhar esta ordem das camadas, então nada foi alterado.",
+      "removed_one": "A restrição de camadas do passo era do padrão antigo, então foi removida. Desfazer a traz de volta.",
+      "removed_many": "As {{count}} restrições de camadas do passo eram do padrão antigo, então foram removidas. Desfazer as traz de volta.",
+      "removed_other": "As {{count}} restrições de camadas do passo eram do padrão antigo, então foram removidas. Desfazer as traz de volta.",
+      "stepCheckTimedOut": "Não foi possível verificar a tempo as restrições de camadas deste passo, então ele não foi alterado.",
+      "stepClash": "As restrições de camadas deste passo entram em conflito com o padrão como está agora, então ele não pode percorrer suas soluções. Edite a ordem das camadas dele para revisá-las.",
+      "stepNotFoundInTime": "Não foi possível encontrar outra solução a tempo, então este passo não foi alterado.",
+      "stepRefused": "A ordem das camadas não consegue percorrer as soluções deste passo, então ele não foi alterado.",
+      "stepTooLarge": "A próxima ordem das camadas é grande demais para salvar com este passo, então ele não foi alterado."
+    },
     "placementsReflowed_one": "{{count}} passos movidos voltaram às suas células",
     "placementsReflowed_many": "{{count}} passos movidos voltaram às suas células",
     "placementsReflowed_other": "{{count}} passos movidos voltaram às suas células",
@@ -81,6 +101,21 @@
       "tooLarge": "Este passo é detalhado demais para ser mantido no diagrama.",
       "undoReplaced": "Desfazer"
     },
+    "refreshAllChosenOrderKept_one": "A ordem das camadas escolhida de {{count}} passo precisa de atenção, então ele mantém sua imagem.",
+    "refreshAllChosenOrderKept_many": "As ordens das camadas escolhidas de {{count}} passos precisam de atenção, então eles mantêm suas imagens.",
+    "refreshAllChosenOrderKept_other": "As ordens das camadas escolhidas de {{count}} passos precisam de atenção, então eles mantêm suas imagens.",
+    "refreshAllLayerOrderKept_one": "As restrições de camadas de {{count}} passo precisam de atenção, então ele mantém sua imagem.",
+    "refreshAllLayerOrderKept_many": "As restrições de camadas de {{count}} passos precisam de atenção, então eles mantêm suas imagens.",
+    "refreshAllLayerOrderKept_other": "As restrições de camadas de {{count}} passos precisam de atenção, então eles mantêm suas imagens.",
+    "refreshAllLayerOrderLost_one": "A ordem das camadas parou inesperadamente, então {{count}} passo não foi alterado.",
+    "refreshAllLayerOrderLost_many": "A ordem das camadas parou inesperadamente, então {{count}} passos não foram alterados.",
+    "refreshAllLayerOrderLost_other": "A ordem das camadas parou inesperadamente, então {{count}} passos não foram alterados.",
+    "refreshAllLayerOrderLostLoadOffline_one": "Não foi possível carregar a ordem das camadas offline, então {{count}} passo não foi alterado. Reconecte-se e recarregue o Ori Studio para tentar novamente.",
+    "refreshAllLayerOrderLostLoadOffline_many": "Não foi possível carregar a ordem das camadas offline, então {{count}} passos não foram alterados. Reconecte-se e recarregue o Ori Studio para tentar novamente.",
+    "refreshAllLayerOrderLostLoadOffline_other": "Não foi possível carregar a ordem das camadas offline, então {{count}} passos não foram alterados. Reconecte-se e recarregue o Ori Studio para tentar novamente.",
+    "refreshAllLayerOrderLostLoadReload_one": "Não foi possível carregar a ordem das camadas, então {{count}} passo não foi alterado. Recarregue o Ori Studio para tentar novamente.",
+    "refreshAllLayerOrderLostLoadReload_many": "Não foi possível carregar a ordem das camadas, então {{count}} passos não foram alterados. Recarregue o Ori Studio para tentar novamente.",
+    "refreshAllLayerOrderLostLoadReload_other": "Não foi possível carregar a ordem das camadas, então {{count}} passos não foram alterados. Recarregue o Ori Studio para tentar novamente.",
     "refreshedAll_one": "1 passo atualizado",
     "refreshedAll_many": "{{count}} passos atualizados",
     "refreshedAll_other": "{{count}} passos atualizados",
@@ -117,6 +152,9 @@
     "ignoredFile": "{{name}} usado; 1 outro arquivo solto foi ignorado.",
     "ignoredFiles": "{{name}} usado; {{others}} outros arquivos soltos foram ignorados."
   },
+  "fileOpen": {
+    "closeDialog": "Feche a janela para abrir outro arquivo"
+  },
   "foldedFigureExport": {
     "empty": "Este modelo dobrado ainda não tem nada para exportar",
     "failed": "Não foi possível exportar este modelo dobrado"
@@ -141,6 +179,23 @@
     "solveStopping": "Cancelando…",
     "solving": "Resolvendo…",
     "solvingLong": "Ainda resolvendo — isso pode demorar um pouco"
+  },
+  "layerOrder": {
+    "foldImportBusy": "Ordem das camadas já está aberta, então escolha a ordem das camadas deste padrão de vincos na tela.",
+    "folds3d": "Os vincos deste modelo agora dobram em 3D, e a ordem das camadas funciona em dobras planas. Dobre-o novamente para vê-lo.",
+    "refoldKept": "As restrições de camadas de {{name}} precisam de atenção, então ele mantém sua imagem.",
+    "refoldKeptChosenOrder": "A ordem das camadas escolhida para {{name}} precisa de atenção, então ele mantém sua imagem.",
+    "refoldLost": "A ordem das camadas parou inesperadamente, então {{name}} não foi dobrado novamente.",
+    "refoldLostLoadOffline": "Não foi possível carregar a ordem das camadas offline, então {{name}} não foi dobrado novamente. Reconecte-se e recarregue o Ori Studio para tentar novamente.",
+    "refoldLostLoadReload": "Não foi possível carregar a ordem das camadas, então {{name}} não foi dobrado novamente. Recarregue o Ori Studio para tentar novamente.",
+    "stepCheckTimedOut": "Não foi possível verificar a tempo as restrições de camadas deste modelo, então ele não foi alterado.",
+    "stepLost": "A ordem das camadas parou inesperadamente, então o modelo não foi alterado.",
+    "stepLostLoadOffline": "Não foi possível carregar a ordem das camadas offline, então o modelo não foi alterado. Reconecte-se e recarregue o Ori Studio para tentar novamente.",
+    "stepLostLoadReload": "Não foi possível carregar a ordem das camadas, então o modelo não foi alterado. Recarregue o Ori Studio para tentar novamente.",
+    "stepNotFoundInTime": "Não foi possível encontrar outra solução a tempo, então o modelo não foi alterado.",
+    "stepUnrestored": "As restrições de camadas deste modelo precisam de atenção, então ele não pode percorrer as soluções. Abra “Ordem das camadas…” para revisá-las.",
+    "unavailableOffline": "Ordem das camadas não carregou offline. Reconecte-se e recarregue o Ori Studio para tentar de novo.",
+    "unavailableReload": "Ordem das camadas não carregou. Recarregue o Ori Studio para tentar de novo."
   },
   "paperExport": {
     "saved": "{{name}} exportado"

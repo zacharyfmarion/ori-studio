@@ -162,7 +162,7 @@
     "foldSendToDiagram": "将此步骤发送到图解",
     "foldSendToDiagramHint": "将屏幕上的步骤添加到图解末尾，并保持链接",
     "foldSendToEdit": "发送到编辑",
-    "foldSendToEditHint": "将所显示步骤的折痕图发送到编辑画布",
+    "foldSendToEditHint": "将当前步骤的折痕图发送到编辑画布",
     "foldSheetNoStep": "步骤从平整的纸开始：这里没有可删除的步骤",
     "foldStartFromEditFigure": "从编辑中的折叠模型开始",
     "foldStartFromEditFigureHint": "添加一步，把纸折成编辑中的折叠模型",

@@ -81,7 +81,7 @@ describe('the rest of the vocabulary', () => {
       formatVersion: 2,
       id: 'fold-1',
       title: 'Crane',
-      defaultSpread: {kind:'connected',version:1,amount:1,reveal:[.8,.6]},
+      defaultSpread: {kind:'connected',version:1,amount:0.14,reveal:[.8,.6]},
       paper: { shape: { kind: 'square' }, startSide: 'front' },
       style: { preset: 'diagram', style: builtInPaperPreset('diagram').style },
       steps: [],

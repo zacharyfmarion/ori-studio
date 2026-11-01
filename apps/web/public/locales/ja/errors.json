@@ -2,6 +2,7 @@
   "boundary": {
     "appDescription": "作業内容はまだメモリ上にありますが、インターフェースを自動的に復元できませんでした。再読み込みの前に以下の詳細をコピーしてください。開発者が原因を正確に把握できます。",
     "appTitle": "Ori Studio で問題が発生しました",
+    "close": "閉じる",
     "copied": "コピーしました",
     "copy": "詳細をコピー",
     "copyFailed": "コピーできませんでした",
@@ -19,6 +20,12 @@
   },
   "cp": {
     "foldProducedNothing": "これらの折り線には描画できる平坦な折り上がり形状がありません",
+    "layerOrderNotApplied": "{{name}} にこの重なり順を適用できませんでした。図は変わっていません。",
+    "layerOrderNotFolded": "これらの折り線をこの重なり順で折れませんでした。",
+    "layerOrderPatternChanged": "その間に展開図が変わったため、重なり順は何も変更しませんでした。",
+    "layerOrderTooLarge": "この重なり順は大きすぎて図と一緒に保存できないため、変更されていません。",
+    "layerOrderTooLargeToFold": "この重なり順は大きすぎて図と一緒に保存できないため、何も折られていません。",
+    "layerOrderUndeterminedSelection": "これらの折り線の重なり順を決められませんでした。",
     "pinnedVertex": "この折り線は固定された頂点から始まるため、延長できません。先に頂点の固定を解除するか、別の折り線を延長してください。"
   },
   "cpDetectImport": {

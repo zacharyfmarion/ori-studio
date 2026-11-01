@@ -1,0 +1,367 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 1,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.1.1",
+    "savedAt": "2026-05-26T12:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.1.1",
+    "savedAt": "2026-05-26T12:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Layer orders",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": {
+      "id": "crease-pattern",
+      "kind": "crease-pattern",
+      "title": "Layer orders",
+      "source": {
+        "format": "osf",
+        "filename": "layers.osf",
+        "path": null
+      },
+      "creasePattern": {
+        "engine": "oristudio-cp",
+        "document": {
+          "title": "Square CP",
+          "crease_pattern": {
+            "line_segments": [
+              {
+                "a": {
+                  "x": 0,
+                  "y": 0
+                },
+                "b": {
+                  "x": 1,
+                  "y": 0
+                },
+                "active": "Inactive0",
+                "color": "Black0",
+                "selected": 0,
+                "customized": 0,
+                "customized_color": {
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                }
+              }
+            ],
+            "circles": [],
+            "points": [],
+            "aux_line_segments": [],
+            "texts": [],
+            "grid": {
+              "interval_grid_size": 4,
+              "grid_size": 8,
+              "grid_xa": 1,
+              "grid_xb": 0,
+              "grid_xc": 1,
+              "grid_ya": 1,
+              "grid_yb": 0,
+              "grid_yc": 1,
+              "grid_angle": 90,
+              "base_state": "WithinPaper",
+              "vertical_scale_position": 0,
+              "horizontal_scale_position": 0,
+              "draw_diagonal_gridlines": false
+            }
+          },
+          "operation_frame": {
+            "active": false,
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 1
+              },
+              {
+                "x": 0,
+                "y": 1
+              }
+            ]
+          },
+          "metadata": {}
+        },
+        "source": null,
+        "foldProjection": null,
+        "sourceFold": null,
+        "lineage": {
+          "kind": "imported",
+          "manualEditCount": 0,
+          "stale": false
+        },
+        "images": [],
+        "textAnnotations": [],
+        "inlineSimulations": [],
+        "suppressionRegions": []
+      },
+      "viewState": {
+        "creaseColorMode": "mvf",
+        "selection": {
+          "lines": [],
+          "points": [],
+          "circles": [],
+          "texts": [],
+          "faces": []
+        },
+        "viewport": {
+          "gridVisible": true,
+          "snapToGrid": true,
+          "snapToVertices": true,
+          "snapToLines": true,
+          "camvIssuesVisible": true,
+          "foldAngleDisplay": "opacity",
+          "lineStyle": "color",
+          "lineWidth": 1,
+          "pointSize": 1
+        },
+        "camera": null,
+        "foldedFigures": [
+          {
+            "id": "generated-1",
+            "title": "Folded model 1",
+            "handle": null,
+            "sourceKind": "generated-from-current-cp",
+            "sourceCpRevision": 2,
+            "startingFaceId": 3,
+            "displayStyle": "Transparent3",
+            "status": "ready",
+            "placement": {
+              "offset": {
+                "x": 12,
+                "y": -8
+              },
+              "scale": 1.5,
+              "rotation": 0.25
+            },
+            "sourceBounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "sourceFingerprint": "fingerprint-1",
+            "sourceLineIds": [
+              1,
+              2,
+              3
+            ],
+            "sourceScopedLineIds": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "snapshot": {
+              "model": {
+                "front_color": {
+                  "red": 255,
+                  "green": 255,
+                  "blue": 50
+                },
+                "back_color": {
+                  "red": 233,
+                  "green": 233,
+                  "blue": 233
+                },
+                "line_color": {
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                },
+                "scale": 1,
+                "rotation": 0,
+                "anti_alias": true,
+                "display_shadows": true,
+                "state": "Back1",
+                "folded_cases": 1,
+                "transparent_transparency": 64,
+                "transparency_color": true
+              },
+              "estimation_step": "Step5",
+              "display_style": "Paper5",
+              "discovered_fold_cases": 2,
+              "find_another_overlap_valid": false,
+              "text_result": "Number of found solutions = 2",
+              "wireframe": null
+            },
+            "renderSnapshot": {
+              "schema_version": 1,
+              "fixture": null,
+              "pass": "transparent-color-back-full",
+              "primitives": []
+            },
+            "error": null,
+            "appearance": {}
+          },
+          {
+            "id": "generated-3d-1",
+            "title": "Folded model 1",
+            "handle": null,
+            "sourceKind": "generated-3d",
+            "sourceCpRevision": 2,
+            "startingFaceId": 3,
+            "displayStyle": "Transparent3",
+            "status": "ready",
+            "placement": {
+              "offset": {
+                "x": 12,
+                "y": -8
+              },
+              "scale": 1.5,
+              "rotation": 0.25
+            },
+            "sourceBounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "sourceFingerprint": "fingerprint-1",
+            "sourceLineIds": [
+              1,
+              2,
+              3
+            ],
+            "sourceScopedLineIds": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "snapshot": null,
+            "renderSnapshot": null,
+            "error": null,
+            "scene": {
+              "bounds": {
+                "minX": -4,
+                "minY": -4,
+                "maxX": 12,
+                "maxY": 9
+              },
+              "sheet": 16,
+              "items": [
+                {
+                  "kind": "face",
+                  "face": 2,
+                  "side": "back",
+                  "rings": [
+                    [
+                      [
+                        0,
+                        0
+                      ],
+                      [
+                        10,
+                        0
+                      ],
+                      [
+                        10,
+                        8
+                      ]
+                    ],
+                    [
+                      [
+                        2,
+                        2
+                      ],
+                      [
+                        6,
+                        2
+                      ],
+                      [
+                        6,
+                        5
+                      ]
+                    ]
+                  ],
+                  "shade": 0.82,
+                  "hidden": false
+                },
+                {
+                  "kind": "line",
+                  "role": "mountain",
+                  "a": [
+                    0,
+                    0
+                  ],
+                  "b": [
+                    10,
+                    8
+                  ],
+                  "onBoundary": [
+                    true,
+                    false
+                  ],
+                  "whole": {
+                    "a": [
+                      -1,
+                      -1
+                    ],
+                    "b": [
+                      11,
+                      9
+                    ],
+                    "onBoundary": [
+                      true,
+                      true
+                    ]
+                  },
+                  "face": 2,
+                  "hidden": true
+                }
+              ]
+            },
+            "folded3d": {
+              "schema_version": 1,
+              "discovered_fold_cases": 8,
+              "current_fold_case": 3,
+              "find_another_overlap_valid": true,
+              "has_next_solution": true,
+              "verdict": {
+                "verdict": "local_crossing",
+                "vertices": 2
+              }
+            },
+            "camera": {
+              "yaw": 0.5,
+              "pitch": -0.35,
+              "zoom": 1.25
+            },
+            "appearance": {}
+          }
+        ],
+        "activeFoldedFigureId": null,
+        "references": null
+      },
+      "extensions": {
+        "futureDocFeature": {
+          "a": 1
+        },
+        "zeta.other": [
+          1,
+          2
+        ]
+      }
+    },
+    "unknownDesigns": [],
+    "viewState": {}
+  },
+  "artifacts": {},
+  "extensions": {
+    "futureFileFeature": "keep-me"
+  }
+}

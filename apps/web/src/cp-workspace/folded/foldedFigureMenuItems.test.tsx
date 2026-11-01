@@ -57,6 +57,38 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
 }
 
 describe('foldedFigureMenuItems', () => {
+  it('lists Layer order… after Another solution as a row with no icon, saying why when it is held', () => {
+    const solved = makeFigure({
+      snapshot: {
+        model: { state: 'Front0' },
+        display_style: 'Paper5',
+        outcome: 'Solved',
+        find_another_overlap_valid: true,
+        discovered_fold_cases: 3,
+        current_fold_case: 2,
+      },
+    } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+    const openLayerOrder = vi.fn();
+    const items = foldedFigureMenuItems(solved, makeDeps({ openLayerOrder }));
+    const ids = items.flatMap((item) => (item.kind === 'action' ? [item.id] : []));
+    expect(ids.slice(ids.indexOf('another'), ids.indexOf('another') + 2)).toEqual(['another', 'layer-order']);
+    const row = items.find((item) => item.kind === 'action' && item.id === 'layer-order');
+    if (row?.kind !== 'action') throw new Error('no Layer order… row');
+    expect(row).toMatchObject({ label: 'Layer order…', disabled: false, icon: null });
+    expect(row.hint).toBeUndefined();
+    row.onSelect();
+    expect(openLayerOrder).toHaveBeenCalledWith(solved);
+
+    // Held on a fold that found no layer order: the row's tooltip says why.
+    const none = makeFigure({
+      snapshot: { model: { state: 'Front0' }, display_style: 'Transparent3', discovered_fold_cases: 0 },
+    } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+    const held = foldedFigureMenuItems(none, makeDeps({ openLayerOrder })).find(
+      (item) => item.kind === 'action' && item.id === 'layer-order'
+    );
+    expect(held).toMatchObject({ disabled: true, hint: 'Layer order couldn’t be determined for this figure.' });
+  });
+
   it('renders commands as actions and choice groups as submenus', () => {
     const items = foldedFigureMenuItems(makeFigure(), makeDeps());
     const kinds = new Set(items.map((item) => item.kind));

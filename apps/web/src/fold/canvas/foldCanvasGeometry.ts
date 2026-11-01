@@ -174,25 +174,8 @@ export function polygonCentroid(polygon: readonly Point[]): Point {
   return { x: cx / (3 * twice), y: cy / (3 * twice) };
 }
 
-/**
- * Whether `p` is inside a convex polygon, or within `epsilon` of it. Either
- * winding: a point is inside when it is on one side of every edge.
- */
-export function insideConvex(polygon: readonly Point[], p: Point, epsilon = 0): boolean {
-  let sign = 0;
-  for (let i = 0; i < polygon.length; i += 1) {
-    const a = polygon[i]!;
-    const b = polygon[(i + 1) % polygon.length]!;
-    const length = Math.hypot(b.x - a.x, b.y - a.y);
-    if (length === 0) continue;
-    const cross = ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) / length;
-    if (Math.abs(cross) <= epsilon) continue;
-    const s = Math.sign(cross);
-    if (sign === 0) sign = s;
-    else if (s !== sign) return false;
-  }
-  return true;
-}
+/** The convex point test, shared with the stack hit index Fold's picking reads. */
+export { insideConvex } from '../../cp-workspace/picking/polygonContains';
 
 /** The part of a convex polygon on the side of `line` where `sideOf` has sign `keep`. */
 export function clipConvex(polygon: readonly Point[], line: FoldModelLine, keep: 1 | -1): Point[] {

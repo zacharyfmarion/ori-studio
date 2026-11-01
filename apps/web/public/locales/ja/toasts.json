@@ -22,7 +22,9 @@
   "diagram": {
     "addedAsStep": "ステップ {{number}} として追加しました",
     "capture": {
+      "chosenOrderKept": "このステップで選んだ重なり順の確認が必要なため、図はそのままです。",
       "failed": "図をキャプチャできませんでした",
+      "layerOrderKept": "このステップの重なりの制約の確認が必要なため、図はそのままです。",
       "missing": "そのパターンは展開図にもうありません。",
       "needsPose": "シミュレーターで途中まで折ったステップは、ポーズで取り込みます。「ポーズを調整」で開いてください。",
       "noLayerOrder": "層の重なり順を決められなかったため、このステップは折った紙を透かして表示します。",
@@ -48,6 +50,22 @@
       "otherWorkspaceFirst": "先にもう一方のワークスペースで後の編集を元に戻すかやり直してください。インポートは編集と折り図の両方を変更しました。",
       "restoreFailed": "インポートした手順を復元できませんでした。"
     },
+    "layerOrder": {
+      "chosenOrderRemoved": "このステップで選んだ重なり順は以前のパターンのものだったため、削除しました。元に戻すと復元されます。",
+      "copyNotFolded": "このステップの重なりの制約の確認が必要なため、コピーを折った形で表示できませんでした。",
+      "copyNotFoldedChosenOrder": "このステップで選んだ重なり順の確認が必要なため、コピーを折った形で表示できませんでした。",
+      "folds3d": "このステップの折り線は現在 3D で折られ、重なり順は平らな折りに使えます。ステップを更新して確認してください。",
+      "lost": "重なり順が予期せず停止したため、このステップは変更されていません。",
+      "lostLoadOffline": "オフラインのため重なり順を読み込めず、このステップは変更されていません。接続を回復してから Ori Studio を再読み込みし、もう一度お試しください。",
+      "lostLoadReload": "重なり順を読み込めなかったため、このステップは変更されていません。Ori Studio を再読み込みして、もう一度お試しください。",
+      "refused": "この重なり順は描けなかったため、何も変更されていません。",
+      "removed_other": "このステップの重なりの制約 {{count}} 件は以前のパターンのものだったため、削除しました。元に戻すと復元されます。",
+      "stepCheckTimedOut": "時間内にこのステップの重なりの制約を確認できなかったため、このステップは変更されていません。",
+      "stepClash": "このステップの重なりの制約が現在のパターンと矛盾しているため、解を切り替えられません。重なり順を編集して確認してください。",
+      "stepNotFoundInTime": "時間内に別の解が見つからなかったため、このステップは変更されていません。",
+      "stepRefused": "重なり順でこのステップの解を切り替えられないため、変更されていません。",
+      "stepTooLarge": "次の重なり順は大きすぎてこのステップと一緒に保存できないため、変更されていません。"
+    },
     "placementsReflowed_other": "移動した{{count}}ステップが元のセルに戻りました",
     "references": {
       "addedSteps": "ステップ {{first}}–{{last}} として追加しました",
@@ -63,6 +81,11 @@
       "tooLarge": "このステップは細かすぎて折り図に保持できません。",
       "undoReplaced": "元に戻す"
     },
+    "refreshAllChosenOrderKept_other": "{{count}} 個のステップで選んだ重なり順の確認が必要なため、図はそのままです。",
+    "refreshAllLayerOrderKept_other": "{{count}} 個のステップの重なりの制約の確認が必要なため、図はそのままです。",
+    "refreshAllLayerOrderLost_other": "重なり順が予期せず停止したため、{{count}} 個のステップは変更されていません。",
+    "refreshAllLayerOrderLostLoadOffline_other": "オフラインのため重なり順を読み込めず、{{count}} 個のステップは変更されていません。接続を回復してから Ori Studio を再読み込みし、もう一度お試しください。",
+    "refreshAllLayerOrderLostLoadReload_other": "重なり順を読み込めなかったため、{{count}} 個のステップは変更されていません。Ori Studio を再読み込みして、もう一度お試しください。",
     "refreshedAll_other": "{{count}} 個のステップを更新しました",
     "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",
     "uploadFailureLine": "{{name}}：{{reason}}",
@@ -91,6 +114,9 @@
     "ignoredFile": "{{name}} を使用しました。ドロップされた他の 1 件は無視されました。",
     "ignoredFiles": "{{name}} を使用しました。ドロップされた他の {{others}} 件は無視されました。"
   },
+  "fileOpen": {
+    "closeDialog": "別のファイルを開くには、ダイアログを閉じてください"
+  },
   "foldedFigureExport": {
     "empty": "この折り図にはまだ書き出せるものがありません",
     "failed": "この折り図を書き出せませんでした"
@@ -115,6 +141,23 @@
     "solveStopping": "キャンセル中…",
     "solving": "解いています…",
     "solvingLong": "まだ解いています — しばらく時間がかかる場合があります"
+  },
+  "layerOrder": {
+    "foldImportBusy": "重なり順はすでに開いています。この展開図の重なり順はキャンバスで選んでください。",
+    "folds3d": "この図の折り線は現在 3D で折られ、重なり順は平らな折りに使えます。折り直して確認してください。",
+    "refoldKept": "{{name}} の重なり順の制約の確認が必要なため、図はそのままです。",
+    "refoldKeptChosenOrder": "{{name}} で選んだ重なり順の確認が必要なため、図はそのままです。",
+    "refoldLost": "重なり順が予期せず停止したため、{{name}} は折り直されていません。",
+    "refoldLostLoadOffline": "オフラインのため重なり順を読み込めず、{{name}} は折り直されていません。接続を回復してから Ori Studio を再読み込みし、もう一度お試しください。",
+    "refoldLostLoadReload": "重なり順を読み込めなかったため、{{name}} は折り直されていません。Ori Studio を再読み込みして、もう一度お試しください。",
+    "stepCheckTimedOut": "時間内にこの図の重なり順の制約を確認できなかったため、図は変更されていません。",
+    "stepLost": "重なり順が予期せず停止したため、図は変更されていません。",
+    "stepLostLoadOffline": "オフラインのため重なり順を読み込めず、図は変更されていません。接続を回復してから Ori Studio を再読み込みし、もう一度お試しください。",
+    "stepLostLoadReload": "重なり順を読み込めなかったため、図は変更されていません。Ori Studio を再読み込みして、もう一度お試しください。",
+    "stepNotFoundInTime": "時間内に別の解が見つからなかったため、図は変更されていません。",
+    "stepUnrestored": "この図の重なり順の制約に確認が必要なため、解を切り替えられません。「重なり順…」を開いて確認してください。",
+    "unavailableOffline": "オフラインのため重なり順を読み込めませんでした。接続を回復してから Ori Studio を再読み込みし、もう一度お試しください。",
+    "unavailableReload": "重なり順を読み込めませんでした。Ori Studio を再読み込みして、もう一度お試しください。"
   },
   "paperExport": {
     "saved": "{{name}} を書き出しました"

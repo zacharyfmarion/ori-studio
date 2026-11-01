@@ -80,6 +80,13 @@ export interface CpRenderer {
    */
   setSheetFill(fill: FillGeometry | null): void;
   /**
+   * Marks on the sheet, drawn over {@link setSheetFill} and under everything
+   * else, the creases included: a tint that moves with the pointer while the
+   * sheet's own fill stays put, so a hover re-uploads only its own few faces
+   * and never veils a crease. `null` clears it.
+   */
+  setSheetMarks(fills: FillGeometry | null): void;
+  /**
    * Imported `.fold` folded-form frames (fills + strokes in SVG user coordinates),
    * placed reference figures drawn with the folded figures. `null` clears them.
    */

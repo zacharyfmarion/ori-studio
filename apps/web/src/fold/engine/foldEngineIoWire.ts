@@ -18,10 +18,14 @@
  *   lands the step from that sheet.
  * - **A stored `cp-jump`** goes through the ordinary `step` call; one that no
  *   longer lands is refused with one of these codes and the step is broken.
+ * - **Or the Layer order dialog picks** (row H10): an opened import is opened
+ *   onto the dialog's faces (`FoldImportLayerOpening`), and the order its
+ *   Apply chose lands as a pick's does.
  *
  * Pure types and constants: no React, no store, no wasm.
  */
 
+import type { OristudioCpFoldedPaperScene, OristudioCpFoldSource } from '../../engine/oristudioCpTypes';
 import type { FoldStateFingerprint } from '../document/foldDigest';
 import type { FoldCpJumpOp, SheetPoint } from '../document/foldSequenceDocument';
 import type { ImportedCreasePatternFormat } from '../../lib/fileFormats';
@@ -143,6 +147,29 @@ export interface FoldExported {
 }
 
 /**
+ * What the Layer order dialog opens on for a held import
+ * (`implementation-plans/layer-order-dialog.md`, row H10;
+ * `import_layer_opening`):
+ *
+ * - `source`: the fold the dialog analyses, the import's stored crease
+ *   pattern as Edit folds it whole, in the CP bridge's own shape; its
+ *   `digest` is what `importPickLayerOrder` takes back with the relations;
+ * - `shown`: the order the choice picks, drawn over the source's faces by
+ *   the CP kernel (its front pass), which the dialog opens on, so an Apply
+ *   that changed nothing is that choice;
+ * - `look`: the side of the folded paper Fold shows the state from, and how
+ *   far it turns it, clockwise on screen, from that side's picture.
+ *
+ * The engine remembers the match of the import's faces with the dialog's
+ * until the import is opened again or let go.
+ */
+export interface FoldImportLayerOpening {
+  source: OristudioCpFoldSource;
+  shown: OristudioCpFoldedPaperScene;
+  look: { side: 'front' | 'back'; turn_deg: number };
+}
+
+/**
  * Every Import CP and FOLD export refusal code: the engine's
  * (`ImportRefusal::code` in `crates/oristudio-fold/src/import/mod.rs`), then
  * the bridge's (`IoRefusal::code`).
@@ -177,6 +204,9 @@ export const FOLD_IMPORT_REFUSAL_CODES = [
   'import_order_broken',
   'import_figure_incomplete',
   'fold_export_too_large',
+  // The Layer order dialog cannot open on a held import (row H10): the
+  // import keeps its own chooser, so no one is shown this.
+  'import_layer_unavailable',
 ] as const;
 
 export type FoldImportRefusalCode = (typeof FOLD_IMPORT_REFUSAL_CODES)[number];

@@ -23,6 +23,7 @@ import {
   type DiagramStyle,
   type DiagramTurn,
 } from '../../diagram/document/diagramDocument';
+import { layerOrderSummaryOf } from '../../diagram/capture/captureLayerOrder';
 import { DIAGRAM_LINKS } from '../../diagram/capture/diagramLinks';
 import { linkedSourceOf, needsPose, type DiagramLinkStatus } from '../../diagram/capture/linkStatus';
 import type { StepPageFit } from '../../diagram/pages/pageOverflow';
@@ -160,9 +161,15 @@ export const DiagramStepCard = memo(function DiagramStepCard({
   const linked = linkedSourceOf(step);
   const sent = linked?.kind === 'references-step';
   const restyled = capturedStyleChange(step, style);
+  // Its layer order's constraints need a Review… (layer order D10, D14), which a Refresh would not
+  // settle: from saved data. One waiting for its creases to fold flat (D13) has nothing to review.
+  const attention = !locked && linked?.kind === 'cp' && link !== 'missing' ? layerOrderSummaryOf(linked)?.attention : null;
+  const flagged = attention != null && attention.reason !== 'route-3d';
   const chip = capture
     ? t('panels:diagram.card.capturing', 'Capturing…')
-    : link === 'stale'
+    : flagged
+      ? t('panels:diagram.card.needsAttention', 'Needs attention')
+      : link === 'stale'
       ? // A step sent from References is never refreshed: its sheet changed, that is all.
         sent
         ? t('panels:diagram.card.patternChanged', 'Pattern changed')

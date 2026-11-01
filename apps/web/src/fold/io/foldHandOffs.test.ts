@@ -1,7 +1,7 @@
 /**
  * What leaves a Fold sequence, over the session and a fake engine: each
- * hand-off holds the engine, waits for the active path to land, and follows
- * it — Send to Edit the tip's crease pattern, the FOLD export every state of
+ * hand-off holds the engine and waits for the states it needs — Send to Edit
+ * the selected step's crease pattern, the FOLD export every state of
  * the path, the paper export a page per numbered step — or says why not.
  */
 import type { TFunction } from 'i18next';
@@ -85,14 +85,19 @@ function setup(document: FoldSequenceDocument = sequence(), cursor: string | nul
     exportStyle: () => DEFAULT_PAPER_STYLE,
     openPaperExport: vi.fn(),
   };
-  return { deps, asked, runtime, saved, session };
+  return { deps, asked, runtime, saved, session, source };
 }
 
 describe('Fold’s hand-offs', () => {
-  it('sends the tip of the active path to Edit, its precreases as aux lines, holding the engine only while it does', async () => {
-    const { deps, asked, runtime } = setup();
+  it.each([
+    ['a', 'sheet:square:front>valley@0.5'],
+    ['b', 'sheet:square:front>valley@0.5>turn'],
+    ['c', 'sheet:square:front>valley@0.5>turn>valley@0.25'],
+    [null, 'sheet:square:front'],
+  ])('sends the selected state %s to Edit, with precreases as aux lines, holding the engine only while it does', async (cursor, trail) => {
+    const { deps, asked, runtime } = setup(sequence(), cursor);
     await expect(sendFoldSequenceToEdit(deps)).resolves.toBe(true);
-    expect(asked).toEqual(['sendToEdit:sheet:square:front>valley@0.5>turn>valley@0.25:Crane']);
+    expect(asked).toEqual([`sendToEdit:${trail}:Crane`]);
     expect(deps.sendToEdit).toHaveBeenCalledExactlyOnceWith({
       text: expect.stringMatching(/^\{"fold"/),
       format: 'fold',
@@ -104,6 +109,34 @@ describe('Fold’s hand-offs', () => {
     expect(runtime.holders()).toBe(0);
   });
 
+  it('keeps the step selected when Send to Edit was invoked if the reader moves during replay', async () => {
+    const document = sequence();
+    const { deps, asked, source } = setup(document, 'a');
+    const sending = sendFoldSequenceToEdit(deps);
+    source.set({ reader: withFoldCursor(source.read().reader!, document, 'c') });
+    await expect(sending).resolves.toBe(true);
+    expect(asked).toEqual(['sendToEdit:sheet:square:front>valley@0.5:Crane']);
+  });
+
+  it('sends a ready state from a read-only sequence', async () => {
+    const document = sequence();
+    const { deps, asked, source } = setup(document, 'a');
+    source.set({ held: { document, readOnlyRaw: { formatVersion: 2 } } });
+    await expect(sendFoldSequenceToEdit(deps)).resolves.toBe(true);
+    expect(asked).toEqual(['sendToEdit:sheet:square:front>valley@0.5:Crane']);
+  });
+
+  it('sends an earlier state even when a later step cannot land, while refusing a whole-path export', async () => {
+    const locked = { id: 'd', parent: 'c', unknown: { id: 'd', parent: 'c', op: { kind: 'sink' } } };
+    const document = { ...sequence(), steps: [...sequence().steps, locked] };
+    const { deps, asked } = setup(document, 'a');
+    await expect(sendFoldSequenceToEdit(deps)).resolves.toBe(true);
+    expect(deps.blocked).not.toHaveBeenCalled();
+    expect(asked).toEqual(['sendToEdit:sheet:square:front>valley@0.5:Crane']);
+    await expect(exportFoldSequence(deps)).resolves.toBe(false);
+    expect(deps.blocked).toHaveBeenCalledWith('path-broken');
+  });
+
   it('counts a Send to Edit only when Edit took it', async () => {
     const { deps } = setup();
     deps.sendToEdit = vi.fn(async () => false);
@@ -112,7 +145,7 @@ describe('Fold’s hand-offs', () => {
   });
 
   it('exports every state of the active path, the sheet first, as one FOLD file', async () => {
-    const { deps, asked, saved } = setup();
+    const { deps, asked, saved } = setup(sequence(), 'a');
     await expect(exportFoldSequence(deps)).resolves.toBe(true);
     expect(asked).toEqual(['exportFold:4:Crane']);
     expect(saved).toEqual([

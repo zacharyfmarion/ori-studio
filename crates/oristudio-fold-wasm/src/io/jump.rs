@@ -24,7 +24,12 @@ pub fn land(parent: &State, jump: &CpJump) -> Result<State, IoRefusal> {
         serde_json::from_str(&jump.order_json).map_err(|_| IoRefusal::StoredUnreadable {
             field: StoredField::OrderJson,
         })?;
-    let pattern = ImportedPattern::new(&input, ImportTarget::After(parent))?;
+    let mut pattern = ImportedPattern::new(&input, ImportTarget::After(parent))?;
+    // Seen turned as the Layer order dialog left it, from the parent's view;
+    // clockwise on screen is the view's turn the other way.
+    if jump.turn_deg != 0.0 {
+        pattern.rotate_view(-jump.turn_deg.to_radians());
+    }
     // Every pair is stored, so this is propagation, not a search.
     pattern
         .replay(&stored, &CompletionLimits::default())

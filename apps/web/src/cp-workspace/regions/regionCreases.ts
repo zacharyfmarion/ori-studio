@@ -113,6 +113,21 @@ export function chooseRegionCreases(
   return { status: 'found', creases: { ...creases, found: resolved.found } };
 }
 
+/**
+ * Sheet `sheet` of `sheets`' creases, as a link made to it now would choose
+ * them (`chooseRegionCreases`): taken from the index itself, so nothing is
+ * looked for. Null for a sheet the index lacks, or one with no foldable crease.
+ */
+export function creasesOfSheet(
+  document: OristudioCpDocumentSnapshot,
+  sheets: CpSheetIndex,
+  sheet: number
+): StepCreases | null {
+  const region = sheetRegions(sheets)[sheet];
+  const creases = region ? sheetCreases(document, sheets, region) : null;
+  return creases ? { ...creases, found: 'in-place' } : null;
+}
+
 function inPlace(scope: RegionCreaseScope, regions: readonly CpSheetRegion[]) {
   const segment = resolveRegion(scope.region, regions);
   return segment ? { segment, found: 'in-place' as const } : null;

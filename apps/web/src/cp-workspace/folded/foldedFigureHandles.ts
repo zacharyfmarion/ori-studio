@@ -48,6 +48,12 @@ import { dropFolded3dAuxLines, resetFolded3dAuxLines } from './folded3dAuxLines'
 import { dropFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
 import { clearAllFolded3dOrbits } from './folded3dRuntime';
 import { dropFoldedFlatScene, resetFoldedFlatScenes } from './foldedFlatScenes';
+import {
+  dropSolutionFrontier,
+  resetSolutionFrontiers,
+  seedSolutionFrontier,
+  startSolutionFrontier,
+} from './foldedSolutionFrontiers';
 
 /** Live reference count per handle. Entries reaching 0 are freed and dropped. */
 const counts = new Map<number, number>();
@@ -77,6 +83,38 @@ let freeHandle: FreeFoldedFigureHandle = () => {};
 /** Install the free implementation. Called once, from the store slice. */
 export function setFoldedFigureHandleFree(free: FreeFoldedFigureHandle): void {
   freeHandle = free;
+}
+
+/**
+ * A handle the kernel just made, taken by the live list: one reference, and
+ * how far its layer-order search has reached — only what the fold reports,
+ * or, for a duplicate (`copyFrom`, its original's handle), as far as the
+ * session it is a copy of (`foldedSolutionFrontiers.ts`).
+ */
+export function adoptFoldedFigureHandle(handle: number, { copyFrom }: { copyFrom?: number | null } = {}): void {
+  if (copyFrom === undefined) startSolutionFrontier(handle);
+  else seedSolutionFrontier(handle, copyFrom);
+  retainFoldedFigureHandle(handle);
+}
+
+/**
+ * A handle the kernel just made for a press that keeps it a while with no
+ * figure holding it: the Layer order dialog's own fold, or a reopened figure's
+ * fold until it is the figure's. Adopted into the count. The returned release
+ * lets go of it once, and only in the generation of handles it was adopted in:
+ * a document replaced meanwhile freed it with every other, and the kernel may
+ * have given its slot to the new document's next fold by then. A press that
+ * hands the fold to a figure instead never calls it.
+ */
+export function adoptTransientFoldedFigureHandle(handle: number): () => void {
+  adoptFoldedFigureHandle(handle);
+  const epoch = handleEpoch;
+  let held = true;
+  return () => {
+    if (!held) return;
+    held = false;
+    if (handleEpoch === epoch) releaseFoldedFigureHandle(handle);
+  };
 }
 
 /** Take a reference to `handle`. No-op for a figure that has none yet. */
@@ -114,6 +152,9 @@ export function releaseFoldedFigureHandle(handle: number | null | undefined): vo
   dropFolded3dRenderModel(handle);
   dropFolded3dAuxLines(handle);
   dropFoldedFlatScene(handle);
+  // How far its layer-order search reached belongs to this session alone; the
+  // next fold the kernel gives the slot to has found nothing yet.
+  dropSolutionFrontier(handle);
   void freeHandle(handle);
 }
 
@@ -163,6 +204,7 @@ export function resetFoldedFigureHandles(): Promise<void> {
   resetFolded3dRenderModels();
   resetFolded3dAuxLines();
   resetFoldedFlatScenes();
+  resetSolutionFrontiers();
   // The other 3D side table, torn down at the same point and for the same
   // reason: a live orbit frame outliving its document would draw a figure at a
   // camera no entry in the store has.

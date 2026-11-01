@@ -23,7 +23,9 @@
   "diagram": {
     "addedAsStep": "Als Schritt {{number}} hinzugefügt",
     "capture": {
+      "chosenOrderKept": "Die gewählte Lagenreihenfolge dieses Schritts braucht Aufmerksamkeit, daher behält er sein Bild.",
       "failed": "Das Bild konnte nicht erfasst werden",
+      "layerOrderKept": "Die Lagenvorgaben dieses Schritts brauchen Aufmerksamkeit, daher behält er sein Bild.",
       "missing": "Dieses Muster ist nicht mehr im Faltmuster.",
       "needsPose": "Ein im Simulator teilweise gefalteter Schritt wird in „Pose“ aufgenommen: öffne ihn mit „Pose anpassen“.",
       "noLayerOrder": "Seine Lagen ließen sich nicht ordnen, daher zeigt der Schritt das gefaltete Papier durchsichtig.",
@@ -51,6 +53,23 @@
       "otherWorkspaceFirst": "Machen Sie zuerst die späteren Änderungen im anderen Arbeitsbereich rückgängig oder wiederholen Sie sie: Der Import hat Bearbeiten und Diagramm geändert.",
       "restoreFailed": "Die importierten Schritte konnten nicht wiederhergestellt werden."
     },
+    "layerOrder": {
+      "chosenOrderRemoved": "Die gewählte Lagenreihenfolge des Schritts gehörte zu seinem alten Muster und wurde entfernt. Mit Rückgängig kommt sie zurück.",
+      "copyNotFolded": "Die Kopie konnte nicht gefaltet gezeigt werden, weil die Lagenvorgaben dieses Schritts Aufmerksamkeit brauchen.",
+      "copyNotFoldedChosenOrder": "Die Kopie konnte nicht gefaltet gezeigt werden, weil die gewählte Lagenreihenfolge dieses Schritts Aufmerksamkeit braucht.",
+      "folds3d": "Die Falten dieses Schritts falten sich jetzt in 3D, und die Lagenreihenfolge gilt für flache Faltungen. Aktualisiere den Schritt, um ihn zu sehen.",
+      "lost": "Die Lagenreihenfolge wurde unerwartet beendet, daher wurde dieser Schritt nicht geändert.",
+      "lostLoadOffline": "Die Lagenreihenfolge konnte offline nicht geladen werden, daher wurde dieser Schritt nicht geändert. Stelle die Verbindung wieder her und lade Ori Studio dann neu, um es erneut zu versuchen.",
+      "lostLoadReload": "Die Lagenreihenfolge konnte nicht geladen werden, daher wurde dieser Schritt nicht geändert. Lade Ori Studio neu, um es erneut zu versuchen.",
+      "refused": "Diese Lagenreihenfolge konnte nicht gezeichnet werden, daher wurde nichts geändert.",
+      "removed_one": "Die Lagenvorgabe des Schritts gehörte zu seinem alten Muster und wurde entfernt. Mit Rückgängig kommt sie zurück.",
+      "removed_other": "Die {{count}} Lagenvorgaben des Schritts gehörten zu seinem alten Muster und wurden entfernt. Mit Rückgängig kommen sie zurück.",
+      "stepCheckTimedOut": "Die Lagenvorgaben dieses Schritts konnten nicht rechtzeitig geprüft werden, daher wurde er nicht geändert.",
+      "stepClash": "Die Lagenvorgaben dieses Schritts widersprechen sich bei seinem jetzigen Muster, daher kann er seine Lösungen nicht durchgehen. Bearbeite seine Lagenreihenfolge, um sie zu prüfen.",
+      "stepNotFoundInTime": "Es konnte nicht rechtzeitig eine weitere Lösung gefunden werden, daher wurde dieser Schritt nicht geändert.",
+      "stepRefused": "Die Lagenreihenfolge kann die Lösungen dieses Schritts nicht durchgehen, daher wurde er nicht geändert.",
+      "stepTooLarge": "Die nächste Lagenreihenfolge ist zu groß, um sie mit diesem Schritt zu speichern, daher wurde er nicht geändert."
+    },
     "placementsReflowed_one": "{{count}} verschobene Schritte sind in ihre Zellen zurückgekehrt",
     "placementsReflowed_other": "{{count}} verschobene Schritte sind in ihre Zellen zurückgekehrt",
     "references": {
@@ -72,6 +91,16 @@
       "tooLarge": "Dieser Schritt ist zu detailliert, um im Diagramm gespeichert zu werden.",
       "undoReplaced": "Rückgängig"
     },
+    "refreshAllChosenOrderKept_one": "Die gewählte Lagenreihenfolge von 1 Schritt braucht Aufmerksamkeit, daher behält er sein Bild.",
+    "refreshAllChosenOrderKept_other": "Die gewählten Lagenreihenfolgen von {{count}} Schritten brauchen Aufmerksamkeit, daher behalten sie ihre Bilder.",
+    "refreshAllLayerOrderKept_one": "Die Lagenvorgaben von 1 Schritt brauchen Aufmerksamkeit, daher behält er sein Bild.",
+    "refreshAllLayerOrderKept_other": "Die Lagenvorgaben von {{count}} Schritten brauchen Aufmerksamkeit, daher behalten sie ihre Bilder.",
+    "refreshAllLayerOrderLost_one": "Die Lagenreihenfolge wurde unerwartet beendet, daher wurde 1 Schritt nicht geändert.",
+    "refreshAllLayerOrderLost_other": "Die Lagenreihenfolge wurde unerwartet beendet, daher wurden {{count}} Schritte nicht geändert.",
+    "refreshAllLayerOrderLostLoadOffline_one": "Die Lagenreihenfolge konnte offline nicht geladen werden, daher wurde 1 Schritt nicht geändert. Stelle die Verbindung wieder her und lade Ori Studio dann neu, um es erneut zu versuchen.",
+    "refreshAllLayerOrderLostLoadOffline_other": "Die Lagenreihenfolge konnte offline nicht geladen werden, daher wurden {{count}} Schritte nicht geändert. Stelle die Verbindung wieder her und lade Ori Studio dann neu, um es erneut zu versuchen.",
+    "refreshAllLayerOrderLostLoadReload_one": "Die Lagenreihenfolge konnte nicht geladen werden, daher wurde 1 Schritt nicht geändert. Lade Ori Studio neu, um es erneut zu versuchen.",
+    "refreshAllLayerOrderLostLoadReload_other": "Die Lagenreihenfolge konnte nicht geladen werden, daher wurden {{count}} Schritte nicht geändert. Lade Ori Studio neu, um es erneut zu versuchen.",
     "refreshedAll_one": "1 Schritt aktualisiert",
     "refreshedAll_other": "{{count}} Schritte aktualisiert",
     "uploadFailed_one": "Ein Bild konnte nicht hinzugefügt werden",
@@ -104,6 +133,9 @@
     "ignoredFile": "{{name}} verwendet; 1 weitere abgelegte Datei wurde ignoriert.",
     "ignoredFiles": "{{name}} verwendet; {{others}} weitere abgelegte Dateien wurden ignoriert."
   },
+  "fileOpen": {
+    "closeDialog": "Schließe den Dialog, um eine andere Datei zu öffnen"
+  },
   "foldedFigureExport": {
     "empty": "Dieses gefaltete Modell hat noch nichts zu exportieren",
     "failed": "Dieses gefaltete Modell konnte nicht exportiert werden"
@@ -128,6 +160,23 @@
     "solveStopping": "Wird abgebrochen…",
     "solving": "Wird gelöst…",
     "solvingLong": "Wird noch gelöst – das kann eine Weile dauern"
+  },
+  "layerOrder": {
+    "foldImportBusy": "Die Lagenreihenfolge ist schon geöffnet. Wähle die Lagenreihenfolge dieses Faltmusters daher auf der Leinwand.",
+    "folds3d": "Die Faltlinien dieses Modells falten sich jetzt in 3D, und die Lagenreihenfolge gilt für flache Faltungen. Falte es neu, um es zu sehen.",
+    "refoldKept": "Die Lagenvorgaben von {{name}} brauchen Aufmerksamkeit, daher behält es sein Bild.",
+    "refoldKeptChosenOrder": "Die gewählte Lagenreihenfolge von {{name}} braucht Aufmerksamkeit, daher behält es sein Bild.",
+    "refoldLost": "Die Lagenreihenfolge wurde unerwartet beendet, daher wurde {{name}} nicht neu gefaltet.",
+    "refoldLostLoadOffline": "Die Lagenreihenfolge konnte offline nicht geladen werden, daher wurde {{name}} nicht neu gefaltet. Stelle die Verbindung wieder her und lade Ori Studio dann neu, um es erneut zu versuchen.",
+    "refoldLostLoadReload": "Die Lagenreihenfolge konnte nicht geladen werden, daher wurde {{name}} nicht neu gefaltet. Lade Ori Studio neu, um es erneut zu versuchen.",
+    "stepCheckTimedOut": "Die Lagenvorgaben dieses Modells konnten nicht rechtzeitig geprüft werden, daher wurde es nicht geändert.",
+    "stepLost": "Die Lagenreihenfolge wurde unerwartet beendet, daher wurde das Modell nicht geändert.",
+    "stepLostLoadOffline": "Die Lagenreihenfolge konnte offline nicht geladen werden, daher wurde das Modell nicht geändert. Stelle die Verbindung wieder her und lade Ori Studio dann neu, um es erneut zu versuchen.",
+    "stepLostLoadReload": "Die Lagenreihenfolge konnte nicht geladen werden, daher wurde das Modell nicht geändert. Lade Ori Studio neu, um es erneut zu versuchen.",
+    "stepNotFoundInTime": "Es konnte nicht rechtzeitig eine weitere Lösung gefunden werden, daher wurde das Modell nicht geändert.",
+    "stepUnrestored": "Die Lagenvorgaben dieses Modells müssen geprüft werden, daher kann es keine Lösungen durchgehen. Öffne „Lagenreihenfolge…“, um sie zu prüfen.",
+    "unavailableOffline": "Lagenreihenfolge konnte offline nicht geladen werden. Stelle die Verbindung wieder her und lade Ori Studio dann neu, um es erneut zu versuchen.",
+    "unavailableReload": "Lagenreihenfolge konnte nicht geladen werden. Lade Ori Studio neu, um es erneut zu versuchen."
   },
   "paperExport": {
     "saved": "{{name}} exportiert"

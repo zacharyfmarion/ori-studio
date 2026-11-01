@@ -1,6 +1,7 @@
 import type { PaperScene } from '@treemaker/origami-simulator';
 import type { Point } from '../lib/geometry';
 import type { PaperStyleOverrides } from '../lib/paper/paperStyle';
+import type { DetachedFigureLayerOrder, FoldedFigureLayerOrder } from '../lib/layerOrder/foldedFigureLayerOrder';
 import type { CpGeometryTransport } from './oristudioCpGeometry';
 import type {
   OristudioCpOperationId,
@@ -662,7 +663,18 @@ export interface OristudioCpFoldedFigureSnapshot {
    * Absent on figures saved before this existed.
    */
   outcome?: OristudioCpFoldOutcome;
+  /**
+   * Whether the order shown was given to the fold (`foldFigureWithOrder`, the
+   * Layer order dialog's Apply) rather than found by Oriedita's search.
+   * Written only when given, so a searched figure's snapshot is the bytes it
+   * always was: absent means searched. A saved layer order attaches to its
+   * figure only when this says given (`foldedFigureLayerOrders.ts`).
+   */
+  shown_order?: OristudioCpShownOrder;
 }
+
+/** Mirror of the kernel's `ShownOrder` (layer order plan, approach 4). */
+export type OristudioCpShownOrder = 'searched' | 'given';
 
 /** Mirror of the kernel's `folding::FoldOutcome`. */
 export type OristudioCpFoldOutcome =
@@ -680,6 +692,47 @@ export interface OristudioCpFoldedFigureBatchResult {
   snapshot: OristudioCpFoldedFigureSnapshot;
   discovered_case_numbers: number[];
 }
+
+/* ---------------------------------------------------------------------------
+ * Layer order (mirrors `oristudio_cp::session`'s `FoldSource`,
+ * `FoldWithOrderResult` and `FoldOrderRefusal`)
+ * ------------------------------------------------------------------------- */
+
+/**
+ * What a flat fold is made from, as the Layer order dialog analyses it and as
+ * `foldFigureWithOrder` folds it again. Handed on whole: lines reselected from
+ * the document can come back in another order, which renumbers the faces an
+ * order names, and `digest` is what catches that.
+ */
+export interface OristudioCpFoldSource {
+  segments: OristudioCpLineSegment[];
+  starting_face_id: number;
+  aux_segments: OristudioCpLineSegment[];
+  /** The kernel's face-ring digest, sixteen hex digits. */
+  digest: string;
+}
+
+/**
+ * Why the kernel cannot draw a given layer order on a source's creases. Face
+ * indices are the source's, 0-based.
+ */
+export type OristudioCpFoldOrderRefusal =
+  | { code: 'digest_mismatch'; expected: string; actual: string }
+  | { code: 'unknown_face'; face: number; faces_total: number }
+  | { code: 'same_face'; face: number }
+  | { code: 'against_letters'; upper_face: number; lower_face: number }
+  | { code: 'in_closure'; upper_face: number; lower_face: number }
+  | { code: 'not_found' }
+  | { code: 'budget'; iterations: number };
+
+/**
+ * A fold with a given layer order: a new figure, or the refusal, which leaves
+ * no handle behind. A refusal resolves rather than rejects, as a 3D refusal
+ * does; a Stop still rejects with `fold_cancelled`.
+ */
+export type OristudioCpFoldWithOrderResult =
+  | { status: 'folded'; handle: number; snapshot: OristudioCpFoldedFigureSnapshot }
+  | { status: 'refused'; refusal: OristudioCpFoldOrderRefusal };
 
 /* ---------------------------------------------------------------------------
  * The 3D folded state
@@ -1285,6 +1338,22 @@ export interface OristudioCpFoldedFigureEntry {
    * `implementation-plans/unified-paper-style-and-export.md` §4.
    */
   appearance?: PaperStyleOverrides;
+  /**
+   * The layer order chosen in the Layer order dialog: its constraints and the
+   * order shown, never a case number. Absent when there is none, and then
+   * `current_fold_case` means what it always has.
+   *
+   * Held here, saved elsewhere: the figure writer strips it and the crease
+   * pattern's extensions bag carries it, which every build since v0.2.0
+   * writes back as it came (`cp-workspace/folded/foldedFigureLayerOrders.ts`).
+   */
+  layerOrder?: FoldedFigureLayerOrder | null;
+  /**
+   * A record a reload detached from this figure (an older build folded it
+   * again), for review only: never used to fold. Held here at install,
+   * written back to the bag's `detached` list from there, never on the figure.
+   */
+  detachedLayerOrder?: DetachedFigureLayerOrder | null;
 }
 
 /** Mirrors the kernel's `model::SnapCandidates`. */

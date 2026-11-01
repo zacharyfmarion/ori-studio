@@ -46,6 +46,10 @@ oristudio-cp.workspace = true
 oristudio-geometry = { path = "../oristudio-geometry" }
 treemaker-fold.workspace = true
 console_error_panic_hook.workspace = true
+# The Layer order dialog's calls (`src/steer`) hand their pairs, stacks and
+# statuses over as typed arrays. Already in the build through
+# `serde-wasm-bindgen`, so it links nothing new.
+js-sys.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde-wasm-bindgen.workspace = true

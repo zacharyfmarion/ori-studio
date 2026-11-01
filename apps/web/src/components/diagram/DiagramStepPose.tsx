@@ -1,18 +1,23 @@
 import { SpreadPresentationRow } from './SpreadPresentationRow';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiagramPoseAction } from '../../diagram/actions/diagramPoseActions';
 import type { DiagramLinkedPoseAction } from '../../diagram/actions/diagramLinkedPoseActions';
+import type {
+  DiagramStepLayerOrderEntry,
+  DiagramStepLayerOrderRow,
+} from '../../diagram/actions/diagramStepLayerOrderActions';
 import { useOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import { useDiagramFoldStepPose } from '../../diagram/fold/useDiagramFoldStepPose';
 import { isLockedStep, type DiagramStep } from '../../diagram/document/diagramDocument';
-import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { useReferencesStepWays } from '../../diagram/references/useReferencesStepWays';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { LayerSpreadRows } from '../paper/LayerSpreadRows';
 import { DiagramWayRow } from './DiagramWayChooser';
-import { IconButton } from '../ui/IconButton';
+import type { ControlVerb } from '../../lib/controlVerb';
+import { Button } from '../ui/Button';
+import { Pager } from '../ui/Pager';
 import { FieldRow, NumberRow, SegmentedRow } from '../ui/fieldRows';
 import styles from './DiagramStepPose.module.css';
 
@@ -53,11 +58,14 @@ interface SideChoice {
 export function DiagramStepPose({
   step,
   actions,
+  layerOrder = null,
   main = false,
 }: {
   step: DiagramStep;
   /** An upload's or a References step's pose verbs (`useDiagramPoseActions`). */
   actions: readonly DiagramPoseAction[];
+  /** A folded linked step's way into the Layer order dialog, and its note (`useDiagramStepLayerOrder`). */
+  layerOrder?: DiagramStepLayerOrderRow | null;
   main?: boolean;
 }) {
   const { t } = useTranslation();
@@ -67,6 +75,7 @@ export function DiagramStepPose({
   const ways = useReferencesStepWays(step);
   // A Fold step's angle and spread (plan D17).
   const foldPose = useDiagramFoldStepPose(isLockedStep(step) ? null : step);
+  const layerOrderLabelId = useId();
   if (isLockedStep(step)) return null;
   const section = (body: ReactNode) =>
     main ? (
@@ -162,13 +171,40 @@ export function DiagramStepPose({
         <RotationRow turn={turn} disabled={turnHeld || waiting} onCommit={linkedPose.rotateTo} />
       )}
       {side !== null && !perspective && sideRow({ side, turnOver })}
-      {render.mode === 'folded-flat' && !main && (
-        // Any layer order found, back or on (D23), as Pose's own pager has them.
-        <FieldRow label={t('panels:diagram.pose.layerOrder', 'Layer order')} kind="text">
-          <span className={styles.pager}>
-            {layerVerb(linked.find((action) => action.id === 'previous-solution'), ChevronLeft)}
-            <span className={styles.pagerLabel}>{linkedPose.layerOrder?.count ?? render.foldCase}</span>
-            {layerVerb(linked.find((action) => action.id === 'next-solution'), ChevronRight)}
+      {(render.mode === 'folded-flat' || (render.mode === 'folded-3d' && layerOrder)) && !main && (
+        // Any layer order found, back or on (D23), as Pose's own pager has them; then the
+        // Layer order dialog, always there so the pager never moves (H7, D13). The pager
+        // is named by the row's label, so "Layer order" is said once.
+        <FieldRow
+          label={t('panels:diagram.pose.layerOrder', 'Layer order')}
+          labelId={layerOrderLabelId}
+          kind="text"
+          disabled={layerOrder?.edit.disabled}
+          note={layerOrder?.note?.text}
+          noteKind={layerOrder?.note?.kind}
+        >
+          <span className={styles.layerOrder}>
+            {render.mode === 'folded-flat' && (
+              <Pager
+                labelledBy={layerOrderLabelId}
+                previous={layerVerb(linked.find((action) => action.id === 'previous-solution'))}
+                next={layerVerb(linked.find((action) => action.id === 'next-solution'))}
+              >
+                {source.layerOrder === undefined ? (
+                  (linkedPose.layerOrder?.count ?? render.foldCase)
+                ) : linkedPose.layerOrder ? (
+                  // Where it stands among the solutions that fit its record, once a press asked (H9).
+                  linkedPose.layerOrder.count
+                ) : (
+                  // At rest the host never counts (D11): its place is kept, unread, so the chevrons
+                  // stay where a count puts them.
+                  <span className={styles.reserved} data-reserved="" aria-hidden="true">
+                    {t('panels:diagram.pose.layerOrderOf', '{{number}} of {{total}}', { number: 1, total: 1 })}
+                  </span>
+                )}
+              </Pager>
+            )}
+            {layerOrder && <LayerOrderEntry entry={layerOrder.edit} />}
           </span>
         </FieldRow>
       )}
@@ -216,21 +252,37 @@ function RotationRow({
 }
 
 /**
- * One of a flat fold's layer order verbs, as a small button: refused rather
- * than disabled, while a capture runs or at either end, so it keeps the focus
- * a press gave it.
+ * A way into the Layer order dialog, as a word button (no icon says "layer
+ * order"): refused rather than disabled, so it keeps the focus a press gave
+ * it, and says why on hover.
  */
-function layerVerb(action: DiagramLinkedPoseAction | undefined, Icon: LucideIcon): ReactNode {
-  if (!action) return null;
+function LayerOrderEntry({ entry }: { entry: DiagramStepLayerOrderEntry }) {
+  const held = entry.disabled || entry.waiting;
   return (
-    <IconButton
+    <Button
       size="sm"
-      aria-label={action.label}
-      title={(action.disabled || action.waiting) && action.hint ? action.hint : action.label}
-      aria-disabled={action.disabled || action.waiting || undefined}
-      onClick={action.run}
+      variant="secondary"
+      aria-label={entry.name}
+      title={held && entry.hint ? entry.hint : entry.name}
+      aria-disabled={held || undefined}
+      onClick={entry.run}
     >
-      <Icon size={14} />
-    </IconButton>
+      {entry.label}
+    </Button>
   );
+}
+
+/**
+ * One of a flat fold's layer order verbs, for the pager: refused rather than
+ * disabled while a capture runs or at either end, so it keeps the focus a
+ * press gave it.
+ */
+function layerVerb(action: DiagramLinkedPoseAction | undefined): ControlVerb | undefined {
+  if (!action) return undefined;
+  return {
+    label: action.label,
+    disabled: action.disabled || action.waiting,
+    hint: action.hint,
+    run: action.run,
+  };
 }

@@ -1,5 +1,9 @@
 //! Import CP's two calls (plan D16): open a file — load it, import it,
-//! complete its order — and pick one of the orders, landing the step.
+//! complete its order — and pick one of the orders, landing the step. Or,
+//! with several orders, open it onto the Layer order dialog
+//! ([`Imports::layer_opening`]) and land the order its Apply chose
+//! ([`Imports::pick_layer_order`], `implementation-plans/layer-order-dialog.md`
+//! row H10).
 //!
 //! An opened import is held under its own handle, like a state, until it is
 //! released: the completion can be the costly part, and a picker previews
@@ -14,7 +18,11 @@
 
 use std::collections::HashMap;
 
+use oristudio_cp::CreasePatternDocument;
+use oristudio_cp::folding::{FoldedFigureModel, folded_paper_scene_with_order};
+use oristudio_cp::session::{CpSession, EngineError, FoldSource};
 use oristudio_fold::complete::Completions;
+use oristudio_fold::steer::{ImportedFaces, ImportedLook, LayerSource};
 use oristudio_fold::{
     Check, CompletionRefusal, CompletionSession, CreasePatternInput, FaceId, FixedKind, FixedPair,
     ImportRefusal, ImportTarget, ImportedPattern, Sheet, StartSide, State,
@@ -22,10 +30,10 @@ use oristudio_fold::{
 use oristudio_layer_order::LayerOrder;
 
 use super::jump;
-use super::kernel::{cp_json, input_of_cp_json, load};
+use super::kernel::{cp_json, input_of_cp_json, load, model_of_cp_json};
 use super::wire::{
     AdoptedPaper, CheckWireLimits, Checked, ComponentCount, CpFile, CpJump, CpOrigin, IoCallError,
-    IoRefusal, JumpOp, Landed, Limits, Opened, SessionOpened, SheetFound, Target,
+    IoRefusal, JumpOp, Landed, LayerOpening, Limits, Opened, SessionOpened, SheetFound, Target,
 };
 use crate::bridge::Bridge;
 use crate::wire::{Choices, Op, Outcome, Paper};
@@ -45,8 +53,25 @@ struct Held {
     origin: CpOrigin,
     pattern: ImportedPattern,
     completions: Completions,
+    /// What the completion may spend: the open's, or the last search's.
+    limits: Limits,
     /// Opened by [`Imports::open_session`].
     session: Option<Checking>,
+    /// Opened by [`Imports::layer_opening`].
+    layer: Option<LayerLink>,
+    /// How far [`Imports::turn`] has turned the import's view, degrees
+    /// clockwise on screen from the target's, in (−180, 180]: what every
+    /// step it lands stores (`CpJump::turn_deg`).
+    turn_deg: f64,
+}
+
+/// A held import opened onto the Layer order dialog's faces (row H10): the
+/// digest of the source the dialog was given, and its faces matched with the
+/// import's, so its Apply comes back exactly.
+#[derive(Debug)]
+struct LayerLink {
+    digest: String,
+    faces: ImportedFaces,
 }
 
 /// A held import's checking session and the order it shows.
@@ -140,7 +165,10 @@ impl Imports {
             origin: file.origin(),
             pattern,
             completions,
+            limits: *limits,
             session: None,
+            layer: None,
+            turn_deg: 0.0,
         });
         Ok(Outcome::Ok(Opened {
             import,
@@ -192,6 +220,7 @@ impl Imports {
                 .collect(),
         };
         held.completions = completions;
+        held.limits = *limits;
         Ok(Outcome::Ok(super::wire::Searched { opened, choice }))
     }
 
@@ -232,6 +261,154 @@ impl Imports {
                     cp_json: held.cp_json.clone(),
                     order_json,
                     origin: held.origin,
+                    turn_deg: held.turn_deg,
+                },
+            ),
+            Err(refusal) => Ok(Outcome::Refused(refusal.into())),
+        }
+    }
+
+    /// Turn a held import opened onto the Layer order dialog
+    /// ([`Imports::layer_opening`]) so that Fold shows it turned `turn_deg`,
+    /// clockwise on screen, from Oriedita's picture of the side it shows: the
+    /// dialog's Rotate, in its opening's `look` terms, which the import's
+    /// look reads back. Every step it lands after this stores the turn
+    /// (`CpJump::turn_deg`), so the imported step is drawn turned, with no
+    /// rotate step after it. Answers the look it has now. Not opened onto
+    /// the dialog, or a turn that is not a number, is the caller's mistake.
+    pub fn turn(&mut self, import: u32, turn_deg: f64) -> Result<ImportedLook, IoCallError> {
+        let held = self
+            .held
+            .get_mut(&import)
+            .ok_or(IoCallError::UnknownImport(import))?;
+        if !turn_deg.is_finite() {
+            return Err(IoCallError::invalid("the turn must be a number of degrees"));
+        }
+        let link = held.layer.as_ref().ok_or_else(|| {
+            IoCallError::invalid(format!(
+                "import {import} is not open in the Layer order dialog: open it first"
+            ))
+        })?;
+        let by = link.faces.turn_to(&mut held.pattern, turn_deg);
+        // Stored to a millionth of a degree, so a turn of whole steps stores whole degrees.
+        held.turn_deg = shorter_turn(((held.turn_deg + by) * 1e6).round() / 1e6);
+        Ok(link.faces.look(&held.pattern))
+    }
+
+    /// Open a held import onto the Layer order dialog (row H10): the fold the
+    /// dialog analyses — the stored crease pattern as Edit folds it whole —
+    /// and the order `choice` picks drawn over its faces, which the dialog
+    /// opens on, with how Fold shows the state. The import remembers the
+    /// match of its faces with the dialog's until it is opened again or
+    /// released, for [`Imports::pick_layer_order`].
+    ///
+    /// Refused as `import_layer_unavailable` when Edit's fold of the creases
+    /// is refused or traces other faces than the import; the import is then
+    /// as it was, and its own chooser still works.
+    pub fn layer_opening(
+        &mut self,
+        import: u32,
+        choice: &[usize],
+    ) -> Result<Outcome<LayerOpening>, IoCallError> {
+        let held = self
+            .held
+            .get_mut(&import)
+            .ok_or(IoCallError::UnknownImport(import))?;
+        let order = held
+            .completions
+            .order(choice)
+            .ok_or_else(|| IoCallError::invalid(format!("choice {choice:?} names no order")))?;
+        held.layer = None;
+        let opened = (|| -> Result<_, &'static str> {
+            let source = edit_fold_source(&held.cp_json)?;
+            let layer = LayerSource::from_oriedita(&source).map_err(|refusal| refusal.code())?;
+            let faces = ImportedFaces::of(&layer, &held.pattern).map_err(|_| "faces_differ")?;
+            let relations = faces.oriedita_relations(&layer, &held.pattern, &order);
+            let shown = folded_paper_scene_with_order(
+                layer.render_inputs(),
+                &relations,
+                &source.aux_segments,
+                &FoldedFigureModel::default(),
+            )
+            .map_err(|error| EngineError::from(error).code)?
+            .ok_or("no_subfaces")?;
+            let look = faces.look(&held.pattern);
+            Ok((source, faces, shown, look))
+        })();
+        Ok(match opened {
+            Ok((source, faces, shown, look)) => {
+                held.layer = Some(LayerLink {
+                    digest: source.digest.clone(),
+                    faces,
+                });
+                Outcome::Ok(LayerOpening {
+                    source,
+                    shown,
+                    look,
+                })
+            }
+            Err(reason) => Outcome::Refused(IoRefusal::LayerUnavailable { reason }.into()),
+        })
+    }
+
+    /// Land the order the Layer order dialog's Apply chose (row H10):
+    /// `relations`, flat `[upper, lower, …]` over the faces of the source
+    /// [`Imports::layer_opening`] gave, whose digest is `digest`, in
+    /// Oriedita's convention. They become the import's seeds, every pair as
+    /// the dialog chose it, and with the letters they must decide every pair
+    /// (`import_order_open` otherwise), within the limits the import was
+    /// opened with; the step then lands as a pick's does, a `cp-jump` of the
+    /// stored crease pattern and that order.
+    pub fn pick_layer_order(
+        &self,
+        bridge: &mut Bridge,
+        import: u32,
+        digest: &str,
+        relations: &[u32],
+    ) -> Result<Outcome<Landed>, IoCallError> {
+        let held = self
+            .held
+            .get(&import)
+            .ok_or(IoCallError::UnknownImport(import))?;
+        let link = held.layer.as_ref().ok_or_else(|| {
+            IoCallError::invalid(format!(
+                "import {import} is not open in the Layer order dialog: open it first"
+            ))
+        })?;
+        if link.digest != digest {
+            return Err(IoCallError::invalid(format!(
+                "the relations are over faces {digest}, not the {} this import opened on",
+                link.digest
+            )));
+        }
+        if !relations.len().is_multiple_of(2) {
+            return Err(IoCallError::invalid(
+                "relations must be [upper, lower] pairs",
+            ));
+        }
+        let pairs: Vec<[usize; 2]> = relations
+            .chunks_exact(2)
+            .map(|pair| [pair[0] as usize, pair[1] as usize])
+            .collect();
+        let mapped = link.faces.to_imported(&pairs).ok_or_else(|| {
+            IoCallError::invalid("a relation names a face the dialog's fold does not have")
+        })?;
+        let jump = held
+            .pattern
+            .oriedita_face_seeds(link.faces.start(), &mapped)
+            // Within what the import was opened with (or its last search), as its own picks are.
+            .and_then(|seeds| held.pattern.decided_by(&seeds, &held.limits.completion()))
+            .map_err(IoRefusal::from)
+            .and_then(|state| jump::order_json(&state));
+        match jump {
+            Ok(order_json) => land_op(
+                bridge,
+                held.placed,
+                CpJump {
+                    cp_json: held.cp_json.clone(),
+                    order_json,
+                    origin: held.origin,
+                    turn_deg: held.turn_deg,
                 },
             ),
             Err(refusal) => Ok(Outcome::Refused(refusal.into())),
@@ -416,6 +593,38 @@ pub(crate) fn import(
             Ok((pattern, Placed::Sheet { paper, start }))
         }
     }
+}
+
+/// A stored crease pattern as Edit folds it whole: every folding line of it,
+/// from Edit's first face, through the CP kernel's own reading of a selection
+/// (`CpSession::fold_source_of_selection`), so the Layer order dialog
+/// analyses exactly what Edit would fold. Refused with the kernel's code.
+fn edit_fold_source(cp_json: &str) -> Result<FoldSource, &'static str> {
+    let model = model_of_cp_json(cp_json).map_err(|refusal| refusal.code())?;
+    let lines: Vec<usize> = (1..=model.line_segments.len()).collect();
+    let mut kernel = CpSession::new();
+    let document = kernel.load_document(CreasePatternDocument {
+        crease_pattern: model,
+        ..CreasePatternDocument::default()
+    });
+    kernel
+        .fold_source_of_selection(document, &lines, EDIT_STARTING_FACE)
+        .map_err(|error| error.code)
+}
+
+/// The face Edit's Fold starts from when no other is chosen.
+const EDIT_STARTING_FACE: i32 = 1;
+
+/// A turn in degrees, the shorter way round: in (−180, 180], with a hair
+/// either side of none as none.
+fn shorter_turn(degrees: f64) -> f64 {
+    let wrapped = degrees.rem_euclid(360.0);
+    let shorter = if wrapped > 180.0 {
+        wrapped - 360.0
+    } else {
+        wrapped
+    };
+    if shorter.abs() < 1e-9 { 0.0 } else { shorter }
 }
 
 fn internal(message: &str) -> IoRefusal {

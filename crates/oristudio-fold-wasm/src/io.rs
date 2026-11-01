@@ -13,6 +13,12 @@
 //!   `cp-jump` op it returns *by replaying it* ([`jump::land`], what
 //!   `Bridge::apply` does with every stored `cp-jump`), so a step is
 //!   committed exactly as every later replay will land it.
+//!   With several orders, a held import can instead open onto the Layer
+//!   order dialog (`implementation-plans/layer-order-dialog.md`, row H10):
+//!   the dialog analyses the stored pattern as Edit folds it, its faces
+//!   matched with the import's one for one
+//!   (`oristudio_fold::steer::ImportedFaces`), and the order its Apply chose
+//!   comes back as the import's seeds and lands as a pick's does.
 //! - **Start from Edit's folded figure** ([`figure`]): the kernel's folded
 //!   paper scene — what Edit's folded figure exposes on the web — gives the
 //!   faces on the sheet and Oriedita's stacking, which decide the order.
@@ -59,5 +65,6 @@ pub use imports::{Imports, starting_sheet};
 pub use jump::land;
 pub use wire::{
     AdoptedPaper, ComponentCount, CpFile, CpFormat, CpJump, CpOrigin, Exported, FigureGap,
-    IoCallError, IoRefusal, JumpOp, Landed, Limits, Opened, SheetFound, StoredField, Target,
+    IoCallError, IoRefusal, JumpOp, Landed, LayerOpening, Limits, Opened, SheetFound, StoredField,
+    Target,
 };

@@ -236,18 +236,26 @@ export function trackDiagramArrowShaped(
  * amount bucketed, and a depth spread's direction or an affine one's layer
  * held still, with its skew and axis bucketed — never a value itself. A
  * turn-over says which side of the paper the picture shows after it, and a
- * crease pattern's paper side the side whose colour its paper takes.
+ * crease pattern's paper side the side whose colour its paper takes. A step
+ * to another layer order within a step's layer constraints, on the Layer
+ * order host engine rather than the kernel's orders, is `constrained` (sent
+ * only then), as Edit's `fold solution cycled` is.
  */
 export function trackDiagramPicturePosed(
   action: DiagramPoseAction,
   picture: DiagramPictureKind,
-  { spread, side }: { spread?: DiagramSpreadTracking; side?: DiagramPictureSide } = {}
+  {
+    spread,
+    side,
+    constrained,
+  }: { spread?: DiagramSpreadTracking; side?: DiagramPictureSide; constrained?: true } = {}
 ): void {
   track(ANALYTICS_EVENTS.diagramPicturePosed, {
     action,
     picture,
     ...(spread ? spreadProperties(spread) : {}),
     ...(side ? { side } : {}),
+    ...(constrained ? { constrained: true } : {}),
   });
 }
 

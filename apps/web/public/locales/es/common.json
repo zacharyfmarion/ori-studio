@@ -162,7 +162,7 @@
     "foldSendToDiagram": "Enviar paso al Diagrama",
     "foldSendToDiagramHint": "Añadir al final del diagrama el paso en pantalla, vinculado a él",
     "foldSendToEdit": "Enviar a Editar",
-    "foldSendToEditHint": "Enviar el patrón de pliegues de los pasos mostrados al lienzo de edición",
+    "foldSendToEditHint": "Enviar el patrón de pliegues del paso activo al lienzo de edición",
     "foldSheetNoStep": "La hoja plana es donde empiezan los pasos: no hay ningún paso que eliminar",
     "foldStartFromEditFigure": "Empezar desde la figura plegada de Editar",
     "foldStartFromEditFigureHint": "Añadir un paso que pliega el papel en la figura plegada de Editar",

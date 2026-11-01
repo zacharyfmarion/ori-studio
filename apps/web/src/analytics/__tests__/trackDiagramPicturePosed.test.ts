@@ -29,6 +29,17 @@ describe('trackDiagramPicturePosed', () => {
     expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', { action: 'turn_over', picture: 'flat', side: 'back' });
   });
 
+  it('tags a step within a step’s layer constraints, and only that (layer order H9)', () => {
+    trackDiagramPicturePosed('next_solution', 'flat', { constrained: true });
+    expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', {
+      action: 'next_solution',
+      picture: 'flat',
+      constrained: true,
+    });
+    trackDiagramPicturePosed('previous_solution', 'flat');
+    expect(runtime.track).toHaveBeenLastCalledWith('diagram picture posed', { action: 'previous_solution', picture: 'flat' });
+  });
+
   it('sends a crease pattern’s paper side, chosen in the Step pane, as a word', () => {
     // Front | Back under Show as: the paper's colour, not a turn-over.
     trackDiagramPicturePosed('paper_side', 'crease_pattern', { side: 'back' });

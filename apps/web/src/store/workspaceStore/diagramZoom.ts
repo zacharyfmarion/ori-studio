@@ -41,6 +41,8 @@ import {
   type LandedFirstFrame,
   type SeededStep,
 } from '../../diagram/zoom/zoomFrames';
+import type { CaptureLayerOrderResolve } from '../../diagram/capture/captureLayerOrder';
+import { openLayerOrderResolveBatch } from '../../layer-order/host/hostEngineGateway';
 import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
 import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
 import type { DiagramCommit, DiagramCaptureStore } from './diagramCapture';
@@ -60,6 +62,9 @@ export function storePaperFacesBackfill(store: DiagramCaptureStore): PaperFacesB
     const cp = store.get().oristudioCpDocument;
     if (wanting.length === 0 || !cp) return faced;
     const style = store.get().diagram?.style ?? DEFAULT_DIAGRAM_STYLE;
+    // A step drawn in its layer order is folded in it again (H7): one host engine worker for them all, if any.
+    const layerOrders = openLayerOrderResolveBatch();
+    const resolveLayerOrder: CaptureLayerOrderResolve = (source, record) => layerOrders.resolve(source, record);
     try {
       const sheets = await abandonOnEngineLoss(ensureCpSheetIndex(cp.document));
       // A flat fold's faces: no 3D figure's aux lines are asked for, but the handle is the capture's own.
@@ -69,12 +74,14 @@ export function storePaperFacesBackfill(store: DiagramCaptureStore): PaperFacesB
       );
       for (const step of wanting) {
         const got = await abandonOnEngineLoss(
-          stepWithPaperFaces(runtime, { step, document: cp.document, sheets, style })
+          stepWithPaperFaces(runtime, { step, document: cp.document, sheets, style, resolveLayerOrder })
         );
         if (got.status === 'faces') faced.set(step.id, got.step);
       }
     } catch {
       // Left without: the frame is copied in picture units, and the Step pane says Refresh.
+    } finally {
+      layerOrders.close();
     }
     return faced;
   };

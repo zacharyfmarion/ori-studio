@@ -28,6 +28,8 @@ export type WorkerName =
   | 'precrease'
   /** The Fold engine's bridge; see store/workspaceStore/foldSequenceRuntime.ts. */
   | 'fold-sequence'
+  /** A Layer order engine: the dialog's session and its count, or a host's; see layer-order/engine/layerOrderRuntime.ts. */
+  | 'layer-order'
   /** One diagram PDF, spawned per export and terminated after it; see diagram/export/browserPdfWriter.ts. */
   | 'diagram-pdf'
   | 'cp-task'
@@ -38,6 +40,15 @@ export interface WorkerFailure {
   /** `error` is a dead worker; `messageerror` is a message it could not deserialize. */
   kind: 'error' | 'messageerror';
   message: string;
+  /**
+   * The worker never ran: its `error` is a plain event, not an `ErrorEvent`.
+   * The HTML spec fires one at a worker whose script, or a module it imports,
+   * could not be fetched or parsed (offline, a deploy that removed it), and an
+   * `ErrorEvent` for an exception thrown while it runs. Always said by
+   * {@link attachWorkerDiagnostics}; a failure an owner makes up itself (a
+   * build that failed inside a live worker) leaves it out.
+   */
+  loadFailed?: boolean;
 }
 
 /** Stable error code for a worker failure, e.g. `worker_oristudio_cp`. */
@@ -70,21 +81,33 @@ function describeWorkerEvent(event: Event): string {
  * run: the sink tells the user, the observer lets the owner drop its dead client
  * so the next call spawns a replacement. Two consumers, one set of listeners —
  * the alternative was a second pair of `error` handlers on every worker.
+ *
+ * An owner that tells the user itself answers `'handled'`, and the sink is
+ * not told: the Layer order engine's worker the browser failed to load
+ * (offline) is the dialog's lost state or a host's toast, never "The worker
+ * stopped unexpectedly." as well.
  */
 export function attachWorkerDiagnostics(
   worker: Worker,
   name: WorkerName,
-  observe?: (failure: WorkerFailure) => void
+  observe?: (failure: WorkerFailure) => void | 'handled'
 ): () => void {
   const report = (kind: WorkerFailure['kind']) => (event: Event) => {
-    const failure: WorkerFailure = { worker: name, kind, message: describeWorkerEvent(event) };
+    const failure: WorkerFailure = {
+      worker: name,
+      kind,
+      message: describeWorkerEvent(event),
+      loadFailed: kind === 'error' && !(event instanceof ErrorEvent),
+    };
     console.error(`[ori-studio] worker "${name}" ${kind}`, event);
+    let handled = false;
     try {
-      observe?.(failure);
+      handled = observe?.(failure) === 'handled';
     } catch {
       // An owner that throws while dropping its client must not stop the user
       // from being told the worker died.
     }
+    if (handled) return;
     try {
       sink?.(failure);
     } catch {

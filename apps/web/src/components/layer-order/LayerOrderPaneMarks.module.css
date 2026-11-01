@@ -1,0 +1,106 @@
+/*
+ * What a Layer order pane draws over its canvas (LayerOrderPaneMarks.tsx), in
+ * CSS px of the canvas box: the changed spots' fade, the rings inside their
+ * faces, and the letters. Face picks are --face-pick (violet in every theme,
+ * set by applyTheme per dark or light type, D20); a clash is the theme's
+ * danger. Nothing here takes a pointer.
+ */
+.marks {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The spots the last change moved: one 1.6 s fade (Round3:172-176). */
+.flash {
+  fill: var(--face-pick, #a78bfa);
+  opacity: 0;
+  animation: layer-order-flash 1.6s var(--motion-ease) forwards;
+}
+
+@keyframes layer-order-flash {
+  from {
+    opacity: 0.55;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* A face's ring, inside it, its width on screen set by the pane. */
+.ring {
+  fill: none;
+  stroke: var(--face-pick, #a78bfa);
+  stroke-linejoin: round;
+}
+
+.ring[data-ink='danger'] {
+  stroke: var(--status-danger);
+}
+
+/* A crease a notice names (D19): a line each side of it, clear of its colour. */
+.crease {
+  stroke: var(--face-pick, #a78bfa);
+  stroke-linecap: round;
+}
+
+/*
+ * A face's letter: an opaque chip in theme tokens, so it reads the same over
+ * any paper. Sized by the pane (layerPaneLabels.ts's labelSize), which places
+ * the chips clear of one another.
+ */
+.label {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.label[data-tone='pick'] {
+  border: 1.5px solid var(--face-pick, #a78bfa);
+}
+
+.label[data-tone='danger'] {
+  border: 1.5px solid var(--status-danger);
+}
+
+/* A face nothing shows of on the folded paper: smaller and quieter, never dashed. */
+.label[data-under] {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.label[data-under][data-tone='plain'] {
+  border-color: color-mix(in srgb, var(--text-tertiary) 60%, transparent);
+}
+
+/* A clash's letter carries the list's danger dot, so it says clash without hue. */
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-danger);
+}

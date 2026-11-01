@@ -1,4 +1,4 @@
-import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_FOLD_CONNECTED_SPREAD } from './foldSpreadDefaults';
 /**
  * A Fold sequence: the sheet it starts from and the steps folded on it, as the
  * project file holds it (`workspace.foldSequences`, plan D6 and D7).
@@ -316,6 +316,13 @@ export interface FoldCpJumpOp {
   origin: FoldCpOrigin;
   /** Project-local source. Replay always uses cpJson and orderJson, never the live source. */
   source?: { documentId: string; revision: string; region?: RegionReference };
+  /**
+   * How far the step's view turns, degrees clockwise on screen, from the
+   * view of the step it lands after, in (−180, 180]: the Layer order
+   * dialog's Rotate on the import, so no rotate step need follow it. Left
+   * out for none, as every step from before it.
+   */
+  turnDeg?: number;
 }
 
 // --- Compound folds (plan D4), one block per family -------------------------
@@ -986,7 +993,7 @@ export function createFoldSequence(
     title,
     paper,
     style: FOLD_DEFAULT_PAPER_STYLE,
-    defaultSpread: { ...DEFAULT_CONNECTED_SPREAD, reveal: [...DEFAULT_CONNECTED_SPREAD.reveal] },
+    defaultSpread: { ...DEFAULT_FOLD_CONNECTED_SPREAD, reveal: [...DEFAULT_FOLD_CONNECTED_SPREAD.reveal] },
     steps: [],
   };
 }

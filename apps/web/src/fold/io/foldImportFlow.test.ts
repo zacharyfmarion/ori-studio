@@ -5,12 +5,18 @@
  * commits as it lands, a refusal is said, and every import and preview the
  * engine held is let go.
  */
+import type { TFunction } from 'i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import { initialFoldReaderState, withFoldCursor } from '../document/foldReaderState';
 import { sequenceOf, step, valleyAt } from '../document/foldSequence.fixtures';
 import type { FoldCpJumpOp, FoldSequenceDocument } from '../document/foldSequenceDocument';
-import type { FoldImportOpened, FoldImportSource, FoldImportTarget } from '../engine/foldEngineIoWire';
+import type {
+  FoldImportLayerOpening,
+  FoldImportOpened,
+  FoldImportSource,
+  FoldImportTarget,
+} from '../engine/foldEngineIoWire';
 import type { FoldEngineOutcome, FoldScene } from '../engine/foldEngineWire';
 import { FOLD_MAX_FACES } from '../foldFaceCap';
 import { createFoldSession, type FoldSession } from '../session/foldSession';
@@ -26,9 +32,12 @@ import {
   foldOrderChoiceKey,
   foldShapeOfOutline,
   type FoldImportFlow,
+  type FoldImportLayerOrderAnswer,
+  type FoldImportLayerOrderAsk,
   type FoldImportRequest,
   type FoldProjectCpImport,
 } from './foldImportFlow';
+import { foldImportNotice } from './foldImportRefusal';
 
 /** Import CP's calls over the fake engine: each import lists `orders` per component. */
 interface FakeIo {
@@ -44,9 +53,23 @@ interface FakeIoOptions {
   refuse?: string;
   /** The sheet an empty target adopts. */
   paper?: FoldImportOpened['paper'];
+  /** The engine can't open an import onto the Layer order dialog's faces. */
+  layerUnavailable?: boolean;
+  /** The engine refuses the order the Layer order dialog chose, with this code. */
+  layerRefuse?: string;
 }
 
-function fakeIo({ orders = [], truncated = false, refuse, paper = { kind: 'square' } }: FakeIoOptions): () => FakeIo {
+/** The digest the fake engine's Layer order openings name their faces by. */
+const DIGEST = '00c0ffee00c0ffee';
+
+function fakeIo({
+  orders = [],
+  truncated = false,
+  refuse,
+  paper = { kind: 'square' },
+  layerUnavailable = false,
+  layerRefuse,
+}: FakeIoOptions): () => FakeIo {
   return () => {
     const base = fakeFoldEngine();
     const held = new Set<number>();
@@ -92,6 +115,32 @@ function fakeIo({ orders = [], truncated = false, refuse, paper = { kind: 'squar
         if (!import_ || !held.has(handle)) throw { code: 'unknown_import', message: 'gone' };
         return land(import_.parent, jump(import_.origin, JSON.stringify(choice)));
       },
+      importLayerOpening(handle: number, choice: readonly number[]): FoldEngineOutcome<FoldImportLayerOpening> {
+        calls.push(`importLayerOpening:${choice.join(',')}`);
+        if (!held.has(handle)) throw { code: 'unknown_import', message: 'gone' };
+        if (layerUnavailable) {
+          const refusal = { code: 'import_layer_unavailable', reason: 'faces_differ' };
+          return { status: 'refused', refusal, fixes: [], faces: [], vertices: [] } as never;
+        }
+        return {
+          status: 'ok',
+          source: { segments: [], starting_face_id: 1, aux_segments: [], digest: DIGEST },
+          shown: { flipped: false, subfaces: [] } as unknown as OristudioCpFoldedPaperScene,
+          look: { side: 'back', turn_deg: 90 },
+        };
+      },
+      importTurn(handle: number, turnDeg: number) {
+        calls.push(`importTurn:${turnDeg}`);
+        if (!held.has(handle)) throw { code: 'unknown_import', message: 'gone' };
+        return { side: 'back' as const, turn_deg: turnDeg };
+      },
+      importPickLayerOrder(handle: number, digest: string, relations: Uint32Array) {
+        calls.push(`importPickLayerOrder:${digest}:${[...relations].join(',')}`);
+        const import_ = opened.get(handle);
+        if (!import_ || !held.has(handle) || digest !== DIGEST) throw { code: 'invalid_input', message: 'not opened' };
+        if (layerRefuse) return { status: 'refused', refusal: { code: layerRefuse }, fixes: [], faces: [], vertices: [] } as never;
+        return land(import_.parent, jump(import_.origin, `layer:${[...relations].join(',')}`));
+      },
       importEditFoldedFigure(_scene: OristudioCpFoldedPaperScene, target: FoldImportTarget) {
         calls.push(`importEditFoldedFigure:${target.kind}`);
         return land(parentOf(target), jump('edit_folded_figure', '[]'));
@@ -124,7 +173,8 @@ function setup(
   cursor: string | null,
   io: FakeIoOptions = {},
   editFoldedFigure: () => Promise<OristudioCpFoldedPaperScene | null> = async () => null,
-  projectCp?: () => Promise<FoldProjectCpImport | null>
+  projectCp?: () => Promise<FoldProjectCpImport | null>,
+  chooseLayerOrder?: (ask: FoldImportLayerOrderAsk, signal: AbortSignal) => Promise<FoldImportLayerOrderAnswer>
 ) {
   const engines: FakeIo[] = [];
   const make = fakeIo(io);
@@ -146,6 +196,7 @@ function setup(
   const imported = vi.fn();
   const offered = vi.fn();
   const refused = vi.fn();
+  const prefetched = vi.fn();
   const flow = createFoldImportFlow({
     session,
     editFoldedFigure,
@@ -153,9 +204,10 @@ function setup(
     onImported: imported,
     onChoiceOffered: offered,
     onRefused: refused,
+    ...(chooseLayerOrder ? { chooseLayerOrder, prefetchLayerOrder: prefetched } : {}),
   });
   flows.push(flow);
-  return { session, source, runtime, flow, imported, offered, refused, io: () => engines[engines.length - 1]! };
+  return { session, source, runtime, flow, imported, offered, refused, prefetched, io: () => engines[engines.length - 1]! };
 }
 
 const SAMPLE: FoldImportRequest = { kind: 'sample', sample: 'waterbomb-base' };
@@ -419,6 +471,211 @@ describe('Linked Collapse transactions', () => {
   });
 });
 
+
+describe('Import CP’s order chosen in the Layer order dialog (row H10)', () => {
+  const PICKED = Uint32Array.from([3, 1, 4, 1]);
+
+  /** A dialog that answers `answer`, and the asks it heard with their signals. */
+  function dialog(answer: FoldImportLayerOrderAnswer | (() => Promise<FoldImportLayerOrderAnswer>)) {
+    const asks: FoldImportLayerOrderAsk[] = [];
+    const signals: AbortSignal[] = [];
+    const choose = vi.fn(async (ask: FoldImportLayerOrderAsk, signal: AbortSignal) => {
+      asks.push(ask);
+      signals.push(signal);
+      return typeof answer === 'function' ? answer() : answer;
+    });
+    return { choose, asks, signals };
+  }
+
+  /** A dialog that stays open until its test answers it: the answer, as the dialog would give it. */
+  function openDialog() {
+    let answer: (value: FoldImportLayerOrderAnswer) => void = () => undefined;
+    const made = dialog(() => new Promise((resolve) => (answer = resolve)));
+    return { ...made, answer: (value: FoldImportLayerOrderAnswer) => answer(value) };
+  }
+
+  it('opens the dialog on the import’s default order, and Apply lands the order it chose as one step', async () => {
+    const { choose, asks } = dialog({ kind: 'applied', relations: PICKED, digest: DIGEST });
+    const { flow, source, io, imported, offered } = setup(sequenceOf([step('a', null)]), 'a', { orders: [3, 2] }, undefined, undefined, choose);
+    await flow.open(FILE);
+    await settle(10);
+
+    expect(choose).toHaveBeenCalledOnce();
+    expect(asks[0]).toMatchObject({ request: FILE, opening: { source: { digest: DIGEST }, look: { side: 'back', turn_deg: 90 } } });
+    expect(flow.store.getState()).toMatchObject({ phase: 'done', origin: 'cp' });
+    expect(io().calls).toEqual([
+      'importCp:after',
+      'importLayerOpening:0,0',
+      `importPickLayerOrder:${DIGEST}:3,1,4,1`,
+      'releaseImports:101',
+    ]);
+    // One step, so one undo entry, of exactly the order the dialog chose.
+    expect(source.commits).toEqual([
+      expect.objectContaining({ parent: 'a', op: expect.objectContaining({ kind: 'cp-jump', orderJson: 'layer:3,1,4,1' }) }),
+    ]);
+    expect(imported).toHaveBeenCalledExactlyOnceWith('cp');
+    // The canvas's chooser never asked.
+    expect(offered).not.toHaveBeenCalled();
+    expect(io().held.size).toBe(0);
+  });
+
+  it('lands the default order on an Apply that changed nothing', async () => {
+    const { choose } = dialog({ kind: 'unchanged' });
+    const { flow, source, io } = setup(sequenceOf([step('a', null)]), 'a', { orders: [3, 2] }, undefined, undefined, choose);
+    await flow.open(FILE);
+    await settle(10);
+    expect(flow.store.getState()).toMatchObject({ phase: 'done' });
+    expect(io().calls).toEqual(['importCp:after', 'importLayerOpening:0,0', 'importPick:0,0', 'releaseImports:101']);
+    expect(source.commits).toEqual([expect.objectContaining({ op: expect.objectContaining({ orderJson: '[0,0]' }) })]);
+  });
+
+  it.each([
+    ['an Apply', { kind: 'applied', relations: PICKED, digest: DIGEST, turnDeg: 120 }, `importPickLayerOrder:${DIGEST}:3,1,4,1`],
+    ['an Apply that only turned it', { kind: 'unchanged', turnDeg: 120 }, 'importPick:0,0'],
+  ] as const)('turns the import to the dialog’s Rotate before it lands, so the step itself is stored turned: %s', async (_what, answer, pick) => {
+    const { choose } = dialog(answer);
+    const { flow, source, io } = setup(sequenceOf([step('a', null)]), 'a', { orders: [3, 2] }, undefined, undefined, choose);
+    await flow.open(FILE);
+    await settle(10);
+    expect(flow.store.getState()).toMatchObject({ phase: 'done' });
+    expect(io().calls).toEqual(['importCp:after', 'importLayerOpening:0,0', 'importTurn:120', pick, 'releaseImports:101']);
+    // One step, as ever: no rotate step after it.
+    expect(source.commits).toHaveLength(1);
+  });
+
+  it('cancels the import on Cancel: nothing committed, the import let go', async () => {
+    const { choose } = dialog({ kind: 'cancelled' });
+    const { flow, source, io, imported, session } = setup(sequenceOf([step('a', null)]), 'a', { orders: [2] }, undefined, undefined, choose);
+    const before = session.store.getState().cursor;
+    await flow.open(FILE);
+    await settle(10);
+    expect(flow.store.getState()).toEqual({ phase: 'idle' });
+    expect(source.commits).toEqual([]);
+    expect(imported).not.toHaveBeenCalled();
+    expect(io().held.size).toBe(0);
+    expect(session.store.getState().cursor).toBe(before);
+  });
+
+  it('steps aside while the dialog is open, and keeps its own chooser when there is no dialog to ask', async () => {
+    const { choose, answer } = openDialog();
+    const { flow, source, offered } = setup(sequenceOf([step('a', null)]), 'a', { orders: [3, 1, 2] }, undefined, undefined, choose);
+    void flow.open(FILE);
+    await settle(10);
+    expect(flow.store.getState()).toEqual({ phase: 'ordering', request: FILE });
+
+    // Busy or unavailable: the chooser asks, as without the dialog.
+    answer({ kind: 'fallback' });
+    await settle(10);
+    expect(flow.store.getState()).toMatchObject({ phase: 'choosing', choice: [0, 0, 0], committing: false });
+    expect(offered.mock.calls).toEqual([[3], [2]]);
+    expect(source.commits).toEqual([]);
+  });
+
+  it('keeps its own chooser when the engine can’t open the import onto the dialog’s faces', async () => {
+    const { choose } = dialog({ kind: 'cancelled' });
+    const { flow, io } = setup(sequenceOf([step('a', null)]), 'a', { orders: [2], layerUnavailable: true }, undefined, undefined, choose);
+    await flow.open(FILE);
+    await settle(10);
+    expect(choose).not.toHaveBeenCalled();
+    expect(flow.store.getState()).toMatchObject({ phase: 'choosing', choice: [0] });
+    expect(io().calls.slice(0, 2)).toEqual(['importCp:after', 'importLayerOpening:0']);
+  });
+
+  it('imports a pattern with one order straight through, never asking the dialog', async () => {
+    const { choose } = dialog({ kind: 'cancelled' });
+    const { flow, source, io } = setup(sequenceOf([step('a', null)]), 'a', {}, undefined, undefined, choose);
+    await flow.open(SAMPLE);
+    await settle();
+    expect(choose).not.toHaveBeenCalled();
+    expect(flow.store.getState()).toMatchObject({ phase: 'done', origin: 'sample' });
+    expect(io().calls).toEqual(['importCp:after', 'importPick:', 'releaseImports:101']);
+    expect(source.commits).toHaveLength(1);
+  });
+
+  it('withdraws the dialog on a reset, and drops its late answer', async () => {
+    const { choose, signals, answer } = openDialog();
+    const { flow, source, io } = setup(sequenceOf([step('a', null)]), 'a', { orders: [2] }, undefined, undefined, choose);
+    void flow.open(FILE);
+    await settle(10);
+    expect(signals[0]?.aborted).toBe(false);
+    flow.reset();
+    expect(signals[0]?.aborted).toBe(true);
+    answer({ kind: 'applied', relations: PICKED, digest: DIGEST });
+    await settle(10);
+    expect(flow.store.getState()).toEqual({ phase: 'idle' });
+    expect(source.commits).toEqual([]);
+    expect(io().calls.some((call) => call.startsWith('importPickLayerOrder'))).toBe(false);
+    expect(io().held.size).toBe(0);
+  });
+
+  it('withdraws the dialog when Import CP goes (a dispose, as Back to another workspace does), landing nothing', async () => {
+    const { choose, signals, answer } = openDialog();
+    const { flow, source, io, imported, runtime } = setup(sequenceOf([step('a', null)]), 'a', { orders: [2] }, undefined, undefined, choose);
+    void flow.open(FILE);
+    await settle(10);
+    expect(flow.store.getState()).toMatchObject({ phase: 'ordering' });
+    flow.dispose();
+    expect(signals[0]?.aborted).toBe(true);
+    // The dialog closed answering `cancelled`; even an Apply racing it lands nothing.
+    answer({ kind: 'applied', relations: PICKED, digest: DIGEST });
+    await settle(10);
+    expect(source.commits).toEqual([]);
+    expect(imported).not.toHaveBeenCalled();
+    expect(io().calls.some((call) => call.startsWith('importPickLayerOrder'))).toBe(false);
+    expect(io().held.size).toBe(0);
+    expect(runtime.holders()).toBe(0);
+  });
+
+  it('withdraws the dialog when the step it imports after moves under it (an undo), and lets the import go', async () => {
+    const document = sequenceOf([step('a', null), step('b', 'a')]);
+    const { choose, signals, answer } = openDialog();
+    const { flow, source, io } = setup(document, 'b', { orders: [2] }, undefined, undefined, choose);
+    void flow.open(FILE);
+    await settle(10);
+    expect(flow.store.getState()).toMatchObject({ phase: 'ordering' });
+    source.set({ reader: withFoldCursor(initialFoldReaderState(document.id), document, 'a') });
+    await settle();
+    expect(signals[0]?.aborted).toBe(true);
+    expect(flow.store.getState()).toEqual({ phase: 'idle' });
+    answer({ kind: 'cancelled' });
+    await settle(10);
+    expect(source.commits).toEqual([]);
+    expect(io().held.size).toBe(0);
+  });
+
+  it('says plainly when the engine refuses the order the dialog chose, with nothing to search again', async () => {
+    for (const code of ['import_order_open', 'import_budget_exceeded']) {
+      const { choose } = dialog({ kind: 'applied', relations: PICKED, digest: DIGEST });
+      const { flow, source, io, refused } = setup(sequenceOf([step('a', null)]), 'a', { orders: [2], layerRefuse: code }, undefined, undefined, choose);
+      await flow.open(FILE);
+      await settle(10);
+      const state = flow.store.getState();
+      expect(state).toMatchObject({ phase: 'refused', refusal: { kind: 'engine', via: 'layer_order', refused: { refusal: { code } } } });
+      if (state.phase !== 'refused') throw new Error('not refused');
+      const t = ((_key: string, english: string) => english) as unknown as TFunction;
+      const searchLonger = vi.fn();
+      const notice = foldImportNotice(t, state.refusal, { searchLonger });
+      expect(notice).toMatchObject({ code, text: 'Fold couldn’t land this layer order. Nothing was imported.', actions: [] });
+      // Search longer is no fix for it, whoever asks.
+      await flow.searchLonger();
+      expect(io().calls.filter((call) => call.startsWith('importCp'))).toHaveLength(1);
+      expect(source.commits).toEqual([]);
+      // The analytics hear the engine's code.
+      expect(refused).toHaveBeenCalledWith(expect.objectContaining({ refused: expect.objectContaining({ refusal: { code } }) }));
+    }
+  });
+
+  it('asks for the dialog’s code only once an import reports several orders', async () => {
+    const one = setup(sequenceOf([step('a', null)]), 'a', {}, undefined, undefined, dialog({ kind: 'cancelled' }).choose);
+    await one.flow.open(SAMPLE);
+    await settle();
+    expect(one.prefetched).not.toHaveBeenCalled();
+    const several = setup(sequenceOf([step('a', null)]), 'a', { orders: [2] }, undefined, undefined, dialog({ kind: 'cancelled' }).choose);
+    await several.flow.open(FILE);
+    await settle(10);
+    expect(several.prefetched).toHaveBeenCalledOnce();
+  });
+});
 
 it('requires explicit acceptance even when a bounded CP search lists only one order', async () => {
   const { flow, source } = setup(null, null, { orders: [1], truncated: true });

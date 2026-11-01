@@ -290,6 +290,17 @@ export interface ShortcutDefinition {
    * them, and a browser left to answer ⌘S itself opens Save Page As.
    */
   inFormControls?: boolean;
+  /**
+   * Whether the chord still reaches the app from inside the barrier dialog on
+   * top (`data-shortcut-barrier`), when that dialog answers it. Every other key
+   * aimed into one is the dialog's alone.
+   *
+   * Undo and Redo only. A dialog that keeps a history of its own
+   * (`registerModalHistory`) takes them for that history, through these same
+   * bindings, so a chord the user added to Undo works there too, and the key
+   * and the menu bar's Undo stay one verb.
+   */
+  inBarrierDialogs?: boolean;
 }
 
 export type ShortcutOverrides = Partial<Record<ShortcutActionId, KeyChord[] | null>>;
@@ -469,8 +480,14 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
   },
   menuShortcut('file.printDiagram', 'Print Diagram...', 'File', { primary: true, key: 'p' }),
   menuShortcut('file.settings', 'Settings', 'File', { primary: true, key: ',' }, 'prefAction'),
-  menuShortcut('edit.undo', 'Undo', 'Edit', { primary: true, key: 'z' }, 'undoAction'),
-  menuShortcut('edit.redo', 'Redo', 'Edit', { primary: true, shift: true, key: 'z' }, 'redoAction'),
+  {
+    ...menuShortcut('edit.undo', 'Undo', 'Edit', { primary: true, key: 'z' }, 'undoAction'),
+    inBarrierDialogs: true,
+  },
+  {
+    ...menuShortcut('edit.redo', 'Redo', 'Edit', { primary: true, shift: true, key: 'z' }, 'redoAction'),
+    inBarrierDialogs: true,
+  },
   menuShortcut('edit.cut', 'Cut', 'Edit', { primary: true, key: 'x' }, 'cutClipboardAction'),
   menuShortcut('edit.copy', 'Copy', 'Edit', { primary: true, key: 'c' }, 'copyClipboardAction'),
   menuShortcut('edit.paste', 'Paste', 'Edit', { primary: true, key: 'v' }, 'pasteClipboardAction'),
@@ -1031,9 +1048,46 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   }),
 ];
 
+/**
+ * "Fold with layer order…" (`implementation-plans/layer-order-dialog.md`, row
+ * H5): fold the selected creases with a layer order chosen in the Layer order
+ * dialog. Ori Studio's own verb, so no upstream action. Shift+G, Fold's G
+ * with Shift, under either layout (the owner's ask, 2026-10-26): upstream
+ * binds no Shift+G, so the Oriedita layout keeps it
+ * ({@link buildOrieditaDefaultChords}). Fold's Petal Fold holds Shift+G too,
+ * in the `fold` scope, which is pushed only in Fold's own context and so is
+ * never in a stack beside `crease-pattern`.
+ *
+ * In the crease-pattern scope and through its executor, as Fold estimate's G
+ * is (`handleCpShortcutAction`), so the key acts on the creases selected on
+ * the Edit canvas and nowhere else. Its id is in that executor's `cp.action.`
+ * space, though no Oriedita tool carries it: the executor runs it before
+ * looking the id up as a tool.
+ */
+export const FOLD_WITH_LAYER_ORDER_SHORTCUT_ID = 'cp.action.fold-with-layer-order' satisfies OristudioCpActionId;
+
+const FOLD_WITH_LAYER_ORDER_CHORDS = normalizeDefaultChords({ shift: true, key: 'g' });
+
+const FOLD_WITH_LAYER_ORDER_SHORTCUT: ShortcutDefinition = {
+  id: FOLD_WITH_LAYER_ORDER_SHORTCUT_ID,
+  label: 'Fold with layer order…',
+  category: cpCategoryLabel('folding'),
+  scope: 'crease-pattern',
+  target: 'cp-action',
+  defaultChord: FOLD_WITH_LAYER_ORDER_CHORDS[0] ?? null,
+  defaultChords: FOLD_WITH_LAYER_ORDER_CHORDS,
+};
+
+/** The crease-pattern tools' bindings, with Fold with layer order… right after Fold estimate, the one with G. */
+function withFoldWithLayerOrder(definitions: ShortcutDefinition[]): ShortcutDefinition[] {
+  const at = definitions.findIndex((definition) => definition.id === 'cp.action.folding-estimate');
+  if (at < 0) return [...definitions, FOLD_WITH_LAYER_ORDER_SHORTCUT];
+  return [...definitions.slice(0, at + 1), FOLD_WITH_LAYER_ORDER_SHORTCUT, ...definitions.slice(at + 1)];
+}
+
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   ...MENU_SHORTCUTS,
-  ...buildCpShortcutDefinitions(),
+  ...withFoldWithLayerOrder(buildCpShortcutDefinitions()),
   ...SIMULATOR_SHORTCUTS,
   ...REFERENCES_SHORTCUTS,
   ...DIAGRAM_SHORTCUTS,

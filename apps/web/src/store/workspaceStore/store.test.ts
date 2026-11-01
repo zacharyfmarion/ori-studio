@@ -29,6 +29,7 @@ import type {
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpFoldedRenderSnapshot,
+  OristudioCpFoldSource,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
@@ -88,12 +89,61 @@ import {
   cpUserAnchorForLineIds,
   foldedFigureUserBounds,
 } from '../../cp-workspace/adapters/cpFoldedToScene';
-import { isFoldedFigureStale } from '../../cp-workspace/folded/foldedFigureStaleness';
+import type { TFunction } from 'i18next';
+import {
+  cpLinesByIds,
+  foldedSourceBounds,
+  foldedSourceFingerprint,
+  isFoldedFigureStale,
+  reselectFoldableLineIds,
+} from '../../cp-workspace/folded/foldedFigureStaleness';
+import {
+  foldedFigureCurrentCase,
+  foldedFigureFrontier,
+} from '../../cp-workspace/folded/foldedFigureState';
+import {
+  deleteFoldedFigure,
+  dismissFoldedFigureDetachedLayerOrder,
+  setFoldedFigurePlacementAsEntry,
+  showAnotherFoldedSolution,
+  showPreviousFoldedSolution,
+} from '../../cp-workspace/folded/foldedFigureVerbs';
+import { endOpenCanvasSessions } from '../../cp-workspace/canvasObjects/canvasSessions';
+import { solutionFrontierOf } from '../../cp-workspace/folded/foldedSolutionFrontiers';
+import {
+  FOLDED_FIGURE_LAYER_ORDERS_KEY,
+  detachedFoldedFigureLayerOrders,
+  foldedFigureRefoldKey,
+  withFoldedFigureLayerOrders,
+} from '../../cp-workspace/folded/foldedFigureLayerOrders';
+import { resetFoldedFigureIds } from '../../cp-workspace/folded/foldedFigureIds';
+import { foldedFigureNotice } from '../../cp-workspace/folded/foldedFigureNotice';
+import { foldedFigureLayerOrder } from '../../lib/layerOrder/foldedFigureLayerOrder';
+import type { LayerOrderAttention } from '../../lib/layerOrder/layerOrderRecord';
+import { twoConstraintRecord } from '../../lib/layerOrder/layerOrderRecord.fixtures';
+import type { LayerOrderApplied, LayerOrderRequest } from '../../lib/layerOrder/layerOrderRequest';
+import type { FoldedFigureLayerOrderRefold } from '../../cp-workspace/folded/foldedFigureLayerOrderState';
+import { sayFoldedFigureLayerOrderRefold } from '../../cp-workspace/folded/foldedFigureLayerOrderToasts';
+import { foldedFigureGesture } from '../../cp-workspace/folded/foldedFigureGesture';
+import { layerOrderSourceOf } from '../../lib/layerOrder/layerOrderSource';
+import type { LayerOrderResolution } from '../../layer-order/host/hostEngineGateway';
+import {
+  applyFoldedFigureLayerOrder,
+  openFoldedFigureLayerOrder,
+} from '../../cp-workspace/folded/openFoldedFigureLayerOrder';
+import { markFoldPress } from '../../cp-workspace/folded/foldPress';
+import { buildFoldedFigureActions, layerOrderCommand } from '../../cp-workspace/folded/foldedFigureActions';
+import { buildFoldedFigureProperties } from '../../cp-workspace/folded/foldedFigureProperties';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { toast } from 'sonner';
 import { foldedFigureOtherSideCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
+  foldedFigureHandleRefCount,
+  releaseFoldedFigureHandle,
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
 } from '../../cp-workspace/folded/foldedFigureHandles';
+import { cancelOristudioCamvRefresh } from './slices/projectSlice';
 import {
   dropFolded3dRenderModel,
   folded3dRenderModel,
@@ -138,8 +188,14 @@ const oristudioCpMocks = vi.hoisted(() => ({
   foldOristudioCpDocument: vi.fn(),
   foldOristudioCpFigureAnother: vi.fn(),
   foldOristudioCpFigureToCase: vi.fn(),
+  foldOristudioCpWithOrder: vi.fn(),
   freeOristudioCpFoldedFigure: vi.fn(),
+  getOristudioCpFoldedFigureDigest: vi.fn(),
+  getOristudioCpFoldedFigurePaperScene: vi.fn(),
   getOristudioCpFoldedFigureRenderSnapshot: vi.fn(),
+  getOristudioCpFoldedFigureSnapshot: vi.fn(),
+  getOristudioCpFoldedFigureSource: vi.fn(),
+  getOristudioCpSelectionFoldSource: vi.fn(),
   getOristudioCpOperationDescriptors: vi.fn(),
   insertOristudioCpLineSegments: vi.fn(),
   importAddOristudioCpDocumentFromText: vi.fn(),
@@ -185,6 +241,37 @@ const bpMocks = vi.hoisted(() => ({
 
 const analyticsMocks = vi.hoisted(() => ({ track: vi.fn() }));
 
+/**
+ * The Layer order host engine (H2), stood in for by default; `actual` is the
+ * real gateway, for the test that watches which workers it starts.
+ */
+const hostEngineMocks = vi.hoisted(() => ({
+  resolveLayerOrder: vi.fn(),
+  actual: null as null | ((...args: never[]) => Promise<unknown>),
+}));
+
+vi.mock('../../layer-order/host/hostEngineGateway', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../layer-order/host/hostEngineGateway')>();
+  hostEngineMocks.actual = actual.resolveLayerOrder as never;
+  return {
+    ...actual,
+    resolveLayerOrder: (...args: Parameters<typeof actual.resolveLayerOrder>) =>
+      hostEngineMocks.resolveLayerOrder(...args),
+  };
+});
+
+/** The Layer order dialog's one door (U4): its answer is the test's to give. */
+const dialogGatewayMocks = vi.hoisted(() => ({ openLayerOrderDialog: vi.fn() }));
+
+vi.mock('../../layer-order/dialog/layerOrderDialogGateway', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../layer-order/dialog/layerOrderDialogGateway')>();
+  return {
+    ...actual,
+    openLayerOrderDialog: (...args: Parameters<typeof actual.openLayerOrderDialog>) =>
+      dialogGatewayMocks.openLayerOrderDialog(...args),
+  };
+});
+
 vi.mock('../../lib/creaseExport', () => exportMocks);
 
 // Folding is the one flow whose events are hand-placed: `G` reaches neither the
@@ -192,7 +279,15 @@ vi.mock('../../lib/creaseExport', () => exportMocks);
 // counts a fold unless these call sites do.
 vi.mock('../../analytics', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../analytics')>();
-  return { ...actual, track: analyticsMocks.track };
+  return {
+    ...actual,
+    track: analyticsMocks.track,
+    // A typed wrapper over the runtime's `track`, which the line above can't reach.
+    trackLayerConstraintsNeedAttention: (properties: Record<string, unknown>) =>
+      analyticsMocks.track(actual.ANALYTICS_EVENTS.layerConstraintsNeedAttention, properties),
+    trackLayerConstraintsDismissed: (properties: Record<string, unknown>) =>
+      analyticsMocks.track(actual.ANALYTICS_EVENTS.layerConstraintsDismissed, properties),
+  };
 });
 
 vi.mock('./engineRuntime', async (importOriginal) => {
@@ -248,9 +343,15 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
     foldOristudioCpDocument: oristudioCpMocks.foldOristudioCpDocument,
     foldOristudioCpFigureAnother: oristudioCpMocks.foldOristudioCpFigureAnother,
     foldOristudioCpFigureToCase: oristudioCpMocks.foldOristudioCpFigureToCase,
+    foldOristudioCpWithOrder: oristudioCpMocks.foldOristudioCpWithOrder,
     freeOristudioCpFoldedFigure: oristudioCpMocks.freeOristudioCpFoldedFigure,
+    getOristudioCpFoldedFigureDigest: oristudioCpMocks.getOristudioCpFoldedFigureDigest,
+    getOristudioCpFoldedFigurePaperScene: oristudioCpMocks.getOristudioCpFoldedFigurePaperScene,
     getOristudioCpFoldedFigureRenderSnapshot:
       oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot,
+    getOristudioCpFoldedFigureSnapshot: oristudioCpMocks.getOristudioCpFoldedFigureSnapshot,
+    getOristudioCpFoldedFigureSource: oristudioCpMocks.getOristudioCpFoldedFigureSource,
+    getOristudioCpSelectionFoldSource: oristudioCpMocks.getOristudioCpSelectionFoldSource,
     getOristudioCpOperationDescriptors: oristudioCpMocks.getOristudioCpOperationDescriptors,
     insertOristudioCpLineSegments: oristudioCpMocks.insertOristudioCpLineSegments,
     importAddOristudioCpDocumentFromText: oristudioCpMocks.importAddOristudioCpDocumentFromText,
@@ -1170,6 +1271,20 @@ function inlineSimulationFixture(): InlineSimulation {
   };
 }
 
+/** The two creases the Layer order tests fold: an X, mountain and valley. */
+const LAYER_ORDER_LINES: OristudioCpLineSegment[] = [
+  cpLine({ x: 0, y: 0 }, { x: 1, y: 1 }),
+  cpLine({ x: 1, y: 0 }, { x: 0, y: 1 }, { color: 'Blue2' }),
+];
+
+/** The face-ring digest the kernel answers for {@link LAYER_ORDER_LINES}. */
+const LAYER_ORDER_DIGEST = '00000000c0ffee01';
+
+/** What the kernel answers a figure folded from {@link LAYER_ORDER_LINES} was folded from. */
+function layerOrderKernelSource(): OristudioCpFoldSource {
+  return { segments: LAYER_ORDER_LINES, starting_face_id: 1, aux_segments: [], digest: LAYER_ORDER_DIGEST };
+}
+
 function foldedFigureSnapshot(): OristudioCpFoldedFigureSnapshot {
   return {
     model: {
@@ -1347,6 +1462,10 @@ function resetStores(snapshot = makeSnapshot()) {
   analyticsMocks.track.mockReset();
   // Handle ownership is module-level; isolate it between tests.
   resetFoldedFigureHandles();
+  // So is the debounced CAMV refresh. One an edit in an earlier test left
+  // pending would run against this test's document when its 120ms come round,
+  // and replace the CAMV result the test seeded with the mock's empty one.
+  cancelOristudioCamvRefresh();
   useWorkspaceStore.setState(initialWorkspaceState, true);
   useLayoutStore.setState(initialLayoutState, true);
   const api = createMockEngineApi(snapshot);
@@ -1430,6 +1549,24 @@ function resetStores(snapshot = makeSnapshot()) {
     .mockReset()
     .mockResolvedValue({ handle: 8, snapshot: foldedFigureSnapshot() });
   oristudioCpMocks.freeOristudioCpFoldedFigure.mockReset().mockResolvedValue(undefined);
+  // The Layer order calls (H3): a fold with a given order lands, on its
+  // source's faces; the source and the paper scene are the test's to say.
+  oristudioCpMocks.foldOristudioCpWithOrder.mockReset().mockResolvedValue({
+    status: 'folded',
+    handle: 9,
+    snapshot: { ...foldedFigureSnapshot(), outcome: 'Solved', shown_order: 'given' },
+  });
+  oristudioCpMocks.getOristudioCpFoldedFigureDigest.mockReset().mockResolvedValue(LAYER_ORDER_DIGEST);
+  oristudioCpMocks.getOristudioCpFoldedFigurePaperScene.mockReset().mockResolvedValue(null);
+  oristudioCpMocks.getOristudioCpFoldedFigureSource.mockReset().mockResolvedValue(layerOrderKernelSource());
+  // The kernel shows what the figure on that handle says, unless a test says otherwise.
+  oristudioCpMocks.getOristudioCpFoldedFigureSnapshot.mockReset().mockImplementation(async (handle: number) => {
+    const shown = useWorkspaceStore.getState().oristudioCpFoldedFigures.find((figure) => figure.handle === handle);
+    return shown?.snapshot ?? foldedFigureSnapshot();
+  });
+  oristudioCpMocks.getOristudioCpSelectionFoldSource.mockReset().mockResolvedValue(layerOrderKernelSource());
+  hostEngineMocks.resolveLayerOrder.mockReset();
+  dialogGatewayMocks.openLayerOrderDialog.mockReset().mockResolvedValue({ kind: 'cancelled' });
   oristudioCpMocks.setOristudioCpDocumentSource.mockReset();
   oristudioCpMocks.loadOristudioCpDocumentFromText
     .mockReset()
@@ -2503,6 +2640,72 @@ describe('workspace store slices', () => {
     // selected — the same rule `takeCanvasSelection` keeps everywhere else.
     expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
     expect(useWorkspaceStore.getState().foldArtifacts?.simulation_model).not.toBeNull();
+  });
+
+  it('attaches a saved layer order to its figure on open, and saves it back to the crease pattern’s bag', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const held = foldedFigureLayerOrder({
+      faces: [
+        { at: [0.25, 0.5], area: 0.5 },
+        { at: [0.75, 0.5], area: 0.5 },
+      ],
+      constraints: [[0, 1, 1]],
+      order: [],
+    });
+    if (!held.ok) throw new Error(held.reason);
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 99,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: { ...foldedFigureSnapshot(), shown_order: 'given' },
+      renderSnapshot: foldedRenderSnapshot(),
+      sourceFingerprint: 'cs1:folded',
+      error: null,
+      layerOrder: held.layerOrder,
+    };
+    const nativeText = serializeNativeProjectFile(
+      createNativeCreasePatternProjectFile({
+        title: 'Native CP',
+        filename: 'layers.osf',
+        path: '/tmp/layers.osf',
+        document: blankCpDocumentState().document,
+        source: null,
+        foldProjection: JSON.parse(editableCpFoldText) as FoldDocument,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf',
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [figure],
+        activeFoldedFigureId: null,
+        lineage: importedCpLineage(),
+        extensions: { futureDocFeature: { a: 1 } },
+        appVersion: '0.1.1',
+      })
+    );
+    const savedBag = JSON.parse(nativeText).workspace.creasePattern.extensions;
+    expect(Object.keys(savedBag)).toEqual(['futureDocFeature', FOLDED_FIGURE_LAYER_ORDERS_KEY]);
+
+    await expect(
+      useWorkspaceStore
+        .getState()
+        .openProject(createFileService({ text: nativeText, name: 'layers.osf', path: '/tmp/layers.osf' }))
+    ).resolves.toBe(true);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.layerOrder).toEqual(held.layerOrder);
+
+    const fileService = createFileService();
+    await expect(useWorkspaceStore.getState().saveProjectAs(fileService)).resolves.toBe(true);
+    const written = JSON.parse(
+      (fileService.saveTextFile.mock.calls.at(-1)?.[0] as SaveTextFileOptions).contents
+    );
+    expect(written.workspace.creasePattern.extensions).toEqual(savedBag);
+    expect(written.workspace.creasePattern.viewState.foldedFigures[0]).not.toHaveProperty('layerOrder');
   });
 
   it('restores reference images from a native CP project', async () => {
@@ -5124,6 +5327,166 @@ describe('workspace store slices', () => {
       ]);
     });
 
+    describe('‹, back one layer order (the Properties pane’s)', () => {
+      const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
+
+      /** A flat figure showing the third of three solutions found. */
+      async function onThirdOfThree() {
+        resetStores(seedSnapshot());
+        seedFlatSquare();
+        await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+        const figure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+        const third = {
+          ...figure,
+          snapshot: {
+            ...figure.snapshot!,
+            discovered_fold_cases: 3,
+            current_fold_case: 3,
+            find_another_overlap_valid: false,
+          },
+        };
+        useWorkspaceStore.setState({ oristudioCpFoldedFigures: [third] });
+        return third;
+      }
+
+      it('goes back one fold case as one entry, keeps what it found past it, and says so', async () => {
+        const figure = await onThirdOfThree();
+        // The kernel restarts the enumeration and replays it to the second,
+        // forgetting the third it found on the way out.
+        oristudioCpMocks.foldOristudioCpFigureToCase.mockResolvedValueOnce({
+          snapshot: {
+            ...figure.snapshot,
+            discovered_fold_cases: 2,
+            current_fold_case: 2,
+            find_another_overlap_valid: true,
+          },
+          discovered_case_numbers: [1, 2],
+        });
+        const before = useWorkspaceStore.getState().oristudioCpHistoryPast.length;
+
+        await expect(showPreviousFoldedSolution(figure.id, t)).resolves.toBe(true);
+
+        expect(oristudioCpMocks.foldOristudioCpFigureToCase).toHaveBeenCalledWith(
+          figure.handle,
+          2,
+          'Order5',
+          expect.any(Number)
+        );
+        const landed = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+        expect(foldedFigureCurrentCase(landed)).toBe(2);
+        expect(foldedFigureFrontier(landed)).toEqual({ cases: 3, complete: true });
+        const past = useWorkspaceStore.getState().oristudioCpHistoryPast;
+        expect(past).toHaveLength(before + 1);
+        expect(past.at(-1)?.label).toBe('Show previous solution');
+        expect(foldEvents('fold solution cycled')).toEqual([
+          { direction: 'previous', solution_count_bucket: '<=5' },
+        ]);
+      });
+
+      it('goes no further back than the first, and records nothing', async () => {
+        const third = await onThirdOfThree();
+        const first = { ...third, snapshot: { ...third.snapshot, current_fold_case: 1 } };
+        useWorkspaceStore.setState({ oristudioCpFoldedFigures: [first] });
+        const before = useWorkspaceStore.getState().oristudioCpHistoryPast.length;
+
+        await expect(showPreviousFoldedSolution(first.id, t)).resolves.toBe(false);
+
+        expect(oristudioCpMocks.foldOristudioCpFigureToCase).not.toHaveBeenCalled();
+        expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(before);
+        expect(foldEvents('fold solution cycled')).toEqual([]);
+      });
+    });
+
+    describe('how far a figure’s layer-order search has reached, kept by handle outside undo', () => {
+      const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
+      const at = (discovered: number, current: number, more: boolean) => ({
+        ...foldedFigureSnapshot(),
+        discovered_fold_cases: discovered,
+        current_fold_case: current,
+        find_another_overlap_valid: more,
+      });
+      const figure = () => useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+      /** Folded on handle 7, then › twice, to the third and last of three solutions. */
+      async function steppedToThird() {
+        resetStores(seedSnapshot());
+        seedFlatSquare();
+        oristudioCpMocks.foldOristudioCpDocument.mockResolvedValueOnce({ handle: 7, snapshot: at(1, 1, true) });
+        await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+        oristudioCpMocks.foldOristudioCpFigureAnother
+          .mockResolvedValueOnce(at(2, 2, true))
+          .mockResolvedValueOnce(at(3, 3, false));
+        await showAnotherFoldedSolution(figure().id, t);
+        await showAnotherFoldedSolution(figure().id, t);
+        expect(foldedFigureFrontier(figure())).toEqual({ cases: 3, complete: true });
+      }
+
+      it('counts the stored total in fold solution cycled, both ways', async () => {
+        await steppedToThird();
+        oristudioCpMocks.foldOristudioCpFigureToCase.mockResolvedValueOnce({
+          snapshot: at(2, 2, true),
+          discovered_case_numbers: [1, 2],
+        });
+        await showPreviousFoldedSolution(figure().id, t);
+        // Back on the second, the kernel has found two again; the search had found three.
+        expect(foldEvents('fold solution cycled')).toEqual([
+          { direction: 'next', solution_count_bucket: '<=5' },
+          { direction: 'next', solution_count_bucket: '<=5' },
+          { direction: 'previous', solution_count_bucket: '<=5' },
+        ]);
+        expect(solutionFrontierOf(7)).toEqual({ cases: 3, complete: true });
+      });
+
+      it('never shrinks on undo, after ‹ or after ›', async () => {
+        await steppedToThird();
+        oristudioCpMocks.foldOristudioCpFigureToCase.mockResolvedValueOnce({
+          snapshot: at(2, 2, true),
+          discovered_case_numbers: [1, 2],
+        });
+        await showPreviousFoldedSolution(figure().id, t);
+        expect(foldedFigureFrontier(figure())).toEqual({ cases: 3, complete: true });
+
+        // Undo the ‹, then each › back to the fold: the entries put back reported
+        // fewer, and the handle's search has still reached three.
+        for (let undo = 0; undo < 3; undo += 1) {
+          await useWorkspaceStore.getState().undo();
+          expect(foldedFigureFrontier(figure()), `undo ${undo + 1}`).toEqual({ cases: 3, complete: true });
+        }
+        expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.handle).toBe(7);
+      });
+
+      it('starts a refold’s new handle fresh', async () => {
+        await steppedToThird();
+        oristudioCpMocks.foldOristudioCpDocument.mockResolvedValueOnce({ handle: 11, snapshot: at(1, 1, true) });
+        await expect(useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure().id)).resolves.toBe(true);
+        expect(figure().handle).toBe(11);
+        expect(foldedFigureFrontier(figure())).toEqual({ cases: 1, complete: false });
+      });
+
+      it('shows nothing of another fold on a handle the kernel reuses', async () => {
+        await steppedToThird();
+        // The slot freed and given to a new fold, as the kernel may.
+        useWorkspaceStore.setState({ oristudioCpFoldedFigures: [] });
+        seedFlatSquare();
+        oristudioCpMocks.foldOristudioCpDocument.mockResolvedValueOnce({ handle: 7, snapshot: at(1, 1, true) });
+        await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+        expect(figure().handle).toBe(7);
+        expect(foldedFigureFrontier(figure())).toEqual({ cases: 1, complete: false });
+      });
+
+      it('carries what the original had found to a duplicate', async () => {
+        await steppedToThird();
+        oristudioCpMocks.duplicateOristudioCpFoldedFigure.mockResolvedValueOnce({
+          handle: 8,
+          snapshot: at(3, 3, false),
+        });
+        await expect(
+          useWorkspaceStore.getState().duplicateOristudioCpFoldedFigure(figure().id)
+        ).resolves.toBe(true);
+        expect(solutionFrontierOf(8)).toEqual({ cases: 3, complete: true });
+      });
+    });
+
     it('sends no count, angle or geometry as a property value', async () => {
       // Enums and bucketed numbers only. A raw crease count is the easy mistake
       // here — it is right there, it looks harmless, and on a distinctive design
@@ -5900,6 +6263,51 @@ describe('workspace store slices', () => {
       useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' })
     ).resolves.toBe(true);
     expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalled();
+  });
+
+  it('hands each fold over on an undo and a redo between two of them, freeing neither', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+    });
+    retainFoldedFigureHandle(7);
+    // A step that put a new fold in the old one's place, as a refold does: the
+    // entry takes the old fold, the live list the new one.
+    useWorkspaceStore.getState().recordFoldedFigureHistory([figure], 'Refold folded model');
+    retainFoldedFigureHandle(8);
+    useWorkspaceStore.setState({ oristudioCpFoldedFigures: [{ ...figure, handle: 8 }] });
+    releaseFoldedFigureHandle(7);
+    const holders = () => [foldedFigureHandleRefCount(7), foldedFigureHandleRefCount(8)];
+    expect(holders()).toEqual([1, 1]);
+
+    // Each step swaps what is live with what the entry holds: one holder each, nothing freed.
+    await useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.handle).toBe(7);
+    expect(holders()).toEqual([1, 1]);
+    await useWorkspaceStore.getState().redo();
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.handle).toBe(8);
+    expect(holders()).toEqual([1, 1]);
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).not.toHaveBeenCalled();
   });
 
   // Windows were saved to `.osf` but left out of history entirely, so deleting
@@ -10869,5 +11277,1842 @@ describe('the project fold sequences', () => {
     const fileService = createFileService();
     await state().saveProjectAs(fileService);
     expect(writtenFile(fileService).file.workspace.foldSequences).toEqual([raw]);
+  });
+});
+
+/**
+ * Edit's display and Apply of a chosen layer order (`implementation-plans/layer-order-dialog.md`,
+ * row H3), with the kernel, the host engine and the dialog's answer stood in
+ * for: Apply is a new fold of the analysed segments, digest checked, one undo
+ * entry; an undo shows the order before, whatever re-renders it; a copy keeps
+ * the record; a reopened figure is folded again only on a press; and with no
+ * record, every path makes exactly the kernel calls it always made.
+ */
+describe('a chosen layer order on an Edit folded figure (H3)', () => {
+  const state = () => useWorkspaceStore.getState();
+  const figureNow = () => state().oristudioCpFoldedFigures[0]!;
+  // Identity `t` with English plurals, as the catalog tests use.
+  const t = ((_key: string, fallback: string | Record<string, unknown>, options?: Record<string, unknown>) => {
+    const values = typeof fallback === 'string' ? options : fallback;
+    const text =
+      typeof fallback === 'string'
+        ? fallback
+        : String((values?.count === 1 ? values.defaultValue_one : values?.defaultValue_other) ?? '');
+    return text.replace(/\{\{(\w+)\}\}/gu, (_match, name: string) => String(values?.[name] ?? ''));
+  }) as unknown as TFunction;
+
+  const MODEL = foldedFigureSnapshot().model;
+  /** The whole chosen order, as the dialog hands it over: `[upper, lower, …]`. */
+  const RELATIONS = Uint32Array.of(0, 1, 2, 1);
+  /** The picture the constrained fold draws: not the one the figure had. */
+  const CONSTRAINED_PICTURE: OristudioCpFoldedRenderSnapshot = { ...foldedRenderSnapshot(), pass: 'constrained' };
+
+  function held(record = twoConstraintRecord()) {
+    const made = foldedFigureLayerOrder(record);
+    if (!made.ok) throw new Error('the fixture record encodes');
+    return made.layerOrder;
+  }
+
+  function applied(record = twoConstraintRecord()): LayerOrderApplied {
+    return { record, relations: RELATIONS, source: layerOrderSourceOf(layerOrderKernelSource(), MODEL) };
+  }
+
+  const solvedSnapshot = (overrides: Partial<OristudioCpFoldedFigureSnapshot> = {}): OristudioCpFoldedFigureSnapshot => ({
+    ...foldedFigureSnapshot(),
+    outcome: 'Solved',
+    ...overrides,
+  });
+
+  /** A flat figure folded from the X, on handle 3 unless `handle` says otherwise; the store holds only it. */
+  function seedFigure(overrides: Partial<OristudioCpFoldedFigureEntry> = {}): OristudioCpFoldedFigureEntry {
+    resetStores(seedSnapshot());
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 3,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: solvedSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      sourceBounds: foldedSourceBounds(LAYER_ORDER_LINES),
+      // No fingerprint: never stale against the document below.
+      sourceFingerprint: null,
+      sourceLineIds: [1, 2],
+      error: null,
+      ...overrides,
+    };
+    if (figure.handle !== null) retainFoldedFigureHandle(figure.handle);
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState(LAYER_ORDER_LINES),
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+      dirty: false,
+    });
+    return figure;
+  }
+
+  /** Apply as the verb runs it: one entry through the folded layer's bracket, its press made just now. */
+  const applyAsEntry = (id: string, answer: LayerOrderApplied) =>
+    applyFoldedFigureLayerOrder(id, answer, markFoldPress(useWorkspaceStore.getState()), t);
+
+  /** `folded figure rehydrated`, as sent since the last reset. */
+  const rehydratedEvents = () =>
+    analyticsMocks.track.mock.calls.filter(([name]) => name === 'folded figure rehydrated').map(([, properties]) => properties);
+
+  /** Every call made to the CP kernel since the last reset, in the order made. */
+  function kernelCalls(): string[] {
+    return Object.entries(oristudioCpMocks)
+      .flatMap(([name, mock]) => mock.mock.invocationCallOrder.map((order) => [order, name] as const))
+      .sort(([a], [b]) => a - b)
+      .map(([, name]) => name);
+  }
+
+  function clearKernelCalls(): void {
+    for (const mock of Object.values(oristudioCpMocks)) mock.mockClear();
+    hostEngineMocks.resolveLayerOrder.mockClear();
+  }
+
+  describe('Apply', () => {
+    it('folds the analysed segments again with the chosen order, checks its faces, and lands as one entry', async () => {
+      const figure = seedFigure();
+      oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockResolvedValueOnce(CONSTRAINED_PICTURE);
+
+      await expect(applyAsEntry(figure.id, applied())).resolves.toBe(true);
+
+      // Exactly the segments the dialog analysed, never reselected from the document.
+      expect(oristudioCpMocks.foldOristudioCpWithOrder).toHaveBeenCalledWith(
+        layerOrderKernelSource(),
+        RELATIONS,
+        MODEL,
+        A_RUN_ID
+      );
+      expect(oristudioCpMocks.getOristudioCpFoldedFigureDigest).toHaveBeenCalledWith(9);
+      expect(figureNow()).toMatchObject({
+        handle: 9,
+        status: 'ready',
+        snapshot: { shown_order: 'given' },
+        renderSnapshot: CONSTRAINED_PICTURE,
+        layerOrder: held(),
+        // Same creases, same placement: only the order changed.
+        sourceBounds: figure.sourceBounds,
+        placement: figure.placement,
+      });
+      expect(state().oristudioCpHistoryPast.map((entry) => entry.label)).toEqual(['Set layer order']);
+      expect(state().dirty).toBe(true);
+      // The old fold stays with history, for an undo to show: held by the entry alone.
+      expect(oristudioCpMocks.freeOristudioCpFoldedFigure).not.toHaveBeenCalledWith(3);
+      expect(foldedFigureHandleRefCount(3)).toBe(1);
+      expect(foldedFigureHandleRefCount(9)).toBe(1);
+    });
+
+    it('undoes to the order before, which a restyle then draws from the old fold; redo brings the chosen one back', async () => {
+      const figure = seedFigure();
+      oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockResolvedValueOnce(CONSTRAINED_PICTURE);
+      await applyAsEntry(figure.id, applied());
+
+      await state().undo();
+      await flushMicrotasks();
+      expect(figureNow()).toMatchObject({ handle: 3, renderSnapshot: figure.renderSnapshot });
+      expect(figureNow().layerOrder).toBeUndefined();
+      // Each fold keeps one holder: the undone one the live list, the chosen one redo.
+      expect(oristudioCpMocks.freeOristudioCpFoldedFigure).not.toHaveBeenCalled();
+      expect([foldedFigureHandleRefCount(3), foldedFigureHandleRefCount(9)]).toEqual([1, 1]);
+
+      // A re-render after the undo asks the old fold, so the undone order stays undone.
+      clearKernelCalls();
+      await state().setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Transparent3');
+      const rendered = () =>
+        oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mock.calls.map(([handle]) => handle as number);
+      expect(rendered()).toEqual([3]);
+
+      await state().redo();
+      await flushMicrotasks();
+      // (The redo's model reconcile re-renders through 9, which the stand-in draws plainly.)
+      expect(figureNow()).toMatchObject({ handle: 9, layerOrder: held() });
+      expect([foldedFigureHandleRefCount(3), foldedFigureHandleRefCount(9)]).toEqual([1, 1]);
+      clearKernelCalls();
+      await state().setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Paper5');
+      expect(rendered()).toEqual([9]);
+    });
+
+    it('carries the record to a duplicate, which saves it under its own id', async () => {
+      const figure = seedFigure();
+      await applyAsEntry(figure.id, applied());
+      oristudioCpMocks.duplicateOristudioCpFoldedFigure.mockResolvedValueOnce({
+        handle: 12,
+        snapshot: solvedSnapshot({ shown_order: 'given' }),
+      });
+
+      await expect(state().duplicateOristudioCpFoldedFigure(figure.id)).resolves.toBe(true);
+
+      // The kernel clones the session with its given order: the copy draws it too.
+      expect(oristudioCpMocks.duplicateOristudioCpFoldedFigure).toHaveBeenCalledWith(9);
+      const [original, copy] = state().oristudioCpFoldedFigures;
+      expect(copy).toMatchObject({ handle: 12, layerOrder: held() });
+      const bag = withFoldedFigureLayerOrders({}, state().oristudioCpFoldedFigures) as Record<
+        string,
+        { figures: Record<string, { record: string }> }
+      >;
+      const saved = bag[FOLDED_FIGURE_LAYER_ORDERS_KEY]!.figures;
+      expect(Object.keys(saved).sort()).toEqual([original!.id, copy!.id].sort());
+      expect(saved[copy!.id]!.record).toBe(saved[original!.id]!.record);
+    });
+
+    it('refuses a fold whose faces are not the ones the dialog analysed: the digest, on the new fold', async () => {
+      const figure = seedFigure();
+      oristudioCpMocks.getOristudioCpFoldedFigureDigest.mockResolvedValueOnce('ffffffffffffffff');
+
+      await expect(applyAsEntry(figure.id, applied())).resolves.toBe(false);
+
+      expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(9);
+      expect(figureNow()).toBe(figure);
+      expect(state().oristudioCpHistoryPast).toEqual([]);
+      expect(state().oristudioCpError).toBe(
+        'Layer order couldn’t apply this order to Folded model 1. Its picture is unchanged.'
+      );
+    });
+
+    it('leaves the figure as it was when the kernel refuses the order, and when a Stop ends the fold', async () => {
+      const figure = seedFigure();
+      oristudioCpMocks.foldOristudioCpWithOrder.mockResolvedValueOnce({
+        status: 'refused',
+        refusal: { code: 'digest_mismatch', expected: LAYER_ORDER_DIGEST, actual: 'ffffffffffffffff' },
+      });
+      await expect(applyAsEntry(figure.id, applied())).resolves.toBe(false);
+      expect(figureNow()).toBe(figure);
+      expect(state().oristudioCpHistoryPast).toEqual([]);
+
+      useWorkspaceStore.setState({ oristudioCpError: null, error: null });
+      oristudioCpMocks.foldOristudioCpWithOrder.mockRejectedValueOnce({ code: 'fold_cancelled', message: 'stopped' });
+      await expect(applyAsEntry(figure.id, applied())).resolves.toBe(false);
+      expect(figureNow()).toBe(figure);
+      expect(state().oristudioCpHistoryPast).toEqual([]);
+      // Stopped is not failed: nothing to report.
+      expect(state().oristudioCpError).toBeNull();
+    });
+
+    it('writes nothing for the record the figure already shows (D16)', async () => {
+      const figure = seedFigure({ snapshot: solvedSnapshot({ shown_order: 'given' }), layerOrder: held() });
+
+      await expect(applyAsEntry(figure.id, applied())).resolves.toBe(false);
+
+      expect(kernelCalls()).toEqual([]);
+      expect(figureNow()).toBe(figure);
+      expect(state().oristudioCpHistoryPast).toEqual([]);
+    });
+
+    it.each(['a Delete', 'an undo'] as const)(
+      'lands on nothing after %s took the figure while it folded: its fold goes, the old one stays with history',
+      async (meanwhile) => {
+        const figure = seedFigure();
+        if (meanwhile === 'an undo') await setFoldedFigurePlacementAsEntry(figure.id, { rotation: 1 }, 'Rotate folded form');
+        clearKernelCalls();
+        let answer: (() => void) | null = null;
+        oristudioCpMocks.foldOristudioCpWithOrder.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              answer = () => resolve({ status: 'folded', handle: 9, snapshot: solvedSnapshot({ shown_order: 'given' }) });
+            })
+        );
+
+        const applying = applyAsEntry(figure.id, applied());
+        await vi.waitFor(() => expect(answer).not.toBeNull());
+        if (meanwhile === 'a Delete') {
+          await deleteFoldedFigure(figure.id, t);
+        } else {
+          endOpenCanvasSessions('history');
+          await state().undo();
+        }
+        answer!();
+
+        await expect(applying).resolves.toBe(false);
+        expect(oristudioCpMocks.freeOristudioCpFoldedFigure.mock.calls).toEqual([[9]]);
+        expect(foldedFigureHandleRefCount(9)).toBe(0);
+        // With the Delete's entry; or with the figure the undo put back, and the redo.
+        expect(foldedFigureHandleRefCount(3)).toBe(meanwhile === 'a Delete' ? 1 : 2);
+        expect(state().oristudioCpFoldedFigures.some((each) => each.layerOrder)).toBe(false);
+      }
+    );
+  });
+
+  describe('Layer order… (the verb)', () => {
+    it('opens the dialog on the figure’s own fold, with Edit’s look, and writes nothing unless it applies', async () => {
+      const scene = { schema_version: 3, flipped: false, sheet: 1, faces: [], subfaces: [], aux_lines: [], sheet_points: [] };
+      for (const kind of ['unchanged', 'cancelled', 'busy', 'unavailable'] as const) {
+        const figure = seedFigure({
+          displayStyle: 'Transparent3',
+          placement: { ...IDENTITY_FOLDED_PLACEMENT, rotation: Math.PI / 2 },
+          appearance: { 'paper.front': '#ff0000' },
+        });
+        // The canvas turned an eighth more: the figure shows turned by both. Its creases in Edit's pen.
+        useWorkspaceStore.setState({
+          oristudioCpCamera: { centerX: 0, centerY: 0, zoom: 1, rotation: Math.PI / 4 },
+          oristudioCpViewport: { ...state().oristudioCpViewport, lineStyle: 'black-two-dot', lineWidth: 2 },
+        });
+        oristudioCpMocks.getOristudioCpFoldedFigurePaperScene.mockResolvedValueOnce(scene);
+        dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind });
+
+        await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe(kind);
+
+        expect(oristudioCpMocks.getOristudioCpFoldedFigureSource).toHaveBeenCalledWith(3);
+        const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+        expect(request).toEqual({
+          surface: 'edit_figure',
+          source: layerOrderSourceOf(layerOrderKernelSource(), MODEL),
+          record: null,
+          look: {
+            style: expect.objectContaining({ paper: expect.objectContaining({ front: '#ff0000' }) }),
+            policy: expect.objectContaining({ surface: 'folded-flat' }),
+            turnDeg: 135,
+            side: 'front',
+            xray: true,
+            lineStyle: 'black-two-dot',
+            lineWidth: 2,
+          },
+          shown: scene,
+          name: 'Folded model 1',
+          // The sheet it was folded from, which the crease-pattern pane shows alone: the unit square, no aux lines.
+          region: {
+            paper: [
+              [
+                { x: 0, y: 0 },
+                { x: 1, y: 0 },
+                { x: 1, y: 1 },
+                { x: 0, y: 1 },
+              ],
+            ],
+            auxSegments: [],
+          },
+        });
+        expect(oristudioCpMocks.foldOristudioCpWithOrder, kind).not.toHaveBeenCalled();
+        expect(figureNow(), kind).toMatchObject({ handle: 3, renderSnapshot: figure.renderSnapshot });
+        expect(figureNow().layerOrder, kind).toBeUndefined();
+        expect(state().oristudioCpHistoryPast, kind).toEqual([]);
+      }
+    });
+
+    it('opens on the back when the figure shows its back', async () => {
+      const figure = seedFigure({ snapshot: solvedSnapshot({ model: { ...MODEL, state: 'Back1' } }) });
+
+      await openFoldedFigureLayerOrder(figure.id, t);
+
+      const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+      expect(request.look).toMatchObject({ side: 'back', lineStyle: 'color', lineWidth: 1 });
+    });
+
+    it('commits an Apply as one “Set layer order” entry', async () => {
+      const figure = seedFigure({ layerOrder: held(twoConstraintRecord({ constraints: [[0, 1, 1]] })) });
+      dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'applied', applied: applied() });
+
+      await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('applied');
+
+      // The record goes in as the dialog takes it (Edit's frame is the crease pattern's own).
+      const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+      expect(request.record).toEqual(twoConstraintRecord({ constraints: [[0, 1, 1]] }));
+      expect(figureNow()).toMatchObject({ handle: 9, layerOrder: held() });
+      expect(state().oristudioCpHistoryPast.map((entry) => entry.label)).toEqual(['Set layer order']);
+    });
+
+    it('turns the figure as the dialog’s Rotate left it, in the Apply’s one entry, and an undo turns it back', async () => {
+      const figure = seedFigure({ layerOrder: held(twoConstraintRecord({ constraints: [[0, 1, 1]] })) });
+      // The canvas turned an eighth: the dialog's 90° is the figure's own 45°.
+      useWorkspaceStore.setState({ oristudioCpCamera: { centerX: 0, centerY: 0, zoom: 1, rotation: Math.PI / 4 } });
+      dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'applied', applied: applied(), turnDeg: 90 });
+
+      await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('applied');
+
+      expect(figureNow()).toMatchObject({ handle: 9, layerOrder: held() });
+      expect(figureNow().placement.rotation).toBeCloseTo(Math.PI / 4, 12);
+      expect(state().oristudioCpHistoryPast.map((entry) => entry.label)).toEqual(['Set layer order']);
+      endOpenCanvasSessions('history');
+      await state().undo();
+      expect(figureNow()).toMatchObject({ handle: 3, placement: figure.placement });
+    });
+
+    it('an Apply that only turned the figure is its own “Rotate folded form” entry, and writes no order', async () => {
+      const figure = seedFigure();
+      dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'unchanged', turnDeg: 345 });
+
+      await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('unchanged');
+
+      expect(oristudioCpMocks.foldOristudioCpWithOrder).not.toHaveBeenCalled();
+      expect(figureNow()).toMatchObject({ handle: 3 });
+      expect(figureNow().layerOrder).toBeUndefined();
+      expect(figureNow().placement.rotation).toBeCloseTo(-Math.PI / 12, 12);
+      expect(state().oristudioCpHistoryPast.map((entry) => entry.label)).toEqual(['Rotate folded form']);
+      endOpenCanvasSessions('history');
+      await state().undo();
+      expect(figureNow().placement).toEqual(figure.placement);
+    });
+
+    it('opens on the order the figure shows when an undo left its kernel on another, on a fold of its own', async () => {
+      // Another solution, then Undo: the entry is back on solution 1, the handle still on 2.
+      const figure = seedFigure({ snapshot: solvedSnapshot({ discovered_fold_cases: 2, current_fold_case: 1 }) });
+      oristudioCpMocks.getOristudioCpFoldedFigureSnapshot.mockResolvedValueOnce(
+        solvedSnapshot({ discovered_fold_cases: 2, current_fold_case: 2 })
+      );
+      oristudioCpMocks.foldOristudioCpWithOrder.mockResolvedValueOnce({
+        status: 'folded',
+        handle: 15,
+        snapshot: solvedSnapshot({ discovered_fold_cases: 1, current_fold_case: 1 }),
+      });
+      const first = { schema_version: 3, flipped: false, sheet: 1, faces: [], subfaces: [], aux_lines: [], sheet_points: [] };
+      oristudioCpMocks.getOristudioCpFoldedFigurePaperScene.mockImplementation(async (handle: number) =>
+        handle === 15 ? first : null
+      );
+
+      await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('cancelled');
+
+      // Oriedita's own search (no order given) on the figure's own segments, at its case.
+      expect(oristudioCpMocks.foldOristudioCpWithOrder).toHaveBeenCalledWith(
+        layerOrderKernelSource(),
+        new Uint32Array(),
+        MODEL,
+        A_RUN_ID
+      );
+      expect(oristudioCpMocks.foldOristudioCpFigureToCase).not.toHaveBeenCalled();
+      const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+      expect(request.shown).toBe(first);
+      // That fold goes once the dialog closes; the figure and its handle are as they were.
+      expect(oristudioCpMocks.freeOristudioCpFoldedFigure.mock.calls).toEqual([[15]]);
+      expect(figureNow()).toBe(figure);
+      expect(foldedFigureHandleRefCount(3)).toBe(1);
+      expect(state().oristudioCpHistoryPast).toEqual([]);
+    });
+
+    it('lets its own fold go when the dialog closes, but not across a document replaced while it was open', async () => {
+      const figure = seedFigure({ snapshot: solvedSnapshot({ discovered_fold_cases: 2, current_fold_case: 1 }) });
+      oristudioCpMocks.getOristudioCpFoldedFigureSnapshot.mockResolvedValueOnce(
+        solvedSnapshot({ discovered_fold_cases: 2, current_fold_case: 2 })
+      );
+      oristudioCpMocks.foldOristudioCpWithOrder.mockResolvedValueOnce({
+        status: 'folded',
+        handle: 15,
+        snapshot: solvedSnapshot({ discovered_fold_cases: 1, current_fold_case: 1 }),
+      });
+      dialogGatewayMocks.openLayerOrderDialog.mockImplementationOnce(async () => {
+        // Another document opens while the dialog is: every fold goes, and its
+        // first fold is given the slot the dialog's fold had.
+        await resetFoldedFigureHandles();
+        retainFoldedFigureHandle(15);
+        return { kind: 'cancelled' };
+      });
+
+      await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('cancelled');
+
+      // Freed once, by the replace; the new document's fold in that slot stays.
+      expect(oristudioCpMocks.freeOristudioCpFoldedFigure.mock.calls.filter(([handle]) => handle === 15)).toHaveLength(1);
+      expect(foldedFigureHandleRefCount(15)).toBe(1);
+    });
+
+    it('opens a constrained figure whose kernel shows another order on the source alone, to restore its record', async () => {
+      const figure = seedFigure({ layerOrder: held() });
+      oristudioCpMocks.getOristudioCpFoldedFigureSnapshot.mockResolvedValueOnce(solvedSnapshot({ current_fold_case: 2 }));
+
+      await openFoldedFigureLayerOrder(figure.id, t);
+
+      const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+      expect(request).toMatchObject({ record: twoConstraintRecord() });
+      expect(request).not.toHaveProperty('shown');
+      expect(oristudioCpMocks.foldOristudioCpWithOrder).not.toHaveBeenCalled();
+    });
+
+    it('opens nothing on a figure it is held on', async () => {
+      const figure = seedFigure({ layerOrder: { kind: 'newer', saved: { figureKey: 'fk9:x', record: '{"v":2}' } } });
+      await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('not-opened');
+      expect(dialogGatewayMocks.openLayerOrderDialog).not.toHaveBeenCalled();
+      expect(kernelCalls()).toEqual([]);
+    });
+  });
+
+  describe('a figure reopened from a file', () => {
+    const restored = (record = twoConstraintRecord()): Extract<LayerOrderResolution, { outcome: 'applied' }> => ({
+      outcome: 'applied',
+      applied: { record, relations: RELATIONS, source: layerOrderSourceOf(layerOrderKernelSource(), MODEL) },
+      found: {
+        saved_constraints: record.constraints.map(() => ({ status: 'intact' as const })),
+        carried: [],
+        opened_on: { kind: 'held', ignored: 0 },
+      },
+      record,
+      attention: null,
+    });
+
+    it('is folded again with its record only on the press, through the host engine, and keeps that fold', async () => {
+      const figure = seedFigure({ handle: null, snapshot: solvedSnapshot({ shown_order: 'given' }), layerOrder: held() });
+      hostEngineMocks.resolveLayerOrder.mockResolvedValueOnce(restored());
+      oristudioCpMocks.foldOristudioCpWithOrder.mockResolvedValueOnce({
+        status: 'folded',
+        handle: 11,
+        snapshot: solvedSnapshot({ shown_order: 'given' }),
+      });
+
+      await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('cancelled');
+
+      expect(oristudioCpMocks.getOristudioCpSelectionFoldSource).toHaveBeenCalledWith([1, 2], 1);
+      expect(hostEngineMocks.resolveLayerOrder).toHaveBeenCalledWith(
+        layerOrderSourceOf(layerOrderKernelSource(), MODEL),
+        twoConstraintRecord(),
+        undefined,
+        { signal: expect.any(AbortSignal) }
+      );
+      expect(oristudioCpMocks.foldOristudioCpWithOrder).toHaveBeenCalledWith(
+        layerOrderKernelSource(),
+        RELATIONS,
+        MODEL,
+        A_RUN_ID
+      );
+      // The same picture, now live; nothing about the document changed.
+      expect(figureNow()).toMatchObject({ handle: 11, status: 'ready', renderSnapshot: figure.renderSnapshot, layerOrder: held() });
+      expect(foldedFigureHandleRefCount(11)).toBe(1);
+      expect(state().oristudioCpHistoryPast).toEqual([]);
+      expect(state().dirty).toBe(false);
+      expect(rehydratedEvents()).toEqual([{ trigger: 'press', outcome: 'adopted', mode: 'flat' }]);
+      // The dialog opened on that fold, with the record: the source the fold folded, its picture read first.
+      expect(oristudioCpMocks.getOristudioCpFoldedFigurePaperScene).toHaveBeenCalledWith(11);
+      const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+      expect(request.record).toEqual(twoConstraintRecord());
+      expect(request.source).toEqual(layerOrderSourceOf(layerOrderKernelSource(), MODEL));
+
+      // Live now, so a copy can be made, and it keeps the order.
+      oristudioCpMocks.duplicateOristudioCpFoldedFigure.mockResolvedValueOnce({
+        handle: 13,
+        snapshot: solvedSnapshot({ shown_order: 'given' }),
+      });
+      await expect(state().duplicateOristudioCpFoldedFigure(figure.id)).resolves.toBe(true);
+      expect(state().oristudioCpFoldedFigures[1]).toMatchObject({ handle: 13, layerOrder: held() });
+    });
+
+    it('still opens, on its source and record, when the record does not fold back to the order it shows', async () => {
+      // The approved Refusals board: the dialog restores the record itself and says why in its own frames.
+      const figure = seedFigure({ handle: null, snapshot: solvedSnapshot({ shown_order: 'given' }), layerOrder: held() });
+      const error = vi.spyOn(toast, 'error').mockImplementation(() => 1);
+      const fallsShort: LayerOrderResolution[] = [
+        { ...restored(), found: { ...restored().found, opened_on: { kind: 'closest', moved: 2, ignored: 0 } } },
+        {
+          outcome: 'clash',
+          clashing: [0],
+          found: restored().found,
+          record: twoConstraintRecord(),
+          attention: { reason: 'conflict', count: 1 },
+        },
+        { outcome: 'timed_out', limit: 'deadline', nodes: 9, found: null, record: twoConstraintRecord(), attention: { reason: 'timeout', count: 2 } },
+        { outcome: 'lost', cause: 'crashed', record: twoConstraintRecord(), attention: { reason: 'timeout', count: 2 } },
+      ];
+      try {
+        for (const resolution of fallsShort) {
+          hostEngineMocks.resolveLayerOrder.mockResolvedValueOnce(resolution);
+          dialogGatewayMocks.openLayerOrderDialog.mockClear();
+          analyticsMocks.track.mockClear();
+          await expect(openFoldedFigureLayerOrder(figure.id, t), resolution.outcome).resolves.toBe('cancelled');
+          const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+          expect(request.source, resolution.outcome).toEqual(layerOrderSourceOf(layerOrderKernelSource(), MODEL));
+          expect(request.record, resolution.outcome).toEqual(twoConstraintRecord());
+          expect(request, resolution.outcome).not.toHaveProperty('shown');
+          expect(rehydratedEvents(), resolution.outcome).toEqual([{ trigger: 'press', outcome: 'refused', mode: 'flat' }]);
+        }
+        expect(error).not.toHaveBeenCalled();
+      } finally {
+        error.mockRestore();
+      }
+      expect(oristudioCpMocks.foldOristudioCpWithOrder).not.toHaveBeenCalled();
+      expect(figureNow()).toBe(figure);
+      expect(state().oristudioCpHistoryPast).toEqual([]);
+    });
+
+    it('says only that the engine didn’t load, as the dialog would, when it couldn’t load at all', async () => {
+      const figure = seedFigure({ handle: null, snapshot: solvedSnapshot({ shown_order: 'given' }), layerOrder: held() });
+      const error = vi.spyOn(toast, 'error').mockImplementation(() => 1);
+      hostEngineMocks.resolveLayerOrder.mockResolvedValueOnce({
+        outcome: 'lost',
+        cause: 'unavailable',
+        record: twoConstraintRecord(),
+        attention: { reason: 'timeout', count: 2 },
+      });
+      try {
+        await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('not-opened');
+        // With the reload that alone retries a load that failed (`layerOrderReloadAction`).
+        expect(error).toHaveBeenCalledWith('Layer order didn’t load. Reload Ori Studio to try again.', {
+          action: { label: 'Reload', onClick: expect.any(Function) },
+        });
+      } finally {
+        error.mockRestore();
+      }
+      expect(dialogGatewayMocks.openLayerOrderDialog).not.toHaveBeenCalled();
+      expect(figureNow()).toBe(figure);
+    });
+
+    it('lets go of a fold it could not read once, through the count, and says refused once', async () => {
+      const figure = seedFigure({ handle: null, snapshot: solvedSnapshot({ shown_order: 'given' }), layerOrder: held() });
+      hostEngineMocks.resolveLayerOrder.mockResolvedValueOnce(restored());
+      oristudioCpMocks.foldOristudioCpWithOrder.mockResolvedValueOnce({
+        status: 'folded',
+        handle: 11,
+        snapshot: solvedSnapshot({ shown_order: 'given' }),
+      });
+      oristudioCpMocks.getOristudioCpFoldedFigurePaperScene.mockRejectedValueOnce(new Error('the scene failed'));
+
+      await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('cancelled');
+      await resetFoldedFigureHandles();
+
+      // Never the figure's: freed once, on the count, and not again when the document goes.
+      expect(oristudioCpMocks.freeOristudioCpFoldedFigure.mock.calls).toEqual([[11]]);
+      expect(rehydratedEvents()).toEqual([{ trigger: 'press', outcome: 'refused', mode: 'flat' }]);
+      expect(figureNow()).toBe(figure);
+      const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+      expect(request).not.toHaveProperty('shown');
+    });
+
+    it('puts back a figure deleted while the press folds as it was before the press, never waiting', async () => {
+      const figure = seedFigure({ handle: null, snapshot: solvedSnapshot({ shown_order: 'given' }), layerOrder: held() });
+      let answer: (resolution: LayerOrderResolution) => void = () => {};
+      hostEngineMocks.resolveLayerOrder.mockReturnValueOnce(
+        new Promise<LayerOrderResolution>((resolve) => {
+          answer = resolve;
+        })
+      );
+      const press = openFoldedFigureLayerOrder(figure.id, t);
+      await vi.waitFor(() => expect(figureNow()?.status).toBe('loading'));
+
+      await deleteFoldedFigure(figure.id, t);
+      answer(restored());
+      await expect(press).resolves.toBe('not-opened');
+      expect(state().oristudioCpFoldedFigures).toEqual([]);
+
+      await state().undo();
+      expect(figureNow()).toBe(figure);
+      expect(figureNow().status).toBe('ready');
+    });
+
+    it('with no record, opens on a fold of its own, stepped to the case it shows, which goes once the dialog closes', async () => {
+      const figure = seedFigure({
+        handle: null,
+        snapshot: solvedSnapshot({ discovered_fold_cases: 2, current_fold_case: 2, find_another_overlap_valid: true }),
+      });
+      oristudioCpMocks.foldOristudioCpWithOrder.mockResolvedValueOnce({
+        status: 'folded',
+        handle: 14,
+        snapshot: solvedSnapshot({ discovered_fold_cases: 1, current_fold_case: 1, find_another_overlap_valid: true }),
+      });
+      oristudioCpMocks.foldOristudioCpFigureToCase.mockResolvedValueOnce({
+        snapshot: solvedSnapshot({ discovered_fold_cases: 2, current_fold_case: 2, find_another_overlap_valid: true }),
+        discovered_case_numbers: [1, 2],
+      });
+
+      await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('cancelled');
+
+      expect(kernelCalls()).toEqual([
+        'getOristudioCpSelectionFoldSource',
+        'foldOristudioCpWithOrder',
+        'foldOristudioCpFigureToCase',
+        'getOristudioCpFoldedFigurePaperScene',
+        'freeOristudioCpFoldedFigure',
+      ]);
+      // Oriedita's own search (no order given) on the figure's creases, stepped to its case.
+      expect(oristudioCpMocks.getOristudioCpSelectionFoldSource).toHaveBeenCalledWith([1, 2], 1);
+      expect(oristudioCpMocks.foldOristudioCpWithOrder).toHaveBeenCalledWith(
+        layerOrderKernelSource(),
+        new Uint32Array(),
+        MODEL,
+        A_RUN_ID
+      );
+      expect(oristudioCpMocks.foldOristudioCpFigureToCase).toHaveBeenCalledWith(14, 2, 'Order5', A_RUN_ID);
+      expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(14);
+      expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+      // The figure itself stays as it was reopened.
+      expect(figureNow()).toBe(figure);
+      expect(state().oristudioCpHistoryPast).toEqual([]);
+    });
+  });
+
+  it('refuses to refold a figure with a newer build’s layer order, called directly, with the toolbar’s reason', async () => {
+    const figure = seedFigure({ layerOrder: { kind: 'newer', saved: { figureKey: 'fk9:x', record: '{"v":2}' } } });
+    clearKernelCalls();
+
+    await expect(state().refoldOristudioCpFoldedFigure(figure.id)).resolves.toBe(false);
+
+    expect(kernelCalls()).toEqual([]);
+    expect(figureNow()).toBe(figure);
+    expect(state().oristudioCpError).toBe('Made with a newer Ori Studio: its layer constraints can’t be changed here.');
+  });
+
+  describe('refold with its layer order, staleness, 3D and attention (H4)', () => {
+    /** The host engine's answer that drew `record`'s order, with what it left out (`attention`). */
+    function restoredAs(record = twoConstraintRecord(), attention: LayerOrderAttention | null = null): LayerOrderResolution {
+      return {
+        outcome: 'applied',
+        applied: { record, relations: RELATIONS, source: layerOrderSourceOf(layerOrderKernelSource(), MODEL) },
+        found: {
+          saved_constraints: record.constraints.map(() => ({ status: 'intact' as const })),
+          carried: [],
+          opened_on: { kind: 'closest', moved: 1, ignored: 0 },
+        },
+        record: attention ? { ...record, attention } : record,
+        attention,
+      };
+    }
+
+    /** The host engine's answer that drew nothing (D10): the record asked about, flagged. */
+    function notDrawn(outcome: 'clash' | 'timed_out' | 'refused', attention: LayerOrderAttention): LayerOrderResolution {
+      const record = twoConstraintRecord({ attention });
+      const found = {
+        saved_constraints: [{ status: 'clashing' as const }, { status: 'clashing' as const }],
+        carried: [],
+        opened_on: { kind: 'closest' as const, moved: 0, ignored: 0 },
+      };
+      switch (outcome) {
+        case 'clash':
+          return { outcome, clashing: [0, 1], found, record, attention };
+        case 'timed_out':
+          return { outcome, limit: 'deadline', nodes: 9, found: null, record, attention };
+        case 'refused':
+          return { outcome, refusal: { code: 'source_non_convex_face', face: 1 }, record, attention };
+      }
+    }
+
+    /** A flat figure that shows the order its record was given with. */
+    const constrained = (overrides: Partial<OristudioCpFoldedFigureEntry> = {}) =>
+      seedFigure({ snapshot: solvedSnapshot({ shown_order: 'given' }), layerOrder: held(), ...overrides });
+
+    /** Refold as the toolbar runs it: one entry through the folded layer's bracket; what it said, kept. */
+    async function refoldAsEntry(id: string) {
+      const said: FoldedFigureLayerOrderRefold[] = [];
+      const done = await foldedFigureGesture.run('verb', 'Refold folded model', () =>
+        state().refoldOristudioCpFoldedFigure(id, { onLayerOrder: (outcome) => said.push(outcome) })
+      );
+      return { done, said };
+    }
+
+    const labels = () => state().oristudioCpHistoryPast.map((entry) => entry.label);
+    /** `layer constraints need attention`, as sent since the last reset. */
+    const attentionEvents = () =>
+      analyticsMocks.track.mock.calls
+        .filter(([name]) => name === 'layer constraints need attention')
+        .map(([, properties]) => properties);
+
+    /** The creases with a fold angle on one: they fold in 3D now. */
+    const creasesIn3d = () =>
+      editableCpState([
+        LAYER_ORDER_LINES[0]!,
+        { ...LAYER_ORDER_LINES[1]!, fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE },
+      ]);
+
+    beforeEach(() => analyticsMocks.track.mockClear());
+
+    it('restores its record onto the creases as they are now, folds them in the order that fits, and lands as one entry', async () => {
+      const figure = constrained({ sourceFingerprint: 'cs1:before' });
+      const shown = twoConstraintRecord({ order: [[2, 0, -1]] });
+      hostEngineMocks.resolveLayerOrder.mockResolvedValueOnce(restoredAs(shown));
+      oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockResolvedValueOnce(CONSTRAINED_PICTURE);
+      clearKernelCalls();
+
+      const { done, said } = await refoldAsEntry(figure.id);
+
+      expect(done).toBe(true);
+      // Its creases read without folding, the record restored on them, then one fold in the order that fits.
+      expect(kernelCalls()).toEqual([
+        'getOristudioCpSelectionFoldSource',
+        'foldOristudioCpWithOrder',
+        'getOristudioCpFoldedFigureDigest',
+        'getOristudioCpFoldedFigureRenderSnapshot',
+      ]);
+      expect(oristudioCpMocks.getOristudioCpSelectionFoldSource).toHaveBeenCalledWith([1, 2], 1);
+      expect(hostEngineMocks.resolveLayerOrder).toHaveBeenCalledWith(
+        layerOrderSourceOf(layerOrderKernelSource(), MODEL),
+        twoConstraintRecord(),
+        undefined,
+        { signal: expect.any(AbortSignal) }
+      );
+      expect(oristudioCpMocks.foldOristudioCpWithOrder).toHaveBeenCalledWith(layerOrderKernelSource(), RELATIONS, MODEL, A_RUN_ID);
+      expect(figureNow()).toMatchObject({
+        handle: 9,
+        status: 'ready',
+        snapshot: { shown_order: 'given' },
+        renderSnapshot: CONSTRAINED_PICTURE,
+        layerOrder: held(shown),
+      });
+      // Re-baselined on the creases it folded, as any refold.
+      expect(isFoldedFigureStale(state().oristudioCpDocument!.document, figure)).toBe(true);
+      expect(isFoldedFigureStale(state().oristudioCpDocument!.document, figureNow())).toBe(false);
+      expect(labels()).toEqual(['Refold folded model']);
+      expect(said).toEqual([{ kind: 'applied', attention: null }]);
+      expect(attentionEvents()).toEqual([]);
+      expect(dialogGatewayMocks.openLayerOrderDialog).not.toHaveBeenCalled();
+
+      // The old fold stays with history: an undo shows the order before, with its record.
+      await state().undo();
+      await flushMicrotasks();
+      expect(figureNow()).toMatchObject({ handle: 3, layerOrder: held() });
+    });
+
+    it('draws the rest when some constraints are left out, and flags them: the event once, as the summary changes', async () => {
+      const figure = constrained();
+      const left = { reason: 'unresolved', count: 1 } as const;
+      hostEngineMocks.resolveLayerOrder.mockResolvedValue(restoredAs(twoConstraintRecord(), left));
+
+      const first = await refoldAsEntry(figure.id);
+      expect(figureNow()).toMatchObject({ handle: 9, layerOrder: held(twoConstraintRecord({ attention: left })) });
+      expect(first.said).toEqual([{ kind: 'applied', attention: left }]);
+      expect(attentionEvents()).toEqual([{ surface: 'edit_figure', broken_count_bucket: '<=1' }]);
+
+      // Refolded again, flagged as it was: drawn again, with nothing new to count.
+      oristudioCpMocks.foldOristudioCpWithOrder.mockResolvedValueOnce({
+        status: 'folded',
+        handle: 10,
+        snapshot: solvedSnapshot({ shown_order: 'given' }),
+      });
+      await refoldAsEntry(figure.id);
+      expect(figureNow().handle).toBe(10);
+      expect(attentionEvents()).toHaveLength(1);
+    });
+
+    it.each([
+      ['clash', { reason: 'conflict', count: 2 }],
+      ['timed_out', { reason: 'timeout', count: 2 }],
+      ['refused', { reason: 'unresolved', count: 2 }],
+    ] as const)('keeps its picture on %s and flags its record, applying nothing (D10)', async (outcome, attention) => {
+      const figure = constrained();
+      hostEngineMocks.resolveLayerOrder.mockResolvedValue(notDrawn(outcome, attention));
+      clearKernelCalls();
+
+      const { done, said } = await refoldAsEntry(figure.id);
+
+      expect(done).toBe(false);
+      expect(kernelCalls()).toEqual(['getOristudioCpSelectionFoldSource']);
+      // Its picture, its fold and its creases' baseline: all as they were; only the record says why.
+      expect(figureNow()).toEqual({ ...figure, layerOrder: held(twoConstraintRecord({ attention })) });
+      expect(labels()).toEqual(['Refold folded model']);
+      expect(state().dirty).toBe(true);
+      expect(said).toEqual([{ kind: 'kept', outcome, attention }]);
+      expect(attentionEvents()).toEqual([{ surface: 'edit_figure', broken_count_bucket: '<=2' }]);
+      // The dialog never opens by itself (D14).
+      expect(dialogGatewayMocks.openLayerOrderDialog).not.toHaveBeenCalled();
+
+      await state().undo();
+      await flushMicrotasks();
+      expect(figureNow().layerOrder).toEqual(held());
+      await state().redo();
+      await flushMicrotasks();
+
+      // Again on the flagged figure: nothing new to keep, so no entry and no event.
+      const flagged = figureNow();
+      const entries = state().oristudioCpHistoryPast.length;
+      await refoldAsEntry(figure.id);
+      expect(figureNow()).toBe(flagged);
+      expect(state().oristudioCpHistoryPast).toHaveLength(entries);
+      expect(attentionEvents()).toHaveLength(1);
+    });
+
+    it('keeps its picture, flagged, when the kernel can’t draw the order rebuilt, and lets that fold go', async () => {
+      const unresolved = { reason: 'unresolved', count: 2 } as const;
+      for (const why of ['refused', 'digest'] as const) {
+        const figure = constrained();
+        hostEngineMocks.resolveLayerOrder.mockResolvedValueOnce(restoredAs());
+        if (why === 'refused') {
+          oristudioCpMocks.foldOristudioCpWithOrder.mockResolvedValueOnce({
+            status: 'refused',
+            refusal: { code: 'digest_mismatch', expected: LAYER_ORDER_DIGEST, actual: 'ffffffffffffffff' },
+          });
+        } else {
+          oristudioCpMocks.getOristudioCpFoldedFigureDigest.mockResolvedValueOnce('ffffffffffffffff');
+        }
+        oristudioCpMocks.freeOristudioCpFoldedFigure.mockClear();
+
+        const { said } = await refoldAsEntry(figure.id);
+
+        expect(figureNow(), why).toEqual({ ...figure, layerOrder: held(twoConstraintRecord({ attention: unresolved })) });
+        expect(said, why).toEqual([{ kind: 'kept', outcome: 'refused', attention: unresolved }]);
+        expect(oristudioCpMocks.freeOristudioCpFoldedFigure.mock.calls, why).toEqual(why === 'digest' ? [[9]] : []);
+      }
+    });
+
+    it.each(['load', 'crashed'] as const)('writes nothing when the engine isn’t there (%s), and says so', async (cause) => {
+      const figure = constrained();
+      hostEngineMocks.resolveLayerOrder.mockResolvedValueOnce({
+        outcome: 'lost',
+        cause,
+        record: twoConstraintRecord(),
+        attention: { reason: 'timeout', count: 2 },
+      });
+
+      const { done, said } = await refoldAsEntry(figure.id);
+
+      expect(done).toBe(false);
+      expect(figureNow()).toBe(figure);
+      expect(state().oristudioCpHistoryPast).toEqual([]);
+      expect(state().dirty).toBe(false);
+      expect(state().oristudioCpError).toBeNull();
+      expect(said).toEqual([{ kind: 'lost', cause }]);
+      expect(attentionEvents()).toEqual([]);
+    });
+
+    it('stops through the Refold’s own run: the host engine’s resolve gets its Stop, and the figure goes back quietly', async () => {
+      const isolated = Object.getOwnPropertyDescriptor(globalThis, 'crossOriginIsolated');
+      // A Stop reaches only a run the transport can stop: one with shared memory.
+      Object.defineProperty(globalThis, 'crossOriginIsolated', { value: true, configurable: true });
+      try {
+        const figure = constrained();
+        let signal: AbortSignal | undefined;
+        hostEngineMocks.resolveLayerOrder.mockImplementationOnce(
+          (_source: unknown, _record: unknown, _limits: unknown, options: { signal: AbortSignal }) =>
+            new Promise((resolve) => {
+              signal = options.signal;
+              signal.addEventListener('abort', () => resolve({ outcome: 'cancelled' }));
+            })
+        );
+        const refolding = refoldAsEntry(figure.id);
+        await vi.waitFor(() => expect(signal).toBeDefined());
+        expect(state().oristudioCpFoldRuns).not.toEqual({});
+
+        expect(state().stopOristudioCpFolds()).toBe(true);
+        const { done, said } = await refolding;
+
+        expect(signal!.aborted).toBe(true);
+        expect(done).toBe(false);
+        expect(said).toEqual([]);
+        expect(figureNow()).toBe(figure);
+        expect(state().oristudioCpHistoryPast).toEqual([]);
+        expect(state().oristudioCpError).toBeNull();
+        expect(oristudioCpMocks.foldOristudioCpWithOrder).not.toHaveBeenCalled();
+      } finally {
+        if (isolated) Object.defineProperty(globalThis, 'crossOriginIsolated', isolated);
+        else Reflect.deleteProperty(globalThis, 'crossOriginIsolated');
+      }
+    });
+
+    it('with no record, refolds to 3D with exactly the kernel calls it always made, and adds none (parity guard)', async () => {
+      const figure = seedFigure();
+      useWorkspaceStore.setState({ oristudioCpDocument: creasesIn3d() });
+      clearKernelCalls();
+
+      await expect(state().refoldOristudioCpFoldedFigure(figure.id)).resolves.toBe(true);
+
+      expect(kernelCalls()).toEqual(['fold3dOristudioCpDocument', 'freeOristudioCpFoldedFigure']);
+      expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+      expect(figureNow().layerOrder).toBeUndefined();
+      expect(attentionEvents()).toEqual([]);
+    });
+
+    it('keeps its record when its creases now fold in 3D, flagged as waiting, through a save and a reload (D13)', async () => {
+      const figure = constrained();
+      useWorkspaceStore.setState({ oristudioCpDocument: creasesIn3d() });
+      clearKernelCalls();
+
+      const { done, said } = await refoldAsEntry(figure.id);
+
+      expect(done).toBe(true);
+      // The 3D picture, from the 3D folder alone: no engine asked, no order drawn.
+      expect(kernelCalls()).toEqual(['fold3dOristudioCpDocument']);
+      expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+      const waiting = held(twoConstraintRecord({ attention: { reason: 'route-3d', count: 2 } }));
+      expect(figureNow()).toMatchObject({ handle: 11, snapshot: null, sourceKind: 'generated-3d', layerOrder: waiting });
+      expect(said).toEqual([]);
+      expect(attentionEvents()).toEqual([{ surface: 'edit_figure', broken_count_bucket: '<=2' }]);
+
+      // Saved and opened again: the record attaches to the 3D figure by its key.
+      const nativeText = serializeNativeProjectFile(
+        createNativeCreasePatternProjectFile({
+          title: 'Native CP',
+          filename: 'layers.osf',
+          path: '/tmp/layers.osf',
+          document: state().oristudioCpDocument!.document,
+          source: null,
+          foldProjection: JSON.parse(editableCpFoldText) as FoldDocument,
+          foldArtifacts: null,
+          creaseColorMode: 'mvf',
+          selection: emptyOristudioCpSelection(),
+          viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+          foldedFigures: state().oristudioCpFoldedFigures,
+          activeFoldedFigureId: null,
+          lineage: importedCpLineage(),
+          appVersion: '0.1.1',
+        })
+      );
+      resetStores(seedSnapshot());
+      loadSnapshotIntoStore(seedSnapshot());
+      await expect(
+        state().openProject(createFileService({ text: nativeText, name: 'layers.osf', path: '/tmp/layers.osf' }))
+      ).resolves.toBe(true);
+      expect(figureNow()).toMatchObject({ handle: null, sourceKind: 'generated-3d', layerOrder: waiting });
+
+      // The idle 3D rehydrate makes it live, as any reopened 3D figure, and never asks about its record.
+      analyticsMocks.track.mockClear();
+      await expect(state().rehydrateOristudioCpFolded3dFigure(figureNow().id)).resolves.toBe(true);
+      expect(figureNow()).toMatchObject({ status: 'ready', layerOrder: waiting });
+      expect(figureNow().handle).not.toBeNull();
+      expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+      expect(attentionEvents()).toEqual([]);
+
+      // Its creases fold flat again: the record is restored on them, its waiting summary replaced.
+      useWorkspaceStore.setState({ oristudioCpDocument: editableCpState(LAYER_ORDER_LINES) });
+      hostEngineMocks.resolveLayerOrder.mockResolvedValueOnce(restoredAs());
+      await refoldAsEntry(figureNow().id);
+      expect(hostEngineMocks.resolveLayerOrder).toHaveBeenCalledWith(
+        layerOrderSourceOf(layerOrderKernelSource(), MODEL),
+        twoConstraintRecord({ attention: { reason: 'route-3d', count: 2 } }),
+        undefined,
+        { signal: expect.any(AbortSignal) }
+      );
+      expect(figureNow()).toMatchObject({ snapshot: { shown_order: 'given' }, folded3d: null, layerOrder: held() });
+    });
+
+    it('treats a 3D figure whose creases fold flat again, and whose record then clashes, as a stale flat one: flagged, Review…, Apply refolds it flat', async () => {
+      const figure = constrained();
+      useWorkspaceStore.setState({ oristudioCpDocument: creasesIn3d() });
+      await refoldAsEntry(figure.id);
+      expect(figureNow().folded3d).not.toBeNull();
+      // The creases fold flat again, and the record clashes on them: the 3D picture is kept, flagged.
+      useWorkspaceStore.setState({ oristudioCpDocument: editableCpState(LAYER_ORDER_LINES) });
+      const conflict = { reason: 'conflict', count: 2 } as const;
+      hostEngineMocks.resolveLayerOrder.mockResolvedValueOnce(notDrawn('clash', conflict));
+      const { said } = await refoldAsEntry(figureNow().id);
+      expect(said).toEqual([{ kind: 'kept', outcome: 'clash', attention: conflict }]);
+      const flagged = figureNow();
+      expect(flagged.folded3d).not.toBeNull();
+      expect(isFoldedFigureStale(state().oristudioCpDocument!.document, flagged)).toBe(true);
+      // Flagged, with Review…, and Layer order… open: not a dead end.
+      expect(foldedFigureNotice(t, flagged)).toMatchObject({ id: 'layer-order-attention', action: { id: 'review-layer-order' } });
+      expect(layerOrderCommand(flagged, { t, openLayerOrder: vi.fn() })?.disabled).toBe(false);
+
+      // Review… opens on the creases as they are now, the model from the 3D snapshot.
+      clearKernelCalls();
+      dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'applied', applied: applied() });
+      oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockResolvedValueOnce(CONSTRAINED_PICTURE);
+      await expect(openFoldedFigureLayerOrder(flagged.id, t, { via: 'review' })).resolves.toBe('applied');
+      const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+      expect(request).toMatchObject({
+        review: true,
+        applyRefolds: true,
+        source: layerOrderSourceOf(layerOrderKernelSource(), MODEL),
+        record: twoConstraintRecord({ attention: conflict }),
+      });
+      expect(oristudioCpMocks.getOristudioCpSelectionFoldSource).toHaveBeenCalledWith([1, 2], 1);
+      // Its Apply refolds it flat, in the order applied, up to date.
+      expect(oristudioCpMocks.foldOristudioCpWithOrder).toHaveBeenCalledWith(layerOrderKernelSource(), RELATIONS, MODEL, A_RUN_ID);
+      expect(figureNow()).toMatchObject({
+        handle: 9,
+        folded3d: null,
+        camera: null,
+        sourceKind: 'generated-from-current-cp',
+        snapshot: { shown_order: 'given' },
+        renderSnapshot: CONSTRAINED_PICTURE,
+        layerOrder: held(),
+      });
+      expect(isFoldedFigureStale(state().oristudioCpDocument!.document, figureNow())).toBe(false);
+      expect(labels().at(-1)).toBe('Refold with layer order');
+    });
+
+    it('lands nothing when the document was replaced while it resolved: kept and lost alike (the handle generation)', async () => {
+      for (const answer of [notDrawn('clash', { reason: 'conflict', count: 2 }), { outcome: 'lost' as const, cause: 'load' as const, record: twoConstraintRecord(), attention: { reason: 'timeout' as const, count: 2 } }]) {
+        const figure = constrained();
+        let release: (() => void) | null = null;
+        hostEngineMocks.resolveLayerOrder.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              release = () => resolve(answer);
+            })
+        );
+        const refolding = refoldAsEntry(figure.id);
+        await vi.waitFor(() => expect(release).not.toBeNull());
+        // Another document: every fold goes, and a new generation of handles begins.
+        await resetFoldedFigureHandles();
+        release!();
+        const { done, said } = await refolding;
+        expect(done, answer.outcome).toBe(false);
+        expect(said, answer.outcome).toEqual([]);
+        expect(figureNow().layerOrder, answer.outcome).toEqual(held());
+        expect(attentionEvents(), answer.outcome).toEqual([]);
+      }
+    });
+
+    describe('a record a reload detached, because an older build folded the figure again', () => {
+      /** The creases with one more inside the figure's region: a released build's edit. */
+      const EDITED_LINES = [...LAYER_ORDER_LINES, cpLine({ x: 0.5, y: 0 }, { x: 0.5, y: 0.5 })];
+      const BOUNDS = foldedSourceBounds(LAYER_ORDER_LINES);
+
+      const cpDocument = (lines: OristudioCpLineSegment[]) => ({
+        ...blankCpDocumentState().document,
+        crease_pattern: { ...blankCpDocumentState().document.crease_pattern, line_segments: lines },
+      });
+      /** What a fold of the figure's region on `lines` is baselined on. */
+      const fingerprintOn = (lines: OristudioCpLineSegment[]) => {
+        const document = cpDocument(lines);
+        return foldedSourceFingerprint(cpLinesByIds(document, reselectFoldableLineIds(document, BOUNDS)));
+      };
+      /** The figure as this build saved it: folded from the creases before the edit, in its chosen order. */
+      const savedFigure = (): OristudioCpFoldedFigureEntry => ({
+        id: 'generated-1',
+        title: 'Folded model 1',
+        handle: null,
+        sourceKind: 'generated-from-current-cp',
+        sourceCpRevision: 0,
+        startingFaceId: 1,
+        displayStyle: 'Paper5',
+        status: 'ready',
+        placement: IDENTITY_FOLDED_PLACEMENT,
+        snapshot: solvedSnapshot({ shown_order: 'given' }),
+        renderSnapshot: foldedRenderSnapshot(),
+        sourceBounds: BOUNDS,
+        sourceFingerprint: fingerprintOn(LAYER_ORDER_LINES),
+        sourceLineIds: [1, 2],
+        error: null,
+        layerOrder: held(),
+      });
+      /**
+       * The figure as a released build's Refold leaves it after the edit: the
+       * same id, title, placement, starting face and region; re-baselined on
+       * the new creases; its own snapshot, with no `shown_order`.
+       */
+      const refoldedByAnOlderBuild = (): OristudioCpFoldedFigureEntry => {
+        const { layerOrder: _notThatBuildsToWrite, ...figure } = savedFigure();
+        return { ...figure, snapshot: solvedSnapshot(), sourceFingerprint: fingerprintOn(EDITED_LINES) };
+      };
+      /** A project file as this build writes one, its bag from `extensions`. */
+      const projectFile = (
+        document: OristudioCpDocumentSnapshot,
+        foldedFigures: OristudioCpFoldedFigureEntry[],
+        extensions?: Record<string, unknown>
+      ) =>
+        JSON.parse(
+          serializeNativeProjectFile(
+            createNativeCreasePatternProjectFile({
+              title: 'Native CP',
+              filename: 'layers.osf',
+              path: '/tmp/layers.osf',
+              document,
+              source: null,
+              foldProjection: JSON.parse(editableCpFoldText) as FoldDocument,
+              foldArtifacts: null,
+              creaseColorMode: 'mvf',
+              selection: emptyOristudioCpSelection(),
+              viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+              foldedFigures,
+              activeFoldedFigureId: null,
+              lineage: importedCpLineage(),
+              appVersion: '0.1.1',
+              ...(extensions ? { extensions } : {}),
+            })
+          )
+        );
+      async function openFile(json: unknown) {
+        resetStores(seedSnapshot());
+        loadSnapshotIntoStore(seedSnapshot());
+        await expect(
+          state().openProject(createFileService({ text: JSON.stringify(json), name: 'layers.osf', path: '/tmp/layers.osf' }))
+        ).resolves.toBe(true);
+      }
+
+      /**
+       * This build saved a constrained figure; a released one edited a crease
+       * inside it and refolded it (`refolded`), carrying the bag as it came;
+       * this one opens the file.
+       */
+      async function openedAfterAnOlderBuild(refolded = refoldedByAnOlderBuild()) {
+        const saved = projectFile(cpDocument(LAYER_ORDER_LINES), [savedFigure()]);
+        const older = projectFile(cpDocument(EDITED_LINES), [refolded]);
+        older.workspace.creasePattern.extensions = saved.workspace.creasePattern.extensions;
+        await openFile(older);
+      }
+
+      /** The bag the open project saves. */
+      const savedBag = () => withFoldedFigureLayerOrders(state().oristudioCpDocumentExtensions, state().oristudioCpFoldedFigures);
+      const detachedIn = () => detachedFoldedFigureLayerOrders(savedBag());
+      /** The open project saved, then opened again; `edit` changes its figures between, as a later session's fold. */
+      async function saveAndReopen(edit: (figures: OristudioCpFoldedFigureEntry[]) => OristudioCpFoldedFigureEntry[] = (f) => f) {
+        const { document } = state().oristudioCpDocument!;
+        await openFile(projectFile(document, edit(state().oristudioCpFoldedFigures), state().oristudioCpDocumentExtensions));
+      }
+      const notice = () => foldedFigureNotice(t, figureNow());
+
+      it('is flagged as not applied, opens the dialog for review without folding with it, and an Apply takes it up', async () => {
+        await openedAfterAnOlderBuild();
+        const opened = figureNow();
+        // The older build's refold baselined it on the edited creases: up to date, its record not its own.
+        expect(state().oristudioCpDocument!.document.crease_pattern.line_segments).toHaveLength(3);
+        expect(isFoldedFigureStale(state().oristudioCpDocument!.document, opened)).toBe(false);
+        expect(opened.layerOrder).toBeUndefined();
+        expect(foldedFigureNotice(t, opened)).toMatchObject({ label: 'Not applied', action: { id: 'review-layer-order' } });
+        expect(detachedIn()).toHaveLength(1);
+
+        clearKernelCalls();
+        dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'applied', applied: applied() });
+        await expect(openFoldedFigureLayerOrder(opened.id, t, { via: 'review' })).resolves.toBe('applied');
+        // Never seeds a fold: the dialog opened on Oriedita's own search, with the record to restore itself.
+        expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+        expect(oristudioCpMocks.foldOristudioCpWithOrder.mock.calls[0]![1]).toEqual(new Uint32Array());
+        const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+        expect(request).toMatchObject({
+          review: true,
+          record: twoConstraintRecord({ attention: { reason: 'detached', count: 2 } }),
+        });
+        // Taken up: the figure's own now, and the save drops the detached entry.
+        expect(figureNow()).toMatchObject({ handle: 9, layerOrder: held() });
+        expect(foldedFigureNotice(t, figureNow())).toBeNull();
+        expect(detachedIn()).toEqual([]);
+
+        // Undone, it is detached and shown again, and the save keeps it.
+        await state().undo();
+        await flushMicrotasks();
+        expect(figureNow().layerOrder).toBeUndefined();
+        expect(foldedFigureNotice(t, figureNow())).toMatchObject({ label: 'Not applied' });
+        expect(detachedIn()).toHaveLength(1);
+      });
+
+      it('is let go with Dismiss, as one entry that an undo takes back', async () => {
+        await openedAfterAnOlderBuild();
+        analyticsMocks.track.mockClear();
+        await expect(dismissFoldedFigureDetachedLayerOrder(figureNow().id, t)).resolves.toBe(true);
+        expect(notice()).toBeNull();
+        expect(labels()).toEqual(['Dismiss layer constraints']);
+        expect(state().dirty).toBe(true);
+        expect(detachedIn()).toEqual([]);
+        expect(analyticsMocks.track.mock.calls.filter(([name]) => name === 'layer constraints dismissed')).toEqual([
+          ['layer constraints dismissed', { surface: 'edit_figure', constraint_count_bucket: '<=2' }],
+        ]);
+
+        await state().undo();
+        await flushMicrotasks();
+        expect(notice()).toMatchObject({ label: 'Not applied' });
+        expect(detachedIn()).toHaveLength(1);
+        await state().redo();
+        await flushMicrotasks();
+        expect(notice()).toBeNull();
+        expect(detachedIn()).toEqual([]);
+        // Nothing left to let go: no entry, and no event.
+        await expect(dismissFoldedFigureDetachedLayerOrder(figureNow().id, t)).resolves.toBe(false);
+        expect(labels()).toEqual(['Dismiss layer constraints']);
+      });
+
+      it('stays through a Refold here, and a reload after it shows it again', async () => {
+        await openedAfterAnOlderBuild();
+        // Edited here too, so the figure is stale, and refolded: plainly, as its record is not its own.
+        useWorkspaceStore.setState({
+          oristudioCpDocument: editableCpState([...EDITED_LINES, cpLine({ x: 0, y: 0.5 }, { x: 0.5, y: 0.5 })]),
+        });
+        expect(isFoldedFigureStale(state().oristudioCpDocument!.document, figureNow())).toBe(true);
+        clearKernelCalls();
+        const { done } = await refoldAsEntry(figureNow().id);
+        expect(done).toBe(true);
+        expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+        expect(isFoldedFigureStale(state().oristudioCpDocument!.document, figureNow())).toBe(false);
+        expect(figureNow().layerOrder).toBeUndefined();
+        expect(notice()).toMatchObject({ label: 'Not applied' });
+
+        await saveAndReopen();
+        expect(figureNow().layerOrder).toBeUndefined();
+        expect(notice()).toMatchObject({ label: 'Not applied' });
+        expect(detachedIn()).toMatchObject([{ figureId: 'generated-1', reason: 'order-not-given' }]);
+      });
+
+      it('shows nothing on a figure the older build moved or made again, and keeps the entry', async () => {
+        const moved = refoldedByAnOlderBuild();
+        for (const refolded of [
+          { ...moved, placement: { ...moved.placement, offset: { x: 3, y: 0 } } },
+          { ...moved, title: 'Folded model 2' },
+        ]) {
+          await openedAfterAnOlderBuild(refolded);
+          expect(figureNow().layerOrder).toBeUndefined();
+          expect(notice()).toBeNull();
+          expect(detachedIn()).toMatchObject([{ figureId: 'generated-1', reason: 'order-not-given' }]);
+        }
+      });
+
+      it('once its figure is deleted and saved, never shows on a figure folded on the reused id', async () => {
+        for (const takenUpFirst of [false, true]) {
+          await openedAfterAnOlderBuild();
+          expect(notice()).toMatchObject({ label: 'Not applied' });
+          if (takenUpFirst) {
+            dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'applied', applied: applied() });
+            await expect(openFoldedFigureLayerOrder(figureNow().id, t, { via: 'review' })).resolves.toBe('applied');
+            expect(figureNow().layerOrder).toMatchObject({ kind: 'record' });
+          }
+          // Had the figure stayed, the same figure made again on its id would be shown it.
+          const before = state().oristudioCpDocumentExtensions;
+          await deleteFoldedFigure(figureNow().id, t);
+          expect(state().oristudioCpFoldedFigures).toEqual([]);
+          expect(detachedIn().map((entry) => entry.reason), String(takenUpFirst)).toEqual(['figure-missing']);
+
+          // Saved and reopened; the same creases folded again, on the reused id; saved and reopened.
+          await saveAndReopen();
+          await saveAndReopen(() => [refoldedByAnOlderBuild()]);
+          expect(figureNow().id).toBe('generated-1');
+          expect(notice(), String(takenUpFirst)).toBeNull();
+          expect(detachedIn().map((entry) => entry.reason)).toEqual(['figure-missing']);
+
+          if (!takenUpFirst) {
+            await openFile(projectFile(cpDocument(EDITED_LINES), [refoldedByAnOlderBuild()], before));
+            expect(notice()).toMatchObject({ label: 'Not applied' });
+          }
+        }
+      });
+
+      /** Save as the app does, through the file service: the file's text, the session's bag following it. */
+      async function save(): Promise<string> {
+        const files = createFileService();
+        await expect(state().saveProjectAs(files)).resolves.toBeTruthy();
+        return (files.saveTextFile.mock.calls.at(-1)![0] as SaveTextFileOptions).contents;
+      }
+      const detachedSaved = (text: string) =>
+        detachedFoldedFigureLayerOrders(JSON.parse(text).workspace.creasePattern.extensions as Record<string, unknown>);
+
+      it('never hands a figure folded this session an id the file or its layer order bag names', async () => {
+        resetFoldedFigureIds();
+        // The bag names a record for `generated-4` and a detached one for `generated-7`; the file has `generated-1`.
+        const { layerOrder: _own, ...figure } = savedFigure();
+        const other = held(twoConstraintRecord());
+        if (other.kind !== 'record') throw new Error('fixture');
+        await openFile(
+          projectFile(cpDocument(EDITED_LINES), [figure], {
+            [FOLDED_FIGURE_LAYER_ORDERS_KEY]: {
+              figures: { 'generated-4': { figureKey: 'fk1:gone', record: other.json } },
+              detached: [{ figureId: 'generated-7', reason: 'figure-missing', record: other.json }],
+            },
+          })
+        );
+        useWorkspaceStore.setState({ oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1, 2, 3] } });
+        await expect(state().foldOristudioCpDocument()).resolves.toBe(true);
+        expect(state().oristudioCpFoldedFigures.map((entry) => entry.id)).toEqual(['generated-1', 'generated-8']);
+      });
+
+      it('once deleted, its id is not taken by a fold in the same session: saved and reopened, nothing is shown', async () => {
+        // A fresh session: before the file noted its ids, the first fold was handed `generated-1`.
+        resetFoldedFigureIds();
+        await openedAfterAnOlderBuild();
+        expect(notice()).toMatchObject({ label: 'Not applied' });
+        await deleteFoldedFigure(figureNow().id, t);
+        // Folded again, the same creases, with no save between.
+        useWorkspaceStore.setState({ oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1, 2, 3] } });
+        await expect(state().foldOristudioCpDocument()).resolves.toBe(true);
+        const fresh = state().oristudioCpFoldedFigures[0]!;
+        expect(fresh.id).not.toBe('generated-1');
+        expect(foldedFigureNotice(t, fresh)).toBeNull();
+        const text = await save();
+        expect(detachedSaved(text)).toMatchObject([{ figureId: 'generated-1', reason: 'figure-missing' }]);
+        await openFile(JSON.parse(text));
+        expect(state().oristudioCpFoldedFigures.map((entry) => foldedFigureNotice(t, entry))).toEqual([null]);
+      });
+
+      it('keeps an entry a save dropped dropped: settled, saved, then deleted and saved, and an undo writes it again', async () => {
+        for (const settle of ['dismiss', 'apply'] as const) {
+          await openedAfterAnOlderBuild();
+          if (settle === 'dismiss') {
+            await dismissFoldedFigureDetachedLayerOrder(figureNow().id, t);
+          } else {
+            dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'applied', applied: applied() });
+            await openFoldedFigureLayerOrder(figureNow().id, t, { via: 'review' });
+          }
+          expect(detachedSaved(await save()), settle).toEqual([]);
+          await deleteFoldedFigure(figureNow().id, t);
+          // Not back as `figure-missing`: the session's bag no longer holds it.
+          expect(detachedSaved(await save()), settle).toEqual([]);
+
+          // The Delete and the settling undone: shown again, and the save writes its entry again.
+          await state().undo();
+          await flushMicrotasks();
+          await state().undo();
+          await flushMicrotasks();
+          expect(notice(), settle).toMatchObject({ label: 'Not applied' });
+          expect(detachedSaved(await save()), settle).toMatchObject([
+            { figureId: 'generated-1', reason: 'order-not-given', refoldKey: foldedFigureRefoldKey(figureNow()) },
+          ]);
+        }
+      });
+
+      it('a Delete saved as missing, then undone: the figure claims its entry again', async () => {
+        await openedAfterAnOlderBuild();
+        await deleteFoldedFigure(figureNow().id, t);
+        expect(detachedSaved(await save())).toMatchObject([{ reason: 'figure-missing' }]);
+        await state().undo();
+        await flushMicrotasks();
+        expect(notice()).toMatchObject({ label: 'Not applied' });
+        const text = await save();
+        expect(detachedSaved(text)).toMatchObject([{ figureId: 'generated-1', reason: 'order-not-given' }]);
+        await openFile(JSON.parse(text));
+        expect(notice()).toMatchObject({ label: 'Not applied' });
+      });
+    });
+
+    describe('a figure whose creases changed since its fold (D12)', () => {
+      /** Stale: its fingerprint is not the one its region's creases give now. */
+      const stale = (overrides: Partial<OristudioCpFoldedFigureEntry> = {}) =>
+        constrained({ sourceFingerprint: 'cs1:before', ...overrides });
+
+      it('opens Layer order… on the creases as they are now, and says Apply also refolds; the figure stays as it is', async () => {
+        const first = { schema_version: 3, flipped: false, sheet: 1, faces: [], subfaces: [], aux_lines: [], sheet_points: [] };
+        for (const layerOrder of [undefined, held()]) {
+          const figure = stale({ layerOrder });
+          expect(isFoldedFigureStale(state().oristudioCpDocument!.document, figure)).toBe(true);
+          clearKernelCalls();
+          dialogGatewayMocks.openLayerOrderDialog.mockClear();
+          oristudioCpMocks.getOristudioCpFoldedFigurePaperScene.mockImplementation(async (handle: number) =>
+            handle === 9 ? first : null
+          );
+
+          await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('cancelled');
+
+          expect(oristudioCpMocks.getOristudioCpSelectionFoldSource).toHaveBeenCalledWith([1, 2], 1);
+          expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+          const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+          expect(request).toMatchObject({
+            surface: 'edit_figure',
+            source: layerOrderSourceOf(layerOrderKernelSource(), MODEL),
+            record: layerOrder ? twoConstraintRecord() : null,
+            applyRefolds: true,
+            name: 'Folded model 1',
+          });
+          if (layerOrder) {
+            // A record: read, not folded; the dialog restores it on these creases.
+            expect(kernelCalls()).toEqual(['getOristudioCpSelectionFoldSource']);
+            expect(request).not.toHaveProperty('shown');
+          } else {
+            // None: the order a plain Refold draws, Oriedita's first, on a fold of its own that goes once it closes;
+            // and the sheet index, built once, for the pattern the crease-pattern pane shows.
+            expect(kernelCalls()).toEqual([
+              'getOristudioCpSelectionFoldSource',
+              'foldOristudioCpWithOrder',
+              'getOristudioCpFoldedFigurePaperScene',
+              'fetchOristudioCpSheetIndex',
+              'freeOristudioCpFoldedFigure',
+            ]);
+            expect(oristudioCpMocks.foldOristudioCpWithOrder).toHaveBeenCalledWith(
+              layerOrderKernelSource(),
+              new Uint32Array(),
+              MODEL,
+              A_RUN_ID
+            );
+            expect(request.shown).toBe(first);
+          }
+          expect(figureNow()).toBe(figure);
+          expect(state().oristudioCpHistoryPast).toEqual([]);
+        }
+      });
+
+      it('runs the plain Refold for an untouched Apply on a stale figure with no record: no record, the plain picture', async () => {
+        const figure = stale({ layerOrder: undefined });
+        dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'unchanged' });
+        clearKernelCalls();
+
+        await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('unchanged');
+
+        // The dialog's own fold, let go; then exactly a plain Refold's calls.
+        expect(kernelCalls().slice(-3)).toEqual([
+          'foldOristudioCpDocument',
+          'getOristudioCpFoldedFigureRenderSnapshot',
+          'freeOristudioCpFoldedFigure',
+        ]);
+        expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+        expect(figureNow()).toMatchObject({ handle: 7, layerOrder: undefined });
+        expect(isFoldedFigureStale(state().oristudioCpDocument!.document, figureNow())).toBe(false);
+        expect(labels()).toEqual(['Refold folded model']);
+        // With a record, "unchanged" is the dialog's to say only when nothing would change: no refold.
+        const constrainedStale = stale({ layerOrder: held() });
+        dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'unchanged' });
+        await openFoldedFigureLayerOrder(constrainedStale.id, t);
+        expect(figureNow()).toBe(constrainedStale);
+      });
+
+      it('commits an Apply as its refold: one “Refold with layer order” entry, and the figure up to date', async () => {
+        for (const [record, handle] of [
+          [twoConstraintRecord({ constraints: [[0, 1, 1]] }), 3],
+          // The record it holds: still written, since the Apply is its refold (D12 over D16).
+          [twoConstraintRecord(), 3],
+          // Reopened from a file, with no live fold: the Apply gives it one.
+          [twoConstraintRecord(), null],
+        ] as const) {
+          const figure = stale({ handle });
+          dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind: 'applied', applied: applied(record) });
+          oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockResolvedValueOnce(CONSTRAINED_PICTURE);
+
+          await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('applied');
+
+          expect(oristudioCpMocks.foldOristudioCpWithOrder).toHaveBeenCalledWith(layerOrderKernelSource(), RELATIONS, MODEL, A_RUN_ID);
+          expect(figureNow()).toMatchObject({ handle: 9, renderSnapshot: CONSTRAINED_PICTURE, layerOrder: held(record) });
+          expect(isFoldedFigureStale(state().oristudioCpDocument!.document, figureNow())).toBe(false);
+          expect(labels()).toEqual(['Refold with layer order']);
+        }
+      });
+
+      it('leaves it stale when its creases moved again while the dialog was open', async () => {
+        const figure = stale();
+        const moved = editableCpState([...LAYER_ORDER_LINES, cpLine({ x: 0, y: 0.5 }, { x: 1, y: 0.5 })]);
+        dialogGatewayMocks.openLayerOrderDialog.mockImplementationOnce(async () => {
+          useWorkspaceStore.setState({ oristudioCpDocument: moved });
+          return { kind: 'applied', applied: applied() };
+        });
+
+        await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('applied');
+
+        // The order applied to the creases it analysed; its picture is not of these.
+        expect(figureNow()).toMatchObject({ handle: 9, sourceFingerprint: 'cs1:before' });
+        expect(isFoldedFigureStale(moved.document, figureNow())).toBe(true);
+      });
+
+      it('opens nothing on creases that fold in 3D now, and says why', async () => {
+        const figure = stale();
+        useWorkspaceStore.setState({ oristudioCpDocument: creasesIn3d() });
+        const message = vi.spyOn(toast, 'message').mockImplementation(() => 1);
+        clearKernelCalls();
+        try {
+          await expect(openFoldedFigureLayerOrder(figure.id, t)).resolves.toBe('not-opened');
+          expect(message).toHaveBeenCalledWith(
+            'This figure’s creases fold in 3D now, and layer order works on flat folds. Refold it to see it.'
+          );
+        } finally {
+          message.mockRestore();
+        }
+        expect(kernelCalls()).toEqual([]);
+        expect(dialogGatewayMocks.openLayerOrderDialog).not.toHaveBeenCalled();
+        expect(figureNow()).toBe(figure);
+      });
+    });
+
+    it('opens the dialog on the flagged rows from Review…, and only from it (D14)', async () => {
+      const flagged = twoConstraintRecord({ attention: { reason: 'conflict', count: 2 } });
+      const figure = constrained({ layerOrder: held(flagged) });
+
+      await openFoldedFigureLayerOrder(figure.id, t, { via: 'review' });
+      const reviewed = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+      // The record as flagged: the dialog works out its rows' statuses itself.
+      expect(reviewed).toMatchObject({ review: true, record: flagged });
+
+      await openFoldedFigureLayerOrder(figure.id, t);
+      expect(dialogGatewayMocks.openLayerOrderDialog.mock.calls[1]![0]).not.toHaveProperty('review');
+    });
+
+    it('says what a refold came to: kept and lost, once each; drawn, nothing', () => {
+      const message = vi.spyOn(toast, 'message').mockImplementation(() => 1);
+      const error = vi.spyOn(toast, 'error').mockImplementation(() => 1);
+      try {
+        sayFoldedFigureLayerOrderRefold({ kind: 'applied', attention: { reason: 'unresolved', count: 1 } }, 'Kabuto', t);
+        sayFoldedFigureLayerOrderRefold({ kind: 'kept', outcome: 'clash', attention: { reason: 'conflict', count: 2 } }, 'Kabuto', t);
+        sayFoldedFigureLayerOrderRefold({ kind: 'kept', outcome: 'timed_out', attention: { reason: 'timeout', count: 0 } }, 'Kabuto', t);
+        sayFoldedFigureLayerOrderRefold({ kind: 'lost', cause: 'load' }, 'Kabuto', t);
+        sayFoldedFigureLayerOrderRefold({ kind: 'lost', cause: 'crashed' }, 'Kabuto', t);
+        expect(message.mock.calls.map(([text]) => text)).toEqual([
+          'Kabuto’s layer constraints need attention, so it keeps its picture.',
+          'Kabuto’s chosen layer order needs attention, so it keeps its picture.',
+        ]);
+        expect(error.mock.calls.map(([text]) => text)).toEqual([
+          'Layer order couldn’t load, so Kabuto wasn’t refolded. Reload Ori Studio to try again.',
+          'Layer order stopped unexpectedly, so Kabuto wasn’t refolded.',
+        ]);
+        // A load that failed offers Reload, the only retry there is; a crash offers nothing.
+        expect(error.mock.calls[0]![1]).toMatchObject({ action: { label: 'Reload' } });
+        expect(error.mock.calls[1]![1]).toBeUndefined();
+      } finally {
+        message.mockRestore();
+        error.mockRestore();
+      }
+    });
+
+    /**
+     * Gate 2 (approach 5): opening a file with constrained figures — flat,
+     * stale and 3D — and selecting each, as the toolbar, the menu and the
+     * Properties pane read it, starts no worker; nor does the idle 3D
+     * rehydrate of the 3D one.
+     */
+    it('starts no worker when a file with flat, stale and 3D constrained figures opens and each is selected', async () => {
+      const spawned: string[] = [];
+      class WorkerSpy {
+        constructor(url: URL | string) {
+          spawned.push(String(url));
+          throw new Error('no worker in this test');
+        }
+      }
+      vi.stubGlobal('Worker', WorkerSpy);
+      try {
+        // A 3D figure, folded from creases with a fold angle, its record waiting.
+        resetStores(seedSnapshot());
+        loadSnapshotIntoStore(seedSnapshot());
+        useLayoutStore.setState({ activatePanel: vi.fn() });
+        useWorkspaceStore.setState({
+          oristudioCpDocument: creasesIn3d(),
+          oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1, 2] },
+        });
+        await expect(state().foldOristudioCpDocument()).resolves.toBe(true);
+        const waiting = held(twoConstraintRecord({ attention: { reason: 'route-3d', count: 2 } }));
+        const spatial = { ...state().oristudioCpFoldedFigures[0]!, id: 'generated-3', layerOrder: waiting };
+        const flat = (id: string, overrides: Partial<OristudioCpFoldedFigureEntry> = {}): OristudioCpFoldedFigureEntry => ({
+          id,
+          title: id,
+          handle: null,
+          sourceKind: 'generated-from-current-cp',
+          sourceCpRevision: 0,
+          startingFaceId: 1,
+          displayStyle: 'Paper5',
+          status: 'ready',
+          placement: IDENTITY_FOLDED_PLACEMENT,
+          snapshot: solvedSnapshot({ shown_order: 'given' }),
+          renderSnapshot: foldedRenderSnapshot(),
+          sourceBounds: foldedSourceBounds(LAYER_ORDER_LINES),
+          sourceFingerprint: null,
+          sourceLineIds: [1, 2],
+          error: null,
+          layerOrder: held(),
+          ...overrides,
+        });
+        const nativeText = serializeNativeProjectFile(
+          createNativeCreasePatternProjectFile({
+            title: 'Native CP',
+            filename: 'layers.osf',
+            path: '/tmp/layers.osf',
+            document: state().oristudioCpDocument!.document,
+            source: null,
+            foldProjection: JSON.parse(editableCpFoldText) as FoldDocument,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [
+              flat('generated-1'),
+              flat('generated-2', {
+                sourceFingerprint: 'cs1:before',
+                layerOrder: held(twoConstraintRecord({ attention: { reason: 'conflict', count: 1 } })),
+              }),
+              spatial,
+            ],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+            appVersion: '0.1.1',
+          })
+        );
+        hostEngineMocks.resolveLayerOrder.mockImplementation(hostEngineMocks.actual!);
+        resetStores(seedSnapshot());
+        loadSnapshotIntoStore(seedSnapshot());
+
+        await expect(
+          state().openProject(createFileService({ text: nativeText, name: 'layers.osf', path: '/tmp/layers.osf' }))
+        ).resolves.toBe(true);
+        expect(state().oristudioCpFoldedFigures.map((entry) => entry.layerOrder?.kind)).toEqual(['record', 'record', 'record']);
+
+        for (const opened of state().oristudioCpFoldedFigures) {
+          state().setOristudioCpActiveFoldedFigure(opened.id);
+          const selected = state().oristudioCpFoldedFigures.find((entry) => entry.id === opened.id)!;
+          buildFoldedFigureActions(selected, {
+            t,
+            flip: vi.fn(),
+            resetView: vi.fn(),
+            setUpright: vi.fn(),
+            setDisplayStyle: vi.fn(),
+            updateModel: vi.fn(),
+            endModelGesture: vi.fn(),
+            paperStyle: () => DEFAULT_PAPER_STYLE,
+            inheritedPaperStyle: DEFAULT_PAPER_STYLE,
+            setAppearance: vi.fn(),
+            foldAnother: vi.fn(),
+            duplicate: vi.fn(),
+            remove: vi.fn(),
+            refold: vi.fn(),
+            openLayerOrder: vi.fn(),
+            runNoticeAction: vi.fn(),
+            isStale: (figure) => isFoldedFigureStale(state().oristudioCpDocument!.document, figure),
+          });
+          buildFoldedFigureProperties({ kind: 'folded-figure', id: selected.id, figure: selected }, {
+            t,
+            stale: isFoldedFigureStale(state().oristudioCpDocument!.document, selected),
+            held: false,
+            begin: () => true,
+            end: vi.fn(),
+            commitModel: vi.fn(),
+            style: DEFAULT_PAPER_STYLE,
+            inherited: DEFAULT_PAPER_STYLE,
+            overrides: undefined,
+            writeOverride: vi.fn(),
+            commitOverrides: vi.fn(),
+            setDisplayStyle: vi.fn(),
+            setCamera: vi.fn(),
+            liveCamera: { read: () => ({ yaw: 0, pitch: 0, zoom: 1 }), subscribe: () => () => {} },
+            setPlacement: vi.fn(),
+            foldAnother: vi.fn(),
+            foldPrevious: vi.fn(),
+            exportFigure: vi.fn(),
+            duplicate: vi.fn(),
+            remove: vi.fn(),
+            openLayerOrder: vi.fn(),
+            reviewLayerOrder: vi.fn(),
+            dismissDetachedLayerOrder: vi.fn(),
+          });
+        }
+        // The idle queue's 3D rehydrate.
+        await expect(state().rehydrateOristudioCpFolded3dFigure('generated-3')).resolves.toBe(true);
+        await flushMicrotasks();
+
+        expect(spawned).toEqual([]);
+        expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
+
+  it('with no record, refolds, steps and duplicates with exactly the kernel calls it always made (parity guard)', async () => {
+    const figure = seedFigure({
+      snapshot: solvedSnapshot({ discovered_fold_cases: 1, find_another_overlap_valid: true }),
+    });
+    clearKernelCalls();
+    await expect(state().foldAnotherOristudioCpFigure(figure.id)).resolves.toBe(true);
+    expect(kernelCalls()).toEqual(['foldOristudioCpFigureAnother', 'getOristudioCpFoldedFigureRenderSnapshot']);
+
+    clearKernelCalls();
+    await expect(state().refoldOristudioCpFoldedFigure(figure.id)).resolves.toBe(true);
+    // The fold it replaced goes once nothing holds it.
+    expect(kernelCalls()).toEqual([
+      'foldOristudioCpDocument',
+      'getOristudioCpFoldedFigureRenderSnapshot',
+      'freeOristudioCpFoldedFigure',
+    ]);
+    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(1, 'Order5', expect.anything(), [1, 2], A_RUN_ID);
+
+    clearKernelCalls();
+    await expect(state().duplicateOristudioCpFoldedFigure(figureNow().id)).resolves.toBe(true);
+    // The copy's picture, then the original's selection marker as the copy takes the selection.
+    expect(kernelCalls()).toEqual([
+      'duplicateOristudioCpFoldedFigure',
+      'getOristudioCpFoldedFigureRenderSnapshot',
+      'getOristudioCpFoldedFigureRenderSnapshot',
+    ]);
+    expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+    expect(state().oristudioCpFoldedFigures.every((entry) => entry.layerOrder === undefined)).toBe(true);
+  });
+
+  /**
+   * The Fold engine never loads at rest (approach 5): opening an `.osf` with a
+   * constrained figure and selecting it — the toolbar, the menu and the
+   * Properties pane reading it — starts no worker; the press that folds it
+   * again does, through the host engine. (The dialog's own worker, which its
+   * mount starts, is checked in the browser: `scripts/layer-order-dialog-check.mjs`.)
+   */
+  it('starts no worker when a file with a constrained figure opens or the figure is selected; the press does', async () => {
+    const spawned: string[] = [];
+    class WorkerSpy {
+      constructor(url: URL | string) {
+        spawned.push(String(url));
+        throw new Error('no worker in this test');
+      }
+    }
+    vi.stubGlobal('Worker', WorkerSpy);
+    const error = vi.spyOn(toast, 'error').mockImplementation(() => 1);
+    try {
+      resetStores(seedSnapshot());
+      loadSnapshotIntoStore(seedSnapshot());
+      hostEngineMocks.resolveLayerOrder.mockImplementation(hostEngineMocks.actual!);
+      const figure: OristudioCpFoldedFigureEntry = {
+        id: 'generated-1',
+        title: 'Folded model 1',
+        handle: 99,
+        sourceKind: 'generated-from-current-cp',
+        sourceCpRevision: 0,
+        startingFaceId: 1,
+        displayStyle: 'Paper5',
+        status: 'ready',
+        placement: IDENTITY_FOLDED_PLACEMENT,
+        snapshot: solvedSnapshot({ shown_order: 'given' }),
+        renderSnapshot: foldedRenderSnapshot(),
+        sourceBounds: foldedSourceBounds(LAYER_ORDER_LINES),
+        sourceFingerprint: null,
+        sourceLineIds: [1, 2],
+        error: null,
+        layerOrder: held(),
+      };
+      const document = {
+        ...blankCpDocumentState().document,
+        crease_pattern: { ...blankCpDocumentState().document.crease_pattern, line_segments: LAYER_ORDER_LINES },
+      };
+      const nativeText = serializeNativeProjectFile(
+        createNativeCreasePatternProjectFile({
+          title: 'Native CP',
+          filename: 'layers.osf',
+          path: '/tmp/layers.osf',
+          document,
+          source: null,
+          foldProjection: JSON.parse(editableCpFoldText) as FoldDocument,
+          foldArtifacts: null,
+          creaseColorMode: 'mvf',
+          selection: emptyOristudioCpSelection(),
+          viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+          foldedFigures: [figure],
+          activeFoldedFigureId: null,
+          lineage: importedCpLineage(),
+          appVersion: '0.1.1',
+        })
+      );
+
+      await expect(
+        state().openProject(createFileService({ text: nativeText, name: 'layers.osf', path: '/tmp/layers.osf' }))
+      ).resolves.toBe(true);
+      const opened = figureNow();
+      expect(opened).toMatchObject({ handle: null, layerOrder: held() });
+
+      // Selected, and every surface that draws it asked what it can do.
+      state().setOristudioCpActiveFoldedFigure(opened.id);
+      const selected = figureNow();
+      const actions = buildFoldedFigureActions(selected, {
+        t,
+        flip: vi.fn(),
+        resetView: vi.fn(),
+        setUpright: vi.fn(),
+        setDisplayStyle: vi.fn(),
+        updateModel: vi.fn(),
+        endModelGesture: vi.fn(),
+        paperStyle: () => DEFAULT_PAPER_STYLE,
+        inheritedPaperStyle: DEFAULT_PAPER_STYLE,
+        setAppearance: vi.fn(),
+        foldAnother: vi.fn(),
+        duplicate: vi.fn(),
+        remove: vi.fn(),
+        openLayerOrder: vi.fn(),
+        isStale: () => false,
+      });
+      expect(actions.some((action) => action.kind === 'command' && action.id === 'layer-order' && !action.disabled)).toBe(true);
+      buildFoldedFigureProperties({ kind: 'folded-figure', id: selected.id, figure: selected }, {
+        t,
+        stale: false,
+        held: false,
+        begin: () => true,
+        end: vi.fn(),
+        commitModel: vi.fn(),
+        style: DEFAULT_PAPER_STYLE,
+        inherited: DEFAULT_PAPER_STYLE,
+        overrides: undefined,
+        writeOverride: vi.fn(),
+        commitOverrides: vi.fn(),
+        setDisplayStyle: vi.fn(),
+        setCamera: vi.fn(),
+        liveCamera: { read: () => ({ yaw: 0, pitch: 0, zoom: 1 }), subscribe: () => () => {} },
+        setPlacement: vi.fn(),
+        foldAnother: vi.fn(),
+        foldPrevious: vi.fn(),
+        exportFigure: vi.fn(),
+        duplicate: vi.fn(),
+        remove: vi.fn(),
+        openLayerOrder: vi.fn(),
+        reviewLayerOrder: vi.fn(),
+        dismissDetachedLayerOrder: vi.fn(),
+      });
+      await flushMicrotasks();
+      expect(spawned).toEqual([]);
+      expect(hostEngineMocks.resolveLayerOrder).not.toHaveBeenCalled();
+
+      // The press folds it again through the host engine, whose worker starts now.
+      await openFoldedFigureLayerOrder(opened.id, t);
+      expect(spawned).toHaveLength(1);
+      expect(spawned[0]).toMatch(/layerOrderWorker/);
+      // That worker never came here, so the figure keeps its picture, and the
+      // dialog opens on its source and record, to restore it itself.
+      expect(figureNow()).toMatchObject({ handle: null, renderSnapshot: figure.renderSnapshot });
+      const request = dialogGatewayMocks.openLayerOrderDialog.mock.calls[0]![0] as LayerOrderRequest;
+      expect(request).toMatchObject({ surface: 'edit_figure', record: twoConstraintRecord() });
+      expect(request).not.toHaveProperty('shown');
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 });

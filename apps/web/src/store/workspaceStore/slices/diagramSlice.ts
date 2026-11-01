@@ -50,7 +50,7 @@ import { trackDiagramImportedMarkEdited } from '../../../analytics';
 import { annotationEventKind } from '../../../diagram/annotate/annotationEventKind';
 import { cardMarkEdits } from '../../../diagram/document/cardMarks';
 import { requestConfirmation } from '../../commandDialogStore';
-import { commitStepCapture, runDiagramCapture, stopDiagramCapture } from '../diagramCapture';
+import { commitStepCapture, commitStepLayerOrder, runDiagramCapture, stopDiagramCapture } from '../diagramCapture';
 import { runDiagramFoldCapture } from '../diagramFoldCapture';
 import { discardDiagramState, noteAdoptedPacking, selectedDiagramAnnotation, trimDiagramHistory } from '../diagramState';
 import { pathNodesOf } from '../../../diagram/annotate/annotationPath';
@@ -74,6 +74,14 @@ import { flushPlacementNudge } from '../../../diagram/pages/placementGestures';
 import { cellSlots, settlePlaces } from '../../../diagram/pages/stepPlaces';
 import { createProjectDocumentHistory } from '../projectDocumentHistory';
 import type { DiagramSlice, WorkspaceSliceCreator, WorkspaceState } from '../types';
+import { settleStepSolutionCursor } from '../../../diagram/capture/stepSolutionCursor';
+
+/**
+ * The store subscription that keeps a constrained step's solutions cursor in
+ * step, from the last store made: a store made again (tests, HMR) lets the old
+ * one go rather than settle twice.
+ */
+let stopSettlingStepSolutionCursor: (() => void) | null = null;
 
 /**
  * What is selected after a delete: the entry that took the first deleted one's
@@ -106,7 +114,25 @@ function hasAnnotation(document: DiagramDocument | null, stepId: string | null, 
  * (which view, which step is selected) is set directly: it is neither history
  * nor a reason to save.
  */
-export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get) => {
+export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get, api) => {
+  // A constrained step's solutions cursor (layer order H9) steps only the
+  // record the step holds, and only while the step is in hand: an undo, an
+  // Apply, a Show as, a Delete, another step selected or the diagram closing
+  // lets it go, with its worker (`stepSolutionCursor.ts`). Nothing to do
+  // while no cursor is kept.
+  stopSettlingStepSolutionCursor?.();
+  stopSettlingStepSolutionCursor = api.subscribe((state, previous) => {
+    if (
+      state.diagram === previous.diagram &&
+      state.diagramLoadId === previous.diagramLoadId &&
+      state.diagramSelectedStepId === previous.diagramSelectedStepId &&
+      state.oristudioCpDocument === previous.oristudioCpDocument
+    ) {
+      return;
+    }
+    settleStepSolutionCursor(state);
+  });
+
   /** The References browser's openings, counted: what a pull names its browser by. */
   let browserOpenings = 0;
 
@@ -712,6 +738,9 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     commitDiagramCapture: (start, captured, label) =>
       commitStepCapture({ get, set }, commit, start, captured, label),
+
+    commitDiagramLayerOrder: (start, layerOrder, label) =>
+      commitStepLayerOrder({ get, set }, commit, start, layerOrder, label),
 
     undoDiagram: () => travel('undo'),
     redoDiagram: () => travel('redo'),

@@ -597,6 +597,17 @@ impl ImportedPattern {
         &self.unordered
     }
 
+    /// Turn the view the import lands in by `angle` radians,
+    /// counter-clockwise on the display, from the target's (which the import
+    /// keeps, plan D16): the imported step is then seen turned, as if a
+    /// rotate step followed it, with no step of its own (the Layer order
+    /// dialog's Rotate, `implementation-plans/layer-order-dialog.md`). Only
+    /// the view turns; the order, the letters and every stored point stay in
+    /// the model frame. A non-finite angle is no turn.
+    pub fn rotate_view(&mut self, angle: f64) {
+        self.unordered.rotate_view(angle);
+    }
+
     /// An input point in sheet coordinates.
     pub fn to_sheet(&self, p: Point) -> Point {
         self.placement.to_sheet(p)
@@ -669,10 +680,6 @@ impl ImportedPattern {
                 .ok_or(ImportRefusal::WitnessNotInFace { point: p })
         };
         let start_face = face(start)?;
-        let start_front_up = self
-            .unordered
-            .isometry(start_face)
-            .is_some_and(|t| t.front_up());
         let mut mapped = Vec::with_capacity(relations.len());
         for &[upper, lower] in relations {
             let (upper_face, lower_face) = (face(upper)?, face(lower)?);
@@ -686,7 +693,21 @@ impl ImportedPattern {
                 lower_face,
             });
         }
-        let order = LayerOrder::from_oriedita(&mapped, start_front_up).map_err(|e| match e {
+        self.oriedita_face_seeds(start_face, &mapped)
+    }
+
+    /// [`ImportedPattern::oriedita_seeds`] with the faces already found:
+    /// `start` is the face Oriedita started its fold from and each relation
+    /// names two faces of this pattern, in Oriedita's convention. What the
+    /// Layer order dialog's Apply seeds an import with (row H10), its faces
+    /// matched to this pattern's by `steer::ImportedFaces`.
+    pub fn oriedita_face_seeds(
+        &self,
+        start: FaceId,
+        relations: &[OrieditaRelation],
+    ) -> Result<Vec<FixedPair>, ImportRefusal> {
+        let start_front_up = self.unordered.isometry(start).is_some_and(|t| t.front_up());
+        let order = LayerOrder::from_oriedita(relations, start_front_up).map_err(|e| match e {
             LayerOrderError::ContradictoryOrder { pair } => {
                 self.refused_order(CompletionRefusal::FixedContradictory { pair })
             }
@@ -721,8 +742,18 @@ impl ImportedPattern {
         relations: &[[Point; 2]],
         limits: &CompletionLimits,
     ) -> Result<State, ImportRefusal> {
-        let seeds = self.oriedita_seeds(start, relations)?;
-        let completions = self.complete_with(&seeds, limits)?;
+        self.decided_by(&self.oriedita_seeds(start, relations)?, limits)
+    }
+
+    /// The state whose order the letters and `seeds` decide: every pair, so
+    /// one order and no choice. When they leave one, the refusal says how
+    /// many orders there are (`import_order_open`).
+    pub fn decided_by(
+        &self,
+        seeds: &[FixedPair],
+        limits: &CompletionLimits,
+    ) -> Result<State, ImportRefusal> {
+        let completions = self.complete_with(seeds, limits)?;
         if !completions.is_unique() {
             return Err(ImportRefusal::OrderOpen {
                 orders: completions.count(),

@@ -1,5 +1,6 @@
 import { designKindRegistry } from '../designKinds';
 import { readFoldedFigureCamera } from '../cp-workspace/folded/folded3dCamera';
+import { withFoldedFigureLayerOrders } from '../cp-workspace/folded/foldedFigureLayerOrders';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import {
   CREASE_PATTERN_DOCUMENT_ID,
@@ -926,13 +927,18 @@ function createNativeCreasePatternDocument(
     },
     // Preserve any extension bag carried forward from a loaded file rather than
     // clobbering it with `{}` — keeps forward-compat data written by a newer app
-    // version across a round-trip through this one.
-    extensions: input.extensions ?? {},
+    // version across a round-trip through this one. The figures' layer orders
+    // are saved in it, and only when there are any: a bag is otherwise written
+    // as it came.
+    extensions: withFoldedFigureLayerOrders(input.extensions ?? {}, input.foldedFigures),
   };
 }
 
 function nativeFoldedFigures(entries: OristudioCpFoldedFigureEntry[]): OristudioCpFoldedFigureEntry[] {
-  return entries.map((entry) => ({
+  // A layer order is saved in the extensions bag, never on the figure, set or
+  // not: a figure is written as it was before layer orders existed. So is a
+  // detached one held on the figure for review: the bag's `detached` list keeps it.
+  return entries.map(({ layerOrder: _savedInTheBag, detachedLayerOrder: _keptInTheBag, ...entry }) => ({
     ...entry,
     handle: null,
     status: entry.status === 'loading' ? 'stale' : entry.status,
@@ -964,6 +970,10 @@ function validateFoldedFigures(value: unknown): OristudioCpFoldedFigureEntry[] {
  * `contradiction` was lost that way for months. A field added to
  * `OristudioCpFoldedFigureEntry` has to be added here too, and the round-trip
  * test in `nativeProjectFile.test.ts` is what says so.
+ *
+ * `layerOrder` alone is not named, on purpose: it is saved in the crease
+ * pattern's extensions bag, and attached at install
+ * (`linkFoldedFigureLayerOrders`), for the reason this function exists.
  */
 function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedFigureEntry {
   const entry = recordField(value, `document.viewState.foldedFigures[${index}]`);

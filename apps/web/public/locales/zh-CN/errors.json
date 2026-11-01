@@ -2,6 +2,7 @@
   "boundary": {
     "appDescription": "您的工作仍在内存中，但界面无法自行恢复。请在重新加载前复制下方的详细信息——它们能准确告诉开发者出了什么问题。",
     "appTitle": "Ori Studio 遇到了问题",
+    "close": "关闭",
     "copied": "已复制",
     "copy": "复制详细信息",
     "copyFailed": "无法复制",
@@ -19,6 +20,12 @@
   },
   "cp": {
     "foldProducedNothing": "这些折痕没有可绘制的平折成品形状",
+    "layerOrderNotApplied": "层叠顺序无法将此顺序应用到{{name}}。其画面保持不变。",
+    "layerOrderNotFolded": "层叠顺序无法按此顺序折叠这些折痕。",
+    "layerOrderPatternChanged": "折痕图在此期间已更改，因此层叠顺序未作任何更改。",
+    "layerOrderTooLarge": "此层叠顺序太大，无法随模型保存，因此模型未更改。",
+    "layerOrderTooLargeToFold": "此层叠顺序太大，无法随模型保存，因此未折叠任何内容。",
+    "layerOrderUndeterminedSelection": "无法确定这些折痕的层序。",
     "pinnedVertex": "该折痕起始于已固定的顶点，因此无法延长。请先取消该顶点的固定，或延长其他折痕。"
   },
   "cpDetectImport": {

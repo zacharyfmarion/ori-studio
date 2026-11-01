@@ -857,8 +857,12 @@ export type FoldVerdict =
   | 'transversal-crossing'
   | 'no-layer-order';
 
-/** Which way a press of the one solution verb moved. */
-export type FoldCycleDirection = 'next' | 'wrap';
+/**
+ * Which way a press of a solution verb moved: on (`next`), on past the last
+ * back to the first (`wrap`), or back one (`previous`, the Properties pane's
+ * ‹ on a flat figure).
+ */
+export type FoldCycleDirection = 'next' | 'wrap' | 'previous';
 
 /**
  * Which appearance setting a folded figure's Style menu changed.
@@ -1503,6 +1507,19 @@ export const ANALYTICS_EVENTS = {
   foldAttempted: 'fold attempted',
   foldCompleted: 'fold completed',
   foldSolutionCycled: 'fold solution cycled',
+  /**
+   * A host's saved layer constraints did not all hold after an edit (layer
+   * order plan, spec §10): a Diagram step's Refresh found some of them gone,
+   * split or clashing, ran out of time checking them, or its creases now
+   * fold in 3D. Whether constraints survive the edits made after them.
+   */
+  layerConstraintsNeedAttention: 'layer constraints need attention',
+  /**
+   * A record a reload detached, because an older build folded its Edit
+   * figure again, let go with Dismiss rather than taken up by Review…'s
+   * Apply. Whether people keep the constraints an older build dropped.
+   */
+  layerConstraintsDismissed: 'layer constraints dismissed',
   foldedFigureStyled: 'folded figure styled',
   /**
    * A field of the app-wide paper style was edited. `source` is where:
@@ -1999,6 +2016,16 @@ export const ANALYTICS_EVENTS = {
    */
   canvasObjectPropertyChanged: 'canvas object property changed',
   /**
+   * One of a selected canvas object's verbs was pressed in the Properties
+   * pane's header (Export…, Duplicate, Delete on a folded figure).
+   *
+   * The same verbs are on the object's floating toolbar and its menu; this is
+   * what says whether people reach for them in the pane too, which is the
+   * question putting them there raises. Once per press. `object_kind` is the
+   * kind table's key and `action` the verb's id: enums by construction.
+   */
+  canvasObjectActionUsed: 'canvas object action used',
+  /**
    * The phone layout's tool sheet was opened.
    *
    * Phone-only, because that layout is the only one without a tool rail — so
@@ -2099,6 +2126,18 @@ export const ANALYTICS_EVENTS = {
   appUpdateRelaunched: 'app update relaunched',
   appUpdateFailed: 'app update failed',
   appUpdateDismissed: 'app update dismissed',
+  /**
+   * The Layer order dialog (`implementation-plans/layer-order-dialog.md`,
+   * "Analytics"; spec §10). Built as facts by its pure model
+   * (`layer-order/model/layerOrderAnalytics.ts`) and sent by
+   * `trackLayerOrderFact` (`trackLayerOrder.ts`): enums and buckets only,
+   * never a face, a letter or an exact count. The hosts' `layer constraints
+   * need attention` is beside the fold events.
+   */
+  layerOrderDialogOpened: 'layer order dialog opened',
+  layerConstraintAdded: 'layer constraint added',
+  layerConstraintBlocked: 'layer constraint blocked',
+  layerOrderDialogClosed: 'layer order dialog closed',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];

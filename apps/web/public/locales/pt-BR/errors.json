@@ -2,6 +2,7 @@
   "boundary": {
     "appDescription": "Seu trabalho ainda está na memória, mas a interface não conseguiu se recuperar sozinha. Copie os detalhes abaixo antes de recarregar — eles dizem ao desenvolvedor exatamente o que deu errado.",
     "appTitle": "O Ori Studio encontrou um problema",
+    "close": "Fechar",
     "copied": "Copiado",
     "copy": "Copiar detalhes",
     "copyFailed": "Não foi possível copiar",
@@ -19,6 +20,12 @@
   },
   "cp": {
     "foldProducedNothing": "Estes vincos não têm nenhuma forma dobrada em plano para desenhar",
+    "layerOrderNotApplied": "Ordem das camadas não conseguiu aplicar esta ordem a {{name}}. A imagem não mudou.",
+    "layerOrderNotFolded": "Ordem das camadas não conseguiu dobrar estes vincos nesta ordem.",
+    "layerOrderPatternChanged": "O padrão de vincos mudou nesse meio-tempo, então Ordem das camadas não alterou nada.",
+    "layerOrderTooLarge": "Esta ordem das camadas é grande demais para salvar com o modelo, então ele não mudou.",
+    "layerOrderTooLargeToFold": "Esta ordem das camadas é grande demais para salvar com um modelo, então nada foi dobrado.",
+    "layerOrderUndeterminedSelection": "Não foi possível determinar a ordem de camadas destes vincos.",
     "pinnedVertex": "Esse vinco começa em um vértice fixado, então não pode ser estendido. Solte o vértice primeiro ou estenda outro vinco."
   },
   "cpDetectImport": {

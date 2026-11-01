@@ -20,6 +20,16 @@ import { ProjectFileFormatError } from './projectFileError';
 import { DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS, emptyOristudioCpSelection } from './creasePatternViewport';
 import { importedCpLineage } from './oristudioCpLineage';
 import { DEFAULT_PAPER_STYLE } from './paper/paperStyle';
+import {
+  FOLDED_FIGURE_LAYER_ORDERS_KEY,
+  detachedFoldedFigureLayerOrders,
+  foldedFigureLayerOrderKey,
+  foldedFigureRefoldKey,
+  linkFoldedFigureLayerOrders,
+} from '../cp-workspace/folded/foldedFigureLayerOrders';
+import { foldedFigureLayerOrder } from './layerOrder/foldedFigureLayerOrder';
+import { LAYER_ORDER_RECORD_MAX_BYTES, type LayerOrderRecord } from './layerOrder/layerOrderRecord';
+import { layerOrderRecordOfSize } from './layerOrder/layerOrderRecord.fixtures';
 
 const now = new Date('2026-05-26T12:00:00.000Z');
 
@@ -2354,5 +2364,239 @@ describe('a project holding fold sequences', () => {
   it('is read by this build, whose reader is at least every project document’s', () => {
     expect(NATIVE_PROJECT_READER_VERSION).toBeGreaterThanOrEqual(11);
     expect(() => parseNativeProjectFile(serializeNativeProjectFile(designOnly({ foldSequences })))).not.toThrow();
+  });
+});
+
+describe('a crease pattern’s layer orders', () => {
+  /** A flat figure, a 3D one, and a bag holding two keys of other builds' features. */
+  function cpInput(
+    foldedFigures: OristudioCpFoldedFigureEntry[] = [foldedFigure(), folded3dFigure()],
+    extensions: Record<string, unknown> = { futureDocFeature: { a: 1 }, 'zeta.other': [1, 2] }
+  ) {
+    return {
+      title: 'Layer orders',
+      filename: 'layers.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf' as const,
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures,
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      extensions,
+      fileExtensions: { futureFileFeature: 'keep-me' },
+      appVersion: '0.1.1',
+      now,
+    };
+  }
+
+  interface OpenOptions {
+    /** As a build that knows no layer orders opens it: the bag held as it came, nothing attached. */
+    older?: boolean;
+  }
+
+  /** What a build installs from a saved crease pattern: its figures and its bag, as the store holds them. */
+  function opened(text: string, { older = false }: OpenOptions = {}) {
+    const parsed = parseNativeProjectFile(text);
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
+    const installed = older
+      ? { figures: document.viewState.foldedFigures, extensions: document.extensions }
+      : linkFoldedFigureLayerOrders(document.extensions, document.viewState.foldedFigures);
+    return { parsed, document, ...installed };
+  }
+
+  /**
+   * Open a saved crease pattern and save it again, as the store does: the
+   * figures and the bag installed, then handed back to the writer — after
+   * `edit`, what the user did to the figures in between.
+   */
+  function resaved(
+    text: string,
+    options: OpenOptions = {},
+    edit: (figures: OristudioCpFoldedFigureEntry[]) => OristudioCpFoldedFigureEntry[] = (figures) => figures
+  ): string {
+    const { parsed, document, figures, extensions } = opened(text, options);
+    return serializeNativeProjectFile(
+      createNativeCreasePatternProjectFile({
+        ...cpInput(edit(figures), extensions),
+        selection: document.viewState.selection,
+        viewport: document.viewState.viewport,
+        camera: document.viewState.camera,
+        activeFoldedFigureId: document.viewState.activeFoldedFigureId,
+        referencesReaderState: document.viewState.references,
+        fileExtensions: parsed.extensions,
+      })
+    );
+  }
+
+  const RECORD: LayerOrderRecord = {
+    faces: [
+      { at: [0.25, 0.75], area: 0.125 },
+      { at: [0.6, 0.4], area: 0.25 },
+    ],
+    constraints: [[0, 1, 1]],
+    order: [[1, 0, -1]],
+  };
+
+  const RECORD_JSON =
+    '{"v":1,"faces":[{"at":[0.25,0.75],"area":0.125},{"at":[0.6,0.4],"area":0.25}],"constraints":[[0,1,1]],"order":[[1,0,-1]]}';
+
+  /** A flat figure shown in an order the dialog gave, holding the record it was given. */
+  function constrained(entry: OristudioCpFoldedFigureEntry = foldedFigure()): OristudioCpFoldedFigureEntry {
+    const held = foldedFigureLayerOrder(RECORD);
+    if (!held.ok) throw new Error(held.reason);
+    return { ...entry, snapshot: { ...entry.snapshot!, shown_order: 'given' }, layerOrder: held.layerOrder };
+  }
+
+  /** The crease pattern's bag as written. */
+  function bagOf(text: string): Record<string, unknown> {
+    return JSON.parse(text).workspace.creasePattern.extensions;
+  }
+
+  /** The figures as written. */
+  function figuresOf(text: string): Record<string, unknown>[] {
+    return JSON.parse(text).workspace.creasePattern.viewState.foldedFigures;
+  }
+
+  // Both fixtures are this writer's output from before layer orders existed,
+  // written by the commit that added these tests, ahead of the feature: a
+  // project with no record keeps those bytes, saved fresh or reopened and
+  // saved again. The second differs from the first only in the order the
+  // reader names a figure's fields.
+  const SAVED_BEFORE_LAYER_ORDERS = './__fixtures__/layerOrderZeroBytes.osf';
+  const RESAVED_BEFORE_LAYER_ORDERS = './__fixtures__/layerOrderZeroBytesResaved.osf';
+
+  it('writes a project with no record exactly as before layer orders existed', async () => {
+    const text = serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput()));
+    await expect(text).toMatchFileSnapshot(SAVED_BEFORE_LAYER_ORDERS);
+  });
+
+  it('opens and saves a project with no record, foreign keys in its bag, to the same bytes as before', async () => {
+    const text = resaved(serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput())));
+    await expect(text).toMatchFileSnapshot(RESAVED_BEFORE_LAYER_ORDERS);
+    expect(resaved(text)).toBe(text);
+  });
+
+  it('saves a record in the bag under its figure’s id, and attaches it back to the figure on open', () => {
+    const figure = constrained();
+    const text = serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput([figure, folded3dFigure()])));
+
+    expect(bagOf(text)).toEqual({
+      futureDocFeature: { a: 1 },
+      'zeta.other': [1, 2],
+      [FOLDED_FIGURE_LAYER_ORDERS_KEY]: {
+        figures: {
+          'generated-1': {
+            figureKey: foldedFigureLayerOrderKey(figure),
+            refoldKey: foldedFigureRefoldKey(figure),
+            record: RECORD_JSON,
+          },
+        },
+      },
+    });
+    expect(figuresOf(text)[0]!.snapshot).toMatchObject({ shown_order: 'given' });
+
+    const { figures } = opened(text);
+    expect(figures[0]!.layerOrder).toEqual(figure.layerOrder);
+    expect(figures[1]!.layerOrder).toBeUndefined();
+    // Opened and saved again, the bytes stay; the first save only settles the figure's field order.
+    const again = resaved(text);
+    expect(bagOf(again)).toEqual(bagOf(text));
+    expect(resaved(again)).toBe(again);
+  });
+
+  it('writes a record at the budget as one string, about its own size, and reads it back', () => {
+    const held = foldedFigureLayerOrder(layerOrderRecordOfSize(LAYER_ORDER_RECORD_MAX_BYTES));
+    if (!held.ok) throw new Error(held.reason);
+    const figure = { ...constrained(), layerOrder: held.layerOrder };
+    const plain = serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput([foldedFigure()])));
+    const text = serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput([figure])));
+    // The record's bytes and a backslash before each of its quotes: never a line per number.
+    expect(text.length - plain.length).toBeGreaterThan(LAYER_ORDER_RECORD_MAX_BYTES);
+    expect(text.length - plain.length).toBeLessThan(LAYER_ORDER_RECORD_MAX_BYTES * 1.2);
+    expect(opened(text).figures[0]!.layerOrder).toEqual(held.layerOrder);
+  });
+
+  // The four zero-bytes rules (layer-order plan, approach 6); the fourth is the Diagram's.
+  describe('with no layer order, nothing is written', () => {
+    it('1: never on a figure, whether its record is set or not', () => {
+      const text = serializeNativeProjectFile(
+        createNativeCreasePatternProjectFile(
+          cpInput([constrained(), { ...foldedFigure(), id: 'generated-2', layerOrder: null }, folded3dFigure()])
+        )
+      );
+      expect(figuresOf(text).filter((entry) => 'layerOrder' in entry)).toEqual([]);
+    });
+
+    it('2: no key in the bag when no figure has a record', () => {
+      const unset = { ...foldedFigure(), layerOrder: null };
+      const text = serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput([unset, folded3dFigure()])));
+      expect(Object.keys(bagOf(text))).toEqual(['futureDocFeature', 'zeta.other']);
+      // Nor once the last record is removed from a project that had one.
+      const removed = resaved(
+        serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput([constrained()]))),
+        {},
+        (figures) => figures.map((entry) => ({ ...entry, layerOrder: null }))
+      );
+      expect(Object.keys(bagOf(removed))).toEqual(['futureDocFeature', 'zeta.other']);
+    });
+
+    it('3: no `shown_order` on a figure whose order was searched', () => {
+      const text = serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput()));
+      expect(figuresOf(text)[0]!.snapshot).not.toHaveProperty('shown_order');
+      expect(opened(text).figures[0]!.snapshot).not.toHaveProperty('shown_order');
+    });
+  });
+
+  describe('through a build that knows no layer orders', () => {
+    const text = () =>
+      serializeNativeProjectFile(createNativeCreasePatternProjectFile(cpInput([constrained(), folded3dFigure()])));
+
+    it('is carried in the bag as it came, and attaches again here', () => {
+      const older = resaved(text(), { older: true });
+      expect(JSON.stringify(bagOf(older))).toBe(JSON.stringify(bagOf(text())));
+      // Its figure kept its snapshot, `shown_order` and all, as an older reader does.
+      expect(opened(older).figures[0]!.layerOrder).toEqual(constrained().layerOrder);
+    });
+
+    it('is detached, never dropped, once that build edits the creases and folds the figure again', () => {
+      // An older build refolds after an edit: the creases' fingerprint is another, and the
+      // snapshot its own, with no `shown_order`; the id, title, placement and region stay.
+      const refolded = resaved(text(), { older: true }, (figures) =>
+        figures.map((entry) =>
+          entry.snapshot ? { ...entry, snapshot: foldedFigure().snapshot, sourceFingerprint: 'cs1:edited' } : entry
+        )
+      );
+      const here = opened(refolded);
+      expect(here.figures[0]!.layerOrder).toBeUndefined();
+      const detached = detachedFoldedFigureLayerOrders(here.extensions);
+      const refoldKey = foldedFigureRefoldKey(constrained());
+      expect(detached).toEqual([{ figureId: 'generated-1', reason: 'order-not-given', refoldKey, record: RECORD_JSON }]);
+      // Shown on its figure for review, recognised by what its refold kept, never as its own.
+      expect(here.figures[0]!.detachedLayerOrder).toEqual({ record: RECORD, json: RECORD_JSON });
+      expect(figuresOf(resaved(refolded))[0]).not.toHaveProperty('detachedLayerOrder');
+      // And saved here, it is still there.
+      expect(detachedFoldedFigureLayerOrders(opened(resaved(refolded)).extensions)).toEqual(detached);
+    });
+
+    it('does not attach to a new figure that took its id', () => {
+      // The figure deleted and the same creases folded again, on the reused id:
+      // the same source and the same case, and only the snapshot to tell them apart.
+      const reused = resaved(text(), { older: true }, () => [{ ...foldedFigure(), title: 'Folded model 1 again' }]);
+      const here = opened(reused);
+      expect(foldedFigureLayerOrderKey(here.figures[0]!)).toBe(foldedFigureLayerOrderKey(constrained()));
+      expect(here.figures[0]!.layerOrder).toBeUndefined();
+      // Nor is it shown on this one, titled apart, so another refold key. (One with the old
+      // title, placement and region is, display only: the older build's blind spot.)
+      expect(here.figures[0]!.detachedLayerOrder).toBeUndefined();
+      expect(detachedFoldedFigureLayerOrders(here.extensions)).toMatchObject([
+        { figureId: 'generated-1', reason: 'order-not-given' },
+      ]);
+    });
   });
 });

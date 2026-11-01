@@ -12,6 +12,7 @@ import { createFoldEngineCalls } from '../engine/foldEngineCalls';
 import { createFoldEngineIoCalls } from '../engine/foldEngineIoCalls';
 import { FOLD_SAMPLES } from '../engine/foldEngineIoSamples';
 import { initialFoldReaderState, withFoldCursor } from '../document/foldReaderState';
+import { sequenceOf, step, valleyAt } from '../document/foldSequence.fixtures';
 import { updateFoldCollapse } from '../document/foldSequenceEdits';
 import { readFoldSequence, writeFoldSequence } from '../document/foldSequenceFile';
 import { createFoldSequence, type FoldPaperShape, type FoldSequenceDocument } from '../document/foldSequenceDocument';
@@ -120,6 +121,35 @@ function handOffDeps(session: FoldSession) {
 describe.skipIf(!available)('Import CP and the hand-offs over the built bridge', () => {
   beforeAll(async () => {
     await initCpWasm();
+  });
+
+  it('sends only the creases present at the selected step, including when revisiting an earlier step', async () => {
+    const { source, session } = await setup();
+    const document = sequenceOf([
+      step('first', null, { ...valleyAt(0.5), kind: 'precrease', direction: 'valley' }),
+      step('last', 'first', { ...valleyAt(0.25), kind: 'precrease', direction: 'mountain' }),
+    ]);
+    const reader = initialFoldReaderState(document.id);
+    source.set({
+      held: { document, readOnlyRaw: null },
+      reader: withFoldCursor(reader, document, 'last'),
+    });
+    const { deps, sent } = handOffDeps(session);
+    for (const [cursor, count] of [['last', 2], ['first', 1]] as const) {
+      source.set({ reader: withFoldCursor(reader, document, cursor) });
+      await expect(sendFoldSequenceToEdit(deps)).resolves.toBe(true);
+      const fold = JSON.parse(sent.at(-1)!) as { edges_assignment: string[] };
+      expect(fold.edges_assignment.filter((assignment) => assignment !== 'B')).toEqual(Array(count).fill('U'));
+      // The CP kernel can read the exact payload handed to Edit.
+      const handle = load_fold_file(sent.at(-1)!);
+      try {
+        const snapshot = document_snapshot(handle) as OristudioCpDocumentSnapshot;
+        expect(snapshot.crease_pattern.line_segments).toHaveLength(4 + 3 * count);
+      } finally {
+        free_document(handle);
+      }
+    }
+    expect(deps.blocked).not.toHaveBeenCalled();
   });
 
   it('imports each sample into an empty sequence, committed as it landed and replayed to the same state', async () => {

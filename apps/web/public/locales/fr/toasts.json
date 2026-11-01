@@ -24,7 +24,9 @@
   "diagram": {
     "addedAsStep": "Ajouté comme étape {{number}}",
     "capture": {
+      "chosenOrderKept": "L’ordre des couches choisi pour cette étape demande votre attention, elle garde donc son image.",
       "failed": "L’image n’a pas pu être capturée",
+      "layerOrderKept": "Les contraintes de couches de cette étape demandent votre attention, elle garde donc son image.",
       "missing": "Ce patron ne fait plus partie du patron de plis.",
       "needsPose": "Une étape pliée en partie dans le simulateur se capture dans Pose : ouvrez-la avec Ajuster la pose.",
       "noLayerOrder": "Ses couches n’ont pas pu être ordonnées\u00a0: l’étape montre le papier plié en transparence.",
@@ -54,6 +56,24 @@
       "otherWorkspaceFirst": "Annulez ou rétablissez d’abord les modifications suivantes dans l’autre espace de travail\u00a0: l’importation a modifié Édition et Diagramme.",
       "restoreFailed": "Impossible de restaurer les étapes importées."
     },
+    "layerOrder": {
+      "chosenOrderRemoved": "L’ordre des couches choisi pour l’étape concernait son ancien patron, il a donc été retiré. Annuler le rétablit.",
+      "copyNotFolded": "La copie n’a pas pu être affichée pliée, car les contraintes de couches de cette étape demandent votre attention.",
+      "copyNotFoldedChosenOrder": "La copie n’a pas pu être affichée pliée, car l’ordre des couches choisi pour cette étape demande votre attention.",
+      "folds3d": "Les plis de cette étape se plient maintenant en 3D, et l’ordre des couches fonctionne sur les pliages à plat. Actualisez l’étape pour la voir.",
+      "lost": "L’ordre des couches s’est arrêté de façon inattendue, cette étape n’a donc pas été modifiée.",
+      "lostLoadOffline": "L’ordre des couches n’a pas pu se charger hors ligne, cette étape n’a donc pas été modifiée. Reconnectez-vous, puis rechargez Ori Studio pour réessayer.",
+      "lostLoadReload": "L’ordre des couches n’a pas pu se charger, cette étape n’a donc pas été modifiée. Rechargez Ori Studio pour réessayer.",
+      "refused": "Cet ordre des couches n’a pas pu être dessiné, rien n’a donc été modifié.",
+      "removed_one": "La contrainte de couches de l’étape concernait son ancien patron, elle a donc été retirée. Annuler la rétablit.",
+      "removed_many": "Les {{count}} contraintes de couches de l’étape concernaient son ancien patron, elles ont donc été retirées. Annuler les rétablit.",
+      "removed_other": "Les {{count}} contraintes de couches de l’étape concernaient son ancien patron, elles ont donc été retirées. Annuler les rétablit.",
+      "stepCheckTimedOut": "Les contraintes de couches de cette étape n’ont pas pu être vérifiées à temps, elle n’a donc pas été modifiée.",
+      "stepClash": "Les contraintes de couches de cette étape se contredisent avec son motif actuel, elle ne peut donc pas parcourir ses solutions. Modifiez son ordre des couches pour les vérifier.",
+      "stepNotFoundInTime": "Aucune autre solution n’a pu être trouvée à temps, cette étape n’a donc pas été modifiée.",
+      "stepRefused": "L’ordre des couches ne peut pas parcourir les solutions de cette étape, elle n’a donc pas été modifiée.",
+      "stepTooLarge": "L’ordre des couches suivant est trop volumineux pour être enregistré avec cette étape, elle n’a donc pas été modifiée."
+    },
     "placementsReflowed_one": "{{count}} étapes déplacées ont retrouvé leur cellule",
     "placementsReflowed_many": "{{count}} étapes déplacées ont retrouvé leur cellule",
     "placementsReflowed_other": "{{count}} étapes déplacées ont retrouvé leur cellule",
@@ -81,6 +101,21 @@
       "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme.",
       "undoReplaced": "Annuler"
     },
+    "refreshAllChosenOrderKept_one": "L’ordre des couches choisi pour {{count}} étape demande votre attention, elle garde donc son image.",
+    "refreshAllChosenOrderKept_many": "Les ordres des couches choisis pour {{count}} étapes demandent votre attention, elles gardent donc leurs images.",
+    "refreshAllChosenOrderKept_other": "Les ordres des couches choisis pour {{count}} étapes demandent votre attention, elles gardent donc leurs images.",
+    "refreshAllLayerOrderKept_one": "Les contraintes de couches de {{count}} étape demandent votre attention, elle garde donc son image.",
+    "refreshAllLayerOrderKept_many": "Les contraintes de couches de {{count}} étapes demandent votre attention, elles gardent donc leurs images.",
+    "refreshAllLayerOrderKept_other": "Les contraintes de couches de {{count}} étapes demandent votre attention, elles gardent donc leurs images.",
+    "refreshAllLayerOrderLost_one": "L’ordre des couches s’est arrêté de façon inattendue, {{count}} étape n’a donc pas été modifiée.",
+    "refreshAllLayerOrderLost_many": "L’ordre des couches s’est arrêté de façon inattendue, {{count}} étapes n’ont donc pas été modifiées.",
+    "refreshAllLayerOrderLost_other": "L’ordre des couches s’est arrêté de façon inattendue, {{count}} étapes n’ont donc pas été modifiées.",
+    "refreshAllLayerOrderLostLoadOffline_one": "L’ordre des couches n’a pas pu se charger hors ligne, {{count}} étape n’a donc pas été modifiée. Reconnectez-vous, puis rechargez Ori Studio pour réessayer.",
+    "refreshAllLayerOrderLostLoadOffline_many": "L’ordre des couches n’a pas pu se charger hors ligne, {{count}} étapes n’ont donc pas été modifiées. Reconnectez-vous, puis rechargez Ori Studio pour réessayer.",
+    "refreshAllLayerOrderLostLoadOffline_other": "L’ordre des couches n’a pas pu se charger hors ligne, {{count}} étapes n’ont donc pas été modifiées. Reconnectez-vous, puis rechargez Ori Studio pour réessayer.",
+    "refreshAllLayerOrderLostLoadReload_one": "L’ordre des couches n’a pas pu se charger, {{count}} étape n’a donc pas été modifiée. Rechargez Ori Studio pour réessayer.",
+    "refreshAllLayerOrderLostLoadReload_many": "L’ordre des couches n’a pas pu se charger, {{count}} étapes n’ont donc pas été modifiées. Rechargez Ori Studio pour réessayer.",
+    "refreshAllLayerOrderLostLoadReload_other": "L’ordre des couches n’a pas pu se charger, {{count}} étapes n’ont donc pas été modifiées. Rechargez Ori Studio pour réessayer.",
     "refreshedAll_one": "{{count}} étape actualisée",
     "refreshedAll_many": "{{count}} étapes actualisées",
     "refreshedAll_other": "{{count}} étapes actualisées",
@@ -117,6 +152,9 @@
     "ignoredFile": "{{name}} utilisé ; 1 autre fichier déposé a été ignoré.",
     "ignoredFiles": "{{name}} utilisé ; {{others}} autres fichiers déposés ont été ignorés."
   },
+  "fileOpen": {
+    "closeDialog": "Fermez la fenêtre pour ouvrir un autre fichier"
+  },
   "foldedFigureExport": {
     "empty": "Ce modèle plié n'a encore rien à exporter",
     "failed": "Impossible d'exporter ce modèle plié"
@@ -141,6 +179,23 @@
     "solveStopping": "Annulation…",
     "solving": "Résolution…",
     "solvingLong": "Résolution toujours en cours — cela peut prendre du temps"
+  },
+  "layerOrder": {
+    "foldImportBusy": "Ordre des couches est déjà ouvert : choisissez l’ordre des couches de ce patron de plis sur le canevas.",
+    "folds3d": "Les plis de ce modèle se plient maintenant en 3D, et l’ordre des couches fonctionne sur les pliages à plat. Repliez-le pour le voir.",
+    "refoldKept": "Les contraintes de couches de {{name}} demandent votre attention, il garde donc son image.",
+    "refoldKeptChosenOrder": "L’ordre des couches choisi pour {{name}} demande votre attention, il garde donc son image.",
+    "refoldLost": "L’ordre des couches s’est arrêté de façon inattendue, {{name}} n’a donc pas été replié.",
+    "refoldLostLoadOffline": "L’ordre des couches n’a pas pu se charger hors ligne, {{name}} n’a donc pas été replié. Reconnectez-vous, puis rechargez Ori Studio pour réessayer.",
+    "refoldLostLoadReload": "L’ordre des couches n’a pas pu se charger, {{name}} n’a donc pas été replié. Rechargez Ori Studio pour réessayer.",
+    "stepCheckTimedOut": "Les contraintes de couches de ce modèle n’ont pas pu être vérifiées à temps, il n’a donc pas été modifié.",
+    "stepLost": "L’ordre des couches s’est arrêté de façon inattendue, le modèle n’a donc pas été modifié.",
+    "stepLostLoadOffline": "L’ordre des couches n’a pas pu se charger hors ligne, le modèle n’a donc pas été modifié. Reconnectez-vous, puis rechargez Ori Studio pour réessayer.",
+    "stepLostLoadReload": "L’ordre des couches n’a pas pu se charger, le modèle n’a donc pas été modifié. Rechargez Ori Studio pour réessayer.",
+    "stepNotFoundInTime": "Aucune autre solution n’a pu être trouvée à temps, le modèle n’a donc pas été modifié.",
+    "stepUnrestored": "Les contraintes de couches de ce modèle demandent votre attention, il ne peut donc pas parcourir ses solutions. Ouvrez « Ordre des couches… » pour les vérifier.",
+    "unavailableOffline": "Ordre des couches n’a pas pu se charger hors ligne. Reconnectez-vous, puis rechargez Ori Studio pour réessayer.",
+    "unavailableReload": "Ordre des couches n’a pas pu se charger. Rechargez Ori Studio pour réessayer."
   },
   "paperExport": {
     "saved": "{{name}} exporté"

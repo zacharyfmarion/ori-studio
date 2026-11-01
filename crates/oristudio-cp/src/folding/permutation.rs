@@ -1,9 +1,9 @@
 use super::combination::{CombinationGenerator, CombinationInferenceFailure};
 use super::{
     AdditionalEstimationError, EquivalenceCondition, EquivalenceConditionSet, FaceOrder,
-    FoldGraphError, FoldSetupError, HierarchyTable, InitialHierarchy, InitialHierarchyError,
-    SubFace, SubFaceConfiguration, apply_quadruple_condition, apply_triple_condition,
-    run_additional_estimation, run_additional_estimation_fast,
+    FoldGraphError, FoldSetupError, HierarchySeedError, HierarchyTable, InitialHierarchy,
+    InitialHierarchyError, SubFace, SubFaceConfiguration, apply_quadruple_condition,
+    apply_triple_condition, run_additional_estimation, run_additional_estimation_fast,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -259,6 +259,10 @@ pub enum WorkerOverlapSearchError {
     Exhausted {
         iterations: u64,
     },
+    /// A seeded search refused its seeds before searching. Only the seeded
+    /// core produces it (`FoldingEstimateSession::with_seeds`, Ori Studio
+    /// native); an unseeded fold never does.
+    Seed(HierarchySeedError),
     /// The user stopped the fold. See [`crate::cancel`].
     Cancelled,
 }
@@ -282,7 +286,9 @@ impl WorkerOverlapSearchError {
             Self::SubFace(subface) => subface.is_cancelled(),
             Self::AdditionalEstimation(estimation) => estimation.is_cancelled(),
             Self::Setup(setup) => setup.is_cancelled(),
-            Self::FinalAdditionalEstimationRequired { .. } | Self::Exhausted { .. } => false,
+            Self::FinalAdditionalEstimationRequired { .. }
+            | Self::Exhausted { .. }
+            | Self::Seed(_) => false,
         }
     }
 }
@@ -626,6 +632,13 @@ impl WorkerOverlapEnumerator {
     /// than as the answer; see `Fold3dOrderEnumerator::lookahead`.
     pub fn set_iteration_budget(&mut self, budget: u64) {
         self.iteration_budget = Some(budget);
+    }
+
+    /// The bound [`Self::within_iteration_budget`] set, for tests of the
+    /// callers that set one.
+    #[cfg(test)]
+    pub(crate) fn iteration_budget(&self) -> Option<u64> {
+        self.iteration_budget
     }
 
     pub fn valid_count(&self) -> usize {

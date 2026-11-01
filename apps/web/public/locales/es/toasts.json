@@ -24,7 +24,9 @@
   "diagram": {
     "addedAsStep": "Añadido como paso {{number}}",
     "capture": {
+      "chosenOrderKept": "El orden de capas elegido para este paso necesita atención, así que conserva su imagen.",
       "failed": "No se pudo capturar la imagen",
+      "layerOrderKept": "Las restricciones de capas de este paso necesitan atención, así que conserva su imagen.",
       "missing": "Ese patrón ya no está en el patrón de pliegues.",
       "needsPose": "Un paso plegado a medias en el simulador se captura en Pose: ábrelo con Ajustar pose.",
       "noLayerOrder": "No se pudieron ordenar sus capas, así que el paso muestra el papel plegado en transparencia.",
@@ -54,6 +56,24 @@
       "otherWorkspaceFirst": "Primero deshaz o rehaz las ediciones posteriores en el otro espacio de trabajo: la importación cambió Edición y Diagrama.",
       "restoreFailed": "No se pudieron restaurar los pasos importados."
     },
+    "layerOrder": {
+      "chosenOrderRemoved": "El orden de capas elegido para el paso era de su patrón anterior, así que se quitó. Deshacer lo recupera.",
+      "copyNotFolded": "La copia no se pudo mostrar plegada, porque las restricciones de capas de este paso necesitan atención.",
+      "copyNotFoldedChosenOrder": "La copia no se pudo mostrar plegada, porque el orden de capas elegido para este paso necesita atención.",
+      "folds3d": "Los pliegues de este paso ahora se pliegan en 3D, y el orden de capas funciona con pliegues planos. Actualiza el paso para verlo.",
+      "lost": "El orden de capas se detuvo inesperadamente, así que este paso no cambió.",
+      "lostLoadOffline": "No se pudo cargar el orden de capas sin conexión, así que este paso no cambió. Vuelve a conectarte y recarga Ori Studio para intentarlo de nuevo.",
+      "lostLoadReload": "No se pudo cargar el orden de capas, así que este paso no cambió. Recarga Ori Studio para intentarlo de nuevo.",
+      "refused": "No se pudo dibujar este orden de capas, así que no se cambió nada.",
+      "removed_one": "La restricción de capas del paso era de su patrón anterior, así que se quitó. Deshacer la recupera.",
+      "removed_many": "Las {{count}} restricciones de capas del paso eran de su patrón anterior, así que se quitaron. Deshacer las recupera.",
+      "removed_other": "Las {{count}} restricciones de capas del paso eran de su patrón anterior, así que se quitaron. Deshacer las recupera.",
+      "stepCheckTimedOut": "No se pudieron comprobar a tiempo las restricciones de capas de este paso, así que no cambió.",
+      "stepClash": "Las restricciones de capas de este paso chocan con su patrón tal como está ahora, así que no puede recorrer sus soluciones. Edita su orden de capas para revisarlas.",
+      "stepNotFoundInTime": "No se pudo encontrar otra solución a tiempo, así que este paso no cambió.",
+      "stepRefused": "El orden de capas no puede recorrer las soluciones de este paso, así que no cambió.",
+      "stepTooLarge": "El siguiente orden de capas es demasiado grande para guardarlo con este paso, así que no cambió."
+    },
     "placementsReflowed_one": "{{count}} pasos movidos volvieron a sus celdas",
     "placementsReflowed_many": "{{count}} pasos movidos volvieron a sus celdas",
     "placementsReflowed_other": "{{count}} pasos movidos volvieron a sus celdas",
@@ -81,6 +101,21 @@
       "tooLarge": "Este paso es demasiado detallado para guardarlo en el diagrama.",
       "undoReplaced": "Deshacer"
     },
+    "refreshAllChosenOrderKept_one": "El orden de capas elegido de 1 paso necesita atención, así que conserva su imagen.",
+    "refreshAllChosenOrderKept_many": "Los órdenes de capas elegidos de {{count}} pasos necesitan atención, así que conservan sus imágenes.",
+    "refreshAllChosenOrderKept_other": "Los órdenes de capas elegidos de {{count}} pasos necesitan atención, así que conservan sus imágenes.",
+    "refreshAllLayerOrderKept_one": "Las restricciones de capas de 1 paso necesitan atención, así que conserva su imagen.",
+    "refreshAllLayerOrderKept_many": "Las restricciones de capas de {{count}} pasos necesitan atención, así que conservan sus imágenes.",
+    "refreshAllLayerOrderKept_other": "Las restricciones de capas de {{count}} pasos necesitan atención, así que conservan sus imágenes.",
+    "refreshAllLayerOrderLost_one": "El orden de capas se detuvo inesperadamente, así que 1 paso no cambió.",
+    "refreshAllLayerOrderLost_many": "El orden de capas se detuvo inesperadamente, así que {{count}} pasos no cambiaron.",
+    "refreshAllLayerOrderLost_other": "El orden de capas se detuvo inesperadamente, así que {{count}} pasos no cambiaron.",
+    "refreshAllLayerOrderLostLoadOffline_one": "No se pudo cargar el orden de capas sin conexión, así que 1 paso no cambió. Vuelve a conectarte y recarga Ori Studio para intentarlo de nuevo.",
+    "refreshAllLayerOrderLostLoadOffline_many": "No se pudo cargar el orden de capas sin conexión, así que {{count}} pasos no cambiaron. Vuelve a conectarte y recarga Ori Studio para intentarlo de nuevo.",
+    "refreshAllLayerOrderLostLoadOffline_other": "No se pudo cargar el orden de capas sin conexión, así que {{count}} pasos no cambiaron. Vuelve a conectarte y recarga Ori Studio para intentarlo de nuevo.",
+    "refreshAllLayerOrderLostLoadReload_one": "No se pudo cargar el orden de capas, así que 1 paso no cambió. Recarga Ori Studio para intentarlo de nuevo.",
+    "refreshAllLayerOrderLostLoadReload_many": "No se pudo cargar el orden de capas, así que {{count}} pasos no cambiaron. Recarga Ori Studio para intentarlo de nuevo.",
+    "refreshAllLayerOrderLostLoadReload_other": "No se pudo cargar el orden de capas, así que {{count}} pasos no cambiaron. Recarga Ori Studio para intentarlo de nuevo.",
     "refreshedAll_one": "Se actualizó 1 paso",
     "refreshedAll_many": "Se actualizaron {{count}} pasos",
     "refreshedAll_other": "Se actualizaron {{count}} pasos",
@@ -117,6 +152,9 @@
     "ignoredFile": "Se usó {{name}}; se ignoró 1 archivo más de los soltados.",
     "ignoredFiles": "Se usó {{name}}; se ignoraron {{others}} archivos más de los soltados."
   },
+  "fileOpen": {
+    "closeDialog": "Cierra el diálogo para abrir otro archivo"
+  },
   "foldedFigureExport": {
     "empty": "Esta figura plegada aún no tiene nada que exportar",
     "failed": "No se pudo exportar esta figura plegada"
@@ -141,6 +179,23 @@
     "solveStopping": "Cancelando…",
     "solving": "Resolviendo…",
     "solvingLong": "Sigue resolviendo: esto puede tardar un rato"
+  },
+  "layerOrder": {
+    "foldImportBusy": "Orden de capas ya está abierto, así que elige el orden de capas de este patrón de pliegues en el lienzo.",
+    "folds3d": "Los pliegues de este modelo ahora se pliegan en 3D, y el orden de capas funciona con pliegues planos. Vuelve a plegarlo para verlo.",
+    "refoldKept": "Las restricciones de capas de {{name}} necesitan atención, así que conserva su imagen.",
+    "refoldKeptChosenOrder": "El orden de capas elegido para {{name}} necesita atención, así que conserva su imagen.",
+    "refoldLost": "El orden de capas se detuvo inesperadamente, así que {{name}} no se volvió a plegar.",
+    "refoldLostLoadOffline": "No se pudo cargar el orden de capas sin conexión, así que {{name}} no se volvió a plegar. Vuelve a conectarte y recarga Ori Studio para intentarlo de nuevo.",
+    "refoldLostLoadReload": "No se pudo cargar el orden de capas, así que {{name}} no se volvió a plegar. Recarga Ori Studio para intentarlo de nuevo.",
+    "stepCheckTimedOut": "No se pudieron comprobar a tiempo las restricciones de capas de este modelo, así que no cambió.",
+    "stepLost": "El orden de capas se detuvo inesperadamente, así que el modelo no cambió.",
+    "stepLostLoadOffline": "No se pudo cargar el orden de capas sin conexión, así que el modelo no cambió. Vuelve a conectarte y recarga Ori Studio para intentarlo de nuevo.",
+    "stepLostLoadReload": "No se pudo cargar el orden de capas, así que el modelo no cambió. Recarga Ori Studio para intentarlo de nuevo.",
+    "stepNotFoundInTime": "No se pudo encontrar otra solución a tiempo, así que el modelo no cambió.",
+    "stepUnrestored": "Las restricciones de capas de este modelo necesitan atención, así que no puede recorrer sus soluciones. Abre «Orden de capas…» para revisarlas.",
+    "unavailableOffline": "Orden de capas no se cargó sin conexión. Vuelve a conectarte y recarga Ori Studio para intentarlo de nuevo.",
+    "unavailableReload": "Orden de capas no se cargó. Recarga Ori Studio para intentarlo de nuevo."
   },
   "paperExport": {
     "saved": "Se exportó {{name}}"

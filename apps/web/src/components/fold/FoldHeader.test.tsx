@@ -133,8 +133,10 @@ describe('FoldHeader', () => {
 
   it('says why a verb cannot run', () => {
     render({ context: { ...CONTEXT, path: 'broken', sheet: 'polygon', stepCount: 2 } });
-    expect(button('Send to Edit')).toMatchObject({ disabled: true, title: 'A step on this path no longer folds.' });
+    expect(button('Send to Edit')).toMatchObject({ disabled: false });
     expect(button('Import CP…')).toMatchObject({ disabled: true, title: 'Import CP needs a square or rectangle sheet.' });
+    render({ context: { ...CONTEXT, state: 'broken' } });
+    expect(button('Send to Edit')).toMatchObject({ disabled: true, title: 'This step no longer folds.' });
   });
 
   it('keeps to one row on a phone: no count, and the verbs in one menu', async () => {
@@ -256,16 +258,16 @@ describe('FoldHeader', () => {
   it('shows the split button’s own gate and says why it is disabled, as the model words it', () => {
     // The model is built over the catalog's Send to Edit (`useFoldSendToEditButton`), so its reason is the catalog's.
     render({
-      context: { ...CONTEXT, path: 'broken' },
+      context: { ...CONTEXT, state: 'broken' },
       sendToEdit: {
         label: 'Send to Edit',
-        title: 'A step on this path no longer folds.',
+        title: 'This step no longer folds.',
         disabled: true,
         menuLabel: 'More',
         run: vi.fn(),
         actions: [],
       },
     });
-    expect(button('Send to Edit')).toMatchObject({ disabled: true, title: 'A step on this path no longer folds.' });
+    expect(button('Send to Edit')).toMatchObject({ disabled: true, title: 'This step no longer folds.' });
   });
 });

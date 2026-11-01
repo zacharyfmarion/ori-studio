@@ -162,7 +162,7 @@
     "foldSendToDiagram": "Schritt an Diagramm senden",
     "foldSendToDiagramHint": "Den angezeigten Schritt verknüpft ans Ende des Diagramms anfügen",
     "foldSendToEdit": "An Bearbeiten senden",
-    "foldSendToEditHint": "Das Faltmuster der gezeigten Schritte an die Bearbeiten-Leinwand senden",
+    "foldSendToEditHint": "Das Faltmuster des aktiven Schritts an die Bearbeiten-Leinwand senden",
     "foldSheetNoStep": "Beim flachen Blatt beginnen die Schritte: Hier gibt es keinen Schritt zu löschen",
     "foldStartFromEditFigure": "Vom gefalteten Modell in Bearbeiten ausgehen",
     "foldStartFromEditFigureHint": "Einen Schritt hinzufügen, der das Papier zum gefalteten Modell aus Bearbeiten zusammenlegt",

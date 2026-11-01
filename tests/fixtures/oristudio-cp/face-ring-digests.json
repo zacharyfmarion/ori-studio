@@ -1,0 +1,57 @@
+[
+  {
+    "fixture": "solution_sample_1",
+    "faces": 21,
+    "digest": "0e803d21afd6c9da"
+  },
+  {
+    "fixture": "failing_global_flat_fold",
+    "faces": 62,
+    "digest": "e43f683a00836d9e"
+  },
+  {
+    "fixture": "holed_sheet_spiral",
+    "faces": 34,
+    "digest": "2fd3417ce062bb94"
+  },
+  {
+    "fixture": "holed_frame_collinear",
+    "faces": 2,
+    "digest": "d2c9297c9d3b0c44"
+  },
+  {
+    "fixture": "kabuto",
+    "faces": 18,
+    "digest": "3cb00a304e7ed188"
+  },
+  {
+    "fixture": "bad_twist",
+    "faces": 9,
+    "digest": "bb449418d4340985"
+  },
+  {
+    "fixture": "r069-s07",
+    "faces": 10,
+    "digest": "0c2979ec9e186da8"
+  },
+  {
+    "fixture": "r271-s03",
+    "faces": 8,
+    "digest": "47d757bc68c91273"
+  },
+  {
+    "fixture": "pleat-in-eighths",
+    "faces": 8,
+    "digest": "3e13d03a029bd25a"
+  },
+  {
+    "fixture": "preliminary-base",
+    "faces": 6,
+    "digest": "efc909050849dd76"
+  },
+  {
+    "fixture": "waterbomb-base",
+    "faces": 6,
+    "digest": "fb122cc92de07bd6"
+  }
+]

@@ -26,6 +26,18 @@ export function resolveSelectedSheet(
   return sheet === null ? null : { sheet, cpLineIds: index.lines(sheet) };
 }
 
+/**
+ * The sheet every one of these lines is in, whether or not they make it up
+ * whole: the crease pattern a fold of them came from. `null` when they are
+ * empty, span more than one sheet, or include a line in no sheet.
+ */
+export function sheetHoldingLines(index: CpSheetIndex | null | undefined, lineIds: readonly number[]): number | null {
+  if (!index || lineIds.length === 0) return null;
+  const sheet = index.sheetOfLine(lineIds[0]!);
+  if (sheet < 0) return null;
+  return lineIds.every((id) => index.sheetOfLine(id) === sheet) ? sheet : null;
+}
+
 export interface SelectedSheetDiagnosis {
   /** Why no sheet, when there is none — the first failing precondition. */
   reason: 'matched' | 'no-index' | 'empty-selection' | 'no-sheets' | 'no-sheet-matches';

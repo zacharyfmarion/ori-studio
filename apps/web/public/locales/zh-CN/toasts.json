@@ -22,7 +22,9 @@
   "diagram": {
     "addedAsStep": "已添加为第 {{number}} 步",
     "capture": {
+      "chosenOrderKept": "此步骤所选的层叠顺序需要处理，因此保留其图片。",
       "failed": "无法捕获图片",
+      "layerOrderKept": "此步骤的层叠约束需要处理，因此保留其图片。",
       "missing": "该图样已不在折痕图中。",
       "needsPose": "在模拟器中折到一半的步骤需在姿态中捕获：用“调整姿态”打开它。",
       "noLayerOrder": "无法确定其层序，因此此步骤以透视方式显示折叠后的纸。",
@@ -48,6 +50,22 @@
       "otherWorkspaceFirst": "请先在另一个工作区中撤销或重做之后的编辑：此次导入同时更改了编辑和图解。",
       "restoreFailed": "无法恢复导入的步骤。"
     },
+    "layerOrder": {
+      "chosenOrderRemoved": "此步骤所选的层叠顺序属于其旧图样，因此已移除。撤销可将其恢复。",
+      "copyNotFolded": "此步骤的层叠约束需要处理，因此无法将副本显示为折叠状态。",
+      "copyNotFoldedChosenOrder": "此步骤所选的层叠顺序需要处理，因此无法将副本显示为折叠状态。",
+      "folds3d": "此步骤的折痕现在以 3D 折叠，而层叠顺序适用于平折。请刷新该步骤查看。",
+      "lost": "层叠顺序意外停止，因此此步骤未更改。",
+      "lostLoadOffline": "离线时无法加载层叠顺序，因此此步骤未更改。请恢复网络连接，然后重新加载 Ori Studio 再试。",
+      "lostLoadReload": "无法加载层叠顺序，因此此步骤未更改。请重新加载 Ori Studio 后重试。",
+      "refused": "无法绘制此层叠顺序，因此未做任何更改。",
+      "removed_other": "此步骤的 {{count}} 条层叠约束属于其旧图样，因此已移除。撤销可将其恢复。",
+      "stepCheckTimedOut": "未能及时检查此步骤的层叠约束，因此此步骤未更改。",
+      "stepClash": "此步骤的层叠约束与其当前的图案相冲突，因此无法切换解。请编辑其层叠顺序进行检查。",
+      "stepNotFoundInTime": "未能及时找到另一个解，因此此步骤未更改。",
+      "stepRefused": "层叠顺序无法切换此步骤的解，因此此步骤未更改。",
+      "stepTooLarge": "下一个层叠顺序太大，无法随此步骤保存，因此此步骤未更改。"
+    },
     "placementsReflowed_other": "{{count}} 个已移动步骤回到了原来的单元格",
     "references": {
       "addedSteps": "已添加为第 {{first}}–{{last}} 步",
@@ -63,6 +81,11 @@
       "tooLarge": "此步骤过于复杂，无法保存在图解中。",
       "undoReplaced": "撤销"
     },
+    "refreshAllChosenOrderKept_other": "{{count}} 个步骤所选的层叠顺序需要处理，因此保留其图片。",
+    "refreshAllLayerOrderKept_other": "{{count}} 个步骤的层叠约束需要处理，因此保留其图片。",
+    "refreshAllLayerOrderLost_other": "层叠顺序意外停止，因此 {{count}} 个步骤未更改。",
+    "refreshAllLayerOrderLostLoadOffline_other": "离线时无法加载层叠顺序，因此 {{count}} 个步骤未更改。请恢复网络连接，然后重新加载 Ori Studio 再试。",
+    "refreshAllLayerOrderLostLoadReload_other": "无法加载层叠顺序，因此 {{count}} 个步骤未更改。请重新加载 Ori Studio 后重试。",
     "refreshedAll_other": "已刷新 {{count}} 个步骤",
     "uploadFailed_other": "{{count}} 张图片未能添加",
     "uploadFailureLine": "{{name}}：{{reason}}",
@@ -91,6 +114,9 @@
     "ignoredFile": "已使用 {{name}}；忽略了另外 1 个拖放的文件。",
     "ignoredFiles": "已使用 {{name}}；忽略了另外 {{others}} 个拖放的文件。"
   },
+  "fileOpen": {
+    "closeDialog": "请关闭对话框以打开其他文件"
+  },
   "foldedFigureExport": {
     "empty": "此折叠模型暂无可导出的内容",
     "failed": "无法导出此折叠模型"
@@ -115,6 +141,23 @@
     "solveStopping": "正在取消…",
     "solving": "正在求解…",
     "solvingLong": "仍在求解 — 这可能需要一段时间"
+  },
+  "layerOrder": {
+    "foldImportBusy": "层叠顺序已打开，请在画布上选择此折痕图的层叠顺序。",
+    "folds3d": "此模型的折痕现在以 3D 折叠，而层叠顺序适用于平折。请重新折叠后查看。",
+    "refoldKept": "{{name}} 的层叠约束需要处理，因此保留其图片。",
+    "refoldKeptChosenOrder": "{{name}} 所选的层叠顺序需要处理，因此保留其图片。",
+    "refoldLost": "层叠顺序意外停止，因此 {{name}} 未重新折叠。",
+    "refoldLostLoadOffline": "离线时无法加载层叠顺序，因此 {{name}} 未重新折叠。请恢复网络连接，然后重新加载 Ori Studio 再试。",
+    "refoldLostLoadReload": "无法加载层叠顺序，因此 {{name}} 未重新折叠。请重新加载 Ori Studio 后重试。",
+    "stepCheckTimedOut": "未能及时检查此模型的层叠约束，因此模型未更改。",
+    "stepLost": "层叠顺序意外停止，因此模型未更改。",
+    "stepLostLoadOffline": "离线时无法加载层叠顺序，因此模型未更改。请恢复网络连接，然后重新加载 Ori Studio 再试。",
+    "stepLostLoadReload": "无法加载层叠顺序，因此模型未更改。请重新加载 Ori Studio 后重试。",
+    "stepNotFoundInTime": "未能及时找到另一个解，因此模型未更改。",
+    "stepUnrestored": "此模型的层叠约束需要处理，因此无法切换解。请打开“层叠顺序…”进行检查。",
+    "unavailableOffline": "离线时层叠顺序未能加载。请恢复网络连接，然后重新加载 Ori Studio 再试。",
+    "unavailableReload": "层叠顺序未能加载。请重新加载 Ori Studio 后重试。"
   },
   "paperExport": {
     "saved": "已导出 {{name}}"

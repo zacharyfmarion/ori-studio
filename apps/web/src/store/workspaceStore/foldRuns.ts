@@ -27,6 +27,15 @@ function foldRunsWithout(runs: FoldRuns, runId: number): FoldRuns {
 }
 
 /**
+ * Each live run's stop signal, by id: what a run's work outside the CP kernel
+ * listens to, since the cancel slot reaches only the kernel. The Layer order
+ * host engine is that work (`layer-order/host/`): its worker has no cancel
+ * channel, so a Stop terminates it. Kept here rather than in the store,
+ * because nothing draws a signal.
+ */
+const stopSignals = new Map<number, AbortController>();
+
+/**
  * Live stoppable runs, **oldest first** — which is executing order.
  *
  * One CP worker on web and one engine mutex on desktop, so folds run strictly
@@ -50,10 +59,17 @@ export function stoppableFoldRuns(runs: FoldRuns): OristudioCpFoldRun[] {
  * Instead the stop intent is recorded on every run (`stopping`) and the slot is
  * re-aimed here, as each run leaves and the next becomes the one executing.
  * Re-writing an id already in the slot is harmless.
+ *
+ * Every Stop passes through here, so this is also where each run marked
+ * stopping has its stop signal aborted ({@link withFoldInFlight}). A signal
+ * names one run, so all of them are told at once; aborting one twice is
+ * harmless.
  */
 export function aimFoldStopAtOldestPending(runs: FoldRuns): void {
-  const pending = stoppableFoldRuns(runs).find((run) => run.stopping);
+  const stoppable = stoppableFoldRuns(runs);
+  const pending = stoppable.find((run) => run.stopping);
   if (pending) cancelFoldRun(pending.runId);
+  for (const run of stoppable) if (run.stopping) stopSignals.get(run.runId)?.abort();
 }
 
 /**
@@ -72,6 +88,27 @@ export function stopFoldRun(store: FoldRunStore, runId: number): boolean {
   return true;
 }
 
+/** How a run may be stopped. */
+export interface FoldRunOptions {
+  /**
+   * Whether a Stop can reach the run as it starts. By default, whether the
+   * kernel's cancel transport can (`foldCancellationAvailable`). A run whose
+   * work starts in a Layer order engine passes true: terminating that
+   * engine's worker stops it on any page.
+   */
+  readonly stoppable?: boolean;
+}
+
+/** What a run can say about itself while it runs. */
+export interface FoldRunControls {
+  /**
+   * Whether a Stop can reach the run from now on: a run that moves from a
+   * Layer order engine's work to the kernel's says what the kernel's
+   * transport allows.
+   */
+  stoppable(on: boolean): void;
+}
+
 /**
  * Record a fold as live for as long as `run` takes, under an id a Stop can
  * name, so the UI can both show progress for a slow one and offer a way out of
@@ -83,13 +120,20 @@ export function stopFoldRun(store: FoldRunStore, runId: number): boolean {
  * clears it on **every** exit — including a cancel, which a cooperative stop
  * makes an ordinary rejection rather than a promise that never settles (the
  * stuck-flag failure recorded in `bp-optimizer-cancellation.md`).
+ *
+ * `run` also gets the run's stop signal, aborted when a Stop reaches this run:
+ * the way to stop work in the run that the kernel's cancel slot cannot reach,
+ * such as a Layer order resolve (`layer-order/host/hostEngineGateway.ts`).
  */
 export async function withFoldInFlight<T>(
   store: FoldRunStore,
   kind: OristudioCpFoldRunKind,
-  run: (runId: number) => Promise<T>
+  run: (runId: number, stop: AbortSignal, controls: FoldRunControls) => Promise<T>,
+  options: FoldRunOptions = {}
 ): Promise<T> {
   const runId = beginFoldRun();
+  const stop = new AbortController();
+  stopSignals.set(runId, stop);
   store.set({
     oristudioCpFoldRuns: {
       ...store.get().oristudioCpFoldRuns,
@@ -100,14 +144,23 @@ export async function withFoldInFlight<T>(
         // Asked once, at dispatch, because that is when the binding is made:
         // a run started in a browser that cannot share memory stays
         // un-stoppable for its whole life, however the page changes later.
-        cancellable: foldCancellationAvailable(),
+        cancellable: options.stoppable ?? foldCancellationAvailable(),
         stopping: false,
       },
     },
   });
+  const controls: FoldRunControls = {
+    stoppable: (on) => {
+      const runs = store.get().oristudioCpFoldRuns;
+      const current = runs[runId];
+      if (!current || current.cancellable === on) return;
+      store.set({ oristudioCpFoldRuns: { ...runs, [runId]: { ...current, cancellable: on } } });
+    },
+  };
   try {
-    return await run(runId);
+    return await run(runId, stop.signal, controls);
   } finally {
+    stopSignals.delete(runId);
     const remaining = foldRunsWithout(store.get().oristudioCpFoldRuns, runId);
     store.set({ oristudioCpFoldRuns: remaining });
     aimFoldStopAtOldestPending(remaining);

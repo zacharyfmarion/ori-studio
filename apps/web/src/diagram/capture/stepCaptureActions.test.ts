@@ -203,7 +203,10 @@ describe('linkDiagramStep', () => {
 describe('showLinkedStepAs', () => {
   const openPose = (landed: boolean): DiagramLinkedPose => ({
     actions: [],
+    toolbar: [],
     layerOrder: null,
+    layerOrderEdit: null,
+    editLayerOrder: async () => false,
     spatial: null, connected: null, connectedPreparing: false, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
     onCamera: () => {},
     registerLiveView: () => () => {},

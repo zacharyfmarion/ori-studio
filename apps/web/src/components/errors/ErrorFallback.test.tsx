@@ -124,6 +124,20 @@ describe('ErrorFallback', () => {
     expect(container.querySelector('.error-fallback')).toBeNull();
   });
 
+  it('offers Close in Try again’s place on a dialog that cannot come back', async () => {
+    const onRetry = vi.fn();
+    renderFallback({ variant: 'overlay', retryable: false, onRetry });
+    const labels = [...container.querySelectorAll('button')].map((button) => button.textContent?.trim());
+    expect(labels).not.toContain('Try again');
+    expect(labels).not.toContain('Dismiss');
+    expect(labels).toContain('Close');
+
+    await click(findButton('Close'));
+
+    expect(container.querySelector('.error-fallback')).toBeNull();
+    expect(onRetry).not.toHaveBeenCalled();
+  });
+
   it('keeps the strip variant to a single row with no disclosure', () => {
     renderFallback({ variant: 'strip' });
     expect(container.querySelector('.error-fallback--strip')).not.toBeNull();

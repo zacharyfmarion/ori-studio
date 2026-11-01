@@ -1,0 +1,104 @@
+/*
+ * A face's letter as text (LayerOrderFaceChip.tsx): A3's face chip, the one
+ * the panes draw, at 24 × 20 px. A pick's border is `--face-pick`, a clash's
+ * the theme's danger with its dot (D20); a face that no longer exists keeps
+ * its place, quieter, with no letter.
+ */
+.chip {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 24px;
+  height: 20px;
+  margin: 0;
+  padding: 0 5px;
+  border: 1px solid var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.chip[data-tone='pick'] {
+  border-color: var(--face-pick, #a78bfa);
+}
+
+.chip[data-tone='danger'] {
+  border-color: var(--status-danger);
+}
+
+.chip[data-gone] {
+  border-color: color-mix(in srgb, var(--text-tertiary) 60%, transparent);
+  background: var(--bg-secondary);
+}
+
+/* Not applied: grey and dimmer, never dashed (Round4-States). */
+.chip[data-dim] {
+  opacity: 0.55;
+}
+
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--status-danger);
+}
+
+/* A chip that removes its face (A5): a diagonal strike in the secondary ink on hover or focus, over a quieter
+   letter; a line-through would hide in H's crossbar. Its size never changes. */
+.chip[data-button] {
+  cursor: pointer;
+}
+
+.chip[data-button]::after {
+  position: absolute;
+  inset: 2px 3px;
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 0.75px),
+    var(--text-secondary) calc(50% - 0.75px),
+    var(--text-secondary) calc(50% + 0.75px),
+    transparent calc(50% + 0.75px)
+  );
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chip[data-button]:hover,
+.chip[data-button]:focus-visible {
+  color: var(--text-secondary);
+}
+
+.chip[data-button]:hover::after,
+.chip[data-button]:focus-visible::after {
+  opacity: 1;
+}
+
+.chip[data-button]:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+/* At touch size (Round5-Compound's phone): 32 px wide, and a 44 px tall target that takes half the gap either side. */
+@media (pointer: coarse) {
+  .chip[data-button] {
+    min-width: 32px;
+  }
+
+  .chip[data-button]::before {
+    position: absolute;
+    top: -12px;
+    right: -3px;
+    bottom: -12px;
+    left: -3px;
+    content: '';
+  }
+}

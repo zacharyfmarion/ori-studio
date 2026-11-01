@@ -153,6 +153,7 @@ pub fn import_figure(
             cp_json: cp_json(&fold_cp_to_model(&state))?,
             order_json: order_json(&state)?,
             origin: CpOrigin::EditFoldedFigure,
+            turn_deg: 0.0,
         };
         Ok((placed, jump))
     })();

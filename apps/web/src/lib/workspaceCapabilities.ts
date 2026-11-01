@@ -1268,7 +1268,7 @@ function foldIoCapabilities(
     ),
     'fold.send-to-edit': out(
       t('common:capability.foldSendToEdit', 'Send to Edit'),
-      t('common:capability.foldSendToEditHint', 'Send the crease pattern of the steps shown to the Edit canvas')
+      t('common:capability.foldSendToEditHint', 'Send the active step’s crease pattern to the Edit canvas')
     ),
     // A step on screen to send is the session's to say when the verb runs, as a path's steps folding is.
     'fold.send-to-diagram': out(

@@ -125,7 +125,7 @@ export const DEFAULT_SPREAD_STARTS: LayerSpreadStarts = {
  * is the spreads of the pictures before, nearest first; how a surface walks
  * back to them — a diagram's order, a Fold step's path — is its own.
  */
-export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>): LayerSpreadStarts {
+export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>, defaults: LayerSpreadStarts = DEFAULT_SPREAD_STARTS): LayerSpreadStarts {
   let any: LayerSpreadOptions | null = null;
   let depth: DepthSpreadOptions | null = null;
   let affine: AffineSpreadOptions | null = null;
@@ -138,10 +138,10 @@ export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>): LayerS
     if (depth && affine && connected) break;
   }
   return {
-    any: any ?? DEFAULT_LAYER_SPREAD,
-    depth: depth ?? DEFAULT_DEPTH_SPREAD,
-    affine: affine ?? DEFAULT_AFFINE_SPREAD,
-    connected: connected ?? DEFAULT_CONNECTED_SPREAD,
+    any: any ?? defaults.any,
+    depth: depth ?? defaults.depth,
+    affine: affine ?? defaults.affine,
+    connected: connected ?? defaults.connected,
   };
 }
 

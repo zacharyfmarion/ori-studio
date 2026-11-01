@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
 import type {
   FoldedFigurePlacement,
   OristudioCpFoldedFigureDisplayStyle,
+  OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
 import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
@@ -23,12 +24,20 @@ import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCam
 import { foldedFigureGesture } from './foldedFigureGesture';
 import { buildFoldedFigureProperties, type FoldedFigurePropertyDeps } from './foldedFigureProperties';
 import { isFoldedFigureStale } from './foldedFigureStaleness';
+import { foldedSolutionCursorVersion, subscribeFoldedSolutionCursor } from './foldedSolutionCursor';
 import {
+  deleteFoldedFigure,
+  dismissFoldedFigureDetachedLayerOrder,
+  duplicateFoldedFigure,
+  exportFoldedFigure,
   setFolded3dCamera,
   setFoldedFigureDisplayStyle,
   setFoldedFigurePlacementAsEntry,
+  showAnotherFoldedSolution,
+  showPreviousFoldedSolution,
   updateFoldedFigureModelAsEntry,
 } from './foldedFigureVerbs';
+import { openFoldedFigureLayerOrder } from './openFoldedFigureLayerOrder';
 
 /**
  * The folded figure's sheet, bound to the store through the verbs module, the
@@ -117,6 +126,27 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
     },
     [id]
   );
+  // The figure's verbs, as the floating toolbar runs them: each one entry
+  // under the toolbar's own label, through the same React-free functions.
+  const verbs = useMemo(
+    () => ({
+      foldAnother: (target: OristudioCpFoldedFigureEntry) => void showAnotherFoldedSolution(target.id, t),
+      foldPrevious: (target: OristudioCpFoldedFigureEntry) => void showPreviousFoldedSolution(target.id, t),
+      exportFigure: (target: OristudioCpFoldedFigureEntry) => exportFoldedFigure(target.id, t),
+      duplicate: (target: OristudioCpFoldedFigureEntry) => void duplicateFoldedFigure(target.id, t),
+      remove: (target: OristudioCpFoldedFigureEntry) => void deleteFoldedFigure(target.id, t),
+      openLayerOrder: (target: OristudioCpFoldedFigureEntry) => void openFoldedFigureLayerOrder(target.id, t),
+      reviewLayerOrder: (target: OristudioCpFoldedFigureEntry) =>
+        void openFoldedFigureLayerOrder(target.id, t, { via: 'review' }),
+      dismissDetachedLayerOrder: (target: OristudioCpFoldedFigureEntry) =>
+        void dismissFoldedFigureDetachedLayerOrder(target.id, t),
+    }),
+    [t]
+  );
+  // A constrained figure's readout and ends are where its solutions cursor
+  // stands, which moves without the figure changing (an answer after a turn
+  // over, the cursor let go): read again whenever it does.
+  const cursorVersion = useSyncExternalStore(subscribeFoldedSolutionCursor, foldedSolutionCursorVersion);
   const storedCamera = figure.camera ?? DEFAULT_FOLDED_3D_CAMERA;
   const liveCamera = useMemo<LiveValue<FoldedFigureCamera>>(
     () => ({
@@ -143,8 +173,10 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       setCamera,
       liveCamera,
       setPlacement,
+      ...verbs,
     }),
     [
+      verbs,
       t,
       stale,
       gesture.held,
@@ -162,5 +194,10 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       setPlacement,
     ]
   );
-  return useMemo(() => buildFoldedFigureProperties(target, deps), [target, deps]);
+  return useMemo(
+    () => buildFoldedFigureProperties(target, deps),
+    // The cursor's version is read by the builder through `foldedSolutionPlace`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [target, deps, cursorVersion]
+  );
 }

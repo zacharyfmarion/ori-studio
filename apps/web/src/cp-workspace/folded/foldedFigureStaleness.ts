@@ -304,7 +304,7 @@ export function foldedSourceFingerprint(lines: readonly OristudioCpLineSegment[]
  */
 const CURRENT_FINGERPRINTS = new WeakMap<OristudioCpDocumentSnapshot, Map<string, string>>();
 
-function currentSourceFingerprint(
+export function currentSourceFingerprint(
   document: OristudioCpDocumentSnapshot,
   bounds: FoldedSourceBounds
 ): string {

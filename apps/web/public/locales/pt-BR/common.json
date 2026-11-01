@@ -162,7 +162,7 @@
     "foldSendToDiagram": "Enviar passo para o Diagrama",
     "foldSendToDiagramHint": "Adicionar ao fim do diagrama o passo na tela, vinculado a ele",
     "foldSendToEdit": "Enviar para Edição",
-    "foldSendToEditHint": "Enviar o padrão de vincos dos passos mostrados para o canvas de Edição",
+    "foldSendToEditHint": "Enviar o padrão de vincos do passo ativo para o canvas de Edição",
     "foldSheetNoStep": "A folha plana é onde os passos começam: não há passo para excluir",
     "foldStartFromEditFigure": "Começar pelo modelo dobrado da Edição",
     "foldStartFromEditFigureHint": "Adicionar um passo que dobra o papel no modelo dobrado da Edição",

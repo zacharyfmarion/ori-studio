@@ -8,8 +8,16 @@ import { sheetRegions } from '../../cp-workspace/sheets/cpSheetRegions';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramCpRender, DiagramLayerSpread } from '../document/diagramDocument';
 import { stepsIn } from '../document/diagramSteps.fixtures';
-import { cpDocument, fakeCaptureRuntime, twoSquaresIndex } from './capture.fixtures';
+import type { LayerOrderRequest, LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
+import {
+  cpDocument,
+  fakeCaptureRuntime,
+  fakeLayerOrderResolutions,
+  STEP_LAYER_ORDER_IN_SOURCE,
+  twoSquaresIndex,
+} from './capture.fixtures';
 import type { CpCaptureRuntime } from './captureFolded';
+import { openDiagramStepLayerOrder } from './stepLayerOrderActions';
 import { useDiagramLinkedPose, type DiagramLinkedPose } from './useDiagramLinkedPose';
 import { ensureCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
 import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
@@ -40,6 +48,15 @@ vi.mock('../../cp-workspace/sheets/cpSheetIndex', async (importOriginal) => ({
 }));
 const toasts = vi.hoisted(() => ({ error: vi.fn(), message: vi.fn(), success: vi.fn() }));
 vi.mock('sonner', () => ({ toast: toasts }));
+const hostEngine = vi.hoisted(() => ({ resolveLayerOrder: vi.fn() }));
+vi.mock('../../layer-order/host/hostEngineGateway', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../layer-order/host/hostEngineGateway')>()),
+  resolveLayerOrder: hostEngine.resolveLayerOrder,
+}));
+const dialog = vi.hoisted(() => ({ openLayerOrderDialog: vi.fn() }));
+vi.mock('../../layer-order/dialog/layerOrderDialogGateway', () => ({
+  openLayerOrderDialog: dialog.openLayerOrderDialog,
+}));
 
 const sheets = twoSquaresIndex();
 const [left] = sheetRegions(sheets);
@@ -295,6 +312,66 @@ describe('the Step pane’s spread, through the hook', () => {
     expect(seen.pose!.spread!.start()).toBe(true);
     act(() => useWorkspaceStore.setState({ diagramReadOnly: true }));
     expect(seen.pose!.spread!.start()).toBe(false);
+  });
+});
+
+describe('the pager through a layer order and back (H7)', () => {
+  const action = (id: string) => seen.pose!.actions.find((each) => each.id === id)!;
+  const rotation = (stepId: string) => {
+    const source = stepsIn(state().diagram!).find((step) => step.id === stepId)?.source;
+    return source?.kind === 'cp' && source.render.mode === 'folded-flat' ? source.render.rotationDeg : null;
+  };
+  const constrained = (stepId: string) => {
+    const source = stepsIn(state().diagram!).find((step) => step.id === stepId)?.source;
+    return source?.kind === 'cp' && source.layerOrder !== undefined;
+  };
+
+  it('counts the kernel’s orders again once undo takes the chosen order back, not the held one’s one of one', async () => {
+    // The kernel's enumeration has more past the first.
+    bindings.runtime = fakeCaptureRuntime({
+      fold: vi.fn(async () => ({
+        handle: 7,
+        discoveredCases: 1,
+        displayStyle: 'Paper5' as const,
+        outcome: 'Solved' as const,
+        hasNext: true,
+      })),
+    });
+    hostEngine.resolveLayerOrder.mockImplementation(async (source: LayerOrderSource) =>
+      fakeLayerOrderResolutions.applied(STEP_LAYER_ORDER_IN_SOURCE, source)
+    );
+    dialog.openLayerOrderDialog.mockImplementation(async (request: LayerOrderRequest) => ({
+      kind: 'applied',
+      applied: { record: STEP_LAYER_ORDER_IN_SOURCE, relations: new Uint32Array([1, 0]), source: request.source },
+    }));
+    const stepId = await linkedStep({ mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 });
+    act(() => action('rotate-right').run());
+    await act(async () => {
+      await vi.waitFor(() => expect(rotation(stepId)).toBe(15));
+    });
+    await act(async () => {
+      await vi.waitFor(() => expect(seen.pose!.layerOrder?.count).toBe('1 of 1+'));
+    });
+
+    // Apply a chosen order, and turn the step in it: the held fold's one order of one.
+    await act(async () => {
+      expect(await openDiagramStepLayerOrder(stepId)).toBe(true);
+    });
+    expect(constrained(stepId)).toBe(true);
+    act(() => action('rotate-right').run());
+    await act(async () => {
+      await vi.waitFor(() => expect(rotation(stepId)).toBe(30));
+    });
+    expect(seen.pose!.layerOrder).toBeNull();
+
+    // Undo the turn, then the Apply: the kernel's orders again, never the held fold's facts.
+    act(() => {
+      state().undoDiagram();
+      state().undoDiagram();
+    });
+    expect(constrained(stepId)).toBe(false);
+    expect(seen.pose!.layerOrder?.count).not.toBe('1 of 1');
+    expect(action('next-solution').disabled).toBe(false);
   });
 });
 

@@ -1,6 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
 import type { PaperScene } from '@treemaker/origami-simulator';
+import { dropFoldedSolutionCursor } from './foldedSolutionCursor';
+import {
+  landedAt,
+  scriptedSolutionCursor,
+  seatFoldedSolutionCursor,
+  solutionPosition,
+} from './foldedSolutionCursor.fixtures';
+
+/** The host engine's door: a constrained figure's cursor is the test's to script (H6). */
+const gateway = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock('../../layer-order/host/hostEngineGateway', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../layer-order/host/hostEngineGateway')>()),
+  openLayerOrderSolutionCursor: (...args: unknown[]) => gateway.open(...args),
+}));
 import { DEFAULT_PAPER_STYLE, applyCreaseStyle } from '../../lib/paper/paperStyle';
 import type {
   OristudioCpFoldedFigureEntry,
@@ -9,8 +23,11 @@ import type {
 import {
   buildFoldedFigureActions,
   foldedFigureFlipState,
+  foldedFigureHeaderCommands,
   foldedFigureStyleGroup,
   isFoldedFigureReady,
+  layerOrderCommand,
+  previousSolutionCommand,
   type FoldedFigureAction,
   type FoldedFigureActionDeps,
   type FoldedFigureChoice,
@@ -19,6 +36,10 @@ import {
   type FoldedFigureStyleItem,
   type FoldedFigureToggleOption,
 } from './foldedFigureActions';
+import { foldedFigureNotice } from './foldedFigureNotice';
+import { foldedFigureLayerOrder } from '../../lib/layerOrder/foldedFigureLayerOrder';
+import type { LayerOrderAttention } from '../../lib/layerOrder/layerOrderRecord';
+import { twoConstraintRecord } from '../../lib/layerOrder/layerOrderRecord.fixtures';
 
 // The builder only ever calls t(key, defaultValue); return the default so the
 // assertions read as the English UI.
@@ -451,6 +472,465 @@ describe('the solution verb is the same verb on either kind of figure', () => {
     });
     // Nowhere to go: wrapping a one-solution fold lands where it started.
     expect(at(4).disabled).toBe(true);
+  });
+});
+
+describe('Layer order…, the dialog’s entry on a figure (H3)', () => {
+  /** A flat figure whose fold found its layer orders, as the kernel says once solved. */
+  const solved = (overrides: Partial<OristudioCpFoldedFigureEntry> = {}) =>
+    makeFigure({
+      snapshot: {
+        model: { state: 'Front0' },
+        display_style: 'Paper5',
+        outcome: 'Solved',
+        find_another_overlap_valid: true,
+        discovered_fold_cases: 3,
+        current_fold_case: 2,
+      },
+      sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      ...overrides,
+    } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+  const held = () => {
+    const made = foldedFigureLayerOrder(twoConstraintRecord());
+    if (!made.ok) throw new Error('the fixture record encodes');
+    return made.layerOrder;
+  };
+  const withLayerOrder = (overrides: Partial<FoldedFigureActionDeps> = {}) =>
+    makeDeps({ openLayerOrder: vi.fn(), ...overrides });
+
+  it('is absent where the surface offers no way to open the dialog', () => {
+    expect(commandIds(solved(), makeDeps())).not.toContain('layer-order');
+    expect(layerOrderCommand(solved(), { t })).toBeNull();
+  });
+
+  it('sits right after Another solution, as a word, and opens the dialog on the figure', () => {
+    const deps = withLayerOrder({ refold: vi.fn(), isStale: () => false });
+    const figure = solved();
+    expect(commandIds(figure, deps)).toEqual(['flip', 'another', 'layer-order', 'duplicate', 'delete']);
+    const entry = command(figure, deps, 'layer-order');
+    expect(entry).toMatchObject({ label: 'Layer order…', icon: 'layer-order', disabled: false });
+    expect(entry.hint).toBeUndefined();
+    entry.run();
+    expect(deps.openLayerOrder).toHaveBeenCalledWith(figure);
+  });
+
+  it('stays enabled on a figure reopened from a file, with no live fold: the press folds it first', () => {
+    expect(command(solved({ handle: null }), withLayerOrder(), 'layer-order').disabled).toBe(false);
+  });
+
+  // Every reason is read from the figure as saved: no engine, no kernel.
+  it.each([
+    ['a 3D figure (D13)', make3dFigure(), 'Layer order works on flat figures'],
+    [
+      'a fold that found no layer order (D3)',
+      solved({
+        snapshot: {
+          model: { state: 'Front0' },
+          display_style: 'Transparent3',
+          outcome: 'NoSolutions',
+          find_another_overlap_valid: false,
+          discovered_fold_cases: 0,
+        },
+      } as unknown as Partial<OristudioCpFoldedFigureEntry>),
+      'Layer order couldn’t be determined for this figure.',
+    ],
+    [
+      'a newer build’s record',
+      solved({ layerOrder: { kind: 'newer', saved: { figureKey: 'fk9:x', record: '{"v":2}' } } }),
+      'Made with a newer Ori Studio: its layer constraints can’t be changed here.',
+    ],
+    [
+      'no live fold and no source creases to fold again',
+      solved({ handle: null, sourceBounds: null }),
+      'This folded model has no source creases to work from',
+    ],
+  ])('is held on %s, saying why', (_what, figure, hint) => {
+    expect(command(figure, withLayerOrder(), 'layer-order')).toMatchObject({ disabled: true, hint });
+  });
+
+  it('opens on a figure whose creases changed since the fold, constrained or not: on them as they are now (D12)', () => {
+    const deps = withLayerOrder({ refold: vi.fn(), isStale: () => true });
+    for (const figure of [solved(), solved({ layerOrder: held() })]) {
+      const entry = command(figure, deps, 'layer-order');
+      expect(entry.disabled).toBe(false);
+      expect(entry.hint).toBeUndefined();
+    }
+  });
+
+  it('refolds a figure that carries this build’s layer order, and holds Refold only on a newer build’s (H4)', () => {
+    const deps = withLayerOrder({ refold: vi.fn(), isStale: () => true });
+    for (const figure of [solved(), solved({ layerOrder: held() }), { ...make3dFigure(), layerOrder: held() }]) {
+      const refold = command(figure, deps, 'refold');
+      expect(refold.disabled).toBe(false);
+      expect(refold.hint).toBeUndefined();
+      refold.run();
+      expect(deps.refold).toHaveBeenLastCalledWith(figure);
+    }
+    const newer = solved({ layerOrder: { kind: 'newer', saved: {} } });
+    expect(command(newer, deps, 'refold')).toMatchObject({
+      disabled: true,
+      hint: 'Made with a newer Ori Studio: its layer constraints can’t be changed here.',
+    });
+  });
+
+  describe('constraints that need attention since an edit (D10, D14)', () => {
+    // Identity `t` with English plurals and interpolation.
+    const tp = ((_key: string, fallback: string | Record<string, unknown>, options?: Record<string, unknown>) => {
+      const values = typeof fallback === 'string' ? options : fallback;
+      const text =
+        typeof fallback === 'string'
+          ? fallback
+          : String((values?.count === 1 ? values.defaultValue_one : values?.defaultValue_other) ?? '');
+      return text.replace(/\{\{(\w+)\}\}/gu, (_match, name: string) => String(values?.[name] ?? ''));
+    }) as unknown as TFunction;
+    const flagged = (attention: LayerOrderAttention, constraints = twoConstraintRecord().constraints) => {
+      const made = foldedFigureLayerOrder(twoConstraintRecord({ constraints, attention }));
+      if (!made.ok) throw new Error('the fixture record encodes');
+      return solved({ layerOrder: made.layerOrder });
+    };
+
+    it('leads the toolbar and the menu with the flag, how many in its sentence, and Review…, which opens the dialog', () => {
+      const runNoticeAction = vi.fn();
+      const figure = flagged({ reason: 'conflict', count: 2 });
+      const actions = buildFoldedFigureActions(figure, withLayerOrder({ t: tp, runNoticeAction }));
+      const [note, separator] = actions;
+      expect(note).toMatchObject({
+        kind: 'note',
+        id: 'notice',
+        icon: 'notice-warn',
+        notice: {
+          id: 'layer-order-attention',
+          tone: 'warn',
+          label: 'Needs attention',
+          detail: '2 layer constraints need attention since the creases changed.',
+          action: { id: 'review-layer-order', label: 'Review…', lineIds: [] },
+        },
+      });
+      expect(separator).toEqual({ kind: 'separator', id: 'after-notice' });
+      if (note?.kind !== 'note') throw new Error('no notice');
+      // The chip's label fits it (16 characters, as the board caps it).
+      expect(note.notice.label.length).toBeLessThanOrEqual(16);
+      note.run?.();
+      expect(runNoticeAction).toHaveBeenCalledWith(figure, note.notice);
+    });
+
+    it('says a check that ran out of time, and an order chosen with no constraint, in their own words', () => {
+      const timedOut = foldedFigureNotice(tp, flagged({ reason: 'timeout', count: 1 }));
+      expect(timedOut).toMatchObject({ label: 'Needs attention', detail: '1 layer constraint couldn’t be checked in time.' });
+      const chosen = flagged({ reason: 'timeout', count: 0 }, []);
+      expect(foldedFigureNotice(tp, chosen)).toMatchObject({
+        label: 'Needs attention',
+        detail: 'This figure’s chosen layer order couldn’t be checked in time.',
+      });
+      // ‹ › point at the order itself: there is no constraint to review.
+      expect(command(chosen, withLayerOrder(), 'another')).toMatchObject({
+        disabled: true,
+        hint: 'Review the chosen layer order first',
+      });
+    });
+
+    it('says a record a reload detached isn’t applied, with Review…, from saved data alone', () => {
+      const runNoticeAction = vi.fn();
+      const plain = solved();
+      const detached = { ...plain, detachedLayerOrder: { record: twoConstraintRecord(), json: '{}' } };
+      const [note] = buildFoldedFigureActions(detached, withLayerOrder({ t: tp, runNoticeAction }));
+      expect(note).toMatchObject({
+        kind: 'note',
+        notice: {
+          id: 'layer-order-attention',
+          label: 'Not applied',
+          detail: 'An older Ori Studio refolded this figure, so its 2 layer constraints aren’t applied.',
+          action: { id: 'review-layer-order', label: 'Review…' },
+        },
+      });
+      // Never its own record: Another solution steps Oriedita's search as before.
+      expect(command(detached, withLayerOrder(), 'another').disabled).toBe(false);
+      // Refolded here since, from other creases: still shown, as the figure's flag.
+      expect(foldedFigureNotice(tp, { ...detached, sourceFingerprint: 'cs1:another' })).toMatchObject({ label: 'Not applied' });
+      // Taken up by an Apply, or let go with Dismiss: nothing to show.
+      for (const settled of ['reattached', 'dismissed'] as const) {
+        expect(foldedFigureNotice(tp, { ...detached, detachedLayerOrder: { ...detached.detachedLayerOrder, settled } })).toBeNull();
+      }
+    });
+
+    it('flags a 3D figure whose creases fold flat again and whose record a refold could not draw: Layer order… opens', () => {
+      const made = foldedFigureLayerOrder(twoConstraintRecord({ attention: { reason: 'conflict', count: 2 } }));
+      if (!made.ok) throw new Error('the fixture record encodes');
+      const figure = { ...make3dFigure(), sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 }, layerOrder: made.layerOrder };
+      expect(foldedFigureNotice(tp, figure)).toMatchObject({ id: 'layer-order-attention', label: 'Needs attention' });
+      expect(command(figure, withLayerOrder({ t: tp }), 'layer-order')).toMatchObject({ disabled: false });
+      expect(command(figure, withLayerOrder({ t: tp }), 'another')).toMatchObject({
+        disabled: true,
+        hint: 'Review the layer constraints that need attention first',
+      });
+    });
+
+    it('says on a 3D figure that its constraints are kept for when it folds flat again (D13)', () => {
+      const waiting = foldedFigureLayerOrder(twoConstraintRecord({ attention: { reason: 'route-3d', count: 2 } }));
+      if (!waiting.ok) throw new Error('the fixture record encodes');
+      expect(command({ ...make3dFigure(), layerOrder: waiting.layerOrder }, withLayerOrder({ t: tp }), 'layer-order')).toMatchObject({
+        disabled: true,
+        hint: 'Layer order works on flat figures. Its 2 layer constraints are kept for when it folds flat again.',
+      });
+    });
+
+    it('says nothing on a figure whose record needs nothing, nor on a 3D one whose record waits (D13)', () => {
+      expect(foldedFigureNotice(tp, solved({ layerOrder: held() }))).toBeNull();
+      const waiting = foldedFigureLayerOrder(twoConstraintRecord({ attention: { reason: 'route-3d', count: 2 } }));
+      if (!waiting.ok) throw new Error('the fixture record encodes');
+      expect(foldedFigureNotice(tp, { ...make3dFigure(), layerOrder: waiting.layerOrder })).toBeNull();
+    });
+
+    it('holds Another solution and ‹ until they are reviewed', () => {
+      const figure = flagged({ reason: 'unresolved', count: 1 });
+      const hint = 'Review the layer constraints that need attention first';
+      expect(command(figure, withLayerOrder(), 'another')).toMatchObject({ disabled: true, hint });
+      expect(previousSolutionCommand(figure, { t, foldPrevious: vi.fn() })).toMatchObject({ disabled: true, hint });
+      // Layer order… itself stays open: it is where they are reviewed.
+      expect(command(figure, withLayerOrder({ isStale: () => true }), 'layer-order').disabled).toBe(false);
+    });
+  });
+
+  it('waits with no reason while the figure folds or after it failed, as every verb waits', () => {
+    for (const status of ['loading', 'error', 'stale'] as const) {
+      const entry = command(solved({ status }), withLayerOrder(), 'layer-order');
+      expect(entry.disabled, status).toBe(true);
+      expect(entry.hint, status).toBeUndefined();
+    }
+    // The first fold, with nothing folded yet.
+    expect(command(solved({ snapshot: null }), withLayerOrder(), 'layer-order').disabled).toBe(true);
+  });
+
+  describe('Another solution and ‹ within the constraints (H6, D9)', () => {
+    afterEach(() => {
+      dropFoldedSolutionCursor();
+      gateway.open.mockReset();
+    });
+
+    /** Edit's table holding a cursor for `figure` at `index` of `n`, as a press that found its end leaves it. */
+    /** A press landed the figure on `index` of `n`. */
+    async function at(figure: OristudioCpFoldedFigureEntry, index: number, n: number, exact = true) {
+      gateway.open.mockReturnValueOnce(scriptedSolutionCursor([landedAt(twoConstraintRecord(), index, n, { exact })]));
+      await seatFoldedSolutionCursor(figure, twoConstraintRecord());
+    }
+
+    it('steps on with no cursor yet, as saved data allows, never wrapping round', () => {
+      const deps = withLayerOrder();
+      const constrained = solved({ layerOrder: held() });
+      const another = command(constrained, deps, 'another');
+      expect(another).toMatchObject({ label: 'Another solution', icon: 'another', disabled: false });
+      expect(another.hint).toBeUndefined();
+      another.run();
+      expect(deps.foldAnother).toHaveBeenCalledWith(constrained);
+      const foldPrevious = vi.fn();
+      const previous = previousSolutionCommand(constrained, { t, foldPrevious });
+      expect(previous).toMatchObject({ label: 'Previous solution', icon: 'previous', disabled: false });
+      previous.run();
+      expect(foldPrevious).toHaveBeenCalledWith(constrained);
+      // At the end of Oriedita's lap, or on its first case: neither is the record's.
+      const last = solved({
+        layerOrder: held(),
+        snapshot: {
+          model: { state: 'Front0' },
+          display_style: 'Paper5',
+          outcome: 'Solved',
+          find_another_overlap_valid: false,
+          discovered_fold_cases: 1,
+          current_fold_case: 1,
+          shown_order: 'given',
+        },
+      } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+      expect(command(last, deps, 'another')).toMatchObject({ label: 'Another solution', disabled: false });
+      expect(previousSolutionCommand(last, { t, foldPrevious }).disabled).toBe(false);
+      // Reopened from a file: the press folds it as it steps.
+      expect(command(solved({ layerOrder: held(), handle: null }), deps, 'another').disabled).toBe(false);
+      // Nothing was asked of the engine to say so.
+      expect(gateway.open).not.toHaveBeenCalled();
+    });
+
+    it('waits at each end of the solutions that fit once a press has found where it stands', async () => {
+      const constrained = solved({ layerOrder: held() });
+      const deps = withLayerOrder();
+      const previous = () => previousSolutionCommand(constrained, { t, foldPrevious: vi.fn() });
+      const next = () => command(constrained, deps, 'another');
+
+      await at(constrained, 1, 3);
+      expect(previous()).toMatchObject({ disabled: true, hint: 'This is its first solution' });
+      expect(next().disabled).toBe(false);
+
+      await at(constrained, 2, 3);
+      expect(previous().disabled).toBe(false);
+      expect(next().disabled).toBe(false);
+
+      await at(constrained, 3, 3);
+      expect(next()).toMatchObject({ disabled: true, hint: 'This is its last solution' });
+      // Not the end while the count may find more.
+      await at(constrained, 3, 3, false);
+      expect(next().disabled).toBe(false);
+
+      await at(constrained, 1, 1);
+      expect(next()).toMatchObject({ disabled: true, hint: 'This figure has one solution' });
+      expect(previous().disabled).toBe(true);
+    });
+
+    it('waits where a › found nothing, an end proved before the count is final (E9)', async () => {
+      const constrained = solved({ layerOrder: held() });
+      gateway.open.mockReturnValueOnce(
+        scriptedSolutionCursor([{ outcome: 'end', position: solutionPosition(3, 3, false), counted: true }])
+      );
+      await seatFoldedSolutionCursor(constrained, twoConstraintRecord());
+      expect(command(constrained, withLayerOrder(), 'another')).toMatchObject({
+        disabled: true,
+        hint: 'This is its last solution',
+      });
+      // Only that way: ‹ still steps back.
+      expect(previousSolutionCommand(constrained, { t, foldPrevious: vi.fn() }).disabled).toBe(false);
+    });
+
+    it('reads the place only for the figure, the fold and the record it was found on', async () => {
+      const constrained = solved({ layerOrder: held() });
+      await at(constrained, 1, 3);
+      const previousOf = (figure: OristudioCpFoldedFigureEntry) =>
+        previousSolutionCommand(figure, { t, foldPrevious: vi.fn() }).disabled;
+      expect(previousOf(constrained)).toBe(true);
+      // Another fold (an undo put the old one back), another record, turned over, X-ray on.
+      expect(previousOf({ ...constrained, handle: 99 })).toBe(false);
+      const other = foldedFigureLayerOrder(twoConstraintRecord({ constraints: [[0, 1, 1]] }));
+      if (!other.ok) throw new Error('the fixture record encodes');
+      expect(previousOf({ ...constrained, layerOrder: other.layerOrder })).toBe(false);
+      const back = { ...constrained, snapshot: { ...constrained.snapshot!, model: { ...constrained.snapshot!.model, state: 'Back1' } } };
+      expect(previousOf(back as OristudioCpFoldedFigureEntry)).toBe(false);
+      expect(previousOf({ ...constrained, displayStyle: 'Transparent3' })).toBe(false);
+    });
+
+    it('waits as Layer order… does: while it folds, on a stale figure, and on a newer build’s order', () => {
+      expect(command(solved({ layerOrder: held(), status: 'loading' }), withLayerOrder(), 'another')).toMatchObject({
+        disabled: true,
+      });
+      expect(command(solved({ layerOrder: held() }), withLayerOrder({ isStale: () => true }), 'another')).toMatchObject({
+        disabled: true,
+        hint: 'Its creases changed since it was folded',
+      });
+      const why = 'Made with a newer Ori Studio: its layer constraints can’t be changed here.';
+      const newer = solved({ layerOrder: { kind: 'newer', saved: {} } });
+      expect(command(newer, withLayerOrder(), 'another')).toMatchObject({ disabled: true, hint: why });
+      expect(previousSolutionCommand(newer, { t, foldPrevious: vi.fn() })).toMatchObject({ disabled: true, hint: why });
+    });
+
+    it('waits on a figure whose constraints need a look since an edit, until they are reviewed (D10, D14)', () => {
+      const why = 'Review the layer constraints that need attention first';
+      for (const reason of ['conflict', 'unresolved'] as const) {
+        const flagged = foldedFigureLayerOrder(twoConstraintRecord({ attention: { reason, count: 1 } }));
+        if (!flagged.ok) throw new Error('the fixture record encodes');
+        const figure = solved({ layerOrder: flagged.layerOrder });
+        expect(command(figure, withLayerOrder(), 'another'), reason).toMatchObject({ disabled: true, hint: why });
+        expect(previousSolutionCommand(figure, { t, foldPrevious: vi.fn() }), reason).toMatchObject({ disabled: true, hint: why });
+      }
+      // An order chosen with no constraint has the order itself to review (D16).
+      const chosen = foldedFigureLayerOrder(twoConstraintRecord({ constraints: [], attention: { reason: 'unresolved', count: 0 } }));
+      if (!chosen.ok) throw new Error('the fixture record encodes');
+      expect(command(solved({ layerOrder: chosen.layerOrder }), withLayerOrder(), 'another')).toMatchObject({
+        disabled: true,
+        hint: 'Review the chosen layer order first',
+      });
+    });
+  });
+
+  it('leaves Another solution and ‹ exactly as they were on an unconstrained figure', () => {
+    const plain = solved();
+    const { run: _with, ...withEntry } = command(plain, withLayerOrder(), 'another');
+    const { run: _without, ...withoutEntry } = command(plain, makeDeps(), 'another');
+    expect(withEntry).toEqual(withoutEntry);
+    expect(command(plain, withLayerOrder(), 'another')).toMatchObject({ disabled: false });
+    expect(command(plain, withLayerOrder(), 'another').hint).toBeUndefined();
+    expect(previousSolutionCommand(plain, { t, foldPrevious: vi.fn() })).toMatchObject({ disabled: false });
+  });
+
+  it('leaves a 3D figure’s Another solution as it was, whatever record waits on it', () => {
+    const spatial = { ...make3dFigure(), layerOrder: held() };
+    const plain = make3dFigure();
+    const deps = withLayerOrder();
+    expect(command(spatial, deps, 'another').disabled).toBe(command(plain, deps, 'another').disabled);
+    expect(command(spatial, deps, 'another').hint).toBe(command(plain, deps, 'another').hint);
+  });
+});
+
+describe('previousSolutionCommand, the Properties pane’s ‹', () => {
+  const deps = () => ({ t, foldPrevious: vi.fn() });
+  const at = (current: number) =>
+    makeFigure({
+      snapshot: {
+        model: { state: 'Front0' },
+        find_another_overlap_valid: true,
+        discovered_fold_cases: 3,
+        current_fold_case: current,
+      },
+    } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+
+  it('goes back from any but the first solution of a flat figure', () => {
+    const d = deps();
+    const figure = at(2);
+    const previous = previousSolutionCommand(figure, d);
+    expect(previous).toMatchObject({ id: 'previous', label: 'Previous solution', disabled: false });
+    expect(previous.hint).toBeUndefined();
+    previous.run();
+    expect(d.foldPrevious).toHaveBeenCalledWith(figure);
+  });
+
+  it('stops at the first, saying so', () => {
+    expect(previousSolutionCommand(at(1), deps())).toMatchObject({
+      disabled: true,
+      hint: 'This is its first solution',
+    });
+  });
+
+  it('is held on a 3D figure, which has no numbered solutions to go back to', () => {
+    const spatial = makeFigure({
+      snapshot: null,
+      folded3d: {
+        model: { state: 'Front0' },
+        verdict: { verdict: 'folded' },
+        find_another_overlap_valid: true,
+        discovered_fold_cases: 3,
+        current_fold_case: 3,
+      },
+    } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+    expect(previousSolutionCommand(spatial, deps())).toMatchObject({
+      disabled: true,
+      hint: 'Stepping back works on flat figures',
+    });
+  });
+
+  it('waits for the figure to be ready, as every kernel-backed verb does', () => {
+    expect(previousSolutionCommand(makeFigure({ status: 'loading' }), deps()).disabled).toBe(true);
+  });
+});
+
+describe('the header verbs', () => {
+  it('are Export…, Duplicate and Delete, the toolbar’s last group, routed to the same deps', () => {
+    const exportFigure = vi.fn();
+    const d = makeDeps({ exportFigure });
+    const figure = makeFigure();
+    const header = foldedFigureHeaderCommands(figure, d);
+    expect(header.map((item) => item.label)).toEqual(['Export…', 'Duplicate', 'Delete']);
+    const toolbar = buildFoldedFigureActions(figure, d).filter(
+      (item): item is FoldedFigureCommand =>
+        item.kind === 'command' && ['export', 'duplicate', 'delete'].includes(item.id)
+    );
+    expect(toolbar.map(({ id, label, icon, disabled }) => ({ id, label, icon, disabled }))).toEqual(
+      header.map(({ id, label, icon, disabled }) => ({ id, label, icon, disabled }))
+    );
+    for (const item of header) item.run();
+    expect(exportFigure).toHaveBeenCalledWith(figure);
+    expect(d.duplicate).toHaveBeenCalledWith(figure);
+    expect(d.remove).toHaveBeenCalledWith(figure);
+  });
+
+  it('leave Export… out where the surface cannot export', () => {
+    expect(foldedFigureHeaderCommands(makeFigure(), makeDeps()).map((item) => item.id)).toEqual([
+      'duplicate',
+      'delete',
+    ]);
   });
 });
 

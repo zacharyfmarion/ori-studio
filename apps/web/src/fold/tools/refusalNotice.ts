@@ -337,6 +337,7 @@ function words(t: TFunction, refused: FoldRefused, context: FoldRefusalContext):
     case 'import_order_broken':
     case 'import_figure_incomplete':
     case 'fold_export_too_large':
+    case 'import_layer_unavailable':
       return {
         title: t('tools:fold.refusal.unsupported.title', 'This step cannot be folded'),
         text: t('tools:fold.refusal.unsupported.text', 'This version of Ori Studio cannot fold it as it is stored.'),

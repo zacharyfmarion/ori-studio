@@ -1,52 +1,31 @@
+import { useTranslation } from 'react-i18next';
 import { useFoldPaperRenderer } from '../../../fold/canvas/useFoldPaperRenderer';
 import type { FoldLiveRenderer } from '../../../fold/canvas/foldRenderProtocol';
 import { FOLD_PANE_DISPLAY_DEFAULT, type FoldPaneDisplay } from '../../../fold/canvas/foldPaneScenes';
+import type { FoldRevealGesture } from '../../../fold/canvas/useFoldReveal';
 import { FoldPaperBitmap } from './FoldPaperBitmap';
 import { PoseLoading } from '../../diagram/PoseLoading';
 import { ViewportStatusReadout } from '../../ui/ViewportStatusReadout';
-import { useTranslation } from 'react-i18next';
-import type { FoldRevealGesture } from '../../../fold/canvas/useFoldReveal';
-import { forwardRef, useCallback, useLayoutEffect, useRef, useEffect, useImperativeHandle, useMemo, useState, type ReactNode } from 'react';
-import { CpRendererUnavailable } from '../../../cp-workspace/CpRendererUnavailable';
+import { forwardRef, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import type { CpOverlayView } from '../../../cp-workspace/CreasePatternWebglCanvas';
-import { cpCanvasCursor } from '../../../cp-workspace/cpCanvasCursor';
-import {
-  paperSceneToFoldedGeometry,
-  type FoldedSceneInk,
-} from '../../../cp-workspace/adapters/cpFoldedToScene';
-import { concatStrokes } from '../../../cp-workspace/references/referencesViewGeometry';
+import type { FoldedSceneInk } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import type { UserBounds } from '../../../cp-workspace/renderer/camera';
-import type { FillGeometry, FoldedGeometry, StrokeGeometry } from '../../../cp-workspace/renderer/types';
-import { useCpSurface, type CpSurfaceControls, type CpSurfaceInset } from '../../../cp-workspace/surface/useCpSurface';
+import type { FillGeometry } from '../../../cp-workspace/renderer/types';
+import { PaperPane } from '../../../cp-workspace/surface/PaperPane';
+import type { CpSurfaceControls, CpSurfaceInset } from '../../../cp-workspace/surface/useCpSurface';
 import type { PaperScene } from '../../../lib/paper/paperScene';
 import type { PaperStyle } from '../../../lib/paper/paperStyle';
-import { ptToDevicePx } from '../../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES } from '../../../lib/paper/paperStyleResolve';
 import {
   foldPaneStrokeWidthPx,
   type FoldCreasePatternStrokes,
 } from '../../../fold/canvas/useFoldCreasePatternStrokes';
 import type { WheelGesturePreference } from '../../../lib/wheelGesture';
-import { syncHeldModifiersFromEvent } from '../../../keyboard/heldModifiers';
 import { FOLD_UNITS_PER_CP_UNIT, foldUnitToUser } from '../../../fold/canvas/foldCanvasGeometry';
-import { joinFills, type FoldPaneOverlay } from '../../../fold/canvas/foldPaneOverlays';
+import type { FoldPaneOverlay } from '../../../fold/canvas/foldPaneOverlays';
 import { sameFoldHit, type FoldHit, type FoldHitRadii, type FoldPaneId } from '../../../fold/canvas/foldPicking';
+import { FOLD_PANE_ATTRIBUTE } from '../../../fold/canvas/useFoldCanvasShortcuts';
 import type { Point } from '../../../lib/geometry';
-import styles from './FoldCanvas.module.css';
-import paneStyles from './FoldPane.module.css';
-
-const EMPTY_STROKES: StrokeGeometry = {
-  a: new Float32Array(0),
-  b: new Float32Array(0),
-  color: new Float32Array(0),
-  widthMul: new Float32Array(0),
-  count: 0,
-};
-
-const EMPTY_FOLDED: FoldedGeometry = {
-  fills: { position: new Float32Array(0), color: new Float32Array(0), count: 0 },
-  strokes: EMPTY_STROKES,
-};
 
 const ORIGIN: Point = { x: 0, y: 0 };
 
@@ -115,48 +94,40 @@ export interface FoldPaneProps {
   ariaLabel: string;
 }
 
+/** A click takes what it hits, and bare paper takes nothing. */
+const takesPick = (hit: FoldHit) => hit.pick != null;
+
 /**
- * One pane of the Fold canvas (plan D13): a WebGL canvas on `useCpSurface`
- * — the renderer's lifecycle, the camera, pan, pinch and wheel, a click told
- * from a drag, the hover probe — with the tool's feedback on the overlay
- * channels.
+ * One pane of the Fold canvas (plan D13): a `PaperPane` in Fold's frame and
+ * Fold's units, with the tool's feedback on its overlay channels.
  *
  * Both panes are this component, and differ in what they are handed: the
  * folded form is a paper scene, painted through the shared painter on the
- * folded channel in the user's paper style (D11); the crease pattern is drawn
+ * folded channel in the user's paper style (D11), read as a step diagram (the
+ * `fold` policy) unless the canvas says otherwise; the crease pattern is drawn
  * as Edit's canvas draws one — its creases on the crease channel in Edit's
- * inks, on the canvas's own ground (`creases`). It publishes into no store
- * and registers no singleton; the canvas that mounts it holds the camera
- * verbs through the handle.
+ * inks, on the canvas's own ground (`creases`).
+ *
+ * What is Fold's here: the frame (`foldUnitToUser`, at the folded pane's
+ * display offset), hit radii in sheet units (`FOLD_UNITS_PER_CP_UNIT`),
+ * `FoldHit` and its identity, and the pane's marker (`data-fold-pane`), where
+ * Enter is the canvas's. It publishes into no store and registers no
+ * singleton; the canvas that mounts it holds the camera verbs through the
+ * handle.
  */
 export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function FoldPane(props, ref) {
-  const {
-    pane,
-    scene,
-    style,
-    ink = FOLD_INK,
-    creases = null,
-    tint = null,
-    offset,
-    contentBounds,
-    framingKey,
-    keepInViewKey = null,
-    keepInViewBounds = null,
-    inset = null,
-    wheelGesture,
-    snapRadius,
-    hitTest,
-    onPick,
-    overlay,
-    onHover,
-    inkKey,
-    onZoomPercentChange,
-    onActivate,
-    layers,
-    ariaLabel,
-  } = props;
+  const { pane, scene, style, ink = FOLD_INK, creases = null, tint = null, offset, inkKey,
+    spreadRenderer, spreadDisplay, preparing, revealGesture, ...surface } = props;
   const { t } = useTranslation();
-  const [view, setView] = useState<CpOverlayView | null>(null);
+  const redraw = useRef<() => void>(() => undefined);
+  const afterPaint = useCallback(() => redraw.current(), []);
+  const registerRedraw = useCallback((render: () => void) => {
+    redraw.current = render;
+    return () => { redraw.current = () => undefined; };
+  }, []);
+  const paper = useFoldPaperRenderer(spreadRenderer ?? null, spreadDisplay ?? FOLD_PANE_DISPLAY_DEFAULT,
+    offset ?? ORIGIN, style, ink, afterPaint);
+  const blocked = preparing || (!!spreadRenderer && paper.status === 'preparing');
   const dx = offset?.x ?? 0;
   const dy = offset?.y ?? 0;
   const modelToSvg = useMemo(
@@ -164,129 +135,38 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
     [dx, dy]
   );
 
-  const redraw = useRef<() => void>(() => undefined);
-  const afterPaint = useCallback(() => redraw.current(), []);
-  const paper = useFoldPaperRenderer(props.spreadRenderer ?? null, props.spreadDisplay ?? FOLD_PANE_DISPLAY_DEFAULT,
-    offset ?? ORIGIN, style, ink, afterPaint);
-  const { canvasRef, rendererRef, rendererGeneration, rendererStatus, hovered, dragging, render, controls } =
-    useCpSurface<FoldHit>({
-      modelToSvg,
-      alpha: true,
-      transparent: !!props.spreadRenderer,
-      onPaperFrame: paper.onFrame,
-      presentedPaperFrame: paper.presentedFrame,
-      contentBounds,
-      framingKey,
-      keepInViewKey,
-      keepInViewBounds,
-      inset,
-      wheelGesture,
-      snapRadius,
-      // The surface measures radii in Edit's units; the same share of a Fold sheet.
-      hitTest: (point, radii) =>
-        paper.canPick() ? hitTest(point, { point: radii.point * FOLD_UNITS_PER_CP_UNIT, line: radii.line * FOLD_UNITS_PER_CP_UNIT }) : null,
-      sameHit: sameFoldHit,
-      onPick,
-      strokeWidths: ({ ratio, widthBoost }) => ({
-        // A crease pattern's crease width, as Edit's canvas draws it; the edge pen's otherwise.
-        strokeWidthPx: foldPaneStrokeWidthPx(creases, { ratio, widthBoost }),
-        // A stroke multiplier on the folded channel is pt: device px per pt
-        // is the unit, as Edit's canvas draws its figures.
-        foldedStrokeWidthPx: ptToDevicePx(1, ratio),
-      }),
-      onViewChange: setView,
-      onZoomPercentChange,
-      errorSurface: `fold:${pane}-webgl`,
-    });
-
-  useLayoutEffect(() => { redraw.current = render; }, [render]);
-  useImperativeHandle(ref, () => controls, [controls]);
-
-  // The paper: the scene through the painter, in the user's style.
-  const geometry = useMemo(() => (scene ? paperSceneToFoldedGeometry(scene, style, ink) : EMPTY_FOLDED), [scene, style, ink]);
-  useEffect(() => {
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-    renderer.setFolded(geometry);
-    render();
-  }, [geometry, rendererGeneration, rendererRef, render]);
-
-  // A crease pattern, on Edit's crease channel.
-  const lines = creases?.creases ?? null;
-  useEffect(() => {
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-    renderer.setStrokes(lines ?? EMPTY_STROKES);
-    render();
-  }, [lines, rendererGeneration, rendererRef, render]);
-
-  // The tool's feedback, which follows the pointer, over a crease pattern's
-  // instruction: both are the preview channel's, the instruction first. The
-  // moving set over the paper, and a region the pointer would pick over that:
-  // the overlay fill channel draws above the folded channel, in the pane's frame.
-  const instruction = creases?.instruction ?? null;
-  const feedback = useMemo<FoldPaneOverlay>(() => overlay(hovered), [overlay, hovered]);
-  useEffect(() => {
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-    renderer.setDiagnosticFills(joinFills(tint, feedback.fills ?? null));
-    render();
-  }, [tint, feedback, rendererGeneration, rendererRef, render]);
-  useEffect(() => {
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-    renderer.setOverlayPoints(feedback.points);
-    renderer.setPreview(concatStrokes(instruction, feedback.strokes));
-    render();
-  }, [feedback, instruction, inkKey, rendererGeneration, rendererRef, render]);
-
-  useEffect(() => {
-    onHover?.(hovered);
-  }, [onHover, hovered]);
-
-  const preparing = props.preparing || (!!props.spreadRenderer && paper.status === 'preparing');
-  const cursor = cpCanvasCursor({
-    panToolActive: false,
-    panModifierHeld: false,
-    panDragging: dragging,
-    creaseHovered: hovered?.pick != null,
-  });
-
   return (
-    <div
-      className={styles.pane}
-      data-fold-pane={pane}
-      // The pane takes the focus a press would otherwise leave on a rail
-      // button, so Enter commits rather than pressing that button again.
-      tabIndex={-1}
-      // The keys held are read off every pointer event before the canvas
-      // hit-tests it, as Edit's canvas does on a move: a modifier whose
-      // key-up landed elsewhere — another window took it without a blur —
-      // would otherwise stay held, and Alt makes every click a free point.
-      onPointerMoveCapture={event => { if (!props.revealGesture?.move(event)) syncHeldModifiersFromEvent(event); }}
-      onPointerUpCapture={event => { if (!props.revealGesture?.end(event)) syncHeldModifiersFromEvent(event); }}
-      onPointerCancelCapture={event => { props.revealGesture?.end(event); }}
-      onPointerDownCapture={(event) => {
-        if (preparing) { event.stopPropagation(); event.preventDefault(); return; }
-        if (props.revealGesture?.down(event)) return;
-        syncHeldModifiersFromEvent(event);
-        onActivate?.();
-        if (document.activeElement !== event.currentTarget) event.currentTarget.focus({ preventScroll: true });
-      }}
-    >
-      {props.spreadRenderer && <FoldPaperBitmap canvasRef={paper.bitmapRef} />}
-      <canvas
-        ref={canvasRef}
-        className={`${styles.surface} ${paneStyles.overlay}`}
-        role="img"
-        aria-label={ariaLabel}
-        data-testid={`fold-${pane}-canvas`}
-        style={cursor ? { cursor } : undefined}
-      />
-      {view && layers?.(view)}
-      {preparing && <PoseLoading />}
-      {props.spreadRenderer && paper.status === 'error' && <ViewportStatusReadout>{t('panels:fold.spread.unavailable', 'Spread unavailable for this state')}</ViewportStatusReadout>}
-      {rendererStatus && <CpRendererUnavailable status={rendererStatus} />}
-    </div>
+    <PaperPane<FoldHit>
+      {...surface}
+      ref={ref}
+      gesture={revealGesture}
+      blocked={blocked}
+      externalPaper={spreadRenderer ? {
+        layer: <FoldPaperBitmap canvasRef={paper.bitmapRef} />,
+        onFrame: paper.onFrame, presentedFrame: paper.presentedFrame, registerRedraw,
+      } : undefined}
+      hitTest={(point, radii) => paper.canPick() ? surface.hitTest(point, radii) : null}
+      status={<>
+        {blocked && <PoseLoading />}
+        {spreadRenderer && paper.status === 'error' && <ViewportStatusReadout>{t('panels:fold.spread.unavailable', 'Spread unavailable for this state')}</ViewportStatusReadout>}
+      </>}
+      scene={scene}
+      // The painter reads the 3D figure's surface when none is named.
+      look={{ style, policy: ink.policy ?? PAPER_STYLE_POLICIES['folded-3d'], faceAlpha: ink.faceAlpha, faces: ink.faces }}
+      modelToSvg={modelToSvg}
+      creases={creases?.creases ?? null}
+      fills={tint}
+      // The crease pattern's instruction, under the tool's feedback.
+      strokes={creases?.instruction ?? null}
+      strokeWidthPx={(frame) => foldPaneStrokeWidthPx(creases, frame)}
+      radiusScale={FOLD_UNITS_PER_CP_UNIT}
+      sameHit={sameFoldHit}
+      isTarget={takesPick}
+      themeKey={inkKey}
+      testId={`fold-${pane}-canvas`}
+      // A press focuses the pane, and Enter there is the canvas's: it commits.
+      markers={{ [FOLD_PANE_ATTRIBUTE]: pane }}
+      errorSurface={`fold:${pane}-webgl`}
+    />
   );
 });

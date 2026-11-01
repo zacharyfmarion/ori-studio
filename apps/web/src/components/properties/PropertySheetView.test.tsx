@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ColorField, PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
+import { TooltipProvider } from '../ui/Tooltip';
 import { PropertySheetView } from './PropertySheetView';
 
 /**
@@ -18,7 +19,9 @@ let container: HTMLDivElement | null = null;
 function render(sheet: PropertySheet, onCommit = vi.fn()) {
   act(() => {
     root?.render(
-      <PropertySheetView sheet={sheet} surfaceProps={{ 'data-test-surface': '' }} onCommit={onCommit} />
+      <TooltipProvider>
+        <PropertySheetView sheet={sheet} surfaceProps={{ 'data-test-surface': '' }} onCommit={onCommit} />
+      </TooltipProvider>
     );
   });
   return onCommit;
@@ -78,10 +81,11 @@ afterEach(() => {
 describe('PropertySheetView', () => {
   it('shows the header and marks the surface', () => {
     render(sheetOf());
-    expect(container?.querySelector('.property-sheet')?.getAttribute('data-test-surface')).toBe('');
-    expect(container?.querySelector('.property-sheet__title')?.textContent).toBe('Thing');
-    expect(container?.querySelector('.property-sheet__subtitle')?.textContent).toBe('10 × 10');
-    expect(container?.querySelector('.property-sheet__icon svg')).not.toBeNull();
+    const sheet = container?.querySelector('[data-property-sheet]');
+    expect(sheet?.getAttribute('data-test-surface')).toBe('');
+    expect(sheet?.querySelector('header h2')?.textContent).toBe('Thing');
+    expect(sheet?.querySelector('[data-property-sheet-subtitle]')?.textContent).toBe('10 × 10');
+    expect(sheet?.querySelector('header svg')).not.toBeNull();
   });
 
   it('hides a not-applicable field and disables an unsupported one with its reason', () => {
@@ -109,6 +113,8 @@ describe('PropertySheetView', () => {
       )
     );
     expect(container?.querySelector('[aria-label="Gone"]')).toBeNull();
+    // The untitled section is the sheet's plain body, there while one row shows.
+    expect(container?.querySelector('[data-property-sheet-section] [data-field-row]')).not.toBeNull();
     const row = container?.querySelector('[data-field-row]');
     expect(row?.getAttribute('data-disabled')).toBe('true');
     expect(row?.getAttribute('title')).toBe('Refold first');
@@ -126,7 +132,7 @@ describe('PropertySheetView', () => {
         commit: vi.fn(),
       })
     );
-    expect(container?.querySelector('.property-sheet__section')).toBeNull();
+    expect(container?.querySelector('[data-property-sheet-section]')).toBeNull();
   });
 
   it('commits a toggle, a select and a segmented control once each, skipping a no-op', () => {
@@ -495,5 +501,204 @@ describe('PropertySheetView', () => {
     // Another surface holding the bracket still disables it.
     render(sheetOf(colour('moot', { resetWhileUnsupported: true, held: true })));
     expect(resetOf('moot')?.disabled).toBe(true);
+  });
+
+  it('puts the object’s verbs at the end of its header, and reports each press', () => {
+    const exportRun = vi.fn();
+    const deleteRun = vi.fn();
+    const onAction = vi.fn();
+    act(() => {
+      root?.render(
+        <TooltipProvider>
+          <PropertySheetView
+            sheet={{
+              ...sheetOf(),
+              actions: [
+                { id: 'export', label: 'Export…', icon: 'export', disabled: false, run: exportRun },
+                { id: 'delete', label: 'Delete', icon: 'delete', disabled: true, hint: 'Not now', run: deleteRun },
+              ],
+            }}
+            onAction={onAction}
+          />
+        </TooltipProvider>
+      );
+    });
+    const header = container?.querySelector('[data-property-sheet] header');
+    const verbs = [...(header?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    expect(verbs.map((verb) => verb.getAttribute('aria-label'))).toEqual(['Export…', 'Delete']);
+    expect(verbs[1]?.disabled).toBe(true);
+    act(() => verbs[0]?.click());
+    expect(exportRun).toHaveBeenCalledTimes(1);
+    expect(onAction).toHaveBeenCalledWith('export');
+    expect(deleteRun).not.toHaveBeenCalled();
+  });
+
+  it('lays a stacked choice across the row, under its label, and commits a change once', () => {
+    const commit = vi.fn();
+    const onCommit = render(
+      sheetOf({
+        id: 'displayStyle',
+        kind: 'segmented',
+        layout: 'stacked',
+        label: 'Render as',
+        support: 'supported',
+        options: [
+          { id: 'paper', label: 'Paper' },
+          { id: 'xray', label: 'X-ray' },
+        ],
+        protocol: 'discrete',
+        value: 'paper',
+        commit,
+      })
+    );
+    // Not a label-beside row: the label stands over the control.
+    expect(container?.querySelector('[data-field-row]')).toBeNull();
+    // Named by the label over it, once: no aria-label repeating it.
+    const group = [...(container?.querySelectorAll('[role="group"]') ?? [])].find(
+      (candidate) =>
+        document.getElementById(candidate.getAttribute('aria-labelledby') ?? '')?.textContent === 'Render as'
+    );
+    expect(group?.hasAttribute('aria-label')).toBe(false);
+    const options = [...(group?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    act(() => options.find((option) => option.textContent === 'Paper')?.click());
+    expect(commit).not.toHaveBeenCalled();
+    act(() => options.find((option) => option.textContent === 'X-ray')?.click());
+    expect(commit).toHaveBeenCalledWith('xray');
+    expect(onCommit.mock.calls).toEqual([['displayStyle']]);
+  });
+
+  it('steps with ‹ and ›, one commit per press, and does nothing for a refused verb', () => {
+    const previous = vi.fn();
+    const next = vi.fn();
+    const onCommit = render(
+      sheetOf({
+        id: 'layerOrder',
+        kind: 'stepper',
+        label: 'Layer order',
+        support: 'supported',
+        protocol: 'stepped',
+        readout: '1 of 5+',
+        previous: { label: 'Previous solution', disabled: true, hint: 'This is its first solution', run: previous },
+        next: { label: 'Another solution', disabled: false, run: next },
+      })
+    );
+    const row = container?.querySelector('[data-field-row]');
+    expect(row?.querySelector('[data-field-label]')?.textContent).toBe('Layer order');
+    // A group named by the row's label (said once), whose readout is announced as it changes.
+    const pager = row?.querySelector('[role="group"][aria-labelledby]');
+    expect(document.getElementById(pager?.getAttribute('aria-labelledby') ?? '')?.textContent).toBe('Layer order');
+    expect(pager?.hasAttribute('aria-label')).toBe(false);
+    const readout = pager?.querySelector('[aria-live="polite"]');
+    expect(readout?.textContent).toBe('1 of 5+');
+    expect(readout?.getAttribute('aria-atomic')).toBe('true');
+    const back = row?.querySelector<HTMLButtonElement>('button[aria-label="Previous solution"]');
+    expect(back?.getAttribute('aria-disabled')).toBe('true');
+    act(() => back?.click());
+    expect(previous).not.toHaveBeenCalled();
+    act(() => row?.querySelector<HTMLButtonElement>('button[aria-label="Another solution"]')?.click());
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(onCommit.mock.calls).toEqual([['layerOrder']]);
+  });
+
+  it('refuses both verbs of an unsupported stepper, and shows its note under the label', () => {
+    const next = vi.fn();
+    const onCommit = render(
+      sheetOf({
+        id: 'layerOrder',
+        kind: 'stepper',
+        label: 'Layer order',
+        support: 'unsupported',
+        reason: 'Couldn’t be determined',
+        note: { kind: 'reason', text: 'Couldn’t be determined.' },
+        protocol: 'stepped',
+        readout: 'None',
+        previous: { label: 'Previous solution', disabled: false, run: vi.fn() },
+        next: { label: 'Another solution', disabled: false, run: next },
+        action: { label: 'Edit…', disabled: false, run: vi.fn() },
+      })
+    );
+    const row = container?.querySelector('[data-field-row]');
+    expect(row?.getAttribute('data-disabled')).toBe('true');
+    expect(row?.querySelector('[data-field-note="reason"]')?.textContent).toBe('Couldn’t be determined.');
+    const verbs = [...(row?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    expect(verbs.map((verb) => verb.getAttribute('aria-disabled'))).toEqual(['true', 'true', 'true']);
+    act(() => verbs[1]?.click());
+    expect(next).not.toHaveBeenCalled();
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('puts a quiet status under the label, the row’s button after the pager, and leaves out a verb it lacks', () => {
+    const edit = vi.fn();
+    const onCommit = render(
+      sheetOf({
+        id: 'layerOrder',
+        kind: 'stepper',
+        label: 'Layer order',
+        support: 'supported',
+        note: { kind: 'status', text: '3 constraints' },
+        protocol: 'stepped',
+        readout: '1 of 3',
+        next: { label: 'Another solution', disabled: false, run: vi.fn() },
+        action: { label: 'Edit…', disabled: false, run: edit },
+      })
+    );
+    const row = container?.querySelector('[data-field-row]');
+    expect(row?.querySelector('[data-field-note="status"]')?.textContent).toBe('3 constraints');
+    const buttons = [...(row?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    // No ‹: its place is empty. The button comes last.
+    expect(buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual([
+      'Another solution',
+      'Edit…',
+    ]);
+    act(() => buttons[1]?.click());
+    expect(edit).toHaveBeenCalledTimes(1);
+    // It opens what it opens; it changes nothing on the figure.
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('draws a warning subtitle, and a section’s notice after its rows with the fix it offers', () => {
+    const review = vi.fn();
+    const field: PropertyField = {
+      id: 'layerOrder',
+      kind: 'stepper',
+      label: 'Layer order',
+      support: 'supported',
+      protocol: 'stepped',
+      readout: '',
+    };
+    const onCommit = render({
+      ...sheetOf(),
+      subtitle: '2 layer constraints need attention',
+      subtitleTone: 'warning',
+      sections: [
+        {
+          id: 'pose',
+          title: 'Pose',
+          spaced: true,
+          fields: [field],
+          notice: {
+            tone: 'warning',
+            text: '2 layer constraints need attention since the creases changed.',
+            actions: [{ id: 'review', label: 'Review…', disabled: false, run: review }],
+          },
+        },
+      ],
+    });
+    const subtitle = container?.querySelector('[data-property-sheet-subtitle]');
+    expect(subtitle?.getAttribute('data-tone')).toBe('warning');
+    const notice = container?.querySelector('[role="status"][data-tone="warning"]');
+    expect(notice?.textContent).toContain('2 layer constraints need attention since the creases changed.');
+    // After the section's rows.
+    const row = container?.querySelector('[data-field-row]');
+    expect(row && notice && row.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const button = [...(notice?.querySelectorAll('button') ?? [])].find((each) => each.textContent === 'Review…');
+    act(() => button?.click());
+    expect(review).toHaveBeenCalledTimes(1);
+    expect(onCommit).not.toHaveBeenCalled();
+
+    // Left out, neither draws.
+    render(sheetOf(field));
+    expect(container?.querySelector('[data-property-sheet-subtitle]')?.hasAttribute('data-tone')).toBe(false);
+    expect(container?.querySelector('[role="status"][data-tone]')).toBeNull();
   });
 });

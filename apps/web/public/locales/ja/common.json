@@ -162,7 +162,7 @@
     "foldSendToDiagram": "このステップを折り図に送る",
     "foldSendToDiagramHint": "表示中のステップを、リンクしたまま折り図の最後に追加する",
     "foldSendToEdit": "編集に送る",
-    "foldSendToEditHint": "表示中のステップの展開図を編集キャンバスに送る",
+    "foldSendToEditHint": "現在のステップの展開図を編集キャンバスに送る",
     "foldSheetNoStep": "平らな紙はステップの出発点です。削除するステップはありません",
     "foldStartFromEditFigure": "編集の折り図から始める",
     "foldStartFromEditFigureHint": "紙を編集の折り図どおりに折りたたむステップを追加",

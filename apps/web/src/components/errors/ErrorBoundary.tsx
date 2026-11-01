@@ -37,6 +37,12 @@ export interface ErrorBoundaryProps {
    */
   resetKeys?: readonly unknown[];
   onError?: (error: unknown, componentStack: string | null) => void;
+  /**
+   * Whether the fallback offers Try again (the default). False for a surface
+   * that cannot come back once it broke: a dialog whose host `onError` has
+   * already answered. Its overlay offers Close instead.
+   */
+  retryable?: boolean;
   /** Extra actions for the fallback (e.g. "Reset layout" at the app level). */
   extraActions?: ReactNode;
 }
@@ -116,6 +122,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           componentStack={componentStack}
           context={context}
           onRetry={this.reset}
+          retryable={this.props.retryable}
           extraActions={this.props.extraActions}
         />
       );

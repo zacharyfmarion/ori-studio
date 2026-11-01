@@ -31,8 +31,12 @@ describe('roleQueries', () => {
   });
 
   it('finds the implicit roles, and throws listing the names when not exactly one matches', () => {
-    const root = html('<aside aria-label="Tools"></aside><button>One</button><button>One</button>');
+    const root = html(
+      '<aside aria-label="Tools"></aside><section aria-label="Pane"></section><section></section><button>One</button><button>One</button>'
+    );
     expect(byRole(root, 'complementary', 'Tools').tagName).toBe('ASIDE');
+    // A section is a region only with a name.
+    expect(allByRole(root, 'region').map((element) => accessibleName(element))).toEqual(['Pane']);
     expect(() => byRole(root, 'button', 'One')).toThrow(/found 2\. There are: "One", "One"/);
     expect(queryByRole(root, 'button', /^Two/)).toBeNull();
   });

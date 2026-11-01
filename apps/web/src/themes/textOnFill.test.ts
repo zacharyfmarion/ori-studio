@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PRESET_THEMES, themeCssVariables } from './index';
 import { wcagContrast } from './paperBack';
-import { TEXT_ON_FILL_MIN_CONTRAST, textOnFill } from './textOnFill';
+import { TEXT_ON_FILL_MIN_CONTRAST, textOnFill, textReadableOn } from './textOnFill';
 
 /**
  * The rule over the whole registry: whatever a menu highlights with, its text
@@ -33,9 +33,17 @@ describe('textOnFill', () => {
     expect(textOnFill('#1d4ed8', '#101417')).toBe('#ffffff');
   });
 
+  it('keeps a theme’s text where it reads on a surface, and stands in for it where it does not', () => {
+    // One Dark's primary text on its elevated surface reads.
+    expect(textReadableOn('#abb2bf', '#2c313a')).toBe('#abb2bf');
+    // Solarized Light's does not (3.07:1): black, which reads on the cream surface.
+    expect(textReadableOn('#657b83', '#ddd6c1')).toBe('#000000');
+  });
+
   it.each([
     ['--accent-primary', '--text-on-accent'],
     ['--status-danger', '--text-on-danger'],
+    ['--bg-elevated', '--text-on-elevated'],
   ])('reads at AA on %s in every preset', (fill, text) => {
     for (const theme of PRESET_THEMES) {
       const on = variable(theme, text);

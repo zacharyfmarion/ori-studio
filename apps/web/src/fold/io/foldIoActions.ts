@@ -46,8 +46,8 @@ export const FOLD_IO_ACTION_DEPS: Pick<
  * source — its tooltip, and no caret: precreases always go as auxiliary
  * lines — gated by the menu row's capability and by the action catalog's
  * command (`command`, the catalog's Send to Edit for the step on screen),
- * which knows what the store does not: a path still folding, or one with a
- * step that no longer folds. Disabled, its tooltip says why, in the words of
+ * which knows what the store does not: a selected step still folding, or one
+ * that no longer folds. Disabled, its tooltip says why, in the words of
  * whichever turned it down.
  */
 export function useFoldSendToEditButton(

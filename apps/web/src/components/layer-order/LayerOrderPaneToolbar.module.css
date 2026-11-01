@@ -1,0 +1,45 @@
+/*
+ * A Layer order pane's zoom bar (LayerOrderPaneToolbar.tsx): a Toolbar centred
+ * on its pane's bottom edge, and the zoom percentage between the buttons.
+ */
+.placement {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-3);
+  z-index: 1;
+  max-width: calc(100% - var(--space-6));
+  transform: translateX(-50%);
+}
+
+/* The percentage: a quiet control at the bar's controls' radius; pressing it is 100%. */
+.percent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  min-width: 52px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.percent:hover {
+  background: var(--bg-surface);
+}
+
+.percent:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+@media (pointer: coarse) {
+  .percent {
+    height: var(--touch-target);
+  }
+}

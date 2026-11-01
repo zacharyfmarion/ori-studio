@@ -128,7 +128,7 @@ export function LayerSpreadRows({
               shown.kind === 'connected'
                 ? () => {
                     if (spread.start()) {
-                      spread.preview('amount', DEFAULT_CONNECTED_SPREAD.amount);
+                      spread.preview('amount', spread.defaultAmount ?? DEFAULT_CONNECTED_SPREAD.amount);
                       spread.commit();
                     }
                   }

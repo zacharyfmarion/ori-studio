@@ -54,6 +54,8 @@ export interface LayerSpreadChoice<T extends string> {
 
 /** A spread's kind and values, while the layers are spread. */
 export interface LayerSpreadControls {
+  /** The host's Amount reset; absent, the shared spread default. */
+  defaultAmount?: number;
   /** The spread the picture shows — a drag's, while it is previewed. */
   spread: LayerSpreadOptions;
   /** A final picture is being captured; choices wait, live drags remain available. */

@@ -118,7 +118,7 @@ export interface FoldActionContext {
   step: FoldActionStep | null;
   /** The state at that step. The flat sheet is always ready. */
   state: FoldStateStatus;
-  /** The active path's last state: what Send to Edit and the exports carry (plan D6). */
+  /** The active path's last state: what the sequence exports carry (plan D6). */
   path: FoldStateStatus;
   /** At the tip of the active path, where a new step continues it rather than branching. */
   atTip: boolean;
@@ -171,7 +171,7 @@ export function foldSendToEditSource(t: TFunction): SendToEditSurfaceSource {
   return {
     title: t(
       'panels:fold.actions.sendToEditTitle',
-      'Send the crease pattern of the steps shown to the Edit canvas'
+      'Send the active step’s crease pattern to the Edit canvas'
     ),
   };
 }
@@ -205,7 +205,12 @@ function addStepBlock(t: TFunction, context: FoldActionContext): string | null {
   if (context.readOnly) {
     return t('panels:fold.actions.readOnlyHint', 'Made with a newer Ori Studio: this sequence opens read-only.');
   }
-  switch (context.state) {
+  return stateBlock(t, context.state);
+}
+
+/** Why the selected state is unavailable, or null when it can be used. */
+function stateBlock(t: TFunction, state: FoldStateStatus): string | null {
+  switch (state) {
     case 'ready':
       return null;
     case 'replaying':
@@ -218,7 +223,7 @@ function addStepBlock(t: TFunction, context: FoldActionContext): string | null {
 }
 
 /**
- * Why the active path cannot be sent or exported, or null when it can. A
+ * Why the active path cannot be exported, or null when it can. A
  * sequence with no step has nothing to carry: the menu's capability refuses
  * it in the same words (`common:capability.foldNoSteps`), so a button here
  * never looks pressable while the chokepoint would turn it down.
@@ -245,16 +250,7 @@ function diagramBlock(t: TFunction, context: FoldActionContext): string | null {
   if (context.step === null) {
     return t('panels:fold.toDiagram.sheetHint', 'The flat sheet is where the steps start: fold a step to send it.');
   }
-  switch (context.state) {
-    case 'ready':
-      return null;
-    case 'replaying':
-      return t('panels:fold.actions.replayingHint', 'Still folding the steps before this one.');
-    case 'broken':
-      return t('panels:fold.actions.brokenHint', 'This step no longer folds.');
-    case 'locked':
-      return t('panels:fold.actions.lockedHint', 'This step was made with a newer Ori Studio.');
-  }
+  return stateBlock(t, context.state);
 }
 
 /** Why Import CP cannot start here, or null when it can. */
@@ -280,6 +276,7 @@ export function buildFoldActions(context: FoldActionContext, deps: FoldActionDep
   const addBlock = addStepBlock(t, context);
   const branchNote = context.atTip ? undefined : t('panels:fold.actions.startsBranch', 'Starts a new branch');
   const outBlock = pathBlock(t, context.path, context.stepCount);
+  const sendBlock = context.stepCount === 0 ? outBlock : stateBlock(t, context.state);
   const importHint = importBlock(t, context);
   const sendToEdit = sendToEditPrimary(t, foldSendToEditSource(t));
   const toDiagram = diagramBlock(t, context);
@@ -299,14 +296,15 @@ export function buildFoldActions(context: FoldActionContext, deps: FoldActionDep
   const outCommand = (
     id: 'send-to-edit' | 'export-fold' | 'export-steps',
     label: string,
-    run: () => void
+    run: () => void,
+    blocked: string | null = outBlock
   ): FoldCommand => ({
     kind: 'command',
     id,
     label,
     icon: id,
-    disabled: outBlock !== null,
-    hint: outBlock ?? undefined,
+    disabled: blocked !== null,
+    hint: blocked ?? undefined,
     run,
   });
 
@@ -363,7 +361,7 @@ export function buildFoldActions(context: FoldActionContext, deps: FoldActionDep
       run: deps.importCp,
     },
     { kind: 'separator', id: 'after-import' },
-    outCommand('send-to-edit', sendToEdit.label, deps.sendToEdit),
+    outCommand('send-to-edit', sendToEdit.label, deps.sendToEdit, sendBlock),
     // The step in context and the steps to it: the Diagram links each, so it follows them (plan D17).
     {
       kind: 'command',

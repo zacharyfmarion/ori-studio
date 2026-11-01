@@ -42,6 +42,12 @@ export interface ErrorFallbackProps {
   /** Null when context collection itself failed; the report still renders. */
   context: ErrorReportContext | null;
   onRetry: () => void;
+  /**
+   * Whether trying again can bring back what broke (the default). A dialog
+   * whose host has already been answered cannot: its overlay offers Close in
+   * Try again's place.
+   */
+  retryable?: boolean;
   extraActions?: ReactNode;
 }
 
@@ -92,6 +98,7 @@ export function ErrorFallback({
   componentStack,
   context,
   onRetry,
+  retryable = true,
   extraActions,
 }: ErrorFallbackProps) {
   const { t } = useTranslation();
@@ -193,10 +200,19 @@ export function ErrorFallback({
       </div>
 
       <div className="error-fallback__actions">
-        <Button size="sm" variant="primary" onClick={onRetry}>
-          <RotateCcw size={13} />
-          {t('errors:boundary.retry', 'Try again')}
-        </Button>
+        {retryable ? (
+          <Button size="sm" variant="primary" onClick={onRetry}>
+            <RotateCcw size={13} />
+            {t('errors:boundary.retry', 'Try again')}
+          </Button>
+        ) : (
+          variant === 'overlay' && (
+            <Button size="sm" variant="primary" onClick={() => setDismissed(true)}>
+              <X size={13} />
+              {t('errors:boundary.close', 'Close')}
+            </Button>
+          )
+        )}
         <Button size="sm" onClick={() => void handleCopy()} data-copy-state={copyState}>
           <CopyIcon size={13} />
           {copyLabel}
@@ -206,7 +222,7 @@ export function ErrorFallback({
             {t('errors:boundary.reload', 'Reload')}
           </Button>
         )}
-        {variant === 'overlay' && (
+        {variant === 'overlay' && retryable && (
           <Button size="sm" variant="ghost" onClick={() => setDismissed(true)}>
             <X size={13} />
             {t('errors:boundary.dismiss', 'Dismiss')}

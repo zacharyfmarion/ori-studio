@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-10-30
+
+A Layer order dialog that chooses how a flat folded figure's layers stack, in Edit, the Diagram, Pose and Fold, and empty Diagram steps that offer a pattern and an Import menu straight away.
+
+### Added
+
+- Choose how a flat folded figure's layers stack in the new **Layer order** dialog. Pick faces on the crease pattern or on the folded figure, and build constraints as sentences, such as "D in front of H, K" or "A behind B". The dialog previews each constraint before you add it, says which constraints clash and why, counts the layer orders that fit, and steps through them with ‹ ›. ⌘Z and ⇧⌘Z undo and redo every change in it. View the figure from the front, the back or the side, with X-ray and Rotate Left and Right. A large figure can take up to a minute to open, with Cancel while it works.
+- Open Layer order wherever a flat fold appears. In Edit, open it from a folded figure's toolbar, context menu or Properties, or fold a selected sheet straight into it with **Fold with layer order…** (Shift+G). In the Diagram, a step's Layer order row edits its order, and ‹ › steps through the solutions that fit its constraints. Pose has **Edit order…** and ‹ › on its toolbar, and Fold's **Import CP** chooses its order in the dialog. A project keeps the constraints and the order they chose; a figure without constraints folds and saves exactly as before.
+
+### Improved
+
+- Fill an empty Diagram step in fewer clicks. Its Step pane shows the pattern picker at once, two patterns to a row, starting on **Folded**. The empty diagram and an empty step's card both have an **Import** menu (From File, From References, From Fold), and an import into an empty step fills that step instead of adding a new one after it.
+
+### Fixed
+
+- In Fold, **Send to Edit** sends the step you have selected. It sent the last step's crease pattern, and a broken step after the selected one turned the button off.
+- Draw arrowheads in the Fold workspace at a readable size. They were about 5 pixels across with the Diagram's pens.
+- Undo a fold made from the selection toolbar. Undo did nothing, or undid the step before it and took the new figure with it.
+- Undo a Delete or a Refold of a folded figure and get back a figure that still folds. It came back as "invalid folded figure handle", or drew another figure's fold.
+- Keep File ▸ New, Open and Import from replacing the document while a dialog is open. A file opened from the Finder while a dialog is up now asks you to close the dialog first.
+- On Linux, pick a `.oriconfig` file in **Import Oriedita Shortcuts**: the file chooser listed only folders. Image and import choosers also show files with upper-case extensions, such as `IMG_0412.JPG`.
+
 ## [0.7.1] - 2026-10-25
 
 Drawing on the Diagram's Annotate canvas lands under the pointer in the Mac app and Safari.

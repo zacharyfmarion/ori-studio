@@ -86,6 +86,16 @@ export interface CpSurfaceFrameScales {
   widthBoost: number;
 }
 
+/**
+ * What the surface reports of each frame: the camera's map from model space
+ * to CSS px of the canvas box, and the line boost its pens draw at, so a layer
+ * over the canvas knows how wide a line it must keep clear of.
+ */
+export interface CpSurfaceView extends CpOverlayView {
+  /** As {@link CpSurfaceFrameScales.widthBoost}. */
+  readonly widthBoost: number;
+}
+
 /** The stroke widths a frame draws at, device px (`CpRenderFrame`). */
 export interface CpSurfaceStrokeWidths {
   strokeWidthPx: number;
@@ -110,6 +120,13 @@ export interface UseCpSurfaceOptions<Hit> {
   modelToSvg: (point: Point) => Point;
   /** What the camera fits, in user space; null before there is anything to frame. */
   contentBounds: UserBounds | null;
+  /**
+   * How much of the canvas `contentBounds` fills at a fit, across its
+   * shorter side: {@link DEFAULT_FIT_SHARE} unless a surface frames its
+   * content its own way. The line boost past the fit zoom is measured from
+   * it too.
+   */
+  fitShare?: number;
   /** The camera refits when this changes (a new document), never on an edit. */
   framingKey: string;
   /**
@@ -158,8 +175,8 @@ export interface UseCpSurfaceOptions<Hit> {
   onPick: (hit: Hit | null) => void;
   /** The widths this frame's strokes draw at. */
   strokeWidths: (scales: CpSurfaceFrameScales) => CpSurfaceStrokeWidths;
-  /** Model space → CSS px of the canvas box, each frame it changes. */
-  onViewChange?: (view: CpOverlayView) => void;
+  /** Model space → CSS px of the canvas box, and the line boost, each frame either changes. */
+  onViewChange?: (view: CpSurfaceView) => void;
   /**
    * The zoom as a percentage, for the viewport toolbar's readout. 100% is
    * actual size — one user unit to one CSS pixel — the editor's definition, so
@@ -215,6 +232,9 @@ export interface CpSurface<Hit> {
  */
 export const KEEP_IN_VIEW_SHARE = 0.5;
 
+/** The share of the canvas a fit fills by default: `fitUserCamera`'s padding. */
+export const DEFAULT_FIT_SHARE = 0.7;
+
 const CANVAS_BG_VAR = '--bg-primary';
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
 const POINT_OUTLINE_CSS = 1.4;
@@ -240,8 +260,9 @@ function deviceInset(inset: CpSurfaceInset, viewport: Viewport): ViewportInset {
   };
 }
 
-function sameView(a: CpOverlayView, b: CpOverlayView): boolean {
+function sameView(a: CpSurfaceView, b: CpSurfaceView): boolean {
   return (
+    a.widthBoost === b.widthBoost &&
     a.origin[0] === b.origin[0] &&
     a.origin[1] === b.origin[1] &&
     a.ex[0] === b.ex[0] &&
@@ -280,7 +301,7 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
   const lineFloorCss = coarse ? CP_LINE_HIT_MIN_CSS_COARSE : CP_LINE_HIT_MIN_CSS;
 
   const liveRef = useRef<LiveOptions<Hit>>({ ...options, pointFloorCss, lineFloorCss });
-  const lastViewRef = useRef<CpOverlayView | null>(null);
+  const lastViewRef = useRef<CpSurfaceView | null>(null);
   const lastZoomPercentRef = useRef<number | null>(null);
   // Declared before every effect below, and the caller's effects come after
   // this hook's, so within one commit the handlers and uploads read this
@@ -352,18 +373,18 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
         return cameraRef.current;
       }
       if (cameraRef.current && !fitRequestedRef.current) return cameraRef.current;
-      const { contentBounds: bounds, inset } = liveRef.current;
+      const { contentBounds: bounds, inset, fitShare = DEFAULT_FIT_SHARE } = liveRef.current;
       if (!bounds || !boxed) return cameraRef.current;
       fitRequestedRef.current = false;
       const fitted = inset
-        ? fitUserCameraWithin(bounds, viewport, deviceInset(inset, viewport))
-        : fitUserCamera(bounds, viewport);
+        ? fitUserCameraWithin(bounds, viewport, deviceInset(inset, viewport), fitShare)
+        : fitUserCamera(bounds, viewport, fitShare);
       cameraRef.current = fitted;
       lastFitRef.current = { ...fitted };
       return cameraRef.current;
     };
 
-    const reportView = (view: CpOverlayView) => {
+    const reportView = (view: CpSurfaceView) => {
       const seen = lastViewRef.current;
       if (seen !== null && sameView(seen, view)) return;
       lastViewRef.current = view;
@@ -387,7 +408,7 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
       const requestedView = modelViewFromCamera(cam, viewport, live.modelToSvg);
       const requestedUserView = userCameraToView(cam, viewport);
       const bounds = live.contentBounds;
-      const fitZoom = bounds ? fitUserCamera(bounds, viewport).zoom : cam.zoom;
+      const fitZoom = bounds ? fitUserCamera(bounds, viewport, live.fitShare ?? DEFAULT_FIT_SHARE).zoom : cam.zoom;
       const { widthBoost, markerScalePx, pointScalePx } = cpSizingScales({
         camZoom: cam.zoom,
         fitZoom,
@@ -404,6 +425,7 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
         origin: [view.origin[0] / ratio, view.origin[1] / ratio],
         ex: [view.ex[0] / ratio, view.ex[1] / ratio],
         ey: [view.ey[0] / ratio, view.ey[1] / ratio],
+        widthBoost,
       });
       reportZoom(cam, ratio);
       renderer.render({

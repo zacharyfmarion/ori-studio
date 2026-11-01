@@ -14,14 +14,15 @@
 
 use std::collections::HashSet;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::fold_graph::FoldGraphError;
 use crate::folding::{
-    AdditionalEstimationError, DisplayStyle, EstimationOrder, EstimationStep, FoldSetupError,
-    FoldedFigureModel, FoldedFigureRenderOptions, FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
-    FoldedPaperScene, FoldedRenderInputs, FoldingEstimateError, FoldingEstimateSession,
-    InitialHierarchyError, WorkerOverlapSearchError, fold_another,
+    AdditionalEstimationError, DisplayStyle, EstimationOrder, EstimationStep, FoldOutcome,
+    FoldSetupError, FoldedFigureModel, FoldedFigureRenderOptions, FoldedFigureRenderSnapshot,
+    FoldedFigureSnapshot, FoldedPaperScene, FoldedRenderInputs, FoldingEstimateError,
+    FoldingEstimateSession, HierarchyRelation, HierarchySeedError, InitialHierarchyError,
+    WorkerOverlapSearchError, face_ring_digest_from_segments, fold_another,
     folded_figure_paper_scene_from_session, folded_figure_render_snapshot_from_session,
     folded_figure_snapshot_with_inputs, folding_estimate_to_case,
 };
@@ -90,6 +91,10 @@ pub const CP_ENGINE_COMMANDS: &[&str] = &[
     "folded_figure_duplicate",
     "folded_figure_fold_another",
     "folded_figure_fold_to_case",
+    "folded_figure_source",
+    "fold_source_of_selection",
+    "folded_figure_fold_with_order",
+    "folded_figure_digest",
     "folded_figure_fold_3d",
     "folded_figure_3d_fold_another",
     "folded_figure_3d_duplicate",
@@ -329,14 +334,18 @@ impl From<FoldingEstimateError> for EngineError {
                 | WorkerOverlapSearchError::FinalAdditionalEstimationRequired { .. } => {
                     "fold_layer_search"
                 }
-                // Unreachable on this path: only the 3D enumerator sets a
-                // budget, and it reports exhaustion as its own verdict rather
-                // than through this envelope. Named rather than folded into
-                // `fold_layer_search` so that if a flat caller ever does set
-                // one, it does not read as a failed search.
+                // A flat search has a budget only when it is seeded
+                // (`SEEDED_FOLD_ITERATION_BUDGET`); the 3D enumerator reports
+                // its own exhaustion as a verdict rather than through this
+                // envelope. Named rather than folded into `fold_layer_search`,
+                // so that giving up does not read as a failed search.
                 WorkerOverlapSearchError::Exhausted { .. } => "fold_search_exhausted",
-                // Both unreachable for the same reason as above, and both named
-                // for the same reason.
+                // Seeds refused before any search: a statement about the order
+                // the fold was handed, never about the creases, so never
+                // `fold_contradiction`. Only a seeded fold produces it.
+                WorkerOverlapSearchError::Seed(_) => "fold_seed_refused",
+                // Both unreachable, as in `setup_code`: `is_cancelled`
+                // returned above. Named for the same reason.
                 WorkerOverlapSearchError::AdditionalEstimation(
                     AdditionalEstimationError::Cancelled,
                 )
@@ -463,6 +472,120 @@ pub struct FoldedFigureResult {
 pub struct FoldedFigureBatchResult {
     pub snapshot: FoldedFigureSnapshot,
     pub discovered_case_numbers: Vec<usize>,
+}
+
+/// What a flat fold is made from, as the Layer order dialog analyses it and as
+/// [`CpSession::folded_figure_fold_with_order`] folds it again: the creases,
+/// exactly as the fold took them, its starting face, the aux lines its paper
+/// scene carries, and the [`FaceRingDigest`](crate::folding::FaceRingDigest)
+/// of the faces they trace.
+///
+/// **Ori Studio native** (`implementation-plans/layer-order-dialog.md`, E2).
+/// A host hands it on whole and never rebuilds it from the document: lines
+/// reselected there can come back in another order, which renumbers the
+/// faces an order names. The digest is what catches a source that drifted.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldSource {
+    pub segments: Vec<LineSegment>,
+    pub starting_face_id: i32,
+    pub aux_segments: Vec<LineSegment>,
+    /// Sixteen hex digits ([`FaceRingDigest`](crate::folding::FaceRingDigest)'s
+    /// `Display`).
+    pub digest: String,
+}
+
+/// What a fold with a given layer order produced: a new figure, or why there
+/// is none.
+///
+/// A refusal is an `Ok` result, never an [`EngineError`], for the reasons
+/// [`Fold3dFoldResult`] gives: it carries structured data, and it is an answer
+/// the dialog shows rather than a failure to toast. The two arms make it
+/// unrepresentable for a refusal to leave a handle behind.
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum FoldWithOrderResult {
+    Folded {
+        handle: u32,
+        /// Boxed for size only; the wire shape is the same object.
+        snapshot: Box<FoldedFigureSnapshot>,
+    },
+    Refused {
+        refusal: FoldOrderRefusal,
+    },
+}
+
+/// Why Oriedita cannot draw a given layer order on a source's creases.
+///
+/// Each is a statement about the order, never about the creases: hosts offer
+/// an order only for a figure Oriedita solved unseeded (the plan's D3), so a
+/// fold that fails with the order given fails because of it. Face indices are
+/// the source's, 0-based, as [`HierarchyRelation`] names them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "code", rename_all = "snake_case")]
+pub enum FoldOrderRefusal {
+    /// The source's creases trace other faces than the ones the order was
+    /// made for, or number them differently: the order would name the wrong
+    /// faces. Checked before any search.
+    DigestMismatch { expected: String, actual: String },
+    /// The order names a face the creases do not have.
+    UnknownFace { face: usize, faces_total: usize },
+    /// The order puts a face above itself.
+    SameFace { face: usize },
+    /// The order puts `upper_face` above `lower_face`, where the creases'
+    /// letters (as the unseeded fold's table settles them) or an earlier
+    /// relation of the order say the reverse. The pair named is the order's.
+    AgainstLetters {
+        upper_face: usize,
+        lower_face: usize,
+    },
+    /// Oriedita's deductions from the creases and the order together reach a
+    /// pair that has to lie both ways; these are the faces it names.
+    InClosure {
+        upper_face: usize,
+        lower_face: usize,
+    },
+    /// With the order seeded, Oriedita's search finds no layer order.
+    NotFound,
+    /// The seeded search did not settle within
+    /// [`SEEDED_FOLD_ITERATION_BUDGET`](crate::folding::SEEDED_FOLD_ITERATION_BUDGET).
+    Budget { iterations: u64 },
+}
+
+impl From<HierarchySeedError> for FoldOrderRefusal {
+    fn from(error: HierarchySeedError) -> Self {
+        match error {
+            HierarchySeedError::UnknownFace { face, faces_total } => {
+                Self::UnknownFace { face, faces_total }
+            }
+            HierarchySeedError::SameFace { face } => Self::SameFace { face },
+            HierarchySeedError::Contradiction {
+                upper_face,
+                lower_face,
+            } => Self::AgainstLetters {
+                upper_face,
+                lower_face,
+            },
+        }
+    }
+}
+
+/// Relations sent as one flat array of face pairs, `[upper, lower, upper,
+/// lower, …]`, as both bridges carry them: a typed array in the browser, a
+/// number array over Tauri. An odd length is malformed.
+pub fn relations_from_flat_pairs(flat: &[u32]) -> Result<Vec<HierarchyRelation>, EngineError> {
+    let (pairs, rest) = flat.as_chunks::<2>();
+    if !rest.is_empty() {
+        return Err(EngineError::invalid_input(
+            "relations are pairs of faces, so their length is even",
+        ));
+    }
+    Ok(pairs
+        .iter()
+        .map(|&[upper, lower]| HierarchyRelation {
+            upper_face: upper as usize,
+            lower_face: lower as usize,
+        })
+        .collect())
 }
 
 /// What a 3D fold produced — a figure, or the reason there is none.
@@ -1064,12 +1187,7 @@ impl CpSession {
         // that has drifted from the kernel document — fold an entire mixed
         // document flat and draw a plausible picture with no error, which is
         // exactly the case this guard exists for.
-        if crate::model::has_non_classic_segments(segments) {
-            return Err(EngineError::new(
-                "fold_needs_3d",
-                "the creases being folded include a non-180 fold angle; use folded_figure_fold_3d",
-            ));
-        }
+        refuse_non_classic(segments)?;
         let mut session = FoldingEstimateSession::new(segments, starting_face_id);
         if let Err(error) = session.folding_estimated(order) {
             return Err(flat_fold_error(error, segments));
@@ -1088,10 +1206,7 @@ impl CpSession {
         if order.is_at_least(EstimationOrder::Order2)
             && session.estimate().estimation_step == EstimationStep::Step1
         {
-            return Err(EngineError::new(
-                "fold_faces_unresolved",
-                "the arrangement could not be traced, so there are no faces to fold",
-            ));
+            return Err(faces_unresolved());
         }
         // Derived here, once, rather than on the first render: the fold has
         // just paid seconds for the same graph, and a figure whose first
@@ -1214,6 +1329,159 @@ impl CpSession {
             snapshot,
             discovered_case_numbers: batch.discovered_case_numbers,
         })
+    }
+
+    // --- layer order ------------------------------------------------------------
+    //
+    // **Ori Studio native**: the entry points the Layer order dialog's hosts
+    // use (`implementation-plans/layer-order-dialog.md`, E2). A host reads a
+    // figure's source, the dialog analyses it in another kernel, and the host
+    // folds the chosen order back into a new handle. None of them changes an
+    // existing figure.
+
+    /// What the flat figure `handle` was folded from. The aux lines are
+    /// `document_handle`'s as they stand now, or, with no document, the ones it
+    /// held when the figure was folded: the same rule as
+    /// [`Self::folded_figure_paper_scene`], so a source folded again draws the
+    /// aux lines the figure's own scene draws.
+    pub fn folded_figure_source(
+        &self,
+        handle: u32,
+        document_handle: Option<u32>,
+    ) -> Result<FoldSource, EngineError> {
+        let folded = self.flat(handle)?;
+        let inputs = folded.render_inputs.as_ref().ok_or_else(faces_unresolved)?;
+        let aux_segments = match document_handle {
+            Some(document) => aux_segments(&self.document(document)?.crease_pattern.line_segments),
+            None => folded.aux_segments.clone(),
+        };
+        Ok(FoldSource {
+            segments: folded.session.segments().to_vec(),
+            starting_face_id: folded.session.starting_face_id(),
+            aux_segments,
+            digest: inputs.face_ring_digest().to_string(),
+        })
+    }
+
+    /// What [`Self::folded_figure_fold_selected`] would fold, before any figure
+    /// exists: the selection's folding creases (the whole document when it
+    /// resolves to none, as the fold widens it), the document's aux lines and
+    /// the digest of the faces they trace. Builds the fold graph and no more;
+    /// it does not fold.
+    pub fn fold_source_of_selection(
+        &self,
+        document_handle: u32,
+        selected_line_ids: &[usize],
+        starting_face_id: i32,
+    ) -> Result<FoldSource, EngineError> {
+        let all_segments = &self.document(document_handle)?.crease_pattern.line_segments;
+        let selected = selected_folding_segments(all_segments, selected_line_ids);
+        let segments = if selected.is_empty() {
+            all_segments.clone()
+        } else {
+            selected
+        };
+        refuse_non_classic(&segments)?;
+        let digest = face_ring_digest_from_segments(&segments, starting_face_id)
+            .ok_or_else(faces_unresolved)?;
+        Ok(FoldSource {
+            aux_segments: aux_segments(all_segments),
+            segments,
+            starting_face_id,
+            digest: digest.to_string(),
+        })
+    }
+
+    /// Fold `source` with `relations` given, into a **new** figure handle.
+    ///
+    /// Each relation puts its `upper_face` above its `lower_face`, in
+    /// Oriedita's frame (nearer a viewer of the starting face's front), and
+    /// joins the creases' letters before Oriedita's own deductions and search
+    /// run ([`FoldingEstimateSession::with_seeds`]). Given the full relations
+    /// of an order, the figure shows that order: its snapshot says
+    /// `shown_order: "given"`, and its restart, "Another solution" and
+    /// render fallback stay on the order.
+    ///
+    /// It folds exactly `source.segments`, after checking that they trace the
+    /// faces `source.digest` names. When the order cannot be drawn on them the
+    /// answer is a [`FoldOrderRefusal`], and the call leaves no handle and
+    /// changes nothing. A fold this kernel would refuse with no order at all,
+    /// or a Stop, is an [`EngineError`], as for [`Self::folded_figure_fold`].
+    ///
+    /// Every host's display of a chosen order goes through here (Apply,
+    /// refold, reopen, the Diagram's capture, Pose), never an in-place change
+    /// of a figure: a new handle is what keeps undo honest.
+    pub fn folded_figure_fold_with_order(
+        &mut self,
+        source: &FoldSource,
+        relations: &[HierarchyRelation],
+        model: FoldedFigureModel,
+    ) -> Result<FoldWithOrderResult, EngineError> {
+        let segments = &source.segments;
+        refuse_non_classic(segments)?;
+        // The fold builds these again from the same segments; built first,
+        // they check the digest before any search, and the figure keeps them.
+        let inputs = FoldedRenderInputs::from_segments(segments, source.starting_face_id)
+            .map_err(|error| flat_fold_error(error, segments))?
+            .ok_or_else(faces_unresolved)?;
+        let actual = inputs.face_ring_digest().to_string();
+        if actual != source.digest {
+            return Ok(FoldWithOrderResult::Refused {
+                refusal: FoldOrderRefusal::DigestMismatch {
+                    expected: source.digest.clone(),
+                    actual,
+                },
+            });
+        }
+        let mut session = FoldingEstimateSession::with_seeds(
+            segments,
+            source.starting_face_id,
+            relations.to_vec(),
+        );
+        let refusal = match session.folding_estimated(EstimationOrder::Order5) {
+            Ok(estimate) => match estimate.outcome {
+                FoldOutcome::Solved => None,
+                FoldOutcome::Contradiction => Some(match estimate.contradiction {
+                    Some(contradiction) => FoldOrderRefusal::InClosure {
+                        upper_face: contradiction.upper_face,
+                        lower_face: contradiction.lower_face,
+                    },
+                    None => FoldOrderRefusal::NotFound,
+                }),
+                FoldOutcome::NoSolutions | FoldOutcome::NotAttempted => {
+                    Some(FoldOrderRefusal::NotFound)
+                }
+            },
+            Err(FoldingEstimateError::WorkerOverlap(WorkerOverlapSearchError::Seed(seed))) => {
+                Some(seed.into())
+            }
+            Err(FoldingEstimateError::WorkerOverlap(WorkerOverlapSearchError::Exhausted {
+                iterations,
+            })) => Some(FoldOrderRefusal::Budget { iterations }),
+            Err(error) => return Err(flat_fold_error(error, segments)),
+        };
+        if let Some(refusal) = refusal {
+            return Ok(FoldWithOrderResult::Refused { refusal });
+        }
+        let figure = FlatFoldedFigure {
+            session,
+            model,
+            render_inputs: Some(inputs),
+            aux_segments: source.aux_segments.clone(),
+        };
+        let snapshot = Box::new(figure.snapshot());
+        let handle = self.store_folded(FoldedFigure::Flat(Box::new(figure)));
+        Ok(FoldWithOrderResult::Folded { handle, snapshot })
+    }
+
+    /// The [`FaceRingDigest`](crate::folding::FaceRingDigest) of the flat
+    /// figure `handle`'s faces: what its source carries, read without the
+    /// creases, so a host can ask whether a figure is still the one a saved
+    /// order was made for.
+    pub fn folded_figure_digest(&self, handle: u32) -> Result<String, EngineError> {
+        let folded = self.flat(handle)?;
+        let inputs = folded.render_inputs.as_ref().ok_or_else(faces_unresolved)?;
+        Ok(inputs.face_ring_digest().to_string())
     }
 
     // --- folding in 3D ----------------------------------------------------------
@@ -1416,6 +1684,26 @@ fn flat_fold_error(error: FoldingEstimateError, segments: &[LineSegment]) -> Eng
             "segment {} at ({}, {}) is a border with paper on both sides",
             first.segment, first.point.x, first.point.y
         ),
+    )
+}
+
+/// The flat folder's refusal of a fold angle other than ±180: those creases
+/// fold through `folded_figure_fold_3d`.
+fn refuse_non_classic(segments: &[LineSegment]) -> Result<(), EngineError> {
+    if crate::model::has_non_classic_segments(segments) {
+        return Err(EngineError::new(
+            "fold_needs_3d",
+            "the creases being folded include a non-180 fold angle; use folded_figure_fold_3d",
+        ));
+    }
+    Ok(())
+}
+
+/// Creases that trace no faces: nothing to fold, and nothing to name.
+fn faces_unresolved() -> EngineError {
+    EngineError::new(
+        "fold_faces_unresolved",
+        "the arrangement could not be traced, so there are no faces to fold",
     )
 }
 
