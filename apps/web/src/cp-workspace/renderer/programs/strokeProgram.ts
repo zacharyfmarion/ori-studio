@@ -188,8 +188,11 @@ export interface StrokeDrawProps {
 export interface StrokeProgram {
   /** Upload (or replace) the segment geometry. */
   setData(geometry: StrokeGeometry): void;
-  /** Draw the current geometry. No-op until {@link setData} has been called. */
-  draw(props: StrokeDrawProps): void;
+  /**
+   * Draw the current geometry, or only the `count` segments from `first` on.
+   * No-op until {@link setData} has been called.
+   */
+  draw(props: StrokeDrawProps, range?: { first: number; count: number }): void;
   dispose(): void;
 }
 
@@ -228,6 +231,8 @@ interface StrokeDrawParams {
   depthEndBuf: Buffer;
   dashSlotBuf: Buffer;
   dashPhaseBuf: Buffer;
+  /** The first segment drawn: each per-segment attribute starts that many segments in. */
+  firstInstance: number;
   instanceCount: number;
 }
 
@@ -293,24 +298,34 @@ export interface StrokeProgramOptions {
  * quad with the last owner; no model geometry is retained by this cache. */
 const commands = new WeakMap<Regl, Map<boolean, ReturnType<typeof makeStrokeCommand>>>();
 
+/** A per-segment attribute of `floats` Float32s, read from the draw's first segment on. */
+function perSegment(buffer: (props: StrokeDrawParams) => Buffer, floats: number) {
+  return {
+    buffer: (_ctx: unknown, props: StrokeDrawParams) => buffer(props),
+    offset: (_ctx: unknown, props: StrokeDrawParams) =>
+      props.firstInstance * floats * Float32Array.BYTES_PER_ELEMENT,
+    divisor: 1,
+  };
+}
+
 function makeStrokeCommand(regl: Regl, depthOrdered: boolean) {
   const quad = regl.buffer(QUAD);
   const draw = regl<StrokeUniforms, StrokeAttributes, StrokeDrawParams>({
     vert: VERT,
     frag: FRAG,
+    // Each per-segment attribute starts `firstInstance` segments in, at its
+    // own float count per segment: what lets a range of one upload be drawn
+    // alone, since WebGL has no base instance.
     attributes: {
       corner: quad,
-      aA: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.aBuf, divisor: 1 },
-      aB: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.bBuf, divisor: 1 },
-      aColor: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.colorBuf, divisor: 1 },
-      aWidthMul: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.widthMulBuf, divisor: 1 },
-      aDepthEnd: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.depthEndBuf, divisor: 1 },
-      aDepth: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.depthBuf, divisor: 1 },
-      aDashSlot: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashSlotBuf, divisor: 1 },
-      aDashPhase: {
-        buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashPhaseBuf,
-        divisor: 1,
-      },
+      aA: perSegment((props) => props.aBuf, 2),
+      aB: perSegment((props) => props.bBuf, 2),
+      aColor: perSegment((props) => props.colorBuf, 4),
+      aWidthMul: perSegment((props) => props.widthMulBuf, 1),
+      aDepthEnd: perSegment((props) => props.depthEndBuf, 1),
+      aDepth: perSegment((props) => props.depthBuf, 1),
+      aDashSlot: perSegment((props) => props.dashSlotBuf, 1),
+      aDashPhase: perSegment((props) => props.dashPhaseBuf, 1),
     },
     uniforms: {
       u_origin: (_ctx, props) => props.originArr,
@@ -405,9 +420,11 @@ export function createStrokeProgram(
       dashSlotBuf = update(dashSlotBuf, dashSlots(geometry));
       dashPhaseBuf = update(dashPhaseBuf, geometry.dashPhase ?? new Float32Array(geometry.count));
     },
-    draw({ view, viewport, widthPx }) {
+    draw({ view, viewport, widthPx }, range) {
+      const instances = range ? range.count : count;
       if (
         count === 0 ||
+        instances <= 0 ||
         !aBuf ||
         !bBuf ||
         !colorBuf ||
@@ -444,7 +461,8 @@ export function createStrokeProgram(
         depthEndBuf,
         dashSlotBuf,
         dashPhaseBuf,
-        instanceCount: count,
+        firstInstance: range?.first ?? 0,
+        instanceCount: instances,
       });
     },
     dispose: disposeOnce(() => {

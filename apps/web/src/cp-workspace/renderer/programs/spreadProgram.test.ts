@@ -21,7 +21,8 @@ vi.mock('./strokeProgram', () => ({
     const id = recorded.inkPrograms++;
     return {
       setData: (geometry: StrokeGeometry) => recorded.ink.push(geometry),
-      draw: () => recorded.draws.push({ command: `ink:${id}` }),
+      draw: (_props: unknown, range?: { first: number; count: number }) =>
+        recorded.draws.push({ command: range ? `ink:${id}:${range.first}+${range.count}` : `ink:${id}` }),
       dispose: () => {},
     };
   },
@@ -44,19 +45,27 @@ const DEPTH_BITS = 24;
 /** A buffer as the recording regl hands it out: what it was last given. */
 type RecordedBuffer = ((data: unknown) => void) & { data: unknown; destroy: () => void };
 
-/** A regl that records each draw by its depth state, each clear, and what each buffer holds. */
+/**
+ * A regl that records each draw by its depth state, each stencil scope by
+ * whether it marks or tests and with which value, each clear, and what each
+ * buffer holds.
+ */
 function recordingRegl() {
   const command = (config: Record<string, unknown>) => {
     const depth = config.depth as { enable: boolean; mask?: boolean; func?: string } | undefined;
+    const stencil = config.stencil as { opFront?: { zpass: string } } | undefined;
     const name =
       typeof config.vert === 'string' && (config.uniforms as Record<string, unknown>).base
         ? `fill:${depth?.mask ? 'write' : 'keep'}:${depth?.func}`
         : typeof config.vert === 'string'
           ? 'mask'
-          : 'scope';
+          : stencil?.opFront?.zpass === 'replace'
+            ? 'mark'
+            : 'test';
     return (props: unknown, body?: () => void) => {
       if (typeof props === 'function') return (props as () => void)();
-      recorded.draws.push({ command: name, props: props as Record<string, unknown> });
+      const ref = (props as { ref?: number }).ref;
+      recorded.draws.push({ command: ref === undefined ? name : `${name}:${ref}`, props: props as Record<string, unknown> });
       body?.();
     };
   };
@@ -72,7 +81,7 @@ function recordingRegl() {
     buffer,
     clear: (options: Record<string, unknown>) =>
       recorded.draws.push({ command: `clear:${Object.keys(options).join(',')}` }),
-    _gl: { DEPTH_BITS: 0x0d56, getParameter: () => DEPTH_BITS },
+    _gl: { DEPTH_BITS: 0x0d56, STENCIL_BITS: 0x0d57, getParameter: (name: number) => (name === 0x0d57 ? 8 : DEPTH_BITS) },
   }) as unknown as Parameters<typeof createSpreadProgram>[0];
 }
 
@@ -261,22 +270,30 @@ describe('createSpreadProgram', () => {
     const program = createSpreadProgram(recordingRegl());
     program.setData(geometry([0.25, 0.75], CYCLIC), BAND);
     program.draw(DRAW);
+    // One clear, then each face marks its mask with a value of its own and is
+    // drawn wherever the stencil holds any other: the masks before it never
+    // need clearing away.
     expect(commands()).toEqual([
       'fill:write:lequal',
       'ink:0',
       'fill:write:always',
       'clear:stencil',
+      'mark:1',
       'mask',
+      'test:1',
       'fill:write:lequal',
-      'clear:stencil',
+      'mark:2',
       'mask',
+      'test:2',
       'fill:write:lequal',
-      'clear:stencil',
+      'mark:3',
       'mask',
-      'ink:1',
-      'clear:stencil',
+      'test:3',
+      'ink:0:0+1',
+      'mark:4',
       'mask',
-      'ink:2',
+      'test:4',
+      'ink:0:1+1',
     ]);
     // Each corrected fill is its own face's range of the one buffer.
     const corrected = fills().filter(({ command }) => command === 'fill:write:lequal').slice(1);
@@ -284,12 +301,44 @@ describe('createSpreadProgram', () => {
       [0, 3],
       [3, 3],
     ]);
-    // Each mask is the face's blocker: one triangle.
-    for (const draw of recorded.draws.filter(({ command }) => command === 'mask')) expect(draw.props).toMatchObject({ first: 0, count: 3 });
-    // A face's own lines, for its corrected pass: its own depth.
-    expect(recorded.ink.slice(1).map((ink) => ink.count)).toEqual([1, 1]);
-    expect(recorded.ink[1]!.depth![0]).toBe(recorded.ink[0]!.depth![0]);
-    expect(recorded.ink[2]!.depth![0]).toBe(recorded.ink[0]!.depth![1]);
+    // Each mask is the face's blocker, one triangle, at its run of one buffer.
+    const masks = recorded.draws.filter(({ command }) => command === 'mask');
+    expect(masks.map(({ props }) => [props!.first, props!.count])).toEqual([
+      [0, 3],
+      [3, 3],
+      [0, 3],
+      [3, 3],
+    ]);
+    expect(new Set(masks.map(({ props }) => props!.position)).size).toBe(1);
+    // A face's own lines, for its corrected pass, are its range of the one ink program.
+    expect(recorded.inkPrograms).toBe(1);
+  });
+
+  it('clears the stencil again only when a cycle’s mask values run out', () => {
+    // A ring of faces, each under the next: 130 faces, 260 corrected steps.
+    const count = 130;
+    const ring: Visibility = { ranks: null, cyclic: true, above: Array.from({ length: count }, (_, f) => [(f + 1) % count]) };
+    const program = createSpreadProgram(recordingRegl());
+    program.setData(geometry(Array.from({ length: count }, (_, f) => f / count), ring), BAND);
+    program.draw(DRAW);
+    const marks = commands().filter((command) => command.startsWith('mark:') || command === 'clear:stencil');
+    expect(marks.filter((command) => command === 'clear:stencil')).toHaveLength(2);
+    // Values 1 to 255, a clear, and the rest from 1 again.
+    expect(marks.slice(0, 2)).toEqual(['clear:stencil', 'mark:1']);
+    expect(marks.slice(255, 258)).toEqual(['mark:255', 'clear:stencil', 'mark:1']);
+    expect(marks.at(-1)).toBe(`mark:${2 * count - 255}`);
+    // Every face is still drawn in each corrected pass, in face order.
+    expect(commands().filter((command) => command.startsWith('test:'))).toHaveLength(2 * count);
+  });
+
+  it('draws again the same way, starting from a clear', () => {
+    const program = createSpreadProgram(recordingRegl());
+    program.setData(geometry([0.25, 0.75], CYCLIC), BAND);
+    program.draw(DRAW);
+    const first = commands();
+    recorded.draws.length = 0;
+    program.draw(DRAW);
+    expect(commands()).toEqual(first);
   });
 
   it('keeps a banded figure’s fills and lines inside its band, faded by its opacity', () => {
