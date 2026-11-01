@@ -21,8 +21,11 @@ vi.mock('./strokeProgram', () => ({
     const id = recorded.inkPrograms++;
     return {
       setData: (geometry: StrokeGeometry) => recorded.ink.push(geometry),
-      draw: (_props: unknown, range?: { first: number; count: number }) =>
-        recorded.draws.push({ command: range ? `ink:${id}:${range.first}+${range.count}` : `ink:${id}` }),
+      draw: () => recorded.draws.push({ command: `ink:${id}` }),
+      drawMasked: (_props: unknown, ranges: readonly { first: number; count: number; stencilBit: number }[]) =>
+        recorded.draws.push({
+          command: `ink:${id}[${ranges.map(({ first, count, stencilBit }) => `${first}+${count}@${stencilBit}`).join(' ')}]`,
+        }),
       dispose: () => {},
     };
   },
@@ -30,6 +33,7 @@ vi.mock('./strokeProgram', () => ({
 
 const {
   createSpreadProgram,
+  footprintTriangles,
   mergedSpreadInk,
   placedSpreadView,
   spreadDrawPlan,
@@ -46,26 +50,29 @@ const DEPTH_BITS = 24;
 type RecordedBuffer = ((data: unknown) => void) & { data: unknown; destroy: () => void };
 
 /**
- * A regl that records each draw by its depth state, each stencil scope by
- * whether it marks or tests and with which value, each clear, and what each
- * buffer holds.
+ * A regl that records each draw by its depth state — a batch as a draw per
+ * item, its stencil bit or mask write after an `@` — each stencil scope,
+ * each clear, and what each buffer holds.
  */
 function recordingRegl() {
   const command = (config: Record<string, unknown>) => {
     const depth = config.depth as { enable: boolean; mask?: boolean; func?: string } | undefined;
-    const stencil = config.stencil as { opFront?: { zpass: string } } | undefined;
     const name =
       typeof config.vert === 'string' && (config.uniforms as Record<string, unknown>).base
         ? `fill:${depth?.mask ? 'write' : 'keep'}:${depth?.func}`
         : typeof config.vert === 'string'
           ? 'mask'
-          : stencil?.opFront?.zpass === 'replace'
-            ? 'mark'
-            : 'test';
+          : 'scope';
+    const label = (props: Record<string, unknown>) =>
+      props.writeMask !== undefined
+        ? `${name}@${props.writeMask === 255 ? 'clear' : props.writeMask}`
+        : props.stencilBit !== undefined
+          ? `${name}@${props.stencilBit}`
+          : name;
     return (props: unknown, body?: () => void) => {
       if (typeof props === 'function') return (props as () => void)();
-      const ref = (props as { ref?: number }).ref;
-      recorded.draws.push({ command: ref === undefined ? name : `${name}:${ref}`, props: props as Record<string, unknown> });
+      for (const item of (Array.isArray(props) ? props : [props]) as Record<string, unknown>[])
+        recorded.draws.push({ command: label(item), props: item });
       body?.();
     };
   };
@@ -266,69 +273,79 @@ describe('createSpreadProgram', () => {
     expect(resets[0]!.props).toMatchObject({ base: 0.5 + 0.25 * 0.05, span: 0, color: false, first: 0, count: 6 });
   });
 
-  it('draws a cycle’s corrected faces one at a time, each inside its blockers’ mask', () => {
+  it('draws a cycle’s corrected faces in batches, each against its blockers’ mask in a stencil bit of its own', () => {
     const program = createSpreadProgram(recordingRegl());
     program.setData(geometry([0.25, 0.75], CYCLIC), BAND);
     program.draw(DRAW);
-    // One clear, then each face marks its mask with a value of its own and is
-    // drawn wherever the stencil holds any other: the masks before it never
-    // need clearing away.
+    // One clear; then, a pass at a time, the footprint back to 0 and each
+    // face's mask into its bit, then each face drawn where its bit is clear.
     expect(commands()).toEqual([
       'fill:write:lequal',
       'ink:0',
       'fill:write:always',
       'clear:stencil',
-      'mark:1',
-      'mask',
-      'test:1',
-      'fill:write:lequal',
-      'mark:2',
-      'mask',
-      'test:2',
-      'fill:write:lequal',
-      'mark:3',
-      'mask',
-      'test:3',
-      'ink:0:0+1',
-      'mark:4',
-      'mask',
-      'test:4',
-      'ink:0:1+1',
+      'mask@clear',
+      'mask@1',
+      'mask@2',
+      'fill:write:lequal@1',
+      'fill:write:lequal@2',
+      'mask@clear',
+      'mask@1',
+      'mask@2',
+      'ink:0[0+1@1 1+1@2]',
     ]);
     // Each corrected fill is its own face's range of the one buffer.
-    const corrected = fills().filter(({ command }) => command === 'fill:write:lequal').slice(1);
+    const corrected = fills().filter(({ command }) => command.startsWith('fill:write:lequal@'));
     expect(corrected.map(({ props }) => [props!.first, props!.count])).toEqual([
       [0, 3],
       [3, 3],
     ]);
-    // Each mask is the face's blocker, one triangle, at its run of one buffer.
-    const masks = recorded.draws.filter(({ command }) => command === 'mask');
+    // The mask buffer opens with the footprint, two triangles, and holds each
+    // face's blocker, one triangle, after it.
+    const masks = recorded.draws.filter(({ command }) => command.startsWith('mask'));
     expect(masks.map(({ props }) => [props!.first, props!.count])).toEqual([
-      [0, 3],
-      [3, 3],
-      [0, 3],
-      [3, 3],
+      [0, 6],
+      [6, 3],
+      [9, 3],
+      [0, 6],
+      [6, 3],
+      [9, 3],
     ]);
     expect(new Set(masks.map(({ props }) => props!.position)).size).toBe(1);
+    // A mask writes 1 into its bit; the footprint writes 0 into all of them.
+    expect(masks.map(({ props }) => [props!.ref, props!.writeMask])).toEqual([
+      [0, 255],
+      [255, 1],
+      [255, 2],
+      [0, 255],
+      [255, 1],
+      [255, 2],
+    ]);
     // A face's own lines, for its corrected pass, are its range of the one ink program.
     expect(recorded.inkPrograms).toBe(1);
   });
 
-  it('clears the stencil again only when a cycle’s mask values run out', () => {
-    // A ring of faces, each under the next: 130 faces, 260 corrected steps.
-    const count = 130;
+  it('goes through a cycle eight faces at a time, in face order, clearing the stencil once', () => {
+    // A ring of faces, each under the next.
+    const count = 20;
     const ring: Visibility = { ranks: null, cyclic: true, above: Array.from({ length: count }, (_, f) => [(f + 1) % count]) };
     const program = createSpreadProgram(recordingRegl());
     program.setData(geometry(Array.from({ length: count }, (_, f) => f / count), ring), BAND);
     program.draw(DRAW);
-    const marks = commands().filter((command) => command.startsWith('mark:') || command === 'clear:stencil');
-    expect(marks.filter((command) => command === 'clear:stencil')).toHaveLength(2);
-    // Values 1 to 255, a clear, and the rest from 1 again.
-    expect(marks.slice(0, 2)).toEqual(['clear:stencil', 'mark:1']);
-    expect(marks.slice(255, 258)).toEqual(['mark:255', 'clear:stencil', 'mark:1']);
-    expect(marks.at(-1)).toBe(`mark:${2 * count - 255}`);
-    // Every face is still drawn in each corrected pass, in face order.
-    expect(commands().filter((command) => command.startsWith('test:'))).toHaveLength(2 * count);
+    expect(commands().filter((command) => command === 'clear:stencil')).toHaveLength(1);
+    // Every face is drawn once in the corrected fills, in face order, in its lane.
+    const corrected = fills().filter(({ command }) => command.startsWith('fill:write:lequal@'));
+    expect(corrected.map(({ props }) => props!.first)).toEqual(Array.from({ length: count }, (_, f) => f * 3));
+    expect(corrected.map(({ props }) => props!.stencilBit)).toEqual(
+      Array.from({ length: count }, (_, f) => 1 << f % 8)
+    );
+    // Three chunks a pass, each opening with the footprint.
+    expect(commands().filter((command) => command === 'mask@clear')).toHaveLength(6);
+    expect(commands().filter((command) => command.startsWith('ink:0['))).toEqual([
+      'ink:0[0+1@1 1+1@2 2+1@4 3+1@8 4+1@16 5+1@32 6+1@64 7+1@128]',
+      'ink:0[8+1@1 9+1@2 10+1@4 11+1@8 12+1@16 13+1@32 14+1@64 15+1@128]',
+      'ink:0[16+1@1 17+1@2 18+1@4 19+1@8]',
+    ]);
   });
 
   it('draws again the same way, starting from a clear', () => {
@@ -399,6 +416,27 @@ describe('createSpreadProgram', () => {
     expect(recorded.ink).toHaveLength(2);
     expect(recorded.inkPrograms).toBe(1);
     expect(recorded.ink[1]!.depth![0]).toBeLessThan(0.5);
+  });
+});
+
+describe('footprintTriangles', () => {
+  it('covers every face’s box, with a margin, in two triangles', () => {
+    const triangles = footprintTriangles([
+      [0, 0, 10, 5],
+      [5, -5, 20, 0],
+    ]);
+    expect(triangles).toHaveLength(12);
+    const xs = triangles.filter((_, k) => k % 2 === 0);
+    const ys = triangles.filter((_, k) => k % 2 === 1);
+    expect(Math.min(...xs)).toBeLessThan(0);
+    expect(Math.max(...xs)).toBeGreaterThan(20);
+    expect(Math.min(...ys)).toBeLessThan(-5);
+    expect(Math.max(...ys)).toBeGreaterThan(5);
+  });
+
+  it('is empty when no face has a fill', () => {
+    expect(footprintTriangles([])).toHaveLength(0);
+    expect(footprintTriangles([[Infinity, Infinity, -Infinity, -Infinity]])).toHaveLength(0);
   });
 });
 
