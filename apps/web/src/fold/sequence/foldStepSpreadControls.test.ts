@@ -6,8 +6,10 @@ import type {
   DepthSpreadOptions,
   LayerSpreadOptions,
 } from '../../cp-workspace/folded/foldedLayerSpread';
-import { DEFAULT_SPREAD_STARTS, type LayerSpreadStarts } from '../../cp-workspace/folded/layerSpreadSettings';
-import type { FoldEffectiveSpread } from '../document/foldStepSpread';
+import type { LayerSpreadStarts } from '../../cp-workspace/folded/layerSpreadSettings';
+import { foldEffectiveSpread, foldSpreadStarts, type FoldEffectiveSpread } from '../document/foldStepSpread';
+import { createFoldSequence } from '../document/foldSequenceDocument';
+import { step } from '../document/foldSequence.fixtures';
 import { foldStepSpreadControls, type FoldSpreadSitting, type FoldStepSpreadState } from './foldStepSpreadControls';
 
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
@@ -104,17 +106,20 @@ describe('a Fold step’s spread controls', () => {
     expect(set).not.toHaveBeenCalled();
   });
 
-  it('offers the defaults as starts when nothing before is spread', () => {
+  it('starts a new Fold sequence with spread off and enables Default at 7%', () => {
     const { controls, set } = foldStepSpreadControlsWithDefaults();
+    expect(controls.toggle.pressed).toBe(false);
+    expect(controls.spread).toBeNull();
     controls.toggle.run();
-    expect(set).toHaveBeenCalledWith(DEFAULT_SPREAD_STARTS.any);
+    expect(set).toHaveBeenCalledWith({ ...DEFAULT_CONNECTED_SPREAD, amount: 0.14 });
   });
 });
 
 function foldStepSpreadControlsWithDefaults() {
   const set = vi.fn(() => true);
+  const document = { ...createFoldSequence(), steps: [step('first', null)] };
   const controls = foldStepSpreadControls(
-    { effective: off, starts: DEFAULT_SPREAD_STARTS, hint: undefined },
+    { effective: foldEffectiveSpread(document, 'first'), starts: foldSpreadStarts(document, 'first'), hint: undefined },
     { t, set, changed: vi.fn(), newSession: () => 1, sitting: { current: null } }
   );
   return { controls, set };

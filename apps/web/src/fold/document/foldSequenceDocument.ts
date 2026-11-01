@@ -1,4 +1,3 @@
-import { DEFAULT_FOLD_CONNECTED_SPREAD } from './foldSpreadDefaults';
 /**
  * A Fold sequence: the sheet it starts from and the steps folded on it, as the
  * project file holds it (`workspace.foldSequences`, plan D6 and D7).
@@ -993,7 +992,7 @@ export function createFoldSequence(
     title,
     paper,
     style: FOLD_DEFAULT_PAPER_STYLE,
-    defaultSpread: { ...DEFAULT_FOLD_CONNECTED_SPREAD, reveal: [...DEFAULT_FOLD_CONNECTED_SPREAD.reveal] },
+    defaultSpread: 'off',
     steps: [],
   };
 }

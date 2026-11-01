@@ -3,6 +3,7 @@ import '../../layer-spread/captureWorker.testSupport';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_FOLD_CONNECTED_SPREAD } from '../../fold/document/foldSpreadDefaults';
 import type { FoldOp } from '../../fold/document/foldSequenceDocument';
 import { createFoldEngineCalls } from '../../fold/engine/foldEngineCalls';
 import { createFoldSession, type FoldSession } from '../../fold/session/foldSession';
@@ -111,6 +112,8 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
 
   it('marks a spread-kind replacement as blocking, but not a live reveal capture', async () => {
     const [, second] = state().foldSequences[0]!.document.steps;
+    expect(state().setFoldStepSpread(second!.id, DEFAULT_FOLD_CONNECTED_SPREAD)).toBe(true);
+    await settle();
     await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });
     const id = onlyStep().id;
     await spreadDiagramFoldStep(id, {verb:'spread-kind',kind:'affine'});
@@ -142,6 +145,8 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
 
   it('drops an obsolete camera capture without changing the Fold-derived step or history', async () => {
     const [, second] = state().foldSequences[0]!.document.steps;
+    expect(state().setFoldStepSpread(second!.id, DEFAULT_FOLD_CONNECTED_SPREAD)).toBe(true);
+    await settle();
     await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });
     const before = onlyStep();
     const history = state().diagramHistory;
@@ -158,6 +163,8 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
 
   it('queues a presentation change behind capture, preserves its camera, and persists it with undo/redo', async () => {
     const [, second] = state().foldSequences[0]!.document.steps;
+    expect(state().setFoldStepSpread(second!.id, DEFAULT_FOLD_CONNECTED_SPREAD)).toBe(true);
+    await settle();
     await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });
     const id = onlyStep().id;
     const before = state().diagramHistory.past.length;
