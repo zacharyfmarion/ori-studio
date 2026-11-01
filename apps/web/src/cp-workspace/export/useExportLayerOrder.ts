@@ -154,8 +154,8 @@ export function useExportLayerOrder(options: ExportLayerOrderOptions): ExportLay
     },
     [scope]
   );
-  // The cursor's worker goes with the host dialog.
-  useEffect(() => () => dropExportSolutionCursor(), []);
+  // The cursor's worker goes with the host dialog, or what it is open on.
+  useEffect(() => () => dropExportSolutionCursor(), [scope]);
   // Back from the dialog: focus on Edit…, which the dialog's own return
   // focus cannot reach, since the button it held went with this dialog's DOM.
   useEffect(() => {
