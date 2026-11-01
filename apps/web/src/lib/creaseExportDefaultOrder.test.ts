@@ -153,6 +153,16 @@ describe('an export in the kernel’s own layer order', () => {
     await expect(svg).toMatchFileSnapshot('./__snapshots__/creaseExportDefaultOrder.scene.svg');
   });
 
+  it('draws the same bytes with its layer spread said to be off', async () => {
+    const svg = serializeCreasePatternSvg(
+      fold,
+      segments,
+      { ...options, foldedFigure: { ...DEFAULT_CREASE_EXPORT_FOLDED_FIGURE, spread: null } },
+      { foldedFigure: foldedSnapshot(), foldedFigureScene: foldedScene(), foldedFigureSpread: null }
+    );
+    await expect(svg).toMatchFileSnapshot('./__snapshots__/creaseExportDefaultOrder.scene.svg');
+  });
+
   it('draws the share card’s figure as it did before', async () => {
     const page = composeCreaseExportSvg(
       buildCreaseExportArtwork(fold, segments, options, {

@@ -54,9 +54,19 @@ import {
 } from './creasePatternViewport';
 import { alternateDashRuns, cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
 
+import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
+import type { CreaseExportSpreadPicture } from './creaseExportSpread';
+import type { ScenePoint } from './paper/paperScene';
+
 /** Side of the square content box the crease pattern is drawn into. */
 const CP_SIZE = 1024;
 const MARGIN = 48;
+/**
+ * The most the pattern is drawn across inside its box, page px: the folded
+ * figure beside it is fitted to the pattern's height, so it is never drawn
+ * taller (`creaseExportSpreadRasterMm`).
+ */
+export const CREASE_EXPORT_FIGURE_SPAN = CP_SIZE - MARGIN * 2;
 // Export viewBox (1024) is larger than the editable canvas viewBox (~720); scale
 // stroke widths / point radii so exports look like the live crease-pattern view.
 const VIEW_SCALE = CP_SIZE / 720;
@@ -115,8 +125,9 @@ export type CreaseExportFormat = 'svg' | 'png';
 export type CreaseExportTheme = 'light' | 'dark';
 
 /**
- * How the folded figure is folded and painted. These go to the kernel as a
- * folded-figure model, so changing any of them means re-folding.
+ * How the folded figure is folded and painted. The side, the colours and the
+ * case go to the kernel as a folded-figure model; the spread does not, since
+ * a spread is drawn from the fold the kernel made.
  */
 export interface CreaseExportFoldedFigureSettings {
   /** Which surface the figure shows. Front and back are the offered views. */
@@ -126,6 +137,12 @@ export interface CreaseExportFoldedFigureSettings {
   backColor: string;
   /** 1-based layer-ordering solution to show. */
   foldCase: number;
+  /**
+   * The figure's layers spread apart, or null or absent for none — the
+   * setting. What is painted is the picture it settled to,
+   * `CreaseExportContent.foldedFigureSpread`, so the file is the preview.
+   */
+  spread?: LayerSpreadOptions | null;
 }
 
 export const DEFAULT_CREASE_EXPORT_FOLDED_FIGURE: CreaseExportFoldedFigureSettings = {
@@ -850,6 +867,13 @@ export interface CreaseExportContent {
    * picture is already in it — and read only to say which in analytics.
    */
   foldedFigureLayerOrder?: 'default' | 'chosen';
+  /**
+   * The figure with its layers spread, as its spread setting settled
+   * (`creaseExportSpread.ts`): painted in place of `foldedFigureScene`,
+   * fitted by the figure unspread. Absent or null draws the figure as it
+   * always was, byte for byte.
+   */
+  foldedFigureSpread?: CreaseExportSpreadPicture | null;
 }
 
 /**
@@ -1098,6 +1122,52 @@ function foldOutlineLoops(fold: FoldDocument): number[][] {
   return loops;
 }
 
+/**
+ * Where a spread picture goes in the inset: fitted by the figure unspread,
+ * its flat top on the pattern's, as the figure is drawn with no spread — so
+ * raising Amount spreads the layers apart rather than shrinking the figure —
+ * and boxed by all it draws, with room made above should the layers reach
+ * past the page's top. `toPage` takes a point of the picture's frame to the
+ * pattern's page: a scale and a shift.
+ */
+function placeSpreadPicture(
+  picture: CreaseExportSpreadPicture,
+  toPage: (x: number, y: number) => Point,
+  contentTop: number,
+  contentHeight: number
+): { project: (point: ScenePoint) => ScenePoint; box: CreaseExportFoldedBox } {
+  const drawn = picture.kind === 'scene' ? picture.scene.bounds : picture.bounds;
+  const flatTop = toPage(picture.flat.minX, picture.flat.minY);
+  const flatBottom = toPage(picture.flat.maxX, picture.flat.maxY);
+  const drawnTop = toPage(drawn.minX, drawn.minY);
+  const drawnBottom = toPage(drawn.maxX, drawn.maxY);
+  const flatHeight = flatBottom.y - flatTop.y;
+  const fit = flatHeight > 0 ? contentHeight / flatHeight : 1;
+  const above = Math.max(0, (flatTop.y - drawnTop.y) * fit - contentTop);
+  const project = ([x, y]: ScenePoint): ScenePoint => {
+    const page = toPage(x, y);
+    return [(page.x - drawnTop.x) * fit, (page.y - flatTop.y) * fit + contentTop + above];
+  };
+  return {
+    project,
+    box: {
+      width: (drawnBottom.x - drawnTop.x) * fit,
+      height: Math.max(contentTop + contentHeight, (drawnBottom.y - flatTop.y) * fit + contentTop) + above,
+    },
+  };
+}
+
+/** A Default spread's bitmap on the page, at its frame: the one form of a figure too complex to clip. */
+function spreadRasterElement(
+  picture: Extract<CreaseExportSpreadPicture, { kind: 'raster' }>,
+  project: (point: ScenePoint) => ScenePoint
+): string {
+  const [x, y, width, height] = picture.frame;
+  const [left, top] = project([x, y]);
+  const [right, bottom] = project([x + width, y + height]);
+  return `  <image x="${left.toFixed(2)}" y="${top.toFixed(2)}" width="${(right - left).toFixed(2)}" height="${(bottom - top).toFixed(2)}" preserveAspectRatio="none" href="${picture.href}"/>`;
+}
+
 export function buildCreaseExportArtwork(
   fold: FoldDocument,
   segments: CpSegment[],
@@ -1224,7 +1294,33 @@ export function buildCreaseExportArtwork(
       box: { width: (bounds.maxX - bounds.minX) * fit, height: contentTop + contentHeight },
     };
   };
-  if (foldedScene) {
+  const spreadPicture = options.includeFoldedFigure ? (content.foldedFigureSpread ?? null) : null;
+  if (spreadPicture) {
+    // The figure with its layers spread, as the dialog settled it: placed
+    // from its own frame by the pattern's projector, a scale and a shift.
+    const { scale: frameScale } = spreadPicture;
+    const placed = placeSpreadPicture(
+      spreadPicture,
+      (x, y) => projectPoint(applyCpModelToFold({ x: x / frameScale, y: y / frameScale }, foldedTransform)),
+      contentTop,
+      contentHeight
+    );
+    foldedBox = placed.box;
+    folded =
+      spreadPicture.kind === 'scene'
+        ? paperSceneSvgBody(
+            spreadPicture.scene,
+            creaseExportPaperStyle((content.paper ?? DEFAULT_CREASE_EXPORT_PAPER).style, options.foldedFigure),
+            {
+              project: placed.project,
+              unitsPerPt: PT_TO_CSS_PX * VIEW_SCALE,
+              // A Default scene's hidden rings are anchors, not paper: kept,
+              // every face would be written twice.
+              keepHiddenFaces: false,
+            }
+          )
+        : spreadRasterElement(spreadPicture, placed.project);
+  } else if (foldedScene) {
     // The kernel's paper scene through the shared painter: whole faces in
     // painter's order with every layer present, at the pens the export style
     // states — the same picture the figure exports on its own, on this page.
