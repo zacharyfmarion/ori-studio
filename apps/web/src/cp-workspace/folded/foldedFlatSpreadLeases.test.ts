@@ -86,12 +86,15 @@ describe('FoldedSpreadPreparations', () => {
     preparations.sync([{ id: 'f1', fold, scene: first, priority: 1 }]);
     leases[0]!.resolve(solved('first'));
     await flush();
+    // Asked by the fold, as the canvas asks in the render the new scene lands
+    // in, before it syncs: the faces and stacks are the fold's, so its solve
+    // still answers for the new scene.
+    expect(preparations.state('f1', fold)).toEqual({ status: 'ready', prepared: solved('first') });
     preparations.sync([{ id: 'f1', fold, scene: refetched, priority: 1 }]);
     expect(leases).toHaveLength(1);
     expect(leases[0]!.released).toBe(false);
-    // The faces and stacks are the fold's, so its solve still answers for the new scene.
-    expect(preparations.state('f1', refetched)).toEqual({ status: 'ready', prepared: solved('first') });
-    expect(preparations.state('f1', first)).toEqual({ status: 'preparing' });
+    expect(preparations.state('f1', fold)).toEqual({ status: 'ready', prepared: solved('first') });
+    expect(preparations.state('f1', {})).toEqual({ status: 'preparing' });
   });
 
   it('releases a figure that went, or whose spread can no longer draw', async () => {

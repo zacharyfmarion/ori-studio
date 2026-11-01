@@ -5,7 +5,7 @@
  * redraws the picture it has, X-ray is see-through, and the chrome measures
  * the picture only once no edit is mid gesture.
  */
-import { act, useEffect } from 'react';
+import { act, useEffect, useMemo } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Point3, SpreadSolution } from '@oristudio/layer-spread';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -125,11 +125,15 @@ let SNAPSHOT = snapshotOf();
 let KERNEL = plainBook();
 let root: Root | null = null;
 let reader: ((figure: OristudioCpFoldedFigureEntry) => FoldedFigureSpreadPicture | null) | null = null;
+/** The first figure's picture as the canvas reads it: in its render, before that commit's effects. */
+let drawn: FoldedFigureSpreadPicture | null = null;
 
 function Probe({ figures }: { figures: readonly OristudioCpFoldedFigureEntry[] }): null {
   const read = useFoldedFlatSpread(figures, () => DEFAULT_PAPER_STYLE);
+  const inRender = useMemo(() => (figures[0] ? read(figures[0]) : null), [read, figures]);
   useEffect(() => {
     reader = read;
+    drawn = inRender;
   });
   return null;
 }
@@ -161,6 +165,7 @@ afterEach(() => {
   act(() => root?.unmount());
   root = null;
   reader = null;
+  drawn = null;
   foldedFigureGesture.abortAll();
   resetFoldedFlatScenes();
   resetFoldedFigureSpreadReach();
@@ -217,6 +222,21 @@ describe('useFoldedFlatSpread', () => {
     leases.taken[1]!.resolve(solved(after));
     await settle();
     expect(picture(entry)?.kind).toBe('connected');
+  });
+
+  it('keeps drawing spread when the crease pattern’s aux lines change, with no new solve', async () => {
+    const entry = figure();
+    mount([entry]);
+    leases.taken[0]!.resolve(solved(KERNEL));
+    await settle();
+    expect(drawn?.kind).toBe('connected');
+    // An import that brings aux lines, or one drawn: the same fold's scene,
+    // fetched again with the new lines, lands while the canvas renders.
+    act(() => setFoldedFlatScene(HANDLE, SNAPSHOT, plainBook()));
+    await settle();
+    expect(drawn?.kind).toBe('connected');
+    expect(leases.taken).toHaveLength(1);
+    expect(status()).toBe('ready');
   });
 
   it('lets go when the spread is turned off, and reports nothing for it', async () => {

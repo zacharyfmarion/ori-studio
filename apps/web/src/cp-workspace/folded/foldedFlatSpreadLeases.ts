@@ -91,10 +91,15 @@ export class FoldedSpreadPreparations {
     }
   }
 
-  /** Where the figure's solve for `scene` stands; preparing while none is held for that scene. */
-  state(id: string, scene: OristudioCpFoldedPaperScene): SpreadPreparationState {
+  /**
+   * Where the figure's solve for `fold` stands; preparing while none is held
+   * for that fold. Asked by the fold, as leases are held, so a new scene of
+   * the same fold has its solve at once: in the very render that brings the
+   * scene, before `sync` is told of it.
+   */
+  state(id: string, fold: object): SpreadPreparationState {
     const held = this.held.get(id);
-    return held?.scene === scene ? held.state : PREPARING;
+    return held?.fold === fold ? held.state : PREPARING;
   }
 
   /** Release every lease; nothing that lands afterwards is kept. */

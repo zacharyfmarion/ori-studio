@@ -193,11 +193,18 @@ export function spreadRequests(
     if (foldedFigureSpreadOptions(figure)?.kind !== 'connected' || !foldedFigureSpreadDrawable(figure)) continue;
     const scene = foldedFigureSpreadScene(figure, table);
     if (!scene) continue;
-    // The fold is the figure's kernel snapshot, which a refold, another
-    // solution or a side flip replaces and an aux-line refetch keeps.
-    requests.push({ id: figure.id, fold: figure.snapshot ?? scene, scene, priority: urgent(figure) ? 1 : 0 });
+    requests.push({ id: figure.id, fold: spreadFold(figure, scene), scene, priority: urgent(figure) ? 1 : 0 });
   }
   return requests;
+}
+
+/**
+ * The fold a figure's scene is of, which its lease is held for: its kernel
+ * snapshot, which a refold, another solution or a side flip replaces and an
+ * aux-line refetch keeps; the scene itself for a reopened figure.
+ */
+function spreadFold(figure: OristudioCpFoldedFigureEntry, scene: OristudioCpFoldedPaperScene): object {
+  return figure.snapshot ?? scene;
 }
 
 /**
@@ -216,7 +223,7 @@ export function spreadStatus(
   // Handle 0 is a valid wasm slot index; only null/undefined means "not ready".
   if (!kernel) return figure.handle != null ? 'preparing' : null;
   if (spread.kind !== 'connected') return 'ready';
-  return preparations?.state(figure.id, kernel).status ?? 'preparing';
+  return preparations?.state(figure.id, spreadFold(figure, kernel)).status ?? 'preparing';
 }
 
 /**
@@ -258,7 +265,9 @@ function buildSpread(
   if (!kernel) return null;
   let prepared: PreparedConnectedSpread | null = null;
   if (spread.kind === 'connected') {
-    const state = preparations?.state(figure.id, kernel);
+    // By its fold: the canvas reads this in the render a refetched scene
+    // lands in, before the lease is told of the scene.
+    const state = preparations?.state(figure.id, spreadFold(figure, kernel));
     if (state?.status !== 'ready') return null;
     prepared = state.prepared;
   }
