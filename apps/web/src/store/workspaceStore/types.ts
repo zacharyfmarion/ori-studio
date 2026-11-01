@@ -122,6 +122,7 @@ import type { PaperStyleOverrides } from '../../lib/paper/paperStyle';
 import type { FoldPress } from '../../cp-workspace/folded/foldPress';
 import type { LayerOrderSolutionPress } from '../../layer-order/host/solutionCursorTable';
 import type { FoldedFigureLayerOrderRefold } from '../../cp-workspace/folded/foldedFigureLayerOrderState';
+import type { FoldedFigureSpread } from '../../cp-workspace/folded/foldedFigureSpread';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
@@ -1422,6 +1423,14 @@ export interface CreasePatternSliceActions {
     field: F,
     value: PaperStyleValue<F> | undefined
   ) => boolean;
+  /**
+   * Set a figure's layer spread, or clear it with `null`. Selects the figure,
+   * as editing its appearance does. A document edit with no history push of
+   * its own, on the same terms as {@link setOristudioCpFoldedFigureAppearance}:
+   * the undo entry is the caller's bracket. A spread equal to the one held
+   * leaves the figure entry as it is. `false` when there is no such figure.
+   */
+  setOristudioCpFoldedFigureSpread: (id: string, spread: FoldedFigureSpread | null) => boolean;
   /**
    * Rebuild every 3D figure's stored picture at the style it now follows.
    *

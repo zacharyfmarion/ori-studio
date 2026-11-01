@@ -33,6 +33,7 @@ import {
 } from '../../../lib/creasePatternClipboard';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { withPaperStyleOverride } from '../../../lib/paper/paperStyle';
+import { sameSpread } from '../../../cp-workspace/folded/layerSpreadSettings';
 import { legacyPaperStyleOverrides } from '../../../lib/paper/paperStyleMigration';
 import {
   buildSegmentSimulationFold,
@@ -2533,6 +2534,26 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           candidate.id === id
             ? { ...candidate, appearance, scene: scene ?? candidate.scene }
             : candidate
+        ),
+        oristudioCpActiveFoldedFigureId: id,
+        dirty: true,
+      });
+      return true;
+    },
+
+    setOristudioCpFoldedFigureSpread: (id, spread) => {
+      const figures = get().oristudioCpFoldedFigures;
+      const figure = figures.find((candidate) => candidate.id === id);
+      if (!figure) return false;
+      const held = figure.spread ?? null;
+      const same =
+        held === spread ||
+        (held?.kind === 'record' && spread?.kind === 'record' && sameSpread(held.spread, spread.spread));
+      if (same) return true;
+      // Editing a figure's spread selects it, as editing its appearance does.
+      takeCanvasSelection('folded-figure', {
+        oristudioCpFoldedFigures: figures.map((candidate) =>
+          candidate.id === id ? { ...candidate, spread } : candidate
         ),
         oristudioCpActiveFoldedFigureId: id,
         dirty: true,
