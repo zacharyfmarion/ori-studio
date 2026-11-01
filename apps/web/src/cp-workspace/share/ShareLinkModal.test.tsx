@@ -44,6 +44,15 @@ vi.mock('../../layer-spread/captureConnected', async () => {
       connectedPaperScene(scene.connected, scene.sheet, true),
   };
 });
+// The hosts' solution cursor, by hand: a step is recorded, never run.
+const cursor = vi.hoisted(() => ({ steps: [] as string[] }));
+vi.mock('../export/exportSolutionCursor', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../export/exportSolutionCursor')>()),
+  stepExportSolution: async (_figure: unknown, direction: string) => {
+    cursor.steps.push(direction);
+    return { outcome: 'cancelled' as const };
+  },
+}));
 
 class ResizeObserverStub {
   observe(): void {}
@@ -321,9 +330,11 @@ describe('the share card’s layer order', () => {
     );
   const layerOrderRow = () =>
     document.querySelector('button[aria-label="Edit Layer Order…"]')?.closest('[data-field-row]') ?? null;
+  const nextButton = () => document.querySelector<HTMLButtonElement>('button[aria-label="Next Layer Order"]');
 
   beforeEach(() => {
     publish.mockClear();
+    cursor.steps.length = 0;
     host = document.createElement('div');
     document.body.append(host);
     root = createRoot(host);
@@ -403,6 +414,27 @@ describe('the share card’s layer order', () => {
     const edit = document.querySelector('button[aria-label="Edit Layer Order…"]');
     expect(edit?.getAttribute('aria-disabled')).toBe('true');
     expect(layerOrderRow()?.textContent).toContain('The link’s card is made. Create another link to change it.');
+
+    // › steps nothing: not through the chosen order's solutions, so the order kept for these creases stays.
+    expect(nextButton()?.getAttribute('aria-disabled')).toBe('true');
+    await act(async () => nextButton()?.click());
+    expect(cursor.steps).toEqual([]);
+  });
+
+  it('folds no other case once the link exists, in the kernel’s own order', async () => {
+    resetExportLayerOrdersForTest();
+    const fold = vi.fn<typeof store.foldOristudioCpShareFigure>(async (settings) => ({
+      ...plain(),
+      discoveredCases: 2,
+      currentCase: settings.foldCase,
+      hasNext: true,
+    }));
+    useWorkspaceStore.setState({ foldOristudioCpShareFigure: fold });
+    await openWithFigure('https://ori.studio/s/a3bK9xmQ');
+
+    expect(nextButton()?.getAttribute('aria-disabled')).toBe('true');
+    await act(async () => nextButton()?.click());
+    expect(fold.mock.calls.map(([settings]) => settings.foldCase)).toEqual([1]);
   });
 });
 

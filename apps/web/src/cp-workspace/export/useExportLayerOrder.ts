@@ -226,7 +226,7 @@ export function useExportLayerOrder(options: ExportLayerOrderOptions): ExportLay
   };
 
   const stepChosen = (direction: 'next' | 'previous') => {
-    if (!figure || !chosen || busy) return;
+    if (blocker !== null || !figure || !chosen || busy) return;
     setStepping(true);
     void stepExportSolution(
       figure,
@@ -249,7 +249,7 @@ export function useExportLayerOrder(options: ExportLayerOrderOptions): ExportLay
     disabled: blocker !== null || busy || !source || (chosen ? (ends?.first ?? false) : atFirstCase),
     run: () => {
       if (chosen) stepChosen('previous');
-      else if (!busy && !atFirstCase) setFoldCase(preview.currentCase - 1);
+      else if (blocker === null && !busy && !atFirstCase) setFoldCase(preview.currentCase - 1);
     },
   };
   const next: ControlVerb = {
@@ -257,7 +257,7 @@ export function useExportLayerOrder(options: ExportLayerOrderOptions): ExportLay
     disabled: blocker !== null || busy || !source || (chosen ? (ends?.last ?? false) : atLastCase),
     run: () => {
       if (chosen) stepChosen('next');
-      else if (!busy && !atLastCase) setFoldCase(preview.currentCase + 1);
+      else if (blocker === null && !busy && !atLastCase) setFoldCase(preview.currentCase + 1);
     },
   };
 
