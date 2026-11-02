@@ -1,9 +1,47 @@
 //! Flat swivel geometry shared by the swivel by its edge onto a line and the
 //! swivel by its valley and mountain.
-use crate::compound::Against;
-use crate::compound::pieces::{Cut, score_cuts};
+//!
+//! # Two layers, or through the stack
+//!
+//! The swivel's rays start in the folded edge's two layers: `s` in the edge's
+//! layer, `c` and `b` in the other. Round the vertex they split the half-plane
+//! the paper lies in into sectors, and each layer moves by sector: the edge's
+//! layer by `R_s` between the half of the folded edge that opens and `s` (the
+//! near wedge), the other layer by `R_s ∘ R_h` up to `c` (the turning wedge)
+//! and by `R_b` from `c` to `b` (the wedge beyond); the rest stays. Those are
+//! the swivel's four motions.
+//!
+//! **Two layers first.** Each ray creases its own layer from the vertex to
+//! the paper's edge or to a fold, and every other face moves with the paper
+//! it is joined to ([`two_layers`]). Where that holds no two wedges together,
+//! that is the swivel.
+//!
+//! **Through the stack.** Where paper beyond the two layers joins two wedges
+//! (or a wedge and the paper that stays), every face moves by one of the
+//! four motions ([`assign`]): rigidly, as a flap carried by what it is hinged
+//! to, or — where it lies across a ray — creased along that ray and moved by
+//! sector like one of the two layers, the edge's (`s`) or the other's (`c`,
+//! `b`), one group per sheet of paper. That is a tip folded behind the edge's
+//! layer and hinged to it, a corner folded back where a ray meets a fold, a
+//! layer covering the other one, a fold nested in the folded edge that opens
+//! with it. Each face takes the first of those that agrees with its
+//! neighbours: across every crease the two faces move alike (the crease keeps
+//! its fold), or, where the crease lies along a ray of their group or the
+//! opening half of the folded edge, by that line's reflection apart (it folds
+//! or unfolds there) — material continuity, nothing else. What lands is still
+//! checked like every compound fold (`super::pieces`), and each order a
+//! choice offers is landed before it is offered ([`FoldCompiled::land`]).
+//! A motion whose layers cannot be ordered flat is refused for want of an
+//! order (`no_order`); where there is no such motion, or anything else stops
+//! the stack reading, the swivel is refused as the two-layer reading was:
+//! paper holds two wedges (`fan_ray_blocked`, naming that paper).
+use crate::complete::CompletionLimits;
+use crate::compound::pieces::{Cut, Scoring, score_cuts};
 use crate::compound::swivel::{SwivelKind, SwivelWedge, dot, internal, sub};
-use crate::compound::vertex::{Compiled, VertexFoldKind, cross, drop_empty, unit};
+use crate::compound::vertex::{
+    Compiled, VertexChoices, VertexFoldKind, VertexOutcome, angle_between, cross, drop_empty, unit,
+};
+use crate::compound::{Against, CompoundRefused};
 use crate::fold::line::Axis;
 use crate::numerics::{Band, MIN_FEATURE, TOL};
 use crate::pattern::{CreaseKind, FaceId, VertexId};
@@ -11,7 +49,7 @@ use crate::refusal::{FoldRefusal, NearMissCause, Refused, Side};
 use crate::state::State;
 use crate::view::Direction;
 use oristudio_geometry::{Line, convex};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 type Point = [f64; 2];
 
 /// Three new crease rays around an existing folded edge. The old tip opens.
@@ -48,6 +86,10 @@ impl FoldFan {
         Line::from_point_direction(self.vertex, direction)
             .ok_or_else(|| internal("a swivel crease has no line"))
     }
+    /// The rays by index ([`S`], [`C`], [`B`]).
+    fn rays(&self) -> [Point; 3] {
+        [self.swivel, self.counter, self.second]
+    }
 }
 /// The faces a crease runs through in one layer, from the vertex, and
 /// where it leaves the last of them.
@@ -71,6 +113,23 @@ pub(super) struct FoldCompiled {
     /// the wedge folding across `s` has a side along (`edge_reach`): the
     /// edge that swivels onto the target. None when it has none.
     pub(super) reach: Option<[f64; 2]>,
+    /// Whether it folds through the stack rather than on its two layers.
+    pub(super) stacked: bool,
+}
+
+impl FoldCompiled {
+    /// Land it ([`Compiled::land`]); through the stack, each order a choice
+    /// offers is landed before it is offered.
+    pub(super) fn land(
+        &self,
+        state: &State,
+        choices: &VertexChoices,
+        limits: &CompletionLimits,
+        other: impl FnOnce() -> Option<Compiled>,
+    ) -> Result<VertexOutcome, CompoundRefused> {
+        self.compiled
+            .land_checked(state, choices, limits, other, self.stacked)
+    }
 }
 
 /// The subdivisions of one coplanar material layer. A folded attachment
@@ -97,9 +156,10 @@ pub(super) fn flat_region(state: &State, start: usize) -> Vec<bool> {
 /// The faces a crease from `from`, on the boundary of face `start`'s image,
 /// runs through along the unit model direction `u`: `start`, then on across
 /// every flat crease it leaves through, until it leaves through the paper's
-/// raw edge or a boundary vertex. Internal flat-precrease vertices continue
-/// into the same material layer. A crease it would leave through that is folded is
-/// in its way (`fan_ray_blocked`, naming the paper across); a vertex it
+/// raw edge, a boundary vertex or a fold. Internal flat-precrease vertices
+/// continue into the same material layer. At a fold the layer ends, but the
+/// crease does not: the paper folded back there lies along the same model
+/// ray, and [`compile`] creases it too when it holds the wedges. A vertex it
 /// passes within a near miss of is refused as the fan's are.
 pub(super) fn ray_run(
     state: &State,
@@ -199,14 +259,7 @@ pub(super) fn ray_run(
         }
         let k = topology.face_creases[f][i];
         match parts.creases[k].kind {
-            CreaseKind::Border => return Ok(RayRun { faces, end }),
-            CreaseKind::Folded(_) => {
-                let across = topology.across(k, f).map_or(face.id, |g| parts.faces[g].id);
-                return Err(FoldRefusal::FanRayBlocked {
-                    faces: vec![across],
-                }
-                .into());
-            }
+            CreaseKind::Border | CreaseKind::Folded(_) => return Ok(RayRun { faces, end }),
             CreaseKind::Flat(_) => {
                 let g = topology
                     .across(k, f)
@@ -223,25 +276,436 @@ pub(super) fn ray_run(
     Err(internal("a swivel crease runs on without end"))
 }
 
-/// A unit direction halfway between two at less than a half turn.
-fn halfway(a: Point, b: Point) -> Option<Point> {
-    unit([a[0] + b[0], a[1] + b[1]])
+/// The paper scored along the rays, and per scored face the wedge it moves
+/// with (none for paper that stays).
+type Blocks = (Scoring, Vec<Option<usize>>);
+
+/// The rays by index: the edge layer's swivel crease `s`, the other layer's
+/// `c` (its counter crease) and its hinge `b` (its second); and the half of
+/// the folded edge that opens, `h`.
+const S: usize = 0;
+const C: usize = 1;
+const B: usize = 2;
+const H: usize = 3;
+/// How paper moves round the vertex, by index: as one of the three wedges
+/// (near, turn, beyond, the order of [`SwivelWedge`]'s blocks), or not.
+const STAYS: usize = 3;
+
+/// The motion one reflection across `line` from the motion `x`, where a
+/// crease along it folds or unfolds: across `s` the near wedge's and the
+/// paper that stays, across `c` the turning wedge's and the one beyond's,
+/// across `b` the one beyond's and the paper that stays, across `h` the
+/// near and the turning wedges'.
+fn partner(x: usize, line: usize) -> Option<usize> {
+    match (line, x) {
+        (S, 0) => Some(STAYS),
+        (S, STAYS) => Some(0),
+        (C, 1) => Some(2),
+        (C, 2) => Some(1),
+        (B, 2) => Some(STAYS),
+        (B, STAYS) => Some(2),
+        (H, 0) => Some(1),
+        (H, 1) => Some(0),
+        _ => None,
+    }
 }
 
-pub(super) fn compile(
+/// How one face moves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    /// All of it by one motion (by index).
+    Rigid(usize),
+    /// By sector like the edge's layer, creased along `s` where it crosses.
+    Edge,
+    /// By sector like the other layer, creased along `c` and `b`.
+    Other,
+}
+
+/// The sectors round the vertex: angles from the half of the folded edge
+/// that opens, toward the paper.
+struct Sectors {
+    vertex: Point,
+    opens: Point,
+    /// `+1` or `−1`: the turn from `opens` toward the paper.
+    sign: f64,
+    /// The angles of `s`, `c` and `b`.
+    angles: [f64; 3],
+}
+
+impl Sectors {
+    fn of(built: &FoldFan) -> Sectors {
+        let sign = angle_between(built.opens, built.second).signum();
+        Sectors {
+            vertex: built.vertex,
+            opens: built.opens,
+            sign,
+            angles: built
+                .rays()
+                .map(|u| (sign * angle_between(built.opens, u)).abs()),
+        }
+    }
+
+    /// How a face in `mode` moves at the model point `p`.
+    fn class(&self, mode: Mode, p: Point) -> usize {
+        let theta = self.sign * angle_between(self.opens, sub(p, self.vertex));
+        let inside = |hi: f64| theta > 0.0 && theta < hi;
+        match mode {
+            Mode::Rigid(x) => x,
+            Mode::Edge if inside(self.angles[S]) => 0,
+            Mode::Other if inside(self.angles[C]) => 1,
+            Mode::Other if inside(self.angles[B]) => 2,
+            Mode::Edge | Mode::Other => STAYS,
+        }
+    }
+}
+
+/// Where the line through `v` along the unit `u` crosses the inside of the
+/// convex `ring`, or runs along one of its sides (a crease already there,
+/// which the ray reuses), as distances along `u` from `v`; none when it only
+/// touches it at a corner or misses it.
+fn crossing(ring: &[Point], v: Point, u: Point) -> Option<[f64; 2]> {
+    let n = ring.len();
+    let off: Vec<f64> = ring.iter().map(|&p| cross(u, sub(p, v))).collect();
+    let along = |p: Point| dot(u, sub(p, v));
+    if !(off.iter().any(|&d| d > TOL) && off.iter().any(|&d| d < -TOL)) {
+        let side = (0..n).find(|&i| off[i].abs() <= TOL && off[(i + 1) % n].abs() <= TOL)?;
+        let [a, b] = [along(ring[side]), along(ring[(side + 1) % n])];
+        return ((a - b).abs() > TOL).then_some([a.min(b), a.max(b)]);
+    }
+    let mut lo = f64::INFINITY;
+    let mut hi = f64::NEG_INFINITY;
+    for i in 0..n {
+        let (a, b) = (ring[i], ring[(i + 1) % n]);
+        let (da, db) = (off[i], off[(i + 1) % n]);
+        let mut take = |p: Point| {
+            let t = along(p);
+            lo = lo.min(t);
+            hi = hi.max(t);
+        };
+        if da.abs() <= TOL {
+            take(a);
+        }
+        if da > TOL && db < -TOL || da < -TOL && db > TOL {
+            let s = da / (da - db);
+            take([a[0] + s * (b[0] - a[0]), a[1] + s * (b[1] - a[1])]);
+        }
+    }
+    (hi - lo > TOL).then_some([lo, hi])
+}
+
+/// Whether the ray from `v` along `u` crosses the convex `ring` ahead of `v`
+/// only: a crease from the vertex can run through it.
+fn crossed_ahead(ring: &[Point], v: Point, u: Point) -> bool {
+    crossing(ring, v, u).is_some_and(|[lo, hi]| lo >= -TOL && hi > MIN_FEATURE / 2.0)
+}
+
+/// One place along a crease where two faces must move alike, or one
+/// reflection apart across `line`.
+struct Probe {
+    /// Points just inside each of the crease's two faces.
+    at: [Point; 2],
+    /// The rays and half folded edge the crease runs along there (two rays
+    /// can coincide).
+    lines: Vec<usize>,
+    /// Whether the crease is one of the folded edge's own.
+    edge: bool,
+}
+
+/// The probes of crease `k`: one per stretch of it between the places it
+/// crosses a ray's line, each just inside both faces.
+fn probes(state: &State, built: &FoldFan, k: usize, faces: [usize; 2]) -> Vec<Probe> {
+    let v = built.vertex;
+    let images = &state.geometry().images;
+    let [a, b] = state.creases()[k]
+        .vertices
+        .map(|w| state.geometry().vertex_images[w.index()]);
+    let d = sub(b, a);
+    let length = d[0].hypot(d[1]);
+    if length <= TOL {
+        return Vec::new();
+    }
+    let n = [-d[1] / length, d[0] / length];
+    let lines = [built.swivel, built.counter, built.second, built.opens];
+    let mut cuts = vec![0.0, 1.0];
+    for u in lines {
+        let (da, db) = (cross(u, sub(a, v)), cross(u, sub(b, v)));
+        if da * db < 0.0 {
+            cuts.push(da / (da - db));
+        }
+    }
+    cuts.sort_by(f64::total_cmp);
+    let step = MIN_FEATURE / 4.0;
+    let inward = |f: usize, m: Point| {
+        let centre = convex::centroid(&images[f]).unwrap_or(m);
+        let side = if dot(sub(centre, m), n) >= 0.0 {
+            1.0
+        } else {
+            -1.0
+        };
+        [m[0] + side * step * n[0], m[1] + side * step * n[1]]
+    };
+    cuts.windows(2)
+        .filter(|w| (w[1] - w[0]) * length > TOL)
+        .map(|w| {
+            let at = |t: f64| [a[0] + t * d[0], a[1] + t * d[1]];
+            let (p, q) = (at(w[0]), at(w[1]));
+            let m = at((w[0] + w[1]) / 2.0);
+            let on = |u: Point| {
+                [p, q].iter().all(|&x| {
+                    let r = sub(x, v);
+                    cross(u, r).abs() <= TOL && dot(u, r) >= -TOL
+                })
+            };
+            Probe {
+                at: faces.map(|f| inward(f, m)),
+                lines: (0..4).filter(|&l| on(lines[l])).collect(),
+                edge: built.run.contains(&k),
+            }
+        })
+        .collect()
+}
+
+/// How every face moves (module docs): the edge's layer's run along `s` and
+/// the other layer's along `c` and `b` by sector, and each other face the
+/// first mode, in a breadth-first order from them, that agrees with every
+/// neighbour it has been given, backtracking where none does. None when no
+/// assignment is found; the faces where the search last failed.
+fn assign(
     state: &State,
     built: &FoldFan,
-    edge_layer: usize,
-    direction: Direction,
-    kind: SwivelKind,
-) -> Result<FoldCompiled, Refused> {
-    let [a, b] = built.faces;
-    let other_layer = if edge_layer == a { b } else { a };
-    let v = built.vertex;
-    let s_edge = ray_run(state, edge_layer, v, built.swivel)?;
-    let s_other = ray_run(state, other_layer, v, built.counter)?;
-    let s_second = ray_run(state, other_layer, v, built.second)?;
+    [edge_layer, other_layer]: [usize; 2],
+    runs: &[RayRun; 3],
+) -> Result<Vec<Mode>, Vec<usize>> {
     let nf = state.faces().len();
+    let topology = state.topology();
+    let images = &state.geometry().images;
+    let sectors = Sectors::of(built);
+    let v = built.vertex;
+    let edge_region = flat_region(state, edge_layer);
+    let other_region = flat_region(state, other_layer);
+    // The faces each face meets, by the probes of the creases they share.
+    let mut meets: Vec<Vec<(usize, Vec<Probe>)>> = (0..nf).map(|_| Vec::new()).collect();
+    for k in 0..state.creases().len() {
+        if let [f, g] = topology.crease_faces[k][..] {
+            meets[f].push((g, probes(state, built, k, [f, g])));
+            meets[g].push((f, probes(state, built, k, [g, f])));
+        }
+    }
+    let mut fixed: Vec<Option<Mode>> = vec![None; nf];
+    for &f in &runs[S].faces {
+        fixed[f] = Some(Mode::Edge);
+    }
+    for &f in runs[C].faces.iter().chain(&runs[B].faces) {
+        fixed[f] = Some(Mode::Other);
+    }
+    // Paper on the far side of the folded edge's line cannot move by sector.
+    let beyond = |f: usize| {
+        images[f].iter().any(|&p| {
+            sectors.sign * angle_between(built.opens, sub(p, v)) < -TOL
+                && cross(built.opens, sub(p, v)).abs() > TOL
+        })
+    };
+    let rays = built.rays();
+    let domain = |f: usize| -> Vec<Mode> {
+        if let Some(mode) = fixed[f] {
+            return vec![mode];
+        }
+        let mut modes: Vec<Mode> = (0..4).map(Mode::Rigid).collect();
+        if !edge_region[f] && !other_region[f] && !beyond(f) {
+            if crossed_ahead(&images[f], v, rays[S]) {
+                modes.push(Mode::Edge);
+            }
+            if crossed_ahead(&images[f], v, rays[C]) || crossed_ahead(&images[f], v, rays[B]) {
+                modes.push(Mode::Other);
+            }
+        }
+        modes
+    };
+    // Breadth first from the runs.
+    let mut order: Vec<usize> = Vec::new();
+    let mut seen = vec![false; nf];
+    let mut queue: VecDeque<usize> = (0..nf).filter(|&f| fixed[f].is_some()).collect();
+    for &f in &queue {
+        seen[f] = true;
+    }
+    while let Some(f) = queue.pop_front() {
+        order.push(f);
+        for &(g, _) in &meets[f] {
+            if !seen[g] {
+                seen[g] = true;
+                queue.push_back(g);
+            }
+        }
+    }
+    order.extend((0..nf).filter(|&f| !seen[f]));
+    // A flat region is one sheet of paper: it moves with one layer group.
+    let mut region_of = vec![usize::MAX; nf];
+    let mut regions: Vec<Vec<usize>> = Vec::new();
+    for f in 0..nf {
+        if region_of[f] == usize::MAX {
+            let members: Vec<usize> = flat_region(state, f)
+                .into_iter()
+                .enumerate()
+                .filter_map(|(g, belongs)| belongs.then_some(g))
+                .collect();
+            for &g in &members {
+                region_of[g] = regions.len();
+            }
+            regions.push(members);
+        }
+    }
+    // Whether face `f`, in `mode`, belongs to the edge's layer group (`edge`)
+    // or the other's: by its sheet, or by a face of its sheet that moves by
+    // sector.
+    let in_group = |f: usize, mode: Mode, modes: &[Option<Mode>], edge: bool| {
+        let (region, sector) = if edge {
+            (&edge_region, Mode::Edge)
+        } else {
+            (&other_region, Mode::Other)
+        };
+        region[f]
+            || mode == sector
+            || regions[region_of[f]]
+                .iter()
+                .any(|&g| g != f && modes[g] == Some(sector))
+    };
+    // A crease along `s` folds only in paper of the edge's layer group, along
+    // `c` or `b` only in the other's: never in a face of the other group.
+    let creases_along = |line: usize, f: usize, mode: Mode, modes: &[Option<Mode>]| match line {
+        S => !in_group(f, mode, modes, false),
+        C | B => !in_group(f, mode, modes, true),
+        _ => true,
+    };
+    // Between two faces of the two layers themselves a crease folds or
+    // unfolds only where a ray's run reuses it, or along the folded edge's
+    // own half that opens: as the two-layer reading has it.
+    let in_layers = |f: usize| edge_region[f] || other_region[f];
+    let toggles = |f: usize, g: usize, probe: &Probe, line: usize| {
+        !(in_layers(f) && in_layers(g))
+            || if line == H {
+                probe.edge
+            } else {
+                fixed[f].is_some() || fixed[g].is_some()
+            }
+    };
+    let agrees = |f: usize, mode: Mode, modes: &[Option<Mode>]| {
+        let group_held = match mode {
+            Mode::Edge => !in_group(f, mode, modes, false),
+            Mode::Other => !in_group(f, mode, modes, true),
+            Mode::Rigid(_) => true,
+        };
+        group_held
+            && meets[f].iter().all(|(g, probes)| {
+                let Some(other) = modes[*g] else {
+                    return true;
+                };
+                probes.iter().all(|probe| {
+                    let x = sectors.class(mode, probe.at[0]);
+                    let y = sectors.class(other, probe.at[1]);
+                    x == y
+                        || probe.lines.iter().any(|&line| {
+                            partner(x, line) == Some(y)
+                                && toggles(f, *g, probe, line)
+                                && creases_along(line, f, mode, modes)
+                                && creases_along(line, *g, other, modes)
+                        })
+                })
+            })
+    };
+    // Prefer moving with a neighbour, then creasing, then the rest.
+    let preferred = |f: usize, modes: &[Option<Mode>]| -> Vec<Mode> {
+        let mut seen: Vec<usize> = Vec::new();
+        for (g, probes) in &meets[f] {
+            if let Some(other) = modes[*g] {
+                for probe in probes {
+                    let y = sectors.class(other, probe.at[1]);
+                    if !seen.contains(&y) {
+                        seen.push(y);
+                    }
+                }
+            }
+        }
+        let all = domain(f);
+        let mut ordered: Vec<Mode> = seen
+            .iter()
+            .map(|&y| Mode::Rigid(y))
+            .filter(|mode| all.contains(mode))
+            .collect();
+        for mode in [Mode::Edge, Mode::Other].into_iter().chain(all.clone()) {
+            if all.contains(&mode) && !ordered.contains(&mode) {
+                ordered.push(mode);
+            }
+        }
+        ordered
+    };
+    let mut modes: Vec<Option<Mode>> = vec![None; nf];
+    let mut choices: Vec<Vec<Mode>> = Vec::with_capacity(nf);
+    let mut budget = 40 * nf + 1000;
+    let mut deepest = 0;
+    let mut failed: Vec<usize> = Vec::new();
+    let mut i = 0;
+    while i < order.len() {
+        let f = order[i];
+        if choices.len() == i {
+            choices.push(preferred(f, &modes));
+        }
+        let next = loop {
+            match choices[i].first().copied() {
+                Some(mode) => {
+                    choices[i].remove(0);
+                    if agrees(f, mode, &modes) {
+                        break Some(mode);
+                    }
+                }
+                None => break None,
+            }
+        };
+        match next {
+            Some(mode) => {
+                modes[f] = Some(mode);
+                i += 1;
+            }
+            None => {
+                if i >= deepest {
+                    deepest = i;
+                    failed = meets[f]
+                        .iter()
+                        .filter(|(g, _)| modes[*g].is_some())
+                        .map(|(g, _)| *g)
+                        .chain(std::iter::once(f))
+                        .collect();
+                }
+                budget = budget.saturating_sub(1);
+                if i == 0 || budget == 0 {
+                    return Err(failed);
+                }
+                choices.truncate(i);
+                i -= 1;
+                modes[order[i]] = None;
+            }
+        }
+    }
+    Ok(modes
+        .into_iter()
+        .map(|m| m.unwrap_or(Mode::Rigid(STAYS)))
+        .collect())
+}
+
+/// The paper scored along the rays and each piece's block: the two-layer
+/// reading, in which only the folded edge's two layers crease (each along
+/// its own run) and every other face moves with the paper it is joined to
+/// across every crease but the new ones, the ones a ray reuses and the half
+/// of the folded edge that opens. None when paper joins two wedges, or a
+/// wedge and the paper that stays: it holds them (module docs).
+fn two_layers(
+    state: &State,
+    built: &FoldFan,
+    [edge_layer, other_layer]: [usize; 2],
+    runs: &[RayRun; 3],
+) -> Result<Result<Blocks, Vec<FaceId>>, Refused> {
+    let v = built.vertex;
+    let nf = state.faces().len();
+    let rays = built.rays();
     let mask = |runs: &[&RayRun]| {
         let mut mask = vec![false; nf];
         for run in runs {
@@ -254,31 +718,30 @@ pub(super) fn compile(
     let s_line = built.swivel_line()?;
     let counter_line = built.counter_line()?;
     let second_line = built.second_line()?;
+    let [s_edge, s_other, s_second] = runs;
     // Coincident rays are one cut through both layers (the historical
     // edge-to-target construction). Scoring the same axis twice would
     // incorrectly try to split its already-created boundary again.
-    let mut cuts = if cross(built.swivel, built.counter).abs() < 1e-12
-        && dot(built.swivel, built.counter) > 0.0
-    {
+    let mut cuts = if cross(rays[S], rays[C]).abs() < 1e-12 && dot(rays[S], rays[C]) > 0.0 {
         vec![Cut {
             axis: Axis::new(&s_line, Side::Positive),
-            faces: mask(&[&s_edge, &s_other]),
+            faces: mask(&[s_edge, s_other]),
         }]
     } else {
         vec![
             Cut {
                 axis: Axis::new(&s_line, Side::Positive),
-                faces: mask(&[&s_edge]),
+                faces: mask(&[s_edge]),
             },
             Cut {
                 axis: Axis::new(&counter_line, Side::Positive),
-                faces: mask(&[&s_other]),
+                faces: mask(&[s_other]),
             },
         ]
     };
     cuts.push(Cut {
         axis: Axis::new(&second_line, Side::Positive),
-        faces: mask(&[&s_second]),
+        faces: mask(&[s_second]),
     });
     let scoring = score_cuts(state, &cuts)?;
 
@@ -321,11 +784,7 @@ pub(super) fn compile(
     let mut cut: Vec<(u32, u32)> = created.iter().chain(&opened).map(|&e| key(e)).collect();
     // A ray may reuse a flat crease instead of splitting a face. It is a
     // boundary between moving wedges just as a newly scored crease is.
-    for (run, direction) in [
-        (&s_edge, built.swivel),
-        (&s_other, built.counter),
-        (&s_second, built.second),
-    ] {
+    for (run, direction) in runs.iter().zip(rays) {
         for (p, face) in scoring.faces.iter().enumerate() {
             let old = scoring.old[p];
             if !run.faces.contains(&old) {
@@ -379,7 +838,8 @@ pub(super) fn compile(
 
     // Each wedge's piece at the vertex, by a point just inside it.
     let piece = |layer: usize, from: Point, to: Point| -> Result<usize, Refused> {
-        let mid = halfway(from, to).ok_or_else(|| internal("a swivel wedge has no middle"))?;
+        let mid = unit([from[0] + to[0], from[1] + to[1]])
+            .ok_or_else(|| internal("a swivel wedge has no middle"))?;
         let step = MIN_FEATURE / 4.0;
         let q = [v[0] + step * mid[0], v[1] + step * mid[1]];
         let sheet = geometry.isometries[layer].inverse().apply(q);
@@ -393,22 +853,25 @@ pub(super) fn compile(
     let (opens, stays, swivel, second) = (built.opens, built.stays, built.swivel, built.second);
     let staying = component[piece(edge_layer, swivel, stays)?];
     let wedges = [
-        (
-            SwivelWedge::Near,
-            component[piece(edge_layer, opens, swivel)?],
-        ),
-        (
-            SwivelWedge::Turn,
-            component[piece(other_layer, opens, built.counter)?],
-        ),
-        (
-            SwivelWedge::Beyond,
-            component[piece(other_layer, built.counter, second)?],
-        ),
+        component[piece(edge_layer, opens, swivel)?],
+        component[piece(other_layer, opens, built.counter)?],
+        component[piece(other_layer, built.counter, second)?],
     ];
     let beyond_stays = component[piece(other_layer, second, stays)?];
-    let ids = |set: Vec<usize>| -> Vec<FaceId> {
-        let mut ids: Vec<FaceId> = set
+    if beyond_stays != staying {
+        return Err(internal("the paper that stays is in two parts"));
+    }
+    // Paper joined to two wedges holds them together: named by the faces in
+    // that part no ray creases, or all of it.
+    let held = |c: usize| -> Vec<FaceId> {
+        let creased = |f: usize| runs.iter().any(|r| r.faces.contains(&f));
+        let part: Vec<usize> = (0..count).filter(|&p| component[p] == c).collect();
+        let holding: Vec<usize> = part
+            .iter()
+            .copied()
+            .filter(|&p| !creased(scoring.old[p]))
+            .collect();
+        let mut ids: Vec<FaceId> = (if holding.is_empty() { part } else { holding })
             .into_iter()
             .map(|p| state.faces()[scoring.old[p]].id)
             .collect();
@@ -416,41 +879,165 @@ pub(super) fn compile(
         ids.dedup();
         ids
     };
-    // Paper joined to two wedges holds them together: no fold.
-    let held = |c: usize| -> Refused {
-        let cut_layers = [&s_edge, &s_other, &s_second];
-        let holding: Vec<usize> = (0..count)
-            .filter(|&p| {
-                component[p] == c && !cut_layers.iter().any(|r| r.faces.contains(&scoring.old[p]))
-            })
-            .collect();
-        let all: Vec<usize> = (0..count).filter(|&p| component[p] == c).collect();
-        FoldRefusal::FanRayBlocked {
-            faces: ids(if holding.is_empty() { all } else { holding }),
-        }
-        .into()
-    };
-    if beyond_stays != staying {
-        return Err(internal("the paper that stays is in two parts"));
-    }
-    for (i, &(_, c)) in wedges.iter().enumerate() {
-        if c == staying {
-            return Err(held(c));
-        }
-        if wedges[..i].iter().any(|&(_, d)| d == c) {
-            return Err(held(c));
+    for (i, &c) in wedges.iter().enumerate() {
+        if c == staying || wedges[..i].contains(&c) {
+            return Ok(Err(held(c)));
         }
     }
-    let mut block_of: Vec<Option<usize>> = (0..count)
-        .map(|p| wedges.iter().position(|&(_, c)| c == component[p]))
+    let block_of = (0..count)
+        .map(|p| wedges.iter().position(|&c| c == component[p]))
         .collect();
+    Ok(Ok((scoring, block_of)))
+}
+
+/// The swivel `built` compiled with `edge_layer` as the edge's layer: on its
+/// two layers, or through the stack when paper holds them (module docs).
+pub(super) fn compile(
+    state: &State,
+    built: &FoldFan,
+    edge_layer: usize,
+    direction: Direction,
+    kind: SwivelKind,
+) -> Result<FoldCompiled, Refused> {
+    let [a, b] = built.faces;
+    let other_layer = if edge_layer == a { b } else { a };
+    let v = built.vertex;
+    let runs = [
+        ray_run(state, edge_layer, v, built.swivel)?,
+        ray_run(state, other_layer, v, built.counter)?,
+        ray_run(state, other_layer, v, built.second)?,
+    ];
+    let layers = [edge_layer, other_layer];
+    let ((scoring, block_of), stacked) = match two_layers(state, built, layers, &runs)? {
+        Ok(blocks) => (blocks, false),
+        // Through the stack, or refused as the two-layer reading is: what
+        // holds its wedges, whatever stops the stack reading.
+        Err(held) => match through_the_stack(state, built, layers, &runs) {
+            Ok(blocks) => (blocks, true),
+            Err(_) => return Err(FoldRefusal::FanRayBlocked { faces: held }.into()),
+        },
+    };
+    let mut compiled = finish(
+        state, built, layers, direction, kind, &runs, scoring, block_of,
+    )?;
+    compiled.stacked = stacked;
+    Ok(compiled)
+}
+
+/// The paper scored along the rays through every face that moves by sector,
+/// and each piece's block (module docs): what lands when the two-layer
+/// reading is held.
+fn through_the_stack(
+    state: &State,
+    built: &FoldFan,
+    [edge_layer, other_layer]: [usize; 2],
+    runs: &[RayRun; 3],
+) -> Result<Blocks, Refused> {
+    let v = built.vertex;
+    let modes = assign(state, built, [edge_layer, other_layer], runs).map_err(|failed| {
+        let mut faces: Vec<FaceId> = failed.into_iter().map(|f| state.faces()[f].id).collect();
+        faces.sort_unstable();
+        faces.dedup();
+        Refused::from(FoldRefusal::FanRayBlocked { faces })
+    })?;
+    // Each ray creases its own layer's run and every other face that moves
+    // by sector with that layer and lies across it.
+    let images = &state.geometry().images;
+    let rays = built.rays();
+    let nf = state.faces().len();
+    let mut cut_faces = [vec![false; nf], vec![false; nf], vec![false; nf]];
+    for (r, run) in runs.iter().enumerate() {
+        for &f in &run.faces {
+            cut_faces[r][f] = true;
+        }
+    }
+    for f in 0..nf {
+        let family: &[usize] = match modes[f] {
+            Mode::Edge => &[S],
+            Mode::Other => &[C, B],
+            Mode::Rigid(_) => &[],
+        };
+        // A face the ray only runs along the side of moves whole.
+        for &r in family {
+            if crossed_ahead(&images[f], v, rays[r])
+                && images[f].iter().any(|&p| cross(rays[r], sub(p, v)) > TOL)
+                && images[f].iter().any(|&p| cross(rays[r], sub(p, v)) < -TOL)
+            {
+                cut_faces[r][f] = true;
+            }
+        }
+    }
+    let s_line = built.swivel_line()?;
+    let counter_line = built.counter_line()?;
+    let second_line = built.second_line()?;
+    let [s_faces, c_faces, b_faces] = cut_faces;
+    // Coincident rays are one cut through both layers (the historical
+    // edge-to-target construction). Scoring the same axis twice would
+    // incorrectly try to split its already-created boundary again.
+    let mut cuts = if cross(rays[S], rays[C]).abs() < 1e-12 && dot(rays[S], rays[C]) > 0.0 {
+        vec![Cut {
+            axis: Axis::new(&s_line, Side::Positive),
+            faces: s_faces
+                .iter()
+                .zip(&c_faces)
+                .map(|(a, b)| *a || *b)
+                .collect(),
+        }]
+    } else {
+        vec![
+            Cut {
+                axis: Axis::new(&s_line, Side::Positive),
+                faces: s_faces,
+            },
+            Cut {
+                axis: Axis::new(&counter_line, Side::Positive),
+                faces: c_faces,
+            },
+        ]
+    };
+    cuts.push(Cut {
+        axis: Axis::new(&second_line, Side::Positive),
+        faces: b_faces,
+    });
+    let scoring: Scoring = score_cuts(state, &cuts)?;
+    // Each piece moves as its face's mode says where it lies.
+    let sectors = Sectors::of(built);
+    let geometry = state.geometry();
+    let block_of: Vec<Option<usize>> = (0..scoring.faces.len())
+        .map(|p| {
+            let old = scoring.old[p];
+            let centre = convex::centroid(&scoring.polygon(p))
+                .map(|c| geometry.isometries[old].apply(c))
+                .unwrap_or(v);
+            let class = sectors.class(modes[old], centre);
+            (class != STAYS).then_some(class)
+        })
+        .collect();
+    Ok((scoring, block_of))
+}
+
+/// The compiled fold from its scored paper and blocks: each block's turns,
+/// and the direction's placements.
+#[allow(clippy::too_many_arguments)]
+fn finish(
+    state: &State,
+    built: &FoldFan,
+    [edge_layer, other_layer]: [usize; 2],
+    direction: Direction,
+    kind: SwivelKind,
+    runs: &[RayRun; 3],
+    scoring: Scoring,
+    mut block_of: Vec<Option<usize>>,
+) -> Result<FoldCompiled, Refused> {
+    let s_line = built.swivel_line()?;
+    let second_line = built.second_line()?;
     let opened_line = built.fold_line;
     let turns = vec![
         vec![(1, s_line)],
         vec![(0, opened_line), (1, s_line)],
         vec![(1, second_line)],
     ];
-    let wedge_names: Vec<SwivelWedge> = wedges.iter().map(|&(w, _)| w).collect();
+    let wedge_names = [SwivelWedge::Near, SwivelWedge::Turn, SwivelWedge::Beyond];
     let mut kept = Vec::new();
     for (b, &w) in wedge_names.iter().enumerate() {
         if block_of.contains(&Some(b)) {
@@ -503,7 +1090,7 @@ pub(super) fn compile(
             scoring,
             block_of,
             turns,
-            vertices: vec![v],
+            vertices: vec![built.vertex],
             direction,
             extra: Vec::new(),
             against,
@@ -511,7 +1098,8 @@ pub(super) fn compile(
         wedges: kept,
         edge_layer,
         other_layer,
-        ends: [s_edge.end, s_other.end, s_second.end],
+        ends: [runs[S].end, runs[C].end, runs[B].end],
         reach: None,
+        stacked: false,
     })
 }

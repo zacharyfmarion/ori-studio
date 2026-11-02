@@ -60,6 +60,10 @@
 //! flat. That needs `α < 90°`, or `s′` would lie past `h₊`, outside the other
 //! layer's paper (`swivel_fold_wide`). The letters are Maekawa's 3 : 1.
 //!
+//! Paper beyond the two layers that holds the wedges together is creased
+//! along the same rays or carried (`super::folded_swivel`), as long as no
+//! paper along the edge's line past where it meets the target is carried off.
+//!
 //! The regions name these wedges as the free swivel's do: `D` the near one
 //! (it folds across the meet ray, `s`), `W₃` the one that turns in place,
 //! `W₂` the one beyond (it folds across `s′`, as the free swivel's beyond
@@ -110,8 +114,8 @@
 //! crosses the folded edge nowhere inside one of its creases
 //! (`swivel_misses_fold`); `V` on the edge's line (`swivel_pivot_on_edge`); a
 //! crease meeting the folded edge at a right angle or wider
-//! (`swivel_fold_wide`); a crease that runs into a fold before the paper's
-//! edge, or paper that joins two wedges (`fan_ray_blocked`, naming it); an
+//! (`swivel_fold_wide`); paper whose motion no assignment of the swivel's
+//! four agrees with (`fan_ray_blocked`, naming it); an
 //! edge whose line neither layer's wedge `D` has a side along, past where it
 //! meets the target (`swivel_edge_stays`); and no order (`no_order`, offering
 //! the other direction when it lands).
@@ -399,6 +403,37 @@ fn edge_reach(
     reach
 }
 
+/// Whether any paper along the edge's line moves on the far side of where it
+/// meets the target: the part of the edge that the swivel leaves in place.
+/// Paper creased through the stack (`super::folded_swivel`) must not carry
+/// it off.
+fn edge_moves_past_meeting(
+    state: &State,
+    built: &OnFold,
+    scoring: &Scoring,
+    block_of: &[Option<usize>],
+) -> bool {
+    let geometry = state.geometry();
+    let Some(line) = Line::from_points(built.edge[0], built.edge[1]) else {
+        return false;
+    };
+    let along = |p: Point| dot(sub(p, built.meet), built.along);
+    scoring.faces.iter().enumerate().any(|(p, face)| {
+        if block_of[p].is_none() {
+            return false;
+        }
+        let isometry = geometry.isometries[scoring.old[p]];
+        let m = face.ring.len();
+        (0..m).any(|i| {
+            let x = isometry.apply(scoring.vertices[face.ring[i].index()]);
+            let y = isometry.apply(scoring.vertices[face.ring[(i + 1) % m].index()]);
+            line.distance_to_point(x) <= TOL
+                && line.distance_to_point(y) <= TOL
+                && along(x).min(along(y)) < -MIN_FEATURE / 2.0
+        })
+    })
+}
+
 /// The reading that lands the edge on the target, compiled. Otherwise, when
 /// a reading compiled, its edge stays (`swivel_edge_stays`); when none did,
 /// the first reading's refusal.
@@ -412,6 +447,22 @@ fn compile_reading(
     let mut compiled_any = false;
     for layer in built.readings() {
         match compile(state, &built.fan, layer, direction, kind) {
+            Ok(compiled)
+                if compiled.stacked
+                    && edge_moves_past_meeting(
+                        state,
+                        built,
+                        &compiled.compiled.scoring,
+                        &compiled.compiled.block_of,
+                    ) =>
+            {
+                first.get_or_insert(
+                    FoldRefusal::FanRayBlocked {
+                        faces: built.edge_faces.clone(),
+                    }
+                    .into(),
+                );
+            }
             Ok(mut compiled) => {
                 compiled.reach = edge_reach(
                     state,
@@ -605,7 +656,7 @@ impl State {
         let reading =
             compile_reading(self, &built, direction, op.kind).map_err(CompoundRefused::Refused)?;
         let edge_layer = reading.edge_layer;
-        reading.compiled.land(self, choices, limits, || {
+        reading.land(self, choices, limits, || {
             compile(self, &built.fan, edge_layer, direction.opposite(), op.kind)
                 .ok()
                 .map(|c| c.compiled)
