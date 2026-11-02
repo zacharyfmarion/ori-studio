@@ -407,8 +407,8 @@
         "title": "Ein anderes Blatt"
       },
       "shapeUnsupported": {
-        "text": "Importiert werden Faltmuster auf einem quadratischen oder rechteckigen Blatt. Das Blatt dieses Musters hat eine andere Form.",
-        "title": "Nur quadratische und rechteckige Blätter"
+        "text": "Der Umriss des Faltmusters biegt sich nach innen oder hat eine Seite, die zum Falten zu kurz ist. Falten faltet Blätter, deren Ecken alle nach außen zeigen: ein Quadrat, ein Rechteck, ein regelmäßiges Vieleck oder jede andere konvexe Form.",
+        "title": "Kein Blatt, das Falten falten kann"
       },
       "sheetNotConvex": {
         "text": "Der Umriss des Faltmusters hat eine Ecke, die ins Papier zeigt. Falten beginnt mit Blättern, deren Ecken alle nach außen zeigen: ein Quadrat, ein Rechteck, ein regelmäßiges Vieleck oder jede andere konvexe Form.",

@@ -407,8 +407,8 @@
         "title": "A different sheet"
       },
       "shapeUnsupported": {
-        "text": "Fold imports crease patterns on a square or rectangle sheet. This one’s sheet is another shape.",
-        "title": "Square and rectangle sheets only"
+        "text": "The pattern’s outline bends inward or has a side too short to fold. Fold folds sheets whose every corner points out: a square, a rectangle, a regular polygon, or any other convex shape.",
+        "title": "Not a sheet Fold folds"
       },
       "sheetNotConvex": {
         "text": "The pattern’s outline has a corner that points into the paper. Fold starts from sheets whose every corner points out: a square, a rectangle, a regular polygon, or any other convex shape.",

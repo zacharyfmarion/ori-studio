@@ -2,7 +2,9 @@
  * Import CP and "Start from Edit's folded figure" as one flow (plan D16): a
  * file, a sample or Edit's figure in; a `cp-jump` step out, appended through
  * the session after the step on screen — or, for an empty sequence, one that
- * adopts the pattern's square or rectangle sheet.
+ * adopts the pattern's sheet: a square, a rectangle or a polygon of up to
+ * `FOLD_POLYGON_MAX_SIDES` corners (more would open the file read-only, so
+ * such a sheet is refused, as Import starting sheet refuses it).
  *
  * - **Open, choose, commit.** Opening reads the file with the CP kernel's
  *   loader and completes its layer order from its letters, a true ‹ n of m ›
@@ -38,7 +40,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import type { WasmErrorEnvelope } from '../../engine/types';
 import type { FoldCpJumpOp, FoldCpOrigin, FoldPaperShape } from '../document/foldSequenceDocument';
-import { rectangleShape } from '../document/foldSequenceDocument';
+import { FOLD_POLYGON_MAX_SIDES, rectangleShape } from '../document/foldSequenceDocument';
 import type { FoldEngineStateHandle } from '../engine/foldEnginePort';
 import type { FoldSampleId } from '../engine/foldEngineIoSamples';
 import type {
@@ -201,10 +203,12 @@ export function foldOrderChoices(opened: Pick<FoldImportOpened, 'components'>): 
 }
 
 /**
- * The sheet a state's outline is, as the document stores its shape: a square
- * when its sides agree, a rectangle otherwise; null for an outline with no
- * area. What an import of Edit's figure into an empty sequence adopts, since
- * that call says no sheet of its own.
+ * The sheet a state's outline is, as the document stores its shape: an
+ * axis-aligned rectangle is a square when its sides agree and a rectangle
+ * otherwise; any other outline is a polygon of its points (the engine's
+ * outline, counter-clockwise in the unit sheet frame); null for an outline
+ * with no area. What an import of Edit's figure into an empty sequence adopts,
+ * since that call says no sheet of its own.
  */
 export function foldShapeOfOutline(outline: readonly (readonly [number, number])[]): FoldPaperShape | null {
   if (outline.length < 3) return null;
@@ -213,8 +217,20 @@ export function foldShapeOfOutline(outline: readonly (readonly [number, number])
   const width = Math.max(...xs) - Math.min(...xs);
   const height = Math.max(...ys) - Math.min(...ys);
   if (!(width > 0 && height > 0)) return null;
-  if (Math.abs(width - height) <= 1e-9 * Math.max(width, height)) return { kind: 'square' };
+  const tolerance = 1e-9 * Math.max(width, height);
+  const onBox = ([x, y]: readonly [number, number]) =>
+    (Math.abs(x - Math.min(...xs)) <= tolerance || Math.abs(x - Math.max(...xs)) <= tolerance) &&
+    (Math.abs(y - Math.min(...ys)) <= tolerance || Math.abs(y - Math.max(...ys)) <= tolerance);
+  if (outline.length !== 4 || !outline.every(onBox)) {
+    return { kind: 'polygon', points: outline.map(([x, y]) => [x, y] as const) };
+  }
+  if (Math.abs(width - height) <= tolerance) return { kind: 'square' };
   return rectangleShape(width, height);
+}
+
+/** How many corners an adopted polygon has when the document cannot keep that many; null otherwise. */
+function sidesOverCap(adopt: FoldPaperShape | null): number | null {
+  return adopt?.kind === 'polygon' && adopt.points.length > FOLD_POLYGON_MAX_SIDES ? adopt.points.length : null;
 }
 
 function errorEnvelope(error: unknown): WasmErrorEnvelope {
@@ -281,10 +297,15 @@ export function createFoldImportFlow({
     store.setState(IDLE, true);
   });
 
-  const local = (request: FoldImportRequest, code: FoldImportLocalCode): FoldImportFlowState => ({
+  const local = (request: FoldImportRequest, code: FoldImportLocalCode, sides?: number): FoldImportFlowState => ({
     phase: 'refused',
     request,
-    refusal: { kind: 'local', code, ...(request.kind === 'file' ? { name: request.name } : {}) },
+    refusal: {
+      kind: 'local',
+      code,
+      ...(request.kind === 'file' ? { name: request.name } : {}),
+      ...(sides === undefined ? {} : { sides }),
+    },
   });
 
   /** Ask the engine with `state` as the call's anchor; null when the state is no longer held. */
@@ -312,6 +333,14 @@ export function createFoldImportFlow({
     mine: number,
     project?: FoldProjectCpImport
   ): Promise<void> => {
+    const over = where.empty ? sidesOverCap(adopt) : null;
+    if (over !== null) {
+      // A sheet the document cannot keep: nothing lands.
+      await ask(where.state, (engine) => engine.release([landed.state]));
+      if (mine !== ticket) return;
+      store.setState(local(request, 'sheet_sides', over), true);
+      return;
+    }
     if (project) {
       landed = { ...landed, op: { ...landed.op, origin: 'project_cp', source: project.link } };
       if (!project.current() || project.replace) {
@@ -580,6 +609,13 @@ export function createFoldImportFlow({
       }
       if (opened.status !== 'ok') {
         store.setState({ phase: 'refused', request, refusal: { kind: 'engine', refused: opened }, searchLimited: (limits?.maxNodes ?? 0) >= 12_800_000 }, true);
+        return;
+      }
+      // Said before any order is chosen: a sheet the document cannot keep never lands.
+      const over = where.empty ? sidesOverCap(opened.paper) : null;
+      if (over !== null) {
+        void ask(where.state, (engine) => engine.releaseImports([opened.import])).catch(() => {});
+        store.setState(local(request, 'sheet_sides', over), true);
         return;
       }
       const import_: Held = { handle: opened.import, where, opened, ...(project ? { project } : {}) };

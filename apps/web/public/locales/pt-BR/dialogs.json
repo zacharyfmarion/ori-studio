@@ -416,8 +416,8 @@
         "title": "Uma folha diferente"
       },
       "shapeUnsupported": {
-        "text": "São importados padrões de vincos em folhas quadradas ou retangulares. A folha deste tem outro formato.",
-        "title": "Somente folhas quadradas e retangulares"
+        "text": "O contorno do padrão se curva para dentro ou tem um lado curto demais para dobrar. Dobrar dobra folhas cujos cantos apontam todos para fora: um quadrado, um retângulo, um polígono regular ou qualquer outra forma convexa.",
+        "title": "Uma folha que Dobrar não dobra"
       },
       "sheetNotConvex": {
         "text": "O contorno do padrão tem um canto que aponta para dentro do papel. Dobrar começa com folhas cujos cantos apontam todos para fora: um quadrado, um retângulo, um polígono regular ou qualquer outra forma convexa.",

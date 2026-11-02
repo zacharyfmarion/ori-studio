@@ -59,8 +59,9 @@ export interface FoldStepDraft {
   expect?: string;
   /**
    * The sheet the sequence takes with its first step: an Import CP into an
-   * empty sequence adopts the crease pattern's square or rectangle (plan
-   * D16), and the step folds from that sheet. Only for a first step.
+   * empty sequence adopts the crease pattern's sheet — a square, a rectangle
+   * or a polygon (plan D16) — and the step folds from that sheet. Only for a
+   * first step.
    */
   adopt?: FoldPaperShape;
 }

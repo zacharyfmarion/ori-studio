@@ -255,6 +255,40 @@ describe('Import CP’s flow', () => {
     expect(session.store.getState().paper.shape).toEqual(rectangle);
   });
 
+  it('adopts a polygon sheet for an empty sequence', async () => {
+    const hexagon = {
+      kind: 'polygon' as const,
+      points: [[0.5, 0], [1, 0.25], [1, 0.75], [0.5, 1], [0, 0.75], [0, 0.25]] as [number, number][],
+    };
+    const { flow, source, session } = setup(null, null, { paper: hexagon });
+    await flow.open(FILE);
+    await settle();
+
+    expect(flow.store.getState()).toMatchObject({ phase: 'done', origin: 'cp' });
+    expect(source.commits).toEqual([expect.objectContaining({ parent: null, adopt: hexagon })]);
+    expect(session.store.getState().paper.shape).toEqual(hexagon);
+  });
+
+  it('refuses a polygon sheet of more corners than the document keeps, before any order is chosen', async () => {
+    const nonagon = {
+      kind: 'polygon' as const,
+      points: Array.from({ length: 9 }, (_, k): [number, number] => [
+        0.5 + 0.5 * Math.cos((2 * Math.PI * k) / 9),
+        0.5 + 0.5 * Math.sin((2 * Math.PI * k) / 9),
+      ]),
+    };
+    const { flow, source, io } = setup(null, null, { paper: nonagon, orders: [2] });
+    await flow.open(FILE);
+    await settle();
+
+    expect(flow.store.getState()).toMatchObject({
+      phase: 'refused',
+      refusal: { kind: 'local', code: 'sheet_sides', sides: 9 },
+    });
+    expect(source.commits).toEqual([]);
+    expect(io().held.size).toBe(0);
+  });
+
   it('waits for a choice among several orders, pictures each, and commits the one chosen', async () => {
     const { flow, source, io, offered } = setup(sequenceOf([step('a', null)]), 'a', { orders: [3, 1, 2] });
     await flow.open(FILE);
@@ -419,6 +453,14 @@ describe('foldShapeOfOutline', () => {
     expect(foldShapeOfOutline([[0, 0], [1, 0], [1, 1], [0, 1]])).toEqual({ kind: 'square' });
     expect(foldShapeOfOutline([[0, 0], [1, 0], [1, 0.5], [0, 0.5]])).toEqual({ kind: 'rectangle', aspect: [1, 0.5] });
     expect(foldShapeOfOutline([[0, 0], [1, 0]])).toBeNull();
+  });
+
+  it('reads any other outline as a polygon of its points', () => {
+    const hexagon: [number, number][] = [[0.5, 0], [1, 0.25], [1, 0.75], [0.5, 1], [0, 0.75], [0, 0.25]];
+    expect(foldShapeOfOutline(hexagon)).toEqual({ kind: 'polygon', points: hexagon });
+    // Four corners, but a square on its corner is no axis-aligned rectangle.
+    const diamond: [number, number][] = [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]];
+    expect(foldShapeOfOutline(diamond)).toEqual({ kind: 'polygon', points: diamond });
   });
 });
 
