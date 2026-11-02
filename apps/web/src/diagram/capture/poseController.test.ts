@@ -488,6 +488,75 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     controller.dispose();
   });
 
+  /** The flat fold's turn, as the step holds it. */
+  const turnOf = (stepId: string) => {
+    const source = render(stepId);
+    return source?.kind === 'cp' && source.render.mode === 'folded-flat' ? source.render.rotationDeg : undefined;
+  };
+
+  it('turns a Default spread live: shown at once, captured behind the view, and a run of presses lands once where it ends', async () => {
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, DEFAULT_CONNECTED_SPREAD);
+    const heard = { ...listener(), turn: vi.fn() };
+    const controller = createPoseController(stepId, heard);
+    const before = state().diagramHistory.past.length;
+    // The first press's capture is held choosing its creases, so the next presses come while it runs.
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    vi.mocked(ensureCpSheetIndex).mockImplementationOnce(async () => {
+      await gate;
+      return sheets;
+    });
+    controller.turn({ verb: 'rotate-right' });
+    expect(heard.turn).toHaveBeenLastCalledWith(15);
+    await vi.waitFor(() => expect(state().diagramCaptures[stepId]).toBeDefined());
+    // Nothing covers the view, which shows the turn already.
+    expect(state().diagramCaptures[stepId]?.blocksPose).toBeUndefined();
+    // Each from the turn shown, not the one the step holds.
+    controller.turn({ verb: 'rotate-right' });
+    controller.turn({ verb: 'rotate-right' });
+    controller.turn({ verb: 'rotate-left' });
+    expect(heard.turn.mock.calls).toEqual([[15], [30], [45], [30]]);
+    expect(turnOf(stepId)).toBe(0);
+    open();
+    await vi.waitFor(() => expect(heard.turn).toHaveBeenLastCalledWith(null));
+    // The capture in flight was dropped for the newest turn: one undo step, counted as the verb last pressed.
+    expect(turnOf(stepId)).toBe(30);
+    expect(state().diagramHistory.past.length).toBe(before + 1);
+    expect(analytics.trackDiagramPicturePosed).toHaveBeenCalledOnce();
+    expect(analytics.trackDiagramPicturePosed.mock.lastCall?.[0]).toBe('rotate_left');
+    controller.dispose();
+  });
+
+  it('turns any other picture as a verb: it shows nothing before its capture, which covers the view', async () => {
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, AFFINE);
+    const heard = { ...listener(), turn: vi.fn() };
+    const controller = createPoseController(stepId, heard);
+    const covered: boolean[] = [];
+    const unsubscribe = useWorkspaceStore.subscribe((value) => {
+      const capture = value.diagramCaptures[stepId];
+      if (capture) covered.push(capture.blocksPose === true);
+    });
+    controller.turn({ verb: 'rotate-to', degrees: 100 });
+    await vi.waitFor(() => expect(turnOf(stepId)).toBe(100));
+    unsubscribe();
+    expect(covered.length).toBeGreaterThan(0);
+    expect(covered.every(Boolean)).toBe(true);
+    expect(heard.turn).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it('lands the turn it shows before it lets the fold go, as its detail closes', async () => {
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, DEFAULT_CONNECTED_SPREAD);
+    const controller = createPoseController(stepId, listener());
+    controller.turn({ verb: 'rotate-left' });
+    controller.dispose({ flush: true });
+    await vi.waitFor(() => expect(turnOf(stepId)).toBe(345));
+    await vi.waitFor(() => expect(foldedFigureHandleRefCount(7)).toBe(0));
+  });
+
   it('starts a new flat pose spread — the nearest step before’s, else connected — and turns it off and on, counted with how', async () => {
     const first = await linkedStep();
     const second = await linkedStep();

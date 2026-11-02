@@ -15,6 +15,7 @@ import {
   layerOrderLabel,
   SHOW_AS_ACTION,
   solutionPlaceLabel,
+  turnsLive,
   type DiagramLinkedPoseAction,
   type DiagramLinkedPoseState,
   type DiagramLinkedPoseVerb,
@@ -109,6 +110,12 @@ export interface DiagramLinkedPose {
   /** Turn a crease pattern or a flat fold to an angle, in degrees clockwise (D5). */
   rotateTo: (degrees: number) => void;
   /**
+   * The turn Pose shows, in degrees clockwise: one on its way to the step's
+   * picture (`PoseController.turn`), else the step's own; null for a picture
+   * that has none.
+   */
+  turn: number | null;
+  /**
    * Show the pattern another way, in the pose that way last had (D19), for a
    * surface beside Pose (the Step pane, a card), which counts it itself.
    * Whether the step now shows it that way.
@@ -170,6 +177,8 @@ export function useDiagramLinkedPose(
   const [found, setFound] = useState<{ key: string; value: DiagramLinkedPoseState['solutions'] } | null>(null);
   const [measured, setMeasured] = useState<{ key: string; value: readonly number[] | null } | null>(null);
   const [previewed, setPreviewed] = useState<{ key: string; value: SpreadPreview } | null>(null);
+  // Each kept with its step: a controller let go still lands the turn it shows, and must not clear the next step's.
+  const [turned, setTurned] = useState<{ stepId: string; degrees: number } | null>(null);
   const foldKey = useMemo(() => (source && stepId ? linkedFoldKey(stepId, source) : null), [source, stepId]);
 
   const controller = useMemo(
@@ -182,6 +191,8 @@ export function useDiagramLinkedPose(
             solutions: (value, key) => setFound({ key, value }),
             mirrorAxes: (value, key) => setMeasured({ key, value }),
             preview: (value, key) => setPreviewed(value && key ? { key, value } : null),
+            turn: (degrees) =>
+              setTurned((was) => (degrees !== null ? { stepId, degrees } : was?.stepId === stepId ? null : was)),
           }),
     [stepId]
   );
@@ -196,7 +207,7 @@ export function useDiagramLinkedPose(
     return () => {
       unregister();
       unlisten();
-      controller.dispose({flushOrbit:true});
+      controller.dispose({flush:true});
       // Its preview goes with it, even one it could not take back itself.
       setPreviewed(null);
     };
@@ -299,7 +310,8 @@ export function useDiagramLinkedPose(
     if (!poseState || !controller) return [[], []];
     const deps = {
       t,
-      pose: (verb: DiagramLinkedPoseVerb) => void controller.run({ verb }),
+      pose: (verb: DiagramLinkedPoseVerb) =>
+        verb === 'rotate-left' || verb === 'rotate-right' ? controller.turn({ verb }) : void controller.run({ verb }),
       // The picture does not move: the view's next rest captures the camera with its new up, as a drag's does.
       setUpright: liveView
         ? () => {
@@ -376,12 +388,16 @@ export function useDiagramLinkedPose(
       : layerOrderLabel(render, solutions, t)
     : null;
 
+  // A turn Pose draws itself waits for no capture; any other is held while one runs, as the turn verbs are.
+  const liveTurn = render !== null && turnsLive(render);
   const rotateTo = useCallback(
     (degrees: number) => {
-      if (controller && !busy && !readOnly) void controller.run({ verb: 'rotate-to', degrees });
+      if (controller && !readOnly && (liveTurn || !busy)) controller.turn({ verb: 'rotate-to', degrees });
     },
-    [controller, busy, readOnly]
+    [controller, busy, readOnly, liveTurn]
   );
+  const storedTurn = render?.mode === 'crease-pattern' || render?.mode === 'folded-flat' ? render.rotationDeg : null;
+  const turn = storedTurn !== null && turned !== null && turned.stepId === stepId ? turned.degrees : storedTurn;
 
   const showAs = useCallback(
     async (way: DiagramShowAs): Promise<boolean> => {
@@ -438,6 +454,7 @@ export function useDiagramLinkedPose(
             onCamera,
             registerLiveView,
             rotateTo,
+            turn,
             showAs,
             setSide,
             setFlipCreases,
@@ -464,6 +481,7 @@ export function useDiagramLinkedPose(
       onCamera,
       registerLiveView,
       rotateTo,
+      turn,
       showAs,
       setSide,
       setFlipCreases,

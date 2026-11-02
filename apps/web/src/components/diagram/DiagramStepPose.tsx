@@ -153,17 +153,19 @@ export function DiagramStepPose({
   const { render } = source;
   const perspective=render.mode==='folded-flat'&&render.spread?.kind==='connected'&&render.presentation?.kind==='perspective';
   const linked = linkedPose.actions;
-  const turn = render.mode === 'crease-pattern' || render.mode === 'folded-flat' ? render.rotationDeg : null;
-  const turnHeld = linked.find((action: DiagramLinkedPoseAction) => action.id === 'rotate-left')?.disabled ?? true;
-  const waiting = linked.some((action) => action.waiting);
+  // The turn Pose shows: one on its way to the step's picture, else the step's own.
+  const turn = linkedPose.turn;
+  const turnVerb = linked.find((action: DiagramLinkedPoseAction) => action.id === 'rotate-left');
+  const turnHeld = turnVerb?.disabled ?? true;
   const turnOver = linked.find((action) => action.id === 'turn-over');
   const side = render.mode === 'folded-flat' || render.mode === 'folded-3d' ? render.side : null;
   if (turn === null && side === null) return null;
   return section(
     <>
       {turn !== null && !perspective && (
-        // Held as the turn verbs are: on a diagram that cannot change, or while a capture runs.
-        <RotationRow turn={turn} disabled={turnHeld || waiting} onCommit={linkedPose.rotateTo} />
+        // Held as the turn verbs are: on a diagram that cannot change, or while a capture runs, unless Pose
+        // draws the turn itself.
+        <RotationRow turn={turn} disabled={turnHeld || turnVerb?.waiting === true} onCommit={linkedPose.rotateTo} />
       )}
       {side !== null && !perspective && sideRow({ side, turnOver })}
       {(render.mode === 'folded-flat' || (render.mode === 'folded-3d' && layerOrder)) && !main && (

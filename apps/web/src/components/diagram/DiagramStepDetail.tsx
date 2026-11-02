@@ -380,7 +380,9 @@ export function DiagramStepDetail({
             {connectedPose?.connected && connectedPose.connectedSpread && connectedRender?.spread?.kind === 'connected' ? (
               <DiagramSpreadView key={step.id} picture={finalSpreadPicture} capturedSpread={connectedRender.spread} view={connectedPose.connected} spread={connectedPose.connectedSpread}
                 zoom={zoom} onZoom={changeZoom}
-                presentation={connectedRender.presentation} rotationDeg={connectedRender.rotationDeg} style={style}
+                // A linked step's turn shows before its picture lands (`PoseController.turn`).
+                presentation={connectedRender.presentation} rotationDeg={linkedPose?.turn ?? connectedRender.rotationDeg}
+                capturedRotationDeg={connectedRender.rotationDeg} style={style}
                 onCamera={connectedPose.onCamera} onReveal={connectedPose.onReveal}
                 ghost={sameSpread(connectedRender.spread ?? null, connectedPose.connectedSpread) ? ghost : null} registerLiveView={connectedPose.registerLiveView} readOnly={readOnly} fallback={url && picture} />
             ) : linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (

@@ -40,6 +40,7 @@ export function DiagramSpreadView({
   picture,
   presentation,
   rotationDeg,
+  capturedRotationDeg,
   style,
   onCamera,
   onReveal,
@@ -56,6 +57,8 @@ export function DiagramSpreadView({
   picture: SpreadPosePicture;
   presentation?: SpreadPresentation;
   rotationDeg: number;
+  /** The turn `picture` was captured at: the view uses it, and the marks on it, only at that turn. */
+  capturedRotationDeg: number;
   style: DiagramStyle;
   onCamera: (camera: FoldedFigureCamera) => void;
   onReveal: (reveal: [number, number]) => void;
@@ -183,6 +186,7 @@ export function DiagramSpreadView({
       !ghost ||
       reveal[0] !== spread.reveal[0] ||
       reveal[1] !== spread.reveal[1] ||
+      rotationDeg !== capturedRotationDeg ||
       (spatial && !sameCamera(withRollAbsorbed(orbit), presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA))
     )
       return null;
@@ -195,10 +199,10 @@ export function DiagramSpreadView({
       style,
       ghost.zoom,
     );
-  }, [ghost, reveal, spread.reveal, spatial, orbit, presentation?.camera, view, rotationDeg, size, zoom, style, paper, pixelRatio]);
+  }, [ghost, reveal, spread.reveal, spatial, orbit, presentation?.camera, view, rotationDeg, capturedRotationDeg, size, zoom, style, paper, pixelRatio]);
   const pose = useMemo(() => ({ view, spread, reveal, orbit, orderSide, rotationDeg, spatial, zoom, size }),
     [view, spread, reveal, orbit, orderSide, rotationDeg, spatial, zoom, size]);
-  const matchesCapture = sameSpread({ ...spread, reveal }, capturedSpread) &&
+  const matchesCapture = rotationDeg === capturedRotationDeg && sameSpread({ ...spread, reveal }, capturedSpread) &&
     (!spatial || (sameCamera(withRollAbsorbed(orbit), presentation!.camera) && orderSide === presentation!.orderSide));
   const settled = useSettledPosePicture(pose, matchesCapture ? picture.url : null);
   const pictureFrame = useMemo(() => spreadPosePictureFrame(picture, view, style, rotationDeg, spatial, size, zoom, pixelRatio),

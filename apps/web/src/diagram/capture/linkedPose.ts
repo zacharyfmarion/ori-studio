@@ -92,6 +92,19 @@ function isSpreadFieldRequest(request: LinkedPoseRequest): request is LayerSprea
   return LAYER_SPREAD_EDIT_VERBS.has(request.verb);
 }
 
+/** A turn of a crease pattern or a flat fold: a step either way, or to an angle (D5's field). */
+export type TurnRequest = { verb: 'rotate-left' | 'rotate-right' } | { verb: 'rotate-to'; degrees: number };
+
+function isTurnRequest(request: LinkedPoseRequest): request is TurnRequest {
+  return request.verb === 'rotate-left' || request.verb === 'rotate-right' || request.verb === 'rotate-to';
+}
+
+/** The turn `request` leaves a pose at that is turned `rotationDeg`, within one turn. */
+export function turnedTo(request: TurnRequest, rotationDeg: number): number {
+  if (request.verb === 'rotate-to') return turned(request.degrees, 0);
+  return turned(rotationDeg, request.verb === 'rotate-left' ? -POSE_ROTATION_STEP_DEG : POSE_ROTATION_STEP_DEG);
+}
+
 export type LinkedPoseResult =
   | {
       status: 'posed';
@@ -324,15 +337,10 @@ export async function poseLinkedStep(
     // turned over or not: choices about the picture, as a flat fold's spread
     // is, each with its own field (Front | Back, Flip creases).
     const at = (rotationDeg: number) => creasePattern({ ...render, rotationDeg });
+    if (isTurnRequest(request)) return at(turnedTo(request, render.rotationDeg));
     switch (verb) {
       case 'show-folded':
         return foldedAsRemembered();
-      case 'rotate-left':
-        return at(turned(render.rotationDeg, -POSE_ROTATION_STEP_DEG));
-      case 'rotate-right':
-        return at(turned(render.rotationDeg, POSE_ROTATION_STEP_DEG));
-      case 'rotate-to':
-        return at(turned(request.verb === 'rotate-to' ? request.degrees : render.rotationDeg, 0));
       case 'paper-side': {
         // The paper's colour alone (Zach, 2026-10-06): no mirror, no other
         // turn, the same mountains and valleys — but for Flip creases, kept
@@ -373,15 +381,10 @@ export async function poseLinkedStep(
         : verb==='view-top' ? VIEW_TOP : verb==='reset' ? DEFAULT_FOLDED_3D_CAMERA : null;
       if(camera)return flat({...pose,presentation:withSpreadCamera(render.presentation,camera)});
     }
+    if (isTurnRequest(request)) return flat({ ...pose, rotationDeg: turnedTo(request, rotationDeg) });
     switch (verb) {
       case 'show-folded':
         return flat(pose);
-      case 'rotate-left':
-        return flat({ ...pose, rotationDeg: turned(rotationDeg, -POSE_ROTATION_STEP_DEG) });
-      case 'rotate-right':
-        return flat({ ...pose, rotationDeg: turned(rotationDeg, POSE_ROTATION_STEP_DEG) });
-      case 'rotate-to':
-        return flat({ ...pose, rotationDeg: turned(request.verb === 'rotate-to' ? request.degrees : rotationDeg, 0) });
       case 'upright':
         // A mirror axis vertical (Zach, 2026-10-05): the nearer way, or from upright the other way up.
         return flat(pose, undefined, undefined, { upright: true });

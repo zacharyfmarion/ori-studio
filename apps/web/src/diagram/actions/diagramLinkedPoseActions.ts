@@ -79,7 +79,7 @@ export interface DiagramLinkedPoseAction {
 export interface DiagramLinkedPoseState {
   render: DiagramCpRender;
   readOnly: boolean;
-  /** A capture of the step is running: every verb waits for it. */
+  /** A capture of the step is running: every verb waits for it, but a turn Pose draws itself (`turnsLive`). */
   busy: boolean;
   /**
    * The held flat fold's layer orders: how many found, whether there may be
@@ -208,6 +208,17 @@ export const SHOW_AS_ACTION = {
 /** How far one press turns the picture. */
 export const POSE_ROTATION_STEP_DEG = 15;
 
+/**
+ * Whether Pose draws a turn of `render` itself, before its picture is
+ * captured: a flat fold spread by Default in the diagram's view (a
+ * perspective one turns by its camera), whose live view turns the spread it
+ * holds. Its turns then wait for no capture, which runs behind the view
+ * (`PoseController.turn`); any other picture is drawn by its capture.
+ */
+export function turnsLive(render: DiagramCpRender): render is Extract<DiagramCpRender, { mode: 'folded-flat' }> {
+  return render.mode === 'folded-flat' && render.spread?.kind === 'connected' && render.presentation?.kind !== 'perspective';
+}
+
 export function buildDiagramLinkedPoseActions(
   state: DiagramLinkedPoseState,
   deps: {
@@ -246,24 +257,27 @@ export function buildDiagramLinkedPoseActions(
       hint?: string;
       pressed?: boolean;
       toggle?: boolean;
+      /** Shown by the live view before its picture is captured (`turnsLive`): it never waits for a capture. */
+      live?: boolean;
       /** What it does, when it is not a pose of the step. */
       run?: () => void;
     } = {}
   ): DiagramLinkedPoseAction => {
     const disabled = readOnly !== undefined || (options.disabled ?? false);
+    const held = waiting && !options.live;
     return {
       id,
       label,
       disabled,
-      waiting: waiting && !disabled,
-      hint: readOnly ?? (options.disabled ? options.hint : waiting ? capturing : undefined),
+      waiting: held && !disabled,
+      hint: readOnly ?? (options.disabled ? options.hint : held ? capturing : undefined),
       ...(options.pressed === undefined ? {} : { pressed: options.pressed }),
       run: () => {
         // The way already shown is no verb: pressed again it would capture a
         // Simulated step back at 0%, which only Pose's live solver can hold.
         // A toggle pressed again turns off. A verb that cannot act refuses
         // here too: a surface may keep it focusable rather than disable it.
-        if (waiting || (!options.toggle && options.pressed) || disabled) return;
+        if (held || (!options.toggle && options.pressed) || disabled) return;
         if (options.run) options.run();
         else if (id !== 'set-upright') deps.pose(id);
       },
@@ -282,9 +296,10 @@ export function buildDiagramLinkedPoseActions(
       pressed: shown === 'simulated',
     }),
   ];
+  const live = turnsLive(render);
   const turn = [
-    action('rotate-left', t('panels:diagram.pose.rotateLeft', 'Rotate Left')),
-    action('rotate-right', t('panels:diagram.pose.rotateRight', 'Rotate Right')),
+    action('rotate-left', t('panels:diagram.pose.rotateLeft', 'Rotate Left'), { live }),
+    action('rotate-right', t('panels:diagram.pose.rotateRight', 'Rotate Right'), { live }),
   ];
   const reset = action('reset', t('panels:diagram.pose.reset', 'Reset Pose'), {
     disabled: isDefaultRender(render),

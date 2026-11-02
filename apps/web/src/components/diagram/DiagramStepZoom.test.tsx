@@ -128,6 +128,7 @@ function linkedPose(): DiagramLinkedPose {
     onCamera: () => {},
     registerLiveView: () => () => {},
     rotateTo: () => {},
+    turn: null,
     showAs: async () => true,
     setSide: async () => true,
     setFlipCreases: async () => true,

@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import {
   buildDiagramLinkedPoseActions,
   buildDiagramSpreadControls,
@@ -8,8 +9,11 @@ import {
   type DiagramLinkedPoseState,
   layerOrderLabel,
   solutionPlaceLabel,
+  turnsLive,
 } from './diagramLinkedPoseActions';
 import type { DiagramLayerSpread } from '../document/diagramDocument';
+
+const AFFINE = { kind: 'affine' as const, amount: 0.03, keep: 'top' as const, skew: 1, axisDeg: 81 };
 
 const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
   fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as unknown as TFunction;
@@ -128,6 +132,33 @@ describe('the linked pose verbs', () => {
       action.run();
     }
     expect(pose).not.toHaveBeenCalled();
+  });
+
+  // Its live view turns the spread it holds: a turn waits for no capture, which runs behind the view.
+  it('keeps the turns of a fold spread by Default live while a capture runs, and holds the rest', () => {
+    const pose = vi.fn();
+    const connected = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 30, foldCase: 2, spread: DEFAULT_CONNECTED_SPREAD };
+    for (const action of build({ busy: true, render: connected }, pose)) {
+      const live = action.id === 'rotate-left' || action.id === 'rotate-right';
+      expect(action.waiting).toBe(!live && !action.disabled);
+      expect(action.hint).toBe(live ? undefined : action.disabled ? action.hint : 'Its picture is being captured');
+      action.run();
+    }
+    expect(pose.mock.calls).toEqual([['rotate-left'], ['rotate-right']]);
+    // Any other spread is drawn by its capture, and turns as every verb does.
+    const affine = build({ busy: true, render: { ...connected, spread: AFFINE } }).find((action) => action.id === 'rotate-left');
+    expect(affine).toMatchObject({ waiting: true, hint: 'Its picture is being captured' });
+  });
+
+  it('draws a turn live only for a fold spread by Default in the diagram’s own view', () => {
+    const flat = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
+    expect(turnsLive({ ...flat, spread: DEFAULT_CONNECTED_SPREAD })).toBe(true);
+    expect(turnsLive({ ...flat, spread: AFFINE })).toBe(false);
+    expect(turnsLive(flat)).toBe(false);
+    expect(turnsLive({ mode: 'crease-pattern', rotationDeg: 0 })).toBe(false);
+    // A perspective view is turned by its camera, and offers no turn.
+    const camera = { kind: 'perspective' as const, camera: DEFAULT_FOLDED_3D_CAMERA, orderSide: 'front' as const };
+    expect(turnsLive({ ...flat, spread: DEFAULT_CONNECTED_SPREAD, presentation: camera })).toBe(false);
   });
 
   it('keeps a verb’s own reason over the capture’s', () => {
@@ -375,7 +406,6 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(pose).not.toHaveBeenCalled();
   });
 
-  const AFFINE = { kind: 'affine' as const, amount: 0.03, keep: 'top' as const, skew: 1, axisDeg: 81 };
   const verbs = () => ({ kind: vi.fn(), direction: vi.fn(), keep: vi.fn() });
   const controlsWith = (deps: ReturnType<typeof verbs>) => (state: Partial<DiagramLinkedPoseState>, shown: DiagramLayerSpread | null = null) =>
     buildDiagramSpreadControls({ render: FLAT, readOnly: false, busy: false, solutions: null, ...state }, shown, { t, ...deps });
