@@ -77,7 +77,7 @@ that cannot express.
       only fed it
 - [x] Browser: a hexagon `.fold` dropped on an empty sequence adopts the
       hexagon; a six-spoke collapse dropped after it lands the 60° wedge
-- [ ] Draft PR
+- [x] Draft PR (#572)
 
 ## Notes
 
