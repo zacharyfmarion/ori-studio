@@ -1865,7 +1865,6 @@
       "exportSteps": "Schritte exportieren…",
       "foldKind": "Faltart",
       "importCp": "CP importieren…",
-      "importPolygonHint": "Zum Importieren eines CP braucht es ein quadratisches oder rechteckiges Blatt.",
       "lockedHint": "Dieser Schritt wurde mit einem neueren Ori Studio erstellt.",
       "pathBrokenHint": "Ein Schritt auf diesem Pfad lässt sich nicht mehr falten.",
       "pathLockedHint": "Ein Schritt auf diesem Pfad wurde mit einem neueren Ori Studio erstellt.",

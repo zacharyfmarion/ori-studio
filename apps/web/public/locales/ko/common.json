@@ -147,7 +147,6 @@
     "foldGoToStep": "내보낼 단계로 이동하세요",
     "foldImportCp": "CP 가져오기...",
     "foldImportCpHint": "종이를 전개도대로 접는 단계 추가",
-    "foldImportPolygon": "CP를 가져오려면 정사각형이나 직사각형 종이가 필요합니다.",
     "foldImportSampleHint": "종이를 예제 전개도대로 접는 단계 추가",
     "foldMountain": "산접기",
     "foldNoStartingFigure": "먼저 편집에서 전개도를 평평하게 접으세요",

@@ -147,7 +147,6 @@
     "foldGoToStep": "Allez à une étape pour l’exporter",
     "foldImportCp": "Importer un CP...",
     "foldImportCpHint": "Ajouter une étape qui replie le papier selon un patron de plis",
-    "foldImportPolygon": "L’import d’un CP demande une feuille carrée ou rectangulaire.",
     "foldImportSampleHint": "Ajouter une étape qui replie le papier selon un patron d’exemple",
     "foldMountain": "Pli montagne",
     "foldNoStartingFigure": "Pliez d’abord le patron à plat dans Édition",

@@ -405,7 +405,7 @@ describe('workspace capabilities', () => {
     const newer = capabilities({
       activeEditingContext: 'fold',
       foldStepAtCursor: true,
-      foldSequence: { stepCount: 1, polygon: false, readOnly: true, pageAtCursor: true },
+      foldSequence: { stepCount: 1, readOnly: true, pageAtCursor: true },
     });
     for (const id of verbs) {
       expect(newer[id], id).toMatchObject({

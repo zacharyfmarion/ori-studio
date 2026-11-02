@@ -147,7 +147,6 @@
     "foldGoToStep": "Go to a step to export it",
     "foldImportCp": "Import CP...",
     "foldImportCpHint": "Add a step that collapses the paper into a crease pattern",
-    "foldImportPolygon": "Import CP needs a square or rectangle sheet.",
     "foldImportSampleHint": "Add a step that collapses the paper into a sample crease pattern",
     "foldMountain": "Mountain Fold",
     "foldNoStartingFigure": "Fold the crease pattern flat in Edit first",

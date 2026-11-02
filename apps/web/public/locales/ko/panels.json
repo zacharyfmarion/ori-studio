@@ -1803,7 +1803,6 @@
       "exportSteps": "단계 내보내기…",
       "foldKind": "접기",
       "importCp": "CP 가져오기…",
-      "importPolygonHint": "CP를 가져오려면 정사각형이나 직사각형 종이가 필요합니다.",
       "lockedHint": "이 단계는 최신 Ori Studio에서 만들어졌습니다.",
       "pathBrokenHint": "이 경로의 단계가 더 이상 접히지 않습니다.",
       "pathLockedHint": "이 경로의 단계가 최신 Ori Studio에서 만들어졌습니다.",

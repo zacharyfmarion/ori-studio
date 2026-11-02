@@ -1803,7 +1803,6 @@
       "exportSteps": "导出步骤…",
       "foldKind": "折法",
       "importCp": "导入 CP…",
-      "importPolygonHint": "导入 CP 需要正方形或长方形的纸。",
       "lockedHint": "此步骤由更新版本的 Ori Studio 创建。",
       "pathBrokenHint": "此路径上的某个步骤已无法折叠。",
       "pathLockedHint": "此路径上的某个步骤由更新版本的 Ori Studio 创建。",

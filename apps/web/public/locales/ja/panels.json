@@ -1803,7 +1803,6 @@
       "exportSteps": "ステップをエクスポート…",
       "foldKind": "折り方",
       "importCp": "CP をインポート…",
-      "importPolygonHint": "CP のインポートには正方形か長方形の紙が必要です。",
       "lockedHint": "このステップは新しい Ori Studio で作成されました。",
       "pathBrokenHint": "このパス上のステップがもう折れません。",
       "pathLockedHint": "このパス上のステップは新しい Ori Studio で作成されました。",

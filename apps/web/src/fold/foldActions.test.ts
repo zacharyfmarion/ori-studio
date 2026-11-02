@@ -35,7 +35,6 @@ const CONTEXT: FoldActionContext = {
   atTip: true,
   readOnly: false,
   foldKind: 'valley',
-  sheet: 'square',
   stepCount: 2,
 };
 
@@ -185,15 +184,11 @@ describe('buildFoldActions', () => {
     expect(command(actions, 'turn-over').disabled).toBe(false);
   });
 
-  it('imports a crease pattern into a square or rectangle, or an empty polygon sequence (plan D16)', () => {
-    expect(command(buildFoldActions(at({ sheet: 'rectangle' }), deps()), 'import-cp').disabled).toBe(false);
-    expect(command(buildFoldActions(at({ sheet: 'polygon', stepCount: 0 }), deps()), 'import-cp').disabled).toBe(
-      false
-    );
-    expect(command(buildFoldActions(at({ sheet: 'polygon', stepCount: 1 }), deps()), 'import-cp')).toMatchObject({
-      disabled: true,
-      hint: 'Import CP needs a square or rectangle sheet.',
-    });
+  it('imports a crease pattern after any step, whatever the sheet (plan D16)', () => {
+    // A polygon sheet takes a pattern of its own shape, as a square does; the engine refuses another.
+    expect(command(buildFoldActions(at({ stepCount: 0 }), deps()), 'import-cp').disabled).toBe(false);
+    expect(command(buildFoldActions(at({ stepCount: 1 }), deps()), 'import-cp').disabled).toBe(false);
+    expect(command(buildFoldActions(at({ readOnly: true }), deps()), 'import-cp').disabled).toBe(true);
   });
 
   it('exports the active path once it has folded, read-only or not', () => {

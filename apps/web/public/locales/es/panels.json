@@ -1929,7 +1929,6 @@
       "exportSteps": "Exportar pasos…",
       "foldKind": "Pliegue",
       "importCp": "Importar CP…",
-      "importPolygonHint": "Para importar un CP hace falta una hoja cuadrada o rectangular.",
       "lockedHint": "Este paso se creó con una versión más reciente de Ori Studio.",
       "pathBrokenHint": "Un paso de este camino ya no se puede doblar.",
       "pathLockedHint": "Un paso de este camino se creó con una versión más reciente de Ori Studio.",

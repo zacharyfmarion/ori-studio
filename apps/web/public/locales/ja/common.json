@@ -147,7 +147,6 @@
     "foldGoToStep": "エクスポートするステップに移動してください",
     "foldImportCp": "CP をインポート...",
     "foldImportCpHint": "紙を展開図どおりに折りたたむステップを追加",
-    "foldImportPolygon": "CP のインポートには正方形か長方形の紙が必要です。",
     "foldImportSampleHint": "紙をサンプルの展開図どおりに折りたたむステップを追加",
     "foldMountain": "山折り",
     "foldNoStartingFigure": "まず編集で展開図を平らに折ってください",

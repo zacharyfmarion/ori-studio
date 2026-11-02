@@ -147,7 +147,6 @@
     "foldGoToStep": "Vá até um passo para exportá-lo",
     "foldImportCp": "Importar CP...",
     "foldImportCpHint": "Adicionar um passo que dobra o papel segundo um padrão de vincos",
-    "foldImportPolygon": "Importar um CP exige uma folha quadrada ou retangular.",
     "foldImportSampleHint": "Adicionar um passo que dobra o papel segundo um padrão de exemplo",
     "foldMountain": "Dobra monte",
     "foldNoStartingFigure": "Dobre primeiro o padrão na Edição até ficar plano",

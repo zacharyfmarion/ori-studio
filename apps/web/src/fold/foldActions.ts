@@ -18,7 +18,6 @@ import type { TFunction } from 'i18next';
 import { sendToEditPrimary, type SendToEditSurfaceSource } from '../designKinds/sendToEditActions';
 import type { TurnKind } from '../lib/steps/turn';
 import { turnName } from '../lib/steps/turnWords';
-import type { FoldPaperShapeKind } from './document/foldSequenceDocument';
 
 /** The plain fold tools: valley, mountain, and fold-and-unfold precrease. */
 export type FoldKind = 'valley' | 'mountain' | 'precrease';
@@ -126,8 +125,7 @@ export interface FoldActionContext {
   readOnly: boolean;
   /** The plain fold the tools hold, checked in the kind's choice; null while another tool is in hand, or none. */
   foldKind: FoldKind | null;
-  /** The sheet, and how many steps the sequence has, for Import CP (plan D16). */
-  sheet: FoldPaperShapeKind;
+  /** How many steps the sequence has. */
   stepCount: number;
 }
 
@@ -253,16 +251,14 @@ function diagramBlock(t: TFunction, context: FoldActionContext): string | null {
   return stateBlock(t, context.state);
 }
 
-/** Why Import CP cannot start here, or null when it can. */
+/**
+ * Why Import CP cannot start here, or null when it can: whatever stops adding
+ * a step. Any sheet takes a pattern of its own shape (an empty sequence takes
+ * the pattern's), a polygon's as well as a square's (plan D16); a pattern of
+ * another shape is the engine's to refuse.
+ */
 function importBlock(t: TFunction, context: FoldActionContext): string | null {
-  const blocked = addStepBlock(t, context);
-  if (blocked) return blocked;
-  // A crease pattern brings a square or rectangle sheet. An empty sequence
-  // takes its shape; one already folding a polygon cannot (plan D16).
-  if (context.sheet === 'polygon' && context.stepCount > 0) {
-    return t('panels:fold.actions.importPolygonHint', 'Import CP needs a square or rectangle sheet.');
-  }
-  return null;
+  return addStepBlock(t, context);
 }
 
 /**

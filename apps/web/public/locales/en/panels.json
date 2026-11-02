@@ -1865,7 +1865,6 @@
       "exportSteps": "Export steps…",
       "foldKind": "Fold",
       "importCp": "Import CP…",
-      "importPolygonHint": "Import CP needs a square or rectangle sheet.",
       "lockedHint": "This step was made with a newer Ori Studio.",
       "pathBrokenHint": "A step on this path no longer folds.",
       "pathLockedHint": "A step on this path was made with a newer Ori Studio.",
