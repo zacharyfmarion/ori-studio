@@ -125,11 +125,39 @@ pub fn squash_op(state: &State, p: Point, target: Option<Point>) -> Squash {
         target,
         direction: Direction::Valley,
         hinge: None,
+        opening: None,
     }
 }
 
 pub fn squash(state: &State, p: Point) -> VertexFolded {
     landed(state.squash(&squash_op(state, p, None), &VertexChoices::default()))
+}
+
+/// Where [`two_ply_walls`]' lift meets the diagonal edge, and the right edge.
+pub const PLY_WALLS_LIFT: [Point; 2] = [[0.8, 0.8], [1.0, 0.4]];
+
+/// The square folded on its anti-diagonal, then on its diagonal, the far
+/// half over: a four-layer triangle whose diagonal edge holds two nested
+/// wraps, each one diagonal's halves. Its corner beyond the lift line
+/// ([`PLY_WALLS_LIFT`]) is lifted over it, all four layers: a flap whose
+/// walls are two plies each, joined on its spine (the lifted diagonal) and
+/// its hinge (the lift) alone, its top two plies on no common crease —
+/// their anti-diagonal edge stays behind. A synthetic stand-in for a
+/// model's lifted centre flap.
+pub fn two_ply_walls() -> State {
+    let [e1, e2] = PLY_WALLS_LIFT;
+    let s = valley(&square(), [1.0, 0.0], [0.0, 1.0], [0.2, 0.2]);
+    let s = valley(&s, [0.0, 0.0], [1.0, 1.0], [0.6, 0.9]);
+    valley(&s, e1, e2, [0.95, 0.95])
+}
+
+/// The valley squash of [`two_ply_walls`]' lifted flap, opening where asked
+/// (none: between its walls).
+pub fn two_ply_squash(state: &State, opening: Option<usize>) -> Squash {
+    Squash {
+        opening,
+        ..squash_op(state, [0.85, 0.65], None)
+    }
 }
 
 /// The diagonal route's start (`build.mjs` `smallTriangle`): the square
@@ -678,6 +706,7 @@ pub fn abrashi_squash() -> State {
             target: None,
             direction: Direction::Valley,
             hinge: None,
+            opening: None,
         },
         &VertexChoices::default(),
     ))
