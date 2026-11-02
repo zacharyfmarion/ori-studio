@@ -71,7 +71,12 @@ that cannot express.
       and translations
 - [x] Rebuild the fold bridge; identity control on the real hexagon model
       (outside the repo), renders under `artifacts/fold-import-cp-polygon/`
-- [ ] fmt, clippy, tests; web typecheck, eslint, nearby vitest, i18n check
+- [x] fmt, clippy, tests; web typecheck, eslint, nearby vitest, i18n check
+- [x] App gate: Import CP was disabled on a polygon sheet with steps
+      (`foldActions`, workspace capabilities); removed with the inputs that
+      only fed it
+- [x] Browser: a hexagon `.fold` dropped on an empty sequence adopts the
+      hexagon; a six-spoke collapse dropped after it lands the 60° wedge
 - [ ] Draft PR
 
 ## Notes
