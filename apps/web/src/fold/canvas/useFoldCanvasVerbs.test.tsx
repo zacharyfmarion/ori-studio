@@ -690,7 +690,10 @@ describe('a vertex fold’s choices on the canvas', () => {
     const index = foldPickIndex(precreased, flatSquareLandmarks(), []);
     const view = { index } as unknown as FoldStateView;
     act(() => root.render(<Harness session={session(vi.fn())} tools={tools} preview={preview({ step: null })} view={view} />));
-    act(() => tools.selectTool('swivel'));
+    act(() => {
+      tools.selectTool('swivel');
+      tools.setSwivelInput('edge');
+    });
     const radii = { point: 0.03, line: 0.03 };
     // The pivot: a landmark — here the top-right corner.
     act(() => bound!.verbs.pick(bound!.verbs.hitTest('crease-pattern', { x: 0.99, y: 0.99 }, radii)));
@@ -742,7 +745,10 @@ describe('a vertex fold’s choices on the canvas', () => {
         )
       );
     render(null);
-    act(() => tools.selectTool('swivel'));
+    act(() => {
+      tools.selectTool('swivel');
+      tools.setSwivelInput('edge');
+    });
     const radii = { point: 0.03, line: 0.03 };
     const at = (x: number, y: number) => bound!.verbs.hitTest('crease-pattern', { x, y }, radii);
     act(() => bound!.verbs.pick(at(0.99, 0.99)));

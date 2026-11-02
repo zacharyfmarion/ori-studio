@@ -70,7 +70,7 @@ import {
 import { foldRefusalNotice, sectionFlapNames } from '../refusalNotice';
 import { choiceStepper, type FoldChoiceStepper, type FoldKindChoice } from '../reverse/reverseToolWindow';
 import { swivelRidgeName } from '../../stepSentenceVertex';
-import { vertexToolSteps, type FoldSquashHinge, type FoldSwivelInput } from './vertexInputs';
+import { FOLD_SWIVEL_INPUT_DEFAULT, vertexToolSteps, type FoldSquashHinge, type FoldSwivelInput } from './vertexInputs';
 
 /** Which of a swivel's two creases rises as its ridge: square to the edge, or toward its far end. */
 export type FoldSwivelRidge = 'foot' | 'end';
@@ -819,7 +819,7 @@ export function vertexControls(
   return {
     input: tool === 'swivel' ? {
       label: t('tools:fold.vertex.input.label', 'Construct by'),
-      value: vertex.swivelInput ?? 'edge',
+      value: vertex.swivelInput ?? FOLD_SWIVEL_INPUT_DEFAULT,
       options: [
         { value: 'edge', short: t('tools:fold.vertex.input.edge', 'Edge onto line'), label: t('tools:fold.vertex.input.edgeHelp', 'Choose an edge and the line it should land on'), disabled: false, reason: null },
         {
