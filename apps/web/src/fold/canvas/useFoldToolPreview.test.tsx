@@ -611,6 +611,7 @@ describe('a vertex fold’s step', () => {
   const SWIVEL: FoldToolState = {
     ...FOLD_TOOL_INITIAL,
     tool: 'swivel',
+    swivelInput: 'edge',
     // The pivot, the bottom edge, the left edge it lands on.
     picks: [point(0.8, 0.3), edges.find((edge) => edge.edge === 0)!, edges.find((edge) => edge.edge === 3)!],
   };

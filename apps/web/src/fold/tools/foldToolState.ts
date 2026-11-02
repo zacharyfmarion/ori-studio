@@ -49,7 +49,7 @@ import { sameFlap } from './crossSection';
 import { lineModeInput, locateEngine, toolInput, type FoldInputModel } from './foldToolRegistry';
 import { extentClicks, type FoldExtentMode } from './precrease/precreaseExtent';
 import { FOLD_ROTATION_DEFAULT } from './rotate/rotateTool';
-import { SWIVEL_TARGET_FROM, type FoldSquashHinge, type FoldSwivelInput } from './vertex/vertexInputs';
+import { FOLD_SWIVEL_INPUT_DEFAULT, SWIVEL_TARGET_FROM, type FoldSquashHinge, type FoldSwivelInput } from './vertex/vertexInputs';
 
 /** Wrap without adding two potentially MAX_SAFE_INTEGER-sized indices. */
 function wrappedOpening(index: number, delta: number, count: number): number {
@@ -232,7 +232,7 @@ export interface FoldToolState {
   petalHinge: FoldLineBy;
   swivelTarget: FoldLineBy;
   /** How a swivel is constructed: by its edge onto a line, or by its valley and mountain. Kept from fold to fold. */
-  swivelInput?: FoldSwivelInput;
+  swivelInput: FoldSwivelInput;
   /** A squash's hinge: the folded edge it infers, or a line drawn with the line modes. Kept from fold to fold. */
   squashHinge?: FoldSquashHinge;
   /**
@@ -302,6 +302,7 @@ export const FOLD_TOOL_INITIAL: FoldToolState = {
   vertexDirection: 'valley',
   petalHinge: 'crease',
   swivelTarget: 'crease',
+  swivelInput: FOLD_SWIVEL_INPUT_DEFAULT,
   override: null,
   divide: FOLD_DIVIDE_DEFAULT,
   hoveredFlap: null,
@@ -369,7 +370,7 @@ export function foldToolInput(
   return toolInput(state.tool, state.lineMode, state.secondLineMode, {
     petalHinge: state.petalHinge ?? 'crease',
     swivelTarget: state.swivelTarget ?? 'crease',
-    swivelInput: state.swivelInput ?? 'edge',
+    swivelInput: state.swivelInput ?? FOLD_SWIVEL_INPUT_DEFAULT,
     squashHinge: state.squashHinge ?? 'folded',
     lineTaken: state.takenLine !== undefined,
   });
@@ -881,7 +882,7 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
     },
     setSwivelInput(swivelInput) {
       // Another construction asks anew: its kind too.
-      set(state => (state.swivelInput ?? 'edge') === swivelInput ? state : { ...restart(state), swivelInput, compound: FOLD_COMPOUND_CHOICES_INITIAL });
+      set(state => state.swivelInput === swivelInput ? state : { ...restart(state), swivelInput, compound: FOLD_COMPOUND_CHOICES_INITIAL });
     },
 
     setSwivelTarget(swivelTarget) {

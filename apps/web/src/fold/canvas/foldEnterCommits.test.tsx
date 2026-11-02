@@ -11,6 +11,7 @@ import type { FoldSessionSurface } from '../session/useFoldSession';
 import type { FoldToolId } from '../tools/foldToolCatalog';
 import { createFoldTools, type FoldTools } from '../tools/foldToolState';
 import type { FoldExtentState } from '../tools/precrease/precreaseExtent';
+import type { FoldSwivelInput } from '../tools/vertex/vertexInputs';
 import { flatSquareLandmarks, flatSquareScene } from './foldCanvas.fixtures';
 import { foldAlongLine } from './foldAlongLine';
 import { registerFoldCanvasVerbs } from './foldCanvasCommands';
@@ -45,7 +46,7 @@ const SEGMENT: FoldPrecreaseExtent = { kind: 'segment', from: { kind: 'point', a
 const PINCH: FoldPrecreaseExtent = { kind: 'pinch', at: { kind: 'point', at: [0.5, 0.5] }, length: 0.1 };
 
 /** Each tool's fold, as its preview builds it: the tool in hand, the op it commits, and a precrease's extent. */
-const FOLDS: { name: string; tool: FoldToolId; op: FoldOp; extent?: FoldPrecreaseExtent }[] = [
+const FOLDS: { name: string; tool: FoldToolId; op: FoldOp; extent?: FoldPrecreaseExtent; swivelInput?: FoldSwivelInput }[] = [
   { name: 'a valley fold', tool: 'valley', op: { kind: 'valley', line: DIAGONAL, seed: ALL } },
   { name: 'a mountain fold', tool: 'mountain', op: { kind: 'mountain', line: DIAGONAL, seed: ALL } },
   { name: 'a precrease of the whole line', tool: 'precrease', op: { kind: 'precrease', line: DIAGONAL, direction: 'valley', seed: ALL } },
@@ -78,8 +79,9 @@ const FOLDS: { name: string; tool: FoldToolId; op: FoldOp; extent?: FoldPrecreas
     op: { kind: 'rabbit-ear', corners: [[0, 0], [1, 0], [1, 1]], emergent: [0, 1], seed: ALL, stayer: [0.25, 0.75], direction: 'valley' },
   },
   {
-    name: 'a swivel fold',
+    name: 'a swivel fold by its edge',
     tool: 'swivel',
+    swivelInput: 'edge',
     op: {
       kind: 'swivel',
       vertex: [0.5, 0.25],
@@ -232,6 +234,7 @@ describe('Enter commits every tool’s preview', () => {
       render(landed(fold.op));
       act(() => {
         tools.selectTool(fold.tool);
+        if (fold.swivelInput) tools.setSwivelInput(fold.swivelInput);
         if (fold.extent) tools.setExtent(fold.extent.kind);
       });
       render(landed(fold.op, fold.extent ? { status: 'ready', extent: fold.extent } : null));
