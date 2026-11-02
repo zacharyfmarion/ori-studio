@@ -82,4 +82,4 @@ result cannot be ordered flat.
       probes in `bird-swivel-refusals.json` now refuse `no_order`)
 - [x] Real cases compared with their saved landings; evidence rendered
 - [x] Browser check of one case through the Swivel tool
-- [ ] Draft PR
+- [x] Draft PR
