@@ -10,11 +10,11 @@
 //! one order after another from it.
 //!
 //! **An empty target is the flat sheet it adopts.** Importing into a
-//! sequence with no steps adopts the pattern's square or rectangle; the
-//! caller then stores that paper, and every later replay lands the step after
-//! the flat sheet of it. So the import is made after exactly that sheet — the
-//! engine's `ImportTarget::Empty` only finds which it is — and a pick lands
-//! the step from a sheet of it, as the replay will.
+//! sequence with no steps adopts the pattern's sheet (a square, a rectangle
+//! or a polygon); the caller then stores that paper, and every later replay
+//! lands the step after the flat sheet of it. So the import is made after
+//! exactly that sheet — the engine's `ImportTarget::Empty` only finds which
+//! it is — and a pick lands the step from a sheet of it, as the replay will.
 
 use std::collections::HashMap;
 
@@ -101,7 +101,7 @@ impl Parent<'_> {
 
 /// Where a pattern was imported: after a held state, or after the flat sheet
 /// an empty sequence adopts.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Placed {
     After(u32),
     Sheet {
@@ -114,7 +114,7 @@ impl Placed {
     fn adopted(&self) -> Option<AdoptedPaper> {
         match self {
             Placed::After(_) => None,
-            Placed::Sheet { paper, .. } => Some(*paper),
+            Placed::Sheet { paper, .. } => Some(paper.clone()),
         }
     }
 }
@@ -159,6 +159,7 @@ impl Imports {
             })
             .collect();
         let nodes = completions.nodes();
+        let paper = placed.adopted();
         let import = self.hold(Held {
             placed,
             cp_json,
@@ -173,7 +174,7 @@ impl Imports {
         Ok(Outcome::Ok(Opened {
             import,
             summary,
-            paper: placed.adopted(),
+            paper,
             count,
             components,
             nodes,
@@ -256,7 +257,7 @@ impl Imports {
         match jump {
             Ok(order_json) => land_op(
                 bridge,
-                held.placed,
+                held.placed.clone(),
                 CpJump {
                     cp_json: held.cp_json.clone(),
                     order_json,
@@ -403,7 +404,7 @@ impl Imports {
         match jump {
             Ok(order_json) => land_op(
                 bridge,
-                held.placed,
+                held.placed.clone(),
                 CpJump {
                     cp_json: held.cp_json.clone(),
                     order_json,
@@ -584,8 +585,8 @@ pub(crate) fn import(
             // sheet of it (see the module docs).
             let found = ImportedPattern::new(input, ImportTarget::Empty { start })?;
             let shape = &found.summary().shape;
-            let paper =
-                AdoptedPaper::of(shape).ok_or_else(|| internal("an import adopted a polygon"))?;
+            let paper = AdoptedPaper::of(shape)
+                .ok_or_else(|| internal("an import adopted a regular polygon by its sides"))?;
             let flat = Sheet::new(shape)
                 .and_then(|sheet| State::flat(sheet, start))
                 .map_err(|refusal| internal(&refusal.to_string()))?;
@@ -642,7 +643,7 @@ pub(crate) fn land_op(
 ) -> Result<Outcome<Landed>, IoCallError> {
     let (parent, sheet) = match placed {
         Placed::After(state) => (state, None),
-        Placed::Sheet { paper, start } => {
+        Placed::Sheet { ref paper, start } => {
             let made = bridge.sheet(&Paper {
                 shape: paper.paper_shape(),
                 start_side: start,
