@@ -565,3 +565,174 @@ fn h_through_two_points_along_the_flap_lands_or_is_refused_past_the_corner() {
     eprintln!("{landed_count} landed, {past_count} past the corner");
     assert!(landed_count > 0 && past_count > 0);
 }
+
+/// Whether the model points `a` and `b` are the same, to a hair.
+fn near(a: [f64; 2], b: [f64; 2]) -> bool {
+    (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-9
+}
+
+/// The side of the sheet the viewer sees at the model point `p`.
+fn seen_side(state: &State, p: [f64; 2]) -> bool {
+    let mut stack = state.stack_at(p).unwrap_or_default();
+    if state.view().flipped {
+        stack.reverse();
+    }
+    let top = *stack.first().unwrap_or_else(|| panic!("nothing at {p:?}"));
+    state
+        .front_up(top)
+        .unwrap_or_else(|| panic!("no side for {top}"))
+}
+
+/// The frog base's petal fold, on the preliminary base's front flap
+/// squashed open: a doubled flap, whose top layer ends at a raw edge across
+/// it while the layer under it runs on to the open corner. Over the usual
+/// precreases (the lower edges folded to the centre line through both
+/// layers), H through two points lands, the only order: each layer folds
+/// on its own kite — the top layer's to its own corner, the second's on to
+/// the open corner, the pair flat at H's ends — and the flap shows its top
+/// layer's side all over, inside the same outline. With the top layer's own
+/// kite precreased instead, the second layer's is scored as its partner, and
+/// the same creases fold.
+#[test]
+fn a_petal_fold_of_a_squashed_flap_folds_each_layer_on_its_own_kite() {
+    let marks = cases::doubled_marks();
+    let squashed = cases::squashed_flap();
+    let side = seen_side(&squashed, marks.petal);
+    let parent = cases::lower_edges_to_centre(&squashed, &marks);
+    let op = cases::doubled_petal_op(&parent, marks.ends, marks.petal);
+
+    let analysis = parent.analyse_petal(&op).unwrap_or_else(|e| panic!("{e}"));
+    assert!(near(analysis.corner, marks.corner), "{analysis:?}");
+    assert!(near(analysis.second_corner, marks.open), "{analysis:?}");
+    for k in 0..2 {
+        let end = analysis.ends[k];
+        assert!(marks.ends.iter().any(|&m| near(end, m)), "{analysis:?}");
+        assert!(analysis.kites[k].distance_to_point(end) < 1e-9);
+        assert!(analysis.kites[k].distance_to_point(marks.corner) < 1e-9);
+        assert!(analysis.second_kites[k].distance_to_point(end) < 1e-9);
+        assert!(analysis.second_kites[k].distance_to_point(marks.open) < 1e-9);
+    }
+    // H and the top layer's kite are scored; the second layer's refolds.
+    assert!(analysis.scores_line);
+    assert_eq!(analysis.scores_kites, [true, true]);
+
+    let folded = landed(parent.petal_fold(&op, &VertexChoices::default()));
+    check(&parent, &folded);
+    let fold = &folded.report.fold;
+    assert_eq!(fold.blocks.len(), 5);
+    // The second layer's precreased kites fold again, the closed edges
+    // below H's ends unfold.
+    assert_eq!((fold.refolded.len(), fold.unfolded.len()), (2, 2));
+    let state = &folded.state;
+    let outline = |s: &State| -> ([f64; 2], [f64; 2]) {
+        let points: Vec<[f64; 2]> = s
+            .faces()
+            .iter()
+            .flat_map(|f| s.face_image(f.id).unwrap_or_default().to_vec())
+            .collect();
+        let lo = points
+            .iter()
+            .fold([f64::MAX; 2], |m, p| [m[0].min(p[0]), m[1].min(p[1])]);
+        let hi = points
+            .iter()
+            .fold([f64::MIN; 2], |m, p| [m[0].max(p[0]), m[1].max(p[1])]);
+        (lo, hi)
+    };
+    let (lo, hi) = outline(state);
+    assert!(
+        near(lo, [0.0, 0.0]) && near(hi, [0.5, 0.5]),
+        "{lo:?} {hi:?}"
+    );
+    // The flap, H up to the closed point and down to the open corner, all
+    // its top layer's side.
+    for p in [
+        [0.205, 0.177],
+        [0.31, 0.29],
+        [0.4, 0.45],
+        [0.2, 0.05],
+        [0.05, 0.2],
+        [0.1, 0.06],
+        [0.33, 0.1],
+    ] {
+        assert_eq!(seen_side(state, p), side, "at {p:?}");
+    }
+
+    // The top layer's own kite precreased, and nothing in the second layer.
+    let mut own = squashed.clone();
+    for k in 0..2 {
+        let inside = [
+            (marks.ends[k][0] + marks.corner[0]) / 2.0 * 0.9 + 0.025,
+            (marks.ends[k][1] + marks.corner[1]) / 2.0 * 0.9 + 0.025,
+        ];
+        let at = cases::seen_top(&own, inside);
+        own = cases::precrease(
+            &own,
+            marks.corner,
+            marks.ends[k],
+            [0.25, 0.25],
+            Seed::Depth { at, layers: 1 },
+        );
+    }
+    let op = cases::doubled_petal_op(&own, marks.ends, marks.petal);
+    let analysis = own.analyse_petal(&op).unwrap_or_else(|e| panic!("{e}"));
+    assert!(near(analysis.corner, marks.corner), "{analysis:?}");
+    assert!(near(analysis.second_corner, marks.open), "{analysis:?}");
+    let other = landed(own.petal_fold(&op, &VertexChoices::default()));
+    check(&own, &other);
+    assert_eq!(folded_segments(&other.state), folded_segments(state));
+}
+
+/// On the squashed flap, a petal fold the paper cannot make is still
+/// refused, and as a petal fold: H nearer the closed point leaves the
+/// layers' paper past their kites' corners; and H named by its precrease,
+/// over kite precreases of both layers that do not fold flat together at
+/// its ends, needs a kite crease that is not there — the top layer's own,
+/// which the fold names — rather than folding them and failing the gate.
+#[test]
+fn a_petal_fold_of_a_squashed_flap_that_does_not_fold_is_refused() {
+    let marks = cases::doubled_marks();
+    let parent = cases::lower_edges_to_centre(&cases::squashed_flap(), &marks);
+    let high = cases::doubled_petal_op(&parent, [[0.25, 0.4], [0.4, 0.25]], [0.27, 0.22]);
+    assert!(
+        matches!(
+            refusal(&parent, &high),
+            FoldRefusal::PetalNoFlap {
+                cause: NoPetal::NoCorner,
+                detail: Some(NoPetalDetail::PastCorner { .. }),
+                ..
+            }
+        ),
+        "{:?}",
+        refusal(&parent, &high)
+    );
+
+    let at = cases::seen_top(&parent, marks.petal);
+    let with_h = cases::precrease(
+        &parent,
+        marks.ends[0],
+        marks.ends[1],
+        [0.1, 0.1],
+        Seed::Depth { at, layers: 1 },
+    );
+    let by_crease = PetalFold {
+        hinge: PetalHinge::Crease {
+            line: oristudio_geometry::Line::from_points(marks.ends[0], marks.ends[1])
+                .unwrap_or_else(|| panic!("no H")),
+        },
+        ..cases::doubled_petal_op(&with_h, marks.ends, marks.petal)
+    };
+    let refused = refusal(&with_h, &by_crease);
+    let FoldRefusal::PetalNotPrecreased {
+        faces,
+        missing: PetalCrease::Kite,
+    } = &refused
+    else {
+        panic!("{refused:?}");
+    };
+    // The faces are the top layer's, where its own kite would run.
+    let analysis = with_h
+        .analyse_petal(&cases::doubled_petal_op(&with_h, marks.ends, marks.petal))
+        .unwrap_or_else(|e| panic!("{e}"));
+    assert!(!faces.is_empty());
+    assert!(faces.iter().all(|f| analysis.top.contains(f)), "{faces:?}");
+}

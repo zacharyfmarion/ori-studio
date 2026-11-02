@@ -11,9 +11,9 @@ mod sinks;
 mod support;
 
 use oristudio_fold::{
-    Broken, CompoundRefused, CreaseKind, Direction, FaceId, Fix, FoldRefusal, LegName, Letter,
-    PlainFold, Refused, Seed, SinkChoices, SinkFold, SinkFolded, SinkKind, SinkOutcome, SinkPoint,
-    SinkStep, State, StoredPocket, Unsink, WitnessOrder,
+    Broken, CompoundRefused, CreaseKind, Direction, FaceId, Fix, FoldRefusal, ImportKind,
+    ImportSegment, LegName, Letter, PlainFold, Refused, Seed, SinkChoices, SinkFold, SinkFolded,
+    SinkKind, SinkOutcome, SinkPoint, SinkStep, State, StoredPocket, Unsink, WitnessOrder,
 };
 use oristudio_geometry::Line;
 use sinks::*;
@@ -904,5 +904,86 @@ fn a_sink_is_pictured_pushed_in_at_its_tip() {
             assert_eq!(landed_picture.push, None);
             assert_eq!(landed_picture.moving, pulled.moving);
         }
+    }
+}
+
+// --- 7. Staying paper in a pocket ---------------------------------------------
+
+/// The hem's creases on the sheet: the line y − x = `g` across the front
+/// layer's corner, in the sample's frame.
+fn hem_creases(state: &State, g: f64) -> Vec<CreaseKind> {
+    state
+        .creases()
+        .iter()
+        .filter(|c| {
+            c.vertices.iter().all(|v| {
+                let p = state.vertices()[v.0 as usize];
+                (p[1] - p[0] - g).abs() < 1e-9
+            })
+        })
+        .map(|c| c.kind)
+        .collect()
+}
+
+/// A flap folded into a pocket before the sink is staying paper the tip
+/// cannot pass under: the preliminary base with its front layer's foot
+/// corner hemmed behind it (a mountain), so the hem lies inside the front
+/// pocket, between the front flap's two layers, its fold closing the gap
+/// between it and the front layer. An open sink deep enough to reach past
+/// the hem lands one state — anchoring every tip face directly on its piece
+/// would put the front layer's tip under the hem, where it cannot go, and
+/// leave no order. The tip rides over the hem instead (s1, the hem, t1, t2,
+/// s2 … where it lands on the hem), every ring crease takes the outline's
+/// mountain, and the hem stays as it was.
+#[test]
+fn an_open_sink_rides_over_a_flap_folded_into_its_pocket() {
+    let g = 0.8;
+    let hem = ImportSegment {
+        from: [0.0, g],
+        to: [1.0 - g, 1.0],
+        kind: ImportKind::Mountain,
+    };
+    let states = sample_with("preliminary-base", &[hem]);
+    let [base] = &states[..] else {
+        panic!("{} orders", states.len());
+    };
+    // In the model frame: on the hem, and where the front layer's tip
+    // lands at each depth below.
+    let on_hem = [0.83, 0.88];
+    let front = face(base, in_triangle(1, 0.7));
+    assert_eq!(
+        stack_names(base, on_hem, &[], front),
+        "s1 s1 s2 s3 s4",
+        "the hem lies inside the front pocket"
+    );
+    let hem_before = hem_creases(base, g);
+    assert_eq!(hem_before.len(), 2);
+    assert!(hem_before.iter().all(|k| *k == M), "{hem_before:?}");
+
+    for f in [0.4, 0.45, 0.49] {
+        let what = format!("open f = {f} over the hem");
+        let op = sink_op(base, PRELIMINARY_FOOT, f, 0.0, OPEN);
+        let folded = landed(base.sink(&op, &none()), &what);
+        check(base, &folded);
+        assert_eq!(folded.report.step, SinkStep::Open);
+        let state = &folded.state;
+        let Creases { ring, .. } = creases(base, &folded);
+        assert_eq!(ring.len(), 8, "{what}");
+        assert!(ring.iter().all(|&k| k == M), "{what}: {ring:?}");
+        assert_eq!(hem_creases(state, g), hem_before, "{what}");
+        let moved: Vec<FaceId> = folded
+            .report
+            .fold
+            .blocks
+            .iter()
+            .flatten()
+            .copied()
+            .collect();
+        let front = face(state, in_triangle(1, (f + 1.0) / 2.0));
+        assert_eq!(
+            stack_names(state, on_hem, &moved, front),
+            "s1 s1 t1 t2 s2 s3 t3 t4 s4",
+            "{what}"
+        );
     }
 }

@@ -18,7 +18,11 @@
  *   the Precrease tool on the edge-to-edge axiom that makes them; a hinge the
  *   fold cannot crease through the layers that fold takes the Precrease
  *   tool through its two ends. The engine cannot offer these: it cannot
- *   know the kite's corner before the kite is creased.
+ *   know the kite's corner before the kite is creased;
+ * - a swivel by its edge onto a line whose crease meets the folded edge too
+ *   steeply (`swivel_fold_wide`) needs the edge's layer creased twice, the
+ *   branch that form does not build and Valley and mountain folds: the tool
+ *   switches to it.
  *
  * A petal fold with no flap says what its cause names more precisely, where
  * the engine does (`FoldNoPetalDetail`): a hinge that misses the flap, or
@@ -36,6 +40,7 @@ import {
 } from '../../engine/foldEngineSquashWire';
 import type { FoldFix, FoldModelPoint, FoldRefusalBody } from '../../engine/foldEngineWire';
 import type { FoldLineBy } from '../foldToolCatalog';
+import type { FoldSwivelInput } from './vertexInputs';
 
 /** The vertex folds' refusal codes, which {@link vertexRefusalWords} words: the swivel by its edge's among them. */
 export const FOLD_VERTEX_REFUSAL_CODES = [
@@ -104,6 +109,8 @@ export interface FoldVertexFixVerbs {
   precreaseKite?: () => void;
   /** The same petal fold with its hinge named by its two ends, so the fold creases the kite creases it lacks. */
   petalByEnds?: () => void;
+  /** Construct the swivel another way: one too steep for its edge onto a line, by its valley and mountain. */
+  setSwivelInput?: (mode: FoldSwivelInput) => void;
 }
 
 function noFlap(t: TFunction, cause: FoldNoFlap): string {
@@ -233,9 +240,10 @@ function swivelWords(
     case 'swivel_fold_wide':
       return {
         title: t('tools:fold.vertex.refusal.swivelFoldWide.title', 'The swivel crease meets the edge too steeply'),
+        // The other branch of the same swivel is what Valley and mountain folds: its button says so.
         text: t(
-          'tools:fold.vertex.refusal.swivelFoldWide.text',
-          'On the moving edge’s side the swivel crease meets the folded edge at a right angle or more, which leaves the other layer no room to fold. Pick a line for the edge to land on that turns it further, or another folded edge.'
+          'tools:fold.vertex.refusal.swivelFoldWide.creaseTwice',
+          'On the moving edge’s side the swivel crease meets the folded edge at a right angle or more, so the edge’s layer has to crease twice, a valley and a mountain, and Edge onto line folds it once. Switch to Valley and mountain and pick the two creases, or pick a line that turns the edge further.'
         ),
       };
     case 'swivel_not_an_edge':
@@ -592,6 +600,16 @@ export function vertexExtraActions(
         t('tools:fold.vertex.fix.precreaseHinge', 'Precrease the hinge first'),
         verbs.precreaseLine
       );
+    case 'swivel_fold_wide': {
+      // Its edge onto a line folds the layer once; by its valley and mountain, twice.
+      const { setSwivelInput } = verbs;
+      if (context.swivel === 'valley-mountain' || !setSwivelInput) return [];
+      return action(
+        'vertex-swivel-valley-mountain',
+        t('tools:fold.vertex.fix.valleyMountain', 'Switch to Valley and mountain'),
+        () => setSwivelInput('valley-mountain')
+      );
+    }
     default:
       return [];
   }

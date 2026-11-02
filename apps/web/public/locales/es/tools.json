@@ -956,7 +956,8 @@
         "otherWay": "Plegar en el otro sentido",
         "precreaseHinge": "Premarcar antes la bisagra",
         "precreaseKite": "Premarcar la cometa",
-        "resetTarget": "Llevar el lomo a la bisagra"
+        "resetTarget": "Llevar el lomo a la bisagra",
+        "valleyMountain": "Cambiar a Valle y monte"
       },
       "help": {
         "petalHinge": "Levantar la punta inferior de una solapa a lo largo de una bisagra mientras sus lados se pliegan hacia dentro por dos pliegues de cometa.",
@@ -1117,7 +1118,7 @@
           "title": "El borde se quedaría quieto"
         },
         "swivelFoldWide": {
-          "text": "Del lado del borde que se mueve, el pliegue pivotante se encuentra con el borde plegado en ángulo recto o mayor, y no deja sitio para que la otra capa se pliegue. Elige una línea sobre la que caiga el borde que lo gire más, u otro borde plegado.",
+          "creaseTwice": "Del lado del borde que se mueve, el pliegue pivotante se encuentra con el borde plegado en ángulo recto o mayor, así que la capa del borde tiene que plegarse dos veces, en valle y en monte, y Borde sobre línea la pliega una sola vez. Cambia a Valle y monte y elige los dos pliegues, o elige una línea que gire más el borde.",
           "title": "El pliegue pivotante llega al borde demasiado empinado"
         },
         "swivelInsideFree": {

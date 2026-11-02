@@ -956,7 +956,8 @@
         "otherWay": "Plier dans l’autre sens",
         "precreaseHinge": "Pré-plier d’abord la charnière",
         "precreaseKite": "Pré-plier le cerf-volant",
-        "resetTarget": "Poser le dos sur la charnière"
+        "resetTarget": "Poser le dos sur la charnière",
+        "valleyMountain": "Passer à Vallée et montagne"
       },
       "help": {
         "petalHinge": "Soulever la pointe inférieure d’un rabat le long d’une charnière pendant que ses côtés se replient le long de deux plis en cerf-volant.",
@@ -1117,7 +1118,7 @@
           "title": "Le bord resterait en place"
         },
         "swivelFoldWide": {
-          "text": "Du côté du bord qui bouge, le pli pivoté rencontre le bord plié à angle droit ou plus, ce qui ne laisse pas à l’autre couche la place de se plier. Choisissez une ligne où poser le bord qui le fasse tourner davantage, ou un autre bord plié.",
+          "creaseTwice": "Du côté du bord qui bouge, le pli pivoté rencontre le bord plié à angle droit ou plus, donc la couche du bord doit être pliée deux fois, en vallée et en montagne, et Bord sur ligne ne la plie qu’une fois. Passez à Vallée et montagne et choisissez les deux plis, ou choisissez une ligne qui fasse tourner le bord davantage.",
           "title": "Le pli pivoté rencontre le bord trop à pic"
         },
         "swivelInsideFree": {

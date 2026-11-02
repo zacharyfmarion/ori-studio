@@ -956,7 +956,8 @@
         "otherWay": "Dobrar no outro sentido",
         "precreaseHinge": "Pré-vincar antes a dobradiça",
         "precreaseKite": "Pré-vincar a pipa",
-        "resetTarget": "Levar a lombada à dobradiça"
+        "resetTarget": "Levar a lombada à dobradiça",
+        "valleyMountain": "Mudar para Vale e montanha"
       },
       "help": {
         "petalHinge": "Levantar a ponta de baixo de uma aba ao longo de uma dobradiça enquanto os lados se dobram para dentro por dois vincos de pipa.",
@@ -1117,7 +1118,7 @@
           "title": "A borda ficaria parada"
         },
         "swivelFoldWide": {
-          "text": "Do lado da borda que se move, o vinco pivotante encontra a borda dobrada em ângulo reto ou maior, o que não deixa espaço para a outra camada dobrar. Escolha uma linha para a borda pousar que a gire mais, ou outra borda dobrada.",
+          "creaseTwice": "Do lado da borda que se move, o vinco pivotante encontra a borda dobrada em ângulo reto ou maior, então a camada da borda precisa ser vincada duas vezes, em vale e em montanha, e Borda sobre linha a dobra só uma vez. Mude para Vale e montanha e escolha os dois vincos, ou escolha uma linha que gire mais a borda.",
           "title": "O vinco pivotante encontra a borda íngreme demais"
         },
         "swivelInsideFree": {

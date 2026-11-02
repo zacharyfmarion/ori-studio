@@ -329,6 +329,78 @@ pub fn petal_sweep() -> (State, Vec<(f64, PetalFold)>) {
     (base, ops)
 }
 
+/// The landmarks of a petal fold on a doubled flap — the preliminary base's
+/// front flap squashed, as in the frog base ([`squashed_flap`]) — in the
+/// model frame. The squashed flap is a kite from the closed point T at
+/// (1/2, 1/2) to the open corner at the origin; its top layer ends at a raw
+/// edge across it, square to its centre line, and the layer under it runs
+/// on to the open corner.
+pub struct DoubledMarks {
+    /// H's ends on the squash's creases, halfway from the closed point to
+    /// the top layer's raw edge.
+    pub ends: [Point; 2],
+    /// The top layer's corner, where its raw edge meets the centre line.
+    pub corner: Point,
+    /// The second layer's corner: the open corner.
+    pub open: Point,
+    /// Below H on the top layer, between its kite creases.
+    pub petal: Point,
+    /// Per end, a point on the top layer between the closed edge below the
+    /// end and the line from the open corner to the end, and the side
+    /// corner beyond it: where the lower edges fold to the centre line.
+    pub near: [Point; 2],
+    pub sides: [Point; 2],
+}
+
+pub fn doubled_marks() -> DoubledMarks {
+    let half = std::f64::consts::FRAC_1_SQRT_2 / 2.0;
+    let r = (1.0 - std::f64::consts::FRAC_1_SQRT_2) / 2.0;
+    DoubledMarks {
+        ends: [[r, half], [half, r]],
+        corner: [r, r],
+        open: [0.0, 0.0],
+        petal: [0.205, 0.177],
+        near: [[0.0707, 0.2828], [0.2828, 0.0707]],
+        sides: [[0.0, 2.0 * r], [2.0 * r, 0.0]],
+    }
+}
+
+/// The preliminary base with its front flap squashed open, symmetric about
+/// the base's centre line: a doubled flap, as the frog base's.
+pub fn squashed_flap() -> State {
+    squash(preliminary(false).last(), [0.3, 0.1]).state
+}
+
+/// The squashed flap's lower edges folded to its centre line and unfolded
+/// (the frog base's precreases): a valley from the open corner to each of
+/// H's ends through the flap's top two layers.
+pub fn lower_edges_to_centre(state: &State, marks: &DoubledMarks) -> State {
+    let mut s = state.clone();
+    for k in 0..2 {
+        let at = seen_top(&s, marks.near[k]);
+        s = precrease(
+            &s,
+            marks.open,
+            marks.ends[k],
+            marks.sides[k],
+            Seed::Depth { at, layers: 2 },
+        );
+    }
+    s
+}
+
+/// A valley petal fold of the squashed flap with H through `ends`.
+pub fn doubled_petal_op(state: &State, ends: [Point; 2], petal: Point) -> PetalFold {
+    PetalFold {
+        hinge: PetalHinge::Points {
+            from: ends[0],
+            to: ends[1],
+        },
+        petal: seen_top(state, petal),
+        direction: Direction::Valley,
+    }
+}
+
 /// The incenter and bisector rays of a triangle, with its emergent
 /// candidates (degrees from the x axis, rounded).
 pub fn candidates_of(state: &State, op: &RabbitEar) -> Vec<(i32, Point)> {

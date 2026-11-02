@@ -936,7 +936,8 @@
         "otherWay": "Fold it the other way",
         "precreaseHinge": "Precrease the hinge first",
         "precreaseKite": "Precrease the kite",
-        "resetTarget": "Put the spine onto the hinge"
+        "resetTarget": "Put the spine onto the hinge",
+        "valleyMountain": "Switch to Valley and mountain"
       },
       "help": {
         "petalHinge": "Lift a flap’s lower point along a hinge while its sides fold in along two kite creases.",
@@ -1094,7 +1095,7 @@
           "title": "The edge would stay put"
         },
         "swivelFoldWide": {
-          "text": "On the moving edge’s side the swivel crease meets the folded edge at a right angle or more, which leaves the other layer no room to fold. Pick a line for the edge to land on that turns it further, or another folded edge.",
+          "creaseTwice": "On the moving edge’s side the swivel crease meets the folded edge at a right angle or more, so the edge’s layer has to crease twice, a valley and a mountain, and Edge onto line folds it once. Switch to Valley and mountain and pick the two creases, or pick a line that turns the edge further.",
           "title": "The swivel crease meets the edge too steeply"
         },
         "swivelInsideFree": {
