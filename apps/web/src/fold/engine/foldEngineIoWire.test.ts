@@ -16,7 +16,8 @@ function codes(file: string, from: string, to: string): string[] {
   const source = readFileSync(resolve(CRATES, file), 'utf8');
   const start = source.indexOf(from);
   const body = source.slice(start, source.indexOf(to, start));
-  return [...body.matchAll(/=> "([a-z_]+)"/g)].map((match) => match[1]);
+  // An arm's code, written inline or, when rustfmt wraps a long pattern, in a block of its own.
+  return [...body.matchAll(/=>\s*(?:\{\s*)?"([a-z_]+)"/g)].map((match) => match[1]);
 }
 
 describe('the Import CP contracts', () => {

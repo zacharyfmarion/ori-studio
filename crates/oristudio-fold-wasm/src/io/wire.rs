@@ -116,7 +116,7 @@ fn is_unturned(turn_deg: &f64) -> bool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Target {
-    /// A sequence with no steps. It adopts the pattern's square or rectangle
+    /// A sequence with no steps. It adopts the pattern's sheet
     /// ([`Opened::paper`]), seen from `startSide` as its flat sheet would be;
     /// the caller sets the sequence's paper to it before the step is stored.
     Empty {
@@ -272,32 +272,44 @@ pub struct ComponentCount {
     pub truncated: bool,
 }
 
-/// `FoldPaperShape` for the square and rectangle sheets an import adopts.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+/// `FoldPaperShape` for the sheet an import adopts: a square, a rectangle,
+/// or any other outline as its corners, counter-clockwise in the unit sheet
+/// frame.
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AdoptedPaper {
     Square,
     Rectangle { aspect: [f64; 2] },
+    Polygon { points: Vec<[f64; 2]> },
 }
 
 impl AdoptedPaper {
-    /// The document's spelling of a sheet an import recovered: only ever a
-    /// square or a rectangle (V0).
+    /// The document's spelling of a sheet an import recovered. An import
+    /// never names a sheet `Regular`: the polygon it adopts is the outline
+    /// itself.
     pub fn of(shape: &SheetShape) -> Option<AdoptedPaper> {
         match shape {
             SheetShape::Square => Some(AdoptedPaper::Square),
             SheetShape::Rectangle { width, height } => Some(AdoptedPaper::Rectangle {
                 aspect: [*width, *height],
             }),
-            SheetShape::Regular { .. } | SheetShape::Polygon { .. } => None,
+            SheetShape::Polygon { points } => Some(AdoptedPaper::Polygon {
+                points: points.clone(),
+            }),
+            SheetShape::Regular { .. } => None,
         }
     }
 
     /// The bridge's input spelling of the same shape.
     pub fn paper_shape(&self) -> crate::wire::PaperShape {
-        match *self {
+        match self {
             AdoptedPaper::Square => crate::wire::PaperShape::Square,
-            AdoptedPaper::Rectangle { aspect } => crate::wire::PaperShape::Rectangle { aspect },
+            AdoptedPaper::Rectangle { aspect } => {
+                crate::wire::PaperShape::Rectangle { aspect: *aspect }
+            }
+            AdoptedPaper::Polygon { points } => crate::wire::PaperShape::Polygon {
+                points: points.clone(),
+            },
         }
     }
 }

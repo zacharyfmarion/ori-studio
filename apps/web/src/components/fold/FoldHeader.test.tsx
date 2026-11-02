@@ -26,7 +26,6 @@ const CONTEXT: FoldActionContext = {
   atTip: true,
   readOnly: false,
   foldKind: 'valley',
-  sheet: 'square',
   stepCount: 1,
 };
 
@@ -132,9 +131,12 @@ describe('FoldHeader', () => {
   });
 
   it('says why a verb cannot run', () => {
-    render({ context: { ...CONTEXT, path: 'broken', sheet: 'polygon', stepCount: 2 } });
+    render({ context: { ...CONTEXT, path: 'broken', readOnly: true, stepCount: 2 } });
     expect(button('Send to Edit')).toMatchObject({ disabled: false });
-    expect(button('Import CP…')).toMatchObject({ disabled: true, title: 'Import CP needs a square or rectangle sheet.' });
+    expect(button('Import CP…')).toMatchObject({
+      disabled: true,
+      title: 'Made with a newer Ori Studio: this sequence opens read-only.',
+    });
     render({ context: { ...CONTEXT, state: 'broken' } });
     expect(button('Send to Edit')).toMatchObject({ disabled: true, title: 'This step no longer folds.' });
   });

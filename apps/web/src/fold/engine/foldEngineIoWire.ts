@@ -50,8 +50,9 @@ export type FoldImportSource = { format: FoldImportFormat; sample?: boolean } & 
 /**
  * Where an import lands:
  *
- * - `empty`: a sequence with no steps, which adopts the pattern's square or
- *   rectangle, seen from `startSide` (`front` when absent);
+ * - `empty`: a sequence with no steps, which adopts the pattern's sheet — a
+ *   square, a rectangle or a polygon — seen from `startSide` (`front` when
+ *   absent);
  * - `after`: after the state this handle names, which must fit the pattern's
  *   sheet and still be held when an order is picked. The view is kept and the
  *   root continues.
@@ -74,13 +75,22 @@ export interface FoldImportLimits {
 // ---------------------------------------------------------------------------
 // Outputs
 
-/** The sheet an import found, as the engine names it. */
-export type FoldImportSheetShape = { shape: 'square' } | { shape: 'rectangle'; width: number; height: number };
+/**
+ * The sheet an import found, as the engine names it: a square or a rectangle,
+ * or any other sheet as its corners, counter-clockwise in the unit sheet frame.
+ */
+export type FoldImportSheetShape =
+  | { shape: 'square' }
+  | { shape: 'rectangle'; width: number; height: number }
+  | { shape: 'polygon'; points: [number, number][] };
 
 /** What an import found. Points are in sheet coordinates. */
 export interface FoldImportSummary {
   shape: FoldImportSheetShape;
-  /** The pattern was turned a quarter, counter-clockwise, to fit the sequence's sheet. */
+  /**
+   * The pattern was turned a quarter, counter-clockwise, to fit the sequence's
+   * sheet. A polygon may be turned by another angle to fit; only a quarter is said.
+   */
   quarter_turn: boolean;
   faces: number;
   mountains: number;
@@ -94,8 +104,14 @@ export interface FoldImportSummary {
   dropped: number;
 }
 
-/** The sheet an empty sequence adopts, as the document stores its paper. */
-export type FoldImportAdoptedPaper = { kind: 'square' } | { kind: 'rectangle'; aspect: [number, number] };
+/**
+ * The sheet an empty sequence adopts, as the document stores its paper: a
+ * polygon is the pattern's outline as Import starting sheet reads it.
+ */
+export type FoldImportAdoptedPaper =
+  | { kind: 'square' }
+  | { kind: 'rectangle'; aspect: [number, number] }
+  | { kind: 'polygon'; points: [number, number][] };
 
 /**
  * The sheet a pattern's border outlines ("Import starting sheet",

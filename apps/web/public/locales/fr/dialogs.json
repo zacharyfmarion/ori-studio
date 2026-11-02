@@ -416,8 +416,8 @@
         "title": "Une autre feuille"
       },
       "shapeUnsupported": {
-        "text": "Les patrons de plis s’importent sur une feuille carrée ou rectangulaire. La feuille de celui-ci a une autre forme.",
-        "title": "Feuilles carrées et rectangulaires uniquement"
+        "text": "Le contour du motif rentre vers l’intérieur ou a un côté trop court pour plier. Plier plie des feuilles dont tous les coins pointent vers l’extérieur : un carré, un rectangle, un polygone régulier ou toute autre forme convexe.",
+        "title": "Une feuille que Plier ne plie pas"
       },
       "sheetNotConvex": {
         "text": "Le contour du motif a un coin qui pointe vers l’intérieur du papier. Plier part de feuilles dont tous les coins pointent vers l’extérieur : un carré, un rectangle, un polygone régulier ou toute autre forme convexe.",

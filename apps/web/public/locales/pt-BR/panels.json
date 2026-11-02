@@ -1929,7 +1929,6 @@
       "exportSteps": "Exportar passos…",
       "foldKind": "Dobra",
       "importCp": "Importar CP…",
-      "importPolygonHint": "Importar um CP exige uma folha quadrada ou retangular.",
       "lockedHint": "Este passo foi criado com uma versão mais recente do Ori Studio.",
       "pathBrokenHint": "Um passo deste caminho não dobra mais.",
       "pathLockedHint": "Um passo deste caminho foi criado com uma versão mais recente do Ori Studio.",

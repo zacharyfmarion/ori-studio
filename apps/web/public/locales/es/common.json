@@ -147,7 +147,6 @@
     "foldGoToStep": "Ve a un paso para exportarlo",
     "foldImportCp": "Importar CP...",
     "foldImportCpHint": "Añadir un paso que pliega el papel según un patrón de pliegues",
-    "foldImportPolygon": "Para importar un CP hace falta una hoja cuadrada o rectangular.",
     "foldImportSampleHint": "Añadir un paso que pliega el papel según un patrón de ejemplo",
     "foldMountain": "Pliegue monte",
     "foldNoStartingFigure": "Pliega primero en plano el patrón en Editar",

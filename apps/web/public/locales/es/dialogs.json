@@ -416,8 +416,8 @@
         "title": "Otra hoja"
       },
       "shapeUnsupported": {
-        "text": "Se importan patrones de pliegues en hojas cuadradas o rectangulares. La hoja de este tiene otra forma.",
-        "title": "Solo hojas cuadradas y rectangulares"
+        "text": "El contorno del patrón se curva hacia dentro o tiene un lado demasiado corto para plegar. Plegar pliega hojas cuyas esquinas apuntan todas hacia fuera: un cuadrado, un rectángulo, un polígono regular o cualquier otra forma convexa.",
+        "title": "Una hoja que Plegar no pliega"
       },
       "sheetNotConvex": {
         "text": "El contorno del patrón tiene una esquina que apunta hacia dentro del papel. Plegar empieza con hojas cuyas esquinas apuntan todas hacia fuera: un cuadrado, un rectángulo, un polígono regular o cualquier otra forma convexa.",

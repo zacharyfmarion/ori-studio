@@ -70,7 +70,7 @@ export function foldImportView(state: Pick<WorkspaceState, 'foldSequences' | 'or
  * file when it has one.
  *
  * **No `region`:** an import is one crease pattern, its whole sheet. Import
- * CP takes one closed border (a square or a rectangle; more loops are
+ * CP takes one closed border (around a convex sheet; more loops are
  * refused, `import_outline_loops`), and Collapse and Update from CP hand it
  * the creases of one Edit sheet; the source is that pattern's creases and
  * nothing else, so the crease-pattern pane's own framing, the source's

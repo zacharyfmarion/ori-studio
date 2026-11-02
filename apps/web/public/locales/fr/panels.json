@@ -1929,7 +1929,6 @@
       "exportSteps": "Exporter les étapes…",
       "foldKind": "Pli",
       "importCp": "Importer un CP…",
-      "importPolygonHint": "L’import d’un CP demande une feuille carrée ou rectangulaire.",
       "lockedHint": "Cette étape a été créée avec une version plus récente d’Ori Studio.",
       "pathBrokenHint": "Une étape de ce chemin ne se plie plus.",
       "pathLockedHint": "Une étape de ce chemin a été créée avec une version plus récente d’Ori Studio.",

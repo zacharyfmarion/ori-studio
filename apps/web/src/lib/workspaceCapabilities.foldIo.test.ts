@@ -55,7 +55,7 @@ function capabilities(input: Partial<WorkspaceCapabilityInput>) {
 describe('Fold’s imports and hand-offs as capabilities', () => {
   it('are shown only while folding', () => {
     for (const activeEditingContext of ['treemaker-tree', 'crease-pattern', 'diagram', 'references'] as const) {
-      const elsewhere = capabilities({ activeEditingContext, foldSequence: { stepCount: 3, polygon: false, readOnly: false, pageAtCursor: true } });
+      const elsewhere = capabilities({ activeEditingContext, foldSequence: { stepCount: 3, readOnly: false, pageAtCursor: true } });
       for (const id of FOLD_IO) expect(elsewhere[id], `${activeEditingContext} ${id}`).toMatchObject({ visible: false, enabled: false });
     }
   });
@@ -64,27 +64,26 @@ describe('Fold’s imports and hand-offs as capabilities', () => {
     const empty = capabilities({});
     for (const id of IMPORTS) expect(empty[id], id).toMatchObject({ visible: true, enabled: true });
     for (const id of OUT) expect(empty[id], id).toMatchObject({ visible: true, enabled: false, reason: 'Fold a step first' });
-    const folded = capabilities({ foldSequence: { stepCount: 1, polygon: false, readOnly: false, pageAtCursor: true } });
+    const folded = capabilities({ foldSequence: { stepCount: 1, readOnly: false, pageAtCursor: true } });
     for (const id of OUT) expect(folded[id].enabled, id).toBe(true);
   });
 
   it('export the step on screen only from a step: not the sheet, nor a turn before the first step', () => {
-    const onSheet = capabilities({ foldSequence: { stepCount: 2, polygon: false, readOnly: false, pageAtCursor: false } });
+    const onSheet = capabilities({ foldSequence: { stepCount: 2, readOnly: false, pageAtCursor: false } });
     expect(onSheet['fold.export-step']).toMatchObject({ visible: true, enabled: false, reason: 'Go to a step to export it' });
     // The rest of the sequence still leaves it.
     for (const id of OUT.filter((each) => each !== 'fold.export-step')) expect(onSheet[id].enabled, id).toBe(true);
   });
 
-  it('import nothing into a newer build’s sequence, or a polygon sheet with steps', () => {
-    const readOnly = capabilities({ foldSequence: { stepCount: 1, polygon: false, readOnly: true, pageAtCursor: true }, hasFoldStartingFigure: true });
+  it('import nothing into a newer build’s sequence, and into any other after a step', () => {
+    const readOnly = capabilities({ foldSequence: { stepCount: 1, readOnly: true, pageAtCursor: true }, hasFoldStartingFigure: true });
     for (const id of IMPORTS) expect(readOnly[id].reason, id).toMatch(/read-only/);
     expect(readOnly['fold.start-from-edit-folded-figure'].enabled).toBe(false);
     // What leaves a read-only sequence is still there to take.
     expect(readOnly['fold.export-fold'].enabled).toBe(true);
-    const polygon = capabilities({ foldSequence: { stepCount: 2, polygon: true, readOnly: false, pageAtCursor: true } });
-    expect(polygon['fold.import-cp']).toMatchObject({ enabled: false, reason: 'Import CP needs a square or rectangle sheet.' });
-    // An empty polygon sequence adopts the pattern's sheet.
-    expect(capabilities({ foldSequence: { stepCount: 0, polygon: true, readOnly: false, pageAtCursor: false } })['fold.import-cp'].enabled).toBe(true);
+    // Whatever its sheet: a polygon takes a pattern of its own shape, as a square does.
+    const folded = capabilities({ foldSequence: { stepCount: 2, readOnly: false, pageAtCursor: true } });
+    expect(folded['fold.import-cp'].enabled).toBe(true);
   });
 
   it('start from Edit’s folded figure only when Edit has one', () => {

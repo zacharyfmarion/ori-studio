@@ -120,10 +120,10 @@ function engineWords(t: TFunction, refusal: FoldEngineRefused['refusal']): { tit
       };
     case 'import_shape_unsupported':
       return {
-        title: t('dialogs:foldImport.refusal.shapeUnsupported.title', 'Square and rectangle sheets only'),
+        title: t('dialogs:foldImport.refusal.shapeUnsupported.title', 'Not a sheet Fold folds'),
         text: t(
           'dialogs:foldImport.refusal.shapeUnsupported.text',
-          'Fold imports crease patterns on a square or rectangle sheet. This one’s sheet is another shape.'
+          'The pattern’s outline bends inward or has a side too short to fold. Fold folds sheets whose every corner points out: a square, a rectangle, a regular polygon, or any other convex shape.'
         ),
       };
     case 'import_shape_mismatch': {
