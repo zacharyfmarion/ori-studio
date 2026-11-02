@@ -144,6 +144,12 @@ export interface FoldCompoundToolChoices {
   // lists, by index, or of where the folder points, as a direction.
   /** Where a squash's spine lands: a direction from its vertex in the parent's model frame; null for the hinge line. */
   squashTarget: FoldModelDirection | null;
+  /**
+   * Where a squash of a flap whose walls are several plies opens: how many
+   * of its layers at the flap point lie above the opening (`FoldSquashOp`'s
+   * `opening`); null or absent for between its walls.
+   */
+  squashOpening?: number | null;
   /** A rabbit ear's or a swivel's fourth ray, by index into the candidates; null for the first that lands. */
   emergent: number | null;
   /** How many layers at a fan's center its creases cut, from the side the direction names; null for every one. */
@@ -176,6 +182,7 @@ export const FOLD_COMPOUND_CHOICES_INITIAL: FoldCompoundToolChoices = {
   tuckTarget: null,
   tuckPinned: [],
   squashTarget: null,
+  squashOpening: null,
   emergent: null,
   fanLayers: null,
   swivelKind: null,
@@ -512,6 +519,8 @@ export interface FoldTools {
   setSwivelTarget(target: FoldLineBy): void;
   /** Where a squash's spine lands; null for the hinge line. */
   setSquashTarget(target: FoldModelDirection | null): void;
+  /** Where a squash of several plies opens, by how many layers lie above it; null for between its walls. */
+  setSquashOpening(opening: number | null): void;
   /** Take a fan's emergent candidate by index; null for the first that lands. */
   setEmergent(emergent: number | null): void;
   /** A swivel on a folded edge's kind, open or inside; null for the one that lands. */
@@ -892,6 +901,15 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
 
     setSquashTarget(squashTarget) {
       set((state) => ({ ...state, compound: { ...state.compound, squashTarget, order: 0 } }));
+    },
+
+    setSquashOpening(squashOpening) {
+      // Another opening is another fold: its orders are its own.
+      set((state) =>
+        (state.compound.squashOpening ?? null) === squashOpening
+          ? state
+          : { ...state, compound: { ...state.compound, squashOpening, order: 0 } }
+      );
     },
 
     setEmergent(emergent) {

@@ -26,6 +26,7 @@ function verbs() {
     stepEmergent: vi.fn(),
     takeEmergent: vi.fn(),
     stepFanLayers: vi.fn(),
+    stepSquashOpening: vi.fn(),
     resetSquashTarget: vi.fn(),
     setSquashHinge: vi.fn(),
     setVertexLineBy: vi.fn(),
@@ -273,6 +274,35 @@ describe('a vertex fold’s window while it previews', () => {
     aimed?.vertex?.direction?.set('mountain');
     expect(calls.setVertexDirection).toHaveBeenCalledWith('mountain');
     expect(aimed?.footer?.commit).toMatchObject({ label: 'Squash fold', disabled: false });
+  });
+
+  it('offers where a squash of several plies opens, among the openings that land, named from the direction’s side', () => {
+    const calls = verbs();
+    const plies = vertex({ squash: { layers: 4, openings: [1, 2, 3], opening: 2 } });
+    const model = foldToolWindow(t, view(plies, { preview: preview() }), calls, mouse);
+    const opening = model?.vertex?.opening;
+    expect(opening).toMatchObject({ label: 'Opens under', value: 'Top 2 of 4' });
+    // The direction, the hinge, where the spine lands, and where it opens.
+    expect(model?.meta).toBe('4 settings');
+    expect(hasVertexChoices(model!.vertex!)).toBe(true);
+    opening?.next.run();
+    opening?.previous.run();
+    expect(calls.stepSquashOpening.mock.calls).toEqual([[1], [-1]]);
+    // A mountain counts its layers from the bottom.
+    const mountain = foldToolWindow(
+      t,
+      view(vertex({ direction: 'mountain', squash: { layers: 4, openings: [1, 2], opening: 1 } }), { preview: preview() }),
+      calls,
+      mouse
+    );
+    expect(mountain?.vertex?.opening).toMatchObject({ label: 'Opens over', value: 'Bottom 1 of 4' });
+    // One opening that lands is no choice; a two-layer flap has none; nor while clicking.
+    const one = foldToolWindow(t, view(vertex({ squash: { layers: 4, openings: [2], opening: 2 } }), { preview: preview() }), calls, mouse);
+    expect(one?.vertex?.opening).toBeNull();
+    const two = foldToolWindow(t, view(vertex(), { preview: preview() }), calls, mouse);
+    expect(two?.vertex?.opening).toBeNull();
+    const clicking = foldToolWindow(t, view(plies, { preview: null }), calls, mouse);
+    expect(clicking?.vertex?.opening ?? null).toBeNull();
   });
 
   it('offers layers but no separate fourth-crease selector for a rabbit ear', () => {
@@ -539,10 +569,17 @@ describe('a vertex fold’s refusals', () => {
     }
     expect(titles.size).toBeGreaterThan(14);
     // Each cause says its own reason.
-    for (const cause of ['single_layer', 'no_spine', 'no_hinge', 'upper_not_hinged'] as const) {
+    for (const cause of ['single_layer', 'no_spine', 'no_hinge', 'upper_not_hinged', 'opening_outside'] as const) {
       const notice = foldRefusalNotice(t, refused({ code: 'squash_no_flap', faces: [0], cause }), vertexContext('squash'), verbs());
       expect(notice.text, cause).not.toBe('');
     }
+    const opening = foldRefusalNotice(
+      t,
+      refused({ code: 'squash_no_flap', faces: [0, 1, 2, 3], cause: 'opening_outside' }),
+      vertexContext('squash'),
+      verbs()
+    );
+    expect(opening.text).toMatch(/can’t open between those layers/);
     // A covered petal lifts; a covered squash opens.
     const petal = foldRefusalNotice(t, refused(bodies.squash_flap_covered), vertexContext('petal'), verbs());
     expect(petal.text).toMatch(/lift it the other way/);

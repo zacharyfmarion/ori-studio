@@ -1036,6 +1036,7 @@
           "hingeOffSpine": "The hinge line must cross the flap’s folded edge, with the end you click on one side of it.",
           "noHinge": "The flap folds over no hinge at either end of its spine, so there is nothing to press it flat against.",
           "noSpine": "These layers are not joined by a single folded edge, so there is no spine to open. A closed flap, joined through folded-in sides, cannot be squashed yet.",
+          "openingOutside": "The flap can’t open between those layers: they are joined somewhere other than its spine and hinge.",
           "singleLayer": "Only one layer lies here. Click a flap of two layers joined along a folded edge.",
           "title": "No flap to squash here",
           "upperNotHinged": "The flap’s top layer is held by its spine alone: pressed flat, its hinge side would lie loose."
@@ -1144,6 +1145,8 @@
         "takeTouch": "Tap Use as the hinge.",
         "use": "Use as the hinge"
       },
+      "squashOpensOver": "Opens over",
+      "squashOpensUnder": "Opens under",
       "steps": {
         "earChoose": "Choose the layers, or click another region for the hinge crease.",
         "earChooseTouch": "Choose the layers, or tap another region for the hinge crease.",

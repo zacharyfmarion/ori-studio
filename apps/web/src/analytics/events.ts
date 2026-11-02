@@ -125,6 +125,7 @@ export type FoldChoiceKind =
   // The vertex folds.
   | 'emergent'
   | 'ridge'
+  | 'squash_opening'
   // The sinks.
   | 'pocket';
 

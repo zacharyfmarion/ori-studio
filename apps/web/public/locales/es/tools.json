@@ -1059,6 +1059,7 @@
           "hingeOffSpine": "La línea de bisagra debe cruzar el borde plegado de la solapa, con el extremo en el que haces clic a un lado.",
           "noHinge": "La solapa no se pliega sobre ninguna bisagra en ningún extremo de su lomo, así que no hay contra qué aplastarla.",
           "noSpine": "Estas capas no están unidas por un único borde plegado, así que no hay lomo que abrir. Una solapa cerrada, unida por lados plegados hacia dentro, aún no se puede aplastar.",
+          "openingOutside": "La solapa no puede abrirse entre esas capas: están unidas en otro lugar que no es su lomo ni su bisagra.",
           "singleLayer": "Aquí solo hay una capa. Haz clic en una solapa de dos capas unidas por un borde plegado.",
           "title": "No hay solapa que aplastar aquí",
           "upperNotHinged": "La capa superior de la solapa solo está sujeta por su lomo: aplastada, su lado de la bisagra quedaría suelto."
@@ -1167,6 +1168,8 @@
         "takeTouch": "Toca Usar como bisagra.",
         "use": "Usar como bisagra"
       },
+      "squashOpensOver": "Se abre sobre",
+      "squashOpensUnder": "Se abre bajo",
       "steps": {
         "earChoose": "Elige las capas o haz clic en otra región para el pliegue de bisagra.",
         "earChooseTouch": "Elige las capas o toca otra región para el pliegue de bisagra.",

@@ -1059,6 +1059,7 @@
           "hingeOffSpine": "La ligne de charnière doit croiser le bord plié du rabat, l’extrémité cliquée d’un côté.",
           "noHinge": "Le rabat ne se plie sur aucune charnière à l’une ou l’autre extrémité de son dos : rien contre quoi l’aplatir.",
           "noSpine": "Ces couches ne sont pas reliées par un seul bord plié : il n’y a pas d’arête à ouvrir. Un rabat fermé, relié par des côtés repliés vers l’intérieur, ne peut pas encore être écrasé.",
+          "openingOutside": "Le rabat ne peut pas s’ouvrir entre ces couches : elles sont reliées ailleurs qu’à son dos et à sa charnière.",
           "singleLayer": "Une seule couche ici. Cliquez sur un rabat de deux couches reliées par un bord plié.",
           "title": "Aucun rabat à écraser ici",
           "upperNotHinged": "La couche du dessus du rabat ne tient que par son dos : aplatie, son côté charnière resterait libre."
@@ -1167,6 +1168,8 @@
         "takeTouch": "Touchez Utiliser comme charnière.",
         "use": "Utiliser comme charnière"
       },
+      "squashOpensOver": "S’ouvre sur",
+      "squashOpensUnder": "S’ouvre sous",
       "steps": {
         "earChoose": "Choisissez les couches ou cliquez sur une autre région pour le pli de charnière.",
         "earChooseTouch": "Choisissez les couches ou touchez une autre région pour le pli de charnière.",

@@ -25,6 +25,8 @@ import {
   picksPetalRegion,
   picksSwivelPivot,
   PLACEHOLDER_RAY,
+  squashOpeningToFold,
+  squashOpenings,
   squashTargetToward,
   steppedFourth,
   swivelDirectionsOf,
@@ -34,6 +36,7 @@ import {
   vertexChosenOp,
   vertexStepFrom,
   withEmergent,
+  withOpening,
   type FoldVertexIntent,
   type FoldVertexTaken,
 } from './vertexStep';
@@ -606,6 +609,7 @@ describe('the choices a vertex fold takes of what the engine lists', () => {
       emergent: null,
       direction: 'valley',
       kind: null,
+      opening: 1,
       again: false,
     });
     expect(vertexChosenOp(squash, analysed, { ...NONE, squashTarget: [0, 1] })).toEqual({
@@ -613,10 +617,65 @@ describe('the choices a vertex fold takes of what the engine lists', () => {
       emergent: null,
       direction: 'valley',
       kind: null,
+      opening: 1,
       again: true,
     });
+    // A two-layer flap opens one way: an opening asked of it is not offered, nor folded.
+    expect(squashOpenings(analysed)).toEqual([]);
+    expect(vertexChosenOp(squash, analysed, { ...NONE, squashOpening: 2 })).toMatchObject({ op: squash, opening: 1, again: false });
     expect(squashTargetToward([0.5, 0.5], [0.5, 1])).toEqual([0, 1]);
     expect(squashTargetToward([0.5, 0.5], [0.5, 0.5])).toBeNull();
+  });
+
+  it('opens a squash of several plies between its walls, or where the folder steps it among the openings that land', () => {
+    const squash = { kind: 'squash' as const, flap: [0.2, 0.2] as const, direction: 'valley' as const };
+    // Four layers, opening under the top two; under the top three does not land.
+    const walls: FoldVertexAnalysed = {
+      analysis: {
+        kind: 'squash',
+        vertex: [0.8, 0.8],
+        hinge: { n: [0.8944, 0.4472], d: 1.0733 },
+        spine: { n: [0.1414, -0.9899], d: -0.6788 },
+        hinge_direction: [0.4472, -0.8944],
+        spine_direction: [-0.9899, -0.1414],
+        upper: [19, 21],
+        lower: [23, 25],
+        upper_crease: { n: [0.89, -0.46], d: 0.34 },
+        lower_crease: { n: [0.89, -0.46], d: 0.34 },
+        wedge: -1.89,
+        share: 0,
+        layers: 4,
+        opening: 2,
+      },
+      emergents: [],
+      openings: [true, true, false],
+      orders: null,
+    };
+    expect(squashOpenings(walls)).toEqual([1, 2]);
+    // Between its walls: the op names no opening, as an older build reads it.
+    expect(vertexChosenOp(squash, walls, NONE)).toMatchObject({ op: squash, opening: 2, again: false });
+    expect(squashOpeningToFold(2, walls)).toBe(2);
+    // Under its top ply: stored, and another fold whose orders are asked again.
+    expect(vertexChosenOp(squash, walls, { ...NONE, squashOpening: 1 })).toMatchObject({
+      op: { ...squash, opening: 1 },
+      opening: 1,
+      again: true,
+    });
+    // An opening that does not land is never folded: between the walls instead.
+    expect(squashOpeningToFold(3, walls)).toBe(2);
+    expect(vertexChosenOp(squash, walls, { ...NONE, squashOpening: 3 })).toMatchObject({ op: squash, opening: 2, again: false });
+    // A spine aimed off the hinge keeps the opening taken.
+    expect(vertexChosenOp(squash, walls, { ...NONE, squashTarget: [0, 1], squashOpening: 1 })?.op).toEqual({
+      ...squash,
+      target: [0, 1],
+      opening: 1,
+    });
+    // An opening stored is replaced, or dropped between the walls.
+    expect(withOpening({ ...squash, opening: 1 }, 2, 2)).toEqual(squash);
+    expect(withOpening(squash, 3, 2)).toEqual({ ...squash, opening: 3 });
+    // Any other fold has none.
+    expect(squashOpenings(fan([true, true], 0))).toEqual([]);
+    expect(squashOpeningToFold(1, fan([true, true], 0))).toBeNull();
   });
 
   it('builds the step with the completion of the order taken, and no ridge: the fourth crease is the ridge', () => {

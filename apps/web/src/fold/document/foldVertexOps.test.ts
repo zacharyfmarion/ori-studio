@@ -80,6 +80,9 @@ describe('the vertex folds’ ops', () => {
           root: { n: [0.7071067811865476, 0.7071067811865476], d: 0.4242640687119285 },
         },
       },
+      // A flap of several plies opened off its walls: how many layers lie above the opening.
+      { ...squash, opening: 1 },
+      { ...squash, target: [-1, 0.5], hinge: { line: { via: 'crease', at: [0.3, 0.3] } }, opening: 3 },
       { kind: 'petal', crease: [0.3, 0.2], petal: [0.25, 0.1], direction: 'mountain' },
       ear,
       { ...ear, ridge: [0, -1], seed: { scope: 'flaps', at: [[0.2, 0.1]] } },
@@ -113,6 +116,11 @@ describe('the vertex folds’ ops', () => {
       // A drawn hinge that does not read, or an axiom's with no root.
       { ...squash, hinge: { line: { via: 'sideways' } } },
       { ...squash, hinge: { line: { via: 'axiom', axiom: 2, inputs: [{ kind: 'point', at: [0, 0] }, { kind: 'point', at: [1, 1] }] } } },
+      // An opening that is no count of layers: never opened between the walls instead.
+      { ...squash, opening: 0 },
+      { ...squash, opening: 1.5 },
+      { ...squash, opening: '2' },
+      { ...squash, opening: null },
       { kind: 'petal', crease: [0.3, 0.2], direction: 'valley' },
       { ...ear, corners: [[0, 0], [1, 0]] },
       { ...ear, seed: { scope: 'depth', at: [0.2, 0.1], layers: 0 } },
@@ -137,6 +145,7 @@ describe('the vertex folds’ ops', () => {
       key(step('x', null, squash)),
       key(step('x', null, { ...squash, target: [-1, 0.5] })),
       key(step('x', null, { ...squash, direction: 'mountain' })),
+      key(step('x', null, { ...squash, opening: 1 })),
       key(step('x', null, ear)),
       key(step('x', null, { ...ear, emergent: [0, -1] })),
       key(step('x', null, { ...ear, ridge: [-1, 0] })),

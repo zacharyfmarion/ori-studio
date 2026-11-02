@@ -6706,7 +6706,10 @@
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
     "dialogs:share.layerOrderPublished": "578069036e1a",
-    "dialogs:share.waitingForFigure": "038913417dd7"
+    "dialogs:share.waitingForFigure": "038913417dd7",
+    "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
+    "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13415,7 +13418,10 @@
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
     "dialogs:share.layerOrderPublished": "578069036e1a",
-    "dialogs:share.waitingForFigure": "038913417dd7"
+    "dialogs:share.waitingForFigure": "038913417dd7",
+    "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
+    "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20126,7 +20132,10 @@
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
     "dialogs:share.layerOrderPublished": "578069036e1a",
-    "dialogs:share.waitingForFigure": "038913417dd7"
+    "dialogs:share.waitingForFigure": "038913417dd7",
+    "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
+    "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26458,7 +26467,10 @@
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
     "dialogs:share.layerOrderPublished": "578069036e1a",
-    "dialogs:share.waitingForFigure": "038913417dd7"
+    "dialogs:share.waitingForFigure": "038913417dd7",
+    "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
+    "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32790,7 +32802,10 @@
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
     "dialogs:share.layerOrderPublished": "578069036e1a",
-    "dialogs:share.waitingForFigure": "038913417dd7"
+    "dialogs:share.waitingForFigure": "038913417dd7",
+    "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
+    "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39499,7 +39514,10 @@
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
     "dialogs:share.layerOrderPublished": "578069036e1a",
-    "dialogs:share.waitingForFigure": "038913417dd7"
+    "dialogs:share.waitingForFigure": "038913417dd7",
+    "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
+    "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46208,7 +46226,10 @@
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
     "dialogs:share.layerOrderPublished": "578069036e1a",
-    "dialogs:share.waitingForFigure": "038913417dd7"
+    "dialogs:share.waitingForFigure": "038913417dd7",
+    "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
+    "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52540,6 +52561,9 @@
     "panels:cpProperties.folded.spreadUnavailable": "ca2612490f76",
     "dialogs:share.byline": "7e7e61546345",
     "dialogs:share.layerOrderPublished": "578069036e1a",
-    "dialogs:share.waitingForFigure": "038913417dd7"
+    "dialogs:share.waitingForFigure": "038913417dd7",
+    "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
+    "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
   }
 }
