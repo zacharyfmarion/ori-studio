@@ -11,7 +11,10 @@ import {
   surfacePaperStyle,
 } from '../../lib/paper/paperStyleResolve';
 import { useSettingsStore } from '../../store/settingsStore';
-import { getOristudioCpFoldedFigurePaperScene } from '../../store/workspaceStore/oristudioCpRuntime';
+import {
+  getOristudioCpFoldedFigurePaperScene,
+  getOristudioCpFoldedFigureSnapshot,
+} from '../../store/workspaceStore/oristudioCpRuntime';
 import type { FoldedFigureAuxStrokes } from '../adapters/cpFoldedToScene';
 import { askForAuxLines, NO_FOLDED_AUX_SOURCE, type FoldedAuxSource } from './foldedAuxSource';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
@@ -29,6 +32,7 @@ import {
   setFoldedFlatScene,
   subscribeFoldedFlatScenes,
 } from './foldedFlatScenes';
+import { foldedFigureWantsSpread, sameFoldedPaperScene } from './foldedFlatSpreadScene';
 
 /**
  * The flat figures' aux creases, for the canvas to draw over their fills.
@@ -64,6 +68,10 @@ import {
  * Returns the per-figure reader `cpFoldedToScene` takes. It is stable across
  * drags — the pieces are cut once per scene and erode — and changes when a
  * fetch lands or the display style moves.
+ *
+ * A figure whose layers are spread wants the same scene, whatever its aux
+ * style, since its spread is drawn from it (`useFoldedFlatSpread`): the fetch
+ * here serves both, and the reader still answers only for the aux overlay.
  */
 export function useFoldedFlatAux(
   figures: readonly OristudioCpFoldedFigureEntry[],
@@ -74,8 +82,13 @@ export function useFoldedFlatAux(
   const table = useSyncExternalStore(subscribeFoldedFlatScenes, foldedFlatScenes, foldedFlatScenes);
   const { documentHandle, auxKey } = source;
 
+  // A figure whose layers are spread is drawn from the same scene
+  // (`useFoldedFlatSpread`), so it asks for one whether or not it shows aux.
   const wanting = useMemo(
-    () => figures.filter((figure) => auxStyleOf(figure, display).auxCreases.visible),
+    () =>
+      figures.filter(
+        (figure) => auxStyleOf(figure, display).auxCreases.visible || foldedFigureWantsSpread(figure)
+      ),
     [figures, display]
   );
 
@@ -150,6 +163,11 @@ const sameRequest = (a: SceneRequest | undefined, b: SceneRequest): boolean =>
  * Fetch the handle's scene for `request` into the runtime map, which tells
  * its subscribers. A handle freed, a document replaced, or a newer request
  * while the kernel was answering leaves nothing behind.
+ *
+ * An undo after Another solution puts back the entry, not the kernel's case,
+ * so the handle can show another layer order than the figure: it has no scene
+ * of the figure's to give, and the figure draws without one. That request is
+ * kept as asked, so the renders after it ask the kernel nothing more.
  */
 async function fetchScene(request: SceneRequest): Promise<void> {
   if (sameRequest(latest.get(request.handle), request)) return;
@@ -160,12 +178,16 @@ async function fetchScene(request: SceneRequest): Promise<void> {
     latest.get(handle) === request &&
     foldedFigureHandleEpoch() === epoch &&
     foldedFigureHandleRefCount(handle) > 0;
-  const scene = await askForAuxLines(
-    () => getOristudioCpFoldedFigurePaperScene(handle, request.documentHandle),
+  const asked = await askForAuxLines(
+    async () =>
+      sameFoldedPaperScene(await getOristudioCpFoldedFigureSnapshot(handle), request.snapshot)
+        ? { scene: await getOristudioCpFoldedFigurePaperScene(handle, request.documentHandle) }
+        : null,
     wanted,
     'folded-flat-aux'
   );
-  if (scene && wanted()) setFoldedFlatScene(handle, request.snapshot, scene, request.auxKey);
+  if (asked === null && wanted()) return;
+  if (asked?.scene && wanted()) setFoldedFlatScene(handle, request.snapshot, asked.scene, request.auxKey);
   if (latest.get(handle) === request) latest.delete(handle);
 }
 

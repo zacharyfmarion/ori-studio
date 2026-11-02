@@ -117,7 +117,7 @@ describe('linkDiagramStep', () => {
       afterTurned({ mode: 'folded-flat', side: 'front', rotationDeg: 158, foldCase: 2 });
       const capture = answer(CAPTURED);
       await linkDiagramStep('step-seeded', left!, 'folded');
-      expect(asked(capture)).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 158, foldCase: 1, spread: expect.objectContaining({ kind: 'affine' }) });
+      expect(asked(capture)).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 158, foldCase: 1, spread: expect.objectContaining({ kind: 'connected' }) });
       await linkDiagramStep('step-seeded', left!, 'crease-pattern');
       expect(asked(capture)).toEqual({ mode: 'crease-pattern', rotationDeg: 0 });
       await linkDiagramStep('step-whole', left!, 'folded');
@@ -207,7 +207,7 @@ describe('showLinkedStepAs', () => {
     layerOrder: null,
     layerOrderEdit: null,
     editLayerOrder: async () => false,
-    spatial: null,
+    spatial: null, connected: null, connectedPreparing: false, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
     onCamera: () => {},
     registerLiveView: () => () => {},
     rotateTo: () => {},

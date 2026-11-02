@@ -137,6 +137,7 @@ export type FoldSpreadAction =
   | 'spread_direction'
   | 'spread_keep'
   | 'spread_skew'
+  | 'spread_reveal' | 'spread_presentation'
   | 'spread_axis';
 
 /** Where a Fold step's spread was changed: the Step pane's Spread section, or the canvas bar's toggle. */
@@ -422,6 +423,7 @@ export type DiagramPoseAction =
   | 'spread_direction'
   | 'spread_keep'
   | 'spread_skew'
+  | 'spread_reveal' | 'spread_presentation'
   | 'spread_axis'
   | 'paper_side'
   // A crease pattern on its back turned over side to side, or back (the Step pane's Flip creases).
@@ -448,6 +450,7 @@ export type DiagramSpreadKeep = 'top' | 'bottom';
  * held still, skew and axis. The numbers are bucketed when sent.
  */
 export type DiagramSpreadTracking =
+  | { kind: 'connected'; amount: number }
   | { kind: 'depth'; direction: DiagramSpreadDirection; amount: number }
   | { kind: 'affine'; amount: number; keep: DiagramSpreadKeep; skew: number; axisDeg: number };
 
@@ -468,6 +471,15 @@ export type DiagramSpreadDirection =
  * default), `<=7.5` (the affine default, 3%), `<=12.5`, `>12.5`. Never the value.
  */
 export const DIAGRAM_SPREAD_PERCENT_BUCKETS = [2.5, 7.5, 12.5] as const;
+
+/**
+ * How far a Default (connected) spread goes, in percent as its Amount slider
+ * shows it — its height multiplier, 0 to 2, read as 0 to 100% — bucketed on
+ * a ladder of its own: `<=10` (Fold's 7% start), `<=25` (the 25% every other
+ * surface starts at), `<=50`, `>50`. The depth and affine ladder above would
+ * put the 25% default in its top bucket every time. Never the value.
+ */
+export const DIAGRAM_CONNECTED_SPREAD_PERCENT_BUCKETS = [10, 25, 50] as const;
 
 /** An affine spread's skew, in percent: none, some, most, all (the default). Never the value. */
 export const DIAGRAM_SPREAD_SKEW_PERCENT_BUCKETS = [0, 50, 99] as const;
@@ -987,6 +999,16 @@ export type PaperExportResolution = '1x' | '2x' | '3x' | '4x' | '300' | '600' | 
 
 /** The folded figure beside a crease pattern: the style it was drawn in, or none. */
 export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
+
+/**
+ * How that figure's layers were spread in the picture written: not at all
+ * (`none`, also without a figure), or by kind — Default (`connected`),
+ * `affine` or `depth`. Never a value of the spread.
+ */
+export type CreasePatternFoldedFigureSpread = 'none' | 'connected' | 'affine' | 'depth';
+
+/** How a spread figure was written: as vector, or — a Default spread too complex to clip — a 300 dpi bitmap. */
+export type CreasePatternSpreadRender = 'vector' | 'raster';
 
 /** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
 export type PaperExportScope = 'this' | 'all';
@@ -1724,12 +1746,19 @@ export const ANALYTICS_EVENTS = {
    */
   simulatorPoseReleased: 'simulator pose released',
   foldedFigureRehydrated: 'folded figure rehydrated',
+  /**
+   * A share link was published. Its card's folded figure: the style it was
+   * drawn in, whose layer order, and how its layers were spread
+   * (`folded_figure_spread`, with `spread_render` when spread).
+   */
   creasePatternShared: 'crease pattern shared',
   /**
    * A crease pattern was saved as an SVG or PNG image from its export dialog.
    * `folded_figure` is the style the folded figure beside it was drawn in —
    * the export slot or a preset by kind — or `none` without one: whether the
-   * figure is used, and whether its picker earns its place. The menu
+   * figure is used, and whether its picker earns its place.
+   * `folded_figure_spread` is how its layers were spread, and `spread_render`
+   * whether that spread was written as vector or as a bitmap. The menu
    * chokepoint sees only the command, not what the dialog made of it.
    */
   creasePatternExported: 'crease pattern exported',

@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useMemo, useState, type ReactNode, type Ref } from 'react';
+import { useLayoutEffect, useEffect, useImperativeHandle, useMemo, useState, type ReactNode, type Ref, type PointerEvent } from 'react';
 import { syncHeldModifiersFromEvent } from '../../keyboard/heldModifiers';
 import type { Point } from '../../lib/geometry';
 import type { PaperScene } from '../../lib/paper/paperScene';
@@ -16,6 +16,7 @@ import type { FillGeometry, FoldedGeometry, PointGeometry, StrokeGeometry } from
 import {
   useCpSurface,
   type CpSurfaceControls,
+  type CpSurfacePaperFrame,
   type CpSurfaceFrameScales,
   type CpSurfaceHitRadii,
   type CpSurfaceInset,
@@ -74,7 +75,24 @@ export interface PaperPaneOverlay {
   points?: PointGeometry | null;
 }
 
+/** An externally drawn paper layer sharing this pane's camera and overlays. */
+export interface ExternalPaperLayer {
+  layer: ReactNode;
+  onFrame: (frame: CpSurfacePaperFrame) => void;
+  presentedFrame: () => CpSurfacePaperFrame | null;
+  registerRedraw: (redraw: () => void) => () => void;
+}
+
 export interface PaperPaneProps<Hit> {
+  externalPaper?: ExternalPaperLayer;
+  /** A host gesture may consume pointer input before normal picking/panning. */
+  gesture?: {
+    down: (event: PointerEvent) => boolean;
+    move: (event: PointerEvent) => boolean;
+    end: (event: PointerEvent) => boolean;
+  };
+  blocked?: boolean;
+  status?: ReactNode;
   ref?: Ref<CpSurfaceControls>;
   /**
    * The paper, through the shared painter (`paperSceneToFoldedGeometry`) on
@@ -182,7 +200,7 @@ const everyHit = () => true;
  */
 export function PaperPane<Hit>(props: PaperPaneProps<Hit>) {
   const {
-    ref,
+    ref, externalPaper, gesture, blocked, status,
     scene,
     look,
     modelToSvg,
@@ -221,6 +239,10 @@ export function PaperPane<Hit>(props: PaperPaneProps<Hit>) {
   const { canvasRef, rendererRef, rendererGeneration, rendererStatus, hovered, dragging, render, controls } =
     useCpSurface<Hit>({
       modelToSvg,
+      alpha: true,
+      transparent: !!externalPaper,
+      onPaperFrame: externalPaper?.onFrame,
+      presentedPaperFrame: externalPaper?.presentedFrame,
       contentBounds,
       fitShare,
       framingKey,
@@ -250,6 +272,8 @@ export function PaperPane<Hit>(props: PaperPaneProps<Hit>) {
     });
 
   useImperativeHandle(ref, () => controls, [controls]);
+  const registerRedraw = externalPaper?.registerRedraw;
+  useLayoutEffect(() => registerRedraw?.(render), [registerRedraw, render]);
 
   // The paper: the scene through the painter, in the look it is handed.
   const { style, policy, faceAlpha, faces } = look;
@@ -288,9 +312,10 @@ export function PaperPane<Hit>(props: PaperPaneProps<Hit>) {
 
   // One frame for whatever changed in this commit: a hover that moves the
   // overlay's fills and its points draws once, not once a channel.
+  const externalFrame = externalPaper?.onFrame;
   useEffect(() => {
     render();
-  }, [geometry, creases, underFills, fills, feedback, strokes, themeKey, rendererGeneration, render]);
+  }, [geometry, creases, underFills, fills, feedback, strokes, themeKey, rendererGeneration, externalFrame, render]);
 
   useEffect(() => {
     onHover?.(hovered);
@@ -308,14 +333,18 @@ export function PaperPane<Hit>(props: PaperPaneProps<Hit>) {
       {...markers}
       className={styles.pane}
       tabIndex={-1}
-      onPointerMoveCapture={syncHeldModifiersFromEvent}
-      onPointerUpCapture={syncHeldModifiersFromEvent}
+      onPointerMoveCapture={event => { if (!gesture?.move(event)) syncHeldModifiersFromEvent(event); }}
+      onPointerUpCapture={event => { if (!gesture?.end(event)) syncHeldModifiersFromEvent(event); }}
+      onPointerCancelCapture={event => { gesture?.end(event); }}
       onPointerDownCapture={(event) => {
+        if (blocked) { event.stopPropagation(); event.preventDefault(); return; }
+        if (gesture?.down(event)) return;
         syncHeldModifiersFromEvent(event);
         onActivate?.();
         if (document.activeElement !== event.currentTarget) event.currentTarget.focus({ preventScroll: true });
       }}
     >
+      {externalPaper?.layer}
       <canvas
         ref={canvasRef}
         className={styles.surface}
@@ -325,6 +354,7 @@ export function PaperPane<Hit>(props: PaperPaneProps<Hit>) {
         style={cursor ? { cursor } : undefined}
       />
       {view && layers?.(view)}
+      {status}
       {rendererStatus && <CpRendererUnavailable status={rendererStatus} />}
     </div>
   );

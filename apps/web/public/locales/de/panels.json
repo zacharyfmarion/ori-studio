@@ -227,6 +227,7 @@
     "folded": {
       "appearance": "Darstellung",
       "camera": "Kamera",
+      "changeSpread": "Lagenauffächerung ändern",
       "changeView": "Ansicht des gefalteten Modells ändern",
       "chosenOrder": "Gewählte Reihenfolge",
       "chosenOrderAttention": "Gewählte Lagenreihenfolge muss geprüft werden",
@@ -259,6 +260,12 @@
       "refoldToChange": "Neu falten, um das Aussehen dieses Modells zu ändern",
       "rotation": "Drehung",
       "scale": "Maßstab",
+      "shadowSpread": "Aufgefächerte Lagen werden ohne Schatten gezeichnet",
+      "spread": "Auffächerung",
+      "spreadNeedsLook": "Nur die Darstellungen Papier und Röntgen können ihre Lagen auffächern",
+      "spreadNewer": "Mit einem neueren Ori Studio erstellt: Seine Lagenauffächerung kann hier nicht geändert werden.",
+      "spreadRefold": "Neu falten, um die Auffächerung zu zeigen",
+      "spreadUnavailable": "Diese Lagen konnten nicht aufgefächert werden",
       "yaw": "Drehwinkel",
       "zoom": "Zoom"
     },
@@ -1554,6 +1561,7 @@
       "pause": "Pause",
       "percent": "{{value}} %",
       "play": "Abspielen",
+      "preparing": "Pose wird vorbereitet…",
       "previousSolution": "Vorherige Lagenfolge",
       "reset": "Pose zurücksetzen",
       "resetHint": "Schon in der Ausgangslage",
@@ -1591,6 +1599,7 @@
       "spreadKeepTop": "Oben",
       "spreadKind": "Auffächern nach",
       "spreadKindAffine": "Affin",
+      "spreadKindConnected": "Standard",
       "spreadKindDepth": "Tiefe",
       "spreadLayers": "Lagen auffächern",
       "spreadLayersRow": "Lagen auffächern",
@@ -1683,6 +1692,15 @@
       "ways_one": "{{count}} Weg",
       "ways_other": "{{count}} Wege",
       "withTurnOver": "Mit dem Wenden davor"
+    },
+    "spread": {
+      "diagram": "Diagramm",
+      "drag": "Ziehen, um Lagen sichtbar zu machen",
+      "padHint": "Ebenen durch Ziehen sichtbar machen. Pfeiltasten zum Anpassen; Umschalt für größere Schritte.",
+      "perspective": "3D-Perspektive",
+      "presentation": "Darstellung",
+      "reveal": "Lagenversatz",
+      "revealHint": "Ziehen, um Lagen sichtbar zu machen · Scrollen zum Zoomen"
     },
     "stepPane": {
       "annotate": "Annotieren",
@@ -1861,6 +1879,7 @@
       "startsBranch": "Beginnt einen neuen Zweig"
     },
     "canvas": {
+      "adjustSpread": "Lagenabstand anpassen",
       "creasePattern": "Faltmuster",
       "creasePatternLabel": "Das bisherige Faltmuster, Vorderseite oben. Klicke seine Punkte und Faltlinien an, um eine Faltung festzulegen.",
       "flatCreases": "Flache Faltlinien",
@@ -2858,6 +2877,9 @@
       "switchBranch": "Zweig wechseln",
       "tagBranch": "Neuer Zweig",
       "tagNext": "Nächster"
+    },
+    "spread": {
+      "unavailable": "Lagenabstand für diesen Zustand nicht verfügbar"
     },
     "step": {
       "blocks": "Blöcke",

@@ -49,6 +49,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "amd"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a679e001575697a3bd195813feb57a4718ecc08dc194944015cbc5f6213c2b96"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -618,7 +627,7 @@ dependencies = [
  "anstream",
  "anstyle",
  "clap_lex",
- "strsim",
+ "strsim 0.11.1",
 ]
 
 [[package]]
@@ -638,6 +647,26 @@ name = "clap_lex"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
+
+[[package]]
+name = "clarabel"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d950c870fad4feed732bc3f7da489d223ba3911eac0522e6512eed7e659cfafe"
+dependencies = [
+ "amd",
+ "cfg-if",
+ "derive_builder",
+ "enum_dispatch",
+ "itertools 0.11.0",
+ "lazy_static",
+ "num-traits",
+ "serde",
+ "serde-big-array",
+ "serde_json",
+ "thiserror 1.0.69",
+ "web-time",
+]
 
 [[package]]
 name = "color_quant"
@@ -852,12 +881,36 @@ checksum = "52560adf09603e58c9a7ee1fe1dcb95a16927b17c127f0ac02d6e768a0e25bc1"
 
 [[package]]
 name = "darling"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b750cb3417fd1b327431a470f388520309479ab0bf5e323505daf0290cd3850"
+dependencies = [
+ "darling_core 0.14.4",
+ "darling_macro 0.14.4",
+]
+
+[[package]]
+name = "darling"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25ae13da2f202d56bd7f91c25fba009e7717a1e4a1cc98a76d844b65ae912e9d"
 dependencies = [
- "darling_core",
- "darling_macro",
+ "darling_core 0.23.0",
+ "darling_macro 0.23.0",
+]
+
+[[package]]
+name = "darling_core"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "109c1ca6e6b7f82cc233a97004ea8ed7ca123a9af07a8230878fcfda9b158bf0"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim 0.10.0",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -869,8 +922,19 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "strsim",
+ "strsim 0.11.1",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4aab4dbc9f7611d8b55048a3a16d2d010c2c8334e46304b40ac1cc14bf3b48e"
+dependencies = [
+ "darling_core 0.14.4",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -879,7 +943,7 @@ version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3984ec7bd6cfa798e62b4a642426a5be0e68f9401cfc2a01e3fa9ea2fcdb8d"
 dependencies = [
- "darling_core",
+ "darling_core 0.23.0",
  "quote",
  "syn 2.0.117",
 ]
@@ -930,6 +994,37 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "derive_builder"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d07adf7be193b71cc36b193d0f5fe60b918a3a9db4dad0449f57bcfd519704a3"
+dependencies = [
+ "derive_builder_macro",
+]
+
+[[package]]
+name = "derive_builder_core"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f91d4cfa921f1c05904dc3c57b4a32c38aed3340cce209f3a6fd1478babafc4"
+dependencies = [
+ "darling 0.14.4",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "derive_builder_macro"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f0314b72bed045f3a68671b3c86328386762c93f82d98c65c3cb5e5f573dd68"
+dependencies = [
+ "derive_builder_core",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -1146,6 +1241,18 @@ name = "endi"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "66b7e2430c6dff6a955451e2cfc438f09cea1965a9d6f87f7e3b90decc014099"
+
+[[package]]
+name = "enum_dispatch"
+version = "0.3.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa18ce2bc66555b3218614519ac839ddb759a7d6720732f979ef8d13be147ecd"
+dependencies = [
+ "once_cell",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
 
 [[package]]
 name = "enumflags2"
@@ -2306,6 +2413,15 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "itertools"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
@@ -2525,6 +2641,12 @@ dependencies = [
  "polycool",
  "smallvec",
 ]
+
+[[package]]
+name = "lazy_static"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
 
 [[package]]
 name = "leb128fmt"
@@ -3291,7 +3413,7 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "oracle-tests"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "oristudio-cp",
  "oristudio-fold",
@@ -3318,7 +3440,7 @@ dependencies = [
 
 [[package]]
 name = "ori-studio"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "oristudio-cp",
  "oristudio-cp-compiler",
@@ -3341,7 +3463,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-bp"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3353,7 +3475,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-bp-wasm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "js-sys",
  "oristudio-bp",
@@ -3365,7 +3487,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-cp"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "crc32fast",
  "encoding_rs",
@@ -3382,7 +3504,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-cp-compiler"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "js-sys",
  "levenberg-marquardt",
@@ -3399,7 +3521,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-cp-detect"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "image",
  "imageproc",
@@ -3416,7 +3538,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-cp-detect-inspector"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "image",
@@ -3429,7 +3551,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-cp-detect-wasm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -3446,7 +3568,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-cp-eval"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3455,7 +3577,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-cp-wasm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "js-sys",
  "oristudio-cp",
@@ -3469,7 +3591,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-fold"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "oristudio-cp",
  "oristudio-fold",
@@ -3484,7 +3606,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-fold-wasm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -3503,7 +3625,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-geometry"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3512,7 +3634,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-layer-order"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "oristudio-geometry",
  "serde",
@@ -3521,8 +3643,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "oristudio-layer-spread"
+version = "0.9.0"
+dependencies = [
+ "clarabel",
+ "nalgebra 0.34.2",
+ "oristudio-geometry",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "oristudio-layer-spread-wasm"
+version = "0.9.0"
+dependencies = [
+ "oristudio-layer-spread",
+ "serde",
+ "serde-wasm-bindgen",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "oristudio-pdf"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "krilla",
  "krilla-svg",
@@ -3533,7 +3678,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-pdf-wasm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -3543,7 +3688,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-precrease"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "js-sys",
  "oristudio-geometry",
@@ -3554,7 +3699,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-precrease-wasm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -4625,6 +4770,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-big-array"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde-untagged"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4747,7 +4901,7 @@ version = "3.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b90c488738ecb4fb0262f41f43bc40efc5868d9fb744319ddf5f5317f417bfac"
 dependencies = [
- "darling",
+ "darling 0.23.0",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -5027,6 +5181,12 @@ dependencies = [
 
 [[package]]
 name = "strsim"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+
+[[package]]
+name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
@@ -5077,6 +5237,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
 dependencies = [
  "proc-macro2",
+ "quote",
  "unicode-ident",
 ]
 
@@ -5993,7 +6154,7 @@ dependencies = [
 
 [[package]]
 name = "treemaker-cli"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -6009,7 +6170,7 @@ dependencies = [
 
 [[package]]
 name = "treemaker-core"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "proptest",
  "serde",
@@ -6020,7 +6181,7 @@ dependencies = [
 
 [[package]]
 name = "treemaker-flatfold"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -6030,7 +6191,7 @@ dependencies = [
 
 [[package]]
 name = "treemaker-fold"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "earcutr",
  "serde",
@@ -6040,7 +6201,7 @@ dependencies = [
 
 [[package]]
 name = "treemaker-wasm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "serde",
  "serde-wasm-bindgen",
@@ -6552,6 +6713,16 @@ name = "web-sys"
 version = "0.3.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b572dff8bcf38bad0fa19729c89bb5748b2b9b1d8be70cf90df697e3a8f32aa"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "web-time"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa30049b1c872b72c89866d458eae9f20380ab280ffd1b1e18df2d3e2d98cfe0"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

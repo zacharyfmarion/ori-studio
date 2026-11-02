@@ -1,6 +1,7 @@
+import { createSpreadProgram, placedSpreadView, type SpreadProgram } from './programs/spreadProgram';
 import createREGL from 'regl';
 import type { CpRenderFrame, CpRenderer } from './CpRenderer';
-import { EMPTY_SHADOW_GEOMETRY, type Rgba, type Viewport } from './types';
+import { EMPTY_SHADOW_GEOMETRY, type FoldedSpreadLayer, type Rgba, type Viewport } from './types';
 import type { CpImage } from '../images/cpImage';
 import type { CpSuppressionRegion } from '../annotations/suppressionRegion';
 import { createStrokeProgram } from './programs/strokeProgram';
@@ -26,6 +27,8 @@ export interface ReglRendererOptions {
    * returned).
    */
   onAsyncLoad?: () => void;
+  /** Permit a separate paper canvas below the tool overlay. */
+  alpha?: boolean;
   /**
    * Invoked when the canvas loses its WebGL context. This is the one graphics
    * failure that strikes a device which was drawing fine a second ago: iOS
@@ -113,7 +116,7 @@ export function createReglRenderer(
     // Instanced strokes drive the whole renderer; require the extension up front
     // so failures surface here rather than at first draw.
     extensions: [CP_REQUIRED_EXTENSION],
-    attributes: CP_GL_ATTRIBUTES,
+    attributes: { ...CP_GL_ATTRIBUTES, alpha: options?.alpha ?? CP_GL_ATTRIBUTES.alpha },
   });
 
   // regl already owns the canvas's context-loss listeners: it preventDefault()s
@@ -152,6 +155,12 @@ export function createReglRenderer(
   // draws split in half, so without a depth test a crease behind a face draws
   // over it. Everything else here is genuinely 2D, and the imported forms below
   // are translucent, which a depth test would order wrongly.
+  //
+  // Spread pictures go before them, each in its figure's band of the same
+  // depth range, one program per picture: kept by key, so a picture that did
+  // not change is not uploaded again when the channel is.
+  const spreadPrograms = new Map<string, SpreadProgram>();
+  let spreadLayers: readonly FoldedSpreadLayer[] = [];
   const foldedFills = createFillProgram(regl, { depthOrdered: true });
   // Layer shadows sit in the same stream, between a figure's fills and its
   // creases, and carry the same depth so they land there.
@@ -259,6 +268,22 @@ export function createReglRenderer(
 
     setFolded(folded) {
       if (disposed) return;
+      spreadLayers = folded.spreads ?? [];
+      const kept = new Set(spreadLayers.map((layer) => layer.key));
+      for (const [key, program] of spreadPrograms) {
+        if (kept.has(key)) continue;
+        program.dispose();
+        spreadPrograms.delete(key);
+      }
+      for (const layer of spreadLayers) {
+        let program = spreadPrograms.get(layer.key);
+        if (!program) {
+          program = createSpreadProgram(regl);
+          spreadPrograms.set(layer.key, program);
+        }
+        // A no-op for the picture and layout the program already holds.
+        program.setData(layer.geometry, layer.layout);
+      }
       foldedFills.setData(folded.fills);
       foldedShadows.setData(folded.shadows ?? EMPTY_SHADOW_GEOMETRY);
       foldedStrokes.setData(folded.strokes);
@@ -450,6 +475,24 @@ export function createReglRenderer(
       // top of the paper. Fills first, then their edges; fold stroke widths are
       // non-scaling: the frame's base unit (device px per pt on the crease
       // pattern) times each segment's own multiplier (its pen width in pt).
+      //
+      // Spread pictures share the depth buffer, each in its figure's band. An
+      // opaque one goes first, and whatever is drawn after it is hidden or
+      // not by depth alone. One that shows what lies behind it — X-ray, or a
+      // stale figure's fade — goes after the other figures' paper, so it
+      // blends over the figure it covers rather than hiding it.
+      const drawSpread = (seeThrough: boolean) => {
+        for (const layer of spreadLayers) {
+          const program = spreadPrograms.get(layer.key);
+          if (!program || program.seesThrough() !== seeThrough) continue;
+          program.draw({
+            view: layer.transform ? placedSpreadView(frame.userView, layer.transform) : frame.userView,
+            viewport,
+            widthPx: frame.foldedStrokeWidthPx ?? viewport.dpr,
+          });
+        }
+      };
+      drawSpread(false);
       foldedFills.draw({ view: frame.userView, viewport });
       foldedShadows.draw({ view: frame.userView, viewport });
       foldedStrokes.draw({
@@ -457,6 +500,7 @@ export function createReglRenderer(
         viewport,
         widthPx: frame.foldedStrokeWidthPx ?? viewport.dpr,
       });
+      drawSpread(true);
       // Imported .fold folded-form frames are placed the same way, in user space,
       // and stay in the same band as the generated figures above them.
       if (hasImportedForms) {
@@ -517,6 +561,8 @@ export function createReglRenderer(
       for (const texture of imageTextures.values()) texture.destroy();
       imageTextures.clear();
       regions.dispose();
+      for (const program of spreadPrograms.values()) program.dispose();
+      spreadPrograms.clear();
       foldedFills.dispose();
       foldedShadows.dispose();
       foldedStrokes.dispose();

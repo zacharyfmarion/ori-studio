@@ -17,6 +17,7 @@ import {
   paperExportMemoryOf,
 } from '../lib/paperExportSettings';
 import { readJson, STORAGE_KEYS, storageKey } from '../lib/storage';
+import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
 import { useSettingsStore } from './settingsStore';
 import type { WorkspaceState } from './workspaceStore/types';
 
@@ -668,16 +669,67 @@ describe('creasePatternFoldedFigureStyle', () => {
   });
 
   it('remembers a pick in the store and on disk, and reads it back on the next start', async () => {
-    useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle('user:Mine');
+    useSettingsStore.getState().rememberCreasePatternFoldedFigure({ style: 'user:Mine', spread: null });
     expect(useSettingsStore.getState().creasePatternFoldedFigureStyle).toBe('user:Mine');
     expect(readJson(FOLDED_FIGURE_KEY, null)).toEqual({ style: 'user:Mine' });
     expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe('user:Mine');
   });
 
   it('leaves every paper export kind’s own style alone', () => {
-    useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle('builtin:diagram');
+    useSettingsStore.getState().rememberCreasePatternFoldedFigure({ style: 'builtin:diagram', spread: null });
     for (const options of Object.values(useSettingsStore.getState().paperExport)) {
       expect(options.style).toBe(PAPER_EXPORT_STYLE_SLOT);
     }
+  });
+});
+
+describe('creasePatternFoldedFigureSpread', () => {
+  const FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
+  const DEFAULT: LayerSpreadOptions = { kind: 'connected', version: 1, amount: 0.5, reveal: [0.8, 0.6] };
+
+  it('starts off, with nothing stored, and with a style stored before there was a spread', async () => {
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureSpread).toBeNull();
+    localStorage.setItem(FOLDED_FIGURE_KEY, JSON.stringify({ style: 'builtin:diagram' }));
+    const store = (await freshSettingsStore()).getState();
+    expect(store.creasePatternFoldedFigureSpread).toBeNull();
+    expect(store.creasePatternFoldedFigureStyle).toBe('builtin:diagram');
+  });
+
+  it('reads back each kind a save wrote', async () => {
+    for (const spread of [
+      DEFAULT,
+      { kind: 'depth', amount: 0.025, toward: 'down' },
+      { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 },
+    ]) {
+      localStorage.setItem(FOLDED_FIGURE_KEY, JSON.stringify({ style: 'builtin:diagram', spread }));
+      expect((await freshSettingsStore()).getState().creasePatternFoldedFigureSpread).toEqual(spread);
+    }
+  });
+
+  it('reads a damaged spread, or a newer build’s, as off, and keeps the style beside it', async () => {
+    for (const spread of [
+      'connected',
+      { kind: 'connected', version: 1, amount: 'half', reveal: [0.8, 0.6] },
+      { kind: 'depth', amount: 0.025 },
+      { kind: 'connected', version: 2, amount: 0.5, reveal: [0.8, 0.6] },
+      { kind: 'woven', amount: 0.5 },
+      { ...DEFAULT, swirl: 1 },
+    ]) {
+      localStorage.setItem(FOLDED_FIGURE_KEY, JSON.stringify({ style: 'builtin:diagram', spread }));
+      const store = (await freshSettingsStore()).getState();
+      expect(store.creasePatternFoldedFigureSpread).toBeNull();
+      expect(store.creasePatternFoldedFigureStyle).toBe('builtin:diagram');
+    }
+  });
+
+  it('remembers a spread beside the style, in the store and on disk, as a file holds a spread', async () => {
+    useSettingsStore.getState().rememberCreasePatternFoldedFigure({ style: 'user:Mine', spread: DEFAULT });
+    expect(useSettingsStore.getState().creasePatternFoldedFigureSpread).toEqual(DEFAULT);
+    expect(readJson(FOLDED_FIGURE_KEY, null)).toEqual({ style: 'user:Mine', spread: DEFAULT });
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureSpread).toEqual(DEFAULT);
+    // Off again: the bytes every build before a spread wrote.
+    useSettingsStore.getState().rememberCreasePatternFoldedFigure({ style: 'user:Mine', spread: null });
+    expect(readJson(FOLDED_FIGURE_KEY, null)).toEqual({ style: 'user:Mine' });
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureSpread).toBeNull();
   });
 });

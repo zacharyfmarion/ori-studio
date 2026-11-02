@@ -2,6 +2,7 @@ import type { PaperScene } from '@treemaker/origami-simulator';
 import type { Point } from '../lib/geometry';
 import type { PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { DetachedFigureLayerOrder, FoldedFigureLayerOrder } from '../lib/layerOrder/foldedFigureLayerOrder';
+import type { FoldedFigureSpread } from '../cp-workspace/folded/foldedFigureSpread';
 import type { CpGeometryTransport } from './oristudioCpGeometry';
 import type {
   OristudioCpOperationId,
@@ -1354,6 +1355,21 @@ export interface OristudioCpFoldedFigureEntry {
    * written back to the bag's `detached` list from there, never on the figure.
    */
   detachedLayerOrder?: DetachedFigureLayerOrder | null;
+  /**
+   * The layer spread chosen in the Properties sheet. While the figure can
+   * spread, it is drawn from its paper scene instead of its render snapshot.
+   * Absent when there is none. Held here, saved elsewhere: like `layerOrder`,
+   * the crease pattern's extensions bag carries it
+   * (`cp-workspace/folded/foldedFigureSpread.ts`).
+   */
+  spread?: FoldedFigureSpread | null;
+  /**
+   * The paper scene a saved file carried for a spread figure, so a figure
+   * reopened without a fold (no `handle`) can still spread. Never read while
+   * the figure has a handle, whose own scene is current; whatever folds the
+   * figure again drops it.
+   */
+  spreadScene?: OristudioCpFoldedPaperScene | null;
 }
 
 /** Mirrors the kernel's `model::SnapCandidates`. */

@@ -63,21 +63,29 @@ import {
 } from '../../../lib/creaseExport';
 import {
   cpModelToFoldTransform,
+  foldableLineIdsForSegment,
   foldSegmentForExport,
+  foldSegmentInOrderForExport,
   IDENTITY_CP_MODEL_TO_FOLD,
   type CpModelToFoldTransform,
   type CreaseExportFoldResult,
+  type CreaseExportLayerOrderHost,
+  type CreaseExportOrderedFold,
 } from '../../../lib/creaseExportFold';
+import type { LayerOrderApplied } from '../../../lib/layerOrder/layerOrderRequest';
+import { layerOrderRegionOfLines } from '../../../cp-workspace/regions/layerOrderRegion';
 import { hexToRgbColor } from '../../../lib/rgbColor';
 import {
   bucketCount,
   COUNT_BUCKETS,
+  creasePatternSpreadProperties,
   DESIGN_TAB_COUNT_BUCKETS,
   track,
   trackCreasePatternExported,
   type CreasePatternFoldedFigure,
   type DesignTabSource,
 } from '../../../analytics';
+import { creaseExportSpreadDrawn } from '../../../lib/creaseExportSpread';
 import type { PaperExportStyleChoice } from '../../../lib/paperExportSettings';
 import { paperPresetRows, paperStyleChoiceName } from '../../../lib/paperPresetRows';
 import { useSettingsStore } from '../../settingsStore';
@@ -153,6 +161,12 @@ import {
   foldedFigureLayerOrdersAfterSave,
   linkFoldedFigureLayerOrders,
 } from '../../../cp-workspace/folded/foldedFigureLayerOrders';
+import {
+  figureIdsInFoldedFigureSpreads,
+  foldedFiguresWithLiveSpreadScenes,
+  foldedFigureSpreadsAfterSave,
+  linkFoldedFigureSpreads,
+} from '../../../cp-workspace/folded/foldedFigureSpreads';
 import { noteFoldedFigureIds } from '../../../cp-workspace/folded/foldedFigureIds';
 import { discardCpDocumentState } from '../cpDocumentState';
 import { cpHistoryDocumentOf, withCpHistoryEntry } from '../cpHistory';
@@ -256,6 +270,8 @@ import {
   shareFoldFrameAsLink,
   clearOristudioCpKernelTexts,
   createBlankOristudioCpDocument,
+  getOristudioCpFoldedFigurePaperScene,
+  getOristudioCpFoldedFigureSnapshot,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
   importAddOristudioCpDocumentFromText,
@@ -295,13 +311,34 @@ function creasePatternFoldedFigureName(style: PaperExportStyleChoice | null): Cr
 }
 
 /**
- * A crease pattern saved as an image: remember the style its folded figure
- * took, for the next export and share (X12), and say which it was.
+ * A crease pattern saved as an image: remember the style and the spread its
+ * folded figure took, for the next export and share (X12, decision 5), and
+ * say which it was, and whose layer order it was drawn in.
  */
-function recordCreasePatternImageExport(format: 'svg' | 'png', options: CreaseExportOptions): void {
+function recordCreasePatternImageExport(
+  format: 'svg' | 'png',
+  options: CreaseExportOptions,
+  content: Pick<CreaseExportContent, 'foldedFigure' | 'foldedFigureLayerOrder' | 'foldedFigureSpread'>
+): void {
   const style = options.includeFoldedFigure ? options.foldedFigureStyle : null;
-  if (style !== null) useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle(style);
-  trackCreasePatternExported({ format, foldedFigure: creasePatternFoldedFigureName(style) });
+  if (style !== null) {
+    useSettingsStore
+      .getState()
+      .rememberCreasePatternFoldedFigure({ style, spread: options.foldedFigure.spread ?? null });
+  }
+  const drawn = style !== null && content.foldedFigure !== null;
+  trackCreasePatternExported({
+    format,
+    foldedFigure: creasePatternFoldedFigureName(style),
+    layerOrder: foldedFigureLayerOrderName(drawn, content.foldedFigureLayerOrder),
+    // What the file has, not what was asked: a spread that could not be made is none.
+    spread: drawn ? creaseExportSpreadDrawn(content.foldedFigureSpread) : null,
+  });
+}
+
+/** Whose layer order a drawn figure is in, as the analytics name it: `default` without a figure. */
+function foldedFigureLayerOrderName(drawn: boolean, order: CreaseExportContent['foldedFigureLayerOrder']): 'default' | 'chosen' {
+  return drawn && order === 'chosen' ? 'chosen' : 'default';
 }
 
 function nowIso(): string {
@@ -648,6 +685,59 @@ async function foldExportSegment(
 }
 
 /**
+ * Fold an export preview's figure in a layer order chosen in the Layer order
+ * dialog: as ephemeral as {@link foldExportSegment}, and never through
+ * `prepareOristudioCpLayerOrderFold`, whose pre-fold confirmation would take
+ * the command dialog's one slot from the open export.
+ */
+async function foldExportSegmentInOrder(
+  documentState: OristudioCpDocumentState | null,
+  fold: FoldDocument,
+  settings: CreaseExportFoldedFigureSettings,
+  order: LayerOrderApplied,
+  transform?: CpModelToFoldTransform
+): Promise<CreaseExportOrderedFold> {
+  if (!documentState) throw new Error('No editable crease-pattern document is loaded');
+  try {
+    return await foldSegmentInOrderForExport(
+      createCpFoldRuntime(FOLD_RUN_NONE),
+      order,
+      exportFoldedFigureModel(documentState, settings),
+      transform ?? cpModelToFoldTransform(fold, documentState.document)
+    );
+  } catch (error) {
+    throw new Error(oristudioCpError(error).message, { cause: error });
+  }
+}
+
+/**
+ * The Layer order dialog's host for an export of `fold` (`useExportLayerOrder`):
+ * the figure folded in a chosen order, the sheet its creases lie on, and Edit's
+ * view pen and document name, read as the export opens. `transform` places the
+ * document's creases in `fold`, as the export's fold does; left out, it is
+ * fitted from the two, as for a whole-document fold.
+ */
+function exportLayerOrderHost(
+  state: Pick<WorkspaceState, 'oristudioCpDocument' | 'oristudioCpViewport' | 'workspaceTitle'>,
+  current: () => OristudioCpDocumentState | null,
+  fold: FoldDocument,
+  transform?: CpModelToFoldTransform
+): CreaseExportLayerOrderHost {
+  return {
+    foldInOrder: (_segment, settings, order) => foldExportSegmentInOrder(current(), fold, settings, order, transform),
+    region: async (segment) => {
+      const document = current()?.document;
+      if (!document) return null;
+      const lineIds = foldableLineIdsForSegment(document, segment, transform ?? cpModelToFoldTransform(fold, document));
+      return layerOrderRegionOfLines(document, lineIds);
+    },
+    lineStyle: state.oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE,
+    lineWidth: state.oristudioCpViewport.lineWidth ?? DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+    documentName: state.workspaceTitle,
+  };
+}
+
+/**
  * The kernel model an export fold runs with: the document's own folded-figure
  * metadata (so a reopened Oriedita file keeps its colours) with the dialog's
  * choices layered on top.
@@ -778,6 +868,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       foldSegment: get().oristudioCpDocument
         ? (segment, settings) =>
             foldExportSegment(get().oristudioCpDocument, fold, segment, settings)
+        : null,
+      layerOrderHost: get().oristudioCpDocument
+        ? exportLayerOrderHost(get(), () => get().oristudioCpDocument, fold)
         : null,
       confirmLabel: `Export ${label}`,
     });
@@ -1252,18 +1345,22 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     const restoredSelection = nativeDocument.viewState.selection ?? emptyOristudioCpSelection();
     // Folded figure ids, for the same reason: the file's, and every one its
-    // layer order bag names, so no figure folded this session takes the id a
-    // record, or a record a reload detached, was saved on.
+    // layer order and spread bags name, so no figure folded this session takes
+    // the id a record, a record a reload detached, or a spread was saved on.
     noteFoldedFigureIds([
       ...(nativeDocument.viewState.foldedFigures ?? []).map((figure) => figure.id),
       ...figureIdsInFoldedFigureLayerOrders(nativeDocument.extensions),
+      ...figureIdsInFoldedFigureSpreads(nativeDocument.extensions),
     ]);
     // Each figure's saved layer order, attached when it is still that
-    // figure's; the bag keeps the rest, written back as it came.
+    // figure's; the bag keeps the rest, written back as it came. Then each
+    // figure's spread, and the scene a reopened figure draws it from, by the
+    // same rule (`foldedFigureSpreads.ts`).
     const layerOrders = linkFoldedFigureLayerOrders(
       nativeDocument.extensions,
       nativeDocument.viewState.foldedFigures ?? []
     );
+    const linked = linkFoldedFigureSpreads(layerOrders.extensions, layerOrders.figures);
     return {
     // Overridden field-by-field below; spread for the fold side table,
     // which hydration only refills for the incoming windows.
@@ -1283,7 +1380,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // mesh to draw.
     oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
     oristudioCpFocusedInlineSimulationId: null,
-    oristudioCpDocumentExtensions: layerOrders.extensions,
+    oristudioCpDocumentExtensions: linked.extensions,
     oristudioCpCamvResult: camvResult,
     oristudioCpOperationDescriptors: documentState.operationDescriptors,
     oristudioCpError: null,
@@ -1293,7 +1390,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     oristudioCpSelection: restoredSelection,
     oristudioCpActiveDiagnosticId: null,
     oristudioCpRevision: 0,
-    oristudioCpFoldedFigures: layerOrders.figures,
+    oristudioCpFoldedFigures: linked.figures,
     // One holder at the boundary, as `takeCanvasSelection` keeps it everywhere
     // else: a file that carries both a crease selection and an active figure
     // (hand-edited, or written before the rule) opens with the creases.
@@ -1872,17 +1969,41 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   };
 
   /**
-   * The layer order bag the session holds once `input` is saved: what the
-   * save wrote (`foldedFigureLayerOrdersAfterSave`), so an entry it dropped
-   * stays dropped. Nothing when the bag was replaced meanwhile, by another
-   * document opened while the save dialog was up.
+   * The layer order and spread bags the session holds once `input` is saved:
+   * what the save wrote (`foldedFigureLayerOrdersAfterSave`,
+   * `foldedFigureSpreadsAfterSave`), so an entry it dropped stays dropped.
+   * Nothing when the bag was replaced meanwhile, by another document opened
+   * while the save dialog was up.
    */
   const layerOrdersAfterSave = (
     input: { extensions?: Record<string, unknown>; foldedFigures: OristudioCpFoldedFigureEntry[] } | null
   ): Partial<WorkspaceState> =>
     input?.extensions && input.extensions === get().oristudioCpDocumentExtensions
-      ? { oristudioCpDocumentExtensions: foldedFigureLayerOrdersAfterSave(input.extensions, input.foldedFigures) }
+      ? {
+          oristudioCpDocumentExtensions: foldedFigureSpreadsAfterSave(
+            foldedFigureLayerOrdersAfterSave(input.extensions, input.foldedFigures),
+            input.foldedFigures
+          ),
+        }
       : {};
+
+  /**
+   * The figures as the save writes them: a spread figure's live fold read
+   * for the paper scene its spread is drawn from once reopened
+   * (`foldedFiguresWithLiveSpreadScenes`), through the runtime, never the
+   * canvas's side table. With the document's aux lines as they stand, as the
+   * canvas draws them, and only from a handle that shows the figure's own
+   * layer order (an undo of Another solution leaves it on the later one).
+   */
+  const foldedFiguresForSave = (): Promise<OristudioCpFoldedFigureEntry[]> => {
+    const documentHandle = get().oristudioCpDocument?.handle ?? null;
+    return foldedFiguresWithLiveSpreadScenes(
+      get().oristudioCpFoldedFigures,
+      (handle) => getOristudioCpFoldedFigurePaperScene(handle, documentHandle),
+      (error) => reportError(error, { surface: 'folded-figure-spread:save' }),
+      getOristudioCpFoldedFigureSnapshot
+    );
+  };
 
   const currentEditableCreasePatternProjectInput = async (
     filename: string,
@@ -1916,7 +2037,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       selection: get().oristudioCpSelection,
       viewport: get().oristudioCpViewport,
       camera: get().oristudioCpCamera,
-      foldedFigures: get().oristudioCpFoldedFigures,
+      foldedFigures: await foldedFiguresForSave(),
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       ...(await referencesForSave(documentState)),
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
@@ -3110,7 +3231,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           extensions: ['svg'],
         });
         if (!result) return false;
-        recordCreasePatternImageExport('svg', resolved.options);
+        recordCreasePatternImageExport('svg', resolved.options, resolved.content);
         set({ projectMessage: `Exported ${result.name}` });
         return true;
       } catch (error) {
@@ -3141,7 +3262,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           mimeType: 'image/png',
         });
         if (!result) return false;
-        recordCreasePatternImageExport('png', resolved.options);
+        recordCreasePatternImageExport('png', resolved.options, resolved.content);
         set({ projectMessage: `Exported ${result.name}` });
         return true;
       } catch (error) {
@@ -3263,7 +3384,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
      * must degrade to the generic card rather than to a failed share. The Worker
      * serves a default when R2 has nothing, so there is no broken-image state.
      */
-    publishOristudioCpShare: async ({ title, author, renderCard, foldedFigureStyle = null }) => {
+    publishOristudioCpShare: async ({
+      title,
+      author,
+      renderCard,
+      foldedFigureStyle = null,
+      foldedFigureSpread = null,
+      foldedFigureSpreadDrawn = null,
+      foldedFigureLayerOrder = 'default',
+    }) => {
       const draft = get().oristudioCpShareDraft;
       if (!draft) return false;
       try {
@@ -3279,16 +3408,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         }
         if (author) rememberAuthor(author);
         if (foldedFigureStyle !== null) {
-          useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle(foldedFigureStyle);
+          useSettingsStore
+            .getState()
+            .rememberCreasePatternFoldedFigure({ style: foldedFigureStyle, spread: foldedFigureSpread });
         }
         // The published link and its geometry are never sent — only that a share
         // was created, a bucketed size, whether it was titled/attributed, and
-        // which style its folded figure took, if it had one.
+        // which style its folded figure took, if it had one, in whose layer
+        // order, and how its layers were spread in the card.
         track('crease pattern shared', {
           crease_count_bucket: bucketCount(draft.fold.edges_vertices?.length ?? 0, COUNT_BUCKETS),
           had_title: Boolean(title),
           had_author: Boolean(author),
           folded_figure: creasePatternFoldedFigureName(foldedFigureStyle),
+          folded_figure_layer_order: foldedFigureLayerOrderName(foldedFigureStyle !== null, foldedFigureLayerOrder),
+          ...creasePatternSpreadProperties(foldedFigureStyle !== null ? foldedFigureSpreadDrawn : null),
         });
 
         void (async () => {
@@ -3334,6 +3468,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         settings,
         IDENTITY_CP_MODEL_TO_FOLD
       );
+    },
+
+    oristudioCpShareLayerOrderHost: () => {
+      const draft = get().oristudioCpShareDraft;
+      if (!draft || !get().oristudioCpDocument) return null;
+      // The draft's fold is one sheet's, in model space, as its figure's fold is.
+      return exportLayerOrderHost(get(), () => get().oristudioCpDocument, draft.fold, IDENTITY_CP_MODEL_TO_FOLD);
     },
 
     dismissOristudioCpShare: () => set({ oristudioCpShareDraft: null }),
@@ -3388,6 +3529,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                     IDENTITY_CP_MODEL_TO_FOLD
                   )
               : null,
+            layerOrderHost: get().oristudioCpDocument
+              ? exportLayerOrderHost(get(), () => get().oristudioCpDocument, fold, IDENTITY_CP_MODEL_TO_FOLD)
+              : null,
             confirmLabel: `Export ${label}`,
           });
           if (!resolved) return false;
@@ -3400,7 +3544,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               extensions: ['svg'],
             });
             if (!result) return false;
-            recordCreasePatternImageExport('svg', resolved.options);
+            recordCreasePatternImageExport('svg', resolved.options, resolved.content);
             set({ projectMessage: `Exported ${result.name}` });
             return true;
           }
@@ -3414,7 +3558,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             mimeType: 'image/png',
           });
           if (!result) return false;
-          recordCreasePatternImageExport('png', resolved.options);
+          recordCreasePatternImageExport('png', resolved.options, resolved.content);
           set({ projectMessage: `Exported ${result.name}` });
           return true;
         }

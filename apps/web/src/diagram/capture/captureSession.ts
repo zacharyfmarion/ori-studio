@@ -1,3 +1,8 @@
+import type { ConnectedSpreadView } from '../../layer-spread/view';
+import type { SpreadPresentation } from '../../layer-spread/presentation';
+import { captureFlatScenePicture } from './captureFolded';
+import { prepareConnected, type ConnectedLease } from '../../layer-spread/prepareConnected';
+import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 /**
  * A fold held open while a linked step is posed (D4): the figure is folded once,
  * then turned over, stepped to another solution and read again on the same
@@ -106,6 +111,8 @@ interface HeldOrder {
 
 interface FlatHold extends FoldKey {
   kind: 'flat';
+  connected?: PreparedConnectedSpread;
+  spreadLease?: ConnectedLease;
   handle: number;
   epoch: number;
   side: 'front' | 'back';
@@ -215,7 +222,8 @@ export interface CaptureSession {
    * layers spread when asked: read from the kernel once per side and layer
    * order, then drawn from what was read.
    */
-  flatPicture: (rotationDeg: number, spread?: LayerSpreadOptions) => Promise<CapturedPicture>;
+  connectedView: () => Promise<ConnectedSpreadView | null>;
+  flatPicture: (rotationDeg: number, spread?: LayerSpreadOptions, presentation?: SpreadPresentation) => Promise<CapturedPicture>;
   /**
    * The held flat fold's mirror axes, unturned (`foldedMirrorAxes`): measured
    * on what the kernel read for its picture, so read once per side and layer
@@ -284,6 +292,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
 
   const release = () => {
     if (!held) return;
+    if (held.kind === 'flat') held.spreadLease?.release();
     const { handle, epoch } = held;
     held = null;
     // A handle from before an engine reset is already freed, or belongs to a
@@ -336,6 +345,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
   const settle = (hold: FlatHold, state: Omit<FoldedFigureState, 'handle'>) => {
     hold.state = state;
     hold.read = null;
+    hold.spreadLease?.release(); hold.spreadLease = undefined; hold.connected = undefined;
     hold.reached = advanceSolutionFrontier(hold.reached, {
       discovered: state.discoveredCases,
       hasNext: state.hasNext ?? false,
@@ -494,9 +504,25 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
       return flatState(hold);
     },
 
-    async flatPicture(rotationDeg, spread) {
+    async connectedView() {
       const hold = flatHold();
       hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
+      const scene = hold.read.scene;
+      if (!scene) return null;
+      const lease = hold.spreadLease ??= prepareConnected(scene);
+      const prepared = await lease.promise;
+      if (held !== hold || hold.spreadLease !== lease) throw new CaptureSessionClosedError();
+      hold.connected = prepared;
+      return {scene, prepared};
+    },
+
+    async flatPicture(rotationDeg, spread, presentation) {
+      const hold = flatHold();
+      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
+      if (spread?.kind === 'connected' && hold.read.scene) {
+        const view = await this.connectedView();
+        if (view) return captureFlatScenePicture(view.scene, rotationDeg, spread, view.prepared, presentation);
+      }
       return flatPicture(hold.read, rotationDeg, deps.env, spread);
     },
 
@@ -509,9 +535,10 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     heldFlatPicture({ document, side, foldCase, layerOrder = null }, rotationDeg, spread) {
       if (held?.kind !== 'flat' || held.epoch !== deps.epoch() || held.document !== document) return null;
       if (!held.read || held.side !== side || flatState(held).foldCase !== foldCase) return null;
+      if (spread?.kind === 'connected') return null;
       if (!sameOrder(held, orderKey(layerOrder))) return null;
       // A preview, never stored: no faces on the paper, which only a stored capture is anchored by.
-      return flatPicture(held.read, rotationDeg, deps.env, spread, { faces: false });
+      return flatPicture(held.read, rotationDeg, deps.env, spread, { faces: false, connected: held.connected });
     },
 
     async spatial(document, lineIds) {
@@ -541,6 +568,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     dispose: letGo,
 
     forget() {
+      if (held?.kind === 'flat') held.spreadLease?.release();
       held = null;
     },
   };

@@ -1,3 +1,4 @@
+import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 /**
  * A Fold step's picture as a Diagram step keeps it (fold-workspace plan D11,
  * D17): made from what the Fold engine says of the step's states, through
@@ -402,7 +403,9 @@ export function foldStepMarks(
 export function foldStepPicture(
   input: FoldStepPictureInput,
   render: DiagramCpRender,
-  newId: DiagramIdFactory = randomDiagramId
+  newId: DiagramIdFactory = randomDiagramId,
+  connected?: PreparedConnectedSpread,
+  capturedOverride?: CapturedPicture
 ): FoldStepPicture {
   const thumbnail = foldStepThumbnail(input.own);
   if (render.mode === 'crease-pattern') {
@@ -410,7 +413,7 @@ export function foldStepPicture(
   }
   if (render.mode !== 'folded-flat') throw new Error(`A Fold step is not shown ${render.mode}`);
   const pattern = foldScenePattern(input.shown, render.side);
-  const captured = flatScenePicture(pattern, render.rotationDeg, render.spread);
+  const captured = capturedOverride ?? flatScenePicture(pattern, render.rotationDeg, render.spread, { connected, presentation: render.presentation });
   const merged = input.merged ?? [];
   if (input.moment !== 'before' || (!input.action && !input.repeat && merged.length === 0)) {
     return { captured, marks: [], thumbnail };

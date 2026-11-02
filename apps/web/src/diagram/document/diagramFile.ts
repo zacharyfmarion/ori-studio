@@ -1,3 +1,4 @@
+import { readSpreadPresentation } from '../../layer-spread/presentation';
 /**
  * A diagram as it is stored in the project file (each of `workspace.diagrams`),
  * read leniently and written back exactly.
@@ -848,14 +849,14 @@ const PULLED_MARKS_KEYS: ReadonlySet<string> = new Set(['letters', 'highlights']
 const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<string>>> = {
   defox: new Set(['mode', 'snapshot']),
   'crease-pattern': new Set(['mode', 'rotationDeg', 'side', 'flipCreases']),
-  'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread']),
+  'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread', 'presentation']),
   'folded-3d': new Set(['mode', 'camera', 'side']),
   // `shape` is Pose's mesh, which this build carries and never reads (`readCpRender`).
   simulated: new Set(['mode', 'foldPercent', 'view', 'shape']),
 };
 /** The fields each kind of picture is written with, as {@link SOURCE_KEYS} are a source's. */
 const PICTURE_KEYS: Readonly<Record<DiagramPicture['kind'], ReadonlySet<string>>> = {
-  asset: new Set(['kind', 'assetId', 'paperScale', 'styleKey', 'key']),
+  asset: new Set(['kind', 'assetId', 'paperScale', 'styleKey', 'key', 'sceneFrame']),
   scene: new Set(['kind', 'sceneJson', 'paperScale', 'styleKey', 'key', 'paperFaces']),
   fixed: new Set(['kind', 'svg', 'widthPx', 'heightPx', 'key']),
   'step-diagram': new Set(['kind', 'model', 'mirrored', 'key']),
@@ -1177,7 +1178,7 @@ function isNewerRender(value: unknown): boolean {
     case 'crease-pattern':
       return readPatternSide(value.side) === NEWER;
     case 'folded-flat':
-      return readSpread(value.spread) === NEWER || isNewerWord(value.side, ['front', 'back']);
+      return readSpreadPresentation(value.presentation) === NEWER || readSpread(value.spread) === NEWER || isNewerWord(value.side, ['front', 'back']);
     case 'folded-3d':
       return isNewerRecord(value.camera, FOLDED_FIGURE_CAMERA_KEYS) || isNewerWord(value.side, ['front', 'back']);
     case 'simulated': {
@@ -1558,6 +1559,8 @@ function readCpRender(value: unknown): DiagramCpRender | null {
     case 'folded-flat': {
       const foldCase = wholeNumber(value.foldCase);
       const spread = readSpread(value.spread);
+      const presentation = readSpreadPresentation(value.presentation);
+      if (presentation === null || presentation === NEWER) return null;
       if (!side || rotationDeg === null || foldCase === null || foldCase < 1) return null;
       // A newer build's spread made the step a newer build's before this was reached.
       if (spread === null || spread === NEWER) return null;
@@ -1567,6 +1570,7 @@ function readCpRender(value: unknown): DiagramCpRender | null {
         rotationDeg: normalizeDegrees(rotationDeg),
         foldCase,
         ...(spread ? { spread } : {}),
+        ...(presentation ? { presentation } : {}),
       };
     }
     case 'folded-3d': {
@@ -1633,7 +1637,16 @@ function readPictureOfKind(
       const assetId = value.assetId;
       if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
       const styleKey = typeof value.styleKey === 'string' && value.styleKey.length <= 512 ? value.styleKey : null;
-      return { kind: 'asset', assetId, paperScale, ...(styleKey === null ? {} : { styleKey }), key };
+      const frame = value.sceneFrame;
+      if (frame !== undefined && (
+        !Array.isArray(frame) || frame.length !== 4 ||
+        !frame.every((n) => typeof n === 'number' && Number.isFinite(n)) ||
+        !(frame[2] > 0) || !(frame[3] > 0)
+      )) return null;
+      return {
+        kind: 'asset', assetId, paperScale, ...(styleKey === null ? {} : { styleKey }), key,
+        ...(frame === undefined ? {} : { sceneFrame: frame as [number, number, number, number] }),
+      };
     }
     case 'scene': {
       const read = readSceneJson(value.sceneJson);
@@ -2484,7 +2497,7 @@ function paperFacesFitScene(faces: DiagramPaperFaces, picture: DiagramScenePictu
     if (whole.has(item.face)) continue;
     whole.set(item.face, Array.isArray(item.rings) && item.rings.length === 1 && Array.isArray(item.rings[0]) ? item.rings[0].length : null);
   }
-  if (!spread) return true;
+  if (!spread || faces.drawn) return true;
   return faces.rings.every((ring, face) => ring.length === 0 || whole.get(face) === ring.length);
 }
 

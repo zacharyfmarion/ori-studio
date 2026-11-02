@@ -958,6 +958,8 @@ export interface FoldSequenceDocument {
    * Optional only for documents built by hand, which draw in the default.
    */
   style?: ResolvedDocumentPaperStyle;
+  /** Snapshot of this sequence's initial display recipe. Absent in legacy files means off. */
+  defaultSpread?: import('../../cp-workspace/folded/foldedLayerSpread').LayerSpreadOptions | 'off';
   /**
    * Reserved for per-sequence `PaperStyleOverrides` (plan D7, D11): never
    * written by this build, carried verbatim when a file holds one.
@@ -990,6 +992,7 @@ export function createFoldSequence(
     title,
     paper,
     style: FOLD_DEFAULT_PAPER_STYLE,
+    defaultSpread: 'off',
     steps: [],
   };
 }

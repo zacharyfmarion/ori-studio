@@ -1,3 +1,4 @@
+import type { ConnectedSpreadView } from '../../layer-spread/view';
 import {
   spreadTracking,
   trackDiagramPicturePosed,
@@ -114,6 +115,7 @@ const SOLUTION_STEP_LABELS = { next: 'Show another solution', previous: 'Show pr
 
 /** How a pose is committed: whether it is counted as one, its undo step's label, and who hears what it committed. */
 interface PoseOptions {
+  current?: () => boolean;
   tracked?: boolean;
   label?: string;
   landed?: (source: DiagramCpSource) => void;
@@ -143,6 +145,7 @@ const TRACKED: Record<TrackedPoseVerb, TrackedPoseAction> = {
   'view-top': 'view_top',
   reset: 'reset',
   orbit: 'orbit',
+  'spread-presentation': 'spread_presentation',
   'rotate-to': 'rotate_to',
   upright: 'upright',
   simulate: 'simulate',
@@ -154,6 +157,8 @@ const TRACKED: Record<TrackedPoseVerb, TrackedPoseAction> = {
   'spread-keep': 'spread_keep',
   'spread-skew': 'spread_skew',
   'spread-axis': 'spread_axis',
+  'spread-reveal': 'spread_reveal',
+  'spread-reveal-axis': 'spread_reveal',
   // A crease pattern's paper on the colour of one side: not a turn-over (Zach, 2026-10-06).
   'paper-side': 'paper_side',
   // On, or off when the verb left them unflipped (`trackPose`).
@@ -169,6 +174,8 @@ const SPREAD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
   'spread-keep',
   'spread-skew',
   'spread-axis',
+  'spread-reveal',
+  'spread-reveal-axis',
 ]);
 
 /**
@@ -220,17 +227,21 @@ export type { SpreadSlider };
  * other kind while it waits; a skew and an axis are an affine spread's alone.
  */
 export type SpreadSlide =
+  | { slider: 'reveal'; value: [number, number] }
   | { slider: 'amount'; kind: SpreadKind; value: number }
-  | { slider: 'skew' | 'axis'; value: number };
+  | { slider: 'skew' | 'axis' | 'reveal-x' | 'reveal-y'; value: number };
 
 /** Whether a slider is one of `spread`'s: an amount of its kind, a skew or an axis of an affine one. */
 function slideFits(spread: LayerSpreadOptions, slide: SpreadSlide): boolean {
-  return slide.slider === 'amount' ? slide.kind === spread.kind : spread.kind === 'affine';
+  return slide.slider === 'amount' ? slide.kind === spread.kind : slide.slider.startsWith('reveal') ? spread.kind === 'connected' : spread.kind === 'affine';
 }
 
 /** The verb that commits a slide. */
 function slideRequest(slide: SpreadSlide) {
   switch (slide.slider) {
+    case 'reveal': return { verb: 'spread-reveal', reveal: slide.value } as const;
+    case 'reveal-x': return { verb: 'spread-reveal-axis', axis: 0, value: slide.value } as const;
+    case 'reveal-y': return { verb: 'spread-reveal-axis', axis: 1, value: slide.value } as const;
     case 'amount':
       return { verb: 'spread-amount', amount: slide.value, kind: slide.kind } as const;
     case 'skew':
@@ -246,7 +257,12 @@ export function withSlide(spread: LayerSpreadOptions, slide: SpreadSlide): Layer
 }
 
 /** The verbs a slide commits as: a preview stays up under them until the newest lands. */
-const SLIDE_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set(['spread-amount', 'spread-skew', 'spread-axis']);
+const SLIDE_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set(['spread-amount', 'spread-skew', 'spread-axis', 'spread-reveal', 'spread-reveal-axis']);
+
+/** Discrete changes need a replacement picture; live gestures already show their new pose while capturing. */
+export function poseCaptureBlocksViewport(verb: LinkedPoseRequest['verb']): boolean {
+  return !SLIDE_VERBS.has(verb) && verb !== 'orbit' && verb !== 'simulate';
+}
 
 /** Where Pose's simulator came to rest, and the model there. */
 export type SimulatedRest = Omit<Extract<LinkedPoseRequest, { verb: 'simulate' }>, 'verb'>;
@@ -283,6 +299,7 @@ export interface DiagramPoseSpatialView {
  * to other creases, and the fold held for the old ones is not theirs.
  */
 export interface PoseControllerListener {
+  connected?: (view: ConnectedSpreadView | null, key: string | null) => void;
   /** The live 3D fold, once held; null when let go. */
   spatial: (view: DiagramPoseSpatialView | null, key: string | null) => void;
   /** The held flat fold's layer orders as the search knows them; null when unknown. */
@@ -327,7 +344,7 @@ export interface PoseController {
    * Step pane or a card, which `diagram step shown as` counts — so it is not
    * also counted as a pose.
    */
-  run: (request: LinkedPoseRequest, options?: { tracked?: boolean }) => Promise<void>;
+  run: (request: LinkedPoseRequest, options?: { tracked?: boolean; current?: () => boolean }) => Promise<void>;
   /** The 3D view moved: capture it once it rests, if it is not where the step already is. */
   orbit: (camera: FoldedFigureCamera, stored: FoldedFigureCamera | null) => void;
   /**
@@ -346,6 +363,7 @@ export interface PoseController {
   wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
   /** Fold a step shown in 3D for its live view. */
   prepareSpatial: () => Promise<void>;
+  prepareConnected: () => Promise<void>;
   /**
    * Show the step's flat fold with one slider of its spread at this value,
    * the rest its own, before it is committed — a drag: drawn from the fold
@@ -387,7 +405,7 @@ export interface PoseController {
   documentReplaced: () => void;
   /** The engine is gone: forget the fold without freeing it, since its slots are reused. */
   engineLost: () => void;
-  dispose: () => void;
+  dispose: (options?: {flushOrbit?:boolean}) => void;
 }
 
 const store = { get: useWorkspaceStore.getState, set: useWorkspaceStore.setState };
@@ -395,6 +413,9 @@ const store = { get: useWorkspaceStore.getState, set: useWorkspaceStore.setState
 export function createPoseController(stepId: string, listener: PoseControllerListener): PoseController {
   let start: StepCaptureStart | null = null;
   let orbitTimer: ReturnType<typeof setTimeout> | null = null;
+  let nextOrbit: {camera:FoldedFigureCamera;loadId:number} | null = null;
+  let orbiting: Promise<void> | null = null;
+  let orbitGeneration = 0;
   /** The simulator's rests: the one being captured, and the newest waiting for it. */
   let simulating: Promise<void> | null = null;
   let nextRest: SimulatedRest | null = null;
@@ -420,7 +441,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   /** The spread commits: the one being captured, and the newest of each slider waiting for it. */
   let spreading: Promise<void> | null = null;
   let committing: { slide: SpreadSlide; revision: number | undefined } | null = null;
-  const waiting = new Map<SpreadSlider, SpreadSlide>();
+  const waiting = new Map<SpreadSlider | 'reveal', SpreadSlide>();
   const session: CaptureSession = createCaptureSession({
     search: (work) => {
       if (!start) throw new Error('A pose fold ran outside a capture');
@@ -441,12 +462,13 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
    * refused as busy leaves `own` to the capture that is running.
    */
   const capturing = <T>(
-    work: (begun: StepCaptureStart, linked: DiagramCpSource) => Promise<T>
+    work: (begun: StepCaptureStart, linked: DiagramCpSource) => Promise<T>,
+    blocksPose = false
   ): Promise<T | DiagramCaptureOutcome | null> => {
     if (disposed) return Promise.resolve(null);
     const linked = currentLinkedSource(stepId);
     if (!linked) return Promise.resolve(null);
-    const begun = beginStepCapture(store, stepId);
+    const begun = beginStepCapture(store, stepId, blocksPose);
     if ('status' in begun) return Promise.resolve(begun);
     const task = (async (): Promise<T | DiagramCaptureOutcome | null> => {
       start = begun;
@@ -561,13 +583,14 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     // that ended where it began commits nothing and would leave one up.
     if (!SLIDE_VERBS.has(request.verb)) endPreview();
     const outcome = await capturing(async (begun, linked): Promise<DiagramCaptureOutcome> => {
+      begun.guard.current = options?.current;
       // Shown another way since the simulator came to rest: an undo, or a verb.
       if (request.verb === 'simulate' && linked.render.mode !== 'simulated') return { status: 'discarded' };
       if (options.opened && !stillOpenedOn(stepId, options.opened)) return { status: 'discarded' };
       const { document, choice } = await creasesFor(begun, linked);
       if (choice.status !== 'found') return choice;
       return posed(begun, linked, document, choice.creases, request, options);
-    });
+    }, poseCaptureBlocksViewport(request.verb));
     // A drag begun while this verb captured was drawn over the spread before
     // it: drawn again over the one it left, or taken down if that has none.
     if (!SLIDE_VERBS.has(request.verb)) showPreview(false);
@@ -681,7 +704,8 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     else if (!(outcome.status === 'captured' && outcome.noLayerOrder)) sayCaptureOutcome(outcome);
   };
 
-  const run = async (request: LinkedPoseRequest, options?: { tracked?: boolean }): Promise<void> => {
+  const run = async (request: LinkedPoseRequest, options?: PoseOptions): Promise<void> => {
+    if (request.verb !== 'orbit') cancelOrbit();
     // A constrained flat step's ‹ › step through the solutions that fit its record (H9).
     if ((request.verb === 'next-solution' || request.verb === 'previous-solution') && isConstrainedFlat(stepId)) {
       await stepSolution(request.verb);
@@ -805,8 +829,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   };
 
   const cancelOrbit = () => {
+    orbitGeneration++;
     if (orbitTimer) clearTimeout(orbitTimer);
     orbitTimer = null;
+    nextOrbit = null;
   };
 
   /**
@@ -848,7 +874,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     const landing = committing && committing.revision === stepRevision(stepId) ? [committing.slide] : [];
     const slides = [...landing, ...waiting.values(), slide];
     const spread = slides.reduce(withSlide, stored);
-    const picture = drawPreview(spread);
+    const picture = spread.kind === 'connected' ? null : drawPreview(spread);
     listener.preview({ slide, slides, spread, picture: picture ?? null }, linkedFoldKey(stepId, linked));
     if (picture === undefined && hold) holdForPreview();
   };
@@ -884,6 +910,30 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     listener.preview(null, null);
   };
 
+  const drainOrbit=():Promise<void>=> {
+    orbiting??=(async()=>{
+      await null;
+      try {
+        while(nextOrbit && !orbitTimer) {
+          while(own)await own;
+          if (orbitTimer) break;
+          const next=nextOrbit;nextOrbit=null;
+          if(!next||disposed)break;
+          if(next.loadId!==useWorkspaceStore.getState().diagramLoadId)continue;
+          const generation = orbitGeneration;
+          await run({verb:'orbit',camera:next.camera}, { current: () => generation === orbitGeneration && !disposed });
+        }
+      } finally {orbiting=null;}
+    })();
+    return orbiting;
+  };
+  const dispose=()=>{
+    disposed=true;cancelOrbit();waiting.clear();heldFor=null;endPreview();
+    dropStepSolutionCursor(stepId);
+    if(start)useWorkspaceStore.getState().stopDiagramCapture(stepId);
+    session.dispose();
+  };
+
   return {
     run,
 
@@ -891,11 +941,9 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
     orbit(camera, stored) {
       cancelOrbit();
-      if (!stored || sameCamera(camera, stored)) return;
-      orbitTimer = setTimeout(() => {
-        orbitTimer = null;
-        void run({ verb: 'orbit', camera });
-      }, ORBIT_SETTLE_MS);
+      if (!stored || sameCamera(camera, stored) || disposed) return;
+      nextOrbit={camera,loadId:useWorkspaceStore.getState().diagramLoadId};
+      orbitTimer=setTimeout(()=>{orbitTimer=null;void drainOrbit();},ORBIT_SETTLE_MS);
     },
 
     wantsRest,
@@ -964,6 +1012,29 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       });
     },
 
+    async prepareConnected() {
+      // Switching from a legacy spread can still be committing its picture.
+      // Prepare the live view after that capture, instead of losing it as busy.
+      while (own) await own;
+      await capturing(async (begun, linked) => {
+        if (linked.render.mode !== 'folded-flat') return null;
+        const {document, choice} = await creasesFor(begun, linked);
+        if (choice.status !== 'found') return null;
+        try {
+          await abandonOnEngineLoss(session.flat(document, choice.creases.foldLineIds, linked.render.side, linked.render.foldCase,
+            undefined, heldLayerOrderOf(linked)));
+        } catch (error) {
+          // Keep the saved picture when its order cannot be restored, just as a legacy preview does.
+          if (error instanceof LayerOrderNotShownError) return null;
+          throw error;
+        }
+        const view = await abandonOnEngineLoss(session.connectedView());
+        listener.connected?.(view, linkedFoldKey(stepId, linked) + ':' + linked.render.side + ':' + linked.render.foldCase);
+        heldFor = {key: linkedFoldKey(stepId, linked), document};
+        return null;
+      });
+    },
+
     async prepareSpatial() {
       await capturing(async (begun, linked) => {
         const { document, choice } = await creasesFor(begun, linked);
@@ -1014,6 +1085,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       useWorkspaceStore.getState().stopDiagramCapture(stepId);
       session.dispose();
       listener.spatial(null, null);
+      listener.connected?.(null, null);
     },
 
     engineLost() {
@@ -1024,20 +1096,14 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       endPreview();
       session.forget();
       listener.spatial(null, null);
+      listener.connected?.(null, null);
     },
 
-    dispose() {
-      disposed = true;
-      cancelOrbit();
-      waiting.clear();
-      heldFor = null;
-      // Its step let go (another step, the detail closed): so is a solutions cursor stepping it, with its worker (H9).
-      dropStepSolutionCursor(stepId);
-      // Told, not just dropped: the view's preview outlives this controller.
-      endPreview();
-      // Its own fold, if one is still searching: the detail it was for is gone.
-      if (start) useWorkspaceStore.getState().stopDiagramCapture(stepId);
-      session.dispose();
+    dispose(options) {
+      if(options?.flushOrbit&&(nextOrbit||orbiting)) {
+        if(orbitTimer)clearTimeout(orbitTimer);orbitTimer=null;
+        void drainOrbit().finally(dispose);
+      } else dispose();
     },
   };
 }

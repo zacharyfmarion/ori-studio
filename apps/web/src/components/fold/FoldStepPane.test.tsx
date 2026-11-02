@@ -214,6 +214,8 @@ describe('FoldStepPane', () => {
         toggle: { pressed: true, disabled: false, run: toggle },
         spread: {
           spread: { kind: 'depth', amount: 0.05, toward: 'down' },
+          busy: false,
+          previewReveal: vi.fn(),
           disabled: false,
           kinds: [choice('affine', 'Affine', false), choice('depth', 'Depth', true)],
           directions: [choice('down', 'Deeper layers down', true), choice('up', 'Deeper layers up', false)],

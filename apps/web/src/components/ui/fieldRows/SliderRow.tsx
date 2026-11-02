@@ -76,6 +76,7 @@ export function SliderRow({
 } & SliderRowValue) {
   const held = useHeldDrag(value, onCommit);
   const shown = onCommit ? held.value : value;
+  const formatted = format ?? defaultFormat(step);
   return (
     <FieldRow
       label={label}
@@ -84,7 +85,13 @@ export function SliderRow({
       disabled={disabled}
       nested={nested}
       title={title}
-      readout={(format ?? defaultFormat(step))(shown)}
+      readout={
+        // As wide as the wider of the slider's ends, whatever it shows, so a
+        // value with more digits never moves the slider under a drag.
+        <span className={styles.readout} data-min={formatted(min)} data-max={formatted(max)}>
+          <span className={styles.readoutValue}>{formatted(shown)}</span>
+        </span>
+      }
       onReset={onReset}
     >
       <GestureSlider

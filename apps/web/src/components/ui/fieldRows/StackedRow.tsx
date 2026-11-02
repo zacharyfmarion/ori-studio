@@ -18,6 +18,7 @@ export function StackedRow({
   labelId,
   labelHidden = false,
   help,
+  aside,
   nested = false,
   disabled = false,
   title,
@@ -34,6 +35,8 @@ export function StackedRow({
   labelHidden?: boolean;
   /** What the row is for, behind a help mark after its label, as a `FieldRow`'s (`FieldRow.help`). */
   help?: string;
+  /** A mark of the caller's own after the label and its help mark, as a `FieldRow`'s (`FieldRow.aside`). */
+  aside?: ReactNode;
   /** A step in, for a row that belongs to the one above it (`FieldRow.nested`). */
   nested?: boolean;
   disabled?: boolean;
@@ -62,11 +65,12 @@ export function StackedRow({
       data-disabled={disabled || undefined}
       title={title}
     >
-      {help ? (
+      {help || aside ? (
         // Beside the label, not in it: a mark inside would join the field's name.
         <span className={styles.head}>
           {labelElement}
-          <FieldRowHelp help={help} />
+          {help && <FieldRowHelp help={help} />}
+          {aside}
         </span>
       ) : (
         labelElement

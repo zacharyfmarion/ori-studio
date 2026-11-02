@@ -15,6 +15,7 @@ import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
 import { foldedFigureAsTransformable } from '../canvasObjects/transformableObject';
 import type { TransformableCanvasObject } from '../canvasObjects/transformableObject';
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
+import { useFoldedFigureSpreadReachVersion } from './foldedFigureSpreadReach';
 import { isFoldedFigureStale } from './foldedFigureStaleness';
 import {
   foldedFigureFlipState,
@@ -329,13 +330,16 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
 
   // Folded figures are the third canvas-object kind. They keep their own
   // kernel-backed state, so only the box is shared with annotations; gestures
-  // write back through the figure's web-side placement.
+  // write back through the figure's web-side placement. A spread figure's box
+  // takes its spread in once it is drawn (`foldedFigureSpreadReach.ts`).
+  const spreadReach = useFoldedFigureSpreadReachVersion();
   const foldedFigureObjects = useMemo(
     () =>
       generatedFoldedFigures
         .map(foldedFigureAsTransformable)
         .filter((object): object is TransformableCanvasObject => object !== null),
-    [generatedFoldedFigures]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the reach is read through the boxes
+    [generatedFoldedFigures, spreadReach]
   );
 
   /**

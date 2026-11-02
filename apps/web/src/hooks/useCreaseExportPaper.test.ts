@@ -73,19 +73,35 @@ describe('creaseExportFigureColours', () => {
 
 describe('openingCreaseExportFigure', () => {
   it('opens on the remembered pick, with its paper colours', () => {
-    useSettingsStore.setState({ paperStyle: SETTINGS, creasePatternFoldedFigureStyle: 'user:Mine' });
+    useSettingsStore.setState({
+      paperStyle: SETTINGS,
+      creasePatternFoldedFigureStyle: 'user:Mine',
+      creasePatternFoldedFigureSpread: null,
+    });
     expect(openingCreaseExportFigure()).toEqual({
       style: 'user:Mine',
       colours: { frontColor: '#ff0000', backColor: '#00ff00' },
+      spread: null,
     });
   });
 
   it('opens on the export slot when the remembered preset is gone', () => {
-    useSettingsStore.setState({ paperStyle: SETTINGS, creasePatternFoldedFigureStyle: 'user:Gone' });
+    useSettingsStore.setState({
+      paperStyle: SETTINGS,
+      creasePatternFoldedFigureStyle: 'user:Gone',
+      creasePatternFoldedFigureSpread: null,
+    });
     expect(openingCreaseExportFigure()).toEqual({
       style: PAPER_EXPORT_STYLE_SLOT,
       colours: { frontColor: '#123456', backColor: '#654321' },
+      spread: null,
     });
+  });
+
+  it('opens on the spread last saved or shared with', () => {
+    const spread = { kind: 'depth', amount: 0.025, toward: 'down' } as const;
+    useSettingsStore.setState({ paperStyle: SETTINGS, creasePatternFoldedFigureSpread: spread });
+    expect(openingCreaseExportFigure().spread).toBe(spread);
   });
 });
 

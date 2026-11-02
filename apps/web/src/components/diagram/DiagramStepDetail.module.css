@@ -59,6 +59,8 @@
   min-height: 0;
   padding: var(--space-5) var(--space-5) 64px;
   object-fit: contain;
+  /* The contain box's centre, after the toolbar clearance below it. */
+  transform-origin: 50% calc(50% - 22px);
 }
 
 /*

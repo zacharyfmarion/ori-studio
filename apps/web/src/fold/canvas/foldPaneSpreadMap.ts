@@ -1,3 +1,7 @@
+import { sheetBindingKey, type FoldSheetBindings } from './foldPickPreparation';
+import { faceWeights, interpolate } from '@oristudio/layer-spread';
+import { connectedDrawing, connectedPick, type PreparedConnectedSpread, type ConnectedDrawing } from '../../layer-spread/connectedScene';
+import { sourcePoint } from '../../cp-workspace/folded/connectedSpreadSource';
 /**
  * Where the folded pane draws the paper while its layers are spread
  * (`foldedPaneScene` with the step's spread): every point of a face moved by
@@ -76,17 +80,44 @@ interface FaceRings {
   box: Bounds;
 }
 
+const sheetRings = new WeakMap<FoldScene, { ring: Point[]; box: Bounds | null }[]>();
+const boundSamples = new WeakMap<FoldSheetBindings, Map<string, ReturnType<typeof faceWeights>>>();
+
 /**
  * The folded pane's map of `scene` under `spread` — the step's, as
  * `foldedPaneScene` takes it — or null for none, when the pane draws the
  * scene where it is.
  */
-export function foldPaneSpreadMap(scene: FoldScene, spread: LayerSpreadOptions | null): FoldPaneSpreadMap | null {
+export function foldPaneSpreadMap(scene: FoldScene, spread: LayerSpreadOptions | null, connected?: PreparedConnectedSpread, bindings?: FoldSheetBindings, projected?: ConnectedDrawing): FoldPaneSpreadMap | null {
   const here = foldFrameSpread(spread);
   if (!here) return null;
   const epsilon = foldedSceneEpsilon(scene);
+  let connectedUnder: ((point: Point) => FoldDrawnPoint | null) | null = null;
   let onFace: (face: number, point: Point) => Point;
-  if (here.kind === 'affine') {
+  if (here.kind === 'connected') {
+    if (!connected) return null;
+    const drawing = projected ?? connectedDrawing(scene, connected, here, p => [p.x, -p.y], []);
+    let samples = bindings && boundSamples.get(bindings);
+    if (!samples) {
+      samples = new Map<string, ReturnType<typeof faceWeights>>();
+      for (const binding of bindings?.values() ?? []) {
+        if (binding && binding.sample !== undefined) samples.set(`${binding.face}:${binding.point.x},${binding.point.y}`, binding.sample);
+      }
+      if (bindings) boundSamples.set(bindings, samples);
+    }
+    onFace = (face, point) => {
+      const key = `${face}:${point.x},${point.y}`;
+      const sample = samples.has(key) ? samples.get(key) : faceWeights(connected.source.input, face, sourcePoint(connected.source, point));
+      if (!sample) return point;
+      const [x,y] = interpolate(sample.ids, sample.weights, drawing.mesh.positions);
+      return { x, y: -y };
+    };
+    connectedUnder = point => {
+      const hit = connectedPick(connected, drawing, [point.x, -point.y]);
+      const transform = hit && scene.face_transforms[hit.face];
+      return hit && transform ? { face: hit.face, scene: hit.point, sheet: toPair(applyIsometry(invertIsometry(transform), hit.point)) } : null;
+    };
+  } else if (here.kind === 'affine') {
     const { offset } = affineSpread(scene, here, { epsilon });
     onFace = (face, point) => {
       const move = offset(face, point);
@@ -102,11 +133,20 @@ export function foldPaneSpreadMap(scene: FoldScene, spread: LayerSpreadOptions |
   }
 
   // Each face's sheet outline, for the sheet points it holds.
-  const onSheet = scene.faces.map(({ points }) => {
+  let onSheet = sheetRings.get(scene);
+  if (!onSheet) {
+    onSheet = scene.faces.map(({ points }) => {
     const ring = points.map((vertex) => scene.sheet_points[vertex]).filter((p): p is Point => p !== undefined);
     return { ring, box: boundsOf(ring) };
-  });
+    });
+    sheetRings.set(scene, onSheet);
+  }
   const sheet = (point: SheetPoint): Point | null => {
+    const key = sheetBindingKey(point);
+    if (bindings?.has(key)) {
+      const binding = bindings.get(key);
+      return binding ? onFace(binding.face, binding.point) : null;
+    }
     const p = toPoint(point);
     for (const [face, { ring, box }] of onSheet.entries()) {
       if (!box || p.x < box.minX - SHEET_EPSILON || p.x > box.maxX + SHEET_EPSILON) continue;
@@ -145,6 +185,7 @@ export function foldPaneSpreadMap(scene: FoldScene, spread: LayerSpreadOptions |
       return kept <= swapped ? [p, q] : [q, p];
     },
     under: (point) => {
+      if (connectedUnder) return connectedUnder(point);
       for (const { face, outline, drawn, box } of drawnRings()) {
         if (point.x < box.minX || point.x > box.maxX || point.y < box.minY || point.y > box.maxY) continue;
         if (!insideConvex(drawn, point, SHEET_EPSILON)) continue;

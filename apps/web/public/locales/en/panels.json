@@ -227,6 +227,7 @@
     "folded": {
       "appearance": "Appearance",
       "camera": "Camera",
+      "changeSpread": "Change layer spread",
       "changeView": "Change folded model view",
       "chosenOrder": "Chosen order",
       "chosenOrderAttention": "Chosen layer order needs attention",
@@ -259,6 +260,12 @@
       "refoldToChange": "Refold to change how this figure looks",
       "rotation": "Rotation",
       "scale": "Scale",
+      "shadowSpread": "Spread layers draw without shadows",
+      "spread": "Spread",
+      "spreadNeedsLook": "Only the Paper and X-ray looks can spread their layers",
+      "spreadNewer": "Made with a newer Ori Studio: its layer spread can’t be changed here.",
+      "spreadRefold": "Refold to show the spread",
+      "spreadUnavailable": "These layers couldn’t be spread",
       "yaw": "Turn",
       "zoom": "Zoom"
     },
@@ -1554,6 +1561,7 @@
       "pause": "Pause",
       "percent": "{{value}}%",
       "play": "Play",
+      "preparing": "Preparing pose…",
       "previousSolution": "Previous Layer Order",
       "reset": "Reset Pose",
       "resetHint": "Already in its starting pose",
@@ -1591,6 +1599,7 @@
       "spreadKeepTop": "Top",
       "spreadKind": "Spread by",
       "spreadKindAffine": "Affine",
+      "spreadKindConnected": "Default",
       "spreadKindDepth": "Depth",
       "spreadLayers": "Spread Layers",
       "spreadLayersRow": "Spread layers",
@@ -1683,6 +1692,15 @@
       "ways_one": "{{count}} way",
       "ways_other": "{{count}} ways",
       "withTurnOver": "With the turn-over before it"
+    },
+    "spread": {
+      "diagram": "Diagram",
+      "drag": "Drag to reveal layers",
+      "padHint": "Drag to reveal layers. Arrow keys adjust; Shift moves farther.",
+      "perspective": "Perspective 3D",
+      "presentation": "Presentation",
+      "reveal": "Layer reveal",
+      "revealHint": "Drag to reveal layers · Scroll to zoom"
     },
     "stepPane": {
       "annotate": "Annotate",
@@ -1861,6 +1879,7 @@
       "startsBranch": "Starts a new branch"
     },
     "canvas": {
+      "adjustSpread": "Adjust spread",
       "creasePattern": "Crease pattern",
       "creasePatternLabel": "The crease pattern so far, front up. Click its points and creases to locate a fold.",
       "flatCreases": "Flat creases",
@@ -2858,6 +2877,9 @@
       "switchBranch": "Switch branch",
       "tagBranch": "New branch",
       "tagNext": "Next"
+    },
+    "spread": {
+      "unavailable": "Spread unavailable for this state"
     },
     "step": {
       "blocks": "Blocks",

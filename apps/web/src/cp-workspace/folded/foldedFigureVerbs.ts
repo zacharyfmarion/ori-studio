@@ -14,7 +14,10 @@ import { foldedFigureCapabilities } from './foldedFigureCapabilities';
 import { foldedFigureGesture } from './foldedFigureGesture';
 import { foldedFigureLayerOrderHold } from './foldedFigureLayerOrderState';
 import { sayFoldedFigureLayerOrderRefold } from './foldedFigureLayerOrderToasts';
+import { foldedFigureSpreadOptions, type FoldedFigureSpread } from './foldedFigureSpread';
+import { noteFoldedFigureSpreadSet } from './foldedFigureSpreadStarts';
 import { foldedFigureCurrentCase, foldedFigureFrontier } from './foldedFigureState';
+import { withSpreadField, type LayerSpreadEdit } from './layerSpreadSettings';
 import { openFoldedFigureExport } from './openFoldedFigureExport';
 
 /**
@@ -99,6 +102,46 @@ export function setFolded3dCamera(
     t('panels:cpProperties.folded.changeView', 'Change folded model view'),
     () => useWorkspaceStore.getState().setOristudioCpFolded3dCamera(id, camera)
   );
+}
+
+/** The undo label of every edit of a figure's layer spread, discrete or a drag. */
+export function changeLayerSpreadLabel(t: TFunction): string {
+  return t('panels:cpProperties.folded.changeSpread', 'Change layer spread');
+}
+
+/**
+ * A figure's layer spread set, or cleared with `null`, as one entry: Spread
+ * layers, a kind, a direction, the layer held still, a reset. A spread equal
+ * to the one held records nothing. Noted as the most recent set, for the next
+ * figure turned on to start from (`foldedFigureSpreadStarts.ts`).
+ */
+export function setFoldedFigureSpreadAsEntry(
+  id: string,
+  spread: FoldedFigureSpread | null,
+  t: TFunction
+): Promise<boolean | undefined> {
+  return foldedFigureGesture.run('verb', changeLayerSpreadLabel(t), () => {
+    const set = useWorkspaceStore.getState().setOristudioCpFoldedFigureSpread(id, spread);
+    if (set && spread?.kind === 'record') noteFoldedFigureSpreadSet(id);
+    return set;
+  });
+}
+
+/**
+ * One move of a drag on a figure's spread — an amount, a skew, an axis, the
+ * reveal — inside the bracket its caller holds: the figure's spread as it is
+ * now with `edit` applied, written, recording nothing. Nothing for a figure
+ * with no spread this build reads; an edit for another kind changes nothing
+ * (`withSpreadField`).
+ */
+export function writeFoldedFigureSpreadEdit(id: string, edit: LayerSpreadEdit): void {
+  const store = useWorkspaceStore.getState();
+  const figure = store.oristudioCpFoldedFigures.find((entry) => entry.id === id);
+  const current = figure ? foldedFigureSpreadOptions(figure) : null;
+  if (!current) return;
+  if (store.setOristudioCpFoldedFigureSpread(id, { kind: 'record', spread: withSpreadField(current, edit) })) {
+    noteFoldedFigureSpreadSet(id);
+  }
 }
 
 /** A typed placement edit (scale, rotation) as one entry, under the gesture's own label. */

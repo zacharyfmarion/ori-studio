@@ -1,3 +1,6 @@
+import { queueStepPoseEdit } from './stepPoseQueue';
+import type { ConnectedSpreadView } from '../../layer-spread/view';
+import type { SpreadPresentation } from '../../layer-spread/presentation';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
@@ -58,6 +61,7 @@ export interface DiagramLinkedSpread extends DiagramSpreadControls {
    * move of a drag, or a key.
    */
   preview: (slider: SpreadSlider, value: number) => void;
+  previewReveal: (value: [number, number]) => void;
   /** Commit the slide previewed, as one undo step: the end of a drag, or a key. */
   commit: () => void;
   /** Whether a drag may start: not on a diagram that cannot change, nor a picture with no layers. */
@@ -65,6 +69,11 @@ export interface DiagramLinkedSpread extends DiagramSpreadControls {
 }
 
 export interface DiagramLinkedPose {
+  connected: ConnectedSpreadView | null;
+  connectedPreparing: boolean;
+  connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
+  onReveal: (reveal: [number, number]) => void;
+  setPresentation: (kind: SpreadPresentation['kind']) => Promise<void>;
   actions: DiagramLinkedPoseAction[];
   /**
    * The step detail's toolbar's verbs: {@link DiagramLinkedPose.actions}, but
@@ -153,8 +162,10 @@ export function useDiagramLinkedPose(
   const stepId = source ? step!.id : null;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const busy = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
+  const blockingCapture = useWorkspaceStore((state) => stepId !== null && state.diagramCaptures[stepId]?.blocksPose === true);
   // Each kept with the creases it was learnt from (`linkedFoldKey`): after a
   // Relink or an undo the step links to others, and these are not theirs.
+  const [connected, setConnected] = useState<{key: string; view: ConnectedSpreadView} | null>(null);
   const [spatial, setSpatial] = useState<{ key: string; view: DiagramPoseSpatialView } | null>(null);
   const [found, setFound] = useState<{ key: string; value: DiagramLinkedPoseState['solutions'] } | null>(null);
   const [measured, setMeasured] = useState<{ key: string; value: readonly number[] | null } | null>(null);
@@ -166,6 +177,7 @@ export function useDiagramLinkedPose(
       stepId === null
         ? null
         : createPoseController(stepId, {
+            connected: (view, key) => setConnected(view && key ? {key, view} : null),
             spatial: (view, key) => setSpatial(view && key ? { key, view } : null),
             solutions: (value, key) => setFound({ key, value }),
             mirrorAxes: (value, key) => setMeasured({ key, value }),
@@ -184,7 +196,7 @@ export function useDiagramLinkedPose(
     return () => {
       unregister();
       unlisten();
-      controller.dispose();
+      controller.dispose({flushOrbit:true});
       // Its preview goes with it, even one it could not take back itself.
       setPreviewed(null);
     };
@@ -199,7 +211,34 @@ export function useDiagramLinkedPose(
     if (controller && live && showsSpatial && !view) void controller.prepareSpatial();
   }, [controller, live, showsSpatial, view]);
 
-  const storedCamera = source?.render.mode === 'folded-3d' ? source.render.camera : null;
+  const flat = source?.render.mode === 'folded-flat' ? source.render : null;
+  const connectedKey = flat?.spread?.kind === 'connected' ? foldKey + ':' + flat.side + ':' + flat.foldCase : null;
+  const connectedView = connectedKey && connected?.key === connectedKey ? connected.view : null;
+  const [finishedPreparation, setFinishedPreparation] = useState<string | null>(null);
+  useEffect(() => {
+    if (!controller || !live || !connectedKey || connectedView) return;
+    let current = true;
+    setFinishedPreparation(null);
+    // The controller reports failures through the capture lifecycle. In either
+    // case stop waiting: an unavailable spread must not leave an endless veil.
+    const finish = () => { if (current) setFinishedPreparation(connectedKey); };
+    void controller.prepareConnected().then(finish, finish);
+    return () => { current = false; };
+  }, [controller, live, connectedKey, connectedView]);
+  // The saved source stays Affine until a switch to Default finishes capturing.
+  // Follow the operation from its start, then hand off to live-view preparation.
+  const connectedPreparing = !!(live && (blockingCapture || (connectedKey && !connectedView && finishedPreparation !== connectedKey)));
+  const onReveal = useCallback((reveal:[number,number]) => {
+    if (readOnly || !controller) return;
+    controller.previewSpread({ slider: 'reveal', value: reveal });
+    void controller.commitSpread();
+  },[controller,readOnly]);
+  const setPresentation = useCallback((kind: SpreadPresentation['kind']) => {
+    if (readOnly || !controller || !stepId) return Promise.resolve();
+    return queueStepPoseEdit(stepId, 'presentation', (current) =>
+      controller.run({ verb: 'spread-presentation', kind }, { current }));
+  }, [controller, readOnly, stepId]);
+  const storedCamera = source?.render.mode === 'folded-3d' ? source.render.camera : flat?.presentation?.camera ?? null;
   const onCamera = useCallback(
     (camera: FoldedFigureCamera) => controller?.orbit(camera, storedCamera),
     [controller, storedCamera]
@@ -314,8 +353,9 @@ export function useDiagramLinkedPose(
         controller.previewSpread(
           slider === 'amount'
             ? { slider, kind, value: clampSpreadAmount(kind, value) }
-            : { slider, value: slider === 'skew' ? clampSpreadSkew(value) : clampSpreadAxis(value) }
+            : { slider, value: slider === 'skew' ? clampSpreadSkew(value) : slider === 'axis' ? clampSpreadAxis(value) : Math.max(-2,Math.min(2,value)) }
         ),
+      previewReveal: (value) => controller.previewSpread({ slider: 'reveal', value }),
       commit: () => void controller.commitSpread(),
       start: () => !controls.disabled,
     };
@@ -390,6 +430,11 @@ export function useDiagramLinkedPose(
             layerOrderEdit,
             editLayerOrder,
             spatial: view,
+            connected: connectedView,
+            connectedPreparing,
+            connectedSpread: shownPreview?.spread.kind === 'connected' ? shownPreview.spread : flat?.spread?.kind === 'connected' ? flat.spread : null,
+            setPresentation,
+            onReveal,
             onCamera,
             registerLiveView,
             rotateTo,
@@ -410,6 +455,12 @@ export function useDiagramLinkedPose(
       layerOrderEdit,
       editLayerOrder,
       view,
+      connectedView,
+      connectedPreparing,
+      shownPreview,
+      flat,
+      setPresentation,
+      onReveal,
       onCamera,
       registerLiveView,
       rotateTo,

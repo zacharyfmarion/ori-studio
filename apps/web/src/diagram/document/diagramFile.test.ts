@@ -2776,6 +2776,19 @@ describe('a flat capture’s faces in the file (Revision 2)', () => {
 });
 
 describe('uploaded pictures in the file', () => {
+  it('round-trips the raster capture frame and rejects malformed frames', () => {
+    const { document } = uploadDiagram();
+    const written = throughJson(writeDiagram(document));
+    written.steps[1].picture.sceneFrame = [-10, 20, 100, 80];
+    const loaded = readDiagram(written)!;
+    expect(loaded.document.steps[1]).toMatchObject({ picture: { sceneFrame: [-10, 20, 100, 80] } });
+    expect(throughJson(writeDiagram(loaded.document)).steps[1].picture.sceneFrame).toEqual([-10, 20, 100, 80]);
+    for (const frame of [[0, 0, -1, 1], [0, 0, 1, 0], [0, 0, 1], [0, NaN, 1, 1], [0, 0, 1, 1, 1]]) {
+      written.steps[1].picture.sceneFrame = frame;
+      expect(readDiagram(written)!.document.steps[1]).toMatchObject({ picture: null });
+    }
+  });
+
   it('round-trips upload steps and their assets unchanged', () => {
     const { document } = uploadDiagram();
     const read = readDiagram(throughJson(writeDiagram(document)))!;

@@ -11,7 +11,7 @@
  * Nothing here knows about the crease pattern, so a later Design-side
  * inspector can reuse the field and protocol types unchanged.
  *
- * Fields hold *properties* — things with a value — in eight kinds, and a
+ * Fields hold *properties* — things with a value — in ten kinds, and a
  * property that cannot be expressed as one of them is a sign it is not a
  * property. Verbs on the object as a whole (Export…, Duplicate, Delete) may
  * also sit in the sheet's header, as `actions`, so a pane can read like the
@@ -20,9 +20,14 @@
  * looks"). They are the object's catalog verbs, the same ones its toolbar and
  * menu run, never new ones; and the one field kind that is pressed rather
  * than set, the stepper, steps a value — which layer order shows — rather
- * than standing in for a verb. Every one of these parts is optional: a kind
- * that uses none renders as it always has. Every verb, wherever it sits, is a
- * {@link ControlVerb}.
+ * than standing in for a verb. Two kinds were added on purpose, as the
+ * stepper was, for a flat folded figure's layer spread, laid out as the
+ * spread rows every other workspace uses (`components/paper/LayerSpreadRows`):
+ * `reveal`, a point dragged on a pad, and `direction`, one of eight ways; and
+ * one part, a segmented field's `credit`, names the note the spread rows draw
+ * beside Spread by while Affine is chosen.
+ * Every one of these parts is optional: a kind that uses none renders as it
+ * always has. Every verb, wherever it sits, is a {@link ControlVerb}.
  */
 
 import type { ControlVerb } from './controlVerb';
@@ -52,6 +57,12 @@ interface FieldBase {
   reason?: string;
   /** Translated history label. Absent for non-document fields (an app-wide preference). */
   undoLabel?: string;
+  /**
+   * Translated: what the property does, for one whose name cannot carry it —
+   * an info mark after the label (`FieldRow.help`). Drawn by the kinds whose
+   * rows have one: a toggle, a segmented control beside its label, a slider.
+   */
+  help?: string;
   /**
    * Put the property back to its default, when a default exists — a camera row
    * back to the fold's view. `ColorField.onClear`'s affordance generalised: a
@@ -110,6 +121,12 @@ export type ToggleField = FieldBase & {
    * pinning a value that merely agrees with it.
    */
   inherited?: boolean;
+  /**
+   * Why the switch cannot do what it says now, under its label, read with it
+   * (a folded figure's "Spread layers" on a 3D figure). A reason only: a
+   * toggle's note line is the one "Overridden" takes.
+   */
+  note?: FieldNote & { kind: 'reason' };
 } & DiscreteCommit<boolean>;
 /** `value: null` is the mixed state — nothing chosen, the placeholder shown. */
 export type SelectField = FieldBase & {
@@ -117,6 +134,14 @@ export type SelectField = FieldBase & {
   options: readonly PropertyOption[];
   placeholder?: string;
 } & DiscreteCommit<string | null>;
+/**
+ * A credit a renderer draws beside a field's label, by name — the catalog is
+ * JSX-free, as an icon's name keeps it: `affine-spread` is where affine
+ * spreading comes from (DEFOX), the note the spread rows draw beside Spread by
+ * (`AffineSpreadCredit`).
+ */
+export type PropertyCredit = 'affine-spread';
+
 export type SegmentedField = FieldBase & {
   kind: 'segmented';
   options: readonly PropertyOption[];
@@ -126,6 +151,8 @@ export type SegmentedField = FieldBase & {
    * their label in a narrow pane. Beside it otherwise.
    */
   layout?: 'beside' | 'stacked';
+  /** A credit beside the label while it applies: Spread by while Affine is chosen. */
+  credit?: PropertyCredit;
 } & DiscreteCommit<string | null>;
 export type NumberField = FieldBase & {
   kind: 'number';
@@ -144,6 +171,10 @@ export type SliderField = FieldBase & {
   max: number;
   step?: number;
   format?: (value: number) => string;
+  /** The slider's accessible name, when the label says less out of its section ("Amount": "Spread amount"). */
+  ariaLabel?: string;
+  /** What a value means, read in place of the bare number ("5% of the model"). */
+  valueText?: (value: number) => string;
 } & ContinuousCommit<number>;
 /** `value` is `#rrggbb`. */
 export type ColorField = FieldBase & {
@@ -197,6 +228,31 @@ export interface SteppedCommit {
  */
 export type StepperField = FieldBase & { kind: 'stepper'; note?: FieldNote } & SteppedCommit;
 
+/**
+ * A point in two dimensions, dragged on a pad — a Default layer spread's
+ * reveal: which way, and how far, the deeper layers come out. Its readout
+ * is how far, as a share of the pad; arrow keys step it, each step one
+ * commit. A drag is one gesture on the continuous protocol; `reset` puts
+ * the default back.
+ */
+export type RevealField = FieldBase & { kind: 'reveal' } & ContinuousCommit<readonly [number, number]>;
+
+/** The eight ways a compass offers, clockwise from up and to the left. */
+export type CompassDirection = 'up-left' | 'up' | 'up-right' | 'right' | 'down-right' | 'down' | 'down-left' | 'left';
+
+/**
+ * One of eight ways, round a centre — which way a depth spread's deeper
+ * layers step. Each option is a button named by its label; the one chosen is
+ * pressed; one press is one commit. On an 'unsupported' field every button is
+ * refused, keeping its place and the focus, with `reason` as its hint.
+ */
+export type DirectionField = FieldBase & {
+  kind: 'direction';
+  /** The group's accessible name ("Spread direction"), when the label says less out of its section. */
+  groupLabel?: string;
+  options: readonly { id: CompassDirection; label: string }[];
+} & DiscreteCommit<CompassDirection | null>;
+
 export type PropertyField =
   | ToggleField
   | SelectField
@@ -205,7 +261,9 @@ export type PropertyField =
   | TextField
   | SliderField
   | ColorField
-  | StepperField;
+  | StepperField
+  | RevealField
+  | DirectionField;
 
 export type PropertyFieldKind = PropertyField['kind'];
 

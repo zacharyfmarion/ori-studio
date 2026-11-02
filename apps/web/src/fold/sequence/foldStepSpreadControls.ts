@@ -1,3 +1,4 @@
+import { DEFAULT_FOLD_CONNECTED_SPREAD } from '../document/foldSpreadDefaults';
 /**
  * A Fold step's layer spread as its controls offer it (Wave 5): Spread Layers
  * on or off — the Step pane's switch and the canvas bar's toggle — and while
@@ -41,6 +42,7 @@ export type FoldSpreadChange =
   | 'spread_direction'
   | 'spread_keep'
   | 'spread_skew'
+  | 'spread_reveal'
   | 'spread_axis';
 
 /** What the controls are of. */
@@ -60,7 +62,7 @@ export interface FoldStepSpreadState {
  */
 export interface FoldSpreadSitting {
   session: number;
-  slider: SpreadSlider | null;
+  slider: SpreadSlider | 'reveal' | null;
   /** The spread the newest move that changed anything left; null while none has. */
   left: LayerSpreadOptions | null;
 }
@@ -89,10 +91,13 @@ export interface FoldStepSpreadControls {
   origin: FoldEffectiveSpread['origin'];
 }
 
-const SLIDER_CHANGE: Record<SpreadSlider, FoldSpreadChange> = {
+const SLIDER_CHANGE: Record<SpreadSlider | 'reveal', FoldSpreadChange> = {
   amount: 'spread_amount',
   skew: 'spread_skew',
   axis: 'spread_axis',
+  reveal: 'spread_reveal',
+  'reveal-x': 'spread_reveal',
+  'reveal-y': 'spread_reveal',
 };
 
 /**
@@ -135,6 +140,7 @@ export function foldStepSpreadControls(state: FoldStepSpreadState, deps: FoldSte
     origin: effective.origin,
     spread: {
       ...controls,
+      defaultAmount: DEFAULT_FOLD_CONNECTED_SPREAD.amount,
       start: () => {
         if (disabled) return false;
         open();
@@ -145,7 +151,14 @@ export function foldStepSpreadControls(state: FoldStepSpreadState, deps: FoldSte
         // A key's step comes with no drag before it: a sitting of its own.
         const sitting = deps.sitting.current ?? open();
         sitting.slider = slider;
-        const next = withSpreadField(shown, spreadSliderEdit(slider, shown.kind, value));
+        const next = withSpreadField(sitting.left ?? shown, spreadSliderEdit(slider, shown.kind, value));
+        if (deps.set(next, sitting.session)) sitting.left = next;
+      },
+      previewReveal: (reveal) => {
+        if (disabled || shown.kind !== 'connected') return;
+        const sitting = deps.sitting.current ?? open();
+        sitting.slider = 'reveal';
+        const next = withSpreadField(sitting.left ?? shown, { verb: 'spread-reveal', reveal });
         if (deps.set(next, sitting.session)) sitting.left = next;
       },
       commit: () => {

@@ -322,3 +322,33 @@ describe('a paper pane', () => {
     expect(canvas.style.cursor).toBe('');
   });
 });
+
+it('composes external paper with transparent overlays and releases its redraw callback', () => {
+  const unregister = vi.fn();
+  const onFrame = vi.fn();
+  const registerRedraw = vi.fn(() => unregister);
+  mount({ externalPaper: { layer: <div data-testid="external-paper" />, onFrame,
+    presentedFrame: () => null, registerRedraw } });
+  expect(host?.querySelector('[data-testid="external-paper"]')).not.toBeNull();
+  expect(onFrame).toHaveBeenCalled();
+  expect(channels.last.get('render')).toMatchObject({ clearColor: [0, 0, 0, 0] });
+  act(() => root?.unmount()); root = null;
+  expect(unregister).toHaveBeenCalledOnce();
+});
+
+it('withholds picking and host gestures while preparation blocks the pane', () => {
+  const onPick = vi.fn();
+  const down = vi.fn(() => false);
+  const canvas = mount({ blocked: true, onPick, gesture: { down, move: () => false, end: () => false } });
+  click(canvas, 200, 200);
+  expect(down).not.toHaveBeenCalled();
+  expect(onPick).not.toHaveBeenCalled();
+});
+
+it('requests the first external paper frame when async preparation becomes ready', () => {
+  mount();
+  const onFrame = vi.fn();
+  mount({ externalPaper: { layer: <div />, onFrame, presentedFrame: () => null, registerRedraw: () => () => {} } });
+  expect(onFrame).toHaveBeenCalled();
+  expect(channels.last.get('render')).toMatchObject({ clearColor: [0, 0, 0, 0] });
+});

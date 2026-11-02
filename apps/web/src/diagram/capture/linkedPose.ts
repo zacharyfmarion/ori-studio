@@ -1,3 +1,6 @@
+import {withSpreadCamera} from '../../layer-spread/presentation';
+import type { SpreadPresentation } from '../../layer-spread/presentation';
+import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 /**
  * What a Pose verb does to a linked step's picture (D5): the new render, and
  * the picture taken in it, from the creases its scope chooses today. The fold
@@ -74,6 +77,7 @@ import { uprightTurn } from './mirrorAxes';
 export type LinkedPoseRequest =
   | { verb: DiagramLinkedPoseVerb }
   | { verb: 'orbit'; camera: FoldedFigureCamera }
+  | { verb: 'spread-presentation'; kind: SpreadPresentation['kind'] }
   | { verb: 'rotate-to'; degrees: number }
   | { verb: 'spread-kind'; kind: SpreadKind }
   // One value of the spread, as every flat picture's spread is set (`layerSpreadSettings.ts`).
@@ -149,6 +153,7 @@ export interface LinkedPoseInput {
 
 /** A flat fold's pose: which side, turned how far, which layer order, its layers spread or not. */
 interface FlatPose {
+  presentation?: SpreadPresentation;
   side: 'front' | 'back';
   rotationDeg: number;
   foldCase: number;
@@ -192,7 +197,7 @@ export async function poseLinkedStep(
    * held fold (H8): the pose stays, its layer order is the dialog's.
    */
   const flat = async (
-    { side, rotationDeg, foldCase, spread }: FlatPose,
+    { side, rotationDeg, foldCase, spread, presentation }: FlatPose,
     move?: 'turn-over' | 'next-solution',
     knownCases?: number,
     { upright = false, applied }: { upright?: boolean; applied?: AppliedLayerOrder } = {}
@@ -210,7 +215,7 @@ export async function poseLinkedStep(
     if (move === 'next-solution') state = await session.nextSolution();
     const mirrorAxes = await session.flatMirrorAxes();
     const turn = upright ? (uprightTurn(mirrorAxes, rotationDeg) ?? rotationDeg) : rotationDeg;
-    const picture = await session.flatPicture(turn, spread);
+    const picture = await session.flatPicture(turn, spread, presentation);
     return {
       status: 'posed',
       render: {
@@ -219,6 +224,7 @@ export async function poseLinkedStep(
         rotationDeg: turn,
         foldCase: state.foldCase,
         ...(spread ? { spread } : {}),
+        ...(presentation ? { presentation } : {}),
       },
       picture,
       noLayerOrder: state.noLayerOrder,
@@ -354,7 +360,19 @@ export async function poseLinkedStep(
   }
   if (render.mode === 'folded-flat') {
     const { rotationDeg, foldCase, spread } = render;
-    const pose: FlatPose = { side: render.side, rotationDeg, foldCase, ...(spread ? { spread } : {}) };
+    const pose: FlatPose = { ...render };
+    if (request.verb === 'spread-presentation' && spread?.kind === 'connected') {
+      return flat({...pose, presentation: {...render.presentation, kind: request.kind,
+        camera: render.presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA, orderSide: render.presentation?.orderSide ?? 'front'}});
+    }
+    if (request.verb === 'orbit' && spread?.kind === 'connected' && render.presentation?.kind === 'perspective') {
+      return flat({...pose, presentation: withSpreadCamera(render.presentation,request.camera)});
+    }
+    if(spread?.kind==='connected' && render.presentation?.kind==='perspective') {
+      const camera = verb==='turn-over' ? antipodalCamera(render.presentation.camera)
+        : verb==='view-top' ? VIEW_TOP : verb==='reset' ? DEFAULT_FOLDED_3D_CAMERA : null;
+      if(camera)return flat({...pose,presentation:withSpreadCamera(render.presentation,camera)});
+    }
     switch (verb) {
       case 'show-folded':
         return flat(pose);
@@ -392,6 +410,8 @@ export async function poseLinkedStep(
       case 'spread-direction':
       case 'spread-keep':
       case 'spread-skew':
+      case 'spread-reveal':
+      case 'spread-reveal-axis':
       case 'spread-axis':
         // Only a spread there is takes a value: one undone under the drag stays off.
         if (!spread || !isSpreadFieldRequest(request)) return flat(pose);

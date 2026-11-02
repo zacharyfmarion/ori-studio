@@ -12,7 +12,7 @@ const pose = (): DiagramLinkedPose => ({
   layerOrder: null,
   layerOrderEdit: null,
   editLayerOrder: async () => false,
-  spatial: null,
+  spatial: null, connected: null, connectedPreparing: false, connectedSpread: null, setPresentation: async () => {}, onReveal: () => {},
   onCamera: () => {},
   registerLiveView: () => () => {},
   rotateTo: () => {},

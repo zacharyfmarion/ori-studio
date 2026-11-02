@@ -21,6 +21,7 @@ import {
 import { foldedFigureActionIconNode } from './foldedFigureActionIcons';
 import { choiceMenuItems, styleMenuItems } from './foldedFigureMenuItems';
 import { foldedSolutionCursorVersion, subscribeFoldedSolutionCursor } from './foldedSolutionCursor';
+import { useFoldedFigureSpreadReachVersion } from './foldedFigureSpreadReach';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
 import { ToolbarSeparator } from '../../components/ui/Toolbar';
 
@@ -175,7 +176,10 @@ export function CpFoldedFigureToolbar({
   deps: Omit<FoldedFigureActionDeps, 't'>;
 }) {
   const { t } = useTranslation();
-  const box = useMemo(() => foldedFigureBox(figure), [figure]);
+  // A spread figure's box takes its spread in once it is drawn.
+  const spreadReach = useFoldedFigureSpreadReachVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the reach is read through the box
+  const box = useMemo(() => foldedFigureBox(figure), [figure, spreadReach]);
   // Subscribed in this small component (not the panel) so the toolbar tracks the
   // camera live; see useCanvasObjectAnchor.
   const anchorRect = useCanvasObjectAnchor(box, 'user', container);

@@ -222,6 +222,7 @@
     "folded": {
       "appearance": "모양",
       "camera": "카메라",
+      "changeSpread": "층 벌림 변경",
       "changeView": "접힌 모델 보기 변경",
       "chosenOrder": "선택한 순서",
       "chosenOrderAttention": "선택한 겹침 순서를 확인해야 합니다",
@@ -247,6 +248,12 @@
       "refoldToChange": "이 모델의 모양을 바꾸려면 다시 접으세요",
       "rotation": "회전",
       "scale": "크기",
+      "shadowSpread": "층을 벌린 그림에는 그림자가 그려지지 않습니다",
+      "spread": "층 벌림",
+      "spreadNeedsLook": "종이와 투시 보기만 층을 벌릴 수 있습니다",
+      "spreadNewer": "더 새로운 Ori Studio로 만들어졌습니다. 여기서는 층 벌림을 바꿀 수 없습니다.",
+      "spreadRefold": "벌림을 보려면 다시 접으세요",
+      "spreadUnavailable": "이 층들을 벌릴 수 없습니다",
       "yaw": "회전 각도",
       "zoom": "확대"
     },
@@ -1503,6 +1510,7 @@
       "pause": "일시정지",
       "percent": "{{value}}%",
       "play": "재생",
+      "preparing": "포즈 준비 중…",
       "previousSolution": "이전 층 순서",
       "reset": "포즈 초기화",
       "resetHint": "이미 처음 자세입니다",
@@ -1540,6 +1548,7 @@
       "spreadKeepTop": "위",
       "spreadKind": "벌림 방식",
       "spreadKindAffine": "아핀",
+      "spreadKindConnected": "기본값",
       "spreadKindDepth": "깊이",
       "spreadLayers": "층 벌리기",
       "spreadLayersRow": "층 벌리기",
@@ -1621,6 +1630,15 @@
       "unreadableCard": "이 카드의 그림을 읽을 수 없어 추가할 수 없습니다.",
       "ways_other": "{{count}}가지 방법",
       "withTurnOver": "앞의 뒤집기 포함"
+    },
+    "spread": {
+      "diagram": "도해",
+      "drag": "드래그하여 층 드러내기",
+      "padHint": "드래그하여 레이어를 드러냅니다. 방향키로 조절하고 Shift를 누르면 더 크게 이동합니다.",
+      "perspective": "원근 3D",
+      "presentation": "표현 방식",
+      "reveal": "층 드러내기",
+      "revealHint": "드래그하여 층 드러내기 · 스크롤하여 확대/축소"
     },
     "stepPane": {
       "annotate": "주석",
@@ -1799,6 +1817,7 @@
       "startsBranch": "새 분기를 시작합니다"
     },
     "canvas": {
+      "adjustSpread": "층 간격 조정",
       "creasePattern": "전개도",
       "creasePatternLabel": "지금까지의 전개도(앞면이 위). 점과 접은 선을 클릭해 접을 위치를 정하세요.",
       "flatCreases": "평평한 접은 선",
@@ -2579,6 +2598,9 @@
       "switchBranch": "분기 전환",
       "tagBranch": "새 분기",
       "tagNext": "다음"
+    },
+    "spread": {
+      "unavailable": "이 상태에서는 층 간격을 표시할 수 없습니다"
     },
     "step": {
       "blocks": "블록",

@@ -13,6 +13,8 @@ import type { RegionReference } from '../../cp-workspace/regions/regionReference
 import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import type { DocumentPaperStyle } from '../../lib/paper/documentPaperStyle';
 import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
+import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { CreasePatternSpreadDrawn } from '../../analytics/trackCreasePatternExport';
 import type { PinSet } from '../../simulator/tools/pinSet';
 import type {
   SimulatorToolId,
@@ -51,7 +53,7 @@ import type {
   CreaseExportOptions,
 } from '../../lib/creaseExport';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
-import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
+import type { CreaseExportFoldResult, CreaseExportLayerOrderHost } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import type { KeptCamera } from '../../hooks/useViewportSurface';
@@ -122,6 +124,7 @@ import type { PaperStyleOverrides } from '../../lib/paper/paperStyle';
 import type { FoldPress } from '../../cp-workspace/folded/foldPress';
 import type { LayerOrderSolutionPress } from '../../layer-order/host/solutionCursorTable';
 import type { FoldedFigureLayerOrderRefold } from '../../cp-workspace/folded/foldedFigureLayerOrderState';
+import type { FoldedFigureSpread } from '../../cp-workspace/folded/foldedFigureSpread';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
@@ -542,6 +545,18 @@ export interface ProjectSliceActions {
      * share and crease-pattern export; null when the card shows no figure.
      */
     foldedFigureStyle?: PaperExportStyleChoice | null;
+    /**
+     * The card's figure's layer spread setting, remembered with its style for
+     * the next share and crease-pattern export; null for none.
+     */
+    foldedFigureSpread?: LayerSpreadOptions | null;
+    /**
+     * How the card's figure's layers are spread in the card, for analytics: its
+     * kind and whether vector or a bitmap; null for none, or no figure.
+     */
+    foldedFigureSpreadDrawn?: CreasePatternSpreadDrawn | null;
+    /** Whose layer order the card's figure is drawn in: one chosen in the Layer order dialog, or the kernel's. */
+    foldedFigureLayerOrder?: 'default' | 'chosen';
   }) => Promise<boolean>;
   /**
    * Fold the drafted share's pattern for its card preview. Injected through the store
@@ -551,6 +566,12 @@ export interface ProjectSliceActions {
   foldOristudioCpShareFigure: (
     settings: CreaseExportFoldedFigureSettings
   ) => Promise<CreaseExportFoldResult>;
+  /**
+   * The Layer order dialog's host for the drafted share's figure (`useExportLayerOrder`),
+   * as the export dialog's `layerOrderHost` is: null with no draft, or no editable
+   * crease pattern to fold.
+   */
+  oristudioCpShareLayerOrderHost: () => CreaseExportLayerOrderHost | null;
   /** Close the share modal and drop the generated link. */
   dismissOristudioCpShare: () => void;
   /** Record a share payload for the Edit surface to open. Set by `/s` only. */
@@ -1422,6 +1443,14 @@ export interface CreasePatternSliceActions {
     field: F,
     value: PaperStyleValue<F> | undefined
   ) => boolean;
+  /**
+   * Set a figure's layer spread, or clear it with `null`. Selects the figure,
+   * as editing its appearance does. A document edit with no history push of
+   * its own, on the same terms as {@link setOristudioCpFoldedFigureAppearance}:
+   * the undo entry is the caller's bracket. A spread equal to the one held
+   * leaves the figure entry as it is. `false` when there is no such figure.
+   */
+  setOristudioCpFoldedFigureSpread: (id: string, spread: FoldedFigureSpread | null) => boolean;
   /**
    * Rebuild every 3D figure's stored picture at the style it now follows.
    *

@@ -13,6 +13,11 @@
  *   folded, and cannot be re-lit: the hint says so.
  * - **A flat figure with a live kernel** paints the kernel's paper scene,
  *   fetched once at open; only the hidden test rebuilds it.
+ * - **A flat figure whose layers are spread**, wherever the canvas draws
+ *   them spread (`foldedFigureSpreadDrawable`), exports its spread as the
+ *   canvas draws it (`foldedFigureSpreadExport.ts`): built from the paper
+ *   scene read at open — its live fold's, or the one its file carried —
+ *   in the canvas's frame, turned as the figure is.
  * - **Anything else** — a flat figure reopened from a file, one in a display
  *   style the paper scene has no form for, or a fold with no layer order —
  *   exports its stored render snapshot as it was drawn: a fixed picture, the
@@ -32,11 +37,17 @@ import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
 import type { Point } from '../../lib/geometry';
 import type { PaperExportTarget } from '../../paperExport/paperExportTarget';
+import { foldedFigurePivot } from '../adapters/cpFoldedToScene';
 import { folded3dSceneStyleKey } from './folded3dScene';
 import { folded3dFigureScene, folded3dStoredSceneInCssPx } from './folded3dStoredScene';
 import { foldedFigureExportDocument } from './foldedFigureExport';
+import { foldedFigureSpreadOptions } from './foldedFigureSpread';
+import { foldedFigureSpreadExport, scaledSpreadFrame } from './foldedFigureSpreadExport';
+import { foldedFigureSpreadFrame } from './foldedFigureSpreadFrame';
 import { foldedFlatFigureScenePxPerUnit } from './foldedFlatFigureExport';
 import { foldedFlatPaperScene } from './foldedFlatScene';
+import { foldedFigureSpreadDrawable } from './foldedFlatSpreadScene';
+import type { LayerSpreadOptions } from './foldedLayerSpread';
 
 /** The figure's picture, in the form it can give it. */
 export type FoldedFigureExportPicture =
@@ -50,6 +61,7 @@ export type FoldedFigureExportPicture =
     }
   | { kind: 'stored-3d'; scene: PaperScene }
   | { kind: 'flat'; kernel: OristudioCpFoldedPaperScene; cssPerUserUnit: number }
+  | { kind: 'spread'; kernel: OristudioCpFoldedPaperScene; spread: LayerSpreadOptions; cssPerUserUnit: number }
   | { kind: 'fixed'; svg: string; widthPx: number; heightPx: number };
 
 export interface FoldedFigureExportCapture {
@@ -77,6 +89,12 @@ export function foldedFigureExportPicture(
     cssPerUserUnit: number;
   }
 ): FoldedFigureExportPicture | null {
+  const spread = foldedFigureSpreadOptions(figure);
+  if (spread && foldedFigureSpreadDrawable(figure)) {
+    // The scene the canvas spreads: the live fold's, or the one a reopened figure's file carried.
+    const kernel = figure.handle != null ? runtime.kernel : (figure.spreadScene ?? null);
+    if (kernel && kernel.faces.length > 0) return { kind: 'spread', kernel, spread, cssPerUserUnit: runtime.cssPerUserUnit };
+  }
   if (figure.folded3d) {
     // Carried into the space the live path builds at, so the same figure
     // exports at one ink-to-paper ratio whether or not it was rehydrated.
@@ -161,6 +179,24 @@ export function foldedFigureExportTarget({
           });
           return scene.items.length > 0 ? scene : null;
         },
+      };
+    }
+    case 'spread': {
+      // The canvas's frame — the paper map, then the figure's turn about its
+      // pivot — at the figure's size on the canvas, as its flat export is.
+      const frame = scaledSpreadFrame(
+        foldedFigureSpreadFrame(foldedFigurePivot(figure), figure.placement.rotation),
+        figure.placement.scale * picture.cssPerUserUnit
+      );
+      const exported = foldedFigureSpreadExport(picture.kernel, picture.spread, frame);
+      return {
+        ...base,
+        // Spread apart, a buried layer shows what it shows: every face is kept, and none is hidden.
+        buriesFaces: false,
+        // A bitmap, if the spread needs one, is drawn in the page's pens and size.
+        sceneKey: ({ style, sheet }) => `spread|${sheet.mm}|${JSON.stringify(style)}`,
+        buildScene: async ({ style, sheet }) => exported.scene({ style: base.paintStyle(style), mm: sheet.mm }),
+        release: () => exported.release(),
       };
     }
     case 'fixed':

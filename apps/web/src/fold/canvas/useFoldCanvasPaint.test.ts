@@ -7,7 +7,7 @@ import type { FoldScene, FoldStateSummary } from '../engine/foldEngineWire';
 import { bookScene, flatSquareScene } from './foldCanvas.fixtures';
 import { foldPickIndex } from './foldPicking';
 import { FOLD_PANE_DISPLAY_DEFAULT, foldedDisplayOffset } from './foldPaneScenes';
-import { foldedFormKey, useFoldCanvasPaint, type FoldCanvasPaint } from './useFoldCanvasPaint';
+import { foldedPreviewScene, foldedFormKey, useFoldCanvasPaint, type FoldCanvasPaint } from './useFoldCanvasPaint';
 import type { FoldStateView } from './useFoldStateView';
 import type { FoldToolPreview } from './useFoldToolPreview';
 
@@ -92,6 +92,12 @@ describe('Rotate’s preview on the panes', () => {
     // Another form: the pane keeps it in view as it keeps a new step's.
     expect(still.folded.keepInView).toBe('fstep-1');
     expect(turning.folded.keepInView).toBe('fstep-1|turned:0,-1,0,1,0,0');
+  });
+
+  it('selects the turned scene for the worker too, with order previews taking precedence', () => {
+    expect(foldedPreviewScene({ ...idle, turned }, null)).toBe(turned);
+    expect(foldedPreviewScene({ ...idle, turned }, book)).toBe(book);
+    expect(foldedPreviewScene(idle, null)).toBeNull();
   });
 
   it('leaves the crease pattern as it is: front up, the state on screen’s', () => {
