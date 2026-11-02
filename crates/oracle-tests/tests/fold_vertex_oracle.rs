@@ -9,7 +9,8 @@
 //! - **The spike's named cases** (`cases.mjs`), built by the engine's own
 //!   `tests/vertex/cases.rs`: the preliminary base by the diagonal route (and
 //!   in mirror image) and the waterbomb base by the midline route, each
-//!   squash; the bird base's two petal folds, both ways, over precreases and
+//!   squash; a flap whose walls are two plies each, opened between them and
+//!   off them; the bird base's two petal folds, both ways, over precreases and
 //!   with H named by its two ends and creased by the folds (the kites too,
 //!   or precreased), and each petal fold with H through two points along
 //!   the flap that lands; every rabbit ear's
@@ -107,6 +108,21 @@ fn named() -> Vec<Landed> {
     ] {
         for (k, (_, folded)) in route.steps.into_iter().enumerate() {
             push(format!("{name} step {k}"), folded.state);
+        }
+    }
+    // A flap whose walls are two plies each: opened between its walls, under
+    // its top ply and over its bottom one, each order that lands.
+    let walls = cases::two_ply_walls();
+    for opening in [None, Some(1), Some(3)] {
+        let op = cases::two_ply_squash(&walls, opening);
+        for (k, folded) in cases::every(walls.squash(&op, &VertexChoices::default()))
+            .into_iter()
+            .enumerate()
+        {
+            push(
+                format!("two-ply walls opening {opening:?} c{k}"),
+                folded.state,
+            );
         }
     }
     // H through two points anywhere along the flap: each that lands.

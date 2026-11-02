@@ -371,7 +371,7 @@ const OP_KEYS = new Map<string, ReadonlySet<string>>([
   ['pleat', new Set([...ALONG_LINE_KEYS, 'second', 'secondRoot', 'resolved'])],
   ['crimp', new Set([...ALONG_LINE_KEYS, 'second', 'crimp'])],
   ['tuck', new Set([...ALONG_LINE_KEYS, 'direction', 'target', 'additionalTargets'])],
-  ['squash', new Set(['kind', 'flap', 'target', 'direction', 'hinge'])],
+  ['squash', new Set(['kind', 'flap', 'target', 'direction', 'hinge', 'opening'])],
   // H by `crease` or by `ends`, one of the two (`FoldPetalOp`).
   ['petal', new Set(['kind', 'crease', 'ends', 'petal', 'direction'])],
   ['rabbit-ear', new Set(['kind', 'corners', 'emergent', 'seed', 'stayer', 'direction', 'ridge'])],
@@ -591,8 +591,19 @@ function readVertexOp(kind: FoldVertexOpKind, value: Record<string, unknown>): F
       const target = optional('target');
       // A drawn hinge, when one is spelled; one that does not read locks the step.
       const hinge = value.hinge === undefined ? undefined : readLocatedLine(value.hinge);
-      if (!flap || target === null || hinge === null) return null;
-      return { kind, flap, ...(target ? { target } : {}), direction, ...(hinge ? { hinge } : {}) };
+      // Where a flap of several plies opens, when not between its walls: a
+      // count of layers, or the step locks.
+      const opening = value.opening;
+      const opens = opening === undefined || (typeof opening === 'number' && Number.isInteger(opening) && opening >= 1);
+      if (!flap || target === null || hinge === null || !opens) return null;
+      return {
+        kind,
+        flap,
+        ...(target ? { target } : {}),
+        direction,
+        ...(hinge ? { hinge } : {}),
+        ...(typeof opening === 'number' ? { opening } : {}),
+      };
     }
     case 'petal': {
       const petal = readPoint(value.petal);
@@ -1170,6 +1181,7 @@ function writeVertexOp(op: FoldVertexOp): Record<string, unknown> {
         ...optional('target', op.target),
         direction: op.direction,
         ...(op.hinge ? { hinge: writeLocatedLine(op.hinge) } : {}),
+        ...(op.opening !== undefined ? { opening: op.opening } : {}),
       };
     case 'petal':
       // The precrease form exactly as it was always written; the ends form

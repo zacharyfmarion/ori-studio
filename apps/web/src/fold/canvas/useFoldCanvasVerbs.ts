@@ -191,6 +191,8 @@ export interface FoldCanvasVerbs {
   takeEmergent: (direction: FoldModelPoint) => void;
   /** Step through how many layers at a fan's center are cut. */
   stepFanLayers: (delta: number) => void;
+  /** Step a squash of several plies through the openings that land. */
+  stepSquashOpening: (delta: number) => void;
   /** Put a squash's spine back onto its hinge line. */
   resetSquashTarget: () => void;
   /** Name a petal fold's hinge, or a swivel's target, by a crease or by two points. */
@@ -843,6 +845,15 @@ export function useFoldCanvasVerbs(
         const now = state().compound.fanLayers ?? layers;
         const next = ((((now - 1 + delta) % layers) + layers) % layers) + 1;
         tools.setFanLayers(next >= layers ? null : next);
+      },
+
+      stepSquashOpening: (delta) => {
+        const squash = live.current.preview.vertex?.squash;
+        if (!squash) return;
+        // Among the openings that land, round and round (the fourth creases' stepping);
+        // the step stores one only off the walls (`withOpening`).
+        const next = steppedFourth(squash.openings, squash.opening, delta);
+        if (next !== null) tools.setSquashOpening(next);
       },
 
       resetSquashTarget: () => tools.setSquashTarget(null),

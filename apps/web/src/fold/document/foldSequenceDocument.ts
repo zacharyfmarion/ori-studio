@@ -401,6 +401,13 @@ export type FoldModelDirection = readonly [number, number];
  * it. Only a drawn hinge is spelled, so every other squash reads and writes
  * as it always did; a build before it reads `hinge` as a key it does not
  * know and locks the step rather than squash the whole flap.
+ *
+ * A flap whose walls are several plies each — nested wraps on one spine —
+ * opens between its walls. `opening` opens it elsewhere: how many of its
+ * layers at the flap point, from the direction's side, lie above the
+ * opening (a depth at a sheet point, as a seed's `layers` is), spelled only
+ * when it is not between the walls. A build before it locks the step rather
+ * than open it between the walls.
  */
 export interface FoldSquashOp {
   kind: 'squash';
@@ -408,6 +415,7 @@ export interface FoldSquashOp {
   target?: FoldModelDirection;
   direction: FoldDirection;
   hinge?: FoldLocatedLine;
+  opening?: number;
 }
 
 /**

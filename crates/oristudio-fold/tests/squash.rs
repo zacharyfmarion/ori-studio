@@ -16,7 +16,7 @@ use oristudio_fold::{
     CompoundRefused, Direction, FaceId, FoldRefusal, Letter, NoFlap, Seed, Squash, State,
     VertexChoices, VertexOutcome,
 };
-use vertex::cases::{self, landed, squash_op};
+use vertex::cases::{self, landed, squash_op, two_ply_squash, two_ply_walls};
 use vertex::{Segment, check, folded_segments, frame_segments, symmetries_between};
 
 fn refusal(state: &State, op: &Squash) -> FoldRefusal {
@@ -71,6 +71,7 @@ fn a_squash_leaves_neighboring_attachments_and_their_cover_stationary() {
                         Direction::Valley
                     },
                     hinge: None,
+                    opening: None,
                 };
                 let result = landed(parent.squash(&op, &VertexChoices::default()));
                 check(&parent, &result);
@@ -293,6 +294,7 @@ fn a_drawn_hinge_keeps_the_cover_and_free_flap_checks() {
         target: None,
         direction: Direction::Valley,
         hinge: Some(hinge),
+        opening: None,
     };
     assert!(matches!(
         refusal(&parent, &op),
@@ -539,6 +541,7 @@ fn a_squash_needs_a_free_uncovered_two_layer_flap() {
         target: None,
         direction: Direction::Valley,
         hinge: None,
+        opening: None,
     };
     assert_eq!(
         refusal(&tri, &op),
@@ -687,6 +690,286 @@ fn the_spikes_campaign() {
     let start = std::time::Instant::now();
     let tally = campaign(1..=3, 1000);
     eprintln!("{tally:#?}\nin {:.1} s", start.elapsed().as_secs_f64());
+}
+
+// ---------------------------------------------------------------------------
+// A flap whose walls are several plies
+
+/// Where the lift meets the diagonal edge (the vertex), and the right edge.
+const E1: [f64; 2] = cases::PLY_WALLS_LIFT[0];
+const E2: [f64; 2] = cases::PLY_WALLS_LIFT[1];
+
+fn line(a: [f64; 2], b: [f64; 2]) -> oristudio_geometry::Line {
+    oristudio_geometry::Line::from_points(a, b).unwrap()
+}
+
+/// The sheet points of the layers at a model point, top first.
+fn layers_at(state: &State, at: [f64; 2]) -> Vec<[f64; 2]> {
+    state
+        .stack_at(at)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|f| state.isometry(f).unwrap().inverse().apply(at))
+        .collect()
+}
+
+fn near(a: [f64; 2], b: [f64; 2]) -> bool {
+    (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-9
+}
+
+#[test]
+fn a_flap_whose_walls_are_two_plies_squashes_between_them() {
+    let parent = two_ply_walls();
+    let op = two_ply_squash(&parent, None);
+    // The top two plies share no crease: before, `no_spine`.
+    let analysis = parent
+        .analyse_squash(&op)
+        .unwrap_or_else(|e| panic!("{e:?}"));
+    assert_eq!((analysis.layers, analysis.opening), (4, 2));
+    assert_eq!((analysis.upper.len(), analysis.lower.len()), (2, 2));
+
+    // The vertex where the lift meets the spine, the lift its hinge, the
+    // lifted diagonal its spine: the lifted corner T′.
+    let hinge = line(E1, E2);
+    let tip = hinge.reflect_point([1.0, 1.0]);
+    let spine = line(E1, tip);
+    assert!(near(analysis.vertex, E1), "{:?}", analysis.vertex);
+    assert!(analysis.hinge.approx_eq(&hinge));
+    assert!(analysis.spine.approx_eq(&spine));
+    // Every ply creases on the bisector, and the spine lands on the hinge:
+    // T′ at D, |E1 T′| along the hinge from E1 (the kite's far corner).
+    let unit = |v: [f64; 2]| {
+        let l = v[0].hypot(v[1]);
+        [v[0] / l, v[1] / l]
+    };
+    let (u, w) = (
+        unit([E2[0] - E1[0], E2[1] - E1[1]]),
+        unit([tip[0] - E1[0], tip[1] - E1[1]]),
+    );
+    let crease =
+        oristudio_geometry::Line::from_point_direction(E1, [u[0] + w[0], u[1] + w[1]]).unwrap();
+    assert!(analysis.lower_crease.approx_eq(&crease));
+    assert!(analysis.upper_crease.approx_eq(&crease));
+    let reach = (tip[0] - E1[0]).hypot(tip[1] - E1[1]);
+    assert!(near(
+        crease.reflect_point(tip),
+        [E1[0] + reach * u[0], E1[1] + reach * u[1]]
+    ));
+
+    let result = landed(parent.squash(&op, &VertexChoices::default()));
+    check(&parent, &result);
+    let state = &result.state;
+
+    // Each ply's paper where the squash takes it: on the spine side, the
+    // lower wall turned across the crease and the upper one about the
+    // vertex; on the hinge side, the upper wall back across the hinge and
+    // the lower one staying.
+    let at = |a: f64, b: f64| {
+        [
+            E1[0] + a * (tip[0] - E1[0]) + b * (E2[0] - E1[0]),
+            E1[1] + a * (tip[1] - E1[1]) + b * (E2[1] - E1[1]),
+        ]
+    };
+    let (spine_side, hinge_side) = (at(0.6, 0.1), at(0.1, 0.6));
+    let toward_spine = crease.signed_distance(w);
+    assert!(crease.signed_distance(spine_side) * toward_spine > 0.0);
+    assert!(crease.signed_distance(hinge_side) * toward_spine < 0.0);
+    let before_spine = layers_at(&parent, spine_side);
+    let before_hinge = layers_at(&parent, hinge_side);
+    // From the back, as a mountain, it is the same fold.
+    let back = parent.turn_over();
+    let mountain = Squash {
+        direction: Direction::Mountain,
+        ..op.clone()
+    };
+    let turned = landed(back.squash(&mountain, &VertexChoices::default()));
+    check(&back, &turned);
+    for (sheets, expected) in [
+        (
+            &before_spine,
+            [
+                crease.reflect_point(spine.reflect_point(spine_side)),
+                crease.reflect_point(spine.reflect_point(spine_side)),
+                crease.reflect_point(spine_side),
+                crease.reflect_point(spine_side),
+            ],
+        ),
+        (
+            &before_hinge,
+            [
+                hinge.reflect_point(hinge_side),
+                hinge.reflect_point(hinge_side),
+                hinge_side,
+                hinge_side,
+            ],
+        ),
+    ] {
+        for (ply, (&sheet, want)) in sheets.iter().zip(expected).enumerate() {
+            for (from, landed) in [("front", state), ("back", &turned.state)] {
+                let got = image(landed, sheet);
+                assert!(
+                    near(got, want),
+                    "{from}: ply {ply} at {sheet:?}: {got:?} != {want:?}"
+                );
+            }
+        }
+    }
+
+    // The layer order: nested as the walls were, the outer wrap outside.
+    // Where the lower wall's spine side lands, over its hinge side: the
+    // outer ply, the inner, then the inner and the outer as they stayed.
+    let kite_lower = crease.reflect_point(spine_side);
+    let below = layers_at(&parent, kite_lower);
+    let got = layers_at(state, kite_lower);
+    for (k, want) in [before_spine[3], before_spine[2], below[2], below[3]]
+        .into_iter()
+        .enumerate()
+    {
+        assert!(near(got[k], want), "lower half, layer {k}: {got:?}");
+    }
+    // Where the upper wall's spine side lands, over its hinge side turned
+    // back: nothing else there.
+    let kite_upper = crease.reflect_point(spine.reflect_point(spine_side));
+    let got = layers_at(state, kite_upper);
+    assert_eq!(got.len(), 4, "{got:?}");
+    for (k, want) in [before_spine[0], before_spine[1], below[1], below[0]]
+        .into_iter()
+        .enumerate()
+    {
+        assert!(near(got[k], want), "upper half, layer {k}: {got:?}");
+    }
+    // The sides seen: the outer plies, as they faced.
+    let up = |s: &State, sheet: [f64; 2]| s.front_up(s.face_at(sheet).unwrap()).unwrap();
+    assert_eq!(up(state, before_spine[3]), !up(&parent, before_spine[3]));
+    assert_eq!(up(state, before_spine[0]), up(&parent, before_spine[0]));
+
+    // The creases: both wraps unfold on the spine; the upper wall's hinge
+    // unfolds and the lower wall's stays; every ply creases on the bisector.
+    let folded_at = |ply: usize, on: [f64; 2], from: [f64; 2]| {
+        let face = parent.stack_at(from).unwrap()[ply];
+        let sheet = parent.isometry(face).unwrap().inverse().apply(on);
+        state.crease_at(sheet).map(|c| c.kind.is_folded())
+    };
+    let on_spine = at(0.5, 0.0);
+    let on_hinge = at(0.0, 0.5);
+    let on_crease = [E1[0] + 0.1 * (u[0] + w[0]), E1[1] + 0.1 * (u[1] + w[1])];
+    for ply in 0..4 {
+        assert_eq!(
+            folded_at(ply, on_spine, spine_side),
+            Some(false),
+            "spine, ply {ply}"
+        );
+        assert_eq!(
+            folded_at(ply, on_hinge, hinge_side),
+            Some(ply >= 2),
+            "hinge, ply {ply}"
+        );
+        assert_eq!(
+            folded_at(ply, on_crease, spine_side),
+            Some(true),
+            "crease, ply {ply}"
+        );
+    }
+
+    let replay = landed(parent.squash(&op, &result.report.stored));
+    assert_eq!(replay.state.parts(), state.parts());
+}
+
+#[test]
+fn a_flap_of_several_plies_opens_where_asked() {
+    let parent = two_ply_walls();
+    let between = landed(parent.squash(&two_ply_squash(&parent, None), &VertexChoices::default()));
+    // Asked between its walls, it is the squash it makes unasked.
+    let asked = landed(parent.squash(&two_ply_squash(&parent, Some(2)), &VertexChoices::default()));
+    assert_eq!(asked.state.parts(), between.state.parts());
+    // Under its top ply, or over its bottom one, the wrap inside riding
+    // closed with the wall below or above: other folds, each checked.
+    for (opening, upper) in [(1, 1), (3, 3)] {
+        let op = two_ply_squash(&parent, Some(opening));
+        let analysis = parent
+            .analyse_squash(&op)
+            .unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!((analysis.opening, analysis.upper.len()), (opening, upper));
+        let outcomes = cases::every(parent.squash(&op, &VertexChoices::default()));
+        assert!(!outcomes.is_empty(), "opening {opening} lands no way");
+        for folded in &outcomes {
+            check(&parent, folded);
+            assert_ne!(
+                folded.state.parts(),
+                between.state.parts(),
+                "opening {opening}"
+            );
+            let again = landed(parent.squash(&op, &folded.report.stored));
+            assert_eq!(again.state.parts(), folded.state.parts());
+        }
+    }
+    // Nowhere else.
+    for opening in [0, 4, 9] {
+        assert!(
+            matches!(
+                refusal(&parent, &two_ply_squash(&parent, Some(opening))),
+                FoldRefusal::SquashNoFlap {
+                    cause: NoFlap::OpeningOutside,
+                    ..
+                }
+            ),
+            "opening {opening}"
+        );
+    }
+}
+
+#[test]
+fn a_two_layer_flap_opens_only_between_its_layers() {
+    let tri = cases::small_triangle(false);
+    let op = squash_op(&tri, [0.1, 0.5], None);
+    let analysis = tri.analyse_squash(&op).unwrap_or_else(|e| panic!("{e:?}"));
+    assert_eq!((analysis.layers, analysis.opening), (2, 1));
+    let unasked = landed(tri.squash(&op, &VertexChoices::default()));
+    let asked = landed(tri.squash(
+        &Squash {
+            opening: Some(1),
+            ..op.clone()
+        },
+        &VertexChoices::default(),
+    ));
+    assert_eq!(asked.state.parts(), unasked.state.parts());
+    assert!(matches!(
+        refusal(
+            &tri,
+            &Squash {
+                opening: Some(2),
+                ..op
+            }
+        ),
+        FoldRefusal::SquashNoFlap {
+            cause: NoFlap::OpeningOutside,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn a_flap_of_several_plies_held_off_its_hinge_is_not_free() {
+    // The lifted flap's tip folded down through all four plies: each wall is
+    // held by its tip off the hinge and the spine.
+    let lifted = two_ply_walls();
+    let tip = line(E1, E2).reflect_point([1.0, 1.0]);
+    // Short of the body below, which it would fold too.
+    let a = [
+        tip[0] + 0.15 * (E1[0] - tip[0]),
+        tip[1] + 0.15 * (E1[1] - tip[1]),
+    ];
+    let b = [
+        tip[0] + 0.15 * (E2[0] - tip[0]),
+        tip[1] + 0.15 * (E2[1] - tip[1]),
+    ];
+    let held = cases::valley(&lifted, a, b, tip);
+    let op = two_ply_squash(&held, None);
+    let FoldRefusal::SquashFlapNotFree { faces, flap } = refusal(&held, &op) else {
+        panic!("{:?}", refusal(&held, &op));
+    };
+    assert!(!faces.is_empty() && faces.iter().all(|f| !flap.contains(f)));
+    assert!(flap.len() >= 4, "{flap:?}");
 }
 
 /// The mirrored route's steps are the spike route's mirror images, step by

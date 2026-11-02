@@ -20,6 +20,7 @@ import {
   fanAnchorAlternative,
   landingFourths,
   layerSheetPointAt,
+  squashOpenings,
   vertexAskedOp,
   vertexChosenOp,
   vertexStepFrom,
@@ -309,6 +310,41 @@ describe.skipIf(!available)('the vertex folds over the real bridge, as their too
       status: 'refused',
       refusal: { code: 'squash_no_flap', cause: 'single_layer' },
     });
+  });
+
+  /**
+   * A flap whose walls are two plies each (`cases.rs` `two_ply_walls`): the
+   * square folded on its anti-diagonal, then on its diagonal, and the corner
+   * beyond (0.8, 0.8)–(1, 0.4) lifted over that line. The paper there never
+   * moved before the lift, so its sheet points are its model points.
+   */
+  function twoPlyWalls({ calls }: Engine): number {
+    const sheet = landed(calls.sheet({ shape: { kind: 'square' }, startSide: 'front' })).state;
+    const half = landed(calls.step(sheet, valley([[0.9, 0.1], [0.6, 0.4]], [0.2, 0.2]))).state;
+    const quarter = landed(calls.step(half, valley([[0.6, 0.6], [0.9, 0.9]], [0.6, 0.9]))).state;
+    return landed(calls.step(quarter, valley([[0.8, 0.8], [1, 0.4]], [0.95, 0.9]))).state;
+  }
+
+  it('squashes a flap whose walls are two plies each between them, or where the folder steps it', async () => {
+    const engined = await engine();
+    const walls = twoPlyWalls(engined);
+    const clicked = intent({ picks: [free(p(0.85, 0.65))] });
+    // Between its walls, unasked: nothing stored, nothing more to ask.
+    const between = vertexFold(engined, walls, clicked);
+    expect(between.first.analysis).toMatchObject({ kind: 'squash', layers: 4, opening: 2 });
+    expect(squashOpenings(between.first)).toEqual([1, 2, 3]);
+    expect(between.again).toBe(false);
+    expect(between.built.step.op).not.toHaveProperty('opening');
+    land(engined, walls, between.built.step);
+    // Under its top ply, and over its bottom one: another fold each, asked
+    // again, its opening stored, and it lands with the order taken.
+    for (const opening of [1, 3]) {
+      const off = vertexFold(engined, walls, clicked, { ...NONE, squashOpening: opening });
+      expect(off.again).toBe(true);
+      expect(off.answer.analysis).toMatchObject({ kind: 'squash', opening });
+      expect(off.built.step.op).toMatchObject({ kind: 'squash', opening });
+      land(engined, walls, off.built.step);
+    }
   });
 
   /** The preliminary base: the small triangle squashed front and back. */

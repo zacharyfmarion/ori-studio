@@ -140,6 +140,11 @@ function noFlap(t: TFunction, cause: FoldNoFlap): string {
         'tools:fold.vertex.refusal.noFlap.hingeOffSpine',
         'The hinge line must cross the flap’s folded edge, with the end you click on one side of it.'
       );
+    case 'opening_outside':
+      return t(
+        'tools:fold.vertex.refusal.noFlap.openingOutside',
+        'The flap can’t open between those layers: they are joined somewhere other than its spine and hinge.'
+      );
   }
 }
 

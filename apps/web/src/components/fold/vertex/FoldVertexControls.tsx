@@ -49,12 +49,12 @@ export function FoldVertexDirection({ controls }: { controls: FoldVertexControls
 }
 
 /**
- * A vertex fold's choices: a squash's spine target, a fan's fourth crease
- * and layers, and the layer order — each only when there is a choice to
- * make.
+ * A vertex fold's choices: a squash's spine target and, for a flap whose
+ * walls are several plies, where it opens; a fan's fourth crease and layers;
+ * and the layer order — each only when there is a choice to make.
  */
 export function FoldVertexChoices({ controls }: { controls: FoldVertexControls }) {
-  const { target, emergent, emergentNote, layers, order } = controls;
+  const { target, opening, emergent, emergentNote, layers, order } = controls;
   return (
     <>
       {/* Moved by a click on the folded paper, as the steps above say. */}
@@ -79,6 +79,7 @@ export function FoldVertexChoices({ controls }: { controls: FoldVertexControls }
           </span>
         </FieldRow>
       )}
+      {opening && <FoldChoiceStepperRow stepper={opening} />}
       {emergent && <FoldChoiceStepperRow stepper={emergent} />}
       {/* Kept to its height whatever it says, so the rows under it never move. */}
       {emergentNote && (

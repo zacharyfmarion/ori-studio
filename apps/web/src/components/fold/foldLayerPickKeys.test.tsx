@@ -77,6 +77,7 @@ function verbs(): FoldCanvasVerbs {
     stepEmergent: vi.fn(),
     takeEmergent: vi.fn(),
     stepFanLayers: vi.fn(),
+    stepSquashOpening: vi.fn(),
     resetSquashTarget: vi.fn(),
     setVertexLineBy: vi.fn(),
     precreaseLine: vi.fn(),

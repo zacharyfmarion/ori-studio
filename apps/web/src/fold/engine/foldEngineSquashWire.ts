@@ -92,6 +92,14 @@ export interface FoldSquashAnalysis {
   /** The wedge from the hinge to the spine, radians, and the target's share of it. */
   wedge: number;
   share: number;
+  /**
+   * The flap's layers at the flap point — 2, or more when its walls are
+   * several plies each — and how many of them, from the direction's side,
+   * lie above where it opens (`FoldSquashOp`'s `opening`). Absent in a test
+   * double: two layers, opening under the first.
+   */
+  layers?: number;
+  opening?: number;
 }
 
 /**
@@ -283,6 +291,12 @@ export interface FoldVertexAnalysed {
    */
   emergents: boolean[];
   /**
+   * A squash of a flap whose walls are several plies: per opening, 1 to the
+   * analysis' `layers` − 1, whether it lands, its other inputs as asked.
+   * Absent for a two-layer flap and the other folds.
+   */
+  openings?: boolean[];
+  /**
    * A swivel on a folded edge's: valley, then mountain, as the viewer sees
    * them, each whether the fold lands that way, of the kind asked. Absent
    * for the other folds.
@@ -303,7 +317,13 @@ export interface FoldVertexAnalysed {
 // Refusals the tools read the fields of (`FoldRefusal`'s vertex block)
 
 /** Why there is no flap to squash at a point (`NoFlap`). */
-export type FoldNoFlap = 'single_layer' | 'no_spine' | 'no_hinge' | 'upper_not_hinged' | 'hinge_off_spine';
+export type FoldNoFlap =
+  | 'single_layer'
+  | 'no_spine'
+  | 'no_hinge'
+  | 'upper_not_hinged'
+  | 'hinge_off_spine'
+  | 'opening_outside';
 
 /**
  * Which crease of a petal fold is not precreased (`PetalCrease`). H named by
