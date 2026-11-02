@@ -413,8 +413,18 @@ fn landing_checked(c: &FoldSwivelCase, op: &SwivelByEdge, folded: &VertexFolded,
         SwivelKind::Inside => (opposite(given), given),
     };
     // The other layer is the paper the second crease cuts, and all of it
-    // joined flat (the edge's layer, folded to it, never is).
-    let letters = seen_letters(parent, folded, &a);
+    // joined flat (the edge's layer, folded to it, never is). The letters
+    // derived here are the folded edge's two layers'; paper the swivel
+    // creases through the stack (`compound::folded_swivel`) folds with
+    // whichever layer it moves with, and the full gate checks it.
+    let two = flat_closure(
+        parent,
+        a.fold.as_ref().map(|f| f.faces.clone()).unwrap_or_default(),
+    );
+    let letters: Vec<_> = seen_letters(parent, folded, &a)
+        .into_iter()
+        .filter(|(_, layer, _)| two.contains(layer))
+        .collect();
     let other = flat_closure(
         parent,
         letters
