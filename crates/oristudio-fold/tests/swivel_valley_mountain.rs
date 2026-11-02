@@ -3,7 +3,7 @@ mod support;
 mod vertex;
 use oristudio_fold::{
     CompoundRefused, CreaseKind, Direction, FoldRefusal, Letter, SegmentKind, State, SwivelByEdge,
-    SwivelKind, SwivelValleyMountain, VertexChoices, VertexFolded,
+    SwivelKind, SwivelRay, SwivelValleyMountain, VertexChoices, VertexFolded,
 };
 use oristudio_geometry::Line;
 use vertex::cases;
@@ -301,6 +301,161 @@ fn the_lines_can_meet_where_a_layers_edge_crosses_the_folded_edge() {
         ));
         // The folded edge below the crossing, under the flap, still folded.
         assert!(matches!(kind_at(after, [0.5, 0.25]), CreaseKind::Folded(_)));
+    }
+}
+
+/// The swivel the plain folded square takes in the tests above, open: on
+/// the front layer the mountain down to the left and the valley up to the
+/// left of the vertex (1/2, 1/2); the computed crease behind runs left and a
+/// little down from it.
+fn square_swivel() -> SwivelValleyMountain {
+    SwivelValleyMountain {
+        valley: Line::from_points([0.5, 0.5], [0.1, 0.8]).unwrap(),
+        mountain: Line::from_points([0.5, 0.5], [0.05, 0.1]).unwrap(),
+        kind: SwivelKind::Open,
+    }
+}
+
+/// Whether a landed state has a folded crease through the sheet point `at`.
+fn folded_at(state: &State, at: [f64; 2]) -> bool {
+    matches!(
+        state.crease_at(at).map(|c| c.kind),
+        Some(CreaseKind::Folded(_))
+    )
+}
+
+/// The layer behind folded back on itself first: its strip left of x = 1/5
+/// mountain folded behind it. The crease the swivel computes behind runs
+/// from the vertex into that fold, and the strip, hinged to the layer along
+/// the whole fold, holds the wedge that swings and the paper that stays
+/// together. It is creased along the same model ray — on its own sheet, the
+/// ray reflected in the fold — and the swivel lands flat.
+#[test]
+fn a_crease_runs_on_through_a_layer_folded_back_where_it_meets_a_fold() {
+    use support::*;
+    let state = folded_square();
+    let behind = state.stack_at([0.1, 0.5]).unwrap().len();
+    let strip = fold(
+        &state,
+        &depth(x_eq(0.2), [0.1, 0.5], Direction::Mountain, [0.1, 0.5], 1),
+    )
+    .state;
+    assert_eq!(behind, 2);
+    let op = square_swivel();
+    let analysis = strip
+        .analyse_swivel_valley_mountain(&op)
+        .unwrap_or_else(|e| panic!("refused: {:?}", e.refusal));
+    // The crease behind ends at the fold, where the strip is folded back.
+    let behind_to = analysis
+        .creases
+        .iter()
+        .rev()
+        .find(|c| c.ray == SwivelRay::Meet && c.hidden);
+    assert!(behind_to.is_some());
+    let folds = landed(&strip, &op);
+    assert!(!folds.is_empty());
+    // The ray meets the fold at height 1/2 − 3/10 · tan, and its reflection
+    // in x = 1/5 crosses the strip to the raw edge: on the strip's sheet,
+    // from (1/5, y0) to (0, y1).
+    let s = analysis.creases[0].direction;
+    let at = |x: f64| 0.5 + (x - 0.5) * s[1] / s[0];
+    let (y0, y1) = (at(0.2), at(0.4));
+    for folded in &folds {
+        assert_valid(&folded.state);
+        assert!(
+            folded_at(&folded.state, [0.1, (y0 + y1) / 2.0]),
+            "the strip is creased along the ray"
+        );
+        // Its fold to the layer stays folded on both sides of the crease.
+        assert!(folded_at(&folded.state, [0.2, 0.2]));
+        assert!(folded_at(&folded.state, [0.2, 0.8]));
+        let replay = cases::every(strip.swivel_valley_mountain(&op, &folded.report.stored));
+        assert!(same(&replay[0].state, &folded.state));
+    }
+    // Without the strip, the same swivel creases its two layers only.
+    let plain = landed(&state, &op);
+    assert!(plain.iter().all(|f| f.report.fold.created.len() == 3));
+}
+
+/// The square folded in quarters, the top half down and then the right half
+/// over: along x = 1/2 two folded edges lie nested, the outer one joining
+/// the top and bottom layers of the stack, the inner one the two between.
+/// The swivel names the outer one's front layer; the inner pair is hinged
+/// to the two layers along the half of the folded edge that opens and to the
+/// paper that stays along the half that does not, so it opens with it, each
+/// of its layers creased with the outer layer it lies against.
+#[test]
+fn a_fold_nested_in_the_folded_edge_opens_with_it() {
+    use support::*;
+    let flat = State::flat(
+        oristudio_fold::Sheet::square(),
+        oristudio_fold::StartSide::Front,
+    )
+    .unwrap();
+    let half = fold(&flat, &all(y_eq(0.5), [0.5, 0.8], Direction::Valley)).state;
+    let quarter = fold(&half, &all(x_eq(0.5), [0.8, 0.25], Direction::Valley)).state;
+    assert_eq!(quarter.stack_at([0.25, 0.25]).unwrap().len(), 4);
+    // On the front layer the valley down to the left and the mountain up to
+    // the left of (1/2, 1/4): the half of the folded edge above opens.
+    let op = SwivelValleyMountain {
+        valley: Line::from_points([0.5, 0.25], [0.2, 0.0]).unwrap(),
+        mountain: Line::from_points([0.5, 0.25], [0.1, 0.45]).unwrap(),
+        kind: SwivelKind::Open,
+    };
+    let analysis = quarter
+        .analyse_swivel_valley_mountain(&op)
+        .unwrap_or_else(|e| panic!("refused: {:?}", e.refusal));
+    assert_eq!(analysis.layers.len(), 2);
+    let folds = landed(&quarter, &op);
+    assert!(
+        !folds.is_empty(),
+        "{:?}",
+        quarter.swivel_valley_mountain(&op, &VertexChoices::default())
+    );
+    for folded in &folds {
+        assert_valid(&folded.state);
+        // Every layer is creased: three creases in each pair's two layers.
+        assert_eq!(folded.report.fold.created.len(), 6);
+        // Both folds lie flat along the half that opens — the outer pair's
+        // at sheet height 0.4, the inner pair's (its sheet turned down by
+        // the first fold) at 0.6 — and stay folded along the other half.
+        let state = &folded.state;
+        assert!(!folded_at(state, [0.5, 0.4]) && !folded_at(state, [0.5, 0.6]));
+        assert!(folded_at(state, [0.5, 0.05]) && folded_at(state, [0.5, 0.95]));
+    }
+}
+
+/// The folded square with its front layer's left strip folded over along
+/// x = 1/4, so that strip's raw edge lies along the folded edge and covers
+/// it: no part of the folded edge is in view. The lines still meet on it,
+/// and the strip, hinged to the front layer, is creased with it.
+#[test]
+fn the_lines_can_meet_on_a_folded_edge_hidden_under_a_layer() {
+    use support::*;
+    let book = folded_square();
+    let covered = fold(
+        &book,
+        &depth(
+            x_eq(0.25),
+            [0.1, 0.5],
+            Direction::Valley,
+            top_sheet_point(&book, [0.1, 0.5]),
+            1,
+        ),
+    )
+    .state;
+    let op = square_swivel();
+    let analysis = covered
+        .analyse_swivel_valley_mountain(&op)
+        .unwrap_or_else(|e| panic!("refused: {:?}", e.refusal));
+    assert!(support::close(analysis.vertex, [0.5, 0.5]));
+    let folds = landed(&covered, &op);
+    assert!(!folds.is_empty());
+    for folded in &folds {
+        assert_valid(&folded.state);
+        // The two layers' three creases, and the strip's two along the
+        // front layer's.
+        assert_eq!(folded.report.fold.created.len(), 5);
     }
 }
 

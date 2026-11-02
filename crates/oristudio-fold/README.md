@@ -221,6 +221,17 @@ Compound folds (plan D4, D15, Phases 9 and 11):
     let fold opposite the other three (a swivel's) `fan_fourth_cannot_rise`,
     each offering the rays that land. A stored order is replayed only when
     the fold leaves several; an older step's `ridge` is no longer read.
+  - `compound::swivel_on_edge`, `compound::swivel_valley_mountain`,
+    `compound::folded_swivel`: the swivel whose creases meet on a folded
+    edge, named by its edge onto a line or by its valley and mountain. Its
+    rays crease the folded edge's two layers; where paper beyond them holds
+    the wedges together (a tip hinged behind a layer, a corner folded back
+    where a ray meets a fold, a nested fold, a covering layer), every face is
+    given one of the swivel's four motions by material continuity and the
+    paper that lies across a ray is creased along it too — refused
+    `fan_ray_blocked` only when no such motion exists. The lines may meet on
+    a folded edge hidden under a layer, or where two flaps' folded edges
+    abut; several the swivel can fold on are `swivel_line_meeting`.
 - `compound::sink`: the open sink, the closed sink and the unsink (research
   §5.4). The point is one flap; its geometry is the plain fold of the whole
   point, so only letters and order are decided. Refused up front: an open

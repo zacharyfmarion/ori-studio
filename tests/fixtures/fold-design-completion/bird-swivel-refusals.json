@@ -1197,7 +1197,7 @@
         },
         "direction": "valley"
       },
-      "refusal": "fan_ray_blocked"
+      "refusal": "no_order"
     },
     {
       "model": "swan",
@@ -1228,7 +1228,7 @@
         "direction": "valley",
         "swivel": "inside"
       },
-      "refusal": "fan_ray_blocked"
+      "refusal": "no_order"
     },
     {
       "model": "swan",
@@ -1258,7 +1258,7 @@
         },
         "direction": "mountain"
       },
-      "refusal": "fan_ray_blocked"
+      "refusal": "no_order"
     },
     {
       "model": "swan",
@@ -1289,7 +1289,7 @@
         "direction": "mountain",
         "swivel": "inside"
       },
-      "refusal": "fan_ray_blocked"
+      "refusal": "no_order"
     },
     {
       "model": "crane",
