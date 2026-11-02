@@ -92,9 +92,13 @@ tuck and the vertex folds (squash, petal fold, rabbit ear, swivel) on it.
   the faces an operation moved cover, every pair outside them carried, and
   gives the whole problem's answer. Import CP and the compound folds use it.
 - `import`: Import CP (plan D16, D10's inverse) from plain segments, no kernel.
-  The sheet from the border (`outline::detect_border_loops`, one loop, square
-  or rectangle), matched against the sequence's sheet (a quarter turn when
-  that is what fits) or adopted by an empty sequence; B, M, V kept,
+  The sheet from the border (`outline::detect_border_loops`, one loop around
+  a convex sheet), matched against the sequence's sheet or adopted by an
+  empty sequence: a rectangle onto a rectangle in the outline code's frame (a
+  quarter turn when that is what fits), any other sheet — a regular or any
+  convex polygon — by its corners, turned, scaled and moved onto the sheet's
+  as little turned as its symmetry allows, a pattern already in the sheet's
+  frame through exactly the identity; B, M, V kept,
   unassigned with a hint a precrease, unassigned without one folded with its
   letter left to the completion, aux a guide; the planar graph and convex
   faces, refusing a crease that is no full chord; the root continuing the
@@ -354,7 +358,13 @@ Flat-Folder's search is called through `treemaker-flatfold`, not copied.
   the budget; Edit's folded figure through Oriedita's relations from either
   orientation; and a round trip of 129 seeded random folded states (2 to 52
   faces) through their crease patterns, each state's own order among the
-  choices its letters leave.
+  choices its letters leave. On polygon sheets: a folded hexagon and pentagon
+  and seeded random states on every regular 3- to 8-gon round-trip to the
+  same vertices to the bit; and a hexagon (along its three long diagonals)
+  and a pentagon (along its five axes) collapse in one import after their
+  precreased sheets into one wedge, with as many layer orders per letter
+  assignment as a brute-force count of the wedges finds (every one of the
+  hexagon's 64, a spread of the pentagon's 1024).
 - `tests/beloch_replay.rs`: every Beloch fixture's final frame
   (`tests/beloch/`) through Import CP with its own `faceOrders` stored by
   witnesses. 55 of 56 replay, each with one face per frame face, all placed
@@ -640,7 +650,7 @@ state's. 55 of the 56 Beloch fixtures replay (`tests/beloch_replay.rs`
 checks each against its frame: one face per frame face, all placed by one
 rigid motion of the frame's matrices). The one that does not is join-edge,
 an L-shaped sheet, which Import CP refuses as `import_shape_unsupported`:
-V0 imports a square or a rectangle.
+Fold folds convex sheets only.
 
 The crease pattern read is the final frame's, not the file's root. Reading
 the root, 9 fixtures failed, none of them for the engine: Beloch 0.3.0-dev
