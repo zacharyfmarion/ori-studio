@@ -56,6 +56,7 @@ const folded3dStoredScene = vi.hoisted(() => ({ folded3dFigureScene: vi.fn() }))
 vi.mock('../../cp-workspace/folded/folded3dStoredScene', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../cp-workspace/folded/folded3dStoredScene')>()),
   ...folded3dStoredScene,
+  settledFolded3dFigureScene: folded3dStoredScene.folded3dFigureScene,
 }));
 
 const sheets = twoSquaresIndex();

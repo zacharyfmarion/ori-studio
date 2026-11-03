@@ -293,3 +293,15 @@ describe('the scenes a save reads', () => {
     expect(saved!.spreadScene).toEqual(scene(4));
   });
 });
+
+it('round trips the spatial recipe and carries an unknown version losslessly', () => {
+  const spatial = { ...figure('spatial'), spread: { kind: 'spatial', version: 1, amount: 2 } as const };
+  const bag = saved({}, [spatial]);
+  expect(linkFoldedFigureSpreads(bag, bare([spatial])).figures[0]!.spread).toEqual(spatial.spread);
+  const future = structuredClone(bag);
+  const entries = (future[KEY] as { figures: Record<string, { spread: unknown }> }).figures;
+  entries.spatial!.spread = { kind: 'spatial', version: 2, amount: 3, future: 'kept' };
+  const reopened = linkFoldedFigureSpreads(future, bare([spatial]));
+  expect(reopened.figures[0]!.spread?.kind).toBe('newer');
+  expect(saved(reopened.extensions, reopened.figures)).toEqual(future);
+});

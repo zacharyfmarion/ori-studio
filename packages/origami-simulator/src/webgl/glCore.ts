@@ -123,6 +123,7 @@ export class GlCore {
       // paper renders see-through. The solver's compute passes render to their
       // own depthless FBOs and are unaffected.
       depth: true,
+      stencil: true,
       premultipliedAlpha: false,
       preserveDrawingBuffer: glAttributeOverrides.preserveDrawingBuffer ?? false,
     });

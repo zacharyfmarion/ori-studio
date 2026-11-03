@@ -10,6 +10,8 @@ import type {
   Folded3dRange,
   Folded3dSkin,
 } from '../cp-workspace/folded/folded3dMesh';
+import type { SpatialMeshOrder } from '../cp-workspace/folded/folded3dMaterial';
+import { renderSpatialMesh } from './spatialMeshRenderer';
 
 /**
  * A 3D folded figure as something the worker can draw, with no solver behind it.
@@ -30,6 +32,8 @@ import type {
 
 /** Everything the worker needs to draw one folded figure, in transferable form. */
 export interface Folded3dMeshPayload {
+  spatial?: SpatialMeshOrder;
+  displacement?: ArrayBuffer;
   /** RGBA position texture, `textureDim² × 4` floats. */
   positions: ArrayBuffer;
   textureDim: number;
@@ -73,7 +77,8 @@ export class FoldedMeshSource {
      * displacement is budgeted against — see `folded3dMesh.ts`. 24 everywhere we
      * have looked, but 16 is legal WebGL2 and at 16 a deep stack collides.
      */
-    readonly depthBits: number
+    readonly depthBits: number,
+    private readonly spatial?: SpatialMeshOrder
   ) {}
 
   static create(
@@ -84,6 +89,10 @@ export class FoldedMeshSource {
     if (!core) return null;
     const dim = payload.textureDim;
     try {
+      if (payload.spatial) {
+        core.gl.bindFramebuffer(core.gl.FRAMEBUFFER, null);
+        if (Number(core.gl.getParameter(core.gl.STENCIL_BITS)) < 2) throw new Error('Spatial visibility needs stencil coverage');
+      }
       // `u_originalPosition` holds absolute rest positions and `u_lastPosition`
       // a displacement from them — the shader adds the two — so a static figure
       // puts its geometry in the first and zeros in the second. `u_lastVelocity`
@@ -99,7 +108,7 @@ export class FoldedMeshSource {
         height: dim,
         data: new Float32Array(payload.positions),
       });
-      core.createTexture('u_lastPosition', { width: dim, height: dim, data: null });
+      core.createTexture('u_lastPosition', { width: dim, height: dim, data: payload.displacement ? new Float32Array(payload.displacement) : null });
       core.createTexture('u_lastVelocity', { width: dim, height: dim, data: null });
       const mesh = new MeshRenderer(
         core,
@@ -110,7 +119,7 @@ export class FoldedMeshSource {
           auxEnds: new Uint8Array(payload.auxEnds),
           textureDim: dim,
         },
-        { sheet: payload.sheet }
+        { sheet: payload.sheet, perspectiveDepth: !!payload.spatial }
       );
       return new FoldedMeshSource(
         core,
@@ -119,7 +128,8 @@ export class FoldedMeshSource {
         payload.translucent,
         payload.undetermined,
         payload.undeterminedFaceAlpha,
-        readDepthBits(core)
+        readDepthBits(core),
+        payload.spatial
       );
     } catch {
       core.dispose();
@@ -149,6 +159,10 @@ export class FoldedMeshSource {
     settings: RenderSettings,
     target: WebGLFramebuffer | null = null
   ): void {
+    if (this.spatial) {
+      renderSpatialMesh(this.core.gl, this.mesh, this.spatial, camera, settings, target);
+      return;
+    }
     const passes = folded3dDrawPasses(
       {
         skins: this.skins,

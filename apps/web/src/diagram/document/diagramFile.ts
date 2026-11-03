@@ -1,3 +1,4 @@
+import { readSpatialSpread } from '../../cp-workspace/folded/spatialSpreadSettings';
 import { readSpreadPresentation } from '../../layer-spread/presentation';
 /**
  * A diagram as it is stored in the project file (each of `workspace.diagrams`),
@@ -850,7 +851,7 @@ const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<str
   defox: new Set(['mode', 'snapshot']),
   'crease-pattern': new Set(['mode', 'rotationDeg', 'side', 'flipCreases']),
   'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread', 'presentation']),
-  'folded-3d': new Set(['mode', 'camera', 'side']),
+  'folded-3d': new Set(['mode', 'camera', 'side', 'spread']),
   // `shape` is Pose's mesh, which this build carries and never reads (`readCpRender`).
   simulated: new Set(['mode', 'foldPercent', 'view', 'shape']),
 };
@@ -1180,7 +1181,7 @@ function isNewerRender(value: unknown): boolean {
     case 'folded-flat':
       return readSpreadPresentation(value.presentation) === NEWER || readSpread(value.spread) === NEWER || isNewerWord(value.side, ['front', 'back']);
     case 'folded-3d':
-      return isNewerRecord(value.camera, FOLDED_FIGURE_CAMERA_KEYS) || isNewerWord(value.side, ['front', 'back']);
+      return readSpatialSpread(value.spread) === NEWER || isNewerRecord(value.camera, FOLDED_FIGURE_CAMERA_KEYS) || isNewerWord(value.side, ['front', 'back']);
     case 'simulated': {
       const foldPercent = finiteNumber(value.foldPercent);
       return isNewerRecord(value.view, FOLDED_FIGURE_CAMERA_KEYS) || (foldPercent !== null && (foldPercent < 0 || foldPercent > 100));
@@ -1575,7 +1576,9 @@ function readCpRender(value: unknown): DiagramCpRender | null {
     }
     case 'folded-3d': {
       const camera = readFoldedFigureCamera(value.camera);
-      return side && camera ? { mode: 'folded-3d', camera, side } : null;
+      const spread = readSpatialSpread(value.spread);
+      if (spread === null || spread === NEWER) return null;
+      return side && camera ? { mode: 'folded-3d', camera, side, ...(spread ? { spread } : {}) } : null;
     }
     case 'simulated': {
       const foldPercent = finiteNumber(value.foldPercent);

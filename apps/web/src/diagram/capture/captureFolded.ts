@@ -32,7 +32,8 @@ import {
   type FoldedFigureCamera,
 } from '../../cp-workspace/folded/folded3dCamera';
 import { folded3dSceneStyleKey } from '../../cp-workspace/folded/folded3dScene';
-import { folded3dFigureScene } from '../../cp-workspace/folded/folded3dStoredScene';
+import { settledFolded3dFigureScene } from '../../cp-workspace/folded/folded3dStoredScene';
+import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
 import { foldedFigureExportDocument } from '../../cp-workspace/folded/foldedFigureExport';
 import { foldedFlatPaperScene } from '../../cp-workspace/folded/foldedFlatScene';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
@@ -317,24 +318,29 @@ export function fixedPicture(svg: string, env?: SanitizeEnv): DiagramFixedPictur
  * paper scale, and is fitted to its cell (D10). It records the light it was
  * built under, so a change of style can say it needs refreshing (D5).
  */
-export function capture3dPicture(
+export async function capture3dPicture(
   fold: { snapshot: OristudioCpFold3dStepResult['snapshot']; render: OristudioCpFold3dStepResult['render'] },
   camera: FoldedFigureCamera,
   style: DiagramStyle,
-  aux: OristudioCpFolded3dAuxLines | null
-): CapturedPicture {
+  aux: OristudioCpFolded3dAuxLines | null,
+  spread?: SpatialSpread
+): Promise<CapturedPicture> {
   const drawn = diagramPaperStyle(style);
-  const scene = folded3dFigureScene(
+  const scene = await settledFolded3dFigureScene(
     {
       camera,
       displayStyle: 'Paper5',
       folded3d: fold.snapshot,
+      spread,
       frameRadius: folded3dFrameRadius(fold.render),
     },
     fold.render,
     { style: drawn, space: 'document', markHidden: true, aux }
   );
   if (!scene) throw new Error('The folded figure produced nothing to draw');
+  // A raster fallback is a transient scene, never raw SVG stored in a file.
+  // The existing keptPicture boundary turns it into a validated PNG asset.
+  if (scene.items.some(item => item.kind === 'markup')) return { kind: 'over-budget', scene, paperScale: null };
   return storeScene(scene, null, folded3dSceneStyleKey(drawn));
 }
 
@@ -581,7 +587,7 @@ export async function captureStep(
     try {
       const aux = await runtime.aux3d(result.handle);
       // Its record waits for the creases to fold flat again (D13).
-      return unfolded(render, capture3dPicture(result, render.camera, style, aux), true);
+      return unfolded(render, await capture3dPicture(result, render.camera, style, aux, render.spread), true);
     } finally {
       await runtime.free(result.handle);
     }

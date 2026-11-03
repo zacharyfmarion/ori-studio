@@ -71,13 +71,18 @@ export function useFolded3dMeshRuntime(options: {
 
   const clientRef = useRef<SimulatorClient | null>(null);
   const tokenRef = useRef<number | undefined>(undefined);
+  const requestRef = useRef(0);
   const onFrameRef = useRef(onFrame);
   useEffect(() => {
     onFrameRef.current = onFrame;
   }, [onFrame]);
   // The last camera and settings pushed, so a reload after an eviction comes
   // back looking the way the window looked rather than at the defaults.
-  const cameraRef = useRef<{ view: OrbitView; width: number; height: number } | null>(null);
+  const cameraRef = useRef<{
+    view: OrbitView;
+    width: number;
+    height: number;
+  } | null>(null);
   const settingsRef = useRef<RenderSettings | null>(null);
 
   // A mounted runtime is what "someone is drawing with the simulator" means, so
@@ -101,15 +106,26 @@ export function useFolded3dMeshRuntime(options: {
    * — since nothing of ours replaces a mesh in flight — means it was evicted.
    * Load it again rather than sitting on a dead token and freezing silently.
    */
-  const receive = useCallback((frame: { bitmap: ImageBitmap | null } | null) => {
-    if (!frame) {
-      tokenRef.current = undefined;
-      setStatus('loading');
-      setReloadNonce((nonce) => nonce + 1);
-      return;
-    }
-    if (frame.bitmap) onFrameRef.current(frame.bitmap);
-  }, []);
+  const receive = useCallback(
+    (
+      token: number,
+      request: number,
+      frame: { bitmap: ImageBitmap | null } | null
+    ) => {
+      if (tokenRef.current !== token || requestRef.current !== request) {
+        frame?.bitmap?.close();
+        return;
+      }
+      if (!frame) {
+        tokenRef.current = undefined;
+        setStatus('loading');
+        setReloadNonce((nonce) => nonce + 1);
+        return;
+      }
+      if (frame.bitmap) onFrameRef.current(frame.bitmap);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!mesh) {
@@ -125,13 +141,19 @@ export function useFolded3dMeshRuntime(options: {
         // The same private canvas every inline simulation renders into, grown to
         // whichever window has asked for the most pixels. Requested before the
         // load because the mesh's GL context comes from it.
-        await client.attachBitmapOutput(INITIAL_RENDER_EDGE, INITIAL_RENDER_EDGE);
+        await client.attachBitmapOutput(
+          INITIAL_RENDER_EDGE,
+          INITIAL_RENDER_EDGE
+        );
         // Buffers are copied by `folded3dMeshPayload` and then transferred, so
         // the mesh itself survives to be uploaded again after an eviction.
         const { payload, transferables } = folded3dMeshPayload(mesh);
-        const info = await client.loadFolded3dMesh(transfer(payload, transferables));
+        const info = await client.loadFolded3dMesh(
+          transfer(payload, transferables)
+        );
         if (cancelled) {
-          if (info) void client.releaseFolded3dMesh(info.token).catch(() => undefined);
+          if (info)
+            void client.releaseFolded3dMesh(info.token).catch(() => undefined);
           return;
         }
         if (!info) {
@@ -146,9 +168,19 @@ export function useFolded3dMeshRuntime(options: {
         // Draw immediately at whatever the window already knows, so a reload
         // does not blank the picture until the next camera move.
         const settings = settingsRef.current;
-        if (settings) receive(await client.setFolded3dMeshRenderSettings(info.token, settings));
+        if (settings)
+          receive(
+            info.token,
+            ++requestRef.current,
+            await client.setFolded3dMeshRenderSettings(info.token, settings)
+          );
         const camera = cameraRef.current;
-        if (camera) receive(await client.setFolded3dMeshCamera(info.token, camera));
+        if (!cancelled && camera)
+          receive(
+            info.token,
+            ++requestRef.current,
+            await client.setFolded3dMeshCamera(info.token, camera)
+          );
       } catch {
         if (!cancelled) setStatus('error');
       }
@@ -158,7 +190,9 @@ export function useFolded3dMeshRuntime(options: {
       const token = tokenRef.current;
       tokenRef.current = undefined;
       if (token !== undefined) {
-        void clientRef.current?.releaseFolded3dMesh(token).catch(() => undefined);
+        void clientRef.current
+          ?.releaseFolded3dMesh(token)
+          .catch(() => undefined);
       }
     };
   }, [mesh, reloadNonce, receive]);
@@ -171,9 +205,10 @@ export function useFolded3dMeshRuntime(options: {
       // Timed like the solver's own dispatch, so an orbit that is slow on this
       // thread reads the same whichever kind of window it came from.
       const started = performance.now();
+      const request = ++requestRef.current;
       void clientRef.current
         ?.setFolded3dMeshCamera(token, { view, width, height })
-        .then(receive)
+        .then((frame) => receive(token, request, frame))
         .catch(() => undefined);
       recordSimulatorProbe('cameraDispatch', performance.now() - started);
     },
@@ -185,9 +220,10 @@ export function useFolded3dMeshRuntime(options: {
       settingsRef.current = settings;
       const token = tokenRef.current;
       if (token === undefined) return;
+      const request = ++requestRef.current;
       void clientRef.current
         ?.setFolded3dMeshRenderSettings(token, settings)
-        .then(receive)
+        .then((frame) => receive(token, request, frame))
         .catch(() => undefined);
     },
     [receive]

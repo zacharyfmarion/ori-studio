@@ -5,7 +5,7 @@ import type {
   OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
 import { toast } from 'sonner';
-import { ANALYTICS_EVENTS, bucketCount, COUNT_BUCKETS, track } from '../../analytics';
+import { ANALYTICS_EVENTS, bucketCount, COUNT_BUCKETS, track, trackSpatialSpreadChanged } from '../../analytics';
 import { layerOrderOffline, layerOrderReloadAction } from '../../layer-order/engine/layerOrderLoadFailure';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpFigureSolutionStep } from '../../store/workspaceStore/types';
@@ -121,8 +121,10 @@ export function setFoldedFigureSpreadAsEntry(
   t: TFunction
 ): Promise<boolean | undefined> {
   return foldedFigureGesture.run('verb', changeLayerSpreadLabel(t), () => {
+    const previous = useWorkspaceStore.getState().oristudioCpFoldedFigures.find(figure => figure.id === id)?.spread;
     const set = useWorkspaceStore.getState().setOristudioCpFoldedFigureSpread(id, spread);
-    if (set && spread?.kind === 'record') noteFoldedFigureSpreadSet(id);
+    if (set && (previous?.kind === 'spatial' || spread?.kind === 'spatial') && (previous?.kind === 'spatial') !== (spread?.kind === 'spatial')) trackSpatialSpreadChanged(spread?.kind === 'spatial');
+    if (set && (spread?.kind === 'record' || spread?.kind === 'spatial')) noteFoldedFigureSpreadSet(id);
     return set;
   });
 }
@@ -137,6 +139,13 @@ export function setFoldedFigureSpreadAsEntry(
 export function writeFoldedFigureSpreadEdit(id: string, edit: LayerSpreadEdit): void {
   const store = useWorkspaceStore.getState();
   const figure = store.oristudioCpFoldedFigures.find((entry) => entry.id === id);
+  if (figure?.spread?.kind === 'spatial') {
+    if (edit.verb === 'spread-amount' && Number.isFinite(edit.amount)) {
+      store.setOristudioCpFoldedFigureSpread(id, { ...figure.spread, amount: Math.max(0, Math.min(2, edit.amount)) });
+      noteFoldedFigureSpreadSet(id);
+    }
+    return;
+  }
   const current = figure ? foldedFigureSpreadOptions(figure) : null;
   if (!current) return;
   if (store.setOristudioCpFoldedFigureSpread(id, { kind: 'record', spread: withSpreadField(current, edit) })) {

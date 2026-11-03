@@ -83,6 +83,8 @@ pub const FOLDED_3D_RENDER_SCHEMA_VERSION: u32 = 1;
 /// success with that face missing from every stack, and no error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderModelError {
+    /// Invalid or incompatible deformable material provenance.
+    InvalidMaterial,
     /// A face no cell covers, so a renderer drawing only cells would lose it.
     FaceInNoCell { face: usize },
     /// A `start`/`len` pair runs off the end of the array it indexes.
@@ -110,6 +112,7 @@ pub enum RenderModelError {
 impl std::fmt::Display for RenderModelError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::InvalidMaterial => write!(f, "invalid folded material source"),
             Self::FaceInNoCell { face } => {
                 write!(f, "face {face} is covered by no cell")
             }
@@ -143,8 +146,23 @@ impl std::error::Error for RenderModelError {}
 
 /// Everything a renderer needs, and nothing about how it looks.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Folded3dMaterial {
+    pub version: u32,
+    /// Unfolded coordinates. Indices are material identity, never folded proximity.
+    pub sheet: Vec<[f64; 2]>,
+    /// The lowest incident face's image, exactly as in the FOLD folded form.
+    pub positions: Vec<[f64; 3]>,
+    pub faces: Vec<Vec<usize>>,
+    pub edges: Vec<[usize; 2]>,
+    pub fold_degrees: Vec<Option<f64>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Folded3dRenderModel {
     pub schema_version: u32,
+    /// Additive payload: older saved render fixtures remain readable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material: Option<Folded3dMaterial>,
     /// Longer side of the **unfolded** bounding box. The scale every relative
     /// quantity in the pipeline is relative to.
     pub span: f64,
@@ -194,6 +212,35 @@ impl Folded3dRenderModel {
     /// the arrays are built here, so a violation is a defect in this file, and
     /// this is the last place it is cheap to see.
     pub fn validate(&self) -> Result<(), RenderModelError> {
+        if let Some(material) = &self.material {
+            let n = material.positions.len();
+            if material.version != 1
+                || material.sheet.len() != n
+                || material.faces.len() != self.face_count as usize
+                || material.edges.len() != material.fold_degrees.len()
+                || material
+                    .positions
+                    .iter()
+                    .flatten()
+                    .chain(material.sheet.iter().flatten())
+                    .any(|v| !v.is_finite())
+                || material
+                    .faces
+                    .iter()
+                    .any(|ring| ring.len() < 3 || ring.iter().any(|&v| v >= n))
+                || material
+                    .edges
+                    .iter()
+                    .any(|edge| edge[0] == edge[1] || edge.iter().any(|&v| v >= n))
+                || material
+                    .fold_degrees
+                    .iter()
+                    .flatten()
+                    .any(|v| !v.is_finite())
+            {
+                return Err(RenderModelError::InvalidMaterial);
+            }
+        }
         stride(
             "face_attr",
             self.face_attr.len(),
@@ -472,6 +519,7 @@ pub fn render_model(
 
     let model = Folded3dRenderModel {
         schema_version: FOLDED_3D_RENDER_SCHEMA_VERSION,
+        material: Some(material_source(placement)),
         span: placement.span,
         face_count: face_count as u32,
         plane_count: index.planes.len() as u32,
@@ -491,6 +539,33 @@ pub fn render_model(
     };
     model.validate()?;
     Ok(model)
+}
+
+fn material_source(placement: &Placement3d) -> Folded3dMaterial {
+    let weld = super::interchange::weld_vertices(placement);
+    let edges = super::interchange::ring_edges(placement);
+    let mut sheet = vec![[0.; 2]; weld.coords.len()];
+    for (vertex, &dense) in weld.dense.iter().enumerate() {
+        if dense != usize::MAX {
+            let p = placement.points[vertex];
+            sheet[dense] = [p.x, p.y];
+        }
+    }
+    Folded3dMaterial {
+        version: 1,
+        sheet,
+        positions: weld.coords,
+        edges: edges
+            .iter()
+            .map(|e| [weld.dense[e.ends.0], weld.dense[e.ends.1]])
+            .collect(),
+        fold_degrees: edges.iter().map(|e| e.fold_degrees).collect(),
+        faces: placement
+            .rings
+            .iter()
+            .map(|ring| ring.iter().map(|&v| weld.dense[v]).collect())
+            .collect(),
+    }
 }
 
 struct CellDraft {
@@ -709,6 +784,7 @@ mod tests {
     fn validate_catches_a_stack_naming_a_face_that_does_not_exist() {
         let mut model = Folded3dRenderModel {
             schema_version: FOLDED_3D_RENDER_SCHEMA_VERSION,
+            material: None,
             span: 1.0,
             face_count: 1,
             plane_count: 0,
@@ -743,6 +819,7 @@ mod tests {
     fn validate_catches_a_slice_running_past_its_array() {
         let model = Folded3dRenderModel {
             schema_version: FOLDED_3D_RENDER_SCHEMA_VERSION,
+            material: None,
             span: 1.0,
             face_count: 1,
             plane_count: 0,
@@ -782,6 +859,7 @@ mod tests {
     fn validate_catches_a_count_its_attributes_cannot_cover() {
         let model = Folded3dRenderModel {
             schema_version: FOLDED_3D_RENDER_SCHEMA_VERSION,
+            material: None,
             span: 1.0,
             face_count: 2,
             plane_count: 0,

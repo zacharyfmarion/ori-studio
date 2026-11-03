@@ -121,6 +121,8 @@ function recorder(): Recorder {
       scissorBox = [x, y, width, height];
     },
     depthFunc: () => {},
+    colorMask: () => {},
+    stencilMask: () => {},
     depthMask: () => {},
     blendFunc: () => {},
     blendFuncSeparate: () => {

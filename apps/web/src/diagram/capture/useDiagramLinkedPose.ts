@@ -1,3 +1,4 @@
+import { useSpatialSpreadAmount, type SpatialSpreadAmount } from './useSpatialSpreadAmount';
 import { queueStepPoseEdit } from './stepPoseQueue';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
@@ -69,6 +70,7 @@ export interface DiagramLinkedSpread extends DiagramSpreadControls {
 }
 
 export interface DiagramLinkedPose {
+  spatialAmount?: SpatialSpreadAmount | null;
   connected: ConnectedSpreadView | null;
   connectedPreparing: boolean;
   connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
@@ -420,6 +422,7 @@ export function useDiagramLinkedPose(
     [controller, readOnly]
   );
 
+  const spatialAmount = useSpatialSpreadAmount(foldKey, render, controller, readOnly || busy);
   const pose = useMemo(
     () =>
       source
@@ -430,6 +433,7 @@ export function useDiagramLinkedPose(
             layerOrderEdit,
             editLayerOrder,
             spatial: view,
+            spatialAmount,
             connected: connectedView,
             connectedPreparing,
             connectedSpread: shownPreview?.spread.kind === 'connected' ? shownPreview.spread : flat?.spread?.kind === 'connected' ? flat.spread : null,
@@ -455,6 +459,7 @@ export function useDiagramLinkedPose(
       layerOrderEdit,
       editLayerOrder,
       view,
+      spatialAmount,
       connectedView,
       connectedPreparing,
       shownPreview,

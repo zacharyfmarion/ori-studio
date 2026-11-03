@@ -118,6 +118,8 @@ export function packCreaseDash(dash: CreaseDash | undefined): {
 }
 
 export interface RenderSettings {
+  /** Folded display deformation only; simulation displacements default to one. */
+  displacementScale?: number;
   frontColor: [number, number, number];
   backColor: [number, number, number];
   /** Crease colours by assignment; mountain/valley must differ to be legible. */
@@ -540,6 +542,8 @@ uniform float u_scale;
 uniform vec2 u_viewport;
 uniform float u_depthRange;
 uniform float u_camDist;
+uniform float u_perspectiveDepth;
+uniform float u_displacementScale;
 
 vec3 toView(vec3 world){
   return u_view * (world - u_center);
@@ -556,6 +560,11 @@ vec2 toNdc(vec3 view){
 }
 
 float toNdcDepth(float depth){
+  if (u_perspectiveDepth > 0.5) {
+    float near = u_camDist * 0.1;
+    float far = u_camDist + 2.0 * u_depthRange;
+    return (far + near) / (far - near) - 2.0 * far * near / ((far - near) * max(u_camDist - depth, 0.001));
+  }
   return clamp(-depth/u_depthRange, -1.0, 1.0);
 }
 `;
@@ -572,7 +581,7 @@ out float v_strain;
 
 vec3 fetchPosition(int index){
   ivec2 texel = ivec2(index % u_textureDim, index / u_textureDim);
-  return texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
+  return u_displacementScale * texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
 }
 
 void main(){
@@ -583,6 +592,12 @@ void main(){
   vec3 view = toView(fetchPosition(gl_VertexID));
   v_view = view;
   gl_Position = vec4(toNdc(view), toNdcDepth(view.z), 1.0);
+  if (u_perspectiveDepth > 0.5) {
+    float w = u_camDist - view.z;
+    float near = u_camDist * 0.1;
+    float far = u_camDist + 2.0 * u_depthRange;
+    gl_Position = vec4(view.xy * u_camDist * u_scale / (u_viewport * 0.5), (far + near) / (far - near) * w - 2.0 * far * near / (far - near), w);
+  }
 }`;
 
 const FACE_FRAG = `#version 300 es
@@ -684,7 +699,7 @@ float dashPhase(int kind, float len){
 
 vec3 fetchPosition(int index){
   ivec2 texel = ivec2(index % u_textureDim, index / u_textureDim);
-  return texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
+  return u_displacementScale * texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
 }
 
 // Shares toNdc with the face pass rather than restating it, so creases cannot
@@ -709,11 +724,29 @@ void main(){
   int indexA = int(a_a + 0.5);
   int indexB = int(a_b + 0.5);
   bool atA = int(a_this + 0.5) == indexA;
+  vec3 viewA = toView(fetchPosition(indexA));
+  vec3 viewB = toView(fetchPosition(indexB));
+  if (u_perspectiveDepth > 0.5) {
+    float lo = 0.0;
+    float hi = 1.0;
+    float near = u_camDist * 0.1;
+    float far = u_camDist + 2.0 * u_depthRange;
+    for (int bound = 0; bound < 2; ++bound) {
+      float da = bound == 0 ? u_camDist - viewA.z - near : far - u_camDist + viewA.z;
+      float db = bound == 0 ? u_camDist - viewB.z - near : far - u_camDist + viewB.z;
+      if (da < 0.0 && db < 0.0) { gl_Position = vec4(0.0,0.0,2.0,1.0); v_alongPx = 0.0; return; }
+      if (da < 0.0) lo = max(lo, da / (da-db));
+      else if (db < 0.0) hi = min(hi, da / (da-db));
+    }
+    vec3 originalA = viewA;
+    viewA = mix(originalA, viewB, lo);
+    viewB = mix(originalA, viewB, hi);
+  }
   // Pixel space, so the ribbon has constant on-screen width regardless of
   // aspect ratio, and so the erode is measured as the painter measures it.
   vec2 halfViewport = u_viewport * 0.5;
-  vec2 pxA = projectNdc(indexA) * halfViewport;
-  vec2 pxB = projectNdc(indexB) * halfViewport;
+  vec2 pxA = toNdc(viewA) * halfViewport;
+  vec2 pxB = toNdc(viewB) * halfViewport;
   vec2 dirPx = pxB - pxA;
   float len = length(dirPx);
   // Erode (D8), as the vector painter's erodeSegment: a flagged end is pulled
@@ -751,7 +784,7 @@ void main(){
   // and, where the model has coplanar layers, on top of *that* face and nothing
   // behind it. See RenderSettings.creaseDepthBias. An eroded end takes the
   // depth of the point it moved to, interpolated as the rasterizer would.
-  float depth = mix(projectDepth(indexA), projectDepth(indexB), t) - u_depthBias;
+  float depth = mix(toNdcDepth(viewA.z), toNdcDepth(viewB.z), t) - u_depthBias;
   gl_Position = vec4((pxThis + offsetPx) / halfViewport, depth, 1.0);
 }`;
 
@@ -826,6 +859,8 @@ void main(){
  * `faceRange` the first would already have painted the faces the second wants.
  */
 export interface MeshDrawOptions {
+  /** Scoped coverage/mask pass. Applied after material state, reset after drawing. */
+  configureDrawState?: (gl: WebGL2RenderingContext) => void;
   /**
    * Clear colour and depth before drawing. Pass `false` for every pass after the
    * first of a multi-pass frame.
@@ -888,6 +923,8 @@ export const DEFAULT_HIGHLIGHT_COLOR: readonly [number, number, number] = [0.38,
 export const DEFAULT_HIGHLIGHT_MIX = 0.45;
 
 export interface MeshRendererOptions {
+  /** True perspective depth and interpolation for deformable spatial paper. */
+  perspectiveDepth?: boolean;
   /**
    * The unfolded sheet's extent in the mesh's world units (`sheetExtent`), the
    * unit {@link RenderSettings.erode} is a fraction of. Absent or 0, erode
@@ -911,6 +948,7 @@ export class MeshRenderer {
   private readonly textureDim: number;
   /** See {@link MeshRendererOptions.sheet}. */
   private readonly sheet: number;
+  private readonly perspectiveDepth: boolean;
   private readonly faceUniforms: Map<string, WebGLUniformLocation | null> = new Map();
   private readonly edgeUniforms: Map<string, WebGLUniformLocation | null> = new Map();
   /** The mesh's triangles, kept to cut highlight subsets from. */
@@ -929,6 +967,7 @@ export class MeshRenderer {
     this.gl = gl;
     this.textureDim = topology.textureDim;
     this.sheet = Math.max(0, options.sheet ?? 0);
+    this.perspectiveDepth = options.perspectiveDepth ?? false;
     this.faceCount = topology.faceIndices.length;
     this.faceIndices = topology.faceIndices;
 
@@ -1008,6 +1047,10 @@ export class MeshRenderer {
     // simulation window and sized to the largest of them, so each one draws into
     // the corner it needs.
     gl.viewport(0, 0, camera.width, camera.height);
+    gl.colorMask(true, true, true, true);
+    gl.disable(gl.STENCIL_TEST);
+    gl.stencilMask(0xff);
+    gl.depthMask(true);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     if (options.clear ?? true) {
@@ -1064,6 +1107,7 @@ export class MeshRenderer {
       gl.bindVertexArray(this.faceVao);
       gl.useProgram(this.faceProgram);
       this.bindCommon(this.faceProgram, this.faceUniforms, camera);
+      this.setFloat(this.faceProgram, this.faceUniforms, 'u_displacementScale', settings.displacementScale ?? 1);
       this.setVec3(this.faceProgram, this.faceUniforms, 'u_frontColor', settings.frontColor);
       this.setVec3(this.faceProgram, this.faceUniforms, 'u_backColor', settings.backColor);
       this.setVec3(this.faceProgram, this.faceUniforms, 'u_lightDir', settings.lightDir);
@@ -1088,6 +1132,7 @@ export class MeshRenderer {
         this.faceCount - first
       );
       // UNSIGNED_INT indices, so the byte offset is four per index.
+      options.configureDrawState?.(gl);
       if (count > 0) gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_INT, first * 4);
 
       // The same triangles through the same shader, so they land at the same
@@ -1138,6 +1183,7 @@ export class MeshRenderer {
       gl.bindVertexArray(this.edgeVao);
       gl.useProgram(this.edgeProgram);
       this.bindCommon(this.edgeProgram, this.edgeUniforms, camera);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_displacementScale', settings.displacementScale ?? 1);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
@@ -1180,10 +1226,14 @@ export class MeshRenderer {
       const edgeCount = clampRange(options.edgeRange?.count ?? edges - firstEdge, edges - firstEdge);
       const firstVertex = this.edgeVertexStart[firstEdge]!;
       const vertexCount = this.edgeVertexStart[firstEdge + edgeCount]! - firstVertex;
+      options.configureDrawState?.(gl);
       if (vertexCount > 0) gl.drawArrays(gl.TRIANGLES, firstVertex, vertexCount);
     }
 
     gl.depthMask(true);
+    gl.colorMask(true, true, true, true);
+    gl.disable(gl.STENCIL_TEST);
+    gl.stencilMask(0xff);
     // Back to the state GlCore established at context creation. The solver's
     // compute passes share this context and never set blending themselves, so a
     // pass left enabled here would silently blend the next solve step into the
@@ -1230,6 +1280,7 @@ export class MeshRenderer {
     this.setVec2(program, cache, 'u_viewport', [camera.width, camera.height]);
     this.setFloat(program, cache, 'u_depthRange', camera.depthRange);
     this.setFloat(program, cache, 'u_camDist', camera.camDist);
+    this.setFloat(program, cache, 'u_perspectiveDepth', this.perspectiveDepth ? 1 : 0);
   }
 
   private setDash(dash: CreaseDash | undefined, scale: number): void {

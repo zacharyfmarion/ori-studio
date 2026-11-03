@@ -27,6 +27,8 @@ import {
 import { subscribeFolded3dOrbitCamera } from './folded/folded3dRuntime';
 import { useObjectPaperStyle } from './paper/objectPaperStyle';
 import { useFolded3dMeshRuntime } from './folded/useFolded3dMeshRuntime';
+import { useSpatialFoldedMesh } from './folded/useSpatialFoldedMesh';
+import { spatialAmount } from './folded/folded3dSpread';
 import {
   SimulatorViewport,
   type SimulatorViewportHandle,
@@ -193,11 +195,14 @@ function Folded3dWindow({
   // The document's aux lines on the figure: asked for again whenever they
   // change (`folded3dAuxLinesSync`), so the mesh is rebuilt when they land.
   const aux = useFolded3dAuxLines(figure.handle);
-  const mesh = useMemo(() => {
+  const legacyMesh = useMemo(() => {
     if (!model) return null;
     const result = folded3dMesh(model, aux);
     return result.kind === 'mesh' ? result.mesh : null;
   }, [model, aux]);
+  const spatialMesh = useSpatialFoldedMesh(figure, model, aux);
+  const amount = spatialAmount(figure);
+  const mesh = amount != null && amount > 0 ? spatialMesh : legacyMesh;
 
   const presentFrame = useCallback((bitmap: ImageBitmap) => {
     viewportRef.current?.presentBitmap(bitmap);
@@ -214,14 +219,14 @@ function Folded3dWindow({
   const renderSettings = useMemo(
     () =>
       figure.folded3d
-        ? folded3dWindowRenderSettings({
+        ? { ...folded3dWindowRenderSettings({
             style: paperStyle,
             displayStyle: figure.displayStyle,
             devicePixelRatio:
               typeof window === 'undefined' ? 1 : (window.devicePixelRatio ?? 1),
-          })
+          }), displacementScale: amount ?? 0 }
         : undefined,
-    [figure.folded3d, figure.displayStyle, paperStyle]
+    [figure.folded3d, figure.displayStyle, paperStyle, amount]
   );
 
   /**
