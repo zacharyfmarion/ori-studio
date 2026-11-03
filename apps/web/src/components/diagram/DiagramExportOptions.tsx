@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { BookOpen, FileText, Images, Printer, Scissors } from 'lucide-react';
+import { BookOpen, FileText, Files, Images, Printer, Scissors, VectorSquare } from 'lucide-react';
 import { STEP_FILE_DPIS, type DiagramExportSettings } from '../../diagram/export/diagramExportSettings';
 import { PRINT_SHOP_BLEED_MM } from '../../diagram/export/diagramPdf';
 import { STEP_FILE_MM_RANGE } from '../../diagram/export/stepFiles';
@@ -19,9 +19,9 @@ import styles from './DiagramExportOptions.module.css';
 
 /**
  * The export dialog's options (D11): a PDF of the pages, to print at home or
- * at a print shop, the pages as one SVG in printed spreads, or a file for each
- * step, and how those are made; then a Notice of what the export will leave
- * out or cut. Presentation over the
+ * at a print shop, the pages as SVG — a file for each, or one sheet in printed
+ * spreads — or a file for each step, and how those are made; then a Notice of
+ * what the export will leave out or cut. Presentation over the
  * dialog's draft (`useDiagramExport`): every control patches the draft and
  * nothing else.
  */
@@ -52,7 +52,8 @@ export function DiagramExportOptions({
       <span className={styles.setup}>
         <span className={styles.setupLabel}>{t('dialogs:diagramExport.pageSetup', 'Page setup')}</span>
         <span>{pageSetupSummary(page, t)}</span>
-        {svg && (
+        {/* Which side the first page takes matters only where pages face each other. */}
+        {svg && draft.svg === 'spreads' && (
           <span>
             {t('dialogs:diagramExport.firstPageSide', 'First page: {{side}}', {
               side: pageSideLabel(page.firstPageSide, t),
@@ -84,8 +85,8 @@ export function DiagramExportOptions({
             {
               value: 'svg',
               label: t('dialogs:diagramExport.svg', 'SVG'),
-              description: t('dialogs:diagramExport.svgHint', 'Every page on one sheet, as spreads.'),
-              icon: <BookOpen size={16} />,
+              description: t('dialogs:diagramExport.svgHint', 'Every page, to edit in a drawing app.'),
+              icon: <VectorSquare size={16} />,
             },
             {
               value: 'steps',
@@ -125,7 +126,28 @@ export function DiagramExportOptions({
           {pageSetup}
         </section>
       ) : svg ? (
-        <section className={styles.section}>{pageSetup}</section>
+        <section className={styles.section}>
+          <OptionCards<DiagramExportSettings['svg']>
+            label={t('dialogs:diagramExport.svgLayout', 'Pages or spreads')}
+            value={draft.svg}
+            onChange={(layout) => patch({ svg: layout })}
+            options={[
+              {
+                value: 'pages',
+                label: t('dialogs:diagramExport.pages', 'Pages'),
+                description: t('dialogs:diagramExport.pagesHint', 'Each page in its own file.'),
+                icon: <Files size={16} />,
+              },
+              {
+                value: 'spreads',
+                label: t('dialogs:diagramExport.spreads', 'Spreads'),
+                description: t('dialogs:diagramExport.spreadsHint', 'Facing pages side by side, on one sheet.'),
+                icon: <BookOpen size={16} />,
+              },
+            ]}
+          />
+          {pageSetup}
+        </section>
       ) : (
         <section className={styles.section}>
           <SegmentedRow

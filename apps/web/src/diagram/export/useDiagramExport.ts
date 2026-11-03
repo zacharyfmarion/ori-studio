@@ -9,9 +9,11 @@
  * - **PDF:** the pages, as the Pages view composes them; the preview is a
  *   page and the pager walks them. Text a font cannot set refuses the PDF
  *   before it is tried, since the writer would.
- * - **SVG:** the same pages on one sheet, in printed spreads
- *   (`diagramSheet.ts`); the preview is a spread, its pages as the PDF's
- *   preview shows them, and the pager walks the spreads.
+ * - **SVG:** the same pages, a file for each (`diagramPageFiles.ts`) — in a
+ *   ZIP, or alone for a diagram of one page — previewed and paged as the
+ *   PDF's; or on one sheet, in printed spreads (`diagramSheet.ts`), where the
+ *   preview is a spread, its pages as the PDF's preview shows them, and the
+ *   pager walks the spreads.
  * - **Step files:** a file for each step with a picture (`stepFiles.ts`); the
  *   preview is a file and the pager walks them. A PNG too large for the
  *   browser to draw is refused before the save, as the paper export's is.
@@ -54,6 +56,7 @@ import {
   normalizeDiagramExportSettings,
   type DiagramExportSettings,
 } from './diagramExportSettings';
+import { diagramPageFiles } from './diagramPageFiles';
 import { diagramPdfInput, type PdfWriter } from './diagramPdf';
 import { diagramSheetFile, sheetLayoutOf } from './diagramSheet';
 import { prepareStepFiles, stepFileMinHeightMm, type PreparedStepFiles } from './stepFiles';
@@ -72,11 +75,11 @@ export interface DiagramExportBinding {
   status: DiagramExportStatus;
   /** The PDF's or the SVG's pages, or the step files: how many. */
   count: number;
-  /** The page or file on show, as an image, with its size; null for the SVG, whose preview is `sheet`. */
+  /** The page or file on show, as an image, with its size; null for the SVG's spreads, whose preview is `sheet`. */
   preview: { url: string; page: Pick<PaperSvgResult, 'widthPt' | 'heightPt'> } | null;
   /**
-   * The SVG's sheet: its size, how many spreads it has, and the spread on
-   * show, its pages as images left to right, null where it has none.
+   * The SVG's sheet of spreads: its size, how many spreads it has, and the
+   * spread on show, its pages as images left to right, null where it has none.
    */
   sheet: {
     widthMm: number;
@@ -124,6 +127,8 @@ export interface DiagramExportBinding {
   /** The save dialog is up: the dialog cannot be closed. */
   busy: boolean;
   saveError: string | null;
+  /** The save is one ZIP: of the step files, or of the SVG's pages where there are more than one. */
+  zip: boolean;
   /** The name the save dialog is offered: the PDF's, the SVG's, or the ZIP's. */
   filename: string;
   canExport: boolean;
@@ -218,13 +223,14 @@ export function useDiagramExport(
 
   const pdf = draft.kind === 'pdf';
   const svg = draft.kind === 'svg';
+  const spreads = svg && draft.svg === 'spreads';
   // The PDF and the SVG print the pages; switching between them keeps them.
   const printed = pdf || svg;
   const pages = useMemo<PreparedDiagramPages | null>(
     () => (ready && printed ? preparedPages(document, ready.fonts, ready.subsetter) : null),
     [ready, printed, document]
   );
-  const sheetLayout = useMemo(() => (pages && svg ? sheetLayoutOf(pages) : null), [pages, svg]);
+  const sheetLayout = useMemo(() => (pages && spreads ? sheetLayoutOf(pages) : null), [pages, spreads]);
   const { number, text, sameSize, widthMm, heightMm, transparent } = draft;
   const files = useMemo<PreparedStepFiles | null>(
     () =>
@@ -242,6 +248,8 @@ export function useDiagramExport(
   );
 
   const count = pages ? pages.layout.pages.length : (files?.files.length ?? 0);
+  // A ZIP until the pages are known to be one: a diagram is seldom a single page.
+  const zip = !printed || (svg && !spreads && count !== 1);
   // The pager walks the SVG's spreads, and the others' pages or files.
   const shown = sheetLayout ? sheetLayout.spreads.length : count;
   const [pagerIndex, setPagerIndex] = useState(0);
@@ -315,6 +323,22 @@ export function useDiagramExport(
     // A frame for "Exporting…" before the pages are composed.
     await new Promise((resolve) => setTimeout(resolve, 0));
     const stem = fileStemOf(document);
+    // A ZIP of files, its progress counted as each is ready.
+    const saveZip = (written: { page: PaperSvgResult; fileStem: string }[], format: DiagramExportSettings['format']) => {
+      setProgress({ done: 0, total: written.length });
+      return savePaperExportZip({
+        pages: written,
+        format,
+        pngDpi: draft.dpi,
+        zipStem: stem,
+        fileService: dependencies.fileService(),
+        signal,
+        onProgress: (done, total) => {
+          setProgress({ done, total });
+          if (done === total) setPhase('saving');
+        },
+      });
+    };
     try {
       let name: string | null = null;
       if (pdf) {
@@ -331,18 +355,23 @@ export function useDiagramExport(
           mimeType: 'application/pdf',
         });
         name = saved?.name ?? null;
-      } else if (svg && pages) {
-        const file = diagramSheetFile(document, pages, ready.fonts, ready.subsetter);
+      } else if (svg && pages && !zip) {
+        // One SVG: the sheet of spreads, or the one page there is.
+        const contents = spreads
+          ? diagramSheetFile(document, pages, ready.fonts, ready.subsetter).svg
+          : pages.compose(0).svg;
         if (signal.aborted) return;
         setPhase('saving');
         const saved = await dependencies.fileService().saveTextFile({
           title: 'Export SVG',
-          contents: file.svg,
+          contents,
           suggestedName: exportFilename(stem, 'svg'),
           path: null,
           extensions: ['svg'],
         });
         name = saved?.name ?? null;
+      } else if (svg && pages) {
+        name = await saveZip(diagramPageFiles(pages, stem), 'svg');
       } else if (files) {
         const written = files.files.map((file, at) => ({ page: files.compose(at), fileStem: file.fileStem }));
         if (png) {
@@ -361,19 +390,7 @@ export function useDiagramExport(
             return;
           }
         }
-        setProgress({ done: 0, total: written.length });
-        name = await savePaperExportZip({
-          pages: written,
-          format: draft.format,
-          pngDpi: draft.dpi,
-          zipStem: stem,
-          fileService: dependencies.fileService(),
-          signal,
-          onProgress: (done, total) => {
-            setProgress({ done, total });
-            if (done === total) setPhase('saving');
-          },
-        });
+        name = await saveZip(written, draft.format);
       }
       // A dismissed save dialog: the options are still in front of the reader.
       if (!name) return;
@@ -383,7 +400,7 @@ export function useDiagramExport(
         pdf
           ? { preset: draft.pdf === 'print-shop' ? 'print_shop' : 'home' }
           : svg
-            ? null
+            ? { svgLayout: draft.svg }
             : {
                 fileType: draft.format,
                 dpi: png ? draft.dpi : null,
@@ -414,7 +431,7 @@ export function useDiagramExport(
         setProgress(null);
       }
     }
-  }, [canExport, ready, document, pdf, svg, pages, draft, files, png, limit, remember, count, empty, t, close, dependencies]);
+  }, [canExport, ready, document, pdf, svg, spreads, zip, pages, draft, files, png, limit, remember, count, empty, t, close, dependencies]);
 
   return {
     draft,
@@ -430,7 +447,7 @@ export function useDiagramExport(
             count: shown,
             label: sheetLayout
               ? spreadLabel(sheetLayout.spreads[index] ?? [], t)
-              : pdf
+              : printed
                 ? t('dialogs:diagramExport.pageLabel', 'Page {{number}}', { number: index + 1 })
                 : t('dialogs:diagramExport.stepLabel', 'Step {{number}}', {
                     number: files?.files[index]?.number ?? index + 1,
@@ -456,7 +473,8 @@ export function useDiagramExport(
     progress,
     busy: phase === 'saving',
     saveError,
-    filename: exportFilename(fileStemOf(document), pdf ? 'pdf' : svg ? 'svg' : 'zip'),
+    zip,
+    filename: exportFilename(fileStemOf(document), zip ? 'zip' : pdf ? 'pdf' : 'svg'),
     canExport,
     exportNow,
   };

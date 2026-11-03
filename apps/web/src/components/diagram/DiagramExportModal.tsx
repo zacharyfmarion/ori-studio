@@ -23,9 +23,9 @@ import styles from './DiagramExportModal.module.css';
 
 /**
  * The Diagram's export dialog (D11), mounted once at the app root and opened
- * by `file.exportDiagram`: a PDF of the pages, the pages as one SVG in
- * spreads, or a file for each step, with the page, spread or file it will
- * write beside the options. Each opening mounts a
+ * by `file.exportDiagram`: a PDF of the pages, the pages as SVG — a file for
+ * each, or one sheet in spreads — or a file for each step, with the page,
+ * spread or file it will write beside the options. Each opening mounts a
  * fresh dialog on the diagram as it is then. The state and the save are
  * `useDiagramExport`'s; this is the layout.
  */
@@ -139,8 +139,10 @@ function exportLabel(t: TFunction, binding: DiagramExportBinding): string {
   }
   if (binding.phase !== null) return t('dialogs:diagramExport.exporting', 'Exporting…');
   if (binding.draft.kind === 'pdf') return t('dialogs:diagramExport.confirmPdf', 'Export PDF');
-  if (binding.draft.kind === 'svg') return t('dialogs:diagramExport.confirmSvg', 'Export SVG');
-  return t('dialogs:diagramExport.confirmZip', 'Export {{format}}s as ZIP', { format: binding.draft.format.toUpperCase() });
+  if (!binding.zip) return t('dialogs:diagramExport.confirmSvg', 'Export SVG');
+  // The SVG's pages, or the step files in their format.
+  const format = binding.draft.kind === 'svg' ? 'svg' : binding.draft.format;
+  return t('dialogs:diagramExport.confirmZip', 'Export {{format}}s as ZIP', { format: format.toUpperCase() });
 }
 
 /** The page, spread or file the export will write, how big it is, and how many there are. */
@@ -149,6 +151,7 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
   const number = (value: number) => value.toLocaleString(i18n.language);
   const { preview, sheet, pager, draft } = binding;
   const pdf = draft.kind === 'pdf';
+  const steps = draft.kind === 'steps';
   const parts: string[] = [];
   if (sheet) {
     // The whole sheet's size, though one spread is on show.
@@ -182,14 +185,14 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
       );
     }
     parts.push(
-      pdf
-        ? t('dialogs:diagramExport.pageCount', '{{count}} pages', {
-            count: binding.count,
-            defaultValue_one: '{{count}} page',
-          })
-        : t('dialogs:diagramExport.fileCount', '{{count}} files · ZIP', {
+      binding.zip
+        ? t('dialogs:diagramExport.fileCount', '{{count}} files · ZIP', {
             count: binding.count,
             defaultValue_one: '{{count}} file · ZIP',
+          })
+        : t('dialogs:diagramExport.pageCount', '{{count}} pages', {
+            count: binding.count,
+            defaultValue_one: '{{count}} page',
           })
     );
     if (pdf && draft.pdf === 'print-shop') {
@@ -236,7 +239,7 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
         {preview && (
           <div
             className={styles.sheet}
-            data-transparent={(!pdf && draft.transparent) || undefined}
+            data-transparent={(steps && draft.transparent) || undefined}
             style={{ '--page-aspect': String(preview.page.widthPt / preview.page.heightPt) } as CSSProperties}
           >
             <img src={preview.url} alt="" />
@@ -260,9 +263,9 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
             aria-label={
               sheet
                 ? t('dialogs:diagramExport.previousSpread', 'Previous spread')
-                : pdf
-                  ? t('dialogs:diagramExport.previousPage', 'Previous page')
-                  : t('dialogs:diagramExport.previousFile', 'Previous step')
+                : steps
+                  ? t('dialogs:diagramExport.previousFile', 'Previous step')
+                  : t('dialogs:diagramExport.previousPage', 'Previous page')
             }
             disabled={pager.index <= 0}
             onClick={() => pager.setIndex(pager.index - 1)}
@@ -281,9 +284,9 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
             aria-label={
               sheet
                 ? t('dialogs:diagramExport.nextSpread', 'Next spread')
-                : pdf
-                  ? t('dialogs:diagramExport.nextPage', 'Next page')
-                  : t('dialogs:diagramExport.nextFile', 'Next step')
+                : steps
+                  ? t('dialogs:diagramExport.nextFile', 'Next step')
+                  : t('dialogs:diagramExport.nextPage', 'Next page')
             }
             disabled={pager.index >= pager.count - 1}
             onClick={() => pager.setIndex(pager.index + 1)}

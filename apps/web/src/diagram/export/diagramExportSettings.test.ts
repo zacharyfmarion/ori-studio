@@ -14,6 +14,7 @@ describe('normalizeDiagramExportSettings', () => {
       normalizeDiagramExportSettings({
         kind: 'steps',
         pdf: 'print-shop',
+        svg: 'spreads',
         format: 'png',
         dpi: 600,
         number: false,
@@ -26,6 +27,7 @@ describe('normalizeDiagramExportSettings', () => {
     ).toEqual({
       kind: 'steps',
       pdf: 'print-shop',
+      svg: 'spreads',
       format: 'png',
       dpi: 600,
       number: false,
@@ -37,6 +39,11 @@ describe('normalizeDiagramExportSettings', () => {
     });
     expect(normalizeDiagramExportSettings({ kind: 'docx', dpi: 72 })).toMatchObject({ kind: 'pdf', dpi: 300 });
     expect(normalizeDiagramExportSettings({ kind: 'svg' }).kind).toBe('svg');
+  });
+
+  it('opens an SVG remembered from before the choice on a file for each page', () => {
+    expect(normalizeDiagramExportSettings({ kind: 'svg', pdf: 'home' })).toMatchObject({ kind: 'svg', svg: 'pages' });
+    expect(normalizeDiagramExportSettings({ svg: 'sheet' }).svg).toBe('pages');
   });
 
   it('holds the canvas to its range, tall enough for the number and the text it carries', () => {
