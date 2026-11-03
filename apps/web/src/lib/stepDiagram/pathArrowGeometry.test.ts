@@ -83,7 +83,7 @@ function selfCrossings(points: readonly Vec2[]): number {
 }
 
 describe('a path arrow’s size', () => {
-  it('is capped by its length, not its chord: a loop that ends by its tail keeps a whole head', () => {
+  it('has every arrow’s head, and its return opening capped by its length, not its chord', () => {
     const loop = projectPath(LOOP, PROJECT);
     const length = measurePath(loop).length;
     const chord = distance(loop[0]![0], loop[0]![3]);
@@ -93,12 +93,9 @@ describe('a path arrow’s size', () => {
     const { head } = pathArrowGeometry(loop, 'mountain', sizesFor, [], TOLERANCE)!;
     const back = { x: (head.barbs[0].x + head.barbs[1].x) / 2, y: (head.barbs[0].y + head.barbs[1].y) / 2 };
     expect(distance(head.tip, back)).toBeCloseTo(8.5 * PROJECT.ink, 9);
-    // An arc over that chord gets the shortest head there is.
-    const arc = foldArrowArc([0.4, 0.4], [0.42, 0.42], [0.5, 0.5])!;
-    expect(arrowheadSize(arc, PROJECT)).toBeCloseTo(4 * PROJECT.pens.arrow.width * PROJECT.ink, 12);
-    expect(arrowheadSize(arc, PROJECT)).toBeLessThan(pathArrowSizes(length, PROJECT).head * 0.7);
-    // A short path is still capped by a share of itself, never below four strokes.
-    expect(pathArrowSizes(10, PROJECT).head).toBe(Math.max(2.6, 4 * PROJECT.pens.arrow.width * PROJECT.ink));
+    // A short path's head is a long one's, as an arc arrow's is.
+    expect(pathArrowSizes(10, PROJECT).head).toBe(arrowheadSize(PROJECT));
+    // Its return still opens by no more than a share of itself.
     expect(pathArrowSizes(10, PROJECT).offset).toBeCloseTo(2.6, 12);
   });
 });
@@ -125,8 +122,8 @@ describe('a one-way path arrow', () => {
   it('draws an arc made a path as the arc arrow is drawn: the head where its head is, the barb on the same side', () => {
     const out = foldArrowArc([0.2, 0.3], [0.8, 0.35], [0.5, 0.5])!;
     const path = projectPath([arcCubic(out)], PROJECT);
-    const head = arrowheadSize(out, PROJECT);
-    // Long enough that neither cap applies, so the two are sized alike.
+    const head = arrowheadSize(PROJECT);
+    // Every arrow's head is one size, so the two are sized alike.
     expect(sizesFor(measurePath(path).length).head).toBeCloseTo(head, 12);
     const arc = oneWayArrow(out, PROJECT, head);
     for (const fold of ['valley', 'mountain'] as const) {

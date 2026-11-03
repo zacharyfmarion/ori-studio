@@ -595,7 +595,7 @@ describe('a fold arrow on a card', () => {
     const cos =
       (axis.x * radial.x + axis.y * radial.y) / (Math.hypot(axis.x, axis.y) * Math.hypot(radial.x, radial.y));
     expect(Math.abs(cos)).toBeLessThan(1e-3);
-    expect(Math.hypot(axis.x, axis.y)).toBeCloseTo(arrowheadReach(arrowheadSize(out, project)), 2);
+    expect(Math.hypot(axis.x, axis.y)).toBeCloseTo(arrowheadReach(arrowheadSize(project)), 2);
   });
 
   // The head got smaller; the loop did not. The return still ends as far to
@@ -612,7 +612,7 @@ describe('a fold arrow on a card', () => {
     // From where the fold lands; and wider than the head is long now.
     const landing = project(arcEndPoint(out));
     expect(Math.hypot(start.x - landing.x, start.y - landing.y)).toBeLessThan(2e-3);
-    expect(10.56 * project.ink).toBeGreaterThan(arrowheadSize(out, project));
+    expect(10.56 * project.ink).toBeGreaterThan(arrowheadSize(project));
   });
 });
 

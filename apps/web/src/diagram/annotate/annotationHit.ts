@@ -76,7 +76,6 @@ import {
   labelHalfWidth,
   labelSize,
   pathCubics,
-  pathLength,
   type PicturePoint,
 } from './annotationModel';
 import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationPath';
@@ -211,9 +210,9 @@ function distanceToPolyline(point: PicturePoint, line: readonly PicturePoint[]):
 const up = ([u, v]: PicturePoint): [number, number] => [u, -v];
 const down = ([x, y]: readonly [number, number]): PicturePoint => [x, -y];
 
-/** A head's length: the drawing's, but never more than a share of the arrow's chord (`inkUpToChord`). */
-function headLength(chord: number, ink: number): number {
-  return Math.min(DIAGRAM_ARROWHEAD_INK.length * ink, DIAGRAM_ARROWHEAD_INK.ofChord * chord);
+/** A head's length: every arrow's, the drawing's (`arrowheadSize`). */
+function headLength(ink: number): number {
+  return DIAGRAM_ARROWHEAD_INK.length * ink;
 }
 
 /**
@@ -247,7 +246,7 @@ function arrowDistance(
       tip = returning[returning.length - 1]!;
     }
   }
-  return Math.min(distance, headDistance(point, tip, headingInto(carrier, tip), headLength(chord, ink)));
+  return Math.min(distance, headDistance(point, tip, headingInto(carrier, tip), headLength(ink)));
 }
 
 /**
@@ -319,7 +318,7 @@ function pathArrowAt(
   const geometry = pathArrowGeometry(
     pathCubics(path),
     fold,
-    (length) => ({ head: headLength(length, ink), offset: returnOffset(length, ink), rim: circleRadius(ink) }),
+    (length) => ({ head: headLength(ink), offset: returnOffset(length, ink), rim: circleRadius(ink) }),
     marks,
     PATH_TOLERANCE,
     // A return shaped by hand, where it is drawn.
@@ -330,7 +329,7 @@ function pathArrowAt(
     tip: [geometry.head.tip.x, geometry.head.tip.y] as PicturePoint,
     // The way it points: notch to tip.
     direction: unitFrom(geometry.head.notch, geometry.head.tip),
-    head: headLength(pathLength(path), ink),
+    head: headLength(ink),
   };
   byInk.set(key, found);
   return found;
@@ -424,7 +423,7 @@ export function pleatArrowInPicture(
       gap: DIAGRAM_PLEAT_INK.gap * ink,
       head: DIAGRAM_ARROWHEAD_INK.length * ink,
     },
-    headLength(Math.hypot(to[0] - from[0], to[1] - from[1]), ink)
+    headLength(ink)
   );
 }
 
