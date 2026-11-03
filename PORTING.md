@@ -1576,6 +1576,18 @@ that view through Adjust Pose is explicit. Symbols remain vector pictures,
 not editable native annotations. See `tools/step-folder-oracle/README.md` for
 comparison tests and the external-corpus harness.
 
+When a flat Ori Studio capture replaces a saved view (Show as Folded or
+Crease Pattern), two things of the view carry over, both read from the saved
+state rather than re-derived. The fold starts in the view's pose: the side
+and turn Defox draws it in (`A = N.mat(flip0, s, θ)` composed with one face's
+map to `Vf`), measured against the kernel's fold and turned over on the held
+fold when the view shows the other side. And the step's fold lines become
+Ori Studio valley and mountain lines: `fold.UA`'s `MM`/`VV` on faces (Defox's
+M and V are FOLD's reversed), `FF` precreases as valleys, and `fold.EA`'s
+`RM`/`RV` refolded edges, each placed through the face holding it on the
+paper and kept where no face of a lower level covers it. `UF` unfolded edges
+and symbols are not converted.
+
 Batch placement is an additive Ori Studio composition API (`append_disjoint`),
 not a replacement for Oriedita's `import_add`: all sheets are decoded and
 checked for disjoint bounds before a single mutation. Imported lines retain

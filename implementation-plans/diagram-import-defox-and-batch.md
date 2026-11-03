@@ -550,3 +550,28 @@ The large OSF opening/topology issue was traced to the existing loader on main.
 This review does not change that loader or claim its opening freeze is resolved.
 The earlier corpus and scrolling measurements above still apply; this review
 does not change folding, geometry, placement or preview resolution policy.
+
+## Follow-up: a saved view's fold lines survive Show as Folded
+
+Reported by Bodo (2026-11-03): switching an imported step from the Defox view
+to Folded lost the line that shows the fold. Defox draws each step's creases
+on its saved state (`fold.UA` on faces, `fold.EA` on refolded edges), often
+as a project's only instruction: five of the eight gallery projects
+(`kei-morisue/defox_gallery`) have no arrows at all.
+
+- [x] Download the gallery's eight projects and 74 rendered pages; run the
+  adapter over every step and the real import over every step that fits.
+- [x] Start a flat fold that replaces a saved view in the view's pose: the side
+  and turn Defox draws it in, measured on the kernel's fold and turned over on
+  the held fold, in both the capture and the Pose paths (`defoxViewPose.ts`).
+  Without it the Folded view showed the other side on 12 of the Airplane's 18
+  steps, with the folded layer underneath.
+- [x] Keep the view's fold lines as Ori Studio lines on the new picture
+  (`defoxFoldLines.ts`, from `setLinkedPicture`): `MM`/`VV` named as seen,
+  `FF` as valleys, `RM`/`RV` along their edges; only where no face of a lower
+  level covers them, then carried onto the spread with their face. In step with
+  the new picture when the step had no marks of its own; one undo step.
+- [x] Tests: placement, naming, cover, spread carry, edges, document hook
+  (fails without it), pose measurement, capture and Pose turn-over.
+- [ ] Not converted: `UF` unfolded edges (no line type) and Defox's arrows and
+  other symbols, which still stay in the replaced picture.

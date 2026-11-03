@@ -22,6 +22,7 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFold3dRefusal,
   OristudioCpFolded3dAuxLines,
+  OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import { hasFoldedLayerOrder, openFold, readFoldedPicture, type FoldedFigureState, type FoldedPicture } from '../../lib/creaseExportFold';
@@ -230,6 +231,8 @@ export interface CaptureSession {
    * order with it.
    */
   flatMirrorAxes: () => Promise<number[]>;
+  /** The held flat fold's paper scene as the kernel drew it on its side, unturned: read with its picture; null for none. */
+  flatScene: () => Promise<OristudioCpFoldedPaperScene | null>;
   /**
    * The same picture now, with no call to the kernel, when the session holds
    * this flat fold of `document` on `side` at `foldCase` and has read it;
@@ -530,6 +533,12 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
       const hold = flatHold();
       hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
       return foldedMirrorAxes(hold.read);
+    },
+
+    async flatScene() {
+      const hold = flatHold();
+      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
+      return hold.read.scene ?? null;
     },
 
     heldFlatPicture({ document, side, foldCase, layerOrder = null }, rotationDeg, spread) {

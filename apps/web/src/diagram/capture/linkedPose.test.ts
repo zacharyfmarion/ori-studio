@@ -134,6 +134,58 @@ describe('posing a crease pattern', () => {
   });
 });
 
+describe('posing a saved Defox view', () => {
+  // The half fold, its near half held still, the view turned over and turned an eighth.
+  const DEFOX: DiagramCpRender = {
+    mode: 'defox',
+    snapshot: JSON.stringify({
+      fold: {
+        V: [[0, 0], [1, 0], [1, 0.5], [0, 0.5], [0, 1], [1, 1]],
+        Vf: [[0, 0], [1, 0], [1, 0.5], [0, 0.5], [0, 0], [1, 0]],
+        FV: [[0, 1, 2, 3], [3, 2, 5, 4]],
+        Ff: [false, true],
+      },
+      params: { flip0: true, rotate: 0.625 },
+    }),
+  };
+
+  it('folds it flat as the view showed it: turned over on the fold held, then turned', async () => {
+    let back = false;
+    const front = halfFoldOnSheetKernelScene();
+    const across = ({ x, y }: { x: number; y: number }) => ({ x: -x, y });
+    // The kernel's back pass: mirrored side to side, every stack read from the other end.
+    const over = {
+      ...front,
+      flipped: true,
+      faces: front.faces.map((face) => ({
+        ...face,
+        outline: face.outline.map(across),
+        front_up: !face.front_up,
+        edges: face.edges.map((edge) => ({ ...edge, from: across(edge.from), to: across(edge.to) })),
+      })),
+      subfaces: front.subfaces.map((subface) => ({
+        polygon: subface.polygon.map(across),
+        faces_top_to_bottom: [...subface.faces_top_to_bottom].reverse(),
+      })),
+    };
+    const { session, runtime } = sessionWith(
+      fakeCaptureRuntime({
+        setModel: vi.fn(async (_handle: number, model: { state: string }) => {
+          back = model.state === 'Back1';
+          return { discoveredCases: 1, displayStyle: 'Paper5' as const };
+        }),
+        paperScene: vi.fn(async () => (back ? over : front)),
+      })
+    );
+    expect(await pose(session, DEFOX, { verb: 'show-folded' })).toMatchObject({
+      status: 'posed',
+      render: { mode: 'folded-flat', side: 'back', rotationDeg: 315 },
+    });
+    // One fold, turned over: no second fold.
+    expect(runtime.fold).toHaveBeenCalledOnce();
+  });
+});
+
 // Zach, 2026-10-06: "I wanted to just change the color of the face and not flip the creases."
 describe('a crease pattern on the paper’s back colour', () => {
   const BACK: DiagramCpRender = { mode: 'crease-pattern', rotationDeg: 15, side: 'back' };
