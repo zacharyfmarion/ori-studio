@@ -484,3 +484,124 @@ fn two_existing_precreases_can_meet_at_a_folded_run_subdivision() {
     }
     assert!(landed_any);
 }
+
+/// The paper stacked at the model point `p`, top first: each layer's sheet
+/// point and whether it shows its front.
+fn paper_at(state: &State, p: [f64; 2]) -> Vec<([f64; 2], bool)> {
+    state
+        .stack_at(p)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|id| {
+            let t = state.isometry(id).unwrap();
+            (t.inverse().apply(p), t.front_up())
+        })
+        .collect()
+}
+
+/// Two states hold the same paper, whatever their creases: the same sheet
+/// points stacked the same way at every sample point.
+fn same_paper(a: &State, b: &State) -> bool {
+    let near = |p: [f64; 2], q: [f64; 2]| (p[0] - q[0]).abs() < 1e-9 && (p[1] - q[1]).abs() < 1e-9;
+    (0..60)
+        .flat_map(|i| (0..60).map(move |j| (i, j)))
+        .map(|(i, j)| [-0.19 + 0.0237 * i as f64, -0.21 + 0.0241 * j as f64])
+        .all(|p| {
+            let (x, y) = (paper_at(a, p), paper_at(b, p));
+            x.len() == y.len() && x.iter().zip(&y).all(|(s, t)| near(s.0, t.0) && s.1 == t.1)
+        })
+}
+
+/// The folded square swivelled at (1/2, 1/2) by its valley at `valley`
+/// degrees and its mountain at `mountain`, open: four folds end there, the
+/// strip between the front layer's two.
+fn swivelled_square(valley: f64, mountain: f64) -> State {
+    use support::at_angle;
+    let op = SwivelValleyMountain {
+        valley: at_angle([0.5, 0.5], valley),
+        mountain: at_angle([0.5, 0.5], mountain),
+        kind: SwivelKind::Open,
+    };
+    landed(&folded_square(), &op).remove(0).state
+}
+
+/// The model line of the sheet ray from (1/2, 1/2) at `degrees`, through
+/// the paper it runs in.
+fn sheet_ray(state: &State, degrees: f64) -> Line {
+    let (s, c) = degrees.to_radians().sin_cos();
+    let at = |r: f64| state.image_of([0.5 + r * c, 0.5 + r * s]).unwrap();
+    Line::from_points(at(0.05), at(0.2)).unwrap()
+}
+
+fn turn(valley: f64, mountain: f64, kind: SwivelKind) -> SwivelValleyMountain {
+    let first = swivelled_square(120.0, 200.0);
+    SwivelValleyMountain {
+        valley: sheet_ray(&first, valley),
+        mountain: sheet_ray(&first, mountain),
+        kind,
+    }
+}
+
+#[test]
+fn a_strip_turned_about_the_end_of_its_hinges_is_a_wider_swivel() {
+    // The strip's hinges run at 340° and 60° on the sheet. Ten degrees
+    // inside each, the strip turns 20° round the vertex: the swivel whose
+    // lines lie 10° further round.
+    let first = swivelled_square(120.0, 200.0);
+    let wider = swivelled_square(130.0, 210.0);
+    let op = turn(330.0, 50.0, SwivelKind::Open);
+    let a = first.analyse_swivel_valley_mountain(&op).unwrap();
+    assert!((a.vertex[0] - 0.5).abs() < 1e-9 && (a.vertex[1] - 0.5).abs() < 1e-9);
+    // The crease on the strip, then the one in the layer it takes paper from.
+    let letters: Vec<Letter> = a.creases.iter().map(|c| c.letter).collect();
+    assert_eq!(letters, vec![Letter::Mountain, Letter::Valley]);
+    assert!(!a.regions.is_empty());
+    let turned = landed(&first, &op);
+    assert_eq!(turned.len(), 1);
+    support::assert_valid(&turned[0].state);
+    assert!(same_paper(&turned[0].state, &wider));
+    let replay = cases::every(first.swivel_valley_mountain(&op, &turned[0].report.stored));
+    assert!(same(&replay[0].state, &turned[0].state));
+}
+
+#[test]
+fn the_other_kind_turns_the_strip_the_other_way() {
+    let first = swivelled_square(120.0, 200.0);
+    let turned = landed(&first, &turn(330.0, 50.0, SwivelKind::Inside));
+    assert_eq!(turned.len(), 1);
+    support::assert_valid(&turned[0].state);
+    assert!(!same_paper(
+        &turned[0].state,
+        &swivelled_square(130.0, 210.0)
+    ));
+}
+
+#[test]
+fn the_crease_in_the_layer_is_computed_from_the_one_on_the_strip() {
+    // Open, the mountain is the crease on the strip and sets the turn; the
+    // valley only has to run into the strip. Named 15° off, the turn and its
+    // computed crease are the ones named exactly.
+    let first = swivelled_square(120.0, 200.0);
+    let exact = turn(330.0, 50.0, SwivelKind::Open);
+    let rough = turn(345.0, 50.0, SwivelKind::Open);
+    let a = first.analyse_swivel_valley_mountain(&exact).unwrap();
+    let b = first.analyse_swivel_valley_mountain(&rough).unwrap();
+    for (p, q) in a.creases.iter().zip(&b.creases) {
+        assert!((p.direction[0] - q.direction[0]).abs() < 1e-9);
+        assert!((p.direction[1] - q.direction[1]).abs() < 1e-9);
+    }
+    // The computed crease runs along the exact valley.
+    let valley = exact.valley;
+    let computed = Line::from_point_direction(b.vertex, b.creases[1].direction).unwrap();
+    assert!(computed.approx_eq_within(&valley, 1e-9));
+    let (x, y) = (landed(&first, &exact), landed(&first, &rough));
+    assert!(same(&x[0].state, &y[0].state));
+}
+
+#[test]
+fn the_crease_on_the_strip_keeps_its_hinges_letter() {
+    let first = swivelled_square(120.0, 200.0);
+    // The letters the other way round: the mountain at 330° would keep the
+    // valley hinge's letter.
+    assert!(landed(&first, &turn(50.0, 330.0, SwivelKind::Open)).is_empty());
+}

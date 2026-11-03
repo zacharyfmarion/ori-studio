@@ -45,24 +45,29 @@
 //! none is in view there — one hidden under a layer whose raw edge runs along
 //! it. Where several meet there (the folded edges of two flaps that abut
 //! along one line), the swivel folds on the one it can fold on.
+//! Where the folded edges there end instead — the corner where a flap's two
+//! hinges end — the lines turn that flap about it
+//! ([`super::swivel_hinge_end`]).
 //!
 //! **Through the stack.** Paper beyond the two layers that holds the wedges
 //! is creased along the same rays or carried (`super::folded_swivel`).
 //!
 //! **Refusals** (plan D14): lines that meet on no folded edge, or too near
-//! the end of one, or on several the swivel can fold on
-//! (`swivel_line_meeting`); a line along the folded edge, or the two along
-//! one line, which bound no flap (`swivel_no_flap`); paper whose motion no
-//! assignment of the swivel's four agrees with (`fan_ray_blocked`); and no
-//! order (`no_order`). The swivel has no other direction to offer: folded
-//! away from the viewer its two letters would be the other way round, which
-//! is the same lines picked the other way.
+//! the end of one, or on several the swivel can fold on, and turn no flap
+//! about the end of its hinges either (`swivel_line_meeting`); a line along
+//! the folded edge, or the two along one line, which bound no flap
+//! (`swivel_no_flap`); paper whose motion no assignment of the swivel's
+//! four agrees with (`fan_ray_blocked`); and no order (`no_order`). The
+//! swivel has no other direction to offer: folded away from the viewer its
+//! two letters would be the other way round, which is the same lines picked
+//! the other way.
 use super::CompoundRefused;
 use super::folded_swivel::{FoldCompiled, FoldFan, compile, flat_region};
 use super::swivel::{
     SwivelCrease, SwivelFold, SwivelKind, SwivelRay, SwivelRegion, SwivelWedge, dot, edge_run,
     internal, sub,
 };
+use super::swivel_hinge_end::HingeEnd;
 use super::vertex::{VertexChoices, VertexOutcome, angle_between, cross, rotate, unit};
 use crate::fold::Within;
 use crate::numerics::{MIN_FEATURE, TOL};
@@ -287,6 +292,14 @@ fn chord(ring: &[Point], from: Point, u: Point) -> Option<[f64; 2]> {
     (hi - lo > TOL).then_some([lo, hi])
 }
 
+/// What a swivel by its valley and mountain names in its parent.
+enum Reading {
+    /// A swivel on the folded edge its lines meet on.
+    OnEdge(Box<(Built, FoldCompiled)>),
+    /// A flap turned about the end of its hinges.
+    HingeEnd(Box<HingeEnd>),
+}
+
 /// A swivel by its valley and mountain resolved in its parent: its fan and
 /// which of the folded edge's two faces is in front.
 struct Built {
@@ -298,12 +311,28 @@ struct Built {
 }
 
 impl SwivelValleyMountain {
-    /// The folded edge the swivel folds on, and the swivel compiled there:
-    /// of the folded edges the lines meet on ([`folds_at`]), the one it can
-    /// fold on. Several that it can fold on are refused as a meeting the
-    /// lines do not settle (`swivel_line_meeting`); none, with the first
-    /// one's refusal.
-    fn reading(&self, state: &State) -> Result<(Built, FoldCompiled), Refused> {
+    /// What the lines name: a swivel on the folded edge they meet on, or,
+    /// where they meet at the end of the folded edges there, a flap turned
+    /// about the corner where its hinges end. Neither, with the folded edge's
+    /// refusal.
+    fn reading(&self, state: &State) -> Result<Reading, Refused> {
+        match self.on_edge(state) {
+            Ok((built, compiled)) => Ok(Reading::OnEdge(Box::new((built, compiled)))),
+            Err(refused) if refused.refusal == FoldRefusal::SwivelLineMeeting => {
+                match HingeEnd::reading(state, &self.valley, &self.mountain, self.kind)? {
+                    Some(turn) => Ok(Reading::HingeEnd(Box::new(turn))),
+                    None => Err(refused),
+                }
+            }
+            Err(refused) => Err(refused),
+        }
+    }
+
+    /// The swivel on a folded edge the lines meet on: of the folded edges
+    /// there ([`folds_at`]), the one it can fold on. Several that it can fold
+    /// on are refused as a meeting the lines do not settle
+    /// (`swivel_line_meeting`); none, with the first one's refusal.
+    fn on_edge(&self, state: &State) -> Result<(Built, FoldCompiled), Refused> {
         let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
         let at = self.valley.intersect(&self.mountain).ok_or_else(meeting)?;
         let mut first: Option<Refused> = None;
@@ -465,7 +494,18 @@ impl State {
         &self,
         op: &SwivelValleyMountain,
     ) -> Result<SwivelValleyMountainAnalysis, Refused> {
-        let (built, reading) = op.reading(self)?;
+        let (built, reading) = match op.reading(self)? {
+            Reading::OnEdge(on_edge) => *on_edge,
+            Reading::HingeEnd(turn) => {
+                return Ok(SwivelValleyMountainAnalysis {
+                    vertex: turn.vertex,
+                    creases: turn.creases(self),
+                    layers: turn.layers(self),
+                    regions: turn.regions(self),
+                    fold: turn.fold(self),
+                });
+            }
+        };
         let fan = &built.fan;
         let v = fan.vertex;
         let inside = op.kind == SwivelKind::Inside;
@@ -563,8 +603,10 @@ impl State {
         choices: &VertexChoices,
         limits: &CompletionLimits,
     ) -> Result<VertexOutcome, CompoundRefused> {
-        let (_, reading) = op.reading(self).map_err(CompoundRefused::Refused)?;
-        reading.land(self, choices, limits, || None)
+        match op.reading(self).map_err(CompoundRefused::Refused)? {
+            Reading::OnEdge(on_edge) => on_edge.1.land(self, choices, limits, || None),
+            Reading::HingeEnd(turn) => turn.land(self, choices, limits),
+        }
     }
 
     /// The picture of a swivel by its valley and mountain, with `landed`'s
@@ -575,7 +617,10 @@ impl State {
         op: &SwivelValleyMountain,
         landed: Option<&State>,
     ) -> Result<FoldActionGeometry, Refused> {
-        let (built, reading) = op.reading(self)?;
+        let (built, reading) = match op.reading(self)? {
+            Reading::OnEdge(on_edge) => *on_edge,
+            Reading::HingeEnd(turn) => return self.hinge_end_action(&turn, landed),
+        };
         let regions = super::swivel_on_edge::on_fold_regions(self, &reading);
         let reach: Vec<_> = regions
             .iter()
@@ -619,6 +664,50 @@ impl State {
             landed,
             Within {
                 ray: Some((built.fan.vertex, built.fan.second)),
+                reach: Some(&reach),
+            },
+        )
+    }
+
+    /// The picture of a flap turned about the end of its hinges: the crease
+    /// on the flap from the vertex, and the arrow from the flap across it, by
+    /// that crease's letter.
+    fn hinge_end_action(
+        &self,
+        turn: &HingeEnd,
+        landed: Option<&State>,
+    ) -> Result<FoldActionGeometry, Refused> {
+        let reach: Vec<_> = turn
+            .regions(self)
+            .into_iter()
+            .filter(|r| r.wedge == SwivelWedge::Beyond)
+            .map(|r| r.polygon)
+            .collect();
+        let line = turn.on_flap.line;
+        let side = reach
+            .iter()
+            .filter_map(|r| convex::centroid(r))
+            .find_map(|p| Side::of_point(&line, p))
+            .ok_or_else(|| internal("a turned flap has no side"))?;
+        let seen = match turn.on_flap.letter {
+            Letter::Valley => Direction::Valley,
+            Letter::Mountain => Direction::Mountain,
+        };
+        self.fold_action_within(
+            &FoldAnalysis {
+                line,
+                side,
+                snap: Snap::NONE,
+                direction: self.view().model_direction(seen),
+                flaps: vec![],
+                picked: vec![],
+                added: vec![],
+                moving: turn.moving(self),
+            },
+            ActionKind::Fold,
+            landed,
+            Within {
+                ray: Some((turn.vertex, turn.on_flap.direction)),
                 reach: Some(&reach),
             },
         )

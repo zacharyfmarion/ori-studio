@@ -67,6 +67,7 @@ pub(crate) mod pieces;
 pub mod rabbit;
 pub mod squash;
 pub mod swivel;
+mod swivel_hinge_end;
 pub mod swivel_on_edge;
 pub mod swivel_valley_mountain;
 pub mod vertex;

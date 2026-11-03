@@ -232,6 +232,17 @@ Compound folds (plan D4, D15, Phases 9 and 11):
     `fan_ray_blocked` only when no such motion exists. The lines may meet on
     a folded edge hidden under a layer, or where two flaps' folded edges
     abut; several the swivel can fold on are `swivel_line_meeting`.
+  - `compound::swivel_hinge_end`: a valley and a mountain that meet where a
+    flap's two hinges end — a flat vertex of four folds — turn the flap
+    about it. Both hinges move one angle ψ the same way round: the flap's
+    paper beside one unfolds onto the layer across it, the other layer's
+    paper beside the other folds in with the flap, and the flap turns through
+    2ψ. Open swings the flap out from under the layer across its valley
+    hinge (the mountain on the flap), inside swings it in under it (the
+    valley on the flap). The crease on the flap sets ψ and keeps its hinge's
+    letter as the flap shows it; the other is computed, as the crease behind
+    a swivel on a folded edge is, so the folder's line only has to run into
+    the flap. A flap whose hinges show it one letter cannot be named this way.
 - `compound::sink`: the open sink, the closed sink and the unsink (research
   §5.4). The point is one flap; its geometry is the plain fold of the whole
   point, so only letters and order are decided. Refused up front: an open
