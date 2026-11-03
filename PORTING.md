@@ -1571,8 +1571,10 @@ pleat's codes through that round trip.
 Compatibility covers the pinned JSON array format, both linear and cell saved
 states, saved view parameters, and symbol types 0–15. Unsupported or malformed
 entries are reported individually. Each linked saved view requires one paper
-region. Original render metadata is preserved with its fixed SVG; converting
-that view through Adjust Pose is explicit. Symbols remain vector pictures,
+region. Original render metadata is preserved with its fixed SVG, except
+what Defox's layer solver derives from the folds (cell complexes and the
+layer states over them), which nothing reads back; converting that view
+through Adjust Pose is explicit. Symbols remain vector pictures,
 not editable native annotations. See `tools/step-folder-oracle/README.md` for
 comparison tests and the external-corpus harness.
 

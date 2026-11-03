@@ -19,6 +19,7 @@ import { assetFrom, failureReason, STEP_PICTURE_EXTENSIONS, uploadOutcome } from
 import { importStepPicture } from "../upload/importStepPicture";
 import type { SanitizeNotice } from "../upload/svgSanitize";
 import { CpImportPreparer, type PreparedCp } from "./prepareCp";
+import { DEFOX_LIMITS } from "./defoxLimits";
 import type { DefoxImportWorkerApi } from "../../workers/defoxImportWorker";
 
 export interface ImportProgress {
@@ -168,11 +169,10 @@ export async function runImportJob(
             });
           }
         } else if (DEFOX_FILE.test(file.name)) {
-          const bytes = await read(file, 64 * MiB);
+          const bytes = await read(file, DEFOX_LIMITS.fileBytes);
           check();
           progress.phase = "preparing";
           publish();
-          const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
           worker = new Worker(
             new URL("../../workers/defoxImportWorker.ts", import.meta.url),
             {
@@ -212,7 +212,8 @@ export async function runImportJob(
             30_000,
           );
           const entries = await Promise.race([
-            api.renderDefox(text),
+            // Moved, not copied: the worker reads the file where it lies.
+            api.renderDefox(Comlink.transfer(bytes, [bytes.buffer as ArrayBuffer])),
             stopped,
             crashed,
           ]).finally(() => {

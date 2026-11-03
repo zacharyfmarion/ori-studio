@@ -6,6 +6,7 @@ import { SYM } from '../../../../../third_party/step-folder/src/defox/symbol.js'
 import { PRJ } from '../../../../../third_party/step-folder/src/defox/project.js';
 import { Y } from '../../../../../third_party/step-folder/src/defox/y.js';
 import defs from '../../../../../third_party/step-folder/resources/defs.xml?raw';
+import { DEFOX_LIMITS } from './defoxLimits';
 
 const escape = (text) =>
   String(text)
@@ -118,11 +119,34 @@ function colors(base, saved) {
   }
   return out;
 }
-/** Called only in the disposable Defox worker (or the isolated oracle test). */
-export function renderDefox(text) {
-  if (new globalThis.TextEncoder().encode(text).length > 64 * 1024 * 1024)
-    throw new Error('Defox file exceeds 64 MiB');
-  const entries = JSON.parse(text);
+/**
+ * The JSON in a file's bytes without the whitespace between its tokens, moved
+ * to the front of the same bytes, so no copy of an indented file is made. It
+ * refuses past the content limit before anything is parsed.
+ */
+function compacted(bytes) {
+  let kept = 0;
+  let quoted = false;
+  let escaped = false;
+  for (let i = 0; i < bytes.length; i++) {
+    const byte = bytes[i];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (byte === 0x5c) escaped = true;
+      else if (byte === 0x22) quoted = false;
+    } else if (byte === 0x20 || byte === 0x0a || byte === 0x0d || byte === 0x09) continue;
+    else if (byte === 0x22) quoted = true;
+    if (kept === DEFOX_LIMITS.contentBytes) throw new Error('Defox project holds more than 64 MiB');
+    bytes[kept++] = byte;
+  }
+  return bytes.subarray(0, kept);
+}
+/**
+ * Called only in the disposable Defox worker (or the isolated oracle test),
+ * with a file's bytes, which it compacts in place.
+ */
+export function renderDefox(bytes) {
+  const entries = JSON.parse(new globalThis.TextDecoder('utf-8', { fatal: true }).decode(compacted(bytes)));
   if (!Array.isArray(entries) || !entries.length || entries.length > 1000)
     throw new Error('Expected a Defox array of 1–1000 steps');
   checkTree(entries);
@@ -142,7 +166,7 @@ export function renderDefox(text) {
   try {
     return entries.map((step, index) => {
       try {
-        if (outputBytes > 128 * 1024 * 1024) throw new Error('Prepared Defox views exceed 128 MiB');
+        if (outputBytes > DEFOX_LIMITS.outputBytes) throw new Error('Prepared Defox views exceed 128 MiB');
         checkFold(step.fold_cp);
         checkFold(step.fold);
         const defaults = {
@@ -201,13 +225,17 @@ export function renderDefox(text) {
         // Already standard (2 = mountain): DEFOX labels a .cp's mountains "V" when
         // reading and writes "V" back as 2, so its own CP round trip needs no swap.
         const cp = Y.FOLD_2_CP(step.fold_cp);
+        // Kept without what is worked out from it: this renderer's distorted fold, and
+        // what Defox's layer solver derives from the folds (cell complexes, the layer
+        // states over them). Those are most of a large project, and nothing reads them
+        // back: the picture is drawn, and a posed view orders its own layers.
         const saved = { ...step, color: DRAW.color, symcolor: SYM.color };
-        delete saved.fold_d;
+        for (const key of ['fold_d', 'cell_cp', 'cell_d', 'state_cp', 'state']) delete saved[key];
         const snapshot = JSON.stringify(saved);
-        if (snapshot.length > 2 * 1024 * 1024)
+        if (snapshot.length > DEFOX_LIMITS.snapshotLength)
           throw new Error('Defox step exceeds the 2 MiB saved-state limit');
         outputBytes += 2 * (cp.length + serialized.length + snapshot.length);
-        if (outputBytes > 128 * 1024 * 1024) throw new Error('Prepared Defox views exceed 128 MiB');
+        if (outputBytes > DEFOX_LIMITS.outputBytes) throw new Error('Prepared Defox views exceed 128 MiB');
         return { ok: true, index, cp, svg: serialized, snapshot };
       } catch (error) {
         return { ok: false, index, error: error instanceof Error ? error.message : String(error) };
