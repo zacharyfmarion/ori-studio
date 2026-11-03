@@ -8,7 +8,7 @@ import {
   type DiagramStep,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import { cpStep } from '../document/diagramSteps.fixtures';
+import { cpStep, fixedPicture } from '../document/diagramSteps.fixtures';
 import { estimateTextSetter } from '../pages/estimateTextSetter';
 import { cellPicture, layoutPicture } from '../pages/pagePictures';
 import { exportStepPicture } from '../pictures/exportStepPicture';
@@ -318,5 +318,36 @@ describe('snapping on an enlarged step', () => {
     expect(target?.at[0]).toBeCloseTo(inWindow[0], 9);
     expect(target?.at[1]).toBeCloseTo(inWindow[1], 9);
     expect(stepPictureSource(step, {})).not.toBeNull();
+  });
+});
+
+// Bodo, 2026-11-03: an enlarged Defox step had its lines drawn as much larger as its picture.
+describe('an enlarged fixed picture', () => {
+  // A Defox view's or a see-through fold's own lines: one with a width, one that takes the default.
+  const LINED =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10" viewBox="0 0 20 10">' +
+    '<path d="M0 0L20 10" stroke="#000" stroke-width="2"/><path d="M0 10L20 0" stroke="#000"/></svg>';
+  // Its window half the picture across: the picture drawn twice as large as the step shows it.
+  const step = (): DiagramStep => ({
+    ...cpStep('step-fixed', undefined, fixedPicture('fixed-lined', LINED)),
+    zoom: { from: 'area-1', shape: 'circle', frame: { centre: [0.5, 0.25], radius: 0.25 } },
+  });
+  const widthOf = (markup: string) => /<path d="M0 0L20 10" stroke="#000" stroke-width="([^"]+)"/.exec(markup)?.[1];
+
+  it('draws its window on a card with its lines as the step shows them: the zoom’s times thinner', () => {
+    const painted = paintZoomedPicture(zoomedSource(step(), {})!, style)!;
+    expect(widthOf(painted.svg)).toBe('1');
+    expect(painted.svg).toContain('viewBox="0 0 20 10" stroke-width="0.5"');
+    // A close-up's inside on it, twice as large again: the lines a quarter.
+    expect(widthOf(paintZoomedPicture(zoomedSource(step(), {})!, style, { scale: 2 })!.svg)).toBe('0.5');
+  });
+
+  it('prints its window on a page the same way', () => {
+    const cell = { pictureMm: { x: 10, y: 20, size: 60 }, mmPerUnit: null, frameMm: null };
+    const picture = cellPicture(step(), {}, style, cell, 'c0-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
+    expect(widthOf(picture.markup)).toBe('1');
+    // Shown whole, it is the picture as it came.
+    const whole = cellPicture({ ...step(), zoom: undefined }, {}, style, cell, 'c0-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
+    expect(widthOf(whole.markup)).toBe('2');
   });
 });

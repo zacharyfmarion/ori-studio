@@ -277,15 +277,20 @@ export function paintScene(
  * every picture opens at — a close-up's inside (15f). A scene and a
  * References step are painted afresh at that size, so their lines, letters
  * and arrowheads keep their print weight; an upload and a fixed picture are
- * drawn larger whole, their own strokes with them ({@link enlargedPicture}).
- * A scene keeps only what lies over `cull` when given ({@link sceneCulledTo}).
+ * drawn larger whole ({@link enlargedPicture}), an upload's own strokes with
+ * it. A fixed picture keeps its lines' weight instead: drawn `magnified`
+ * times as large as its step shows it — an enlarged step's window, a
+ * close-up's inside — its strokes are that many times thinner
+ * ({@link fixedLinesAt}). A scene keeps only what lies over `cull` when given
+ * ({@link sceneCulledTo}).
  */
 export function paintSource(
   source: StepPictureSource,
   style: DiagramStyle,
   paddingMm?: number,
   scale = 1,
-  cull: PictureBox | null = null
+  cull: PictureBox | null = null,
+  magnified = 1
 ): PaintedPicture | null {
   switch (source.kind) {
     case 'asset':
@@ -293,7 +298,8 @@ export function paintSource(
     case 'scene':
       return paintScene(source, style, paddingMm, scale, cull);
     case 'fixed': {
-      const { svg, widthPx, heightPx } = source.picture;
+      const { widthPx, heightPx } = source.picture;
+      const svg = fixedLinesAt(source.picture.svg, magnified);
       return enlargedPicture({ svg, widthPx, heightPx, frame: { x: 0, y: 0, width: widthPx, height: heightPx } }, scale);
     }
     case 'step-diagram':
@@ -305,6 +311,29 @@ export function paintSource(
         stepScenePage(paddingMm ?? STEP_CARD_PADDING_MM, scale)
       );
   }
+}
+
+/**
+ * A fixed picture's SVG with its lines at the weight its step shows them,
+ * the picture drawn `magnified` times as large: every stroke width that many
+ * times thinner, in the picture's own units. A fixed picture is Ori Studio's
+ * own drawing — a saved Defox view, a fold's see-through development — whose
+ * widths are all `stroke-width` attributes, and whose markers (Defox's arrow
+ * heads) are sized in stroke widths, so they follow. A stroke that says no
+ * width of its own takes the root's, set to the default one's when the root
+ * says none either. Thick lines on an enlarged Defox step were these, drawn
+ * larger whole (Bodo, 2026-11-03).
+ */
+export function fixedLinesAt(svg: string, magnified: number): string {
+  if (magnified === 1 || !(magnified > 0) || !Number.isFinite(magnified)) return svg;
+  const thinner = (width: number) => String(Number((width / magnified).toPrecision(6)));
+  const lines = svg.replace(/(\s)stroke-width="([^"]*)"/g, (whole, space: string, width: string) => {
+    const value = Number(width);
+    return width.trim() !== '' && Number.isFinite(value) ? `${space}stroke-width="${thinner(value)}"` : whole;
+  });
+  return lines.replace(/<svg\b([^>]*)>/, (root, attributes: string) =>
+    /\sstroke-width=/.test(attributes) ? root : `<svg${attributes} stroke-width="${thinner(1)}">`
+  );
 }
 
 /**

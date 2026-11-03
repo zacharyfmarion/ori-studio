@@ -271,12 +271,16 @@ function windowDocument(
   const placement = zoomPlacement(view, pictureFrame, windowBox(window, CARD_FRAME_PX * scale * u, pad, pad));
   const printedMm = DEFAULT_PAPER_SIZE_MM * scale;
   // Painted at the size in CSS px the picture's frame takes, and nested there.
+  // The whole picture is drawn larger than the step shows it by the window's
+  // zoom, and by `scale` again for a close-up's inside: a fixed picture's
+  // lines keep their weight through both.
   const painted = paintSource(
     source,
     style,
     undefined,
     Math.max(placement.pictureFrame.width, placement.pictureFrame.height) / u / atOne,
-    zoomCull(view, printedMm)
+    zoomCull(view, printedMm),
+    scale / Math.max(view.window.width, view.window.height)
   );
   const nested = painted && nestedOn(painted, placement.pictureFrame, 'zoom-picture-');
   const { markup } = paintZoomed(view, placement, nested, { style, silhouette, unitsPerPx: u, printedMm, idPrefix: '' });

@@ -7,6 +7,7 @@ import { cpStep, fixedPicture, referencesStep, scenePicture } from '../document/
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import {
+  fixedLinesAt,
   paintAsset,
   paintScene,
   paintSource,
@@ -231,6 +232,28 @@ describe('paintStepPicture', () => {
   });
 });
 
+/** A fixed picture with a stroke of its own width and one that takes the default. */
+const LINED_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10" viewBox="0 0 20 10">' +
+  '<path d="M0 0L20 10" stroke="#000" stroke-width="2"/><path d="M0 10L20 0" stroke="#000"/></svg>';
+
+describe('fixedLinesAt', () => {
+  it('thins every stroke width, gives a stroke with none the root’s, and leaves a width that is no number', () => {
+    expect(fixedLinesAt(LINED_SVG, 4)).toBe(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10" viewBox="0 0 20 10" stroke-width="0.25">' +
+        '<path d="M0 0L20 10" stroke="#000" stroke-width="0.5"/><path d="M0 10L20 0" stroke="#000"/></svg>'
+    );
+    const rooted = '<svg xmlns="http://www.w3.org/2000/svg" stroke-width="3"><g stroke-width="2px"><path stroke-width="6"/></g></svg>';
+    expect(fixedLinesAt(rooted, 3)).toBe(
+      '<svg xmlns="http://www.w3.org/2000/svg" stroke-width="1"><g stroke-width="2px"><path stroke-width="2"/></g></svg>'
+    );
+  });
+
+  it('is the picture itself at no magnification, or one that does not read', () => {
+    for (const magnified of [1, 0, -2, Number.NaN, Number.POSITIVE_INFINITY]) expect(fixedLinesAt(LINED_SVG, magnified)).toBe(LINED_SVG);
+  });
+});
+
 describe('a picture painted larger, for a close-up’s inside (15f)', () => {
   const style = DEFAULT_DIAGRAM_STYLE;
   const pens = (svg: string) => [...new Set([...svg.matchAll(/stroke-width="([^"]+)"/g)].map(([, width]) => width))].sort();
@@ -262,6 +285,29 @@ describe('a picture painted larger, for a close-up’s inside (15f)', () => {
     expect(paintSource({ kind: 'fixed', picture: fixedPicture() }, style, undefined, 1)!.svg).toBe(fixedPicture().svg);
     const upload = paintSource({ kind: 'asset', asset: svg, pose: { rotationQuarterTurns: 0, mirrored: false } }, style, undefined, 1.5)!;
     expect(upload.widthPx).toBeCloseTo(1.5 * svg.widthPx, 9);
+  });
+
+  // Bodo, 2026-11-03: a Defox view drawn larger had its lines drawn larger with it.
+  it('keeps a fixed picture’s lines at the weight its step shows them when it is drawn magnified', () => {
+    const lined = fixedPicture('fixed-lined', LINED_SVG);
+    const magnified = paintSource({ kind: 'fixed', picture: lined }, style, undefined, 4, null, 4)!;
+    // Four times larger, every width a quarter: the explicit 2, and the default 1 a stroke with none takes from the root.
+    expect(magnified.svg).toContain('width="80" height="40" viewBox="0 0 20 10"');
+    expect(pens(magnified.svg)).toEqual(['0.25', '0.5']);
+    // At the step's own size it is the picture as it came.
+    expect(paintSource({ kind: 'fixed', picture: lined }, style, undefined, 4)!.svg).not.toContain('stroke-width="0.5"');
+  });
+
+  it('gives the canvas a close-up of a fixed picture with its lines at their weight, and an upload its own URL', () => {
+    clearStepPictureCacheForTests();
+    const fixed = { kind: 'fixed' as const, picture: fixedPicture('fixed-lined', LINED_SVG) };
+    const inside = closeUpPictureUrl(fixed, style, 2)!;
+    expect(inside).toMatchObject({ widthPx: 40, heightPx: 20, frame: { x: 0, y: 0, width: 40, height: 20 } });
+    const decoded = new TextDecoder().decode(Uint8Array.from(atob(inside.url.split(',')[1]!), (c) => c.charCodeAt(0)));
+    expect(pens(decoded)).toEqual(['0.5', '1']);
+    // Round an enlarged step's frame, by the window's zoom rather than the close-up's.
+    expect(closeUpPictureUrl(fixed, style, 3, 4)!.url).not.toBe(inside.url);
+    expect(closeUpPictureUrl(fixed, style, 2, 1)!.url).toBe(stepPictureUrl(fixed, style));
   });
 
   it('is painted inside a card’s close-up, and not in Pose, which ghosts the marks over the picture it poses', () => {
