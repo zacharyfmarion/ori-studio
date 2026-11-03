@@ -574,11 +574,14 @@ export type DiagramMarksLiftedVia = 'annotate_notice' | 'layers_notice' | 'step_
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
 
-/** What the Diagram's export wrote: one PDF of the pages, one SVG of them laid out in spreads, or a ZIP of the steps' own files. */
+/** What the Diagram's export wrote: one PDF of the pages, the pages as SVG, or a ZIP of the steps' own files. */
 export type DiagramExportFormat = 'pdf' | 'svg' | 'zip';
 
 /** Who a diagram's PDF is for: a printer at home, or a print shop (bleed, page boxes and crop marks). */
 export type DiagramPdfPreset = 'home' | 'print_shop';
+
+/** How a diagram's SVG lays its pages out: a file for each, or every page on one sheet in spreads. */
+export type DiagramSvgExportLayout = 'pages' | 'spreads';
 
 /** The Diagram's two views: the steps as cards, or the printed pages. */
 export type DiagramView = 'steps' | 'pages';

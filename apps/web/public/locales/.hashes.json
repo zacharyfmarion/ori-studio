@@ -4078,7 +4078,7 @@
     "dialogs:diagramExport.spreadCount_other": "514859e632e3",
     "dialogs:diagramExport.spreadLabel": "1c82e401a6db",
     "dialogs:diagramExport.svg": "3edb66ea075e",
-    "dialogs:diagramExport.svgHint": "015ed75c193a",
+    "dialogs:diagramExport.svgHint": "b6798ec2e898",
     "panels:simulator.canvasAriaLabelPull": "87529dd8aee4",
     "panels:simulator.canvasTitlePull": "80e9c26b13fc",
     "panels:simulator.tools.pose.meta": "ca448cb426b5",
@@ -6708,7 +6708,12 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "dialogs:diagramExport.pages": "9046da16aea9",
+    "dialogs:diagramExport.pagesHint": "95f7d99a402d",
+    "dialogs:diagramExport.spreads": "6bee03e9e0f9",
+    "dialogs:diagramExport.spreadsHint": "542565a23030",
+    "dialogs:diagramExport.svgLayout": "d14d7d85049d"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -10789,7 +10794,7 @@
     "dialogs:diagramExport.spreadCount_other": "514859e632e3",
     "dialogs:diagramExport.spreadLabel": "1c82e401a6db",
     "dialogs:diagramExport.svg": "3edb66ea075e",
-    "dialogs:diagramExport.svgHint": "015ed75c193a",
+    "dialogs:diagramExport.svgHint": "b6798ec2e898",
     "panels:simulator.canvasAriaLabelPull": "87529dd8aee4",
     "panels:simulator.canvasTitlePull": "80e9c26b13fc",
     "panels:simulator.tools.pose.meta": "ca448cb426b5",
@@ -13419,7 +13424,12 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "dialogs:diagramExport.pages": "9046da16aea9",
+    "dialogs:diagramExport.pagesHint": "95f7d99a402d",
+    "dialogs:diagramExport.spreads": "6bee03e9e0f9",
+    "dialogs:diagramExport.spreadsHint": "542565a23030",
+    "dialogs:diagramExport.svgLayout": "d14d7d85049d"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -17502,7 +17512,7 @@
     "dialogs:diagramExport.spreadCount_other": "514859e632e3",
     "dialogs:diagramExport.spreadLabel": "1c82e401a6db",
     "dialogs:diagramExport.svg": "3edb66ea075e",
-    "dialogs:diagramExport.svgHint": "015ed75c193a",
+    "dialogs:diagramExport.svgHint": "b6798ec2e898",
     "panels:simulator.canvasAriaLabelPull": "87529dd8aee4",
     "panels:simulator.canvasTitlePull": "80e9c26b13fc",
     "panels:simulator.tools.pose.meta": "ca448cb426b5",
@@ -20132,7 +20142,12 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "dialogs:diagramExport.pages": "9046da16aea9",
+    "dialogs:diagramExport.pagesHint": "95f7d99a402d",
+    "dialogs:diagramExport.spreads": "6bee03e9e0f9",
+    "dialogs:diagramExport.spreadsHint": "542565a23030",
+    "dialogs:diagramExport.svgLayout": "d14d7d85049d"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -24132,7 +24147,7 @@
     "dialogs:diagramExport.spreadCount_other": "514859e632e3",
     "dialogs:diagramExport.spreadLabel": "1c82e401a6db",
     "dialogs:diagramExport.svg": "3edb66ea075e",
-    "dialogs:diagramExport.svgHint": "015ed75c193a",
+    "dialogs:diagramExport.svgHint": "b6798ec2e898",
     "panels:simulator.canvasAriaLabelPull": "87529dd8aee4",
     "panels:simulator.canvasTitlePull": "80e9c26b13fc",
     "panels:simulator.tools.pose.meta": "ca448cb426b5",
@@ -26466,7 +26481,12 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "dialogs:diagramExport.pages": "9046da16aea9",
+    "dialogs:diagramExport.pagesHint": "95f7d99a402d",
+    "dialogs:diagramExport.spreads": "6bee03e9e0f9",
+    "dialogs:diagramExport.spreadsHint": "542565a23030",
+    "dialogs:diagramExport.svgLayout": "d14d7d85049d"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -30466,7 +30486,7 @@
     "dialogs:diagramExport.spreadCount_other": "514859e632e3",
     "dialogs:diagramExport.spreadLabel": "1c82e401a6db",
     "dialogs:diagramExport.svg": "3edb66ea075e",
-    "dialogs:diagramExport.svgHint": "015ed75c193a",
+    "dialogs:diagramExport.svgHint": "b6798ec2e898",
     "panels:simulator.canvasAriaLabelPull": "87529dd8aee4",
     "panels:simulator.canvasTitlePull": "80e9c26b13fc",
     "panels:simulator.tools.pose.meta": "ca448cb426b5",
@@ -32800,7 +32820,12 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "dialogs:diagramExport.pages": "9046da16aea9",
+    "dialogs:diagramExport.pagesHint": "95f7d99a402d",
+    "dialogs:diagramExport.spreads": "6bee03e9e0f9",
+    "dialogs:diagramExport.spreadsHint": "542565a23030",
+    "dialogs:diagramExport.svgLayout": "d14d7d85049d"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -36881,7 +36906,7 @@
     "dialogs:diagramExport.spreadCount_other": "514859e632e3",
     "dialogs:diagramExport.spreadLabel": "1c82e401a6db",
     "dialogs:diagramExport.svg": "3edb66ea075e",
-    "dialogs:diagramExport.svgHint": "015ed75c193a",
+    "dialogs:diagramExport.svgHint": "b6798ec2e898",
     "panels:simulator.canvasAriaLabelPull": "87529dd8aee4",
     "panels:simulator.canvasTitlePull": "80e9c26b13fc",
     "panels:simulator.tools.pose.meta": "ca448cb426b5",
@@ -39511,7 +39536,12 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "dialogs:diagramExport.pages": "9046da16aea9",
+    "dialogs:diagramExport.pagesHint": "95f7d99a402d",
+    "dialogs:diagramExport.spreads": "6bee03e9e0f9",
+    "dialogs:diagramExport.spreadsHint": "542565a23030",
+    "dialogs:diagramExport.svgLayout": "d14d7d85049d"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -43592,7 +43622,7 @@
     "dialogs:diagramExport.spreadCount_other": "514859e632e3",
     "dialogs:diagramExport.spreadLabel": "1c82e401a6db",
     "dialogs:diagramExport.svg": "3edb66ea075e",
-    "dialogs:diagramExport.svgHint": "015ed75c193a",
+    "dialogs:diagramExport.svgHint": "b6798ec2e898",
     "panels:simulator.canvasAriaLabelPull": "87529dd8aee4",
     "panels:simulator.canvasTitlePull": "80e9c26b13fc",
     "panels:simulator.tools.pose.meta": "ca448cb426b5",
@@ -46222,7 +46252,12 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "dialogs:diagramExport.pages": "9046da16aea9",
+    "dialogs:diagramExport.pagesHint": "95f7d99a402d",
+    "dialogs:diagramExport.spreads": "6bee03e9e0f9",
+    "dialogs:diagramExport.spreadsHint": "542565a23030",
+    "dialogs:diagramExport.svgLayout": "d14d7d85049d"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -50222,7 +50257,7 @@
     "dialogs:diagramExport.spreadCount_other": "514859e632e3",
     "dialogs:diagramExport.spreadLabel": "1c82e401a6db",
     "dialogs:diagramExport.svg": "3edb66ea075e",
-    "dialogs:diagramExport.svgHint": "015ed75c193a",
+    "dialogs:diagramExport.svgHint": "b6798ec2e898",
     "panels:simulator.canvasAriaLabelPull": "87529dd8aee4",
     "panels:simulator.canvasTitlePull": "80e9c26b13fc",
     "panels:simulator.tools.pose.meta": "ca448cb426b5",
@@ -52556,6 +52591,11 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "dialogs:diagramExport.pages": "9046da16aea9",
+    "dialogs:diagramExport.pagesHint": "95f7d99a402d",
+    "dialogs:diagramExport.spreads": "6bee03e9e0f9",
+    "dialogs:diagramExport.spreadsHint": "542565a23030",
+    "dialogs:diagramExport.svgLayout": "d14d7d85049d"
   }
 }

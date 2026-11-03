@@ -1,6 +1,6 @@
 /**
  * What the diagram's export remembers (D11): the file it last wrote — one PDF
- * of the pages, the pages as one SVG, or the steps as files — and how. The dialog opens on it, and
+ * of the pages, the pages as SVG, or the steps as files — and how. The dialog opens on it, and
  * a save remembers what the dialog wrote.
  *
  * Pure data and its normaliser; the settings store reads and writes this
@@ -9,8 +9,14 @@
 import type { DiagramPdfMode } from './diagramPdf';
 import { STEP_FILE_MM_RANGE, stepFileMinHeightMm, type StepFileOptions } from './stepFileGeometry';
 
-/** One PDF of the pages, one SVG of them laid out in spreads (`diagramSheet.ts`), or a ZIP with a file for each step. */
+/** One PDF of the pages, the pages as SVG, or a ZIP with a file for each step. */
 export type DiagramExportKind = 'pdf' | 'svg' | 'steps';
+
+/**
+ * The SVG's pages: a file for each (`diagramPageFiles.ts`), or every page on
+ * one sheet, laid out in spreads (`diagramSheet.ts`).
+ */
+export type DiagramSvgLayout = 'pages' | 'spreads';
 
 export type StepFileFormat = 'svg' | 'png';
 
@@ -22,6 +28,8 @@ export interface DiagramExportSettings extends StepFileOptions {
   kind: DiagramExportKind;
   /** The PDF's: to print at home, or to send to a print shop. */
   pdf: DiagramPdfMode;
+  /** The SVG's. */
+  svg: DiagramSvgLayout;
   /** The step files'. */
   format: StepFileFormat;
   dpi: StepFileDpi;
@@ -30,6 +38,7 @@ export interface DiagramExportSettings extends StepFileOptions {
 export const DEFAULT_DIAGRAM_EXPORT_SETTINGS: DiagramExportSettings = {
   kind: 'pdf',
   pdf: 'home',
+  svg: 'pages',
   format: 'svg',
   dpi: 300,
   number: true,
@@ -56,6 +65,7 @@ export function normalizeDiagramExportSettings(source: unknown): DiagramExportSe
   return {
     kind: oneOf(raw.kind, ['pdf', 'svg', 'steps'] as const, fallback.kind),
     pdf: oneOf(raw.pdf, ['home', 'print-shop'] as const, fallback.pdf),
+    svg: oneOf(raw.svg, ['pages', 'spreads'] as const, fallback.svg),
     format: oneOf(raw.format, ['svg', 'png'] as const, fallback.format),
     dpi: oneOf(raw.dpi, STEP_FILE_DPIS, fallback.dpi),
     number,

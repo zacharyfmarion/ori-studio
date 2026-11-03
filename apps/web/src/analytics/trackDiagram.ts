@@ -34,6 +34,7 @@ import type {
   DiagramCaptureVia,
   DiagramExportFormat,
   DiagramPdfPreset,
+  DiagramSvgExportLayout,
   DiagramPictureExportFormat,
   DiagramPictureFormat,
   DiagramPictureKind,
@@ -448,9 +449,9 @@ export interface DiagramStepFilesExported {
 }
 
 /**
- * The diagram written out: a PDF for home or a print shop, the pages as one
- * SVG (no options: `how` is null), or a ZIP of its steps' files and how they
- * were made. `files` is the PDF's or the SVG's pages or the ZIP's files,
+ * The diagram written out: a PDF for home or a print shop, the pages as SVG —
+ * a file for each, or one sheet of spreads — or a ZIP of its steps' files and
+ * how they were made. `files` is the PDF's or the SVG's pages or the ZIP's files,
  * `steps` the diagram's steps, `empty` those with no picture, `enlarged`
  * those enlarged (Revision 2), `placed` those placed by hand and
  * `outsideMargin` those placed with a part past the margin — the one
@@ -461,7 +462,7 @@ export interface DiagramStepFilesExported {
  */
 export function trackDiagramExported(
   format: DiagramExportFormat,
-  how: { preset: DiagramPdfPreset } | DiagramStepFilesExported | null,
+  how: { preset: DiagramPdfPreset } | { svgLayout: DiagramSvgExportLayout } | DiagramStepFilesExported,
   counts: { files: number; steps: number; empty: number; enlarged: number; placed?: number; outsideMargin?: number },
   pages?: { titleBlock: boolean }
 ): void {
@@ -469,10 +470,10 @@ export function trackDiagramExported(
   track(ANALYTICS_EVENTS.diagramExported, {
     format,
     ...(pages ? { title_block: shown(pages.titleBlock) } : {}),
-    ...(how === null
-      ? {}
-      : 'preset' in how
-        ? { preset: how.preset }
+    ...('preset' in how
+      ? { preset: how.preset }
+      : 'svgLayout' in how
+        ? { svg_layout: how.svgLayout }
         : {
             file_type: how.fileType,
             resolution: how.dpi === null ? 'none' : String(how.dpi),

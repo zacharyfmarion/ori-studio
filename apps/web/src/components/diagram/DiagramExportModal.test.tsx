@@ -238,6 +238,80 @@ describe('DiagramExportDialog', () => {
     expect(track.mock.calls.find(([event]) => event === 'diagram exported')![1]).not.toHaveProperty('title_block');
   });
 
+  it('writes each page as an SVG of its own by default, into one ZIP, a page at a time in the pager', async () => {
+    // Twelve steps with pictures and no title block: two pages.
+    const document = insertSteps(
+      createDiagram({ title: 'Crane' }),
+      Array.from({ length: 12 }, (_, index) => cpStep(`step-${index}`)),
+      0
+    );
+    await open({ ...document, page: { ...document.page, titleBlock: PAGE_SETTINGS.titleBlock.legacy } });
+    await click(radio('SVG'));
+    expect(host.textContent).toContain('Every page, to edit in a drawing app.');
+    expect(radio('Pages').getAttribute('aria-checked')).toBe('true');
+    expect(host.textContent).toContain('Each page in its own file.');
+    // No page faces another: which side the first takes is the spreads' alone.
+    expect(host.textContent).not.toContain('First page:');
+    expect(host.textContent).not.toContain('Print shop');
+    expect(caption()).toBe('210 × 297 mm · 2 files · ZIP');
+    expect(host.querySelectorAll('img')).toHaveLength(1);
+    expect(host.textContent).toContain('Page 1 · 1 of 2');
+    await click(host.querySelector<HTMLButtonElement>('button[aria-label="Next page"]')!);
+    expect(host.textContent).toContain('Page 2 · 2 of 2');
+    expect(host.textContent).toContain('Crane.zip');
+    expect(exportButton().textContent).toBe('Export SVGs as ZIP');
+
+    await click(exportButton());
+    expect(writePdf).not.toHaveBeenCalled();
+    expect(saveTextFile).not.toHaveBeenCalled();
+    const saved = saveBinaryFile.mock.calls[0]![0] as { bytes: Uint8Array; suggestedName: string; extensions: string[] };
+    expect(saved.suggestedName).toBe('Crane.zip');
+    expect(saved.extensions).toEqual(['zip']);
+    const files = unzipSync(saved.bytes);
+    expect(Object.keys(files)).toEqual(['Crane-page-1.svg', 'Crane-page-2.svg']);
+    for (const file of Object.values(files)) {
+      // A page, in pt as the PDF's, with its own fonts: no sheet round it.
+      const svg = new TextDecoder().decode(file);
+      expect(svg).toMatch(/<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="[\d.]+pt" height="[\d.]+pt"/);
+      expect(svg).toContain("@font-face{font-family:'Noto Sans'");
+      expect(svg).not.toContain('<g id="page-');
+    }
+    expect(toastSuccess).toHaveBeenCalledWith('Exported Crane.zip');
+    expect(track).toHaveBeenCalledWith('diagram exported', {
+      format: 'svg',
+      svg_layout: 'pages',
+      title_block: 'hidden',
+      file_count_bucket: '<=2',
+      step_count_bucket: '<=20',
+      empty_step_bucket: '<=0',
+      enlarged_step_bucket: '<=0',
+      placed_step_bucket: '<=0',
+      clash_bucket: '<=0',
+    });
+    expect(useSettingsStore.getState().diagramExport).toMatchObject({ kind: 'svg', svg: 'pages' });
+  });
+
+  it('saves a diagram of one page as that page’s SVG, not a ZIP of one', async () => {
+    await open();
+    await click(radio('SVG'));
+    expect(caption()).toBe('210 × 297 mm · 1 page');
+    expect(host.querySelector('button[aria-label="Next page"]')).toBeNull();
+    expect(host.textContent).toContain('Crane.svg');
+    expect(exportButton().textContent).toBe('Export SVG');
+
+    await click(exportButton());
+    expect(saveBinaryFile).not.toHaveBeenCalled();
+    const saved = saveTextFile.mock.calls[0]![0] as { contents: string; suggestedName: string; extensions: string[] };
+    expect(saved.suggestedName).toBe('Crane.svg');
+    expect(saved.extensions).toEqual(['svg']);
+    expect(saved.contents).toMatch(/<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="[\d.]+pt" height="[\d.]+pt"/);
+    expect(saved.contents).not.toContain('<g id="page-');
+    expect(track).toHaveBeenCalledWith(
+      'diagram exported',
+      expect.objectContaining({ format: 'svg', svg_layout: 'pages', file_count_bucket: '<=1' })
+    );
+  });
+
   it('lays the pages out as spreads on one SVG: a spread in the preview, the sheet in the caption', async () => {
     // Twelve steps with pictures and no title block: two pages, which face each other from a left first page.
     const document = insertSteps(
@@ -247,7 +321,8 @@ describe('DiagramExportDialog', () => {
     );
     await open({ ...document, page: { ...document.page, titleBlock: PAGE_SETTINGS.titleBlock.legacy } });
     await click(radio('SVG'));
-    expect(host.textContent).toContain('Every page on one sheet, as spreads.');
+    await click(radio('Spreads'));
+    expect(host.textContent).toContain('Facing pages side by side, on one sheet.');
     expect(host.textContent).toContain('First page: Left');
     expect(host.textContent).toContain('Crane.svg');
     expect(exportButton().textContent).toBe('Export SVG');
@@ -267,6 +342,7 @@ describe('DiagramExportDialog', () => {
     expect(toastSuccess).toHaveBeenCalledWith('Exported Crane.svg');
     expect(track).toHaveBeenCalledWith('diagram exported', {
       format: 'svg',
+      svg_layout: 'spreads',
       title_block: 'hidden',
       file_count_bucket: '<=2',
       step_count_bucket: '<=20',
@@ -275,7 +351,7 @@ describe('DiagramExportDialog', () => {
       placed_step_bucket: '<=0',
       clash_bucket: '<=0',
     });
-    expect(useSettingsStore.getState().diagramExport.kind).toBe('svg');
+    expect(useSettingsStore.getState().diagramExport).toMatchObject({ kind: 'svg', svg: 'spreads' });
   });
 
   it('walks the spreads of a right first page, page 1 alone on the right', async () => {
@@ -286,6 +362,7 @@ describe('DiagramExportDialog', () => {
     );
     await open({ ...document, page: { ...document.page, firstPageSide: 'right' } });
     await click(radio('SVG'));
+    await click(radio('Spreads'));
     expect(host.textContent).toContain('First page: Right');
     expect(caption()).toBe('420 × 604 mm · 2 pages · 2 spreads');
     expect(host.textContent).toContain('Page 1 · 1 of 2');

@@ -1126,6 +1126,24 @@ shows the composed page.**
     everything but sets the text in a fallback font (it ignores an embedded
     `@font-face`; Noto Sans is not installed there). The desktop save dialog
     is not verified here.
+- *Amended, a file per page* (Zach, 2026-11-02: "I wanna be able to export
+  each page kind of like the PDF version, because people want to edit each
+  page individually in Affinity and then export it as a PDF … make this the
+  default option and then have an option to do it the way it currently does
+  it"; `diagram-svg-page-files.md`). The SVG card ("Every page, to edit in a
+  drawing app.") gains a row of its own, as the PDF has At home / Print shop:
+  **Pages**, the default ("Each page in its own file."), or **Spreads**, the
+  sheet above ("Facing pages side by side, on one sheet."), remembered as
+  `svg`; a setting saved before opens on Pages. `export/diagramPageFiles.ts`
+  makes each page a file: the page the PDF's preview shows
+  (`PreparedDiagramPages.compose`), in pt, the faces it sets embedded and cut
+  to its characters, with no white ground — the page the PDF writer is handed
+  has none, and the sheet's ground is there to mark a page out on the sheet —
+  named `<Title>-page-N`, padded as step files are. Several go in
+  `<Title>.zip` through `savePaperExportZip`; a diagram of one page is saved
+  as `<Title>.svg`. Pages previews and pages as the PDF does, captioned
+  "210 × 297 mm · 4 files · ZIP"; First page shows for Spreads alone.
+  `diagram exported` gains `svg_layout` (`pages`/`spreads`).
 
 **D12. The shell: a fifth, authoring workspace.**
 - **Registration.** Copy References' registration file by file; the list is in
