@@ -637,7 +637,6 @@ export type Folded3dMeshToken = number;
 
 interface MeshSession {
   source: FoldedMeshSource;
-  canvas: OffscreenCanvas;
   view: SessionView;
   lastUsed: number;
 }
@@ -796,18 +795,6 @@ function disposeMesh(token: Folded3dMeshToken): void {
   if (!existing) return;
   existing.source.dispose();
   meshes.delete(token);
-  releaseUnusedSpatialCanvas();
-}
-
-function releaseUnusedSpatialCanvas(): void {
-  const canvas = spatialRenderCanvas;
-  if (!canvas) return;
-  for (const mesh of meshes.values()) if (mesh.canvas === canvas) return;
-  spatialRenderCanvas = null;
-  lastSpatialCanvasResizeMs = -Infinity;
-  // Contexts are scarce; release this one explicitly after its final mesh,
-  // rather than leaving an unused stencil buffer/context for GC to reclaim.
-  canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext();
 }
 
 /** The mesh behind `token`, or null once it has been released or evicted. */
@@ -857,10 +844,6 @@ let sessionFailure: string | null = null;
 type PresentMode = 'canvas' | 'bitmap';
 
 let renderCanvas: OffscreenCanvas | null = null;
-// WebGL attributes cannot be upgraded on an existing canvas. Keep stencil
-// opt-in even when a simulator/ordinary figure created its context first.
-// All ordered meshes share this second canvas, and the last release frees it.
-let spatialRenderCanvas: OffscreenCanvas | null = null;
 let presentMode: PresentMode = 'canvas';
 
 export interface PerfSnapshot {
@@ -1288,7 +1271,6 @@ const api = {
    */
   attachCanvas(canvas: OffscreenCanvas): void {
     renderCanvas = canvas;
-    lastCanvasResizeMs = -Infinity;
     presentMode = 'canvas';
   },
 
@@ -1310,7 +1292,6 @@ const api = {
       return;
     }
     renderCanvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
-    lastCanvasResizeMs = -Infinity;
     presentMode = 'bitmap';
   },
 
@@ -1935,9 +1916,10 @@ const api = {
       snapshotAvgMs: perf.renders ? perf.snapshotTotalMs / perf.renders : 0,
       snapshotMaxMs: perf.snapshotMaxMs,
       request: perf.lastRequest,
-      // Largest active view across both pools. Each buffer is sized using only
-      // its own views; canvas/buffer/crop below describe the most recent render.
-      peak: peakRequestedSize(now),
+      // Read live rather than sampled at render time: it is the current state of
+      // the session map, and the question it answers is what the buffer would be
+      // sized to *now*.
+      peak: peakRequestedSize(),
       canvas: perf.lastCanvas,
       buffer: perf.lastBuffer,
       crop: perf.lastCrop,
@@ -1970,25 +1952,12 @@ const api = {
    */
   loadFolded3dMesh(payload: Folded3dMeshPayload): Folded3dMeshInfo | null {
     if (!renderCanvas) return null;
-    const canvas = payload.spatial
-      ? (spatialRenderCanvas ??= new OffscreenCanvas(1, 1))
-      : renderCanvas;
-    let source: FoldedMeshSource | null;
-    try {
-      source = FoldedMeshSource.create(canvas, payload);
-    } catch (error) {
-      releaseUnusedSpatialCanvas();
-      throw error;
-    }
-    if (!source) {
-      releaseUnusedSpatialCanvas();
-      return null;
-    }
+    const source = FoldedMeshSource.create(renderCanvas, payload);
+    if (!source) return null;
     meshToken += 1;
     const previous = latestSession()?.view;
     meshes.set(meshToken, {
       source,
-      canvas,
       view: {
         view: { yaw: 0, pitch: 0, zoom: 1 },
         width: renderCanvas.width,
@@ -2032,7 +2001,7 @@ const api = {
     // Apply a coalesced camera/style update in one render, not two competing
     // bitmap requests. Existing camera-only callers retain the stored style.
     if (settings) mesh.view.settings = settings;
-    const bitmap = await renderGpu(mesh.source, mesh.view, mesh.canvas);
+    const bitmap = await renderGpu(mesh.source, mesh.view);
     return bitmap ? transfer({ bitmap }, [bitmap]) : { bitmap: null };
   },
 
@@ -2044,7 +2013,7 @@ const api = {
     const mesh = meshFor(token);
     if (!mesh) return null;
     mesh.view.settings = settings;
-    const bitmap = await renderGpu(mesh.source, mesh.view, mesh.canvas);
+    const bitmap = await renderGpu(mesh.source, mesh.view);
     return bitmap ? transfer({ bitmap }, [bitmap]) : { bitmap: null };
   },
 
@@ -2241,7 +2210,6 @@ const SHRINK_HOLD_MS = 750;
  * `-Infinity` lets the first one happen immediately.
  */
 let lastCanvasResizeMs = -Infinity;
-let lastSpatialCanvasResizeMs = -Infinity;
 
 export function nextRenderCanvasSize(options: {
   current: { width: number; height: number };
@@ -2324,12 +2292,10 @@ const ACTIVE_RENDER_MS = 1000;
  * a window that goes quiet and comes back pays one reallocation, not a stream
  * of them.
  */
-function peakRequestedSize(at = nowMs(), canvas?: OffscreenCanvas): { width: number; height: number } {
+function peakRequestedSize(at = nowMs()): { width: number; height: number } {
   const views: Array<Pick<SessionView, 'width' | 'height' | 'lastRenderedAt'>> = [];
-  if (!canvas || canvas === renderCanvas)
-    for (const session of sessions.values()) views.push(session.view);
-  for (const mesh of meshes.values())
-    if (!canvas || mesh.canvas === canvas) views.push(mesh.view);
+  for (const session of sessions.values()) views.push(session.view);
+  for (const mesh of meshes.values()) views.push(mesh.view);
   return activePeakSize(views, at);
 }
 
@@ -2402,32 +2368,24 @@ export function renderCanvasResize(options: {
   });
 }
 
-function sizeRenderCanvas(
-  width: number,
-  height: number,
-  at = nowMs(),
-  canvas = renderCanvas
-): void {
-  if (!canvas) return;
-  const spatial = canvas === spatialRenderCanvas;
+function sizeRenderCanvas(width: number, height: number, at = nowMs()): void {
+  if (!renderCanvas) return;
   const next = renderCanvasResize({
-    current: canvas,
+    current: renderCanvas,
     callerRequest: { width, height },
-    peak: peakRequestedSize(at, canvas),
-    mode: spatial ? 'bitmap' : presentMode,
-    msSinceResize: at - (spatial ? lastSpatialCanvasResizeMs : lastCanvasResizeMs),
+    peak: peakRequestedSize(),
+    mode: presentMode,
+    msSinceResize: at - lastCanvasResizeMs,
   });
   if (!next) return;
-  canvas.width = next.width;
-  canvas.height = next.height;
-  if (spatial) lastSpatialCanvasResizeMs = at;
-  else lastCanvasResizeMs = at;
+  renderCanvas.width = next.width;
+  renderCanvas.height = next.height;
+  lastCanvasResizeMs = at;
 }
 
 async function renderGpu(
   source: MeshRenderSource,
-  state: SessionView,
-  canvas = renderCanvas
+  state: SessionView
 ): Promise<ImageBitmap | null> {
   // Timed as a whole. It used to start after the resize, which is exactly the
   // work that turned out to dominate — the instrumentation meant to catch this
@@ -2441,7 +2399,7 @@ async function renderGpu(
   // the window's true shape, because changing a viewport is free and the bitmap
   // is stretched to the window's box when it is presented. Rounding the viewport
   // too is what squashed the fold: a 257x255 window rendered 512x256.
-  sizeRenderCanvas(state.width, state.height, started, canvas);
+  sizeRenderCanvas(state.width, state.height);
   const resized = nowMs();
   // What GL actually gave us, which is not always what the canvas was set to —
   // see {@link WebglSolver.drawingBufferSize}. Rendering or cropping past this
@@ -2457,8 +2415,8 @@ async function renderGpu(
   // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
   // is top-left, so the crop is measured down from the top of the buffer.
   const bitmap =
-    (presentMode === 'bitmap' || canvas === spatialRenderCanvas) && canvas
-      ? await createImageBitmap(canvas, 0, buffer.height - height, width, height)
+    presentMode === 'bitmap' && renderCanvas
+      ? await createImageBitmap(renderCanvas, 0, buffer.height - height, width, height)
       : null;
   // render() issues GL commands but they run async on the GPU; this measures the
   // CPU-side command cost, which is what would block the worker. A readPixels
@@ -2478,8 +2436,8 @@ async function renderGpu(
   perf.snapshotTotalMs += snapshotMs;
   if (snapshotMs > perf.snapshotMaxMs) perf.snapshotMaxMs = snapshotMs;
   perf.lastRequest = { width: state.width, height: state.height };
-  perf.lastCanvas = canvas
-    ? { width: canvas.width, height: canvas.height }
+  perf.lastCanvas = renderCanvas
+    ? { width: renderCanvas.width, height: renderCanvas.height }
     : { width: 0, height: 0 };
   perf.lastBuffer = buffer;
   perf.lastCrop = { width, height };

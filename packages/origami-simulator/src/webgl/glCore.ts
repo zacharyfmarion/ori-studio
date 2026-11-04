@@ -115,10 +115,7 @@ export class GlCore {
     this.quadBuffer = buffer;
   }
 
-  static create(
-    canvas: HTMLCanvasElement | OffscreenCanvas,
-    options: { stencil?: boolean } = {}
-  ): GlCore | null {
+  static create(canvas: HTMLCanvasElement | OffscreenCanvas): GlCore | null {
     const gl = canvas.getContext('webgl2', {
       antialias: glAttributeOverrides.antialias ?? true,
       // The default framebuffer (the visible canvas) needs a depth buffer so the
@@ -126,9 +123,9 @@ export class GlCore {
       // paper renders see-through. The solver's compute passes render to their
       // own depthless FBOs and are unaffected.
       depth: true,
-      // Only ordered spatial paper needs coverage masks. Context attributes
-      // cannot be changed later; its caller must use a dedicated shared canvas.
-      stencil: options.stencil ?? false,
+      // Figures and simulation share this context. Request coverage masks at
+      // creation so spatial spread also works when an ordinary view opens first.
+      stencil: true,
       premultipliedAlpha: false,
       preserveDrawingBuffer: glAttributeOverrides.preserveDrawingBuffer ?? false,
     });

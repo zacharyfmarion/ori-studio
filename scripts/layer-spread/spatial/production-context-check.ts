@@ -4,8 +4,8 @@ import type { Folded3dMesh } from '../../../apps/web/src/cp-workspace/folded/fol
 import { folded3dMeshPayload, folded3dWindowRenderSettings } from '../../../apps/web/src/cp-workspace/folded/folded3dWindow';
 import { DEFAULT_PAPER_STYLE } from '../../../apps/web/src/lib/paper/paperStyle';
 
-/** Exercise the real worker and GPU, including a non-stencil context created
- * before spread is enabled. WebGL cannot upgrade that existing context. */
+/** Exercise ordinary and spatial meshes on the real worker's shared context,
+ * including ordinary rendering before spread is enabled and after release. */
 export async function checkWorkerContexts(mesh: Folded3dMesh) {
   const results = [];
   for (const spatialFirst of [false, true]) {
@@ -58,7 +58,7 @@ export async function checkWorkerContexts(mesh: Folded3dMesh) {
         await api.releaseFolded3dMesh(reopened);
         await paint(ordinary, false);
       }
-      results.push({ name: `worker context isolation: ${spatialFirst ? 'spatial' : 'ordinary'} first`, passed: true });
+      results.push({ name: `shared worker context: ${spatialFirst ? 'spatial' : 'ordinary'} first`, passed: true });
     } finally {
       await api.dispose();
       worker.terminate();

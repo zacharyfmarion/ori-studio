@@ -58,19 +58,10 @@ function fakeCanvas(options: { lost?: boolean } = {}) {
 }
 
 describe('GlCore context loss', () => {
-  it('does not request a stencil buffer for ordinary rendering', () => {
+  it('requests stencil from creation so the shared context can render spatial meshes later', () => {
     const { canvas } = fakeCanvas();
     const request = vi.spyOn(canvas, 'getContext');
     expect(GlCore.create(canvas)).not.toBeNull();
-    expect(request).toHaveBeenCalledWith('webgl2', expect.objectContaining({
-      depth: true, stencil: false,
-    }));
-  });
-
-  it('requests stencil only for a context that explicitly needs coverage masks', () => {
-    const { canvas } = fakeCanvas();
-    const request = vi.spyOn(canvas, 'getContext');
-    expect(GlCore.create(canvas, { stencil: true })).not.toBeNull();
     expect(request).toHaveBeenCalledWith('webgl2', expect.objectContaining({
       depth: true, stencil: true,
     }));
