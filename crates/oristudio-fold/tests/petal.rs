@@ -14,8 +14,10 @@ mod vertex;
 use std::collections::BTreeSet;
 
 use oristudio_fold::{
-    CompoundRefused, CreaseKind, Direction, EdgeId, Face, FaceId, FoldRefusal, Letter, NoPetal,
-    NoPetalDetail, PetalCrease, PetalFold, PetalHinge, Seed, State, VertexChoices, VertexFolded,
+    CompletionLimits, CompoundRefused, CreaseKind, CreasePatternInput, Direction, EdgeId, Face,
+    FaceId, FoldRefusal, ImportKind, ImportSegment, ImportSpace, ImportTarget, ImportedPattern,
+    Letter, NoPetal, NoPetalDetail, PetalCrease, PetalFold, PetalHinge, Seed, StartSide, State,
+    VertexChoices, VertexFolded,
 };
 use oristudio_geometry::convex;
 use oristudio_layer_order::{LayerOrder, Violation};
@@ -757,6 +759,10 @@ struct SquashedCorner {
     /// H's ends on the squash's creases, halfway from the closed point to
     /// the corner.
     ends: [[f64; 2]; 2],
+    /// The top layer's corner: the sheet's own, on the spine.
+    corner: [f64; 2],
+    /// The second layer's: where the sheet's raw edge x = 1 meets the spine.
+    second_corner: [f64; 2],
     /// Inside the kite below H, on the top layer.
     petal: [f64; 2],
 }
@@ -791,29 +797,199 @@ fn squashed_corner() -> SquashedCorner {
     SquashedCorner {
         state: s,
         ends,
+        corner,
+        second_corner: [1.0, 0.5],
         petal: [1.0, 0.45],
     }
 }
 
-/// A petal fold of a squashed corner whose second layer runs on, flat, into
-/// the back layer at one end: refused as needing H precreased, naming the
-/// back layer.
-#[test]
-fn a_petal_fold_of_a_squashed_corner_whose_second_layer_runs_on() {
-    let c = squashed_corner();
-    let op = cases::doubled_petal_op(&c.state, c.ends, c.petal);
-    let refused = refusal(&c.state, &op);
-    let FoldRefusal::PetalNotPrecreased {
-        faces,
-        missing: PetalCrease::Line,
-    } = &refused
-    else {
-        panic!("{refused:?}");
+/// The crease pattern a folder draws for [`squashed_corner`] petal folded,
+/// on the sheet: H a mountain in the top layer, the top layer's kite to the
+/// sheet's corner and the second layer's to where the raw edge meets the
+/// spine (valleys), the squash's creases above H's ends still folded and
+/// below them gone; the spine, the hinge the squash unfolded and the
+/// second layer's own precreases flat.
+fn squashed_corner_petal_pattern() -> (Vec<ImportSegment>, BTreeSet<vertex::Segment>) {
+    let h = (1.0 - std::f64::consts::FRAC_1_SQRT_2) / 2.0;
+    let r2 = std::f64::consts::SQRT_2;
+    let (pl, pr) = ([0.5 + h, h], [1.0 - h, 0.5 - h]);
+    let (centre, corner) = ([0.5, 0.5], [1.0, 0.0]);
+    let (m, v) = (ImportKind::Mountain, ImportKind::Valley);
+    let folded = [
+        (v, [0.0, 1.0], centre),
+        (m, [0.5, 0.0], centre),
+        (v, centre, pl),
+        (v, centre, pr),
+        (m, pl, pr),
+        (v, pl, corner),
+        (v, pr, corner),
+        (v, [0.5, 0.0], pl),
+        (v, [1.0, 0.5], pr),
+    ];
+    let flat = ImportKind::Unassigned {
+        hint: Some(Letter::Valley),
     };
+    let square = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let mut segments: Vec<ImportSegment> = (0..4)
+        .map(|i| ImportSegment {
+            from: square[i],
+            to: square[(i + 1) % 4],
+            kind: ImportKind::Border,
+        })
+        .collect();
+    for (kind, from, to) in folded {
+        segments.push(ImportSegment { from, to, kind });
+    }
+    for (from, to) in [
+        (centre, corner),
+        (centre, [1.0, 0.5]),
+        ([2.0 - r2, 0.0], pl),
+        (pr, [1.0, r2 - 1.0]),
+    ] {
+        segments.push(ImportSegment {
+            from,
+            to,
+            kind: flat,
+        });
+    }
+    let key = |p: [f64; 2]| [(p[0] * 1e6).round() as i64, (p[1] * 1e6).round() as i64];
+    let letters = folded
+        .iter()
+        .map(|&(kind, a, b)| {
+            let letter = if kind == m {
+                Letter::Mountain
+            } else {
+                Letter::Valley
+            };
+            let (a, b) = (key(a), key(b));
+            if a <= b {
+                (letter, a, b)
+            } else {
+                (letter, b, a)
+            }
+        })
+        .collect();
+    (segments, letters)
+}
+
+/// Whether two states of one crease pattern are the same folded form: one
+/// rigid motion of the model frame takes each face of `ours` onto the face
+/// of `theirs` under the same sheet points, and every two faces of `ours`
+/// that overlap stack as the faces of `theirs` under them do. `ours` may
+/// have flat creases `theirs` has not.
+fn same_folded_form(ours: &State, theirs: &State) {
+    let sheet = |s: &State, f: FaceId| -> Vec<[f64; 2]> {
+        s.face(f)
+            .unwrap_or_else(|| panic!("no face {f}"))
+            .ring
+            .iter()
+            .map(|v| s.vertices()[v.0 as usize])
+            .collect()
+    };
+    let at = |s: &State, p: [f64; 2]| s.face_at(p).unwrap_or_else(|| panic!("no paper at {p:?}"));
+    let iso = |s: &State, f: FaceId| s.isometry(f).unwrap_or_default();
+    let probe = ours.faces()[0].id;
+    let p = convex::centroid(&sheet(ours, probe)).unwrap_or_default();
+    // Ours to theirs.
+    let phi = iso(theirs, at(theirs, p)).after(&iso(ours, probe).inverse());
+    for face in ours.faces() {
+        let p = convex::centroid(&sheet(ours, face.id)).unwrap_or_default();
+        let [x, y] = phi.apply(iso(ours, face.id).apply(p));
+        let [u, w] = iso(theirs, at(theirs, p)).apply(p);
+        assert!(
+            (x - u).hypot(y - w) < 1e-9,
+            "face {} lies elsewhere",
+            face.id
+        );
+    }
+    let mut pairs = 0;
+    for (pair, above) in ours.order().pairs() {
+        let (f, g) = (pair.lo(), pair.hi());
+        let (Some(fi), Some(gi)) = (ours.face_image(f), ours.face_image(g)) else {
+            continue;
+        };
+        let overlap = convex::clip(fi, gi);
+        if convex::signed_area(&overlap).abs() < 1e-9 {
+            continue;
+        }
+        let m = convex::centroid(&overlap).unwrap_or_default();
+        let (pf, pg) = (
+            iso(ours, f).inverse().apply(m),
+            iso(ours, g).inverse().apply(m),
+        );
+        let (tf, tg) = (at(theirs, pf), at(theirs, pg));
+        let ours_above = above.unwrap_or_else(|| panic!("{pair:?} undetermined"));
+        let theirs_above = theirs
+            .above(tf, tg)
+            .unwrap_or_else(|| panic!("{tf} {tg} unstacked"));
+        // A turned-over frame stacks the other way up.
+        assert_eq!(
+            ours_above,
+            theirs_above == phi.front_up(),
+            "faces {f} and {g} stack the other way"
+        );
+        pairs += 1;
+    }
+    assert!(pairs > 0);
+}
+
+/// The petal fold of a squashed corner whose second layer runs on, flat,
+/// into the back layer at one end ([`squashed_corner`]): each end's
+/// second-layer kite crease folds the paper across that end's closed edge
+/// alone, so the back layer stays put rather than fold on the other end's
+/// kite (refused before as needing H precreased, naming it). It lands the
+/// only order: the crease pattern a folder draws for it, folded as that
+/// pattern's one flat state.
+#[test]
+fn a_petal_fold_of_a_squashed_corner_folds_each_end_on_its_own_second_layer() {
+    let c = squashed_corner();
+    let parent = &c.state;
+    let op = cases::doubled_petal_op(parent, c.ends, c.petal);
+    let analysis = parent.analyse_petal(&op).unwrap_or_else(|e| panic!("{e}"));
+    assert!(near(analysis.corner, c.corner), "{analysis:?}");
+    assert!(
+        near(analysis.second_corner, c.second_corner),
+        "{analysis:?}"
+    );
+    assert!(analysis.scores_line);
     // The back layer above the spine: the sheet above its diagonal and y = 1/2.
-    let back = c
-        .state
+    let back = parent
         .face_at([0.25, 0.9])
         .unwrap_or_else(|| panic!("no back"));
-    assert_eq!(faces, &[back]);
+    assert!(analysis.second.contains(&back));
+
+    let folded = landed(parent.petal_fold(&op, &VertexChoices::default()));
+    check(parent, &folded);
+    let state = &folded.state;
+    assert_eq!(folded.report.fold.blocks.len(), 5);
+    assert!(
+        folded.report.fold.blocks.iter().flatten().all(|&f| {
+            let lineage = state.face(f).and_then(|f| f.parent).unwrap_or(f);
+            lineage != back
+        }),
+        "the back layer moves"
+    );
+    assert_eq!(state.isometry(back), parent.isometry(back));
+
+    let (segments, want) = squashed_corner_petal_pattern();
+    assert_eq!(folded_segments(state), want);
+    let pattern = ImportedPattern::new(
+        &CreasePatternInput {
+            space: ImportSpace::Sheet,
+            segments,
+        },
+        ImportTarget::Empty {
+            start: StartSide::Front,
+        },
+    )
+    .unwrap_or_else(|e| panic!("{e}"));
+    let completions = pattern
+        .complete(&CompletionLimits::default())
+        .unwrap_or_else(|e| panic!("{e}"));
+    assert!(completions.is_unique(), "{:?}", completions.count());
+    let order = completions
+        .order(&vec![0; completions.components().len()])
+        .unwrap_or_default();
+    let theirs = pattern.state(order).unwrap_or_else(|e| panic!("{e}"));
+    same_folded_form(state, &theirs);
 }
