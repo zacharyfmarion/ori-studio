@@ -141,16 +141,22 @@ function compacted(bytes) {
   }
   return bytes.subarray(0, kept);
 }
+/** The project this worker has open: its steps, the output drawing them has taken, and the document it replaced. */
+let project = null;
 /**
- * Called only in the disposable Defox worker (or the isolated oracle test),
- * with a file's bytes, which it compacts in place.
+ * Opens a Defox project for its steps to be drawn one at a time
+ * (`drawDefoxStep`). Called only in the disposable Defox worker (or the
+ * isolated oracle test), with a file's bytes, which it compacts in place.
+ * `spent` is the output an earlier worker took drawing the same project's
+ * first steps. Returns how many steps it holds.
  */
-export function renderDefox(bytes) {
+export function openDefox(bytes, spent = 0) {
+  closeDefox();
   const entries = JSON.parse(new globalThis.TextDecoder('utf-8', { fatal: true }).decode(compacted(bytes)));
   if (!Array.isArray(entries) || !entries.length || entries.length > 1000)
     throw new Error('Expected a Defox array of 1–1000 steps');
   checkTree(entries);
-  const previous = globalThis.document;
+  project = { entries, outputBytes: spent, document: globalThis.document };
   globalThis.document = {
     createElementNS: (_ns, tag) => new SvgNode(tag),
     createElement: (tag) => {
@@ -162,89 +168,110 @@ export function renderDefox(bytes) {
   DRAW.color = colors(originalColors, entries[0]?.color);
   SYM.color = colors(originalSymbolColors, entries[0]?.symcolor);
   PRJ.steps = entries;
-  let outputBytes = 0;
+  return entries.length;
+}
+/** Closes the open project, and puts back what opening it replaced. */
+export function closeDefox() {
+  if (!project) return;
+  globalThis.document = project.document;
+  project = null;
+  PRJ.steps = [];
+  DRAW.color = clone(originalColors);
+  SYM.color = clone(originalSymbolColors);
+}
+/** Every step of a project drawn in one call, as the oracle and this renderer's tests read it. */
+export function renderDefox(bytes) {
+  const count = openDefox(bytes);
   try {
-    return entries.map((step, index) => {
-      try {
-        if (outputBytes > DEFOX_LIMITS.outputBytes) throw new Error('Prepared Defox views exceed 128 MiB');
-        checkFold(step.fold_cp);
-        checkFold(step.fold);
-        const defaults = {
-          flip0: false,
-          rotate: 0.5,
-          scale: 1,
-          clip: 0,
-          cx: 0.5,
-          cy: 0.5,
-          depth: 0,
-          p0: 0,
-          p1: 0.5,
-          p2: 0,
-        };
-        step.params = { ...defaults, ...step.params };
-        for (const key of Object.keys(defaults).filter((k) => k !== 'flip0'))
-          if (!Number.isFinite(step.params[key])) throw new Error(`Invalid Defox parameter ${key}`);
-        const stack = step.lin?.S;
-        if (
-          !step.cell_d &&
-          (!Array.isArray(stack) ||
-            !stack.length ||
-            !stack.every((i) => Number.isInteger(i) && i >= 0 && i < step.fold.FV.length) ||
-            new Set(stack).size !== stack.length)
-        )
-          throw new Error('Invalid Defox face stack');
-        for (const symbol of step.symbols ?? []) {
-          if (
-            !Number.isInteger(symbol.type) ||
-            symbol.type < 0 ||
-            symbol.type > 15 ||
-            !isObject(symbol.params) ||
-            !Number.isInteger(symbol.depth) ||
-            symbol.depth < 0 ||
-            symbol.depth >= step.fold.FV.length
-          )
-            throw new Error('Unsupported Defox symbol');
-        }
-        DIST.p0 = step.params.p0;
-        DIST.p1 = step.params.p1;
-        DIST.p2 = step.params.p2;
-        const distorted = DIST.FOLD_2_VD(step.fold.Vf, step.catalyst?.Vf ?? step.fold.V);
-        if (!distorted.every((v) => v.every(Number.isFinite))) throw new Error('Invalid Defox distortion');
-        step.fold_d = { ...step.fold, Vf: distorted };
-        const root = new SvgNode('svg');
-        root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        root.setAttribute('width', 1100);
-        root.setAttribute('height', 1100);
-        root.setAttribute('viewBox', '-50 -50 1100 1100');
-        root.setAttribute('id', `defox-${index}`);
-        PAGE.draw_step(root, step, index, false, true);
-        const serialized = root
-          .serialize()
-          .replace('>', `>${defs.replaceAll('black', escape(SYM.color.arrow))}`);
-        if (/(?:NaN|Infinity)/.test(serialized)) throw new Error('Defox drawing contains invalid geometry');
-        // Already standard (2 = mountain): DEFOX labels a .cp's mountains "V" when
-        // reading and writes "V" back as 2, so its own CP round trip needs no swap.
-        const cp = Y.FOLD_2_CP(step.fold_cp);
-        // Kept without what is worked out from it: this renderer's distorted fold, and
-        // what Defox's layer solver derives from the folds (cell complexes, the layer
-        // states over them). Those are most of a large project, and nothing reads them
-        // back: the picture is drawn, and a posed view orders its own layers.
-        const saved = { ...step, color: DRAW.color, symcolor: SYM.color };
-        for (const key of ['fold_d', 'cell_cp', 'cell_d', 'state_cp', 'state']) delete saved[key];
-        const snapshot = JSON.stringify(saved);
-        if (snapshot.length > DEFOX_LIMITS.snapshotLength)
-          throw new Error('Defox step exceeds the 2 MiB saved-state limit');
-        outputBytes += 2 * (cp.length + serialized.length + snapshot.length);
-        if (outputBytes > DEFOX_LIMITS.outputBytes) throw new Error('Prepared Defox views exceed 128 MiB');
-        return { ok: true, index, cp, svg: serialized, snapshot };
-      } catch (error) {
-        return { ok: false, index, error: error instanceof Error ? error.message : String(error) };
-      }
-    });
+    return Array.from({ length: count }, (_, index) => drawDefoxStep(index).entry);
   } finally {
-    globalThis.document = previous;
-    PRJ.steps = [];
-    DRAW.color = clone(originalColors);
-    SYM.color = clone(originalSymbolColors);
+    closeDefox();
+  }
+}
+/**
+ * One step of the open project drawn, and the output its steps have taken so
+ * far: where a worker that opens the project after this one starts counting.
+ */
+export function drawDefoxStep(index) {
+  const step = project?.entries[index];
+  if (!step) throw new Error('No Defox step to draw');
+  return { entry: drawStep(step, index), spent: project.outputBytes };
+}
+/** A step's entry: its CP, picture and kept saved state, or what it failed on. */
+function drawStep(step, index) {
+  try {
+    if (project.outputBytes > DEFOX_LIMITS.outputBytes) throw new Error('Prepared Defox views exceed 128 MiB');
+    checkFold(step.fold_cp);
+    checkFold(step.fold);
+    const defaults = {
+      flip0: false,
+      rotate: 0.5,
+      scale: 1,
+      clip: 0,
+      cx: 0.5,
+      cy: 0.5,
+      depth: 0,
+      p0: 0,
+      p1: 0.5,
+      p2: 0,
+    };
+    step.params = { ...defaults, ...step.params };
+    for (const key of Object.keys(defaults).filter((k) => k !== 'flip0'))
+      if (!Number.isFinite(step.params[key])) throw new Error(`Invalid Defox parameter ${key}`);
+    const stack = step.lin?.S;
+    if (
+      !step.cell_d &&
+      (!Array.isArray(stack) ||
+        !stack.length ||
+        !stack.every((i) => Number.isInteger(i) && i >= 0 && i < step.fold.FV.length) ||
+        new Set(stack).size !== stack.length)
+    )
+      throw new Error('Invalid Defox face stack');
+    for (const symbol of step.symbols ?? []) {
+      if (
+        !Number.isInteger(symbol.type) ||
+        symbol.type < 0 ||
+        symbol.type > 15 ||
+        !isObject(symbol.params) ||
+        !Number.isInteger(symbol.depth) ||
+        symbol.depth < 0 ||
+        symbol.depth >= step.fold.FV.length
+      )
+        throw new Error('Unsupported Defox symbol');
+    }
+    DIST.p0 = step.params.p0;
+    DIST.p1 = step.params.p1;
+    DIST.p2 = step.params.p2;
+    const distorted = DIST.FOLD_2_VD(step.fold.Vf, step.catalyst?.Vf ?? step.fold.V);
+    if (!distorted.every((v) => v.every(Number.isFinite))) throw new Error('Invalid Defox distortion');
+    step.fold_d = { ...step.fold, Vf: distorted };
+    const root = new SvgNode('svg');
+    root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    root.setAttribute('width', 1100);
+    root.setAttribute('height', 1100);
+    root.setAttribute('viewBox', '-50 -50 1100 1100');
+    root.setAttribute('id', `defox-${index}`);
+    PAGE.draw_step(root, step, index, false, true);
+    const serialized = root
+      .serialize()
+      .replace('>', `>${defs.replaceAll('black', escape(SYM.color.arrow))}`);
+    if (/(?:NaN|Infinity)/.test(serialized)) throw new Error('Defox drawing contains invalid geometry');
+    // Already standard (2 = mountain): DEFOX labels a .cp's mountains "V" when
+    // reading and writes "V" back as 2, so its own CP round trip needs no swap.
+    const cp = Y.FOLD_2_CP(step.fold_cp);
+    // Kept without what is worked out from it: this renderer's distorted fold, and
+    // what Defox's layer solver derives from the folds (cell complexes, the layer
+    // states over them). Those are most of a large project, and nothing reads them
+    // back: the picture is drawn, and a posed view orders its own layers.
+    const saved = { ...step, color: DRAW.color, symcolor: SYM.color };
+    for (const key of ['fold_d', 'cell_cp', 'cell_d', 'state_cp', 'state']) delete saved[key];
+    const snapshot = JSON.stringify(saved);
+    if (snapshot.length > DEFOX_LIMITS.snapshotLength)
+      throw new Error('Defox step exceeds the 2 MiB saved-state limit');
+    project.outputBytes += 2 * (cp.length + serialized.length + snapshot.length);
+    if (project.outputBytes > DEFOX_LIMITS.outputBytes) throw new Error('Prepared Defox views exceed 128 MiB');
+    return { ok: true, index, cp, svg: serialized, snapshot };
+  } catch (error) {
+    return { ok: false, index, error: error instanceof Error ? error.message : String(error) };
   }
 }

@@ -1,5 +1,3 @@
-import { attachWorkerDiagnostics } from "../../lib/workerDiagnostics";
-import * as Comlink from "comlink";
 import { bucketCount, COUNT_BUCKETS, track, trackDiagramPictureUploaded } from "../../analytics";
 import i18n from "../../i18n";
 import { type PickedFile } from "../../platform/fileService";
@@ -20,7 +18,7 @@ import { importStepPicture } from "../upload/importStepPicture";
 import type { SanitizeNotice } from "../upload/svgSanitize";
 import { CpImportPreparer, type PreparedCp } from "./prepareCp";
 import { DEFOX_LIMITS } from "./defoxLimits";
-import type { DefoxImportWorkerApi } from "../../workers/defoxImportWorker";
+import { drawDefoxSteps, startDefoxWorker } from "./defoxSteps";
 
 export interface ImportProgress {
   done: number;
@@ -131,7 +129,6 @@ export async function runImportJob(
     countRead(bytes.byteLength);
     return bytes;
   };
-  let worker: Worker | undefined;
   const check = () => {
     if (signal.aborted)
       throw new DOMException("Import cancelled", "AbortError");
@@ -173,55 +170,20 @@ export async function runImportJob(
           check();
           progress.phase = "preparing";
           publish();
-          worker = new Worker(
-            new URL("../../workers/defoxImportWorker.ts", import.meta.url),
-            {
-              type: "module",
-            },
-          );
-          let failed: (error: Error) => void = () => undefined;
-          const crashed = new Promise<never>((_, reject) => {
-            failed = reject;
-          });
-          const detach = attachWorkerDiagnostics(
-            worker,
-            "defox-import",
-            (info) => failed(new Error(info.message)),
-          );
-          const api = Comlink.wrap<DefoxImportWorkerApi>(worker);
-          let stop: (error: Error) => void = () => undefined;
-          const stopped = new Promise<never>((_, reject) => {
-            stop = (error) => {
-              worker?.terminate();
-              reject(error);
-            };
-          });
-          const cancel = () => stop(new DOMException("Import cancelled", "AbortError"));
-          signal.addEventListener("abort", cancel, { once: true });
-          // Not a cancel: said as what it is, and the run goes on to report it.
-          const timer = setTimeout(
-            () =>
-              stop(
-                new Error(
-                  t(
-                    "panels:diagram.import.defoxTimeout",
-                    "Reading the Defox project took longer than 30 seconds.",
-                  ),
-                ),
-              ),
-            30_000,
-          );
-          const entries = await Promise.race([
-            // Moved, not copied: the worker reads the file where it lies.
-            api.renderDefox(Comlink.transfer(bytes, [bytes.buffer as ArrayBuffer])),
-            stopped,
-            crashed,
-          ]).finally(() => {
-            detach();
-            clearTimeout(timer);
-            signal.removeEventListener("abort", cancel);
-            worker?.terminate();
-            worker = undefined;
+          const seconds = DEFOX_LIMITS.renderMs / 1000;
+          const entries = await drawDefoxSteps({
+            bytes,
+            // The same input again, for a worker after one that was stopped: counted once.
+            reread: () => file.read(DEFOX_LIMITS.fileBytes),
+            start: startDefoxWorker,
+            budgetMs: DEFOX_LIMITS.renderMs,
+            signal,
+            // Not a cancel: said as what it is, and the run goes on to report it.
+            openTimeout: t(
+              "panels:diagram.import.defoxTimeout",
+              "Reading the Defox project took longer than {{seconds}} seconds.",
+              { seconds },
+            ),
           });
           progress.total = entries.length;
           for (const entry of entries) {
@@ -233,11 +195,18 @@ export async function runImportJob(
             if (!entry.ok)
               progress.failures.push({
                 name,
-                message: t(
-                  "panels:diagram.import.defoxEntryFailed",
-                  "This saved view couldn’t be read ({{reason}}).",
-                  { reason: entry.error },
-                ),
+                message:
+                  "overBudget" in entry
+                    ? t(
+                        "panels:diagram.import.defoxStepTimeout",
+                        "Drawing this saved view took longer than {{seconds}} seconds.",
+                        { seconds },
+                      )
+                    : t(
+                        "panels:diagram.import.defoxEntryFailed",
+                        "This saved view couldn’t be read ({{reason}}).",
+                        { reason: entry.error },
+                      ),
               });
             else {
               try {
@@ -354,7 +323,6 @@ export async function runImportJob(
     });
     return progress;
   } finally {
-    worker?.terminate();
     cache.clear();
     await preparer.close();
   }

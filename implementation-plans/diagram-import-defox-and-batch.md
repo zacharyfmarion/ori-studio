@@ -167,11 +167,13 @@ remaining cost.
 - Prepared batch content: 384 MiB accounting limit; exact-input memo: 64 MiB.
 - Defox renderer output: 128 MiB total, 2 MiB saved-state string per entry,
   each without Defox's layer-solver data (see the saved-state paragraph above);
-  bounded nesting/arrays and finite/index validation. The four Defox limits
-  live together in `diagram/import/defoxLimits.ts`.
+  bounded nesting/arrays and finite/index validation. The four Defox limits,
+  and its render budget, live together in `diagram/import/defoxLimits.ts`.
 - One active import CP session; native session registry has a hard cap of four.
 - Preparation budget: 30 seconds per task. Fold budget: default 5 seconds,
-  adjustable from 1 to 120 seconds. Defox rendering budget: 30 seconds.
+  adjustable from 1 to 120 seconds. Defox rendering budget: 30 seconds to open
+  a project, then 30 seconds for each of its steps (see "Follow-up: a render
+  budget per step").
 - Cancel aborts staged work and disposes its session; native stop remains
   cooperative. Commit disables cancellation while publishing the atomic pair.
 
@@ -647,6 +649,40 @@ this way (feiying 129–130, jean 10 and 147) starts in the view's side and turn
 and keeps its fold lines, as before.
 
 Feiying's last step is drawn from Defox's cells and takes 9.6 s of the 30 s
-render budget alone; the rest of the project takes 0.5 s. The budget covers the
-whole project, so a machine three times slower would lose all of it to that one
-step. A per-step budget would lose only that step; not done here.
+render budget alone; the rest of the project takes 0.5 s. The budget covered the
+whole project, so a machine three times slower would have lost all of it to that
+one step. It is now per step (below).
+
+## Follow-up: a render budget per step
+
+Drawing a Defox step is one synchronous call, which a worker cannot be asked to
+leave, so a budget on it can only be kept by stopping the worker. The budget
+was on the whole project, and so a project was lost whole to one slow step.
+
+- [x] The renderer opens a project once (`openDefox`) and draws its steps one
+  at a time (`drawDefoxStep`), saying with each the output its steps have taken
+  so far. `renderDefox` still draws them all in one call, for the oracle and the
+  renderer's own tests.
+- [x] `drawDefoxSteps` gives the opening, and then each step,
+  `DEFOX_LIMITS.renderMs` (30 s). A step over it, or one its worker dies on,
+  fails alone ("Drawing this saved view took longer than 30 seconds."), and a
+  new worker reads the file again, not counted against the batch's input, to
+  go on from the next step, its output counted from where the stopped worker
+  left it. A project that cannot be opened within the budget fails whole, as
+  before. Cancel stops the worker.
+- [x] Tests: one worker for a project that fits; a step over its budget, and a
+  step whose worker dies, fail alone while a new worker draws the rest from the
+  file read again; a slow opening fails the project; cancelling stops the
+  worker; a reopened project counts its output from where it was left.
+- [x] Browser: feiying through the dialog. With the budget cut to 5 s for one
+  run each, the whole-project budget lost all 130 steps ("Reading the Defox
+  project took longer than 30 seconds.", its message fixed at 30), and the
+  per-step one lost step 130 alone ("Drawing this saved view took longer than
+  5 seconds."), the other 129 imported. At 30 s every step of the nine test
+  projects imports. Feiying alternated three times with the whole-project code
+  took 14.0 s against 13.75 s on average, inside the runs' own spread.
+
+There is no budget on a project as a whole any more: one whose every step took
+nearly 30 s would take that long a step, for up to 1,000 steps. The import can
+be cancelled at any point, as a batch of 1,000 CP files can, each with its own
+30 s preparation budget.

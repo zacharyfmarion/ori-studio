@@ -18,4 +18,6 @@ export const DEFOX_LIMITS = {
   snapshotLength: 2 * MiB,
   /** Every step's CP, picture and saved state, as two-byte strings. */
   outputBytes: 128 * MiB,
+  /** How long opening a project may take, and then drawing each of its steps. */
+  renderMs: 30_000,
 } as const;

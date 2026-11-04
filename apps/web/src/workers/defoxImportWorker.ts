@@ -1,5 +1,5 @@
 import { expose } from 'comlink';
-import { renderDefox } from '../diagram/import/defoxRenderer.js';
-const api = { renderDefox };
+import { drawDefoxStep, openDefox } from '../diagram/import/defoxRenderer.js';
+const api = { openDefox, drawDefoxStep };
 export type DefoxImportWorkerApi = typeof api;
 expose(api);

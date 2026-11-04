@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { renderDefox } from './defoxRenderer.js';
+import { closeDefox, drawDefoxStep, openDefox, renderDefox } from './defoxRenderer.js';
+import { DEFOX_LIMITS } from './defoxLimits';
 const square = () => ({
   V: [
     [0, 0],
@@ -49,6 +50,22 @@ describe('pinned Defox renderer', () => {
       expect(first.cp).toContain('1 -200 -200 200 -200');
       expect(first.svg).toContain('polygon');
       expect(first.svg).not.toContain('NaN');
+    }
+  });
+  it('draws a step at a time, counting the output from where an earlier worker left it', () => {
+    expect(openDefox(saved([step(), step()]))).toBe(2);
+    try {
+      const first = drawDefoxStep(0);
+      expect(first.entry.ok).toBe(true);
+      expect(drawDefoxStep(1).spent).toBe(2 * first.spent);
+    } finally {
+      closeDefox();
+    }
+    openDefox(saved([step()]), DEFOX_LIMITS.outputBytes);
+    try {
+      expect(drawDefoxStep(0).entry).toEqual({ ok: false, index: 0, error: 'Prepared Defox views exceed 128 MiB' });
+    } finally {
+      closeDefox();
     }
   });
   it('isolates malformed neighbors and rejects invalid topology', () => {
