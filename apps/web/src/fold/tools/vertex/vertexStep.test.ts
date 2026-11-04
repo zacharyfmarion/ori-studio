@@ -676,6 +676,23 @@ describe('the choices a vertex fold takes of what the engine lists', () => {
       target: [0, 1],
       opening: 1,
     });
+    // Refused between the walls, a closed pocket opens deeper: the opening the engine answered for is
+    // folded unless another that lands is stepped to, always stored, and asked again; no spine target.
+    const closed: FoldVertexAnalysed = {
+      ...walls,
+      analysis: { ...walls.analysis, opening: 3, closed: true } as FoldVertexAnalysed['analysis'],
+      openings: [false, true, true],
+      deeper: true,
+    };
+    expect(squashAimable(closed)).toBe(false);
+    expect(squashOpenings(closed)).toEqual([2, 3]);
+    expect(squashOpeningToFold(null, closed)).toBe(3);
+    expect(squashOpeningToFold(2, closed)).toBe(2);
+    expect(vertexChosenOp(squash, closed, { ...NONE, squashTarget: [0, 1] })).toMatchObject({
+      op: { ...squash, opening: 3 },
+      opening: 3,
+      again: true,
+    });
     // An opening stored is replaced, or dropped between the walls.
     expect(withOpening({ ...squash, opening: 1 }, 2, 2)).toEqual(squash);
     expect(withOpening(squash, 3, 2)).toEqual({ ...squash, opening: 3 });

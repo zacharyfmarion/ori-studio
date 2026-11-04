@@ -582,18 +582,21 @@ export function withTarget(op: FoldVertexOp, target: FoldModelDirection | null):
  */
 export function squashWallsOpening(answer: FoldVertexAnalysed | null): number | null {
   const analysis = answer?.analysis;
+  // Refused between the walls, it opens deeper: every opening is stored.
+  if (answer?.deeper) return null;
   return analysis?.kind === 'squash' ? (analysis.opening ?? 1) : null;
 }
 
 /**
  * Whether a squash's spine can be aimed off its hinge: not when pockets on
  * one lower layer squash together, whose shared crease is the symmetric
- * squash's (`State::squash_other_reading`), so a target never lands and is
- * never offered. False for any other fold.
+ * squash's (`State::squash_other_reading`), nor for a closed pocket
+ * (`compound::squash_closed`), so a target never lands and is never offered.
+ * False for any other fold.
  */
 export function squashAimable(answer: FoldVertexAnalysed | null): boolean {
   const analysis = answer?.analysis;
-  return analysis?.kind === 'squash' && (analysis.pockets ?? 1) === 1;
+  return analysis?.kind === 'squash' && (analysis.pockets ?? 1) === 1 && analysis.closed !== true;
 }
 
 /**
@@ -610,12 +613,14 @@ export function squashOpenings(answer: FoldVertexAnalysed | null): number[] {
 
 /**
  * The opening a squash folds: the folder's while it lands, else between its
- * walls. Null for any other fold.
+ * walls — or, refused there, the deeper one the engine answered for
+ * (`deeper`). Null for any other fold.
  */
 export function squashOpeningToFold(chosen: number | null | undefined, answer: FoldVertexAnalysed): number | null {
-  const walls = squashWallsOpening(answer);
-  if (walls === null) return null;
-  return chosen != null && squashOpenings(answer).includes(chosen) ? chosen : walls;
+  const analysis = answer.analysis;
+  const fallback = answer.deeper && analysis.kind === 'squash' ? (analysis.opening ?? null) : squashWallsOpening(answer);
+  if (fallback === null) return null;
+  return chosen != null && squashOpenings(answer).includes(chosen) ? chosen : fallback;
 }
 
 /** A squash opening `opening` layers down, stored only off its walls (`walls`); the op unchanged for any other fold. */

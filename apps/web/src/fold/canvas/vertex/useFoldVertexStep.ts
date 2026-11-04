@@ -71,9 +71,12 @@ export interface FoldVertexPreview {
   /**
    * A squash of a flap whose walls are several plies: its layers at the flap
    * point, the openings that land (`squashOpenings`) — the only ones offered —
-   * and the one it folds. Absent for a two-layer flap and the other folds.
+   * and the one it folds — `deeper` when it is refused between the walls of
+   * the first flap at the click and opens deeper (a closed pocket), so the
+   * one opening is shown even when it is the only one that lands. Absent
+   * for a two-layer flap and the other folds.
    */
-  squash?: { layers: number; openings: readonly number[]; opening: number };
+  squash?: { layers: number; openings: readonly number[]; opening: number; deeper?: true };
   /**
    * A swivel's reach from where its creases meet (`useFoldSwivelReach`): the
    * edges that can swing and the lines each lands on. Absent or null for
@@ -257,7 +260,12 @@ export function useFoldVertexStep(
   const squashAnalysis = firstAnswer?.analysis.kind === 'squash' ? firstAnswer.analysis : null;
   const squash =
     squashAnalysis && (squashAnalysis.layers ?? 2) > 2 && chosen?.opening !== undefined
-      ? { layers: squashAnalysis.layers ?? 2, openings, opening: chosen.opening }
+      ? {
+          layers: squashAnalysis.layers ?? 2,
+          openings,
+          opening: chosen.opening,
+          ...(firstAnswer?.deeper ? { deeper: true as const } : {}),
+        }
       : null;
   return {
     step: refused || !built ? null : built.step,

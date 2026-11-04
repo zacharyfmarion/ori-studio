@@ -106,6 +106,12 @@ export interface FoldSquashAnalysis {
    * no target is offered. Absent in a test double: one.
    */
   pockets?: number;
+  /**
+   * A closed pocket, its walls joined on the hinge too: opened deeper than
+   * the first flap at the click, it takes no spine target either. Absent in
+   * a test double: false.
+   */
+  closed?: boolean;
 }
 
 /**
@@ -317,6 +323,12 @@ export interface FoldVertexAnalysed {
   kinds?: [boolean, boolean][];
   /** Null when it lands with one order, or is refused (the preview says why). */
   orders: FoldVertexOrders | null;
+  /**
+   * A squash refused as asked that lands opened deeper (a closed pocket):
+   * the analysis and orders are for `analysis.opening`, which the step must
+   * store, and `openings` lists every depth that lands. Absent otherwise.
+   */
+  deeper?: true;
 }
 
 // ---------------------------------------------------------------------------

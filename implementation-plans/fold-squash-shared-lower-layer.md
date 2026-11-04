@@ -66,8 +66,9 @@ steps, rebuilt outside the repo, land this only through Import CP.
   the geometry is there. What is missing is the reading: the click names a
   corner flap's own two layers first, the walls are joined on two lines
   rather than nested on one spine, the brims must ride their walls, and the
-  Squash tool's Opens stepper never offers that opening. A product question;
-  `fold-closed-flap-squash.md` (a different arrangement) stays as planned.
+  Squash tool's Opens stepper never offers that opening. Planned in
+  `fold-squash-closed-pocket.md`; `fold-closed-flap-squash.md` (a different
+  arrangement) stays as planned.
 - A pocket squash with a spine target: the pockets share one crease, so an
   asymmetric target keeps today's refusal.
 
