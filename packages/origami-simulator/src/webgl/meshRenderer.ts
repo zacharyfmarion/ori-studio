@@ -957,6 +957,39 @@ export class MeshRenderer {
   private highlightVao: WebGLVertexArrayObject | null = null;
   /** Indices (three per triangle) in the highlight buffer. */
   private highlightCount = 0;
+  /** Scoped to one synchronous frame; nothing survives another context user. */
+  private drawBatch: {
+    bound?: 'face' | 'edge';
+    face?: { camera: CameraUniforms; settings: RenderSettings };
+    edge?: {
+      camera: CameraUniforms;
+      settings: RenderSettings;
+      inks: ReturnType<typeof rasterCreaseInk>[];
+    };
+  } | null = null;
+
+  /** Reuse pipeline uniforms across range draws of one immutable mesh/frame.
+   * The callback may call render and change fixed-function coverage/depth state,
+   * but must not change programs, VAOs or textures itself. Camera/settings
+   * objects must stay immutable within this scope. Ordinary renders never cache.
+   */
+  withDrawBatch(draw: () => void): void {
+    if (this.drawBatch) throw new Error('Nested mesh draw batch');
+    this.drawBatch = {};
+    try {
+      draw();
+    } finally {
+      this.drawBatch = null;
+      const gl = this.gl;
+      gl.bindVertexArray(null);
+      gl.colorMask(true, true, true, true);
+      gl.depthMask(true);
+      gl.enable(gl.DEPTH_TEST);
+      gl.disable(gl.STENCIL_TEST);
+      gl.stencilMask(0xff);
+      gl.disable(gl.BLEND);
+    }
+  }
 
   constructor(
     private readonly core: GlCore,
@@ -1104,28 +1137,36 @@ export class MeshRenderer {
         gl.disable(gl.BLEND);
         gl.depthMask(true);
       }
-      gl.bindVertexArray(this.faceVao);
-      gl.useProgram(this.faceProgram);
-      this.bindCommon(this.faceProgram, this.faceUniforms, camera);
-      this.setFloat(this.faceProgram, this.faceUniforms, 'u_displacementScale', settings.displacementScale ?? 1);
-      this.setVec3(this.faceProgram, this.faceUniforms, 'u_frontColor', settings.frontColor);
-      this.setVec3(this.faceProgram, this.faceUniforms, 'u_backColor', settings.backColor);
-      this.setVec3(this.faceProgram, this.faceUniforms, 'u_lightDir', settings.lightDir);
-      this.setFloat(this.faceProgram, this.faceUniforms, 'u_lighting', settings.lighting ? 1 : 0);
-      this.setFloat(this.faceProgram, this.faceUniforms, 'u_alpha', settings.faceAlpha);
-      this.setFloat(
-        this.faceProgram,
-        this.faceUniforms,
-        'u_strainMode',
-        settings.colorMode === 'strain' ? 1 : 0
-      );
-      this.setFloat(
-        this.faceProgram,
-        this.faceUniforms,
-        'u_strainClip',
-        settings.strainClip ?? 5
-      );
-      this.setFloat(this.faceProgram, this.faceUniforms, 'u_tintMix', 0);
+      const batch = this.drawBatch;
+      if (batch?.bound !== 'face') {
+        gl.bindVertexArray(this.faceVao);
+        gl.useProgram(this.faceProgram);
+        if (batch) batch.bound = 'face';
+      }
+      if (batch?.face?.camera !== camera || batch.face.settings !== settings) {
+        this.bindCommon(this.faceProgram, this.faceUniforms, camera);
+        this.setFloat(this.faceProgram, this.faceUniforms, 'u_displacementScale', settings.displacementScale ?? 1);
+        this.setVec3(this.faceProgram, this.faceUniforms, 'u_frontColor', settings.frontColor);
+        this.setVec3(this.faceProgram, this.faceUniforms, 'u_backColor', settings.backColor);
+        this.setVec3(this.faceProgram, this.faceUniforms, 'u_lightDir', settings.lightDir);
+        this.setFloat(this.faceProgram, this.faceUniforms, 'u_lighting', settings.lighting ? 1 : 0);
+        this.setFloat(this.faceProgram, this.faceUniforms, 'u_alpha', settings.faceAlpha);
+        this.setFloat(
+          this.faceProgram,
+          this.faceUniforms,
+          'u_strainMode',
+          settings.colorMode === 'strain' ? 1 : 0
+        );
+        this.setFloat(
+          this.faceProgram,
+          this.faceUniforms,
+          'u_strainClip',
+          settings.strainClip ?? 5
+        );
+        this.setFloat(this.faceProgram, this.faceUniforms, 'u_tintMix', 0);
+        if (batch) batch.face = { camera, settings };
+      }
+
       const first = clampRange(options.faceRange?.start ?? 0, this.faceCount);
       const count = clampRange(
         options.faceRange?.count ?? this.faceCount - first,
@@ -1140,6 +1181,11 @@ export class MeshRenderer {
       // hidden. Before the creases, which draw on top of the tint.
       if (options.highlight && this.highlightVao && this.highlightCount > 0) {
         gl.bindVertexArray(this.highlightVao);
+        // Highlight changes the bound VAO and tint uniforms.
+        if (batch) {
+          batch.bound = undefined;
+          batch.face = undefined;
+        }
         this.setVec3(
           this.faceProgram,
           this.faceUniforms,
@@ -1160,7 +1206,10 @@ export class MeshRenderer {
       // Each kind at its own pen's width in device pixels, by assignment code,
       // through the same frame shrink and raster floor, so an inline window
       // thins all four alike. camera.width is device px.
-      const inks = creaseWidthsPx(settings).map((widthPx) =>
+      const batch = this.drawBatch;
+      const cached = batch?.edge;
+      const reuse = cached?.camera === camera && cached.settings === settings;
+      const inks = reuse ? cached.inks : creaseWidthsPx(settings).map((widthPx) =>
         rasterCreaseInk(widthPx, settings, camera.width, camera.height)
       );
       const showAux = settings.showAux ?? false;
@@ -1180,47 +1229,54 @@ export class MeshRenderer {
         gl.disable(gl.BLEND);
         gl.depthMask(settings.creaseWritesDepth ?? true);
       }
-      gl.bindVertexArray(this.edgeVao);
-      gl.useProgram(this.edgeProgram);
-      this.bindCommon(this.edgeProgram, this.edgeUniforms, camera);
-      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_displacementScale', settings.displacementScale ?? 1);
-      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
-      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
-      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
-      this.setVec3(
-        this.edgeProgram,
-        this.edgeUniforms,
-        'u_auxColor',
-        settings.auxColor ?? settings.borderColor
-      );
-      gl.uniform1fv(
-        this.location(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx'),
-        Float32Array.from(inks, (ink) => ink.widthPx * 0.5)
-      );
-      gl.uniform1fv(
-        this.location(this.edgeProgram, this.edgeUniforms, 'u_creaseAlpha'),
-        Float32Array.from(inks, (ink) => ink.alpha)
-      );
-      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_showAux', showAux ? 1 : 0);
-      // The painter's `erode × sheet` in this frame's pixels: the sheet at the
-      // camera's scale, which is why it is computed here rather than resolved
-      // into the settings once.
-      this.setFloat(
-        this.edgeProgram,
-        this.edgeUniforms,
-        'u_erodePx',
-        erodePx(settings, this.sheet, camera)
-      );
-      this.setFloat(
-        this.edgeProgram,
-        this.edgeUniforms,
-        'u_depthBias',
-        settings.creaseDepthBias ?? DEFAULT_CREASE_DEPTH_BIAS
-      );
-      // Dash runs are lengths along the crease in the same device pixels, so a
-      // shrinking crease has to take its pattern with it or a thumbnail reads as
-      // two long dashes rather than as a dashed line.
-      this.setDash(settings.creaseDash, creaseFrameScale(settings, camera.width, camera.height));
+      if (batch?.bound !== 'edge') {
+        gl.bindVertexArray(this.edgeVao);
+        gl.useProgram(this.edgeProgram);
+        if (batch) batch.bound = 'edge';
+      }
+      if (!reuse) {
+        this.bindCommon(this.edgeProgram, this.edgeUniforms, camera);
+        this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_displacementScale', settings.displacementScale ?? 1);
+        this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
+        this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
+        this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
+        this.setVec3(
+          this.edgeProgram,
+          this.edgeUniforms,
+          'u_auxColor',
+          settings.auxColor ?? settings.borderColor
+        );
+        gl.uniform1fv(
+          this.location(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx'),
+          Float32Array.from(inks, (ink) => ink.widthPx * 0.5)
+        );
+        gl.uniform1fv(
+          this.location(this.edgeProgram, this.edgeUniforms, 'u_creaseAlpha'),
+          Float32Array.from(inks, (ink) => ink.alpha)
+        );
+        this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_showAux', showAux ? 1 : 0);
+        // The painter's `erode × sheet` in this frame's pixels: the sheet at the
+        // camera's scale, which is why it is computed here rather than resolved
+        // into the settings once.
+        this.setFloat(
+          this.edgeProgram,
+          this.edgeUniforms,
+          'u_erodePx',
+          erodePx(settings, this.sheet, camera)
+        );
+        this.setFloat(
+          this.edgeProgram,
+          this.edgeUniforms,
+          'u_depthBias',
+          settings.creaseDepthBias ?? DEFAULT_CREASE_DEPTH_BIAS
+        );
+        // Dash runs are lengths along the crease in the same device pixels, so a
+        // shrinking crease has to take its pattern with it or a thumbnail reads as
+        // two long dashes rather than as a dashed line.
+        this.setDash(settings.creaseDash, creaseFrameScale(settings, camera.width, camera.height));
+        if (batch) batch.edge = { camera, settings, inks };
+      }
+
       const edges = this.edgeVertexStart.length - 1;
       const firstEdge = clampRange(options.edgeRange?.start ?? 0, edges);
       const edgeCount = clampRange(options.edgeRange?.count ?? edges - firstEdge, edges - firstEdge);
@@ -1239,7 +1295,7 @@ export class MeshRenderer {
     // pass left enabled here would silently blend the next solve step into the
     // last one instead of replacing it.
     gl.disable(gl.BLEND);
-    gl.bindVertexArray(null);
+    if (!this.drawBatch) gl.bindVertexArray(null);
   }
 
   dispose(): void {

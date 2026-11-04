@@ -6,7 +6,11 @@ import {
   retainSimulatorClient,
   type SimulatorClient,
 } from '../../store/workspaceStore/simulatorRuntime';
-import { recordSimulatorProbe } from '../../simulator/simulatorPerfProbe';
+import {
+  beginCameraMessage,
+  endCameraMessage,
+  recordSimulatorProbe,
+} from '../../simulator/simulatorPerfProbe';
 import { useSimulatorPerfLog } from '../../simulator/useSimulatorPerfLog';
 import { folded3dMeshPayload } from './folded3dWindow';
 import type { Folded3dMesh } from './folded3dMesh';
@@ -71,7 +75,9 @@ export function useFolded3dMeshRuntime(options: {
 
   const clientRef = useRef<SimulatorClient | null>(null);
   const tokenRef = useRef<number | undefined>(undefined);
-  const requestRef = useRef(0);
+  const generationRef = useRef(0);
+  const busyRef = useRef<object | null>(null);
+  const dirtyRef = useRef(false);
   const onFrameRef = useRef(onFrame);
   useEffect(() => {
     onFrameRef.current = onFrame;
@@ -102,30 +108,61 @@ export function useFolded3dMeshRuntime(options: {
   }, []);
 
   /**
-   * Deal with a reply. `null` means the worker does not know this token, which
-   * — since nothing of ours replaces a mesh in flight — means it was evicted.
-   * Load it again rather than sitting on a dead token and freezing silently.
+   * One frame in flight, with camera/settings overwritten by the newest input.
+   * Present each completed frame of this mesh even when another view is waiting:
+   * rejecting it on every pointermove starves presentation when input is faster
+   * than rendering. The trailing send always uses the final absolute view.
+   * Both camera and settings use this pump, so a slider cannot build a second
+   * queue or race an orbit reply. A generation change still rejects old meshes.
    */
-  const receive = useCallback(
-    (
-      token: number,
-      request: number,
-      frame: { bitmap: ImageBitmap | null } | null
-    ) => {
-      if (tokenRef.current !== token || requestRef.current !== request) {
-        frame?.bitmap?.close();
-        return;
-      }
-      if (!frame) {
-        tokenRef.current = undefined;
-        setStatus('loading');
-        setReloadNonce((nonce) => nonce + 1);
-        return;
-      }
-      if (frame.bitmap) onFrameRef.current(frame.bitmap);
-    },
-    []
-  );
+  const flush = useCallback(function send(): void {
+    const client = clientRef.current,
+      token = tokenRef.current;
+    const camera = cameraRef.current,
+      settings = settingsRef.current;
+    if (
+      !client ||
+      token === undefined ||
+      busyRef.current ||
+      !dirtyRef.current ||
+      (!camera && !settings)
+    )
+      return;
+    const generation = generationRef.current;
+    const request = {};
+    busyRef.current = request;
+    dirtyRef.current = false;
+    const started = beginCameraMessage();
+    void (
+      camera
+        ? client.setFolded3dMeshCamera(token, camera, settings ?? undefined)
+        : client.setFolded3dMeshRenderSettings(token, settings!)
+    )
+      .then((frame) => {
+        if (
+          generationRef.current !== generation ||
+          tokenRef.current !== token
+        ) {
+          frame?.bitmap?.close();
+          return;
+        }
+        if (!frame) {
+          // A missing token means eviction. Reload using the latest view.
+          tokenRef.current = undefined;
+          setStatus('loading');
+          setReloadNonce((nonce) => nonce + 1);
+        } else if (frame.bitmap) onFrameRef.current(frame.bitmap);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        endCameraMessage(started);
+        // A previous mesh must not release the new mesh's in-flight guard.
+        if (busyRef.current !== request) return;
+        busyRef.current = null;
+        send();
+      });
+    recordSimulatorProbe('cameraDispatch', performance.now() - started);
+  }, []);
 
   useEffect(() => {
     if (!mesh) {
@@ -133,6 +170,7 @@ export function useFolded3dMeshRuntime(options: {
       return;
     }
     let cancelled = false;
+    const generation = ++generationRef.current;
     setStatus('loading');
     void (async () => {
       const client = clientRef.current;
@@ -167,26 +205,17 @@ export function useFolded3dMeshRuntime(options: {
         setStatus('ready');
         // Draw immediately at whatever the window already knows, so a reload
         // does not blank the picture until the next camera move.
-        const settings = settingsRef.current;
-        if (settings)
-          receive(
-            info.token,
-            ++requestRef.current,
-            await client.setFolded3dMeshRenderSettings(info.token, settings)
-          );
-        const camera = cameraRef.current;
-        if (!cancelled && camera)
-          receive(
-            info.token,
-            ++requestRef.current,
-            await client.setFolded3dMeshCamera(info.token, camera)
-          );
+        dirtyRef.current = true;
+        flush();
       } catch {
         if (!cancelled) setStatus('error');
       }
     })();
     return () => {
       cancelled = true;
+      generationRef.current = generation + 1;
+      busyRef.current = null;
+      dirtyRef.current = false;
       const token = tokenRef.current;
       tokenRef.current = undefined;
       if (token !== undefined) {
@@ -195,38 +224,24 @@ export function useFolded3dMeshRuntime(options: {
           .catch(() => undefined);
       }
     };
-  }, [mesh, reloadNonce, receive]);
+  }, [mesh, reloadNonce, flush]);
 
   const setCamera = useCallback(
     (view: OrbitView, width: number, height: number) => {
       cameraRef.current = { view, width, height };
-      const token = tokenRef.current;
-      if (token === undefined) return;
-      // Timed like the solver's own dispatch, so an orbit that is slow on this
-      // thread reads the same whichever kind of window it came from.
-      const started = performance.now();
-      const request = ++requestRef.current;
-      void clientRef.current
-        ?.setFolded3dMeshCamera(token, { view, width, height })
-        .then((frame) => receive(token, request, frame))
-        .catch(() => undefined);
-      recordSimulatorProbe('cameraDispatch', performance.now() - started);
+      dirtyRef.current = true;
+      flush();
     },
-    [receive]
+    [flush]
   );
 
   const setRenderSettings = useCallback(
     (settings: RenderSettings) => {
       settingsRef.current = settings;
-      const token = tokenRef.current;
-      if (token === undefined) return;
-      const request = ++requestRef.current;
-      void clientRef.current
-        ?.setFolded3dMeshRenderSettings(token, settings)
-        .then((frame) => receive(token, request, frame))
-        .catch(() => undefined);
+      dirtyRef.current = true;
+      flush();
     },
-    [receive]
+    [flush]
   );
 
   // A folded figure draws into the same shared buffer as every simulation, so

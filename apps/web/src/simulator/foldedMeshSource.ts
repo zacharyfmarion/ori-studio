@@ -12,6 +12,7 @@ import type {
 } from '../cp-workspace/folded/folded3dMesh';
 import type { SpatialMeshOrder } from '../cp-workspace/folded/folded3dMaterial';
 import { renderSpatialMesh } from './spatialMeshRenderer';
+import { prepareSpatialDrawPlan, type SpatialDrawPlane } from './spatialDrawPlan';
 
 /**
  * A 3D folded figure as something the worker can draw, with no solver behind it.
@@ -78,7 +79,8 @@ export class FoldedMeshSource {
      * have looked, but 16 is legal WebGL2 and at 16 a deep stack collides.
      */
     readonly depthBits: number,
-    private readonly spatial?: SpatialMeshOrder
+    private readonly spatial?: SpatialMeshOrder,
+    private readonly spatialPlan?: SpatialDrawPlane[]
   ) {}
 
   static create(
@@ -89,6 +91,9 @@ export class FoldedMeshSource {
     if (!core) return null;
     const dim = payload.textureDim;
     try {
+      const spatialPlan = payload.spatial
+        ? prepareSpatialDrawPlan(payload.spatial)
+        : undefined;
       if (payload.spatial) {
         core.gl.bindFramebuffer(core.gl.FRAMEBUFFER, null);
         if (Number(core.gl.getParameter(core.gl.STENCIL_BITS)) < 2) throw new Error('Spatial visibility needs stencil coverage');
@@ -129,7 +134,8 @@ export class FoldedMeshSource {
         payload.undetermined,
         payload.undeterminedFaceAlpha,
         readDepthBits(core),
-        payload.spatial
+        payload.spatial,
+        spatialPlan
       );
     } catch {
       core.dispose();
@@ -160,7 +166,10 @@ export class FoldedMeshSource {
     target: WebGLFramebuffer | null = null
   ): void {
     if (this.spatial) {
-      renderSpatialMesh(this.core.gl, this.mesh, this.spatial, camera, settings, target);
+      renderSpatialMesh(
+        this.core.gl, this.mesh, this.spatial, this.spatialPlan!,
+        camera, settings, target
+      );
       return;
     }
     const passes = folded3dDrawPasses(

@@ -220,3 +220,20 @@ production winner. The current seven-model run checks 12,977 interior pixels,
 with four such cylinder ties and no ordering mismatches. At high amounts the
 fixed camera frame can crop the model; this is separate from the capture's
 geometry bounds. The application has its usual zoom control.
+
+### Orbit performance
+
+`orbit-benchmark.html?model=penguin&size=1600&interval=8` uses the same local
+fixtures and Vite `/@fs/<absolute-worktree-root>/scripts/layer-spread/spatial/`
+prefix. It first times production GPU draws over a full orbit, then mounts the
+actual Edit folded-mesh hook and drives its worker with three seconds of camera
+input. `size` is in device pixels; `interval` is milliseconds between inputs.
+Use `interval=4` to overload rendering deliberately.
+
+The page reports command counts, CPU submission and blocking readback times,
+worker render timings, presentation gaps and trailing delay. Presentation
+callbacks can exceed monitor refresh rate; their count is not screen FPS.
+JSON also appends to the dev-only `artifacts/sim-perf/sim-perf.log`. Run timing
+comparisons without other GPU checks or builds running. See
+[`spatial-spread-orbit-performance.md`](../../../implementation-plans/spatial-spread-orbit-performance.md)
+for the diagnosis and recorded before/after measurements.
