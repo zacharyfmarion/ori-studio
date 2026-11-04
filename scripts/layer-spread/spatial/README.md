@@ -222,6 +222,13 @@ The viewer accepts `?model=pangolin&size=1600` for corner inspection; optional
 `yaw`, `pitch` (radians) and `zoom` reproduce a specific camera. Amount/camera
 sweeps retain source identity and reuse the solve, as the app does.
 
+Tortoise is another local review case. Extract its OSF projection and run the
+same Rust example into `artifacts/spatial-production/tortoise.json`, then use
+`--model tortoise` or open the viewer with `?model=tortoise`. Its dense stacks
+exercise the solver's compacted-sample budget; no private fixture is committed.
+The solver's memory investigation and production measurements are in
+[`spatial-spread-solver-efficiency.md`](../../../implementation-plans/spatial-spread-solver-efficiency.md).
+
 Near-coincident independent surfaces are reported as `contactTies` separately
 from visibility failures, using a `2e-5` normalized depth tolerance. This
 exception never excuses a known blocker violation and does not change the

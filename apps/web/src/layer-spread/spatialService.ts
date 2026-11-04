@@ -22,6 +22,8 @@ export function spatialSpreadService(): SpreadService<
       }),
     32 * 1024 * 1024,
     25_000,
-    validSpatialSolution
+    validSpatialSolution,
+    undefined,
+    'recycle'
   ));
 }

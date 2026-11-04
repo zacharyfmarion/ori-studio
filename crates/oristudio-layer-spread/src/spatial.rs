@@ -9,6 +9,8 @@ use nalgebra::{Matrix3, Vector3};
 use oristudio_geometry::convex;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+mod crossings;
+use crossings::{CrossingAccumulator, Crossings};
 
 pub const VERSION: &str = "spatial-vector-v1";
 type V3 = [f64; 3];
@@ -108,7 +110,7 @@ impl Problem {
     }
 }
 
-fn samples(input: &Input) -> Result<(Vec<Sample>, Vec<Sample>), SpreadError> {
+fn samples(input: &Input) -> Result<(Vec<Sample>, Crossings), SpreadError> {
     let mut face_triangles = vec![Vec::new(); input.faces.len()];
     for (t, &f) in input.triangle_faces.iter().enumerate() {
         face_triangles[f].push(t);
@@ -117,7 +119,7 @@ fn samples(input: &Input) -> Result<(Vec<Sample>, Vec<Sample>), SpreadError> {
         return Err(invalid("face without triangles"));
     }
     let mut gaps = Vec::new();
-    let mut crossings = Vec::new();
+    let mut crossings = CrossingAccumulator::default();
     let mut work = 0usize;
     for cell in &input.cells {
         let n = cell.normal;
@@ -206,22 +208,28 @@ fn samples(input: &Input) -> Result<(Vec<Sample>, Vec<Sample>), SpreadError> {
                                 row: gap(center),
                                 weight: area,
                             });
+                            if gaps.len() > 100_000 {
+                                return Err(SpreadError::Limit("spatial gap samples"));
+                            }
                         }
                         for &point in &overlap {
+                            // Compaction bounds retained memory; this separately
+                            // bounds raw work even when every row is a duplicate.
+                            work += 1;
+                            if work > 2_000_000 {
+                                return Err(SpreadError::Limit("spatial overlap samples"));
+                            }
                             crossings.push(Sample {
                                 row: gap(point),
                                 weight: area / overlap.len() as f64,
-                            });
-                        }
-                        if crossings.len() > 100_000 {
-                            return Err(SpreadError::Limit("spatial constraints"));
+                            })?;
                         }
                     }
                 }
             }
         }
     }
-    Ok((gaps, crossings))
+    Ok((gaps, crossings.finish()))
 }
 
 pub fn solve(input: &Input) -> Result<Solution, SpreadError> {
@@ -253,6 +261,11 @@ pub fn solve(input: &Input) -> Result<Solution, SpreadError> {
         return Err(invalid("spatial topology"));
     }
     let (gaps, crossings) = samples(input)?;
+    let Crossings {
+        samples: crossings,
+        total_weight: crossing_mass,
+        rounding_gap_bound,
+    } = crossings;
     if gaps.is_empty() {
         return Ok(Solution {
             version: VERSION.into(),
@@ -290,7 +303,6 @@ pub fn solve(input: &Input) -> Result<Solution, SpreadError> {
     let depth = input.cells.iter().map(|c| c.faces.len()).max().unwrap_or(1);
     let target = 0.18 / depth.saturating_sub(1).max(1) as f64;
     let spacing_mass: f64 = gaps.iter().map(|s| s.weight).sum();
-    let crossing_mass: f64 = crossings.iter().map(|s| s.weight).sum();
     for s in &gaps {
         problem.objective(&s.row, target, s.weight);
     }
@@ -299,7 +311,8 @@ pub fn solve(input: &Input) -> Result<Solution, SpreadError> {
         let mut terms: Row = s.row.iter().map(|&(v, w)| (v, -w)).collect();
         terms.push((slack, -1.));
         problem.upper(terms, 0.);
-        problem.upper(vec![(slack, -1.)], 0.);
+        // Minimizing the positive quadratic under s >= -gap already yields
+        // s = max(0, -gap). A second s >= 0 row is redundant at the optimum.
         problem.objective(
             &vec![(slack, 1.)],
             0.,
@@ -422,7 +435,8 @@ pub fn solve(input: &Input) -> Result<Solution, SpreadError> {
         max_order_violation: crossings
             .iter()
             .map(|s| (-value(&s.row, &result.x)).max(0.))
-            .fold(0., f64::max),
+            .fold(0., f64::max)
+            + rounding_gap_bound,
         status: format!("{:?}", result.status),
     })
 }

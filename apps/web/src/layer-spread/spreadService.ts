@@ -45,6 +45,7 @@ export class SpreadService<I = SpreadInput, S = SpreadSolution> {
     private timeoutMs = 15_000,
     private validate: (solution: S, input: I) => boolean = validSolution as unknown as (solution: S, input: I) => boolean,
     private solutionBytes: (solution: S) => number = solution => 2 * JSON.stringify(solution).length,
+    private workerLifetime: 'reuse' | 'recycle' = 'reuse',
   ) {}
 
   acquire(input: I, priority = 1): SpreadLease<S> {
@@ -163,6 +164,9 @@ export class SpreadService<I = SpreadInput, S = SpreadSolution> {
         this.cache.set(request.key, { solution, bytes });
         this.bytes += bytes;
       }
+      // Free the worker's WASM high-water memory, retaining only the small
+      // solution cache. Pump starts a fresh worker if another lease is queued.
+      if (this.workerLifetime === 'recycle') this.stopWorker();
       request.resolve(solution);
     }
     this.pump();

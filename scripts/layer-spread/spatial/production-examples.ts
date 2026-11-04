@@ -122,13 +122,11 @@ async function load(name: string) {
   // Retain source identity across amount/camera samples, as the app does, so
   // sweeps exercise the cached solve instead of solving a fresh JSON object.
   if (loadedName !== name) {
+    // Do not let Vite freeze the list of ignored fixtures into a URL glob:
+    // new corpus examples may be generated while the server is running.
+    const sourcePath = `../../../artifacts/spatial-production/${name}.json`;
     data = await (
-      await fetch(
-        new URL(
-          `../../../artifacts/spatial-production/${name}.json`,
-          import.meta.url
-        )
-      )
+      await fetch(new URL(sourcePath, import.meta.url))
     ).json();
     loadedName = name;
   }

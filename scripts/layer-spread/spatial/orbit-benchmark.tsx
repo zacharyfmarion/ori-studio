@@ -171,13 +171,11 @@ function RuntimeBenchmark({ mesh, gpu }: { mesh: Folded3dMesh; gpu: unknown }) {
 }
 
 async function run() {
+  // Fixtures can be generated after Vite starts. Avoid a transformed URL glob
+  // whose cached file list would omit newly added local corpus examples.
+  const sourcePath = `../../../artifacts/spatial-production/${name}.json`;
   const data = await (
-    await fetch(
-      new URL(
-        `../../../artifacts/spatial-production/${name}.json`,
-        import.meta.url
-      )
-    )
+    await fetch(new URL(sourcePath, import.meta.url))
   ).json();
   const mesh = await ensureSpatialSpread(data.render);
   const gpu = await gpuBenchmark(mesh);

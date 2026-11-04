@@ -377,3 +377,15 @@ Unrelated Rust workspace crates and the native desktop shell were not rebuilt:
 the changed behavior runs in the shared frontend/worker, with no native command,
 menu, filesystem or packaging changes. Browser graphics checks ran in Chromium;
 Safari/WebKit and native desktop GPU behavior remain CI/manual review coverage.
+
+### Dense-stack solver efficiency
+
+The Tortoise investigation is now integrated; see
+[`spatial-spread-solver-efficiency.md`](spatial-spread-solver-efficiency.md).
+Streaming weighted crossing compaction, bounded coefficient canonicalization
+and removal of redundant slack inequalities reduce its production preparation
+to about 2.4 seconds and 95 MB of WASM memory (previously about 14.3 seconds and
+499 MB with the old cap raised). The service recycles completed spatial workers
+while retaining cached displacement fields. Tortoise now fits the compacted
+problem budget and passes the full amount/front/back capture and picking sweep.
+The nine-model review totals 108 captures and 18,024 interior pixel checks.
