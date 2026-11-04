@@ -142,16 +142,13 @@ fn the_two_saved_patterns_differ() {
 #[test]
 fn a_restored_prototype_keeps_the_other_patterns_available() {
     // The prototype is yielded first and the search still runs, so the stretch
-    // stays switchable.
+    // stays switchable, with the two patterns its configuration generates.
     //
-    // Upstream reports *three* patterns here, for a configuration that natively
-    // generates two: its `patternGenerator` dedup compares the signature of an
-    // initialized prototype `Pattern` against freshly generated devices, which
-    // do not match, so the restored pattern survives alongside its own
-    // duplicate. This port's dedup does match, giving two. The option *set* is
-    // identical either way — the extra upstream entry is a copy of one already
-    // in the list — so nothing is lost, and a duplicate entry in the pattern
-    // switcher is not a quirk worth reproducing.
+    // Upstream reported *three* until v0.7.17: its `patternGenerator` dedup
+    // compared a signature that took in the JS caches of the initialized
+    // prototype `Pattern`, so the restored pattern survived alongside its own
+    // duplicate. `76fc3bd5` ("Fix pattern saving regression") signs devices
+    // without their caches, and the oracle now reports two here as well.
     for text in [FILE_PATTERN_0, FILE_PATTERN_1] {
         let mut session = session(text);
         let restored = sorted_ridges(&session);
