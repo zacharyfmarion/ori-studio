@@ -677,14 +677,13 @@ describe('a step’s marks on the page', () => {
     return Math.hypot(tx - (ax + bx) / 2, ty - (ay + by) / 2);
   }
 
-  it('gives an arrowhead its on-screen size, and a short fold’s a share of its chord but never under four strokes, as the view does', async () => {
+  it('gives every arrowhead its on-screen size, a short fold’s as a long one’s, as the view does', async () => {
     // A quarter-turn of a 40-unit circle: a chord of 57 units on the plan's
     // 400-unit sheet, where the plan's own fold spans 141.
     const short: StepDiagramPrimitive = {
       kind: 'fold-arrow',
       out: { center: [0, 0], radius: 40, from: 0, to: Math.PI / 2, ccw: true },
     };
-    const chordPt = (mm: number) => (40 * Math.SQRT2 * mm * PT_PER_MM) / 400;
     const onScreen = DIAGRAM_ARROWHEAD_INK.length * canvasDiagramInk(LINE_WIDTH) * PT_PER_CSS_PX;
     /** Each arrow's head, and every arrow stroke's weight, in pt on the page. */
     const arrowsAt = async (mm: number) => {
@@ -704,18 +703,14 @@ describe('a step’s marks on the page', () => {
     const large = await arrowsAt(120);
     const [planned41, short41] = small.heads;
     const [planned120, short120] = large.heads;
-    // A fold long enough for its head keeps the head's on-screen size.
+    // Every fold keeps the head's on-screen size: the short one on a 41 mm
+    // sheet, whose chord is 16 pt, as the long one beside it — while every
+    // stroke keeps the pen's weight.
     expect(planned41).toBeCloseTo(onScreen, 2);
     expect(planned120).toBeCloseTo(onScreen, 2);
     expect(short120).toBeCloseTo(onScreen, 2);
-    // On a 41 mm sheet the short one's chord is 16 pt, and a full head would
-    // be half of it: it is held to the share of its own chord the view holds
-    // it to — which here would leave it no wider than its stroke, so it stops
-    // at four strokes long — while every stroke keeps the pen's weight.
-    const floor = ARROWHEAD_MIN_STROKES * STYLE.arrows.width;
-    expect(DIAGRAM_ARROWHEAD_INK.ofChord * chordPt(41)).toBeLessThan(floor);
-    expect(short41).toBeCloseTo(floor, 2);
-    expect(short41).toBeLessThan(onScreen);
+    expect(short41).toBeCloseTo(onScreen, 2);
+    expect(onScreen).toBeGreaterThan(ARROWHEAD_MIN_STROKES * STYLE.arrows.width);
     for (const { strokes } of [small, large]) {
       expect(strokes).toHaveLength(4);
       for (const stroke of strokes) expect(stroke).toBeCloseTo(STYLE.arrows.width, 6);

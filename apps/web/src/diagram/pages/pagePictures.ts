@@ -553,8 +553,11 @@ export function cellPicture(
   const placing = { paper: textPaper, xRays: xraySurface && xrayPainter(xraySurface, style) };
   // An enlarged step draws its window (Revision 2), a close-up's inside included.
   const zoomed = zoomedSource(step, assets);
-  const drawPicture = (inner: Rect, mmPerUnit: number | null, framePt: number | null) =>
-    zoomed ? drawZoomed(zoomed, step, style, inner, framePt, text) : draw(source, step, style, inner, mmPerUnit, framePt, text);
+  // `magnified`: a close-up's inside, the picture that many times larger than the step shows it.
+  const drawPicture = (inner: Rect, mmPerUnit: number | null, framePt: number | null, magnified = 1) =>
+    zoomed
+      ? drawZoomed(zoomed, step, style, inner, framePt, text, magnified)
+      : draw(source, step, style, inner, mmPerUnit, framePt, text, null, magnified);
   const area = cell.drawMm ?? { x: cell.pictureMm.x, y: cell.pictureMm.y, w: cell.pictureMm.size, h: cell.pictureMm.size };
   const box: Rect = { x: area.x * PT_PER_MM, y: area.y * PT_PER_MM, width: area.w * PT_PER_MM, height: area.h * PT_PER_MM };
   // An enlarged step keeps in its room what lies inside its window, as it was measured: its marks past it overflow.
@@ -636,7 +639,7 @@ export function cellPicture(
   const usage = new Map(drawn.text.map(({ face, characters }) => [face, characters]));
   const count = (face: string, characters: string) => usage.set(face, (usage.get(face) ?? '') + characters);
   const closeUpPicture: CloseUpPicture = (scale, frame, prefix) => {
-    const inside = drawPicture(frame, null, scale * longerOf(drawn.framePt));
+    const inside = drawPicture(frame, null, scale * longerOf(drawn.framePt), scale);
     if (!inside) return null;
     for (const { face, characters } of inside.text) count(face, characters);
     // Drawn centred in the frame's box: moved so its frame is the close-up's,
@@ -804,7 +807,8 @@ function draw(
   mmPerUnit: number | null,
   framePt: number | null,
   text: PictureText,
-  cull: PictureBox | null = null
+  cull: PictureBox | null = null,
+  magnified = 1
 ): DrawnPicture | null {
   switch (source.kind) {
     case 'scene': {
@@ -860,7 +864,8 @@ function draw(
     }
     case 'asset':
     case 'fixed': {
-      const painted = paintSource(source, style);
+      // A fixed picture drawn `magnified` times as large as its step shows it keeps its lines' weight.
+      const painted = paintSource(source, style, undefined, 1, null, magnified);
       if (!painted || !(painted.widthPx > 0) || !(painted.heightPx > 0)) return null;
       const scale =
         source.kind === 'asset' && step.picture?.kind === 'asset' ? step.picture.paperScale : null;
@@ -900,7 +905,10 @@ function draw(
  * box; the step's own picture drawn under it larger by its own painter —
  * only what lies near the window — and moved so its frame is where the window
  * puts it, clipped to the frame, the boundary over it. Its frame is the
- * window; what it draws, and keeps in its room, its content.
+ * window; what it draws, and keeps in its room, its content. `magnified` is
+ * a close-up's on it: the picture is drawn larger than the step shows it by
+ * that and by the window's zoom, which a fixed picture's lines keep their
+ * weight through.
  */
 function drawZoomed(
   zoomed: ZoomedSource,
@@ -908,7 +916,8 @@ function drawZoomed(
   style: DiagramStyle,
   box: Rect,
   framePt: number | null,
-  text: PictureText
+  text: PictureText,
+  magnified = 1
 ): DrawnPicture | null {
   const { view, source, pictureFrame, silhouette } = zoomed;
   const shape = frameOf(view.window.width, view.window.height);
@@ -935,7 +944,8 @@ function drawZoomed(
   const placement = zoomPlacement(view, pictureFrame, placed);
   const printedMm = longer / PT_PER_MM;
   const target = placement.pictureFrame;
-  const inside = draw(source, step, style, target, null, longerOf(target), text, zoomCull(view, printedMm));
+  const zoom = 1 / Math.max(view.window.width, view.window.height);
+  const inside = draw(source, step, style, target, null, longerOf(target), text, zoomCull(view, printedMm), magnified * zoom);
   // Drawn centred in its box: moved so its frame is where the window puts it,
   // where a References step's letters reach past one side of its sheet.
   const [dx, dy] = inside ? [target.x - inside.framePt.x, target.y - inside.framePt.y] : [0, 0];

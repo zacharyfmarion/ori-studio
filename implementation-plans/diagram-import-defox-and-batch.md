@@ -74,6 +74,12 @@ entry reports an unsupported result instead of inventing its source link.
 Each linked Defox step retains a bounded saved-state JSON string and sanitized
 vector picture using an explicit `defox` render mode. Global artwork colours
 are copied into each snapshot so deleting the first step cannot lose them.
+The saved state leaves out what Defox's layer solver derives from a step's
+folds: its cell complexes (`cell_cp`, `cell_d`) and the layer states over them
+(`state`, `state_cp`). They are 35–64% of a large project and nothing Ori
+Studio reads, since the picture is drawn and a posed view orders its own
+layers. A step Defox drew from its cells cannot be redrawn from what is kept;
+its picture is the record.
 Symbols stay part of the vector artwork rather than editable native annotations.
 Pose controls explicitly replace the saved view with an Ori Studio capture;
 the UI explains the change, and Undo restores the imported view. Viewing,
@@ -155,15 +161,29 @@ remaining cost.
 ### Admission and cancellation limits
 
 - At most 1,000 selected files; at most 10,000 enumerated folder entries.
-- CP/SVG input: 16 MiB each. Defox input: 64 MiB. Total input: 256 MiB.
+- CP/SVG input: 16 MiB each. Defox input: 192 MiB as saved, and 64 MiB of
+  JSON without the whitespace between its tokens (Defox saves a project
+  indented, about three times what it holds). Total input: 256 MiB.
 - Prepared batch content: 384 MiB accounting limit; exact-input memo: 64 MiB.
-- Defox renderer output: 128 MiB total, 2 MiB saved-state string per entry;
-  bounded nesting/arrays and finite/index validation.
+- Defox renderer output: 128 MiB total, 2 MiB saved-state string per entry,
+  each without Defox's layer-solver data (see the saved-state paragraph above);
+  bounded nesting/arrays and finite/index validation. The four Defox limits,
+  and its render budget, live together in `diagram/import/defoxLimits.ts`.
 - One active import CP session; native session registry has a hard cap of four.
 - Preparation budget: 30 seconds per task. Fold budget: default 5 seconds,
-  adjustable from 1 to 120 seconds. Defox rendering budget: 30 seconds.
+  adjustable from 1 to 120 seconds. Defox rendering budget: 30 seconds to open
+  a project, then 30 seconds for each of its steps (see "Follow-up: a render
+  budget per step").
 - Cancel aborts staged work and disposes its session; native stop remains
   cooperative. Commit disables cancellation while publishing the atomic pair.
+
+A Defox file's bytes move to its worker rather than being copied, and are
+compacted where they lie, so a file at these limits takes no more memory than
+one at the earlier 64 MiB file limit, which was held four times over: as bytes
+and as text on the main thread, as the worker's copy of the text, and
+re-encoded there to be measured. In one-byte text both come to 256 MiB
+(192 + 64, against 4 × 64); text that needs two bytes a character costs the new
+path 320 MiB and the old one 384.
 
 These limits bound admitted content and concurrency, **not process RSS**.
 Structured clones, object geometry and native project JSON can multiply retained
@@ -550,3 +570,119 @@ The large OSF opening/topology issue was traced to the existing loader on main.
 This review does not change that loader or claim its opening freeze is resolved.
 The earlier corpus and scrolling measurements above still apply; this review
 does not change folding, geometry, placement or preview resolution policy.
+
+## Follow-up: a saved view's fold lines survive Show as Folded
+
+Reported by Bodo (2026-11-03): switching an imported step from the Defox view
+to Folded lost the line that shows the fold. Defox draws each step's creases
+on its saved state (`fold.UA` on faces, `fold.EA` on refolded edges), often
+as a project's only instruction: five of the eight gallery projects
+(`kei-morisue/defox_gallery`) have no arrows at all.
+
+- [x] Download the gallery's eight projects and 74 rendered pages; run the
+  adapter over every step and the real import over every step that fits.
+- [x] Start a flat fold that replaces a saved view in the view's pose: the side
+  and turn Defox draws it in, measured on the kernel's fold and turned over on
+  the held fold, in both the capture and the Pose paths (`defoxViewPose.ts`).
+  Without it the Folded view showed the other side on 12 of the Airplane's 18
+  steps, with the folded layer underneath.
+- [x] Keep the view's fold lines as Ori Studio lines on the new picture
+  (`defoxFoldLines.ts`, from `setLinkedPicture`): `MM`/`VV` named as seen,
+  `FF` as valleys, `RM`/`RV` along their edges; only where no face of a lower
+  level covers them, then carried onto the spread with their face. In step with
+  the new picture when the step had no marks of its own; one undo step.
+- [x] Tests: placement, naming, cover, spread carry, edges, document hook
+  (fails without it), pose measurement, capture and Pose turn-over.
+- [ ] Not converted: `UF` unfolded edges (no line type) and Defox's arrows and
+  other symbols, which still stay in the replaced picture.
+
+## Follow-up: large Defox projects import
+
+Six of the gallery's eight projects were refused whole (`file too large`):
+Defox saves a project indented, and the 64 MiB limit counted the indentation.
+Compacted, the same projects still lost steps: five over the 2 MiB saved-state
+limit and jean's last six to the 128 MiB output budget. The admission rule is
+now as in "Admission and cancellation limits" above: 192 MiB as saved, 64 MiB
+of JSON, the bytes moved to the worker and compacted where they lie, and each
+step's saved state kept without Defox's layer-solver data, which was most of
+every large project (35–64% of its JSON) and what pushed those steps past the
+limits. No memory limit was raised.
+
+- [x] Map every Defox limit and what it guards (input read, renderer parse,
+  per-step saved state, output, staging, the diagram reader).
+- [x] Measure the gallery: what fills each project, which steps fail which
+  limit, and the renderer's time on each whole project.
+- [x] Read the file's bytes in the worker: moved, not copied; compacted in
+  place; refused past 64 MiB of JSON before anything is parsed; decoded
+  strictly as UTF-8 as before.
+- [x] Keep each step's saved state without `cell_cp`, `cell_d`, `state_cp`
+  and `state`. The oracle now compares against the step as the file holds it.
+- [x] One home for the four limits (`defoxLimits.ts`), shared with the
+  diagram reader's cap.
+- [x] Tests: an indented project past 64 MiB reads, a project holding more
+  than 64 MiB is refused, strings keep their spaces, quotes, backslashes and
+  non-ASCII text, non-UTF-8 bytes are refused, and a step whose cells alone
+  pass 2 MiB imports without them. The old renderer refuses both of the cases
+  this change admits.
+- [x] Import every original file through the dialog.
+
+Measured 2026-11-03 through the import dialog on the Vite dev server, Apple M1
+Max, Chromium. Peak is the page's renderer process at its largest during the
+import, sampled every 150 ms. One run each; repeated runs moved it by up to
+75 MiB. The renderer process sits at about 565 MiB before an import.
+
+| Project | As saved / JSON | Steps | Before | After | Import | Saved state kept, before → after | Peak |
+| --- | ---: | ---: | --- | --- | ---: | ---: | ---: |
+| pln | 0.8 / 0.2 MiB | 18 | 18 | 18 | 0.37 s | 0.2 → 0.2 MiB | 620 MiB |
+| Zach's `defox_project` | 3.6 / 1.0 MiB | 8 | 8 | 8 | 0.40 s | — → 0.6 MiB | 625 MiB |
+| hnkm | 39.7 / 11.2 MiB | 139 | 139 (2.4 s, 1,046 MiB peak) | 139 | 2.35 s | 11.2 → 7.4 MiB | 976 MiB |
+| myon | 72.1 / 23.0 MiB | 93 | refused; 92 compacted | 93 | 2.35 s | 20.2 → 8.9 MiB | 995 MiB |
+| clone | 77.9 / 22.9 MiB | 70 | refused; 70 compacted | 70 | 2.81 s | 22.9 → 11.7 MiB | 1,084 MiB |
+| kaltstick | 113.9 / 38.8 MiB | 141 | refused; 140 compacted | 141 | 3.48 s | 36.1 → 13.9 MiB | 1,144 MiB |
+| feiying | 116.6 / 33.7 MiB | 130 | refused; 129 compacted (1,390 MiB peak) | 130 | 13.0 s | 25.0 → 13.6 MiB | 1,187 MiB |
+| hnb | 119.2 / 30.1 MiB | 121 | refused; 119 compacted | 121 | 2.65 s | 26.0 → 14.2 MiB | 962 MiB |
+| jean | 143.7 / 44.1 MiB | 147 | refused; 141 compacted (1,400 MiB peak) | 147 | 4.50 s | 40.0 → 18.7 MiB | 1,251 MiB |
+
+"Compacted" is the same project with its indentation removed, on `main`; its
+saved state counts only the steps that got in. Show as Folded on steps kept
+this way (feiying 129–130, jean 10 and 147) starts in the view's side and turn
+and keeps its fold lines, as before.
+
+Feiying's last step is drawn from Defox's cells and takes 9.6 s of the 30 s
+render budget alone; the rest of the project takes 0.5 s. The budget covered the
+whole project, so a machine three times slower would have lost all of it to that
+one step. It is now per step (below).
+
+## Follow-up: a render budget per step
+
+Drawing a Defox step is one synchronous call, which a worker cannot be asked to
+leave, so a budget on it can only be kept by stopping the worker. The budget
+was on the whole project, and so a project was lost whole to one slow step.
+
+- [x] The renderer opens a project once (`openDefox`) and draws its steps one
+  at a time (`drawDefoxStep`), saying with each the output its steps have taken
+  so far. `renderDefox` still draws them all in one call, for the oracle and the
+  renderer's own tests.
+- [x] `drawDefoxSteps` gives the opening, and then each step,
+  `DEFOX_LIMITS.renderMs` (30 s). A step over it, or one its worker dies on,
+  fails alone ("Drawing this saved view took longer than 30 seconds."), and a
+  new worker reads the file again, not counted against the batch's input, to
+  go on from the next step, its output counted from where the stopped worker
+  left it. A project that cannot be opened within the budget fails whole, as
+  before. Cancel stops the worker.
+- [x] Tests: one worker for a project that fits; a step over its budget, and a
+  step whose worker dies, fail alone while a new worker draws the rest from the
+  file read again; a slow opening fails the project; cancelling stops the
+  worker; a reopened project counts its output from where it was left.
+- [x] Browser: feiying through the dialog. With the budget cut to 5 s for one
+  run each, the whole-project budget lost all 130 steps ("Reading the Defox
+  project took longer than 30 seconds.", its message fixed at 30), and the
+  per-step one lost step 130 alone ("Drawing this saved view took longer than
+  5 seconds."), the other 129 imported. At 30 s every step of the nine test
+  projects imports. Feiying alternated three times with the whole-project code
+  took 14.0 s against 13.75 s on average, inside the runs' own spread.
+
+There is no budget on a project as a whole any more: one whose every step took
+nearly 30 s would take that long a step, for up to 1,000 steps. The import can
+be cancelled at any point, as a batch of 1,000 CP files can, each with its own
+30 s preparation budget.

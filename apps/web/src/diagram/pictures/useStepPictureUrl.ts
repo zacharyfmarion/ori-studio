@@ -164,10 +164,13 @@ export function zoomSurroundUrl(
   style: DiagramStyle,
   alsoShow: PictureBox | null = null
 ): CloseUpPictureUrl | null {
-  const { source } = zoomed;
+  const { source, view } = zoomed;
   const held = zoomSurroundRegion(zoomed, alsoShow);
   if (!held) return null;
-  if (source.kind === 'asset' || source.kind === 'fixed') return closeUpPictureUrl(source, style, held.scale);
+  if (source.kind === 'asset' || source.kind === 'fixed') {
+    // Shown as large as the window shows it: by the window's zoom.
+    return closeUpPictureUrl(source, style, held.scale, 1 / Math.max(view.window.width, view.window.height));
+  }
   const { scale, region } = held;
   const key = `zoom-surround|${sourceKey(source)}|${diagramStyleKey(style)}|${scale}|${region.x}|${region.y}|${region.width}|${region.height}`;
   const paint = () => paintZoomSurround(source, style, scale, region);
@@ -214,7 +217,8 @@ export function annotatedStepUrl(
   const key = `annotated|${sourceKey(source)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}|${layers ? 'layers' : ''}|${xRaysKey(xRays)}`;
   return throughCache(key, kept, () => {
     const painted = paintSource(source, style);
-    const paintAt = opacity < 1 ? null : (scale: number) => paintSource(source, style, undefined, scale);
+    // A close-up's inside: the picture `scale` times larger, its lines at their weight.
+    const paintAt = opacity < 1 ? null : (scale: number) => paintSource(source, style, undefined, scale, null, scale);
     // A References picture's sheet: a label's halo is filled with the face it stands on (17b).
     const paint = { paper: sourcePaper(source), xRays: xRays && xrayPainter(xRays, style) };
     return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity, layers, paintAt, paint)) : null;
@@ -296,13 +300,27 @@ const closeUpSizes = new WeakMap<object, Map<string, Omit<CloseUpPictureUrl, 'ur
  * A step's picture `scale` times the size every picture opens at, for a
  * close-up's inside on the canvas (15f), through the cache: a scene or a
  * References step painted afresh, its pens at their print weight; an upload
- * or a fixed picture its own URL, drawn larger whole. Null for a scene that
- * does not read.
+ * its own URL, drawn larger whole; a fixed picture drawn larger whole with
+ * its lines at their weight, the picture shown `magnified` times as large as
+ * its step shows it (`fixedLinesAt`) — the close-up's own scale, or an
+ * enlarged step's zoom for the picture round its frame. Null for a scene
+ * that does not read.
  */
-export function closeUpPictureUrl(source: StepPictureSource, style: DiagramStyle, scale: number): CloseUpPictureUrl | null {
+export function closeUpPictureUrl(
+  source: StepPictureSource,
+  style: DiagramStyle,
+  scale: number,
+  magnified = scale
+): CloseUpPictureUrl | null {
   if (source.kind === 'asset' || source.kind === 'fixed') {
     // Its own picture, its frame the whole of it, at `scale` times its size.
-    const url = stepPictureUrl(source, style);
+    const url =
+      source.kind === 'fixed' && magnified !== 1
+        ? cachedPictureUrl(`fixed-lines|${sourceKey(source)}|${magnified}`, () => {
+            const painted = paintSource(source, style, undefined, 1, null, magnified);
+            return painted ? svgDataUrl(painted.svg) : null;
+          })
+        : stepPictureUrl(source, style);
     const { widthPx, heightPx } =
       source.kind === 'asset' ? poseTransform(source.asset.widthPx, source.asset.heightPx, source.pose) : source.picture;
     const [width, height] = [widthPx * scale, heightPx * scale];

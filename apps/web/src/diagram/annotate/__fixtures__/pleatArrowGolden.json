@@ -106,7 +106,7 @@
   },
   "short": {
     "card": {
-      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><path d=\"M 85.039 85.039 L 92.798 81.786 L 92.399 84.513 L 97.094 82.544\" fill=\"none\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"miter\" stroke=\"#231f20\"></path><path d=\"M 100.157 81.26 L 96.882 83.925 Q 97.766 82.262 95.96 81.727 Z\" fill=\"#231f20\"></path></g></g>\n</g>",
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><path d=\"M 85.039 85.039 L 92.798 81.786 L 92.442 84.217\" fill=\"none\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"miter\" stroke=\"#231f20\"></path><path d=\"M 91.178 92.837 L 89.627 81.871 Q 92.165 86.109 95.811 82.778 Z\" fill=\"#231f20\"></path></g></g>\n</g>",
       "bounds": {
         "x": 0,
         "y": 0,
@@ -115,7 +115,7 @@
       }
     },
     "page": {
-      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><path d=\"M 127.557 127.557 L 139.195 122.677 L 138.596 126.767 L 145.638 123.815\" fill=\"none\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"miter\" stroke=\"#231f20\"></path><path d=\"M 150.234 121.888 L 145.32 125.886 Q 146.647 123.392 143.938 122.589 Z\" fill=\"#231f20\"></path></g></g>\n</g>",
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><path d=\"M 127.557 127.557 L 139.195 122.677 L 138.596 126.767 L 142.199 125.257\" fill=\"none\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"miter\" stroke=\"#231f20\"></path><path d=\"M 150.234 121.888 L 141.644 128.878 Q 143.963 124.517 139.227 123.114 Z\" fill=\"#231f20\"></path></g></g>\n</g>",
       "bounds": {
         "x": 12,
         "y": 30,
@@ -123,7 +123,7 @@
         "height": 212.6
       }
     },
-    "canvas": "<g><path d=\"M 85.039 85.039 L 92.798 81.786 L 92.399 84.513 L 97.094 82.544\" fill=\"none\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"miter\" stroke=\"#231f20\"></path><path d=\"M 100.157 81.26 L 96.882 83.925 Q 97.766 82.262 95.96 81.727 Z\" fill=\"#231f20\"></path></g>"
+    "canvas": "<g><path d=\"M 85.039 85.039 L 92.798 81.786 L 92.442 84.217\" fill=\"none\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"miter\" stroke=\"#231f20\"></path><path d=\"M 91.178 92.837 L 89.627 81.871 Q 92.165 86.109 95.811 82.778 Z\" fill=\"#231f20\"></path></g>"
   },
   "off-picture": {
     "card": {

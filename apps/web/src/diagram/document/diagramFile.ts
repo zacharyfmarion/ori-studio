@@ -103,6 +103,7 @@ import { isAnnotationColor } from '../annotate/annotationColors';
 import { TEXT_OFFSET_PT_MAX, TEXT_SIZE_PT } from '../annotate/textStyle';
 import { windowReach } from '../zoom/zoomModel';
 import { digest } from '../pictures/pictureKey';
+import { DEFOX_LIMITS } from '../import/defoxLimits';
 import { NEWER_PAPER_FACES, SCENE_JSON_MAX_BYTES, readPaperFaces } from './paperFacesFile';
 import { readLayerOrderRecord } from '../../lib/layerOrder/layerOrderRecord';
 import {
@@ -1165,7 +1166,7 @@ function isNewerUploadSource(value: Record<string, unknown>, assets: Record<stri
  * one. A render that does not read at all is damage, judged where it is read.
  */
 /** The most of a Defox saved view this build keeps (the importer's own cap). */
-const DEFOX_SNAPSHOT_MAX = 2 * 1024 * 1024;
+const DEFOX_SNAPSHOT_MAX = DEFOX_LIMITS.snapshotLength;
 
 function isNewerRender(value: unknown): boolean {
   if (!isRecord(value) || typeof value.mode !== 'string') return false;

@@ -245,8 +245,8 @@ describe('pages as they printed before placement came', () => {
         "flow from the right, across spreads, rows read upward · page 1": "112071bbf0ef8d2a a17ea0be4c9ff643 4f53cda18c2baa0c",
         "flow from the right, across spreads, rows read upward · page 2": "3806a26235e98c81 1a2ba3bcdc4a97af 4f53cda18c2baa0c",
         "flow from the right, across spreads, rows read upward · page 3": "4ffec0e00275d974 4e556a1f96e3d587 4f53cda18c2baa0c",
-        "flow landscape, an odd row count · page 1": "372e464efe771b06 500178ad0c113c33 4f53cda18c2baa0c",
-        "flow landscape, an odd row count · page 2": "4f156ef02e89e61b 75590eb5e9c8b775 4f53cda18c2baa0c",
+        "flow landscape, an odd row count · page 1": "7713010296a47f37 2f03217f51c4249c 4f53cda18c2baa0c",
+        "flow landscape, an odd row count · page 2": "391d8c633d8c12fd a00182ef4cb75e7e 4f53cda18c2baa0c",
         "flow, a last page with its own count · page 1": "763637fa1fbfc08f 8cf35b99b1f4109e 4f53cda18c2baa0c",
         "flow, a last page with its own count · page 2": "c7945e9df33c6410 07afe7fb8e35e5b8 4f53cda18c2baa0c",
         "flow, a page break and turns at a row’s end · page 1": "05993aee80b2115d 526b04916cacf11b 4f53cda18c2baa0c",
@@ -259,8 +259,8 @@ describe('pages as they printed before placement came', () => {
         "flow, seven steps a page: short last rows, across a spread and a page turn · page 1": "e77094730ef8afb3 d533a648e725b825 4f53cda18c2baa0c",
         "flow, seven steps a page: short last rows, across a spread and a page turn · page 2": "e0bba33a1ff38a15 f2f7047421073473 4f53cda18c2baa0c",
         "flow, seven steps a page: short last rows, across a spread and a page turn · page 3": "26b0041be8aefdb8 d4e7c4bb5143c429 4f53cda18c2baa0c",
-        "grid, a page break, turns and an upload · page 1": "762034dc73a12f50 762034dc73a12f50 4f53cda18c2baa0c",
-        "grid, a page break, turns and an upload · page 2": "09fc08ba3982c9d1 09fc08ba3982c9d1 4f53cda18c2baa0c",
+        "grid, a page break, turns and an upload · page 1": "15e1274df2ca75ad 15e1274df2ca75ad 4f53cda18c2baa0c",
+        "grid, a page break, turns and an upload · page 2": "d1861a903da9ec13 d1861a903da9ec13 4f53cda18c2baa0c",
         "grid, enlarged steps at a Size of 2 and of 6 · page 1": "bd28d9cef4eb23d5 bd28d9cef4eb23d5 f2a6c074db74a98c",
         "grid, two pages · page 1": "55238bffde0a38d1 55238bffde0a38d1 4f53cda18c2baa0c",
         "grid, two pages · page 2": "776e2e1611d8dbc7 776e2e1611d8dbc7 4f53cda18c2baa0c",
@@ -314,6 +314,12 @@ describe('homes as the layout computes them', () => {
     // 1.05483) and its homes under a hundredth of a mm off, its print the same;
     // and "flow from the right" page 3 (above), a ten-thousandth of a mm. A
     // saved diagram keeps the steadiness it says, so no saved home moves.
+    // 2026-11-03: every arrowhead is one size, a short arrow's no longer capped
+    // by its chord (Bodo). Four pages print a short fold arrow and changed by it
+    // alone — "flow landscape, an odd row count" pages 1 and 2, "grid, a page
+    // break, turns and an upload" pages 1 and 2 — each arrow's head larger and
+    // its stroke stopped at the new notch (the SVGs diffed against `main`: no
+    // other element moved). No home and no zoom arrow changed.
     const digests = Object.fromEntries(
       pageLayoutFixtures().flatMap(({ name, document }) =>
         preparedPages(document, FIXTURE_FONTS, subsetter).layout.pages.map((page, index) => [

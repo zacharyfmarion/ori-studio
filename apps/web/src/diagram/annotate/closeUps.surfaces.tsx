@@ -21,7 +21,7 @@ export function closeUpSurfaces(annotations: readonly KnownDiagramAnnotation[]) 
   const step = { ...cpStep('step-1'), annotations: [...annotations] };
   const source = stepPictureSource(step, {})!;
   const painted = paintSource(source, style)!;
-  const card = annotatedPicture(painted, annotations, style, 1, null, (scale) => paintSource(source, style, undefined, scale));
+  const card = annotatedPicture(painted, annotations, style, 1, null, (scale) => paintSource(source, style, undefined, scale, null, scale));
   const cell = { pictureMm: { x: 10, y: 20, size: 60 }, mmPerUnit: null, frameMm: null };
   const page = cellPicture(step, {}, style, cell, 'c0-', { hanStyle: 'sc', runs: estimateTextSetter.runs });
   const pictureFrame = { width: 1, height: 1 };

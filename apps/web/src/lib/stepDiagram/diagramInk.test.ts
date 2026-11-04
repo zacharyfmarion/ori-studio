@@ -116,17 +116,17 @@ describe('the diagram’s pen', () => {
     // The ring is four fifths of the card's 4%, which read as too big on a page.
     expect(DIAGRAM_MARK_INK.radius / perSheet).toBeCloseTo(0.032, 3);
     expect(DIAGRAM_TURN_OVER_INK / perSheet).toBeCloseTo(0.42, 9);
-    // The return's offset is what the head was: the loop keeps its width.
+    // The return's offset is what the head was: the loop keeps its width, and
+    // a short arrow's opens by no more than the share of its chord it did.
     expect(DIAGRAM_FOLD_RETURN_INK.offset / perSheet).toBeCloseTo(0.11, 9);
-    expect(DIAGRAM_FOLD_RETURN_INK.ofChord).toBe(DIAGRAM_ARROWHEAD_INK.ofChord);
+    expect(DIAGRAM_FOLD_RETURN_INK.ofChord).toBe(0.26);
   });
 
   // The head is a printed diagram's, not upstream's 0.11 of the paper, which a
   // reader found too big beside one: at the default pen on a step's page it
-  // is about 2.8 mm long and 1.65 mm wide.
+  // is about 2.8 mm long and 1.65 mm wide — on every arrow, however short.
   it('draws an arrowhead the size of a printed diagram’s', () => {
-    expect(DIAGRAM_ARROWHEAD_INK.length).toBe(8.5);
-    expect(DIAGRAM_ARROWHEAD_INK.ofChord).toBe(0.26);
+    expect(DIAGRAM_ARROWHEAD_INK).toEqual({ length: 8.5 });
     const mm = (DIAGRAM_ARROWHEAD_INK.length * canvasDiagramInk(1) * PT_PER_CSS_PX) / PT_PER_MM;
     expect(mm).toBeCloseTo(2.8, 1);
     expect((2 * mm) / ARROWHEAD_ASPECT).toBeCloseTo(1.65, 1);

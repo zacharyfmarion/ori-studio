@@ -55,11 +55,13 @@ import {
   arcSamplePoints,
   arcThroughPoints,
   foldArrowArc,
+  foldArrowDrawn,
   foldArrowLanding,
   foldArrowTrim,
   foldReturnOffset,
   halfArrowheadPath,
   oneWayArrow,
+  oneWayArrowDrawn,
   pleatArrowDrawn,
   pleatArrowShape,
   pleatBolt,
@@ -87,6 +89,7 @@ import {
   paperSpan,
   sheetCorners,
   withPens,
+  type Arrowhead,
   type DiagramArc,
   type SvgPoint,
 } from './stepDiagramGeometry';
@@ -391,36 +394,31 @@ describe('arrowheadSize', () => {
   // From the pen, not from the paper: the same picture is drawn over a camera,
   // where a share of the paper is a head that grows to eighty pixels on a fit
   // view and keeps growing as you zoom.
-  it('is a fixed number of the drawing’s own units for a long arrow', () => {
-    const arc = foldArrowArc([0, 0], [1, 1], CENTRE);
-    if (!arc) throw new Error('no arc');
-    expect(arrowheadSize(arc, CARD)).toBeCloseTo(8.5 * CARD.ink, 9);
+  it('is a fixed number of the drawing’s own units', () => {
+    expect(arrowheadSize(CARD)).toBeCloseTo(8.5 * CARD.ink, 9);
   });
 
-  // The reason a small arc does not end up mostly arrowhead. The cap is a share
-  // of the chord because it is about that arrow, not about the pen.
-  it('caps at a share of the chord for a short one', () => {
-    const arc = foldArrowArc([0.35, 0.5], [0.65, 0.5], CENTRE);
-    if (!arc) throw new Error('no arc');
-    const capped = 0.26 * 0.3 * CARD.scale;
-    expect(capped).toBeLessThan(8.5 * CARD.ink);
-    expect(capped).toBeGreaterThan(ARROWHEAD_MIN_STROKES * stroke(CARD));
-    expect(arrowheadSize(arc, CARD)).toBeCloseTo(capped, 9);
+  // A diagram keeps its heads one size (Bodo, 2026-11-03): a head capped at a
+  // share of its chord made a short arrow's smaller than a long one's beside it.
+  it('draws a short arrow’s head as long as a long one’s', () => {
+    const headLength = ({ tip, barbs: [a, b] }: Arrowhead) => Math.hypot(tip.x - (a.x + b.x) / 2, tip.y - (a.y + b.y) / 2);
+    const [short, long] = [foldArrowArc([0.35, 0.5], [0.65, 0.5], CENTRE), foldArrowArc([0, 0], [1, 1], CENTRE)];
+    if (!short || !long) throw new Error('no arc');
+    expect(0.26 * 0.3 * CARD.scale).toBeLessThan(8.5 * CARD.ink);
+    expect(headLength(oneWayArrowDrawn(short, CARD, []).head)).toBeCloseTo(headLength(oneWayArrowDrawn(long, CARD, []).head), 9);
+    expect(headLength(foldArrowDrawn(short, CARD, [])!.head)).toBeCloseTo(headLength(foldArrowDrawn(long, CARD, [])!.head), 9);
+    expect(headLength(oneWayArrowDrawn(short, CARD, []).head)).toBeCloseTo(8.5 * CARD.ink, 9);
   });
 
-  // Capped any shorter, the head is no wider than the stroke it ends, and the
-  // stroke's cap shows through its sides — at a heavy pen, even on a long arc.
+  // Any shorter, the head is no wider than the stroke it ends, and the
+  // stroke's cap shows through its sides: at a heavy pen, the head grows.
   it('is never shorter than four of the arrow’s own strokes', () => {
-    const tiny = foldArrowArc([0.5, 0.5], [0.52, 0.5], CENTRE);
-    if (!tiny) throw new Error('no arc');
-    expect(0.26 * 0.02 * CARD.scale).toBeLessThan(ARROWHEAD_MIN_STROKES * stroke(CARD));
-    expect(arrowheadSize(tiny, CARD)).toBeCloseTo(ARROWHEAD_MIN_STROKES * stroke(CARD), 9);
     const heavy = withPens(CARD, { ...DIAGRAM_LINE_INK, arrow: { ...DIAGRAM_LINE_INK.arrow, width: 4 } });
     const long = foldArrowArc([0, 0], [1, 1], CENTRE);
     if (!long) throw new Error('no arc');
-    expect(arrowheadSize(long, heavy)).toBeCloseTo(ARROWHEAD_MIN_STROKES * 4 * CARD.ink, 9);
+    expect(arrowheadSize(heavy)).toBeCloseTo(ARROWHEAD_MIN_STROKES * 4 * CARD.ink, 9);
     // Its sides then stand clear of the stroke's round cap at the notch.
-    const head = arcArrowhead(long, heavy, arrowheadSize(long, heavy));
+    const head = arcArrowhead(long, heavy, arrowheadSize(heavy));
     const [barb] = head.barbs;
     const side = { x: head.tip.x - barb.x, y: head.tip.y - barb.y };
     const toNotch = { x: head.notch.x - barb.x, y: head.notch.y - barb.y };
@@ -428,11 +426,6 @@ describe('arrowheadSize', () => {
     expect(clearance).toBeGreaterThan((4 * CARD.ink) / 2);
   });
 });
-
-/** The arrow's stroke width in a projector's own units. */
-function stroke(project: typeof CARD): number {
-  return project.pens.arrow.width * project.ink;
-}
 
 describe('foldReturnOffset', () => {
   // The loop opens by what the head's length was before the head was made
@@ -443,7 +436,7 @@ describe('foldReturnOffset', () => {
     if (!arc) throw new Error('no arc');
     expect(foldReturnOffset(arc, CARD)).toBeCloseTo(10.56 * CARD.ink, 9);
     expect(foldReturnOffset(arc, CARD)).toBeCloseTo(0.11 * CARD.scale, 9);
-    expect(foldReturnOffset(arc, CARD)).toBeGreaterThan(arrowheadSize(arc, CARD));
+    expect(foldReturnOffset(arc, CARD)).toBeGreaterThan(arrowheadSize(CARD));
   });
 
   it('caps at the same share of the chord as the head did', () => {
@@ -508,7 +501,7 @@ describe('foldArrowTrim', () => {
   function trimmedArrow() {
     const out = foldArrowArc([1, 0.5], [0, 0.5], CENTRE);
     if (!out) throw new Error('no arc');
-    const head = arrowheadSize(out, CARD) / CARD.scale;
+    const head = arrowheadSize(CARD) / CARD.scale;
     const offset = foldReturnOffset(out, CARD) / CARD.scale;
     const arrow = foldAndUnfoldFromArc(out, offset);
     if (!arrow) throw new Error('no arrow');
@@ -1089,8 +1082,6 @@ describe('offPaperPathData', () => {
 
 describe('a projector’s marks', () => {
   const view = { origin: [0, 0], ex: [400, 0], ey: [0, -400] } as const;
-  /** A long arc, whose chord does not cap its head. */
-  const arc = { center: [0.5, 0.5], radius: 0.4, from: 0, to: Math.PI / 2, ccw: true } as const;
 
   it('are the print sizes on a page and a card, and carried by a copy', () => {
     expect(createOverlayProjector(view, 1).marks).toEqual(DIAGRAM_MARKS);
@@ -1102,8 +1093,8 @@ describe('a projector’s marks', () => {
   it('size an arrowhead, so the References view draws a larger one than a page', () => {
     const page = createOverlayProjector(view, 1);
     const screen = createOverlayProjector(view, 1, DIAGRAM_LINE_INK, REFERENCES_VIEW_MARKS);
-    expect(arrowheadSize(arc, page)).toBeCloseTo(DIAGRAM_MARKS.arrowheadLength, 9);
-    expect(arrowheadSize(arc, screen)).toBeCloseTo(REFERENCES_VIEW_MARKS.arrowheadLength, 9);
+    expect(arrowheadSize(page)).toBeCloseTo(DIAGRAM_MARKS.arrowheadLength, 9);
+    expect(arrowheadSize(screen)).toBeCloseTo(REFERENCES_VIEW_MARKS.arrowheadLength, 9);
   });
 });
 
@@ -1115,7 +1106,7 @@ describe('the Diagram’s glyphs', () => {
   const arc = { center: [0.5, 0.2] as const, radius: 0.4, from: 2.2, to: 0.9, ccw: false };
 
   it('stops a one-way arrow’s stroke at its head’s notch, the tip where the stroke used to end', () => {
-    const head = arrowheadSize(arc, CARD);
+    const head = arrowheadSize(CARD);
     const { shaft, head: drawn } = oneWayArrow(arc, CARD, head);
     expect(shaft).not.toBeNull();
     close(CARD(arcEndPoint(shaft!)), drawn.notch);
@@ -1128,7 +1119,7 @@ describe('the Diagram’s glyphs', () => {
   });
 
   it('gives a mountain fold’s head one barb, on the outside of the curve, wider than a filled head’s', () => {
-    const { head } = oneWayArrow(arc, CARD, arrowheadSize(arc, CARD));
+    const { head } = oneWayArrow(arc, CARD, arrowheadSize(CARD));
     const centre = CARD(arc.center);
     const path = halfArrowheadPath(head, centre);
     const [tip, barb, notch] = [...path.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));

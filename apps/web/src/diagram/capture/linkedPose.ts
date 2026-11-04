@@ -43,6 +43,7 @@ import {
   type DiagramSpreadStarts,
   type DiagramStyle,
 } from '../document/diagramDocument';
+import { asDefoxShowed } from '../import/defoxViewPose';
 import type { StepCreases } from './captureCreases';
 import {
   captureCreasePattern,
@@ -269,6 +270,23 @@ export async function poseLinkedStep(
   };
 
   /**
+   * The folded form as a saved Defox view showed it (`defoxViewPose.ts`): a
+   * flat fold held turned over to the side the view showed up, and turned as
+   * it lay. Creases that fold in 3D start as any do.
+   */
+  const foldedAsDefoxShowed = async (snapshot: string): Promise<LinkedPoseResult> => {
+    const target = renderToShowAs({ render, remembered }, 'folded', spreadStart.any);
+    if (target.mode !== 'folded-flat' || spatialRoute) return foldedAsRemembered();
+    const hold = (side: 'front' | 'back') =>
+      session.flat(document, creases.foldLineIds, side, target.foldCase, undefined, layerOrder);
+    if (!(await hold(target.side))) return flat(target);
+    const pose = await asDefoxShowed(snapshot, target, await session.flatScene(), async (side) =>
+      (await hold(side)) ? session.flatScene() : null
+    );
+    return flat(pose);
+  };
+
+  /**
    * The simulator's model from a camera: flat, the one fold % a picture is
    * taken at outside Pose, unless Pose's live solver is handed in (D19).
    */
@@ -308,7 +326,7 @@ export async function poseLinkedStep(
     const target = renderToShowAs({ render, remembered }, 'crease-pattern');
     return creasePattern(target.mode === 'crease-pattern' ? target : { mode: 'crease-pattern', rotationDeg: 0 });
   }
-  if (render.mode === 'defox') return verb === 'show-folded' ? foldedAsRemembered() : { status: 'unavailable' };
+  if (render.mode === 'defox') return verb === 'show-folded' ? foldedAsDefoxShowed(render.snapshot) : { status: 'unavailable' };
   if (render.mode === 'simulated') {
     switch (verb) {
       case 'show-folded':

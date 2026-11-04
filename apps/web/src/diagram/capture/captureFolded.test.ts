@@ -226,6 +226,39 @@ describe('captureStep, flat', () => {
     expect(result.noLayerOrder).toBe(false);
   });
 
+  it('shows a fold replacing a saved Defox view as the view showed it: turned over, then turned', async () => {
+    // The half fold's near half held still and the view turned over and turned an eighth.
+    const defoxView = JSON.stringify({
+      fold: {
+        V: [[0, 0], [1, 0], [1, 0.5], [0, 0.5], [0, 1], [1, 1]],
+        Vf: [[0, 0], [1, 0], [1, 0.5], [0, 0.5], [0, 0], [1, 0]],
+        FV: [[0, 1, 2, 3], [3, 2, 5, 4]],
+        Ff: [false, true],
+      },
+      params: { flip0: true, rotate: 0.625 },
+    });
+    let back = false;
+    const front = halfFoldOnSheetKernelScene();
+    const runtime = fakeCaptureRuntime({
+      setModel: vi.fn(async (_handle: number, model: { state: string }) => {
+        back = model.state === 'Back1';
+        return { discoveredCases: 1, displayStyle: 'Paper5' as const };
+      }),
+      paperScene: vi.fn(async () =>
+        back
+          ? { ...front, faces: front.faces.map((face) => ({ ...face, outline: face.outline.map(({ x, y }) => ({ x: -x, y })), front_up: !face.front_up })) }
+          : front
+      ),
+    });
+    const result = await captureStep(runtime, request(FLAT, { defoxView }));
+    expect(runtime.fold).toHaveBeenCalledOnce();
+    expect(vi.mocked(runtime.setModel).mock.calls[0]![1]).toMatchObject({ state: 'Back1' });
+    expect(result.status === 'captured' && result.source.render).toMatchObject({ side: 'back', rotationDeg: 315 });
+    // Any other step starts as it asked.
+    const plain = await captureStep(fakeCaptureRuntime(), request(FLAT));
+    expect(plain.status === 'captured' && plain.source.render).toMatchObject({ side: 'front', rotationDeg: 0 });
+  });
+
   it('steps to the solution asked for, and keeps the last one found when there are fewer', async () => {
     const runtime = fakeCaptureRuntime();
     const result = await captureStep(runtime, request({ ...FLAT, foldCase: 5 }));

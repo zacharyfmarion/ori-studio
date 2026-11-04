@@ -6069,7 +6069,7 @@
     "panels:diagram.import.batchTooLarge": "f85c542c3ad4",
     "panels:diagram.import.defoxEntryFailed": "dd930b4d6c0b",
     "panels:diagram.import.defoxRegions": "7fa58cf9a182",
-    "panels:diagram.import.defoxTimeout": "8075e4e239d6",
+    "panels:diagram.import.defoxTimeout": "ca421ef400c3",
     "panels:diagram.import.destinationChanged": "75d0cf2dcfc3",
     "panels:diagram.import.foldDeferred": "61c7e1eb452d",
     "panels:diagram.import.folderTitle": "bc65b6f626be",
@@ -6708,7 +6708,8 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:diagram.import.defoxStepTimeout": "a258b52632fa"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -12780,7 +12781,7 @@
     "panels:diagram.import.batchTooLarge": "f85c542c3ad4",
     "panels:diagram.import.defoxEntryFailed": "dd930b4d6c0b",
     "panels:diagram.import.defoxRegions": "7fa58cf9a182",
-    "panels:diagram.import.defoxTimeout": "8075e4e239d6",
+    "panels:diagram.import.defoxTimeout": "ca421ef400c3",
     "panels:diagram.import.destinationChanged": "75d0cf2dcfc3",
     "panels:diagram.import.foldDeferred": "61c7e1eb452d",
     "panels:diagram.import.folderTitle": "bc65b6f626be",
@@ -13419,7 +13420,8 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:diagram.import.defoxStepTimeout": "a258b52632fa"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -19493,7 +19495,7 @@
     "panels:diagram.import.batchTooLarge": "f85c542c3ad4",
     "panels:diagram.import.defoxEntryFailed": "dd930b4d6c0b",
     "panels:diagram.import.defoxRegions": "7fa58cf9a182",
-    "panels:diagram.import.defoxTimeout": "8075e4e239d6",
+    "panels:diagram.import.defoxTimeout": "ca421ef400c3",
     "panels:diagram.import.destinationChanged": "75d0cf2dcfc3",
     "panels:diagram.import.foldDeferred": "61c7e1eb452d",
     "panels:diagram.import.folderTitle": "bc65b6f626be",
@@ -20132,7 +20134,8 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:diagram.import.defoxStepTimeout": "a258b52632fa"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -25878,7 +25881,7 @@
     "panels:diagram.import.batchTooLarge": "f85c542c3ad4",
     "panels:diagram.import.defoxEntryFailed": "dd930b4d6c0b",
     "panels:diagram.import.defoxRegions": "7fa58cf9a182",
-    "panels:diagram.import.defoxTimeout": "8075e4e239d6",
+    "panels:diagram.import.defoxTimeout": "ca421ef400c3",
     "panels:diagram.import.destinationChanged": "75d0cf2dcfc3",
     "panels:diagram.import.foldDeferred": "61c7e1eb452d",
     "panels:diagram.import.folderTitle": "bc65b6f626be",
@@ -26466,7 +26469,8 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:diagram.import.defoxStepTimeout": "a258b52632fa"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32212,7 +32216,7 @@
     "panels:diagram.import.batchTooLarge": "f85c542c3ad4",
     "panels:diagram.import.defoxEntryFailed": "dd930b4d6c0b",
     "panels:diagram.import.defoxRegions": "7fa58cf9a182",
-    "panels:diagram.import.defoxTimeout": "8075e4e239d6",
+    "panels:diagram.import.defoxTimeout": "ca421ef400c3",
     "panels:diagram.import.destinationChanged": "75d0cf2dcfc3",
     "panels:diagram.import.foldDeferred": "61c7e1eb452d",
     "panels:diagram.import.folderTitle": "bc65b6f626be",
@@ -32800,7 +32804,8 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:diagram.import.defoxStepTimeout": "a258b52632fa"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -38872,7 +38877,7 @@
     "panels:diagram.import.batchTooLarge": "f85c542c3ad4",
     "panels:diagram.import.defoxEntryFailed": "dd930b4d6c0b",
     "panels:diagram.import.defoxRegions": "7fa58cf9a182",
-    "panels:diagram.import.defoxTimeout": "8075e4e239d6",
+    "panels:diagram.import.defoxTimeout": "ca421ef400c3",
     "panels:diagram.import.destinationChanged": "75d0cf2dcfc3",
     "panels:diagram.import.foldDeferred": "61c7e1eb452d",
     "panels:diagram.import.folderTitle": "bc65b6f626be",
@@ -39511,7 +39516,8 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:diagram.import.defoxStepTimeout": "a258b52632fa"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -45583,7 +45589,7 @@
     "panels:diagram.import.batchTooLarge": "f85c542c3ad4",
     "panels:diagram.import.defoxEntryFailed": "dd930b4d6c0b",
     "panels:diagram.import.defoxRegions": "7fa58cf9a182",
-    "panels:diagram.import.defoxTimeout": "8075e4e239d6",
+    "panels:diagram.import.defoxTimeout": "ca421ef400c3",
     "panels:diagram.import.destinationChanged": "75d0cf2dcfc3",
     "panels:diagram.import.foldDeferred": "61c7e1eb452d",
     "panels:diagram.import.folderTitle": "bc65b6f626be",
@@ -46222,7 +46228,8 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:diagram.import.defoxStepTimeout": "a258b52632fa"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -51968,7 +51975,7 @@
     "panels:diagram.import.batchTooLarge": "f85c542c3ad4",
     "panels:diagram.import.defoxEntryFailed": "dd930b4d6c0b",
     "panels:diagram.import.defoxRegions": "7fa58cf9a182",
-    "panels:diagram.import.defoxTimeout": "8075e4e239d6",
+    "panels:diagram.import.defoxTimeout": "ca421ef400c3",
     "panels:diagram.import.destinationChanged": "75d0cf2dcfc3",
     "panels:diagram.import.foldDeferred": "61c7e1eb452d",
     "panels:diagram.import.folderTitle": "bc65b6f626be",
@@ -52556,6 +52563,7 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:diagram.import.defoxStepTimeout": "a258b52632fa"
   }
 }

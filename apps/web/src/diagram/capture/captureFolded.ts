@@ -69,6 +69,7 @@ import {
 import { storedCpSource, storedSceneJson } from '../document/diagramFile';
 import { storedPaperFaces } from '../document/paperFacesFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
+import { asDefoxShowed } from '../import/defoxViewPose';
 import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import type { CpSheetRegion } from '../../cp-workspace/sheets/cpSheetRegions';
@@ -439,6 +440,12 @@ export interface CaptureStepRequest {
    * for a link to a pattern, which starts without.
    */
   layerOrder?: CaptureLayerOrder;
+  /**
+   * The saved Defox view the capture replaces (its render's snapshot): a flat
+   * fold is shown as the view showed it, its side up and its turn
+   * (`defoxViewPose.ts`). Absent for every other step.
+   */
+  defoxView?: string;
 }
 
 export type CaptureStepResult =
@@ -603,10 +610,18 @@ export async function captureStep(
       state = await runtime.foldToCase(folded.handle, render.foldCase);
       foldCase = Math.max(1, Math.min(render.foldCase, state.discoveredCases));
     }
-    const picture = await readFoldedPicture(runtime, folded.handle, state.displayStyle);
-    const captured = await captureFlatPicture(picture, render.rotationDeg, env, render.spread, render.presentation);
+    let picture = await readFoldedPicture(runtime, folded.handle, state.displayStyle);
+    // A saved Defox view replaced: the fold shown as the view showed it.
+    const posed = request.defoxView
+      ? await asDefoxShowed(request.defoxView, render, picture.scene ?? null, async (side) => {
+          state = { ...state, ...(await runtime.setModel(folded.handle, captureModel(document, side))) };
+          picture = await readFoldedPicture(runtime, folded.handle, state.displayStyle);
+          return picture.scene ?? null;
+        })
+      : render;
+    const captured = await captureFlatPicture(picture, posed.rotationDeg, env, posed.spread, posed.presentation);
     const noLayerOrder = !hasFoldedLayerOrder(state) || !picture.scene?.faces.length;
-    return { status: 'captured', source: source({ ...render, foldCase }), captured, noLayerOrder, attention: null };
+    return { status: 'captured', source: source({ ...posed, foldCase }), captured, noLayerOrder, attention: null };
   } finally {
     await runtime.free(folded.handle);
   }

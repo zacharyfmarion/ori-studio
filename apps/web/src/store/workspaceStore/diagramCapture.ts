@@ -442,6 +442,9 @@ export async function runDiagramCapture(
     const document = start.cp.document;
     const sheets = await abandonOnEngineLoss(ensureCpSheetIndex(document));
     const { diagram } = store.get();
+    // A saved Defox view this replaces: a flat fold is shown as it showed it.
+    const replaced = diagram ? stepById(diagram, stepId)?.source : null;
+    const defoxView = replaced?.kind === 'cp' && replaced.render.mode === 'defox' ? replaced.render.snapshot : undefined;
     const capture = (runtime: CpCaptureRuntime, stop?: AbortSignal) =>
       captureStep(runtime, {
         document,
@@ -454,6 +457,7 @@ export async function runDiagramCapture(
         sheetPaper: storeSheetPaper(store),
         spreadStart: diagram ? spreadStartsFor(diagram, stepId).any : DEFAULT_LAYER_SPREAD,
         ...captureLayerOrderOf(request, stop),
+        ...(defoxView !== undefined ? { defoxView } : {}),
       });
     const result =
       request.render.mode === 'crease-pattern' || request.render.mode === 'simulated'

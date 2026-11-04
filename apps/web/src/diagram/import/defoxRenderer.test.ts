@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { renderDefox } from './defoxRenderer.js';
+import { closeDefox, drawDefoxStep, openDefox, renderDefox } from './defoxRenderer.js';
+import { DEFOX_LIMITS } from './defoxLimits';
 const square = () => ({
   V: [
     [0, 0],
@@ -37,9 +38,11 @@ const square = () => ({
   ],
 });
 const step = () => ({ id: 1, fold_cp: square(), fold: square(), params: {}, lin: { S: [0] }, symbols: [] });
+/** A project as a file holds it. */
+const saved = (steps: unknown[], indent?: number) => new TextEncoder().encode(JSON.stringify(steps, null, indent));
 describe('pinned Defox renderer', () => {
   it('draws the first entry and exports its source CP', () => {
-    const entries = renderDefox(JSON.stringify([step()]));
+    const entries = renderDefox(saved([step()]));
     expect(entries).toHaveLength(1);
     const first = entries[0]!;
     expect(first.ok).toBe(true);
@@ -49,15 +52,31 @@ describe('pinned Defox renderer', () => {
       expect(first.svg).not.toContain('NaN');
     }
   });
+  it('draws a step at a time, counting the output from where an earlier worker left it', () => {
+    expect(openDefox(saved([step(), step()]))).toBe(2);
+    try {
+      const first = drawDefoxStep(0);
+      expect(first.entry.ok).toBe(true);
+      expect(drawDefoxStep(1).spent).toBe(2 * first.spent);
+    } finally {
+      closeDefox();
+    }
+    openDefox(saved([step()]), DEFOX_LIMITS.outputBytes);
+    try {
+      expect(drawDefoxStep(0).entry).toEqual({ ok: false, index: 0, error: 'Prepared Defox views exceed 128 MiB' });
+    } finally {
+      closeDefox();
+    }
+  });
   it('isolates malformed neighbors and rejects invalid topology', () => {
     const bad = step();
     bad.fold.FV[0]![0] = 999;
-    const entries = renderDefox(JSON.stringify([bad, step()]));
+    const entries = renderDefox(saved([bad, step()]));
     expect(entries.map((e) => e.ok)).toEqual([false, true]);
   });
   it('does not interpret metadata as code or markup', () => {
     const entries = renderDefox(
-      JSON.stringify([
+      saved([
         {
           ...step(),
           title: '<script>throw 1</script>',
@@ -72,7 +91,7 @@ describe('pinned Defox renderer', () => {
     'renders the external project without dropping a step',
     () => {
       const before = performance.now();
-      const entries = renderDefox(readFileSync(process.env.ORI_DEFOX_CORPUS!, 'utf8'));
+      const entries = renderDefox(readFileSync(process.env.ORI_DEFOX_CORPUS!));
       expect(entries.filter((e) => !e.ok)).toEqual([]);
       console.info('Defox corpus', {
         steps: entries.length,
@@ -81,6 +100,48 @@ describe('pinned Defox renderer', () => {
       });
     },
   );
+});
+
+describe('what a Defox import admits', () => {
+  const MiB = 1024 * 1024;
+  /** One file of `parts`, each text or bytes. */
+  const file = (...parts: (string | Uint8Array)[]) => {
+    const chunks = parts.map((part) => (typeof part === 'string' ? new TextEncoder().encode(part) : part));
+    const bytes = new Uint8Array(chunks.reduce((n, chunk) => n + chunk.length, 0));
+    chunks.reduce((at, chunk) => (bytes.set(chunk, at), at + chunk.length), 0);
+    return bytes;
+  };
+  it('reads a project by what it holds, not by its indentation', () => {
+    const json = JSON.stringify([step()], null, 2);
+    const entries = renderDefox(file(json.slice(0, -1), new Uint8Array(65 * MiB).fill(0x20), json.slice(-1)));
+    expect(entries.map((e) => e.ok)).toEqual([true]);
+  });
+  it('refuses a project that holds more than 64 MiB', () => {
+    const json = JSON.stringify([{ ...step(), title: '' }]);
+    const at = json.indexOf('"title":"') + '"title":"'.length;
+    const title = new Uint8Array(65 * MiB).fill(0x78);
+    expect(() => renderDefox(file(json.slice(0, at), title, json.slice(at)))).toThrow(
+      'Defox project holds more than 64 MiB',
+    );
+  });
+  it('keeps what is inside strings', () => {
+    const title = 'two  spaces, a "quote", 折り紙 and a closing backslash \\';
+    const [entry] = renderDefox(saved([{ ...step(), title }], 2));
+    expect(entry?.ok && JSON.parse(entry.snapshot).title).toBe(title);
+  });
+  it('refuses bytes that are not UTF-8', () => {
+    expect(() => renderDefox(file('[{"title":"', new Uint8Array([0xff]), '"}]'))).toThrow(TypeError);
+  });
+  it("keeps a step's saved state without what Defox's layer solver derives from it", () => {
+    // Past the per-step limit with them, a few kilobytes without.
+    const faces = Array.from({ length: 150000 }, () => [0, 1, 2, 3]);
+    const cells = { CF: faces, FC: faces, GA: [[[0]]], GI: [0] };
+    const [entry] = renderDefox(saved([{ ...step(), cell_cp: cells, state_cp: [0], title: 'kept' }]));
+    if (!entry?.ok) throw new Error(entry?.error);
+    const kept = JSON.parse(entry.snapshot);
+    expect(kept).toMatchObject({ fold: square(), lin: { S: [0] }, title: 'kept' });
+    for (const key of ['fold_d', 'cell_cp', 'cell_d', 'state_cp', 'state']) expect(kept).not.toHaveProperty(key);
+  });
 });
 
 it('keeps imported saved-view sources and pending statuses through the diagram reader', async () => {

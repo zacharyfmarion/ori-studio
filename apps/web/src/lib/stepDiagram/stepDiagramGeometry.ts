@@ -26,7 +26,6 @@ import { erodeSegment } from '../paper/paperSvg';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import {
   DIAGRAM_ANGLE_MARK_INK,
-  DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_DIVISIONS_INK,
   DIAGRAM_EYE_INK,
   DIAGRAM_FOLD_RETURN_INK,
@@ -844,20 +843,20 @@ function inkUpToChord(
 
 /**
  * How long an arrow's head should be, tip to barbs, in the projector's own
- * units.
+ * units: every arrow's the same, however long it is.
  *
  * From the pen rather than from the paper, because the same picture is drawn
  * over a camera as well as into a box: a share of the paper is a head that
- * grows to eighty pixels on a fit view and keeps growing as you zoom. Capped at
- * a share of the chord the arrow spans, which *is* about that arrow, so a short
- * motion still gets a head rather than a blob — but never shorter than
- * {@link ARROWHEAD_MIN_STROKES} of the arrow's own stroke, below which the
- * head is no wider than the shaft it ends and the stroke's cap shows through
- * its sides.
+ * grows to eighty pixels on a fit view and keeps growing as you zoom. Not from
+ * the arrow either: a head capped at a share of its chord made a short
+ * arrow's head smaller than a long one's beside it, and a diagram keeps its
+ * heads one size. Never shorter than {@link ARROWHEAD_MIN_STROKES} of the
+ * arrow's own stroke, below which the head is no wider than the shaft it ends
+ * and the stroke's cap shows through its sides. An arrow shorter than its
+ * head is drawn as the head alone ({@link oneWayArrow}).
  */
-export function arrowheadSize(arc: DiagramArc, project: DiagramProjector): number {
-  const sized = inkUpToChord(arc, project, project.marks.arrowheadLength, DIAGRAM_ARROWHEAD_INK.ofChord);
-  return Math.max(sized, ARROWHEAD_MIN_STROKES * project.pens.arrow.width * project.ink);
+export function arrowheadSize(project: DiagramProjector): number {
+  return Math.max(project.marks.arrowheadLength * project.ink, ARROWHEAD_MIN_STROKES * project.pens.arrow.width * project.ink);
 }
 
 /**
@@ -1021,7 +1020,7 @@ export function foldArrowDrawn(
   // Sized by the pen, not by the paper — see `arrowheadSize`. The trim is
   // done on radii in the same projected units, and the angles it returns
   // then apply to the sheet-unit arcs unchanged.
-  const head = arrowheadSize(arc, project);
+  const head = arrowheadSize(project);
   const rim = project.marks.ringRadius * project.ink;
   // Stopped at the far mark's rim, if it lands on one, before the return
   // is derived — the return starts where the outgoing stroke stops.
@@ -1053,7 +1052,7 @@ export function oneWayArrowDrawn(
   marks: readonly DiagramRing[]
 ): { shaft: DiagramArc | null; head: Arrowhead } {
   const rim = project.marks.ringRadius * project.ink;
-  return oneWayArrow(foldArrowLanding(arc, marks, rim, project), project, arrowheadSize(arc, project));
+  return oneWayArrow(foldArrowLanding(arc, marks, rim, project), project, arrowheadSize(project));
 }
 
 /**
@@ -1144,18 +1143,15 @@ export interface PathArrowSizes {
 
 /**
  * A path arrow's sizes, by the arc arrow's rules (`arrowheadSize`,
- * `foldReturnOffset`) with one change: they are capped by a share of the
- * path's length, not of its tail-to-tip chord. A path that loops round may
- * end beside its own tail, and a share of that chord is a head of nothing.
+ * `foldReturnOffset`) with one change: the return's opening is capped by a
+ * share of the path's length, not of its tail-to-tip chord. A path that loops
+ * round may end beside its own tail, and a share of that chord is an opening
+ * of nothing. Its head is every arrow's.
  */
 export function pathArrowSizes(length: number, project: DiagramProjector): PathArrowSizes {
-  const capped = (ink: number, ofLength: number) => Math.min(ink * project.ink, ofLength * length);
   return {
-    head: Math.max(
-      capped(project.marks.arrowheadLength, DIAGRAM_ARROWHEAD_INK.ofChord),
-      ARROWHEAD_MIN_STROKES * project.pens.arrow.width * project.ink
-    ),
-    offset: capped(DIAGRAM_FOLD_RETURN_INK.offset, DIAGRAM_FOLD_RETURN_INK.ofChord),
+    head: arrowheadSize(project),
+    offset: Math.min(DIAGRAM_FOLD_RETURN_INK.offset * project.ink, DIAGRAM_FOLD_RETURN_INK.ofChord * length),
     rim: project.marks.ringRadius * project.ink,
   };
 }
@@ -1689,20 +1685,13 @@ export function pleatArrowDrawn(
   project: DiagramProjector
 ): PleatArrowShape | null {
   const ink = project.ink;
-  const tail = project(from);
-  const tip = project(to);
-  const chord = Math.hypot(tip.x - tail.x, tip.y - tail.y);
-  const full = project.marks.arrowheadLength * ink;
-  const head = Math.max(
-    Math.min(full, DIAGRAM_ARROWHEAD_INK.ofChord * chord),
-    ARROWHEAD_MIN_STROKES * project.pens.arrow.width * ink
-  );
+  const head = arrowheadSize(project);
   return pleatArrowShape(
-    tail,
-    tip,
+    project(from),
+    project(to),
     kinks,
     mirrored !== project.mirrored,
-    { step: DIAGRAM_PLEAT_INK.step * ink, back: DIAGRAM_PLEAT_INK.back * ink, gap: DIAGRAM_PLEAT_INK.gap * ink, head: full },
+    { step: DIAGRAM_PLEAT_INK.step * ink, back: DIAGRAM_PLEAT_INK.back * ink, gap: DIAGRAM_PLEAT_INK.gap * ink, head },
     head
   );
 }

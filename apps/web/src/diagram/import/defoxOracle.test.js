@@ -60,6 +60,8 @@ const fixture = () => ({
   lin: { S: [0], cycle: [0] },
   symbols: [],
 });
+/** A project as the file holds it. */
+const saved = (steps) => new globalThis.TextEncoder().encode(JSON.stringify(steps));
 const shape = (node) => ({
   tag: node.tagName.toLowerCase(),
   attrs: Object.fromEntries(
@@ -78,9 +80,10 @@ afterEach(() => {
 });
 
 function compare(entry) {
-  const result = renderDefox(JSON.stringify([entry]))[0];
+  const result = renderDefox(saved([entry]))[0];
   expect(result.ok, result.error).toBe(true);
-  const native = JSON.parse(result.snapshot);
+  // The step as the file holds it: the kept saved state leaves out the cells a step may be drawn from.
+  const native = JSON.parse(JSON.stringify(entry));
   DIST.p0 = native.params.p0;
   DIST.p1 = native.params.p1;
   DIST.p2 = native.params.p2;
@@ -108,7 +111,7 @@ it("keeps a standard CP's mountain and valley codes through DEFOX's conversion",
       return { font: '', measureText: (text) => ({ width: text.length * 60 }) };
     }
   });
-  const result = renderDefox(JSON.stringify([entry]))[0];
+  const result = renderDefox(saved([entry]))[0];
   expect(result.ok, result.error).toBe(true);
   const creases = result.cp
     .split(/\r?\n/)

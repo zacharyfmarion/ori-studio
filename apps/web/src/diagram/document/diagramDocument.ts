@@ -42,6 +42,7 @@ import { cleanAnnotation, MAX_STEP_ANNOTATIONS, sameAnnotation, withAnnotationRe
 import { followAreaRecords, recordAreaBeforeEdit } from '../zoom/areaRecord';
 import { marksIntoUnits, startsWhole } from '../zoom/zoomFrames';
 import { stepReach } from '../zoom/zoomModel';
+import { defoxFoldLineMarks } from '../import/defoxFoldLines';
 import { authorMarksChanged, authorMarksOf, editedCardMarksGone, isCardMark, releaseCardMarks, withEditTags } from './cardMarks';
 import { samePageArrangements } from './pageArrangements';
 import {
@@ -2014,22 +2015,47 @@ export function setLinkedPicture(
     return document;
   }
   const withAsset = withAssets(document, link.asset ? [link.asset] : []);
-  return updatePicture(withAsset, stepId, (current) =>
+  return updatePicture(withAsset, stepId, (current) => {
+    const captured = withCarriedAnnotations(
+      current,
+      {
+        ...current,
+        importStatus: undefined,
+        source: withRememberedPoses(current.source, link.source),
+        picture: link.picture,
+        revision: current.revision + 1,
+      },
+      withAsset.assets
+    );
     // A card's marks are the author's once its picture is a capture (17d).
-    releaseCardMarks(
-      withCarriedAnnotations(
-        current,
-        {
-          ...current,
-          importStatus: undefined,
-          source: withRememberedPoses(current.source, link.source),
-          picture: link.picture,
-          revision: current.revision + 1,
-        },
-        withAsset.assets
-      )
-    )
-  );
+    return releaseCardMarks(withDefoxFoldLines(current, captured, withAsset.assets));
+  });
+}
+
+/**
+ * A step whose saved Defox view a capture replaced, `was` to `next`, with the
+ * view's fold lines as lines of its own on the new picture
+ * (`defoxFoldLines.ts`): first, under the author's marks, as a card's arrive
+ * (`swapCardMarks`) — in the step's units when it is enlarged, and no more
+ * than a step holds beside them. In step with the new picture when the step
+ * had no marks of its own; else under the notice, as the author's are.
+ */
+function withDefoxFoldLines(
+  was: DiagramStep,
+  next: DiagramStep,
+  assets: Readonly<Record<string, DiagramAsset>>
+): DiagramStep {
+  if (was.source?.kind !== 'cp' || was.source.render.mode !== 'defox') return next;
+  if (next.source?.kind !== 'cp' || next.source.render.mode === 'defox') return next;
+  const room = MAX_STEP_ANNOTATIONS - next.annotations.length;
+  if (room <= 0) return next;
+  const lines = marksIntoUnits(next, defoxFoldLineMarks(was.source.render.snapshot, next), assets).slice(0, room);
+  if (lines.length === 0) return next;
+  return {
+    ...next,
+    annotations: [...lines, ...next.annotations],
+    annotatedPictureKey: next.annotations.length === 0 ? (next.picture?.key ?? null) : next.annotatedPictureKey,
+  };
 }
 
 /**

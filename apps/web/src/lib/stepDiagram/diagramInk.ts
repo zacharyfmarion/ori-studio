@@ -174,22 +174,21 @@ export const DIAGRAM_DIVISIONS_INK = {
 } as const;
 
 /**
- * An arrowhead: its length, tip to barbs, and the cap for a short arrow as a
- * share of the chord it spans.
+ * An arrowhead: its length, tip to barbs, the same on every arrow.
  *
  * `8.5` is a printed diagram's head: at the default pen over the crease
  * pattern (1.25 CSS px to the ink) it is 10.6 px, so on a step's page about
  * 8 pt — 2.8 mm long and, at `ARROWHEAD_ASPECT`, 1.65 mm wide. It was `10.56`,
  * upstream's `0.11` of the paper on a card, until a reader set a step's page
- * beside a printed diagram and found the heads too big. The cap stays a share
- * of the arrow's own chord — it is about that arrow, not about the pen — so a
- * short motion still gets a head rather than a blob.
+ * beside a printed diagram and found the heads too big. A short arrow's head
+ * was once capped at a share of its chord; a diagrammer keeps every head one
+ * size (Bodo, 2026-11-03), so a short arrow's head is a long one's.
  */
-export const DIAGRAM_ARROWHEAD_INK = { length: 8.5, ofChord: 0.26 } as const;
+export const DIAGRAM_ARROWHEAD_INK = { length: 8.5 } as const;
 
 /**
- * How far to the side a fold-and-unfold arrow's return ends, and the same cap
- * for a short arrow as the head's.
+ * How far to the side a fold-and-unfold arrow's return ends, and the cap for
+ * a short arrow, as a share of its chord.
  *
  * `10.56` — upstream's `0.11` of the paper on a card — is the head's old
  * length. The return used to be offset by one head, so when the head was made
