@@ -370,8 +370,10 @@
     "flap": {
       "chip_other": "フラップ {{number}}、{{count}} 層",
       "chipAdded_other": "フラップ {{number}}、{{count}} 層、折りと一緒に動く",
+      "chipLocked_other": "フラップ {{number}}、{{count}} 層、外せません",
       "groupLabel": "折るフラップ",
       "layers_other": "{{count}} 層",
+      "locked": "{{flap}} は外せません。これがないと折りが成立しません。",
       "name": "フラップ {{number}}"
     },
     "group": {
@@ -769,6 +771,8 @@
       "rowAdded": "層 {{layer}}、{{flap}}、折りと一緒に動く",
       "rowAddedBeside": "層 {{layer}}、{{flap}}、折りと一緒に動く、層 {{above}} の横",
       "rowBeside": "層 {{layer}}、{{flap}}、層 {{above}} の横",
+      "rowLocked": "層 {{layer}}、{{flap}}、外せません",
+      "rowLockedBeside": "層 {{layer}}、{{flap}}、層 {{above}} の横、外せません",
       "top": "上"
     },
     "sink": {

@@ -33,19 +33,24 @@
 //!   and what is still to choose: an opening, or, per kind, the orders the
 //!   completion leaves, each listed as the `completion` that picks it, the
 //!   first [`MAX_ORDERS`] of them. Of both kinds, so the answer does not wait
-//!   on the kind. A reverse fold folds along one line, so it also answers the
-//!   plain fold's queries: what moves, its picture, its depth choices.
+//!   on the kind. With no opening named it also says how every way the tip
+//!   opens lands, and which flaps it cannot be folded without, so a tool
+//!   offers only the openings that land and keeps those flaps picked
+//!   (`landings`, within a deadline as a tuck's targets are). A reverse fold
+//!   folds along one line, so it also answers the plain fold's queries: what
+//!   moves, its picture, its depth choices.
 
 use oristudio_fold::{
     ChoiceCount, ClosurePolicy, Direction, FoldActionGeometry, FoldAnalysis, Placement, PlainFold,
-    ReverseAnalysis, ReverseChoices, ReverseFold, ReverseFolded, ReverseKind, ReverseOutcome, Side,
-    State, StepSummary, WitnessOrder,
+    ReverseAnalysis, ReverseChoices, ReverseFold, ReverseFolded, ReverseKind, ReverseLandings,
+    ReverseOutcome, Side, State, StepSummary, WitnessOrder,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::compound::{
     CompoundAsked, CompoundLanded, CompoundOp, CompoundStepReport, Parent, compound_refusal, landed,
 };
+use crate::ops_crimp_tuck::{OPENINGS_BUDGET_MS, within_ms};
 use crate::resolve::{Rejection, along_line};
 use crate::wire::{AlongLine, BridgeError, Choices, LineInput, Motion, Point, Refusal, SeedInput};
 
@@ -245,6 +250,12 @@ pub struct ReverseAsked {
     /// Per kind that lands with more than one order, the orders to choose
     /// from; a kind that lands with one has none.
     pub orders: Vec<ReverseOrders>,
+    /// Asked of the tip with no opening named: each way it opens with the
+    /// kinds that land, when a flap opens several, and the flaps it cannot
+    /// be folded without (`State::reverse_landings`), decided within
+    /// [`OPENINGS_BUDGET_MS`]. Absent once an opening is named.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub landings: Option<ReverseLandings>,
 }
 
 /// The orders a reverse fold of one kind leaves (research §5.2: the ~1%
@@ -304,10 +315,20 @@ fn ask(parent: &State, step: &ReverseStep) -> Result<ReverseAsked, Refusal> {
             Ok(ReverseOutcome::Landed(_) | ReverseOutcome::ChooseOpening(_)) | Err(_) => {}
         }
     }
+    let landings = choices
+        .openings
+        .is_empty()
+        .then(|| {
+            parent
+                .reverse_landings(&step.op, &within_ms(OPENINGS_BUDGET_MS))
+                .ok()
+        })
+        .flatten();
     Ok(ReverseAsked {
         analysis,
         kinds,
         opening,
         orders,
+        landings,
     })
 }

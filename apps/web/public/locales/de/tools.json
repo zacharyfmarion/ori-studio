@@ -382,9 +382,12 @@
       "chip_other": "Lasche {{number}}, {{count}} Lagen",
       "chipAdded_one": "Lasche {{number}}, {{count}} Lage, wird mitgefaltet",
       "chipAdded_other": "Lasche {{number}}, {{count}} Lagen, wird mitgefaltet",
+      "chipLocked_one": "Lasche {{number}}, {{count}} Lage, kann nicht weggelassen werden",
+      "chipLocked_other": "Lasche {{number}}, {{count}} Lagen, kann nicht weggelassen werden",
       "groupLabel": "Zu faltende Laschen",
       "layers_one": "{{count}} Lage",
       "layers_other": "{{count}} Lagen",
+      "locked": "{{flap}} kann nicht weggelassen werden: Ohne sie ist die Faltung nicht möglich.",
       "name": "Lasche {{number}}"
     },
     "group": {
@@ -787,6 +790,8 @@
       "rowAdded": "Lage {{layer}}, {{flap}}, wird mitgefaltet",
       "rowAddedBeside": "Lage {{layer}}, {{flap}}, wird mitgefaltet, neben Lage {{above}}",
       "rowBeside": "Lage {{layer}}, {{flap}}, neben Lage {{above}}",
+      "rowLocked": "Lage {{layer}}, {{flap}}, kann nicht weggelassen werden",
+      "rowLockedBeside": "Lage {{layer}}, {{flap}}, neben Lage {{above}}, kann nicht weggelassen werden",
       "top": "Oben"
     },
     "sink": {

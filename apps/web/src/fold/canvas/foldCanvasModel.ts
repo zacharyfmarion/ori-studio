@@ -80,6 +80,10 @@ export function foldWindowPreview(
     return at >= 0 ? [at] : [];
   });
   const narrower = preview.refused && preview.seedFix ? preview.seedFix.flaps.map((flap) => sectionIndex(flaps, flap)) : [];
+  // The flaps a reverse fold or crimp cannot land without: kept picked.
+  const locked = ((preview.reverse ?? preview.crimp)?.locked ?? [])
+    .map((flap) => sectionIndex(flaps, flap))
+    .filter((index) => index >= 0);
   return {
     section,
     interval,
@@ -88,6 +92,7 @@ export function foldWindowPreview(
     refused: preview.refused,
     ...(preview.refused && preview.moverFix ? { movingPoint: true } : {}),
     ...(narrower.length > 0 && narrower.every((index) => index >= 0) ? { narrowerSeed: narrower } : {}),
+    ...(locked.length > 0 ? { locked } : {}),
     landing: preview.landing,
     // The last seed's answers, standing in while this one's are on their way (`foldShownPreview`).
     ...(preview.held ? { held: true } : {}),

@@ -129,8 +129,9 @@ pub use compound::petal::{
 };
 pub use compound::rabbit::{RabbitEar, incenter};
 pub use compound::reverse::{
-    NoOpening, Opening, ReverseAnalysis, ReverseChoice, ReverseChoices, ReverseFold, ReverseFolded,
-    ReverseKind, ReverseOutcome, ReverseReport, StoredOpening, TipFlap,
+    MAX_WAYS, NoOpening, Opening, ReverseAnalysis, ReverseChoice, ReverseChoices, ReverseFold,
+    ReverseFolded, ReverseKind, ReverseLandings, ReverseOutcome, ReverseReport, ReverseWay,
+    StoredOpening, TipFlap,
 };
 pub use compound::sink::{
     Pocket, SinkChoice, SinkChoices, SinkFold, SinkFolded, SinkKind, SinkOutcome, SinkPoint,

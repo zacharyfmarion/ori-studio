@@ -24,6 +24,8 @@ export interface FoldSeedView {
   added: ReadonlySet<number>;
   /** The flaps a refusal's "include" fix names: the ones in the way. */
   needed: ReadonlySet<number>;
+  /** The flaps the fold cannot land without: picked, and not to be unpicked. */
+  locked?: ReadonlySet<number>;
 }
 
 /** How a row reads: its flap picked, moved anyway by the closure, or left behind. */
@@ -43,6 +45,10 @@ export interface FoldSectionRow {
   state: FoldSectionRowState;
   /** Its flap is in the way of the fold asked for (a refusal's fix names it). */
   needed: boolean;
+  /** Its flap is picked and the fold cannot land without it: the row does not unpick it. */
+  locked: boolean;
+  /** Why it cannot be unpicked, for its tooltip; null for a row that can. */
+  lockedReason: string | null;
   /** Placed beside the row above rather than under it (D14 cross-section, 3). */
   unordered: boolean;
   /** Where its bar runs, as fractions of the section's extent along the line. */
@@ -81,6 +87,10 @@ export interface FoldFlapChip {
   pressed: boolean;
   added: boolean;
   needed: boolean;
+  /** Pressed, and the fold cannot land without it: the chip does not unpress. */
+  locked: boolean;
+  /** Why it cannot be unpressed, for its tooltip; null for a chip that can. */
+  lockedReason: string | null;
 }
 
 /** Grouping faces into rows made a cycle: only one interval's stack at a time means anything. */
@@ -189,12 +199,38 @@ function rowState(flap: number, seed: FoldSeedView): FoldSectionRowState {
   return seed.added.has(flap) ? 'added' : 'excluded';
 }
 
+/** A picked flap the fold cannot land without (`FoldSeedView.locked`). */
+function isLocked(flap: number, seed: FoldSeedView): boolean {
+  return seed.picked.has(flap) && (seed.locked?.has(flap) ?? false);
+}
+
+/** Why a flap cannot be left out, by its name: what its chip's and its rows' tooltips say. */
+export function lockedFlapReason(t: TFunction, flap: string): string {
+  return t('tools:fold.flap.locked', '{{flap}} can’t be left out: the fold doesn’t land without it.', { flap });
+}
+
 /**
  * The option's name. Whole sentences per case rather than clauses joined, so
  * a locale can order them (plan D14, Sentences).
  */
-function rowLabel(t: TFunction, layer: number, flap: string, state: FoldSectionRowState, unordered: boolean): string {
+function rowLabel(
+  t: TFunction,
+  layer: number,
+  flap: string,
+  state: FoldSectionRowState,
+  unordered: boolean,
+  locked = false
+): string {
   const above = layer - 1;
+  if (locked) {
+    return unordered
+      ? t('tools:fold.section.rowLockedBeside', 'Layer {{layer}}, {{flap}}, beside layer {{above}}, can’t be left out', {
+          layer,
+          flap,
+          above,
+        })
+      : t('tools:fold.section.rowLocked', 'Layer {{layer}}, {{flap}}, can’t be left out', { layer, flap });
+  }
   if (state === 'added') {
     return unordered
       ? t('tools:fold.section.rowAddedBeside', 'Layer {{layer}}, {{flap}}, moves with the fold, beside layer {{above}}', {
@@ -269,15 +305,18 @@ export function foldSectionPicker(
     // In a woven stack, the rows are ordered by the stack itself.
     const unordered = !woven && position > 0 && unorderedAbove(section, index);
     const state = rowState(row.flap, seed);
+    const locked = isLocked(row.flap, seed);
     const [from, to] = spans[position] ?? extent(row);
     return {
       key: `row-${index}`,
       layer: position + 1,
-      label: rowLabel(t, position + 1, name, state, unordered),
+      label: rowLabel(t, position + 1, name, state, unordered, locked),
       flap: row.flap,
       tag: position === 0 || previous !== row.flap ? name : null,
       state,
       needed: seed.needed.has(row.flap),
+      locked,
+      lockedReason: locked ? lockedFlapReason(t, name) : null,
       unordered,
       from: fraction(from),
       to: measured ? fraction(to) : 1,
@@ -322,30 +361,41 @@ export function foldFlapChips(t: TFunction, section: FoldCrossSection, seed: Fol
       const count = section.rows.filter((row) => row.flap === flap).length;
       const pressed = seed.picked.has(flap);
       const added = !pressed && seed.added.has(flap);
+      const locked = isLocked(flap, seed);
+      const name = flapName(t, number);
       return {
         flap,
-        name: flapName(t, number),
+        name,
         detail: t('tools:fold.flap.layers', {
           count,
           defaultValue_one: '{{count}} layer',
           defaultValue_other: '{{count}} layers',
         }),
-        label: added
-          ? t('tools:fold.flap.chipAdded', {
+        label: locked
+          ? t('tools:fold.flap.chipLocked', {
               count,
               number,
-              defaultValue_one: 'Flap {{number}}, {{count}} layer, moves with the fold',
-              defaultValue_other: 'Flap {{number}}, {{count}} layers, moves with the fold',
+              defaultValue_one: 'Flap {{number}}, {{count}} layer, can’t be left out',
+              defaultValue_other: 'Flap {{number}}, {{count}} layers, can’t be left out',
             })
-          : t('tools:fold.flap.chip', {
-              count,
-              number,
-              defaultValue_one: 'Flap {{number}}, {{count}} layer',
-              defaultValue_other: 'Flap {{number}}, {{count}} layers',
-            }),
+          : added
+            ? t('tools:fold.flap.chipAdded', {
+                count,
+                number,
+                defaultValue_one: 'Flap {{number}}, {{count}} layer, moves with the fold',
+                defaultValue_other: 'Flap {{number}}, {{count}} layers, moves with the fold',
+              })
+            : t('tools:fold.flap.chip', {
+                count,
+                number,
+                defaultValue_one: 'Flap {{number}}, {{count}} layer',
+                defaultValue_other: 'Flap {{number}}, {{count}} layers',
+              }),
         pressed,
         added,
         needed: seed.needed.has(flap),
+        locked,
+        lockedReason: locked ? lockedFlapReason(t, name) : null,
       };
     });
 }

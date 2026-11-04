@@ -23,3 +23,13 @@
 .needed {
   color: var(--status-danger);
 }
+
+/* A flap the fold cannot land without: a dot in the chip's ink. A state, so
+   a dot, never a dash — a dash is a valley fold. */
+.locked {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}

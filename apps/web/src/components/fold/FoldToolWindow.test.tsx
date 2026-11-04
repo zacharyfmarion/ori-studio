@@ -688,6 +688,34 @@ describe('FoldToolWindow', () => {
     expect(calls.toggleFlap.mock.calls).toEqual([[1], [0]]);
   });
 
+  it('keeps a flap the reverse fold cannot land without picked: its chip and rows do not unpick it, and say why', () => {
+    const reverse = { kind: 'inside' as const, kinds: ['inside' as const], known: true, ways: 0, way: 0, orders: 0, order: 0 };
+    // Both flaps picked; the second (Flap 2 on screen) is locked.
+    const calls = render({ tool: 'inside-reverse', lineMode: 'free', picks: 2, preview: preview({ locked: [1] }), reverse });
+    const window = fold()!;
+    const locked = byRole(window, 'button', 'Flap 2, 2 layers, can’t be left out');
+    expect(locked.getAttribute('aria-pressed')).toBe('true');
+    expect(locked.getAttribute('aria-disabled')).toBe('true');
+    // Not `disabled`: it keeps its tab stop and its tooltip.
+    expect(locked.hasAttribute('disabled')).toBe(false);
+    act(() => locked.click());
+    const layers = byRole(window, 'listbox', 'Layers at the fold line, top to bottom');
+    const row = byRole(layers, 'option', 'Layer 3, Flap 2, can’t be left out');
+    expect(row.getAttribute('aria-disabled')).toBe('true');
+    act(() => row.click());
+    expect(calls.toggleFlap).not.toHaveBeenCalled();
+    // The other flap is free to leave out.
+    act(() => byRole(window, 'button', 'Flap 1, 2 layers').click());
+    act(() => byRole(layers, 'option', 'Layer 1, Flap 1').click());
+    expect(calls.toggleFlap.mock.calls).toEqual([[0], [0]]);
+    // Its tooltip says why it stays.
+    act(() => {
+      locked.focus();
+    });
+    const tip = document.querySelector('[role="tooltip"]');
+    expect(tip?.textContent).toBe('Flap 2 can’t be left out: the fold doesn’t land without it.');
+  });
+
   it('commits and cancels from its footer, naming their keys, and refuses a commit while refused', () => {
     const keys = (id: FoldShortcutId) => ({ 'fold.commit': 'Enter', 'viewport.cancel': 'Esc', 'fold.swapSide': 'S' })[id as string];
     // The footer's commit is named for the fold, as the V / M / P control's option is.

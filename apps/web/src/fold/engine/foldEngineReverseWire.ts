@@ -93,6 +93,32 @@ export interface FoldReverseOrders {
   more: boolean;
 }
 
+/** One way a tip opens, and which kinds land it (`ReverseWay`). */
+export interface FoldReverseWay {
+  /** Per flap that opens several ways, in the tip's flap order, the index of its opening among its `openings`. */
+  openings: number[];
+  /** Whether the inside kind lands; null when the ask's budget ran out before it was decided. */
+  inside: boolean | null;
+  outside: boolean | null;
+}
+
+/**
+ * How a tip lands before its opening is chosen (`ReverseLandings`): a
+ * reverse fold's, or a crimp's at its first line.
+ */
+export interface FoldReverseLandings {
+  /**
+   * When a flap opens several ways: each way with the kinds that land, the
+   * first 256 in the order `reverseOpenWays` steps them (the last flap
+   * fastest); empty when every flap opens one way.
+   */
+  ways: FoldReverseWay[];
+  /** The tip opens more ways than are listed: those are undecided. */
+  more: boolean;
+  /** The tip's flaps (`FoldTipFlap.index`) without which no way lands for either kind. */
+  locked: number[];
+}
+
 /**
  * The compound question's answer for a reverse fold, of both kinds whichever
  * the op names: what the tip is, which kinds land, and what is still to
@@ -107,6 +133,8 @@ export interface FoldReverseAsked {
   opening: boolean;
   /** Per kind that lands with more than one order, the orders. */
   orders: FoldReverseOrders[];
+  /** With no opening named: how every way lands, and the flaps the tip cannot be folded without. */
+  landings?: FoldReverseLandings;
 }
 
 /**

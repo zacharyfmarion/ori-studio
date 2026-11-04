@@ -239,6 +239,58 @@ describe('the layers at the line', () => {
     expect(seen?.refused?.refusal.code).toBe('reverse_no_opening');
   });
 
+  it('stay on show for a reverse fold that lands no way at its opening, analysed for its layers but never previewed', async () => {
+    // The tip is described, but the fold lands no order: the order resolution refuses it, so there is no step.
+    engine.compoundAnalysis.mockImplementation(async () => ({
+      status: 'ok',
+      family: 'reverse',
+      analysis: { line: { n: [0, 1], d: 0.5 }, side: 'positive', snap: {}, tip: [0, 1], flaps: [] },
+      kinds: ['inside'],
+      opening: false,
+      orders: [],
+    }));
+    engine.orderSelection.mockImplementation(
+      async () => ({ status: 'refused', refusal: { code: 'reverse_kind_infeasible', kind: 'inside', faces: [0] }, fixes: [] }) as never
+    );
+    try {
+      const reverse: FoldToolState = { ...FREE_LINE, tool: 'inside-reverse' };
+      await render(reverse);
+      expect(seen?.step).toBeNull();
+      expect(seen?.refused?.refusal.code).toBe('reverse_kind_infeasible');
+      // Its base step is asked what it moves, for the layers alone: nothing previewed, nothing landed.
+      expect(analyse).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'inside-reverse' }), undefined);
+      expect(verbs.preview).not.toHaveBeenCalled();
+      answer('analysed');
+      await render(reverse);
+      expect(seen?.section).toBe(SECTION);
+      expect(seen?.landed).toBeNull();
+      expect(seen?.refused?.refusal.code).toBe('reverse_kind_infeasible');
+      // So the window keeps its Layers, and every flap can be picked there again.
+      const shown = seen && foldWindowPreview(reverse, foldShownPreview(seen));
+      const reverseView = { kind: 'inside' as const, kinds: ['inside' as const], known: true, ways: 0, way: 0, orders: 0, order: 0 };
+      const model = foldToolWindow(
+        i18n.t.bind(i18n),
+        { tool: 'inside-reverse', lineMode: 'free', picks: 2, readOnly: null, preview: shown ?? null, reverse: reverseView },
+        {
+          selectTool: vi.fn(),
+          selectLineMode: vi.fn(),
+          includeFlaps: vi.fn(),
+          foldOtherWay: vi.fn(),
+          pickFlap: vi.fn(),
+          useLine: vi.fn(),
+          swapSide: vi.fn(),
+          toggleFlap: vi.fn(),
+          cancel: vi.fn(),
+          commit: vi.fn(),
+        },
+        { coarse: false, alt: 'Alt' }
+      );
+      expect(model?.layers?.chips.map((chip) => chip.flap)).toEqual([0, 1]);
+    } finally {
+      engine.compoundAnalysis.mockImplementation(tipCannotOpen);
+    }
+  });
+
   it('take a reverse fold along a fix’s line in place of the picks’, asked about and folded along it', async () => {
     const fixed = {
       kind: 'inside-reverse' as const,

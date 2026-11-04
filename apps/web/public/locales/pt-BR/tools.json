@@ -394,10 +394,14 @@
       "chipAdded_one": "Aba {{number}}, {{count}} camada, move-se com a dobra",
       "chipAdded_many": "Aba {{number}}, {{count}} camadas, move-se com a dobra",
       "chipAdded_other": "Aba {{number}}, {{count}} camadas, move-se com a dobra",
+      "chipLocked_one": "Aba {{number}}, {{count}} camada, não pode ser deixada de fora",
+      "chipLocked_many": "Aba {{number}}, {{count}} camadas, não pode ser deixada de fora",
+      "chipLocked_other": "Aba {{number}}, {{count}} camadas, não pode ser deixada de fora",
       "groupLabel": "Abas a dobrar",
       "layers_one": "{{count}} camada",
       "layers_many": "{{count}} camadas",
       "layers_other": "{{count}} camadas",
+      "locked": "{{flap}} não pode ser deixada de fora: sem ela, a dobra não é possível.",
       "name": "Aba {{number}}"
     },
     "group": {
@@ -805,6 +809,8 @@
       "rowAdded": "Camada {{layer}}, {{flap}}, move-se com a dobra",
       "rowAddedBeside": "Camada {{layer}}, {{flap}}, move-se com a dobra, ao lado da camada {{above}}",
       "rowBeside": "Camada {{layer}}, {{flap}}, ao lado da camada {{above}}",
+      "rowLocked": "Camada {{layer}}, {{flap}}, não pode ser deixada de fora",
+      "rowLockedBeside": "Camada {{layer}}, {{flap}}, ao lado da camada {{above}}, não pode ser deixada de fora",
       "top": "Topo"
     },
     "sink": {

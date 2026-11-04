@@ -44,6 +44,7 @@ import {
 } from '../tools/foldToolCatalog';
 import { nextStep } from '../tools/foldToolRegistry';
 import { steppedTuckTarget } from '../tools/tuck/tuckStep';
+import { openingForKind } from '../tools/reverse/reverseStep';
 import { rotationBucket } from '../tools/rotate/rotateTool';
 import type { FoldUseLineFix } from '../tools/refusalNotice';
 import { defaultMovingSign, freeLineThrough, freePicksAlong, movingPoint } from '../tools/foldStepBuilder';
@@ -753,10 +754,12 @@ export function useFoldCanvasVerbs(
       swapSide: tools.swapSide,
 
       toggleFlap: (flap) => {
-        const section = live.current.preview.section;
+        const { section, reverse, crimp, seed } = live.current.preview;
         const target = section?.flaps[flap];
         if (!section || !target) return;
-        tools.toggleFlap(target, section.flaps, live.current.preview.seed);
+        // A flap the reverse fold or crimp cannot land without stays picked, however it is pressed.
+        if (((reverse ?? crimp)?.locked ?? []).some((locked) => sameFlap(locked, target))) return;
+        tools.toggleFlap(target, section.flaps, seed);
       },
 
       hoverFlap: tools.setHoveredFlap,
@@ -790,7 +793,12 @@ export function useFoldCanvasVerbs(
         else if (isVertexTool(tool.tool)) vertexOtherWay();
       },
 
-      setReverseKind: (kind) => tools.setReverseKind(kind),
+      // The ways listed are the kind's: the way on screen stays shown when it lands as this kind too.
+      setReverseKind: (kind) => {
+        const opens = live.current.preview.reverse ?? live.current.preview.crimp;
+        const at = opens?.tip && opens.way ? openingForKind(opens.tip, opens.way, kind) : undefined;
+        tools.setReverseKind(kind, at);
+      },
 
       stepOpening: (delta) => tools.stepOpening(delta, compoundListed(live.current.preview).ways),
 

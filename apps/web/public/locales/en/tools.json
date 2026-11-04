@@ -382,9 +382,12 @@
       "chip_other": "Flap {{number}}, {{count}} layers",
       "chipAdded_one": "Flap {{number}}, {{count}} layer, moves with the fold",
       "chipAdded_other": "Flap {{number}}, {{count}} layers, moves with the fold",
+      "chipLocked_one": "Flap {{number}}, {{count}} layer, can’t be left out",
+      "chipLocked_other": "Flap {{number}}, {{count}} layers, can’t be left out",
       "groupLabel": "Flaps to fold",
       "layers_one": "{{count}} layer",
       "layers_other": "{{count}} layers",
+      "locked": "{{flap}} can’t be left out: the fold doesn’t land without it.",
       "name": "Flap {{number}}"
     },
     "group": {
@@ -787,6 +790,8 @@
       "rowAdded": "Layer {{layer}}, {{flap}}, moves with the fold",
       "rowAddedBeside": "Layer {{layer}}, {{flap}}, moves with the fold, beside layer {{above}}",
       "rowBeside": "Layer {{layer}}, {{flap}}, beside layer {{above}}",
+      "rowLocked": "Layer {{layer}}, {{flap}}, can’t be left out",
+      "rowLockedBeside": "Layer {{layer}}, {{flap}}, beside layer {{above}}, can’t be left out",
       "top": "Top"
     },
     "sink": {

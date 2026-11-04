@@ -132,6 +132,12 @@ export interface FoldPreview {
    * the refusal offers.
    */
   narrowerSeed?: readonly number[];
+  /**
+   * The flaps (indices into the section's flaps) a reverse fold or crimp
+   * cannot land without, as the engine says: kept picked, their chips and
+   * rows not toggled off.
+   */
+  locked?: readonly number[];
   /** Tier 3 is in flight: nothing to commit yet. */
   landing: boolean;
   /**
@@ -597,6 +603,7 @@ export function layersSection(
     ),
     added: new Set(preview.added),
     needed: neededFlaps(preview.refused),
+    locked: new Set(preview.locked ?? []),
   };
   const picker = section ? foldSectionPicker(t, section, seed, { interval: preview.interval }) : null;
   const woven = section !== null && isWoven(section);

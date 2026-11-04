@@ -39,6 +39,9 @@
 //! - **The kind** is usually forced by the geometry: [`State::reverse_kinds`]
 //!   says which kinds land, so a tool can pre-select the only one, and a
 //!   refusal of one kind offers the other when it lands.
+//! - **Which ways land** ([`State::reverse_landings`], `landings`): a tool
+//!   offers only the openings that land, so it asks of every way the tip
+//!   opens which kinds do, and which flaps the tip cannot be folded without.
 
 use std::collections::BTreeSet;
 
@@ -60,6 +63,11 @@ use crate::refusal::{Fix, Flap, FoldRefusal, Refused, Side};
 use crate::state::State;
 use crate::view::Direction;
 use crate::witness::{Broken, BrokenWitness, WitnessOrder};
+
+mod landings;
+
+pub use landings::{MAX_WAYS, ReverseLandings, ReverseWay};
+pub(super) use landings::{Opens, landings_of};
 
 type Point = [f64; 2];
 
@@ -798,33 +806,7 @@ impl Tip {
         state: &State,
         choices: &ReverseChoices,
     ) -> Result<Option<Plan>, CompoundRefused> {
-        let opens = |o: &FlapOpenings| !o.openings.is_empty();
-        let any_opens = self.openings.iter().any(opens);
-        // A flap with no spine moves whole beside one that opens.
-        let moves =
-            |o: &FlapOpenings| opens(o) || (any_opens && o.none == Some(NoOpening::NoSpine));
-        if let Some((k, flap)) = self.openings.iter().enumerate().find(|(_, o)| !moves(o)) {
-            let faces = self.side.flaps[self.flaps[k]].faces.clone();
-            let opening: Vec<Flap> = self
-                .flaps
-                .iter()
-                .zip(&self.openings)
-                .filter(|(_, o)| opens(o))
-                .map(|(&j, _)| self.side.flaps[j].clone())
-                .collect();
-            let fixes = if opening.is_empty() {
-                Vec::new()
-            } else {
-                vec![Fix::PickFlap { flaps: opening }]
-            };
-            return Err(CompoundRefused::Refused(Refused {
-                refusal: FoldRefusal::ReverseNoOpening {
-                    faces,
-                    cause: flap.none.unwrap_or(NoOpening::NoSpine),
-                },
-                fixes,
-            }));
-        }
+        self.movable().map_err(CompoundRefused::Refused)?;
         let mut picked: Vec<Option<usize>> = self
             .openings
             .iter()
@@ -853,29 +835,69 @@ impl Tip {
                 _ => return Err(CompoundRefused::Broken(Broken::Opening { opening: i })),
             }
         }
+        Ok(self.plan(state, &picked))
+    }
+
+    /// Every flap of the tip moves: it opens, or it has no spine to open
+    /// along and another flap opens, so it moves whole beside it. Refused
+    /// otherwise, offering the flaps that open.
+    fn movable(&self) -> Result<(), Refused> {
+        let opens = |o: &FlapOpenings| !o.openings.is_empty();
+        let any_opens = self.openings.iter().any(opens);
+        // A flap with no spine moves whole beside one that opens.
+        let moves =
+            |o: &FlapOpenings| opens(o) || (any_opens && o.none == Some(NoOpening::NoSpine));
+        let Some((k, flap)) = self.openings.iter().enumerate().find(|(_, o)| !moves(o)) else {
+            return Ok(());
+        };
+        let faces = self.side.flaps[self.flaps[k]].faces.clone();
+        let opening: Vec<Flap> = self
+            .flaps
+            .iter()
+            .zip(&self.openings)
+            .filter(|(_, o)| opens(o))
+            .map(|(&j, _)| self.side.flaps[j].clone())
+            .collect();
+        let fixes = if opening.is_empty() {
+            Vec::new()
+        } else {
+            vec![Fix::PickFlap { flaps: opening }]
+        };
+        Err(Refused {
+            refusal: FoldRefusal::ReverseNoOpening {
+                faces,
+                cause: flap.none.unwrap_or(NoOpening::NoSpine),
+            },
+            fixes,
+        })
+    }
+
+    /// The plan opening each flap of the tip at `picked[k]`, an index into
+    /// its openings, and moving each flap with none whole. None when a flap
+    /// that opens has no opening picked.
+    fn plan(&self, state: &State, picked: &[Option<usize>]) -> Option<Plan> {
         let mut plan = Plan {
             openings: Vec::new(),
             whole: Vec::new(),
             stored: Vec::new(),
         };
         for ((pick, o), &k) in picked.iter().zip(&self.openings).zip(&self.flaps) {
-            match pick {
-                Some(j) => {
-                    let opening = o.openings[*j].clone();
+            match pick.and_then(|j| o.openings.get(j)) {
+                Some(opening) => {
                     if o.openings.len() > 1 {
                         plan.stored.push(opening.public(state).stored);
                     }
-                    plan.openings.push(opening);
+                    plan.openings.push(opening.clone());
                 }
                 None if o.openings.is_empty() => plan.whole.push(
                     (0..state.faces().len())
                         .filter(|&f| self.side.flap_of[f] == Some(k))
                         .collect(),
                 ),
-                None => return Ok(None),
+                None => return None,
             }
         }
-        Ok(Some(plan))
+        Some(plan)
     }
 
     /// The opening, as (flap, opening), whose split the faces at a stored

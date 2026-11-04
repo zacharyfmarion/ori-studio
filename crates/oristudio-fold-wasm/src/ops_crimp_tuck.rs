@@ -42,8 +42,8 @@ use oristudio_fold::numerics::MIN_FEATURE;
 use oristudio_fold::{
     ActionKind, ChoiceCount, CompletionLimits, Completions, CrimpAnalysis, CrimpFold, CrimpFolded,
     CrimpOutcome, Direction, FoldActionGeometry, FoldAnalysis, LineRefusal, PlainFold,
-    ReverseChoices, ReverseKind, Side, State, StepSummary, StoredOpening, TuckAnalysis,
-    TuckChoices, TuckFold, TuckFolded, TuckOutcome, WitnessOrder,
+    ReverseChoices, ReverseKind, ReverseLandings, Side, State, StepSummary, StoredOpening,
+    TuckAnalysis, TuckChoices, TuckFold, TuckFolded, TuckOutcome, WitnessOrder,
 };
 use oristudio_geometry::Line;
 use serde::{Deserialize, Serialize};
@@ -71,6 +71,13 @@ pub const MAX_CANDIDATES: usize = 16;
 /// undecided (`feasible: null`) is one the tool lets the fold itself decide.
 pub const TUCK_TARGETS_BUDGET_MS: f64 = 150.0;
 
+/// What deciding how a reverse fold's or a crimp's tip lands each way it
+/// opens may spend, in milliseconds: asked once per tip, each way a
+/// preparation and two completions — at most 49 ms a tip on real tutorial
+/// models, in the bridge under Node — as a tuck's targets are listed. Ways
+/// the budget leaves undecided are offered after the ways that land.
+pub const OPENINGS_BUDGET_MS: f64 = 150.0;
+
 /// Milliseconds on a monotonic clock, for a completion's deadline: the
 /// page's `performance.now()` in a browser or worker.
 #[cfg(target_arch = "wasm32")]
@@ -96,6 +103,18 @@ pub(crate) mod clock {
     pub fn now_ms() -> f64 {
         static START: OnceLock<Instant> = OnceLock::new();
         START.get_or_init(Instant::now).elapsed().as_secs_f64() * 1e3
+    }
+}
+
+/// The default limits with a deadline `budget_ms` from now: what a tool's
+/// ask that runs many completions may spend, the rest left undecided.
+pub(crate) fn within_ms(budget_ms: f64) -> CompletionLimits {
+    CompletionLimits {
+        deadline: Some(Deadline {
+            now_ms: clock::now_ms,
+            at_ms: clock::now_ms() + budget_ms,
+        }),
+        ..CompletionLimits::default()
     }
 }
 
@@ -204,6 +223,11 @@ pub enum CompoundTried {
 pub struct CrimpAnalysed {
     pub analysis: CrimpAnalysis,
     pub kinds: Option<Vec<ReverseKind>>,
+    /// With no opening named: each way the tip opens at ℓ1 with the kinds
+    /// that land, and the flaps it cannot be crimped without
+    /// (`State::crimp_landings`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub landings: Option<ReverseLandings>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -433,7 +457,9 @@ impl CompoundOp for CrimpStep {
     }
 
     /// Its analysis, and the kinds that land once every flap that opens
-    /// several ways has its opening chosen.
+    /// several ways has its opening chosen; with none chosen, how each way
+    /// lands and the flaps it cannot be folded without, as a reverse fold's
+    /// ask says them (`ops_reverse`), within [`OPENINGS_BUDGET_MS`].
     fn ask(&self, parent: &State) -> Result<Result<CompoundAsked, Refusal>, BridgeError> {
         let analysed = || -> Result<CrimpAnalysed, Refusal> {
             let analysis = parent.analyse_crimp(&self.fold).map_err(Refusal::from)?;
@@ -448,7 +474,23 @@ impl CompoundOp for CrimpStep {
                         .map_err(compound_refusal)?,
                 )
             };
-            Ok(CrimpAnalysed { analysis, kinds })
+            // Asked of the tip with no opening named: how it lands is not
+            // the one chosen's.
+            let landings = self
+                .choices
+                .openings
+                .is_empty()
+                .then(|| {
+                    parent
+                        .crimp_landings(&self.fold, &within_ms(OPENINGS_BUDGET_MS))
+                        .ok()
+                })
+                .flatten();
+            Ok(CrimpAnalysed {
+                analysis,
+                kinds,
+                landings,
+            })
         };
         Ok(analysed().map(|analysed| CompoundAsked::Crimp(Box::new(analysed))))
     }
@@ -498,13 +540,7 @@ impl CompoundOp for TuckStep {
     /// Every layer its block lands on, with whether it takes the tuck,
     /// decided within [`TUCK_TARGETS_BUDGET_MS`].
     fn ask(&self, parent: &State) -> Result<Result<CompoundAsked, Refusal>, BridgeError> {
-        let limits = CompletionLimits {
-            deadline: Some(Deadline {
-                now_ms: clock::now_ms,
-                at_ms: clock::now_ms() + TUCK_TARGETS_BUDGET_MS,
-            }),
-            ..CompletionLimits::default()
-        };
+        let limits = within_ms(TUCK_TARGETS_BUDGET_MS);
         Ok(parent
             .analyse_tuck(&self.fold, &limits)
             .map(|analysis| CompoundAsked::Tuck(Box::new(TuckAnalysed { analysis })))

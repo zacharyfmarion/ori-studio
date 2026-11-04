@@ -134,12 +134,22 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE)('flat design completion through the canvas
     await untilFlow(() => seen.current?.preview.landed, 'the outside preview');
     expect(seen.current!.preview.step?.op.kind).toBe('outside-reverse');
     if (count === 8) {
+      // Inside asked for: the stepper lists only the openings Inside lands at (owner feedback,
+      // 2026-11-04), so the tool moves to one of those rather than refusing the central opening.
       await act(async () => { seen.current!.verbs.setReverseKind('inside'); await settle(); });
-      const refused = await untilFlow(() => seen.current?.preview.refused, 'the explicit wrong kind refusal');
-      expect(refused.refusal.code).toBe('reverse_kind_infeasible');
-      expect(seen.current!.preview.step).toBeNull();
+      await untilFlow(
+        () => seen.current?.preview.landed && seen.current.preview.step?.op.kind === 'inside-reverse',
+        'an inside preview at an opening it lands at'
+      );
+      expect(seen.current!.preview.refused).toBeNull();
+      expect(seen.current!.preview.reverse?.way?.openings.every((o) => o.upper.length === o.lower.length)).toBe(false);
+      // Outside again: the most even split it lands at, listed first, is the central one.
       await act(async () => { seen.current!.verbs.setReverseKind('outside'); await settle(); });
-      await untilFlow(() => seen.current?.preview.landed && !seen.current.preview.refused, 'the restored outside preview');
+      await untilFlow(
+        () => seen.current?.preview.landed && !seen.current.preview.refused && seen.current.preview.step?.op.kind === 'outside-reverse',
+        'the restored outside preview'
+      );
+      expect(seen.current!.preview.reverse?.way?.openings.every((o) => o.upper.length === o.lower.length)).toBe(true);
     }
     const committed = await commitPreviewed(session, seen);
     expect(committed.op.kind).toBe('outside-reverse');
