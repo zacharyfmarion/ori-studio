@@ -44,7 +44,8 @@ use crate::complete::{ChoiceCount, CompletionLimits, Completions};
 use crate::compound::motion::{StepMotion, Turn};
 use crate::compound::pieces::{Pieces, Scoring, prepare_pieces};
 use crate::compound::reverse::{
-    Opening, Plan, ReverseAnalysis, ReverseChoices, ReverseFold, ReverseKind, Tip,
+    Opening, Opens, Plan, ReverseAnalysis, ReverseChoices, ReverseFold, ReverseKind,
+    ReverseLandings, Tip, landings_of,
 };
 use crate::compound::{
     Across, Against, CompoundFolded, CompoundRefused, CompoundReport, Pending, Prepared, no_order,
@@ -307,6 +308,34 @@ impl Crimp {
     }
 }
 
+/// A crimp as its landings are asked of (`reverse::landings`): of the inside
+/// kind on both lines, the outside crimp its placements turned.
+struct CrimpOpens {
+    op: CrimpFold,
+    crimp: Crimp,
+}
+
+impl Opens for CrimpOpens {
+    fn tip(&self) -> &Tip {
+        &self.crimp.tip
+    }
+
+    fn prepare_inside(&self, state: &State, plan: &Plan) -> Result<Prepared, FoldRefusal> {
+        state
+            .prepare_crimp(&self.op, &self.crimp, plan)
+            .map(|(prepared, _)| prepared)
+    }
+
+    fn without(&self, state: &State, flap: usize) -> Option<CrimpOpens> {
+        let tip = self.crimp.tip.leaving_out(state, flap)?;
+        let crimp = state.crimp_of(&self.op, tip).ok()?;
+        Some(CrimpOpens {
+            op: self.op.clone(),
+            crimp,
+        })
+    }
+}
+
 impl State {
     /// The tip of a crimp, how each of its flaps opens and what lies beyond
     /// its second line, without folding.
@@ -341,6 +370,25 @@ impl State {
         .into_iter()
         .filter_map(|(kind, lands)| lands.then_some(kind))
         .collect())
+    }
+
+    /// How the crimp `op` lands each way its tip opens at ℓ1, and the flaps
+    /// it cannot be folded without, as a reverse fold's tip does
+    /// ([`State::reverse_landings`]), under `limits`. `op.kind` is not read.
+    pub fn crimp_landings(
+        &self,
+        op: &CrimpFold,
+        limits: &CompletionLimits,
+    ) -> Result<ReverseLandings, CompoundRefused> {
+        let crimp = self.crimp(op).map_err(CompoundRefused::Refused)?;
+        let opens = CrimpOpens {
+            op: CrimpFold {
+                kind: ReverseKind::Inside,
+                ..op.clone()
+            },
+            crimp,
+        };
+        landings_of(self, &opens, limits)
     }
 
     /// A crimp, with its stored choices (empty for a new step), under the
@@ -433,6 +481,12 @@ impl State {
     /// over it. Refused when the lines meet over the tip, or ℓ2 misses it.
     fn crimp(&self, op: &CrimpFold) -> Result<Crimp, Refused> {
         let tip = self.tip(&op.first_reverse())?;
+        self.crimp_of(op, tip)
+    }
+
+    /// [`State::crimp`] of the tip `tip` at ℓ1: the crimp's own, or the
+    /// same with a flap left out.
+    fn crimp_of(&self, op: &CrimpFold, tip: Tip) -> Result<Crimp, Refused> {
         let parts = self.parts();
         let classes = &tip.classified.classes;
         let crosses = |f: usize| parts.faces[f].ring.iter().any(|v| classes[v.index()] == -1);
