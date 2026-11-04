@@ -44,7 +44,9 @@ export class SpreadService<I = SpreadInput, S = SpreadSolution> {
     private budget = 32 * 1024 * 1024,
     private timeoutMs = 15_000,
     private validate: (solution: S, input: I) => boolean = validSolution as unknown as (solution: S, input: I) => boolean,
-    private solutionBytes: (solution: S) => number = solution => 2 * JSON.stringify(solution).length,
+    // Preserve the flat solver's O(1) accounting and cache capacity without
+    // serializing its results. Other result shapes provide their own estimator.
+    private solutionBytes: (solution: S) => number = solution => 8 * (solution as SpreadSolution).heights.length,
     private workerLifetime: 'reuse' | 'recycle' = 'reuse',
   ) {}
 

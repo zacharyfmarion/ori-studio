@@ -25,11 +25,11 @@ import { prepareSpatialInkPlan, type SpatialInkGroup } from './spatialInkPlan';
  * of live 3D figures where it can only hold one running simulation — a figure
  * costs a *mesh*, not a session.
  *
- * Shares the worker's one WebGL2 context, exactly as the solver sessions do:
+ * Shares a worker WebGL2 context with figures that need the same capabilities:
  * `getContext('webgl2')` on an already-contexted canvas returns the context that
- * is already there, so every `GlCore` over `renderCanvas` wraps the same one.
- * Browsers cap contexts at four per worker, and that cap is why bitmap
- * presentation exists at all.
+ * is already there. Ordinary figures share the simulator's canvas; ordered
+ * spatial figures share a second, lazily allocated canvas with stencil support.
+ * Context count stays bounded regardless of the number of figures.
  */
 
 /** Everything the worker needs to draw one folded figure, in transferable form. */
@@ -89,7 +89,7 @@ export class FoldedMeshSource {
     canvas: OffscreenCanvas,
     payload: Folded3dMeshPayload
   ): FoldedMeshSource | null {
-    const core = GlCore.create(canvas);
+    const core = GlCore.create(canvas, { stencil: !!payload.spatial });
     if (!core) return null;
     const dim = payload.textureDim;
     try {

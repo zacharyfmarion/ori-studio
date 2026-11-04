@@ -40,6 +40,39 @@ class WorkerMock implements SpreadWorker {
   }
 }
 describe('spread worker lifecycle', () => {
+  it('retains the flat cache capacity and LRU policy without serializing results', async () => {
+    const worker = new WorkerMock();
+    const entryBytes = 2 * JSON.stringify(input).length + 8 * solution.heights.length + 2048;
+    const service = new SpreadService(() => worker, 2 * entryBytes);
+    const stringify = vi.spyOn(JSON, 'stringify');
+    const second = { ...input, xy: [[0, 0], [2, 0], [0, 1]] as [number, number][] };
+    const third = { ...input, xy: [[0, 0], [3, 0], [0, 1]] as [number, number][] };
+    const solve = async (value: SpreadInput) => {
+      const lease = service.acquire(value);
+      worker.onmessage?.({ data: {
+        kind: 'ready', generation: worker.requests.at(-1)!.generation, solution,
+      } } as never);
+      await lease.promise;
+      lease.release();
+    };
+    try {
+      await solve(input);
+      await solve(second);
+      expect(service.retainedBytes).toBe(2 * entryBytes);
+      expect(await service.acquire(input).promise).toBe(solution);
+      expect(worker.requests).toHaveLength(2);
+      await solve(third);
+      expect(service.peek(input)).toBe(solution);
+      expect(service.peek(second)).toBeNull();
+      expect(service.peek(third)).toBe(solution);
+      expect(worker.terminated).toBe(false);
+      expect(stringify).not.toHaveBeenCalledWith(solution);
+    } finally {
+      stringify.mockRestore();
+      service.dispose();
+    }
+  });
+
   it('deduplicates leases, retains another consumer and serves a cached pose without a solve', async () => {
     const worker = new WorkerMock(),
       service = new SpreadService(() => worker);

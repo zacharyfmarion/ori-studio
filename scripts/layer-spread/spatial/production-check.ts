@@ -8,6 +8,7 @@ import { pickSpread, type SpatialPlane } from '@oristudio/layer-spread';
 import { DEFAULT_PAPER_STYLE } from '../../../apps/web/src/lib/paper/paperStyle';
 import type { Folded3dMesh } from '../../../apps/web/src/cp-workspace/folded/folded3dMesh';
 import type { CameraUniforms } from '@treemaker/origami-simulator';
+import { checkWorkerContexts } from './production-context-check';
 
 const plane = (faces: number[], orders: [number, number][]): SpatialPlane => ({
   faces,
@@ -146,6 +147,7 @@ const colors = [
   [1, 1, 0],
 ] as [number, number, number][];
 const result = [];
+let sessionMesh: Folded3dMesh | undefined;
 try {
   for (const test of cases) {
     const positions = test.depths.flatMap((z, f) => {
@@ -202,6 +204,7 @@ try {
         edgeFaces: [],
       },
     };
+    sessionMesh ??= mesh;
     if (test.ink !== undefined) {
       // A horizontal crease across the centre of a locally hidden face.
       mesh.positions = Float32Array.from([
@@ -293,6 +296,7 @@ try {
     document.querySelector('#tiles')!.append(figure);
     source.dispose();
   }
+  result.push(...await checkWorkerContexts(sessionMesh!));
   document.querySelector('#result')!.textContent = JSON.stringify(
     { passed: result.every((r) => r.passed), result },
     null,

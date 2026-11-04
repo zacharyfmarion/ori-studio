@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { GlCore, WebGlContextLostError } from '../src/webgl/glCore.js';
 
-// WebGL2 does not exist in Node, so these cover the loss bookkeeping only: that
+// WebGL2 does not exist in Node, so these cover context attributes and loss: that
 // the event is observed on both spellings, that the first GL touch afterwards
 // throws instead of silently no-opping, and that listeners fire once. The GL
 // behaviour itself is covered by the browser parity bench.
@@ -58,6 +58,24 @@ function fakeCanvas(options: { lost?: boolean } = {}) {
 }
 
 describe('GlCore context loss', () => {
+  it('does not request a stencil buffer for ordinary rendering', () => {
+    const { canvas } = fakeCanvas();
+    const request = vi.spyOn(canvas, 'getContext');
+    expect(GlCore.create(canvas)).not.toBeNull();
+    expect(request).toHaveBeenCalledWith('webgl2', expect.objectContaining({
+      depth: true, stencil: false,
+    }));
+  });
+
+  it('requests stencil only for a context that explicitly needs coverage masks', () => {
+    const { canvas } = fakeCanvas();
+    const request = vi.spyOn(canvas, 'getContext');
+    expect(GlCore.create(canvas, { stencil: true })).not.toBeNull();
+    expect(request).toHaveBeenCalledWith('webgl2', expect.objectContaining({
+      depth: true, stencil: true,
+    }));
+  });
+
   it('starts live', () => {
     const { canvas } = fakeCanvas();
     const core = GlCore.create(canvas);

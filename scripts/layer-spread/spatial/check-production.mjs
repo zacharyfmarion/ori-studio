@@ -32,7 +32,7 @@ try {
   await writeFile(`${out}/gpu-checks.json`, JSON.stringify(pixels, null, 2));
   if (!pixels.passed)
     throw new Error(`GPU policy failed: ${JSON.stringify(pixels)}`);
-  console.log(`${pixels.result.length} production GPU policy cases passed`);
+  console.log(`${pixels.result.length} production rendering/worker cases passed`);
   if (process.argv.includes('--examples') || selectedModel) {
     await page.goto(`${path}/production-examples.html`);
     await page.waitForFunction(

@@ -22,10 +22,14 @@ ORISTUDIO_SPATIAL_URL=http://localhost:5234 \
 ```
 
 This runs twelve WebGL2 ordering/ink cases against the production CPU visibility
-policy, without external files. Visit
+policy, plus two real-worker context-isolation cases, without external files. Visit
 `/@fs/<absolute-worktree-root>/scripts/layer-spread/spatial/production-check.html`
 on that server to inspect the tiles. These checks cover opposite camera sides,
 partial/full cycles, unrelated surfaces, and exposed/buried shared hinges.
+The worker cases open ordinary and spatial meshes in both orders, verify visible
+bitmaps, and repeatedly release/reopen spatial meshes while ordinary rendering
+stays live. Unit tests separately pin opt-in stencil attributes, independent
+buffer sizing and final-release/eviction cleanup.
 
 ## Model capture and picking checks
 

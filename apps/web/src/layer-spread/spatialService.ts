@@ -23,7 +23,7 @@ export function spatialSpreadService(): SpreadService<
     32 * 1024 * 1024,
     25_000,
     validSpatialSolution,
-    undefined,
+    solution => 2 * JSON.stringify(solution).length,
     'recycle'
   ));
 }

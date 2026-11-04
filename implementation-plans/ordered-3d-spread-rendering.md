@@ -374,3 +374,38 @@ to about 2.4 seconds and 95 MB of WASM memory (previously about 14.3 seconds and
 while retaining cached displacement fields. Tortoise now fits the compacted
 problem budget and passes the full amount/front/back capture and picking sweep.
 The nine-model review totals 108 captures and 18,024 interior pixel checks.
+
+### Isolate costs from ordinary usage
+
+Restore the flat-spread cache's original constant-time height-array accounting
+and reusable-worker policy; spatial results keep their separate accounting and
+worker recycling. Request stencil support only for spatial material rendering.
+
+WebGL cannot upgrade the attributes of a canvas already used by simulation or
+an ordinary folded figure. The worker therefore allocates one additional shared
+canvas on the first spatial mesh, sizes it only for its own active views, and
+explicitly releases its context when the last spatial mesh closes or is evicted.
+Ordinary meshes, the simulator and the start screen keep stencil disabled.
+Spatial captures request stencil on their existing private canvases. This
+remains at most two live render contexts in the shared worker, not one per mesh.
+
+- [x] Restore flat cache accounting without serializing completed flat results.
+- [x] Make stencil a per-context option and isolate spatial worker surfaces.
+- [x] Verify cache retention/eviction and non-spatial/spatial load-order,
+      resizing, failure and final-release behavior.
+- [x] Rebuild shared renderer, run lint/typecheck and relevant tests, and repeat
+      real GPU/capture checks plus the production worker presentation path.
+
+The shared layer-spread WASM still includes both solvers, and the lightweight
+workspace listener still checks for spatial figures. This change does not claim
+to eliminate every shared code/loading cost.
+
+Validation: the simulator package passes 398 tests (one existing skip), focused
+web suites pass (162 tests initially and 56 in the final lifecycle/capture pass),
+full web lint plus final targeted lint and TypeScript pass. The normal web build
+passes, including all generated bridges and the 37-page prerender. Browser
+checks pass twelve GPU ordering/ink cases and two real-worker context cases in
+both load orders, with six final-release/reopen cycles each. Tortoise still
+passes twelve captures and 1,632 interior picking comparisons with no mismatches
+or contact ties. No Rust algorithm, native shell or file-format behavior changed;
+unrelated workspace/oracle/native checks and the full web suite were not rerun.
