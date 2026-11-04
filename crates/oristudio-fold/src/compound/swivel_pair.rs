@@ -33,8 +33,9 @@
 //!
 //! **Through the stack.** Where paper beyond the four layers holds the
 //! wedges, both fans are read through the stack together
-//! (`super::folded_swivel`). A pair its four layers fold reads them alone,
-//! as before.
+//! (`super::folded_swivel`), and the plies nested in each folded edge at its
+//! vertex (a flap several plies thick) open with it, each the same swivel on
+//! its own fold. A pair its four layers fold reads them alone, as before.
 //!
 //! **Refusals**: either swivel's own (`swivel_line_meeting`,
 //! `swivel_no_flap`, the fan's); both at one vertex, or several pairs of
@@ -47,7 +48,7 @@ use super::folded_swivel::{Layered, RayRun, compile_together, ray_run};
 use super::swivel::{SwivelCrease, SwivelKind, SwivelRegion, SwivelWedge, dot, internal, sub};
 use super::swivel_valley_mountain::{
     Built, SwivelOtherEnd, SwivelShared, SwivelValleyMountain, SwivelValleyMountainAnalysis,
-    covered, creases_of, ends_bare, fold_of, folds_at, folds_through,
+    covered, creases_of, ends_bare, fold_of, folds_at, folds_through, nested,
 };
 use super::vertex::{Compiled, VertexChoices, VertexOutcome, cross};
 use crate::fold::Within;
@@ -176,7 +177,7 @@ impl SwivelPair {
         if apart[0].hypot(apart[1]) < MIN_FEATURE {
             return Err(FoldRefusal::SwivelLineMeeting.into());
         }
-        let runs = |x: &Built| -> Result<[RayRun; 3], Refused> {
+        let runs_of = |x: &Built| -> Result<[RayRun; 3], Refused> {
             let v = x.fan.vertex;
             Ok([
                 ray_run(state, x.behind, v, x.fan.swivel)?,
@@ -184,7 +185,7 @@ impl SwivelPair {
                 ray_run(state, x.front, v, x.fan.second)?,
             ])
         };
-        let runs = [runs(a)?, runs(b)?];
+        let runs = [runs_of(a)?, runs_of(b)?];
         let ends = runs.each_ref().map(|r| r.each_ref().map(|run| run.end));
         let swivels = [
             Layered {
@@ -198,9 +199,41 @@ impl SwivelPair {
                 runs: &runs[1],
             },
         ];
-        let kinds: [SwivelKind; 2] = self.swivels.each_ref().map(|s| s.kind);
+        // The plies nested in each folded edge, which open with it where the
+        // two-layer reading is held (none where one has no runs of its own).
+        let plies: Vec<(Built, SwivelKind)> = [a, b]
+            .into_iter()
+            .zip(&self.swivels)
+            .flat_map(|(x, swivel)| nested(state, x).into_iter().map(|ply| (ply, swivel.kind)))
+            .collect();
+        let ply_runs: Vec<[RayRun; 3]> = plies
+            .iter()
+            .map(|(ply, _)| runs_of(ply))
+            .collect::<Result<_, _>>()
+            .unwrap_or_default();
+        let nested_layers: Vec<Layered> = plies
+            .iter()
+            .zip(&ply_runs)
+            .map(|((ply, _), runs)| Layered {
+                fan: &ply.fan,
+                layers: [ply.behind, ply.front],
+                runs,
+            })
+            .collect();
+        let kinds: Vec<SwivelKind> = self
+            .swivels
+            .iter()
+            .map(|s| s.kind)
+            .chain(
+                plies
+                    .iter()
+                    .take(nested_layers.len())
+                    .map(|(_, kind)| *kind),
+            )
+            .collect();
         let direction = state.view().model_direction(Direction::Valley);
-        let (compiled, members, _) = compile_together(state, &swivels, &kinds, direction)?;
+        let (compiled, members, _) =
+            compile_together(state, &swivels, &nested_layers, &kinds, direction)?;
         Ok((compiled, ends, members))
     }
 }

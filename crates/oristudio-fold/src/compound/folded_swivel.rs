@@ -51,6 +51,12 @@
 //! sectors, a crease folds along any fan's line by that fan's reflection,
 //! and each fan's own layers, paper beyond its folded edge and layer groups
 //! are its own. One fan reads exactly as above.
+//!
+//! **Nested plies.** Folds nested in a swivel's folded edge through its
+//! vertex (a stack folded in half, a flap several plies thick) can open
+//! with it, each a fan of its own with the same rays on its own fold
+//! ([`compile_nest`]). The callers decide where (`super::swivel_valley_mountain`):
+//! only in readings no swivel had before.
 use crate::complete::CompletionLimits;
 use crate::compound::motion::reflection;
 use crate::compound::pieces::{Cut, Scoring, score_cuts};
@@ -894,6 +900,7 @@ fn assign(state: &State, fans: &Fans) -> Result<Vec<Mode>, Vec<usize>> {
 
 /// One swivel as the two-layer reading scores it: its fan, its folded
 /// edge's two layers (the edge's, then the other), and its rays' runs.
+#[derive(Clone, Copy)]
 pub(super) struct Layered<'a> {
     pub(super) fan: &'a FoldFan,
     pub(super) layers: [usize; 2],
@@ -1385,24 +1392,90 @@ fn stacked_together(state: &State, swivels: &[Layered]) -> Result<Together, Refu
 /// Several swivels made together, compiled: on their layers
 /// ([`two_layers_of`]), or through the stack where paper beyond them holds
 /// the wedges, refused as the two-layer reading is when that is refused
-/// too. Per block, the swivels' wedges that move as it; and whether it
-/// folds through the stack.
+/// too. Where the two-layer reading is held, the plies `nested` in their
+/// folded edges open with them: the reading, on their layers and then
+/// through the stack, is of all of them. `kinds` gives each swivel's kind,
+/// then each nested ply's. Per block, the swivels' wedges that move as it
+/// (by index into the swivels, then the nested plies); and whether it folds
+/// through the stack.
 pub(super) fn compile_together(
     state: &State,
     swivels: &[Layered],
+    nested: &[Layered],
     kinds: &[SwivelKind],
     direction: Direction,
 ) -> Result<(Compiled, Members, bool), Refused> {
-    let (read, stacked) = match two_layers_of(state, swivels)? {
-        Ok(read) => (read, false),
+    let all: Vec<Layered> = swivels.iter().chain(nested).copied().collect();
+    let (read, stacked, fans) = match two_layers_of(state, swivels)? {
+        Ok(read) => (read, false, swivels),
+        Err(held) if !nested.is_empty() => match two_layers_of(state, &all)? {
+            Ok(read) => (read, false, &all[..]),
+            Err(_) => match stacked_together(state, &all) {
+                Ok(read) => (read, true, &all[..]),
+                Err(_) => return Err(FoldRefusal::FanRayBlocked { faces: held }.into()),
+            },
+        },
         Err(held) => match stacked_together(state, swivels) {
-            Ok(read) => (read, true),
+            Ok(read) => (read, true, swivels),
             Err(_) => return Err(FoldRefusal::FanRayBlocked { faces: held }.into()),
         },
     };
     let members = read.2.clone();
-    let compiled = finish_together(state, swivels, kinds, direction, read)?;
+    let compiled = finish_together(state, fans, kinds, direction, read)?;
     Ok((compiled, members, stacked))
+}
+
+/// A swivel on a folded edge with the plies nested in it at its vertex
+/// (`fans`: its fan and layers, then each ply's, the same rays on the ply's
+/// own fold), made as one fold ([`compile_together`]): compiled as the
+/// swivel, each block named by the first wedge that moves as it. Each order
+/// it offers is landed before it is offered.
+pub(super) fn compile_nest(
+    state: &State,
+    fans: &[(&FoldFan, [usize; 2])],
+    kind: SwivelKind,
+    direction: Direction,
+) -> Result<FoldCompiled, Refused> {
+    let runs: Vec<[RayRun; 3]> = fans
+        .iter()
+        .map(|&(fan, [edge, other])| {
+            let v = fan.vertex;
+            Ok([
+                ray_run(state, edge, v, fan.swivel)?,
+                ray_run(state, other, v, fan.counter)?,
+                ray_run(state, other, v, fan.second)?,
+            ])
+        })
+        .collect::<Result<_, Refused>>()?;
+    let layered: Vec<Layered> = fans
+        .iter()
+        .zip(&runs)
+        .map(|(&(fan, layers), runs)| Layered { fan, layers, runs })
+        .collect();
+    let kinds = vec![kind; fans.len()];
+    let (compiled, members, _) = compile_together(state, &layered, &[], &kinds, direction)?;
+    let names = [SwivelWedge::Near, SwivelWedge::Turn, SwivelWedge::Beyond];
+    let wedges = members
+        .iter()
+        .map(|m| {
+            m.first()
+                .map(|w| names[w[1].min(2)])
+                .ok_or_else(|| internal("a swivel block with no wedge"))
+        })
+        .collect::<Result<_, Refused>>()?;
+    let (&(_, [edge_layer, other_layer]), first) = fans
+        .first()
+        .zip(runs.first())
+        .ok_or_else(|| internal("a nest with no swivel"))?;
+    Ok(FoldCompiled {
+        compiled,
+        wedges,
+        edge_layer,
+        other_layer,
+        ends: first.each_ref().map(|run| run.end),
+        reach: None,
+        stacked: true,
+    })
 }
 
 /// The compiled fold from its scored paper and blocks: each block's turns,

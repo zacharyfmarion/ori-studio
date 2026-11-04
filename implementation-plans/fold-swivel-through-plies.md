@@ -81,7 +81,7 @@ No wire, document or UI change.
 - [x] A pair through the stack: synthetic (each flap's raw-edge strip
       folded over, holding its wedges), refused without it; a pair on
       hidden folds in a real design
-- [ ] Nested plies opening with the fold: synthetic (four plies in each
+- [x] Nested plies opening with the fold: synthetic (four plies in each
       side's folded edge of a pair; four plies under a corner that ends at
       the vertex), each refused without them
 - [ ] Real-design check outside the repo: each node lands the saved paper,

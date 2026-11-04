@@ -4,7 +4,9 @@
 //! fold on one side ends there on its raw edge, or every fold in view ends
 //! there over a hidden one — the swivel folds on the fold that runs on
 //! through the point. And two swivels made together whose wedges paper
-//! beyond their four layers holds, read through the stack together.
+//! beyond their four layers holds, read through the stack together. Read
+//! either way, the plies nested in a swivel's folded edge through its vertex
+//! open with it.
 mod beloch;
 mod support;
 mod vertex;
@@ -303,4 +305,161 @@ fn a_pair_held_beyond_its_four_layers_folds_through_the_stack() {
     assert!(same_paper(&pair_landed(&state, &swapped)[0].state, folded));
     let replay = cases::every(state.swivel_pair(&pair, &folds[0].report.stored));
     assert!(same_paper(&replay[0].state, folded));
+}
+
+/// The sheet points of the plies folded along the model line at `m`, a
+/// point of a folded edge whose paper lies on the side of `inward`: each
+/// layer just inside the paper there, taken back to the sheet (a ply's two
+/// layers meet at one sheet point).
+fn plies_at(state: &State, m: Point, inward: Point) -> Vec<Point> {
+    let probe = [m[0] + 1e-4 * inward[0], m[1] + 1e-4 * inward[1]];
+    let mut points: Vec<Point> = Vec::new();
+    for id in state.stack_at(probe).unwrap_or_default() {
+        let s = state.isometry(id).unwrap().inverse().apply(m);
+        if !points
+            .iter()
+            .any(|&q| (q[0] - s[0]).hypot(q[1] - s[1]) < 1e-7)
+        {
+            points.push(s);
+        }
+    }
+    points
+}
+
+fn folded_at(state: &State, s: Point) -> bool {
+    state.crease_at(s).is_some_and(|c| c.kind.is_folded())
+}
+
+/// Every ply's fold lies flat along the half of the folded edge that opens
+/// (through `open`, `plies` of them) and stays folded along the other
+/// (through `stays`, `folds` of them).
+fn every_ply_opens(
+    (before, after): (&State, &State),
+    (open, plies): (Point, usize),
+    (stays, folds): (Point, usize),
+    inward: Point,
+) {
+    let opening = plies_at(before, open, inward);
+    let staying = plies_at(before, stays, inward);
+    assert_eq!(opening.len(), plies, "{opening:?}");
+    assert_eq!(staying.len(), folds, "{staying:?}");
+    assert!(opening.iter().all(|&s| folded_at(before, s)));
+    assert!(opening.iter().all(|&s| !folded_at(after, s)), "{opening:?}");
+    assert!(staying.iter().all(|&s| folded_at(after, s)), "{staying:?}");
+}
+
+/// The square folded in half twice, the top down each time, then both
+/// sides to the middle through all four layers, in front or behind: four
+/// plies nested in each side's folded edge, x = 1/4 and x = 3/4, over the
+/// stack's height y in [0, 1/4].
+fn four_ply_cupboard(direction: Direction) -> State {
+    let flat = State::flat(Sheet::square(), StartSide::Front).unwrap();
+    let half = fold(&flat, &all(y_eq(0.5), [0.5, 0.8], Direction::Valley)).state;
+    let quarter = fold(&half, &all(y_eq(0.25), [0.5, 0.4], Direction::Valley)).state;
+    let one = fold(&quarter, &all(x_eq(0.25), [0.1, 0.125], direction)).state;
+    fold(&one, &all(x_eq(0.75), [0.9, 0.125], direction)).state
+}
+
+#[test]
+fn plies_nested_in_each_folded_edge_open_with_the_pair() {
+    let (low, high) = ([0.25, 0.0625], [0.25, 0.1875]);
+    // On the layer in front, the valley across to the middle (shared) and
+    // the mountain down; inside with the flaps in front (the half above
+    // each vertex opens), open with them behind (the half below).
+    for (direction, kind, open, stays) in [
+        (Direction::Valley, SwivelKind::Inside, high, low),
+        (Direction::Mountain, SwivelKind::Open, low, high),
+    ] {
+        let state = four_ply_cupboard(direction);
+        let swivel = |v: Point| {
+            let v = [v[0], 0.125];
+            op(
+                v,
+                mirrored_for(v, [0.5, 0.125]),
+                mirrored_for(v, [0.375, 0.0]),
+                kind,
+            )
+        };
+        let pair = SwivelPair {
+            swivels: [swivel(LEFT), swivel(RIGHT)],
+        };
+        let folds = pair_landed(&state, &pair);
+        assert!(!folds.is_empty(), "{direction:?}");
+        for folded in &folds {
+            support::assert_valid(&folded.state);
+            // All four plies at each vertex, the left's and the mirror image.
+            let states = (&state, &folded.state);
+            every_ply_opens(states, (open, 4), (stays, 4), [1.0, 0.0]);
+            let mirror = |p: Point| [1.0 - p[0], p[1]];
+            every_ply_opens(states, (mirror(open), 4), (mirror(stays), 4), [-1.0, 0.0]);
+            let replay = cases::every(state.swivel_pair(&pair, &folded.report.stored));
+            assert!(same_paper(&replay[0].state, &folded.state));
+        }
+        assert!(
+            folds.iter().any(|f| mirror_symmetric(&f.state)),
+            "{direction:?}"
+        );
+    }
+}
+
+/// U = (0.45, 0.85), where a corner's fold ends over four nested plies.
+const U: Point = [0.45, 0.85];
+
+/// Four layers on x in [1/4, 1/2] (the square folded in half on x = 1/2,
+/// then that on x = 1/4); the top layer's corner folded over in front, its
+/// raw edges landing on y = 0.8 and x = 0.45; then the top strip folded
+/// behind on y = 0.85 through all of it. Along y = 0.85 four plies nested
+/// in one another run on through U, and left of U the corner's fold wraps
+/// them and ends at U on its raw edge.
+fn plies_under_a_corner() -> State {
+    let flat = State::flat(Sheet::square(), StartSide::Front).unwrap();
+    let half = fold(&flat, &all(x_eq(0.5), [0.8, 0.5], Direction::Valley)).state;
+    let quarter = fold(&half, &all(x_eq(0.25), [0.1, 0.5], Direction::Valley)).state;
+    let p = [0.27, 0.95];
+    let at = top_sheet_point(&quarter, p);
+    let corner = fold(
+        &quarter,
+        &depth(
+            through([0.25, 0.8], [0.45, 1.0]),
+            p,
+            Direction::Valley,
+            at,
+            1,
+        ),
+    )
+    .state;
+    fold(&corner, &all(y_eq(0.85), [0.35, 0.95], Direction::Mountain)).state
+}
+
+#[test]
+fn plies_nested_in_the_fold_through_the_vertex_open_with_it() {
+    let state = plies_under_a_corner();
+    // The two whose fold opens right of U, away from the corner: the line
+    // nearer that half is the one off the hinge.
+    let (steep, shallow) = ([0.25, 0.7], [0.35, 0.75]);
+    for (valley, mountain, kind) in [
+        (steep, shallow, SwivelKind::Open),
+        (shallow, steep, SwivelKind::Inside),
+    ] {
+        let swivel = op(U, valley, mountain, kind);
+        let a = state.analyse_swivel_valley_mountain(&swivel).unwrap();
+        assert!(near(a.vertex, U));
+        // The half right of U opens, away from the corner.
+        assert!(a.fold.opens[1][0] > U[0], "{:?}", a.fold.opens);
+        let folds = landed(&state, &swivel);
+        assert!(!folds.is_empty(), "{valley:?} {kind:?}");
+        for folded in &folds {
+            support::assert_valid(&folded.state);
+            // The four plies open right of U, and stay folded left of it,
+            // where the corner's four plies wrap them too.
+            every_ply_opens(
+                (&state, &folded.state),
+                ([0.475, 0.85], 4),
+                ([0.4, 0.85], 8),
+                [0.0, -1.0],
+            );
+            let replay = cases::every(state.swivel_valley_mountain(&swivel, &folded.report.stored));
+            assert!(same_paper(&replay[0].state, &folded.state));
+        }
+    }
 }

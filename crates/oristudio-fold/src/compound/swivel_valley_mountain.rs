@@ -55,6 +55,10 @@
 //!
 //! **Through the stack.** Paper beyond the two layers that holds the wedges
 //! is creased along the same rays or carried (`super::folded_swivel`).
+//! Read through the fold that runs on through the point (above), a swivel
+//! opens the plies nested in that fold with it ([`nested`]): each takes the
+//! same three creases at the vertex. A swivel read as before reads its
+//! folded edge alone.
 //!
 //! **Refusals** (plan D14): lines that meet on no folded edge, or too near
 //! the end of one, or on several the swivel can fold on, and turn no flap
@@ -66,7 +70,7 @@
 //! two letters would be the other way round, which is the same lines picked
 //! the other way.
 use super::CompoundRefused;
-use super::folded_swivel::{FoldCompiled, FoldFan, compile, flat_region, ray_run};
+use super::folded_swivel::{FoldCompiled, FoldFan, compile, compile_nest, flat_region, ray_run};
 use super::swivel::{
     SwivelCrease, SwivelFold, SwivelKind, SwivelRay, SwivelRegion, SwivelWedge, dot, edge_run,
     internal, sub,
@@ -81,6 +85,7 @@ use crate::{
 };
 use oristudio_geometry::{Line, convex};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 type Point = [f64; 2];
 
 /// A swivel on a folded edge named by the two creases it makes on the layer
@@ -413,7 +418,23 @@ impl SwivelValleyMountain {
     /// None otherwise, so the meeting's refusal stands.
     fn through(&self, state: &State) -> Option<(Built, FoldCompiled)> {
         let at = self.valley.intersect(&self.mountain)?;
-        self.on_one_of(state, folds_through(state, at)).ok()
+        let folds = folds_through(state, at);
+        // A reading no swivel had before: the plies nested in the fold open
+        // with it.
+        let mut found: Vec<(Built, FoldCompiled)> = folds
+            .into_iter()
+            .filter_map(|fold| {
+                let built = self.build(state, fold).ok()?;
+                let nested = nested(state, &built);
+                let compiled = if nested.is_empty() {
+                    self.compiled(state, &built)
+                } else {
+                    self.nest_compiled(state, &built, &nested)
+                };
+                compiled.ok().map(|c| (built, c))
+            })
+            .collect();
+        (found.len() == 1).then(|| found.pop()).flatten()
     }
 
     /// Of the folded edges through the sheet points `folds`, the one the
@@ -527,6 +548,139 @@ impl SwivelValleyMountain {
         let direction = state.view().model_direction(Direction::Valley);
         compile(state, &built.fan, built.behind, direction, self.kind)
     }
+
+    /// The fold compiled with the plies `nested` in its folded edge opening
+    /// with it, each the same swivel on its own fold.
+    fn nest_compiled(
+        &self,
+        state: &State,
+        built: &Built,
+        nested: &[Built],
+    ) -> Result<FoldCompiled, Refused> {
+        let direction = state.view().model_direction(Direction::Valley);
+        let fans: Vec<(&FoldFan, [usize; 2])> = std::iter::once(built)
+            .chain(nested)
+            .map(|b| (&b.fan, [b.behind, b.front]))
+            .collect();
+        compile_nest(state, &fans, self.kind, direction)
+    }
+}
+
+/// The plies nested in a swivel's folded edge at its vertex: the other
+/// folded edges along its line whose runs pass on through the vertex, with
+/// their paper on the same side, and whose two layers lie between the
+/// swivel's two in the stack just inside the paper there (the folded edge
+/// of a stack folded in half, or of a flap several plies thick). Each as the
+/// same swivel, its rays the same, on its own fold, the layer nearer the
+/// swivel's in front as its front, outermost first.
+pub(super) fn nested(state: &State, built: &Built) -> Vec<Built> {
+    let fan = &built.fan;
+    let v = fan.vertex;
+    let topology = state.topology();
+    let images = &state.geometry().images;
+    let side_of =
+        |f: usize| convex::centroid(&images[f]).and_then(|c| Side::of_point(&fan.fold_line, c));
+    let Some(side) = side_of(built.front) else {
+        return Vec::new();
+    };
+    let sign = if side == Side::Positive { 1.0 } else { -1.0 };
+    let into = [sign * fan.fold_line.n[0], sign * fan.fold_line.n[1]];
+    let index: HashMap<FaceId, usize> = state
+        .faces()
+        .iter()
+        .enumerate()
+        .map(|(i, face)| (face.id, i))
+        .collect();
+    // The stacks a little way into the paper from the vertex, at angles off
+    // the folded edge that miss the creases a fold of folds meets it at.
+    let stacks: Vec<Vec<usize>> = [0.37_f64, 0.61, 0.89, 1.23]
+        .iter()
+        .filter_map(|&t| {
+            let d = [
+                t.cos() * fan.opens[0] + t.sin() * into[0],
+                t.cos() * fan.opens[1] + t.sin() * into[1],
+            ];
+            let p = [v[0] + MIN_FEATURE * d[0], v[1] + MIN_FEATURE * d[1]];
+            let stack = state.stack_at(p)?;
+            Some(
+                stack
+                    .iter()
+                    .filter_map(|id| index.get(id).copied())
+                    .collect(),
+            )
+        })
+        .collect();
+    let at = |stack: &[usize], sheet: &[bool]| stack.iter().position(|&f| sheet[f]);
+    let outer = [
+        flat_region(state, built.front),
+        flat_region(state, built.behind),
+    ];
+    let landmarks = state.landmarks(&[]);
+    let mut found: Vec<(usize, Built)> = Vec::new();
+    for fold in seen_fold_within(&landmarks, v, |_| TOL, false) {
+        let Some((k, support)) = fold_support(state, fold) else {
+            continue;
+        };
+        let Ok(run) = edge_run(state, support) else {
+            continue;
+        };
+        let known = |creases: &[usize]| run.creases.iter().any(|c| creases.contains(c));
+        if known(&fan.run) || found.iter().any(|(_, b)| known(&b.fan.run)) {
+            continue;
+        }
+        let through = run
+            .ends
+            .iter()
+            .all(|p| sub(*p, v)[0].hypot(sub(*p, v)[1]) >= MIN_FEATURE);
+        let along = run
+            .ends
+            .iter()
+            .all(|p| fan.fold_line.distance_to_point(*p) <= TOL);
+        let [a, b] = match topology.crease_faces[k][..] {
+            [a, b] => [a, b],
+            _ => continue,
+        };
+        if !through || !along || side_of(a) != Some(side) {
+            continue;
+        }
+        let sheets = [flat_region(state, a), flat_region(state, b)];
+        let Some([pa, pb, front, behind]) = stacks.iter().find_map(|stack| {
+            Some([
+                at(stack, &sheets[0])?,
+                at(stack, &sheets[1])?,
+                at(stack, &outer[0])?,
+                at(stack, &outer[1])?,
+            ])
+        }) else {
+            continue;
+        };
+        let (lo, hi) = (front.min(behind), front.max(behind));
+        if !(lo < pa.min(pb) && pa.max(pb) < hi) {
+            continue;
+        }
+        let (ply_front, ply_behind) = if pa.abs_diff(front) < pb.abs_diff(front) {
+            (a, b)
+        } else {
+            (b, a)
+        };
+        found.push((
+            pa.abs_diff(front).min(pb.abs_diff(front)),
+            Built {
+                fan: FoldFan {
+                    vertex: v,
+                    fold_line: fan.fold_line,
+                    fold_run: run.ends,
+                    run: run.creases,
+                    faces: [a, b],
+                    ..fan.clone()
+                },
+                front: ply_front,
+                behind: ply_behind,
+            },
+        ));
+    }
+    found.sort_by_key(|(depth, _)| *depth);
+    found.into_iter().map(|(_, ply)| ply).collect()
 }
 
 /// Which of the folded edge's two faces the viewer sees in front: by their
