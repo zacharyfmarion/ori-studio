@@ -84,7 +84,13 @@ No wire, document or UI change.
 - [x] Nested plies opening with the fold: synthetic (four plies in each
       side's folded edge of a pair; four plies under a corner that ends at
       the vertex), each refused without them
-- [ ] Real-design check outside the repo: each node lands the saved paper,
-      every later node still lands, every corpus model replays unchanged
-- [ ] App check: each step made by hand from its before file; a single
-      swivel and a #582 pair made fresh
+- [x] Real-design check outside the repo: each of the five steps lands the
+      saved paper, every later node still lands, every corpus model replays
+      unchanged through the app's reader
+- [x] App check: four of the five steps made by hand from their before
+      files, each the scripted step's paper; a single swivel and a #582 pair
+      made fresh, the single identical to main's
+- [ ] The tool's other end where a swivel's hinge and its crease behind both
+      run on to a fold: the analysis names the hinge (#582's order), so a
+      pair sharing the crease behind there cannot be taken through Other end
+      (one real step). Needs a decision: offer each, or another order
