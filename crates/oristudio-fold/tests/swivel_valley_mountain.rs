@@ -602,6 +602,18 @@ fn the_crease_in_the_layer_is_computed_from_the_one_on_the_strip() {
 fn the_crease_on_the_strip_keeps_its_hinges_letter() {
     let first = swivelled_square(120.0, 200.0);
     // The letters the other way round: the mountain at 330° would keep the
-    // valley hinge's letter.
-    assert!(landed(&first, &turn(50.0, 330.0, SwivelKind::Open)).is_empty());
+    // valley hinge's letter, so the strip does not turn. The mountain lies on
+    // the layer in view across the strip's hinge at 340°, whose hinges (340°
+    // and 190°) both show it mountains: that layer turns 10° round instead.
+    let ray = |degrees: f64| {
+        let (s, c) = degrees.to_radians().sin_cos();
+        [0.5 + 0.1 * c, 0.5 + 0.1 * s]
+    };
+    let turned = landed(&first, &turn(50.0, 330.0, SwivelKind::Open));
+    assert_eq!(turned.len(), 1);
+    let after = &turned[0].state;
+    support::assert_valid(after);
+    assert!(folded_at(after, ray(60.0)) && !folded_at(after, ray(350.0)));
+    assert!(folded_at(after, ray(330.0)) && folded_at(after, ray(180.0)));
+    assert!(!folded_at(after, ray(340.0)) && !folded_at(after, ray(190.0)));
 }

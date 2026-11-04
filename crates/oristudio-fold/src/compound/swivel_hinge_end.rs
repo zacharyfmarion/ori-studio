@@ -26,19 +26,31 @@
 //!   swings in under it: the valley is on the flap and the mountain in the
 //!   layer below.
 //! - **The crease on the flap** sets the turn. It lies ψ inside the hinge
-//!   whose letter it keeps, as the flap shows it; a flap whose two hinges show
-//!   it one letter cannot be named by a valley and a mountain.
+//!   whose letter it keeps, as the flap shows it.
 //! - **The other crease** is computed, ψ inside the other hinge, as the
 //!   crease behind a swivel on a folded edge is: the folder's line only has
 //!   to run into the flap too. It is hidden under paper the viewer sees, and
 //!   diagrams draw it there only roughly.
+//! - **A flap whose two hinges show it one letter** lies over both layers
+//!   they join (mountains) or under both (valleys). The crease on it keeps
+//!   that letter, so it is the mountain (open's letters) or the valley
+//!   (inside's), and it could leave either hinge: it leaves the one that
+//!   gives it room. Where both do, the lines do not say which: the other
+//!   crease runs along the same line either way (`swivel_line_meeting`).
+//!   Such a flap is read only where the viewer sees it along the crease
+//!   named on it (the lines are drawn on it), and only where the lines turn
+//!   no flap whose hinges show it two letters — none there, or one that
+//!   refuses — so every turn that lands otherwise lands as it did; where it
+//!   refuses too, the first refusal stands.
 //!
 //! **The motion.** The flap's paper between the hinge it leaves and the crease
 //! on it unfolds across that hinge (the near wedge); the rest of the flap
 //! turns about `V` (the beyond wedge, the flap); the other layer's paper
 //! between its hinge and the crease on it folds across that crease with the
-//! flap (the turning wedge). Every other face moves with the paper it is
-//! joined to, and paper joined to two of those holds them (`fan_ray_blocked`).
+//! flap (the turning wedge). Turning a flap whose hinges show it one letter,
+//! a precrease a new crease runs along folds with it. Every other face moves
+//! with the paper it is joined to, and paper joined to two of those holds
+//! them (`fan_ray_blocked`).
 //! Each piece keeps its place in the stack against the paper that stays: the
 //! flap in its own slot, the paper it takes in the flap's, the paper it gives
 //! up in the layer that takes it. What lands is checked like every compound
@@ -100,6 +112,14 @@ pub(super) struct HingeEnd {
     pub(super) compiled: Compiled,
 }
 
+/// Which flaps a reading takes: those whose two hinges show them a valley and
+/// a mountain, or those whose hinges show them one letter (module docs).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Hinges {
+    TwoLetters,
+    OneLetter,
+}
+
 /// The flap a valley and a mountain turn, before it is compiled: angles on
 /// the sheet, counter-clockwise, at the vertex `w`.
 struct Plan {
@@ -123,6 +143,8 @@ struct Plan {
     after: usize,
     /// The crease on the flap's letter, as named.
     flap_letter: Letter,
+    /// The letters its hinges show it.
+    hinges: Hinges,
 }
 
 /// `angle`'s unit direction.
@@ -169,9 +191,25 @@ fn face_in(state: &State, w: Point, from: f64, width: f64, share: &[f64]) -> Opt
         .and_then(|id| state.face_position(id))
 }
 
-/// The plans the two lines name at sheet vertex `w`: one per flap among its
-/// four folds that both lines run into, whose hinges show it a valley and a
-/// mountain, with the room the kind's way needs.
+/// Whether the viewer sees the flap from `a` sweeping `width` at the sheet
+/// vertex `at` along the crease named on it, `on_flap` inside `a`: its paper
+/// on either side of that crease, a short way from the vertex, is on top.
+fn seen_along(state: &State, at: Point, a: f64, width: f64, on_flap: f64) -> bool {
+    let crease = a + on_flap;
+    [crease - on_flap / 8.0, crease + (width - on_flap) / 8.0]
+        .iter()
+        .all(|&angle| {
+            let p = near(at, angle);
+            state
+                .face_at(p)
+                .and_then(|id| state.face_position(id))
+                .is_some_and(|f| seen_at(state, f, state.geometry().isometries[f].apply(p)))
+        })
+}
+
+/// The plans the two lines name at sheet vertex `w`: per flap among its four
+/// folds that both lines run into, whose hinges show it the letters `hinges`
+/// asks for, each way it can turn with the room it needs.
 fn plans_at(
     state: &State,
     w: usize,
@@ -179,6 +217,7 @@ fn plans_at(
     valley: &Line,
     mountain: &Line,
     kind: SwivelKind,
+    hinges: Hinges,
 ) -> Vec<Plan> {
     let sheet = state.vertices();
     let at = sheet[w];
@@ -229,7 +268,8 @@ fn plans_at(
         let (Some(at_valley), Some(at_mountain)) = (inside(valley), inside(mountain)) else {
             continue;
         };
-        if (at_valley - at_mountain).abs() <= APART || letter_a == letter_b {
+        let one_letter = letter_a == letter_b;
+        if (at_valley - at_mountain).abs() <= APART || one_letter != (hinges == Hinges::OneLetter) {
             continue;
         }
         let Some(up) = state.seen_front_up(state.faces()[flap_a].id) else {
@@ -237,35 +277,46 @@ fn plans_at(
         };
         let seen = |letter: Letter| if up { letter } else { opposite(letter) };
         // The crease on the flap keeps the letter of the hinge it lies
-        // inside: the flap leaves that hinge.
+        // inside: the flap leaves that hinge. Hinges of one letter both have
+        // it, or neither does.
         let (flap_letter, on_flap) = match kind {
             SwivelKind::Open => (Letter::Mountain, at_mountain),
             SwivelKind::Inside => (Letter::Valley, at_valley),
         };
-        let toward_a = seen(letter_a) == flap_letter;
-        let psi = if toward_a { on_flap } else { width - on_flap };
-        let room = if toward_a {
-            sweep(b, next)
-        } else {
-            sweep(prev, a)
+        let keeps_a = seen(letter_a) == flap_letter;
+        // Hinges of one letter: only a flap the lines are drawn on, which the
+        // viewer sees along the crease named on it.
+        let ways: &[bool] = match (one_letter, keeps_a) {
+            (false, toward_a) => &[toward_a],
+            (true, true) if seen_along(state, at, a, width, on_flap) => &[true, false],
+            (true, _) => &[],
         };
-        if psi >= room - APART {
-            continue;
+        for &toward_a in ways {
+            let psi = if toward_a { on_flap } else { width - on_flap };
+            let room = if toward_a {
+                sweep(b, next)
+            } else {
+                sweep(prev, a)
+            };
+            if psi >= room - APART {
+                continue;
+            }
+            plans.push(Plan {
+                w: at,
+                a,
+                b,
+                prev,
+                next,
+                psi,
+                toward_a,
+                flap_a,
+                flap_b,
+                before,
+                after,
+                flap_letter,
+                hinges,
+            });
         }
-        plans.push(Plan {
-            w: at,
-            a,
-            b,
-            prev,
-            next,
-            psi,
-            toward_a,
-            flap_a,
-            flap_b,
-            before,
-            after,
-            flap_letter,
-        });
     }
     plans
 }
@@ -282,7 +333,10 @@ fn root(parent: &mut [usize], mut a: usize) -> usize {
 impl HingeEnd {
     /// The flap the valley and the mountain turn about where its hinges end
     /// (module docs), compiled. None when they name no such flap; refused
-    /// as a meeting the lines do not settle when they name several.
+    /// as a meeting the lines do not settle when they name several. A flap
+    /// whose hinges show it one letter is read only where those that show
+    /// theirs two name none that turns; where that one refuses too, the
+    /// first refusal stands.
     pub(super) fn reading(
         state: &State,
         valley: &Line,
@@ -293,19 +347,38 @@ impl HingeEnd {
             return Ok(None);
         };
         let images = &state.geometry().vertex_images;
-        let mut plans: Vec<Plan> = Vec::new();
-        for (w, image) in images.iter().enumerate() {
-            if sub(*image, v)[0].hypot(sub(*image, v)[1]) <= MIN_FEATURE / 2.0 {
-                plans.extend(plans_at(state, w, *image, valley, mountain, kind));
+        let plans = |hinges: Hinges| -> Vec<Plan> {
+            let mut plans = Vec::new();
+            for (w, image) in images.iter().enumerate() {
+                if sub(*image, v)[0].hypot(sub(*image, v)[1]) <= MIN_FEATURE / 2.0 {
+                    plans.extend(plans_at(state, w, *image, valley, mountain, kind, hinges));
+                }
             }
-        }
-        match plans.len() {
-            0 => Ok(None),
-            1 => {
-                let plan = plans.pop().ok_or_else(|| internal("no plan"))?;
-                Self::compile(state, &plan, valley, mountain).map(Some)
-            }
-            _ => Err(FoldRefusal::SwivelLineMeeting.into()),
+            plans
+        };
+        let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
+        let compile = |mut plans: Vec<Plan>| {
+            let plan = plans.pop().ok_or_else(|| internal("no plan"))?;
+            Self::compile(state, &plan, valley, mountain)
+        };
+        let two = plans(Hinges::TwoLetters);
+        let refused = match two.len() {
+            0 => None,
+            1 => match compile(two) {
+                Ok(turn) => return Ok(Some(turn)),
+                Err(refused) => Some(refused),
+            },
+            _ => return Err(meeting()),
+        };
+        let one = plans(Hinges::OneLetter);
+        match (one.len(), refused) {
+            (0, None) => Ok(None),
+            (0, Some(refused)) => Err(refused),
+            (1, refused) => match compile(one) {
+                Ok(turn) => Ok(Some(turn)),
+                Err(own) => Err(refused.unwrap_or(own)),
+            },
+            (_, refused) => Err(refused.unwrap_or_else(meeting)),
         }
     }
 
@@ -384,8 +457,17 @@ impl HingeEnd {
                 },
             ],
         )?;
-        let block_of = blocks(state, plan, &scoring, flap_crease, layer_crease)?
-            .map_err(|faces| Refused::from(FoldRefusal::FanRayBlocked { faces }))?;
+        let reach = |end: Point| sub(end, v)[0].hypot(sub(end, v)[1]);
+        let block_of = blocks(
+            state,
+            plan,
+            &scoring,
+            [
+                (flap_crease, reach(flap_run.end)),
+                (layer_crease, reach(layer_run.end)),
+            ],
+        )?
+        .map_err(|faces| Refused::from(FoldRefusal::FanRayBlocked { faces }))?;
         let turns = vec![
             vec![(0, leaves_line)],
             vec![
@@ -563,13 +645,13 @@ fn seen_at(state: &State, layer: usize, p: Point) -> bool {
 }
 
 /// Each scored piece's block (module docs); or, where paper holds two of
-/// them together, that paper.
+/// them together, that paper. `new` is each new crease's sheet angle and how
+/// far it runs from the vertex.
 fn blocks(
     state: &State,
     plan: &Plan,
     scoring: &Scoring,
-    flap_crease: f64,
-    layer_crease: f64,
+    new: [(f64, f64); 2],
 ) -> Result<Result<Vec<Option<usize>>, Vec<FaceId>>, Refused> {
     let Plan {
         w,
@@ -580,24 +662,37 @@ fn blocks(
         toward_a,
         ..
     } = *plan;
+    let [(flap_crease, _), (layer_crease, _)] = new;
     let key = |p: usize, q: usize| (p.min(q), p.max(q));
-    // The hinges both open; the new creases are cut. Paper is joined across
-    // every other crease.
-    let on_hinge = |p: Point, q: Point| {
-        [a, b].iter().any(|&angle| {
-            let d = heading(angle);
-            [p, q].iter().all(|&x| {
-                let r = sub(x, w);
-                (d[0] * r[1] - d[1] * r[0]).abs() <= TOL && dot(d, r) >= -TOL
-            })
+    // The hinges both open; the new creases are cut, and for a flap whose
+    // hinges show it one letter so is a precrease they run along (one whose
+    // hinges show it two refuses there, as it always has). Paper is joined
+    // across every other crease.
+    let on_ray = |angle: f64, reach: f64, p: Point, q: Point| {
+        let d = heading(angle);
+        [p, q].iter().all(|&x| {
+            let r = sub(x, w);
+            (d[0] * r[1] - d[1] * r[0]).abs() <= TOL
+                && dot(d, r) >= -TOL
+                && dot(d, r) <= reach + TOL
         })
     };
+    let on_hinge = |p: Point, q: Point| {
+        [a, b]
+            .iter()
+            .any(|&angle| on_ray(angle, f64::INFINITY, p, q))
+    };
+    let on_new = |p: Point, q: Point| new.iter().any(|&(angle, reach)| on_ray(angle, reach, p, q));
     let mut cut: HashSet<(usize, usize)> = HashSet::new();
     for crease in &scoring.creases {
         let [p, q] = crease.vertices.map(|x| x.index());
+        let (x, y) = (scoring.vertices[p], scoring.vertices[q]);
         let created = scoring.created.binary_search(&crease.id).is_ok();
-        let hinge = crease.kind.is_folded() && on_hinge(scoring.vertices[p], scoring.vertices[q]);
-        if created || hinge {
+        let hinge = crease.kind.is_folded() && on_hinge(x, y);
+        let precrease = plan.hinges == Hinges::OneLetter
+            && matches!(crease.kind, CreaseKind::Flat(_))
+            && on_new(x, y);
+        if created || hinge || precrease {
             cut.insert(key(p, q));
         }
     }
