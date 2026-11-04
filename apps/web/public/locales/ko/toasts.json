@@ -44,6 +44,7 @@
       "sent_other": "단계 {{count}}개를 도해에 추가했습니다",
       "sequenceGone": "그 접기 시퀀스는 이 프로젝트에 더 이상 없습니다.",
       "someFailed_other": "단계 {{count}}개를 접기에서 가져오지 못해 제외했습니다.",
+      "someUnspread_other": "단계 {{count}}개의 층을 벌릴 수 없어 벌리지 않은 채로 추가했습니다.",
       "stepGone": "그 단계는 접기 시퀀스에 더 이상 없습니다."
     },
     "import": {

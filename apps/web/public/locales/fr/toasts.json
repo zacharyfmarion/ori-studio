@@ -50,6 +50,9 @@
       "someFailed_one": "Une étape n’a pas pu être capturée depuis Plier et a été omise.",
       "someFailed_many": "{{count}} étapes n’ont pas pu être capturées depuis Plier et ont été omises.",
       "someFailed_other": "{{count}} étapes n’ont pas pu être capturées depuis Plier et ont été omises.",
+      "someUnspread_one": "Les couches d’une étape n’ont pas pu être écartées, elle a donc été ajoutée sans écart.",
+      "someUnspread_many": "Les couches de {{count}} étapes n’ont pas pu être écartées, elles ont donc été ajoutées sans écart.",
+      "someUnspread_other": "Les couches de {{count}} étapes n’ont pas pu être écartées, elles ont donc été ajoutées sans écart.",
       "stepGone": "Cette étape n’est plus dans la séquence de Plier."
     },
     "import": {

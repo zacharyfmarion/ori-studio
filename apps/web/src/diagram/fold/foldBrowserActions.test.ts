@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DiagramTurnKind, SentDiagramEntry, SentFoldStep } from '../document/diagramDocument';
 import { foldStepSource, scenePicture } from '../document/diagramSteps.fixtures';
 
@@ -8,10 +8,10 @@ import { foldStepSource, scenePicture } from '../document/diagramSteps.fixtures'
  * added`, `diagram turn added`), as a References pull is. The captures are
  * stubbed: what Fold's replay would send is given, so no engine runs.
  */
-const sent = vi.hoisted(() => ({ entries: [] as SentDiagramEntry[] }));
+const sent = vi.hoisted(() => ({ entries: [] as SentDiagramEntry[], flattened: 0 }));
 vi.mock('./foldPull', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./foldPull')>()),
-  pullFoldTargets: vi.fn(async () => ({ sent: sent.entries, failed: 0 })),
+  pullFoldTargets: vi.fn(async () => ({ sent: sent.entries, failed: 0, flattened: sent.flattened })),
 }));
 vi.mock('../../store/workspaceStore/foldSession', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../store/workspaceStore/foldSession')>()),
@@ -29,6 +29,7 @@ vi.mock('../../analytics/trackFoldIo', async (importOriginal) => ({
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() } }));
 
+const { toast } = await import('sonner');
 const { useWorkspaceStore } = await import('../../store/workspaceStore');
 const { useSettingsStore } = await import('../../store/settingsStore');
 const { pullFromFold } = await import('./foldBrowserActions');
@@ -45,8 +46,16 @@ const ROTATE: DiagramTurnKind = { kind: 'rotate', rotate: { amount: 'quarter', d
 /** Targets only say how many: the stubbed replay sends `entries` whatever is asked. */
 const TARGETS = [{ kind: 'step', step: 'fstep-1', moment: 'before' }] as const;
 
+// A pull lazily loads the whole Fold workspace: under a full run its cold transform alone can
+// take a test's five seconds, and a pull still running then counts into the next test.
+beforeAll(async () => {
+  const { loadFold } = await import('../../workspaces/foldGateway');
+  await loadFold();
+}, 30_000);
+
 beforeEach(() => {
   vi.clearAllMocks();
+  sent.flattened = 0;
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   useWorkspaceStore.setState({ foldSequences: [{ document: { id: 'fold-1', steps: [] } }] as never });
 });
@@ -97,5 +106,20 @@ describe('a pull from Fold, counted (plan D17)', () => {
     expect(analytics.trackDiagramStepAdded).not.toHaveBeenCalled();
     expect(analytics.trackDiagramTurnAdded).not.toHaveBeenCalled();
     expect(foldIo.trackFoldStepSentToDiagram).not.toHaveBeenCalled();
+  });
+});
+
+describe('a pull from Fold whose layers could not all be spread', () => {
+  it('says how many steps it added unspread, once they are in the diagram', async () => {
+    sent.entries = [foldStep('fstep-1'), foldStep('fstep-2')];
+    sent.flattened = 2;
+    expect(await pullFromFold(TARGETS, { kind: 'end' }, { via: 'fold' })).toBe(2);
+    expect(toast.message).toHaveBeenCalledWith('2 steps’ layers couldn’t be spread, so they were added unspread.');
+  });
+
+  it('says nothing when every step was spread', async () => {
+    sent.entries = [foldStep('fstep-1')];
+    await pullFromFold(TARGETS, { kind: 'end' }, { via: 'fold' });
+    expect(toast.message).not.toHaveBeenCalled();
   });
 });

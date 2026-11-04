@@ -2,7 +2,7 @@ import '../../layer-spread/captureWorker.testSupport';
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFoldEngineCalls } from '../../fold/engine/foldEngineCalls';
 import { createFoldSession, type FoldSession } from '../../fold/session/foldSession';
 import { inProcessFoldRuntime, settle } from '../../fold/session/foldSession.fixtures';
@@ -35,6 +35,13 @@ const imported = () => state().diagram!.steps.filter(isStep)[0]!;
 const kinds = () => imported().annotations.map((mark) => mark.unknown ? 'unknown' : mark.kind);
 
 describe('a saved Pleat imported into Diagram', () => {
+  // The first pull lazily loads the whole Fold workspace: under a full run its cold transform
+  // alone can take the test's five seconds, so it is loaded as fixture setup.
+  beforeAll(async () => {
+    const { loadFold } = await import('../../workspaces/foldGateway');
+    await loadFold();
+  }, 30_000);
+
   beforeEach(async () => {
     useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
     await start();

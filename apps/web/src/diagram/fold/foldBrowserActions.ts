@@ -52,8 +52,9 @@ export function hasFoldSteps(state: Parameters<typeof shownFoldSequence>[0]): bo
 /**
  * Add `targets` of the shown Fold sequence where `anchor` says, as one undo
  * step: each captured from Fold's replay, the steps that could not be left
- * out and said so. `opening` names the Fold browser opening it was pressed
- * in. How many entries it added.
+ * out and said so, as are those added unspread because their layers could
+ * not be spread. `opening` names the Fold browser opening it was pressed in.
+ * How many entries it added.
  */
 export async function pullFromFold(
   targets: readonly FoldPullTarget[],
@@ -66,7 +67,7 @@ export async function pullFromFold(
   const loadId = store.diagramLoadId;
   const t = i18n.t.bind(i18n);
   const fold = await loadFold();
-  const { sent, failed } = await fold.pullFoldTargets(fold.foldSession(), shown.document.id, targets, { t });
+  const { sent, failed, flattened } = await fold.pullFoldTargets(fold.foldSession(), shown.document.id, targets, { t });
   if (failed > 0) {
     toast.error(
       t('toasts:diagram.fold.someFailed', {
@@ -80,6 +81,15 @@ export async function pullFromFold(
     .getState()
     .pullFoldDiagramSteps(sent, anchor, { loadId, label: 'Add steps from Fold', ...(opening !== undefined ? { opening } : {}) });
   if (!pulled) return 0;
+  if (flattened > 0) {
+    toast.message(
+      t('toasts:diagram.fold.someUnspread', {
+        count: flattened,
+        defaultValue_one: 'A step’s layers couldn’t be spread, so it was added unspread.',
+        defaultValue_other: '{{count}} steps’ layers couldn’t be spread, so they were added unspread.',
+      })
+    );
+  }
   const added = pulled.stepIds.length + pulled.turnIds.length;
   trackFoldStepSentToDiagram(via, added > 1 ? 'many' : 'one', {
     option: useSettingsStore.getState().diagramFoldMergePrecreases ? 'on' : 'off',

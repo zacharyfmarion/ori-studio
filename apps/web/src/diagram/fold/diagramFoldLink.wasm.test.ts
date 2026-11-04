@@ -11,6 +11,7 @@ import { inProcessFoldRuntime, settle } from '../../fold/session/foldSession.fix
 import type { PaperScene } from '../../lib/paper/paperScene';
 import {
   DEFAULT_DIAGRAM_STYLE,
+  DEFAULT_LAYER_SPREAD,
   isStep,
   setTitleBlockContent,
   type DiagramFoldStepSource,
@@ -48,6 +49,9 @@ const { useWorkspaceStore } = await import('../../store/workspaceStore/store');
 const { foldSessionDocumentSource } = await import('../../store/workspaceStore/foldSession');
 const { useLayoutStore } = await import('../../store/layoutStore');
 const { pullFromFold, sendFoldStepsToDiagram } = await import('./foldBrowserActions');
+const { captureFoldTarget, foldPullRender, sentFoldStep } = await import('./foldPull');
+const { sentStep } = await import('../document/diagramDocument');
+const { default: i18n } = await import('../../i18n');
 const { openDiagramStepInFold, refreshDiagramFoldStep, spreadDiagramFoldStep, presentDiagramFoldStep, setDiagramFoldPresentation } = await import('./foldStepActions');
 const { foldLinkContextNow } = await import('./useFoldLinkContext');
 const { foldStepLinkStatus } = await import('./foldStepLink');
@@ -239,7 +243,8 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     ];
     expect(await pullFromFold(targets, { kind: 'end' }, { via: 'fold' })).toBe(2);
     const [before, after] = state().diagram!.steps.filter(isStep);
-    // The state before step 3 is step 2's picture, spread as step 2 is; the one after it, off as step 3 is.
+    // The state before step 3 is step 2's picture, spread as step 2 is; the one after it, which Fold shows
+    // unspread (step 3 turns it off), at the Diagram's default spread all the same.
     expect((before!.source as DiagramFoldStepSource).render).toEqual({
       mode: 'folded-flat',
       side: 'front',
@@ -247,7 +252,7 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
       foldCase: 1,
       spread: depth,
     });
-    expect((after!.source as DiagramFoldStepSource).render).not.toHaveProperty('spread');
+    expect((after!.source as DiagramFoldStepSource).render).toMatchObject({ spread: DEFAULT_LAYER_SPREAD });
     const marks = before!.annotations.length;
     expect(marks).toBeGreaterThan(0);
 
@@ -263,6 +268,25 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     expect(statusOf(posed)).toBe('current');
     // Its marks went with the paper, and are still Fold's.
     expect(posed.annotations.every((mark) => !mark.unknown && mark.imported === 'untouched')).toBe(true);
+  });
+
+  it('pictures a From Fold… card as the step Add makes: spread at the default, its fold’s line and arrow on it', async () => {
+    const sequence = state().foldSequences[0]!.document;
+    const target = { kind: 'step' as const, step: sequence.steps[1]!.id, moment: 'before' as const };
+    const render = foldPullRender(sequence, sequence.id, target);
+    // Fold shows the sequence unspread: the step comes at the Diagram's default.
+    expect(render.spread).toEqual(DEFAULT_LAYER_SPREAD);
+    const card = await captureFoldTarget(held.session!, sequence.id, target, render, { t: i18n.t.bind(i18n) });
+    const shown = sentStep(sentFoldStep(card.result)!).step;
+    expect(card.flattened).toBe(false);
+    expect(await pullFromFold([target], { kind: 'end' }, { via: 'diagram_browser' })).toBe(1);
+    const added = onlyStep();
+    expect((shown.source as DiagramFoldStepSource).render).toEqual(render);
+    expect((added.source as DiagramFoldStepSource).render).toEqual(render);
+    expect(shown.picture?.key).toBe(added.picture?.key);
+    const kinds = (step: DiagramStep) => step.annotations.map((mark) => (mark.unknown ? 'unknown' : mark.kind));
+    expect(kinds(shown)).toEqual(kinds(added));
+    expect(kinds(shown)).toEqual(expect.arrayContaining(['valley-line', 'valley-arrow']));
   });
 
   it('gives the title block the crease pattern of the last step sent, every crease so far, and of a step chosen', async () => {
