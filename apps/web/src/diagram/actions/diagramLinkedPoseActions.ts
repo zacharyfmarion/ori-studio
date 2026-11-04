@@ -132,7 +132,7 @@ export interface DiagramLinkedPoseState {
  * see-through for want of a layer order.
  */
 function spreadBlocker(state: DiagramLinkedPoseState, t: TFunction): string | undefined {
-  if (state.render.mode !== 'folded-flat') {
+  if (state.render.mode !== 'folded-flat' && state.render.mode !== 'folded-3d') {
     return t('panels:diagram.pose.spreadNeedsFlat', 'Only a flat folded picture has layers to spread');
   }
   if (state.seeThrough || state.solutions?.none) {
@@ -292,7 +292,7 @@ export function buildDiagramLinkedPoseActions(
   });
   // Held from turning on, never from turning off: a fold that lost its layer
   // order keeps a spread it cannot show, and taking it off changes nothing seen.
-  const spreadOn = render.mode === 'folded-flat' && render.spread !== undefined;
+  const spreadOn = (render.mode === 'folded-flat' || render.mode === 'folded-3d') && render.spread !== undefined;
   const spreadHeld = spreadOn ? undefined : spreadBlocker(state, t);
   // The live view's own, as Edit's 3D window and Simulate offer it: held while none shows.
   const setUpright = action('set-upright', t('panels:diagram.pose.setUpright', 'Set Upright'), {

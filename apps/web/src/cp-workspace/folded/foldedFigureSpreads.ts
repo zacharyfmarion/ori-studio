@@ -62,6 +62,7 @@ import type {
   OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
 import { NEWER, hasNewerKey, isRecord } from '../../lib/documentFile';
+import { readSpatialSpread } from './spatialSpreadSettings';
 import { keyDigest } from '../../lib/keyDigest';
 import { foldedFigureSavesLiveSpreadScene, type FoldedFigureSpread } from './foldedFigureSpread';
 import { foldedFigureRefoldKey } from './foldedFigureLayerOrders';
@@ -306,6 +307,11 @@ export function figureIdsInFoldedFigureSpreads(extensions: Record<string, unknow
 /** A saved entry as a figure holds it: null for damage, which is dropped. */
 function heldSpread(entry: Record<string, unknown>): FoldedFigureSpread | null {
   if (hasNewerKey(entry, SAVED_KEYS)) return { kind: 'newer', saved: entry };
+  const spatial = entry.spread;
+  if (isRecord(spatial) && spatial.kind === 'spatial') {
+    const read = readSpatialSpread(spatial);
+    return read === NEWER ? { kind: 'newer', saved: entry } : read ?? null;
+  }
   const read = readLayerSpread(entry.spread);
   if (read === NEWER) return { kind: 'newer', saved: entry };
   return read ? { kind: 'record', spread: read } : null;
@@ -325,7 +331,7 @@ function savedSpreadEntry(
   return {
     figureKey: foldedFigureSpreadFigureKey(figure),
     refoldKey: foldedFigureRefoldKey(figure),
-    spread: writeLayerSpread(spread.spread),
+    spread: spread.kind === 'spatial' ? { kind: 'spatial', version: spread.version, amount: spread.amount } : writeLayerSpread(spread.spread),
     ...(scene !== null ? { scene } : {}),
   };
 }

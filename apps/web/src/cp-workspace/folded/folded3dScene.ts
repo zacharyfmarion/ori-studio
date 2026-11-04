@@ -78,6 +78,7 @@ import { planeFrame } from './folded3dModelReader';
 import { folded3dStylePlan } from './folded3dStyle';
 import { folded3dFrameFillZoom, folded3dWindowView } from './folded3dWindow';
 import { folded3dCoplanarEpsilon, type FoldedFigureCamera } from './folded3dCamera';
+import { spatialPaperScene } from './folded3dSpatialScene';
 
 export interface Folded3dPaperSceneOptions {
   /**
@@ -112,6 +113,7 @@ export function folded3dPaperScene(
   options: Folded3dPaperSceneOptions
 ): PaperScene {
   const style = surfacePaperStyle(options.style, PAPER_STYLE_POLICIES['folded-3d']);
+  if (mesh.spatial) return spatialPaperScene(mesh, camera, style);
   const plan = folded3dStylePlan(options.displayStyle ?? 'Paper5');
   const layers = slotRanks(mesh, model, camera);
   const geometry = sceneTopology(mesh, model, layers, {

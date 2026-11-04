@@ -177,6 +177,7 @@ export {
 } from './trackDiagram';
 export { trackDiagramEnlargementChanged, trackDiagramStepEnlarged } from './trackDiagramZoom';
 export { trackDesktopDownload } from './trackDesktopDownload';
+export { trackSpatialSpreadChanged } from './trackSpatialSpread';
 export { trackFoldChoiceOffered, trackFoldRefused, trackFoldSpreadChanged, trackFoldStepAdded } from './trackFold';
 export { trackLayerConstraintsDismissed, trackLayerConstraintsNeedAttention } from './trackLayerOrder';
 export {

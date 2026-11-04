@@ -34,6 +34,7 @@ import {
 import type { FoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
 import { layerSpreadControls, spreadAmountSlider, spreadSliderEdit, type LayerSpreadChoice } from './layerSpreadControls';
+import { spatialSpreadFromPercent, spatialSpreadPercent } from './spatialSpreadSettings';
 import {
   DEFAULT_CONNECTED_SPREAD,
   SPREAD_AXIS_RANGE,
@@ -81,10 +82,12 @@ export function foldedFigureSpreadReason(block: FoldedFigureSpreadBlock, t: TFun
         'panels:cpProperties.folded.spreadNewer',
         'Made with a newer Ori Studio: its layer spread can’t be changed here.'
       );
-    case 'spatial':
-      return t('panels:diagram.pose.spreadNeedsFlat', 'Only a flat folded picture has layers to spread');
     case 'no-layer-order':
       return t('panels:diagram.pose.spreadNeedsOrder', 'This fold has no layer order, so it has no layers to spread');
+    case 'spatial-look':
+      return t('panels:cpProperties.folded.spreadNeedsPaper', '3D spread is available in the Paper look');
+    case 'recipe':
+      return t('panels:cpProperties.folded.spreadRecipe', 'Turn spread off and on to use this figure’s spread');
     case 'look':
       return t('panels:cpProperties.folded.spreadNeedsLook', 'Only the Paper and X-ray looks can spread their layers');
     case 'refold':
@@ -121,7 +124,7 @@ export function foldedFigureSpreadSection(
   const reason = block === null ? undefined : foldedFigureSpreadReason(block, t);
   // A spread the canvas could not draw can still be turned off: the switch
   // waits only for what turning it on or off cannot change.
-  const switchHeld = block !== null && block !== 'unavailable';
+  const switchHeld = block !== null && block !== 'unavailable' && block !== 'recipe';
   const toggle: ToggleField = {
     id: 'spreadLayers',
     kind: 'toggle',
@@ -132,8 +135,24 @@ export function foldedFigureSpreadSection(
     protocol: 'discrete',
     // A newer build's spread is on, by that build's rules.
     value: figure.spread != null,
-    commit: (on) => deps.setSpread(on ? { kind: 'record', spread: deps.spreadStarts().any } : null),
+    commit: (on) => deps.setSpread(on ? figure.folded3d ? { kind: 'spatial', version: 1, amount: 1 } : { kind: 'record', spread: deps.spreadStarts().any } : null),
   };
+  if (figure.spread?.kind === 'spatial' && figure.folded3d) {
+    return {
+      id: 'spread', title: t('panels:cpProperties.folded.spread', 'Spread'),
+      fields: [toggle, {
+        id: 'spreadAmount', kind: 'slider', label: t('panels:diagram.pose.spreadAmount', 'Amount'),
+        ariaLabel: t('panels:diagram.pose.spreadAmountName', 'Spread amount'),
+        support: reason ? 'unsupported' : 'supported', reason, undoLabel,
+        min: 0, max: 100, step: 1, value: onSliderGrid(spatialSpreadPercent(figure.spread.amount), 1),
+        format: value => `${Math.round(value)}%`, valueText: value => `${Math.round(value)}%`,
+        protocol: 'continuous', begin: () => deps.begin('spread-amount'),
+        update: amount => deps.writeSpread({ verb: 'spread-amount', amount: spatialSpreadFromPercent(amount) }),
+        end: () => deps.end(undoLabel), held: deps.held,
+        reset: () => deps.setSpread({ kind: 'spatial', version: 1, amount: 1 }),
+      }],
+    };
+  }
   const shown = foldedFigureSpreadOptions(figure);
   return {
     id: 'spread',

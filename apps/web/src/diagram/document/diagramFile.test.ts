@@ -3919,3 +3919,14 @@ describe('a linked step’s layer order', () => {
     expect(storedCpSource({ ...source, layerOrder: '{"v":1}' })).not.toHaveProperty('layerOrder');
   });
 });
+
+
+it.each([2, 4])('round trips spatial amount %s and locks an unknown spatial version',(amount)=>{
+  const written=throughJson(writeDiagram(linkedDiagram()));
+  written.steps[2].source.render.spread={kind:'spatial',version:1,amount};
+  const read=readDiagram(written)!;
+  expect((stepsIn(read.document)[2]!.source as DiagramCpSource).render).toMatchObject({spread:{kind:'spatial',version:1,amount}});
+  expect(throughJson(writeDiagram(read.document)).steps[2].source.render.spread).toEqual(written.steps[2].source.render.spread);
+  written.steps[2].source.render.spread.version=2;
+  expect(stepsIn(readDiagram(written)!.document)[2]!.unknown).toBeDefined();
+});

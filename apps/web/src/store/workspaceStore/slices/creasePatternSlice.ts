@@ -2551,12 +2551,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const held = figure.spread ?? null;
       const same =
         held === spread ||
-        (held?.kind === 'record' && spread?.kind === 'record' && sameSpread(held.spread, spread.spread));
+        (held?.kind === 'record' && spread?.kind === 'record' && sameSpread(held.spread, spread.spread)) ||
+        (held?.kind === 'spatial' && spread?.kind === 'spatial' && held.amount === spread.amount && held.version === spread.version);
       if (same) return true;
       // Editing a figure's spread selects it, as editing its appearance does.
       takeCanvasSelection('folded-figure', {
         oristudioCpFoldedFigures: figures.map((candidate) =>
-          candidate.id === id ? { ...candidate, spread } : candidate
+          candidate.id === id ? { ...candidate, spread, scene: candidate.folded3d ? reproject3dScene({ ...candidate, spread }, candidate.displayStyle) ?? candidate.scene : candidate.scene } : candidate
         ),
         oristudioCpActiveFoldedFigureId: id,
         dirty: true,
