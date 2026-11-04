@@ -1,3 +1,4 @@
+vi.mock('./programs/spreadProgram', () => ({createSpreadProgram:()=>({setData:()=>{},draw:()=>{},dispose:()=>{}})}));
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCpSuppressionRegion } from '../annotations/suppressionRegion';

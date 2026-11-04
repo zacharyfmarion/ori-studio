@@ -522,6 +522,37 @@ describe('SettingsModal', () => {
     expect(useShortcutStore.getState().overrides['file.save']).toBeUndefined();
   });
 
+  // Row H5: Shift+G by default, right after Fold estimate (the one with G);
+  // the key runs it on the Edit canvas, and can be moved here like any other.
+  it('lists Fold with layer order… on Shift+G after Fold estimate, and rebinds it', () => {
+    renderModal('shortcuts');
+    const labels = Array.from(container?.querySelectorAll('.settings-shortcuts__copy span') ?? []).map(
+      (element) => element.textContent
+    );
+    expect(labels[labels.indexOf('Fold estimate') + 1]).toBe('Fold with layer order…');
+    const row = shortcutRowFor('Fold with layer order…');
+    expect(row.querySelector('.settings-shortcuts__capture')?.textContent).toBe('Shift+G');
+    expect(row.querySelector('.settings-shortcuts__default')?.textContent).toBe('Shift+G');
+    expect(dispatch(['viewport', 'crease-pattern', 'global'], { key: 'G', shiftKey: true })).toEqual([
+      'cp.action.fold-with-layer-order',
+    ]);
+    // Only on the crease pattern: elsewhere the canvas's scope is not in the stack.
+    expect(dispatch(['viewport', 'global'], { key: 'G', shiftKey: true })).toEqual([]);
+
+    act(() => {
+      (row.querySelector('.settings-shortcuts__capture') as HTMLButtonElement).click();
+    });
+    pressChord({ key: 'k', altKey: true, shiftKey: true });
+
+    expect(useShortcutStore.getState().overrides['cp.action.fold-with-layer-order']).toEqual([
+      { alt: true, shift: true, key: 'k' },
+    ]);
+    expect(dispatch(['viewport', 'crease-pattern', 'global'], { key: 'k', altKey: true, shiftKey: true })).toEqual([
+      'cp.action.fold-with-layer-order',
+    ]);
+    expect(dispatch(['viewport', 'crease-pattern', 'global'], { key: 'G', shiftKey: true })).toEqual([]);
+  });
+
   /*
    * An armed capture installs a window-level keydown listener that consumes
    * every key in the whole application. These three pin the ways out of it,

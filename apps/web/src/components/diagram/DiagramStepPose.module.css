@@ -1,18 +1,6 @@
-/* The Step pane's Pose section (DiagramStepPose.tsx). */
+/* The Step pane's Pose section (DiagramStepPose.tsx). Its Layer order row is
+   the shared one (components/paper/LayerOrderRow). */
 .pose {
   display: grid;
   gap: var(--space-1);
-}
-
-/* A flat fold's layer order: ‹ where it stands ›. */
-.pager {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.pagerLabel {
-  padding: 0 var(--space-1);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }

@@ -435,9 +435,34 @@ describe('what a desktop binary picker calls its filter', () => {
     await service.openBinaryFile({ title: 'Import', extensions: ['cp', 'fold'], filterName: 'Ori Studio' });
     await service.openBinaryFiles({ title: 'Open images', extensions: ['png'] });
     expect(dialog.open.mock.calls.map(([options]) => (options as { filters: unknown }).filters)).toEqual([
-      [{ name: 'Image', extensions: ['png'] }],
-      [{ name: 'Ori Studio', extensions: ['cp', 'fold'] }],
-      [{ name: 'Image', extensions: ['png'] }],
+      [{ name: 'Image', extensions: ['png', 'PNG'] }],
+      [{ name: 'Ori Studio', extensions: ['cp', 'CP', 'fold', 'FOLD'] }],
+      [{ name: 'Image', extensions: ['png', 'PNG'] }],
+    ]);
+  });
+
+  // GTK turns a filter with no patterns into one that matches nothing: the
+  // chooser lists only folders. A caller that takes any file gets no filter.
+  it('sets no filter when the caller takes any file', async () => {
+    const service = createFileService('desktop');
+    await service.openBinaryFile({ title: 'Open Oriedita Settings Export', extensions: [] });
+    await service.openBinaryFiles({ title: 'Open files', extensions: [] });
+    await service.openTextFile({ title: 'Open', extensions: [] });
+    expect(dialog.open.mock.calls.map(([options]) => (options as { filters: unknown }).filters)).toEqual([
+      [],
+      [],
+      [],
+    ]);
+  });
+
+  // GTK 3 matches `*.jpg` case-sensitively, so a camera's `IMG_0412.JPG` hid.
+  it('offers each extension in upper case too, once', async () => {
+    const service = createFileService('desktop');
+    await service.openTextFile({ title: 'Open', extensions: ['osf', 'opx'] });
+    await service.openBinaryFile({ title: 'Open image', extensions: ['jpg', 'JPEG'] });
+    expect(dialog.open.mock.calls.map(([options]) => (options as { filters: unknown }).filters)).toEqual([
+      [{ name: 'Ori Studio', extensions: ['osf', 'OSF', 'opx', 'OPX'] }],
+      [{ name: 'Image', extensions: ['jpg', 'JPG', 'JPEG'] }],
     ]);
   });
 });

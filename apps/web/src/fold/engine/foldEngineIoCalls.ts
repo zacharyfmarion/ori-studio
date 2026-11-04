@@ -1,6 +1,7 @@
 /**
- * Import CP, Start from Edit's folded figure, Send to Edit and the FOLD
- * export, over the same wasm `FoldEngine` as `foldEngineCalls.ts`: what
+ * Import CP (with its Layer order dialog opening, row H10), Start from Edit's
+ * folded figure, Send to Edit and the FOLD export, over the same wasm
+ * `FoldEngine` as `foldEngineCalls.ts`: what
  * `workers/foldSequenceWorker.ts` exposes beside the step calls, kept apart
  * from the worker so the wasm test drives exactly these calls in-process.
  *
@@ -23,6 +24,7 @@ import type {
   FoldExported,
   FoldImportFingerprinted,
   FoldImportLanded,
+  FoldImportLayerOpening,
   FoldImportLimits,
   FoldImportOpened,
   FoldImportSource,
@@ -37,6 +39,9 @@ export interface FoldWasmIoEngine {
   import_sheet(file: unknown, bytes: Uint8Array): unknown;
   import_search(importHandle: number, choice: Uint32Array, limits: unknown): unknown;
   import_pick(importHandle: number, choice: Uint32Array): unknown;
+  import_layer_opening(importHandle: number, choice: Uint32Array): unknown;
+  import_pick_layer_order(importHandle: number, digest: string, relations: Uint32Array): unknown;
+  import_turn(importHandle: number, turnDeg: number): unknown;
   import_edit_folded_figure(scene: unknown, target: unknown, limits: unknown): unknown;
   release_imports(imports: Uint32Array): number;
   live_imports(): number;
@@ -100,6 +105,30 @@ export interface FoldEngineIoCalls {
   importSearch(importHandle: number, choice: readonly number[], limits?: FoldImportLimits): FoldEngineOutcome<{ opened: FoldImportOpened; choice: number[] }>;
   /** Land one listed order per component as a step: its state, fingerprint and op. */
   importPick(importHandle: number, choice: readonly number[]): FoldEngineOutcome<FoldImportFingerprinted>;
+  /**
+   * Open an import onto the Layer order dialog (row H10): the fold the dialog
+   * analyses, the order `choice` picks drawn over its faces, and how Fold
+   * shows the state. Refused as `import_layer_unavailable` when the dialog
+   * cannot work on this import; its own chooser still can.
+   */
+  importLayerOpening(importHandle: number, choice: readonly number[]): FoldEngineOutcome<FoldImportLayerOpening>;
+  /**
+   * Land the order the Layer order dialog's Apply chose: `relations`, flat
+   * `[upper, lower, …]` over the faces of the opening whose source has
+   * `digest`, as a step: its state, fingerprint and op.
+   */
+  importPickLayerOrder(
+    importHandle: number,
+    digest: string,
+    relations: Uint32Array
+  ): FoldEngineOutcome<FoldImportFingerprinted>;
+  /**
+   * Turn an import opened onto the Layer order dialog so Fold shows it
+   * turned `turnDeg`, clockwise on screen, from its side's picture (the
+   * dialog's Rotate, in its opening's `look` terms). Every step it lands
+   * after stores the turn (`FoldCpJumpOp.turnDeg`). Answers its look now.
+   */
+  importTurn(importHandle: number, turnDeg: number): FoldImportLayerOpening['look'];
   /** Start from Edit's folded figure: the kernel's paper scene of it. */
   importEditFoldedFigure(
     scene: OristudioCpFoldedPaperScene,
@@ -146,6 +175,27 @@ export function createFoldEngineIoCalls(engine: FoldWasmIoEngine): FoldEngineIoC
     importPick(importHandle, choice) {
       const landed = engine.import_pick(requireHandle('import', importHandle), requireChoice(choice));
       return fingerprinted(landed as FoldEngineOutcome<FoldImportLanded>);
+    },
+
+    importLayerOpening(importHandle, choice) {
+      return engine.import_layer_opening(
+        requireHandle('import', importHandle),
+        requireChoice(choice)
+      ) as FoldEngineOutcome<FoldImportLayerOpening>;
+    },
+
+    importPickLayerOrder(importHandle, digest, relations) {
+      if (typeof digest !== 'string') throw invalidInput('digest must be a string');
+      if (Object.prototype.toString.call(relations) !== '[object Uint32Array]') {
+        throw invalidInput('relations must be a Uint32Array');
+      }
+      const landed = engine.import_pick_layer_order(requireHandle('import', importHandle), digest, relations);
+      return fingerprinted(landed as FoldEngineOutcome<FoldImportLanded>);
+    },
+
+    importTurn(importHandle, turnDeg) {
+      if (typeof turnDeg !== 'number' || !Number.isFinite(turnDeg)) throw invalidInput('turnDeg must be a number');
+      return engine.import_turn(requireHandle('import', importHandle), turnDeg) as FoldImportLayerOpening['look'];
     },
 
     importEditFoldedFigure(scene, to, within) {

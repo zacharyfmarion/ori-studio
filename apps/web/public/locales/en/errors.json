@@ -2,6 +2,7 @@
   "boundary": {
     "appDescription": "Your work is still in memory but the interface could not recover on its own. Copy the details below before reloading — they tell a developer exactly what went wrong.",
     "appTitle": "Ori Studio ran into a problem",
+    "close": "Close",
     "copied": "Copied",
     "copy": "Copy details",
     "copyFailed": "Couldn't copy",
@@ -19,6 +20,12 @@
   },
   "cp": {
     "foldProducedNothing": "These creases have no flat folded form to draw",
+    "layerOrderNotApplied": "Layer order couldn’t apply this order to {{name}}. Its picture is unchanged.",
+    "layerOrderNotFolded": "Layer order couldn’t fold these creases in this order.",
+    "layerOrderPatternChanged": "The crease pattern changed meanwhile, so Layer order changed nothing.",
+    "layerOrderTooLarge": "This layer order is too large to save with the figure, so it is unchanged.",
+    "layerOrderTooLargeToFold": "This layer order is too large to save with a folded model, so nothing was folded.",
+    "layerOrderUndeterminedSelection": "Layer order couldn’t be determined for these creases.",
     "pinnedVertex": "That crease starts at a pinned vertex, so it cannot be lengthened. Unpin the vertex first, or extend a different crease."
   },
   "cpDetectImport": {

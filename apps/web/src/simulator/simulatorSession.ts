@@ -1989,7 +1989,8 @@ const api = {
   /** Move a folded figure's camera and redraw it. Null once its mesh is gone. */
   async setFolded3dMeshCamera(
     token: Folded3dMeshToken,
-    camera: SimulatorCamera
+    camera: SimulatorCamera,
+    settings?: RenderSettings
   ): Promise<Folded3dMeshFrame | null> {
     const mesh = meshFor(token);
     if (!mesh) return null;
@@ -1997,6 +1998,9 @@ const api = {
     mesh.view.view = camera.view;
     mesh.view.width = camera.width;
     mesh.view.height = camera.height;
+    // Apply a coalesced camera/style update in one render, not two competing
+    // bitmap requests. Existing camera-only callers retain the stored style.
+    if (settings) mesh.view.settings = settings;
     const bitmap = await renderGpu(mesh.source, mesh.view);
     return bitmap ? transfer({ bitmap }, [bitmap]) : { bitmap: null };
   },

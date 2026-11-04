@@ -180,11 +180,13 @@ function readTuckTargets(value: unknown): readonly SheetPoint[] | null {
   return points.every((point): point is SheetPoint => point !== null) ? points : null;
 }
 
-const SEQUENCE_KEYS = new Set(['formatVersion', 'id', 'title', 'paper', 'style', 'appearance', 'sheetMarks', 'steps']);
+const SEQUENCE_KEYS = new Set(['formatVersion', 'id', 'title', 'paper', 'style', 'defaultSpread', 'appearance', 'sheetMarks', 'steps']);
 
 function readDocument(value: Record<string, unknown>, newId: FoldIdFactory): FoldSequenceDocument {
   const sheetMarks = readMarks(value.sheetMarks);
+  const defaultSpread = value.defaultSpread === 'off' ? 'off' : readLayerSpread(value.defaultSpread);
   const carried = Object.fromEntries(Object.entries(value).filter(([key]) => !SEQUENCE_KEYS.has(key)));
+  if (defaultSpread === NEWER) carried.defaultSpread = value.defaultSpread;
   // A style a newer build wrote is drawn as this build reads it, and written back as it came.
   if (isRecord(value.style) && isNewerDocumentPaperStyle(value.style)) carried.style = value.style;
   return {
@@ -194,6 +196,7 @@ function readDocument(value: Record<string, unknown>, newId: FoldIdFactory): Fol
     paper: readPaper(value.paper),
     // A file from before there was a style draws in the default, and is written with it.
     style: readDocumentPaperStyle(value.style, FOLD_DEFAULT_PAPER_STYLE),
+    ...(defaultSpread && defaultSpread !== NEWER ? { defaultSpread } : {}),
     ...(isRecord(value.appearance) ? { appearance: value.appearance } : {}),
     ...(sheetMarks.length > 0 ? { sheetMarks } : {}),
     steps: readSteps(value.steps),
@@ -361,14 +364,14 @@ const OP_KEYS = new Map<string, ReadonlySet<string>>([
   ['refold', new Set(['kind', 'crease', 'direction', 'moving', 'seed'])],
   ['turn', new Set(['kind', 'axis'])],
   ['rotate', new Set(['kind', 'rotate'])],
-  ['cp-jump', new Set(['kind', 'cpJson', 'orderJson', 'origin', 'source'])],
+  ['cp-jump', new Set(['kind', 'cpJson', 'orderJson', 'origin', 'source', 'turnDeg'])],
   // Compound folds (plan D4), one block per family.
   ['inside-reverse', ALONG_LINE_KEYS],
   ['outside-reverse', ALONG_LINE_KEYS],
   ['pleat', new Set([...ALONG_LINE_KEYS, 'second', 'secondRoot', 'resolved'])],
   ['crimp', new Set([...ALONG_LINE_KEYS, 'second', 'crimp'])],
   ['tuck', new Set([...ALONG_LINE_KEYS, 'direction', 'target', 'additionalTargets'])],
-  ['squash', new Set(['kind', 'flap', 'target', 'direction', 'hinge'])],
+  ['squash', new Set(['kind', 'flap', 'target', 'direction', 'hinge', 'opening'])],
   // H by `crease` or by `ends`, one of the two (`FoldPetalOp`).
   ['petal', new Set(['kind', 'crease', 'ends', 'petal', 'direction'])],
   ['rabbit-ear', new Set(['kind', 'corners', 'emergent', 'seed', 'stayer', 'direction', 'ridge'])],
@@ -494,10 +497,15 @@ function readOp(value: unknown, depth = 0, budget = { remaining: 256 }): FoldOp 
         typeof source.revision !== 'string' || !source.revision)) return null;
       const region = isRecord(source) && source.region !== undefined ? readRegionReference(source.region) : undefined;
       if (region === null) return null;
+      // The dialog's turn on the import: a number of degrees, at most half a turn either way.
+      const { turnDeg } = value;
+      if (turnDeg !== undefined && (typeof turnDeg !== 'number' || !Number.isFinite(turnDeg) || Math.abs(turnDeg) > 180)) {
+        return null;
+      }
       return origin && typeof cpJson === 'string' && typeof orderJson === 'string'
         ? { kind, cpJson, orderJson, origin, ...(source ? { source: {
           documentId: source.documentId as string, revision: source.revision as string, ...(region ? { region } : {}),
-        } } : {}) }
+        } } : {}), ...(turnDeg ? { turnDeg } : {}) }
         : null;
     }
     // Compound folds (plan D4), one block per family.
@@ -583,8 +591,19 @@ function readVertexOp(kind: FoldVertexOpKind, value: Record<string, unknown>): F
       const target = optional('target');
       // A drawn hinge, when one is spelled; one that does not read locks the step.
       const hinge = value.hinge === undefined ? undefined : readLocatedLine(value.hinge);
-      if (!flap || target === null || hinge === null) return null;
-      return { kind, flap, ...(target ? { target } : {}), direction, ...(hinge ? { hinge } : {}) };
+      // Where a flap of several plies opens, when not between its walls: a
+      // count of layers, or the step locks.
+      const opening = value.opening;
+      const opens = opening === undefined || (typeof opening === 'number' && Number.isInteger(opening) && opening >= 1);
+      if (!flap || target === null || hinge === null || !opens) return null;
+      return {
+        kind,
+        flap,
+        ...(target ? { target } : {}),
+        direction,
+        ...(hinge ? { hinge } : {}),
+        ...(typeof opening === 'number' ? { opening } : {}),
+      };
     }
     case 'petal': {
       const petal = readPoint(value.petal);
@@ -1031,6 +1050,7 @@ function writeSequenceFields(document: FoldSequenceDocument): Record<string, unk
     paper: writeFoldPaper(document.paper),
     // Written always, so a later default never changes what a saved sequence is drawn in.
     style: document.style ?? FOLD_DEFAULT_PAPER_STYLE,
+    ...(document.defaultSpread ? { defaultSpread: document.defaultSpread === 'off' ? 'off' : writeLayerSpread(document.defaultSpread) } : {}),
     ...(appearance ? { appearance } : {}),
     ...(sheetMarks && sheetMarks.length > 0 ? { sheetMarks: sheetMarks.map(writeMark) } : {}),
     steps: document.steps.map(writeStep),
@@ -1106,7 +1126,14 @@ export function writeFoldOp(op: FoldOp): Record<string, unknown> {
     case 'unfold-to':
       return { kind: op.kind, target: op.target, source: { ...op.source } };
     case 'cp-jump':
-      return { kind: op.kind, cpJson: op.cpJson, orderJson: op.orderJson, origin: op.origin, ...(op.source ? { source: { ...op.source } } : {}) };
+      return {
+        kind: op.kind,
+        cpJson: op.cpJson,
+        orderJson: op.orderJson,
+        origin: op.origin,
+        ...(op.source ? { source: { ...op.source } } : {}),
+        ...(op.turnDeg ? { turnDeg: op.turnDeg } : {}),
+      };
     // Compound folds (plan D4), one block per family.
     case 'inside-reverse':
     case 'outside-reverse':
@@ -1154,6 +1181,7 @@ function writeVertexOp(op: FoldVertexOp): Record<string, unknown> {
         ...optional('target', op.target),
         direction: op.direction,
         ...(op.hinge ? { hinge: writeLocatedLine(op.hinge) } : {}),
+        ...(op.opening !== undefined ? { opening: op.opening } : {}),
       };
     case 'petal':
       // The precrease form exactly as it was always written; the ends form

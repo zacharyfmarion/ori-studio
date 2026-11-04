@@ -575,9 +575,50 @@ export function withTarget(op: FoldVertexOp, target: FoldModelDirection | null):
   return op.kind === 'squash' && target ? { ...op, target } : op;
 }
 
+/**
+ * Where a squash of a flap whose walls are several plies opens between its
+ * walls, by how many of its layers at the flap point lie above the opening —
+ * the engine's reading of an op that names none; null for any other fold.
+ */
+export function squashWallsOpening(answer: FoldVertexAnalysed | null): number | null {
+  const analysis = answer?.analysis;
+  return analysis?.kind === 'squash' ? (analysis.opening ?? 1) : null;
+}
+
+/**
+ * The openings of a squash of a flap whose walls are several plies that land,
+ * each by how many of its layers lie above it, from the direction's side: all
+ * the folder is offered (owner feedback, 2026-10-12: a choice that cannot fold
+ * is never offered). Empty for a two-layer flap, which opens one way, and for
+ * the other folds.
+ */
+export function squashOpenings(answer: FoldVertexAnalysed | null): number[] {
+  if (answer?.analysis.kind !== 'squash') return [];
+  return (answer.openings ?? []).flatMap((lands, k) => (lands ? [k + 1] : []));
+}
+
+/**
+ * The opening a squash folds: the folder's while it lands, else between its
+ * walls. Null for any other fold.
+ */
+export function squashOpeningToFold(chosen: number | null | undefined, answer: FoldVertexAnalysed): number | null {
+  const walls = squashWallsOpening(answer);
+  if (walls === null) return null;
+  return chosen != null && squashOpenings(answer).includes(chosen) ? chosen : walls;
+}
+
+/** A squash opening `opening` layers down, stored only off its walls (`walls`); the op unchanged for any other fold. */
+export function withOpening(op: FoldVertexOp, opening: number | null, walls: number | null): FoldVertexOp {
+  if (op.kind !== 'squash') return op;
+  const { opening: _stored, ...rest } = op;
+  return opening !== null && opening !== walls ? { ...rest, opening } : rest;
+}
+
 /** The folder's choices of what the engine lists, by index, and where a squash's spine was aimed. */
 export interface FoldVertexTaken {
   squashTarget: FoldModelDirection | null;
+  /** Where a squash of several plies opens, by how many layers lie above it; null or absent for between its walls. */
+  squashOpening?: number | null;
   /** A fan's fourth ray, or a swivel's ridge; null for the first that lands. */
   emergent: number | null;
   /** The layer order, of those listed. */
@@ -593,10 +634,13 @@ export interface FoldVertexChosen {
   direction: FoldDirection;
   /** A swivel on a folded edge's kind: the one asked, always. Null for any other fold. */
   kind: FoldSwivelKind | null;
+  /** Where a squash opens, by how many layers lie above it: the folder's while it lands, else between its walls. Absent for any other fold. */
+  opening?: number;
   /**
    * Whether it is another fold than the one first asked — a spine aimed off
-   * the hinge, another fourth ray or ridge — whose orders must be asked of
-   * it; otherwise the first answer stands for it.
+   * the hinge, a squash opened off its walls, another fourth ray or ridge —
+   * whose orders must be asked of it; otherwise the first answer stands for
+   * it.
    */
   again: boolean;
 }
@@ -646,14 +690,17 @@ export function vertexChosenOp(
   const emergent = emergentToFold(taken.emergent, first);
   const fan = base.kind === 'rabbit-ear' || (base.kind === 'swivel' && !('via' in base));
   if (fan && emergent === null) return null;
+  const walls = squashWallsOpening(first);
+  const opening = squashOpeningToFold(taken.squashOpening, first);
   // Folded the way and the kind asked: one that does not land is refused, never swapped.
   return {
-    op: withTarget(withEmergent(base, first, emergent), taken.squashTarget),
+    op: withOpening(withTarget(withEmergent(base, first, emergent), taken.squashTarget), opening, walls),
     emergent,
     direction: vertexDirectionOf(base),
     kind: isFoldedSwivelOp(base) ? swivelKindOf(base) : null,
+    ...(opening !== null ? { opening } : {}),
     again:
-      (base.kind === 'squash' && taken.squashTarget !== null) ||
+      (base.kind === 'squash' && (taken.squashTarget !== null || opening !== walls)) ||
       (emergent !== null && emergent !== namedChoice(first)),
   };
 }

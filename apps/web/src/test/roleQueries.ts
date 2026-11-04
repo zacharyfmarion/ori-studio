@@ -4,12 +4,15 @@
  * subset of the accessible-name rules: `aria-label`, then `aria-labelledby`,
  * then the content, leaving out what is `aria-hidden` and keeping elements
  * apart by a space; and the implicit roles the app's components rely on (a
- * `<button>` is a button, an `<aside>` complementary).
+ * `<button>` is a button, an `<aside>` complementary, a named `<section>` a
+ * region).
  */
 
 const IMPLICIT_ROLES: Readonly<Record<string, string>> = {
   button: 'button:not([role])',
   complementary: 'aside:not([role])',
+  // A `<section>` is a region only when it has a name.
+  region: 'section[aria-label]:not([role]), section[aria-labelledby]:not([role])',
   heading: 'h1:not([role]), h2:not([role]), h3:not([role]), h4:not([role]), h5:not([role]), h6:not([role])',
 };
 

@@ -1,0 +1,324 @@
+/*
+ * "Add a constraint" (LayerOrderBuilder.tsx; A3's sentence, A5's object
+ * field, Round4-States' hint line). Every row keeps its height and every
+ * slot its width, so filling, clearing or a verb change never moves a
+ * control; the object field alone grows, a line at a time, as its chips
+ * wrap (D21), and what sits below moves down with it.
+ */
+.builder {
+  --slot-height: 28px;
+  --slot-ring: color-mix(in srgb, var(--accent-primary) 24%, transparent);
+  /* The boards' quiet ink: --text-secondary alone is under 4.5:1 here in some presets (layerOrderQuietInk.test.ts). */
+  --quiet: color-mix(in srgb, var(--text-secondary) 50%, var(--text-primary));
+
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  padding: 0 var(--space-3) 10px;
+}
+
+.head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 30px;
+  padding-top: 2px;
+}
+
+.title {
+  margin: 0;
+  color: var(--quiet);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+/* The sentence on one line, its parts in the locale's order: the subject and the object field share the room,
+   the verb takes 100 px (A3's grid). */
+.sentence {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.builder[data-off] .sentence {
+  opacity: 0.5;
+}
+
+.slot {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  min-width: 0;
+  height: var(--slot-height);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.slot:hover {
+  border-color: var(--border-strong);
+}
+
+/* The slot the next face picked fills: the select trigger's focus ring. */
+.slot[data-active] {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--slot-ring);
+}
+
+/* The object field: chips wrap inside it, its one × on the first line. */
+.slot[data-slot='objects'] {
+  align-items: flex-start;
+  height: auto;
+  min-height: var(--slot-height);
+}
+
+.slotMain {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+.slotMain:focus-visible,
+.fieldOpen:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.slotMain[aria-disabled='true'],
+.fieldOpen[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/* The field itself, behind its chips: what focus lands on, and what opens its face menu from the keyboard. */
+.fieldOpen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+.placeholder {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--quiet);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot[data-active] .placeholder {
+  color: color-mix(in srgb, var(--accent-primary) 70%, var(--text-primary));
+}
+
+.chips {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 3px 0 3px 4px;
+  pointer-events: none;
+}
+
+.chips > * {
+  pointer-events: auto;
+}
+
+.slotClear {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.slotClear[data-objects] {
+  margin-top: 3px;
+  margin-left: auto;
+}
+
+.slotClear:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.slotClear:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.verb {
+  display: flex;
+  flex: 0 0 100px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+  height: var(--slot-height);
+  padding: 0 6px 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+.verb:hover {
+  background: var(--bg-surface);
+}
+
+.verb[aria-expanded='true'],
+.verb:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--slot-ring);
+}
+
+.verbChevron {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+/* Words a locale's sentence puts between its slots (a particle). */
+.particle {
+  flex: none;
+  align-self: center;
+  color: var(--quiet);
+  font-size: 0.75rem;
+}
+
+/* The hint line: two lines of 0.7rem reserved, whatever it says, so nothing under it moves (Round3). */
+.hint {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  gap: 4px;
+  height: 2.7em;
+  margin-top: 6px;
+  overflow: hidden;
+  color: var(--quiet);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.hint[data-tone='danger'],
+.hint[data-tone='busy_danger'] {
+  color: var(--text-primary);
+}
+
+.hintText {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.hintIcon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--status-danger);
+}
+
+.spin {
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-tertiary);
+  animation: layer-order-spin 0.9s linear infinite;
+}
+
+@keyframes layer-order-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hintAction {
+  flex: none;
+  align-self: center;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: 6px;
+}
+
+/* At touch size (Round4-Phone, Round5-Compound): every slot and its × a 44 px target. */
+@media (pointer: coarse) {
+  .builder {
+    --slot-height: var(--touch-target);
+  }
+
+  .chips {
+    gap: 24px 6px;
+    padding: 11px 0 11px 3px;
+  }
+
+  .slotClear {
+    width: 36px;
+    height: 36px;
+    margin-right: 4px;
+  }
+
+  .slotClear[data-objects] {
+    margin-top: 3px;
+  }
+
+  /* Keep trying is a 44 px button here: the line reserves that much, whatever it says, so it is never clipped. */
+  .hint {
+    align-items: center;
+    height: auto;
+    min-height: var(--touch-target);
+    margin-top: 12px;
+    overflow: visible;
+  }
+}

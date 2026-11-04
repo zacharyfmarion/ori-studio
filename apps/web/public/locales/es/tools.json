@@ -956,7 +956,8 @@
         "otherWay": "Plegar en el otro sentido",
         "precreaseHinge": "Premarcar antes la bisagra",
         "precreaseKite": "Premarcar la cometa",
-        "resetTarget": "Llevar el lomo a la bisagra"
+        "resetTarget": "Llevar el lomo a la bisagra",
+        "valleyMountain": "Cambiar a Valle y monte"
       },
       "help": {
         "petalHinge": "Levantar la punta inferior de una solapa a lo largo de una bisagra mientras sus lados se pliegan hacia dentro por dos pliegues de cometa.",
@@ -1059,6 +1060,7 @@
           "hingeOffSpine": "La línea de bisagra debe cruzar el borde plegado de la solapa, con el extremo en el que haces clic a un lado.",
           "noHinge": "La solapa no se pliega sobre ninguna bisagra en ningún extremo de su lomo, así que no hay contra qué aplastarla.",
           "noSpine": "Estas capas no están unidas por un único borde plegado, así que no hay lomo que abrir. Una solapa cerrada, unida por lados plegados hacia dentro, aún no se puede aplastar.",
+          "openingOutside": "La solapa no puede abrirse entre esas capas: están unidas en otro lugar que no es su lomo ni su bisagra.",
           "singleLayer": "Aquí solo hay una capa. Haz clic en una solapa de dos capas unidas por un borde plegado.",
           "title": "No hay solapa que aplastar aquí",
           "upperNotHinged": "La capa superior de la solapa solo está sujeta por su lomo: aplastada, su lado de la bisagra quedaría suelto."
@@ -1117,7 +1119,7 @@
           "title": "El borde se quedaría quieto"
         },
         "swivelFoldWide": {
-          "text": "Del lado del borde que se mueve, el pliegue pivotante se encuentra con el borde plegado en ángulo recto o mayor, y no deja sitio para que la otra capa se pliegue. Elige una línea sobre la que caiga el borde que lo gire más, u otro borde plegado.",
+          "creaseTwice": "Del lado del borde que se mueve, el pliegue pivotante se encuentra con el borde plegado en ángulo recto o mayor, así que la capa del borde tiene que plegarse dos veces, en valle y en monte, y Borde sobre línea la pliega una sola vez. Cambia a Valle y monte y elige los dos pliegues, o elige una línea que gire más el borde.",
           "title": "El pliegue pivotante llega al borde demasiado empinado"
         },
         "swivelInsideFree": {
@@ -1167,6 +1169,8 @@
         "takeTouch": "Toca Usar como bisagra.",
         "use": "Usar como bisagra"
       },
+      "squashOpensOver": "Se abre sobre",
+      "squashOpensUnder": "Se abre bajo",
       "steps": {
         "earChoose": "Elige las capas o haz clic en otra región para el pliegue de bisagra.",
         "earChooseTouch": "Elige las capas o toca otra región para el pliegue de bisagra.",

@@ -71,7 +71,7 @@ describe('the catalog’s context', () => {
     ]);
   });
 
-  it('says where the step is, what follows it, and what the sheet is', () => {
+  it('says where the step is, what follows it, and how many steps there are', () => {
     const document = sequenceOf([step('a', null), step('b', 'a', valleyAt(0.25)), step('c', 'a', valleyAt(0.75))]);
     const ok = { ...FOLD_PENDING_NODE, status: 'ok' as const };
     const entries = foldPathEntries(document, ['a', 'c'], ok, new Map([['a', ok], ['c', ok]]), FOLD_PENDING_NODE);
@@ -82,7 +82,6 @@ describe('the catalog’s context', () => {
       atTip: false,
       readOnly: false,
       foldKind: 'mountain',
-      sheet: 'square',
       stepCount: 3,
     });
     expect(foldActionContext(document, entries, 0, true, 'valley')).toMatchObject({ step: null, atTip: false, readOnly: true });

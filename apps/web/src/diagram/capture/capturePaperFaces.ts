@@ -50,6 +50,24 @@ function rounded(value: number, step: number): number {
 }
 
 /**
+ * The centre of a fold's paper's box, in crease-pattern units: what a flat
+ * step's places on the paper are kept about — its faces here, and its layer
+ * order record's points (`captureLayerOrder.ts`) — so they stay where they
+ * are on the paper when the step's region moves. The origin for a fold that
+ * names no paper point.
+ */
+export function paperBoxCentre(kernel: Pick<OristudioCpFoldedPaperScene, 'sheet_points'>): Point {
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const { x, y } of kernel.sheet_points) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  return Number.isFinite(minX) ? { x: (minX + maxX) / 2, y: (minY + maxY) / 2 } : { x: 0, y: 0 };
+}
+
+/**
  * A flat fold's faces as a step keeps them, for the picture `toScenePx`
  * places at `scale` scene px per kernel unit: paper places about the centre
  * of the paper's box, to the power of ten at or below the stored scene's step
@@ -64,14 +82,7 @@ export function flatPaperFaces(
   scale: number
 ): DiagramPaperFaces | null {
   const sheet = kernel.sheet_points;
-  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
-  for (const { x, y } of sheet) {
-    minX = Math.min(minX, x);
-    minY = Math.min(minY, y);
-    maxX = Math.max(maxX, x);
-    maxY = Math.max(maxY, y);
-  }
-  const [cx, cy] = Number.isFinite(minX) ? [(minX + maxX) / 2, (minY + maxY) / 2] : [0, 0];
+  const { x: cx, y: cy } = paperBoxCentre(kernel);
   const sceneStep = storedSceneStep(kernel.sheet * scale);
   const paperStep = 10 ** Math.floor(Math.log10(sceneStep / scale));
   const named = kernel.faces.map(

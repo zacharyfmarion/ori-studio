@@ -8,7 +8,7 @@ import {
   type CreaseExportGridSource,
   type CreaseExportOptions,
 } from '../lib/creaseExport';
-import type { CreaseExportFoldResult } from '../lib/creaseExportFold';
+import type { CreaseExportFoldResult, CreaseExportLayerOrderHost } from '../lib/creaseExportFold';
 import type { FoldDocument } from '../engine/types';
 import type { CpSegment } from '../lib/creasePatternSegmentation';
 
@@ -87,6 +87,12 @@ export type CreasePatternExportDialogOptions = {
         settings: CreaseExportFoldedFigureSettings
       ) => Promise<CreaseExportFoldResult>)
     | null;
+  /**
+   * The Layer order dialog's host for the figure (`useExportLayerOrder`): fold it in a
+   * chosen order, the sheet its creases lie on, Edit's view pen. Injected beside
+   * `foldSegment`, and for the same reason; absent or null where `foldSegment` is null.
+   */
+  layerOrderHost?: CreaseExportLayerOrderHost | null;
   confirmLabel?: string;
   cancelLabel?: string;
 };

@@ -1,0 +1,46 @@
+/*
+ * The Layer order dialog's panes region (LayerOrderPanes.tsx): the crease
+ * pattern and the folded figure side by side, the rule between them the 1px
+ * gap over the region's own ground; one pane at a time on a phone, the other
+ * kept, hidden.
+ */
+.panes {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 1px;
+  min-width: 0;
+  min-height: 0;
+  background: var(--border-subtle);
+}
+
+/*
+ * Each pane's place: the pane fills it. Its size never comes from what is in
+ * it, so a canvas that sizes its buffer to its box, as a hidden pane shown
+ * again does, never moves the box it measured (a ResizeObserver loop, which
+ * the app reports as an error).
+ */
+.slot {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  contain: size;
+}
+
+.slot[hidden] {
+  display: none;
+}
+
+/* The folded figure's place while the session opens: the picture loading. */
+.waiting {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-primary);
+}
+
+.loading {
+  display: grid;
+}

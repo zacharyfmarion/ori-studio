@@ -1,3 +1,6 @@
+import { connectedFlatPicture, spreadFailedPicture } from '../capture/captureFolded';
+import { prepareConnected } from '../../layer-spread/prepareConnected';
+import { foldScenePattern } from './foldStepPicture';
 /**
  * A Diagram step's picture, captured from a step of a Fold sequence (plan
  * D17): the Fold session is held while it works — so it runs from the
@@ -27,6 +30,7 @@ import { xmlText } from '../../lib/xmlEscape';
 import type { CapturedPicture } from '../capture/captureFolded';
 import {
   randomDiagramId,
+  spreadFailedRender,
   type DiagramCpRender,
   type DiagramFoldMoment,
   type DiagramFoldStepSource,
@@ -183,7 +187,28 @@ export async function captureFoldStep(
     const read = await readFoldStepCapture(session, request, t);
     if (read.status !== 'ready') return read;
     const { picture: input, ready, parent, node, engineVersion, run } = read.input;
-    const picture = foldStepPicture(input, request.render, newId);
+    const asked = request.render;
+    let render = asked;
+    let picture: ReturnType<typeof foldStepPicture>;
+    if (asked.mode === 'folded-flat' && asked.spread?.kind === 'connected') {
+      const scene = foldScenePattern(input.shown, asked.side);
+      const lease = prepareConnected(scene);
+      try {
+        const spread = await connectedFlatPicture(scene, asked.rotationDeg, asked.spread, lease.promise, asked.presentation);
+        if (spread.kind === 'spread') picture = foldStepPicture(input, asked, newId, spread.connected, spread.captured);
+        else {
+          // Layers that could not be spread are drawn unspread, the spread kept to say so (`spreadFailedPicture`).
+          const { spread: _spread, presentation: _presentation, ...unspread } = asked;
+          const drawn = foldStepPicture(input, unspread, newId);
+          picture = { ...drawn, captured: spreadFailedPicture(drawn.captured) };
+          render = spreadFailedRender(asked);
+        }
+      } finally {
+        lease.release();
+      }
+    } else {
+      picture = foldStepPicture(input, asked, newId);
+    }
     const sentence = run
       ? xmlText(run.sentence)
       : sentenceOf(
@@ -206,7 +231,7 @@ export async function captureFoldStep(
       state: request.moment === 'after' ? ready.fingerprint : ready.parentFingerprint,
       engine: engineVersion,
       thumbnail: picture.thumbnail,
-      render: request.render,
+      render,
       ...(sentence !== undefined ? { sentence } : {}),
     });
     if (!source) throw new Error('The capture made a link the file cannot read');

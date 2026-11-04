@@ -13,7 +13,6 @@ import {
   canvasDiagramInk,
   canvasDiagramPens,
   CP_CREASE_WIDTH_FACTOR,
-  DIAGRAM_MARKS,
   REFERENCES_VIEW_MARKS,
   type DiagramMarks,
 } from '../../../lib/stepDiagram/diagramInk';
@@ -28,19 +27,16 @@ import styles from './FoldCanvas.module.css';
 const NO_LETTERS: readonly FoldLetteredReference[] = [];
 
 /**
- * The marks the folded pane letters its references with, at `ink` (the
- * style's edge pen, which the arrow is drawn with): References' and the
- * Diagram's step-diagram letters and rings, at the size the References view
- * draws them — on screen, whatever the paper style's pens — so a letter on
- * the folded pane reads as one in the step diagrams does. A print pen of the
- * style's would draw them a few px tall beside the paper.
+ * The folded pane's letters, rings and arrowheads, at `ink` (the style's
+ * edge pen): the References view's screen sizes, whatever the paper style's
+ * pens. Using the print sizes leaves the marks too small beside the paper.
  */
 export function foldActionMarks(ink: number): DiagramMarks {
   const scale = canvasDiagramInk(DEFAULT_ORISTUDIO_CP_LINE_WIDTH) / ink;
   return {
-    ...DIAGRAM_MARKS,
     ringRadius: REFERENCES_VIEW_MARKS.ringRadius * scale,
     labelSize: REFERENCES_VIEW_MARKS.labelSize * scale,
+    arrowheadLength: REFERENCES_VIEW_MARKS.arrowheadLength * scale,
   };
 }
 

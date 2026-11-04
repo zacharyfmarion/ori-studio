@@ -9,11 +9,15 @@
  *
  * These are the tool's feedback, not the paper, so they take theme accents
  * rather than the paper style's pens: the pick accent for what is picked and
- * hovered, as References and Edit mark theirs.
+ * hovered, as References and Edit mark theirs. The paper they light — what a
+ * fold moves, a tuck's targets, a region — is lit through the shared fills,
+ * at the tint ladder's rungs (`cp-workspace/renderer/fillTint.ts`); which rung
+ * each takes is decided here.
  *
  * Pure: the colours are handed in, resolved by the pane.
  */
 import type { Point } from '../../lib/geometry';
+import { cellsHoldingFill, joinFills, ringsFill, TINT } from '../../cp-workspace/renderer/fillTint';
 import type { FillGeometry, PointGeometry, Rgba, StrokeGeometry } from '../../cp-workspace/renderer/types';
 import type { FoldMark, FoldModelLine, SheetPoint } from '../document/foldSequenceDocument';
 import { markPoints } from '../document/foldSequenceDocument';
@@ -171,10 +175,6 @@ export interface FoldOverlayRegions {
   at: (hit: FoldHit) => number | null;
 }
 
-/** How strongly the region picked is lit, and one under the pointer. */
-const REGION_PICKED_TINT = 0.42;
-const REGION_HOVERED_TINT = 0.26;
-
 /** The regions lit (see {@link FoldOverlayRegions}): the one picked, and the one under the pointer when it is another. */
 export function foldRegionTint(
   regions: FoldOverlayRegions | null,
@@ -182,29 +182,13 @@ export function foldRegionTint(
   accent: Rgba
 ): FillGeometry | null {
   if (!regions) return null;
-  const triangles: number[] = [];
-  const colors: number[] = [];
-  const light = (region: number | null, alpha: number) => {
-    const color = [accent[0], accent[1], accent[2], accent[3] * alpha];
-    for (const ring of region === null ? [] : (regions.polygons[region] ?? [])) {
-      for (let k = 1; k + 1 < ring.length; k += 1) {
-        for (const corner of [ring[0]!, ring[k]!, ring[k + 1]!]) {
-          triangles.push(corner.x, corner.y);
-          colors.push(...color);
-        }
-      }
-    }
-  };
+  const rings = (region: number | null) => (region === null ? [] : (regions.polygons[region] ?? []));
   const under = hovered ? regions.at(hovered) : null;
-  light(regions.picked, REGION_PICKED_TINT);
-  if (under !== regions.picked) light(under, REGION_HOVERED_TINT);
-  if (triangles.length === 0) return null;
-  return { position: new Float32Array(triangles), color: new Float32Array(colors), count: triangles.length / 2 };
+  return joinFills(
+    ringsFill(rings(regions.picked), accent, TINT.picked),
+    under !== regions.picked ? ringsFill(rings(under), accent, TINT.hover) : null
+  );
 }
-
-/** How strongly the moving set is tinted, and the flap under the pointer over that. */
-const MOVING_TINT = 0.3;
-const HOVERED_TINT = 0.5;
 
 /**
  * The paper a located fold moves, tinted in the theme's accent over the
@@ -230,30 +214,16 @@ export function foldMovingTint(
     }));
   const faces = toIndices(moving.faces);
   const hovered = toIndices(moving.hovered);
-  const triangles: number[] = [];
-  const colors: number[] = [];
-  const add = (stackHas: (face: number) => boolean, alpha: number) => {
-    const color = [accent[0], accent[1], accent[2], accent[3] * alpha];
-    for (const cell of index.subfaces) {
-      if (!cell.stack.some(stackHas)) continue;
-      const piece = clipConvex(cell.polygon, moving.line, moving.sign);
-      for (let k = 1; k + 1 < piece.length; k += 1) {
-        for (const corner of [piece[0]!, piece[k]!, piece[k + 1]!]) {
-          triangles.push(corner.x, corner.y);
-          colors.push(...color);
-        }
-      }
-    }
-  };
-  add((face) => faces.has(face), MOVING_TINT);
-  if (hovered.size > 0) add((face) => hovered.has(face), HOVERED_TINT);
-  if (triangles.length === 0) return null;
-  return { position: new Float32Array(triangles), color: new Float32Array(colors), count: triangles.length / 2 };
+  // Each cell that holds one of `lit`, cut to the moving side.
+  const pieces = (lit: ReadonlySet<number>) =>
+    index.subfaces.flatMap((cell) =>
+      cell.stack.some((face) => lit.has(face)) ? [clipConvex(cell.polygon, moving.line, moving.sign)] : []
+    );
+  return joinFills(
+    ringsFill(pieces(faces), accent, TINT.moving),
+    hovered.size > 0 ? ringsFill(pieces(hovered), accent, TINT.emphasis) : null
+  );
 }
-
-/** How strongly a layer listed to tuck against is lit, and the one taken over that. */
-const TARGET_TINT = 0.16;
-const TARGET_TAKEN_TINT = 0.42;
 
 /**
  * The layers a tuck may go against, lit in the theme's accent over the
@@ -276,38 +246,14 @@ export function foldTargetsTint(
     }));
   const listed = positions(targets.listed);
   const taken = positions([...(targets.taken === null ? [] : [targets.taken]), ...(targets.additional ?? [])]);
-  const triangles: number[] = [];
-  const colors: number[] = [];
-  const add = (lit: ReadonlySet<number>, alpha: number) => {
-    const color = [accent[0], accent[1], accent[2], accent[3] * alpha];
-    for (const cell of index.subfaces) {
-      if (!cell.stack.some((face) => lit.has(face))) continue;
-      const ring = cell.polygon;
-      for (let k = 1; k + 1 < ring.length; k += 1) {
-        for (const corner of [ring[0]!, ring[k]!, ring[k + 1]!]) {
-          triangles.push(corner.x, corner.y);
-          colors.push(...color);
-        }
-      }
-    }
-  };
-  add(listed, TARGET_TINT);
-  if (taken.size > 0) add(taken, TARGET_TAKEN_TINT);
-  if (triangles.length === 0) return null;
-  return { position: new Float32Array(triangles), color: new Float32Array(colors), count: triangles.length / 2 };
+  return joinFills(
+    cellsHoldingFill(index.stacks, listed, accent, TINT.faint),
+    taken.size > 0 ? cellsHoldingFill(index.stacks, taken, accent, TINT.picked) : null
+  );
 }
 
-/** Two fills drawn as one, the second over the first; either may be none. */
-export function joinFills(first: FillGeometry | null, second: FillGeometry | null): FillGeometry | null {
-  if (!first || !second) return first ?? second;
-  const position = new Float32Array(first.position.length + second.position.length);
-  position.set(first.position);
-  position.set(second.position, first.position.length);
-  const color = new Float32Array(first.color.length + second.color.length);
-  color.set(first.color);
-  color.set(second.color, first.color.length);
-  return { position, color, count: first.count + second.count };
-}
+/** Two fills drawn as one (the shared tint module's), which the Fold canvas joins its tints with. */
+export { joinFills };
 
 export interface FoldPaneOverlayInput {
   pane: FoldPaneId;

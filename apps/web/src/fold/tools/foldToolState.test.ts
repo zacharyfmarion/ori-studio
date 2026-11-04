@@ -11,6 +11,7 @@ import {
   foldToolInputKey,
   hasToolInput,
   isLocated,
+  locatesTakenLine,
   picksAlongLine,
   type FoldResolvedSeed,
   type FoldToolState,
@@ -301,8 +302,9 @@ describe('the vertex folds’ tool state', () => {
     expect(isLocated(tools.store.getState())).toBe(true);
     expect(tools.pick(free(0.3, 0.3))).toBe(false);
     expect(tools.swapSide()).toBe(false);
-    // A swivel: its pivot, its edge and the line it lands on.
+    // A swivel by its edge: its pivot, its edge and the line it lands on.
     tools.selectTool('swivel');
+    tools.setSwivelInput('edge');
     expect(tools.store.getState().picks).toEqual([]);
     tools.pick(point(0.5, 0.3));
     tools.pick(edge);
@@ -311,9 +313,22 @@ describe('the vertex folds’ tool state', () => {
     expect(isLocated(tools.store.getState())).toBe(true);
   });
 
+  it('starts a swivel by its valley and mountain, and keeps the construction chosen from fold to fold', () => {
+    const tools = createFoldTools();
+    expect(FOLD_TOOL_INITIAL.swivelInput).toBe('valley-mountain');
+    tools.selectTool('swivel');
+    expect(tools.store.getState().swivelInput).toBe('valley-mountain');
+    expect(locatesTakenLine(tools.store.getState())).toBe(true);
+    tools.setSwivelInput('edge');
+    tools.selectTool('valley');
+    tools.selectTool('swivel');
+    expect(tools.store.getState().swivelInput).toBe('edge');
+  });
+
   it('names a swivel’s target by a crease or two points, its pivot and edge kept when that changes', () => {
     const tools = createFoldTools();
     tools.selectTool('swivel');
+    tools.setSwivelInput('edge');
     tools.pick(point(0.5, 0.3));
     tools.pick(edge);
     tools.setEmergent(1);

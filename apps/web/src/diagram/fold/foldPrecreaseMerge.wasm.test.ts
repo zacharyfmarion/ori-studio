@@ -1,3 +1,4 @@
+import '../../layer-spread/captureWorker.testSupport';
 // @vitest-environment jsdom
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

@@ -32,6 +32,7 @@ import {
   foldedFigureUserBounds,
   foldedSceneLocalGeometry,
   paperSceneToFoldedGeometry,
+  type FoldedFigureSpreadPicture,
   type FoldedSceneInk,
 } from './cpFoldedToScene';
 import { cpModelToSvg } from '../../lib/creasePatternViewport';
@@ -1575,6 +1576,94 @@ describe('a stored PaperScene', () => {
       expect(foldedSceneLocalGeometry(once, white(), ink(0.5))).toBe(first);
       expect(foldedSceneLocalGeometry(once, white(), ink(0.6))).not.toBe(first);
     });
+  });
+});
+
+/**
+ * An Affine or Depth spread is a painter-ordered scene drawn in place of the
+ * figure's snapshot. Under X-ray every layer's lines go over all of its
+ * see-through fills, as the kernel's own X-ray stream and Default spread draw
+ * them, and still under a figure drawn after it.
+ */
+describe('a spread figure’s painted scene', () => {
+  const square = (face: number, x: number): PaperFaceItem => ({
+    kind: 'face',
+    face,
+    side: 'front',
+    rings: [
+      [
+        [x, 0],
+        [x + 10, 0],
+        [x + 10, 10],
+        [x, 10],
+      ],
+    ],
+    outline: 'edge',
+    shade: 1,
+    hidden: false,
+  });
+  // A crease on the lower layer, under the flap that covers it.
+  const crease: PaperLineItem = {
+    kind: 'line',
+    role: 'aux',
+    a: [7, 0],
+    b: [7, 10],
+    onBoundary: [false, false],
+    face: 0,
+    hidden: false,
+  };
+  const scene: PaperScene = {
+    bounds: { minX: 0, minY: 0, maxX: 15, maxY: 10 },
+    sheet: 100,
+    items: [square(0, 0), crease, square(1, 5)],
+  };
+  const later = {
+    ...figure([
+      {
+        sequence: 0,
+        kind: 'fill_polygon',
+        style: { paint: solid(255, 0, 0, 255), stroke: { kind: 'none' }, antialias: 'default' },
+        geometry: {
+          kind: 'polygon',
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+            { x: 10, y: 10 },
+          ],
+        },
+      },
+    ]),
+    id: 'later',
+  };
+  const drawn = (faceAlpha: number) =>
+    cpFoldedToScene(
+      [figure([]), later],
+      undefined,
+      undefined,
+      undefined,
+      () => DEFAULT_PAPER_STYLE,
+      (entry): FoldedFigureSpreadPicture | null =>
+        entry.id === 'f1' ? { kind: 'scene', scene, faceAlpha, pivot: { x: 0, y: 0 } } : null
+    );
+  /** The spread figure's two faces, then the later figure's triangle. */
+  const SPREAD_FILL_VERTICES = 12;
+
+  it('draws every layer’s lines over all its fills under X-ray, inside its own band', () => {
+    const { fills, strokes } = drawn(0.4);
+    // Both outlines and the crease between them.
+    expect(strokes.count).toBe(9);
+    const lines = Array.from(strokes.depth!);
+    const own = Array.from(fills.depth!.slice(0, SPREAD_FILL_VERTICES));
+    const after = Array.from(fills.depth!.slice(SPREAD_FILL_VERTICES));
+    expect(Math.min(...lines)).toBeGreaterThanOrEqual(Math.max(...own));
+    expect(Math.max(...lines)).toBeLessThan(Math.min(...after));
+  });
+
+  it('leaves Paper’s lower lines under the layer above them, as the painter does', () => {
+    const { fills, strokes } = drawn(1);
+    // The lower face's outline lies at its own fill's depth, under the flap's.
+    expect(strokes.depth![0]).toBe(fills.depth![0]);
+    expect(strokes.depth![0]).toBeLessThan(fills.depth![SPREAD_FILL_VERTICES - 1]!);
   });
 });
 

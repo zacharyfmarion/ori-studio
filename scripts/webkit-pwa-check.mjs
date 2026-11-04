@@ -41,7 +41,7 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { webkit } from 'playwright';
@@ -424,6 +424,24 @@ async function main() {
       'an idle controlled load fetches the kernels this session never used',
       warmed === kernels.length,
       `${warmed}/${kernels.length} engine kernels cached`
+    );
+
+    // Except the engines that wait for their first use (`UNWARMED_PATTERNS`,
+    // `vite.config.ts`): the Fold engine's wasm (1.5 MB gzipped), and the Layer
+    // order dialog's worker, which loads it. Nothing this session did used
+    // either, so after the warm neither may be in the cache. Read once the
+    // cache stops growing, since the warm stores workers, kernels and chunks
+    // as one set.
+    await settleCache(page);
+    const afterWarm = await cacheKeys(page);
+    const built = readdirSync(path.join(distDir, 'assets')).filter(
+      (name) => name.includes('oristudio_fold_wasm_bg') || name.includes('layerOrderWorker')
+    );
+    const unwarmed = afterWarm.filter((p) => p.includes('oristudio_fold_wasm_bg') || p.includes('layerOrderWorker'));
+    check(
+      'the idle warm leaves the Fold engine and the layer order worker uncached',
+      unwarmed.length === 0,
+      unwarmed.join(', ') || `${built.length} built (${built.join(', ')}), none of ${afterWarm.length} entries`
     );
 
     // Everything the page loaded has to be in the *worker's* cache, stated

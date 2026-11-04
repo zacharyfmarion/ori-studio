@@ -147,7 +147,6 @@
     "foldGoToStep": "请先转到一个步骤再导出",
     "foldImportCp": "导入 CP...",
     "foldImportCpHint": "添加一步，把纸按折痕图折叠",
-    "foldImportPolygon": "导入 CP 需要正方形或长方形的纸。",
     "foldImportSampleHint": "添加一步，把纸按示例折痕图折叠",
     "foldMountain": "山折",
     "foldNoStartingFigure": "请先在编辑中把折痕图折平",

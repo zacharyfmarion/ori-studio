@@ -2,7 +2,7 @@
 import { createDiagram, insertPictureSteps, type DiagramDocument } from '../diagram/document/diagramDocument';
 import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
 import { useDiagramExportUiStore } from '../store/diagramExportUiStore';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   OristudioBpDocumentState,
 } from '../engine/oristudioBpTypes';
@@ -11,9 +11,19 @@ import type { OristudioCpDocumentState } from '../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import { getWorkspaceCapabilities } from '../lib/workspaceCapabilities';
 import { createFileService } from '../platform/fileService';
+import { useHelpStore } from '../store/helpStore';
 import { useLayoutStore } from '../store/layoutStore';
-import { createMenuActionHandler, isMenuActionId } from './menuActions';
+import { useWorkspaceStore } from '../store/workspaceStore';
+import { createMenuActionHandler, handleMenuAction, isMenuActionId } from './menuActions';
 import { registerCanvasSessionEnder } from '../cp-workspace/canvasObjects/canvasSessions';
+import { registerModalHistory } from '../keyboard/dialogShortcuts';
+import { handleAppKeyDown } from '../lib/appKeyboard';
+
+const analyticsMocks = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../analytics')>()),
+  track: analyticsMocks.track,
+}));
 
 // The default `showWorkspace` navigates for real, and the point of the tests
 // below is that it is a default rather than a wiring line — so the router itself
@@ -1019,5 +1029,369 @@ describe('menu actions that leave the start screen', () => {
     // The subscription already navigates on the workspace change, and its
     // navigate is async — a second one here would push a duplicate history entry.
     expect(routingMocks.navigateTo).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Through `handleMenuAction` and the real stores, because that is the path the
+ * native Edit ▸ Undo takes: no key event, so nothing upstream of the chokepoint
+ * stops it while a dialog is up.
+ */
+describe('the menus behind a modal dialog', () => {
+  const state = () => useWorkspaceStore.getState();
+  const stepCount = () => state().diagram?.steps.length ?? 0;
+  const counted = (commandId: string) =>
+    analyticsMocks.track.mock.calls.some(
+      ([event, properties]) => event === 'command invoked' && properties?.command_id === commandId
+    );
+  let dialog: HTMLElement | null = null;
+
+  /** What every modal the app marks a barrier renders (`useModalDialog`). */
+  function openModal() {
+    dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-shortcut-barrier', '');
+    document.body.append(dialog);
+  }
+
+  function closeModal() {
+    dialog?.remove();
+    dialog = null;
+  }
+
+  beforeEach(() => {
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    useLayoutStore.setState(useLayoutStore.getInitialState(), true);
+    useHelpStore.setState(useHelpStore.getInitialState(), true);
+    routingMocks.navigateTo.mockClear();
+    routingMocks.currentPath.mockReturnValue('/welcome');
+    // The Diagram on screen with two steps added, so its own history has two
+    // entries to undo — and nothing in it needs the engine.
+    useLayoutStore.getState().activateWorkspace('diagram');
+    state().addDiagramStep();
+    state().addDiagramStep();
+    expect(state().activeEditingContext).toBe('diagram');
+    expect(stepCount()).toBe(2);
+    analyticsMocks.track.mockClear();
+  });
+
+  afterEach(() => {
+    closeModal();
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    useLayoutStore.setState(useLayoutStore.getInitialState(), true);
+    useHelpStore.setState(useHelpStore.getInitialState(), true);
+  });
+
+  it('holds Undo back, leaves the document as it was, and counts nothing', async () => {
+    const past = state().diagramHistory.past.length;
+    openModal();
+
+    await expect(handleMenuAction('edit.undo')).resolves.toBe(false);
+
+    expect(stepCount()).toBe(2);
+    expect(state().diagramHistory.past).toHaveLength(past);
+    expect(counted('edit.undo')).toBe(false);
+  });
+
+  it('holds Redo back too', async () => {
+    await expect(handleMenuAction('edit.undo')).resolves.toBe(true);
+    expect(stepCount()).toBe(1);
+    const future = state().diagramHistory.future.length;
+    analyticsMocks.track.mockClear();
+    openModal();
+
+    await expect(handleMenuAction('edit.redo')).resolves.toBe(false);
+
+    expect(stepCount()).toBe(1);
+    expect(state().diagramHistory.future).toHaveLength(future);
+    expect(counted('edit.redo')).toBe(false);
+  });
+
+  it('undoes and redoes as before once the dialog closes', async () => {
+    openModal();
+    await handleMenuAction('edit.undo');
+    closeModal();
+
+    await expect(handleMenuAction('edit.undo')).resolves.toBe(true);
+    expect(stepCount()).toBe(1);
+    expect(counted('edit.undo')).toBe(true);
+
+    await expect(handleMenuAction('edit.redo')).resolves.toBe(true);
+    expect(stepCount()).toBe(2);
+    expect(counted('edit.redo')).toBe(true);
+  });
+
+  it('keeps the workspace behind it where it is', async () => {
+    openModal();
+
+    await expect(handleMenuAction('view.edit')).resolves.toBe(false);
+    await expect(handleMenuAction('cp.analyzeReferences')).resolves.toBe(false);
+
+    expect(useLayoutStore.getState().activeWorkspace).toBe('diagram');
+    expect(state().activeEditingContext).toBe('diagram');
+    expect(routingMocks.navigateTo).not.toHaveBeenCalled();
+    expect(counted('view.edit')).toBe(false);
+  });
+
+  it('switches workspace as before with no dialog open', async () => {
+    await expect(handleMenuAction('view.edit')).resolves.toBe(true);
+
+    expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
+    expect(routingMocks.navigateTo).toHaveBeenCalledWith('/edit');
+    expect(counted('view.edit')).toBe(true);
+  });
+
+  it('still opens what is meant to go over a dialog', async () => {
+    openModal();
+
+    await expect(handleMenuAction('help.about')).resolves.toBe(true);
+
+    expect(useHelpStore.getState().activeModal).toBe('about');
+    expect(counted('help.about')).toBe(true);
+  });
+
+  /**
+   * The native File menu, which put another document under any open dialog —
+   * one Layer order's Apply then wrote an old figure's order into.
+   */
+  describe('File ▸ New, Open, Import (Add) and the examples', () => {
+    // What each one reaches when it runs: the store's opener, or (New) the start screen.
+    const openers = () => ({
+      openProject: vi.fn().mockResolvedValue(true),
+      importAddCreasePattern: vi.fn().mockResolvedValue(true),
+      loadExampleProject: vi.fn().mockResolvedValue(true),
+    });
+    let opened: ReturnType<typeof openers>;
+    const cases = [
+      {
+        id: 'file.new',
+        commandId: 'file.new',
+        ran: () => routingMocks.navigateTo.mock.calls.some(([path]) => path === '/welcome'),
+      },
+      { id: 'file.open', commandId: 'file.open', ran: () => opened.openProject.mock.calls.length > 0 },
+      {
+        id: 'file.importAdd',
+        commandId: 'file.importAdd',
+        ran: () => opened.importAddCreasePattern.mock.calls.length > 0,
+      },
+      // Counted by its prefix: the id carries the example.
+      {
+        id: 'file.openExample:triad',
+        commandId: 'file.openExample',
+        ran: () => opened.loadExampleProject.mock.calls.length > 0,
+      },
+    ];
+
+    beforeEach(() => {
+      opened = openers();
+      // The engine up, and a crease pattern to import beside: each one enabled when nothing holds it.
+      useWorkspaceStore.setState({ ...opened, status: 'ready', oristudioCpDocument: cpDocumentWithCircles(0) });
+    });
+
+    it.each(cases)('holds $id back, opens nothing, and counts nothing', async ({ id, commandId, ran }) => {
+      openModal();
+
+      await expect(handleMenuAction(id)).resolves.toBe(false);
+
+      expect(ran()).toBe(false);
+      expect(routingMocks.navigateTo).not.toHaveBeenCalled();
+      expect(stepCount()).toBe(2);
+      expect(counted(commandId)).toBe(false);
+    });
+
+    it.each(cases)('runs $id as before with no dialog open', async ({ id, commandId, ran }) => {
+      await expect(handleMenuAction(id)).resolves.toBe(true);
+
+      expect(ran()).toBe(true);
+      expect(counted(commandId)).toBe(true);
+    });
+
+    it.each(cases)('runs $id again once the dialog closes', async ({ id, ran }) => {
+      openModal();
+      await handleMenuAction(id);
+      closeModal();
+
+      await expect(handleMenuAction(id)).resolves.toBe(true);
+      expect(ran()).toBe(true);
+    });
+  });
+
+  /** The File menu's imports: each loads another file into the document under the dialog. */
+  describe('File ▸ Import Diagram Steps and Detect CP from Image', () => {
+    const DETECT_REQUEST = 'ori-studio:detect-cp-image';
+    let detectRequests = 0;
+    const countDetectRequest = () => {
+      detectRequests += 1;
+    };
+    const openImport = vi.fn<(...args: unknown[]) => void>();
+    const cases = [
+      { id: 'file.importDiagramSteps', ran: () => openImport.mock.calls.length > 0 },
+      { id: 'file.detectCpImage', ran: () => detectRequests > 0 },
+    ];
+
+    beforeEach(async () => {
+      detectRequests = 0;
+      window.addEventListener(DETECT_REQUEST, countDetectRequest);
+      openImport.mockClear();
+      const { useImportDialogStore } = await import('../diagram/import/importDialogStore');
+      useImportDialogStore.setState({ open: openImport });
+      // The engine up, so Detect CP from Image is enabled when nothing holds it.
+      useWorkspaceStore.setState({ status: 'ready' });
+    });
+
+    afterEach(async () => {
+      window.removeEventListener(DETECT_REQUEST, countDetectRequest);
+      const { useImportDialogStore } = await import('../diagram/import/importDialogStore');
+      useImportDialogStore.setState(useImportDialogStore.getInitialState(), true);
+    });
+
+    it.each(cases)('holds $id back, loads nothing, and counts nothing', async ({ id, ran }) => {
+      openModal();
+
+      await expect(handleMenuAction(id)).resolves.toBe(false);
+
+      expect(ran()).toBe(false);
+      expect(stepCount()).toBe(2);
+      expect(counted(id)).toBe(false);
+    });
+
+    it.each(cases)('runs $id as before with no dialog open', async ({ id, ran }) => {
+      await expect(handleMenuAction(id)).resolves.toBe(true);
+
+      expect(ran()).toBe(true);
+      expect(counted(id)).toBe(true);
+    });
+  });
+
+  it('is not held back by a dialog that is not a barrier', async () => {
+    // A sheet or drawer is `aria-modal` too, but wants the workspace's keys.
+    openModal();
+    dialog?.removeAttribute('data-shortcut-barrier');
+
+    await expect(handleMenuAction('edit.undo')).resolves.toBe(true);
+    expect(stepCount()).toBe(1);
+  });
+
+  /**
+   * A dialog that keeps a history of its own (`registerModalHistory`): the
+   * native Edit ▸ Undo and the keys inside it act on that history, not on the
+   * Diagram behind.
+   */
+  describe('with a history of its own', () => {
+    const unregisters: Array<() => void> = [];
+
+    function keepHistory(root: HTMLElement | null, steps: { past: number; future: number }) {
+      if (!root) throw new Error('no dialog open');
+      const history = {
+        undo: vi.fn(() => {
+          steps.past -= 1;
+          steps.future += 1;
+        }),
+        redo: vi.fn(() => {
+          steps.future -= 1;
+          steps.past += 1;
+        }),
+        canUndo: () => steps.past > 0,
+        canRedo: () => steps.future > 0,
+      };
+      unregisters.push(registerModalHistory(root, history));
+      return history;
+    }
+
+    afterEach(() => {
+      while (unregisters.length) unregisters.pop()?.();
+    });
+
+    it('undoes and redoes in the dialog, leaves the document alone, and counts each', async () => {
+      const past = state().diagramHistory.past.length;
+      openModal();
+      const history = keepHistory(dialog, { past: 1, future: 0 });
+
+      await expect(handleMenuAction('edit.undo')).resolves.toBe(true);
+      expect(history.undo).toHaveBeenCalledOnce();
+      expect(counted('edit.undo')).toBe(true);
+      await expect(handleMenuAction('edit.redo')).resolves.toBe(true);
+      expect(history.redo).toHaveBeenCalledOnce();
+      expect(counted('edit.redo')).toBe(true);
+
+      expect(stepCount()).toBe(2);
+      expect(state().diagramHistory.past).toHaveLength(past);
+      expect(state().diagramHistory.future).toHaveLength(0);
+    });
+
+    it('refuses a step its history does not have, and counts nothing', async () => {
+      openModal();
+      const history = keepHistory(dialog, { past: 0, future: 0 });
+
+      await expect(handleMenuAction('edit.undo')).resolves.toBe(false);
+      await expect(handleMenuAction('edit.redo')).resolves.toBe(false);
+
+      expect(history.undo).not.toHaveBeenCalled();
+      expect(history.redo).not.toHaveBeenCalled();
+      expect(stepCount()).toBe(2);
+      expect(counted('edit.undo')).toBe(false);
+      expect(counted('edit.redo')).toBe(false);
+    });
+
+    it('still holds the workspace switches back', async () => {
+      openModal();
+      keepHistory(dialog, { past: 1, future: 1 });
+
+      await expect(handleMenuAction('view.edit')).resolves.toBe(false);
+
+      expect(useLayoutStore.getState().activeWorkspace).toBe('diagram');
+      expect(routingMocks.navigateTo).not.toHaveBeenCalled();
+      expect(counted('view.edit')).toBe(false);
+    });
+
+    it('goes only to the dialog on top, and refuses again once unregistered', async () => {
+      openModal();
+      const history = keepHistory(dialog, { past: 2, future: 0 });
+      // Settings over it, say, which keeps no history.
+      const over = document.createElement('div');
+      over.setAttribute('role', 'dialog');
+      over.setAttribute('aria-modal', 'true');
+      over.setAttribute('data-shortcut-barrier', '');
+      document.body.append(over);
+
+      await expect(handleMenuAction('edit.undo')).resolves.toBe(false);
+      expect(history.undo).not.toHaveBeenCalled();
+      over.remove();
+      await expect(handleMenuAction('edit.undo')).resolves.toBe(true);
+      expect(history.undo).toHaveBeenCalledOnce();
+
+      unregisters.pop()?.();
+      await expect(handleMenuAction('edit.undo')).resolves.toBe(false);
+      expect(history.undo).toHaveBeenCalledOnce();
+      expect(stepCount()).toBe(2);
+    });
+
+    it('takes the same route from ⌘Z and ⇧⌘Z pressed inside the dialog', async () => {
+      openModal();
+      const history = keepHistory(dialog, { past: 1, future: 0 });
+      const surface = dialog?.appendChild(document.createElement('div'));
+      if (!surface) throw new Error('no dialog open');
+      const actions = {
+        getActiveEditingContext: () => state().activeEditingContext,
+        getSelection: () => ({ kind: 'tree' }) as const,
+        handleMenuAction,
+        selectNone: vi.fn(),
+      };
+      const press = (init: KeyboardEventInit) => {
+        const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+        Object.defineProperty(event, 'target', { value: surface });
+        return handleAppKeyDown(event, actions);
+      };
+
+      expect(press({ key: 'z', metaKey: true })).toBe(true);
+      await vi.waitFor(() => expect(history.undo).toHaveBeenCalledOnce());
+      expect(press({ key: 'Z', metaKey: true, shiftKey: true })).toBe(true);
+      await vi.waitFor(() => expect(history.redo).toHaveBeenCalledOnce());
+
+      expect(stepCount()).toBe(2);
+      expect(counted('edit.undo')).toBe(true);
+      expect(counted('edit.redo')).toBe(true);
+    });
   });
 });

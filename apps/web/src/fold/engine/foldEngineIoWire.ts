@@ -18,10 +18,14 @@
  *   lands the step from that sheet.
  * - **A stored `cp-jump`** goes through the ordinary `step` call; one that no
  *   longer lands is refused with one of these codes and the step is broken.
+ * - **Or the Layer order dialog picks** (row H10): an opened import is opened
+ *   onto the dialog's faces (`FoldImportLayerOpening`), and the order its
+ *   Apply chose lands as a pick's does.
  *
  * Pure types and constants: no React, no store, no wasm.
  */
 
+import type { OristudioCpFoldedPaperScene, OristudioCpFoldSource } from '../../engine/oristudioCpTypes';
 import type { FoldStateFingerprint } from '../document/foldDigest';
 import type { FoldCpJumpOp, SheetPoint } from '../document/foldSequenceDocument';
 import type { ImportedCreasePatternFormat } from '../../lib/fileFormats';
@@ -46,8 +50,9 @@ export type FoldImportSource = { format: FoldImportFormat; sample?: boolean } & 
 /**
  * Where an import lands:
  *
- * - `empty`: a sequence with no steps, which adopts the pattern's square or
- *   rectangle, seen from `startSide` (`front` when absent);
+ * - `empty`: a sequence with no steps, which adopts the pattern's sheet — a
+ *   square, a rectangle or a polygon — seen from `startSide` (`front` when
+ *   absent);
  * - `after`: after the state this handle names, which must fit the pattern's
  *   sheet and still be held when an order is picked. The view is kept and the
  *   root continues.
@@ -70,13 +75,22 @@ export interface FoldImportLimits {
 // ---------------------------------------------------------------------------
 // Outputs
 
-/** The sheet an import found, as the engine names it. */
-export type FoldImportSheetShape = { shape: 'square' } | { shape: 'rectangle'; width: number; height: number };
+/**
+ * The sheet an import found, as the engine names it: a square or a rectangle,
+ * or any other sheet as its corners, counter-clockwise in the unit sheet frame.
+ */
+export type FoldImportSheetShape =
+  | { shape: 'square' }
+  | { shape: 'rectangle'; width: number; height: number }
+  | { shape: 'polygon'; points: [number, number][] };
 
 /** What an import found. Points are in sheet coordinates. */
 export interface FoldImportSummary {
   shape: FoldImportSheetShape;
-  /** The pattern was turned a quarter, counter-clockwise, to fit the sequence's sheet. */
+  /**
+   * The pattern was turned a quarter, counter-clockwise, to fit the sequence's
+   * sheet. A polygon may be turned by another angle to fit; only a quarter is said.
+   */
   quarter_turn: boolean;
   faces: number;
   mountains: number;
@@ -90,8 +104,14 @@ export interface FoldImportSummary {
   dropped: number;
 }
 
-/** The sheet an empty sequence adopts, as the document stores its paper. */
-export type FoldImportAdoptedPaper = { kind: 'square' } | { kind: 'rectangle'; aspect: [number, number] };
+/**
+ * The sheet an empty sequence adopts, as the document stores its paper: a
+ * polygon is the pattern's outline as Import starting sheet reads it.
+ */
+export type FoldImportAdoptedPaper =
+  | { kind: 'square' }
+  | { kind: 'rectangle'; aspect: [number, number] }
+  | { kind: 'polygon'; points: [number, number][] };
 
 /**
  * The sheet a pattern's border outlines ("Import starting sheet",
@@ -143,6 +163,29 @@ export interface FoldExported {
 }
 
 /**
+ * What the Layer order dialog opens on for a held import
+ * (`implementation-plans/layer-order-dialog.md`, row H10;
+ * `import_layer_opening`):
+ *
+ * - `source`: the fold the dialog analyses, the import's stored crease
+ *   pattern as Edit folds it whole, in the CP bridge's own shape; its
+ *   `digest` is what `importPickLayerOrder` takes back with the relations;
+ * - `shown`: the order the choice picks, drawn over the source's faces by
+ *   the CP kernel (its front pass), which the dialog opens on, so an Apply
+ *   that changed nothing is that choice;
+ * - `look`: the side of the folded paper Fold shows the state from, and how
+ *   far it turns it, clockwise on screen, from that side's picture.
+ *
+ * The engine remembers the match of the import's faces with the dialog's
+ * until the import is opened again or let go.
+ */
+export interface FoldImportLayerOpening {
+  source: OristudioCpFoldSource;
+  shown: OristudioCpFoldedPaperScene;
+  look: { side: 'front' | 'back'; turn_deg: number };
+}
+
+/**
  * Every Import CP and FOLD export refusal code: the engine's
  * (`ImportRefusal::code` in `crates/oristudio-fold/src/import/mod.rs`), then
  * the bridge's (`IoRefusal::code`).
@@ -177,6 +220,9 @@ export const FOLD_IMPORT_REFUSAL_CODES = [
   'import_order_broken',
   'import_figure_incomplete',
   'fold_export_too_large',
+  // The Layer order dialog cannot open on a held import (row H10): the
+  // import keeps its own chooser, so no one is shown this.
+  'import_layer_unavailable',
 ] as const;
 
 export type FoldImportRefusalCode = (typeof FOLD_IMPORT_REFUSAL_CODES)[number];

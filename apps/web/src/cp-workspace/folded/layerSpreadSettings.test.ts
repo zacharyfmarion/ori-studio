@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { NEWER } from '../../lib/documentFile';
 import type { AffineSpreadOptions, DepthSpreadOptions } from './foldedLayerSpread';
-import { spreadSliderEdit } from './layerSpreadControls';
+import { spreadAmountSlider, spreadSliderEdit } from './layerSpreadControls';
 import {
-  DEFAULT_AFFINE_SPREAD,
+  DEFAULT_CONNECTED_SPREAD,
   DEFAULT_DEPTH_SPREAD,
   DEFAULT_LAYER_SPREAD,
   DEFAULT_SPREAD_STARTS,
@@ -25,28 +25,29 @@ const affine = (amount: number, axisDeg = 81): AffineSpreadOptions => ({ kind: '
 describe('the start rule (13g), shared by the Diagram and Fold', () => {
   it('starts from the nearest earlier spread, and each kind from the nearest of its kind', () => {
     expect(spreadStartsAmong([depth(0.05), affine(0.06), depth(0.1)])).toEqual({
+      connected: DEFAULT_CONNECTED_SPREAD,
       any: depth(0.05),
       depth: depth(0.05),
       affine: affine(0.06),
     });
-    expect(spreadStartsAmong([affine(0.06)])).toEqual({ any: affine(0.06), depth: DEFAULT_DEPTH_SPREAD, affine: affine(0.06) });
+    expect(spreadStartsAmong([affine(0.06)])).toEqual({ connected:DEFAULT_CONNECTED_SPREAD, any: affine(0.06), depth: DEFAULT_DEPTH_SPREAD, affine: affine(0.06) });
   });
 
-  it('starts from the defaults with nothing earlier, affine first (Zach, 2026-10-05)', () => {
+  it('starts from the defaults with nothing earlier, connected first', () => {
     expect(spreadStartsAmong([])).toEqual(DEFAULT_SPREAD_STARTS);
-    expect(DEFAULT_LAYER_SPREAD).toBe(DEFAULT_AFFINE_SPREAD);
+    expect(DEFAULT_LAYER_SPREAD).toBe(DEFAULT_CONNECTED_SPREAD);
   });
 
-  it('stops walking back once both kinds are found', () => {
+  it('stops walking back once all kinds are found', () => {
     let read = 0;
     function* earlier() {
-      for (const spread of [depth(0.05), affine(0.06), depth(0.1), affine(0.2)]) {
+      for (const spread of [depth(0.05), affine(0.06), DEFAULT_CONNECTED_SPREAD, depth(0.1)]) {
         read += 1;
         yield spread;
       }
     }
     spreadStartsAmong(earlier());
-    expect(read).toBe(2);
+    expect(read).toBe(3);
   });
 });
 
@@ -61,6 +62,16 @@ describe('a spread set by its controls', () => {
     expect(spreadSliderEdit('amount', 'depth', 0.123456)).toEqual({ verb: 'spread-amount', amount: 0.1235, kind: 'depth' });
     expect(spreadSliderEdit('skew', 'affine', 1.4)).toEqual({ verb: 'spread-skew', skew: 1 });
     expect(spreadSliderEdit('axis', 'affine', 270)).toEqual({ verb: 'spread-axis', axisDeg: 90 });
+  });
+
+  it('lays the amount out in whole percents, ends rounded inward, float noise ignored', () => {
+    // Default's 0 to 2 is 0% to 100%; 0.49 shows at 25% and stays 0.49 until the slider moves.
+    expect(spreadAmountSlider('connected', 0.49)).toEqual({ scale: 50, min: 0, max: 100, step: 1, value: 25 });
+    // 1.13 × 50 is 56.49999999999999 in floats: still a half, rounded up.
+    expect(spreadAmountSlider('connected', 1.13).value).toBe(57);
+    // Depth's 0.5% end and its 2.5% start round to whole percents.
+    expect(spreadAmountSlider('depth', DEFAULT_DEPTH_SPREAD.amount)).toEqual({ scale: 100, min: 1, max: 20, step: 1, value: 3 });
+    expect(spreadAmountSlider('affine', 0.005)).toMatchObject({ min: 1, max: 25, value: 1 });
   });
 
   it('tells a spread from another, and no spread from none', () => {

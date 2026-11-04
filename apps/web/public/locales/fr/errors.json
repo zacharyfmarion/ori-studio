@@ -2,6 +2,7 @@
   "boundary": {
     "appDescription": "Votre travail est toujours en mémoire, mais l'interface n'a pas pu se rétablir seule. Copiez les détails ci-dessous avant de recharger : ils indiquent au développeur exactement ce qui s'est passé.",
     "appTitle": "Ori Studio a rencontré un problème",
+    "close": "Fermer",
     "copied": "Copié",
     "copy": "Copier les détails",
     "copyFailed": "Copie impossible",
@@ -19,6 +20,12 @@
   },
   "cp": {
     "foldProducedNothing": "Ces plis n’ont aucune forme pliée à plat à dessiner",
+    "layerOrderNotApplied": "Ordre des couches n’a pas pu appliquer cet ordre à {{name}}. Son image est inchangée.",
+    "layerOrderNotFolded": "Ordre des couches n’a pas pu plier ces plis dans cet ordre.",
+    "layerOrderPatternChanged": "Le patron de plis a changé entre-temps ; Ordre des couches n’a donc rien modifié.",
+    "layerOrderTooLarge": "Cet ordre des couches est trop volumineux pour être enregistré avec le modèle ; il reste inchangé.",
+    "layerOrderTooLargeToFold": "Cet ordre des couches est trop volumineux pour être enregistré avec un modèle ; rien n’a été plié.",
+    "layerOrderUndeterminedSelection": "L’ordre des couches de ces plis n’a pas pu être déterminé.",
     "pinnedVertex": "Ce pli part d’un sommet épinglé, il ne peut donc pas être prolongé. Détachez d’abord le sommet ou prolongez un autre pli."
   },
   "cpDetectImport": {

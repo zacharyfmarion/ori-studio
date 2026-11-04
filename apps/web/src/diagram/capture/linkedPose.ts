@@ -1,3 +1,8 @@
+import {withSpreadCamera} from '../../layer-spread/presentation';
+import type { SpreadPresentation } from '../../layer-spread/presentation';
+import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
+import { clampSpatialSpreadAmount } from '../../cp-workspace/folded/spatialSpreadSettings';
+import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 /**
  * What a Pose verb does to a linked step's picture (D5): the new render, and
  * the picture taken in it, from the creases its scope chooses today. The fold
@@ -30,11 +35,13 @@ import {
   creasePatternSide,
   creasesFlipped,
   renderToShowAs,
+  spreadFailedRender,
   withCreasePatternSide,
   withCreasesFlipped,
   type DiagramCpRender,
   type DiagramCreasePatternRender,
   type DiagramCpSource,
+  type DiagramFlatRender,
   type DiagramLayerSpread,
   type DiagramSimulatedView,
   type DiagramSpreadStarts,
@@ -44,13 +51,20 @@ import type { StepCreases } from './captureCreases';
 import {
   captureCreasePattern,
   captureSimulated,
+  capturedSpreadFailed,
   defaultCaptureCamera,
   flatStill,
   type CapturedPicture,
   type SimulateFlat,
   type StillScene,
 } from './captureFolded';
-import type { CaptureSession, SpatialHold } from './captureSession';
+import type {
+  AppliedLayerOrder,
+  CaptureSession,
+  FlatFoldState,
+  HeldLayerOrder,
+  SpatialHold,
+} from './captureSession';
 import { uprightTurn } from './mirrorAxes';
 
 /**
@@ -60,18 +74,23 @@ import { uprightTurn } from './mirrorAxes';
  * still, skew or axis (Phase 13), Pose's simulator come to rest (D19): its
  * model where the solver holds it, at a fold %, from a camera — or a crease
  * pattern's paper on the colour of one side (the Step pane's Front | Back),
- * or turned over on its back (the Step pane's Flip creases).
+ * or turned over on its back (the Step pane's Flip creases) — or a flat fold
+ * drawn in the order the Layer order dialog applied (H8), in the flat pose
+ * the dialog was opened on: the step's, or for one shown another way, the
+ * one it would show (Review…).
  */
 export type LinkedPoseRequest =
   | { verb: DiagramLinkedPoseVerb }
   | { verb: 'orbit'; camera: FoldedFigureCamera }
+  | { verb: 'spread-presentation'; kind: SpreadPresentation['kind'] }
   | { verb: 'rotate-to'; degrees: number }
   | { verb: 'spread-kind'; kind: SpreadKind }
   // One value of the spread, as every flat picture's spread is set (`layerSpreadSettings.ts`).
   | LayerSpreadEdit
   | { verb: 'simulate'; foldPercent: number; view: DiagramSimulatedView; still: StillScene }
   | { verb: 'paper-side'; side: 'front' | 'back' }
-  | { verb: 'flip-creases'; on: boolean };
+  | { verb: 'flip-creases'; on: boolean }
+  | ({ verb: 'layer-order'; render: Extract<DiagramCpRender, { mode: 'folded-flat' }> } & AppliedLayerOrder);
 
 /** The verbs that set one field of a spread: each a no-op on a fold with none, or of the other kind. */
 function isSpreadFieldRequest(request: LinkedPoseRequest): request is LayerSpreadEdit {
@@ -90,10 +109,22 @@ export type LinkedPoseResult =
       mirrorAxes?: readonly number[];
       /** For a 3D fold: what the live view draws. */
       spatial?: SpatialHold;
+      /**
+       * For a flat fold drawn in the step's layer order (H7): the record of
+       * the order it shows, its summary, and whether this pose restored it.
+       */
+      layerOrder?: FlatFoldState['layerOrder'];
     }
   | { status: 'refused'; refusal: OristudioCpFold3dRefusal }
   /** Shown as Simulated, and the region has no model the simulator can fold. */
-  | { status: 'unavailable' };
+  | { status: 'unavailable' }
+  /**
+   * The order the Layer order dialog applied, which the kernel cannot draw
+   * (D3): nothing was folded, and the fold held stays as it was. Also a
+   * `layer-order` request on a step no longer folded flat, which the
+   * dialog's order cannot be drawn on.
+   */
+  | { status: 'order-refused' };
 
 /** A flat fold's layer orders as the search knows them: how many found, and whether there may be more. */
 export interface FlatSolutions {
@@ -118,10 +149,16 @@ export interface LinkedPoseInput {
    * steps spread alike (`spreadStartsFor`); the defaults when absent.
    */
   spreadStart?: DiagramSpreadStarts;
+  /**
+   * The step's layer order (H7): every flat pose is drawn in it. Absent or
+   * null, the kernel's own enumeration, as always.
+   */
+  layerOrder?: HeldLayerOrder | null;
 }
 
 /** A flat fold's pose: which side, turned how far, which layer order, its layers spread or not. */
 interface FlatPose {
+  presentation?: SpreadPresentation;
   side: 'front' | 'back';
   rotationDeg: number;
   foldCase: number;
@@ -133,7 +170,16 @@ const VIEW_TOP: FoldedFigureCamera = { yaw: 0, pitch: 0, zoom: 1 };
 
 export async function poseLinkedStep(
   session: CaptureSession,
-  { document, creases, render, remembered, style, simulateFlat, spreadStart = DEFAULT_SPREAD_STARTS }: LinkedPoseInput,
+  {
+    document,
+    creases,
+    render,
+    remembered,
+    style,
+    simulateFlat,
+    spreadStart = DEFAULT_SPREAD_STARTS,
+    layerOrder = null,
+  }: LinkedPoseInput,
   request: LinkedPoseRequest
 ): Promise<LinkedPoseResult> {
   const spatialRoute = resolveFoldRoute(document, creases.foldLineIds).kind === 'spatial';
@@ -152,44 +198,58 @@ export async function poseLinkedStep(
    * fold draws again with no call to the kernel. `upright` turns it to stand
    * on a mirror axis (`uprightTurn`) measured on the fold just held, and every
    * pose reports the axes, so the toolbar can say whether Upright can act.
+   * `applied`, the order the Layer order dialog applied, folded into a new
+   * held fold (H8): the pose stays, its layer order is the dialog's.
    */
   const flat = async (
-    { side, rotationDeg, foldCase, spread }: FlatPose,
+    { side, rotationDeg, foldCase, spread, presentation }: FlatPose,
     move?: 'turn-over' | 'next-solution',
     knownCases?: number,
-    { upright = false }: { upright?: boolean } = {}
+    { upright = false, applied }: { upright?: boolean; applied?: AppliedLayerOrder } = {}
   ): Promise<LinkedPoseResult> => {
     // Another layer order is a search of the held fold; one already found, a jump to it.
-    let state = await session.flat(document, creases.foldLineIds, side, foldCase, knownCases);
+    const posed = applied
+      ? await session.flatWithOrder(document, creases.foldLineIds, side, applied)
+      : await session.flat(document, creases.foldLineIds, side, foldCase, knownCases, layerOrder);
+    // The dialog's order, which the kernel cannot draw: nothing changes (D3).
+    if (!posed) return { status: 'order-refused' };
+    let state = posed;
+    // Restored by this pose or not, whatever the turn-over reports after it.
+    const shownOrder = state.layerOrder;
     if (move === 'turn-over') state = await session.turnOver();
     if (move === 'next-solution') state = await session.nextSolution();
     const mirrorAxes = await session.flatMirrorAxes();
     const turn = upright ? (uprightTurn(mirrorAxes, rotationDeg) ?? rotationDeg) : rotationDeg;
-    const picture = await session.flatPicture(turn, spread);
+    const picture = await session.flatPicture(turn, spread, presentation);
+    const drawn: DiagramFlatRender = {
+      mode: 'folded-flat',
+      side: state.side,
+      rotationDeg: turn,
+      foldCase: state.foldCase,
+      ...(spread ? { spread } : {}),
+      ...(presentation ? { presentation } : {}),
+    };
     return {
       status: 'posed',
-      render: {
-        mode: 'folded-flat',
-        side: state.side,
-        rotationDeg: turn,
-        foldCase: state.foldCase,
-        ...(spread ? { spread } : {}),
-      },
+      // Layers its Default spread could not take keep the spread, to say so (`spreadFailedPicture`).
+      render: capturedSpreadFailed(picture) ? spreadFailedRender(drawn) : drawn,
       picture,
       noLayerOrder: state.noLayerOrder,
       solutions: { discovered: state.discovered, hasNext: state.hasNext, none: state.noLayerOrder },
       mirrorAxes,
+      ...(shownOrder ? { layerOrder: shownOrder } : {}),
     };
   };
 
-  const spatial = async (camera: FoldedFigureCamera, side: 'front' | 'back'): Promise<LinkedPoseResult> => {
+  const spatial = async (camera: FoldedFigureCamera, side: 'front' | 'back', spread: SpatialSpread | null | undefined = render.mode === 'folded-3d' ? render.spread : undefined): Promise<LinkedPoseResult> => {
     const held = await session.spatial(document, creases.foldLineIds);
     if (held.kind === 'refused') return { status: 'refused', refusal: held.refusal };
+    if (spread && held.fold.snapshot.verdict.verdict !== 'folded') return { status: 'unavailable' };
     return {
       status: 'posed',
-      render: { mode: 'folded-3d', camera, side },
-      picture: session.spatialPicture(camera, style),
-      noLayerOrder: false,
+      render: { mode: 'folded-3d', camera, side, ...(spread ? { spread } : {}) },
+      picture: await session.spatialPicture(camera, style, spread ?? undefined),
+      noLayerOrder: held.fold.snapshot.verdict.verdict !== 'folded',
       spatial: held,
     };
   };
@@ -234,6 +294,14 @@ export async function poseLinkedStep(
     // Nothing folded to keep: the simulator has its own model.
     session.dispose();
     return simulated(request.view, request.foldPercent, request.still);
+  }
+  if (request.verb === 'layer-order') {
+    // A flat fold's, in the pose it was opened on: creases that fold in 3D now cannot take it.
+    if (spatialRoute) return { status: 'order-refused' };
+    const { side, rotationDeg, foldCase, spread } = request.render;
+    return flat({ side, rotationDeg, foldCase, ...(spread ? { spread } : {}) }, undefined, undefined, {
+      applied: { applied: request.applied, frame: request.frame },
+    });
   }
   const { verb } = request;
   if (verb === 'show-simulated') {
@@ -300,7 +368,19 @@ export async function poseLinkedStep(
   }
   if (render.mode === 'folded-flat') {
     const { rotationDeg, foldCase, spread } = render;
-    const pose: FlatPose = { side: render.side, rotationDeg, foldCase, ...(spread ? { spread } : {}) };
+    const pose: FlatPose = { ...render };
+    if (request.verb === 'spread-presentation' && spread?.kind === 'connected') {
+      return flat({...pose, presentation: {...render.presentation, kind: request.kind,
+        camera: render.presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA, orderSide: render.presentation?.orderSide ?? 'front'}});
+    }
+    if (request.verb === 'orbit' && spread?.kind === 'connected' && render.presentation?.kind === 'perspective') {
+      return flat({...pose, presentation: withSpreadCamera(render.presentation,request.camera)});
+    }
+    if(spread?.kind==='connected' && render.presentation?.kind==='perspective') {
+      const camera = verb==='turn-over' ? antipodalCamera(render.presentation.camera)
+        : verb==='view-top' ? VIEW_TOP : verb==='reset' ? DEFAULT_FOLDED_3D_CAMERA : null;
+      if(camera)return flat({...pose,presentation:withSpreadCamera(render.presentation,camera)});
+    }
     switch (verb) {
       case 'show-folded':
         return flat(pose);
@@ -338,6 +418,8 @@ export async function poseLinkedStep(
       case 'spread-direction':
       case 'spread-keep':
       case 'spread-skew':
+      case 'spread-reveal':
+      case 'spread-reveal-axis':
       case 'spread-axis':
         // Only a spread there is takes a value: one undone under the drag stays off.
         if (!spread || !isSpreadFieldRequest(request)) return flat(pose);
@@ -349,6 +431,10 @@ export async function poseLinkedStep(
   const { camera, side } = render;
   const fromSide = (view: FoldedFigureCamera) => (side === 'back' ? antipodalCamera(view) : view);
   switch (verb) {
+    case 'spread-layers':
+      return spatial(camera, side, render.spread ? null : { kind: 'spatial', version: 1, amount: 1 });
+    case 'spread-amount':
+      return spatial(camera, side, render.spread && request.verb === 'spread-amount' ? { ...render.spread, amount: clampSpatialSpreadAmount(request.amount) } : undefined);
     case 'orbit':
       return spatial(request.verb === 'orbit' ? request.camera : camera, side);
     case 'turn-over':

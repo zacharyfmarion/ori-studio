@@ -71,6 +71,7 @@ fn squash(state: &State, flap: Point) -> State {
         target: None,
         direction: Direction::Valley,
         hinge: None,
+        opening: None,
     };
     match state
         .squash(&op, &VertexChoices::default())

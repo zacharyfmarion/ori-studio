@@ -956,7 +956,8 @@
         "otherWay": "Dobrar no outro sentido",
         "precreaseHinge": "Pré-vincar antes a dobradiça",
         "precreaseKite": "Pré-vincar a pipa",
-        "resetTarget": "Levar a lombada à dobradiça"
+        "resetTarget": "Levar a lombada à dobradiça",
+        "valleyMountain": "Mudar para Vale e montanha"
       },
       "help": {
         "petalHinge": "Levantar a ponta de baixo de uma aba ao longo de uma dobradiça enquanto os lados se dobram para dentro por dois vincos de pipa.",
@@ -1059,6 +1060,7 @@
           "hingeOffSpine": "A linha da dobradiça precisa cruzar a borda dobrada da aba, com a ponta clicada de um lado dela.",
           "noHinge": "A aba não se dobra sobre nenhuma dobradiça em nenhuma ponta da lombada, então não há contra o que achatá-la.",
           "noSpine": "Estas camadas não estão unidas por uma única borda dobrada, então não há lombada para abrir. Uma aba fechada, unida por lados dobrados para dentro, ainda não pode ser achatada.",
+          "openingOutside": "A aba não pode se abrir entre essas camadas: elas estão unidas em outro lugar além da lombada e da dobradiça.",
           "singleLayer": "Aqui há só uma camada. Clique numa aba de duas camadas unidas por uma borda dobrada.",
           "title": "Não há aba para achatar aqui",
           "upperNotHinged": "A camada de cima da aba está presa só pela lombada: achatada, o lado da dobradiça ficaria solto."
@@ -1117,7 +1119,7 @@
           "title": "A borda ficaria parada"
         },
         "swivelFoldWide": {
-          "text": "Do lado da borda que se move, o vinco pivotante encontra a borda dobrada em ângulo reto ou maior, o que não deixa espaço para a outra camada dobrar. Escolha uma linha para a borda pousar que a gire mais, ou outra borda dobrada.",
+          "creaseTwice": "Do lado da borda que se move, o vinco pivotante encontra a borda dobrada em ângulo reto ou maior, então a camada da borda precisa ser vincada duas vezes, em vale e em montanha, e Borda sobre linha a dobra só uma vez. Mude para Vale e montanha e escolha os dois vincos, ou escolha uma linha que gire mais a borda.",
           "title": "O vinco pivotante encontra a borda íngreme demais"
         },
         "swivelInsideFree": {
@@ -1167,6 +1169,8 @@
         "takeTouch": "Toque em Usar como dobradiça.",
         "use": "Usar como dobradiça"
       },
+      "squashOpensOver": "Abre sobre",
+      "squashOpensUnder": "Abre sob",
       "steps": {
         "earChoose": "Escolha as camadas ou clique em outra região para o vinco de articulação.",
         "earChooseTouch": "Escolha as camadas ou toque em outra região para o vinco de articulação.",

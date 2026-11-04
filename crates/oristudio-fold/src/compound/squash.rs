@@ -1,6 +1,7 @@
 //! The squash fold (plan Phase 11, research §5.3), a vertex fold
-//! ([`super::vertex`]): a two-layer flap opened and pressed flat about the
-//! vertex where its spine meets its hinge.
+//! ([`super::vertex`]): a two-layer flap — or one whose walls are several
+//! plies each — opened and pressed flat about the vertex where its spine
+//! meets its hinge.
 //!
 //! - **The flap** is named by a sheet point on its upper layer as the viewer
 //!   sees it: the face there must be the first at its point from the side
@@ -10,6 +11,18 @@
 //!   the end of the spine where the lower layer folds over a hinge is the
 //!   **vertex** O, and that crease's line is the **hinge** h. Each layer is
 //!   its face grown across flat creases off h and folded ones on s.
+//! - **Walls of several plies.** When the top two layers share no folded
+//!   crease, the flap's walls may be several plies each: the first 2m layers
+//!   for the least m whose walls nest, layer m − 1 − i wrapped round layer
+//!   m + i by folded creases on one line, the spine, for every i < m (a
+//!   lifted unit of nested wraps). It opens between its walls: the first m
+//!   layers are the upper layer, the next m the lower, each grown as above,
+//!   and paper reached across the spine from paper that is no ply's is the
+//!   other wall's. [`Squash::opening`] opens it elsewhere, k layers down for
+//!   any 0 < k < 2m, the wraps on one side of the opening riding closed with
+//!   that wall; plies joined across the opening anywhere but on s or h would
+//!   tear, and are [`NoFlap::OpeningOutside`]. A flap whose top two layers
+//!   share a crease is the two-layer flap above, unchanged.
 //! - **A drawn hinge** ([`Squash::hinge`]) is h instead: O is where it
 //!   crosses the spine, within it, and only the flap's end on the flap
 //!   point's side of h squashes, lifted along h and pressed flat, the
@@ -84,6 +97,12 @@ pub struct Squash {
     /// hinge the lower layer folds over.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hinge: Option<Line>,
+    /// Where a flap of several plies opens: how many of its layers at the
+    /// flap point, from the direction's side, lie above the opening — from
+    /// 1 to one less than its layers there. None for between its walls,
+    /// the one opening of a two-layer flap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opening: Option<usize>,
 }
 
 /// Why there is no flap to squash at a point.
@@ -101,6 +120,10 @@ pub enum NoFlap {
     /// A drawn hinge crosses the spine nowhere within it, or leaves none of
     /// it on the flap point's side, or runs through the flap point.
     HingeOffSpine,
+    /// A flap of several plies does not open where asked: the opening is
+    /// not between two of its layers at the flap point, or the layers above
+    /// and below it are joined off the spine and the hinge.
+    OpeningOutside,
 }
 
 /// A squash's flap and its creases, before it lands: what a tool previews.
@@ -124,12 +147,20 @@ pub struct SquashAnalysis {
     /// positive; and the target's share μ of it.
     pub wedge: f64,
     pub share: f64,
+    /// The flap's layers at the flap point (2 for a two-layer flap, more
+    /// when its walls are several plies), and how many of them, from the
+    /// direction's side, lie above where it opens.
+    pub layers: usize,
+    pub opening: usize,
 }
 
 /// The flap by face positions, and its creases.
 struct Flap {
     upper: Vec<usize>,
     lower: Vec<usize>,
+    /// Its layers at the flap point, and how many lie above the opening.
+    layers: usize,
+    opening: usize,
     /// Paper outside the flap that turns with the upper layer's hinge side
     /// (see [`State::squash_riders`]).
     riders: Vec<usize>,
@@ -178,6 +209,8 @@ impl State {
             lower_crease: flap.lower_crease(),
             wedge: flap.wedge,
             share: flap.share,
+            layers: flap.layers,
+            opening: flap.opening,
         })
     }
 
@@ -340,31 +373,40 @@ impl State {
             .into());
         };
 
-        // A precrease may separate the picked faces from the spine. Discover
-        // each layer across flat creases before looking for their shared fold.
-        // These regions are only for discovery: the flap below is still bounded
-        // by its hinge, which may itself be flat after an earlier squash.
+        // The flap's walls: its top two layers, joined on the spine, or
+        // several plies each, nested wraps on one spine line.
         let creases = self.creases();
-        let upper_region = self.squash_flat_region(p);
-        let lower_region = self.squash_flat_region(q);
-        let spine: Vec<usize> = topology
-            .crease_faces
-            .iter()
-            .enumerate()
-            .filter(|(k, incident)| {
-                creases[*k].kind.is_folded()
-                    && incident.iter().any(|&f| upper_region[f])
-                    && incident.iter().any(|&f| lower_region[f])
-            })
-            .map(|(k, _)| k)
-            .collect();
+        let Some(walls) = self.squash_walls(&stack) else {
+            return Err(FoldRefusal::SquashNoFlap {
+                faces: ids(&[p, q]),
+                cause: NoFlap::NoSpine,
+            }
+            .into());
+        };
+        let Walls {
+            plies,
+            regions,
+            spine,
+        } = walls;
+        let layers = plies.len();
         let no_flap = |cause| -> Refused {
             FoldRefusal::SquashNoFlap {
-                faces: ids(&[p, q]),
+                faces: ids(&plies),
                 cause,
             }
             .into()
         };
+        // Where it opens: between its walls unless asked, the walls' plies
+        // beyond the opening riding closed with the other wall.
+        let opening = op.opening.unwrap_or(layers / 2);
+        if opening == 0 || opening >= layers {
+            return Err(no_flap(NoFlap::OpeningOutside));
+        }
+        // The lower wall, discovered across flat creases (the hinge too): what
+        // the hinge is found from.
+        let lower_region: Vec<bool> = (0..faces.len())
+            .map(|f| regions[layers / 2..].iter().any(|region| region[f]))
+            .collect();
         let Some(&first) = spine.first() else {
             return Err(no_flap(NoFlap::NoSpine));
         };
@@ -456,10 +498,8 @@ impl State {
         let moving_lower =
             convex::HalfPlane::new(normal, normal[0] * vertex[0] + normal[1] * vertex[1])
                 .ok_or(FoldRefusal::SquashTargetOutside)?;
-        let up = geometry.isometries[p].front_up();
-        let upper_face = |f: usize| geometry.isometries[f].front_up() == up;
 
-        // The flap: both faces grown across flat creases off the hinge line
+        // The flap: its plies grown across flat creases off the hinge line
         // and folded ones on the spine. Attachments outside the hinge are
         // forbidden only where this material actually moves.
         let on = |line: &Line, k: usize| {
@@ -478,28 +518,82 @@ impl State {
                     .any(|v| side.signed_distance(images[v.index()]) > TOL)
             })
         };
-        let mut in_flap = vec![false; faces.len()];
-        in_flap[p] = true;
-        in_flap[q] = true;
-        let mut queue = vec![p, q];
+        // Which wall each face is in: a ply's own, across flat creases; across
+        // the spine from paper that is no ply's, the other wall. A ply above
+        // the opening is the upper wall's.
+        let joins = |k: usize| {
+            reaches(k)
+                && match creases[k].kind {
+                    CreaseKind::Flat(_) => !on(&hinge_line, k),
+                    CreaseKind::Folded(_) => on(&spine_line, k),
+                    CreaseKind::Border => false,
+                }
+        };
+        let mut wall: Vec<Option<bool>> = vec![None; faces.len()];
+        let mut queue = Vec::new();
+        for (i, &f) in plies.iter().enumerate() {
+            wall[f] = Some(i < opening);
+            queue.push(f);
+        }
         while let Some(f) = queue.pop() {
             for &k in &topology.face_creases[f] {
                 let Some(g) = topology.across(k, f) else {
                     continue;
                 };
-                let joins = reaches(k)
-                    && match creases[k].kind {
-                        CreaseKind::Flat(_) => !on(&hinge_line, k),
-                        CreaseKind::Folded(_) => on(&spine_line, k),
-                        CreaseKind::Border => false,
-                    };
-                if joins && !in_flap[g] {
-                    in_flap[g] = true;
-                    queue.push(g);
+                if !matches!(creases[k].kind, CreaseKind::Flat(_)) || !joins(k) {
+                    continue;
+                }
+                match wall[g] {
+                    None => {
+                        wall[g] = wall[f];
+                        queue.push(g);
+                    }
+                    Some(other) if Some(other) != wall[f] => return Err(no_flap(NoFlap::NoSpine)),
+                    Some(_) => {}
                 }
             }
         }
+        let ply: Vec<bool> = wall.iter().map(Option::is_some).collect();
+        let mut queue: Vec<usize> = (0..faces.len()).filter(|&f| ply[f]).collect();
+        while let Some(f) = queue.pop() {
+            for &k in &topology.face_creases[f] {
+                let Some(g) = topology.across(k, f).filter(|_| joins(k)) else {
+                    continue;
+                };
+                let flat = matches!(creases[k].kind, CreaseKind::Flat(_));
+                let side = wall[f].map(|upper| upper == flat);
+                match wall[g] {
+                    None => {
+                        wall[g] = side;
+                        queue.push(g);
+                    }
+                    Some(other) if !ply[g] && Some(other) != side => {
+                        return Err(no_flap(NoFlap::NoSpine));
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+        let in_flap: Vec<bool> = wall.iter().map(Option::is_some).collect();
+        let upper_face = |f: usize| wall[f] == Some(true);
         let flap: Vec<usize> = (0..faces.len()).filter(|&f| in_flap[f]).collect();
+        // Plies joined across the opening anywhere but on the spine or the
+        // hinge would tear as it opens: no opening there.
+        if layers > 2
+            && flap.iter().any(|&f| {
+                upper_face(f)
+                    && topology.face_creases[f].iter().any(|&k| {
+                        topology
+                            .across(k, f)
+                            .is_some_and(|g| wall[g] == Some(false))
+                            && reaches(k)
+                            && !on(&spine_line, k)
+                            && !on(&hinge_line, k)
+                    })
+            })
+        {
+            return Err(no_flap(NoFlap::OpeningOutside));
+        }
         let attached: Vec<usize> = flap
             .iter()
             .flat_map(|&f| {
@@ -538,7 +632,7 @@ impl State {
             })
         };
         let hinged = flap.iter().any(|&f| {
-            geometry.isometries[f].front_up() == up
+            upper_face(f)
                 && (crosses(f)
                     || topology.face_creases[f].iter().any(|&k| {
                         topology.across(k, f).is_some_and(|g| !in_flap[g]) && on(&hinge_line, k)
@@ -592,7 +686,7 @@ impl State {
         // in turn, nothing else over it.
         let mut riders = Vec::new();
         if !covering.is_empty()
-            && let Some(riding) = self.squash_riders(&in_flap, &hinge_line, up, direction)
+            && let Some(riding) = self.squash_riders(&in_flap, &hinge_line, &upper_face, direction)
             && covering.iter().all(|&x| riding[x])
         {
             let moves: Vec<bool> = (0..faces.len()).map(|f| in_flap[f] || riding[f]).collect();
@@ -611,13 +705,13 @@ impl State {
             }
             .into());
         }
-        let (upper, lower): (Vec<usize>, Vec<usize>) = flap
-            .iter()
-            .partition(|&&f| geometry.isometries[f].front_up() == up);
+        let (upper, lower): (Vec<usize>, Vec<usize>) = flap.iter().partition(|&&f| upper_face(f));
 
         Ok(Flap {
             upper,
             lower,
+            layers,
+            opening,
             riders,
             vertex,
             spine_end,
@@ -701,6 +795,81 @@ impl State {
         region
     }
 
+    /// A flap's walls in `stack`, the layers at its point from the
+    /// direction's side: its top two, when folded creases join them (each
+    /// discovered across flat precreases); otherwise the first 2m layers
+    /// for the least m whose walls nest, layer m − 1 − i wrapped round
+    /// layer m + i by folded creases on one line — the spine — for every
+    /// i < m. None when no m does. A precrease may separate a picked face
+    /// from the spine, so each ply is discovered across flat creases first;
+    /// these regions are only for discovery: the flap is still bounded by
+    /// its hinge, which may itself be flat after an earlier squash.
+    fn squash_walls(&self, stack: &[usize]) -> Option<Walls> {
+        let creases = self.creases();
+        let topology = self.topology();
+        let images = &self.geometry().vertex_images;
+        let joining = |a: &[bool], b: &[bool]| -> Vec<usize> {
+            topology
+                .crease_faces
+                .iter()
+                .enumerate()
+                .filter(|(k, incident)| {
+                    creases[*k].kind.is_folded()
+                        && incident.iter().any(|&f| a[f])
+                        && incident.iter().any(|&f| b[f])
+                })
+                .map(|(k, _)| k)
+                .collect()
+        };
+        let mut regions: Vec<Vec<bool>> = Vec::new();
+        for m in 1..=stack.len() / 2 {
+            while regions.len() < 2 * m {
+                regions.push(self.squash_flat_region(stack[regions.len()]));
+            }
+            let inner = joining(&regions[m - 1], &regions[m]);
+            let plies = || stack[..2 * m].to_vec();
+            if m == 1 {
+                if inner.is_empty() {
+                    continue;
+                }
+                return Some(Walls {
+                    plies: plies(),
+                    regions,
+                    spine: inner,
+                });
+            }
+            for &first in &inner {
+                let [a, b] = creases[first].vertices.map(|v| images[v.index()]);
+                let Some(line) = Line::from_points(a, b) else {
+                    continue;
+                };
+                let on = |k: &usize| {
+                    creases[*k]
+                        .vertices
+                        .iter()
+                        .all(|v| line.distance_to_point(images[v.index()]) <= TOL)
+                };
+                let pairs: Vec<Vec<usize>> = (0..m)
+                    .map(|i| {
+                        joining(&regions[m - 1 - i], &regions[m + i])
+                            .into_iter()
+                            .filter(on)
+                            .collect()
+                    })
+                    .collect();
+                if pairs.iter().all(|pair| !pair.is_empty()) {
+                    regions.truncate(2 * m);
+                    return Some(Walls {
+                        plies: plies(),
+                        regions,
+                        spine: pairs.concat(),
+                    });
+                }
+            }
+        }
+        None
+    }
+
     /// The paper that rides with a flap's upper layer: what is folded over
     /// that layer at the hinge, with all it is joined to outside the flap.
     /// The upper layer's hinge side turns across the hinge and carries it,
@@ -711,7 +880,7 @@ impl State {
         &self,
         in_flap: &[bool],
         hinge: &Line,
-        up: bool,
+        upper: &dyn Fn(usize) -> bool,
         direction: Direction,
     ) -> Option<Vec<bool>> {
         let faces = self.faces();
@@ -727,8 +896,7 @@ impl State {
         };
         let mut riding = vec![false; faces.len()];
         let mut queue = Vec::new();
-        for f in (0..faces.len()).filter(|&f| in_flap[f] && geometry.isometries[f].front_up() == up)
-        {
+        for f in (0..faces.len()).filter(|&f| in_flap[f] && upper(f)) {
             for &k in &topology.face_creases[f] {
                 if let Some(g) = topology.across(k, f)
                     && !in_flap[g]
@@ -810,6 +978,17 @@ impl State {
         }
         None
     }
+}
+
+/// A flap's walls (see [`State::squash_walls`]).
+struct Walls {
+    /// Its layers at the flap point, from the direction's side: the upper
+    /// wall's, then the lower's.
+    plies: Vec<usize>,
+    /// Each ply's flat region, by face position.
+    regions: Vec<Vec<bool>>,
+    /// The folded creases that join them, on the spine.
+    spine: Vec<usize>,
 }
 
 /// A drawn hinge where it crosses a spine (see [`drawn_hinge`]).

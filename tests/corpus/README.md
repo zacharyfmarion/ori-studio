@@ -146,6 +146,197 @@ over that (12.6 and 12.8 million) in 3.3–3.8 s in Node, so the cap is now 12
 million and admits 463 of the 471. Landing in Node runs the step as every
 replay of its `cp-jump` does (`import_pick`).
 
+## Layer Order Census
+
+Census 1 of the Layer order dialog (`implementation-plans/layer-order-dialog.md`,
+row E4, Phase gate 1): what the dialog's solver source,
+`oristudio_fold::steer::LayerSource::from_oriedita`, makes of every design
+Oriedita folds flat. Per design it checks the source's letters against
+Oriedita's initial hierarchy, records the source's refusal code, folds up to
+four witness orders back through `fold_with_order` and reads them off the new
+handle, rebuilds each from the plan's saved record on a fresh source, and
+measures the record's bytes, the pairs only the solver sees as overlapping,
+and native timings. The fixtures (kabuto, `solution_sample_1`, Oriedita's
+`colorconstrainttest` and `solution_sample_1_black_valley`) run in the
+workspace test step; iguana-c0 and an external corpus laid out as
+`<case>/truth.fold` run locally, in release:
+
+```sh
+cargo test -p oracle-tests --test layer_order_witness
+LAYER_ORDER_CENSUS_DIR=/path/to/real_benchmark/cpoogle \
+  cargo test -p oracle-tests --release --test layer_order_witness -- --nocapture
+```
+
+It writes a per-design CSV and a summary to `artifacts/layer-order-census/`
+(`LAYER_ORDER_CENSUS_OUT` moves them); `LAYER_ORDER_CENSUS_JOBS=n` runs `n`
+designs at once and `LAYER_ORDER_CENSUS_ONLY=a,b` keeps matching cases.
+
+Last run on October 23, 2026, natively on an Apple Silicon Mac, one design at
+a time (616 s): all 484 cpoogle cases fold flat in Oriedita, and with the
+fixtures and iguana-c0 that is 489 designs. Phase gate 1 passes on every
+measure:
+
+| Measure | Threshold | Measured |
+| --- | --- | --- |
+| Letter seeds equal Oriedita's initial hierarchy | every admitted design | 480 of 480 |
+| Source refusals | ≤ 5% of designs | 9 of 489 (1.8%): 8 `source_stacked_too_deep`, 1 `source_too_many_faces` (4,722 faces) |
+| `fold_with_order` reproduces a witness | ≥ 99%; every fixture | 1,467 of 1,467 |
+| Reopen rebuild equals the witness | every witness | 1,467 of 1,467 |
+| Record bytes, p50 / p95 / max | every record under 1 MB | corpus 3.8 KB / 46 KB / 249 KB; iguana-c0 863 KB |
+| Fold-only pairs | reported | none on any design |
+
+No design was refused as non-convex, ambiguous or for a tolerance failure.
+Over the 475 corpus designs with a session, overlapping pairs are 3,540 /
+63,610 / 163,352 and free pairs 96 / 2,432 / 16,352 (p50 / p95 / max), as
+Fold's import measured them; the full order in the record's shape is 48 KB /
+823 KB / 2.3 MB. The source plus the session's open took 17 / 657 / 2,751 ms
+and a single-flip check at most 55 ms on the corpus; on iguana-c0 the open
+took 1.0 s, checks a median of 0.6 s, and one of five ran out at its 30 s
+deadline.
+
+### The constraint session
+
+`crates/oracle-tests/tests/layer_order_session.rs` (row E5) runs the dialog's
+`ConstraintSession` over the same designs, read from the same
+`LAYER_ORDER_CENSUS_DIR` (`LAYER_ORDER_SESSION_OUT` moves its report from
+`artifacts/layer-order-session/`). Per design it opens the session on the
+order Edit shows (`open_showing` with the figure's paper-scene relations),
+which must be held and stack every spot as Edit's scene does whenever the
+solver's problem accepts that order; builds up to three constraints on open
+pairs, each the other way from the order on screen; and holds each preview to
+changing nothing, a preview with no nodes to answering alike or timing out,
+and Add (`commit_preview`, given no nodes) to landing on the previewed order;
+then removal to keeping the order on screen, and a save, encode, read and
+restore on a fresh source, and again on that session (`restore_record`), to
+giving back the same constraints, order and open pairs with nothing carried:
+
+```sh
+cargo test -p oracle-tests --test layer_order_session
+LAYER_ORDER_CENSUS_DIR=/path/to/real_benchmark/cpoogle \
+  cargo test -p oracle-tests --release --test layer_order_session -- --nocapture
+```
+
+Last run on October 24, 2026, natively on an Apple Silicon Mac, one design at
+a time (296 s): 480 of 489 designs admitted (the nine census 1 refuses), and
+all 480 pass every gate, 376 of them with constraints (the other 104 have no
+open pair).
+
+- **The order Edit shows.** Opened on the solver's first order, 175 designs
+  show another top face than Edit on some spot (2,785 spots in all). Opened on
+  Edit's own order, 465 hold it and match Edit's scene on every spot. On the
+  other 15, Edit's order breaks Flat-Folder's taco-tortilla rule as the
+  solver's view states it (63 constraints; the first such crease runs 1–6% of
+  the sheet into the face Oriedita stacks between its two sides, far past the
+  1e-6 tolerance), so the session shows the closest order that fits and says
+  so (`OpenedOn::Closest`): 163 spots off Edit's top face there, against 320
+  on the first order.
+- 1,033 previews: 999 fit, 34 could not (an offered object can have no
+  fitting order); with no nodes, 559 timed out and the other 474 needed no
+  search and answered alike.
+- Corpus p50 / p95 / max: open 7.6 / 390 / 1,747 ms, `open_showing` (open
+  included) 10 / 484 / 1,999 ms, preview 0.2 / 8.3 / 41 ms, Add by
+  `commit_preview` 0.0 / 0.0 / 2.9 ms, restore 8.6 / 427 / 1,779 ms, record
+  3.8 / 46 / 249 KB. iguana-c0: `open_showing` 1.5 s, previews 0.48 s,
+  restore 2.0 s, record 863 KB.
+
+### Solutions and explanations
+
+`crates/oracle-tests/tests/layer_order_solutions.rs` (row E6) runs the
+dialog's solution count, stepper and `explain` over the same designs, read
+from the same `LAYER_ORDER_CENSUS_DIR` (`LAYER_ORDER_SOLUTIONS_OUT` moves its
+report from `artifacts/layer-order-solutions/`). Per design it counts the
+solutions with no constraints in one call within `LAYER_ORDER_COUNT_MS`
+(10 s by default) and, when that took under 2 s, again in slices of 1,000
+nodes, which must end equal and never be above the end on the way; steps
+forward and back by picture and with X-ray; commits three constraints as the
+session census does and counts again; and explains up to three candidates
+that can't fit, each set checked on a second session (it can't fit, and
+fits without any one member):
+
+```sh
+cargo test -p oracle-tests --test layer_order_solutions
+LAYER_ORDER_CENSUS_DIR=/path/to/real_benchmark/cpoogle \
+  cargo test -p oracle-tests --release --test layer_order_solutions -- --nocapture
+```
+
+Last run on October 24, 2026, natively on an Apple Silicon Mac shared with
+other work, four designs at a time: 479 of 488 designs admitted (the nine
+census 1 refuses), all 479 pass every gate.
+
+- **"N solutions".** Of the 475 corpus designs, the pictures are exact from
+  both sides on 473 within 10 s; the other two read "at least" (2,016 and
+  135 from the front). The layer-order count is exact on 465: 8 more stopped
+  at the deadline and 2 at a cap (one past 2⁶⁴), each "at least". With three
+  constraints, 469 are exact. iguana-c0's one open component of 65,851 pairs
+  gives one picture and no more in 10 s ("at least 1"); with three
+  constraints its count is exact (1 picture, 5,120 orders) in 10 s.
+- Count with no constraints p50 / p95 / max: 0.6 / 285 / 10,024 ms (14 over
+  1 s); with constraints 0.2 / 52 / 10,025 ms. Pictures from the front, of
+  the exact counts: 1 / 16 / 320. Components 2 / 11 / 58; 4 look groups of
+  more than one component in the corpus.
+- 464 designs counted again in slices: every one equal.
+- Steps 0.0 / 2.4 / 2,531 ms (the slowest spend half their 5 s on the count
+  that did not finish).
+- 1,422 candidates explained, all minimal and checked; 6 smaller than the
+  check's set; 0.0 / 0.2 / 49 ms (iguana-c0 0.40 s).
+
+### Census 2, in wasm
+
+`scripts/layer-order-census.mjs` (row E8, phase gate 2) makes the dialog's
+calls through the built Fold bridge in Node, as its worker will, on the same
+designs: per design, the CP bridge folds the sheet as Edit does, and a fresh
+Fold-wasm instance (the dialog's worker) opens on Edit's order
+(`layer_open_showing`), counts the solutions in the dialog's slices
+(`{ maxNodes: 1000, deadlineMs: 30 }`, up to 30 s of slicing), previews eight
+single flips of open pairs, steps by picture and with X-ray, builds three
+constraints as the session census does (each added by its preview's token),
+explains up to three candidates that can't fit, counts again and saves. A
+second fresh instance (the host engine) restores the record, and a third
+(Fold's own worker) imports the file through Import CP. Each instance runs in
+a worker thread of its own, so its wasm memory is its own peak. It is local
+only, never in CI; it needs Node 22 and both bridges built:
+
+```sh
+npm --workspace @treemaker/web run build:oristudio-fold-wasm
+npm --workspace @treemaker/web run build:oristudio-cp-wasm
+node scripts/layer-order-census.mjs --corpus /path/to/real_benchmark/cpoogle
+```
+
+Without `--corpus` (or `LAYER_ORDER_CENSUS_DIR`) it runs the fixtures and
+iguana-c0 only. `--only a,b` keeps matching cases and `--jobs n` runs n at
+once (timings are cleanest at 1); the caps (`--orders-per-component`,
+`--combinations-per-group`, `--stored-bits`), the slice (`--slice-nodes`,
+`--slice-ms`), `--count-ms` and `--previews` can be changed to try other
+budgets, and `--no-fold-import` skips the third instance. It writes
+`designs.csv`, `rows.json` and `summary.md` to
+`artifacts/layer-order-census/wasm/` (`--out` moves them).
+
+Last run on October 24, 2026, on an Apple Silicon Mac shared with other work,
+one design at a time (985 s): 480 of 489 designs admitted (the nine census 1
+refuses), all 480 through every call, every restore applied and back on the
+dialog's order, every Add adopted. Corpus p50 / p95 / max (475 designs):
+
+| | wasm | native, for comparison |
+| --- | --- | --- |
+| open on Edit's order (source built), ms | 24 / 818 / 2,317 | 17 / 657 / 2,751 (census 1) |
+| preview, ms (3,966) | 0.31 / 10 / 57 | 0.2 / 8.3 / 41 |
+| Add by token, ms | 0.04 / 0.10 / 0.81 | 0.0 / 0.0 / 2.9 |
+| explain, ms (1,422) | 0.04 / 0.25 / 66 | 0.0 / 0.2 / 49 |
+| restore, ms | 24 / 825 / 2,283 | 8.6 / 427 / 1,779 |
+| the count, whole, ms | 0.9 / 409 / 30,027 (5 unfinished) | 0.6 / 285 / 10,024, in one call |
+| the count's longest call, ms | 0.6 / 31 / 59 | – |
+| wasm memory, dialog / host engine / Fold's Import CP, MiB | 3.6 / 46 / 118; 3.5 / 43 / 116; 4.2 / 56 / 155 | – |
+| the three at once, MiB | 11 / 147 / 388 | – |
+
+iguana-c0: open 2.3 s, previews 0.66 s at the median with one of eleven past
+its 30 s deadline, Add 0.2 ms, explain up to 0.57 s, restore 2.8 s; the count
+reads "at least 1" after 30 s, its slices up to 454 ms; memory 91 MiB
+(dialog), 92 (host engine) and 168 (Fold's Import CP). Of the corpus's 34,397
+pickable subjects, one offers 8 open objects at the median, 46 at p95 and 306
+at most. These set `apps/web/src/layer-order/layerOrderBudgets.ts` (the label
+cap, the size past which the count is not started, the slice) and the count's
+stored-orders cap.
+
 ## FOLD Frame-Shape Corpus Testing
 
 `file_frames` makes a FOLD document a tree of frames, and the importer has to

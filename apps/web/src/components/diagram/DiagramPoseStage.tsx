@@ -35,12 +35,22 @@ export interface DiagramPoseGhost {
  */
 export function DiagramPoseStage({
   status,
+  finalPicture,
   hidden = false,
   ghost,
   yaw,
   pitch,
   children,
+  hint,
+  cameraReadout = true,
+  fullHeight = false,
 }: {
+  /** Final Pages rendering at rest; the live canvas and its controls stay mounted. */
+  finalPicture?: ReactNode;
+  hint?: string;
+  cameraReadout?: boolean;
+  /** Diagram framing includes toolbar clearance in its camera fit already. */
+  fullHeight?: boolean;
   /** The view's own state, for the inspector (`data-status`). */
   status: string;
   /** Laid out but not shown: a view still loading sizes itself under the picture. */
@@ -53,7 +63,8 @@ export function DiagramPoseStage({
 }) {
   const { t } = useTranslation();
   return (
-    <div className={styles.view} data-status={status} data-hidden={hidden || undefined}>
+    <div className={styles.view} data-full-height={fullHeight || undefined} data-status={status} data-hidden={hidden || undefined} data-final={!!finalPicture || undefined}>
+      {finalPicture}
       {children(styles.canvas)}
       {ghost && (
         <svg
@@ -66,11 +77,11 @@ export function DiagramPoseStage({
           <g opacity={GHOST_OPACITY} dangerouslySetInnerHTML={{ __html: ghost.markup }} />
         </svg>
       )}
-      <ViewportStatusReadout>
+      {cameraReadout && <ViewportStatusReadout>
         <span>{t('panels:diagram.pose.cameraReadout', 'Yaw {{yaw}}° · Pitch {{pitch}}°', { yaw, pitch })}</span>
-      </ViewportStatusReadout>
+      </ViewportStatusReadout>}
       <p className={styles.hint} aria-hidden="true">
-        {t('panels:diagram.pose.orbitHint', 'Drag to turn · Double-click to reset')}
+        {hint ?? t('panels:diagram.pose.orbitHint', 'Drag to turn · Double-click to reset')}
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
-import type { ShortcutDefinition, ShortcutScope } from '../keyboard/shortcuts';
+import { FOLD_WITH_LAYER_ORDER_SHORTCUT_ID, type ShortcutDefinition, type ShortcutScope } from '../keyboard/shortcuts';
 import { foldModelVerbLabel, foldToolLabel, lineModeLabel } from '../fold/tools/foldToolCatalog';
+import { foldWithLayerOrderLabel } from '../cp-workspace/folded/selectionFoldActions';
 import { cpActionLabelById } from './cpVocab';
 
 /**
@@ -10,6 +11,8 @@ import { cpActionLabelById } from './cpVocab';
  */
 
 export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition): string {
+  // In the crease-pattern tools' space, but no tool: the selection toolbar's button's own words.
+  if (definition.id === FOLD_WITH_LAYER_ORDER_SHORTCUT_ID) return foldWithLayerOrderLabel(t);
   if (definition.target === 'cp-action') {
     return cpActionLabelById(t, definition.id);
   }

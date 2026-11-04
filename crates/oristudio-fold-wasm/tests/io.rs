@@ -52,7 +52,7 @@ fn json_of(value: &impl serde::Serialize) -> Value {
     serde_json::to_value(value).unwrap_or_else(|e| panic!("{e}"))
 }
 
-/// Whether the sheet is one Import CP takes (V0): a square or a rectangle.
+/// Whether the sheet is a square or a rectangle.
 fn rectangular(state: &State) -> bool {
     let outline = state.sheet().outline();
     outline.len() == 4
@@ -76,6 +76,7 @@ fn round_trip(state: &State) -> State {
         cp_json: sent(state),
         order_json: jump::order_json(state).unwrap_or_else(|e| panic!("{e}")),
         origin: CpOrigin::Fold,
+        turn_deg: 0.0,
     };
     land(state, &jump).unwrap_or_else(|e| panic!("{}: {e}", e.code()))
 }
@@ -89,12 +90,77 @@ fn completions(state: &State) -> Completions {
         .unwrap_or_else(|e| panic!("{}: {e}", e.code()))
 }
 
+/// A key's numbers, and the key with each of them replaced by `#`.
+fn key_numbers(key: &str) -> (String, Vec<i64>) {
+    let (mut shape, mut numbers, mut digits) = (String::new(), Vec::new(), String::new());
+    for c in key.chars().chain(['\0']) {
+        if c.is_ascii_digit() || (c == '-' && digits.is_empty() && !shape.ends_with('#')) {
+            digits.push(c);
+            continue;
+        }
+        if !digits.is_empty() {
+            match digits.parse() {
+                Ok(n) => {
+                    numbers.push(n);
+                    shape.push('#');
+                }
+                Err(_) => shape.push_str(&digits),
+            }
+            digits.clear();
+        }
+        shape.push(c);
+    }
+    (shape, numbers)
+}
+
+/// Whether two states' keys name the same facts, a number of one allowed to
+/// be one unit (1e-9 of the sheet) from the other's. The kernel's frame and
+/// back leave the last bit of a coordinate free, and a face's witness — its
+/// centroid — multiplies that by its own thinness: now and then one lands on
+/// the other side of a unit.
+fn same_to_a_unit(a: &BTreeSet<String>, b: &BTreeSet<String>) -> bool {
+    let mut theirs: Vec<(String, Vec<i64>)> = b.difference(a).map(|k| key_numbers(k)).collect();
+    a.difference(b).count() == theirs.len()
+        && a.difference(b).all(|key| {
+            let (shape, numbers) = key_numbers(key);
+            let Some(k) = theirs.iter().position(|(s, n)| {
+                *s == shape
+                    && n.len() == numbers.len()
+                    && n.iter().zip(&numbers).all(|(x, y)| (x - y).abs() <= 1)
+            }) else {
+                return false;
+            };
+            theirs.swap_remove(k);
+            true
+        })
+}
+
 /// The round trip lands the same state, and whenever Import CP's completion
 /// lists every order the letters allow, the state's is among them. Returns
 /// the completion.
 fn assert_round_trips(name: &str, state: &State) -> Completions {
     let jumped = round_trip(state);
     assert_eq!(keys(&jumped), keys(state), "{name} step {}", state.step());
+    offers_itself(name, state, &jumped)
+}
+
+/// [`assert_round_trips`] with the keys' numbers allowed a unit
+/// ([`same_to_a_unit`]).
+fn assert_round_trips_to_a_unit(name: &str, state: &State) -> Completions {
+    let jumped = round_trip(state);
+    assert!(
+        same_to_a_unit(&keys(&jumped), &keys(state)),
+        "{name} step {}: {:?} against {:?}",
+        state.step(),
+        keys(&jumped).difference(&keys(state)).collect::<Vec<_>>(),
+        keys(state).difference(&keys(&jumped)).collect::<Vec<_>>(),
+    );
+    offers_itself(name, state, &jumped)
+}
+
+/// Import CP's completion of `state`'s pattern, which must offer the
+/// order `jumped` landed whenever it lists every one.
+fn offers_itself(name: &str, state: &State, jumped: &State) -> Completions {
     let completions = completions(state);
     if completions.count().exact {
         // The jump's faces are the completion's: one import of one text.
@@ -161,18 +227,19 @@ fn classic_paths() -> Vec<(String, Vec<State>)> {
 }
 
 /// The landed states of seeded random sequences on square and rectangular
-/// sheets (V0 imports no polygon).
+/// sheets, or on regular polygon sheets.
 fn random_states(
     seeds: std::ops::Range<u64>,
     steps: usize,
     max_faces: usize,
+    polygons: bool,
 ) -> Vec<(String, State)> {
     let mut states = Vec::new();
     for seed in seeds {
         let Ok(sequence) = Sequence::new(seed, steps, max_faces) else {
             continue;
         };
-        if !rectangular(sequence.state()) {
+        if rectangular(sequence.state()) == polygons {
             continue;
         }
         for step in sequence {
@@ -200,7 +267,7 @@ fn send_to_edit_then_import_cp_gives_the_classics_back() {
 fn send_to_edit_then_import_cp_gives_random_states_back() {
     // Turned, rotated by any angle, precreased, up to 64 faces. On
     // 2026-10-08: 364 states, the letters' orders listed in full for all.
-    let states = random_states(0x5eed_0000..0x5eed_0040, 12, 64);
+    let states = random_states(0x5eed_0000..0x5eed_0040, 12, 64, false);
     let mut listed = 0;
     for (name, state) in &states {
         if assert_round_trips(name, state).count().exact {
@@ -213,12 +280,34 @@ fn send_to_edit_then_import_cp_gives_random_states_back() {
 }
 
 #[test]
+fn send_to_edit_then_import_cp_gives_random_polygon_states_back() {
+    // The same on regular polygon sheets of 3 to 8 sides: Send to Edit
+    // writes the pattern in the kernel's frame, and Import CP fits its
+    // border back onto the sheet's corners. Every vertex comes back within
+    // the last bit, as a rectangle's does; one sliver's witness of these
+    // seeds then rounds to the next unit of its key.
+    let states = random_states(0x5eed_0000..0x5eed_0040, 12, 64, true);
+    let mut listed = 0;
+    for (name, state) in &states {
+        if assert_round_trips_to_a_unit(name, state).count().exact {
+            listed += 1;
+        }
+    }
+    eprintln!(
+        "{} random polygon states, {listed} listed in full",
+        states.len()
+    );
+    assert!(states.len() >= 60, "only {} states", states.len());
+    assert!(listed * 2 >= states.len(), "{listed} listed in full");
+}
+
+#[test]
 fn a_cp_json_is_a_fraction_of_the_kernel_models_own_serde() {
     // What `cpJson` saves over storing the kernel's model as its serde
     // writes it, on the larger random states: on 2026-10-08, 210 kB against
     // 1.4 MB.
     let (mut fold, mut serde) = (0, 0);
-    for (_, state) in random_states(0x5eed_0000..0x5eed_0040, 12, 64) {
+    for (_, state) in random_states(0x5eed_0000..0x5eed_0040, 12, 64, false) {
         if state.faces().len() < 16 {
             continue;
         }
@@ -623,7 +712,7 @@ fn opening_after_a_state_offers_its_order_and_a_pick_lands_it() {
     assert_eq!(imports.len(), 1);
 
     // A state whose letters leave a choice: the first such seeded one.
-    let (name, several) = random_states(0xf16_0000..0xf16_0030, 6, 24)
+    let (name, several) = random_states(0xf16_0000..0xf16_0030, 6, 24, false)
         .into_iter()
         .find(|(_, s)| {
             let count = completions(s).count();
@@ -704,6 +793,86 @@ fn an_empty_sequence_adopts_the_patterns_sheet_and_the_pick_replays_from_it() {
     assert_eq!(broken["code"], "import_shape_mismatch", "{broken}");
 }
 
+#[test]
+fn an_empty_sequence_adopts_a_polygon_and_a_polygon_sequence_takes_it_turned() {
+    // A regular hexagon, flat top and bottom, 2 across, with a valley from
+    // its left corner to its right: the polygon as Import starting sheet
+    // reads it.
+    let h = 3f64.sqrt() / 2.0;
+    let fold = json!({
+        "vertices_coords": [[0, h], [0.5, 0], [1.5, 0], [2, h], [1.5, 2.0 * h], [0.5, 2.0 * h]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0], [0, 3]],
+        "edges_assignment": ["B", "B", "B", "B", "B", "B", "V"]
+    })
+    .to_string();
+    let (mut bridge, picked, opened) = import_empty(CpFormat::Fold, &fold, StartSide::Front);
+    let found = match oristudio_fold_wasm::io::starting_sheet(
+        CpFile::of(CpFormat::Fold),
+        fold.as_bytes(),
+    ) {
+        Outcome::Ok(found) => found.sheet,
+        other => panic!("{other:?}"),
+    };
+    let SheetShape::Polygon { points } = found else {
+        panic!("a hexagon is a polygon sheet");
+    };
+    let adopted = json_of(&opened.paper);
+    assert_eq!(adopted, json!({ "kind": "polygon", "points": points }));
+    assert_eq!(picked.summary.faces, 2);
+
+    // The document stores the adopted paper, and a replay lands the step
+    // from its flat sheet.
+    let flat = sheet(
+        &mut bridge,
+        json!({ "shape": adopted, "startSide": "front" }),
+    );
+    let replayed = landed(apply(&mut bridge, flat, json_of(&picked.op)));
+    assert_eq!(
+        held_keys(&bridge, replayed),
+        held_keys(&bridge, picked.state)
+    );
+
+    // The app's regular hexagon stands on a corner: the pattern goes onto
+    // it turned 30°, its valley still from corner to corner.
+    let regular = Sheet::regular(6).unwrap_or_else(|e| panic!("{e}"));
+    let hexagon = sheet(
+        &mut bridge,
+        json!({ "shape": { "kind": "polygon", "points": regular.outline() } }),
+    );
+    let mut imports = Imports::new();
+    let opened = match imports.open(
+        &bridge,
+        CpFile::of(CpFormat::Fold),
+        fold.as_bytes(),
+        Target::After { state: hexagon },
+        &Limits::default(),
+    ) {
+        Ok(Outcome::Ok(opened)) => opened,
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(opened.paper, None);
+    assert_eq!(opened.summary.faces, 2);
+    let choice = vec![0; opened.components.len()];
+    let landed = match imports.pick(&mut bridge, opened.import, &choice) {
+        Ok(Outcome::Ok(landed)) => landed,
+        other => panic!("{other:?}"),
+    };
+    let state = bridge.state(landed.state).unwrap_or_else(|e| panic!("{e}"));
+    let valley: Vec<[Point; 2]> = state
+        .creases()
+        .iter()
+        .filter(|c| c.kind == CreaseKind::Folded(Letter::Valley))
+        .map(|c| c.vertices.map(|v| state.vertices()[v.0 as usize]))
+        .collect();
+    assert_eq!(valley.len(), 1);
+    for end in valley[0] {
+        assert!(
+            regular.outline().contains(&end),
+            "{end:?} is no corner of the sheet"
+        );
+    }
+}
+
 /// A square creased with a plus, neither crease's letter known: an import
 /// whose order needs a search.
 fn plus_unknown() -> String {
@@ -782,8 +951,14 @@ fn imports_that_cannot_land_are_refusals_with_import_codes() {
         Target::After { state: hexagon },
         &limits,
     );
+    assert_eq!(code["code"], "import_shape_mismatch");
+    assert_eq!(code["expected_corners"].as_array().map(Vec::len), Some(6));
+    assert_eq!(code["found_corners"].as_array().map(Vec::len), Some(4));
+    // A border that bends inward is no sheet at all.
+    let ell = b"1 0 0 2 0\n1 2 0 2 1\n1 2 1 1 1\n1 1 1 1 2\n1 1 2 0 2\n1 0 2 0 0\n";
+    let code = refused(CpFormat::Cp, ell, Target::After { state: hexagon }, &limits);
     assert_eq!(code["code"], "import_shape_unsupported");
-    assert_eq!(code["which"], json!({ "source": "sequence" }));
+    assert_eq!(code["which"]["source"], "pattern");
 
     // A search that needs more than its budget.
     let tight = Limits {
@@ -931,7 +1106,7 @@ fn edits_folded_figure_imports_as_the_state_it_was_folded_from() {
         .into_iter()
         .flat_map(|(name, path)| path.into_iter().map(move |s| (name.clone(), s)))
         .collect();
-    candidates.extend(random_states(0xf16_0000..0xf16_0030, 6, 24));
+    candidates.extend(random_states(0xf16_0000..0xf16_0030, 6, 24, false));
     let (mut figures, mut identical) = (0, 0);
     for (name, state) in candidates {
         let precreased = state

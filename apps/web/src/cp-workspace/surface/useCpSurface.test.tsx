@@ -12,7 +12,7 @@ import {
   CP_POINT_HIT_MIN_CSS,
   CP_POINT_HIT_MIN_CSS_COARSE,
 } from '../snapRadius';
-import type { CpSurface, CpSurfaceHitRadii, UseCpSurfaceOptions } from './useCpSurface';
+import type { CpSurface, CpSurfaceHitRadii, CpSurfaceView, UseCpSurfaceOptions } from './useCpSurface';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -330,6 +330,27 @@ describe('useCpSurface opening fit', () => {
     expect(onZoomPercentChange).toHaveBeenLastCalledWith(FIT_400);
   });
 
+  it('fills the share of the canvas a surface asks for, and fits back to it', () => {
+    layOut({ width: 400, height: 400 });
+    const onZoomPercentChange = vi.fn<(percent: number) => void>();
+    mount({ onZoomPercentChange, fitShare: 0.9 });
+    const fitted = Math.round((400 / 200) * 0.9 * 100);
+    expect(onZoomPercentChange).toHaveBeenLastCalledWith(fitted);
+    act(() => surface().controls.zoomIn());
+    act(() => surface().controls.fit());
+    expect(onZoomPercentChange).toHaveBeenLastCalledWith(fitted);
+  });
+
+  it('reports the line boost with its view: none at the fit, more once zoomed past it', () => {
+    layOut({ width: 400, height: 400 });
+    const onViewChange = vi.fn<(view: CpSurfaceView) => void>();
+    mount({ onViewChange });
+    expect(onViewChange.mock.lastCall![0].widthBoost).toBe(1);
+    act(() => surface().controls.zoomIn());
+    act(() => surface().controls.zoomIn());
+    expect(onViewChange.mock.lastCall![0].widthBoost).toBeGreaterThan(1);
+  });
+
   it('takes no fit while the canvas has no box, and fits once it has one', () => {
     // A dock not laid out yet, or a page in a hidden tab: the canvas is in
     // the document with nothing to draw in, and its content already known.
@@ -475,4 +496,21 @@ describe('useCpSurface renderer lifecycle', () => {
     expect(regl.built).toHaveLength(1);
     expect(surface().rendererStatus).toBeNull();
   });
+});
+
+
+it('keeps tool overlays on the displayed paper camera while a new camera is rendering', () => {
+  stubWebgl();
+  const onViewChange = vi.fn();
+  const frames: import('./useCpSurface').CpSurfacePaperFrame[] = [];
+  let shown: import('./useCpSurface').CpSurfacePaperFrame | null = null;
+  mount({ onViewChange, onPaperFrame: frame => { frames.push(frame); }, presentedPaperFrame: () => shown });
+  shown = frames.at(-1)!;
+  const old = onViewChange.mock.lastCall![0];
+  act(() => surface().controls.zoomIn());
+  expect(frames.at(-1)!.view).not.toEqual(shown.view);
+  expect(onViewChange.mock.lastCall![0]).toEqual(old);
+  shown = frames.at(-1)!;
+  act(() => surface().render());
+  expect(onViewChange.mock.lastCall![0]).not.toEqual(old);
 });

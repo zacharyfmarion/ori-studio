@@ -2,9 +2,10 @@
 //! Edit or from a sample becomes a state, its layer order completed from its
 //! letters.
 //!
-//! 1. Find the sheet from the border: one closed loop, a square or a
-//!    rectangle (V0), matched against the sequence's sheet or adopted by an
-//!    empty sequence (`placement`).
+//! 1. Find the sheet from the border: one closed loop around a convex sheet
+//!    — a square, a rectangle, a regular or any other convex polygon —
+//!    matched against the sequence's sheet or adopted by an empty sequence
+//!    (`placement`).
 //! 2. Map the kinds (D10's inverse): B, M and V keep; unassigned with a hint
 //!    X is a precrease remembering X; unassigned without one is folded, its
 //!    letter decided by the completion (Edit does not fold unassigned lines;
@@ -34,9 +35,13 @@
 //!
 //! - The pattern's front is the sheet's front, whatever the sequence's start
 //!   side: the letters keep their meaning.
-//! - The frame is the one the outline code chooses. A rectangle that fits the
-//!   sequence's sheet only turned is turned a quarter, counter-clockwise, and
-//!   the summary says so.
+//! - A rectangle onto a rectangle is placed in the frame the outline code
+//!   chooses. A rectangle that fits the sequence's sheet only turned is
+//!   turned a quarter, counter-clockwise, and the summary says so.
+//! - Any other sheet is placed by its corners: the pattern as drawn, turned,
+//!   scaled and moved so that every corner of its border lands on one of the
+//!   sheet's, turned as little as the sheet's symmetry allows (a pattern
+//!   drawn as the sheet lies is not turned at all).
 //! - The state keeps the current view. Its root is the face containing the
 //!   previous root's witness, at the previous root's isometry, so the model
 //!   does not jump.
@@ -156,8 +161,9 @@ impl CreasePatternInput {
 /// Where an import lands.
 #[derive(Debug, Clone, Copy)]
 pub enum ImportTarget<'a> {
-    /// A sequence with no steps: it adopts the pattern's square or
-    /// rectangle, seen from `start` as its flat sheet would be.
+    /// A sequence with no steps: it adopts the pattern's sheet — a square, a
+    /// rectangle, or the polygon Import starting sheet reads
+    /// ([`starting_sheet`]) — seen from `start` as its flat sheet would be.
     Empty { start: StartSide },
     /// A sequence whose current state is this one: the pattern must fit its
     /// sheet; the view is kept and the root continues (plan D16).
@@ -200,14 +206,14 @@ impl ImportTarget<'_> {
     }
 }
 
-/// Which shape V0 cannot import.
+/// Which shape Import CP cannot import.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case", tag = "source")]
 pub enum UnsupportedShape {
-    /// The pattern's border is a closed loop but no rectangle: its corners.
+    /// The pattern's border is a closed loop but no sheet Fold folds: it
+    /// bends inward, or a side is shorter than the minimum feature. Its
+    /// corners.
     Pattern { corners: Vec<Point> },
-    /// The sequence's sheet is neither a square nor a rectangle.
-    Sequence,
 }
 
 /// Everything Import CP refuses. Points are in the input's coordinates.
@@ -227,12 +233,26 @@ pub enum ImportRefusal {
     #[error("the border is not one simple closed loop")]
     OutlineInvalid { reason: RefusalReason },
     #[serde(rename = "import_shape_unsupported")]
-    #[error("only square and rectangle sheets can be imported")]
+    #[error("the pattern's border is no convex sheet")]
     ShapeUnsupported { which: UnsupportedShape },
-    /// Widths and heights with the longer side 1.
+    /// A rectangle that fits the sequence's rectangle at no quarter turn:
+    /// widths and heights with the longer side 1.
     #[serde(rename = "import_shape_mismatch")]
     #[error("the pattern's sheet is {found:?}, the sequence's {expected:?}")]
     ShapeMismatch { expected: [f64; 2], found: [f64; 2] },
+    /// A polygon sheet (the pattern's, the sequence's or both) that fits the
+    /// other at no turn, scale and shift: the sequence's corners in the
+    /// sheet frame, the pattern's in the input's coordinates.
+    #[serde(rename = "import_shape_mismatch")]
+    #[error(
+        "the pattern's sheet ({} corners) is not the sequence's ({} corners) turned or scaled",
+        found_corners.len(),
+        expected_corners.len()
+    )]
+    OutlineMismatch {
+        expected_corners: Vec<Point>,
+        found_corners: Vec<Point>,
+    },
     #[serde(rename = "import_crease_off_sheet")]
     #[error("segment {segment} leaves the sheet at {point:?}")]
     CreaseOffSheet { segment: usize, point: Point },
@@ -317,7 +337,9 @@ impl ImportRefusal {
             ImportRefusal::OutlineLoops { .. } => "import_outline_loops",
             ImportRefusal::OutlineInvalid { .. } => "import_outline_invalid",
             ImportRefusal::ShapeUnsupported { .. } => "import_shape_unsupported",
-            ImportRefusal::ShapeMismatch { .. } => "import_shape_mismatch",
+            ImportRefusal::ShapeMismatch { .. } | ImportRefusal::OutlineMismatch { .. } => {
+                "import_shape_mismatch"
+            }
             ImportRefusal::CreaseOffSheet { .. } => "import_crease_off_sheet",
             ImportRefusal::ConflictingCreases { .. } => "import_conflicting_creases",
             ImportRefusal::CreaseNotChord { .. } => "import_crease_not_chord",
@@ -376,6 +398,8 @@ pub struct ImportSummary {
     /// which adopts it.
     pub shape: SheetShape,
     /// The pattern was turned a quarter, counter-clockwise, to fit.
+    /// (A polygon may be turned by another angle to fit; only a quarter is
+    /// said.)
     pub quarter_turn: bool,
     pub faces: usize,
     pub mountains: usize,
@@ -597,6 +621,17 @@ impl ImportedPattern {
         &self.unordered
     }
 
+    /// Turn the view the import lands in by `angle` radians,
+    /// counter-clockwise on the display, from the target's (which the import
+    /// keeps, plan D16): the imported step is then seen turned, as if a
+    /// rotate step followed it, with no step of its own (the Layer order
+    /// dialog's Rotate, `implementation-plans/layer-order-dialog.md`). Only
+    /// the view turns; the order, the letters and every stored point stay in
+    /// the model frame. A non-finite angle is no turn.
+    pub fn rotate_view(&mut self, angle: f64) {
+        self.unordered.rotate_view(angle);
+    }
+
     /// An input point in sheet coordinates.
     pub fn to_sheet(&self, p: Point) -> Point {
         self.placement.to_sheet(p)
@@ -669,10 +704,6 @@ impl ImportedPattern {
                 .ok_or(ImportRefusal::WitnessNotInFace { point: p })
         };
         let start_face = face(start)?;
-        let start_front_up = self
-            .unordered
-            .isometry(start_face)
-            .is_some_and(|t| t.front_up());
         let mut mapped = Vec::with_capacity(relations.len());
         for &[upper, lower] in relations {
             let (upper_face, lower_face) = (face(upper)?, face(lower)?);
@@ -686,7 +717,21 @@ impl ImportedPattern {
                 lower_face,
             });
         }
-        let order = LayerOrder::from_oriedita(&mapped, start_front_up).map_err(|e| match e {
+        self.oriedita_face_seeds(start_face, &mapped)
+    }
+
+    /// [`ImportedPattern::oriedita_seeds`] with the faces already found:
+    /// `start` is the face Oriedita started its fold from and each relation
+    /// names two faces of this pattern, in Oriedita's convention. What the
+    /// Layer order dialog's Apply seeds an import with (row H10), its faces
+    /// matched to this pattern's by `steer::ImportedFaces`.
+    pub fn oriedita_face_seeds(
+        &self,
+        start: FaceId,
+        relations: &[OrieditaRelation],
+    ) -> Result<Vec<FixedPair>, ImportRefusal> {
+        let start_front_up = self.unordered.isometry(start).is_some_and(|t| t.front_up());
+        let order = LayerOrder::from_oriedita(relations, start_front_up).map_err(|e| match e {
             LayerOrderError::ContradictoryOrder { pair } => {
                 self.refused_order(CompletionRefusal::FixedContradictory { pair })
             }
@@ -721,8 +766,18 @@ impl ImportedPattern {
         relations: &[[Point; 2]],
         limits: &CompletionLimits,
     ) -> Result<State, ImportRefusal> {
-        let seeds = self.oriedita_seeds(start, relations)?;
-        let completions = self.complete_with(&seeds, limits)?;
+        self.decided_by(&self.oriedita_seeds(start, relations)?, limits)
+    }
+
+    /// The state whose order the letters and `seeds` decide: every pair, so
+    /// one order and no choice. When they leave one, the refusal says how
+    /// many orders there are (`import_order_open`).
+    pub fn decided_by(
+        &self,
+        seeds: &[FixedPair],
+        limits: &CompletionLimits,
+    ) -> Result<State, ImportRefusal> {
+        let completions = self.complete_with(seeds, limits)?;
         if !completions.is_unique() {
             return Err(ImportRefusal::OrderOpen {
                 orders: completions.count(),

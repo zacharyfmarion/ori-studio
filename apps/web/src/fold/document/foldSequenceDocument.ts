@@ -315,6 +315,13 @@ export interface FoldCpJumpOp {
   origin: FoldCpOrigin;
   /** Project-local source. Replay always uses cpJson and orderJson, never the live source. */
   source?: { documentId: string; revision: string; region?: RegionReference };
+  /**
+   * How far the step's view turns, degrees clockwise on screen, from the
+   * view of the step it lands after, in (−180, 180]: the Layer order
+   * dialog's Rotate on the import, so no rotate step need follow it. Left
+   * out for none, as every step from before it.
+   */
+  turnDeg?: number;
 }
 
 // --- Compound folds (plan D4), one block per family -------------------------
@@ -394,6 +401,13 @@ export type FoldModelDirection = readonly [number, number];
  * it. Only a drawn hinge is spelled, so every other squash reads and writes
  * as it always did; a build before it reads `hinge` as a key it does not
  * know and locks the step rather than squash the whole flap.
+ *
+ * A flap whose walls are several plies each — nested wraps on one spine —
+ * opens between its walls. `opening` opens it elsewhere: how many of its
+ * layers at the flap point, from the direction's side, lie above the
+ * opening (a depth at a sheet point, as a seed's `layers` is), spelled only
+ * when it is not between the walls. A build before it locks the step rather
+ * than open it between the walls.
  */
 export interface FoldSquashOp {
   kind: 'squash';
@@ -401,6 +415,7 @@ export interface FoldSquashOp {
   target?: FoldModelDirection;
   direction: FoldDirection;
   hinge?: FoldLocatedLine;
+  opening?: number;
 }
 
 /**
@@ -951,6 +966,8 @@ export interface FoldSequenceDocument {
    * Optional only for documents built by hand, which draw in the default.
    */
   style?: ResolvedDocumentPaperStyle;
+  /** Snapshot of this sequence's initial display recipe. Absent in legacy files means off. */
+  defaultSpread?: import('../../cp-workspace/folded/foldedLayerSpread').LayerSpreadOptions | 'off';
   /**
    * Reserved for per-sequence `PaperStyleOverrides` (plan D7, D11): never
    * written by this build, carried verbatim when a file holds one.
@@ -982,6 +999,7 @@ export function createFoldSequence(
     title,
     paper,
     style: FOLD_DEFAULT_PAPER_STYLE,
+    defaultSpread: 'off',
     steps: [],
   };
 }

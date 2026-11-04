@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
-import { DEFAULT_LAYER_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_AFFINE_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import { documentPaperStyleOf } from '../../lib/paper/documentPaperStyle';
 import { FOLD_DEFAULT_PAPER_STYLE } from '../document/foldSequenceDocument';
 import { bookScene } from '../canvas/foldCanvas.fixtures';
@@ -71,7 +71,7 @@ function Strip({ spread }: { spread: LayerSpreadOptions }) {
 }
 
 const wait = (ms: number) => act(async () => new Promise((resolve) => setTimeout(resolve, ms)));
-const spreadAt = (move: number): LayerSpreadOptions => ({ ...DEFAULT_LAYER_SPREAD, amount: Number((0.03 + move * 0.002).toFixed(4)) });
+const spreadAt = (move: number): LayerSpreadOptions => ({ ...DEFAULT_AFFINE_SPREAD, amount: Number((0.03 + move * 0.002).toFixed(4)) });
 
 let root: Root | null = null;
 afterEach(() => {

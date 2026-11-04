@@ -12,27 +12,37 @@
 //!   crosses is refused, naming it. As the line through two points
 //!   ([`PetalHinge::Points`]), they need not be: the macro scores H across
 //!   the top layer alone — the paper that lifts across it — and each kite
-//!   crease that is missing across the top two layers, which fold on it, and
-//!   creases no other layer. A score where the crease is there already splits
+//!   crease that is missing across the layer that folds on it, and creases
+//!   no other layer. A score where the crease is there already splits
 //!   nothing, so over precreases both ways land the same state.
 //! - **The flap**: its *top layer* is the petal's face grown across flat
 //!   creases that reach below H; its folded creases to the rest that reach
 //!   below H are its closed edges, which H meets at its two ends PL and PR.
-//!   A kite crease is the flat crease of the top layer from PL (or PR) below
-//!   H; given two points and no such crease, it is the line from PL that
-//!   bisects H and the closed edge below PL, the one line there that folds
-//!   flat with the closed edge unfolding (Kawasaki at PL). The two meet at
-//!   the flap's open corner, and no paper of the flap may lie beyond it. The
-//!   *second layer* is the paper across the closed edges, grown the same way.
+//!   The *second layer* is the paper across the closed edges, grown the same
+//!   way.
+//! - **The kite creases**, one per layer at each end. At PL, H, the closed
+//!   edge above PL and the two layers' kite creases meet, and the closed
+//!   edge below PL unfolds: that folds flat (Kawasaki at PL) exactly when
+//!   the two kite creases' angles from the closed edge below PL add up to
+//!   its angle with H. So a layer's kite crease is its own flat crease from
+//!   PL below H, or the partner of the other layer's; given two points and
+//!   neither layer creased there, both are the line that bisects H and the
+//!   closed edge, as on the bird base, where the layers end together. On a
+//!   doubled flap — a squashed one, as the frog base's — the top layer ends
+//!   at a raw edge across the flap and its kite creases meet there, while
+//!   the second layer's run on to its own corner. A layer's two kite creases
+//!   meet at its open corner, and none of its paper may lie beyond it. Of
+//!   the pairs the precreases offer, the first that folds is folded, the
+//!   most precreased first; a precreased pair that does not fold flat is
+//!   refused as a petal fold, never folded.
 //! - **Motions** (6 blocks with what stays, research §5.3): the petal
-//!   reflects across H; the top layer outside each kite crease reflects
-//!   across it and then across H; the second layer outside it across it
-//!   alone; the top layer above H, where H is scored, stays. At PL, H, the
-//!   kite crease and the closed edge meet, so the three reflections compose
-//!   to one there: the second layer creases on the kite line, and the closed
-//!   edge below PL unfolds. The second layer's paper inside the kite stays,
-//!   so H need not cross it creased; its paper outside a kite crease folds
-//!   in below H, so H must not cross it at all.
+//!   reflects across H; the top layer outside each of its kite creases
+//!   reflects across it and then across H; the second layer outside each of
+//!   its own across it alone; the top layer above H, where H is scored,
+//!   stays. At PL the three reflections compose to one along the closed
+//!   edge below PL, which unfolds. The second layer's paper inside its kite
+//!   stays, so H need not cross it creased; its paper outside a kite crease
+//!   folds in below H, so H must not cross it at all.
 
 use std::collections::BTreeSet;
 
@@ -44,8 +54,8 @@ use crate::complete::CompletionLimits;
 use crate::compound::CompoundRefused;
 use crate::compound::pieces::{Cut, Scoring, score_cuts};
 use crate::compound::vertex::{
-    Compiled, VertexChoices, VertexFoldKind, VertexOutcome, drop_empty, piece_centroid,
-    stack_toward, toward, unit,
+    Compiled, VertexChoices, VertexFoldKind, VertexOutcome, angle_between, drop_empty,
+    piece_centroid, rotate, stack_toward, toward, unit,
 };
 use crate::fold::line::Axis;
 use crate::fold::{ActionKind, FoldActionGeometry, FoldAnalysis, Snap, Within};
@@ -146,18 +156,24 @@ pub enum NoPetalDetail {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PetalAnalysis {
     pub line: Line,
-    /// H's ends on the closed edges, and the corner the kite creases meet
-    /// at, in the parent's model frame.
+    /// H's ends on the closed edges, and the corner the top layer's kite
+    /// creases meet at, in the parent's model frame: the kite that lifts.
     pub ends: [Point; 2],
     pub corner: Point,
     pub kites: [Line; 2],
+    /// The second layer's kite creases (in `kites`' order) and their
+    /// corner: the top layer's own on a flap whose layers end together, as
+    /// the bird base's do; on a doubled flap, as the frog base's, each runs
+    /// to the second layer's own corner beyond the top layer's.
+    pub second_corner: Point,
+    pub second_kites: [Line; 2],
     /// The parent's faces of the top and second layers, in id order: below
     /// H, or across it where H is not creased.
     pub top: Vec<FaceId>,
     pub second: Vec<FaceId>,
     /// What the fold creases itself (H given by two points): H where it
-    /// crosses the top layer, and each kite crease (in `kites`' order) where
-    /// it crosses the top two layers. All false over precreases.
+    /// crosses the top layer, and at each end (in `kites`' order) a kite
+    /// crease where it crosses its layer. All false over precreases.
     pub scores_line: bool,
     pub scores_kites: [bool; 2],
 }
@@ -168,16 +184,45 @@ struct Petal {
     /// The sign of the petal's side of H.
     below: f64,
     ends: [Point; 2],
-    corner: Point,
-    kites: [Line; 2],
     top: Vec<usize>,
     second: Vec<usize>,
+    /// The kite creases of the top layer and of the second.
+    kite: Kite,
+    second_kite: Kite,
+    /// What the fold scores: the top faces H crosses. Empty over
+    /// precreases.
+    line_cut: Vec<usize>,
+}
+
+/// One layer's kite creases, from H's two ends to where they meet.
+struct Kite {
+    lines: [Line; 2],
+    corner: Point,
     /// A model point inside the kite below H.
     inside: Point,
-    /// What the fold scores: the top faces H crosses, and per kite crease
-    /// the top and second faces it crosses. Empty over precreases.
-    line_cut: Vec<usize>,
-    kite_cuts: [Vec<usize>; 2],
+    /// Per kite crease, the layer's faces it crosses: what the fold scores.
+    /// Empty over precreases.
+    cuts: [Vec<usize>; 2],
+}
+
+impl Kite {
+    /// Whether the model point `c` lies outside kite crease `k`: on its side
+    /// away from the kite's inside.
+    fn outside(&self, k: usize, c: Point) -> bool {
+        let kite = &self.lines[k];
+        kite.signed_distance(c) * kite.signed_distance(self.inside) < 0.0
+    }
+}
+
+/// The kite creases a petal fold may fold at one end of H, one per layer:
+/// flat at the end (Kawasaki, the closed edge below it unfolding) exactly
+/// when their angles from the closed edge add up to the angle between it and
+/// H. `precreased` counts those already creased flat there.
+#[derive(Debug, Clone, Copy)]
+struct KitePair {
+    top: Line,
+    second: Line,
+    precreased: usize,
 }
 
 impl State {
@@ -186,15 +231,19 @@ impl State {
         let direction = self.view().model_direction(op.direction);
         let petal = self.petal_flap(op, direction)?;
         let ids = |faces: &[usize]| faces.iter().map(|&f| self.faces()[f].id).collect();
+        let scores =
+            |k: usize| !petal.kite.cuts[k].is_empty() || !petal.second_kite.cuts[k].is_empty();
         Ok(PetalAnalysis {
             line: petal.line,
             ends: petal.ends,
-            corner: petal.corner,
-            kites: petal.kites,
+            corner: petal.kite.corner,
+            kites: petal.kite.lines,
+            second_corner: petal.second_kite.corner,
+            second_kites: petal.second_kite.lines,
             top: ids(&petal.top),
             second: ids(&petal.second),
             scores_line: !petal.line_cut.is_empty(),
-            scores_kites: petal.kite_cuts.each_ref().map(|faces| !faces.is_empty()),
+            scores_kites: [scores(0), scores(1)],
         })
     }
 
@@ -236,7 +285,7 @@ impl State {
     ) -> Result<FoldActionGeometry, Refused> {
         let direction = self.view().model_direction(op.direction);
         let petal = self.petal_flap(op, direction)?;
-        let side = Side::of_point(&petal.line, petal.inside)
+        let side = Side::of_point(&petal.line, petal.kite.inside)
             .ok_or(FoldRefusal::SeedNotOnMovingSide { point: op.petal })?;
         let mut moving: Vec<FaceId> = petal.top.iter().map(|&f| self.faces()[f].id).collect();
         moving.sort_unstable();
@@ -255,7 +304,7 @@ impl State {
         let kite = [convex::normalize(&[
             petal.ends[0],
             petal.ends[1],
-            petal.corner,
+            petal.kite.corner,
         ])];
         self.fold_action_within(
             &analysis,
@@ -286,17 +335,28 @@ impl State {
             layer[f] = 2;
         }
         // The kite creases first: each one scored splits the closed edge at
-        // its end in both layers it creases, so H runs through a vertex
-        // there and splits no face of the second layer.
-        let mut cuts = Vec::new();
-        for (kite, faces) in petal.kites.iter().zip(&petal.kite_cuts) {
-            if !faces.is_empty() {
-                cuts.push(Cut {
-                    axis: Axis::new(kite, Side::Positive),
-                    faces: mask(faces),
-                });
+        // its end in the layer it creases, so H runs through a vertex there
+        // and splits no face of the second layer. A line both layers fold
+        // on is one cut through both.
+        let mut cuts: Vec<(Line, Vec<usize>)> = Vec::new();
+        for kite in [&petal.kite, &petal.second_kite] {
+            for (line, faces) in kite.lines.iter().zip(&kite.cuts) {
+                if faces.is_empty() {
+                    continue;
+                }
+                match cuts.iter_mut().find(|(other, _)| other.approx_eq(line)) {
+                    Some((_, all)) => all.extend_from_slice(faces),
+                    None => cuts.push((*line, faces.clone())),
+                }
             }
         }
+        let mut cuts: Vec<Cut> = cuts
+            .into_iter()
+            .map(|(line, faces)| Cut {
+                axis: Axis::new(&line, Side::Positive),
+                faces: mask(&faces),
+            })
+            .collect();
         if !petal.line_cut.is_empty() {
             cuts.push(Cut {
                 axis: Axis::new(&petal.line, Side::Positive),
@@ -307,10 +367,6 @@ impl State {
             Scoring::unscored(self)
         } else {
             score_cuts(self, &cuts)?
-        };
-        // Outside a kite line: on its side away from the kite's inside.
-        let outside = |kite: &Line, c: Point| {
-            kite.signed_distance(c) * kite.signed_distance(petal.inside) < 0.0
         };
         let mut block_of = Vec::with_capacity(scoring.faces.len());
         for a in 0..scoring.faces.len() {
@@ -323,7 +379,13 @@ impl State {
                 message: "a petal piece has no centroid".to_string(),
             })?;
             let below = petal.line.signed_distance(c) * petal.below > 0.0;
-            let side = (0..2).find(|&k| outside(&petal.kites[k], c));
+            // Outside a kite crease of its own layer.
+            let kite = if layer[old] == 1 {
+                &petal.kite
+            } else {
+                &petal.second_kite
+            };
+            let side = (0..2).find(|&k| kite.outside(k, c));
             block_of.push(match (layer[old], below, side) {
                 // The top layer above a scored H stays.
                 (1, false, _) => None,
@@ -333,13 +395,16 @@ impl State {
                 (_, _, None) => None,
             });
         }
-        let [left, right] = petal.kites;
+        // Each layer turns about its own kite creases: on a doubled flap the
+        // top layer's run to its corner, the second layer's on to its own.
+        let [left, right] = petal.kite.lines;
+        let [second_left, second_right] = petal.second_kite.lines;
         let turns = vec![
             vec![(1, petal.line)],
             vec![(0, left), (1, petal.line)],
             vec![(0, right), (1, petal.line)],
-            vec![(0, left)],
-            vec![(0, right)],
+            vec![(0, second_left)],
+            vec![(0, second_right)],
         ];
         let turns = drop_empty(&mut block_of, turns);
         Ok(Compiled {
@@ -508,50 +573,6 @@ impl State {
         let [(a, run_a), (b, run_b)] = ends[..] else {
             return Err(no_petal(NoPetal::NoEnds));
         };
-        // The kite creases: the top layer's flat creases from each end that
-        // run below H; given two points and none is there, the bisector of
-        // H and the closed edge below the end.
-        let precreased = |end: Point| -> Option<Line> {
-            top.iter()
-                .flat_map(|&f| topology.face_creases[f].iter().copied())
-                .filter(|&k| matches!(creases[k].kind, CreaseKind::Flat(_)))
-                .find_map(|k| {
-                    let [x, y] = point_of(k);
-                    let far = if close(x, end) {
-                        y
-                    } else if close(y, end) {
-                        x
-                    } else {
-                        return None;
-                    };
-                    (depth(far) > TOL)
-                        .then(|| Line::from_points(end, far))
-                        .flatten()
-                })
-        };
-        let bisector = |end: Point, other: Point, run: Point| -> Option<Line> {
-            let along = unit([other[0] - end[0], other[1] - end[1]])?;
-            let mid = unit([along[0] + run[0], along[1] + run[1]])?;
-            Line::from_point_direction(end, mid)
-        };
-        let kite = |end: Point, other: Point, run: Point| {
-            precreased(end).or_else(|| scores.then(|| bisector(end, other, run)).flatten())
-        };
-        let (Some(left), Some(right)) = (kite(a, b, run_a), kite(b, a, run_b)) else {
-            return Err(if scores {
-                no_petal(NoPetal::NoCorner)
-            } else {
-                not_precreased(top, PetalCrease::Kite)
-            });
-        };
-        let corner = left
-            .intersect(&right)
-            .filter(|c| depth(*c) > TOL)
-            .ok_or(no_petal(NoPetal::NoCorner))?;
-        let inside = [
-            (a[0] + b[0] + corner[0]) / 3.0,
-            (a[1] + b[1] + corner[1]) / 3.0,
-        ];
 
         // The second layer: the paper across the closed edges.
         let across: Vec<usize> = closed.iter().map(|&(_, g)| g).collect();
@@ -559,15 +580,102 @@ impl State {
         second.retain(|f| !in_top(*f));
         let flap: Vec<usize> = top.iter().chain(&second).copied().collect();
 
-        // Beyond the corner, outside both kite creases, the flap folds no
-        // way: none of it may lie there.
-        let outside_of = |kite: &Line| -> Option<HalfPlane> {
-            let s = -kite.signed_distance(inside).signum();
-            HalfPlane::new([s * kite.n[0], s * kite.n[1]], s * kite.d)
+        // The kite pairs each end offers (see the module docs): angles from
+        // the closed edge below the end, partners when they add up to its
+        // angle with H.
+        let pairs = |end: Point, other: Point, run: Point| -> Vec<KitePair> {
+            let Some(along) = unit([other[0] - end[0], other[1] - end[1]]) else {
+                return Vec::new();
+            };
+            let turn = angle_between(run, along);
+            let (angle, toward) = (turn.abs(), turn.signum());
+            let at = |a: f64| Line::from_point_direction(end, rotate(run, toward * a));
+            // A layer's flat creases from the end that run below H: each
+            // one's angle from the closed edge, its line, and its far end.
+            let creased = |layer: &[usize]| -> Vec<(f64, Line, Point)> {
+                let mut found: Vec<(f64, Line, Point)> = Vec::new();
+                let flat = layer
+                    .iter()
+                    .flat_map(|&f| topology.face_creases[f].iter().copied())
+                    .filter(|&k| matches!(creases[k].kind, CreaseKind::Flat(_)));
+                for k in flat {
+                    let [x, y] = point_of(k);
+                    let far = if close(x, end) {
+                        y
+                    } else if close(y, end) {
+                        x
+                    } else {
+                        continue;
+                    };
+                    if depth(far) <= TOL {
+                        continue;
+                    }
+                    let (Some(direction), Some(line)) = (
+                        unit([far[0] - end[0], far[1] - end[1]]),
+                        Line::from_points(end, far),
+                    ) else {
+                        continue;
+                    };
+                    let a = toward * angle_between(run, direction);
+                    if a > 0.0 && a < angle && !found.iter().any(|(_, l, _)| l.approx_eq(&line)) {
+                        found.push((a, line, far));
+                    }
+                }
+                found
+            };
+            let (on_top, on_second) = (creased(&top), creased(&second));
+            let mut pairs: Vec<KitePair> = Vec::new();
+            let mut push = |top: Line, second: Line, precreased: usize| {
+                if !pairs
+                    .iter()
+                    .any(|p| p.top.approx_eq(&top) && p.second.approx_eq(&second))
+                {
+                    pairs.push(KitePair {
+                        top,
+                        second,
+                        precreased,
+                    });
+                }
+            };
+            // Both creased and flat together.
+            for &(a, top_line, _) in &on_top {
+                for &(_, second_line, far) in &on_second {
+                    if at(angle - a).is_some_and(|l| l.distance_to_point(far) <= TOL) {
+                        push(top_line, second_line, 2);
+                    }
+                }
+            }
+            // One creased, its partner in the other layer.
+            for &(a, top_line, _) in &on_top {
+                if let Some(partner) = at(angle - a) {
+                    push(top_line, partner, 1);
+                }
+            }
+            for &(a, second_line, _) in &on_second {
+                if let Some(partner) = at(angle - a) {
+                    push(partner, second_line, 1);
+                }
+            }
+            if scores
+                && on_top.is_empty()
+                && on_second.is_empty()
+                && let Some(bisector) = at(angle / 2.0)
+            {
+                push(bisector, bisector, 0);
+            }
+            pairs
         };
-        let (Some(out_left), Some(out_right)) = (outside_of(&left), outside_of(&right)) else {
-            return Err(no_petal(NoPetal::NoCorner));
-        };
+        let (at_a, at_b) = (pairs(a, b, run_a), pairs(b, a, run_b));
+        if at_a.is_empty() || at_b.is_empty() {
+            return Err(if scores {
+                no_petal(NoPetal::NoCorner)
+            } else {
+                not_precreased(top, PetalCrease::Kite)
+            });
+        }
+
+        // A layer's paper outside both its kite creases, beyond its corner,
+        // folds no way: none of it may lie there.
         let part = |f: usize, planes: &[HalfPlane]| -> Vec<Point> {
             let mut part = geometry.images[f].clone();
             for plane in planes {
@@ -578,19 +686,6 @@ impl State {
             }
             part
         };
-        let past: Vec<usize> = flap
-            .iter()
-            .copied()
-            .filter(|&f| !part(f, &[out_left, out_right]).is_empty())
-            .collect();
-        if !past.is_empty() {
-            return Err(FoldRefusal::PetalNoFlap {
-                faces: ids(&past),
-                cause: NoPetal::NoCorner,
-                detail: Some(NoPetalDetail::PastCorner { corner }),
-            }
-            .into());
-        }
         let crosses = |f: usize, kite: &Line| {
             let d: Vec<f64> = faces[f]
                 .ring
@@ -599,35 +694,127 @@ impl State {
                 .collect();
             d.iter().any(|&x| x > TOL) && d.iter().any(|&x| x < -TOL)
         };
-        let kite_cuts = [left, right].map(|kite| {
-            flap.iter()
+        // One layer's kite from a pair at each end, checked: its creases
+        // meet below H, and none of its paper lies past their corner. Also
+        // its outside half-planes, for the second layer's check against H.
+        let kite_of = |layer: &[usize],
+                       lines: [Line; 2]|
+         -> Result<(Kite, [HalfPlane; 2]), Refused> {
+            let corner = lines[0]
+                .intersect(&lines[1])
+                .filter(|c| depth(*c) > TOL)
+                .ok_or(no_petal(NoPetal::NoCorner))?;
+            let inside = [
+                (a[0] + b[0] + corner[0]) / 3.0,
+                (a[1] + b[1] + corner[1]) / 3.0,
+            ];
+            let outside_of = |kite: &Line| -> Option<HalfPlane> {
+                let s = -kite.signed_distance(inside).signum();
+                HalfPlane::new([s * kite.n[0], s * kite.n[1]], s * kite.d)
+            };
+            let (Some(out_a), Some(out_b)) = (outside_of(&lines[0]), outside_of(&lines[1])) else {
+                return Err(no_petal(NoPetal::NoCorner));
+            };
+            let past: Vec<usize> = layer
+                .iter()
                 .copied()
-                .filter(|&f| crosses(f, &kite))
-                .collect()
-        });
-        if !scores {
-            let crossed: BTreeSet<usize> = kite_cuts.iter().flatten().copied().collect();
-            if !crossed.is_empty() {
-                return Err(not_precreased(
-                    crossed.into_iter().collect(),
-                    PetalCrease::Kite,
-                ));
+                .filter(|&f| !part(f, &[out_a, out_b]).is_empty())
+                .collect();
+            if !past.is_empty() {
+                return Err(FoldRefusal::PetalNoFlap {
+                    faces: ids(&past),
+                    cause: NoPetal::NoCorner,
+                    detail: Some(NoPetalDetail::PastCorner { corner }),
+                }
+                .into());
+            }
+            let cuts = lines.map(|kite| {
+                layer
+                    .iter()
+                    .copied()
+                    .filter(|&f| crosses(f, &kite))
+                    .collect()
+            });
+            let kite = Kite {
+                lines,
+                corner,
+                inside,
+                cuts,
+            };
+            Ok((kite, [out_a, out_b]))
+        };
+        let fold = |[left, right]: [KitePair; 2]| -> Result<(Kite, Kite), Refused> {
+            let (kite, _) = kite_of(&top, [left.top, right.top])?;
+            let (second_kite, outside) = kite_of(&second, [left.second, right.second])?;
+            if !scores {
+                let crossed: BTreeSet<usize> = kite
+                    .cuts
+                    .iter()
+                    .chain(&second_kite.cuts)
+                    .flatten()
+                    .copied()
+                    .collect();
+                if !crossed.is_empty() {
+                    return Err(not_precreased(
+                        crossed.into_iter().collect(),
+                        PetalCrease::Kite,
+                    ));
+                }
+            }
+            // The second layer's paper outside a kite crease folds in below
+            // H, so H must not cross it: the fold scores H in the top layer
+            // only.
+            let reaching: Vec<usize> = second
+                .iter()
+                .copied()
+                .filter(|&f| {
+                    outside
+                        .iter()
+                        .any(|plane| straddles(&mut part(f, &[*plane]).into_iter()))
+                })
+                .collect();
+            if !reaching.is_empty() {
+                return Err(not_precreased(reaching, PetalCrease::Line));
+            }
+            Ok((kite, second_kite))
+        };
+        // The first pair at each end that folds, the most precreased first.
+        // None folding is refused as the first pair that would fold but for
+        // a missing kite crease is, naming it; else as the first pair is.
+        let mut choices: Vec<[KitePair; 2]> = at_a
+            .iter()
+            .flat_map(|&left| at_b.iter().map(move |&right| [left, right]))
+            .collect();
+        choices.sort_by_key(|[left, right]| std::cmp::Reverse(left.precreased + right.precreased));
+        let (mut first, mut missing) = (None, None);
+        let mut chosen = None;
+        for choice in choices {
+            match fold(choice) {
+                Ok(kites) => {
+                    chosen = Some(kites);
+                    break;
+                }
+                Err(refused) => {
+                    if missing.is_none()
+                        && matches!(
+                            refused.refusal,
+                            FoldRefusal::PetalNotPrecreased {
+                                missing: PetalCrease::Kite,
+                                ..
+                            }
+                        )
+                    {
+                        missing = Some(refused.clone());
+                    }
+                    first.get_or_insert(refused);
+                }
             }
         }
-        // The second layer's paper outside a kite crease folds in below H,
-        // so H must not cross it: the fold scores H in the top layer only.
-        let reaching: Vec<usize> = second
-            .iter()
-            .copied()
-            .filter(|&f| {
-                [out_left, out_right]
-                    .iter()
-                    .any(|plane| straddles(&mut part(f, &[*plane]).into_iter()))
-            })
-            .collect();
-        if !reaching.is_empty() {
-            return Err(not_precreased(reaching, PetalCrease::Line));
-        }
+        let (kite, second_kite) = match (chosen, missing.or(first)) {
+            (Some(kites), _) => kites,
+            (None, Some(refused)) => return Err(refused),
+            (None, None) => return Err(no_petal(NoPetal::NoCorner)),
+        };
 
         // Uncovered: no other paper over the top layer below H on the side
         // the petal lifts toward.
@@ -670,17 +857,11 @@ impl State {
             line,
             below,
             ends: [a, b],
-            corner,
-            kites: [left, right],
             top,
             second,
-            inside,
+            kite,
+            second_kite,
             line_cut: if scores { line_cut } else { Vec::new() },
-            kite_cuts: if scores {
-                kite_cuts
-            } else {
-                [Vec::new(), Vec::new()]
-            },
         })
     }
 }

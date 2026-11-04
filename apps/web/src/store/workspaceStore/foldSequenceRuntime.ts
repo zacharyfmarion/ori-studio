@@ -1,6 +1,7 @@
 import { wrap, type Remote } from 'comlink';
 import type { FoldSequenceWorkerApi } from '../../workers/foldSequenceWorker';
 import type { WasmErrorEnvelope } from '../../engine/types';
+import { createLatestWinsChannel, type LatestWinsChannel, type LatestWinsResult } from '../../lib/latestWinsChannel';
 import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 import { reportError } from '../../monitoring';
 import type { FoldEngineSource } from '../../fold/engine/foldEnginePort';
@@ -240,36 +241,16 @@ export const foldSequenceEngineSource: FoldEngineSource = {
 // Latest wins
 
 /** A preview's answer, or word that a newer request replaced it. */
-export type FoldPreviewResult<T> = { status: 'answered'; value: T } | { status: 'superseded' };
+export type FoldPreviewResult<T> = LatestWinsResult<T>;
 
-export interface FoldPreviewChannel {
-  /**
-   * Ask the worker. Resolves with the answer, or `superseded` as soon as a
-   * newer request (or {@link FoldPreviewChannel.cancel}) replaces this one.
-   * An answer that arrives superseded is handed to `discard`, so a landed
-   * preview's handle can be released. Rejects only while still the newest.
-   */
-  request<T>(
-    ask: (client: FoldSequenceClient) => Promise<T>,
-    discard?: (value: T) => void
-  ): Promise<FoldPreviewResult<T>>;
-  /** Supersede whatever is in flight or waiting, asking nothing new. */
-  cancel(): void;
-}
-
-interface Waiting {
-  ticket: number;
-  run: () => void;
-  supersede: () => void;
-}
+/** A preview stream to the Fold engine's worker (`lib/latestWinsChannel.ts`). */
+export type FoldPreviewChannel = LatestWinsChannel<FoldSequenceClient>;
 
 /**
- * Latest request wins (D14 tiers 2 and 3). The worker answers one call at a
- * time, so a preview per pointer move would queue behind every earlier one
- * and the answer on screen would trail the pointer further each frame.
- * Instead at most one request is in flight and one waits: a newer request
- * replaces the waiting one, which never reaches the worker, and makes the one
- * in flight superseded, its answer discarded when it comes.
+ * Latest request wins (D14 tiers 2 and 3), through
+ * {@link askFoldSequenceClient}: at most one request in flight and the newest
+ * waiting, everything between superseded without reaching the worker
+ * (`lib/latestWinsChannel.ts` has the rule).
  *
  * Stopping a request already in the worker is not this channel's job — that
  * is {@link stopFoldSequenceWork}, which costs every state the worker holds.
@@ -277,61 +258,5 @@ interface Waiting {
  * streams never supersede each other.
  */
 export function createFoldPreviewChannel(): FoldPreviewChannel {
-  let latest = 0;
-  let busy = false;
-  let waiting: Waiting | null = null;
-
-  const next = () => {
-    busy = false;
-    const queued = waiting;
-    waiting = null;
-    queued?.run();
-  };
-
-  return {
-    request<T>(
-      ask: (client: FoldSequenceClient) => Promise<T>,
-      discard?: (value: T) => void
-    ): Promise<FoldPreviewResult<T>> {
-      const ticket = ++latest;
-      return new Promise<FoldPreviewResult<T>>((resolve, reject) => {
-        const run = () => {
-          if (ticket !== latest) {
-            resolve({ status: 'superseded' });
-            next();
-            return;
-          }
-          busy = true;
-          askFoldSequenceClient(ask).then(
-            (value) => {
-              if (ticket === latest) resolve({ status: 'answered', value });
-              else {
-                discard?.(value);
-                resolve({ status: 'superseded' });
-              }
-              next();
-            },
-            (error: unknown) => {
-              if (ticket === latest) reject(error);
-              else resolve({ status: 'superseded' });
-              next();
-            }
-          );
-        };
-        waiting?.supersede();
-        if (busy) {
-          waiting = { ticket, run, supersede: () => resolve({ status: 'superseded' }) };
-        } else {
-          waiting = null;
-          run();
-        }
-      });
-    },
-
-    cancel() {
-      latest += 1;
-      waiting?.supersede();
-      waiting = null;
-    },
-  };
+  return createLatestWinsChannel<FoldSequenceClient>(askFoldSequenceClient);
 }

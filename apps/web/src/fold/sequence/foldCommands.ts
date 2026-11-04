@@ -102,7 +102,6 @@ export function foldActionContext(
     atTip: at === entries.length - 1,
     readOnly,
     foldKind,
-    sheet: document.paper.shape.kind,
     stepCount: document.steps.length,
   };
 }

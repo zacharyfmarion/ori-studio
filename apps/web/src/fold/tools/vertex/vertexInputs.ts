@@ -56,6 +56,9 @@ const LINE: FoldLocateStep = { snap: 'crease-required', slot: null, edges: true 
  */
 export type FoldSwivelInput = 'edge' | 'valley-mountain';
 
+/** The construction a swivel starts with: its valley and mountain, the creases the diagrams draw. */
+export const FOLD_SWIVEL_INPUT_DEFAULT: FoldSwivelInput = 'valley-mountain';
+
 /**
  * A squash's hinge, as the window's Hinge control switches it: the folded
  * edge the flap's lower layer turns over, which the engine infers, or a line

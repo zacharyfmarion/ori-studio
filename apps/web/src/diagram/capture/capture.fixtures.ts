@@ -5,8 +5,16 @@ import type {
   OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderPrimitive,
   OristudioCpFoldedRenderSnapshot,
+  OristudioCpFoldSource,
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
+import type { LayerOrderFound, LayerOrderResolution } from '../../layer-order/host/hostEngineGateway';
+import {
+  encodeLayerOrderRecord,
+  type LayerOrderAttention,
+  type LayerOrderRecord,
+} from '../../lib/layerOrder/layerOrderRecord';
+import type { LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
 import type { CpCaptureRuntime } from './captureFolded';
 
 /**
@@ -205,12 +213,138 @@ export function squareRenderSnapshot(): OristudioCpFoldedRenderSnapshot {
 }
 
 /**
+ * What the fake kernel says a fold was made from (`runtime.source`): the left
+ * square's foldable lines, kernel order, as the Layer order engines take
+ * them. Its box is centred on (50, 50), the step's paper frame's origin.
+ */
+export function fakeFoldSource(): OristudioCpFoldSource {
+  return {
+    segments: [
+      cpLine(0, 0, 100, 0, 'Black0'),
+      cpLine(0, 0, 0, 100, 'Black0'),
+      cpLine(0, 100, 100, 100, 'Black0'),
+      cpLine(100, 0, 100, 100, 'Black0'),
+      cpLine(0, 0, 100, 100, 'Red1'),
+    ],
+    starting_face_id: 1,
+    aux_segments: [],
+    digest: 'fixture-digest',
+  };
+}
+
+/** The handle the fake kernel's fold with a given order lands in. */
+export const ORDERED_HANDLE = 9;
+
+/**
+ * A step's layer order record, synthetic, in the step's paper frame (about
+ * the centre of {@link fakeFoldSource}'s box): the left square's two
+ * triangles, the first in front of the second, and the order at Apply.
+ */
+export const STEP_LAYER_ORDER: LayerOrderRecord = {
+  faces: [
+    { at: [-25, 25], area: 5000 },
+    { at: [25, -25], area: 5000 },
+  ],
+  constraints: [[0, 1, 1]],
+  order: [[0, 1, 1]],
+};
+
+/**
+ * {@link STEP_LAYER_ORDER} as the host engine and the dialog take it: its
+ * points in the crease pattern's coordinates, the step's frame centred on
+ * (50, 50).
+ */
+export const STEP_LAYER_ORDER_IN_SOURCE: LayerOrderRecord = {
+  ...STEP_LAYER_ORDER,
+  faces: [
+    { at: [25, 75], area: 5000 },
+    { at: [75, 25], area: 5000 },
+  ],
+};
+
+/** {@link STEP_LAYER_ORDER} as a step's source keeps it. */
+export function stepLayerOrderJson(record: LayerOrderRecord = STEP_LAYER_ORDER): string {
+  const encoded = encodeLayerOrderRecord(record);
+  if (!encoded.ok) throw new Error('the fixture record encodes');
+  return encoded.json;
+}
+
+/**
+ * The host engine's answers for {@link STEP_LAYER_ORDER} on the fake fold:
+ * its record as the engine takes it (its points about the crease pattern's
+ * origin), applied with one relation, or kept with the summary H2 gives it.
+ */
+export const fakeLayerOrderResolutions = {
+  applied(record: LayerOrderRecord, source: LayerOrderSource, attention: LayerOrderAttention | null = null): LayerOrderResolution {
+    // The session's own save of the order now shown: its points as the engine saves them, a unit along.
+    const saved = { ...record, faces: record.faces.map((face) => ({ ...face, at: [face.at[0] + 1, face.at[1]] as const })) };
+    const kept = attention ? { ...saved, attention } : saved;
+    return {
+      outcome: 'applied',
+      applied: { record: kept, relations: new Uint32Array([1, 0]), source },
+      found: NOTHING_FOUND,
+      record: kept,
+      attention,
+    };
+  },
+  kept(outcome: 'clash' | 'timed_out' | 'refused', record: LayerOrderRecord): LayerOrderResolution {
+    const attention: LayerOrderAttention =
+      outcome === 'clash'
+        ? { reason: 'conflict', count: 1 }
+        : outcome === 'refused'
+          ? { reason: 'unresolved', count: record.constraints.length }
+          : { reason: 'timeout', count: record.constraints.length };
+    const kept = { ...record, attention };
+    switch (outcome) {
+      case 'clash':
+        return { outcome, clashing: [0], found: NOTHING_FOUND, record: kept, attention };
+      case 'timed_out':
+        return { outcome, limit: 'deadline', nodes: 10, found: null, record: kept, attention };
+      case 'refused':
+        return { outcome, refusal: { code: 'source_no_faces' }, record: kept, attention };
+    }
+  },
+  /**
+   * No host engine to ask: the browser did not load it (`load`), it crashed,
+   * or it did not start (`unavailable`). H2 flags the record; a capture keeps none of it.
+   */
+  lost(record: LayerOrderRecord, cause: 'load' | 'crashed' | 'unavailable' = 'crashed'): LayerOrderResolution {
+    const attention: LayerOrderAttention = { reason: 'timeout', count: record.constraints.length };
+    return { outcome: 'lost', cause, record: { ...record, attention }, attention };
+  },
+};
+
+/** A restore's parts, empty: what these fakes found, which no capture reads. */
+const NOTHING_FOUND: LayerOrderFound = { saved_constraints: [], carried: [], opened_on: { kind: 'held', ignored: 0 } };
+
+/**
+ * {@link halfFoldKernelScene} in the other order: the back half on top, as a
+ * fold with a chosen layer order draws it, so its picture differs.
+ */
+export function halfFoldOtherOrderScene(): OristudioCpFoldedPaperScene {
+  const scene = halfFoldKernelScene();
+  return { ...scene, subfaces: scene.subfaces.map((subface) => ({ ...subface, faces_top_to_bottom: [1, 0] })) };
+}
+
+/**
  * A kernel stand-in: a flat fold that reaches `Paper5` with
- * {@link halfFoldKernelScene}, unless told otherwise. Every call is a spy.
+ * {@link halfFoldKernelScene}, unless told otherwise; a fold with a given
+ * order lands in {@link ORDERED_HANDLE}, drawn as
+ * {@link halfFoldOtherOrderScene}. Every call is a spy.
  */
 export function fakeCaptureRuntime(overrides: Partial<CpCaptureRuntime> = {}): CpCaptureRuntime {
   return {
     fold: vi.fn(async () => ({ handle: 7, discoveredCases: 1, displayStyle: 'Paper5' as const, outcome: 'Solved' as const })),
+    source: vi.fn(async () => fakeFoldSource()),
+    foldWithOrder: vi.fn(async () => ({
+      status: 'folded' as const,
+      handle: ORDERED_HANDLE,
+      discoveredCases: 1,
+      displayStyle: 'Paper5' as const,
+      outcome: 'Solved' as const,
+      currentCase: 1,
+      hasNext: false,
+    })),
     foldToCase: vi.fn(async (_handle: number, objective: number) => ({
       discoveredCases: Math.min(objective, 2),
       displayStyle: 'Paper5' as const,
@@ -219,7 +353,9 @@ export function fakeCaptureRuntime(overrides: Partial<CpCaptureRuntime> = {}): C
     setModel: vi.fn(async () => ({ discoveredCases: 1, displayStyle: 'Paper5' as const })),
     foldAnother: vi.fn(async () => ({ discoveredCases: 2, displayStyle: 'Paper5' as const })),
     renderSnapshot: vi.fn(async () => squareRenderSnapshot()),
-    paperScene: vi.fn(async () => halfFoldKernelScene()),
+    paperScene: vi.fn(async (handle: number) =>
+      handle === ORDERED_HANDLE ? halfFoldOtherOrderScene() : halfFoldKernelScene()
+    ),
     free: vi.fn(async () => {}),
     fold3d: vi.fn(async () => {
       throw new Error('no 3D fold in this fake');

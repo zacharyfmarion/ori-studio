@@ -42,7 +42,7 @@ import { useLayoutStore } from '../store/layoutStore';
 import { requestSidePane } from '../store/sidePaneRequests';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
-import { topmostModalDialog } from './ui/useModalDialog';
+import { topmostModalDialog } from '../keyboard/shortcutDispatcher';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

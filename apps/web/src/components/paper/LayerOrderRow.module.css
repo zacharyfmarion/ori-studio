@@ -1,0 +1,38 @@
+/* A flat fold's Layer order row (LayerOrderRow.tsx). Its pager is the shared
+   one (components/ui/Pager). */
+
+/* The row's value: the pager, then Edit…, apart as a row's controls are. */
+.layerOrder {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Stacked under the label (`layout`), out of a row's value cell: at the size
+   that cell gives a value, so the count reads as it does beside a label. */
+.layerOrder[data-layout='stacked'] {
+  font-size: 0.74rem;
+}
+
+/* A constrained fold's count, which the host never runs at rest (D11): its
+   width kept, nothing shown. */
+.reserved {
+  visibility: hidden;
+}
+
+/* Stacked, the note follows the controls, drawn as a row's note is under its
+   label: a status quiet and cut short, a reason in the label's ink, wrapped. */
+.note {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.note[data-note='reason'] {
+  color: var(--text-secondary);
+  white-space: normal;
+}

@@ -1,0 +1,12 @@
+/* ‹ where it stands › (Pager.tsx). */
+.pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.label {
+  padding: 0 var(--space-1);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

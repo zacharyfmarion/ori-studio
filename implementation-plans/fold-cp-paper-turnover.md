@@ -126,3 +126,18 @@ the restored default and white/grey swatches. Web lint, typecheck,
 Diagram on a fresh Fold sequence with no page errors. No new tests or
 translation changes are needed; the native/oracle/build exclusions above
 still apply.
+
+## Main synchronization (2026-11-04)
+
+PR #558 restores this feature after #544 was reverted. Merge current main
+(`3b22a6568`) and retain the new shared `PaperPane` and spread renderer.
+The CP sheet uses `PaperPane`'s existing `underFills` channel; its mirrored
+frame is supplied through `modelToSvg`, so rendering and picking agree.
+Paper crease pens stay independent of Edit's renderer styling. Translation
+metadata keeps both the feature keys and main's new strings.
+
+- [x] Resolve rendering and translation conflicts without removing main's changes.
+- [x] Verify paper colors, turnover, and the shared surface with 34 focused tests.
+
+Dependency rebuilds, full integration checks, and GitHub merge readiness are
+recorded on PR #558 so the results refer to its current commit.

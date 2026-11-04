@@ -23,19 +23,30 @@ import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
 import {
   cpDocument,
   fakeCaptureRuntime,
+  fakeFoldSource,
+  fakeLayerOrderResolutions,
   halfFoldOnSheetKernelScene,
   LEFT_FOLD_LINE_IDS,
   movedLines,
+  ORDERED_HANDLE,
+  STEP_LAYER_ORDER,
+  STEP_LAYER_ORDER_IN_SOURCE,
+  stepLayerOrderJson,
   TWO_SQUARES,
   twoSquaresIndex,
 } from './capture.fixtures';
 import {
+  captureModel,
   captureStep,
   readFlatPicture,
   SCENE_BUDGET_BYTES,
   storeScene,
   type CaptureStepRequest,
 } from './captureFolded';
+import { diagramLayerOrderFrame, stepLayerOrderOf, type CaptureLayerOrderResolve } from './captureLayerOrder';
+import type { LayerOrderResolution } from '../../layer-order/host/hostEngineGateway';
+import type { LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
+import { layerOrderSourceOf } from '../../lib/layerOrder/layerOrderSource';
 import { CAPTURE_PX_PER_UNIT, storedSceneStep } from './captureGeometry';
 import { cpSource, stepsIn } from '../document/diagramSteps.fixtures';
 import { affineSpread, layerSpread } from '../../cp-workspace/folded/foldedLayerSpread';
@@ -45,6 +56,7 @@ const folded3dStoredScene = vi.hoisted(() => ({ folded3dFigureScene: vi.fn() }))
 vi.mock('../../cp-workspace/folded/folded3dStoredScene', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../cp-workspace/folded/folded3dStoredScene')>()),
   ...folded3dStoredScene,
+  settledFolded3dFigureScene: folded3dStoredScene.folded3dFigureScene,
 }));
 
 const sheets = twoSquaresIndex();
@@ -399,6 +411,7 @@ describe('a flat capture’s faces on the paper (Revision 2)', () => {
         const [x, y] = turned(45, point);
         return [x! + dx, y! + dy];
       }
+      if (spread.kind !== 'affine') throw new Error('Legacy fixture expected affine');
       const { x, y } = affineSpread(kernel, spread, { epsilon }).offset(face, point);
       return turned(45, { x: point.x + x, y: point.y + y });
     };
@@ -568,5 +581,194 @@ describe('storeScene', () => {
 
   it('refuses a scene with nothing in it', () => {
     expect(() => storeScene(sceneOf([]), null, null)).toThrow(/nothing to draw/);
+  });
+});
+
+describe('captureStep, a step’s layer order (H7)', () => {
+  /** The fake kernel, every call it gets written down in turn, with the handle it names. */
+  function recordingRuntime(overrides: Parameters<typeof fakeCaptureRuntime>[0] = {}) {
+    const runtime = fakeCaptureRuntime(overrides);
+    const calls: string[] = [];
+    // These fold from the creases: their first argument is no handle.
+    const folds = new Set(['fold', 'fold3d', 'foldWithOrder']);
+    const wrapped = Object.fromEntries(
+      Object.entries(runtime).map(([name, call]) => [
+        name,
+        (...args: unknown[]) => {
+          calls.push(folds.has(name) ? name : `${name}(${String(args[0])})`);
+          return (call as (...rest: unknown[]) => unknown)(...args);
+        },
+      ])
+    ) as unknown as typeof runtime;
+    return { runtime: wrapped, spies: runtime, calls };
+  }
+  const json = stepLayerOrderJson();
+  /** The record as the host engine takes it, about the crease pattern's origin. */
+  const inSource = STEP_LAYER_ORDER_IN_SOURCE;
+  const resolver = (answer: (source: LayerOrderSource) => LayerOrderResolution) =>
+    vi.fn<CaptureLayerOrderResolve>(async (source) => answer(source));
+  const withRecord = (resolve: CaptureLayerOrderResolve, stop?: AbortSignal): Partial<CaptureStepRequest> => ({
+    layerOrder: { kind: 'record', json, resolve, ...(stop ? { stop } : {}) },
+  });
+
+  // The parity guard: with no record, every kernel call is the one it always was, in its order.
+  it('with no record, makes exactly today’s kernel calls in today’s order', async () => {
+    const first = recordingRuntime();
+    const flat = await captureStep(first.runtime, request(FLAT));
+    expect(first.calls).toEqual(['fold', 'renderSnapshot(7)', 'paperScene(7)', 'free(7)']);
+    const later = recordingRuntime();
+    await captureStep(later.runtime, request({ ...FLAT, foldCase: 2 }));
+    expect(later.calls).toEqual(['fold', 'foldToCase(7)', 'renderSnapshot(7)', 'paperScene(7)', 'free(7)']);
+    expect(flat.status === 'captured' && 'layerOrder' in flat.source).toBe(false);
+    expect(flat.status === 'captured' && flat.attention).toBeNull();
+  });
+
+  it('restores the record, folds its order into a new figure, draws that and frees both', async () => {
+    const { runtime, calls } = recordingRuntime();
+    const resolve = resolver((source) => fakeLayerOrderResolutions.applied(inSource, source));
+    const stop = new AbortController().signal;
+    const result = await captureStep(runtime, request({ ...FLAT, foldCase: 3 }, withRecord(resolve, stop)));
+    expect(calls).toEqual([
+      'fold',
+      'source(7)',
+      'paperScene(7)',
+      'free(7)',
+      'foldWithOrder',
+      `renderSnapshot(${ORDERED_HANDLE})`,
+      `paperScene(${ORDERED_HANDLE})`,
+      `free(${ORDERED_HANDLE})`,
+    ]);
+    expect(resolve).toHaveBeenCalledWith(expect.objectContaining({ digest: 'fixture-digest' }), inSource, stop);
+    if (result.status !== 'captured' || result.captured.kind !== 'picture') throw new Error('expected a picture');
+    // The record of the order shown, back in the step's frame; the case the new figure reports.
+    expect(stepLayerOrderOf(result.source.layerOrder)?.record.faces.map((face) => face.at)).toEqual([
+      [-24, 25],
+      [26, -25],
+    ]);
+    expect(result.source.render).toMatchObject({ mode: 'folded-flat', foldCase: 1 });
+    expect(result.attention).toBeNull();
+    // Drawn in the record's order: not the picture the kernel's first order makes.
+    const unconstrained = await captureStep(fakeCaptureRuntime(), request(FLAT));
+    if (unconstrained.status !== 'captured' || unconstrained.captured.kind !== 'picture') throw new Error('expected a picture');
+    expect(result.captured.picture.key).not.toBe(unconstrained.captured.picture.key);
+  });
+
+  it.each(['load', 'crashed', 'unavailable'] as const)(
+    'with no host engine (%s) writes nothing: no picture read, no record flagged, the cause said',
+    async (cause) => {
+      const { runtime, calls } = recordingRuntime();
+      const result = await captureStep(
+        runtime,
+        request(FLAT, withRecord(resolver(() => fakeLayerOrderResolutions.lost(inSource, cause))))
+      );
+      expect(result).toEqual({ status: 'layer-order-lost', cause });
+      expect(calls).toEqual(['fold', 'source(7)', 'paperScene(7)', 'free(7)']);
+    }
+  );
+
+  it('refuses an order the dialog applied that the kernel cannot draw: nothing to keep, nothing flagged (D3)', async () => {
+    const { runtime, calls } = recordingRuntime({
+      foldWithOrder: vi.fn(async () => ({ status: 'refused' as const, refusal: { code: 'not_found' as const } })),
+    });
+    const source = layerOrderSourceOf(fakeFoldSource(), captureModel(cpDocument(), 'front'));
+    const frame = diagramLayerOrderFrame({ sheet_points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] });
+    const result = await captureStep(
+      runtime,
+      request(FLAT, {
+        layerOrder: { kind: 'applied', applied: { record: inSource, relations: new Uint32Array([1, 0]), source }, frame },
+      })
+    );
+    expect(result).toEqual({ status: 'order-refused' });
+    // No figure came back: nothing drawn, nothing to free.
+    expect(calls).toEqual(['foldWithOrder']);
+  });
+
+  it.each(['clash', 'timed_out', 'refused'] as const)(
+    'keeps the step’s picture on %s: no picture read, the record flagged (D10)',
+    async (outcome) => {
+      const { runtime, calls } = recordingRuntime();
+      const result = await captureStep(
+        runtime,
+        request(FLAT, withRecord(resolver(() => fakeLayerOrderResolutions.kept(outcome, inSource))))
+      );
+      expect(result.status).toBe('needs-attention');
+      if (result.status !== 'needs-attention') return;
+      const flagged = stepLayerOrderOf(result.layerOrder)!.record;
+      expect(flagged.faces).toEqual(STEP_LAYER_ORDER.faces);
+      expect(flagged.attention).toEqual(result.attention);
+      expect(calls).toEqual(['fold', 'source(7)', 'paperScene(7)', 'free(7)']);
+    }
+  );
+
+  it('answers a Stop as stopped, with nothing drawn', async () => {
+    const { runtime, calls } = recordingRuntime();
+    const result = await captureStep(runtime, request(FLAT, withRecord(resolver(() => ({ outcome: 'cancelled' })))));
+    expect(result).toEqual({ status: 'stopped' });
+    expect(calls).not.toContain('foldWithOrder');
+  });
+
+  it('carries the record through a crease pattern and a simulation as it is, checking nothing', async () => {
+    const resolve = resolver(() => {
+      throw new Error('nothing to resolve');
+    });
+    const pattern = await captureStep(fakeCaptureRuntime(), request({ mode: 'crease-pattern', rotationDeg: 0 }, withRecord(resolve)));
+    expect(pattern.status === 'captured' && pattern.source.layerOrder).toBe(json);
+    expect(pattern.status === 'captured' && pattern.attention).toBeNull();
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it('keeps the record of a step whose creases now fold in 3D, waiting for them to fold flat (D13)', async () => {
+    folded3dStoredScene.folded3dFigureScene.mockReturnValue(sheetWithCrease());
+    const runtime = fakeCaptureRuntime({
+      fold3d: vi.fn(async () => ({
+        status: 'placed' as const,
+        handle: 11,
+        snapshot: {} as never,
+        render: { cell_points: [0, 0, 0, 1, 0, 0, 0, 1, 0], span: 1 } as never,
+      })),
+    });
+    const resolve = resolver(() => {
+      throw new Error('nothing to resolve');
+    });
+    const result = await captureStep(runtime, request(FLAT, { document: partial(), ...withRecord(resolve) }));
+    if (result.status !== 'captured') throw new Error('captured');
+    expect(result.source.render.mode).toBe('folded-3d');
+    const waiting = stepLayerOrderOf(result.source.layerOrder)!.record;
+    expect(waiting.attention).toEqual({ reason: 'route-3d', count: 1 });
+    expect(waiting.constraints).toEqual(STEP_LAYER_ORDER.constraints);
+    expect(result.attention).toEqual({ reason: 'route-3d', count: 1 });
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it('folds an order the dialog applied as it is, with no restore', async () => {
+    const { runtime, calls } = recordingRuntime();
+    const source = layerOrderSourceOf(fakeFoldSource(), captureModel(cpDocument(), 'front'));
+    const frame = diagramLayerOrderFrame({ sheet_points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] });
+    const result = await captureStep(
+      runtime,
+      request(FLAT, {
+        layerOrder: { kind: 'applied', applied: { record: inSource, relations: new Uint32Array([1, 0]), source }, frame },
+      })
+    );
+    expect(calls).toEqual([
+      'foldWithOrder',
+      `renderSnapshot(${ORDERED_HANDLE})`,
+      `paperScene(${ORDERED_HANDLE})`,
+      `free(${ORDERED_HANDLE})`,
+    ]);
+    expect(result.status === 'captured' && result.source.layerOrder).toBe(json);
+  });
+
+  it('is written in the file as a load reads it back', async () => {
+    const result = await captureStep(
+      fakeCaptureRuntime(),
+      request(FLAT, withRecord(resolver((source) => fakeLayerOrderResolutions.applied(inSource, source))))
+    );
+    if (result.status !== 'captured' || result.captured.kind !== 'picture') throw new Error('expected a picture');
+    const document = insertSteps(createDiagram({ title: 'Constrained' }), [
+      { ...createStep(() => 'step-1'), source: result.source, picture: result.captured.picture },
+    ], 0);
+    const read = readDiagram(JSON.parse(JSON.stringify(writeDiagram(document))))!;
+    expect(stepsIn(read.document)[0]!.source).toEqual(result.source);
   });
 });

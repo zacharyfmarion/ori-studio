@@ -1,24 +1,53 @@
-import { useRef, useSyncExternalStore } from 'react';
-import { Image, Origami, Play, SquareDashed, Type, type LucideIcon } from 'lucide-react';
+import { useId, useRef, useSyncExternalStore, type ComponentType, type ReactNode } from 'react';
+import {
+  Copy,
+  FileDown,
+  Image,
+  Origami,
+  Play,
+  SquareDashed,
+  Trash2,
+  Type,
+  type LucideIcon,
+} from 'lucide-react';
 import {
   visiblePropertyFields,
   type ColorField,
+  type ControlVerb,
+  type DirectionField,
   type NumberField,
+  type PropertyCredit,
   type PropertyField,
+  type PropertyNotice,
   type PropertySection,
   type PropertySheet,
+  type PropertySheetAction,
+  type RevealField,
+  type SegmentedField,
   type SliderField,
+  type StepperField,
 } from '../../lib/propertyDescriptors';
+import { AffineSpreadCredit } from '../paper/AffineSpreadCredit';
+import { LayerRevealPad } from '../paper/LayerRevealControl';
+import { SpreadDirectionCompass } from '../paper/LayerSpreadRows';
+import { Button } from '../ui/Button';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
+import { IconButton } from '../ui/IconButton';
+import { Notice } from '../ui/Notice';
+import { Pager } from '../ui/Pager';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import {
   ColorRow,
+  FieldRow,
   NumberRow,
   SegmentedRow,
   SelectRow,
   SliderRow,
+  StackedRow,
   TextRow,
   ToggleRow,
 } from '../ui/fieldRows';
+import styles from './PropertySheetView.module.css';
 
 /**
  * Attributes a host puts on the sheet's own DOM and on every menu the sheet
@@ -41,9 +70,34 @@ const SHEET_ICONS: Record<string, LucideIcon> = {
 };
 
 /**
+ * The names a catalog may put in an action's `icon`: the glyphs the object's
+ * toolbar draws for the same verbs (`foldedFigureActionIcons`), and the
+ * Diagram's Step pane for its step's.
+ */
+const ACTION_ICONS: Record<string, LucideIcon> = {
+  export: FileDown,
+  duplicate: Copy,
+  delete: Trash2,
+};
+
+/**
+ * The credits a segmented field may name (`SegmentedField.credit`), drawn
+ * beside its label: the same component the spread rows draw beside Spread by.
+ */
+const CREDITS: Record<PropertyCredit, ComponentType> = {
+  'affine-spread': AffineSpreadCredit,
+};
+
+/** A field's credit, or nothing for a field that names none. */
+function creditOf(credit: PropertyCredit | undefined): ReactNode {
+  const Credit = credit ? CREDITS[credit] : undefined;
+  return Credit ? <Credit /> : undefined;
+}
+
+/**
  * One {@link PropertySheet}, rendered.
  *
- * The renderer knows the seven field kinds and the three commit protocols and
+ * The renderer knows the ten field kinds and the four commit protocols and
  * nothing else — not which object the sheet describes, nor where its values
  * live. Every decision that could differ per kind is data on the field:
  * `support` hides (`not-applicable`) or disables with `reason` (`unsupported`),
@@ -53,31 +107,52 @@ const SHEET_ICONS: Record<string, LucideIcon> = {
  * `vi.fn` deps, and what keeps a new object kind from needing a new form.
  *
  * `onCommit(fieldId)` fires once per recorded change — inside the discrete
- * commit, the draft commit, the continuous `end` and the reset — never per
- * input event, so a host can count property edits without seeing values.
+ * commit, the draft commit, the continuous `end`, the reset and a stepper's
+ * press — never per input event, so a host can count property edits without
+ * seeing values. `onAction(actionId)` fires once per press of a header verb.
+ *
+ * The parts only some kinds use — header `actions`, a warning subtitle, a
+ * `stacked` segmented field, a segmented field's `credit`, a stepper, a
+ * reveal pad, a direction compass, a `note`, a `help` mark, a `spaced`
+ * section, a section's `notice` — draw nothing for a kind that leaves them
+ * out, which renders as it always has.
  */
 export function PropertySheetView({
   sheet,
   surfaceProps,
   onCommit,
+  onAction,
 }: {
   sheet: PropertySheet;
   surfaceProps?: PropertySurfaceProps;
   onCommit?: (fieldId: string) => void;
+  onAction?: (actionId: string) => void;
 }) {
   const Icon = sheet.icon ? SHEET_ICONS[sheet.icon] : undefined;
+  const actions = sheet.actions ?? [];
   return (
-    <div className="property-sheet" {...surfaceProps}>
-      <header className="property-sheet__header">
+    <div className={styles.sheet} data-property-sheet="" {...surfaceProps}>
+      <header className={styles.header} data-actions={actions.length > 0 || undefined}>
         {Icon && (
-          <span className="property-sheet__icon">
+          <span className={styles.icon}>
             <Icon size={14} aria-hidden />
           </span>
         )}
-        <div className="property-sheet__titles">
-          <h2 className="property-sheet__title">{sheet.title}</h2>
-          {sheet.subtitle && <span className="property-sheet__subtitle">{sheet.subtitle}</span>}
+        <div className={styles.titles}>
+          <h2 className={styles.title}>{sheet.title}</h2>
+          {sheet.subtitle && (
+            <span className={styles.subtitle} data-property-sheet-subtitle="" data-tone={sheet.subtitleTone}>
+              {sheet.subtitle}
+            </span>
+          )}
         </div>
+        {actions.length > 0 && (
+          <div className={styles.actions}>
+            {actions.map((action) => (
+              <ActionButton key={action.id} action={action} onAction={onAction} />
+            ))}
+          </div>
+        )}
       </header>
       {sheet.sections.map((section) => (
         <SectionView
@@ -102,14 +177,26 @@ function SectionView({
 }) {
   const fields = visiblePropertyFields(section);
   if (fields.length === 0) return null;
-  const rows = fields.map((field) => (
+  const fieldRows = fields.map((field) => (
     <FieldView key={field.id} field={field} surfaceProps={surfaceProps} onCommit={onCommit} />
   ));
+  const notice = section.notice ? <SectionNoticeView notice={section.notice} /> : null;
+  const rows = section.spaced ? (
+    <div className={styles.spaced}>
+      {fieldRows}
+      {notice}
+    </div>
+  ) : (
+    <>
+      {fieldRows}
+      {notice}
+    </>
+  );
   // An untitled section is the sheet's plain body: rows with no header to
   // fold behind, the shape a one-section sheet wants.
   if (section.title === undefined) {
     return (
-      <div className="property-sheet__section">
+      <div className={styles.section} data-property-sheet-section="">
         {section.description && <p className="collapsible-section__hint">{section.description}</p>}
         {rows}
       </div>
@@ -151,6 +238,8 @@ function FieldView({
       return (
         <ToggleRow
           label={field.label}
+          help={field.help}
+          note={field.note?.text}
           checked={field.value}
           inherited={field.inherited}
           disabled={disabled}
@@ -181,9 +270,21 @@ function FieldView({
         />
       );
     case 'segmented':
+      if (field.layout === 'stacked') {
+        return (
+          <StackedSegmentedFieldView
+            field={field}
+            disabled={disabled}
+            title={title}
+            onCommit={committed}
+          />
+        );
+      }
       return (
         <SegmentedRow
           label={field.label}
+          help={field.help}
+          aside={creditOf(field.credit)}
           value={field.value}
           options={field.options}
           disabled={disabled}
@@ -241,7 +342,256 @@ function FieldView({
           onReset={reset}
         />
       );
+    case 'stepper':
+      return (
+        <StepperFieldView field={field} disabled={disabled} title={title} onCommit={committed} />
+      );
+    case 'reveal':
+      return (
+        <RevealFieldView field={field} disabled={disabled} title={title} onCommit={committed} onReset={reset} />
+      );
+    case 'direction':
+      return <DirectionFieldView field={field} disabled={disabled} title={title} onCommit={committed} />;
   }
+}
+
+/**
+ * The continuous protocol on the reveal pad (`LayerRevealPad`, the spread
+ * rows' own): a drag opens the gesture once, follows each move, and ends it
+ * once on release; an arrow key is a gesture of its own. A refused `begin`
+ * leaves the dot where the value is, and `held` disables the pad while
+ * another surface has the layer.
+ */
+function RevealFieldView({
+  field,
+  disabled,
+  title,
+  onCommit,
+  onReset,
+}: {
+  field: RevealField;
+  disabled: boolean;
+  title?: string;
+  onCommit: () => void;
+  onReset?: () => void;
+}) {
+  return (
+    <LayerRevealPad
+      label={field.label}
+      value={field.value}
+      disabled={disabled || field.held}
+      title={title}
+      begin={field.begin}
+      update={field.update}
+      end={() => {
+        field.end();
+        onCommit();
+      }}
+      onReset={onReset}
+    />
+  );
+}
+
+/**
+ * Eight buttons round a centre (`SpreadDirectionCompass`, the spread rows'
+ * own), the chosen one pressed. A press of another is one commit; a refused
+ * one — every one on an unsupported field, with its reason — keeps its place
+ * and the focus, and does nothing.
+ */
+function DirectionFieldView({
+  field,
+  disabled,
+  title,
+  onCommit,
+}: {
+  field: DirectionField;
+  disabled: boolean;
+  title?: string;
+  onCommit: () => void;
+}) {
+  return (
+    <FieldRow label={field.label} kind="segmented" disabled={disabled} title={title}>
+      <SpreadDirectionCompass
+        label={field.groupLabel ?? field.label}
+        directions={field.options.map((option) => ({
+          value: option.id,
+          label: option.label,
+          pressed: option.id === field.value,
+          disabled,
+          waiting: false,
+          hint: disabled ? field.reason : undefined,
+          run: () => {
+            if (disabled || option.id === field.value) return;
+            field.commit(option.id);
+            onCommit();
+          },
+        }))}
+      />
+    </FieldRow>
+  );
+}
+
+/**
+ * A section's notice, after its rows and inset as the Diagram's Picture
+ * section insets its own: the sentence, and the fixes it offers as buttons
+ * under it.
+ */
+function SectionNoticeView({ notice }: { notice: PropertyNotice }) {
+  return (
+    <div className={styles.notice}>
+      <Notice
+        tone={notice.tone}
+        actions={(notice.actions ?? []).map((action) => ({
+          id: action.id,
+          label: action.label,
+          disabled: action.disabled,
+          run: action.run,
+        }))}
+      >
+        {notice.text}
+      </Notice>
+    </div>
+  );
+}
+
+/**
+ * One of the object's verbs, in the header as the Step pane has its step's:
+ * a small icon button named by its label, disabled with its hint.
+ */
+function ActionButton({
+  action,
+  onAction,
+}: {
+  action: PropertySheetAction;
+  onAction?: (actionId: string) => void;
+}) {
+  const Icon = ACTION_ICONS[action.icon];
+  return (
+    <IconButton
+      size="sm"
+      aria-label={action.label}
+      title={action.disabled && action.hint ? action.hint : action.label}
+      disabled={action.disabled}
+      onClick={() => {
+        action.run();
+        onAction?.(action.id);
+      }}
+    >
+      {Icon && <Icon size={15} />}
+    </IconButton>
+  );
+}
+
+/**
+ * A segmented field laid out `stacked`: the label over the control, the
+ * control across the row (the Step pane's Show as). The visible label names
+ * the group, so it is announced once.
+ */
+function StackedSegmentedFieldView({
+  field,
+  disabled,
+  title,
+  onCommit,
+}: {
+  field: SegmentedField;
+  disabled: boolean;
+  title?: string;
+  onCommit: () => void;
+}) {
+  const labelId = useId();
+  return (
+    <StackedRow
+      label={field.label}
+      labelId={labelId}
+      aside={creditOf(field.credit)}
+      disabled={disabled}
+      title={title}
+    >
+      <SegmentedControl
+        size="sm"
+        fill
+        aria-labelledby={labelId}
+        value={field.value}
+        disabled={disabled}
+        options={field.options.map((option) => ({ value: option.id, label: option.label }))}
+        onChange={(next) => {
+          if (next === field.value) return;
+          field.commit(next);
+          onCommit();
+        }}
+      />
+    </StackedRow>
+  );
+}
+
+/**
+ * ‹ where it stands ›, in a row with its label and its note, and the row's
+ * button after it when it has one. A refused verb — the descriptor's, or every
+ * one on an unsupported field, with its reason — keeps its place and its focus
+ * and does nothing. A step that runs is one commit; the button opens what it
+ * opens and commits nothing.
+ */
+function StepperFieldView({
+  field,
+  disabled,
+  title,
+  onCommit,
+}: {
+  field: StepperField;
+  disabled: boolean;
+  title?: string;
+  onCommit: () => void;
+}) {
+  const refusable = (verb: ControlVerb, after?: () => void): ControlVerb => {
+    const refused = disabled || verb.disabled;
+    return {
+      label: verb.label,
+      disabled: refused,
+      hint: disabled ? (field.reason ?? verb.hint) : verb.hint,
+      run: () => {
+        if (refused) return;
+        verb.run();
+        after?.();
+      },
+    };
+  };
+  const step = (verb: ControlVerb | undefined) => (verb ? refusable(verb, onCommit) : undefined);
+  // Named by the row's label, so "Layer order" is said once.
+  const labelId = useId();
+  const pager = (
+    <Pager labelledBy={labelId} previous={step(field.previous)} next={step(field.next)}>
+      {field.readout}
+    </Pager>
+  );
+  const action = field.action ? refusable(field.action) : undefined;
+  return (
+    <FieldRow
+      label={field.label}
+      labelId={labelId}
+      kind="text"
+      disabled={disabled}
+      title={title}
+      note={field.note?.text}
+      noteKind={field.note?.kind}
+    >
+      {action ? (
+        <span className={styles.stepper}>
+          {pager}
+          <Button
+            size="sm"
+            variant="secondary"
+            title={action.disabled ? action.hint : undefined}
+            aria-disabled={action.disabled || undefined}
+            onClick={action.run}
+          >
+            {action.label}
+          </Button>
+        </span>
+      ) : (
+        pager
+      )}
+    </FieldRow>
+  );
 }
 
 /**
@@ -317,6 +667,9 @@ function SliderFieldView({
   return (
     <SliderRow
       label={field.label}
+      help={field.help}
+      ariaLabel={field.ariaLabel}
+      valueText={field.valueText}
       value={field.value}
       min={field.min}
       max={field.max}

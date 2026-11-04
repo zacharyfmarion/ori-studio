@@ -1,0 +1,13 @@
+/*
+ * One Layer order pane (LayerOrderPane.tsx): its canvas fills it, and what
+ * floats over it (the zoom bar) sits inside it. Where it goes, and the rule
+ * between it and its neighbour, are LayerOrderPanes'.
+ */
+.pane {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-primary);
+}

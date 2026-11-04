@@ -29,6 +29,7 @@ export function FoldViewportToolbar({
   cpSide,
   onTurnCpOver,
   spread = null,
+  adjustSpread,
   phoneGroups = [],
   sendToEdit,
 }: {
@@ -45,6 +46,7 @@ export function FoldViewportToolbar({
   onTurnCpOver: () => void;
   /** The step on screen's Spread Layers (`useFoldStepSpread`); null at the flat sheet, which has none. */
   spread?: LayerSpreadToggle | null;
+  adjustSpread?: LayerSpreadToggle & { label: string };
   /** A phone's: the starred tools and the pane switch (`useFoldPhoneBarGroups`), at the head of the bar. */
   phoneGroups?: readonly ViewportToolbarGroupSpec[];
   sendToEdit?: ReactNode;
@@ -116,6 +118,9 @@ export function FoldViewportToolbar({
           onPhone: 'collapse',
           onSelect: () => spread?.run(),
         },
+        ...(adjustSpread ? [{kind: 'action' as const, id: 'adjust-spread', label: adjustSpread.label,
+          icon: <Layers size={14} />, checked: adjustSpread.pressed, disabled: adjustSpread.disabled,
+          pinned: true, onSelect: adjustSpread.run}] : []),
       ],
     },
     { id: 'send', items: [sendToEdit ? { kind: 'node', id: 'send-to-edit', node: sendToEdit } : null] },

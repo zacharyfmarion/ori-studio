@@ -125,11 +125,39 @@ pub fn squash_op(state: &State, p: Point, target: Option<Point>) -> Squash {
         target,
         direction: Direction::Valley,
         hinge: None,
+        opening: None,
     }
 }
 
 pub fn squash(state: &State, p: Point) -> VertexFolded {
     landed(state.squash(&squash_op(state, p, None), &VertexChoices::default()))
+}
+
+/// Where [`two_ply_walls`]' lift meets the diagonal edge, and the right edge.
+pub const PLY_WALLS_LIFT: [Point; 2] = [[0.8, 0.8], [1.0, 0.4]];
+
+/// The square folded on its anti-diagonal, then on its diagonal, the far
+/// half over: a four-layer triangle whose diagonal edge holds two nested
+/// wraps, each one diagonal's halves. Its corner beyond the lift line
+/// ([`PLY_WALLS_LIFT`]) is lifted over it, all four layers: a flap whose
+/// walls are two plies each, joined on its spine (the lifted diagonal) and
+/// its hinge (the lift) alone, its top two plies on no common crease —
+/// their anti-diagonal edge stays behind. A synthetic stand-in for a
+/// model's lifted centre flap.
+pub fn two_ply_walls() -> State {
+    let [e1, e2] = PLY_WALLS_LIFT;
+    let s = valley(&square(), [1.0, 0.0], [0.0, 1.0], [0.2, 0.2]);
+    let s = valley(&s, [0.0, 0.0], [1.0, 1.0], [0.6, 0.9]);
+    valley(&s, e1, e2, [0.95, 0.95])
+}
+
+/// The valley squash of [`two_ply_walls`]' lifted flap, opening where asked
+/// (none: between its walls).
+pub fn two_ply_squash(state: &State, opening: Option<usize>) -> Squash {
+    Squash {
+        opening,
+        ..squash_op(state, [0.85, 0.65], None)
+    }
 }
 
 /// The diagonal route's start (`build.mjs` `smallTriangle`): the square
@@ -327,6 +355,78 @@ pub fn petal_sweep() -> (State, Vec<(f64, PetalFold)>) {
         })
         .collect();
     (base, ops)
+}
+
+/// The landmarks of a petal fold on a doubled flap — the preliminary base's
+/// front flap squashed, as in the frog base ([`squashed_flap`]) — in the
+/// model frame. The squashed flap is a kite from the closed point T at
+/// (1/2, 1/2) to the open corner at the origin; its top layer ends at a raw
+/// edge across it, square to its centre line, and the layer under it runs
+/// on to the open corner.
+pub struct DoubledMarks {
+    /// H's ends on the squash's creases, halfway from the closed point to
+    /// the top layer's raw edge.
+    pub ends: [Point; 2],
+    /// The top layer's corner, where its raw edge meets the centre line.
+    pub corner: Point,
+    /// The second layer's corner: the open corner.
+    pub open: Point,
+    /// Below H on the top layer, between its kite creases.
+    pub petal: Point,
+    /// Per end, a point on the top layer between the closed edge below the
+    /// end and the line from the open corner to the end, and the side
+    /// corner beyond it: where the lower edges fold to the centre line.
+    pub near: [Point; 2],
+    pub sides: [Point; 2],
+}
+
+pub fn doubled_marks() -> DoubledMarks {
+    let half = std::f64::consts::FRAC_1_SQRT_2 / 2.0;
+    let r = (1.0 - std::f64::consts::FRAC_1_SQRT_2) / 2.0;
+    DoubledMarks {
+        ends: [[r, half], [half, r]],
+        corner: [r, r],
+        open: [0.0, 0.0],
+        petal: [0.205, 0.177],
+        near: [[0.0707, 0.2828], [0.2828, 0.0707]],
+        sides: [[0.0, 2.0 * r], [2.0 * r, 0.0]],
+    }
+}
+
+/// The preliminary base with its front flap squashed open, symmetric about
+/// the base's centre line: a doubled flap, as the frog base's.
+pub fn squashed_flap() -> State {
+    squash(preliminary(false).last(), [0.3, 0.1]).state
+}
+
+/// The squashed flap's lower edges folded to its centre line and unfolded
+/// (the frog base's precreases): a valley from the open corner to each of
+/// H's ends through the flap's top two layers.
+pub fn lower_edges_to_centre(state: &State, marks: &DoubledMarks) -> State {
+    let mut s = state.clone();
+    for k in 0..2 {
+        let at = seen_top(&s, marks.near[k]);
+        s = precrease(
+            &s,
+            marks.open,
+            marks.ends[k],
+            marks.sides[k],
+            Seed::Depth { at, layers: 2 },
+        );
+    }
+    s
+}
+
+/// A valley petal fold of the squashed flap with H through `ends`.
+pub fn doubled_petal_op(state: &State, ends: [Point; 2], petal: Point) -> PetalFold {
+    PetalFold {
+        hinge: PetalHinge::Points {
+            from: ends[0],
+            to: ends[1],
+        },
+        petal: seen_top(state, petal),
+        direction: Direction::Valley,
+    }
 }
 
 /// The incenter and bisector rays of a triangle, with its emergent
@@ -678,6 +778,7 @@ pub fn abrashi_squash() -> State {
             target: None,
             direction: Direction::Valley,
             hinge: None,
+            opening: None,
         },
         &VertexChoices::default(),
     ))

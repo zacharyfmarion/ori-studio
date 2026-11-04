@@ -26,11 +26,16 @@ import {
   endStepCapture,
   type DiagramCaptureStore,
   type DiagramCommit,
+  type SpreadFailure,
 } from './diagramCapture';
 
 export interface DiagramFoldCaptureRequest extends FoldStepCaptureRequest {
+  /** Hold the Pose viewport while a discrete change captures its replacement picture. */
+  blocksPose?: boolean;
   /** The undo step's name. */
   label: string;
+  /** Whether this camera edit is still the newest pending view. */
+  current?: () => boolean;
   /** An undo entry to fold this capture into while it is still the newest (Refresh all's). */
   joinEntry?: object;
 }
@@ -43,6 +48,8 @@ export type DiagramFoldCaptureOutcome =
       render: DiagramCpRender;
       /** Too detailed to keep as vector; kept as a bitmap. */
       tooDetailed: boolean;
+      /** Asked spread by Default, its layers could not be spread ({@link SpreadFailure}); null when they were, or not asked. */
+      spreadFailed: SpreadFailure | null;
       /** Marks the fold brought that the author had edited, swapped for its own (RM6). */
       replaced: number;
     }
@@ -61,8 +68,9 @@ export async function runDiagramFoldCapture(
   request: DiagramFoldCaptureRequest,
   session?: FoldSession
 ): Promise<DiagramFoldCaptureOutcome> {
-  const start = beginCaptureRun(store, stepId);
+  const start = beginCaptureRun(store, stepId, request.blocksPose);
   if ('status' in start) return start;
+  start.guard.current = request.current;
   try {
     const fold = await loadFold();
     const result = await fold.captureFoldStep(session ?? fold.foldSession(), request, { t: i18n.t.bind(i18n) });
@@ -81,6 +89,7 @@ export async function runDiagramFoldCapture(
       changed: committed.changed,
       render: result.source.render,
       tooDetailed: committed.tooDetailed,
+      spreadFailed: committed.spreadFailed ?? null,
       replaced: committed.replaced ?? 0,
     };
   } catch (error) {

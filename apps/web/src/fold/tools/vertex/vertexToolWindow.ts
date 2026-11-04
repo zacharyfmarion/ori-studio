@@ -70,7 +70,7 @@ import {
 import { foldRefusalNotice, sectionFlapNames } from '../refusalNotice';
 import { choiceStepper, type FoldChoiceStepper, type FoldKindChoice } from '../reverse/reverseToolWindow';
 import { swivelRidgeName } from '../../stepSentenceVertex';
-import { vertexToolSteps, type FoldSquashHinge, type FoldSwivelInput } from './vertexInputs';
+import { FOLD_SWIVEL_INPUT_DEFAULT, vertexToolSteps, type FoldSquashHinge, type FoldSwivelInput } from './vertexInputs';
 
 /** Which of a swivel's two creases rises as its ridge: square to the edge, or toward its far end. */
 export type FoldSwivelRidge = 'foot' | 'end';
@@ -105,6 +105,13 @@ export interface FoldVertexWindowView {
   known: boolean;
   /** A squash's spine lands on its hinge line, or toward a point clicked. */
   target: 'hinge' | 'point';
+  /**
+   * A squash of a flap whose walls are several plies: its layers at the flap
+   * point, the openings that land — each by how many layers lie above it,
+   * the only ones offered — and the one it folds. Absent for a two-layer
+   * flap and the other folds.
+   */
+  squash?: { layers: number; openings: readonly number[]; opening: number };
   /**
    * A rabbit ear's fourth creases that land — a swivel's ridges that land —
    * the only ones offered, numbered among themselves, and the position of
@@ -157,6 +164,8 @@ export interface FoldVertexWindowVerbs {
   setSwivelKind?: (kind: FoldSwivelKind) => void;
   stepEmergent?: (delta: number) => void;
   stepFanLayers?: (delta: number) => void;
+  /** Step a squash of several plies through the openings that land. */
+  stepSquashOpening?: (delta: number) => void;
   /** Name a petal fold's hinge, or a swivel's target, by a crease or by two points. */
   setVertexLineBy?: (lineBy: FoldLineBy) => void;
 }
@@ -197,6 +206,11 @@ export interface FoldVertexControls {
     value: string;
     reset: { label: string; disabled: boolean; run: () => void } | null;
   } | null;
+  /**
+   * Where a squash of a flap whose walls are several plies opens, when more
+   * than one opening lands; null for the other folds and a two-layer flap.
+   */
+  opening?: FoldChoiceStepper | null;
   /** A swivel's ridge selector; null for rabbit ears and the other tools. */
   emergent: FoldChoiceStepper | null;
   /** Status of the rabbit ear's selected hinge region; null for other folds. */
@@ -215,7 +229,9 @@ export interface FoldVertexControls {
 
 /** Whether a vertex fold has any choice to show beside its direction. */
 export function hasVertexChoices(controls: FoldVertexControls): boolean {
-  return Boolean(controls.target || controls.emergent || controls.emergentNote || controls.layers || controls.order);
+  return Boolean(
+    controls.target || controls.opening || controls.emergent || controls.emergentNote || controls.layers || controls.order
+  );
 }
 
 /**
@@ -615,6 +631,36 @@ function layersValue(t: TFunction, vertex: FoldVertexWindowView): string {
 }
 
 /**
+ * Where a squash of a flap whose walls are several plies opens, stepped
+ * through the openings that land, each named by the layers above it from the
+ * direction's side as the Layers stepper counts them: "Opens under" the "Top
+ * 2 of 4" for a valley, "Opens over" the "Bottom 2 of 4" for a mountain. Null
+ * with one opening that lands, or none, and for the other folds.
+ */
+function squashOpeningStepper(
+  t: TFunction,
+  vertex: FoldVertexWindowView,
+  verbs: FoldToolWindowVerbs,
+  readOnly: boolean
+): FoldChoiceStepper | null {
+  const squash = vertex.tool === 'squash' ? vertex.squash : undefined;
+  if (!squash) return null;
+  const { layers, openings, opening } = squash;
+  const valley = vertex.direction === 'valley';
+  return choiceStepper(
+    t,
+    valley ? t('tools:fold.vertex.squashOpensUnder', 'Opens under') : t('tools:fold.vertex.squashOpensOver', 'Opens over'),
+    Math.max(0, openings.indexOf(opening)),
+    openings.length,
+    verbs.stepSquashOpening,
+    readOnly,
+    valley
+      ? t('tools:fold.vertex.layersTop', 'Top {{count}} of {{total}}', { count: opening, total: layers })
+      : t('tools:fold.vertex.layersBottom', 'Bottom {{count}} of {{total}}', { count: opening, total: layers })
+  );
+}
+
+/**
  * How a petal fold's hinge, or a swivel's target, is named: a segmented
  * control of two, each saying in its tooltip what is clicked. Null for the
  * other folds.
@@ -773,7 +819,7 @@ export function vertexControls(
   return {
     input: tool === 'swivel' ? {
       label: t('tools:fold.vertex.input.label', 'Construct by'),
-      value: vertex.swivelInput ?? 'edge',
+      value: vertex.swivelInput ?? FOLD_SWIVEL_INPUT_DEFAULT,
       options: [
         { value: 'edge', short: t('tools:fold.vertex.input.edge', 'Edge onto line'), label: t('tools:fold.vertex.input.edgeHelp', 'Choose an edge and the line it should land on'), disabled: false, reason: null },
         {
@@ -831,6 +877,8 @@ export function vertexControls(
                 : null,
           }
         : null,
+    // Where a squash of several plies opens: between its walls unless stepped.
+    opening: located ? squashOpeningStepper(t, vertex, verbs, readOnly) : null,
     emergent: ridges && located ? fourthStepper(t, vertex, verbs, readOnly) : null,
     emergentNote: ear && located ? emergentNote(t, vertex, host) : null,
     // A rabbit ear's layers; a swivel by its edge folds every layer at its vertex.
@@ -920,6 +968,7 @@ export function vertexToolWindow(
     controls.input,
     controls.hinge,
     controls.target,
+    controls.opening,
     controls.emergent,
     controls.layers,
     controls.order,

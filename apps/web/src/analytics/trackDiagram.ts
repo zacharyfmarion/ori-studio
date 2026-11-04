@@ -5,6 +5,7 @@ import {
   DIAGRAM_PAGE_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_KB_BUCKETS,
+  DIAGRAM_CONNECTED_SPREAD_PERCENT_BUCKETS,
   DIAGRAM_SPREAD_AXIS_DEGREE_BUCKETS,
   DIAGRAM_SPREAD_PERCENT_BUCKETS,
   DIAGRAM_SPREAD_SKEW_PERCENT_BUCKETS,
@@ -72,6 +73,7 @@ import type {
   DiagramView,
 } from './events';
 import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
+import { SPREAD_AMOUNT_RANGE } from '../cp-workspace/folded/layerSpreadSettings';
 import { track } from './runtime';
 
 /**
@@ -236,18 +238,26 @@ export function trackDiagramArrowShaped(
  * amount bucketed, and a depth spread's direction or an affine one's layer
  * held still, with its skew and axis bucketed — never a value itself. A
  * turn-over says which side of the paper the picture shows after it, and a
- * crease pattern's paper side the side whose colour its paper takes.
+ * crease pattern's paper side the side whose colour its paper takes. A step
+ * to another layer order within a step's layer constraints, on the Layer
+ * order host engine rather than the kernel's orders, is `constrained` (sent
+ * only then), as Edit's `fold solution cycled` is.
  */
 export function trackDiagramPicturePosed(
   action: DiagramPoseAction,
   picture: DiagramPictureKind,
-  { spread, side }: { spread?: DiagramSpreadTracking; side?: DiagramPictureSide } = {}
+  {
+    spread,
+    side,
+    constrained,
+  }: { spread?: DiagramSpreadTracking; side?: DiagramPictureSide; constrained?: true } = {}
 ): void {
   track(ANALYTICS_EVENTS.diagramPicturePosed, {
     action,
     picture,
     ...(spread ? spreadProperties(spread) : {}),
     ...(side ? { side } : {}),
+    ...(constrained ? { constrained: true } : {}),
   });
 }
 
@@ -257,14 +267,33 @@ export function trackDiagramPicturePosed(
  * how it goes: values here, bucketed by {@link spreadProperties}.
  */
 export function spreadTracking(spread: LayerSpreadOptions): DiagramSpreadTracking {
+  if (spread.kind === 'connected') return { kind: 'connected', amount: spread.amount };
   return spread.kind === 'depth'
     ? { kind: 'depth', direction: spread.toward.replace('-', '_') as DiagramSpreadDirection, amount: spread.amount }
     : { kind: 'affine', amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
 }
 
-/** A spread's enum and bucketed properties: never a value itself. */
+/**
+ * A Default spread's amount, in percent as its slider shows it: the height
+ * multiplier's range, 0 to 2, read as 0 to 100% (`LayerSpreadRows`).
+ */
+const CONNECTED_SPREAD_PERCENT_PER_AMOUNT = 100 / SPREAD_AMOUNT_RANGE.connected.max;
+
+/**
+ * A spread's enum and bucketed properties: never a value itself. A Default
+ * spread's amount is a height multiplier, bucketed as its slider shows it on
+ * a ladder of its own; the others' are a share of the model or of the way
+ * back to the sheet.
+ */
 export function spreadProperties(spread: DiagramSpreadTracking): Record<string, string> {
   const percent = (fraction: number) => Math.round(fraction * 10_000) / 100;
+  if (spread.kind === 'connected') {
+    const shown = Math.round(spread.amount * CONNECTED_SPREAD_PERCENT_PER_AMOUNT * 100) / 100;
+    return {
+      spread_kind: spread.kind,
+      spread_amount_bucket: bucketCount(shown, DIAGRAM_CONNECTED_SPREAD_PERCENT_BUCKETS),
+    };
+  }
   const common = {
     spread_kind: spread.kind,
     spread_amount_bucket: bucketCount(percent(spread.amount), DIAGRAM_SPREAD_PERCENT_BUCKETS),

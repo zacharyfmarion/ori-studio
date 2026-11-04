@@ -92,9 +92,13 @@ tuck and the vertex folds (squash, petal fold, rabbit ear, swivel) on it.
   the faces an operation moved cover, every pair outside them carried, and
   gives the whole problem's answer. Import CP and the compound folds use it.
 - `import`: Import CP (plan D16, D10's inverse) from plain segments, no kernel.
-  The sheet from the border (`outline::detect_border_loops`, one loop, square
-  or rectangle), matched against the sequence's sheet (a quarter turn when
-  that is what fits) or adopted by an empty sequence; B, M, V kept,
+  The sheet from the border (`outline::detect_border_loops`, one loop around
+  a convex sheet), matched against the sequence's sheet or adopted by an
+  empty sequence: a rectangle onto a rectangle in the outline code's frame (a
+  quarter turn when that is what fits), any other sheet — a regular or any
+  convex polygon — by its corners, turned, scaled and moved onto the sheet's
+  as little turned as its symmetry allows, a pattern already in the sheet's
+  frame through exactly the identity; B, M, V kept,
   unassigned with a hint a precrease, unassigned without one folded with its
   letter left to the completion, aux a guide; the planar graph and convex
   faces, refusing a crease that is no full chord; the root continuing the
@@ -217,6 +221,28 @@ Compound folds (plan D4, D15, Phases 9 and 11):
     let fold opposite the other three (a swivel's) `fan_fourth_cannot_rise`,
     each offering the rays that land. A stored order is replayed only when
     the fold leaves several; an older step's `ridge` is no longer read.
+  - `compound::swivel_on_edge`, `compound::swivel_valley_mountain`,
+    `compound::folded_swivel`: the swivel whose creases meet on a folded
+    edge, named by its edge onto a line or by its valley and mountain. Its
+    rays crease the folded edge's two layers; where paper beyond them holds
+    the wedges together (a tip hinged behind a layer, a corner folded back
+    where a ray meets a fold, a nested fold, a covering layer), every face is
+    given one of the swivel's four motions by material continuity and the
+    paper that lies across a ray is creased along it too — refused
+    `fan_ray_blocked` only when no such motion exists. The lines may meet on
+    a folded edge hidden under a layer, or where two flaps' folded edges
+    abut; several the swivel can fold on are `swivel_line_meeting`.
+  - `compound::swivel_hinge_end`: a valley and a mountain that meet where a
+    flap's two hinges end — a flat vertex of four folds — turn the flap
+    about it. Both hinges move one angle ψ the same way round: the flap's
+    paper beside one unfolds onto the layer across it, the other layer's
+    paper beside the other folds in with the flap, and the flap turns through
+    2ψ. Open swings the flap out from under the layer across its valley
+    hinge (the mountain on the flap), inside swings it in under it (the
+    valley on the flap). The crease on the flap sets ψ and keeps its hinge's
+    letter as the flap shows it; the other is computed, as the crease behind
+    a swivel on a folded edge is, so the folder's line only has to run into
+    the flap. A flap whose hinges show it one letter cannot be named this way.
 - `compound::sink`: the open sink, the closed sink and the unsink (research
   §5.4). The point is one flap; its geometry is the plain fold of the whole
   point, so only letters and order are decided. Refused up front: an open
@@ -354,7 +380,13 @@ Flat-Folder's search is called through `treemaker-flatfold`, not copied.
   the budget; Edit's folded figure through Oriedita's relations from either
   orientation; and a round trip of 129 seeded random folded states (2 to 52
   faces) through their crease patterns, each state's own order among the
-  choices its letters leave.
+  choices its letters leave. On polygon sheets: a folded hexagon and pentagon
+  and seeded random states on every regular 3- to 8-gon round-trip to the
+  same vertices to the bit; and a hexagon (along its three long diagonals)
+  and a pentagon (along its five axes) collapse in one import after their
+  precreased sheets into one wedge, with as many layer orders per letter
+  assignment as a brute-force count of the wedges finds (every one of the
+  hexagon's 64, a spread of the pentagon's 1024).
 - `tests/beloch_replay.rs`: every Beloch fixture's final frame
   (`tests/beloch/`) through Import CP with its own `faceOrders` stored by
   witnesses. 55 of 56 replay, each with one face per frame face, all placed
@@ -501,6 +533,61 @@ Flat-Folder's search is called through `treemaker-flatfold`, not copied.
   the matrices against the frame's coordinates; a turn-over and a rotation;
   the whole-file cap refusing one element short; Edit saving the file with
   the step frames kept.
+- `tests/steer_source.rs`, `tests/steer_session.rs`, `tests/steer_host.rs`
+  and `tests/steer_record.rs`: the Layer order dialog's engine (`steer`,
+  below). `steer_host.rs` holds the open on Edit's own order spot for spot,
+  Add adopting its preview even out of time, the rows a restore carries,
+  previewing a list nothing committed, a second restore on an open session,
+  a point now in another face of the same area, and a thin face saved by a
+  point it is found at.
+  The source's edge rule, frame and refusals; the constraint session against
+  Fold's own import of the same square sheets (the same forced and open pairs
+  and the same orders), Oriedita's own first order accepted whole, a preview
+  never changing the session, Add landing on the previewed order, removal
+  keeping the order on screen, the stacks against the paper scene, Apply
+  drawing the session's scene, save and restore, restore after a split, a
+  merge, a moved crease and a clash on kabuto, and a node budget or deadline
+  that runs out reported as a timeout; the record codec against the golden
+  it shares with the web's (`tests/fixtures/layer-order/record-v1.json`).
+- `tests/steer_solutions.rs` and the unit tests in `src/steer/solutions.rs`:
+  the solution count and the stepper against brute force (every order,
+  grouped by picture) over 300 random problems of several components and
+  the three fixtures, with and without constraints, whole and in slices;
+  the stepper's order across Add and remove; `explain`'s sets minimal
+  against every layer order of the fixture.
+
+## The Layer order dialog's engine (`steer`, feature `kernel`)
+
+Ori Studio original work (`implementation-plans/layer-order-dialog.md`, E4
+to E6):
+
+- `LayerSource::from_oriedita`: the solver's folded view of exactly the faces
+  Edit folded (face *k* is Oriedita face *k*), by Oriedita's edge rule, with
+  typed refusals.
+- `ConstraintSession`: the committed constraints, the order on screen and
+  what deduction forces. `open`, and `open_showing` on the order the host
+  shows (its paper scene's relations, `scene_relations`), `open_pairs`,
+  `preview` and `preview_list` (never commit), `commit` (the whole list) and
+  `commit_preview` (Add adopting its preview, no search), `stacks` and
+  `scene` per side, `oriedita_relations` for a host's `fold_with_order`,
+  `save`, and `restore` / `restore_record` onto creases that may have changed
+  (decision D10: intact constraints applied together or not at all, the
+  saved order kept where it still fits, every constraint not applied carried
+  to the next save). Every limit that runs out is a `TimedOut`, never a
+  "can't fit".
+- `ConstraintSession::explain` (E6): the smallest set of constraints that
+  clash, every member necessary (a deletion filter over the set a check
+  names), with the faces they name.
+- `Solutions` (E6): the distinct pictures from each side and the layer
+  orders, counted in resumable slices by the product rule over independent
+  components ("at least N" past a cap), and `ConstraintSession::step`
+  through them in a fixed order, or through every layer order with X-ray.
+- `read_record` / `encode_record`: the saved record, byte for byte the web
+  codec's.
+
+`crates/oracle-tests/tests/layer_order_witness.rs` (census 1),
+`layer_order_session.rs` and `layer_order_solutions.rs` run the same calls
+over the fixtures in CI and over a corpus locally.
 
 ## Performance
 
@@ -585,7 +672,7 @@ state's. 55 of the 56 Beloch fixtures replay (`tests/beloch_replay.rs`
 checks each against its frame: one face per frame face, all placed by one
 rigid motion of the frame's matrices). The one that does not is join-edge,
 an L-shaped sheet, which Import CP refuses as `import_shape_unsupported`:
-V0 imports a square or a rectangle.
+Fold folds convex sheets only.
 
 The crease pattern read is the final frame's, not the file's root. Reading
 the root, 9 fixtures failed, none of them for the engine: Beloch 0.3.0-dev

@@ -56,8 +56,46 @@ describe('attachWorkerDiagnostics', () => {
         worker: 'oristudio-cp',
         kind: 'error',
         message: 'The worker stopped unexpectedly.',
+        loadFailed: true,
       },
     ]);
+  });
+
+  it('tells a worker that never loaded (a plain error event) from one that threw while running', () => {
+    const failures: WorkerFailure[] = [];
+    registerWorkerFailureSink((failure) => failures.push(failure));
+
+    const worker = fakeWorker();
+    attachWorkerDiagnostics(worker as unknown as Worker, 'layer-order');
+    worker.dispatch('error', new Event('error'));
+    worker.dispatch('error', new ErrorEvent('error', { message: 'Uncaught RuntimeError: unreachable' }));
+    worker.dispatch('messageerror', new MessageEvent('messageerror'));
+
+    expect(failures.map((failure) => [failure.kind, failure.loadFailed])).toEqual([
+      ['error', true],
+      ['error', false],
+      ['messageerror', false],
+    ]);
+    expect(failures[1]!.message).toBe('Uncaught RuntimeError: unreachable');
+  });
+
+  it('tells the sink nothing of a failure the owner says it handled, and everything else', () => {
+    const failures: WorkerFailure[] = [];
+    registerWorkerFailureSink((failure) => failures.push(failure));
+    const observed: WorkerFailure[] = [];
+
+    const worker = fakeWorker();
+    attachWorkerDiagnostics(worker as unknown as Worker, 'layer-order', (failure) => {
+      observed.push(failure);
+      return failure.loadFailed ? 'handled' : undefined;
+    });
+    worker.dispatch('error', new Event('error'));
+    worker.dispatch('error', new ErrorEvent('error', { message: 'Uncaught RuntimeError: unreachable' }));
+
+    expect(observed).toHaveLength(2);
+    expect(failures.map((failure) => failure.message)).toEqual(['Uncaught RuntimeError: unreachable']);
+    // Still in the console, for whoever is looking.
+    expect(console.error).toHaveBeenCalledTimes(2);
   });
 
   it('distinguishes a deserialization failure from a dead worker', () => {

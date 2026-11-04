@@ -15,7 +15,7 @@ type Point = [f64; 2];
 
 /// The fixtures Import CP cannot take, with the refusal it gives.
 const OUT_OF_SCOPE: [(&str, &str); 1] = [
-    // An L-shaped sheet: a square or a rectangle is all V0 imports.
+    // An L-shaped sheet: Fold folds convex sheets only.
     ("join-edge", "import_shape_unsupported"),
 ];
 

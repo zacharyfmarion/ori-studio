@@ -1,3 +1,4 @@
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { TFunction } from 'i18next';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildDiagramFoldStepPoseActions } from '../actions/diagramPoseActions';
@@ -58,7 +59,7 @@ describe('a Fold step’s pose (D17)', () => {
 describe('a Fold step’s spread and angle (Phase 13 on a Fold step)', () => {
   const depth = { kind: 'depth' as const, amount: 0.05, toward: 'down' as const };
   const affine = { kind: 'affine' as const, amount: 0.04, keep: 'top' as const, skew: 1, axisDeg: 81 };
-  const starts = { any: depth, depth, affine };
+  const starts = { connected: DEFAULT_CONNECTED_SPREAD, any: depth, depth, affine };
 
   it('turns Spread Layers on from the diagram’s start, and off', () => {
     expect(spreadFoldRender(FLAT, { verb: 'spread-layers' }, starts)).toEqual({ ...FLAT, spread: depth });

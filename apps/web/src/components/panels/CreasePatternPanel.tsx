@@ -16,6 +16,7 @@ import {
   setActiveShortcutViewportSurface,
 } from '../../keyboard/shortcutRuntime';
 import {
+  FOLD_WITH_LAYER_ORDER_SHORTCUT_ID,
   shortcutLabelForAction,
   type ViewportShortcutId,
 } from '../../keyboard/shortcuts';
@@ -1405,6 +1406,11 @@ export function CreasePatternPanel() {
 
   const handleCpShortcutAction = useCallback(
     (actionId: OristudioCpActionId) => {
+      // Edit's own verb, in the tools' space but no tool: on the creases selected, as G folds them.
+      if (actionId === FOLD_WITH_LAYER_ORDER_SHORTCUT_ID) {
+        folded.foldModelWithLayerOrder();
+        return;
+      }
       const action = cpActionById(actionId);
       if (!action) return;
       // The `foldAction` chord — `G` here (`keyboard/shortcuts.ts`); `F` is
@@ -3296,7 +3302,11 @@ export function CreasePatternPanel() {
                     standing, so without the guard picking a region while creases
                     are selected puts two toolbars on the canvas at once. */}
                 {!editingTextId && !selectedCanvasObject && !openToolOptionWindow && (
-                  <CpSelectionToolbar container={toolbarContainer} />
+                  <CpSelectionToolbar
+                    container={toolbarContainer}
+                    fold={folded.foldLines}
+                    foldWithLayerOrder={folded.foldLinesWithLayerOrder}
+                  />
                 )}
                 </>
               ) : (

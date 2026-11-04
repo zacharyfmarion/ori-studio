@@ -65,6 +65,18 @@ export function MenuCheckboxItem({
   return <DropdownMenu.CheckboxItem className={styles.item} data-multiline={multiline || undefined} {...props} />;
 }
 
+/** An exclusive set of rows: one of them is the value (`value`, `onValueChange`). */
+export const MenuRadioGroup = DropdownMenu.RadioGroup;
+
+/**
+ * One row of an exclusive set (`MenuRadioGroup`), `menuitemradio`: a verb a
+ * sentence takes, say. Its check is the caller's to draw, as a checkbox row's
+ * is, and its state is its `aria-checked`.
+ */
+export function MenuRadioItem(props: Unstyled<ComponentProps<typeof DropdownMenu.RadioItem>>) {
+  return <DropdownMenu.RadioItem className={styles.item} {...props} />;
+}
+
 /** A row that opens a submenu, with the chevron that says so. */
 export function MenuSubTrigger({
   children,

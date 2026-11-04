@@ -96,7 +96,7 @@ describe('grid lines on the share card', () => {
   }
 
   function previewSrc(): string | null | undefined {
-    return document.querySelector('.share-embed__image img')?.getAttribute('src');
+    return document.querySelector('img[alt="Preview of the shared crease pattern"]')?.getAttribute('src');
   }
 
   it('redraws the card when the grid is turned on', async () => {

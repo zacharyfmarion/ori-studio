@@ -1,16 +1,21 @@
 import type { CpCaptureRuntime } from '../../diagram/capture/captureFolded';
-import type { CpFoldRuntime } from '../../lib/creaseExportFold';
-import type { OristudioCpFoldedFigureSnapshot } from '../../engine/oristudioCpTypes';
+import type { CpFoldRuntime, FoldWithOrderOutcome } from '../../lib/creaseExportFold';
+import type {
+  OristudioCpFoldWithOrderResult,
+  OristudioCpFoldedFigureSnapshot,
+} from '../../engine/oristudioCpTypes';
 import {
   fold3dOristudioCpDocument,
   fold3dOristudioCpFigureAnother,
   foldOristudioCpDocument,
   foldOristudioCpFigureAnother,
   foldOristudioCpFigureToCase,
+  foldOristudioCpWithOrder,
   freeOristudioCpFoldedFigure,
   getOristudioCpFolded3dAuxLines,
   getOristudioCpFoldedFigurePaperScene,
   getOristudioCpFoldedFigureRenderSnapshot,
+  getOristudioCpFoldedFigureSource,
   setOristudioCpFoldedFigureModel,
 } from './oristudioCpRuntime';
 
@@ -25,6 +30,13 @@ function stateOf(snapshot: OristudioCpFoldedFigureSnapshot) {
     currentCase: snapshot.current_fold_case ?? snapshot.discovered_fold_cases,
     hasNext: snapshot.find_another_overlap_valid,
   };
+}
+
+/** A fold with a given order, in the runtime's terms: the new figure's state, or the refusal. */
+function outcomeOf(result: OristudioCpFoldWithOrderResult): FoldWithOrderOutcome {
+  return result.status === 'folded'
+    ? { status: 'folded', handle: result.handle, ...stateOf(result.snapshot) }
+    : { status: 'refused', refusal: result.refusal };
 }
 
 /**
@@ -49,6 +61,10 @@ export function createCpFoldRuntime(runId: number): CpFoldRuntime {
     },
     setModel: async (handle, model) => stateOf(await setOristudioCpFoldedFigureModel(handle, model)),
     foldAnother: async (handle) => stateOf(await foldOristudioCpFigureAnother(handle, runId)),
+    // The aux lines captured at the fold, as `paperScene` draws them.
+    source: (handle) => getOristudioCpFoldedFigureSource(handle),
+    foldWithOrder: async (source, relations, model) =>
+      outcomeOf(await foldOristudioCpWithOrder(source, relations, model, runId)),
     // Render at the style the estimate reached, exactly as the canvas does.
     renderSnapshot: (handle, displayStyle) =>
       getOristudioCpFoldedFigureRenderSnapshot(handle, displayStyle, {
@@ -93,6 +109,9 @@ export function createBoundCpCaptureRuntime(
     foldToCase: async (handle, objective) => stateOf((await client.foldFigureToCase(handle, objective, 'Order5', runId)).snapshot),
     setModel: async (handle, model) => stateOf(await client.setFoldedFigureModel(handle, model)),
     foldAnother: async (handle) => stateOf(await client.foldFigureAnother(handle, runId)),
+    source: (handle) => client.foldedFigureSource(handle, documentHandle),
+    foldWithOrder: async (source, relations, model) =>
+      outcomeOf(await client.foldFigureWithOrder(source, relations, model, runId)),
     renderSnapshot: (handle, style) => client.foldedFigureRenderSnapshot(handle, style, { display_mark: false, selected: false }),
     paperScene: (handle) => client.foldedFigurePaperScene(handle, documentHandle),
     free: (handle) => client.freeFoldedFigure(handle),

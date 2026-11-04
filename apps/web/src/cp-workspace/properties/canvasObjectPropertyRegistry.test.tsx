@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TooltipProvider } from '../../components/ui/Tooltip';
 import type { PropertySheet } from '../../lib/propertyDescriptors';
 import { CANVAS_OBJECT_KINDS, resolveSelectedCanvasObject } from '../canvasObjects/canvasObjectKinds';
 import { IMAGE, selectionFields } from '../canvasObjects/canvasObjectKinds.fixtures';
@@ -88,9 +89,10 @@ describe('canvasObjectPropertyRegistry', () => {
 
     act(() => root?.render(<SheetHost target={target!} registry={registry} />));
 
-    expect(host?.querySelector('.property-sheet__title')?.textContent).toBe('Stub image');
+    const sheet = host?.querySelector('[data-property-sheet]');
+    expect(sheet?.querySelector('header h2')?.textContent).toBe('Stub image');
     // The host marks the sheet as the canvas selection's own surface.
-    expect(host?.querySelector('.property-sheet')?.hasAttribute('data-cp-companion')).toBe(true);
+    expect(sheet?.hasAttribute('data-cp-companion')).toBe(true);
   });
 
   it('reports one property change per commit, as enums', () => {
@@ -110,6 +112,39 @@ describe('canvasObjectPropertyRegistry', () => {
     expect(analytics.track).toHaveBeenCalledWith('canvas object property changed', {
       object_kind: 'image',
       property: 'flag',
+    });
+  });
+
+  it('reports a press of a header verb, as enums', () => {
+    const run = vi.fn();
+    const registry = canvasObjectPropertyRegistry({
+      ...CANVAS_OBJECT_PROPERTY_KINDS,
+      image: {
+        kind: 'image',
+        useSheet: () => ({
+          ...STUB_SHEET,
+          actions: [{ id: 'duplicate', label: 'Duplicate', icon: 'duplicate', disabled: false, run }],
+        }),
+      },
+    });
+    const target = resolveSelectedCanvasObject(
+      selectionFields({ oristudioCpSelectedAnnotationId: IMAGE.id })
+    )!;
+    act(() =>
+      root?.render(
+        <TooltipProvider>
+          <SheetHost target={target} registry={registry} />
+        </TooltipProvider>
+      )
+    );
+
+    act(() => host?.querySelector<HTMLButtonElement>('header button[aria-label="Duplicate"]')?.click());
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(analytics.track).toHaveBeenCalledTimes(1);
+    expect(analytics.track).toHaveBeenCalledWith('canvas object action used', {
+      object_kind: 'image',
+      action: 'duplicate',
     });
   });
 });

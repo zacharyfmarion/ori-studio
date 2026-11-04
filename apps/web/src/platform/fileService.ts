@@ -239,6 +239,28 @@ function inputAccept(extensions: string[]): string {
   return [...extensions.map((extension) => `.${extension}`), 'application/octet-stream'].join(',');
 }
 
+/**
+ * The desktop open dialog's filters, from the extensions a caller accepts.
+ *
+ * No extensions means no filter at all. On Linux the dialog plugin turns each
+ * filter into a GTK file filter with one `*.ext` pattern per extension, and a
+ * GTK filter with no patterns matches *nothing* — the chooser shows only
+ * folders, with the filter's name ("Image") in its dropdown and no way to pick
+ * a file. That was the Oriedita import on Debian, which asks for every file.
+ *
+ * Each extension also goes in upper case, because GTK 3 matches those patterns
+ * case-sensitively: `*.jpg` hides a camera's `IMG_0412.JPG`. macOS and Windows
+ * already match either case, so the second pattern changes nothing there.
+ */
+function desktopOpenFilters(name: string, extensions: string[]) {
+  if (extensions.length === 0) return [];
+  const patterns = extensions.flatMap((extension) => {
+    const upper = extension.toUpperCase();
+    return upper === extension ? [extension] : [extension, upper];
+  });
+  return [{ name, extensions: patterns }];
+}
+
 /** The picker's file-type filter, from the extensions a caller accepts. */
 function pickerTypes(extensions: string[]) {
   return [
@@ -648,7 +670,7 @@ class TauriFileService implements FileService {
     const selected = await open({
       title: options.title,
       multiple: false,
-      filters: [{ name: 'Ori Studio', extensions: options.extensions }],
+      filters: desktopOpenFilters('Ori Studio', options.extensions),
     });
     if (typeof selected !== 'string') return null;
     const text = await invoke<string>('read_text_file', { path: selected });
@@ -660,7 +682,7 @@ class TauriFileService implements FileService {
     const selected = await open({
       title: options.title,
       multiple: false,
-      filters: [{ name: options.filterName ?? 'Image', extensions: options.extensions }],
+      filters: desktopOpenFilters(options.filterName ?? 'Image', options.extensions),
     });
     if (typeof selected !== 'string') return null;
     return {
@@ -676,7 +698,7 @@ class TauriFileService implements FileService {
     const selected = await open({
       title: options.title,
       multiple: options.multiple ?? true,
-      filters: [{ name: options.filterName ?? 'Image', extensions: options.extensions }],
+      filters: desktopOpenFilters(options.filterName ?? 'Image', options.extensions),
     });
     const paths = Array.isArray(selected) ? selected : typeof selected === 'string' ? [selected] : [];
     return paths.length > 0 ? paths.map(pickedFileFromPath) : null;

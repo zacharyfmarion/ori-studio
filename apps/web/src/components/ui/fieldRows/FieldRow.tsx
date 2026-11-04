@@ -30,10 +30,13 @@ export type FieldRowValueKind =
 
 export function FieldRow({
   label,
+  labelId,
   help,
+  aside,
   htmlFor,
   noteId,
   note,
+  noteKind = 'reason',
   overridable = false,
   kind,
   disabled = false,
@@ -48,10 +51,21 @@ export function FieldRow({
 }: {
   label: string;
   /**
+   * The id the label carries, so a control that is not a native input — a
+   * pager's group — can be named by it (`aria-labelledby`) rather than repeat
+   * it.
+   */
+  labelId?: string;
+  /**
    * What the setting does, for one whose name cannot carry it: an info mark
    * after the label that explains on hover or focus.
    */
   help?: string;
+  /**
+   * A mark of the caller's own after the label and its help mark: a credit
+   * with its own popover (the Affine spread's, `AffineSpreadCredit`).
+   */
+  aside?: ReactNode;
   /** Set when the control is a native input the label can point at. */
   htmlFor?: string;
   /**
@@ -67,6 +81,13 @@ export function FieldRow({
    * the row is overridden.
    */
   note?: string;
+  /**
+   * What the note says. A `reason` (the default) is there to be read: the
+   * label's ink, wrapped rather than cut. A `status` is a quiet fact about the
+   * value — "3 constraints" — on the one tertiary line "Overridden" uses, cut
+   * short rather than wrapped.
+   */
+  noteKind?: 'reason' | 'status';
   /**
    * A toggle that can be overridden, whether or not it is now. Its row keeps
    * the note's line under the label while the note is empty, so the row is
@@ -154,14 +175,16 @@ export function FieldRow({
   return (
     <div className={rootClass} {...rootData} title={title}>
       {htmlFor ? (
-        <label className={styles.label} data-field-label="" htmlFor={htmlFor}>
+        <label className={styles.label} data-field-label="" htmlFor={htmlFor} id={labelId}>
           {label}
           {helpMark}
+          {aside}
         </label>
       ) : (
-        <span className={styles.label} data-field-label="">
+        <span className={styles.label} data-field-label="" id={labelId}>
           {label}
           {helpMark}
+          {aside}
         </span>
       )}
       <div
@@ -195,7 +218,7 @@ export function FieldRow({
       {noteLine && (
         <span
           className={styles.note}
-          data-field-note={overridden ? 'overridden' : note !== undefined ? 'reason' : ''}
+          data-field-note={overridden ? 'overridden' : note !== undefined ? noteKind : ''}
           id={noteId}
         >
           {overridden ? t('common:fieldRow.overridden', 'Overridden') : note}

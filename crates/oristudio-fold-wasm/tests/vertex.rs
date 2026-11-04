@@ -422,6 +422,70 @@ fn land_with(bridge: &mut Bridge, state: u32, step: &Value, chosen: Value) -> u3
     applied["state"].as_u64().unwrap_or_default() as u32
 }
 
+/// A flap whose walls are two plies each (the engine's `tests/vertex/cases.rs`
+/// `two_ply_walls`): the square folded on its anti-diagonal, then on its
+/// diagonal, and the corner beyond (0.8, 0.8)–(1, 0.4) lifted over that line.
+fn two_ply_walls(bridge: &mut Bridge) -> (State, u32) {
+    let mut state =
+        State::flat(Sheet::square(), StartSide::Front).unwrap_or_else(|e| panic!("{e}"));
+    let mut handle = square(bridge);
+    for (p, q, toward) in [
+        ([1.0, 0.0], [0.0, 1.0], [0.2, 0.2]),
+        ([0.0, 0.0], [1.0, 1.0], [0.6, 0.9]),
+        ([0.8, 0.8], [1.0, 0.4], [0.95, 0.95]),
+    ] {
+        let line = oristudio_geometry::Line::from_points(p, q).unwrap_or_else(|| panic!("{p:?}"));
+        let side =
+            oristudio_fold::Side::of_point(&line, toward).unwrap_or_else(|| panic!("{toward:?}"));
+        let fold = PlainFold::new(line, side, oristudio_fold::Direction::Valley);
+        state = state.fold(&fold).unwrap_or_else(|e| panic!("{e}")).state;
+        handle = land(bridge, handle, plain_step(&fold));
+    }
+    (state, handle)
+}
+
+/// The question of a squash whose walls are several plies: its layers and
+/// where it opens, and which openings land; the document's `opening` folds
+/// one of them, and one outside them is refused by its cause.
+#[test]
+fn a_squash_of_several_plies_says_where_it_opens() {
+    let mut bridge = Bridge::new();
+    let (state, walls) = two_ply_walls(&mut bridge);
+    let flap = seen_top(&state, [0.85, 0.65]);
+    let squash = json!({ "kind": "squash", "flap": flap, "direction": "valley" });
+    let asked = analysis(&bridge, walls, squash.clone());
+    assert_eq!(asked["analysis"]["layers"], 4, "{asked}");
+    assert_eq!(asked["analysis"]["opening"], 2, "{asked}");
+    assert_eq!(asked["openings"], json!([true, true, true]), "{asked}");
+    let between = apply(&mut bridge, walls, squash.clone(), json!({}));
+    assert_eq!(between["status"], "ok", "{between}");
+    let mut under = squash.clone();
+    under["opening"] = json!(1);
+    let asked = analysis(&bridge, walls, under.clone());
+    assert_eq!(asked["analysis"]["opening"], 1, "{asked}");
+    assert_eq!(asked["analysis"]["upper"].as_array().map(Vec::len), Some(1));
+    let opened = apply(&mut bridge, walls, under, json!({}));
+    assert_eq!(opened["status"], "ok", "{opened}");
+    let mut outside = squash;
+    outside["opening"] = json!(4);
+    let refused = apply(&mut bridge, walls, outside, json!({}));
+    assert_eq!(refused["refusal"]["code"], "squash_no_flap", "{refused}");
+    assert_eq!(refused["refusal"]["cause"], "opening_outside", "{refused}");
+    // A two-layer flap opens one way: it lists none.
+    let small = small_triangle(&mut bridge);
+    let flap = seen_top(
+        bridge.state(small).unwrap_or_else(|e| panic!("{e}")),
+        [0.1, 0.5],
+    );
+    let asked = analysis(
+        &bridge,
+        small,
+        json!({ "kind": "squash", "flap": flap, "direction": "valley" }),
+    );
+    assert_eq!(asked["analysis"]["layers"], 2, "{asked}");
+    assert!(asked.get("openings").is_none(), "{asked}");
+}
+
 /// A squash with one order has none to list; a flap the analysis refuses
 /// is refused by the question, with the engine's code.
 #[test]

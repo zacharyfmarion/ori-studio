@@ -24,6 +24,7 @@ import {
   retainFoldedFigureHandles,
   releaseFoldedFigureHandles,
 } from "../../cp-workspace/folded/foldedFigureHandles";
+import { foldedFiguresAtRest, foldedSelectionAtRest } from "../../cp-workspace/folded/foldedFiguresAtRest";
 import { staleFoldArtifactResourceState } from "./foldArtifactResource";
 import {
   snapshotEntry,
@@ -82,18 +83,34 @@ export function importTarget(): ImportTarget {
     simulations: s.oristudioCpInlineSimulations,
   };
 }
+/** A new compound entry of what is live: it takes a reference to each figure's handle, the live list keeps its own. */
 function captureCp(
   s: WorkspaceState,
   label: string,
   compoundId: string,
 ): OristudioCpHistoryEntry {
-  retainFoldedFigureHandles(s.oristudioCpFoldedFigures);
+  const entry = cpEntryOf(s, label, compoundId);
+  retainFoldedFigureHandles(entry.foldedFigures ?? []);
+  return entry;
+}
+/**
+ * What is live, as the entry an undo or redo pushes while it puts another
+ * entry's figures back: the live figures' handles move to it as the restored
+ * entry's move to the live list, so each keeps the reference it had
+ * (`historySlice.ts`, `swappedCpHistoryEntry`).
+ */
+function cpEntryOf(
+  s: WorkspaceState,
+  label: string,
+  compoundId: string,
+): OristudioCpHistoryEntry {
   return {
     document: cpHistoryDocumentOf(s.oristudioCpDocument!),
     selection: s.oristudioCpSelection,
     annotations: s.oristudioCpAnnotations,
-    foldedFigures: s.oristudioCpFoldedFigures,
-    activeFoldedFigureId: s.oristudioCpActiveFoldedFigureId,
+    // Never a figure mid-press (`foldedFiguresAtRest.ts`).
+    foldedFigures: foldedFiguresAtRest(s.oristudioCpFoldedFigures),
+    activeFoldedFigureId: foldedSelectionAtRest(s.oristudioCpActiveFoldedFigureId, s.oristudioCpFoldedFigures),
     inlineSimulations: s.oristudioCpInlineSimulations,
     label,
     timestamp: new Date().toISOString(),
@@ -378,8 +395,9 @@ export function compoundImportTravel(
         s.oristudioCpDocument!.source,
         null,
       );
-      const current = captureCp(s, cp.label, id);
-      releaseFoldedFigureHandles(cp.foldedFigures);
+      // A swap: the entry's figures go live and the live ones into the pushed
+      // entry, each handle keeping the one reference it had.
+      const current = cpEntryOf(s, cp.label, id);
       // As ordinary Edit undo restores it (historySlice), the overlay result included.
       set({
         oristudioCpDocument: restored,

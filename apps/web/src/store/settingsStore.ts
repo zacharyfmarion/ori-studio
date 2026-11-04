@@ -85,6 +85,9 @@ import {
   writeString,
 } from '../lib/storage';
 import type { WheelGesturePreference } from '../lib/wheelGesture';
+import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
+import { readLayerSpread, writeLayerSpread } from '../cp-workspace/folded/layerSpreadSettings';
+import { NEWER } from '../lib/documentFile';
 
 export type SettingsTab = 'general' | 'appearance' | 'paper' | 'shortcuts' | 'workspace';
 
@@ -206,11 +209,25 @@ function readPaperExportMemory(): PaperExportMemory {
   return memory;
 }
 
-/** The remembered style of the folded figure beside a crease pattern; the export slot until one is saved. */
-function readCreasePatternFoldedFigureStyle(): PaperExportStyleChoice {
-  const stored = readJson<unknown>(CP_FOLDED_FIGURE_KEY, null);
-  const style = stored && typeof stored === 'object' ? (stored as { style?: unknown }).style : null;
-  return typeof style === 'string' && style.length > 0 ? style : PAPER_EXPORT_STYLE_SLOT;
+/**
+ * What the folded figure beside a crease pattern was last saved or shared
+ * with: its style — the export slot until one is saved — and its layer spread,
+ * off until one is (decision 5). Read from `{ style, spread }`; a store from
+ * before there was a spread, `{ style }`, has it off. A spread that does not
+ * read here — damaged, or a newer build's — is off too: this is a dialog's
+ * starting point, not a document, and the next save writes this build's.
+ */
+export function readCreasePatternFoldedFigure(stored: unknown): {
+  style: PaperExportStyleChoice;
+  spread: LayerSpreadOptions | null;
+} {
+  const record = stored && typeof stored === 'object' ? (stored as { style?: unknown; spread?: unknown }) : null;
+  const style = record?.style;
+  const spread = readLayerSpread(record?.spread);
+  return {
+    style: typeof style === 'string' && style.length > 0 ? style : PAPER_EXPORT_STYLE_SLOT,
+    spread: spread && spread !== NEWER ? spread : null,
+  };
 }
 
 /** The style a slot edits: export starts from display the moment it stops following. */
@@ -333,6 +350,12 @@ interface SettingsState {
    * card, and apart from the folded figure's own export (X12).
    */
   creasePatternFoldedFigureStyle: PaperExportStyleChoice;
+  /**
+   * The layer spread that figure was last saved or shared with, or null for
+   * none: what the export and the share card open on, shared by both as the
+   * style is (decision 5). Off until a spread is saved.
+   */
+  creasePatternFoldedFigureSpread: LayerSpreadOptions | null;
   /** What the Diagram's export last wrote, and how; the export dialog is its only editor. */
   diagramExport: DiagramExportSettings;
   /**
@@ -443,8 +466,11 @@ interface SettingsState {
    * nothing.
    */
   rememberPaperExportOptions: (kind: PaperExportKind, options: PaperExportSettings) => void;
-  /** Keep the folded figure's style a crease-pattern file was saved, or a share published, with. */
-  rememberCreasePatternFoldedFigureStyle: (style: PaperExportStyleChoice) => void;
+  /** Keep the folded figure's style and spread a crease-pattern file was saved, or a share published, with. */
+  rememberCreasePatternFoldedFigure: (figure: {
+    style: PaperExportStyleChoice;
+    spread: LayerSpreadOptions | null;
+  }) => void;
   rememberDiagramExport: (settings: DiagramExportSettings) => void;
 }
 
@@ -465,7 +491,8 @@ export const useSettingsStore = create<SettingsState>()(
       referencesShowAuxCreases: readOptionalBoolean(REFERENCES_SHOW_AUX_CREASES_KEY),
       paperStyle: readPaperStyleSettings(),
       paperExport: readPaperExportMemory(),
-      creasePatternFoldedFigureStyle: readCreasePatternFoldedFigureStyle(),
+      creasePatternFoldedFigureStyle: readCreasePatternFoldedFigure(readJson<unknown>(CP_FOLDED_FIGURE_KEY, null)).style,
+      creasePatternFoldedFigureSpread: readCreasePatternFoldedFigure(readJson<unknown>(CP_FOLDED_FIGURE_KEY, null)).spread,
       diagramExport: normalizeDiagramExportSettings(readJson<unknown>(DIAGRAM_EXPORT_KEY, null)),
       diagramAnnotateSnap: readBoolean(DIAGRAM_ANNOTATE_SNAP_KEY, true),
       diagramAnnotateLineType: readDiagramAnnotateLineType(),
@@ -704,9 +731,10 @@ export const useSettingsStore = create<SettingsState>()(
         writeJson(PAPER_EXPORT_KEY, persistedPaperExport(next));
         set({ paperExport: next });
       },
-      rememberCreasePatternFoldedFigureStyle: (style) => {
-        writeJson(CP_FOLDED_FIGURE_KEY, { style });
-        set({ creasePatternFoldedFigureStyle: style });
+      rememberCreasePatternFoldedFigure: ({ style, spread }) => {
+        // `{ style }` alone with no spread: the bytes every build before it wrote.
+        writeJson(CP_FOLDED_FIGURE_KEY, spread ? { style, spread: writeLayerSpread(spread) } : { style });
+        set({ creasePatternFoldedFigureStyle: style, creasePatternFoldedFigureSpread: spread });
       },
       rememberDiagramExport: (settings) => {
         const next = normalizeDiagramExportSettings(settings);

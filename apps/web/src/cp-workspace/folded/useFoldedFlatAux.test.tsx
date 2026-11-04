@@ -34,9 +34,16 @@ const fetches = vi.hoisted(() => ({
   documents: [] as Array<number | null | undefined>,
   answer: null as unknown,
   failures: 0,
+  /** What the handle shows, as the kernel reports it. */
+  shows: null as unknown,
+  shown: [] as number[],
 }));
 vi.mock('../../store/workspaceStore/oristudioCpRuntime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../store/workspaceStore/oristudioCpRuntime')>()),
+  getOristudioCpFoldedFigureSnapshot: async (handle: number) => {
+    fetches.shown.push(handle);
+    return fetches.shows;
+  },
   getOristudioCpFoldedFigurePaperScene: async (handle: number, documentHandle?: number | null) => {
     fetches.calls.push(handle);
     fetches.documents.push(documentHandle);
@@ -160,6 +167,9 @@ beforeEach(async () => {
   fetches.failures = 0;
   reported.errors = [];
   fetches.answer = SCENE;
+  // The handle shows what the figure says, unless a test says otherwise.
+  fetches.shows = snapshot();
+  fetches.shown = [];
   resetFoldedFlatAuxFetches();
   resetFoldedFlatScenes();
   await resetFoldedFigureHandles();
@@ -295,6 +305,23 @@ describe('useFoldedFlatAux', () => {
     expect(fetches.calls).toEqual([7]);
     expect(foldedFlatSceneCount()).toBe(0);
     expect(reader!(entry)).toBeNull();
+  });
+
+  it('keeps no scene while the handle shows another layer order than the figure, and asks once', async () => {
+    // Another solution, then Undo: the entry is put back on solution 1, the
+    // handle stays on solution 2, and its scene is solution 2's.
+    const entry = figure('a', { snapshot: { ...snapshot(), discovered_fold_cases: 2, current_fold_case: 1 } });
+    fetches.shows = { ...snapshot(), discovered_fold_cases: 2, current_fold_case: 2 };
+    showAux(true);
+    mount([entry]);
+    await settle();
+    expect(foldedFlatSceneCount()).toBe(0);
+    expect(reader!(entry)).toBeNull();
+    // Another render of the same figure asks nothing more of the kernel.
+    mount([{ ...entry, renderSnapshot: { ...entry.renderSnapshot! } }]);
+    await settle();
+    expect(fetches.shown).toEqual([7]);
+    expect(fetches.calls).toEqual([]);
   });
 
   it('answers null for a kernel that has no scene', async () => {

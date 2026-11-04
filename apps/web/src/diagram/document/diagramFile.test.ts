@@ -34,7 +34,7 @@ import {
   type DiagramTitleBlockContentPatch,
   type KnownDiagramAnnotation,
 } from './diagramDocument';
-import { readDiagram, storedSceneJson, writeDiagram } from './diagramFile';
+import { readDiagram, storedCpSource, storedSceneJson, writeDiagram } from './diagramFile';
 import { withRotationDegrees } from './diagramRotation';
 import { withTurnPreset } from '../../lib/steps/turn';
 import { SVG_STORED_MAX_BYTES, sanitizeSvg } from '../upload/svgSanitize';
@@ -2754,6 +2754,21 @@ describe('a flat capture’s faces in the file (Revision 2)', () => {
     expect(plain.picture && 'paperFaces' in plain.picture).toBe(true);
   });
 
+  it('round-trips a picture whose layers could not be spread, its faces checked as the unspread fold’s', () => {
+    // A spread step whose scene draws a face in part, as an unspread fold does: kept, its layers drawn unspread.
+    const written = flatFaces(true, { rings: [[0, 1, 2, 3], [4, 5, 2]] });
+    written.steps[0].picture.spreadFailed = true;
+    const { read, step } = readFaces(written);
+    expect(step.unknown).toBeUndefined();
+    expect(step.picture).toMatchObject({ spreadFailed: true, paperFaces: written.steps[0].picture.paperFaces });
+    expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+    // Anything but true says nothing, and is not written back.
+    written.steps[0].picture.spreadFailed = 'yes';
+    const damaged = readFaces(written).step;
+    expect(damaged.unknown).toBeUndefined();
+    expect(damaged.picture && 'spreadFailed' in damaged.picture).toBe(false);
+  });
+
   it('checks them against the scene as the load read it, with no second parse of the scene', () => {
     const written = flatFaces(true);
     const sceneJson = written.steps[0].picture.sceneJson as string;
@@ -2776,6 +2791,23 @@ describe('a flat capture’s faces in the file (Revision 2)', () => {
 });
 
 describe('uploaded pictures in the file', () => {
+  it('round-trips the raster capture frame and rejects malformed frames', () => {
+    const { document } = uploadDiagram();
+    const written = throughJson(writeDiagram(document));
+    written.steps[1].picture.sceneFrame = [-10, 20, 100, 80];
+    const loaded = readDiagram(written)!;
+    expect(loaded.document.steps[1]).toMatchObject({ picture: { sceneFrame: [-10, 20, 100, 80] } });
+    expect(throughJson(writeDiagram(loaded.document)).steps[1].picture.sceneFrame).toEqual([-10, 20, 100, 80]);
+    // A bitmap of a fold whose layers could not be spread says so, as a scene does.
+    written.steps[1].picture.spreadFailed = true;
+    expect(readDiagram(written)!.document.steps[1]).toMatchObject({ picture: { spreadFailed: true } });
+    delete written.steps[1].picture.spreadFailed;
+    for (const frame of [[0, 0, -1, 1], [0, 0, 1, 0], [0, 0, 1], [0, NaN, 1, 1], [0, 0, 1, 1, 1]]) {
+      written.steps[1].picture.sceneFrame = frame;
+      expect(readDiagram(written)!.document.steps[1]).toMatchObject({ picture: null });
+    }
+  });
+
   it('round-trips upload steps and their assets unchanged', () => {
     const { document } = uploadDiagram();
     const read = readDiagram(throughJson(writeDiagram(document)))!;
@@ -3808,4 +3840,112 @@ describe('turns between steps (D22)', () => {
       expect(readDiagram(written)!.document.steps.map((entry) => entry.id), JSON.stringify(rotate)).toEqual(['step-2', 'turn-3', 'step-4']);
     }
   });
+});
+
+describe('a linked step’s layer order', () => {
+  // The fixture is this writer's output from before layer orders existed,
+  // written by the commit that added this test, ahead of the feature: a
+  // diagram with no record keeps those bytes, written fresh or read back.
+  const WRITTEN_BEFORE_LAYER_ORDERS = './__fixtures__/layer-order-zero-bytes.diagram.json';
+
+  it('writes a diagram with no layer order exactly as before layer orders existed', async () => {
+    const written = JSON.stringify(throughJson(writeDiagram(linkedDiagram())), null, 2);
+    await expect(written).toMatchFileSnapshot(WRITTEN_BEFORE_LAYER_ORDERS);
+    const again = JSON.stringify(throughJson(writeDiagram(readDiagram(JSON.parse(written))!.document)), null, 2);
+    expect(again).toBe(written);
+  });
+
+  const RECORD =
+    '{"v":1,"faces":[{"at":[-0.25,0.1],"area":0.125},{"at":[0.3,-0.2],"area":0.25}],"constraints":[[0,1,1]],"order":[[1,0,-1]]}';
+
+  /** The linked diagram with its flat step (the second) constrained: `layerOrder` on its source. */
+  function constrainedDiagram(layerOrder: unknown = RECORD) {
+    const diagram = linkedDiagram();
+    const [first, flat, ...rest] = stepsIn(diagram);
+    const source = { ...(flat!.source as DiagramCpSource), layerOrder } as DiagramCpSource;
+    return { ...diagram, steps: [first!, { ...flat!, source }, ...rest] };
+  }
+
+  it('round-trips a step’s layer order on its source, byte for byte, the step unlocked', () => {
+    const written = throughJson(writeDiagram(constrainedDiagram()));
+    expect(written.steps[1].source.layerOrder).toBe(RECORD);
+    // After the fields it had before, so a step without one is written as it was.
+    expect(Object.keys(written.steps[1].source).at(-1)).toBe('layerOrder');
+    const read = readDiagram(written)!;
+    const step = stepsIn(read.document)[1]!;
+    expect(step.unknown).toBeUndefined();
+    expect((step.source as DiagramCpSource).layerOrder).toBe(RECORD);
+    expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+  });
+
+  it('leaves the field out of a step that has none (the fourth zero-bytes rule)', () => {
+    const written = throughJson(writeDiagram(constrainedDiagram()));
+    expect(written.steps.filter((step: { source: object }) => 'layerOrder' in step.source)).toHaveLength(1);
+  });
+
+  it('keeps a step’s layer order whatever the step is shown as, 3D included', () => {
+    const written = throughJson(writeDiagram(constrainedDiagram()));
+    written.steps[1].source.render = { mode: 'folded-3d', camera: { yaw: 0.5, pitch: -0.4, zoom: 1.2 }, side: 'front' };
+    written.steps[1].source.remembered = {};
+    const step = stepsIn(readDiagram(written)!.document)[1]!;
+    expect(step.unknown).toBeUndefined();
+    expect((step.source as DiagramCpSource).layerOrder).toBe(RECORD);
+  });
+
+  it.each([
+    ['a later version', JSON.stringify({ ...JSON.parse(RECORD), v: 2 })],
+    ['a field it has no name for', JSON.stringify({ ...JSON.parse(RECORD), chosenBy: 'count' })],
+    ['more than this build keeps', JSON.stringify({ ...JSON.parse(RECORD), pad: 'x'.repeat(1024 * 1024) })],
+  ])('locks a step whose record is a newer build’s — %s — keeps its picture, and writes it back unchanged', (_label, layerOrder) => {
+    const written = throughJson(writeDiagram(constrainedDiagram(layerOrder)));
+    const ours = stepsIn(readDiagram(throughJson(writeDiagram(linkedDiagram())))!.document)[1]!;
+    const read = readDiagram(written)!;
+    const step = stepsIn(read.document)[1]!;
+    expect(step.unknown).toEqual(written.steps[1]);
+    // It shows what this build reads of it: its picture, as its link says.
+    expect(step.picture).toEqual(ours.picture);
+    expect((step.source as DiagramCpSource).render).toEqual((ours.source as DiagramCpSource).render);
+    expect(read.readOnly).toBe(false);
+    expect(stepsIn(read.document).filter((entry) => entry.unknown !== undefined)).toHaveLength(1);
+    expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+  });
+
+  it('is kept, locked and verbatim, by a build that reads no layer order: as any source field it has no name for', () => {
+    // A build before layer orders knows no `layerOrder` (`SOURCE_KEYS.cp`): `hologram` stands for it here.
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[1].source.hologram = RECORD;
+    const older = readDiagram(written)!;
+    expect(stepsIn(older.document)[1]!.unknown).toEqual(written.steps[1]);
+    expect(JSON.stringify(throughJson(writeDiagram(older.document)))).toBe(JSON.stringify(written));
+  });
+
+  it.each([
+    ['not a string', { v: 1 }],
+    ['not JSON', '{"v":1,'],
+    ['a constraint past its faces', JSON.stringify({ ...JSON.parse(RECORD), constraints: [[0, 5, 1]] })],
+  ])('drops a record that does not read — %s — alone: the step keeps its picture and stays unlocked', (_label, layerOrder) => {
+    const written = throughJson(writeDiagram(constrainedDiagram(layerOrder)));
+    const ours = stepsIn(readDiagram(throughJson(writeDiagram(linkedDiagram())))!.document)[1]!;
+    const step = stepsIn(readDiagram(written)!.document)[1]!;
+    expect(step.unknown).toBeUndefined();
+    expect(step.source).toEqual(ours.source);
+    expect(step.picture).toEqual(ours.picture);
+  });
+
+  it('stores a capture’s layer order as the reader reads it', () => {
+    const source = { ...(cpStep('s', { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 }).source as DiagramCpSource), layerOrder: RECORD };
+    expect(storedCpSource(source)?.layerOrder).toBe(RECORD);
+    expect(storedCpSource({ ...source, layerOrder: '{"v":1}' })).not.toHaveProperty('layerOrder');
+  });
+});
+
+
+it.each([2, 4])('round trips spatial amount %s and locks an unknown spatial version',(amount)=>{
+  const written=throughJson(writeDiagram(linkedDiagram()));
+  written.steps[2].source.render.spread={kind:'spatial',version:1,amount};
+  const read=readDiagram(written)!;
+  expect((stepsIn(read.document)[2]!.source as DiagramCpSource).render).toMatchObject({spread:{kind:'spatial',version:1,amount}});
+  expect(throughJson(writeDiagram(read.document)).steps[2].source.render.spread).toEqual(written.steps[2].source.render.spread);
+  written.steps[2].source.render.spread.version=2;
+  expect(stepsIn(readDiagram(written)!.document)[2]!.unknown).toBeDefined();
 });

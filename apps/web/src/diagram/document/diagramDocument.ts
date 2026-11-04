@@ -1,3 +1,4 @@
+import type { SpreadPresentation } from '../../layer-spread/presentation';
 /**
  * The Diagram workspace's document: an ordered list of steps, the page they
  * are laid out on, and the paper style they are painted in.
@@ -251,8 +252,9 @@ export type DiagramCpRender =
        * about the picture, kept by every other pose verb. Absent is none.
        */
       spread?: DiagramLayerSpread;
+      presentation?: SpreadPresentation;
     }
-  | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' }
+  | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back'; spread?: import('../../cp-workspace/folded/foldedFigureSpread').SpatialSpread }
   | {
       /** The simulator's model at a fold %, from a camera (D19). */
       mode: 'simulated';
@@ -415,6 +417,24 @@ function creasePatternRender(rotationDeg: number, side: 'front' | 'back', flipCr
   };
 }
 
+/** A flat fold's render. */
+export type DiagramFlatRender = Extract<DiagramCpRender, { mode: 'folded-flat' }>;
+
+/**
+ * A flat fold whose layers its Default spread could not spread, as its step
+ * keeps it: the spread kept, so the step says it failed and offers another
+ * kind, and no presentation, which only a spread drawn is drawn in.
+ */
+export function spreadFailedRender(render: DiagramFlatRender): DiagramFlatRender {
+  const { presentation: _presentation, ...kept } = render;
+  return kept;
+}
+
+/** Whether a step's picture is its fold drawn unspread because its layers could not be spread (`spreadFailed`). */
+export function spreadFailedOf(picture: DiagramPicture | null | undefined): boolean {
+  return (picture?.kind === 'scene' || picture?.kind === 'asset') && picture.spreadFailed === true;
+}
+
 /** How a render shows its pattern. */
 export function showAsOf(render: DiagramCpRender): DiagramShowAs {
   switch (render.mode) {
@@ -445,6 +465,16 @@ export interface DiagramCpSource {
    * order back. Never holds the way the step is shown now; absent when empty.
    */
   remembered?: Partial<Record<DiagramShowAs, DiagramCpRender>>;
+  /**
+   * The layer order chosen for the step in the Layer order dialog, as the
+   * record's compact JSON (`lib/layerOrder/layerOrderRecord.ts`): its
+   * constraints and the order shown, never a case number. On the source, so
+   * it survives Show as and a switch to 3D; each constrained step carries its
+   * own. Absent when the step has none, so a step without one is written as
+   * before. A build without the field carries the step locked, as any source
+   * field it has no name for, and so does this one a newer build's record.
+   */
+  layerOrder?: string;
 }
 
 /**
@@ -686,6 +716,9 @@ export type DiagramStepSource =
  */
 export interface DiagramAssetPicture {
   kind: 'asset';
+  /** Captured image rectangle in scene coordinates: x, y, width, height.
+   * Retains the live camera framing when a large capture falls back to raster. */
+  sceneFrame?: [number, number, number, number];
   assetId: string;
   /**
    * Picture px per crease-pattern unit, for a capture kept as a bitmap, for
@@ -700,6 +733,8 @@ export interface DiagramAssetPicture {
    */
   styleKey?: string;
   key: string;
+  /** A capture of a fold whose layers could not be spread, as a scene's ({@link DiagramScenePicture.spreadFailed}). */
+  spreadFailed?: true;
 }
 
 /**
@@ -724,6 +759,14 @@ export interface DiagramScenePicture {
    * capture made before it, which anchors nothing until it is refreshed.
    */
   paperFaces?: string;
+  /**
+   * Set when its render asks the layers spread by Default and they could not
+   * be — the solve over a resource limit, out of time, the worker gone — so
+   * this is the fold drawn unspread, as with no spread at all: the step keeps
+   * its spread to say so, and to offer another kind. Written only then; a
+   * capture that spreads them leaves it behind with the picture it was for.
+   */
+  spreadFailed?: true;
 }
 
 /**
@@ -746,6 +789,10 @@ export interface DiagramPaperFaces {
   rings: number[][];
   /** Per face: the longest chain of display layers stacked over its own as the picture is seen (`layerLevels`); the greatest is backmost. */
   levels: number[];
+  /** Render triangles, per face, as indices into that face's ring. */
+  triangles?: [number, number, number][][];
+  /** Whole projected rings, separate from the visible clipped pieces. */
+  drawn?: [number, number][][];
 }
 
 /**
@@ -2011,6 +2058,20 @@ export function setLinkedPicture(
       )
     )
   );
+}
+
+/**
+ * A linked step's layer order record set, its picture as it is: what a
+ * capture keeps when the record's order could not be drawn (layer order D10)
+ * — the record, flagged — so the step says so at rest. Nothing else of the
+ * source changes, so its link still says whether the picture is behind its
+ * pattern. The same record again is no edit.
+ */
+export function setLinkedLayerOrder(document: DiagramDocument, stepId: string, layerOrder: string): DiagramDocument {
+  return updateStep(document, stepId, (step) => {
+    if (step.source?.kind !== 'cp' || step.source.layerOrder === layerOrder) return step;
+    return { ...step, source: { ...step.source, layerOrder }, revision: step.revision + 1 };
+  });
 }
 
 /** A Fold step's capture: its source and picture, and the marks its fold brings (plan D17). */

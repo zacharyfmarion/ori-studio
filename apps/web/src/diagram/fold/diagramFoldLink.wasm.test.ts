@@ -1,7 +1,9 @@
+import '../../layer-spread/captureWorker.testSupport';
 // @vitest-environment jsdom
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_FOLD_CONNECTED_SPREAD } from '../../fold/document/foldSpreadDefaults';
 import type { FoldOp } from '../../fold/document/foldSequenceDocument';
 import { createFoldEngineCalls } from '../../fold/engine/foldEngineCalls';
 import { createFoldSession, type FoldSession } from '../../fold/session/foldSession';
@@ -46,7 +48,7 @@ const { useWorkspaceStore } = await import('../../store/workspaceStore/store');
 const { foldSessionDocumentSource } = await import('../../store/workspaceStore/foldSession');
 const { useLayoutStore } = await import('../../store/layoutStore');
 const { pullFromFold, sendFoldStepsToDiagram } = await import('./foldBrowserActions');
-const { openDiagramStepInFold, refreshDiagramFoldStep, spreadDiagramFoldStep } = await import('./foldStepActions');
+const { openDiagramStepInFold, refreshDiagramFoldStep, spreadDiagramFoldStep, presentDiagramFoldStep, setDiagramFoldPresentation } = await import('./foldStepActions');
 const { foldLinkContextNow } = await import('./useFoldLinkContext');
 const { foldStepLinkStatus } = await import('./foldStepLink');
 
@@ -83,6 +85,14 @@ function onlyStep(): DiagramStep {
 const statusOf = (step: DiagramStep) => foldStepLinkStatus(step.source as DiagramFoldStepSource, foldLinkContextNow());
 
 describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D17)', () => {
+  beforeAll(async () => {
+    // The first capture lazily loads the whole Fold workspace. In Vite tests
+    // its cold TS transform can consume the capture test's five-second budget;
+    // load the module graph as fixture setup, independent of capture timing.
+    const { loadFold } = await import('../../workspaces/foldGateway');
+    await loadFold();
+  }, 30_000);
+
   beforeEach(async () => {
     useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
     held.session = createFoldSession({ document: foldSessionDocumentSource(useWorkspaceStore), runtime: await bridge() });
@@ -98,6 +108,86 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
   afterEach(() => {
     held.session?.dispose();
     held.session = null;
+  });
+
+  it('marks a spread-kind replacement as blocking, but not a live reveal capture', async () => {
+    const [, second] = state().foldSequences[0]!.document.steps;
+    expect(state().setFoldStepSpread(second!.id, DEFAULT_FOLD_CONNECTED_SPREAD)).toBe(true);
+    await settle();
+    await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });
+    const id = onlyStep().id;
+    await spreadDiagramFoldStep(id, {verb:'spread-kind',kind:'affine'});
+    const captures: boolean[] = [];
+    const unsubscribe = useWorkspaceStore.subscribe(value=>{
+      const capture = value.diagramCaptures[id];
+      if(capture) captures.push(capture.blocksPose === true);
+    });
+    try {
+      await spreadDiagramFoldStep(id, {verb:'spread-kind',kind:'connected'});
+      expect(captures.length).toBeGreaterThan(0);
+      expect(captures.every(Boolean)).toBe(true);
+      expect(state().diagramCaptures[id]).toBeUndefined();
+      captures.length = 0;
+      await spreadDiagramFoldStep(id, {verb:'spread-reveal',reveal:[.4,.9]});
+      expect(captures.length).toBeGreaterThan(0);
+      expect(captures.every(value=>!value)).toBe(true);
+      expect(state().diagramCaptures[id]).toBeUndefined();
+      await setDiagramFoldPresentation(id, 'perspective');
+      captures.length = 0;
+      await presentDiagramFoldStep(id, {
+        kind:'perspective',camera:{yaw:.4,pitch:-.8,zoom:1},orderSide:'front',
+      }, undefined, true);
+      expect(captures.length).toBeGreaterThan(0);
+      expect(captures.every(value=>!value)).toBe(true);
+      expect(state().diagramCaptures[id]).toBeUndefined();
+    } finally { unsubscribe(); }
+  });
+
+  it('drops an obsolete camera capture without changing the Fold-derived step or history', async () => {
+    const [, second] = state().foldSequences[0]!.document.steps;
+    expect(state().setFoldStepSpread(second!.id, DEFAULT_FOLD_CONNECTED_SPREAD)).toBe(true);
+    await settle();
+    await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });
+    const before = onlyStep();
+    const history = state().diagramHistory;
+    let current = true;
+    const pending = presentDiagramFoldStep(before.id, {
+      kind: 'perspective', camera: { yaw: 0.4, pitch: -0.8, zoom: 1 }, orderSide: 'front',
+    }, () => current);
+    current = false;
+    expect(await pending).toBe(false);
+    expect(onlyStep()).toBe(before);
+    expect(state().diagramHistory).toBe(history);
+    expect(state().diagramCaptures).toEqual({});
+  });
+
+  it('queues a presentation change behind capture, preserves its camera, and persists it with undo/redo', async () => {
+    const [, second] = state().foldSequences[0]!.document.steps;
+    expect(state().setFoldStepSpread(second!.id, DEFAULT_FOLD_CONNECTED_SPREAD)).toBe(true);
+    await settle();
+    await pullFromFold([{ kind: 'step', step: second!.id, moment: 'after' }], { kind: 'end' }, { via: 'fold' });
+    const id = onlyStep().id;
+    const before = state().diagramHistory.past.length;
+    useWorkspaceStore.setState({ diagramCaptures: { [id]: { runId: null } } });
+    const pending = setDiagramFoldPresentation(id, 'perspective');
+    await Promise.resolve();
+    expect(state().diagramHistory.past.length).toBe(before);
+    useWorkspaceStore.setState({ diagramCaptures: {} });
+    await pending;
+    const perspective = (onlyStep().source as DiagramFoldStepSource).render;
+    expect(perspective).toMatchObject({ mode: 'folded-flat', presentation: { kind: 'perspective' } });
+    await setDiagramFoldPresentation(id, 'diagram');
+    const diagram = (onlyStep().source as DiagramFoldStepSource).render;
+    expect(diagram).toMatchObject({ presentation: { kind: 'diagram' } });
+    expect(diagram.mode === 'folded-flat' && diagram.presentation?.camera).toEqual(
+      perspective.mode === 'folded-flat' && perspective.presentation?.camera);
+    state().undoDiagram();
+    expect((onlyStep().source as DiagramFoldStepSource).render).toEqual(perspective);
+    state().redoDiagram();
+    const loaded = readDiagram(JSON.parse(JSON.stringify(writeDiagram(state().diagram!))))!;
+    expect(loaded.document.steps).toEqual(state().diagram!.steps);
+    expect(state().diagramHistory.past.length).toBe(before + 2);
+    expect(state().diagramCaptures).toEqual({});
   });
 
   it('draws a step sent from Fold on a page, turns it stale after an edit upstream, and refreshes it', async () => {

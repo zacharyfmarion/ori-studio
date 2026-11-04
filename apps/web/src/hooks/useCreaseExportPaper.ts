@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
 import type { CreaseExportFoldedFigureSettings, CreaseExportPaperOptions } from '../lib/creaseExport';
 import type { PaperStyle } from '../lib/paper/paperStyle';
 import { PAPER_EXPORT_STYLE_SLOT, type PaperExportStyleChoice } from '../lib/paperExportSettings';
@@ -35,18 +36,25 @@ export function creaseExportFigureColours(
 /**
  * The pick a crease-pattern export or share card opens on — the one last saved
  * or published with, while a preset still honours it — with the figure's
- * colours seeded from it. Read, not subscribed: a snapshot when the dialog opens.
+ * colours seeded from it, and the layer spread last saved or published with,
+ * or none (off the first time, decision 5). Read, not subscribed: a snapshot
+ * when the dialog opens.
  */
 export function openingCreaseExportFigure(): {
   style: PaperExportStyleChoice;
   colours: Pick<CreaseExportFoldedFigureSettings, 'frontColor' | 'backColor'>;
+  spread: LayerSpreadOptions | null;
 } {
-  const { paperStyle, creasePatternFoldedFigureStyle } = useSettingsStore.getState();
+  const { paperStyle, creasePatternFoldedFigureStyle, creasePatternFoldedFigureSpread } = useSettingsStore.getState();
   const style = resolvePaperExportStyleChoice(
     creasePatternFoldedFigureStyle,
     paperPresetRows(paperStyle.presets)
   );
-  return { style, colours: creaseExportFigureColours(creaseExportFigureStyle(paperStyle, style)) };
+  return {
+    style,
+    colours: creaseExportFigureColours(creaseExportFigureStyle(paperStyle, style)),
+    spread: creasePatternFoldedFigureSpread,
+  };
 }
 
 /**

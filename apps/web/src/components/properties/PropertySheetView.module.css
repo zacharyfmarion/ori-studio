@@ -1,0 +1,105 @@
+/*
+ * A property sheet (PropertySheetView.tsx): the selected object's name and
+ * context, then its rows in sections — the same `FieldRow` /
+ * `collapsible-section` idiom as the View pane, so the two tabs read as one
+ * pane.
+ */
+.sheet {
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-3) 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--text-tertiary);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A state that needs a look, as the Properties board's "Needs attention" draws it. */
+.subtitle[data-tone='warning'] {
+  color: var(--status-warning);
+}
+
+/* With the object's verbs at its end (`sheet.actions`), the header is the
+   Diagram Step pane's header line (DiagramStepHeader.module.css): its padding,
+   and the verbs pushed to the end of the line. Beside them the subtitle has
+   little room, so it wraps rather than lose its end. */
+.header[data-actions] {
+  padding: var(--space-2) var(--space-3);
+}
+
+.header[data-actions] .subtitle {
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+/* An untitled section is the sheet's plain body: rows with no header. Its
+   rows rule themselves off, so it draws no rule of its own — one would double
+   the last row's wherever another section follows. */
+.section {
+  flex: 0 0 auto;
+}
+
+/* A stepper with a button after its pager ("Edit…"), as the board draws the
+   Layer order row: the two 8px apart at the row's end. */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A section's rows a little apart, as the Step pane's Pose section has them
+   (DiagramStepPose.module.css). */
+.spaced {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* A section's notice after its rows, inset to the rows' edges as the
+   Properties board's Pose notice is. */
+.notice {
+  padding: var(--space-1) var(--space-3) var(--space-2);
+}

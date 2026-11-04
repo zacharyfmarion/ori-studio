@@ -936,7 +936,8 @@
         "otherWay": "Fold it the other way",
         "precreaseHinge": "Precrease the hinge first",
         "precreaseKite": "Precrease the kite",
-        "resetTarget": "Put the spine onto the hinge"
+        "resetTarget": "Put the spine onto the hinge",
+        "valleyMountain": "Switch to Valley and mountain"
       },
       "help": {
         "petalHinge": "Lift a flap’s lower point along a hinge while its sides fold in along two kite creases.",
@@ -1036,6 +1037,7 @@
           "hingeOffSpine": "The hinge line must cross the flap’s folded edge, with the end you click on one side of it.",
           "noHinge": "The flap folds over no hinge at either end of its spine, so there is nothing to press it flat against.",
           "noSpine": "These layers are not joined by a single folded edge, so there is no spine to open. A closed flap, joined through folded-in sides, cannot be squashed yet.",
+          "openingOutside": "The flap can’t open between those layers: they are joined somewhere other than its spine and hinge.",
           "singleLayer": "Only one layer lies here. Click a flap of two layers joined along a folded edge.",
           "title": "No flap to squash here",
           "upperNotHinged": "The flap’s top layer is held by its spine alone: pressed flat, its hinge side would lie loose."
@@ -1094,7 +1096,7 @@
           "title": "The edge would stay put"
         },
         "swivelFoldWide": {
-          "text": "On the moving edge’s side the swivel crease meets the folded edge at a right angle or more, which leaves the other layer no room to fold. Pick a line for the edge to land on that turns it further, or another folded edge.",
+          "creaseTwice": "On the moving edge’s side the swivel crease meets the folded edge at a right angle or more, so the edge’s layer has to crease twice, a valley and a mountain, and Edge onto line folds it once. Switch to Valley and mountain and pick the two creases, or pick a line that turns the edge further.",
           "title": "The swivel crease meets the edge too steeply"
         },
         "swivelInsideFree": {
@@ -1144,6 +1146,8 @@
         "takeTouch": "Tap Use as the hinge.",
         "use": "Use as the hinge"
       },
+      "squashOpensOver": "Opens over",
+      "squashOpensUnder": "Opens under",
       "steps": {
         "earChoose": "Choose the layers, or click another region for the hinge crease.",
         "earChooseTouch": "Choose the layers, or tap another region for the hinge crease.",

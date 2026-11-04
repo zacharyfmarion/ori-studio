@@ -1,9 +1,18 @@
+import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
+import { useFoldSpreadCamera } from './useFoldSpreadCamera';
+import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
+import { useFoldSpreadView } from './useFoldSpreadView';
+import { setDiagramFoldPresentation } from './foldStepActions';
+import type { ConnectedSpreadView } from '../../layer-spread/view';
+import type { SpreadPresentation } from '../../layer-spread/presentation';
+import { type FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   spreadSliderEdit,
+  spreadValuesHold,
   type LayerSpreadDrag,
   type SpreadSlider,
 } from '../../cp-workspace/folded/layerSpreadControls';
@@ -17,7 +26,12 @@ import {
   type DiagramLinkedPoseState,
 } from '../actions/diagramLinkedPoseActions';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
-import type { DiagramFoldStepSource, DiagramScenePicture, DiagramStep } from '../document/diagramDocument';
+import {
+  spreadFailedOf,
+  type DiagramFoldStepSource,
+  type DiagramScenePicture,
+  type DiagramStep,
+} from '../document/diagramDocument';
 import type { FoldStepCaptureInput } from './foldStepCapture';
 import { rotateDiagramFoldStepTo, spreadDiagramFoldStep } from './foldStepActions';
 
@@ -41,6 +55,15 @@ import { rotateDiagramFoldStepTo, spreadDiagramFoldStep } from './foldStepAction
  * Null for a step that is not a Fold step's.
  */
 export interface DiagramFoldStepPose {
+  perspectiveActions: DiagramLinkedPoseAction[] | null;
+  registerLiveView: (view: SimulatorViewHandle) => () => void;
+  connected: ConnectedSpreadView | null;
+  connectedPreparing: boolean;
+  connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
+  setPresentation: (kind: SpreadPresentation['kind']) => Promise<void>;
+  presentationHeld: boolean;
+  onCamera: (camera: FoldedFigureCamera) => void;
+  onReveal: (reveal: [number, number]) => void;
   /** Spread Layers, the pose verb: absent unless the step shows a flat fold. */
   spreadToggle: DiagramLinkedPoseAction | undefined;
   /** The spread's kind and values while the layers are spread; null while they are not. */
@@ -59,7 +82,7 @@ interface FoldSpreadDrag {
   /** Which picture the drag is of: a new capture of the step ends it. */
   key: string;
   /** Each slider dragged and where to, the newest last: the step's spread with each applied is what it shows. */
-  slides: Map<SpreadSlider, LayerSpreadEdit>;
+  slides: Map<SpreadSlider | 'reveal', LayerSpreadEdit>;
   /** The spread shown. */
   spread: LayerSpreadOptions;
   /** The picture drawn with it; null until what it is drawn from is read. */
@@ -68,10 +91,9 @@ interface FoldSpreadDrag {
 
 let drag: FoldSpreadDrag | null = null;
 const listeners = new Set<() => void>();
+let endSession: (() => void) | null = null;
 /** What each step's picture is drawn from, by {@link pictureKey}: read once a drag starts. */
 const inputs = new Map<string, FoldStepCaptureInput | 'reading'>();
-/** The captures a drag's ends asked for, one after another, so none is refused as busy. */
-let committing: Promise<unknown> = Promise.resolve();
 
 function publish(next: FoldSpreadDrag | null): void {
   drag = next;
@@ -80,16 +102,33 @@ function publish(next: FoldSpreadDrag | null): void {
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  endSession ??= registerCanvasSessionEnder(() => publish(null));
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      endSession?.();
+      endSession = null;
+      drag = null;
+    }
+  };
 }
 
 /** Which picture a Fold step shows: its state and moment — and a run's last step — which a pose leaves as they are. */
 function pictureKey(stepId: string, source: DiagramFoldStepSource): string {
-  return JSON.stringify([stepId, source.sequence, source.step, source.through ?? null, source.moment, source.path, source.state]);
+  return JSON.stringify([
+    stepId,
+    source.sequence,
+    source.step,
+    source.through ?? null,
+    source.moment,
+    source.path,
+    source.state,
+  ]);
 }
 
 /** The picture `source` would show with `spread`, from what it is drawn from; null when that is not read yet. */
 function drawWith(key: string, source: DiagramFoldStepSource, spread: LayerSpreadOptions): DiagramScenePicture | null {
+  if (spread.kind === 'connected') return null;
   const input = inputs.get(key);
   // An input is only ever read once Fold's code has loaded (`readInput`).
   const fold = loadedFold();
@@ -107,13 +146,10 @@ function commitDrag(key: string, stepId: string): void {
   const ended = drag?.key === key ? drag : null;
   if (!ended) return;
   const edits = [...ended.slides.values()];
-  committing = committing
-    .then(async () => {
-      for (const edit of edits) await spreadDiagramFoldStep(stepId, edit);
-    })
-    .finally(() => {
-      if (drag === ended) publish(null);
-    });
+  // Enqueue now, so document/history guards refer to the gesture's document.
+  void Promise.all(edits.map((edit) => spreadDiagramFoldStep(stepId, edit))).finally(() => {
+    if (drag === ended) publish(null);
+  });
 }
 
 /** How many steps' pictures are kept to draw drags from: the few a session poses. */
@@ -147,12 +183,18 @@ function foldSource(step: DiagramStep | null): DiagramFoldStepSource | null {
   return step && !step.unknown && step.source?.kind === 'fold-step' ? step.source : null;
 }
 
-export function useDiagramFoldStepPose(step: DiagramStep | null): DiagramFoldStepPose | null {
+export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): DiagramFoldStepPose | null {
   const { t } = useTranslation();
+  const camera = useFoldSpreadCamera(step, live);
   const source = foldSource(step);
+  // Layers its Default spread could not take: no live view to solve for again, only the picture it keeps.
+  const spreadFailed = spreadFailedOf(step?.picture);
+  const { view: connected, preparing } = useFoldSpreadView(spreadFailed ? null : source, live);
   const stepId = source ? step!.id : null;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const busy = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
+  const blockingCapture = useWorkspaceStore((state) => stepId !== null && state.diagramCaptures[stepId]?.blocksPose === true);
+  const connectedPreparing = live && (blockingCapture || preparing);
   const assets = useWorkspaceStore((state) => state.diagram?.assets);
   const dragged = useSyncExternalStore(subscribe, () => drag);
   const unknownMarks = step?.annotations.some((annotation) => annotation.unknown !== undefined) ?? false;
@@ -171,14 +213,15 @@ export function useDiagramFoldStepPose(step: DiagramStep | null): DiagramFoldSte
             solutions: null,
             // A flat fold drawn see-through has no layers to spread.
             seeThrough: source.render.mode === 'folded-flat' && step?.picture?.kind === 'fixed',
+            spreadFailed,
           }
         : null,
-    [source, readOnly, busy, step?.picture?.kind]
+    [source, readOnly, busy, step?.picture?.kind, spreadFailed],
   );
 
   const annotationsHint = t(
     'panels:diagram.pose.annotationsHint',
-    'Its annotations were made with a newer Ori Studio, which could not turn with it'
+    'Its annotations were made with a newer Ori Studio, which could not turn with it',
   );
   const spreadToggle = useMemo((): DiagramLinkedPoseAction | undefined => {
     if (!poseState || stepId === null || poseState.render.mode !== 'folded-flat') return undefined;
@@ -199,24 +242,34 @@ export function useDiagramFoldStepPose(step: DiagramStep | null): DiagramFoldSte
       keep: (keep) => void spreadDiagramFoldStep(stepId, { verb: 'spread-keep', keep }),
     });
     if (!controls) return null;
-    const held = controls.disabled || unknownMarks;
+    const held = spreadValuesHold(controls).disabled || unknownMarks;
     return {
       ...controls,
       ...(unknownMarks ? { disabled: true, hint: annotationsHint } : {}),
       start: () => {
         if (held) return false;
-        readInput(key, source, t);
+        // Default already has its prepared live renderer; only legacy previews need this snapshot.
+        if (controls.spread.kind !== 'connected') readInput(key, source, t);
         return true;
       },
       preview: (slider, value) => {
         const stored = source.render.mode === 'folded-flat' ? source.render.spread : undefined;
         if (held || !stored) return;
-        readInput(key, source, t);
+        if (stored.kind !== 'connected') readInput(key, source, t);
         const slides = new Map(drag?.key === key ? drag.slides : []);
         slides.delete(slider);
         slides.set(slider, spreadSliderEdit(slider, stored.kind, value));
         const shown = [...slides.values()].reduce(withSpreadField, stored);
         publish({ stepId, key, slides, spread: shown, picture: drawWith(key, source, shown) });
+      },
+      previewReveal: (reveal) => {
+        const stored = source.render.mode === 'folded-flat' ? source.render.spread : undefined;
+        if (held || stored?.kind !== 'connected') return;
+        const slides = new Map(drag?.key === key ? drag.slides : []);
+        slides.delete('reveal');
+        slides.set('reveal', { verb: 'spread-reveal', reveal });
+        const shown = [...slides.values()].reduce(withSpreadField, stored);
+        publish({ stepId, key, slides, spread: shown, picture: null });
       },
       commit: () => commitDrag(key, stepId),
     };
@@ -233,18 +286,73 @@ export function useDiagramFoldStepPose(step: DiagramStep | null): DiagramFoldSte
     return withCarriedAnnotations(step, shown, assets ?? {});
   }, [step, source, ours, assets]);
 
+  const flat = source?.render.mode === 'folded-flat' ? source.render : null;
+  const { cancelCamera } = camera;
+  const setPresentation = useCallback(
+    (kind: SpreadPresentation['kind']) => {
+      cancelCamera();
+      if (!stepId || readOnly || unknownMarks) return Promise.resolve();
+      return setDiagramFoldPresentation(stepId, kind);
+    },
+    [stepId, readOnly, unknownMarks, cancelCamera],
+  );
+  const { onCamera, registerLiveView, actions: perspectiveActions } = camera;
+  const onReveal = useCallback(
+    (reveal: [number, number]) => {
+      if (!spread || !spread.start()) return;
+      spread.previewReveal(reveal);
+      spread.commit();
+    },
+    [spread],
+  );
+  const connectedSpread =
+    ours?.spread.kind === 'connected' ? ours.spread : flat?.spread?.kind === 'connected' ? flat.spread : null;
+
   const rotateTo = useCallback(
     (degrees: number) => {
       if (stepId !== null && !busy && !readOnly && !unknownMarks) void rotateDiagramFoldStepTo(stepId, degrees);
     },
-    [stepId, busy, readOnly, unknownMarks]
+    [stepId, busy, readOnly, unknownMarks],
   );
 
   return useMemo(
     () =>
       source
-        ? { spreadToggle, spread, rotateTo, turnHeld: readOnly || busy || unknownMarks, preview }
+        ? {
+            perspectiveActions,
+            registerLiveView,
+            connected,
+            connectedPreparing,
+            connectedSpread,
+            setPresentation,
+            presentationHeld: readOnly || unknownMarks || spreadFailed,
+            onCamera,
+            onReveal,
+            spreadToggle,
+            spread,
+            rotateTo,
+            turnHeld: readOnly || busy || unknownMarks,
+            preview,
+          }
         : null,
-    [source, spreadToggle, spread, rotateTo, readOnly, busy, unknownMarks, preview]
+    [
+      perspectiveActions,
+      registerLiveView,
+      connected,
+      connectedPreparing,
+      connectedSpread,
+      setPresentation,
+      onCamera,
+      onReveal,
+      source,
+      spreadToggle,
+      spread,
+      rotateTo,
+      readOnly,
+      busy,
+      unknownMarks,
+      spreadFailed,
+      preview,
+    ],
   );
 }

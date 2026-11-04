@@ -134,6 +134,38 @@ describe('createGestureBracket', () => {
     expect(act).not.toHaveBeenCalled();
   });
 
+  it('holds its baseline from begin until it records, finds nothing changed, or is aborted', async () => {
+    const events: string[] = [];
+    const held = createGestureBracket<readonly string[]>({
+      layer: 'held',
+      snapshot: () => list,
+      unchanged: (before, now) => before === now,
+      record: (before) => events.push(`record ${before.join()}`),
+      hold: (before) => events.push(`hold ${before.join()}`),
+      release: (before) => events.push(`release ${before.join()}`),
+    });
+
+    // Recorded: held at begin, let go only after the entry took it.
+    await held.run('verb', 'Delete', () => {
+      list = [];
+    });
+    expect(events).toEqual(['hold a', 'record a', 'release a']);
+
+    // Nothing changed; a same-owner re-entry holds nothing more.
+    events.length = 0;
+    const token = held.begin('canvas')!;
+    expect(held.begin('canvas')).toBe(token);
+    await held.commit(token, 'Move');
+    expect(events).toEqual(['hold ', 'release ']);
+
+    // Aborted, one way or the other.
+    events.length = 0;
+    held.abort(held.begin('canvas')!);
+    held.begin('canvas');
+    held.abortAll();
+    expect(events).toEqual(['hold ', 'release ', 'hold ', 'release ']);
+  });
+
   it('notifies subscribers as the owner changes', () => {
     const seen: Array<string | null> = [];
     const unsubscribe = bracket.subscribe(() => seen.push(bracket.openOwner()));

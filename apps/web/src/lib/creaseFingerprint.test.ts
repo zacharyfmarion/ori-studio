@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { creaseFingerprint, lineContentFingerprint } from './creaseFingerprint';
+import { creaseFingerprint, creaseLinesFingerprint, lineContentFingerprint } from './creaseFingerprint';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpLineSegment,
@@ -91,6 +91,32 @@ describe('lineContentFingerprint', () => {
     expect(creaseFingerprint(snapshot(segment({ customized: 1 })))).toEqual(
       creaseFingerprint(snapshot(segment()))
     );
+  });
+});
+
+describe('creaseLinesFingerprint', () => {
+  const other = segment({ a: { x: 5, y: 5 }, color: 'Blue2' });
+
+  it('reads only the lines named, by their geometry and kind, whatever their ids', () => {
+    const fingerprint = creaseLinesFingerprint(snapshot(segment(), other), [1]);
+    // A line added before it renumbers it: chosen under its new id, it fingerprints alike.
+    expect(creaseLinesFingerprint(snapshot(other, segment()), [2])).toEqual(fingerprint);
+    // Another line changed: nothing of these.
+    expect(creaseLinesFingerprint(snapshot(segment(), { ...other, color: 'Red1' }), [1])).toEqual(fingerprint);
+  });
+
+  it('ignores a custom colour and a selection, and changes with the geometry, the kind or the magnitude', () => {
+    const plain = creaseLinesFingerprint(snapshot(segment()), [1]);
+    for (const patch of [{ customized: 1 }, { customized_color: { red: 1, green: 2, blue: 3 } }, { selected: 2 }]) {
+      expect(creaseLinesFingerprint(snapshot(segment(patch)), [1])).toEqual(plain);
+    }
+    for (const patch of [{ b: { x: 100, y: 101 } }, { color: 'Blue2' }, { fold_magnitude: 90 }]) {
+      expect(creaseLinesFingerprint(snapshot(segment(patch)), [1])).not.toEqual(plain);
+    }
+  });
+
+  it('is null for an id that names no line', () => {
+    expect(creaseLinesFingerprint(snapshot(segment()), [2])).toBeNull();
   });
 });
 

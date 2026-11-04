@@ -41,20 +41,33 @@
 //! crease there is hidden behind the layer in front as far as that layer
 //! reaches along it, and a tool draws it dotted there, as a diagram does.
 //!
-//! **Refusals** (plan D14): lines that meet on no folded edge the viewer
-//! sees, or on several stacked ones, or too near the end of one
-//! (`swivel_line_meeting`); a line along the folded edge, or the two along
-//! one line, which bound no flap (`swivel_no_flap`); a crease that runs into
-//! a fold before the paper's edge, or paper joining two wedges
-//! (`fan_ray_blocked`); and no order (`no_order`). The swivel has no other
-//! direction to offer: folded away from the viewer its two letters would be
-//! the other way round, which is the same lines picked the other way.
+//! **Where the lines meet.** On a folded edge the viewer sees, or — where
+//! none is in view there — one hidden under a layer whose raw edge runs along
+//! it. Where several meet there (the folded edges of two flaps that abut
+//! along one line), the swivel folds on the one it can fold on.
+//! Where the folded edges there end instead — the corner where a flap's two
+//! hinges end — the lines turn that flap about it
+//! ([`super::swivel_hinge_end`]).
+//!
+//! **Through the stack.** Paper beyond the two layers that holds the wedges
+//! is creased along the same rays or carried (`super::folded_swivel`).
+//!
+//! **Refusals** (plan D14): lines that meet on no folded edge, or too near
+//! the end of one, or on several the swivel can fold on, and turn no flap
+//! about the end of its hinges either (`swivel_line_meeting`); a line along
+//! the folded edge, or the two along one line, which bound no flap
+//! (`swivel_no_flap`); paper whose motion no assignment of the swivel's
+//! four agrees with (`fan_ray_blocked`); and no order (`no_order`). The
+//! swivel has no other direction to offer: folded away from the viewer its
+//! two letters would be the other way round, which is the same lines picked
+//! the other way.
 use super::CompoundRefused;
 use super::folded_swivel::{FoldCompiled, FoldFan, compile, flat_region};
 use super::swivel::{
     SwivelCrease, SwivelFold, SwivelKind, SwivelRay, SwivelRegion, SwivelWedge, dot, edge_run,
     internal, sub,
 };
+use super::swivel_hinge_end::HingeEnd;
 use super::vertex::{VertexChoices, VertexOutcome, angle_between, cross, rotate, unit};
 use crate::fold::Within;
 use crate::numerics::{MIN_FEATURE, TOL};
@@ -127,32 +140,73 @@ fn fold_support(state: &State, point: Point) -> Option<(usize, Point)> {
 /// offers it as a point to pick; the swivel meets there within the same.
 const SEEN_SLACK: f64 = MIN_FEATURE / 2.0;
 
-/// The sheet point of the folded edge the viewer sees at the model point
-/// `v`: a bend segment through `v`, away from its ends (or at one exactly, a
-/// flat precrease's subdivision), visible there. Several stacked edges that
-/// name different paper are refused, never one silently picked. A point on
-/// no visible part is taken where one ends within [`SEEN_SLACK`] of it: a
-/// layer's edge crossing the folded edge there, the corner in view.
-fn seen_fold_at(state: &State, v: Point) -> Result<Point, Refused> {
+/// The sheet points of the folded edges the lines can meet on at the model
+/// point `v`: a bend segment through `v`, away from its ends (or at one
+/// exactly, a flat precrease's subdivision), visible there. A point on no
+/// visible part is taken where one ends within [`SEEN_SLACK`] of it: a
+/// layer's edge crossing the folded edge there, the corner in view. Where no
+/// folded edge is in view at `v` — one lies under a layer that covers it, its
+/// raw edge along the fold — the hidden ones through `v`. Several, each
+/// naming different paper (the folded edges of two flaps that abut along one
+/// line), are all returned, the one the swivel can fold picked by
+/// [`SwivelValleyMountain::reading`], never one silently.
+fn folds_at(state: &State, v: Point) -> Vec<Point> {
     let landmarks = state.landmarks(&[]);
-    match seen_fold_within(&landmarks, v, |_| TOL)? {
-        Some(fold) => Ok(fold),
-        None => seen_fold_within(&landmarks, v, |length| SEEN_SLACK / length)?
-            .ok_or_else(|| Refused::from(FoldRefusal::SwivelLineMeeting)),
+    let seen = seen_fold_within(&landmarks, v, |_| TOL, true);
+    if !seen.is_empty() {
+        return seen;
     }
+    let near = seen_fold_within(&landmarks, v, |length| SEEN_SLACK / length, true);
+    if !near.is_empty() {
+        return near;
+    }
+    seen_fold_within(&landmarks, v, |_| TOL, false)
 }
 
-/// [`seen_fold_at`] with a visible part reaching `slack(length)` past its
-/// ends, as a fraction of the edge's length: the folded edge's sheet point,
-/// none when no visible one passes through `v`, or a refusal when several
-/// that name different paper do.
+/// Whether the folded edge through the sheet point `fold` ends at the model
+/// point `v` with nothing straight on past it: no flat crease continues its
+/// run on the sheet from there.
+fn ends_bare(state: &State, fold: Point, v: Point) -> bool {
+    let Some((_, support)) = fold_support(state, fold) else {
+        return false;
+    };
+    let Ok(run) = edge_run(state, support) else {
+        return false;
+    };
+    let near = |p: Point, q: Point| sub(p, q)[0].hypot(sub(p, q)[1]) < MIN_FEATURE;
+    let Some(end) = (0..2).find(|&i| near(run.ends[i], v)) else {
+        return false;
+    };
+    let (tip, back) = (run.sheet[end], run.sheet[1 - end]);
+    let ahead = sub(tip, back);
+    let sheet = state.vertices();
+    !state.creases().iter().any(|c| {
+        if !matches!(c.kind, CreaseKind::Flat(_)) {
+            return false;
+        }
+        let [a, b] = c.vertices.map(|w| sheet[w.0 as usize]);
+        let other = if near(a, tip) {
+            b
+        } else if near(b, tip) {
+            a
+        } else {
+            return false;
+        };
+        let d = sub(other, tip);
+        cross(ahead, d).abs() <= TOL * ahead[0].hypot(ahead[1]) && dot(ahead, d) > 0.0
+    })
+}
+
+/// [`folds_at`] with a visible part reaching `slack(length)` past its ends,
+/// as a fraction of the edge's length, or any part when `visible` is false:
+/// the folded edges' sheet points, one per paper they name.
 fn seen_fold_within(
     landmarks: &Landmarks,
     v: Point,
     slack: impl Fn(f64) -> f64,
-) -> Result<Option<Point>, Refused> {
-    let refused = || Refused::from(FoldRefusal::SwivelLineMeeting);
-    let mut fold: Option<Point> = None;
+    visible: bool,
+) -> Vec<Point> {
+    let mut folds: Vec<Point> = Vec::new();
     for edge in &landmarks.segments {
         if edge.kind != crate::SegmentKind::Bend {
             continue;
@@ -169,23 +223,23 @@ fn seen_fold_within(
         let inside = t * len > MIN_FEATURE && (1.0 - t) * len > MIN_FEATURE;
         let at_end = (t * len).abs() <= TOL || ((1.0 - t) * len).abs() <= TOL;
         let slack = slack(len);
-        let seen = edge
-            .visible
-            .iter()
-            .any(|[lo, hi]| t >= *lo - slack && t <= *hi + slack);
+        let seen = !visible
+            || edge
+                .visible
+                .iter()
+                .any(|[lo, hi]| t >= *lo - slack && t <= *hi + slack);
         if sub(v, q)[0].hypot(sub(v, q)[1]) > TOL || !(inside || at_end) || !seen {
             continue;
         }
         let candidate = edge.sheet.at(t);
-        match fold {
-            Some(p) if sub(candidate, p)[0].hypot(sub(candidate, p)[1]) > TOL => {
-                return Err(refused());
-            }
-            Some(_) => {}
-            None => fold = Some(candidate),
+        if !folds
+            .iter()
+            .any(|p| sub(candidate, *p)[0].hypot(sub(candidate, *p)[1]) <= TOL)
+        {
+            folds.push(candidate);
         }
     }
-    Ok(fold)
+    folds
 }
 
 /// How far from `from` along the unit direction `u` the layer of face
@@ -238,6 +292,14 @@ fn chord(ring: &[Point], from: Point, u: Point) -> Option<[f64; 2]> {
     (hi - lo > TOL).then_some([lo, hi])
 }
 
+/// What a swivel by its valley and mountain names in its parent.
+enum Reading {
+    /// A swivel on the folded edge its lines meet on.
+    OnEdge(Box<(Built, FoldCompiled)>),
+    /// A flap turned about the end of its hinges.
+    HingeEnd(Box<HingeEnd>),
+}
+
 /// A swivel by its valley and mountain resolved in its parent: its fan and
 /// which of the folded edge's two faces is in front.
 struct Built {
@@ -249,10 +311,62 @@ struct Built {
 }
 
 impl SwivelValleyMountain {
-    fn build(&self, state: &State) -> Result<Built, Refused> {
+    /// What the lines name: a swivel on the folded edge they meet on, or,
+    /// where they meet at the end of the folded edges there, a flap turned
+    /// about the corner where its hinges end. Neither, with the folded edge's
+    /// refusal.
+    fn reading(&self, state: &State) -> Result<Reading, Refused> {
+        match self.on_edge(state) {
+            Ok((built, compiled)) => Ok(Reading::OnEdge(Box::new((built, compiled)))),
+            Err(refused) if refused.refusal == FoldRefusal::SwivelLineMeeting => {
+                match HingeEnd::reading(state, &self.valley, &self.mountain, self.kind)? {
+                    Some(turn) => Ok(Reading::HingeEnd(Box::new(turn))),
+                    None => Err(refused),
+                }
+            }
+            Err(refused) => Err(refused),
+        }
+    }
+
+    /// The swivel on a folded edge the lines meet on: of the folded edges
+    /// there ([`folds_at`]), the one it can fold on. Several that it can fold
+    /// on are refused as a meeting the lines do not settle
+    /// (`swivel_line_meeting`); none, with the first one's refusal.
+    fn on_edge(&self, state: &State) -> Result<(Built, FoldCompiled), Refused> {
         let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
         let at = self.valley.intersect(&self.mountain).ok_or_else(meeting)?;
-        let fold = seen_fold_at(state, at)?;
+        let mut first: Option<Refused> = None;
+        let mut found: Vec<(Built, FoldCompiled)> = Vec::new();
+        let folds = folds_at(state, at);
+        // A folded edge that ends where the lines meet, with no paper beyond
+        // (the end of a flap's hinge), is not one the swivel folds on; but
+        // the lines may name it, so another folded edge there does not
+        // settle the meeting. One that ends there only because a fold
+        // opened past it (a flat crease runs on) is passed over.
+        if folds.len() > 1 && folds.iter().any(|&fold| ends_bare(state, fold, at)) {
+            return Err(meeting());
+        }
+        for fold in folds {
+            match self
+                .build(state, fold)
+                .and_then(|built| self.compiled(state, &built).map(|c| (built, c)))
+            {
+                Ok(reading) => found.push(reading),
+                Err(refused) => {
+                    first.get_or_insert(refused);
+                }
+            }
+        }
+        match found.len() {
+            1 => found.pop().ok_or_else(meeting),
+            0 => Err(first.unwrap_or_else(meeting)),
+            _ => Err(meeting()),
+        }
+    }
+
+    /// The swivel resolved on the folded edge through the sheet point `fold`.
+    fn build(&self, state: &State, fold: Point) -> Result<Built, Refused> {
+        let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
         let (k, support) = fold_support(state, fold).ok_or_else(meeting)?;
         let faces = match state.topology().crease_faces[k][..] {
             [a, b] => [a, b],
@@ -380,8 +494,18 @@ impl State {
         &self,
         op: &SwivelValleyMountain,
     ) -> Result<SwivelValleyMountainAnalysis, Refused> {
-        let built = op.build(self)?;
-        let reading = op.compiled(self, &built)?;
+        let (built, reading) = match op.reading(self)? {
+            Reading::OnEdge(on_edge) => *on_edge,
+            Reading::HingeEnd(turn) => {
+                return Ok(SwivelValleyMountainAnalysis {
+                    vertex: turn.vertex,
+                    creases: turn.creases(self),
+                    layers: turn.layers(self),
+                    regions: turn.regions(self),
+                    fold: turn.fold(self),
+                });
+            }
+        };
         let fan = &built.fan;
         let v = fan.vertex;
         let inside = op.kind == SwivelKind::Inside;
@@ -479,11 +603,10 @@ impl State {
         choices: &VertexChoices,
         limits: &CompletionLimits,
     ) -> Result<VertexOutcome, CompoundRefused> {
-        let built = op.build(self).map_err(CompoundRefused::Refused)?;
-        let reading = op
-            .compiled(self, &built)
-            .map_err(CompoundRefused::Refused)?;
-        reading.compiled.land(self, choices, limits, || None)
+        match op.reading(self).map_err(CompoundRefused::Refused)? {
+            Reading::OnEdge(on_edge) => on_edge.1.land(self, choices, limits, || None),
+            Reading::HingeEnd(turn) => turn.land(self, choices, limits),
+        }
     }
 
     /// The picture of a swivel by its valley and mountain, with `landed`'s
@@ -494,8 +617,10 @@ impl State {
         op: &SwivelValleyMountain,
         landed: Option<&State>,
     ) -> Result<FoldActionGeometry, Refused> {
-        let built = op.build(self)?;
-        let reading = op.compiled(self, &built)?;
+        let (built, reading) = match op.reading(self)? {
+            Reading::OnEdge(on_edge) => *on_edge,
+            Reading::HingeEnd(turn) => return self.hinge_end_action(&turn, landed),
+        };
         let regions = super::swivel_on_edge::on_fold_regions(self, &reading);
         let reach: Vec<_> = regions
             .iter()
@@ -539,6 +664,50 @@ impl State {
             landed,
             Within {
                 ray: Some((built.fan.vertex, built.fan.second)),
+                reach: Some(&reach),
+            },
+        )
+    }
+
+    /// The picture of a flap turned about the end of its hinges: the crease
+    /// on the flap from the vertex, and the arrow from the flap across it, by
+    /// that crease's letter.
+    fn hinge_end_action(
+        &self,
+        turn: &HingeEnd,
+        landed: Option<&State>,
+    ) -> Result<FoldActionGeometry, Refused> {
+        let reach: Vec<_> = turn
+            .regions(self)
+            .into_iter()
+            .filter(|r| r.wedge == SwivelWedge::Beyond)
+            .map(|r| r.polygon)
+            .collect();
+        let line = turn.on_flap.line;
+        let side = reach
+            .iter()
+            .filter_map(|r| convex::centroid(r))
+            .find_map(|p| Side::of_point(&line, p))
+            .ok_or_else(|| internal("a turned flap has no side"))?;
+        let seen = match turn.on_flap.letter {
+            Letter::Valley => Direction::Valley,
+            Letter::Mountain => Direction::Mountain,
+        };
+        self.fold_action_within(
+            &FoldAnalysis {
+                line,
+                side,
+                snap: Snap::NONE,
+                direction: self.view().model_direction(seen),
+                flaps: vec![],
+                picked: vec![],
+                added: vec![],
+                moving: turn.moving(self),
+            },
+            ActionKind::Fold,
+            landed,
+            Within {
+                ray: Some((turn.vertex, turn.on_flap.direction)),
                 reach: Some(&reach),
             },
         )

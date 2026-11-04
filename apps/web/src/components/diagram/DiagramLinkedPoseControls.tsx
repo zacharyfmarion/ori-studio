@@ -18,7 +18,9 @@ import {
   type DiagramLinkedPoseAction,
   type DiagramLinkedPoseActionId,
 } from '../../diagram/actions/diagramLinkedPoseActions';
+import type { DiagramStepLayerOrderEntry } from '../../diagram/actions/diagramStepLayerOrderActions';
 import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../../diagram/document/diagramDocument';
+import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import styles from './DiagramLinkedPoseControls.module.css';
@@ -40,6 +42,9 @@ const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> 
   reset: Undo2,
 };
 
+/** The verbs Edit order… comes before: the spread's and the reset, which end the bar. */
+const AFTER_LAYER_ORDER: ReadonlySet<DiagramLinkedPoseActionId> = new Set(['spread-layers', 'reset']);
+
 /**
  * A linked step's Pose verbs, for the step detail's toolbar: how the step
  * shows its pattern — Crease pattern, Folded or Simulated — then what can be
@@ -48,6 +53,12 @@ const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> 
  * buttons do. A verb that cannot act — waiting for a capture, or at the end of
  * the layer orders — refuses rather than disables, so the one pressed keeps
  * the focus through the capture it started and whatever it leaves.
+ *
+ * A flat fold's ‹ › step through its layer orders with no readout, which the
+ * Step pane keeps (Round 4's Pose toolbar, H8); `layerOrder`, Edit order…,
+ * follows them as a word, as no icon says "layer order", ghost like the
+ * bar's other verbs. On a 3D fold it stands where the pager would end, held
+ * with its reason.
  *
  * Enlarged is not here: Annotate's Step pane turns it on (Zach's review of
  * #436, 2026-10-08).
@@ -59,8 +70,8 @@ export function DiagramLinkedPoseControls({
   children,
 }: {
   actions: readonly DiagramLinkedPoseAction[];
-  /** A flat fold's place among its layer orders, shown between ‹ and › (`layerOrderLabel`). */
-  layerOrder?: string | null;
+  /** The way into the Layer order dialog (`buildDiagramPoseLayerOrderEntry`); null for none. */
+  layerOrder?: DiagramStepLayerOrderEntry | null;
   keep: (run: () => void) => void;
   children?: ReactNode;
 }) {
@@ -72,6 +83,9 @@ export function DiagramLinkedPoseControls({
     (entry): entry is { mode: DiagramShowAs; action: DiagramLinkedPoseAction } => entry.action !== undefined
   );
   const verbs = actions.filter((action) => LINKED_POSE_ICONS[action.id]);
+  // Before the spread and the reset, or last when the bar has neither.
+  const editAt = layerOrder ? verbs.findIndex((action) => AFTER_LAYER_ORDER.has(action.id)) : -1;
+  const edit = layerOrder && <LayerOrderEdit key="layer-order" entry={layerOrder} />;
   return (
     <>
       {modes.length > 0 && (
@@ -94,7 +108,7 @@ export function DiagramLinkedPoseControls({
         />
       )}
       {children}
-      {verbs.map((action) => {
+      {verbs.map((action, index) => {
         const Icon = LINKED_POSE_ICONS[action.id]!;
         const button = (
           <IconButton
@@ -112,15 +126,30 @@ export function DiagramLinkedPoseControls({
             <Icon size={15} />
           </IconButton>
         );
-        // The layer order pager: ‹ where it stands ›.
-        if (action.id !== 'previous-solution' || !layerOrder) return button;
-        return [
-          button,
-          <span key="layer-order" className={styles.layerOrder} aria-live="polite">
-            {layerOrder}
-          </span>,
-        ];
+        return index === editAt ? [edit, button] : button;
       })}
+      {editAt === -1 && edit}
     </>
+  );
+}
+
+/**
+ * Edit order…: refused rather than disabled, so it keeps the focus a press
+ * gave it — which the dialog hands back to it as it closes — and says why on
+ * hover; the Step pane's Edit… under the toolbar's word. Its name is the word
+ * it shows (WCAG 2.5.3, label in name); its tooltip names it in full.
+ */
+function LayerOrderEdit({ entry }: { entry: DiagramStepLayerOrderEntry }) {
+  const held = entry.disabled || entry.waiting;
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      title={held && entry.hint ? entry.hint : entry.name}
+      aria-disabled={held || undefined}
+      onClick={entry.run}
+    >
+      {entry.label}
+    </Button>
   );
 }

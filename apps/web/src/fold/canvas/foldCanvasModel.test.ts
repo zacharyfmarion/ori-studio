@@ -206,7 +206,7 @@ describe('the Fold canvas model', () => {
   });
 
   it('runs a live line from a swivel’s first target point, never from a petal fold’s hinge', () => {
-    const swivel: FoldToolState = { ...FOLD_TOOL_INITIAL, tool: 'swivel' };
+    const swivel: FoldToolState = { ...FOLD_TOOL_INITIAL, tool: 'swivel', swivelInput: 'edge' };
     const point = (x: number, y: number): FoldPick => ({ kind: 'point', provenance: 'vertex', sheet: [x, y], mark: null, scene: { x, y } });
     const edge: FoldPick = { kind: 'segment', edge: 0, segment: 'raw_edge', sheet: [[0, 0], [1, 0]], scene: [{ x: 0, y: 0 }, { x: 1, y: 0 }] };
     const byPoints: FoldToolState = { ...swivel, swivelTarget: 'points', picks: [point(0.5, 0.2), edge, point(0, 1)] };
@@ -374,7 +374,7 @@ describe('the Fold canvas model', () => {
     );
     expect(lifted?.petalScores).toEqual({ hinge: true, kites: 1 });
 
-    const swivelTools: FoldToolState = { ...FOLD_TOOL_INITIAL, tool: 'swivel', swivelTarget: 'points' };
+    const swivelTools: FoldToolState = { ...FOLD_TOOL_INITIAL, tool: 'swivel', swivelInput: 'edge', swivelTarget: 'points' };
     const swivelAnalysis = {
       kind: 'swivel-by-edge' as const,
       pivot: [0.8, 0.3] as [number, number],

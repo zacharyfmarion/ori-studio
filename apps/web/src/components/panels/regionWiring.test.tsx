@@ -224,7 +224,7 @@ describe('suppression regions in the crease-pattern panel', () => {
     expect(
       [...document.querySelectorAll('.cp-region-chip button')].map((b) => b.textContent)
     ).toContain('Solve');
-    expect(document.querySelector('.property-sheet__title')?.textContent).toBe(
+    expect(document.querySelector('[data-property-sheet] header h2')?.textContent).toBe(
       'Detected crease pattern'
     );
     const sheetButtons = [...document.querySelectorAll('.cp-properties-panel button')].map(

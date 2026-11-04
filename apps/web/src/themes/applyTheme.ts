@@ -2,7 +2,7 @@ import { mixHexColors } from '../lib/rgbColor';
 import { applyThemeVariables } from './applyThemeVariables';
 import { paperBackFor } from './paperBack';
 import { FOLD_UNASSIGNED, referencesCreaseAlpha } from './referencesInk';
-import { textOnFill } from './textOnFill';
+import { textOnFill, textReadableOn } from './textOnFill';
 import type { ThemeTokens, TreeMakerTheme } from './types';
 import { tokenToCssVar } from './types';
 
@@ -75,6 +75,19 @@ export const REFERENCE_COLORS = {
   light: { input: '#c91d87', new: '#4d7c0f' },
 } as const;
 
+/**
+ * The Layer order dialog's face picks (`--face-pick`): a picked, pointed-at
+ * or pressed row's face, tinted and ringed on its panes (D20 of
+ * `implementation-plans/layer-order-dialog.md`). Fixed per dark or light type,
+ * as the References colours are, and never a theme's: the accent was danger
+ * pink in Horizon and valley blue in One Dark. A violet held clear of the
+ * valley blue and every preset's danger, and legible on every canvas, which
+ * `facePickColor.test.ts` holds it to. The one hue it shares is the crease
+ * palette's purple, which only an auxiliary line has, and a fill inside a
+ * face does not read as a line.
+ */
+export const FACE_PICK_COLORS = { dark: '#a78bfa', light: '#6d28d9' } as const;
+
 function colorMix(color: string, amount: number): string {
   return `color-mix(in srgb, ${color} ${amount}%, transparent)`;
 }
@@ -125,6 +138,7 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--cp-selection', colors['selection.cp'] ?? colors['accent.primary']);
   setVar('--cp-reference-input', REFERENCE_COLORS[theme.type].input);
   setVar('--cp-reference-new', REFERENCE_COLORS[theme.type].new);
+  setVar('--face-pick', FACE_PICK_COLORS[theme.type]);
   setVar(
     '--fold-monochrome-valley',
     mixHexColors(colors['text.primary'], colors['bg.canvas'], MONOCHROME_VALLEY_INK_RATIO)
@@ -138,6 +152,9 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   // one on danger. See `textOnFill.ts`.
   setVar('--text-on-accent', textOnFill(colors['accent.primary'], colors['bg.primary']));
   setVar('--text-on-danger', textOnFill(colors['status.danger'], colors['bg.primary']));
+  // Words that must be read on the elevated surface (a dialog's foot): the
+  // theme's primary text, unless it reads under AA there. See `textOnFill.ts`.
+  setVar('--text-on-elevated', textReadableOn(colors['text.primary'], colors['bg.tertiary']));
 
   setVar('--domain-overlay-bg', colorMix(colors['bg.primary'], isLight ? 88 : 82));
   setVar('--domain-danger-border', colorMix(colors['status.danger'], 64));

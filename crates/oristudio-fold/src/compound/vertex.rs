@@ -65,6 +65,10 @@ use crate::witness::WitnessOrder;
 
 type Point = [f64; 2];
 
+/// How many of the orders a choice offers [`Compiled::land_checked`] lands
+/// before offering it.
+const CHECKED_CHOICES: usize = 64;
+
 /// Which vertex fold a step makes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -251,6 +255,22 @@ impl Compiled {
         limits: &CompletionLimits,
         other: impl FnOnce() -> Option<Compiled>,
     ) -> Result<VertexOutcome, CompoundRefused> {
+        self.land_checked(state, choices, limits, other, false)
+    }
+
+    /// [`Compiled::land`], landing every order offered before offering a
+    /// choice when `check_choices` is set, and refusing for want of an order
+    /// when one does not land: a swivel creased through the stack
+    /// (`super::folded_swivel`) moves paper the completion's carried pairs
+    /// were not drawn for, so its choices are checked one by one.
+    pub(crate) fn land_checked(
+        &self,
+        state: &State,
+        choices: &VertexChoices,
+        limits: &CompletionLimits,
+        other: impl FnOnce() -> Option<Compiled>,
+        check_choices: bool,
+    ) -> Result<VertexOutcome, CompoundRefused> {
         let prepared = self
             .prepare(state)
             .map_err(|r| CompoundRefused::Refused(r.into()))?;
@@ -298,6 +318,22 @@ impl Compiled {
             return Ok(VertexOutcome::Landed(Box::new(
                 context.report(folded, None),
             )));
+        }
+        if check_choices {
+            let (picks, _) = completions.picks(CHECKED_CHOICES);
+            let lands = |pick: &Vec<usize>| {
+                completions
+                    .order(pick)
+                    .is_some_and(|order| prepared.land(order).is_ok())
+            };
+            if !picks.iter().all(lands) {
+                return Err(CompoundRefused::Refused(
+                    FoldRefusal::NoOrder {
+                        faces: prepared.moving.clone(),
+                    }
+                    .into(),
+                ));
+            }
         }
         Ok(VertexOutcome::ChooseOrder(Box::new(VertexChoice {
             pending: Pending {

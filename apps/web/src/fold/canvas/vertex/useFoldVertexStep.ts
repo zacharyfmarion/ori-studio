@@ -21,6 +21,7 @@ import {
   fanLayerCount,
   fanAnchorAlternative,
   landingFourths,
+  squashOpenings,
   storedLine,
   swivelDirectionsOf,
   swivelKindsLanding,
@@ -67,6 +68,12 @@ export interface FoldVertexPreview {
   order: FoldCompletionChoice | null;
   /** The layers at a rabbit ear's center; 0 for any other fold. */
   layers: number;
+  /**
+   * A squash of a flap whose walls are several plies: its layers at the flap
+   * point, the openings that land (`squashOpenings`) — the only ones offered —
+   * and the one it folds. Absent for a two-layer flap and the other folds.
+   */
+  squash?: { layers: number; openings: readonly number[]; opening: number };
   /**
    * A swivel's reach from where its creases meet (`useFoldSwivelReach`): the
    * edges that can swing and the lines each lands on. Absent or null for
@@ -126,6 +133,7 @@ export function useFoldVertexStep(
   const stateKey = state ? `${state.generation}:${state.id}` : null;
   const { tool, petalHinge, swivelTarget, swivelInput, squashHinge, takenLine, picks, vertexDirection, compound } = tools;
   const { squashTarget, fanLayers, emergent: chosenEmergent, order: chosenOrder } = compound;
+  const squashOpening = compound.squashOpening ?? null;
 
   // --- A swivel by its edge's reach from where its creases meet: what its
   // next clicks are offered, and which ways and kinds its edge and line land.
@@ -157,8 +165,8 @@ export function useFoldVertexStep(
     [enabled, tool, petalHinge, swivelTarget, swivelInput, squashHinge, line, swivelMountain, picks, direction, fanLayers, swivelKind]
   );
   const taken = useMemo<FoldVertexTaken>(
-    () => ({ squashTarget, emergent: chosenEmergent, order: chosenOrder }),
-    [squashTarget, chosenEmergent, chosenOrder]
+    () => ({ squashTarget, squashOpening, emergent: chosenEmergent, order: chosenOrder }),
+    [squashTarget, squashOpening, chosenEmergent, chosenOrder]
   );
 
   // --- The geometry, asked once per base op on a state.
@@ -207,8 +215,13 @@ export function useFoldVertexStep(
   // Each choice offered is counted once, by what it was offered for: a fan's
   // fourth creases by the ones that land, the only ones offered — a swivel's
   // ridges likewise.
-  const offered = useRef<{ emergent: string | null; order: string | null }>({ emergent: null, order: null });
+  const offered = useRef<{ emergent: string | null; opening: string | null; order: string | null }>({
+    emergent: null,
+    opening: null,
+    order: null,
+  });
   const fourths = useMemo(() => landingFourths(firstAnswer), [firstAnswer]);
+  const openings = useMemo(() => squashOpenings(firstAnswer), [firstAnswer]);
   const candidates = fourths.length;
   const ridges = firstAnswer?.analysis.kind === 'swivel-by-edge';
   const firstKey = resolved?.key ?? null;
@@ -219,11 +232,15 @@ export function useFoldVertexStep(
       offered.current.emergent = firstKey;
       trackFoldChoiceOffered(ridges ? 'ridge' : 'emergent', candidates);
     }
+    if (firstKey !== null && openings.length > 1 && offered.current.opening !== firstKey) {
+      offered.current.opening = firstKey;
+      trackFoldChoiceOffered('squash_opening', openings.length);
+    }
     if (orderKey !== null && orderCount > 1 && offered.current.order !== orderKey) {
       offered.current.order = orderKey;
       trackFoldChoiceOffered('order', orderCount);
     }
-  }, [firstKey, candidates, ridges, orderKey, orderCount]);
+  }, [firstKey, candidates, ridges, openings.length, orderKey, orderCount]);
 
   if (!intent) return NONE;
   const refused = told ?? (resolvingAnchor ? null : resolved?.refused) ?? answerRefused;
@@ -236,6 +253,12 @@ export function useFoldVertexStep(
     landing?.directions ??
     null;
   const kinds = swivelKindsLanding(firstAnswer) ?? landing?.kinds ?? null;
+  // A squash of several plies: where it opens, of the openings that land.
+  const squashAnalysis = firstAnswer?.analysis.kind === 'squash' ? firstAnswer.analysis : null;
+  const squash =
+    squashAnalysis && (squashAnalysis.layers ?? 2) > 2 && chosen?.opening !== undefined
+      ? { layers: squashAnalysis.layers ?? 2, openings, opening: chosen.opening }
+      : null;
   return {
     step: refused || !built ? null : built.step,
     vertex: {
@@ -250,6 +273,7 @@ export function useFoldVertexStep(
       layers,
       reach,
       directions,
+      ...(squash ? { squash } : {}),
       ...(kind ? { kind } : {}),
       ...(kinds ? { kinds } : {}),
     },

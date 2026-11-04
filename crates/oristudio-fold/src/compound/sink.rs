@@ -20,6 +20,10 @@
 //!   reflected across ℓ; pairs across blocks keep their order; each tip face
 //!   lies directly against its own piece that stays, on the pocket side —
 //!   toward the layer its outline crease joins it to — the "inverted nest".
+//!   Where staying paper lies inside a pocket (a flap folded in there
+//!   before, between two of the point's layers below ℓ) and that leaves no
+//!   order, each tip face lies past its piece and short of the next layer,
+//!   and the completion places it among that paper: the tip rides over it.
 //!   Every ring crease then takes the outline's letter and every inner
 //!   folded crease turns. A ring precreased before takes its letter from the
 //!   order like a new one, so the letters it remembered are overwritten.
@@ -346,7 +350,7 @@ impl State {
                     }
                     return Err(CompoundRefused::Refused(refused));
                 }
-                let prepared = tip.open(self, &outline).map_err(compound)?;
+                let prepared = tip.open(self, &outline, limits).map_err(compound)?;
                 let context = Context::new(&tip, SinkStep::Open, None, None);
                 finish(prepared, context, choices.order.as_ref(), limits, || {
                     let (pockets, _) = tip.pockets(self, &outline);
@@ -1095,7 +1099,7 @@ impl Tip {
     ) -> bool {
         self.open_precondition(state, shape).is_none()
             && self
-                .open(state, outline)
+                .open(state, outline, limits)
                 .ok()
                 .is_some_and(|prepared| prepared.complete(&[], &first_only(limits)).is_ok())
     }
@@ -1116,8 +1120,16 @@ impl Tip {
 
     /// The open sink through the pipeline's steps 2–7 (see the module docs):
     /// a block per display layer, each tip face anchored against its own
-    /// piece that stays on its layer's pocket side.
-    fn open(&self, state: &State, outline: &Outline) -> Result<Prepared, FoldRefusal> {
+    /// piece that stays on its layer's pocket side — or, where staying paper
+    /// lies inside its pocket and that leaves no order, past its piece and
+    /// short of the next layer, among that paper
+    /// ([`Prepared::anchor_in_pockets`]).
+    fn open(
+        &self,
+        state: &State,
+        outline: &Outline,
+        limits: &CompletionLimits,
+    ) -> Result<Prepared, FoldRefusal> {
         let (layer_of, layers) = display_layers(state, &self.in_tip);
         let sides = pocket_sides(state, outline, &layer_of, layers);
         let reflection = self.classified.axis.reflection();
@@ -1132,7 +1144,9 @@ impl Tip {
             },
         )?;
         let (parts, block_of) = prepared.landed();
-        let partners = partners(&Topology::build(parts)?, block_of);
+        let topology = Topology::build(parts)?;
+        let partners = partners(&topology, block_of);
+        let layers = point_layers(parts, &topology, block_of, &partners);
         let anchors: Vec<Anchor> = (0..parts.faces.len())
             .filter_map(|t| {
                 let above = sides[block_of[t]?]?;
@@ -1143,7 +1157,7 @@ impl Tip {
                 })
             })
             .collect();
-        prepared.anchor(&anchors);
+        prepared.anchor_in_pockets(&anchors, &layers, limits);
         Ok(prepared)
     }
 
@@ -1548,6 +1562,36 @@ fn partners(topology: &Topology, block_of: &[Option<usize>]) -> Vec<Vec<usize>> 
         }
     }
     out
+}
+
+/// Per landed face position, whether it is staying paper of the point's
+/// layers: a tip face's piece across ℓ, or paper joined to one across flat
+/// creases. An open sink's pockets lie between them; other staying paper
+/// between two of them lies inside a pocket.
+fn point_layers(
+    parts: &StateParts,
+    topology: &Topology,
+    block_of: &[Option<usize>],
+    partners: &[Vec<usize>],
+) -> Vec<bool> {
+    let n = block_of.len();
+    let stays = |f: usize| block_of.get(f).is_some_and(Option::is_none);
+    let mut joined = UnionFind::new(n);
+    for (crease, faces) in parts.creases.iter().zip(&topology.crease_faces) {
+        if let (CreaseKind::Flat(_), &[f, g]) = (crease.kind, &faces[..])
+            && stays(f)
+            && stays(g)
+        {
+            joined.join(f, g);
+        }
+    }
+    let mut pieces = BTreeSet::new();
+    for &s in partners.iter().flatten() {
+        pieces.insert(joined.root(s));
+    }
+    (0..n)
+        .map(|f| stays(f) && pieces.contains(&joined.root(f)))
+        .collect()
 }
 
 /// Per landed face position, the parent's face it is or is a piece of.

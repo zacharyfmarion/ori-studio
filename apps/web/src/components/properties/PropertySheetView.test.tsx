@@ -1,7 +1,14 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ColorField, PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
+import type {
+  ColorField,
+  DirectionField,
+  PropertyField,
+  PropertySheet,
+  RevealField,
+} from '../../lib/propertyDescriptors';
+import { TooltipProvider } from '../ui/Tooltip';
 import { PropertySheetView } from './PropertySheetView';
 
 /**
@@ -18,7 +25,9 @@ let container: HTMLDivElement | null = null;
 function render(sheet: PropertySheet, onCommit = vi.fn()) {
   act(() => {
     root?.render(
-      <PropertySheetView sheet={sheet} surfaceProps={{ 'data-test-surface': '' }} onCommit={onCommit} />
+      <TooltipProvider>
+        <PropertySheetView sheet={sheet} surfaceProps={{ 'data-test-surface': '' }} onCommit={onCommit} />
+      </TooltipProvider>
     );
   });
   return onCommit;
@@ -78,10 +87,11 @@ afterEach(() => {
 describe('PropertySheetView', () => {
   it('shows the header and marks the surface', () => {
     render(sheetOf());
-    expect(container?.querySelector('.property-sheet')?.getAttribute('data-test-surface')).toBe('');
-    expect(container?.querySelector('.property-sheet__title')?.textContent).toBe('Thing');
-    expect(container?.querySelector('.property-sheet__subtitle')?.textContent).toBe('10 × 10');
-    expect(container?.querySelector('.property-sheet__icon svg')).not.toBeNull();
+    const sheet = container?.querySelector('[data-property-sheet]');
+    expect(sheet?.getAttribute('data-test-surface')).toBe('');
+    expect(sheet?.querySelector('header h2')?.textContent).toBe('Thing');
+    expect(sheet?.querySelector('[data-property-sheet-subtitle]')?.textContent).toBe('10 × 10');
+    expect(sheet?.querySelector('header svg')).not.toBeNull();
   });
 
   it('hides a not-applicable field and disables an unsupported one with its reason', () => {
@@ -109,6 +119,8 @@ describe('PropertySheetView', () => {
       )
     );
     expect(container?.querySelector('[aria-label="Gone"]')).toBeNull();
+    // The untitled section is the sheet's plain body, there while one row shows.
+    expect(container?.querySelector('[data-property-sheet-section] [data-field-row]')).not.toBeNull();
     const row = container?.querySelector('[data-field-row]');
     expect(row?.getAttribute('data-disabled')).toBe('true');
     expect(row?.getAttribute('title')).toBe('Refold first');
@@ -126,7 +138,7 @@ describe('PropertySheetView', () => {
         commit: vi.fn(),
       })
     );
-    expect(container?.querySelector('.property-sheet__section')).toBeNull();
+    expect(container?.querySelector('[data-property-sheet-section]')).toBeNull();
   });
 
   it('commits a toggle, a select and a segmented control once each, skipping a no-op', () => {
@@ -495,5 +507,391 @@ describe('PropertySheetView', () => {
     // Another surface holding the bracket still disables it.
     render(sheetOf(colour('moot', { resetWhileUnsupported: true, held: true })));
     expect(resetOf('moot')?.disabled).toBe(true);
+  });
+
+  it('puts the object’s verbs at the end of its header, and reports each press', () => {
+    const exportRun = vi.fn();
+    const deleteRun = vi.fn();
+    const onAction = vi.fn();
+    act(() => {
+      root?.render(
+        <TooltipProvider>
+          <PropertySheetView
+            sheet={{
+              ...sheetOf(),
+              actions: [
+                { id: 'export', label: 'Export…', icon: 'export', disabled: false, run: exportRun },
+                { id: 'delete', label: 'Delete', icon: 'delete', disabled: true, hint: 'Not now', run: deleteRun },
+              ],
+            }}
+            onAction={onAction}
+          />
+        </TooltipProvider>
+      );
+    });
+    const header = container?.querySelector('[data-property-sheet] header');
+    const verbs = [...(header?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    expect(verbs.map((verb) => verb.getAttribute('aria-label'))).toEqual(['Export…', 'Delete']);
+    expect(verbs[1]?.disabled).toBe(true);
+    act(() => verbs[0]?.click());
+    expect(exportRun).toHaveBeenCalledTimes(1);
+    expect(onAction).toHaveBeenCalledWith('export');
+    expect(deleteRun).not.toHaveBeenCalled();
+  });
+
+  it('lays a stacked choice across the row, under its label, and commits a change once', () => {
+    const commit = vi.fn();
+    const onCommit = render(
+      sheetOf({
+        id: 'displayStyle',
+        kind: 'segmented',
+        layout: 'stacked',
+        label: 'Render as',
+        support: 'supported',
+        options: [
+          { id: 'paper', label: 'Paper' },
+          { id: 'xray', label: 'X-ray' },
+        ],
+        protocol: 'discrete',
+        value: 'paper',
+        commit,
+      })
+    );
+    // Not a label-beside row: the label stands over the control.
+    expect(container?.querySelector('[data-field-row]')).toBeNull();
+    // Named by the label over it, once: no aria-label repeating it.
+    const group = [...(container?.querySelectorAll('[role="group"]') ?? [])].find(
+      (candidate) =>
+        document.getElementById(candidate.getAttribute('aria-labelledby') ?? '')?.textContent === 'Render as'
+    );
+    expect(group?.hasAttribute('aria-label')).toBe(false);
+    const options = [...(group?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    act(() => options.find((option) => option.textContent === 'Paper')?.click());
+    expect(commit).not.toHaveBeenCalled();
+    act(() => options.find((option) => option.textContent === 'X-ray')?.click());
+    expect(commit).toHaveBeenCalledWith('xray');
+    expect(onCommit.mock.calls).toEqual([['displayStyle']]);
+  });
+
+  it('draws a segmented field’s credit beside its label, in either layout, and none for a field without one', () => {
+    const spreadBy = (layout: 'beside' | 'stacked', credit?: 'affine-spread'): PropertyField => ({
+      id: 'spreadKind',
+      kind: 'segmented',
+      layout,
+      label: 'Spread by',
+      support: 'supported',
+      options: [
+        { id: 'connected', label: 'Default' },
+        { id: 'affine', label: 'Affine' },
+      ],
+      ...(credit ? { credit } : {}),
+      protocol: 'discrete',
+      value: 'affine',
+      commit: vi.fn(),
+    });
+    const credit = () => container?.querySelector('button[aria-label="About affine spreading"]') ?? null;
+    const label = () =>
+      [...(container?.querySelectorAll<HTMLElement>('span, label') ?? [])].find(
+        (element) => element.firstChild?.textContent === 'Spread by'
+      ) ?? null;
+
+    render(sheetOf(spreadBy('stacked', 'affine-spread')));
+    // Beside the label it credits, not among the choices.
+    expect(credit()).not.toBeNull();
+    expect(credit()!.closest('[role="group"]')).toBeNull();
+    expect(label()!.parentElement?.contains(credit())).toBe(true);
+
+    render(sheetOf(spreadBy('beside', 'affine-spread')));
+    expect(credit()).not.toBeNull();
+    expect(credit()!.closest('[data-field-label]')).not.toBeNull();
+
+    render(sheetOf(spreadBy('stacked')));
+    expect(credit()).toBeNull();
+  });
+
+  it('steps with ‹ and ›, one commit per press, and does nothing for a refused verb', () => {
+    const previous = vi.fn();
+    const next = vi.fn();
+    const onCommit = render(
+      sheetOf({
+        id: 'layerOrder',
+        kind: 'stepper',
+        label: 'Layer order',
+        support: 'supported',
+        protocol: 'stepped',
+        readout: '1 of 5+',
+        previous: { label: 'Previous solution', disabled: true, hint: 'This is its first solution', run: previous },
+        next: { label: 'Another solution', disabled: false, run: next },
+      })
+    );
+    const row = container?.querySelector('[data-field-row]');
+    expect(row?.querySelector('[data-field-label]')?.textContent).toBe('Layer order');
+    // A group named by the row's label (said once), whose readout is announced as it changes.
+    const pager = row?.querySelector('[role="group"][aria-labelledby]');
+    expect(document.getElementById(pager?.getAttribute('aria-labelledby') ?? '')?.textContent).toBe('Layer order');
+    expect(pager?.hasAttribute('aria-label')).toBe(false);
+    const readout = pager?.querySelector('[aria-live="polite"]');
+    expect(readout?.textContent).toBe('1 of 5+');
+    expect(readout?.getAttribute('aria-atomic')).toBe('true');
+    const back = row?.querySelector<HTMLButtonElement>('button[aria-label="Previous solution"]');
+    expect(back?.getAttribute('aria-disabled')).toBe('true');
+    act(() => back?.click());
+    expect(previous).not.toHaveBeenCalled();
+    act(() => row?.querySelector<HTMLButtonElement>('button[aria-label="Another solution"]')?.click());
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(onCommit.mock.calls).toEqual([['layerOrder']]);
+  });
+
+  it('refuses both verbs of an unsupported stepper, and shows its note under the label', () => {
+    const next = vi.fn();
+    const onCommit = render(
+      sheetOf({
+        id: 'layerOrder',
+        kind: 'stepper',
+        label: 'Layer order',
+        support: 'unsupported',
+        reason: 'Couldn’t be determined',
+        note: { kind: 'reason', text: 'Couldn’t be determined.' },
+        protocol: 'stepped',
+        readout: 'None',
+        previous: { label: 'Previous solution', disabled: false, run: vi.fn() },
+        next: { label: 'Another solution', disabled: false, run: next },
+        action: { label: 'Edit…', disabled: false, run: vi.fn() },
+      })
+    );
+    const row = container?.querySelector('[data-field-row]');
+    expect(row?.getAttribute('data-disabled')).toBe('true');
+    expect(row?.querySelector('[data-field-note="reason"]')?.textContent).toBe('Couldn’t be determined.');
+    const verbs = [...(row?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    expect(verbs.map((verb) => verb.getAttribute('aria-disabled'))).toEqual(['true', 'true', 'true']);
+    act(() => verbs[1]?.click());
+    expect(next).not.toHaveBeenCalled();
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('puts a quiet status under the label, the row’s button after the pager, and leaves out a verb it lacks', () => {
+    const edit = vi.fn();
+    const onCommit = render(
+      sheetOf({
+        id: 'layerOrder',
+        kind: 'stepper',
+        label: 'Layer order',
+        support: 'supported',
+        note: { kind: 'status', text: '3 constraints' },
+        protocol: 'stepped',
+        readout: '1 of 3',
+        next: { label: 'Another solution', disabled: false, run: vi.fn() },
+        action: { label: 'Edit…', disabled: false, run: edit },
+      })
+    );
+    const row = container?.querySelector('[data-field-row]');
+    expect(row?.querySelector('[data-field-note="status"]')?.textContent).toBe('3 constraints');
+    const buttons = [...(row?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    // No ‹: its place is empty. The button comes last.
+    expect(buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual([
+      'Another solution',
+      'Edit…',
+    ]);
+    act(() => buttons[1]?.click());
+    expect(edit).toHaveBeenCalledTimes(1);
+    // It opens what it opens; it changes nothing on the figure.
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('draws a warning subtitle, and a section’s notice after its rows with the fix it offers', () => {
+    const review = vi.fn();
+    const field: PropertyField = {
+      id: 'layerOrder',
+      kind: 'stepper',
+      label: 'Layer order',
+      support: 'supported',
+      protocol: 'stepped',
+      readout: '',
+    };
+    const onCommit = render({
+      ...sheetOf(),
+      subtitle: '2 layer constraints need attention',
+      subtitleTone: 'warning',
+      sections: [
+        {
+          id: 'pose',
+          title: 'Pose',
+          spaced: true,
+          fields: [field],
+          notice: {
+            tone: 'warning',
+            text: '2 layer constraints need attention since the creases changed.',
+            actions: [{ id: 'review', label: 'Review…', disabled: false, run: review }],
+          },
+        },
+      ],
+    });
+    const subtitle = container?.querySelector('[data-property-sheet-subtitle]');
+    expect(subtitle?.getAttribute('data-tone')).toBe('warning');
+    const notice = container?.querySelector('[role="status"][data-tone="warning"]');
+    expect(notice?.textContent).toContain('2 layer constraints need attention since the creases changed.');
+    // After the section's rows.
+    const row = container?.querySelector('[data-field-row]');
+    expect(row && notice && row.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const button = [...(notice?.querySelectorAll('button') ?? [])].find((each) => each.textContent === 'Review…');
+    act(() => button?.click());
+    expect(review).toHaveBeenCalledTimes(1);
+    expect(onCommit).not.toHaveBeenCalled();
+
+    // Left out, neither draws.
+    render(sheetOf(field));
+    expect(container?.querySelector('[data-property-sheet-subtitle]')?.hasAttribute('data-tone')).toBe(false);
+    expect(container?.querySelector('[role="status"][data-tone]')).toBeNull();
+  });
+
+  it('names a slider by its accessible name, reads its value as text, and draws its help', () => {
+    render(
+      sheetOf({
+        id: 'spreadAmount',
+        kind: 'slider',
+        label: 'Amount',
+        ariaLabel: 'Spread amount',
+        valueText: (value) => `${value}% of the model`,
+        help: 'How far the layers come apart',
+        support: 'supported',
+        min: 0,
+        max: 20,
+        protocol: 'continuous',
+        value: 2.5,
+        begin: () => true,
+        update: vi.fn(),
+        end: vi.fn(),
+        held: false,
+      })
+    );
+    const slider = input('Spread amount');
+    expect(slider.getAttribute('aria-valuetext')).toBe('2.5% of the model');
+    expect(container?.querySelector('[data-field-help]')?.getAttribute('aria-label')).toBe('How far the layers come apart');
+  });
+
+  it('puts a toggle’s reason under its label, read with the switch', () => {
+    render(
+      sheetOf({
+        id: 'spreadLayers',
+        kind: 'toggle',
+        label: 'Spread layers',
+        support: 'unsupported',
+        reason: 'Only a flat folded picture has layers to spread',
+        note: { kind: 'reason', text: 'Only a flat folded picture has layers to spread' },
+        protocol: 'discrete',
+        value: false,
+        commit: vi.fn(),
+      })
+    );
+    const note = container?.querySelector('[data-field-note="reason"]');
+    expect(note?.textContent).toBe('Only a flat folded picture has layers to spread');
+    const toggle = container?.querySelector('[aria-label="Spread layers"]');
+    expect(toggle?.getAttribute('aria-describedby')).toBe(note?.id);
+  });
+
+  describe('a reveal', () => {
+    function reveal(overrides: Partial<RevealField> = {}): RevealField {
+      return {
+        id: 'spreadReveal',
+        kind: 'reveal',
+        label: 'Layer reveal',
+        support: 'supported',
+        undoLabel: 'Change layer spread',
+        protocol: 'continuous',
+        value: [0.8, 0.6],
+        begin: vi.fn(() => true),
+        update: vi.fn(),
+        end: vi.fn(),
+        held: false,
+        reset: vi.fn(),
+        ...overrides,
+      };
+    }
+    const pad = () => container!.querySelector<HTMLButtonElement>('[role="slider"][aria-label="Layer reveal"]')!;
+    function pointer(type: string, x: number, y: number) {
+      const event = new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      act(() => pad().dispatchEvent(event));
+    }
+
+    it('runs a drag as begin once, an update per move, end once, and a key as a gesture of its own', () => {
+      const field = reveal();
+      const onCommit = render(sheetOf(field));
+      pad().setPointerCapture = vi.fn();
+      pad().getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+      pointer('pointerdown', 92, 50);
+      pointer('pointermove', 50, 8);
+      pointer('pointerup', 50, 8);
+      expect(field.begin).toHaveBeenCalledTimes(1);
+      expect((field.update as ReturnType<typeof vi.fn>).mock.calls).toEqual([[[2, 0]], [[0, -2]]]);
+      expect(field.end).toHaveBeenCalledTimes(1);
+      expect(onCommit.mock.calls).toEqual([['spreadReveal']]);
+
+      act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })));
+      expect(field.begin).toHaveBeenCalledTimes(2);
+      expect(field.update).toHaveBeenLastCalledWith([0.75, 0.6]);
+      expect(onCommit).toHaveBeenCalledTimes(2);
+    });
+
+    it('resets through its own row, counted as a commit, and holds while refused or held', () => {
+      const field = reveal();
+      const onCommit = render(sheetOf(field));
+      act(() => container!.querySelector<HTMLButtonElement>('button[aria-label="Reset Layer reveal to default"]')!.click());
+      expect(field.reset).toHaveBeenCalledTimes(1);
+      expect(onCommit.mock.calls).toEqual([['spreadReveal']]);
+
+      const refused = reveal({ begin: vi.fn(() => false) });
+      render(sheetOf(refused));
+      act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })));
+      expect(refused.update).not.toHaveBeenCalled();
+      expect(refused.end).not.toHaveBeenCalled();
+
+      render(sheetOf(reveal({ held: true })));
+      expect(pad().disabled).toBe(true);
+      render(sheetOf(reveal({ support: 'unsupported', reason: 'Refold to show the spread' })));
+      expect(pad().disabled).toBe(true);
+      expect(pad().getAttribute('title')).toBe('Refold to show the spread');
+    });
+  });
+
+  it('presses a direction once per commit, the chosen one pressed, and refuses each on an unsupported field', () => {
+    const commit = vi.fn();
+    const direction = (overrides: Partial<DirectionField> = {}): DirectionField => ({
+      id: 'spreadDirection',
+      kind: 'direction',
+      label: 'Direction',
+      groupLabel: 'Spread direction',
+      support: 'supported',
+      options: (['up-left', 'up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left'] as const).map(
+        (id) => ({ id, label: `Deeper layers ${id}` })
+      ),
+      protocol: 'discrete',
+      value: 'down',
+      commit,
+      ...overrides,
+    });
+    const onCommit = render(sheetOf(direction()));
+    const group = container!.querySelector('[role="group"][aria-label="Spread direction"]')!;
+    const buttons = [...group.querySelectorAll<HTMLButtonElement>('button')];
+    expect(buttons).toHaveLength(8);
+    expect(buttons.filter((button) => button.getAttribute('aria-pressed') === 'true').map((b) => b.dataset.toward)).toEqual([
+      'down',
+    ]);
+    act(() => group.querySelector<HTMLButtonElement>('[data-toward="up"]')!.click());
+    expect(commit).toHaveBeenCalledWith('up');
+    expect(onCommit.mock.calls).toEqual([['spreadDirection']]);
+    // The one chosen already does nothing.
+    act(() => group.querySelector<HTMLButtonElement>('[data-toward="down"]')!.click());
+    expect(commit).toHaveBeenCalledTimes(1);
+
+    render(sheetOf(direction({ support: 'unsupported', reason: 'Only the Paper and X-ray looks can spread their layers' })));
+    const held = container!.querySelector<HTMLButtonElement>('[role="group"] [data-toward="left"]')!;
+    // Refused, but keeping its place and the focus; the row says why.
+    expect(held.getAttribute('aria-disabled')).toBe('true');
+    expect(held.closest('[data-field-row]')?.getAttribute('title')).toBe(
+      'Only the Paper and X-ray looks can spread their layers'
+    );
+    act(() => held.click());
+    expect(commit).toHaveBeenCalledTimes(1);
   });
 });

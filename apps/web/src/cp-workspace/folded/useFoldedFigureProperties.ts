@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
 import type {
   FoldedFigurePlacement,
   OristudioCpFoldedFigureDisplayStyle,
+  OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
 import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
@@ -22,13 +23,27 @@ import { getFolded3dOrbit, subscribeFolded3dOrbit } from './folded3dRuntime';
 import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCamera';
 import { foldedFigureGesture } from './foldedFigureGesture';
 import { buildFoldedFigureProperties, type FoldedFigurePropertyDeps } from './foldedFigureProperties';
+import type { FoldedFigureSpread } from './foldedFigureSpread';
+import { foldedFigureSpreadStarts } from './foldedFigureSpreadStarts';
+import { useFoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import { isFoldedFigureStale } from './foldedFigureStaleness';
+import { foldedSolutionCursorVersion, subscribeFoldedSolutionCursor } from './foldedSolutionCursor';
 import {
+  deleteFoldedFigure,
+  dismissFoldedFigureDetachedLayerOrder,
+  duplicateFoldedFigure,
+  exportFoldedFigure,
   setFolded3dCamera,
   setFoldedFigureDisplayStyle,
   setFoldedFigurePlacementAsEntry,
+  setFoldedFigureSpreadAsEntry,
+  showAnotherFoldedSolution,
+  showPreviousFoldedSolution,
   updateFoldedFigureModelAsEntry,
+  writeFoldedFigureSpreadEdit,
 } from './foldedFigureVerbs';
+import type { LayerSpreadEdit } from './layerSpreadSettings';
+import { openFoldedFigureLayerOrder } from './openFoldedFigureLayerOrder';
 
 /**
  * The folded figure's sheet, bound to the store through the verbs module, the
@@ -43,9 +58,16 @@ import {
  * overridden`) once per field per adjustment, never per pointer move. The
  * camera rows read the live orbit frame while a drag turns the figure and the
  * stored camera otherwise — the same rule `useFoldedFigures` applies.
+ *
+ * The figure's layer spread (`foldedFigureSpreadFields.ts`) edits the same
+ * way: a discrete edit is one entry (`setFoldedFigureSpreadAsEntry`), a drag
+ * writes per move inside the pane's open gesture and records once, and a
+ * spread turned on starts from the one most recently set on another figure
+ * (`foldedFigureSpreadStarts.ts`). Where its spread stands on the canvas is
+ * the drawing side's to write; the sheet only reads it.
  */
 export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): PropertySheet {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const document = useWorkspaceStore((state) => state.oristudioCpDocument?.document);
   const figure = target.figure;
   const id = target.id;
@@ -117,6 +139,50 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
     },
     [id]
   );
+  // The figure's layer spread: discrete edits one entry each, a drag's moves
+  // inside the pane's open gesture, and where it stands on the canvas, which
+  // the drawing side writes and this only reads.
+  const spreadStatus = useFoldedFigureSpreadStatus(id);
+  const setSpread = useCallback(
+    (spread: FoldedFigureSpread | null) => {
+      void setFoldedFigureSpreadAsEntry(id, spread, t);
+    },
+    [id, t]
+  );
+  const writeSpread = useCallback(
+    (edit: LayerSpreadEdit) => {
+      // Aborted underneath (an undo from the menu bar): a write now would land
+      // a change no entry covers. The next move begins a fresh gesture.
+      if (!gesture.isOpen()) return;
+      writeFoldedFigureSpreadEdit(id, edit);
+    },
+    [gesture, id]
+  );
+  const spreadStarts = useCallback(
+    () => foldedFigureSpreadStarts(useWorkspaceStore.getState().oristudioCpFoldedFigures, id),
+    [id]
+  );
+  // The figure's verbs, as the floating toolbar runs them: each one entry
+  // under the toolbar's own label, through the same React-free functions.
+  const verbs = useMemo(
+    () => ({
+      foldAnother: (target: OristudioCpFoldedFigureEntry) => void showAnotherFoldedSolution(target.id, t),
+      foldPrevious: (target: OristudioCpFoldedFigureEntry) => void showPreviousFoldedSolution(target.id, t),
+      exportFigure: (target: OristudioCpFoldedFigureEntry) => exportFoldedFigure(target.id, t),
+      duplicate: (target: OristudioCpFoldedFigureEntry) => void duplicateFoldedFigure(target.id, t),
+      remove: (target: OristudioCpFoldedFigureEntry) => void deleteFoldedFigure(target.id, t),
+      openLayerOrder: (target: OristudioCpFoldedFigureEntry) => void openFoldedFigureLayerOrder(target.id, t),
+      reviewLayerOrder: (target: OristudioCpFoldedFigureEntry) =>
+        void openFoldedFigureLayerOrder(target.id, t, { via: 'review' }),
+      dismissDetachedLayerOrder: (target: OristudioCpFoldedFigureEntry) =>
+        void dismissFoldedFigureDetachedLayerOrder(target.id, t),
+    }),
+    [t]
+  );
+  // A constrained figure's readout and ends are where its solutions cursor
+  // stands, which moves without the figure changing (an answer after a turn
+  // over, the cursor let go): read again whenever it does.
+  const cursorVersion = useSyncExternalStore(subscribeFoldedSolutionCursor, foldedSolutionCursorVersion);
   const storedCamera = figure.camera ?? DEFAULT_FOLDED_3D_CAMERA;
   const liveCamera = useMemo<LiveValue<FoldedFigureCamera>>(
     () => ({
@@ -129,6 +195,7 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
   const deps = useMemo<FoldedFigurePropertyDeps>(
     () => ({
       t,
+      locale: i18n.language,
       stale,
       held: gesture.held,
       begin: gesture.begin,
@@ -143,9 +210,16 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       setCamera,
       liveCamera,
       setPlacement,
+      spreadStatus,
+      spreadStarts,
+      setSpread,
+      writeSpread,
+      ...verbs,
     }),
     [
+      verbs,
       t,
+      i18n.language,
       stale,
       gesture.held,
       gesture.begin,
@@ -160,7 +234,16 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       setCamera,
       liveCamera,
       setPlacement,
+      spreadStatus,
+      spreadStarts,
+      setSpread,
+      writeSpread,
     ]
   );
-  return useMemo(() => buildFoldedFigureProperties(target, deps), [target, deps]);
+  return useMemo(
+    () => buildFoldedFigureProperties(target, deps),
+    // The cursor's version is read by the builder through `foldedSolutionPlace`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [target, deps, cursorVersion]
+  );
 }

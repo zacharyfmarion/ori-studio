@@ -2,6 +2,7 @@
   "boundary": {
     "appDescription": "Deine Arbeit ist noch im Speicher, aber die Oberfläche konnte sich nicht selbst erholen. Kopiere die Details unten, bevor du neu lädst – sie zeigen einem Entwickler genau, was schiefgelaufen ist.",
     "appTitle": "In Ori Studio ist ein Problem aufgetreten",
+    "close": "Schließen",
     "copied": "Kopiert",
     "copy": "Details kopieren",
     "copyFailed": "Kopieren fehlgeschlagen",
@@ -19,6 +20,12 @@
   },
   "cp": {
     "foldProducedNothing": "Diese Faltlinien haben keine flache Faltform, die sich zeichnen ließe",
+    "layerOrderNotApplied": "Die Lagenreihenfolge konnte diese Reihenfolge nicht auf {{name}} anwenden. Sein Bild bleibt unverändert.",
+    "layerOrderNotFolded": "Die Lagenreihenfolge konnte diese Faltlinien nicht in dieser Reihenfolge falten.",
+    "layerOrderPatternChanged": "Das Faltmuster hat sich inzwischen geändert, daher hat die Lagenreihenfolge nichts geändert.",
+    "layerOrderTooLarge": "Diese Lagenreihenfolge ist zu groß, um sie mit dem Modell zu speichern; es bleibt unverändert.",
+    "layerOrderTooLargeToFold": "Diese Lagenreihenfolge ist zu groß, um sie mit einem Modell zu speichern; es wurde nichts gefaltet.",
+    "layerOrderUndeterminedSelection": "Die Lagenfolge dieser Faltlinien konnte nicht bestimmt werden.",
     "pinnedVertex": "Diese Falte beginnt an einem fixierten Knoten und kann daher nicht verlängert werden. Lösen Sie zuerst die Fixierung des Knotens, oder verlängern Sie eine andere Falte."
   },
   "cpDetectImport": {

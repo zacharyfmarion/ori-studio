@@ -92,7 +92,6 @@ export function useWorkspaceCapabilities() {
   const selection = useWorkspaceStore((state) => selectSelection(state));
   // Fold's imports and hand-offs: primitives, so an edit that changes none re-renders nothing.
   const foldStepCount = useWorkspaceStore((state) => shownFoldSequence(state)?.document.steps.length ?? 0);
-  const foldPolygon = useWorkspaceStore((state) => shownFoldSequence(state)?.document.paper.shape.kind === 'polygon');
   const foldPageAtCursor = useWorkspaceStore(selectFoldPageAtCursor);
   const hasFoldStartingFigure = useWorkspaceStore((state) => foldStartingFigure(state) !== null);
   const historyPastCount = historyCountForContext(
@@ -153,7 +152,6 @@ export function useWorkspaceCapabilities() {
           selection,
           foldSequence: {
             stepCount: foldStepCount,
-            polygon: foldPolygon,
             readOnly: foldReadOnly,
             pageAtCursor: foldPageAtCursor,
           },
@@ -163,7 +161,6 @@ export function useWorkspaceCapabilities() {
       ),
     [
       foldStepCount,
-      foldPolygon,
       foldPageAtCursor,
       hasFoldStartingFigure,
       clipboard,

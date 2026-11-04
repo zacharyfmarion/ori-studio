@@ -49,7 +49,7 @@ import { sameFlap } from './crossSection';
 import { lineModeInput, locateEngine, toolInput, type FoldInputModel } from './foldToolRegistry';
 import { extentClicks, type FoldExtentMode } from './precrease/precreaseExtent';
 import { FOLD_ROTATION_DEFAULT } from './rotate/rotateTool';
-import { SWIVEL_TARGET_FROM, type FoldSquashHinge, type FoldSwivelInput } from './vertex/vertexInputs';
+import { FOLD_SWIVEL_INPUT_DEFAULT, SWIVEL_TARGET_FROM, type FoldSquashHinge, type FoldSwivelInput } from './vertex/vertexInputs';
 
 /** Wrap without adding two potentially MAX_SAFE_INTEGER-sized indices. */
 function wrappedOpening(index: number, delta: number, count: number): number {
@@ -144,6 +144,12 @@ export interface FoldCompoundToolChoices {
   // lists, by index, or of where the folder points, as a direction.
   /** Where a squash's spine lands: a direction from its vertex in the parent's model frame; null for the hinge line. */
   squashTarget: FoldModelDirection | null;
+  /**
+   * Where a squash of a flap whose walls are several plies opens: how many
+   * of its layers at the flap point lie above the opening (`FoldSquashOp`'s
+   * `opening`); null or absent for between its walls.
+   */
+  squashOpening?: number | null;
   /** A rabbit ear's or a swivel's fourth ray, by index into the candidates; null for the first that lands. */
   emergent: number | null;
   /** How many layers at a fan's center its creases cut, from the side the direction names; null for every one. */
@@ -176,6 +182,7 @@ export const FOLD_COMPOUND_CHOICES_INITIAL: FoldCompoundToolChoices = {
   tuckTarget: null,
   tuckPinned: [],
   squashTarget: null,
+  squashOpening: null,
   emergent: null,
   fanLayers: null,
   swivelKind: null,
@@ -225,7 +232,7 @@ export interface FoldToolState {
   petalHinge: FoldLineBy;
   swivelTarget: FoldLineBy;
   /** How a swivel is constructed: by its edge onto a line, or by its valley and mountain. Kept from fold to fold. */
-  swivelInput?: FoldSwivelInput;
+  swivelInput: FoldSwivelInput;
   /** A squash's hinge: the folded edge it infers, or a line drawn with the line modes. Kept from fold to fold. */
   squashHinge?: FoldSquashHinge;
   /**
@@ -295,6 +302,7 @@ export const FOLD_TOOL_INITIAL: FoldToolState = {
   vertexDirection: 'valley',
   petalHinge: 'crease',
   swivelTarget: 'crease',
+  swivelInput: FOLD_SWIVEL_INPUT_DEFAULT,
   override: null,
   divide: FOLD_DIVIDE_DEFAULT,
   hoveredFlap: null,
@@ -362,7 +370,7 @@ export function foldToolInput(
   return toolInput(state.tool, state.lineMode, state.secondLineMode, {
     petalHinge: state.petalHinge ?? 'crease',
     swivelTarget: state.swivelTarget ?? 'crease',
-    swivelInput: state.swivelInput ?? 'edge',
+    swivelInput: state.swivelInput ?? FOLD_SWIVEL_INPUT_DEFAULT,
     squashHinge: state.squashHinge ?? 'folded',
     lineTaken: state.takenLine !== undefined,
   });
@@ -512,6 +520,8 @@ export interface FoldTools {
   setSwivelTarget(target: FoldLineBy): void;
   /** Where a squash's spine lands; null for the hinge line. */
   setSquashTarget(target: FoldModelDirection | null): void;
+  /** Where a squash of several plies opens, by how many layers lie above it; null for between its walls. */
+  setSquashOpening(opening: number | null): void;
   /** Take a fan's emergent candidate by index; null for the first that lands. */
   setEmergent(emergent: number | null): void;
   /** A swivel on a folded edge's kind, open or inside; null for the one that lands. */
@@ -872,7 +882,7 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
     },
     setSwivelInput(swivelInput) {
       // Another construction asks anew: its kind too.
-      set(state => (state.swivelInput ?? 'edge') === swivelInput ? state : { ...restart(state), swivelInput, compound: FOLD_COMPOUND_CHOICES_INITIAL });
+      set(state => state.swivelInput === swivelInput ? state : { ...restart(state), swivelInput, compound: FOLD_COMPOUND_CHOICES_INITIAL });
     },
 
     setSwivelTarget(swivelTarget) {
@@ -892,6 +902,15 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
 
     setSquashTarget(squashTarget) {
       set((state) => ({ ...state, compound: { ...state.compound, squashTarget, order: 0 } }));
+    },
+
+    setSquashOpening(squashOpening) {
+      // Another opening is another fold: its orders are its own.
+      set((state) =>
+        (state.compound.squashOpening ?? null) === squashOpening
+          ? state
+          : { ...state, compound: { ...state.compound, squashOpening, order: 0 } }
+      );
     },
 
     setEmergent(emergent) {

@@ -1,3 +1,7 @@
+import type { SpreadPresentation } from '../../layer-spread/presentation';
+import { prepareConnected } from '../../layer-spread/prepareConnected';
+import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
+import { captureSpreadScene } from '../../layer-spread/settledSpreadPicture';
 /**
  * A linked step's picture, captured (D2, D4, D5): the crease pattern itself,
  * the flat folded model, or the folded model in 3D — each made from the
@@ -28,7 +32,8 @@ import {
   type FoldedFigureCamera,
 } from '../../cp-workspace/folded/folded3dCamera';
 import { folded3dSceneStyleKey } from '../../cp-workspace/folded/folded3dScene';
-import { folded3dFigureScene } from '../../cp-workspace/folded/folded3dStoredScene';
+import { settledFolded3dFigureScene } from '../../cp-workspace/folded/folded3dStoredScene';
+import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
 import { foldedFigureExportDocument } from '../../cp-workspace/folded/foldedFigureExport';
 import { foldedFlatPaperScene } from '../../cp-workspace/folded/foldedFlatScene';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
@@ -42,16 +47,23 @@ import {
   type FoldedPicture,
 } from '../../lib/creaseExportFold';
 import type { Point } from '../../lib/geometry';
+import type { LayerOrderLossCause } from '../../layer-order/host/hostEngineGateway';
+import type { LayerOrderAttention } from '../../lib/layerOrder/layerOrderRecord';
+import type { LayerOrderApplied } from '../../lib/layerOrder/layerOrderRequest';
+import type { PaperFrame } from '../../lib/layerOrder/paperFrame';
 import { DEFAULT_FOLDED_MODEL, foldedFigureModelFromOrieditaMetadata } from '../../lib/orieditaNativeMetadata';
 import type { PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import {
   creasePatternSide,
   creasesFlipped,
+  spreadFailedOf,
+  spreadFailedRender,
   type DiagramCpRender,
   type DiagramCpScope,
   type DiagramCpSource,
   type DiagramCreasePatternRender,
   type DiagramFixedPicture,
+  type DiagramFlatRender,
   type DiagramLayerSpread,
   type DiagramPaperFaces,
   type DiagramScenePicture,
@@ -75,6 +87,15 @@ import {
 } from './captureCreases';
 import { creasesThumbnail } from './captureThumbnail';
 import { CAPTURE_PX_PER_UNIT, storableScene, turnClockwise } from './captureGeometry';
+import {
+  foldAppliedOrder,
+  foldWithLayerOrder,
+  routed3dLayerOrder,
+  stepLayerOrderOf,
+  type CaptureLayerOrderResolve,
+  type LayerOrderShown,
+  type StepLayerOrder,
+} from './captureLayerOrder';
 import { flatPaperFaces } from './capturePaperFaces';
 import { creasePatternScene } from './creasePatternScene';
 
@@ -102,7 +123,13 @@ export const SCENE_BUDGET_BYTES = 2 * 1024 * 1024;
  */
 export type CapturedPicture =
   | { kind: 'picture'; picture: DiagramScenePicture | DiagramFixedPicture }
-  | { kind: 'over-budget'; scene: PaperScene; paperScale: number | null };
+  | {
+      kind: 'over-budget';
+      scene: PaperScene;
+      paperScale: number | null;
+      /** The fold drawn unspread for a Default spread its layers could not take, as a scene's (`spreadFailed`). */
+      spreadFailed?: true;
+    };
 
 /**
  * The folded-figure model a capture folds with: the document's own (a reopened
@@ -216,7 +243,7 @@ export async function readFlatPicture(
   env?: SanitizeEnv,
   spread?: LayerSpreadOptions
 ): Promise<CapturedPicture> {
-  return flatPicture(await readFoldedPicture(runtime, handle, state.displayStyle), rotationDeg, env, spread);
+  return captureFlatPicture(await readFoldedPicture(runtime, handle, state.displayStyle), rotationDeg, env, spread);
 }
 
 /**
@@ -231,9 +258,9 @@ export function flatPicture(
   rotationDeg: number,
   env?: SanitizeEnv,
   spread?: LayerSpreadOptions,
-  { faces = true }: { faces?: boolean } = {}
+  { faces = true, connected }: { faces?: boolean; connected?: PreparedConnectedSpread } = {}
 ): CapturedPicture {
-  if (scene && scene.faces.length > 0) return flatScenePicture(scene, rotationDeg, spread, { faces });
+  if (scene && scene.faces.length > 0) return flatScenePicture(scene, rotationDeg, spread, { faces, connected });
   const page = foldedFigureExportDocument(snapshot, { showBackgroundColor: false, rotationDeg });
   if (!page) throw new Error('The folded figure produced nothing to draw');
   return { kind: 'picture', picture: fixedPicture(page.svg, env) };
@@ -250,21 +277,35 @@ export function flatScenePicture(
   scene: OristudioCpFoldedPaperScene,
   rotationDeg: number,
   spread?: LayerSpreadOptions,
-  { faces = true }: { faces?: boolean } = {}
+  { faces = true, connected, resolved, presentation }: { faces?: boolean; connected?: PreparedConnectedSpread; resolved?: PaperScene; presentation?: SpreadPresentation } = {}
 ): CapturedPicture {
   const turn = turnClockwise(rotationDeg);
   const toScenePx = (point: Point): ScenePoint => {
     const turned = turn(point);
     return [turned.x * CAPTURE_PX_PER_UNIT, turned.y * CAPTURE_PX_PER_UNIT];
   };
-  const flat = foldedFlatPaperScene(scene, {
+  const flat = resolved ?? foldedFlatPaperScene(scene, {
+    connected, presentation,
     markHidden: !spread,
     toScenePx,
     scale: CAPTURE_PX_PER_UNIT,
     ...(spread ? { spread } : {}),
   });
   const paperFaces = faces ? flatPaperFaces(scene, toScenePx, CAPTURE_PX_PER_UNIT) : null;
-  return storeScene(flat, CAPTURE_PX_PER_UNIT, null, paperFaces ?? undefined);
+  if (paperFaces && connected && spread?.kind === 'connected') {
+    paperFaces.drawn = connected.source.input.faces.map((_, face) => {
+      const item = flat.items.find(item => item.kind === 'face' && item.face === face);
+      return item?.kind === 'face' ? item.rings[0]!.map(p => [...p] as [number, number]) : [];
+    });
+    paperFaces.triangles = connected.source.input.faces.map(() => []);
+    connected.source.input.triangles.forEach((triangle, index) => {
+      const face = connected.source.input.triangleFaces[index]!;
+      const ring = connected.source.input.faces[face]!;
+      paperFaces.triangles![face]!.push(triangle.map(v => ring.indexOf(v)) as [number, number, number]);
+    });
+  }
+  const spatial=spread?.kind==='connected' && connected && presentation?.kind==='perspective';
+  return storeScene(flat, spatial ? null : CAPTURE_PX_PER_UNIT, null, spatial ? undefined : paperFaces ?? undefined);
 }
 
 /**
@@ -286,24 +327,29 @@ export function fixedPicture(svg: string, env?: SanitizeEnv): DiagramFixedPictur
  * paper scale, and is fitted to its cell (D10). It records the light it was
  * built under, so a change of style can say it needs refreshing (D5).
  */
-export function capture3dPicture(
+export async function capture3dPicture(
   fold: { snapshot: OristudioCpFold3dStepResult['snapshot']; render: OristudioCpFold3dStepResult['render'] },
   camera: FoldedFigureCamera,
   style: DiagramStyle,
-  aux: OristudioCpFolded3dAuxLines | null
-): CapturedPicture {
+  aux: OristudioCpFolded3dAuxLines | null,
+  spread?: SpatialSpread
+): Promise<CapturedPicture> {
   const drawn = diagramPaperStyle(style);
-  const scene = folded3dFigureScene(
+  const scene = await settledFolded3dFigureScene(
     {
       camera,
       displayStyle: 'Paper5',
       folded3d: fold.snapshot,
+      spread,
       frameRadius: folded3dFrameRadius(fold.render),
     },
     fold.render,
     { style: drawn, space: 'document', markHidden: true, aux }
   );
   if (!scene) throw new Error('The folded figure produced nothing to draw');
+  // A raster fallback is a transient scene, never raw SVG stored in a file.
+  // The existing keptPicture boundary turns it into a validated PNG asset.
+  if (scene.items.some(item => item.kind === 'markup')) return { kind: 'over-budget', scene, paperScale: null };
   return storeScene(scene, null, folded3dSceneStyleKey(drawn));
 }
 
@@ -358,6 +404,27 @@ export async function withSheetPaper(
   return paper && paper.length > 0 ? { ...creases, paper } : creases;
 }
 
+/**
+ * A layer order a step's capture draws (H7): the record its source keeps,
+ * restored through the host engine; or one the dialog just applied, folded as
+ * it is. Absent, a flat fold is captured exactly as it always was.
+ */
+export type CaptureLayerOrder =
+  | {
+      kind: 'record';
+      /** The record, as the step's source keeps it (`DiagramCpSource.layerOrder`). */
+      json: string;
+      resolve: CaptureLayerOrderResolve;
+      /** The capture's fold run's Stop, which ends the resolve too. */
+      stop?: AbortSignal;
+    }
+  | {
+      kind: 'applied';
+      applied: LayerOrderApplied;
+      /** The step's paper frame the dialog's record was made in (`stepFoldSource`). */
+      frame: PaperFrame;
+    };
+
 export interface CaptureStepRequest {
   /** The document snapshot the capture starts from, and is fingerprinted against. */
   document: OristudioCpDocumentSnapshot;
@@ -381,6 +448,12 @@ export interface CaptureStepRequest {
    */
   spreadStart?: DiagramLayerSpread;
   env?: SanitizeEnv;
+  /**
+   * The step's layer order (H7): carried on the new source whatever it
+   * shows, and drawn when it folds flat. Absent for a step with none, and
+   * for a link to a pattern, which starts without.
+   */
+  layerOrder?: CaptureLayerOrder;
 }
 
 export type CaptureStepResult =
@@ -391,7 +464,32 @@ export type CaptureStepResult =
       captured: CapturedPicture;
       /** The fold found no layer order, and the picture is its transparent development. */
       noLayerOrder: boolean;
+      /**
+       * What the step's layer order record says after it: its summary when
+       * some of its constraints need a look — left out, split or gone, or
+       * waiting for creases that fold in 3D — and null when none do or the
+       * step has none.
+       */
+      attention: LayerOrderAttention | null;
     }
+  /**
+   * The step's record could not be drawn (D10): it clashes now, ran out of
+   * time, or the engine was not there. The step keeps its picture, and its
+   * source keeps `layerOrder`, flagged with `attention`.
+   */
+  | { status: 'needs-attention'; layerOrder: string; attention: LayerOrderAttention }
+  /**
+   * An order the Layer order dialog applied that the kernel cannot draw
+   * (D3): nothing changes, and no record is written.
+   */
+  | { status: 'order-refused' }
+  /**
+   * The host engine was not there to restore the step's record — offline
+   * (`unavailable`), or it crashed: nothing was checked, and nothing changes.
+   */
+  | { status: 'layer-order-lost'; cause: LayerOrderLossCause }
+  /** Stopped while the step's layer order was being restored. */
+  | { status: 'stopped' }
   | { status: 'missing' }
   | { status: 'unknown' }
   | { status: 'refused'; refusal: OristudioCpFold3dRefusal }
@@ -420,6 +518,11 @@ function withoutPoseMesh(render: DiagramCpRender): DiagramCpRender {
  * creases are all full folds is captured flat — each folder refuses the
  * other's input. A flat request for a solution past the last one found keeps
  * the last.
+ *
+ * A step with a layer order (H7) keeps it on every source made here; a flat
+ * fold of it is drawn in its order (`captureInLayerOrder`), or not at all
+ * (`needs-attention`), and a 3D one flags it as waiting. With none, every
+ * kernel call is the one it always was, in its order.
  */
 export async function captureStep(
   runtime: CpCaptureRuntime,
@@ -436,34 +539,49 @@ export async function captureStep(
   const thumbnail = creasesThumbnail(document, creases);
   // Found where it moved to, the link follows it.
   const scope = followedScope(request.scope, creases);
-  const source = (render: DiagramCpRender): DiagramCpSource => {
+  // The record the step keeps, carried on every source a capture makes; null for none.
+  const kept = request.layerOrder?.kind === 'record' ? stepLayerOrderOf(request.layerOrder.json) : null;
+  const source = (render: DiagramCpRender, layerOrder: StepLayerOrder | null = kept): DiagramCpSource => {
     const stored = storedCpSource({
       kind: 'cp',
       scope,
       fingerprint: creasesFingerprint(creases, render),
       thumbnail,
       render: withoutPoseMesh(render),
+      ...(layerOrder ? { layerOrder: layerOrder.json } : {}),
     });
     if (!stored) throw new Error('The capture made a link the file cannot read');
     return stored;
   };
+  /**
+   * A picture that folds nothing flat: the record goes with it as it is,
+   * nothing checked, or flagged waiting for creases that fold in 3D.
+   */
+  const unfolded = (render: DiagramCpRender, picture: CapturedPicture, routed3d = false): CaptureStepResult => {
+    const layerOrder = kept && routed3d ? routed3dLayerOrder(kept) : kept;
+    return {
+      status: 'captured',
+      source: source(render, layerOrder),
+      captured: picture,
+      noLayerOrder: false,
+      attention: routed3d ? (layerOrder?.record.attention ?? null) : null,
+    };
+  };
 
   if (request.render.mode === 'crease-pattern') {
-    const captured = captureCreasePattern(
+    const picture = captureCreasePattern(
       document,
       await withSheetPaper(creases, request.sheetPaper),
       request.render
     );
-    return { status: 'captured', source: source(request.render), captured, noLayerOrder: false };
+    return unfolded(request.render, picture);
   }
 
   if (request.render.mode === 'simulated') {
     // A fold % above 0 is a solver's settling, which only a Pose holds (D19).
     if (request.render.foldPercent > 0) return { status: 'needs-pose' };
-    const captured = await captureSimulated(flatStill(request.simulateFlat, creases), request.render.view, style);
-    return captured
-      ? { status: 'captured', source: source(request.render), captured, noLayerOrder: false }
-      : { status: 'unavailable' };
+    const picture = await captureSimulated(flatStill(request.simulateFlat, creases), request.render.view, style);
+    return picture ? unfolded(request.render, picture) : { status: 'unavailable' };
   }
 
   const route = resolveFoldRoute(document, creases.foldLineIds);
@@ -477,14 +595,21 @@ export async function captureStep(
     if (result.status === 'refused') return { status: 'refused', refusal: result.refusal };
     try {
       const aux = await runtime.aux3d(result.handle);
-      const captured = capture3dPicture(result, render.camera, style, aux);
-      return { status: 'captured', source: source(render), captured, noLayerOrder: false };
+      // Its record waits for the creases to fold flat again (D13).
+      return unfolded(render, await capture3dPicture(result, render.camera, style, aux, render.spread), true);
     } finally {
       await runtime.free(result.handle);
     }
   }
 
   if (render.mode !== 'folded-flat') throw new Error('unreachable: the render was routed');
+  if (request.layerOrder) {
+    return captureInLayerOrder(runtime, request.layerOrder, kept, route.lineIds, captureModel(document, render.side), {
+      render,
+      env,
+      source,
+    });
+  }
   const folded = await openFold(runtime, route.lineIds, captureModel(document, render.side));
   try {
     let state: Omit<FoldedFigureState, 'handle'> = folded;
@@ -494,10 +619,150 @@ export async function captureStep(
       foldCase = Math.max(1, Math.min(render.foldCase, state.discoveredCases));
     }
     const picture = await readFoldedPicture(runtime, folded.handle, state.displayStyle);
-    const captured = flatPicture(picture, render.rotationDeg, env, render.spread);
+    const captured = await captureFlatPicture(picture, render.rotationDeg, env, render.spread, render.presentation);
     const noLayerOrder = !hasFoldedLayerOrder(state) || !picture.scene?.faces.length;
-    return { status: 'captured', source: source({ ...render, foldCase }), captured, noLayerOrder };
+    const drawn = capturedSpreadFailed(captured) ? spreadFailedRender(render) : render;
+    return { status: 'captured', source: source({ ...drawn, foldCase }), captured, noLayerOrder, attention: null };
   } finally {
     await runtime.free(folded.handle);
+  }
+}
+
+/**
+ * A flat fold's picture, its layers spread when asked; a Default spread its
+ * layers could not take is drawn unspread and marked so
+ * (`connectedFlatPicture`, `spreadFailedPicture`). Cold capture prepares
+ * once; subsequent amount/camera edits use the shared cache.
+ */
+export async function captureFlatPicture(picture: FoldedPicture, rotationDeg: number, env?: SanitizeEnv, spread?: LayerSpreadOptions, presentation?: SpreadPresentation): Promise<CapturedPicture> {
+  if (spread?.kind !== 'connected' || !picture.scene) return flatPicture(picture, rotationDeg, env, spread);
+  const lease = prepareConnected(picture.scene);
+  try {
+    const spreadPicture = await connectedFlatPicture(picture.scene, rotationDeg, spread, lease.promise, presentation);
+    return spreadPicture.kind === 'spread' ? spreadPicture.captured : spreadFailedPicture(flatPicture(picture, rotationDeg, env));
+  } finally {
+    lease.release();
+  }
+}
+
+/**
+ * A flat fold's picture drawn unspread for a Default spread its layers could
+ * not take, marked so (`DiagramScenePicture.spreadFailed`): its step keeps
+ * the spread, says it failed, and offers another kind.
+ */
+export function spreadFailedPicture(captured: CapturedPicture): CapturedPicture {
+  if (captured.kind === 'over-budget') return { ...captured, spreadFailed: true };
+  const { picture } = captured;
+  return picture.kind === 'scene' ? { kind: 'picture', picture: { ...picture, spreadFailed: true } } : captured;
+}
+
+/** Whether a capture is a flat fold drawn unspread for a Default spread its layers could not take. */
+export function capturedSpreadFailed(captured: CapturedPicture): boolean {
+  return captured.kind === 'over-budget' ? captured.spreadFailed === true : spreadFailedOf(captured.picture);
+}
+
+/** A flat fold's picture spread by Default, or why its layers could not be spread. */
+export type ConnectedFlatPicture =
+  | { kind: 'spread'; captured: CapturedPicture; connected: PreparedConnectedSpread }
+  | { kind: 'failed'; cause: unknown };
+
+/**
+ * A flat fold's picture spread by Default, from its solve (`solve`, a lease's)
+ * and its clip (`captureFlatScenePicture`) — or `failed`, with why, when
+ * its layers could not be spread: the solve or the clip failed, over a
+ * resource limit, out of time, the worker gone. A step is not refused its
+ * picture for its spread: the caller draws the fold unspread, marked so
+ * (`spreadFailedPicture`), and keeps the spread (`spreadFailedRender`), for
+ * the step to say it failed and offer another kind.
+ */
+export async function connectedFlatPicture(
+  scene: OristudioCpFoldedPaperScene,
+  rotationDeg: number,
+  spread: LayerSpreadOptions,
+  solve: Promise<PreparedConnectedSpread>,
+  presentation?: SpreadPresentation
+): Promise<ConnectedFlatPicture> {
+  try {
+    const connected = await solve;
+    return { kind: 'spread', captured: await captureFlatScenePicture(scene, rotationDeg, spread, connected, presentation), connected };
+  } catch (cause) {
+    return { kind: 'failed', cause };
+  }
+}
+
+/** Live poses share this geometry with the capture worker. */
+export function flatSceneCanvas(scene: OristudioCpFoldedPaperScene, rotationDeg: number,
+  spread: LayerSpreadOptions, connected: PreparedConnectedSpread, presentation?: SpreadPresentation): PaperScene {
+  const turn = turnClockwise(rotationDeg);
+  return foldedFlatPaperScene(scene, { markHidden: false, live: true, connected, spread, presentation,
+    scale: CAPTURE_PX_PER_UNIT, toScenePx: p => {const at=turn(p);return [at.x*CAPTURE_PX_PER_UNIT,at.y*CAPTURE_PX_PER_UNIT];} });
+}
+
+/**
+ * A spread step's picture, captured by the shared capture stage
+ * (`captureSpreadScene`): clipped, or — too complex to clip in time — over the
+ * budget, for the store to keep as a bitmap in the diagram's pens
+ * (`keptPicture`), never painted in painter's order.
+ */
+export async function captureFlatScenePicture(scene: OristudioCpFoldedPaperScene, rotationDeg: number,
+  spread: LayerSpreadOptions, connected: PreparedConnectedSpread, presentation?: SpreadPresentation): Promise<CapturedPicture> {
+  const captured = await captureSpreadScene(flatSceneCanvas(scene, rotationDeg, spread, connected, presentation));
+  if (captured.kind === 'over-budget') {
+    return { kind: 'over-budget', scene: captured.scene, paperScale: presentation?.kind === 'perspective' ? null : CAPTURE_PX_PER_UNIT };
+  }
+  return flatScenePicture(scene, rotationDeg, spread, { connected, presentation, resolved: captured.scene });
+}
+
+/**
+ * A flat fold drawn in a layer order (H7): the step's record, restored onto
+ * the creases as they are now, or the order the dialog just applied. Drawn,
+ * the new source carries the record of the order shown; not drawn, the step
+ * keeps its picture, and its record comes back flagged (D10).
+ */
+async function captureInLayerOrder(
+  runtime: CpCaptureRuntime,
+  layerOrder: CaptureLayerOrder,
+  kept: StepLayerOrder | null,
+  lineIds: number[],
+  model: OristudioCpFoldedFigureModel,
+  {
+    render,
+    env,
+    source,
+  }: {
+    render: DiagramFlatRender;
+    env: SanitizeEnv | undefined;
+    source: (render: DiagramCpRender, layerOrder: StepLayerOrder | null) => DiagramCpSource;
+  }
+): Promise<CaptureStepResult> {
+  let shown: LayerOrderShown;
+  if (layerOrder.kind === 'applied') {
+    shown = await foldAppliedOrder(runtime, layerOrder.applied, model, layerOrder.frame);
+  } else {
+    if (!kept) throw new Error('The step’s layer order does not read');
+    shown = await foldWithLayerOrder(runtime, lineIds, model, kept, layerOrder.resolve, layerOrder.stop);
+  }
+  if (shown.kind === 'cancelled') return { status: 'stopped' };
+  if (shown.kind === 'lost') return { status: 'layer-order-lost', cause: shown.cause };
+  // The dialog's order, refused by the kernel: nothing to keep, flagged or not (D3).
+  if (shown.kind === 'kept' && layerOrder.kind === 'applied') return { status: 'order-refused' };
+  if (shown.kind === 'kept') return { status: 'needs-attention', layerOrder: shown.layerOrder.json, attention: shown.attention };
+  const { state } = shown;
+  try {
+    const picture = await readFoldedPicture(runtime, state.handle, state.displayStyle);
+    const captured = await captureFlatPicture(picture, render.rotationDeg, env, render.spread, render.presentation);
+    const noLayerOrder = !hasFoldedLayerOrder(state) || !picture.scene?.faces.length;
+    // The case the new figure reports, which means nothing beside a record.
+    const foldCase = Math.max(1, state.currentCase ?? 1);
+    const drawn = capturedSpreadFailed(captured) ? spreadFailedRender(render) : render;
+    return {
+      status: 'captured',
+      source: source({ ...drawn, foldCase }, shown.layerOrder),
+      captured,
+      noLayerOrder,
+      attention: shown.attention,
+    };
+  } finally {
+    await runtime.free(state.handle);
   }
 }

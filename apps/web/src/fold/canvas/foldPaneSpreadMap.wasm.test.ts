@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cpHitRadiusModel, CP_LINE_HIT_RATIO, CP_POINT_HIT_RATIO } from '../../cp-workspace/snapRadius';
-import { DEFAULT_DEPTH_SPREAD, DEFAULT_LAYER_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_DEPTH_SPREAD, DEFAULT_AFFINE_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { Point } from '../../lib/geometry';
 import { CP_DEFAULT_SNAP_RADIUS } from '../../lib/cpSnapRadiusSetting';
 import type { FoldOp } from '../document/foldSequenceDocument';
@@ -61,7 +61,7 @@ describe.skipIf(!available)('the spread folded pane, picked where it is drawn', 
   it('maps every face where the painter draws it', async () => {
     const { calls, state } = await bookAndCorner();
     const scene = calls.scene(state);
-    for (const spread of [DEFAULT_LAYER_SPREAD, DEFAULT_DEPTH_SPREAD]) {
+    for (const spread of [DEFAULT_AFFINE_SPREAD, DEFAULT_DEPTH_SPREAD]) {
       const map = foldPaneSpreadMap(scene, spread)!;
       const painted = foldedPaneScene(scene, FOLD_PANE_DISPLAY_DEFAULT, undefined, spread);
       let checked = 0;
@@ -83,7 +83,7 @@ describe.skipIf(!available)('the spread folded pane, picked where it is drawn', 
     const { calls, state } = await bookAndCorner();
     const scene = calls.scene(state);
     const landmarks = calls.landmarks(state, []);
-    const map = foldPaneSpreadMap(scene, DEFAULT_LAYER_SPREAD)!;
+    const map = foldPaneSpreadMap(scene, DEFAULT_AFFINE_SPREAD)!;
     // The flap's corner, on the bottom layer's sheet at (1, 0.25), lies on the top layer's (0, 0.25).
     const truth = { x: 1, y: 0.25 };
     const drawn = map.sheet([1, 0.25])!;
@@ -118,7 +118,7 @@ describe.skipIf(!available)('the spread folded pane, picked where it is drawn', 
   it('reads a free point off the face drawn on top, and draws it back where it was clicked', async () => {
     const { calls, state } = await bookAndCorner();
     const scene = calls.scene(state);
-    const map = foldPaneSpreadMap(scene, DEFAULT_LAYER_SPREAD)!;
+    const map = foldPaneSpreadMap(scene, DEFAULT_AFFINE_SPREAD)!;
     const index = foldPickIndex(scene, calls.landmarks(state, []), [], map);
     // Inside the flap as drawn.
     const inFlap = map.sheet([0.95, 0.15])!;
@@ -132,7 +132,69 @@ describe.skipIf(!available)('the spread folded pane, picked where it is drawn', 
 
   it('lies flat once a tool has a pick in hand', () => {
     const none = { action: null, analysis: null };
-    expect(restingSpread(DEFAULT_LAYER_SPREAD, none)).toBe(DEFAULT_LAYER_SPREAD);
-    expect(restingSpread(DEFAULT_LAYER_SPREAD, none, true)).toBeNull();
+    expect(restingSpread(DEFAULT_AFFINE_SPREAD, none)).toBe(DEFAULT_AFFINE_SPREAD);
+    expect(restingSpread(DEFAULT_AFFINE_SPREAD, none, true)).toBeNull();
+  });
+});
+
+// The worker adapter must keep the material references of the original
+// picking path under strong spread, turn-over and offset placement.
+import { connectedSpreadSource } from '../../cp-workspace/folded/connectedSpreadSource';
+import { foldPickData, hydratePanePick } from './foldPicking';
+import { prepareFoldRender, foldPickDrawing } from './foldRenderGeometry';
+import type { SpreadSolution } from '@oristudio/layer-spread';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
+
+describe.skipIf(!available)('worker Fold projection and picking equivalence', () => {
+  it('preserves targets and free-point material coordinates across side, offset and spread', async () => {
+    const { calls, state } = await bookAndCorner();
+    for (const id of [state, landed(calls.step(state, {kind:'turn',axis:'vertical'})).state]) {
+      const scene = calls.scene(id), landmarks = calls.landmarks(id, []);
+      const source = connectedSpreadSource(scene, true);
+      const reference = {plane:[0,0,0] as [number,number,number],center:[0,0,0] as [number,number,number],samples:0,rms:0};
+      const solution: SpreadSolution = {version:'normalized-50-v1',heights:source.input.xy.map((_,i)=>.01*Math.sin(i)),references:[reference,reference],diagnostics:{} as SpreadSolution['diagnostics']};
+      const prepared = {source,solution};
+      const base = foldPickIndex(scene, landmarks, []);
+      const renderSource = {scene,landmarks,prepared,marks:[],picking:foldPickData(base)};
+      const render = prepareFoldRender(renderSource);
+      let bindings: import('./foldPickPreparation').FoldSheetBindings | undefined;
+      for (const amount of [0,.00001,.5,2]) {
+        const spread = {kind:'connected',version:1,amount,reveal:[1.5,-.8]} as const;
+        const recipe = {...spread,reveal:[...spread.reveal] as [number,number]};
+        const built = render({spread:recipe,display:FOLD_PANE_DISPLAY_DEFAULT,offset:{x:.23,y:-.71},style:DEFAULT_PAPER_STYLE,ink:{policy:PAPER_STYLE_POLICIES.fold},width:800,height:600,widthPx:2,view:{origin:[0,0],ex:[1,0],ey:[0,1]}});
+        bindings = built.payload.bindings ?? bindings;
+        // Fit consumes the worker's displayed outline, including offsets and
+        // spread; a flat-sheet bound must not make revealed layers disappear.
+        const bounds = built.payload.bounds;
+        for (const [x,y] of built.payload.positions) {
+          const px = (x + .23) * FOLD_USER_PER_UNIT, py = (y + .71) * FOLD_USER_PER_UNIT;
+          expect(px).toBeGreaterThanOrEqual(bounds.minX - 1e-7);
+          expect(px).toBeLessThanOrEqual(bounds.maxX + 1e-7);
+          expect(py).toBeGreaterThanOrEqual(bounds.minY - 1e-7);
+          expect(py).toBeLessThanOrEqual(bounds.maxY + 1e-7);
+        }
+        const oldMap = foldPaneSpreadMap(scene, recipe, prepared)!;
+        const map = foldPaneSpreadMap(scene, recipe, prepared, bindings, foldPickDrawing(renderSource,built.payload.positions))!;
+        const expected = foldPickIndex(scene,landmarks,[],oldMap);
+        const actual = {...base,spread:map,folded:hydratePanePick(built.payload.folded)};
+        expect(actual.folded.points.length).toBe(expected.folded.points.length);
+        actual.folded.points.forEach((p,k)=>{
+          const q=expected.folded.points[k]!;
+          expect({...p,at:q.at}).toEqual(q);
+          expect(Math.hypot(p.at.x-q.at.x,p.at.y-q.at.y)).toBeLessThan(1e-12);
+          const found=resolveFoldPick(actual,'folded',p.at,RADII,POINT);
+          expect(found?.kind).toBe('point');
+        });
+        expect(actual.folded.segments).toEqual(expected.folded.segments);
+        for (const face of scene.faces) {
+          const mid = face.outline.reduce((a,p)=>({x:a.x+p.x/face.outline.length,y:a.y+p.y/face.outline.length}),{x:0,y:0});
+          const at=oldMap.onFace(scene.faces.indexOf(face),mid);
+          const old=oldMap.under(at), now=map.under(at);
+          expect(now?.face).toBe(old?.face);
+          if(old&&now) expect(Math.hypot(old.sheet[0]-now.sheet[0],old.sheet[1]-now.sheet[1])).toBeLessThan(1e-10);
+        }
+      }
+    }
   });
 });

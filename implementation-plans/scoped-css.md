@@ -187,6 +187,12 @@ switcher (`PaneToggle`, and `PanePill` for the list's trigger); the pill keeps
 the lane's shared `canvas-pill`. The reduced-motion rule the sheet shared with
 `view-drawer__sheet` is now one rule in each place.
 
+Moved by `implementation-plans/layer-order-dialog.md` (H3a's pre-work):
+`property-sheet`, into `PropertySheetView.module.css`. It was shared only by
+lookups: the Properties pane's tests found the sheet, its title and its
+subtitle by class, and find them now by `data-property-sheet`, the header's
+heading and `data-property-sheet-subtitle`.
+
 Still shared:
 
 - **Panel frame**: `panel-shell`, `panel-toolbar`, `panel-body`,

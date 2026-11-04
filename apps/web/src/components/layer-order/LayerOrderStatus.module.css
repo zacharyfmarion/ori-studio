@@ -1,0 +1,57 @@
+/*
+ * The inspector's status row (LayerOrderStatus.tsx; A3): the count on the
+ * left at a row's 0.74rem, the stepper on the right. First in the column,
+ * under the header's own rule: only a bottom rule.
+ */
+.status {
+  display: grid;
+  flex: none;
+  grid-template-columns: minmax(80px, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 42px;
+  padding: 4px var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What a screen reader hears: the settled count, never the running one. Drawn nowhere. */
+.spoken {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent-primary);
+}
+
+.dot[data-state='decided'] {
+  background: var(--status-success);
+}
+
+.dot[data-state='danger'] {
+  background: var(--status-danger);
+}

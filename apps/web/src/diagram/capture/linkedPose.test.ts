@@ -1,3 +1,5 @@
+import '../../layer-spread/captureWorker.testSupport';
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
@@ -17,15 +19,26 @@ import {
   type DiagramSimulatedView,
   type DiagramSpreadStarts,
 } from '../document/diagramDocument';
+import type { LayerOrderResolution } from '../../layer-order/host/hostEngineGateway';
+import type { LayerOrderApplied, LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
 import {
   cpDocument,
   fakeCaptureRuntime,
+  fakeFoldSource,
+  fakeLayerOrderResolutions,
+  halfFoldKernelScene,
   halfFoldOnSheetKernelScene,
   LEFT_FOLD_LINE_IDS,
+  ORDERED_HANDLE,
+  STEP_LAYER_ORDER,
+  STEP_LAYER_ORDER_IN_SOURCE,
+  stepLayerOrderJson,
   twoSquaresIndex,
 } from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
-import type { CpCaptureRuntime } from './captureFolded';
+import { captureModel, type CpCaptureRuntime } from './captureFolded';
+import { layerOrderSourceOf } from '../../lib/layerOrder/layerOrderSource';
+import { stepLayerOrderOf } from './captureLayerOrder';
 import { CaptureSessionClosedError, createCaptureSession, type CaptureSessionDeps } from './captureSession';
 import { poseLinkedStep, type LinkedPoseRequest } from './linkedPose';
 
@@ -33,7 +46,9 @@ const folded3dStoredScene = vi.hoisted(() => ({ folded3dFigureScene: vi.fn() }))
 vi.mock('../../cp-workspace/folded/folded3dStoredScene', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../cp-workspace/folded/folded3dStoredScene')>()),
   ...folded3dStoredScene,
+  settledFolded3dFigureScene: folded3dStoredScene.folded3dFigureScene,
 }));
+
 
 const sheets = twoSquaresIndex();
 const [left] = sheetRegions(sheets);
@@ -69,7 +84,7 @@ function sessionWith(runtime: CpCaptureRuntime = fakeCaptureRuntime()) {
 const placed = {
   status: 'placed' as const,
   handle: 11,
-  snapshot: {} as never,
+  snapshot: { verdict: { verdict: 'folded' } } as never,
   render: { cell_points: [0, 0, 0, 1, 0, 0, 0, 1, 0], span: 1 } as never,
 };
 
@@ -629,7 +644,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
   });
 
   /** Spread starts as `spreadStartsFor` gives them, each unlike its default. */
-  const STARTS: DiagramSpreadStarts = {
+  const STARTS: DiagramSpreadStarts = { connected: DEFAULT_CONNECTED_SPREAD,
     any: { kind: 'depth', amount: 0.12, toward: 'up' },
     depth: { kind: 'depth', amount: 0.12, toward: 'up' },
     affine: { kind: 'affine', amount: 0.05, keep: 'bottom', skew: 0.2, axisDeg: 10 },
@@ -658,7 +673,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
     const document = cpDocument();
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }))).toEqual(DEFAULT_LAYER_SPREAD);
     // Affine, on (Zach, 2026-10-05).
-    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
+    expect(DEFAULT_LAYER_SPREAD).toEqual(DEFAULT_CONNECTED_SPREAD);
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }, STARTS))).toEqual(STARTS.any);
     const off = await pose(session, SPREAD_FLAT, { verb: 'spread-layers' }, document);
     expect(off.status === 'posed' && off.render).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1 });
@@ -669,7 +684,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
     const { session } = sessionWith();
     const first = await poseWith(session, CP, { verb: 'show-folded' });
     expect(first).toMatchObject({ render: { mode: 'folded-flat', rotationDeg: 345, spread: DEFAULT_LAYER_SPREAD } });
-    expect(facesOf(first).sort()).toEqual([0, 1]);
+    expect([...new Set(facesOf(first))].sort()).toEqual([0, 1]);
     expect(spreadOf(await poseWith(session, CP, { verb: 'show-folded' }, STARTS))).toEqual(STARTS.any);
     const threeD: DiagramCpRender = { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' };
     const flatAgain = await poseWith(session, threeD, { verb: 'view-top' }, STARTS);
@@ -859,5 +874,203 @@ describe('a session let go while it folds', () => {
     land();
     await expect(folding).rejects.toBeInstanceOf(CaptureSessionClosedError);
     expect(held.get(placed.handle)).toBe(0);
+  });
+
+  it('frees a fold in a record’s order whose restore answers after it was disposed (H7)', async () => {
+    const { session, held, runtime } = sessionWith();
+    let answer: (resolution: LayerOrderResolution) => void = () => {};
+    const resolve = vi.fn((_source: LayerOrderSource) => new Promise<LayerOrderResolution>((done) => (answer = done)));
+    const order = stepLayerOrderOf(stepLayerOrderJson())!;
+    const folding = session.flat(cpDocument(), creasesOf().foldLineIds, 'front', 1, 0, { order, resolve });
+    await vi.waitFor(() => expect(resolve).toHaveBeenCalled());
+    // The detail closes while the host engine restores; then the order comes back and is folded.
+    session.dispose();
+    answer(fakeLayerOrderResolutions.applied(STEP_LAYER_ORDER_IN_SOURCE, resolve.mock.calls[0]![0]));
+    await expect(folding).rejects.toBeInstanceOf(CaptureSessionClosedError);
+    expect(runtime.foldWithOrder).toHaveBeenCalledOnce();
+    // The new figure is let go as it lands: held for nothing.
+    expect(held.get(ORDERED_HANDLE)).toBe(0);
+  });
+
+  it('frees a fold in the dialog’s order that lands after it was disposed, and keeps nothing (H8)', async () => {
+    let land: () => void = () => {};
+    const runtime = fakeCaptureRuntime();
+    const foldWithOrder = runtime.foldWithOrder!;
+    runtime.foldWithOrder = vi.fn(async (...args: Parameters<typeof foldWithOrder>) => {
+      await new Promise<void>((resolve) => (land = resolve));
+      return foldWithOrder(...args);
+    });
+    const { session, held } = sessionWith(runtime);
+    await pose(session, FLAT, { verb: 'show-folded' });
+    const { source, frame } = await session.heldFlatSource();
+    const posing = pose(session, FLAT, { verb: 'layer-order', applied: dialogApplied(source), frame, render: FLAT_POSE });
+    await vi.waitFor(() => expect(runtime.foldWithOrder).toHaveBeenCalled());
+    session.dispose();
+    land();
+    await expect(posing).rejects.toBeInstanceOf(CaptureSessionClosedError);
+    expect(held.get(7)).toBe(0);
+    expect(held.get(ORDERED_HANDLE)).toBe(0);
+  });
+
+  it('says a restore that came back kept, after it was disposed, is over: nothing to keep', async () => {
+    const { session, runtime } = sessionWith();
+    let answer: (resolution: LayerOrderResolution) => void = () => {};
+    const resolve = vi.fn((_source: LayerOrderSource) => new Promise<LayerOrderResolution>((done) => (answer = done)));
+    const order = stepLayerOrderOf(stepLayerOrderJson())!;
+    const folding = session.flat(cpDocument(), creasesOf().foldLineIds, 'front', 1, 0, { order, resolve });
+    await vi.waitFor(() => expect(resolve).toHaveBeenCalled());
+    session.dispose();
+    answer(fakeLayerOrderResolutions.kept('clash', STEP_LAYER_ORDER_IN_SOURCE));
+    await expect(folding).rejects.toBeInstanceOf(CaptureSessionClosedError);
+    expect(runtime.foldWithOrder).not.toHaveBeenCalled();
+  });
+});
+
+/** {@link FLAT}, as a flat pose. */
+const FLAT_POSE = { mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1 } as const;
+
+/** What the Layer order dialog hands back for {@link STEP_LAYER_ORDER} on `source`: its record, one relation. */
+function dialogApplied(source: LayerOrderSource, relations = Uint32Array.of(0, 1)): LayerOrderApplied {
+  return { record: STEP_LAYER_ORDER_IN_SOURCE, relations, source };
+}
+
+describe('the order the Layer order dialog applied, posed (H8)', () => {
+  const restored = (resolve = vi.fn(async (source: LayerOrderSource) => fakeLayerOrderResolutions.applied(STEP_LAYER_ORDER_IN_SOURCE, source))) => ({
+    order: stepLayerOrderOf(stepLayerOrderJson())!,
+    resolve,
+  });
+
+  it('reads the held fold’s source and paper for the dialog, with no fold of its own', async () => {
+    const { session, runtime } = sessionWith();
+    await pose(session, FLAT, { verb: 'show-folded' });
+    vi.mocked(runtime.fold).mockClear();
+    vi.mocked(runtime.paperScene).mockClear();
+    const held = await session.heldFlatSource();
+    expect(runtime.source).toHaveBeenCalledWith(7);
+    expect(runtime.fold).not.toHaveBeenCalled();
+    // Its paper as the pose read it for its picture: the fold as it stands.
+    expect(runtime.paperScene).not.toHaveBeenCalled();
+    expect(held.scene).toEqual(halfFoldKernelScene());
+    expect(held.source).toMatchObject({ segments: fakeFoldSource().segments, startingFaceId: 1, digest: 'fixture-digest' });
+    // The step's paper frame: about the centre of the creases' box, (50, 50).
+    expect(held.frame.toSource([0, 0])).toEqual({ x: 50, y: 50 });
+  });
+
+  it('replaces the held fold with a new one in that order, in the pose it had, held for the record it saves', async () => {
+    const { session, runtime, held } = sessionWith();
+    const document = cpDocument();
+    const back = { mode: 'folded-flat', side: 'back', rotationDeg: 30, foldCase: 2 } as const;
+    await pose(session, back, { verb: 'show-folded' }, document);
+    const { source, frame } = await session.heldFlatSource();
+    const result = await pose(
+      session,
+      back,
+      { verb: 'layer-order', applied: dialogApplied(source), frame, render: back },
+      document
+    );
+    if (result.status !== 'posed') throw new Error(`posed: ${result.status}`);
+    // The pose stays; the order is the dialog's, in the step's paper frame.
+    expect(result.render).toMatchObject({ mode: 'folded-flat', side: 'back', rotationDeg: 30 });
+    expect(result.layerOrder).toMatchObject({ fresh: true });
+    expect(result.layerOrder?.order.json).toBe(stepLayerOrderJson(STEP_LAYER_ORDER));
+    // Folded as the dialog analysed it, on its side's model: a new figure, the old one let go.
+    expect(runtime.foldWithOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ digest: 'fixture-digest' }),
+      Uint32Array.of(0, 1),
+      expect.objectContaining({ state: 'Back1' })
+    );
+    expect(held.get(7)).toBe(0);
+    expect(held.get(ORDERED_HANDLE)).toBe(1);
+    // Its picture is the new figure's.
+    expect(vi.mocked(runtime.paperScene).mock.calls.at(-1)).toEqual([ORDERED_HANDLE]);
+    // A verb in the record it saved draws from it: no restore, no fold.
+    const again = restored();
+    again.order = result.layerOrder!.order;
+    await poseLinkedStep(
+      session,
+      { document, creases: creasesOf(document), render: result.render, style: DEFAULT_DIAGRAM_STYLE, layerOrder: again },
+      { verb: 'rotate-right' }
+    );
+    expect(again.resolve).not.toHaveBeenCalled();
+    expect(runtime.foldWithOrder).toHaveBeenCalledOnce();
+    expect(runtime.fold).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the fold it holds, and draws nothing, when the kernel cannot draw the order (D3)', async () => {
+    const runtime = fakeCaptureRuntime({
+      foldWithOrder: vi.fn(async () => ({ status: 'refused' as const, refusal: { code: 'digest_mismatch' } as never })),
+    });
+    const { session, held } = sessionWith(runtime);
+    const document = cpDocument();
+    await pose(session, FLAT, { verb: 'show-folded' }, document);
+    const { source, frame } = await session.heldFlatSource();
+    expect(
+      await pose(session, FLAT, { verb: 'layer-order', applied: dialogApplied(source), frame, render: FLAT_POSE }, document)
+    ).toEqual({ status: 'order-refused' });
+    expect(held.get(7)).toBe(1);
+    // The next verb draws from it as before.
+    await pose(session, FLAT, { verb: 'rotate-right' }, document);
+    expect(runtime.fold).toHaveBeenCalledOnce();
+  });
+
+  // Review… on a flagged step shown as its crease pattern (D14): its Apply folds it flat, in the pose it would show.
+  it('draws the order in the flat pose the dialog was opened on, from a crease pattern too', async () => {
+    const { session, runtime } = sessionWith();
+    const document = cpDocument();
+    const source = layerOrderSourceOf(fakeFoldSource(), captureModel(document, 'back'));
+    const frame = { toSource: () => ({ x: 0, y: 0 }), fromSource: () => [0, 0] as const };
+    const result = await pose(
+      session,
+      CP,
+      { verb: 'layer-order', applied: dialogApplied(source), frame, render: { ...FLAT_POSE, side: 'back' } },
+      document
+    );
+    expect(result).toMatchObject({ status: 'posed', render: { mode: 'folded-flat', side: 'back', rotationDeg: 30 } });
+    expect(runtime.fold).not.toHaveBeenCalled();
+    expect(runtime.foldWithOrder).toHaveBeenCalledOnce();
+  });
+
+  it('takes no order onto creases that fold in 3D now', async () => {
+    const { session, runtime } = sessionWith();
+    const partial = cpDocument(undefined, (cp, id) => (id === 8 ? { ...cp, fold_magnitude: 90 } : cp));
+    const source = layerOrderSourceOf(fakeFoldSource(), captureModel(partial, 'front'));
+    const frame = { toSource: () => ({ x: 0, y: 0 }), fromSource: () => [0, 0] as const };
+    expect(
+      await pose(session, FLAT, { verb: 'layer-order', applied: dialogApplied(source), frame, render: FLAT_POSE }, partial)
+    ).toEqual({ status: 'order-refused' });
+    expect(runtime.foldWithOrder).not.toHaveBeenCalled();
+  });
+
+  // The record goes into the session's key as a digest (`layerOrderDigestOf`): the same record, or the
+  // record of what the fold showed, is the fold held; any other is another.
+  it('keys its fold by the record’s digest: refolds for another record, not for its own or the one it showed', async () => {
+    const { session, runtime, held } = sessionWith();
+    const document = cpDocument();
+    const lineIds = creasesOf(document).foldLineIds;
+    const first = restored();
+    const folded = await session.flat(document, lineIds, 'front', 1, 0, first);
+    const shown = folded.layerOrder!.order.json;
+    expect(shown).not.toBe(stepLayerOrderJson());
+    // Its own record, and the record of what it shows: the fold held.
+    await session.flat(document, lineIds, 'front', 1, 0, { ...first, order: stepLayerOrderOf(shown)! });
+    await session.flat(document, lineIds, 'front', 1, 0, first);
+    expect(first.resolve).toHaveBeenCalledOnce();
+    expect(session.releaseUnlessIn(stepLayerOrderJson())).toBe(false);
+    expect(session.releaseUnlessIn(shown)).toBe(false);
+    expect(held.get(ORDERED_HANDLE)).toBe(1);
+    // Another record is another fold.
+    const other = restored();
+    other.order = stepLayerOrderOf(stepLayerOrderJson({ ...STEP_LAYER_ORDER, constraints: [[1, 0, 1]] }))!;
+    await session.flat(document, lineIds, 'front', 1, 0, other);
+    expect(other.resolve).toHaveBeenCalledOnce();
+    // No record (an undo back past an Apply) lets a record's fold go; a plain one stays for none.
+    expect(session.releaseUnlessIn(null)).toBe(true);
+    expect(held.get(ORDERED_HANDLE)).toBe(0);
+    await pose(session, FLAT, { verb: 'show-folded' }, document);
+    expect(session.releaseUnlessIn(null)).toBe(false);
+    expect(held.get(7)).toBe(1);
+    expect(session.releaseUnlessIn(stepLayerOrderJson())).toBe(true);
+    expect(held.get(7)).toBe(0);
+    expect(runtime.fold).toHaveBeenCalled();
   });
 });

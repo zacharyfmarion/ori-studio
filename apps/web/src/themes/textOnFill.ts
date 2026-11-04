@@ -20,5 +20,21 @@ export const TEXT_ON_FILL_MIN_CONTRAST = 4.5;
  */
 export function textOnFill(fill: string, ground: string): string {
   if (wcagContrast(fill, ground) >= TEXT_ON_FILL_MIN_CONTRAST) return ground;
+  return blackOrWhiteOn(fill);
+}
+
+/**
+ * The theme's `text` on a surface of `fill` where it reads at AA there;
+ * where it falls short, black or white, whichever reads better. For words
+ * that must be read on a surface a theme set close to its own text: the
+ * Solarized presets' primary text reads at 3.1 and 3.6:1 on their elevated
+ * surface (`--text-on-elevated`).
+ */
+export function textReadableOn(text: string, fill: string): string {
+  if (wcagContrast(text, fill) >= TEXT_ON_FILL_MIN_CONTRAST) return text;
+  return blackOrWhiteOn(fill);
+}
+
+function blackOrWhiteOn(fill: string): string {
   return wcagContrast(fill, '#000000') >= wcagContrast(fill, '#ffffff') ? '#000000' : '#ffffff';
 }

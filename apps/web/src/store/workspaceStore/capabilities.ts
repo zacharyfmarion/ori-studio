@@ -222,7 +222,6 @@ function foldSequenceCapabilityInput(state: WorkspaceState): WorkspaceCapability
   const shown = shownFoldSequence(state);
   return {
     stepCount: shown?.document.steps.length ?? 0,
-    polygon: shown?.document.paper.shape.kind === 'polygon',
     readOnly: isShownFoldSequenceReadOnly(state),
     pageAtCursor: foldPageAtCursor(state),
   };

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import {
   Axis3d,
   ChevronFirst,
+  ChevronLeft,
   ChevronRight,
   Copy,
   FileDown,
@@ -54,11 +55,18 @@ export function foldedFigureActionIconNode(
       return <RotateCcwSquare size={size} />;
     case 'another':
       return <ChevronRight size={size} />;
+    case 'previous':
+      return <ChevronLeft size={size} />;
     // Rewind-to-start, so the wrap at the end of a lap reads as what it is.
     case 'first-solution':
       return <ChevronFirst size={size} />;
     case 'refold':
       return <RefreshCw size={size} />;
+    // No glyph: none says "layer order" (Layers is already Render as, and the
+    // Diagram's Precreases and Spread), and one concept keeps one icon. The
+    // toolbar draws its word instead, and the menu leaves its icon column empty.
+    case 'layer-order':
+      return null;
     case 'export':
       return <FileDown size={size} />;
     case 'duplicate':

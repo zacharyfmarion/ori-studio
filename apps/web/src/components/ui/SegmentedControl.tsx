@@ -66,6 +66,8 @@ interface SegmentedControlProps<T extends string> {
   /** Which side of an option its tooltip opens on. */
   tooltipSide?: TooltipSide;
   'aria-label'?: string;
+  /** The id of a visible label that names the group, in place of `aria-label`. */
+  'aria-labelledby'?: string;
 }
 
 /**
@@ -85,6 +87,7 @@ export function SegmentedControl<T extends string>({
   iconsOnly = false,
   tooltipSide = 'top',
   'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
 }: SegmentedControlProps<T>) {
   const trackRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
@@ -115,6 +118,7 @@ export function SegmentedControl<T extends string>({
       data-refused={disabled || options[activeIndex]?.disabled || undefined}
       role="group"
       aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
     >
       <span ref={indicatorRef} className={styles.indicator} aria-hidden="true" />
       {options.map((option) => {

@@ -19,6 +19,7 @@ import { isLockedStep, type DiagramStep, type DiagramStyle } from '../document/d
 import type { SanitizeEnv } from '../upload/svgSanitize';
 import { knownCreasesOf } from './captureCreases';
 import { captureStep, type CpCaptureRuntime } from './captureFolded';
+import type { CaptureLayerOrderResolve } from './captureLayerOrder';
 import { linkStatus, type DiagramLinkStatus } from './linkStatus';
 
 /**
@@ -62,6 +63,12 @@ export interface StepPaperFacesRequest {
   sheets: CpSheetIndex | null;
   style: DiagramStyle;
   env?: SanitizeEnv;
+  /**
+   * The host engine, for a step that keeps a layer order: its picture is
+   * drawn in that order, so its faces are only had by folding in it (H7).
+   * Absent, such a step's faces are Refresh's to get.
+   */
+  resolveLayerOrder?: CaptureLayerOrderResolve;
 }
 
 /**
@@ -71,7 +78,7 @@ export interface StepPaperFacesRequest {
  */
 export async function stepWithPaperFaces(
   runtime: CpCaptureRuntime,
-  { step, document, sheets, style, env }: StepPaperFacesRequest
+  { step, document, sheets, style, env, resolveLayerOrder }: StepPaperFacesRequest
 ): Promise<StepPaperFaces> {
   const { source, picture } = step;
   if (isLockedStep(step) || source?.kind !== 'cp' || source.render.mode !== 'folded-flat') return { status: 'none' };
@@ -80,6 +87,8 @@ export async function stepWithPaperFaces(
   if (!document) return { status: 'refresh', why: 'unknown' };
   const link = linkStatus(source, document, sheets);
   if (link !== 'current') return { status: 'refresh', why: link };
+  // Its picture is in its record's order: folded in any other, it is another picture.
+  if (source.layerOrder !== undefined && !resolveLayerOrder) return { status: 'refresh', why: 'redrawn' };
   const result = await captureStep(runtime, {
     document,
     sheets,
@@ -88,6 +97,9 @@ export async function stepWithPaperFaces(
     render: source.render,
     style,
     env,
+    ...(source.layerOrder !== undefined && resolveLayerOrder
+      ? { layerOrder: { kind: 'record' as const, json: source.layerOrder, resolve: resolveLayerOrder } }
+      : {}),
   });
   if (result.status === 'missing' || result.status === 'unknown') return { status: 'refresh', why: result.status };
   // Refused, or routed to another folder: not the stored picture.

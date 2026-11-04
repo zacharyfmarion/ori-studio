@@ -1,0 +1,215 @@
+/*
+ * The Layer order dialog's body (LayerOrderDialogFrame.tsx), inside the modal
+ * frame's: the panes region, then the inspector. Wide (A3, Round3): the two
+ * panes side by side, the inspector a 304px column. As the whole screen (D6,
+ * Round4-Phone): the one pane over the inspector, which keeps about 45% of
+ * the height and scrolls. Refused or lost (Round4-States): the crease
+ * pattern's place, then the notice where the folded figure and the inspector
+ * would be.
+ */
+.body {
+  --inspector-width: 304px;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--inspector-width);
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.panes {
+  display: grid;
+  grid-column: 1 / 3;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.inspector,
+.noticeArea {
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.inspector {
+  display: flex;
+  flex-direction: column;
+  grid-column: 3;
+  grid-row: 1;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+}
+
+.noticeArea {
+  display: grid;
+  grid-column: 2 / 4;
+  grid-row: 1;
+  place-items: center;
+  padding: var(--space-5) 28px;
+  background: var(--bg-primary);
+}
+
+.body[data-session='refused'] .panes,
+.body[data-session='lost'] .panes {
+  grid-column: 1 / 2;
+}
+
+.notice {
+  max-width: 380px;
+}
+
+.noticeText {
+  margin: 0;
+}
+
+/*
+ * The opening state: one sentence, centred in the inspector's place, and
+ * after a few seconds a quieter line under it, that large figures take longer.
+ */
+.working {
+  display: grid;
+  flex: 1 1 auto;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-5);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.workingLong {
+  max-width: 32ch;
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+}
+
+.body[data-layout='narrow'] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 45vh);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 45dvh);
+}
+
+/* After the refused rule, which it overrides at the same weight. */
+.body[data-layout='narrow'] .panes {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.body[data-layout='narrow'] .inspector,
+.body[data-layout='narrow'] .noticeArea {
+  grid-column: 1;
+  grid-row: 2;
+  border-top: 1px solid var(--border-subtle);
+  border-left: 0;
+}
+
+.body[data-layout='narrow'] .noticeArea {
+  padding: var(--space-4);
+}
+
+/*
+ * Why Apply could not save, at the start of the foot: the board's foot note,
+ * its icon the refusal's. Primary text, as it reads on the foot in every
+ * theme (`--text-on-elevated`, set by `applyTheme`).
+ */
+.footNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-on-elevated, var(--text-primary));
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.footIcon {
+  flex: none;
+  color: var(--status-danger);
+}
+
+/* D19's line about the order opened on: the quiet tone, one line, cut short with its whole text as its title. */
+.footNote[data-tone='info'] {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.footIcon[data-tone='info'] {
+  color: var(--text-tertiary);
+}
+
+.footText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * On a phone, or under a finger, there is no title to hover for the rest: the
+ * note takes the foot's whole width, over Cancel and Apply, and wraps to
+ * three lines.
+ */
+.footNote[data-layout='narrow'] {
+  flex: 1 1 100%;
+  align-items: flex-start;
+}
+
+.footNote[data-layout='narrow'] .footText {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+@media (pointer: coarse) {
+  .footNote {
+    flex: 1 1 100%;
+    align-items: flex-start;
+  }
+
+  .footText {
+    display: -webkit-box;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+}
+
+/* After the title (Round3): a rule, the figure's name, then its credit, quieter; the credit gives way first. */
+.figure {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.separator {
+  flex: none;
+  width: 1px;
+  height: 14px;
+  background: var(--border-default);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.byline {
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

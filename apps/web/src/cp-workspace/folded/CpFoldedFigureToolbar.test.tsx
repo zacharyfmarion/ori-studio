@@ -369,6 +369,51 @@ describe('CpFoldedFigureToolbar', () => {
     });
   });
 
+  describe('Layer order… (H3)', () => {
+    const solved = (overrides: Partial<OristudioCpFoldedFigureEntry> = {}) =>
+      makeFigure({
+        snapshot: {
+          model: { state: 'Front0' },
+          display_style: 'Paper5',
+          outcome: 'Solved',
+          find_another_overlap_valid: true,
+          discovered_fold_cases: 2,
+          current_fold_case: 1,
+        },
+        ...overrides,
+      } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+    const entry = () => buttons().find((button) => button.textContent === 'Layer order…');
+
+    it('is its word, right after Another solution, and opens the dialog on the figure', () => {
+      const openLayerOrder = vi.fn();
+      const figure = solved();
+      render(figure, makeDeps({ openLayerOrder }));
+      const words = buttons().map((button) => button.getAttribute('aria-label') ?? button.textContent);
+      expect(words).toEqual(['Flip', 'Style', 'Another solution', 'Layer order…', 'Duplicate', 'Delete']);
+      // A word needs no icon's tooltip to be named, and it has no icon.
+      expect(entry()?.querySelector('svg')).toBeNull();
+      act(() => {
+        entry()?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      });
+      expect(openLayerOrder).toHaveBeenCalledWith(figure);
+    });
+
+    it('is refused, not removed, where it cannot open, so its reason stays reachable', () => {
+      const openLayerOrder = vi.fn();
+      render(
+        solved({ folded3d: { model: { state: 'Front0' }, verdict: { verdict: 'folded' } } } as Partial<OristudioCpFoldedFigureEntry>),
+        makeDeps({ openLayerOrder })
+      );
+      const button = entry();
+      expect(button?.getAttribute('aria-disabled')).toBe('true');
+      expect(button?.disabled).toBe(false);
+      act(() => {
+        button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      });
+      expect(openLayerOrder).not.toHaveBeenCalled();
+    });
+  });
+
   it('surfaces Refold only when the figure is stale', () => {
     const refold = vi.fn();
     render(makeFigure(), makeDeps({ refold, isStale: () => false }));

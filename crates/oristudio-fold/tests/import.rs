@@ -284,6 +284,38 @@ fn a_book_fold_has_one_order_with_its_letter_and_two_without() {
 }
 
 #[test]
+fn a_turned_import_lands_in_the_turned_view_and_nothing_else_moves() {
+    // The Layer order dialog's Rotate on an import: the step it lands is seen
+    // turned, from either start side, and its order and letters are the
+    // untouched import's.
+    for start in [StartSide::Front, StartSide::Back] {
+        let input = preliminary(true);
+        let plain = imported(&input, ImportTarget::Empty { start });
+        let mut turned = imported(&input, ImportTarget::Empty { start });
+        let quarter = std::f64::consts::FRAC_PI_2;
+        turned.rotate_view(quarter);
+        turned.rotate_view(quarter / 3.0);
+        let (was, now) = (only_state(&plain), only_state(&turned));
+        let want = was.view().rotated(quarter + quarter / 3.0);
+        assert!(
+            (now.view().rotation - want.rotation).abs() < 1e-12,
+            "{start:?}: {:?}",
+            now.view()
+        );
+        assert_eq!(now.view().flipped, was.view().flipped, "{start:?}");
+        assert!(same_order(&was, &now), "{start:?}: the same order");
+        assert!(
+            letters_reproduced(&input, &now),
+            "{start:?}: the same letters"
+        );
+        assert_eq!(now.step(), was.step(), "{start:?}: no step of its own");
+        // Not a number is no turn.
+        turned.rotate_view(f64::NAN);
+        assert_eq!(only_state(&turned).view(), now.view(), "{start:?}");
+    }
+}
+
+#[test]
 fn the_bases_import_to_one_order_with_their_letters_and_eighteen_without() {
     for (name, base) in [
         ("preliminary", preliminary as fn(bool) -> CreasePatternInput),
@@ -392,20 +424,24 @@ fn shapes_that_do_not_fit_the_sequence_are_refused() {
         Some(ImportRefusal::ShapeMismatch { expected, found })
             if expected == [1.0, 1.0] && found == [1.0, 0.5]
     ));
-    // A rectangle into a hexagon sequence with steps.
+    // A rectangle into a hexagon sequence with steps: no turn or scale of
+    // one is the other.
     let hexagon = State::flat(
         Sheet::regular(6).unwrap_or_else(|e| panic!("{e}")),
         StartSide::Front,
     )
     .unwrap_or_else(|e| panic!("{e}"));
     let folded = fold(&hexagon, &all(x_eq(0.5), [0.9, 0.5], Direction::Valley)).state;
+    let refusal = ImportedPattern::new(&wide, ImportTarget::After(&folded)).err();
     assert_eq!(
-        ImportedPattern::new(&wide, ImportTarget::After(&folded))
-            .err()
-            .as_ref()
-            .map(ImportRefusal::code),
-        Some("import_shape_unsupported")
+        refusal.as_ref().map(ImportRefusal::code),
+        Some("import_shape_mismatch")
     );
+    assert!(matches!(
+        refusal,
+        Some(ImportRefusal::OutlineMismatch { ref expected_corners, ref found_corners })
+            if expected_corners == hexagon.sheet().outline() && found_corners.len() == 4
+    ));
     // An empty sequence of any shape adopts the pattern's rectangle; a
     // tall sequence takes the wide pattern turned a quarter.
     let adopted = imported(&wide, empty());
@@ -964,4 +1000,340 @@ fn random_folded_states_round_trip_through_their_crease_patterns() {
     }
     assert!(checked >= 100, "only {checked} states");
     assert!(listed * 2 >= checked, "only {listed} of {checked} listed");
+}
+
+// ---------------------------------------------------------------------------
+// Polygon sheets
+
+fn flat_regular(sides: u32) -> State {
+    State::flat(
+        Sheet::regular(sides).unwrap_or_else(|e| panic!("{e}")),
+        StartSide::Front,
+    )
+    .unwrap_or_else(|e| panic!("{e}"))
+}
+
+/// The sheet points of `state`'s vertices, sorted.
+fn sorted_vertices(state: &State) -> Vec<Point> {
+    let mut points = state.vertices().to_vec();
+    points.sort_by(|a, b| a[0].total_cmp(&b[0]).then(a[1].total_cmp(&b[1])));
+    points
+}
+
+/// `state`'s own crease pattern imported after it, its order replayed from
+/// the stored witnesses: the same state a step on — the same sheet, the same
+/// vertices to the bit, letters, order and view, and every face where it was
+/// (its isometry derived anew from the creases, so to rounding). The letters
+/// alone offer that order among their choices whenever the search lists them
+/// all; whether it did is returned.
+fn assert_round_trips(state: &State, what: &str) -> bool {
+    let input = CreasePatternInput::of_state(state);
+    let pattern = imported(&input, ImportTarget::After(state));
+    assert_eq!(pattern.sheet(), state.sheet(), "{what}");
+    assert_eq!(
+        pattern.summary().shape,
+        SheetShape::Polygon {
+            points: state.sheet().outline().to_vec()
+        },
+        "{what}"
+    );
+    assert_eq!(pattern.summary().faces, state.faces().len(), "{what}");
+    let stored = WitnessOrder::of_state(state).unwrap_or_else(|| unreachable!());
+    let jumped = pattern
+        .replay(&stored, &limits())
+        .unwrap_or_else(|e| panic!("{what}: {e}"));
+    assert_valid(&jumped);
+    assert_eq!(jumped.step(), state.step() + 1, "{what}");
+    assert_eq!(jumped.view(), state.view(), "{what}");
+    assert_eq!(sorted_vertices(&jumped), sorted_vertices(state), "{what}");
+    assert!(same_order(state, &jumped), "{what}");
+    assert!(letters_reproduced(&input, &jumped), "{what}");
+    for f in state.faces() {
+        let p = state.face_witness(f.id).unwrap_or_else(|| unreachable!());
+        let (a, b) = (
+            state.image_of(p).unwrap_or_default(),
+            jumped.image_of(p).unwrap_or_default(),
+        );
+        assert!((a[0] - b[0]).hypot(a[1] - b[1]) < 1e-9, "{what}: {f:?}");
+        assert_eq!(
+            state.front_up(f.id),
+            jumped.front_up(face(&jumped, p)),
+            "{what}"
+        );
+    }
+    let budget = CompletionLimits {
+        max_nodes: Some(20_000),
+        ..limits()
+    };
+    match pattern.complete(&budget) {
+        Ok(completions) if completions.count().exact => {
+            assert!(
+                completions.choice_of(jumped.order()).is_some(),
+                "{what}: the state's own order is not offered"
+            );
+            true
+        }
+        _ => false,
+    }
+}
+
+#[test]
+fn a_folded_hexagon_and_pentagon_round_trip_through_their_crease_patterns() {
+    // The identity control on the two polygon sheets the corpus folds: a
+    // few folds, a precrease and a turn over, each state imported after
+    // itself.
+    for sides in [6, 5] {
+        let sheet = Sheet::regular(sides).unwrap_or_else(|e| panic!("{e}"));
+        let outline = sheet.outline().to_vec();
+        let centre = outline.iter().fold([0.0, 0.0], |[x, y], p| {
+            [x + p[0] / f64::from(sides), y + p[1] / f64::from(sides)]
+        });
+        let mut state = flat_regular(sides);
+        // In half through the bottom corner, the right half over.
+        state = fold(
+            &state,
+            &all(through(outline[0], centre), [0.9, 0.5], Direction::Valley),
+        )
+        .state;
+        assert!(assert_round_trips(&state, &format!("{sides}: half")));
+        // In half again, across.
+        state = fold(
+            &state,
+            &all(y_eq(centre[1]), [0.4, 0.9], Direction::Mountain),
+        )
+        .state;
+        assert!(assert_round_trips(&state, &format!("{sides}: quarter")));
+        // A precrease at a sixteenth of a turn through the centre, turned
+        // over.
+        state = precrease(
+            &state,
+            &all(at_angle(centre, 22.5), [0.4, 0.2], Direction::Valley),
+        )
+        .state
+        .turn_over();
+        assert!(assert_round_trips(&state, &format!("{sides}: precreased")));
+    }
+}
+
+#[test]
+fn random_folded_polygon_states_round_trip_through_their_crease_patterns() {
+    // As the square and rectangle sequences above, on every regular polygon
+    // sheet the document offers.
+    let mut rng = Rng::new(0x9e_c7a1);
+    let (mut checked, mut listed) = (0, 0);
+    for sequence in 0..18 {
+        let sides = 3 + sequence % 6;
+        let mut state = flat_regular(sides);
+        for _ in 0..8 {
+            let Some(op) = random_fold(&state, &mut rng) else {
+                continue;
+            };
+            let landed = if rng.next_f64() < 0.25 {
+                state.precrease(&op)
+            } else {
+                state.fold(&op)
+            };
+            let Ok(folded) = landed else {
+                continue;
+            };
+            state = folded.state;
+            if rng.next_f64() < 0.2 {
+                state = state.turn_over();
+            }
+            if assert_round_trips(&state, &format!("sequence {sequence} ({sides} sides)")) {
+                listed += 1;
+            }
+            checked += 1;
+        }
+    }
+    assert!(checked >= 60, "only {checked} states");
+    assert!(listed * 2 >= checked, "only {listed} of {checked} listed");
+}
+
+/// The layer orders of `n` congruent wedges around one vertex folded flat
+/// onto one, counted by brute force with nothing of the engine: crease `i`
+/// (of letter `letters[i]` as the front sees it) joins wedge `i − 1` to wedge
+/// `i`, wedge `i` lies front-up when `i` is even, and the even creases lie
+/// on one edge of the stack, the odd on the other. A valley lays a wedge
+/// above a front-up neighbour and below a back-up one; two creases on one
+/// edge never cross (each joins two layers, and the pairs nest or keep
+/// apart).
+fn wedge_orders(letters: &[Letter]) -> u64 {
+    let n = letters.len();
+    let joins: Vec<[usize; 2]> = (0..n).map(|i| [(i + n - 1) % n, i]).collect();
+    let upper: Vec<bool> = (0..n)
+        .map(|i| (letters[i] == Letter::Valley) != (joins[i][0] % 2 == 1))
+        .collect();
+    let consistent = |height: &[Option<usize>]| {
+        let joined = |i: usize| -> Option<[usize; 2]> {
+            let [a, b] = joins[i];
+            Some([height[a]?, height[b]?])
+        };
+        (0..n).all(|i| joined(i).is_none_or(|[a, b]| (b > a) == upper[i]))
+            && (0..n).all(|i| {
+                (i + 2..n).step_by(2).all(|j| {
+                    let (Some([a, b]), Some([c, d])) = (joined(i), joined(j)) else {
+                        return true;
+                    };
+                    let ([lo, hi], [low, high]) = ([a.min(b), a.max(b)], [c.min(d), c.max(d)]);
+                    !((lo < low && low < hi && hi < high) || (low < lo && lo < high && high < hi))
+                })
+            })
+    };
+    fn stack(
+        level: usize,
+        height: &mut Vec<Option<usize>>,
+        consistent: &dyn Fn(&[Option<usize>]) -> bool,
+    ) -> u64 {
+        if level == height.len() {
+            return 1;
+        }
+        let mut count = 0;
+        for wedge in 0..height.len() {
+            if height[wedge].is_some() {
+                continue;
+            }
+            height[wedge] = Some(level);
+            if consistent(height) {
+                count += stack(level + 1, height, consistent);
+            }
+            height[wedge] = None;
+        }
+        count
+    }
+    stack(0, &mut vec![None; n], &consistent)
+}
+
+#[test]
+fn the_wedge_count_knows_the_four_crease_vertex() {
+    // The brute force on a square folded in half twice: three valleys and a
+    // mountain fold one way; four of a kind, or two and two, none (Maekawa).
+    use Letter::{Mountain as M, Valley as V};
+    assert_eq!(wedge_orders(&[V, V, V, M]), 1);
+    assert_eq!(wedge_orders(&[M, M, V, M]), 1);
+    assert_eq!(wedge_orders(&[V, V, V, V]), 0);
+    assert_eq!(wedge_orders(&[V, M, V, M]), 0);
+    assert_eq!(wedge_orders(&[V, V, M, M]), 0);
+}
+
+#[test]
+fn a_polygon_collapses_after_its_precreased_sheet() {
+    // A collapse in one import, after the flat sheet precreased along the
+    // lines it folds: a hexagon along its three long diagonals into a 60°
+    // wedge of six layers, a pentagon along its five axes (corner to the
+    // opposite side's middle) into a 36° wedge of ten. For every letter
+    // assignment of the spokes — every one for the hexagon, a spread for the
+    // pentagon — the import lands on the precreased root's wedge with as
+    // many layer orders as a brute-force count of the wedges finds, and is
+    // refused where that count finds none.
+    // On 2026-11-02 the hexagon's 30 Maekawa assignments landed with 1 or 2
+    // orders each, and of every 7th of the pentagon's 1024, 73 landed with 1
+    // to 12. Every 23rd (17 land) keeps a debug run to a few seconds.
+    for (sides, every) in [(6u32, 1usize), (5, 23)] {
+        let sheet = Sheet::regular(sides).unwrap_or_else(|e| panic!("{e}"));
+        let outline = sheet.outline().to_vec();
+        let n = outline.len();
+        let centre = outline.iter().fold([0.0, 0.0], |[x, y], p| {
+            [x + p[0] / n as f64, y + p[1] / n as f64]
+        });
+        let middle = |k: usize| {
+            let (a, b) = (outline[k], outline[(k + 1) % n]);
+            [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0]
+        };
+        // The spokes' far ends, counter-clockwise: the corners of an even
+        // polygon (whose long diagonals pass through the centre), corners
+        // and side middles in turn for an odd one.
+        let ends: Vec<Point> = if n.is_multiple_of(2) {
+            outline.clone()
+        } else {
+            (0..n).flat_map(|k| [outline[k], middle(k)]).collect()
+        };
+        let mut precreased =
+            State::flat(sheet.clone(), StartSide::Front).unwrap_or_else(|e| panic!("{e}"));
+        for &end in &ends[..ends.len() / 2] {
+            let line = through(end, centre);
+            let seed = [centre[0] + 0.3 * line.n[0], centre[1] + 0.3 * line.n[1]];
+            precreased = precrease(&precreased, &all(line, seed, Direction::Valley)).state;
+        }
+        assert_eq!(precreased.faces().len(), ends.len(), "{sides}");
+        let root = &precreased
+            .faces()
+            .iter()
+            .find(|f| f.id == precreased.root())
+            .unwrap_or_else(|| unreachable!())
+            .ring;
+        let wedge: Vec<Point> = root
+            .iter()
+            .map(|v| precreased.vertices()[v.0 as usize])
+            .collect();
+
+        let mut landed = 0;
+        for assignment in (0..1usize << ends.len()).step_by(every) {
+            let letters: Vec<Letter> = (0..ends.len())
+                .map(|i| {
+                    if assignment >> i & 1 == 1 {
+                        Letter::Mountain
+                    } else {
+                        Letter::Valley
+                    }
+                })
+                .collect();
+            let mut segments: Vec<ImportSegment> = (0..n)
+                .map(|k| segment(outline[k], outline[(k + 1) % n], ImportKind::Border))
+                .collect();
+            segments.extend(ends.iter().zip(&letters).map(|(&end, &letter)| {
+                let kind = match letter {
+                    Letter::Mountain => MOUNTAIN,
+                    Letter::Valley => VALLEY,
+                };
+                segment(centre, end, kind)
+            }));
+            let what = format!("{sides} sides, {letters:?}");
+            let orders = wedge_orders(&letters);
+            let opened =
+                ImportedPattern::new(&sheet_input(segments), ImportTarget::After(&precreased))
+                    .and_then(|pattern| pattern.complete(&limits()).map(|c| (pattern, c)));
+            let (pattern, completions) = match opened {
+                Ok(opened) if orders > 0 => opened,
+                Err(refusal) if orders == 0 => {
+                    assert!(
+                        matches!(
+                            refusal.code(),
+                            "import_not_flat_foldable" | "import_no_order"
+                        ),
+                        "{what}: {refusal}"
+                    );
+                    continue;
+                }
+                Ok((_, c)) => panic!("{what}: {} orders, none by brute force", c.count().orders),
+                Err(refusal) => panic!("{what}: {refusal}, {orders} by brute force"),
+            };
+            assert_eq!(pattern.summary().faces, ends.len(), "{what}");
+            assert!(completions.count().exact, "{what}");
+            assert_eq!(completions.count().orders, orders, "{what}");
+            let state = pattern
+                .state(
+                    completions
+                        .order(&vec![0; completions.components().len()])
+                        .unwrap_or_default(),
+                )
+                .unwrap_or_else(|e| panic!("{what}: {e}"));
+            assert_valid(&state);
+            assert_eq!(state.step(), precreased.step() + 1, "{what}");
+            // The silhouette: every corner on one of the root wedge's.
+            for v in 0..state.vertices().len() {
+                let image = state
+                    .vertex_image(oristudio_fold::VertexId(v as u32))
+                    .unwrap_or_else(|| unreachable!());
+                assert!(
+                    wedge
+                        .iter()
+                        .any(|&w| (w[0] - image[0]).hypot(w[1] - image[1]) < 1e-9),
+                    "{what}: {image:?} is off the wedge {wedge:?}"
+                );
+            }
+            landed += 1;
+        }
+        assert!(landed > 0, "{sides}: nothing landed");
+    }
 }

@@ -1,0 +1,22 @@
+[package]
+name = "oristudio-layer-spread-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Worker-only WASM bridge for Ori Studio layer spread"
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+oristudio-layer-spread = { path = "../oristudio-layer-spread" }
+serde.workspace = true
+serde-wasm-bindgen.workspace = true
+wasm-bindgen.workspace = true
+
+[dev-dependencies]
+wasm-bindgen-test.workspace = true

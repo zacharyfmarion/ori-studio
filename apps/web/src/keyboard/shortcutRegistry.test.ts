@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FOLD_WITH_LAYER_ORDER_SHORTCUT_ID,
   SHORTCUT_DEFINITIONS,
   classifyReservedKey,
   getShortcutRegistryDiagnostics,
@@ -31,6 +32,14 @@ function boundDefinitions(): ShortcutDefinition[] {
  * is what makes them safe — the chord still lands on something visible.
  */
 const ROUTED_CHORD_EXCEPTIONS = new Set(['cp.action.folding-estimate', 'cp.action.fold']);
+
+/**
+ * Edit's own verbs in the crease-pattern executor's `cp.action.` space that
+ * are no tool at all, so the catalog has no entry to be `ready`:
+ * `handleCpShortcutAction` runs them before looking an id up as a tool. Fold
+ * with layer order… (row H5) holds Shift+G this way.
+ */
+const EDIT_VERB_CHORD_EXCEPTIONS = new Set<string>([FOLD_WITH_LAYER_ORDER_SHORTCUT_ID]);
 
 /**
  * Shipped defaults whose chord the browser takes before the page sees it, so the
@@ -84,6 +93,7 @@ describe('shortcut registry invariants', () => {
     const notReady = boundDefinitions()
       .filter((definition) => definition.scope === 'crease-pattern')
       .filter((definition) => !ROUTED_CHORD_EXCEPTIONS.has(definition.id))
+      .filter((definition) => !EDIT_VERB_CHORD_EXCEPTIONS.has(definition.id))
       .filter((definition) => actionById.get(definition.id)?.uiStatus !== 'ready')
       .map((definition) => `${definition.id}=${definition.defaultChords.map(keyChordId).join(',')}`);
 
@@ -159,6 +169,7 @@ const EXPECTED_SINGLE_KEY_LAYOUT: ReadonlyArray<[chord: string, actionId: string
   ['x', 'cp.action.crease-make-mv'],
   // Fold
   ['g', 'cp.action.folding-estimate'],
+  ['shift+g', FOLD_WITH_LAYER_ORDER_SHORTCUT_ID],
 ];
 
 describe('adopted single-key layout', () => {

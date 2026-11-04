@@ -55,6 +55,7 @@
  * colours are handed in, resolved by the pane.
  */
 import type { Point } from '../../../lib/geometry';
+import { joinFills, ringsFill } from '../../../cp-workspace/renderer/fillTint';
 import type { FillGeometry, Rgba } from '../../../cp-workspace/renderer/types';
 import type { FoldDirection } from '../../document/foldSequenceDocument';
 import type { FoldFanAnalysis, FoldSwivelEdgeAnalysis, FoldVertexAnalysis } from '../../engine/foldEngineSquashWire';
@@ -277,7 +278,11 @@ export function vertexOverlayMarks(
   return { dots, strokes };
 }
 
-/** How strongly a swivel's moving paper is lit, and its turning wedge over that. */
+/**
+ * How strongly a swivel's moving paper is lit, and its turning wedge over
+ * that: between the shared ladder's rungs (`fillTint.ts`), since a swivel
+ * lights several pieces at once.
+ */
 const SWIVEL_MOVING_TINT = 0.2;
 const SWIVEL_TURN_TINT = 0.36;
 
@@ -294,19 +299,11 @@ export function swivelRegionsTint(
   analysis: Pick<FoldSwivelEdgeAnalysis, 'regions' | 'fold'> & { kind?: FoldVertexAnalysis['kind'] },
   accent: Rgba
 ): FillGeometry | null {
-  const triangles: number[] = [];
-  const colors: number[] = [];
   const carrier = analysis.kind === 'swivel-valley-mountain' ? 'beyond' : analysis.fold ? 'near' : 'turn';
-  for (const region of analysis.regions) {
+  // A piece at a time, in the engine's order, each at its own strength.
+  return analysis.regions.reduce<FillGeometry | null>((fill, region) => {
     const ring = region.polygon.map((p) => index.toScene(toPoint(p)));
-    const color = withAlpha(accent, region.wedge === carrier ? SWIVEL_TURN_TINT : SWIVEL_MOVING_TINT);
-    for (let k = 1; k + 1 < ring.length; k += 1) {
-      for (const corner of [ring[0]!, ring[k]!, ring[k + 1]!]) {
-        triangles.push(corner.x, corner.y);
-        colors.push(...color);
-      }
-    }
-  }
-  if (triangles.length === 0) return null;
-  return { position: new Float32Array(triangles), color: new Float32Array(colors), count: triangles.length / 2 };
+    const alpha = region.wedge === carrier ? SWIVEL_TURN_TINT : SWIVEL_MOVING_TINT;
+    return joinFills(fill, ringsFill([ring], accent, alpha));
+  }, null);
 }

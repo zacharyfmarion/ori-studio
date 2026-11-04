@@ -14,7 +14,11 @@
 //! axiom's root is replayed the same way). A step's `choices.completion` is
 //! the engine's `VertexChoices` as it is. A rabbit ear's fourth crease rises
 //! as its ridge, so it has none to choose: an older step's `ridge` is an
-//! unknown field, ignored.
+//! unknown field, ignored. A squash of a flap whose walls are several plies
+//! stores `opening` when it opens elsewhere than between them: how many of
+//! its layers at the flap point lie above the opening, a depth at a sheet
+//! point as a seed's is. The question answers which openings land
+//! (`openings`, 1 to the analysis' `layers` − 1).
 //!
 //! A swivel takes one of three forms ([`SwivelOp`]): by its rays, by its
 //! valley and mountain, or by its edge (`via: 'edge'`: the pivot, a sheet point on the edge, the target line as
@@ -124,7 +128,9 @@ use crate::{FoldEngine, bridge_error, parse, parse_choices, to_js_value};
 /// viewer sees it; where its spine lands, a model-frame direction from the
 /// vertex (absent: the hinge line); valley or mountain as seen; and a drawn
 /// hinge, located as a fold's line is (absent: the hinge the lower layer
-/// folds over), only the flap's end on the flap point's side squashing.
+/// folds over), only the flap's end on the flap point's side squashing; and
+/// for a flap whose walls are several plies, how many of its layers at the
+/// flap point lie above where it opens (absent: between its walls).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct SquashOp {
     pub flap: Point,
@@ -133,6 +139,8 @@ pub struct SquashOp {
     pub direction: Direction,
     #[serde(default)]
     pub hinge: Option<LocatedLine>,
+    #[serde(default)]
+    pub opening: Option<usize>,
 }
 
 /// `FoldPetalOp`: H by a sheet point inside its precrease's sheet segment
@@ -341,6 +349,7 @@ pub fn resolve(parent: &State, op: &Op, choices: &Choices) -> Result<VertexFold,
                     .as_ref()
                     .map(|hinge| located_line(parent, hinge))
                     .transpose()?,
+                opening: op.opening,
             })
         }
         Op::Petal(op) => {
@@ -667,6 +676,26 @@ fn emergents(parent: &State, op: &EngineOp, analysis: &VertexAnalysis) -> Vec<bo
     }
 }
 
+/// A squash of a flap whose walls are several plies: per opening, from
+/// under its first layer to over its last (`opening` 1 to `layers` − 1),
+/// whether it lands, its other inputs as asked — what a tool offers. Empty
+/// for a two-layer flap, which opens one way, and for the other folds.
+fn openings(parent: &State, op: &EngineOp, analysis: &VertexAnalysis) -> Vec<bool> {
+    match (op, analysis) {
+        (EngineOp::Squash(squash), VertexAnalysis::Squash(flap)) if flap.layers > 2 => (1..flap
+            .layers)
+            .map(|opening| {
+                let each = Squash {
+                    opening: Some(opening),
+                    ..squash.clone()
+                };
+                parent.squash(&each, &VertexChoices::default()).is_ok()
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
 /// The kinds a swivel on a folded edge takes, in the order its answer lists
 /// them.
 const SWIVEL_KINDS: [SwivelKind; 2] = [SwivelKind::Open, SwivelKind::Inside];
@@ -807,6 +836,7 @@ impl CompoundOp for VertexFold {
         });
         Ok(Ok(CompoundAsked::Vertex(Box::new(VertexAnalysed {
             emergents: emergents(parent, &self.op, &analysis),
+            openings: openings(parent, &self.op, &analysis),
             directions,
             kinds,
             analysis,
@@ -885,6 +915,11 @@ pub struct VertexAnalysed {
     /// edge's, per ridge (the analysis' `ridges`). Empty for the other
     /// folds.
     pub emergents: Vec<bool>,
+    /// A squash of a flap whose walls are several plies: per opening, 1 to
+    /// the analysis' `layers` − 1, whether it lands. Empty for a two-layer
+    /// flap and the other folds.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub openings: Vec<bool>,
     /// A swivel on a folded edge's: valley, then mountain, as the viewer
     /// sees them, each whether the fold lands that way, its kind as asked.
     /// Empty for the other folds.

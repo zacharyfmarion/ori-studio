@@ -55,17 +55,56 @@
 //! check without one decides, the same way (a deadline can still run out
 //! sooner, since it searches more). The components nothing reached keep the preferred order
 //! where it is the open's, and are searched with it otherwise.
+//!
+//! # What the Layer order dialog adds (ours, beside the port)
+//!
+//! - [`CompletionSession::deduce`] is steps 1–2 alone: what the problem's
+//!   fixed orders and the seeds force, with no search. Removing a constraint
+//!   needs nothing more, since the order on screen already satisfies every
+//!   subset of the constraints.
+//! - [`CompletionSession::enumerate`] lists every complete order a deduction
+//!   leaves, one at a time, through a cursor ([`Enumeration`]) that a node
+//!   budget or a deadline stops and the next call resumes. It splits what is
+//!   left exactly as completing from scratch with those seeds does, searches
+//!   each component with upstream's search, and walks their product, the
+//!   first component slowest, so its orders are
+//!   [`complete_layer_order`](crate::complete_layer_order)'s, every one
+//!   listed, in that order. [`Enumeration::varying`] narrows the walk to
+//!   some components, the others held at a given order, so one component's
+//!   orders can be listed alone ([`Enumeration::component_order`]), as the
+//!   dialog's solution count lists them; [`Enumeration::projected`] lists
+//!   one order per distinct assignment of some of a component's variables,
+//!   as it counts distinct pictures. [`Enumeration::lexical`] walks the
+//!   same search over a component's variables in ascending order, so it
+//!   lists its orders lexicographically (or in the reverse order), and
+//!   [`Enumeration::after`] places such a walk on any one of its orders, by
+//!   propagation alone, so that it goes on from there: the dialog's X-ray
+//!   stepper finds the next layer order without listing the ones before it.
+//! - [`CheckOptions::prefer_fits`]: when the caller vouches that the
+//!   preferred order is a complete order that fits (an earlier check's fit),
+//!   every component on which it agrees with what the seeds force keeps it
+//!   with no search, the components the seeds did not reach among them. The
+//!   components are independent, so the order kept there still fits; without
+//!   the option a component nothing reached is searched again unless the
+//!   preference is the open's first order there, and can fall back to that
+//!   first order when its quick search runs out of nodes.
+//! - Every "no" names its roots ([`CompletionConflict::roots`],
+//!   [`CheckNoOrder::roots`], [`CheckOutcome::Forced`]): the fixed orders and
+//!   seeds its trace leads back to, as variables. Those alone, with the
+//!   constraints, already have no order, so a smallest clashing set of seeds
+//!   is among them.
 
 use std::collections::BTreeMap;
 
 use crate::CompletionError;
 use crate::completion::{
-    BudgetLimit, BudgetMeter, CompletionConflict, CompletionProblem, CompletionResult, PairOrder,
-    SearchBudget, SearchInput, UnsatisfiedComponent, fixed_orders, group_faces, invalid,
+    BudgetLimit, BudgetMeter, CompletionConflict, CompletionProblem, CompletionResult, Deadline,
+    PairOrder, SearchBudget, SearchInput, UnsatisfiedComponent, fixed_orders, group_faces, invalid,
     public_conflict,
 };
 use crate::constraints::{
-    self, ImplicationMaps, Parent, Propagated, SearchTables, TransitivityCounts, TransitivitySource,
+    self, ImplicationMaps, Parent, Propagated, Search, SearchTables, Traced, TransitivityCounts,
+    TransitivitySource,
 };
 use crate::tables::Scratch;
 
@@ -112,6 +151,13 @@ pub struct CheckOptions<'a> {
     pub fast_nodes: u64,
     /// One order per variable: each guess tries this order's value first.
     pub prefer: Option<&'a [PairOrder]>,
+    /// The caller vouches that [`Self::prefer`] is a complete order that
+    /// fits the problem, such as an earlier check's fit (ours). Every
+    /// component on which it agrees with what the seeds force then keeps it
+    /// without a search, every component the seeds did not reach among
+    /// them. Read only with a preference. An order that does not fit can
+    /// make the answer wrong, so it is set only for one known to fit.
+    pub prefer_fits: bool,
 }
 
 impl CheckOptions<'_> {
@@ -131,6 +177,7 @@ impl Default for CheckOptions<'_> {
             },
             fast_nodes: Self::DEFAULT_FAST_NODES,
             prefer: None,
+            prefer_fits: false,
         }
     }
 }
@@ -139,7 +186,8 @@ impl Default for CheckOptions<'_> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CheckStage {
     /// Nothing new to search: every seed was already forced, or reached no
-    /// component.
+    /// component, or reached only components the vouched-for preference
+    /// already agreed with ([`CheckOptions::prefer_fits`]).
     Unchanged,
     /// Step 4 with the seeds' pairs first.
     SeedsFirst,
@@ -171,6 +219,9 @@ pub struct CheckNoOrder {
     /// traced back through the propagation to the letters and seeds that
     /// decided them, ascending.
     pub error_faces: Vec<usize>,
+    /// The fixed orders and seeds that trace reaches, as variables,
+    /// ascending (ours): the component has no order with them alone.
+    pub roots: Vec<usize>,
     pub nodes: u64,
     pub stage: CheckStage,
 }
@@ -179,10 +230,12 @@ pub struct CheckNoOrder {
 pub enum CheckOutcome {
     Fits(CheckFit),
     /// A seed asks the opposite of what the open forced. `error_faces` are
-    /// the faces that pair traces back to.
+    /// the faces that pair traces back to, and `roots` the problem's fixed
+    /// orders that force it, as variables, ascending (ours).
     Forced {
         variable: usize,
         error_faces: Vec<usize>,
+        roots: Vec<usize>,
     },
     /// Propagating the seeds broke a constraint.
     Conflict(CompletionConflict),
@@ -194,11 +247,602 @@ pub enum CheckOutcome {
     },
 }
 
+/// What [`CompletionSession::deduce`] found: a check's steps 1–2 (ours).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Deduction {
+    /// The seeds propagate without a conflict.
+    Deduced(Deduced),
+    /// As [`CheckOutcome::Forced`].
+    Forced {
+        variable: usize,
+        error_faces: Vec<usize>,
+        roots: Vec<usize>,
+    },
+    /// As [`CheckOutcome::Conflict`].
+    Conflict(CompletionConflict),
+    /// The deadline ran out first.
+    Undecided { limit: BudgetLimit },
+}
+
+/// What the problem's fixed orders and some seeds force, by propagation
+/// alone (ours): what a check's [`CheckFit::forced`] holds, and what an
+/// [`Enumeration`] starts from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Deduced {
+    /// Per variable, its forced value (1 or 2), or 0 where it is open.
+    assignments: Vec<u8>,
+}
+
+impl Deduced {
+    /// Each variable's forced order, `None` where it is open.
+    pub fn forced(&self) -> Vec<Option<PairOrder>> {
+        self.assignments
+            .iter()
+            .map(|&v| PairOrder::from_value(v))
+            .collect()
+    }
+}
+
+/// A cursor over every complete order a [`Deduced`] state leaves (ours; see
+/// the module docs). It keeps the search's stack between calls, so a call
+/// its budget stops resumes where it stopped.
+#[derive(Debug, Clone)]
+pub struct Enumeration {
+    /// The deduced orders, and each component's current order once found.
+    assignments: Vec<u8>,
+    /// What the deduction leaves, split as completing from scratch splits
+    /// it, smallest first.
+    components: Vec<Vec<usize>>,
+    /// The components the walk varies, ascending: every one, unless
+    /// [`Self::varying`] narrowed it.
+    walk: Vec<usize>,
+    /// Per component of the walk, its search so far.
+    searches: Vec<Search>,
+    /// The place in the walk whose search runs next.
+    at: usize,
+    /// Complete orders yielded so far.
+    yielded: u64,
+    /// Whether the last call yielded one, so [`Self::order`] reads it.
+    current: bool,
+    /// Once reached, the end every later call returns.
+    end: Option<EnumerationStep>,
+    nodes: u64,
+    scratch: Scratch,
+    /// Set by [`Self::projected`].
+    projection: Option<Projection>,
+    /// The value each guess of the walk tries first: upstream's 1, unless
+    /// [`Self::lexical`] set it.
+    first: u8,
+}
+
+/// A walk of one component's distinct assignments of some of its variables
+/// ([`Enumeration::projected`]).
+#[derive(Debug, Clone)]
+struct Projection {
+    /// The component, its index among the components.
+    component: usize,
+    /// The variables projected onto, in the component's own order: what
+    /// the walk's search (the walk's one [`Search`]) guesses.
+    first: Vec<usize>,
+    /// Per variable, the value each guess tries first: the held order's.
+    prefer: Vec<u8>,
+    /// Where the search reached an assignment of `first`: completing it.
+    leaf: Option<Leaf>,
+}
+
+/// One assignment of the projected variables, being completed: what they
+/// and their propagation leave of the component, split as Flat-Folder
+/// splits what is left (upstream `get_components`), each part searched for
+/// one order.
+#[derive(Debug, Clone)]
+struct Leaf {
+    /// The component's variables open at the leaf: unassigned again to
+    /// leave it.
+    open: Vec<usize>,
+    parts: Vec<Vec<usize>>,
+    /// The part being searched, and its search.
+    at: usize,
+    search: Search,
+    /// Every part has an order, and the whole order was yielded.
+    yielded: bool,
+}
+
+/// What one [`Enumeration::next`] call reached.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EnumerationStep {
+    /// The next complete order: read it with [`Enumeration::order`].
+    Order,
+    /// Every complete order has been yielded.
+    Exhausted,
+    /// A component has no order, so none fits, found before any order is
+    /// yielded: as [`Completion::UnsatisfiedComponent`](crate::Completion)
+    /// reports it from scratch.
+    Unsatisfied(UnsatisfiedComponent),
+    /// The call's budget ran out; the next call resumes here.
+    Stopped(BudgetLimit),
+}
+
+/// What [`Enumeration::after`] did (ours).
+#[derive(Debug, Clone)]
+pub enum Placed {
+    /// The cursor stands on the order: its next call yields the one after.
+    On(Box<Enumeration>),
+    /// The order is not one the walk lists.
+    NotListed,
+    /// The budget ran out first, after `nodes` guesses; nothing is placed.
+    Stopped { limit: BudgetLimit, nodes: u64 },
+}
+
+impl Enumeration {
+    /// Search on to the next complete order within `budget`, which bounds
+    /// this call alone.
+    ///
+    /// `session` must be the one the deduction came from.
+    pub fn next(
+        &mut self,
+        session: &CompletionSession,
+        budget: SearchBudget,
+    ) -> CompletionResult<EnumerationStep> {
+        use EnumerationStep as Step;
+        self.current = false;
+        if let Some(end) = &self.end {
+            return Ok(end.clone());
+        }
+        if self.assignments.len() != session.base.assignments.len() {
+            return Err(invalid(format!(
+                "an enumeration of {} variables resumed on a session of {}",
+                self.assignments.len(),
+                session.base.assignments.len()
+            )));
+        }
+        if self.walk.is_empty() {
+            // Everything is forced, or held: one order.
+            if self.yielded == 0 {
+                self.yielded = 1;
+                self.current = true;
+                return Ok(Step::Order);
+            }
+            self.end = Some(Step::Exhausted);
+            return Ok(Step::Exhausted);
+        }
+        let tables = session.tables();
+        let mut meter = BudgetMeter::new(budget);
+        if self.projection.is_some() {
+            let step = self.next_projected(session, &tables, &mut meter);
+            self.nodes += meter.nodes;
+            return step;
+        }
+        let first = self.first;
+        let step = loop {
+            let at = self.at;
+            let k = self.walk[at];
+            let searched = self.searches[at].run(
+                &tables,
+                &self.components[k],
+                &mut self.assignments,
+                1,
+                &mut meter,
+                |_| first,
+                &mut self.scratch,
+                |_| {},
+            )?;
+            match searched {
+                Err(limit) => break Step::Stopped(limit),
+                // Exhausted before a first order of its own: the components
+                // are independent, so none fits.
+                Ok(0) if self.yielded == 0 => {
+                    let end = Step::Unsatisfied(UnsatisfiedComponent {
+                        component: k,
+                        faces: group_faces(&session.input.data, &self.components[k]),
+                    });
+                    self.end = Some(end.clone());
+                    break end;
+                }
+                Ok(0) if at == 0 => {
+                    self.end = Some(Step::Exhausted);
+                    break Step::Exhausted;
+                }
+                // Every order of this component has been walked with the
+                // ones before it as they are: the one before moves on.
+                Ok(0) => self.at -= 1,
+                Ok(_) if at + 1 == self.walk.len() => {
+                    if let Some(v) = self.assignments.iter().position(|&a| a == 0) {
+                        return Err(invalid(format!("an enumeration left variable {v} open")));
+                    }
+                    self.yielded += 1;
+                    self.current = true;
+                    break Step::Order;
+                }
+                // The next component starts again from its first order.
+                Ok(_) => {
+                    self.at += 1;
+                    self.searches[self.at] = Search::default();
+                }
+            }
+        };
+        self.nodes += meter.nodes;
+        Ok(step)
+    }
+
+    /// [`Self::next`] for a [`Self::projected`] walk: the search over the
+    /// projected variables, and at each assignment of them, one order of
+    /// each part of what is left, or none, which skips the assignment.
+    fn next_projected(
+        &mut self,
+        session: &CompletionSession,
+        tables: &SearchTables<'_>,
+        meter: &mut BudgetMeter,
+    ) -> CompletionResult<EnumerationStep> {
+        use EnumerationStep as Step;
+        let Enumeration {
+            assignments,
+            components,
+            searches,
+            yielded,
+            current,
+            end,
+            scratch,
+            projection,
+            ..
+        } = self;
+        let Some(projection) = projection.as_mut() else {
+            return Err(invalid("a projected step with no projection".to_string()));
+        };
+        let prefer = &projection.prefer;
+        loop {
+            if let Some(leaf) = projection.leaf.as_mut() {
+                if !leaf.yielded {
+                    // Complete the assignment, part by part.
+                    while leaf.at < leaf.parts.len() {
+                        match leaf.search.run(
+                            tables,
+                            &leaf.parts[leaf.at],
+                            assignments,
+                            1,
+                            meter,
+                            |v| prefer[v],
+                            scratch,
+                            |_| {},
+                        )? {
+                            Err(limit) => return Ok(Step::Stopped(limit)),
+                            // This part has no order: nor has the
+                            // assignment.
+                            Ok(0) => break,
+                            Ok(_) => {
+                                leaf.at += 1;
+                                leaf.search = Search::default();
+                            }
+                        }
+                    }
+                    if leaf.at == leaf.parts.len() {
+                        if let Some(&v) = leaf.open.iter().find(|&&v| assignments[v] == 0) {
+                            return Err(invalid(format!("an enumeration left variable {v} open")));
+                        }
+                        leaf.yielded = true;
+                        *yielded += 1;
+                        *current = true;
+                        return Ok(Step::Order);
+                    }
+                }
+                // Leave the assignment: what completed it goes, and the
+                // search over the projected variables moves on.
+                for &v in &leaf.open {
+                    assignments[v] = 0;
+                }
+                projection.leaf = None;
+            }
+            match searches[0].run(
+                tables,
+                &projection.first,
+                assignments,
+                1,
+                meter,
+                |v| prefer[v],
+                scratch,
+                |_| {},
+            )? {
+                Err(limit) => return Ok(Step::Stopped(limit)),
+                Ok(0) => {
+                    let k = projection.component;
+                    let step = if *yielded == 0 {
+                        Step::Unsatisfied(UnsatisfiedComponent {
+                            component: k,
+                            faces: group_faces(&session.input.data, &components[k]),
+                        })
+                    } else {
+                        Step::Exhausted
+                    };
+                    *end = Some(step.clone());
+                    return Ok(step);
+                }
+                Ok(_) => {
+                    // Every projected variable is assigned. The components
+                    // are independent and every other one is held, so what
+                    // is still open is this component's.
+                    let open: Vec<usize> = components[projection.component]
+                        .iter()
+                        .copied()
+                        .filter(|&v| assignments[v] == 0)
+                        .collect();
+                    let parts = if open.is_empty() {
+                        Vec::new()
+                    } else {
+                        constraints::variable_groups(tables, assignments, None)
+                            .into_iter()
+                            .skip(1)
+                            .collect()
+                    };
+                    projection.leaf = Some(Leaf {
+                        open,
+                        parts,
+                        at: 0,
+                        search: Search::default(),
+                        yielded: false,
+                    });
+                }
+            }
+        }
+    }
+
+    /// The complete order the last call yielded, one per variable; `None`
+    /// unless it yielded one.
+    pub fn order(&self) -> Option<Vec<PairOrder>> {
+        self.current.then(|| orders_of(&self.assignments))
+    }
+
+    /// The last yielded order's values on component `k` (an index into
+    /// [`Self::components`]), one per variable in the component's search
+    /// order: what reading [`Self::order`] there gives, without the whole
+    /// order (ours). `None` unless the last call yielded one, or past the
+    /// last component.
+    pub fn component_order(&self, k: usize) -> Option<Vec<PairOrder>> {
+        let component = self.components.get(k).filter(|_| self.current)?;
+        Some(orders_of(
+            &component
+                .iter()
+                .map(|&v| self.assignments[v])
+                .collect::<Vec<_>>(),
+        ))
+    }
+
+    /// The same cursor, started over, walking only the components `vary`
+    /// (indices into [`Self::components`]) while every other component
+    /// holds its values in `hold`, one order per variable (ours): what the
+    /// Layer order dialog's count needs to list one component's orders
+    /// without the product of all of them.
+    ///
+    /// The components are independent (the module docs, step 3): every
+    /// constraint that joins two of them is dead whatever either holds, so
+    /// a varying component's search finds the same orders, in the same
+    /// order and with the same nodes, as it does in the whole walk, which
+    /// is the product of the varying components, the first slowest. The
+    /// orders are complete orders that fit when `hold` is one, such as an
+    /// earlier check's fit; the cursor does not check it. With no component
+    /// to vary it yields one order, the deduction and `hold`.
+    pub fn varying(mut self, vary: &[usize], hold: &[PairOrder]) -> CompletionResult<Enumeration> {
+        if hold.len() != self.assignments.len() {
+            return Err(invalid(format!(
+                "a held order of {} pairs for {} variables",
+                hold.len(),
+                self.assignments.len()
+            )));
+        }
+        let mut walk = vary.to_vec();
+        walk.sort_unstable();
+        walk.dedup();
+        if let Some(&k) = walk.last().filter(|&&k| k >= self.components.len()) {
+            return Err(invalid(format!(
+                "component {k} varied, but there are {}",
+                self.components.len()
+            )));
+        }
+        for (k, component) in self.components.iter().enumerate() {
+            let varies = walk.binary_search(&k).is_ok();
+            for &v in component {
+                self.assignments[v] = if varies { 0 } else { hold[v].value() };
+            }
+        }
+        self.searches = vec![Search::default(); walk.len()];
+        self.walk = walk;
+        self.at = 0;
+        self.yielded = 0;
+        self.current = false;
+        self.end = None;
+        self.nodes = 0;
+        self.projection = None;
+        Ok(self)
+    }
+
+    /// The same cursor, started over, walking component `k` alone (the
+    /// others hold `hold`, as for [`Self::varying`]) and yielding one order
+    /// for each distinct assignment of the variables `first`, all of them
+    /// the component's, that some order of the component extends (ours):
+    /// the Layer order dialog counts distinct pictures this way, `first`
+    /// being the pairs a picture reads, without listing every order that
+    /// differs only in hidden layers.
+    ///
+    /// A search over `first` alone (upstream's `guess_vars` over them, in
+    /// the component's own order, with propagation as always) reaches each
+    /// assignment of them once. There, what is left of the component is
+    /// split as Flat-Folder splits (upstream `get_components`) and each
+    /// part searched for one order, so an assignment with none is refuted
+    /// in the one part that has none, never across the product of parts it
+    /// does not touch. Each guess tries `hold`'s value first: when `hold`
+    /// fits, the first order yielded is `hold`'s own, with no backtracking,
+    /// and each later one is completed near it.
+    pub fn projected(
+        self,
+        k: usize,
+        first: &[usize],
+        hold: &[PairOrder],
+    ) -> CompletionResult<Enumeration> {
+        let mut cursor = self.varying(&[k], hold)?;
+        let n = cursor.assignments.len();
+        let mut own = vec![false; n];
+        for &v in &cursor.components[k] {
+            own[v] = true;
+        }
+        let mut marked = vec![false; n];
+        for &v in first {
+            if !own.get(v).copied().unwrap_or(false) {
+                return Err(invalid(format!(
+                    "variable {v} is projected onto, but is not in component {k}"
+                )));
+            }
+            marked[v] = true;
+        }
+        let first = cursor.components[k]
+            .iter()
+            .copied()
+            .filter(|&v| marked[v])
+            .collect();
+        cursor.projection = Some(Projection {
+            component: k,
+            first,
+            prefer: hold.iter().map(|o| o.value()).collect(),
+            leaf: None,
+        });
+        Ok(cursor)
+    }
+
+    /// [`Self::varying`], with each varying component searched in ascending
+    /// order of its variables, every guess trying 1 first, or 2 first when
+    /// `descending` (ours). The walk then lists each component's orders in
+    /// lexicographic order of its variables, the first face above before
+    /// the second ("1" before "2"), or in the reverse order: the order the
+    /// Layer order dialog's X-ray stepper steps through. It is upstream's
+    /// search over another variable order, so it lists the same orders, as
+    /// a set, as the walk in the component's own order; only the order they
+    /// come in, and the nodes it takes, differ. From then on
+    /// [`Self::components`] and [`Self::component_order`] list a varying
+    /// component's variables ascending.
+    pub fn lexical(
+        self,
+        vary: &[usize],
+        hold: &[PairOrder],
+        descending: bool,
+    ) -> CompletionResult<Enumeration> {
+        let mut cursor = self.varying(vary, hold)?;
+        let Enumeration {
+            components, walk, ..
+        } = &mut cursor;
+        for &k in walk.iter() {
+            components[k].sort_unstable();
+        }
+        cursor.first = if descending { 2 } else { 1 };
+        Ok(cursor)
+    }
+
+    /// The same cursor, standing on `order`, one of the orders it lists
+    /// (ours): the next call yields what its walk lists after `order`, as
+    /// if it had just yielded `order` itself, so a stepper can go on from
+    /// any order without listing the ones before it.
+    /// [`Placed::NotListed`] when `order` is not one it lists: it breaks a
+    /// constraint, or differs from what the deduction forces or the cursor
+    /// holds. Not for a projected walk.
+    ///
+    /// Each varying component's search is placed on `order` by guessing,
+    /// in its own order, every variable still open when the search reaches
+    /// it with `order`'s value, and propagating: no search. Each guess is a
+    /// node of `budget`, which is asked before it as the search asks it, so
+    /// placing it stops within the budget too ([`Placed::Stopped`]); the
+    /// nodes it took count in [`Self::nodes`].
+    pub fn after(
+        mut self,
+        session: &CompletionSession,
+        order: &[PairOrder],
+        budget: SearchBudget,
+    ) -> CompletionResult<Placed> {
+        let n = self.assignments.len();
+        if order.len() != n || session.base.assignments.len() != n {
+            return Err(invalid(format!(
+                "an order of {} pairs for an enumeration of {n} variables",
+                order.len()
+            )));
+        }
+        if self.projection.is_some() {
+            return Err(invalid(
+                "a projected walk is not placed on an order".to_string(),
+            ));
+        }
+        let mut walked = vec![false; n];
+        for &k in &self.walk {
+            for &v in &self.components[k] {
+                walked[v] = true;
+            }
+        }
+        for (v, &varies) in walked.iter().enumerate() {
+            if varies {
+                self.assignments[v] = 0;
+            } else if self.assignments[v] != order[v].value() {
+                return Ok(Placed::NotListed);
+            }
+        }
+        let tables = session.tables();
+        let mut meter = BudgetMeter::new(budget);
+        let mut searches = Vec::with_capacity(self.walk.len());
+        for &k in &self.walk {
+            match Search::placed_at(
+                &tables,
+                &self.components[k],
+                &mut self.assignments,
+                |v| order[v].value(),
+                &mut meter,
+                &mut self.scratch,
+            )? {
+                Ok(Some(search)) => searches.push(search),
+                Ok(None) => return Ok(Placed::NotListed),
+                Err(limit) => {
+                    return Ok(Placed::Stopped {
+                        limit,
+                        nodes: meter.nodes,
+                    });
+                }
+            }
+        }
+        self.nodes += meter.nodes;
+        self.searches = searches;
+        self.at = self.walk.len().saturating_sub(1);
+        self.yielded = 1;
+        self.current = false;
+        self.end = None;
+        Ok(Placed::On(Box::new(self)))
+    }
+
+    /// What the deduction leaves, in independent components, smallest
+    /// first, each in its search order: as completing from scratch with the
+    /// same seeds splits it.
+    pub fn components(&self) -> &[Vec<usize>] {
+        &self.components
+    }
+
+    /// Search nodes used over every call so far.
+    pub fn nodes(&self) -> u64 {
+        self.nodes
+    }
+}
+
 /// How one search attempt ended.
 enum Attempt {
     Found,
     Exhausted,
     Stopped(BudgetLimit),
+}
+
+/// What a check's steps 1–2 reached.
+enum Seeded {
+    /// The closure, and each seed's value by variable.
+    Closure {
+        state: Propagated,
+        wanted: BTreeMap<usize, u8>,
+    },
+    Forced {
+        variable: usize,
+        error_faces: Vec<usize>,
+        roots: Vec<usize>,
+    },
+    Conflict(CompletionConflict),
+    Undecided(BudgetLimit),
 }
 
 impl CompletionSession {
@@ -361,34 +1005,88 @@ impl CompletionSession {
         )
     }
 
-    /// Whether the problem's fixed orders and `seeds` allow an order, and
-    /// one that fits (see the module docs).
-    pub fn check(
+    /// What the problem's fixed orders and `seeds` force, by propagation
+    /// alone, with no search (ours): a check's steps 1–2, so its refusals
+    /// are a check's, and a [`Deduction::Deduced`] holds what that check's
+    /// fit would call forced. Only a search finds a component with no
+    /// order, so a deduction can leave open what a check refuses.
+    pub fn deduce(
         &self,
         seeds: &[(usize, PairOrder)],
-        options: &CheckOptions<'_>,
-    ) -> CompletionResult<CheckOutcome> {
+        deadline: Option<Deadline>,
+    ) -> CompletionResult<Deduction> {
         let tables = self.tables();
+        let mut scratch = tables.scratch();
+        Ok(match self.seeded(&tables, seeds, deadline, &mut scratch)? {
+            Seeded::Closure { state, .. } => Deduction::Deduced(Deduced {
+                assignments: state.assignments,
+            }),
+            Seeded::Forced {
+                variable,
+                error_faces,
+                roots,
+            } => Deduction::Forced {
+                variable,
+                error_faces,
+                roots,
+            },
+            Seeded::Conflict(conflict) => Deduction::Conflict(conflict),
+            Seeded::Undecided(limit) => Deduction::Undecided { limit },
+        })
+    }
+
+    /// A cursor over every complete order `deduced` leaves, which must come
+    /// from this session's [`Self::deduce`] (ours; see the module docs).
+    /// Nothing is searched until [`Enumeration::next`].
+    pub fn enumerate(&self, deduced: &Deduced) -> CompletionResult<Enumeration> {
         let n = self.base.assignments.len();
-        let prefer = match options.prefer {
-            Some(prefer) if prefer.len() != n => {
-                return Err(invalid(format!(
-                    "the preferred order has {} pairs for {n} variables",
-                    prefer.len()
-                )));
-            }
-            Some(prefer) => Some(prefer),
-            None => None,
-        };
+        if deduced.assignments.len() != n {
+            return Err(invalid(format!(
+                "a deduction of {} variables for a session of {n}",
+                deduced.assignments.len()
+            )));
+        }
+        let tables = self.tables();
+        // Upstream's split of the closure, as completing from scratch
+        // splits it: what the module docs promise rests on it.
+        let components: Vec<Vec<usize>> =
+            constraints::variable_groups(&tables, &deduced.assignments, None)
+                .into_iter()
+                .skip(1)
+                .collect();
+        Ok(Enumeration {
+            assignments: deduced.assignments.clone(),
+            searches: vec![Search::default(); components.len()],
+            walk: (0..components.len()).collect(),
+            components,
+            at: 0,
+            yielded: 0,
+            current: false,
+            end: None,
+            nodes: 0,
+            scratch: tables.scratch(),
+            projection: None,
+            first: 1,
+        })
+    }
+
+    /// Steps 1–2 of a check: each seed once, by variable, one against a
+    /// pair the open forced refused at once, and the others propagated from
+    /// the open's state within `deadline`.
+    fn seeded(
+        &self,
+        tables: &SearchTables<'_>,
+        seeds: &[(usize, PairOrder)],
+        deadline: Option<Deadline>,
+        scratch: &mut Scratch,
+    ) -> CompletionResult<Seeded> {
+        let n = self.base.assignments.len();
         let deadline_only = SearchBudget {
             max_nodes: None,
-            deadline: options.budget.deadline,
+            deadline,
         };
         if BudgetMeter::new(deadline_only).past_deadline() {
-            return Ok(CheckOutcome::Undecided {
-                limit: BudgetLimit::Deadline,
-                nodes: 0,
-            });
+            return Ok(Seeded::Undecided(BudgetLimit::Deadline));
         }
 
         // 1. Each seed once, by variable; one against a forced pair is
@@ -416,9 +1114,16 @@ impl CompletionSession {
                 // completing from scratch would.
                 carried if carried == value => level.push((variable, value)),
                 _ => {
-                    return Ok(CheckOutcome::Forced {
+                    let Traced { faces, roots } = constraints::traced(
+                        tables,
+                        vec![variable],
+                        &self.base.assignments,
+                        &self.base.parents,
+                    );
+                    return Ok(Seeded::Forced {
                         variable,
-                        error_faces: self.forced_by(variable),
+                        error_faces: faces,
+                        roots,
                     });
                 }
             }
@@ -429,21 +1134,65 @@ impl CompletionSession {
         for &(variable, _) in &level {
             state.parents[variable] = Some(Parent::Root);
         }
-        let mut scratch = tables.scratch();
         let mut counts = TransitivityCounts::default();
         let mut meter = BudgetMeter::new(deadline_only);
-        match constraints::propagate_levels(
-            &tables,
-            &mut state,
-            level,
-            &mut counts,
-            &mut meter,
-            &mut scratch,
-        )? {
-            Err(limit) => return Ok(CheckOutcome::Undecided { limit, nodes: 0 }),
-            Ok(Some(conflict)) => return Ok(CheckOutcome::Conflict(public_conflict(conflict))),
-            Ok(None) => {}
-        }
+        Ok(
+            match constraints::propagate_levels(
+                tables,
+                &mut state,
+                level,
+                &mut counts,
+                &mut meter,
+                scratch,
+            )? {
+                Err(limit) => Seeded::Undecided(limit),
+                Ok(Some(conflict)) => Seeded::Conflict(public_conflict(conflict)),
+                Ok(None) => Seeded::Closure { state, wanted },
+            },
+        )
+    }
+
+    /// Whether the problem's fixed orders and `seeds` allow an order, and
+    /// one that fits (see the module docs).
+    pub fn check(
+        &self,
+        seeds: &[(usize, PairOrder)],
+        options: &CheckOptions<'_>,
+    ) -> CompletionResult<CheckOutcome> {
+        let tables = self.tables();
+        let n = self.base.assignments.len();
+        let prefer = match options.prefer {
+            Some(prefer) if prefer.len() != n => {
+                return Err(invalid(format!(
+                    "the preferred order has {} pairs for {n} variables",
+                    prefer.len()
+                )));
+            }
+            Some(prefer) => Some(prefer),
+            None => None,
+        };
+
+        // 1–2. The seeds' closure.
+        let mut scratch = tables.scratch();
+        let (state, wanted) =
+            match self.seeded(&tables, seeds, options.budget.deadline, &mut scratch)? {
+                Seeded::Closure { state, wanted } => (state, wanted),
+                Seeded::Forced {
+                    variable,
+                    error_faces,
+                    roots,
+                } => {
+                    return Ok(CheckOutcome::Forced {
+                        variable,
+                        error_faces,
+                        roots,
+                    });
+                }
+                Seeded::Conflict(conflict) => return Ok(CheckOutcome::Conflict(conflict)),
+                Seeded::Undecided(limit) => {
+                    return Ok(CheckOutcome::Undecided { limit, nodes: 0 });
+                }
+            };
         let post = state.assignments.clone();
 
         // 3. The components the seeds reached.
@@ -476,18 +1225,24 @@ impl CompletionSession {
         let mut stage = CheckStage::Unchanged;
         let mut pending = Vec::new();
         let no_order = |group: &[usize], nodes: u64, stage: CheckStage| {
+            let Traced {
+                faces: error_faces,
+                roots,
+            } = constraints::traced(
+                &tables,
+                constraints::assigned_reads(&tables, group, &post),
+                &post,
+                &state.parents,
+            );
             CheckOutcome::NoOrder(CheckNoOrder {
                 faces: group_faces(&self.input.data, group),
-                error_faces: constraints::traced_faces(
-                    &tables,
-                    constraints::assigned_reads(&tables, group, &post),
-                    &post,
-                    &state.parents,
-                ),
+                error_faces,
+                roots,
                 nodes,
                 stage,
             })
         };
+        let vouched = prefer.filter(|_| options.prefer_fits);
         for (k, component) in self.components.iter().enumerate() {
             let remaining: Vec<usize> = component
                 .iter()
@@ -495,6 +1250,20 @@ impl CompletionSession {
                 .filter(|&v| assignments[v] == 0)
                 .collect();
             if remaining.is_empty() {
+                continue;
+            }
+            // A complete order that fits, and agrees with everything the
+            // seeds force here, still fits here: the component's
+            // constraints read only its own pairs and ones the open forced,
+            // and those joining it to another component are dead.
+            if let Some(p) = vouched
+                && component
+                    .iter()
+                    .all(|&v| post[v] == 0 || post[v] == p[v].value())
+            {
+                for &v in &remaining {
+                    assignments[v] = p[v].value();
+                }
                 continue;
             }
             if !touched[k] {
@@ -717,6 +1486,8 @@ fn orders_of(assignments: &[u8]) -> Vec<PairOrder> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use super::*;
     use crate::completion::{
         Completion, CompletionOptions, FixedAssignment, FixedKind, VariableConstraints,
@@ -786,8 +1557,14 @@ mod tests {
         }
     }
 
-    /// Whether `problem` with `seeds` added has an order, from scratch.
-    fn feasible_from_scratch(problem: &CompletionProblem, seeds: &[(usize, PairOrder)]) -> bool {
+    /// `problem` with `seeds` added, completed from scratch with up to
+    /// `limit` orders per component; `None` when the seeds and fixed orders
+    /// ask both orders of one variable.
+    fn from_scratch(
+        problem: &CompletionProblem,
+        seeds: &[(usize, PairOrder)],
+        limit: SolutionLimit,
+    ) -> Option<Completion> {
         let mut with = problem.clone();
         with.fixed
             .extend(seeds.iter().map(|&(variable, order)| FixedAssignment {
@@ -796,18 +1573,92 @@ mod tests {
                 kind: FixedKind::Seed,
             }));
         let options = CompletionOptions {
-            solution_limit: SolutionLimit::Count(1),
+            solution_limit: limit,
             ..CompletionOptions::default()
         };
         match complete_layer_order(&with, &options) {
-            Ok(Completion::Solved(_)) => true,
-            Ok(_) => false,
+            Ok(completion) => Some(completion),
             // Both orders of one variable.
             Err(crate::CompletionError::InvalidProblem(message)) if message.contains("both") => {
-                false
+                None
             }
             Err(e) => panic!("{e}"),
         }
+    }
+
+    /// Whether `problem` with `seeds` added has an order, from scratch.
+    fn feasible_from_scratch(problem: &CompletionProblem, seeds: &[(usize, PairOrder)]) -> bool {
+        matches!(
+            from_scratch(problem, seeds, SolutionLimit::Count(1)),
+            Some(Completion::Solved(_))
+        )
+    }
+
+    /// Every complete order a from-scratch completion lists, the first
+    /// component stepping slowest.
+    fn every_order(solution: &crate::CompletionSolution) -> Vec<Vec<PairOrder>> {
+        let mut choices: Vec<Vec<usize>> = vec![Vec::new()];
+        for component in &solution.components {
+            choices = choices
+                .into_iter()
+                .flat_map(|choice| {
+                    (0..component.solutions.len()).map(move |pick| {
+                        let mut grown = choice.clone();
+                        grown.push(pick);
+                        grown
+                    })
+                })
+                .collect();
+        }
+        choices
+            .iter()
+            .map(|choice| {
+                solution
+                    .assignment(choice)
+                    .unwrap_or_else(|| panic!("no order for {choice:?}"))
+            })
+            .collect()
+    }
+
+    /// Every order an enumeration yields, each call within `budget`, and
+    /// how it ended. Counts the calls a budget stopped.
+    fn enumerate_all(
+        session: &CompletionSession,
+        deduced: &Deduced,
+        budget: SearchBudget,
+        stops: &mut usize,
+    ) -> (Vec<Vec<PairOrder>>, EnumerationStep, u64) {
+        let mut cursor = session.enumerate(deduced).unwrap_or_else(|e| panic!("{e}"));
+        let mut orders = Vec::new();
+        for _ in 0..1_000_000 {
+            match cursor.next(session, budget) {
+                Ok(EnumerationStep::Order) => orders.push(
+                    cursor
+                        .order()
+                        .unwrap_or_else(|| panic!("an order step with no order")),
+                ),
+                Ok(EnumerationStep::Stopped(_)) => *stops += 1,
+                Ok(end) => {
+                    // The end is final.
+                    assert_eq!(cursor.next(session, budget), Ok(end.clone()));
+                    assert_eq!(cursor.order(), None);
+                    return (orders, end, cursor.nodes());
+                }
+                Err(e) => panic!("{e}"),
+            }
+        }
+        panic!("the enumeration did not end");
+    }
+
+    fn deduced(session: &CompletionSession, seeds: &[(usize, PairOrder)]) -> Deduced {
+        match session.deduce(seeds, None) {
+            Ok(Deduction::Deduced(deduced)) => deduced,
+            other => panic!("expected a deduction, got {other:?}"),
+        }
+    }
+
+    fn bits(order: &[PairOrder]) -> Vec<bool> {
+        order.iter().map(|o| *o == PairOrder::FirstAbove).collect()
     }
 
     /// Every constraint holds: seeding every pair with `order` propagates
@@ -857,16 +1708,32 @@ mod tests {
 
     #[test]
     fn checks_agree_with_completing_from_scratch() {
-        let problems = [
+        let mut problems = vec![
             one_cell(4),
             one_cell(5),
             two_stacks(),
             kabuto(),
             carried(4, false),
             carried(4, true),
+            split_gadget(),
         ];
         let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
+        // Stacks tied at random: the problems among them that have an
+        // order.
+        let mut tied = 0;
+        while tied < 6 {
+            let problem = tied_stacks(&mut rng);
+            if matches!(
+                CompletionSession::open(problem.clone(), SearchBudget::default()),
+                Ok(SessionStart::Open(_))
+            ) {
+                problems.push(problem);
+                tied += 1;
+            }
+        }
         let mut verdicts = BTreeMap::new();
+        let mut tally = |kind: &'static str| *verdicts.entry(kind).or_insert(0) += 1;
+        let mut stops = 0;
         for problem in &problems {
             for dense_limit in [usize::MAX, 0] {
                 let session = open(problem, dense_limit);
@@ -874,6 +1741,13 @@ mod tests {
                 // as a whole where none are.
                 let checkable = problem.fixed.iter().all(|f| f.kind == FixedKind::Seed);
                 assert!(!checkable || valid(problem, &session.first()));
+                // Every order the problem allows: where a stepper moves to.
+                let (allowed, _, _) = enumerate_all(
+                    &session,
+                    &deduced(&session, &[]),
+                    SearchBudget::default(),
+                    &mut stops,
+                );
                 for _ in 0..150 {
                     let seeds: Vec<(usize, PairOrder)> = (0..1 + rng.below(4))
                         .map(|_| {
@@ -885,10 +1759,45 @@ mod tests {
                             (rng.below(problem.variables.len()), order)
                         })
                         .collect();
-                    let expected = feasible_from_scratch(problem, &seeds);
-                    for prefer in [None, Some(session.first())] {
+                    let scratch = from_scratch(problem, &seeds, SolutionLimit::All);
+                    let expected = matches!(scratch, Some(Completion::Solved(_)));
+                    let deduction = match session.deduce(&seeds, None) {
+                        Ok(deduction) => Some(deduction),
+                        Err(crate::CompletionError::InvalidProblem(message))
+                            if message.contains("both") =>
+                        {
+                            assert!(scratch.is_none());
+                            None
+                        }
+                        Err(e) => panic!("{e}"),
+                    };
+                    if let Some(Deduction::Deduced(deduced)) = &deduction {
+                        let end = check_enumeration(
+                            problem,
+                            &session,
+                            &seeds,
+                            deduced,
+                            scratch.as_ref(),
+                            checkable,
+                            &mut rng,
+                            &mut stops,
+                        );
+                        tally(match end {
+                            EnumerationStep::Unsatisfied(_) => "enumerated none",
+                            _ => "enumerated",
+                        });
+                    }
+                    // A stepper move: an order the problem allows, vouched
+                    // for, often not the open's.
+                    let moved = allowed[rng.below(allowed.len())].clone();
+                    for (prefer, fits) in [
+                        (None, false),
+                        (Some(session.first()), false),
+                        (Some(moved.clone()), true),
+                    ] {
                         let options = CheckOptions {
                             prefer: prefer.as_deref(),
+                            prefer_fits: fits,
                             fast_nodes: 1 + rng.below(4) as u64,
                             ..CheckOptions::default()
                         };
@@ -898,10 +1807,34 @@ mod tests {
                                 if message.contains("both") =>
                             {
                                 assert!(!expected);
+                                assert!(deduction.is_none());
                                 continue;
                             }
                             Err(e) => panic!("{e}"),
                         };
+                        // A deduction is the check's steps 1–2.
+                        match (&outcome, &deduction) {
+                            (CheckOutcome::Fits(fit), Some(Deduction::Deduced(deduced))) => {
+                                assert_eq!(fit.forced, deduced.forced());
+                            }
+                            (CheckOutcome::NoOrder(_), Some(Deduction::Deduced(_))) => {}
+                            (
+                                CheckOutcome::Forced {
+                                    variable,
+                                    error_faces,
+                                    roots,
+                                },
+                                Some(Deduction::Forced {
+                                    variable: v,
+                                    error_faces: e,
+                                    roots: r,
+                                }),
+                            ) => assert_eq!((variable, error_faces, roots), (v, e, r)),
+                            (CheckOutcome::Conflict(c), Some(Deduction::Conflict(d))) => {
+                                assert_eq!(c, d);
+                            }
+                            other => panic!("{seeds:?}: {other:?}"),
+                        }
                         let kind = match &outcome {
                             CheckOutcome::Fits(fit) => {
                                 assert!(expected, "{seeds:?}: fits, but not from scratch");
@@ -909,33 +1842,548 @@ mod tests {
                                 for &(variable, order) in &seeds {
                                     assert_eq!(fit.order[variable], order);
                                 }
+                                if fits {
+                                    // Wherever the move agrees with what the
+                                    // seeds force, it is kept.
+                                    for component in session.components() {
+                                        let agrees = component
+                                            .iter()
+                                            .all(|&v| fit.forced[v].is_none_or(|o| o == moved[v]));
+                                        if agrees {
+                                            for &v in component {
+                                                assert_eq!(fit.order[v], moved[v], "{seeds:?}");
+                                            }
+                                        }
+                                    }
+                                    if fit.order == moved && moved != session.first() {
+                                        tally("kept a move");
+                                    }
+                                }
                                 "fits"
                             }
-                            CheckOutcome::Forced { error_faces, .. } => {
+                            CheckOutcome::Forced {
+                                variable,
+                                error_faces,
+                                roots,
+                            } => {
                                 assert!(!expected);
                                 assert!(!error_faces.is_empty());
+                                // What forced it: the problem's own orders.
+                                assert!(roots.iter().all(|r| fixed_in(problem, *r)));
+                                let asked: Vec<_> =
+                                    seeds.iter().filter(|(v, _)| v == variable).collect();
+                                assert!(!feasible_from_scratch(problem, &[*asked[0]]));
                                 "forced"
                             }
                             CheckOutcome::Conflict(conflict) => {
                                 assert!(!expected);
                                 assert!(!conflict.error_faces.is_empty());
+                                assert_roots_suffice(problem, &seeds, &conflict.roots);
                                 "conflict"
                             }
                             CheckOutcome::NoOrder(none) => {
                                 assert!(!expected);
                                 assert!(!none.faces.is_empty());
+                                assert_roots_suffice(problem, &seeds, &none.roots);
                                 "no order"
                             }
                             CheckOutcome::Undecided { .. } => panic!("undecided"),
                         };
-                        *verdicts.entry(kind).or_insert(0) += 1;
+                        tally(kind);
                     }
                 }
             }
         }
-        // Each kind of answer is exercised.
-        for kind in ["fits", "forced", "conflict"] {
+        // Each kind of answer is exercised, and so are a budget's stops and
+        // a kept move.
+        for kind in [
+            "fits",
+            "forced",
+            "conflict",
+            "no order",
+            "enumerated",
+            "enumerated none",
+            "kept a move",
+        ] {
             assert!(verdicts.get(kind).copied().unwrap_or(0) > 0, "{verdicts:?}");
+        }
+        assert!(stops > 0);
+    }
+
+    /// Four stacks of three. Stack i's faces are 3i, 3i + 1 and 3i + 2; call
+    /// its pairs `a` (the first two), `b` (the last two) and `c` (first and
+    /// last). Its transitivity triple is a not-all-equal over `a`, `b` and
+    /// `c` reversed. Tortilla-tortillas tie `a₁ = a₀` (call it `p`),
+    /// `a₃ = a₂` (`q`), `b₁ = b₀` (`x`), `b₂ = b₃ = ¬x`, `c₁ = ¬c₀` and
+    /// `c₃ = ¬c₂`. Stacks 0 and 1 then leave `x = p` no order, and stacks 2
+    /// and 3 leave `x = ¬q` none, so `p` and `q` seeded the same way have no
+    /// order. Propagation sees neither: each is a case split, which only a
+    /// search makes. Either seed alone fits.
+    fn split_gadget() -> CompletionProblem {
+        let mut problem = stacks(&[3, 3, 3, 3]);
+        // Stack i's variables: a is 3i, c is 3i + 1 and b is 3i + 2. Each
+        // tie makes A–C stack like B–D; a tie's pair written high face
+        // first stacks the other way.
+        let ties: [([usize; 4], [usize; 2]); 7] = [
+            ([0, 3, 1, 4], [0, 3]),    // a₁ = a₀
+            ([6, 9, 7, 10], [6, 9]),   // a₃ = a₂
+            ([1, 4, 2, 5], [2, 5]),    // b₁ = b₀
+            ([1, 8, 2, 7], [2, 8]),    // b₂ = ¬b₀
+            ([1, 11, 2, 10], [2, 11]), // b₃ = ¬b₀
+            ([0, 5, 2, 3], [1, 4]),    // c₁ = ¬c₀
+            ([6, 11, 8, 9], [7, 10]),  // c₃ = ¬c₂
+        ];
+        for (tie, variables) in ties {
+            for v in variables {
+                problem.constraints[v].tortilla_tortilla.push(tie);
+            }
+        }
+        problem
+    }
+
+    /// Two or three stacks of three or four faces with a few random
+    /// tortilla-tortillas between them, each tying a pair of one stack to
+    /// stack like, or opposite to, a pair of another.
+    fn tied_stacks(rng: &mut Rng) -> CompletionProblem {
+        let sizes: Vec<usize> = (0..2 + rng.below(2)).map(|_| 3 + rng.below(2)).collect();
+        let mut problem = stacks(&sizes);
+        let stack_of = |face: usize| {
+            let mut base = 0;
+            sizes
+                .iter()
+                .position(|&size| {
+                    base += size;
+                    face < base
+                })
+                .unwrap_or(0)
+        };
+        for _ in 0..3 + rng.below(4) {
+            let u = rng.below(problem.variables.len());
+            let w = rng.below(problem.variables.len());
+            let ([a, c], [b, d]) = (problem.variables[u], problem.variables[w]);
+            if stack_of(a) == stack_of(b) {
+                continue;
+            }
+            // A–C and B–D stack the same way; with B and D swapped, opposite.
+            let tie = if rng.below(2) == 0 {
+                [a, b, c, d]
+            } else {
+                [a, d, c, b]
+            };
+            for v in [u, w] {
+                problem.constraints[v].tortilla_tortilla.push(tie);
+            }
+        }
+        problem
+    }
+
+    /// Whether `variable` is one of the problem's fixed orders.
+    fn fixed_in(problem: &CompletionProblem, variable: usize) -> bool {
+        problem.fixed.iter().any(|f| f.variable == variable)
+    }
+
+    /// The seeds among `roots`, with the problem's fixed orders, already
+    /// have no order; every root is one or the other.
+    fn assert_roots_suffice(
+        problem: &CompletionProblem,
+        seeds: &[(usize, PairOrder)],
+        roots: &[usize],
+    ) {
+        assert!(!roots.is_empty());
+        assert!(
+            roots
+                .iter()
+                .all(|r| fixed_in(problem, *r) || seeds.iter().any(|(v, _)| v == r)),
+            "{roots:?} for {seeds:?}"
+        );
+        let needed: Vec<(usize, PairOrder)> = seeds
+            .iter()
+            .copied()
+            .filter(|(v, _)| roots.contains(v))
+            .collect();
+        assert!(
+            !feasible_from_scratch(problem, &needed),
+            "{needed:?} of {seeds:?} has an order"
+        );
+    }
+
+    /// An enumeration of `deduced` against completing from scratch with the
+    /// same seeds (`scratch`, every order listed): the same forced pairs,
+    /// components and orders, in order; every order valid, distinct and
+    /// with the seeds; and the same again resumed in slices of a node or
+    /// three, with the same nodes spent.
+    #[allow(clippy::too_many_arguments)]
+    fn check_enumeration(
+        problem: &CompletionProblem,
+        session: &CompletionSession,
+        seeds: &[(usize, PairOrder)],
+        deduced: &Deduced,
+        scratch: Option<&Completion>,
+        checkable: bool,
+        rng: &mut Rng,
+        stops: &mut usize,
+    ) -> EnumerationStep {
+        let cursor = session.enumerate(deduced).unwrap_or_else(|e| panic!("{e}"));
+        let (orders, end, nodes) = enumerate_all(session, deduced, SearchBudget::default(), stops);
+        match scratch {
+            Some(Completion::Solved(solution)) => {
+                assert_eq!(deduced.forced(), solution.forced);
+                let variables: Vec<Vec<usize>> = solution
+                    .components
+                    .iter()
+                    .map(|c| c.variables.clone())
+                    .collect();
+                assert_eq!(cursor.components(), variables.as_slice());
+                assert_eq!(orders, every_order(solution), "{seeds:?}");
+                assert_eq!(end, EnumerationStep::Exhausted);
+            }
+            Some(Completion::UnsatisfiedComponent(unsatisfied)) => {
+                assert!(orders.is_empty());
+                assert_eq!(end, EnumerationStep::Unsatisfied(unsatisfied.clone()));
+            }
+            other => panic!("{seeds:?} deduced, but from scratch {other:?}"),
+        }
+        let distinct: BTreeSet<Vec<bool>> = orders.iter().map(|o| bits(o)).collect();
+        assert_eq!(distinct.len(), orders.len());
+        for order in &orders {
+            for &(variable, asked) in seeds {
+                assert_eq!(order[variable], asked);
+            }
+            assert!(!checkable || valid(problem, order));
+        }
+        let slices = SearchBudget {
+            max_nodes: Some(1 + rng.below(3) as u64),
+            deadline: None,
+        };
+        let sliced = enumerate_all(session, deduced, slices, stops);
+        if let Some(Completion::Solved(solution)) = scratch {
+            check_varying(session, deduced, solution, &orders, slices, stops);
+        }
+        assert_eq!(sliced, (orders, end.clone(), nodes));
+        end
+    }
+
+    /// Every order of `cursor` narrowed to `vary` while the rest hold
+    /// `hold`, each call within `budget`, as each varying component's own
+    /// order (`component_order`), ascending by component.
+    fn walk_varying(
+        session: &CompletionSession,
+        deduced: &Deduced,
+        vary: &[usize],
+        hold: &[PairOrder],
+        budget: SearchBudget,
+        stops: &mut usize,
+    ) -> Vec<Vec<Vec<PairOrder>>> {
+        let mut cursor = session
+            .enumerate(deduced)
+            .and_then(|cursor| cursor.varying(vary, hold))
+            .unwrap_or_else(|e| panic!("{e}"));
+        let mut ascending = vary.to_vec();
+        ascending.sort_unstable();
+        let mut walked = Vec::new();
+        loop {
+            match cursor.next(session, budget) {
+                Ok(EnumerationStep::Order) => {
+                    let order = cursor.order().unwrap_or_else(|| panic!("no order"));
+                    // Every component that does not vary holds.
+                    for (k, component) in cursor.components().iter().enumerate() {
+                        if !vary.contains(&k) {
+                            for &v in component {
+                                assert_eq!(order[v], hold[v]);
+                            }
+                        }
+                    }
+                    walked.push(
+                        ascending
+                            .iter()
+                            .map(|&k| {
+                                let own = cursor
+                                    .component_order(k)
+                                    .unwrap_or_else(|| panic!("no order of {k}"));
+                                let read: Vec<PairOrder> =
+                                    cursor.components()[k].iter().map(|&v| order[v]).collect();
+                                assert_eq!(own, read);
+                                own
+                            })
+                            .collect(),
+                    );
+                }
+                Ok(EnumerationStep::Stopped(_)) => *stops += 1,
+                Ok(EnumerationStep::Exhausted) => return walked,
+                other => panic!("{other:?}"),
+            }
+        }
+    }
+
+    /// Narrowed to one component, or two, the walk lists exactly what
+    /// completing from scratch lists for them, the first slowest, whole or
+    /// resumed in slices, while the others hold one of `orders` (the last,
+    /// so mostly not the first order). It draws no random numbers, so the
+    /// questions the caller asks are what they were before it.
+    fn check_varying(
+        session: &CompletionSession,
+        deduced: &Deduced,
+        solution: &crate::CompletionSolution,
+        orders: &[Vec<PairOrder>],
+        slices: SearchBudget,
+        stops: &mut usize,
+    ) {
+        let Some(hold) = orders.last() else {
+            return;
+        };
+        let count = solution.components.len();
+        for k in 0..count {
+            let expected: Vec<Vec<Vec<PairOrder>>> = solution.components[k]
+                .solutions
+                .iter()
+                .map(|s| vec![s.clone()])
+                .collect();
+            for budget in [SearchBudget::default(), slices] {
+                assert_eq!(
+                    walk_varying(session, deduced, &[k], hold, budget, stops),
+                    expected
+                );
+            }
+        }
+        if count >= 2 {
+            let (a, b) = (count / 2 - 1, count - 1);
+            let mut expected = Vec::new();
+            for x in &solution.components[a].solutions {
+                for y in &solution.components[b].solutions {
+                    expected.push(vec![x.clone(), y.clone()]);
+                }
+            }
+            // Given in either order, the walk is ascending.
+            assert_eq!(
+                walk_varying(session, deduced, &[b, a], hold, slices, stops),
+                expected
+            );
+        }
+        // Nothing to vary: one order, the deduction and what is held.
+        assert_eq!(
+            walk_varying(session, deduced, &[], hold, slices, stops),
+            vec![Vec::<Vec<PairOrder>>::new()]
+        );
+        check_lexical(session, deduced, solution, hold, slices, stops);
+        // Projected onto some of a component's variables: one order per
+        // distinct assignment of them, each one of the component's.
+        for (k, component) in solution.components.iter().enumerate() {
+            let variables = &component.variables;
+            for pick in [0, 1, 2] {
+                let first: Vec<usize> = variables
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, _)| match pick {
+                        0 => i % 2 == 0,
+                        1 => *i >= variables.len() / 2,
+                        _ => *i == 0,
+                    })
+                    .map(|(_, &v)| v)
+                    .collect();
+                let places: Vec<usize> = first
+                    .iter()
+                    .map(|v| variables.iter().position(|w| w == v).unwrap_or(0))
+                    .collect();
+                let project = |order: &[PairOrder]| -> Vec<PairOrder> {
+                    places.iter().map(|&p| order[p]).collect()
+                };
+                let expected: BTreeSet<Vec<bool>> = component
+                    .solutions
+                    .iter()
+                    .map(|s| bits(&project(s)))
+                    .collect();
+                for budget in [SearchBudget::default(), slices] {
+                    let mut cursor = session
+                        .enumerate(deduced)
+                        .and_then(|cursor| cursor.projected(k, &first, hold))
+                        .unwrap_or_else(|e| panic!("{e}"));
+                    let mut seen = BTreeSet::new();
+                    loop {
+                        match cursor.next(session, budget) {
+                            Ok(EnumerationStep::Order) => {
+                                let own = cursor
+                                    .component_order(k)
+                                    .unwrap_or_else(|| panic!("no order of {k}"));
+                                assert!(component.solutions.contains(&own));
+                                if seen.is_empty() {
+                                    // The held order's own, first.
+                                    let held: Vec<PairOrder> =
+                                        variables.iter().map(|&v| hold[v]).collect();
+                                    assert_eq!(own, held);
+                                }
+                                assert!(seen.insert(bits(&project(&own))), "a projection twice");
+                            }
+                            Ok(EnumerationStep::Stopped(_)) => *stops += 1,
+                            Ok(EnumerationStep::Exhausted) => break,
+                            other => panic!("{other:?}"),
+                        }
+                    }
+                    assert_eq!(seen, expected);
+                }
+            }
+        }
+    }
+
+    /// A lexical walk's orders of component `k`, each call within `budget`,
+    /// as their values in ascending order of its variables.
+    fn walk_lexical(
+        session: &CompletionSession,
+        mut cursor: Enumeration,
+        k: usize,
+        budget: SearchBudget,
+        stops: &mut usize,
+    ) -> Vec<Vec<u8>> {
+        let mut listed = Vec::new();
+        loop {
+            match cursor.next(session, budget) {
+                Ok(EnumerationStep::Order) => {
+                    let order = cursor.order().unwrap_or_else(|| panic!("no order"));
+                    let own = cursor
+                        .component_order(k)
+                        .unwrap_or_else(|| panic!("no order of {k}"));
+                    let variables = &cursor.components()[k];
+                    assert!(variables.windows(2).all(|w| w[0] < w[1]));
+                    let read: Vec<PairOrder> = variables.iter().map(|&v| order[v]).collect();
+                    assert_eq!(own, read);
+                    listed.push(own.iter().map(|o| o.value()).collect());
+                }
+                Ok(EnumerationStep::Stopped(_)) => *stops += 1,
+                Ok(EnumerationStep::Exhausted) => return listed,
+                other => panic!("{other:?}"),
+            }
+        }
+    }
+
+    /// Narrowed to each component, a lexical walk lists the component's
+    /// orders sorted by their values in ascending order of its variables, 1
+    /// before 2, or in the reverse order; placed on any one of them, it
+    /// lists exactly the ones after it, whole or resumed in slices; and on
+    /// an order it does not list, it is placed nowhere. It draws no random
+    /// numbers.
+    fn check_lexical(
+        session: &CompletionSession,
+        deduced: &Deduced,
+        solution: &crate::CompletionSolution,
+        hold: &[PairOrder],
+        slices: SearchBudget,
+        stops: &mut usize,
+    ) {
+        let forced = deduced.forced();
+        for (k, component) in solution.components.iter().enumerate() {
+            let mut ascending = component.variables.clone();
+            ascending.sort_unstable();
+            let key = |order: &[PairOrder]| -> Vec<u8> {
+                ascending.iter().map(|&v| order[v].value()).collect()
+            };
+            let whole: Vec<Vec<PairOrder>> = component
+                .solutions
+                .iter()
+                .map(|own| {
+                    let mut order = hold.to_vec();
+                    for (&v, &value) in component.variables.iter().zip(own) {
+                        order[v] = value;
+                    }
+                    order
+                })
+                .collect();
+            let mut sorted: Vec<Vec<u8>> = whole.iter().map(|o| key(o)).collect();
+            sorted.sort_unstable();
+            let lexical = |descending: bool| {
+                session
+                    .enumerate(deduced)
+                    .and_then(|cursor| cursor.lexical(&[k], hold, descending))
+                    .unwrap_or_else(|e| panic!("{e}"))
+            };
+            for descending in [false, true] {
+                let mut expected = sorted.clone();
+                if descending {
+                    expected.reverse();
+                }
+                for budget in [SearchBudget::default(), slices] {
+                    assert_eq!(
+                        walk_lexical(session, lexical(descending), k, budget, stops),
+                        expected
+                    );
+                }
+                let place = |order: &[PairOrder], budget: SearchBudget| {
+                    lexical(descending)
+                        .after(session, order, budget)
+                        .unwrap_or_else(|e| panic!("{e}"))
+                };
+                for order in &whole {
+                    let at = expected
+                        .iter()
+                        .position(|e| *e == key(order))
+                        .unwrap_or_else(|| panic!("an order of the component"));
+                    let Placed::On(placed) = place(order, SearchBudget::default()) else {
+                        panic!("placed on one of its orders");
+                    };
+                    let guesses = placed.nodes();
+                    assert_eq!(
+                        walk_lexical(session, *placed, k, slices, stops),
+                        expected[at + 1..]
+                    );
+                    // Each guess is a node of the budget: one fewer stops it,
+                    // having placed nothing, and a past deadline before any.
+                    if guesses > 0 {
+                        let short = SearchBudget {
+                            max_nodes: Some(guesses - 1),
+                            deadline: None,
+                        };
+                        assert!(matches!(
+                            place(order, short),
+                            Placed::Stopped {
+                                limit: BudgetLimit::Nodes,
+                                nodes,
+                            } if nodes == guesses - 1
+                        ));
+                        fn late() -> f64 {
+                            1.0
+                        }
+                        let past = SearchBudget {
+                            max_nodes: None,
+                            deadline: Some(crate::Deadline {
+                                now_ms: late,
+                                at_ms: 0.0,
+                            }),
+                        };
+                        assert!(matches!(
+                            place(order, past),
+                            Placed::Stopped {
+                                limit: BudgetLimit::Deadline,
+                                nodes: 0,
+                            }
+                        ));
+                    }
+                }
+                // Not one of its orders: a variable of the component the
+                // other way where that is no order of it, or a forced one.
+                let first = &whole[0];
+                for &v in &ascending {
+                    let mut other = first.clone();
+                    other[v] = if other[v] == PairOrder::FirstAbove {
+                        PairOrder::SecondAbove
+                    } else {
+                        PairOrder::FirstAbove
+                    };
+                    if !sorted.contains(&key(&other)) {
+                        let placed = place(&other, SearchBudget::default());
+                        assert!(matches!(placed, Placed::NotListed), "{v}");
+                    }
+                }
+                if let Some(v) = forced.iter().position(Option::is_some) {
+                    let mut other = first.clone();
+                    other[v] = if other[v] == PairOrder::FirstAbove {
+                        PairOrder::SecondAbove
+                    } else {
+                        PairOrder::FirstAbove
+                    };
+                    assert!(matches!(
+                        place(&other, SearchBudget::default()),
+                        Placed::NotListed
+                    ));
+                }
+            }
         }
     }
 
@@ -987,6 +2435,8 @@ mod tests {
             CheckOutcome::Forced {
                 variable: 1,
                 error_faces: vec![0, 1, 2],
+                // The two fixed orders that force it.
+                roots: vec![0, 2],
             }
         );
         // The same order again is no change at all.
@@ -1164,6 +2614,7 @@ mod tests {
             },
             fast_nodes: 0,
             prefer: None,
+            prefer_fits: false,
         };
         let outcome = session
             .check(&[(0, PairOrder::SecondAbove)], &options)
@@ -1195,5 +2646,260 @@ mod tests {
                 nodes: 0
             })
         );
+    }
+
+    /// Stacks of the given sizes, each alone in its cell, faces numbered
+    /// across them: one independent component per stack.
+    fn stacks(sizes: &[usize]) -> CompletionProblem {
+        let mut problem = CompletionProblem::default();
+        let mut base = 0;
+        for (cell, &size) in sizes.iter().enumerate() {
+            for a in base..base + size {
+                for b in a + 1..base + size {
+                    problem.variables.push([a, b]);
+                }
+                problem.faces_cells.push(vec![cell]);
+            }
+            problem.cells_faces.push((base..base + size).collect());
+            base += size;
+        }
+        problem.constraints = vec![VariableConstraints::default(); problem.variables.len()];
+        problem
+    }
+
+    /// Gate 2 of the plan's E3: after a stepper move (a vouched-for order
+    /// other than the open's first), a preview changes no cell outside the
+    /// components the seeds reached. Without `prefer_fits`, a quick search
+    /// that runs out of nodes put the open's first order back there.
+    #[test]
+    fn a_stepper_move_changes_no_cell_the_seeds_did_not_reach() {
+        let mut rng = Rng(0x2545_f491_4f6c_dd1d);
+        let mut problems = vec![kabuto(), stacks(&[3, 3, 4]), two_stacks()];
+        for _ in 0..12 {
+            let sizes: Vec<usize> = (0..2 + rng.below(3)).map(|_| 2 + rng.below(3)).collect();
+            problems.push(stacks(&sizes));
+        }
+        let (mut previews, mut resets) = (0, 0);
+        for problem in &problems {
+            let session = open(problem, usize::MAX);
+            let mut stops = 0;
+            let (allowed, _, _) = enumerate_all(
+                &session,
+                &deduced(&session, &[]),
+                SearchBudget::default(),
+                &mut stops,
+            );
+            let open_forced = session.forced();
+            // Each cell's variables.
+            let cells: Vec<Vec<usize>> = problem
+                .cells_faces
+                .iter()
+                .map(|faces| {
+                    (0..problem.variables.len())
+                        .filter(|&v| {
+                            let [a, b] = problem.variables[v];
+                            faces.contains(&a) && faces.contains(&b)
+                        })
+                        .collect()
+                })
+                .collect();
+            for moved in allowed.iter().filter(|o| **o != session.first()) {
+                for _ in 0..8 {
+                    let variable = rng.below(problem.variables.len());
+                    let order = if rng.below(2) == 0 {
+                        PairOrder::FirstAbove
+                    } else {
+                        PairOrder::SecondAbove
+                    };
+                    let seeds = [(variable, order)];
+                    let Ok(Deduction::Deduced(deduction)) = session.deduce(&seeds, None) else {
+                        continue;
+                    };
+                    let forced = deduction.forced();
+                    let reached: Vec<bool> = session
+                        .components()
+                        .iter()
+                        .map(|c| {
+                            c.iter()
+                                .any(|&v| forced[v].is_some() && open_forced[v].is_none())
+                        })
+                        .collect();
+                    let unreached = |cell: &[usize]| {
+                        cell.iter().all(|&v| {
+                            session
+                                .components()
+                                .iter()
+                                .zip(&reached)
+                                .all(|(c, &r)| !r || !c.contains(&v))
+                        })
+                    };
+                    for fast_nodes in [0, CheckOptions::DEFAULT_FAST_NODES] {
+                        for prefer_fits in [true, false] {
+                            let options = CheckOptions {
+                                prefer: Some(moved.as_slice()),
+                                prefer_fits,
+                                fast_nodes,
+                                ..CheckOptions::default()
+                            };
+                            let Ok(CheckOutcome::Fits(fit)) = session.check(&seeds, &options)
+                            else {
+                                continue;
+                            };
+                            let kept = cells
+                                .iter()
+                                .filter(|cell| unreached(cell))
+                                .all(|cell| cell.iter().all(|&v| fit.order[v] == moved[v]));
+                            if prefer_fits {
+                                previews += 1;
+                                assert!(kept, "{seeds:?} moved a cell it did not reach");
+                            } else if !kept {
+                                resets += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(previews > 100, "{previews}");
+        // The bug the option fixes is real: where a quick search runs out of
+        // nodes (given none here, standing in for a component too big for
+        // 128), faraway cells went back to the open's first order.
+        assert!(resets > 0);
+    }
+
+    #[test]
+    fn a_deduction_is_propagation_alone() {
+        let problem = one_cell(3);
+        let session = open(&problem, usize::MAX);
+        // 0 over 1 and 1 over 2 force 0 over 2; nothing is searched.
+        let seeds = [(0, PairOrder::FirstAbove), (2, PairOrder::FirstAbove)];
+        assert_eq!(
+            deduced(&session, &seeds).forced(),
+            vec![Some(PairOrder::FirstAbove); 3]
+        );
+        assert_eq!(
+            deduced(&session, &[(0, PairOrder::FirstAbove)]).forced(),
+            vec![Some(PairOrder::FirstAbove), None, None]
+        );
+        fn late() -> f64 {
+            1.0
+        }
+        let deadline = crate::Deadline {
+            now_ms: late,
+            at_ms: 0.0,
+        };
+        assert_eq!(
+            session.deduce(&seeds, Some(deadline)),
+            Ok(Deduction::Undecided {
+                limit: BudgetLimit::Deadline
+            })
+        );
+    }
+
+    #[test]
+    fn an_enumeration_lists_kabutos_nine_orders_and_resumes() {
+        let problem = kabuto();
+        let session = open(&problem, usize::MAX);
+        let all = deduced(&session, &[]);
+        let mut stops = 0;
+        let (orders, end, nodes) =
+            enumerate_all(&session, &all, SearchBudget::default(), &mut stops);
+        let Some(Completion::Solved(solution)) = from_scratch(&problem, &[], SolutionLimit::All)
+        else {
+            panic!("kabuto did not solve");
+        };
+        assert_eq!(solution.solution_counts(), vec![1, 3, 3]);
+        assert_eq!(orders, every_order(&solution));
+        assert_eq!(orders[0], session.first());
+        assert_eq!(end, EnumerationStep::Exhausted);
+        assert_eq!(stops, 0);
+        // One node a call: every node is spent once, whatever stops it.
+        let one = SearchBudget {
+            max_nodes: Some(1),
+            deadline: None,
+        };
+        assert_eq!(
+            enumerate_all(&session, &all, one, &mut stops),
+            (orders, end, nodes)
+        );
+        assert!(stops > 0);
+        // A deadline already past stops it before any node, and it resumes.
+        fn late() -> f64 {
+            1.0
+        }
+        let past = SearchBudget {
+            max_nodes: None,
+            deadline: Some(crate::Deadline {
+                now_ms: late,
+                at_ms: 0.0,
+            }),
+        };
+        let mut cursor = session.enumerate(&all).unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!(
+            cursor.next(&session, past),
+            Ok(EnumerationStep::Stopped(BudgetLimit::Deadline))
+        );
+        assert_eq!(cursor.order(), None);
+        assert_eq!(
+            cursor.next(&session, SearchBudget::default()),
+            Ok(EnumerationStep::Order)
+        );
+        assert_eq!(cursor.order(), Some(session.first()));
+    }
+
+    #[test]
+    fn a_conflict_names_the_seeds_it_traces_back_to() {
+        // A cycle in a stack of three, beside a seed in a stack of two.
+        let problem = stacks(&[3, 2]);
+        let session = open(&problem, usize::MAX);
+        let seeds = [
+            (0, PairOrder::FirstAbove),  // 0 over 1
+            (2, PairOrder::FirstAbove),  // 1 over 2
+            (1, PairOrder::SecondAbove), // 2 over 0
+            (3, PairOrder::FirstAbove),  // 3 over 4, elsewhere
+        ];
+        let Ok(CheckOutcome::Conflict(conflict)) = session.check(&seeds, &CheckOptions::default())
+        else {
+            panic!("expected a conflict");
+        };
+        assert_eq!(conflict.roots, vec![0, 1, 2]);
+        let Some(Completion::Conflict(scratch)) =
+            from_scratch(&problem, &seeds, SolutionLimit::Count(1))
+        else {
+            panic!("expected a conflict from scratch");
+        };
+        assert_eq!(scratch.roots, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn a_search_proof_names_the_seeds_it_needs() {
+        let problem = split_gadget();
+        let session = open(&problem, usize::MAX);
+        // p and q the same way.
+        let seeds = [(0, PairOrder::FirstAbove), (6, PairOrder::FirstAbove)];
+        let Ok(CheckOutcome::NoOrder(none)) = session.check(&seeds, &CheckOptions::default())
+        else {
+            panic!("expected a search to find no order");
+        };
+        assert_eq!(none.roots, vec![0, 6]);
+        // Propagation alone finds nothing wrong; the enumeration's search
+        // finds what completing from scratch does.
+        let deduction = deduced(&session, &seeds);
+        let Some(Completion::UnsatisfiedComponent(unsatisfied)) =
+            from_scratch(&problem, &seeds, SolutionLimit::Count(1))
+        else {
+            panic!("expected no order from scratch");
+        };
+        let mut stops = 0;
+        let (orders, end, _) =
+            enumerate_all(&session, &deduction, SearchBudget::default(), &mut stops);
+        assert!(orders.is_empty());
+        assert_eq!(end, EnumerationStep::Unsatisfied(unsatisfied));
+        // p and q the other way round fit.
+        let fits = [(0, PairOrder::FirstAbove), (6, PairOrder::SecondAbove)];
+        assert!(matches!(
+            session.check(&fits, &CheckOptions::default()),
+            Ok(CheckOutcome::Fits(_))
+        ));
     }
 }

@@ -18,10 +18,16 @@ import {
   type SpreadKeep,
   type SpreadKind,
 } from './foldedLayerSpread';
-import { clampSpreadAmount, clampSpreadAxis, clampSpreadSkew, type LayerSpreadEdit } from './layerSpreadSettings';
+import {
+  clampSpreadAmount,
+  clampSpreadAxis,
+  clampSpreadSkew,
+  SPREAD_AMOUNT_RANGE,
+  type LayerSpreadEdit,
+} from './layerSpreadSettings';
 
 /** The sliders a spread is dragged by: its amount, and an affine one's skew and axis. */
-export type SpreadSlider = 'amount' | 'skew' | 'axis';
+export type SpreadSlider = 'amount' | 'skew' | 'axis' | 'reveal-x' | 'reveal-y';
 
 /**
  * Spread Layers, the switch: on or off, and why it cannot be turned now.
@@ -32,6 +38,13 @@ export interface LayerSpreadToggle {
   pressed?: boolean;
   disabled: boolean;
   hint?: string;
+  /**
+   * Why the layers are not spread, said under the switch's label rather than
+   * only on hover: a fold with no layers to spread, or a spread that could not
+   * be made, kept on for another kind to try. Absent where a surface says
+   * nothing there.
+   */
+  note?: string;
   /** Turn it the other way; refuses while it cannot. */
   run: () => void;
 }
@@ -45,7 +58,10 @@ export interface LayerSpreadChoice<T extends string> {
   label: string;
   /** The one chosen now. */
   pressed: boolean;
-  /** Held as the other verbs are: a read-only document, a picture with no layers, a capture running. */
+  /**
+   * Held as the other verbs are: a read-only document, a picture with no
+   * layers, a capture running; a value, too, while its spread's are held.
+   */
   disabled: boolean;
   waiting: boolean;
   hint?: string;
@@ -54,12 +70,22 @@ export interface LayerSpreadChoice<T extends string> {
 
 /** A spread's kind and values, while the layers are spread. */
 export interface LayerSpreadControls {
+  /** The host's Amount reset; absent, the shared spread default. */
+  defaultAmount?: number;
   /** The spread the picture shows — a drag's, while it is previewed. */
   spread: LayerSpreadOptions;
+  /** A final picture is being captured; choices wait, live drags remain available. */
+  busy: boolean;
   /** Whether the spread can be changed, and if not, why. */
   disabled: boolean;
   hint?: string;
-  /** Depth or affine (13g). */
+  /**
+   * Why the spread's own values are held while its kind is not: layers it
+   * could not be made of, which no value of its own changes — only another
+   * kind may ({@link spreadFailedReason}). Absent where `disabled` says it all.
+   */
+  valuesHeld?: string;
+  /** Default, Affine or Depth; every kind stays available after switching. */
   kinds: LayerSpreadChoice<SpreadKind>[];
   /** A depth spread's eight directions; none for an affine one. */
   directions: LayerSpreadChoice<SpreadDirection>[];
@@ -75,6 +101,8 @@ export interface LayerSpreadDrag extends LayerSpreadControls {
    * move of a drag, or a key.
    */
   preview: (slider: SpreadSlider, value: number) => void;
+  /** Preview both reveal coordinates together, with one capture on commit. */
+  previewReveal: (value: [number, number]) => void;
   /** Commit the slide previewed, as one undo step: the end of a drag, or a key. */
   commit: () => void;
   /** Whether a drag may start: not on a document that cannot change, nor a picture with no layers. */
@@ -83,13 +111,15 @@ export interface LayerSpreadDrag extends LayerSpreadControls {
 
 /**
  * The controls of `spread`, the spread the picture shows. `hint` says why it
- * cannot be changed, when it cannot; `busy`, that the picture is being made
+ * cannot be changed, when it cannot; `valuesHeld`, why only its kind can
+ * (`LayerSpreadControls.valuesHeld`); `busy`, that the picture is being made
  * again and every choice waits for it. A choice already made does nothing.
  */
 export function layerSpreadControls(
   spread: LayerSpreadOptions,
   {
     hint,
+    valuesHeld,
     busy,
     t,
     kind,
@@ -97,6 +127,7 @@ export function layerSpreadControls(
     keep,
   }: {
     hint: string | undefined;
+    valuesHeld?: string;
     busy: boolean;
     t: TFunction;
     kind: (kind: SpreadKind) => void;
@@ -104,33 +135,63 @@ export function layerSpreadControls(
     keep: (keep: SpreadKeep) => void;
   }
 ): LayerSpreadControls {
-  const disabled = hint !== undefined;
-  const waiting = !disabled && busy;
-  const choice = <T extends string>(value: T, label: string, pressed: boolean, choose: (value: T) => void) => ({
-    value,
-    label,
-    pressed,
-    disabled,
-    waiting,
-    hint: hint ?? (waiting ? t('panels:diagram.actions.capturingHint', 'Its picture is being captured') : undefined),
-    run: () => {
-      if (!disabled && !waiting && !pressed) choose(value);
-    },
-  });
+  const choice = <T extends string>(
+    value: T,
+    label: string,
+    pressed: boolean,
+    choose: (value: T) => void,
+    held: string | undefined
+  ) => {
+    const disabled = held !== undefined;
+    const waiting = !disabled && busy;
+    return {
+      value,
+      label,
+      pressed,
+      disabled,
+      waiting,
+      hint: held ?? (waiting ? t('panels:diagram.actions.capturingHint', 'Its picture is being captured') : undefined),
+      run: () => {
+        if (!disabled && !waiting && !pressed) choose(value);
+      },
+    };
+  };
+  // A depth spread's direction and an affine one's layer held still are values of its own.
+  const valueHint = hint ?? valuesHeld;
   return {
     spread,
-    disabled,
+    busy,
+    disabled: hint !== undefined,
     hint,
-    kinds: SPREAD_KINDS.map((each) => choice(each, spreadKindLabel(each, t), each === spread.kind, kind)),
+    ...(valuesHeld !== undefined ? { valuesHeld } : {}),
+    kinds: SPREAD_KINDS.map((each) => choice(each, spreadKindLabel(each, t), each === spread.kind, kind, hint)),
     directions:
       spread.kind === 'depth'
-        ? SPREAD_DIRECTIONS.map((toward) => choice(toward, spreadDirectionLabel(toward, t), toward === spread.toward, direction))
+        ? SPREAD_DIRECTIONS.map((toward) =>
+            choice(toward, spreadDirectionLabel(toward, t), toward === spread.toward, direction, valueHint)
+          )
         : [],
     keeps:
       spread.kind === 'affine'
-        ? SPREAD_KEEPS.map((each) => choice(each, spreadKeepLabel(each, t), each === spread.keep, keep))
+        ? SPREAD_KEEPS.map((each) => choice(each, spreadKeepLabel(each, t), each === spread.keep, keep, valueHint))
         : [],
   };
+}
+
+/**
+ * What every surface says of layers a spread could not be made of — a Default
+ * solve over its limits, most often — under Spread layers and on the values
+ * it holds. The spread stays on: Affine and Depth need no solve, so another
+ * kind may spread what Default could not.
+ */
+export function spreadFailedReason(t: TFunction): string {
+  return t('panels:cpProperties.folded.spreadUnavailable', 'These layers couldn’t be spread');
+}
+
+/** Whether a spread's own values — its sliders, pad and choices but its kind — can be changed now, and if not, why. */
+export function spreadValuesHold(controls: LayerSpreadControls): { disabled: boolean; hint?: string } {
+  const hint = controls.hint ?? controls.valuesHeld;
+  return { disabled: controls.disabled || controls.valuesHeld !== undefined, ...(hint !== undefined ? { hint } : {}) };
 }
 
 /**
@@ -140,6 +201,8 @@ export function layerSpreadControls(
  */
 export function spreadSliderEdit(slider: SpreadSlider, kind: SpreadKind, value: number): LayerSpreadEdit {
   switch (slider) {
+    case 'reveal-x': return { verb: 'spread-reveal-axis', axis: 0, value };
+    case 'reveal-y': return { verb: 'spread-reveal-axis', axis: 1, value };
     case 'amount':
       return { verb: 'spread-amount', amount: clampSpreadAmount(kind, value), kind };
     case 'skew':
@@ -149,8 +212,34 @@ export function spreadSliderEdit(slider: SpreadSlider, kind: SpreadKind, value: 
   }
 }
 
+/** The amount slider of a kind: in percents, and the factor from the spread's amount to them. */
+export interface SpreadAmountSlider {
+  scale: number;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+}
+
+/**
+ * The amount slider as every spread surface lays it out: in whole percents,
+ * so its readout never shows a decimal, between the kind's range's ends
+ * rounded inward. Default's percentage covers its full height range. An
+ * amount between whole percents shows at the nearest one, and stays as it is
+ * until the slider moves.
+ */
+export function spreadAmountSlider(kind: SpreadKind, amount: number): SpreadAmountSlider {
+  const scale = kind === 'connected' ? 100 / SPREAD_AMOUNT_RANGE.connected.max : 100;
+  // To a millionth first, so float noise never tips a whole percent (1.13 × 50 is 56.49999999999999).
+  const percent = (fraction: number) => Number((fraction * scale).toFixed(6));
+  const min = Math.ceil(percent(SPREAD_AMOUNT_RANGE[kind].min));
+  const max = Math.floor(percent(SPREAD_AMOUNT_RANGE[kind].max));
+  return { scale, min, max, step: 1, value: Math.min(max, Math.max(min, Math.round(percent(amount)))) };
+}
+
 /** A kind's name, as its segment says it. */
 export function spreadKindLabel(kind: SpreadKind, t: TFunction): string {
+  if (kind === 'connected') return t('panels:diagram.pose.spreadKindConnected', 'Default');
   return kind === 'depth'
     ? t('panels:diagram.pose.spreadKindDepth', 'Depth')
     : t('panels:diagram.pose.spreadKindAffine', 'Affine');

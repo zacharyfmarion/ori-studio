@@ -1,0 +1,185 @@
+/*
+ * A modal dialog's frame (ModalFrame.tsx): a dimmed backdrop, and on it a
+ * surface with a title bar, the body and a foot. On a phone it is the whole
+ * screen.
+ */
+.backdrop {
+  --gutter: var(--space-4);
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: max(var(--gutter), var(--safe-top)) max(var(--gutter), var(--safe-right))
+    max(var(--gutter), var(--safe-bottom)) max(var(--gutter), var(--safe-left));
+  background: var(--overlay-dim);
+  backdrop-filter: blur(4px);
+}
+
+.surface {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-context-menu);
+}
+
+.surface:focus {
+  outline: none;
+}
+
+/* As tall as its content, up to a cap: its body scrolls past it. */
+.surface[data-size='form'] {
+  width: min(560px, 100%);
+  max-height: min(760px, 100%);
+}
+
+/* A fixed height, so canvases inside it have one to fill. */
+.surface[data-size='workspace'] {
+  width: min(1320px, 100%);
+  height: min(880px, 100%);
+}
+
+/* The title at the start and the close button at the end; a detail follows the title, tools sit before the close button. */
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--workspace-header-height);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lead {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.detail {
+  min-width: 0;
+  margin-right: auto;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* The title's line, as a box of its own only on a phone (below): wider, its pieces are the bar's. */
+.head {
+  display: contents;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.body[data-layout='stack'] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  overflow-y: auto;
+}
+
+/* One cell, the whole body: the content lays itself out in it. */
+.body[data-layout='fill'] {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* MODAL_FULL_SCREEN_QUERY (ModalFrame.tsx): the same string, held to it by a test. */
+@media (max-width: 720px) {
+  .backdrop {
+    --gutter: 0px;
+  }
+
+  .surface[data-size] {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  /*
+   * A bar with a lead or tools: the title's line and the close button, which
+   * never wraps, then the tools on a row of their own. On the title's line the
+   * title truncates first and the lead shrinks only once it has.
+   */
+  .bar[data-rows] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--space-2);
+  }
+
+  .bar[data-rows] > .head {
+    display: flex;
+    grid-row: 1;
+    grid-column: 1;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .bar[data-rows] .title {
+    flex: 0 1000 auto;
+    min-width: 4em;
+  }
+
+  .bar[data-rows] .lead {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .bar[data-rows] > .tools {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+}

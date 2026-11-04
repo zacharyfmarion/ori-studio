@@ -1,4 +1,5 @@
 import { PropertySheetView } from '../../components/properties/PropertySheetView';
+import { trackCanvasObjectActionUsed } from '../../analytics/trackCanvasObjectActionUsed';
 import { trackCanvasObjectPropertyChanged } from '../../analytics/trackCanvasObjectPropertyChanged';
 import { CANVAS_COMPANION_PROPS } from '../canvasObjects/canvasCompanionSurface';
 import type { CanvasObjectTarget } from '../canvasObjects/canvasObjectKinds';
@@ -32,6 +33,7 @@ export function SheetHost({
       sheet={sheet}
       surfaceProps={CANVAS_COMPANION_PROPS}
       onCommit={(property) => trackCanvasObjectPropertyChanged({ objectKind: target.kind, property })}
+      onAction={(action) => trackCanvasObjectActionUsed({ objectKind: target.kind, action })}
     />
   );
 }

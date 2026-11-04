@@ -1,3 +1,5 @@
+import { readSpatialSpread } from '../../cp-workspace/folded/spatialSpreadSettings';
+import { readSpreadPresentation } from '../../layer-spread/presentation';
 /**
  * A diagram as it is stored in the project file (each of `workspace.diagrams`),
  * read leniently and written back exactly.
@@ -103,6 +105,7 @@ import { TEXT_OFFSET_PT_MAX, TEXT_SIZE_PT } from '../annotate/textStyle';
 import { windowReach } from '../zoom/zoomModel';
 import { digest } from '../pictures/pictureKey';
 import { NEWER_PAPER_FACES, SCENE_JSON_MAX_BYTES, readPaperFaces } from './paperFacesFile';
+import { readLayerOrderRecord } from '../../lib/layerOrder/layerOrderRecord';
 import {
   EMBEDDED_RASTER_MAX_SIDE,
   SVG_STORED_MAX_BYTES,
@@ -789,7 +792,7 @@ function writeAsset(asset: DiagramAsset): Record<string, unknown> {
  */
 const SOURCE_KEYS: Readonly<Record<DiagramStepSource['kind'], ReadonlySet<string>>> = {
   upload: new Set(['kind', 'assetId', 'rotationQuarterTurns', 'mirrored']),
-  cp: new Set(['kind', 'scope', 'fingerprint', 'thumbnail', 'render', 'remembered']),
+  cp: new Set(['kind', 'scope', 'fingerprint', 'thumbnail', 'render', 'remembered', 'layerOrder']),
   'references-step': new Set([
     'kind',
     'region',
@@ -847,15 +850,15 @@ const PULLED_MARKS_KEYS: ReadonlySet<string> = new Set(['letters', 'highlights']
 const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<string>>> = {
   defox: new Set(['mode', 'snapshot']),
   'crease-pattern': new Set(['mode', 'rotationDeg', 'side', 'flipCreases']),
-  'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread']),
-  'folded-3d': new Set(['mode', 'camera', 'side']),
+  'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread', 'presentation']),
+  'folded-3d': new Set(['mode', 'camera', 'side', 'spread']),
   // `shape` is Pose's mesh, which this build carries and never reads (`readCpRender`).
   simulated: new Set(['mode', 'foldPercent', 'view', 'shape']),
 };
 /** The fields each kind of picture is written with, as {@link SOURCE_KEYS} are a source's. */
 const PICTURE_KEYS: Readonly<Record<DiagramPicture['kind'], ReadonlySet<string>>> = {
-  asset: new Set(['kind', 'assetId', 'paperScale', 'styleKey', 'key']),
-  scene: new Set(['kind', 'sceneJson', 'paperScale', 'styleKey', 'key', 'paperFaces']),
+  asset: new Set(['kind', 'assetId', 'paperScale', 'styleKey', 'key', 'sceneFrame', 'spreadFailed']),
+  scene: new Set(['kind', 'sceneJson', 'paperScale', 'styleKey', 'key', 'paperFaces', 'spreadFailed']),
   fixed: new Set(['kind', 'svg', 'widthPx', 'heightPx', 'key']),
   'step-diagram': new Set(['kind', 'model', 'mirrored', 'key']),
 };
@@ -1049,7 +1052,8 @@ function withPicture(
 /**
  * A posed picture with the faces on the paper it was read with, when they
  * agree with its scene and its pose is a flat fold; else as it was read,
- * without them.
+ * without them. A fold whose layers could not be spread is drawn unspread,
+ * whatever its spread.
  */
 function withFittingFaces(
   picture: DiagramPicture | null,
@@ -1057,13 +1061,18 @@ function withFittingFaces(
   paperFaces: ReturnType<typeof readPaperFaces> | undefined
 ): DiagramPicture | null {
   const flat = render.mode === 'folded-flat' ? render : null;
-  return picture?.kind === 'scene' &&
-    flat &&
-    paperFaces &&
-    paperFaces !== NEWER_PAPER_FACES &&
-    paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined)
-    ? { ...picture, paperFaces: paperFaces.json }
-    : picture;
+  if (
+    picture?.kind !== 'scene' ||
+    !flat ||
+    !paperFaces ||
+    paperFaces === NEWER_PAPER_FACES ||
+    !paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined && picture.spreadFailed !== true)
+  ) {
+    return picture;
+  }
+  // Its faces where a capture writes them, before the mark, so a load writes back what it read.
+  const { spreadFailed, ...unmarked } = picture;
+  return { ...unmarked, paperFaces: paperFaces.json, ...(spreadFailed ? { spreadFailed } : {}) };
 }
 
 /**
@@ -1093,10 +1102,10 @@ function isNewerFoldSource(value: Record<string, unknown>): boolean {
 
 /**
  * A crease-pattern source a newer build wrote: a field, a scope, a render —
- * the one shown, or one remembered for another way of showing (D19) — or a
- * thumbnail this build has no name for. Read here, such a source would be
- * written back without what this build cannot name, so the step is carried
- * whole instead.
+ * the one shown, or one remembered for another way of showing (D19) — a
+ * thumbnail or a layer order this build has no name for. Read here, such a
+ * source would be written back without what this build cannot name, so the
+ * step is carried whole instead.
  */
 function isNewerCpSource(value: Record<string, unknown>): boolean {
   return (
@@ -1104,7 +1113,8 @@ function isNewerCpSource(value: Record<string, unknown>): boolean {
     isNewerScope(value.scope) ||
     isNewerRender(value.render) ||
     isNewerRemembered(value.remembered) ||
-    isNewerSheetThumbnail(value.thumbnail)
+    isNewerSheetThumbnail(value.thumbnail) ||
+    (value.layerOrder !== undefined && readLayerOrderRecord(value.layerOrder) === NEWER)
   );
 }
 
@@ -1175,9 +1185,9 @@ function isNewerRender(value: unknown): boolean {
     case 'crease-pattern':
       return readPatternSide(value.side) === NEWER;
     case 'folded-flat':
-      return readSpread(value.spread) === NEWER || isNewerWord(value.side, ['front', 'back']);
+      return readSpreadPresentation(value.presentation) === NEWER || readSpread(value.spread) === NEWER || isNewerWord(value.side, ['front', 'back']);
     case 'folded-3d':
-      return isNewerRecord(value.camera, FOLDED_FIGURE_CAMERA_KEYS) || isNewerWord(value.side, ['front', 'back']);
+      return readSpatialSpread(value.spread) === NEWER || isNewerRecord(value.camera, FOLDED_FIGURE_CAMERA_KEYS) || isNewerWord(value.side, ['front', 'back']);
     case 'simulated': {
       const foldPercent = finiteNumber(value.foldPercent);
       return isNewerRecord(value.view, FOLDED_FIGURE_CAMERA_KEYS) || (foldPercent !== null && (foldPercent < 0 || foldPercent > 100));
@@ -1320,7 +1330,11 @@ export function storedCpSource(source: DiagramCpSource): DiagramCpSource | null 
   return readCpSource(JSON.parse(JSON.stringify(source)) as Record<string, unknown>);
 }
 
-/** A crease-pattern source, every field checked; null when any does not read. */
+/**
+ * A crease-pattern source, every field checked; null when any does not read.
+ * A layer order that does not read is dropped alone, and the step keeps its
+ * picture; a newer build's locks the step ({@link isNewerCpSource}).
+ */
 function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   const scope = readCpScope(value.scope);
   const render = readCpRender(value.render);
@@ -1329,7 +1343,16 @@ function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   if (!scope || !render || !thumbnail) return null;
   if (typeof fingerprint !== 'string' || fingerprint.length === 0) return null;
   const remembered = readRememberedPoses(value.remembered, render);
-  return { kind: 'cp', scope, fingerprint, thumbnail, render, ...(remembered ? { remembered } : {}) };
+  const layerOrder = value.layerOrder === undefined ? null : readLayerOrderRecord(value.layerOrder);
+  return {
+    kind: 'cp',
+    scope,
+    fingerprint,
+    thumbnail,
+    render,
+    ...(remembered ? { remembered } : {}),
+    ...(layerOrder && layerOrder !== NEWER && layerOrder.ok ? { layerOrder: layerOrder.json } : {}),
+  };
 }
 
 /**
@@ -1543,6 +1566,8 @@ function readCpRender(value: unknown): DiagramCpRender | null {
     case 'folded-flat': {
       const foldCase = wholeNumber(value.foldCase);
       const spread = readSpread(value.spread);
+      const presentation = readSpreadPresentation(value.presentation);
+      if (presentation === null || presentation === NEWER) return null;
       if (!side || rotationDeg === null || foldCase === null || foldCase < 1) return null;
       // A newer build's spread made the step a newer build's before this was reached.
       if (spread === null || spread === NEWER) return null;
@@ -1552,11 +1577,14 @@ function readCpRender(value: unknown): DiagramCpRender | null {
         rotationDeg: normalizeDegrees(rotationDeg),
         foldCase,
         ...(spread ? { spread } : {}),
+        ...(presentation ? { presentation } : {}),
       };
     }
     case 'folded-3d': {
       const camera = readFoldedFigureCamera(value.camera);
-      return side && camera ? { mode: 'folded-3d', camera, side } : null;
+      const spread = readSpatialSpread(value.spread);
+      if (spread === null || spread === NEWER) return null;
+      return side && camera ? { mode: 'folded-3d', camera, side, ...(spread ? { spread } : {}) } : null;
     }
     case 'simulated': {
       const foldPercent = finiteNumber(value.foldPercent);
@@ -1613,18 +1641,30 @@ function readPictureOfKind(
   const key = value.key;
   if (typeof key !== 'string' || key.length === 0) return null;
   const paperScale = positiveOrNull(value.paperScale);
+  // A fold whose layers could not be spread, drawn unspread: anything but `true` says nothing.
+  const spreadFailed = value.spreadFailed === true ? { spreadFailed: true as const } : {};
   switch (kind) {
     case 'asset': {
       const assetId = value.assetId;
       if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
       const styleKey = typeof value.styleKey === 'string' && value.styleKey.length <= 512 ? value.styleKey : null;
-      return { kind: 'asset', assetId, paperScale, ...(styleKey === null ? {} : { styleKey }), key };
+      const frame = value.sceneFrame;
+      if (frame !== undefined && (
+        !Array.isArray(frame) || frame.length !== 4 ||
+        !frame.every((n) => typeof n === 'number' && Number.isFinite(n)) ||
+        !(frame[2] > 0) || !(frame[3] > 0)
+      )) return null;
+      return {
+        kind: 'asset', assetId, paperScale, ...(styleKey === null ? {} : { styleKey }), key,
+        ...(frame === undefined ? {} : { sceneFrame: frame as [number, number, number, number] }),
+        ...spreadFailed,
+      };
     }
     case 'scene': {
       const read = readSceneJson(value.sceneJson);
       if (read === null || read === NEWER) return read;
       const styleKey = typeof value.styleKey === 'string' ? value.styleKey : null;
-      const picture: DiagramScenePicture = { kind: 'scene', sceneJson: read.json, paperScale, styleKey, key };
+      const picture: DiagramScenePicture = { kind: 'scene', sceneJson: read.json, paperScale, styleKey, key, ...spreadFailed };
       readScenes.set(picture, read.scene);
       return picture;
     }
@@ -2469,7 +2509,7 @@ function paperFacesFitScene(faces: DiagramPaperFaces, picture: DiagramScenePictu
     if (whole.has(item.face)) continue;
     whole.set(item.face, Array.isArray(item.rings) && item.rings.length === 1 && Array.isArray(item.rings[0]) ? item.rings[0].length : null);
   }
-  if (!spread) return true;
+  if (!spread || faces.drawn) return true;
   return faces.rings.every((ring, face) => ring.length === 0 || whole.get(face) === ring.length);
 }
 

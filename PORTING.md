@@ -641,6 +641,110 @@ immediately after dispatching, so upstream drops the selection whatever the fold
 does and a user who stops one has to reselect. We restore it, so pressing G again
 is enough.
 
+### The seeded flat fold (Ori Studio native, additive)
+
+`FoldingEstimateSession::with_seeds` is the seeded core of the Layer order
+dialog (`implementation-plans/layer-order-dialog.md`, E1): a flat figure whose
+layer-order search starts from given face-pair relations as well as the
+creases' letters, so a host can show an order chosen elsewhere through
+Oriedita's own search and drawer. It is not a port and not a divergence, since
+upstream has nothing to compare it with. Its `CustomConstraint`s are per-subface
+top and bottom sets, a different shape, and they are not ported (see "Folding
+search coverage").
+
+Nothing changes until a caller seeds:
+
+- **No seeds, the shipped fold.** `overlap_enumerator_from_segments` is
+  `overlap_enumerator_from_segments_seeded(.., &[])`, and with no seeds that
+  takes exactly the shipped steps, with upstream's unbounded search.
+  `crates/oristudio-cp/tests/folding_seeded.rs` holds fourteen flat fixtures to
+  a golden of their case sequences through every "Another solution" and the
+  wrap, recorded by the unseeded entry before the seeded core existed. The
+  folding and render oracles are unchanged.
+- **Seeds go through every deduction the shipped fold makes.** They join the
+  letters' hierarchy, each checked first against the table the unseeded fold
+  reads: `HierarchyTable::from_initial` of the letters, plus the seeds before
+  it. The check is needed because `from_initial` keeps the first of two
+  contradictory relations silently. It is made against that table, not the raw
+  letters, because the letters can disagree among themselves (two collinear
+  creases of different letters between the same two faces) and the table has
+  already settled that, so the order an unseeded fold found always passes as
+  seeds. Then the equivalence conditions, the setup-time `removeMode` AEA
+  round, the subface priority and guide maps, and the search's realtime and
+  final AEA all run over letters and seeds together. The research spike
+  assembled its seeded path from the public stages and skipped the closure
+  (product spec §13); this path cannot skip it, because it is the shipped body.
+- **Refusals are typed, and name a seed.** A seed that names no face, puts a
+  face above itself, or reverses that table or an earlier seed is
+  `WorkerOverlapSearchError::Seed` (`HierarchySeedError`, engine code
+  `fold_seed_refused`), never a `FoldOutcome::Contradiction`, which is a
+  statement about the creases. A seed against a pair only the closure derives
+  is the fold's ordinary contradiction: the closure cannot tell which relations
+  led to it. A seeded search is bounded (`SEEDED_FOLD_ITERATION_BUDGET`,
+  100,000 outer iterations per search, ending in `Exhausted`).
+- **The seeds are the session's**, so the restart, the wrap of "Another
+  solution" and the render's fallback search (`HierarchySource::Search`) all
+  start from them. A seeded figure never falls back to the order an unseeded
+  search would find.
+- **The frame is Oriedita's:** `upper_face` is nearer a viewer of the starting
+  face's front.
+
+Seeded with the full relations of an order Oriedita found, the fold finds that
+order and no other: 38 of 38 orders over the eleven fixtures that solve, each in
+one outer iteration. Seeded with one pair that Oriedita's solutions order both
+ways, "Another solution" walks exactly the solutions that honour it, and wraps
+back to the seeded first (`solution_sample_1` 8 of 16, `kabuto` 3 of 9,
+`r069-s07` 3 of 5).
+
+#### The hosts' entries (E2)
+
+The Layer order dialog's hosts reach the seeded core through four `CpSession`
+entries, each a CP-wasm binding and a Tauri command
+(`implementation-plans/layer-order-dialog.md`, E2). They are read-only or fold
+into a new handle; none changes a figure in place.
+
+- **`folded_figure_source(handle, document)` and
+  `fold_source_of_selection(document, lines, face)`** answer a `FoldSource`:
+  the creases exactly as the fold takes them, the starting face, the aux lines
+  and a face-ring digest. A host hands it on whole, never reselected from the
+  document, because reselected lines can renumber the faces an order names.
+- **`folded_figure_fold_with_order(source, relations, model)`** folds the
+  source's segments, after checking its digest, through
+  `FoldingEstimateSession::with_seeds` into a **new** handle. An order Oriedita
+  cannot draw is a typed `FoldOrderRefusal` result (`digest_mismatch`,
+  `unknown_face`, `same_face`, `against_letters`, `in_closure`, `not_found`,
+  `budget`) that leaves no handle; a Stop is `fold_cancelled`, as for any fold.
+  There is no in-place "show this order": a new handle keeps undo honest.
+- **`folded_figure_digest(handle)`** is the figure's digest alone.
+- **The digest** (`FaceRingDigest`) is FNV-1a over each segment's colour and
+  coordinates as given, the starting face as given and every face ring's vertex
+  indices. No folded or derived float enters it, so two builds whose libm round
+  a reflection differently still agree while their faces agree. The native
+  kernel and the CP bridge are held to one recording of it
+  (`tests/fixtures/oristudio-cp/face-ring-digests.json`).
+- **The snapshot's `shown_order`** is `"given"` on a seeded figure and is not
+  written otherwise (`skip_serializing_if`), so every unseeded snapshot and
+  every saved file keeps its bytes. `tests/fold_with_order.rs` holds the
+  unseeded snapshot, renders and paper scenes of eleven file fixtures, and
+  `oristudioCpFoldWithOrder.wasm.test.ts` an `.osf` of each, to recordings made
+  before the entries existed.
+
+Two Rust-only exports serve the dialog's own engine, the Fold wasm, which links
+this crate: the `FoldedRenderInputs` accessors (`flat_points`, `wireframe`,
+`subface_face_ids` and `line_face_border`, Oriedita's edge rule: every line
+between two faces folds, a mountain if `Red1` and otherwise a valley), and
+`folded_paper_scene_with_order`, the paper scene stacked by a given order
+through the same builder as a solved figure's. Given a session's own order it
+is the scene of the figure `fold_with_order` folds, front and back, on every
+order of kabuto and `solution_sample_1`, so the dialog shows what its Apply
+will. The constraint session (E5) adds one more accessor,
+`scene_subface_face_ids`: the faces under each subface the paper scene draws,
+numbered as the scene numbers them, so the dialog restacks a scene it holds
+for another order without asking for a new one. The scene and the accessor
+share one skip rule (`drawn_subfaces`: no face under it, or a ring of fewer
+than three points), moved out of the scene builder unchanged; the scene
+goldens of `tests/fold_with_order.rs` hold it to its bytes.
+
 ### Ori Studio native operations
 
 Not every CP operation is a port. Some exist only here — fold-angle editing has
@@ -1185,6 +1289,133 @@ every constraint is listed by all of its variables, as upstream's
 independent review built them on purpose, and a session opened over them
 disagreed with completing from scratch. The check costs about 21 ms of the
 iguana's 1 s open.
+
+#### What the Layer order dialog adds to the session
+
+Also ours, beside the port (`implementation-plans/layer-order-dialog.md`,
+E3):
+
+- **`deduce(seeds, deadline)`** is a check's first two steps alone: a seed
+  against a pair the open forced is refused, and the others are propagated
+  from the open's state, with no search. It answers what the fixed orders
+  and the seeds force (`Deduced::forced`), the pairs a check's fit calls
+  forced; only a search finds a component with no order, so a deduction can
+  leave open what a check refuses.
+- **`enumerate(&deduced)`** is a cursor (`Enumeration`) over every complete
+  order the deduction leaves. It splits the closure with upstream's
+  `get_components`, as completing from scratch with the same seeds does,
+  searches each component with upstream's `guess_vars` (value 1 first), and
+  walks their product with the first component slowest. Its orders are
+  therefore `complete_layer_order`'s with every order listed, in the order
+  it lists them, which the randomized test checks. Each `next` call takes
+  its own node budget and deadline and yields one order, or says the
+  enumeration is exhausted, has no order (`Unsatisfied`, the
+  `UnsatisfiedComponent` completing would report), or was stopped, in which
+  case the next call resumes where it stopped.
+  - To resume, `search`'s loop keeps its locals in a struct
+    (`constraints::Search`), and `search` itself is now one run of it, so
+    every upstream path runs the same loop. The one reordering: on
+    backtracking, the loop asks its meter for a node before undoing the
+    guess that node revisits, not after, so that a stop leaves the guess on
+    the stack. The meter reads nothing the undo changes, so every run
+    spends the same nodes and finds the same solutions in the same order;
+    resumed one node at a time, an enumeration yields the same orders with
+    the same total nodes.
+  - A component with no order is reported before any order is yielded,
+    instead of backtracking into the components before it: they are
+    independent, so it has no order whatever they hold.
+  - **`Enumeration::varying(vary, hold)`** (E6) starts the cursor over
+    walking only some of its components, every other one held at a given
+    order, and `component_order(k)` reads one component's values of the
+    order just yielded. The Layer order dialog's solution count lists each
+    component's orders this way instead of walking the product of all of
+    them. Every constraint joining two components is dead whatever either
+    holds, so a varying component's search is the one it has in the whole
+    walk: the randomized test checks that each component alone, and two
+    together, list exactly completing from scratch's orders for them, whole
+    and resumed in slices.
+  - **`Enumeration::projected(k, first, hold)`** (E6) walks one component
+    for each distinct assignment of some of its variables (the pairs a
+    picture reads) and completes each once, so the count of distinct
+    pictures never lists the orders that differ only in hidden layers.
+    Upstream's search runs over those variables alone (with propagation as
+    always), reaching each assignment of them once; there, what is left of
+    the component is split with upstream's `get_components` and each part
+    searched for one order, so an assignment with none is refuted within
+    the part that has none. Each guess tries the held order's value first,
+    so the first order yielded is the held one. The search loop itself is
+    unchanged, and no upstream path calls this. The randomized test checks,
+    for three choices of the variables per component, that the assignments
+    yielded are exactly the distinct ones of completing from scratch's
+    orders, each once, each order one of the component's, the first the
+    held one, whole and resumed in slices.
+  - **`Enumeration::lexical(vary, hold, descending)`** (E9) is `varying`
+    with each varying component's variables searched in ascending order and
+    every guess trying 1 first (2 first when descending): upstream's loop
+    over another variable order, so it lists the component's orders, as a
+    set, unchanged, in lexicographic order (or its reverse), which is the
+    order the dialog's X-ray stepper steps in.
+    **`Enumeration::after(order, budget)`** places such a walk on one of its
+    orders without searching (`constraints::Search::placed_at`: each
+    variable still open when the loop reaches it is guessed with `order`'s
+    value and propagated, as the loop guesses), so the next call yields the
+    order after it (`Placed::On`); an order the walk does not list places it
+    nowhere (`Placed::NotListed`). Each guess asks the budget's meter first,
+    as the loop does, so placing stops within a node budget or a deadline
+    (`Placed::Stopped`, nothing placed). The walk's only other change is that
+    `next` reads its first value from the cursor, 1 unless `lexical` set it,
+    so every upstream path and every earlier cursor search exactly as
+    before. The randomized test checks, per component and both ways, that
+    the walk lists completing from scratch's orders sorted, whole and in
+    slices; that placed on each of them it lists exactly the ones after it;
+    that one node fewer than placing took, or a deadline already past,
+    stops it; and that an order it does not list, or one against a forced
+    pair, places nothing.
+- **`CheckOptions::prefer_fits`.** The caller vouches that the preferred
+  order is a complete order that fits, such as an earlier check's fit or an
+  enumerated order. Every component on which it agrees with what the seeds
+  force then keeps it without a search, every component the seeds did not
+  reach among them. That is sound because a component's live constraints
+  read only its own pairs and pairs the open forced, and every constraint
+  joining two components is dead. Without the option, a component nothing
+  reached keeps the preference only where it is the open's first order;
+  elsewhere it is searched again, and falls back to the first order when
+  that quick search runs out of nodes. So after the dialog's stepper moves
+  to another solution, a preview could reset components far from the new
+  constraint (`a_stepper_move_changes_no_cell_the_seeds_did_not_reach`).
+- **Roots on every "no".** `CompletionConflict::roots` (so also
+  `complete_layer_order`'s conflicts), `CheckNoOrder::roots` and
+  `CheckOutcome::Forced { roots }` list the fixed orders and seeds, as
+  variables, that the trace behind `error_faces` leads back to: the
+  assigned pairs it reaches whose parent is a root. One walk
+  (`constraints::traced`) gives both, so `error_faces` is unchanged. Each
+  order the walk passes through was implied from orders it also reaches, so
+  the roots alone, with the constraints, have no order, and a smallest
+  clashing set of seeds lies among them. Where upstream's walk stops short
+  (a pair implied in the level that conflicted is not expanded, so its
+  faces leave out what implied it), the roots walk on through that pair's
+  parent, or a conflict between two implications in one level would name
+  the seeds of only one
+  (`error_faces_stop_at_orders_implied_in_the_conflicting_level`).
+
+The evidence is the in-crate randomized test
+(`checks_agree_with_completing_from_scratch`, now over seven problems and
+six stacks tied at random, both table forms): every deduction equals the
+check's steps 1–2 and completing from scratch; every enumeration equals
+completing from scratch with every order listed, its orders distinct, valid
+and carrying the seeds, and the same again resumed in slices of one to three
+nodes; checks preferring a vouched-for stepper move agree with completing
+from scratch and keep the move wherever it agrees with the seeds' closure;
+and the seeds among every "no"'s roots alone still have no order.
+The reworked loop leaves upstream's paths as they were (2026-10-23, against
+the commit before it): `solver_differential dump` gives 0 differences on the
+5 in-repo fixtures and all 484 cpoogle designs; `solver_session_check`
+agrees with the old from-scratch answers on 4,788 questions in three modes;
+`solve_flat_fold`'s output (through `treemaker flatfold`) is byte-identical
+on all 14,000 files of `cp_training_mix_v1`; and `flat_folder_corpus` gives
+the counts above, 8,394 of the 8,396 files the oracle answers agreeing and
+the same two taco-tortilla counts differing, and one file not finishing,
+as before (`treemaker_tree_v1-5gjm9-018843`, stopped after 3 minutes).
 
 That caller-built constraints avoid both arrangement failures above is still
 **[derived]**: neither goes through Flat-Folder's arrangement. The `verify`

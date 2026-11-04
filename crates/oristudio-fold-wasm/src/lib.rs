@@ -67,6 +67,9 @@
 //! `FoldEngine` beside these calls, and a stored `cp-jump` op is applied like
 //! any other step. `README.md` records the size that costs.
 //!
+//! The Layer order dialog's constraint sessions are [`steer`]'s `layer_*`
+//! calls on `FoldEngine`, which only the dialog's own workers make.
+//!
 //! A precrease with an `extent` — a segment or a pinch of its line — creases
 //! that stretch only and lands crease marks ([`partial`]); `apply`,
 //! `analyse` and `action` answer it, and the scene, the landmarks, the
@@ -91,6 +94,7 @@ pub mod joins;
 pub mod order_selection;
 pub mod partial;
 pub mod resolve;
+pub mod steer;
 pub mod wire;
 // Compound folds, one module per family (`compound`).
 pub mod ops_crimp_tuck;
@@ -134,6 +138,9 @@ pub struct FoldEngine {
     /// Vertex folds waiting for an order to be picked
     /// (`ops_squash_family`).
     vertex: ops_squash_family::Pending,
+    /// The Layer order dialog's constraint sessions (`steer`), which only
+    /// its own workers open.
+    layers: steer::LayerSessions,
 }
 
 impl Default for FoldEngine {
@@ -151,6 +158,7 @@ impl FoldEngine {
             inner: Bridge::new(),
             imports: io::Imports::new(),
             vertex: ops_squash_family::Pending::new(),
+            layers: steer::LayerSessions::new(),
         }
     }
 

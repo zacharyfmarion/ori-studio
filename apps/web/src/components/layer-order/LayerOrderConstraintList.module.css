@@ -1,0 +1,190 @@
+/*
+ * The constraints list (LayerOrderConstraintList.tsx; A3, A5's grouped rows,
+ * Round4-States' rows by status). Each row is the sentence that made it; its
+ * button covers the whole line, so a press anywhere on it puts its subject in
+ * the builder. A row goes whole, by its trash: it has no per-object × (D21).
+ */
+.list {
+  /* The boards' quiet ink: --text-secondary alone is under 4.5:1 here in some presets (layerOrderQuietInk.test.ts). */
+  --quiet: color-mix(in srgb, var(--text-secondary) 50%, var(--text-primary));
+
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 4px var(--space-2) 2px var(--space-3);
+}
+
+.title {
+  margin: 0 auto 0 0;
+  color: var(--quiet);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.empty {
+  flex: 1;
+  margin: 0;
+  padding: 4px var(--space-3);
+  color: var(--quiet);
+  font-size: 0.74rem;
+}
+
+.rows {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 6px;
+  overflow: auto;
+  list-style: none;
+}
+
+.row {
+  --row-height: 28px;
+  /* A line of objects: the row's first line, and each line a row too long for the column wraps onto. */
+  --object-line: var(--row-height);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px;
+  min-height: 32px;
+  padding: 2px var(--space-2) 2px 4px;
+}
+
+.row[data-hot] {
+  background: var(--bg-surface);
+}
+
+.line {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  min-height: var(--row-height);
+  padding-left: 4px;
+}
+
+/* The row's button, under the whole line: what a press, the focus and a reader land on. */
+.hit {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.hit:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+/* On the sentence's first line, however many lines its objects take. */
+.dot {
+  flex: none;
+  margin-top: calc(var(--row-height) / 2 - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.row[data-mark='clash'] .dot {
+  background: var(--status-danger);
+}
+
+.row[data-mark='not_applied'] .dot {
+  background: var(--status-warning);
+}
+
+/*
+ * The sentence on one line (A5's grouped rows): the subject chip and the words never wrap, and a row
+ * too long for the column wraps inside its objects, under its first object, never the whole group
+ * onto a line of its own. Every part sits on the first line: the subject and the words are each a
+ * line box of the row's height, and the objects' first line is centred on it. In a locale whose
+ * words follow the objects (ja, ko, zh) they stay after them, on the first line.
+ */
+.sentence {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  min-height: var(--row-height);
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  pointer-events: none;
+}
+
+.lead,
+.verb {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: var(--row-height);
+}
+
+.verb {
+  color: var(--quiet);
+  white-space: nowrap;
+}
+
+/* Not applied: grey and dimmer, never dashed; the dot keeps its full ink. */
+.verb[data-dim] {
+  opacity: 0.55;
+}
+
+.objects {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+  min-width: 0;
+  padding-top: calc((var(--row-height) - var(--object-line)) / 2);
+}
+
+/* An object's chip, and in a row of two or more the comma right after it. */
+.object {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: var(--object-line);
+}
+
+/* The chip's height, so the comma sits at its foot. */
+.separator {
+  display: flex;
+  align-items: flex-end;
+  box-sizing: border-box;
+  height: 20px;
+  padding: 0 0 3px 2px;
+  color: var(--quiet);
+  font-size: 0.76rem;
+  line-height: 1;
+}
+
+/*
+ * At touch size: the row is a 44 px target, its button under the whole line. With no target of
+ * their own, the objects' lines stay as tall as the chips need, so a row that wraps stays compact.
+ */
+@media (pointer: coarse) {
+  .row {
+    --row-height: var(--touch-target);
+    --object-line: 28px;
+
+    min-height: var(--touch-target);
+    padding: 0 var(--space-2) 0 4px;
+  }
+}

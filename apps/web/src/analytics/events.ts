@@ -125,6 +125,7 @@ export type FoldChoiceKind =
   // The vertex folds.
   | 'emergent'
   | 'ridge'
+  | 'squash_opening'
   // The sinks.
   | 'pocket';
 
@@ -137,6 +138,7 @@ export type FoldSpreadAction =
   | 'spread_direction'
   | 'spread_keep'
   | 'spread_skew'
+  | 'spread_reveal' | 'spread_presentation'
   | 'spread_axis';
 
 /** Where a Fold step's spread was changed: the Step pane's Spread section, or the canvas bar's toggle. */
@@ -422,6 +424,7 @@ export type DiagramPoseAction =
   | 'spread_direction'
   | 'spread_keep'
   | 'spread_skew'
+  | 'spread_reveal' | 'spread_presentation'
   | 'spread_axis'
   | 'paper_side'
   // A crease pattern on its back turned over side to side, or back (the Step pane's Flip creases).
@@ -448,6 +451,7 @@ export type DiagramSpreadKeep = 'top' | 'bottom';
  * held still, skew and axis. The numbers are bucketed when sent.
  */
 export type DiagramSpreadTracking =
+  | { kind: 'connected'; amount: number }
   | { kind: 'depth'; direction: DiagramSpreadDirection; amount: number }
   | { kind: 'affine'; amount: number; keep: DiagramSpreadKeep; skew: number; axisDeg: number };
 
@@ -469,6 +473,15 @@ export type DiagramSpreadDirection =
  */
 export const DIAGRAM_SPREAD_PERCENT_BUCKETS = [2.5, 7.5, 12.5] as const;
 
+/**
+ * How far a Default (connected) spread goes, in percent as its Amount slider
+ * shows it — its height multiplier, 0 to 2, read as 0 to 100% — bucketed on
+ * a ladder of its own: `<=10` (Fold's 7% start), `<=25` (the 25% every other
+ * surface starts at), `<=50`, `>50`. The depth and affine ladder above would
+ * put the 25% default in its top bucket every time. Never the value.
+ */
+export const DIAGRAM_CONNECTED_SPREAD_PERCENT_BUCKETS = [10, 25, 50] as const;
+
 /** An affine spread's skew, in percent: none, some, most, all (the default). Never the value. */
 export const DIAGRAM_SPREAD_SKEW_PERCENT_BUCKETS = [0, 50, 99] as const;
 
@@ -486,12 +499,15 @@ export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d' | 'simulated' 
 
 /**
  * What became of a capture: kept (`rasterized` when too detailed to keep as
- * vector, `no_layer_order` when the fold could not be ordered), or not: the 3D
- * folder refused the creases, the user stopped it, or it failed.
+ * vector, `no_layer_order` when the fold could not be ordered, `spread_failed`
+ * when its layers could not be spread by Default and are drawn unspread, the
+ * spread kept), or not: the 3D folder refused the creases, the user stopped
+ * it, or it failed.
  */
 export type DiagramCaptureOutcome =
   | 'ok'
   | 'no_layer_order'
+  | 'spread_failed'
   | 'rasterized'
   | 'refused'
   | 'stopped'
@@ -854,8 +870,12 @@ export type FoldVerdict =
   | 'transversal-crossing'
   | 'no-layer-order';
 
-/** Which way a press of the one solution verb moved. */
-export type FoldCycleDirection = 'next' | 'wrap';
+/**
+ * Which way a press of a solution verb moved: on (`next`), on past the last
+ * back to the first (`wrap`), or back one (`previous`, the Properties pane's
+ * ‹ on a flat figure).
+ */
+export type FoldCycleDirection = 'next' | 'wrap' | 'previous';
 
 /**
  * Which appearance setting a folded figure's Style menu changed.
@@ -983,6 +1003,16 @@ export type PaperExportResolution = '1x' | '2x' | '3x' | '4x' | '300' | '600' | 
 
 /** The folded figure beside a crease pattern: the style it was drawn in, or none. */
 export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
+
+/**
+ * How that figure's layers were spread in the picture written: not at all
+ * (`none`, also without a figure), or by kind — Default (`connected`),
+ * `affine` or `depth`. Never a value of the spread.
+ */
+export type CreasePatternFoldedFigureSpread = 'none' | 'connected' | 'affine' | 'depth';
+
+/** How a spread figure was written: as vector, or — a Default spread too complex to clip — a 300 dpi bitmap. */
+export type CreasePatternSpreadRender = 'vector' | 'raster';
 
 /** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
 export type PaperExportScope = 'this' | 'all';
@@ -1500,6 +1530,19 @@ export const ANALYTICS_EVENTS = {
   foldAttempted: 'fold attempted',
   foldCompleted: 'fold completed',
   foldSolutionCycled: 'fold solution cycled',
+  /**
+   * A host's saved layer constraints did not all hold after an edit (layer
+   * order plan, spec §10): a Diagram step's Refresh found some of them gone,
+   * split or clashing, ran out of time checking them, or its creases now
+   * fold in 3D. Whether constraints survive the edits made after them.
+   */
+  layerConstraintsNeedAttention: 'layer constraints need attention',
+  /**
+   * A record a reload detached, because an older build folded its Edit
+   * figure again, let go with Dismiss rather than taken up by Review…'s
+   * Apply. Whether people keep the constraints an older build dropped.
+   */
+  layerConstraintsDismissed: 'layer constraints dismissed',
   foldedFigureStyled: 'folded figure styled',
   /**
    * A field of the app-wide paper style was edited. `source` is where:
@@ -1707,12 +1750,19 @@ export const ANALYTICS_EVENTS = {
    */
   simulatorPoseReleased: 'simulator pose released',
   foldedFigureRehydrated: 'folded figure rehydrated',
+  /**
+   * A share link was published. Its card's folded figure: the style it was
+   * drawn in, whose layer order, and how its layers were spread
+   * (`folded_figure_spread`, with `spread_render` when spread).
+   */
   creasePatternShared: 'crease pattern shared',
   /**
    * A crease pattern was saved as an SVG or PNG image from its export dialog.
    * `folded_figure` is the style the folded figure beside it was drawn in —
    * the export slot or a preset by kind — or `none` without one: whether the
-   * figure is used, and whether its picker earns its place. The menu
+   * figure is used, and whether its picker earns its place.
+   * `folded_figure_spread` is how its layers were spread, and `spread_render`
+   * whether that spread was written as vector or as a bitmap. The menu
    * chokepoint sees only the command, not what the dialog made of it.
    */
   creasePatternExported: 'crease pattern exported',
@@ -1780,6 +1830,7 @@ export const ANALYTICS_EVENTS = {
    * value itself. A slider's drag is one event, at its end.
    */
   foldSpreadChanged: 'fold spread changed',
+  spatialSpreadChanged: 'spatial spread changed',
   foldFreeLineSnapChanged: 'fold free line snapping changed',
   foldCpSideChanged: 'fold cp side changed',
   /**
@@ -1997,6 +2048,16 @@ export const ANALYTICS_EVENTS = {
    */
   canvasObjectPropertyChanged: 'canvas object property changed',
   /**
+   * One of a selected canvas object's verbs was pressed in the Properties
+   * pane's header (Export…, Duplicate, Delete on a folded figure).
+   *
+   * The same verbs are on the object's floating toolbar and its menu; this is
+   * what says whether people reach for them in the pane too, which is the
+   * question putting them there raises. Once per press. `object_kind` is the
+   * kind table's key and `action` the verb's id: enums by construction.
+   */
+  canvasObjectActionUsed: 'canvas object action used',
+  /**
    * The phone layout's tool sheet was opened.
    *
    * Phone-only, because that layout is the only one without a tool rail — so
@@ -2097,6 +2158,18 @@ export const ANALYTICS_EVENTS = {
   appUpdateRelaunched: 'app update relaunched',
   appUpdateFailed: 'app update failed',
   appUpdateDismissed: 'app update dismissed',
+  /**
+   * The Layer order dialog (`implementation-plans/layer-order-dialog.md`,
+   * "Analytics"; spec §10). Built as facts by its pure model
+   * (`layer-order/model/layerOrderAnalytics.ts`) and sent by
+   * `trackLayerOrderFact` (`trackLayerOrder.ts`): enums and buckets only,
+   * never a face, a letter or an exact count. The hosts' `layer constraints
+   * need attention` is beside the fold events.
+   */
+  layerOrderDialogOpened: 'layer order dialog opened',
+  layerConstraintAdded: 'layer constraint added',
+  layerConstraintBlocked: 'layer constraint blocked',
+  layerOrderDialogClosed: 'layer order dialog closed',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];

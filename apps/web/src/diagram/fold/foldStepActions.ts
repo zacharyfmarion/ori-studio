@@ -1,3 +1,6 @@
+import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
+import { queueStepPoseEdit } from '../capture/stepPoseQueue';
+import type { SpreadPresentation } from '../../layer-spread/presentation';
 /**
  * The verbs of a Diagram step linked to a Fold step (plan D17), bound to the
  * store: Refresh, Show as, its pose — turned, turned over, to an angle, its
@@ -26,8 +29,9 @@ import { humanizeError } from '../../lib/toastMessages';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramFoldCaptureOutcome } from '../../store/workspaceStore/diagramFoldCapture';
-import { turnedOverFrom, type LinkedPoseRequest } from '../capture/linkedPose';
-import { trackPose } from '../capture/poseController';
+import { turnedOverFrom } from '../capture/linkedPose';
+import { poseCaptureBlocksViewport, trackPose, type TrackedPoseVerb } from '../capture/poseController';
+import { saySpreadFailed } from '../capture/stepCaptureActions';
 import {
   creasePatternSide,
   isLockedStep,
@@ -59,7 +63,9 @@ async function captureAs(
   source: DiagramFoldStepSource,
   render: DiagramCpRender,
   label: string,
-  joinEntry?: object
+  joinEntry?: object,
+  current?: () => boolean,
+  blocksPose = true
 ): Promise<DiagramFoldCaptureOutcome> {
   const { sequence, step, through, moment } = source;
   const outcome = await useWorkspaceStore.getState().captureDiagramFoldStep(stepId, {
@@ -70,6 +76,8 @@ async function captureAs(
     moment,
     render,
     label,
+    current,
+    blocksPose,
     ...(joinEntry ? { joinEntry } : {}),
   });
   sayFoldCaptureOutcome(outcome);
@@ -208,10 +216,12 @@ async function poseAs(
   stepId: string,
   source: DiagramFoldStepSource,
   render: DiagramCpRender,
-  verb: LinkedPoseRequest['verb']
+  verb: TrackedPoseVerb,
+  current?: () => boolean,
+  blocksPose = poseCaptureBlocksViewport(verb)
 ): Promise<boolean> {
   if (JSON.stringify(render) === JSON.stringify(source.render)) return true;
-  const outcome = await captureAs(stepId, source, render, 'Adjust pose');
+  const outcome = await captureAs(stepId, source, render, 'Adjust pose', undefined, current, blocksPose);
   if (outcome.status === 'captured' && outcome.changed) trackPose(verb, outcome.render);
   return outcome.status === 'captured';
 }
@@ -229,12 +239,21 @@ export async function rotateDiagramFoldStepTo(stepId: string, degrees: number): 
 }
 
 /** Spread a Fold step's flat fold, or change its spread (`spreadFoldRender`), as one undo step. */
-export async function spreadDiagramFoldStep(stepId: string, request: FoldStepSpreadRequest): Promise<boolean> {
+async function captureSpreadEdit(stepId: string, request: FoldStepSpreadRequest, current: () => boolean): Promise<boolean> {
   const source = foldSourceOf(stepId);
   if (!source) return false;
   const { diagram } = useWorkspaceStore.getState();
   const starts = diagram ? spreadStartsFor(diagram, stepId) : DEFAULT_SPREAD_STARTS;
-  return poseAs(stepId, source, spreadFoldRender(source.render, request, starts), request.verb);
+  return poseAs(stepId, source, spreadFoldRender(source.render, request, starts), request.verb, current);
+}
+
+/** A new gesture may arrive while the previous capture is still running. */
+export async function spreadDiagramFoldStep(stepId: string, request: FoldStepSpreadRequest): Promise<boolean> {
+  let captured = false;
+  await queueStepPoseEdit(stepId, request.verb === 'spread-layers' ? null : request.verb, async (current) => {
+    captured = await captureSpreadEdit(stepId, request, current);
+  });
+  return captured;
 }
 
 /**
@@ -293,15 +312,17 @@ export function openDiagramStepInFold(stepId: string): void {
 
 /**
  * Tell the user what a Fold step's capture came to, when there is something
- * to tell: a picture kept as a bitmap, marks the author had edited that the
- * fold's own replaced (with Undo), or a capture that could not be made and
- * why. One the user moved on from says nothing.
+ * to tell: marks the author had edited that the fold's own replaced (with
+ * Undo), layers that newly could not be spread, a picture kept as a bitmap,
+ * or a capture that could not be made and why. One the user moved on from
+ * says nothing.
  */
 export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void {
   const t = i18n.t.bind(i18n);
   switch (outcome.status) {
     case 'captured':
       if (outcome.replaced > 0) toast.message(replacedEdited(outcome.replaced), { action: undoNewest() });
+      else if (outcome.spreadFailed === 'new') saySpreadFailed();
       else if (outcome.tooDetailed) {
         toast.message(
           t('toasts:diagram.capture.tooDetailed', 'Too detailed to keep as a drawing, so the step keeps it as an image.')
@@ -334,4 +355,26 @@ export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void 
     case 'busy':
       return;
   }
+}
+
+/** View-only change: the Fold source remains a flat folded state.
+ * `background` is for a live camera already showing the new pose; discrete controls wait for capture. */
+export async function presentDiagramFoldStep(stepId: string, presentation: SpreadPresentation, current?: () => boolean, background = false): Promise<boolean> {
+  const source=foldSourceOf(stepId);
+  if(!source || source.render.mode!=='folded-flat' || source.render.spread?.kind!=='connected')return false;
+  return poseAs(stepId,source,{...source.render,presentation},'spread-presentation',current,!background);
+}
+
+/** Presentation changes remain available while a picture is being captured. */
+export function setDiagramFoldPresentation(stepId: string, kind: SpreadPresentation['kind']): Promise<void> {
+  return queueStepPoseEdit(stepId, 'presentation', async (current) => {
+    const source = foldSourceOf(stepId);
+    if (source?.render.mode !== 'folded-flat' || source.render.spread?.kind !== 'connected') return;
+    const previous = source.render.presentation;
+    await presentDiagramFoldStep(stepId, {
+      kind,
+      camera: previous?.camera ?? DEFAULT_FOLDED_3D_CAMERA,
+      orderSide: previous?.orderSide ?? 'front',
+    }, current);
+  });
 }

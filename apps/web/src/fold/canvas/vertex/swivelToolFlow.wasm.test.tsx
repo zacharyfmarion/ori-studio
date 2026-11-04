@@ -103,6 +103,7 @@ async function squashWithSwivel(): Promise<{ tools: FoldTools; index: FoldPickIn
   const index = await shownPickIndex(session);
   const tools = createFoldTools();
   tools.selectTool('swivel');
+  tools.setSwivelInput('edge');
   const seen: { current: Seen | null } = { current: null };
   const view = { index } as FoldStateView;
   await act(async () => {
@@ -325,7 +326,7 @@ describe.skipIf(!available)('the swivel on a folded edge, made through the Swive
     await session.commitStep(first, { completion: answer.value.completion });
     await until(() => cursor().status === 'ok', 'the first swivel');
     const index = await shownPickIndex(session);
-    const tools = createFoldTools(); tools.selectTool('swivel');
+    const tools = createFoldTools(); tools.selectTool('swivel'); tools.setSwivelInput('edge');
     const seen: { current: Seen | null } = { current: null };
     await act(async () => { root.render(<Canvas session={session} tools={tools} view={{ index } as FoldStateView} seenRef={seen} />); await settle(); });
     await clickPane(seen, { x: t / 2, y: 0.5 }, 'crease-pattern');
@@ -468,6 +469,7 @@ describe.skipIf(!available)('the swivel on a folded edge, made through the Swive
     const index = await shownPickIndex(session);
     const tools = createFoldTools();
     tools.selectTool('swivel');
+    tools.setSwivelInput('edge');
     const seen: { current: Seen | null } = { current: null };
     await act(async () => {
       root.render(<Canvas session={session} tools={tools} view={{ index } as FoldStateView} seenRef={seen} />);

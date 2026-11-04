@@ -92,6 +92,14 @@ export interface FoldSquashAnalysis {
   /** The wedge from the hinge to the spine, radians, and the target's share of it. */
   wedge: number;
   share: number;
+  /**
+   * The flap's layers at the flap point — 2, or more when its walls are
+   * several plies each — and how many of them, from the direction's side,
+   * lie above where it opens (`FoldSquashOp`'s `opening`). Absent in a test
+   * double: two layers, opening under the first.
+   */
+  layers?: number;
+  opening?: number;
 }
 
 /**
@@ -101,18 +109,27 @@ export interface FoldSquashAnalysis {
 export interface FoldPetalAnalysis {
   /** H, in the parent's model frame. */
   line: FoldModelLine;
-  /** H's ends on the flap's folded edges, and the corner the kite creases meet at. */
+  /** H's ends on the flap's folded edges, and the corner the top layer's kite creases meet at: the kite that lifts. */
   ends: [FoldModelPoint, FoldModelPoint];
   corner: FoldModelPoint;
-  /** The kite creases from each end: precreased, or — H named by its ends — the bisector of H and the folded edge there. */
+  /** The top layer's kite creases from each end: precreased, or — H named by its ends — the bisector of H and the folded edge there. */
   kites: [FoldModelLine, FoldModelLine];
+  /**
+   * The second layer's kite creases (in `kites`' order) and their corner: the
+   * top layer's own where the layers end together, as on the bird base; on a
+   * doubled flap (a squashed one, as the frog base's) they run on to the
+   * second layer's own corner. Optional only so an analysis written before
+   * them still types.
+   */
+  second_corner?: FoldModelPoint;
+  second_kites?: [FoldModelLine, FoldModelLine];
   /** The parent's faces of the top and second layers: below H, or across it where H is not creased. */
   top: number[];
   second: number[];
   /**
    * What the fold creases itself (H named by its ends): H where it crosses
-   * the top layer, and each kite crease (in `kites`' order) where it crosses
-   * the top two layers. All false over precreases, and always for H named by
+   * the top layer, and at each end (in `kites`' order) a kite crease where it
+   * crosses its layer. All false over precreases, and always for H named by
    * a crease. The bridge always sends both; they are optional only so an
    * analysis written before them still types.
    */
@@ -274,6 +291,12 @@ export interface FoldVertexAnalysed {
    */
   emergents: boolean[];
   /**
+   * A squash of a flap whose walls are several plies: per opening, 1 to the
+   * analysis' `layers` − 1, whether it lands, its other inputs as asked.
+   * Absent for a two-layer flap and the other folds.
+   */
+  openings?: boolean[];
+  /**
    * A swivel on a folded edge's: valley, then mountain, as the viewer sees
    * them, each whether the fold lands that way, of the kind asked. Absent
    * for the other folds.
@@ -294,7 +317,13 @@ export interface FoldVertexAnalysed {
 // Refusals the tools read the fields of (`FoldRefusal`'s vertex block)
 
 /** Why there is no flap to squash at a point (`NoFlap`). */
-export type FoldNoFlap = 'single_layer' | 'no_spine' | 'no_hinge' | 'upper_not_hinged' | 'hinge_off_spine';
+export type FoldNoFlap =
+  | 'single_layer'
+  | 'no_spine'
+  | 'no_hinge'
+  | 'upper_not_hinged'
+  | 'hinge_off_spine'
+  | 'opening_outside';
 
 /**
  * Which crease of a petal fold is not precreased (`PetalCrease`). H named by

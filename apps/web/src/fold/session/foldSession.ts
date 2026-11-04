@@ -3,8 +3,9 @@
  * meet (plan D6, D7, D14). Every Fold surface reads it.
  *
  * - **Replay follows the document.** While a surface holds the session, every
- *   change to the shown sequence — a commit, a delete, a note, marks, the
- *   paper, an undo, a redo, a load — replays it through `foldReplay`: the
+ *   change to folding inputs — a commit, a delete, the paper, an undo, a
+ *   redo, a load — replays it through `foldReplay`. Presentation-only edits
+ *   (spread, notes, marks) publish directly without replay. Replay takes the
  *   active path first, reporting progress; every path cached by `fh1`, so an
  *   undo or a note edit asks the engine nothing; a run for a document since
  *   replaced is superseded by the run its replacement starts, and its
@@ -54,6 +55,7 @@ import type { FoldStepDraft } from '../document/foldSequenceEdits';
 import type { FoldCompoundReport } from '../engine/foldEngineCompoundWire';
 import { foldStateLostError, type FoldEngineSource, type FoldEngineStateHandle } from '../engine/foldEnginePort';
 import type { FoldEngineCrashCause } from '../engine/foldEngineTrap';
+import { sameFoldReplayInput } from './sameFoldReplayInput';
 import { nextFoldTask, type FoldSearchTicket } from '../engine/foldSearch';
 import type { FoldOrderQuery, FoldOrderSelection } from '../engine/foldEngineCompoundCalls';
 import { foldPreviewWants, type FoldPreviewed, type FoldPreviewWants } from '../engine/foldEnginePreview';
@@ -769,12 +771,16 @@ export function createFoldSession({
       stop();
       return;
     }
-    if (lingering !== null && input.held !== before.held) {
+    if (lingering !== null && input.held !== before.held && !sameFoldReplayInput(
+      before.held?.document ?? FOLD_BLANK_SEQUENCE, input.held?.document ?? FOLD_BLANK_SEQUENCE)) {
       // Replayed when a surface comes back; until then a step the change rewrote shows no stale state.
       replayOwed = true;
       if (progress) progress = foldProgressStillValid(progress, input.held?.document ?? FOLD_BLANK_SEQUENCE);
     }
     const changed = input.loadId !== before.loadId || input.held !== before.held;
+    const replayChanged = input.loadId !== before.loadId || !sameFoldReplayInput(
+      before.held?.document ?? FOLD_BLANK_SEQUENCE, input.held?.document ?? FOLD_BLANK_SEQUENCE);
+    const needsRetry = changed && (halted || error !== null);
     // Another branch while a run is under way: put its path first.
     const rerouted = input.reader?.activeChild !== before.reader?.activeChild;
     // A change is worth another try after a halt or a start that failed —
@@ -783,7 +789,7 @@ export function createFoldSession({
     if (changed && halted) halted = false;
     else if (changed) restarts = 0;
     render();
-    if (changed) start();
+    if (replayChanged || needsRetry) start();
     else if (rerouted && replaying) scheduleReplay();
   });
 

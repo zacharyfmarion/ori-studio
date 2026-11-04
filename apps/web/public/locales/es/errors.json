@@ -2,6 +2,7 @@
   "boundary": {
     "appDescription": "Tu trabajo sigue en memoria, pero la interfaz no ha podido recuperarse por sí sola. Copia los detalles antes de recargar: le indican al desarrollador exactamente qué ha fallado.",
     "appTitle": "Ori Studio ha tenido un problema",
+    "close": "Cerrar",
     "copied": "Copiado",
     "copy": "Copiar detalles",
     "copyFailed": "No se pudo copiar",
@@ -19,6 +20,12 @@
   },
   "cp": {
     "foldProducedNothing": "Estos pliegues no tienen ninguna forma plegada en plano que dibujar",
+    "layerOrderNotApplied": "Orden de capas no pudo aplicar este orden a {{name}}. Su imagen no cambia.",
+    "layerOrderNotFolded": "Orden de capas no pudo plegar estos pliegues en este orden.",
+    "layerOrderPatternChanged": "El patrón de pliegues cambió entretanto, así que Orden de capas no cambió nada.",
+    "layerOrderTooLarge": "Este orden de capas es demasiado grande para guardarlo con el modelo, así que no cambia.",
+    "layerOrderTooLargeToFold": "Este orden de capas es demasiado grande para guardarlo con un modelo, así que no se plegó nada.",
+    "layerOrderUndeterminedSelection": "No se pudo determinar el orden de capas de estos pliegues.",
     "pinnedVertex": "Ese pliegue empieza en un vértice fijado, así que no se puede alargar. Suelta primero el vértice o extiende otro pliegue."
   },
   "cpDetectImport": {

@@ -17,9 +17,13 @@
  * pictures it carried marks to ({@link placesOnFaces}).
  */
 import { meanValueWeights } from '../../cp-workspace/folded/foldedLayerSpread';
+import { barycentric } from '@oristudio/layer-spread';
+import { readPaperFaces, NEWER_PAPER_FACES } from '../document/paperFacesFile';
+import type { DiagramPaperFaces } from '../document/diagramDocument';
 import { storedSceneStep } from '../capture/captureGeometry';
 import { boundariesMatchMoved, isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import { turnClockwise } from '../../lib/geometry';
+import { layerOrderKeyOf } from '../capture/captureLayerOrder';
 import type { PaperFaceItem, PaperScene, SceneBounds, ScenePoint } from '../../lib/paper/paperScene';
 import { isCardMark } from '../document/cardMarks';
 import {
@@ -183,6 +187,30 @@ function samePosedLink(from: DiagramPosedSource, to: DiagramPosedSource): boolea
 }
 
 /**
+ * Whether two flat poses show one layer order, so a change between them is
+ * a turn, not a new picture (layer order H7): the kernel's same case, with
+ * no record on either; or, where a record is (`DiagramCpSource.layerOrder`),
+ * the same faces in the same order — what its constraints say, or whether
+ * they need a look, draws nothing. A record put on or taken off is another
+ * order, whatever case either says.
+ */
+function sameLayerOrder(
+  was: Extract<DiagramCpRender, { mode: 'folded-flat' }>,
+  is: Extract<DiagramCpRender, { mode: 'folded-flat' }>,
+  from: DiagramPosedSource,
+  to: DiagramPosedSource
+): boolean {
+  const [before, after] = [recordedOrderOf(from), recordedOrderOf(to)];
+  if (before === null && after === null) return was.foldCase === is.foldCase;
+  return before !== null && before === after;
+}
+
+/** The order a source's record draws, as a key (`layerOrderKeyOf`); null for a source with none. */
+function recordedOrderOf(source: DiagramPosedSource): string | null {
+  return source.kind === 'cp' ? layerOrderKeyOf(source) : null;
+}
+
+/**
  * Whether `after`'s picture is `before`'s in another colour and nothing else:
  * a crease pattern's paper put on the other side's colour (the Step pane's
  * Front | Back), of the same region and creases at the same turn, turned over
@@ -256,9 +284,15 @@ function pictureMove(
     if (was.mode !== is.mode) return null;
     if (was.mode !== 'crease-pattern' && was.mode !== 'folded-flat') return null;
     if (is.mode !== 'crease-pattern' && is.mode !== 'folded-flat') return null;
-    if (was.mode === 'folded-flat' && is.mode === 'folded-flat' && (was.side !== is.side || was.foldCase !== is.foldCase)) {
+    if (
+      was.mode === 'folded-flat' &&
+      is.mode === 'folded-flat' &&
+      (was.side !== is.side || !sameLayerOrder(was, is, from, to))
+    ) {
       return null;
     }
+    if (was.mode === 'folded-flat' && is.mode === 'folded-flat' &&
+      (was.presentation?.kind === 'perspective' || is.presentation?.kind === 'perspective')) return null;
     // The axis a turn-over turns about follows the poses' own quarter turns, so
     // six 15° presses and a reset bring it back as they bring the picture back.
     const quarters = quarterTurnsOf(is) - quarterTurnsOf(was);
@@ -278,14 +312,19 @@ function pictureMove(
     const spread =
       was.mode === 'folded-flat' &&
       is.mode === 'folded-flat' &&
-      (!sameSpread(was.spread, is.spread) || (was.spread?.kind === 'depth' && delta !== 0));
+      (!sameSpread(was.spread, is.spread) || ((was.spread?.kind === 'depth' || was.spread?.kind === 'connected') && delta !== 0));
     if (delta === 0 && !spread) return null;
     const [sceneBefore, sceneAfter] = [storedScene(before.picture), storedScene(after.picture)];
     if (!sceneBefore || !sceneAfter) return null;
     const turn = sceneTurnMove(sceneBefore.bounds, sceneAfter.bounds, delta, quarters);
     if (!turn || was.mode !== 'folded-flat') return turn;
     const places = { from: placesOnFaces.get(before.picture), to: placesOn(after.picture) };
-    return spread ? spreadMove(sceneBefore, sceneAfter, turn, places) : turnRemembering(turn, places);
+    const meshOf = (picture: DiagramScenePicture) => {
+      const read = readPaperFaces(picture.paperFaces);
+      return read && read !== NEWER_PAPER_FACES ? read.faces : undefined;
+    };
+    const beforeFaces = meshOf(before.picture), afterFaces = meshOf(after.picture);
+    return spread ? spreadMove(sceneBefore, sceneAfter, turn, places, beforeFaces, afterFaces) : turnRemembering(turn, places);
   }
   return null;
 }
@@ -360,8 +399,12 @@ function turnRemembering(turn: PictureMove, { from, to }: CarriedPlaces): Pictur
  * by `turn`. A point a carry took to `before` keeps its place on the face it
  * took it with ({@link placesOnFaces}), wherever it lies now.
  */
-function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove, places: CarriedPlaces): PictureMove {
+function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove, places: CarriedPlaces,
+  beforeFaces?: DiagramPaperFaces, afterFaces?: DiagramPaperFaces): PictureMove {
   const [source, target] = [wholeFaces(before), wholeFaces(after)];
+  beforeFaces?.drawn?.forEach((ring, face) => source.set(face, ring));
+  afterFaces?.drawn?.forEach((ring, face) => target.set(face, ring));
+  const triangles = beforeFaces?.triangles ?? afterFaces?.triangles;
   // Whole faces and woven patches, each as it is drawn: a patch is pressed on
   // its own piece, and moves with its face.
   const drawn = before.items.filter(
@@ -384,6 +427,14 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove, pl
     piece.some(([x, y]) => Math.hypot(x - at.x, y - at.y) <= epsilon);
   /** `at`'s place on `face`. */
   const placeOn = (face: number, at: { x: number; y: number }): PlaceOnFace | null => {
+    const ring = source.get(face)!;
+    for (const ids of triangles?.[face] ?? []) {
+      const sample = barycentric(ring[ids[0]]!, ring[ids[1]]!, ring[ids[2]]!, [at.x, at.y]);
+      if (!sample || Math.min(...sample) < -1e-7) continue;
+      const weights = ring.map(() => 0);
+      ids.forEach((corner, k) => { weights[corner] = sample[k]!; });
+      return { face, weights };
+    }
     const weights = meanValueWeights(source.get(face)!.map(([x, y]) => ({ x, y })), at, epsilon);
     return weights ? { face, weights } : null;
   };

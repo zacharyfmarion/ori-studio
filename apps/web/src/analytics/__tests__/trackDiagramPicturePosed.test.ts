@@ -29,6 +29,17 @@ describe('trackDiagramPicturePosed', () => {
     expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', { action: 'turn_over', picture: 'flat', side: 'back' });
   });
 
+  it('tags a step within a step’s layer constraints, and only that (layer order H9)', () => {
+    trackDiagramPicturePosed('next_solution', 'flat', { constrained: true });
+    expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', {
+      action: 'next_solution',
+      picture: 'flat',
+      constrained: true,
+    });
+    trackDiagramPicturePosed('previous_solution', 'flat');
+    expect(runtime.track).toHaveBeenLastCalledWith('diagram picture posed', { action: 'previous_solution', picture: 'flat' });
+  });
+
   it('sends a crease pattern’s paper side, chosen in the Step pane, as a word', () => {
     // Front | Back under Show as: the paper's colour, not a turn-over.
     trackDiagramPicturePosed('paper_side', 'crease_pattern', { side: 'back' });
@@ -47,6 +58,27 @@ describe('trackDiagramPicturePosed', () => {
       spread_kind: 'depth',
       spread_amount_bucket: '<=2.5',
       spread_direction: 'down',
+    });
+  });
+
+  it('buckets a Default spread’s amount as its slider shows it, on a ladder of its own', () => {
+    // The height multiplier 0–2 reads 0–100%: the 25% default is in its own
+    // bucket, not the top of the depth and affine ladder, where it always fell.
+    const bucketOf = (amount: number) => {
+      trackDiagramPicturePosed('spread_amount', 'flat', { spread: { kind: 'connected', amount } });
+      return (runtime.track.mock.lastCall![1] as Record<string, unknown>).spread_amount_bucket;
+    };
+    expect(bucketOf(0.5)).toBe('<=25');
+    expect(bucketOf(0.14)).toBe('<=10');
+    expect(bucketOf(0)).toBe('<=10');
+    expect(bucketOf(0.51)).toBe('<=50');
+    expect(bucketOf(1)).toBe('<=50');
+    expect(bucketOf(2)).toBe('>50');
+    expect(runtime.track.mock.lastCall![1]).toEqual({
+      action: 'spread_amount',
+      picture: 'flat',
+      spread_kind: 'connected',
+      spread_amount_bucket: '>50',
     });
   });
 

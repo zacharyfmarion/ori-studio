@@ -22,6 +22,8 @@ import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator
 import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
 import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import { sameCamera } from '../../diagram/capture/poseController';
+import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
+import { usePreparedSpatialMesh } from '../../cp-workspace/folded/useSpatialFoldedMesh';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
 
 
@@ -50,6 +52,7 @@ export function DiagramPose3dView({
   registerLiveView,
   ghost,
   fallback,
+  spread,
 }: {
   view: DiagramPoseSpatialView;
   camera: FoldedFigureCamera;
@@ -59,26 +62,30 @@ export function DiagramPose3dView({
   /** The annotations to ghost, when they are in step with the stored picture; null otherwise. */
   ghost: DiagramPoseAnnotations | null;
   fallback: ReactNode;
+  spread?: SpatialSpread;
 }) {
   const { t } = useTranslation();
   const viewportRef = useRef<SimulatorViewportHandle | null>(null);
   const [, setCanvas] = useState<HTMLCanvasElement | null>(null);
-  const mesh = useMemo(() => {
+  const legacyMesh = useMemo(() => {
     const result = folded3dMesh(view.model, view.aux);
     return result.kind === 'mesh' ? result.mesh : null;
   }, [view]);
+  const { mesh: spatialMesh } = usePreparedSpatialMesh(view.model, view.aux, !!spread);
+  const mesh = spread && spread.amount > 0 ? spatialMesh : legacyMesh;
+  const amount = spread?.amount ?? 0;
   const present = useCallback((bitmap: ImageBitmap) => viewportRef.current?.presentBitmap(bitmap), []);
   const { status, setCamera, setRenderSettings } = useFolded3dMeshRuntime({ mesh, onFrame: present });
 
   const paperStyle = useMemo(() => diagramPaperStyle(style), [style]);
   const renderSettings = useMemo(
     () =>
-      folded3dWindowRenderSettings({
+      ({ ...folded3dWindowRenderSettings({
         style: paperStyle,
         displayStyle: 'Paper5',
         devicePixelRatio: typeof window === 'undefined' ? 1 : (window.devicePixelRatio ?? 1),
-      }),
-    [paperStyle]
+      }), displacementScale: amount }),
+    [paperStyle, amount]
   );
 
   // The stored camera, pushed in whenever it changes from outside the drag.

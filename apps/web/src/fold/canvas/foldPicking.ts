@@ -33,18 +33,11 @@
  * Pure: no React, no store, no engine.
  */
 import { LineHitIndex, type IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
+import { StackHitIndex, type StackHitCell } from '../../cp-workspace/picking/stackHitIndex';
 import type { Point } from '../../lib/geometry';
 import type { FoldRef, SheetPoint } from '../document/foldSequenceDocument';
 import type { FoldIsometry, FoldLandmarks, FoldPointSource, FoldScene, FoldSegmentLandmark } from '../engine/foldEngineWire';
-import {
-  applyIsometry,
-  boundsOf,
-  insideConvex,
-  invertIsometry,
-  toPair,
-  toPoint,
-  type Bounds,
-} from './foldCanvasGeometry';
+import { applyIsometry, insideConvex, invertIsometry, toPair, toPoint } from './foldCanvasGeometry';
 import type { FoldStepSnap } from '../tools/foldToolRegistry';
 import type { FoldPaneSpreadMap } from './foldPaneSpreadMap';
 
@@ -182,12 +175,6 @@ export interface FoldMarkPoint {
   mark: string;
 }
 
-interface IndexedSubface {
-  polygon: Point[];
-  box: Bounds;
-  stack: readonly number[];
-}
-
 interface PointCandidate {
   provenance: FoldPointProvenance;
   sheet: SheetPoint;
@@ -199,7 +186,7 @@ interface PointCandidate {
 }
 
 /** One pane's targets, indexed. */
-interface PaneIndex {
+export interface PaneIndex {
   points: PointCandidate[];
   pointHits: LineHitIndex;
   segments: FoldSegmentPick[];
@@ -229,7 +216,10 @@ export interface FoldPickIndex {
   /** Model frame → scene, and back. */
   toScene: (model: Point) => Point;
   toModel: (scene: Point) => Point;
-  subfaces: IndexedSubface[];
+  /** The scene's subfaces, indexed in the scene frame: the cell and the stack under a point of the folded pane. */
+  stacks: StackHitIndex;
+  /** The same cells, in the scene's order (`stacks.cells`), for a pass over every one. */
+  subfaces: readonly StackHitCell[];
   folded: PaneIndex;
   creasePattern: PaneIndex;
   /** How the folded pane draws the paper when its layers are spread; null when it draws the scene as it is. */
@@ -255,7 +245,7 @@ function visiblePortions(segment: Pick<FoldSegmentLandmark, 'visible'>, a: Point
 }
 
 /** Each segment's portions, indexed: `portionOf` says which segment an indexed id is part of. */
-function segmentIndex(portions: readonly [Point, Point][][]): { hits: LineHitIndex; portionOf: number[] } {
+function segmentIndex(portions: readonly (readonly [Point, Point][])[]): { hits: LineHitIndex; portionOf: number[] } {
   const indexed: IndexedSegment[] = [];
   const portionOf: number[] = [];
   portions.forEach((list, segment) => {
@@ -281,27 +271,23 @@ export function sheetToScene(scene: FoldScene, sheet: SheetPoint, epsilon = 1e-7
 }
 
 /** The first face whose paper holds a sheet point, with a transform to place it by; null off the sheet. */
+const sheetOutlines = new WeakMap<FoldScene, (Point[] | null)[]>();
 export function sheetFaceAt(scene: FoldScene, sheet: SheetPoint, epsilon = 1e-7): number | null {
   const p = toPoint(sheet);
-  for (const [face, { points }] of scene.faces.entries()) {
-    const outline = points.map((vertex) => scene.sheet_points[vertex]);
-    if (outline.some((corner) => corner === undefined)) continue;
+  let outlines = sheetOutlines.get(scene);
+  if (!outlines) {
+    outlines = scene.faces.map(({ points }) => {
+      const outline = points.map(vertex => scene.sheet_points[vertex]);
+      return outline.some(corner => corner === undefined) ? null : outline as Point[];
+    });
+    sheetOutlines.set(scene, outlines);
+  }
+  for (const [face, outline] of outlines.entries()) {
+    if (!outline) continue;
     if (!insideConvex(outline as Point[], p, epsilon)) continue;
     if (scene.face_transforms[face]) return face;
   }
   return null;
-}
-
-/** The faces over a point of the scene, top first; empty off the paper. */
-function stackAt(subfaces: readonly IndexedSubface[], p: Point, epsilon = 0): readonly number[] {
-  for (const subface of subfaces) {
-    const { box } = subface;
-    if (p.x < box.minX - epsilon || p.x > box.maxX + epsilon || p.y < box.minY - epsilon || p.y > box.maxY + epsilon) {
-      continue;
-    }
-    if (insideConvex(subface.polygon, p, epsilon)) return subface.stack;
-  }
-  return [];
 }
 
 /** Two drawn points the pane cannot tell apart: one target, the first named. */
@@ -360,7 +346,7 @@ function sameSheet(a: SheetPoint, b: SheetPoint): boolean {
  * cell holds both, the earlier stays (the engine's order, then the edges'
  * middles). The spread pane parts such points, so it never asks this.
  */
-function onTopAtEachSpot(points: readonly PointCandidate[], scene: FoldScene, subfaces: readonly IndexedSubface[]): PointCandidate[] {
+function onTopAtEachSpot(points: readonly PointCandidate[], scene: FoldScene, stacks: StackHitIndex): PointCandidate[] {
   const spots = new Map<string, number[]>();
   points.forEach((point, k) => {
     const key = `${Math.round(point.at.x / SAME_SHEET)},${Math.round(point.at.y / SAME_SHEET)}`;
@@ -368,7 +354,7 @@ function onTopAtEachSpot(points: readonly PointCandidate[], scene: FoldScene, su
     if (spot) spot.push(k);
     else spots.set(key, [k]);
   });
-  const paper = paperOf(scene, subfaces);
+  const paper = paperOf(scene, stacks);
   const kept: PointCandidate[] = [];
   for (const spot of spots.values()) {
     const here = spot.map((k) => points[k]!);
@@ -398,7 +384,7 @@ interface PaperAtSpot {
 }
 
 /** The scene's paper, asked about spot by spot ({@link PaperAtSpot}), each face's inverse taken once. */
-function paperOf(scene: FoldScene, subfaces: readonly IndexedSubface[]): { at: (at: Point) => PaperAtSpot } {
+function paperOf(scene: FoldScene, stacks: StackHitIndex): { at: (at: Point) => PaperAtSpot } {
   const inverses: (FoldIsometry | null)[] = [];
   // The face's sheet point at a spot of the scene: one of its corners exactly, where it is one.
   const sheetOf = (face: number, at: Point): SheetPoint | null => {
@@ -417,14 +403,7 @@ function paperOf(scene: FoldScene, subfaces: readonly IndexedSubface[]): { at: (
   };
   return {
     at: (at) => {
-      const cells = subfaces.filter(
-        ({ box, polygon }) =>
-          at.x >= box.minX - SAME_SHEET &&
-          at.x <= box.maxX + SAME_SHEET &&
-          at.y >= box.minY - SAME_SHEET &&
-          at.y <= box.maxY + SAME_SHEET &&
-          insideConvex(polygon, at, SAME_SHEET)
-      );
+      const cells = stacks.cellsAt(at, SAME_SHEET).map((cell) => stacks.cells[cell]!);
       return {
         sheets: () => {
           const sheets: SheetPoint[] = [];
@@ -473,7 +452,7 @@ function paperOf(scene: FoldScene, subfaces: readonly IndexedSubface[]): { at: (
 export function sheetPointsTogether(index: FoldPickIndex, sheet: SheetPoint): SheetPoint[] {
   const at = sheetToScene(index.scene, sheet);
   if (!at) return [];
-  const spot = paperOf(index.scene, index.subfaces).at(at);
+  const spot = paperOf(index.scene, index.stacks).at(at);
   const sheets = spot.sheets();
   return spot
     .order(sheets)
@@ -490,17 +469,15 @@ export function foldPickIndex(
   scene: FoldScene,
   landmarks: FoldLandmarks | null,
   marks: readonly FoldMarkPoint[],
-  spread: FoldPaneSpreadMap | null = null
+  spread: FoldPaneSpreadMap | null = null,
+  base?: FoldPickIndex
 ): FoldPickIndex {
   const view = scene.view_transform;
   const back = invertIsometry(view);
   const toScene = (model: Point) => applyIsometry(view, model);
   const toModel = (point: Point) => applyIsometry(back, point);
-  const subfaces = scene.subfaces.map(({ polygon, faces_top_to_bottom }) => ({
-    polygon: polygon.map((p) => ({ x: p.x, y: p.y })),
-    box: boundsOf(polygon) ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 },
-    stack: faces_top_to_bottom,
-  }));
+  // The overlay's cells, as the painter reads them; convex by construction (plan D8).
+  const stacks = base?.stacks ?? new StackHitIndex(scene.subfaces, { convex: true });
 
   // --- The folded pane: the engine's landmarks, as the viewer sees them.
   const foldedPoints: PointCandidate[] = [];
@@ -546,8 +523,33 @@ export function foldPickIndex(
     }
   }
   const folded = segmentIndex(foldedPortions);
-  const foldedTargets = spread ? foldedPoints : onTopAtEachSpot(foldedPoints, scene, subfaces);
+  const foldedTargets = spread ? foldedPoints : onTopAtEachSpot(foldedPoints, scene, stacks);
 
+  const creasePattern = base?.creasePattern ?? creasePatternPickIndex(scene, landmarks, marks);
+
+  return {
+    scene,
+    toScene,
+    toModel,
+    stacks,
+    subfaces: stacks.cells,
+    folded: {
+      points: foldedTargets,
+      pointHits: pointIndex(foldedTargets),
+      segments: foldedSegments,
+      portions: foldedPortions,
+      portionOf: folded.portionOf,
+      segmentHits: folded.hits,
+      creaseMarks: foldedMarks,
+    },
+    creasePattern,
+    spread,
+  };
+}
+
+
+/** The unchanged sheet index, prepared once with the scene and landmarks. */
+function creasePatternPickIndex(scene: FoldScene, landmarks: FoldLandmarks | null, marks: readonly FoldMarkPoint[]): PaneIndex {
   // --- The crease-pattern pane: the sheet, every crease and vertex on it.
   const cpPoints: PointCandidate[] = [];
   const seenVertex = new Set<number>();
@@ -619,29 +621,36 @@ export function foldPickIndex(
   const cp = segmentIndex(cpPortions);
 
   return {
-    scene,
-    toScene,
-    toModel,
-    subfaces,
-    folded: {
-      points: foldedTargets,
-      pointHits: pointIndex(foldedTargets),
-      segments: foldedSegments,
-      portions: foldedPortions,
-      portionOf: folded.portionOf,
-      segmentHits: folded.hits,
-      creaseMarks: foldedMarks,
-    },
-    creasePattern: {
-      points: cpPoints,
-      pointHits: pointIndex(cpPoints),
-      segments: cpSegments,
-      portions: cpPortions,
-      portionOf: cp.portionOf,
-      segmentHits: cp.hits,
-      creaseMarks: cpMarks,
-    },
-    spread,
+    points: cpPoints, pointHits: pointIndex(cpPoints), segments: cpSegments,
+    portions: cpPortions, portionOf: cp.portionOf, segmentHits: cp.hits, creaseMarks: cpMarks,
+  };
+}
+
+/** Plain data across the worker boundary; spatial indexes and closures stay local. */
+export type PanePickData = Omit<PaneIndex, 'pointHits' | 'segmentHits' | 'portionOf'>;
+export interface FoldPickData {
+  folded: PanePickData;
+  creasePattern: PanePickData;
+}
+export function panePickData(pane: PaneIndex): PanePickData {
+  const { points, segments, portions, creaseMarks } = pane;
+  return { points, segments, portions, creaseMarks };
+}
+export function foldPickData(index: FoldPickIndex): FoldPickData {
+  return { folded: panePickData(index.folded), creasePattern: panePickData(index.creasePattern) };
+}
+export function hydratePanePick(data: PanePickData): PaneIndex {
+  const indexed = segmentIndex(data.portions);
+  return { ...data, pointHits: pointIndex(data.points), segmentHits: indexed.hits, portionOf: indexed.portionOf };
+}
+export function hydrateFoldPick(scene: FoldScene, data: FoldPickData): FoldPickIndex {
+  const inverse = invertIsometry(scene.view_transform);
+  const stacks = new StackHitIndex(scene.subfaces, { convex: true });
+  return {
+    scene, stacks, subfaces: stacks.cells,
+    toScene: point => applyIsometry(scene.view_transform, point),
+    toModel: point => applyIsometry(inverse, point),
+    folded: hydratePanePick(data.folded), creasePattern: hydratePanePick(data.creasePattern), spread: null,
   };
 }
 
@@ -650,7 +659,7 @@ export function foldPickIndex(
 
 /** The faces under a point of the folded pane, top first: the topmost face is the first. */
 export function foldStackAt(index: FoldPickIndex, scene: Point): readonly number[] {
-  return stackAt(index.subfaces, scene);
+  return index.stacks.stackAt(scene)?.faces ?? [];
 }
 
 /**
@@ -659,7 +668,7 @@ export function foldStackAt(index: FoldPickIndex, scene: Point): readonly number
  * Null off the paper.
  */
 export function topSheetPointAt(index: FoldPickIndex, scene: Point): SheetPoint | null {
-  const top = stackAt(index.subfaces, scene, 1e-9)[0];
+  const top = index.stacks.stackAt(scene, 1e-9)?.faces[0];
   if (top === undefined) return null;
   const transform = index.scene.face_transforms[top];
   if (!transform) return null;

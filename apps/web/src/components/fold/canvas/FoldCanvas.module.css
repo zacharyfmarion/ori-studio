@@ -1,8 +1,8 @@
 /*
- * The Fold canvas (FoldCanvas.tsx, FoldPane.tsx): the viewport — the two
- * panes side by side, the folded form first as the design has it, one at a
- * time on a phone — with the viewport toolbar over it. The tool rail beside
- * it is the panel's.
+ * The Fold canvas (FoldCanvas.tsx): the viewport — the two panes side by
+ * side, the folded form first as the design has it, one at a time on a
+ * phone — with the viewport toolbar over it. The tool rail beside it is the
+ * panel's; each pane's own box is `PaperPane`'s.
  */
 .root {
   display: grid;
@@ -31,24 +31,9 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
-/* One pane's box: the canvas fills it, and its layers sit over it. */
-.pane {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  outline: none;
-}
-
-.panes[data-split] > .pane + .pane {
+/* Split, a line between the panes: the second's left edge. */
+.panes[data-split] > * + * {
   border-left: 1px solid var(--border-subtle);
-}
-
-.surface {
-  display: block;
-  width: 100%;
-  height: 100%;
-  touch-action: none;
 }
 
 /* An SVG drawn over a pane through its camera: the fold's arrow. Never takes a press. */
