@@ -42,7 +42,7 @@ use super::folded_swivel::{Layered, RayRun, finish_together, ray_run, two_layers
 use super::swivel::{SwivelCrease, SwivelKind, SwivelRegion, SwivelWedge, dot, internal, sub};
 use super::swivel_valley_mountain::{
     Built, SwivelOtherEnd, SwivelShared, SwivelValleyMountain, SwivelValleyMountainAnalysis,
-    covered, creases_of, ends_bare, fold_of, folds_at,
+    covered, creases_of, ends_bare, fold_of, folds_at, folds_through,
 };
 use super::vertex::{Compiled, VertexChoices, VertexOutcome, cross};
 use crate::fold::Within;
@@ -80,6 +80,10 @@ fn lines(built: &Built) -> [Point; 3] {
 impl SwivelPair {
     /// The folded edges each swivel can fold on: built on every one its
     /// lines meet on, or that swivel's refusal.
+    /// Where those the lines meet on are a meeting they do not settle, the
+    /// folded edges that run on through the point (`folds_through`), as a
+    /// single swivel's lines are read; the meeting's refusal where none
+    /// builds.
     fn candidates(swivel: &SwivelValleyMountain, state: &State) -> Result<Vec<Built>, Refused> {
         let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
         let at = swivel
@@ -87,9 +91,26 @@ impl SwivelPair {
             .intersect(&swivel.mountain)
             .ok_or_else(meeting)?;
         let folds = folds_at(state, at);
-        if folds.len() > 1 && folds.iter().any(|&fold| ends_bare(state, fold, at)) {
-            return Err(meeting());
+        let settled = if folds.len() > 1 && folds.iter().any(|&fold| ends_bare(state, fold, at)) {
+            Err(meeting())
+        } else {
+            Self::built_on(swivel, state, folds)
+        };
+        match settled {
+            Err(refused) if refused.refusal == FoldRefusal::SwivelLineMeeting => {
+                Self::built_on(swivel, state, folds_through(state, at)).map_err(|_| refused)
+            }
+            settled => settled,
         }
+    }
+
+    /// The swivel built on each of the folded edges through the sheet points
+    /// `folds`; the first refusal where none builds.
+    fn built_on(
+        swivel: &SwivelValleyMountain,
+        state: &State,
+        folds: Vec<Point>,
+    ) -> Result<Vec<Built>, Refused> {
         let mut first: Option<Refused> = None;
         let mut built = Vec::new();
         for fold in folds {
@@ -101,7 +122,7 @@ impl SwivelPair {
             }
         }
         if built.is_empty() {
-            return Err(first.unwrap_or_else(meeting));
+            return Err(first.unwrap_or_else(|| FoldRefusal::SwivelLineMeeting.into()));
         }
         Ok(built)
     }

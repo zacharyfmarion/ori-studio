@@ -231,7 +231,13 @@ Compound folds (plan D4, D15, Phases 9 and 11):
     paper that lies across a ray is creased along it too — refused
     `fan_ray_blocked` only when no such motion exists. The lines may meet on
     a folded edge hidden under a layer, or where two flaps' folded edges
-    abut; several the swivel can fold on are `swivel_line_meeting`.
+    abut; several the swivel can fold on are `swivel_line_meeting`. Where
+    the folds there do not settle the meeting (a ply that wraps the fold on
+    one side ends there bare, or every fold in view ends there over a hidden
+    one) and the lines turn no flap about the end of its hinges, the swivel
+    folds on the one fold that runs on through the point and compiles: in
+    view, or where none in view does, hidden. A pair's swivels are read the
+    same way.
   - `compound::swivel_hinge_end`: a valley and a mountain that meet where a
     flap's two hinges end — a flat vertex of four folds — turn the flap
     about it. Both hinges move one angle ψ the same way round: the flap's

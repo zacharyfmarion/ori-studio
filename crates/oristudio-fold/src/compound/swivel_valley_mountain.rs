@@ -47,7 +47,11 @@
 //! along one line), the swivel folds on the one it can fold on.
 //! Where the folded edges there end instead — the corner where a flap's two
 //! hinges end — the lines turn that flap about it
-//! ([`super::swivel_hinge_end`]).
+//! ([`super::swivel_hinge_end`]). Where they turn no flap either, the swivel
+//! folds on the one folded edge there that runs on through the point and
+//! compiles: of those in view, or where every one in view ends there (paper
+//! on a raw edge covering the fold), the hidden ones. A ply that ends there
+//! bare beside a fold that runs on is the paper's edge, not a hinge.
 //!
 //! **Through the stack.** Paper beyond the two layers that holds the wedges
 //! is creased along the same rays or carried (`super::folded_swivel`).
@@ -224,6 +228,32 @@ pub(super) fn ends_bare(state: &State, fold: Point, v: Point) -> bool {
     })
 }
 
+/// The folded edges a swivel can fold on where [`folds_at`]'s meeting does
+/// not settle (several folds meet at `v` and one ends bare there, or every
+/// one ends there): of those, the ones whose run passes on through `v`, its
+/// ends at least a minimum feature away; where no fold in view does, the
+/// hidden ones that do. The sheet points, one per paper they name.
+pub(super) fn folds_through(state: &State, v: Point) -> Vec<Point> {
+    let through = |fold: &Point| {
+        fold_support(state, *fold)
+            .and_then(|(_, support)| edge_run(state, support).ok())
+            .is_some_and(|run| {
+                run.ends
+                    .iter()
+                    .all(|p| sub(*p, v)[0].hypot(sub(*p, v)[1]) >= MIN_FEATURE)
+            })
+    };
+    let seen: Vec<Point> = folds_at(state, v).into_iter().filter(through).collect();
+    if !seen.is_empty() {
+        return seen;
+    }
+    let landmarks = state.landmarks(&[]);
+    seen_fold_within(&landmarks, v, |_| TOL, false)
+        .into_iter()
+        .filter(through)
+        .collect()
+}
+
 /// [`folds_at`] with a visible part reaching `slack(length)` past its ends,
 /// as a fraction of the edge's length, or any part when `visible` is false:
 /// the folded edges' sheet points, one per paper they name.
@@ -348,7 +378,10 @@ impl SwivelValleyMountain {
             Err(refused) if refused.refusal == FoldRefusal::SwivelLineMeeting => {
                 match HingeEnd::reading(state, &self.valley, &self.mountain, self.kind)? {
                     Some(turn) => Ok(Reading::HingeEnd(Box::new(turn))),
-                    None => Err(refused),
+                    None => match self.through(state) {
+                        Some(found) => Ok(Reading::OnEdge(Box::new(found))),
+                        None => Err(refused),
+                    },
                 }
             }
             Err(refused) => Err(refused),
@@ -362,8 +395,6 @@ impl SwivelValleyMountain {
     fn on_edge(&self, state: &State) -> Result<(Built, FoldCompiled), Refused> {
         let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
         let at = self.valley.intersect(&self.mountain).ok_or_else(meeting)?;
-        let mut first: Option<Refused> = None;
-        let mut found: Vec<(Built, FoldCompiled)> = Vec::new();
         let folds = folds_at(state, at);
         // A folded edge that ends where the lines meet, with no paper beyond
         // (the end of a flap's hinge), is not one the swivel folds on; but
@@ -373,6 +404,28 @@ impl SwivelValleyMountain {
         if folds.len() > 1 && folds.iter().any(|&fold| ends_bare(state, fold, at)) {
             return Err(meeting());
         }
+        self.on_one_of(state, folds)
+    }
+
+    /// Where the meeting rule refuses and the lines turn no flap about the
+    /// end of its hinges: the swivel on a folded edge that runs on through
+    /// the point they meet at ([`folds_through`]), where exactly one compiles.
+    /// None otherwise, so the meeting's refusal stands.
+    fn through(&self, state: &State) -> Option<(Built, FoldCompiled)> {
+        let at = self.valley.intersect(&self.mountain)?;
+        self.on_one_of(state, folds_through(state, at)).ok()
+    }
+
+    /// Of the folded edges through the sheet points `folds`, the one the
+    /// swivel compiles on; several are a meeting the lines do not settle.
+    fn on_one_of(
+        &self,
+        state: &State,
+        folds: Vec<Point>,
+    ) -> Result<(Built, FoldCompiled), Refused> {
+        let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
+        let mut first: Option<Refused> = None;
+        let mut found: Vec<(Built, FoldCompiled)> = Vec::new();
         for fold in folds {
             match self
                 .build(state, fold)
