@@ -41,7 +41,8 @@ export interface LayerSpreadToggle {
   /**
    * Why the layers are not spread, said under the switch's label rather than
    * only on hover: a fold with no layers to spread, or a spread that could not
-   * be made and was turned off. Absent where a surface says nothing there.
+   * be made, kept on for another kind to try. Absent where a surface says
+   * nothing there.
    */
   note?: string;
   /** Turn it the other way; refuses while it cannot. */
@@ -57,7 +58,10 @@ export interface LayerSpreadChoice<T extends string> {
   label: string;
   /** The one chosen now. */
   pressed: boolean;
-  /** Held as the other verbs are: a read-only document, a picture with no layers, a capture running. */
+  /**
+   * Held as the other verbs are: a read-only document, a picture with no
+   * layers, a capture running; a value, too, while its spread's are held.
+   */
   disabled: boolean;
   waiting: boolean;
   hint?: string;
@@ -76,9 +80,9 @@ export interface LayerSpreadControls {
   disabled: boolean;
   hint?: string;
   /**
-   * Why the spread's own values are held while its kind is not: a Default
-   * spread whose layers could not be spread, which no value of its own
-   * changes — only another kind does. Absent where `disabled` says it all.
+   * Why the spread's own values are held while its kind is not: layers it
+   * could not be made of, which no value of its own changes — only another
+   * kind may ({@link spreadFailedReason}). Absent where `disabled` says it all.
    */
   valuesHeld?: string;
   /** Default, Affine or Depth; every kind stays available after switching. */
@@ -107,13 +111,15 @@ export interface LayerSpreadDrag extends LayerSpreadControls {
 
 /**
  * The controls of `spread`, the spread the picture shows. `hint` says why it
- * cannot be changed, when it cannot; `busy`, that the picture is being made
+ * cannot be changed, when it cannot; `valuesHeld`, why only its kind can
+ * (`LayerSpreadControls.valuesHeld`); `busy`, that the picture is being made
  * again and every choice waits for it. A choice already made does nothing.
  */
 export function layerSpreadControls(
   spread: LayerSpreadOptions,
   {
     hint,
+    valuesHeld,
     busy,
     t,
     kind,
@@ -121,6 +127,7 @@ export function layerSpreadControls(
     keep,
   }: {
     hint: string | undefined;
+    valuesHeld?: string;
     busy: boolean;
     t: TFunction;
     kind: (kind: SpreadKind) => void;
@@ -128,34 +135,57 @@ export function layerSpreadControls(
     keep: (keep: SpreadKeep) => void;
   }
 ): LayerSpreadControls {
-  const disabled = hint !== undefined;
-  const waiting = !disabled && busy;
-  const choice = <T extends string>(value: T, label: string, pressed: boolean, choose: (value: T) => void) => ({
-    value,
-    label,
-    pressed,
-    disabled,
-    waiting,
-    hint: hint ?? (waiting ? t('panels:diagram.actions.capturingHint', 'Its picture is being captured') : undefined),
-    run: () => {
-      if (!disabled && !waiting && !pressed) choose(value);
-    },
-  });
+  const choice = <T extends string>(
+    value: T,
+    label: string,
+    pressed: boolean,
+    choose: (value: T) => void,
+    held: string | undefined
+  ) => {
+    const disabled = held !== undefined;
+    const waiting = !disabled && busy;
+    return {
+      value,
+      label,
+      pressed,
+      disabled,
+      waiting,
+      hint: held ?? (waiting ? t('panels:diagram.actions.capturingHint', 'Its picture is being captured') : undefined),
+      run: () => {
+        if (!disabled && !waiting && !pressed) choose(value);
+      },
+    };
+  };
+  // A depth spread's direction and an affine one's layer held still are values of its own.
+  const valueHint = hint ?? valuesHeld;
   return {
     spread,
     busy,
-    disabled,
+    disabled: hint !== undefined,
     hint,
-    kinds: SPREAD_KINDS.map((each) => choice(each, spreadKindLabel(each, t), each === spread.kind, kind)),
+    ...(valuesHeld !== undefined ? { valuesHeld } : {}),
+    kinds: SPREAD_KINDS.map((each) => choice(each, spreadKindLabel(each, t), each === spread.kind, kind, hint)),
     directions:
       spread.kind === 'depth'
-        ? SPREAD_DIRECTIONS.map((toward) => choice(toward, spreadDirectionLabel(toward, t), toward === spread.toward, direction))
+        ? SPREAD_DIRECTIONS.map((toward) =>
+            choice(toward, spreadDirectionLabel(toward, t), toward === spread.toward, direction, valueHint)
+          )
         : [],
     keeps:
       spread.kind === 'affine'
-        ? SPREAD_KEEPS.map((each) => choice(each, spreadKeepLabel(each, t), each === spread.keep, keep))
+        ? SPREAD_KEEPS.map((each) => choice(each, spreadKeepLabel(each, t), each === spread.keep, keep, valueHint))
         : [],
   };
+}
+
+/**
+ * What every surface says of layers a spread could not be made of — a Default
+ * solve over its limits, most often — under Spread layers and on the values
+ * it holds. The spread stays on: Affine and Depth need no solve, so another
+ * kind may spread what Default could not.
+ */
+export function spreadFailedReason(t: TFunction): string {
+  return t('panels:cpProperties.folded.spreadUnavailable', 'These layers couldn’t be spread');
 }
 
 /** Whether a spread's own values — its sliders, pad and choices but its kind — can be changed now, and if not, why. */

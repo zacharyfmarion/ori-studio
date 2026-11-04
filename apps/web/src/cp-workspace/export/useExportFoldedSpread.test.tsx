@@ -4,7 +4,8 @@
  * the last settled picture stays up, dimmed, while the next is made; a colour
  * edit repaints a scene and draws a bitmap again, never solving or capturing
  * again; Affine and Depth are their picture at once; a spread that cannot be
- * solved turns itself off and says so.
+ * solved or clipped stays on, drawn unspread, says so, and gives way to
+ * another kind.
  */
 import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -24,7 +25,7 @@ import { useExportFoldedSpread, type ExportFoldedSpread, type ExportFoldedSpread
 
 const workers = vi.hoisted(() => ({
   leases: [] as Array<{ scene: unknown; released: boolean; resolve: (p: unknown) => void; reject: (e: unknown) => void }>,
-  captures: [] as Array<{ scene: unknown; resolve: (scene: unknown) => void }>,
+  captures: [] as Array<{ scene: unknown; resolve: (scene: unknown) => void; reject: (e: unknown) => void }>,
   rasters: [] as Array<{ style: unknown; policy: unknown; resolve: (raster: unknown) => void }>,
 }));
 vi.mock('../../layer-spread/prepareConnected', () => ({
@@ -48,7 +49,8 @@ vi.mock('../../layer-spread/prepareConnected', () => ({
   },
 }));
 vi.mock('../../layer-spread/captureConnected', () => ({
-  captureConnected: (scene: unknown) => new Promise((resolve) => workers.captures.push({ scene, resolve })),
+  captureConnected: (scene: unknown) =>
+    new Promise((resolve, reject) => workers.captures.push({ scene, resolve, reject })),
 }));
 vi.mock('../../layer-spread/rasterConnected', () => ({
   rasterConnected: (_scene: unknown, style: unknown, _mm: unknown, _signal: unknown, policy: unknown) =>
@@ -181,17 +183,43 @@ describe('a Default spread in an export', () => {
     expect(shown!.busy).toBe(false);
   });
 
-  it('turns itself off, and says so, when its layers cannot be solved', async () => {
+  it('stays on, drawn unspread and saying so, when its layers cannot be solved; Affine spreads them', async () => {
+    const reason = 'These layers couldn’t be spread';
     await render(base(DEFAULT_CONNECTED_SPREAD));
-    await settle(() => workers.leases[0]!.reject(new Error('Conflicting material layer order')));
-    expect(turnOff.calls()).toBe(1);
-    // The dialog turns its setting off.
-    await render(base(null));
+    await settle(() => workers.leases[0]!.reject(new Error('Spread resource limit exceeded: overlap regions')));
+    expect(turnOff.calls()).toBe(0);
     expect(shown).toMatchObject({ picture: null, busy: false, failed: true });
-    // Turned on again, it tries again and stops saying so.
+    expect(shown!.rows.toggle).toMatchObject({ pressed: true, note: reason });
+    expect(shown!.rows.spread).toMatchObject({ disabled: false, valuesHeld: reason });
+
+    // Affine needs no solve: picked, it spreads them at once, and the note goes.
+    await act(async () => shown!.rows.spread!.kinds.find((kind) => kind.value === 'affine')!.run());
+    const affine = setSetting.mock.lastCall![0] as LayerSpreadOptions;
+    expect(affine.kind).toBe('affine');
+    await render(base(affine));
+    expect(shown).toMatchObject({ picture: { kind: 'scene', spread: 'affine' }, busy: false, failed: false });
+    expect(shown!.rows.toggle.note).toBeUndefined();
+
+    // Default again tries the solve again.
     await render(base(DEFAULT_CONNECTED_SPREAD));
-    expect(shown!.failed).toBe(false);
     expect(workers.leases).toHaveLength(2);
+    expect(shown).toMatchObject({ busy: true, failed: false });
+    await settle(() => workers.leases[1]!.reject(new Error('Spread resource limit exceeded: overlap regions')));
+    expect(shown).toMatchObject({ picture: null, busy: false, failed: true });
+  });
+
+  it('stays on, drawn unspread, when its capture fails, until a turn captures it', async () => {
+    await render(base(DEFAULT_CONNECTED_SPREAD));
+    await settle(() => workers.leases[0]!.resolve(solved(kernel)));
+    await settle(() => workers.captures[0]!.reject(new Error('The clip failed')));
+    expect(shown).toMatchObject({ picture: null, busy: false, failed: true });
+    expect(turnOff.calls()).toBe(0);
+    // A turn captures again from the solve it has; once that lands, it is spread.
+    await render({ ...base(DEFAULT_CONNECTED_SPREAD), turnDeg: 90 });
+    expect(workers.leases).toHaveLength(1);
+    expect(workers.captures).toHaveLength(2);
+    await settle(() => workers.captures[1]!.resolve(resolvedOf(workers.captures[1]!.scene)));
+    expect(shown).toMatchObject({ picture: { kind: 'scene', spread: 'connected' }, busy: false, failed: false });
   });
 
   it('lets its solve go with the fold, and prepares the next one', async () => {

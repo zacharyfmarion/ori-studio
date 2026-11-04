@@ -1136,16 +1136,20 @@ describe('the Spread section', () => {
     }
   });
 
-  it('keeps the switch for a spread the canvas couldn’t draw, so it can be turned off, and holds the rest', () => {
+  it('keeps the switch and Spread by for a spread the canvas couldn’t draw, and holds Default’s own values', () => {
     const d = deps({ spreadStatus: 'unavailable' });
     const sheet = sheetFor(spreadOn(), d);
     const reason = 'These layers couldn’t be spread';
     expect(toggle(sheet)).toMatchObject({ support: 'supported', value: true, note: { kind: 'reason', text: reason } });
-    for (const id of ['spreadKind', 'spreadAmount', 'spreadReveal']) {
+    for (const id of ['spreadAmount', 'spreadReveal']) {
       expect(field(sheet, id)).toMatchObject({ support: 'unsupported', reason });
     }
+    // Affine and Depth need no solve: another kind is the way on.
+    expect(field(sheet, 'spreadKind').support).toBe('supported');
+    segmented(sheet, 'spreadKind').commit('affine');
+    expect(d.setSpread).toHaveBeenCalledWith(record(DEFAULT_AFFINE_SPREAD));
     toggle(sheet).commit(false);
-    expect(d.setSpread).toHaveBeenCalledWith(null);
+    expect(d.setSpread).toHaveBeenLastCalledWith(null);
     // Preparing says nothing: the figure draws flat until its solve lands.
     expect(toggle(sheetFor(spreadOn(), deps({ spreadStatus: 'preparing' }))).note).toBeUndefined();
   });

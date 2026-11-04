@@ -1,4 +1,4 @@
-# A Diagram step keeps its spread when its layers can't be spread
+# A spread stays on when its layers can't be spread
 
 ## Goal
 
@@ -14,6 +14,10 @@ Spread layers stays on and says "These layers couldn’t be spread", Spread by
 stays on Default with Affine and Depth — which need no solve — still to pick.
 Turning Spread layers off would leave no way to Affine on a model Default can
 never solve (Zach's review of the first version, which did that).
+
+Edit's folded figure and the Export and Share dialogs' had the same dead end:
+Edit held Spread by with the rest of a spread its canvas could not draw, and
+Export and Share turned the spread off. They now do what a Diagram step does.
 
 ## Approach
 
@@ -55,6 +59,25 @@ thing) and holds Default's own values — Amount, Reveal, Presentation — with
 the same words, while Spread by stays open (`LayerSpreadControls.valuesHeld`,
 `spreadValuesHold`).
 
+**Every surface the same way.** What a failed spread holds, and the words
+for it, are the shared spread controls' (`layerSpreadControls.ts`):
+`valuesHeld` is an input of `layerSpreadControls`, so a depth spread's
+direction and an affine one's layer held still wait with the sliders and the
+reveal pad (`spreadValuesHold`), and `spreadFailedReason` is the one place
+the words live. Each surface says when its layers could not be spread:
+
+- **A Diagram step:** its picture's mark (`DiagramLinkedPoseState.spreadFailed`).
+- **Edit's folded figure:** its canvas's status, `unavailable`
+  (`foldedFigureSpreadStatus.ts`). The figure's spread stays the document's,
+  as before; Spread by now stays open (`foldedFigureSpreadSection`).
+- **The Export and Share dialogs' figure** (`useExportFoldedSpread`): a
+  spread that cannot be prepared, solved, clipped or drawn keeps its setting,
+  and the figure is drawn unspread — `picture` null, which the file and the
+  share card paint too, so they agree with the preview. `failed` gives the
+  rows their note and held values (`exportSpreadControls`). A new setting or
+  fold ends it, and so does a picture that lands — a turn that captures what
+  the last frame could not.
+
 **Said once.** `commitStepCapture` compares the picture landed with the one
 the step had: `spreadFailed` is `new` where the step's layers were spread or
 it showed something else, `again` where they already could not be. A toast
@@ -74,19 +97,14 @@ captured` gains the outcome `spread_failed`, counted for both.
   `foldStepActions.ts`, `foldBrowserActions.ts`, `useDiagramFoldStepPose.ts`
 - `apps/web/src/diagram/zoom/zoomImprint.ts`
 - `apps/web/src/cp-workspace/folded/layerSpreadControls.ts`,
-  `components/paper/LayerSpreadRows.tsx`, `LayerRevealControl.tsx`,
-  `components/diagram/DiagramStepPose.tsx`
+  `foldedFigureSpreadFields.ts`, `components/paper/LayerSpreadRows.tsx`,
+  `LayerRevealControl.tsx`, `components/diagram/DiagramStepPose.tsx`
+- `apps/web/src/cp-workspace/export/exportSpreadControls.ts`,
+  `useExportFoldedSpread.ts`
 - `apps/web/src/store/workspaceStore/diagramCapture.ts`,
   `diagramFoldCapture.ts`, `types.ts`
 - `apps/web/src/analytics/events.ts`, `docs/analytics.md`
 - i18n catalogs for the toasts
-
-## Not here
-
-Edit's folded figure already keeps a spread its canvas could not draw on, with
-the same note, but holds Spread by with the rest of its values; Export and
-Share turn the spread off. Both have the same dead end on a model Default can
-never solve, and are left as they are.
 
 ## Checklist
 
@@ -104,3 +122,8 @@ never solve, and are left as they are.
       hits "overlap regions": linked on Default, marked, Affine spreads it,
       Default again says so once, a turn says nothing; a 5-pleat one still
       spreads)
+- [x] `valuesHeld` an input of `layerSpreadControls`; `spreadFailedReason` shared
+- [x] Edit: Spread by open while the canvas could not spread the layers
+- [x] Export and Share: a failed spread stays on, drawn unspread, with the note
+- [x] Browser check, Edit and Export, on the same accordion: Default says so
+      with Spread by open, Affine spreads it, Default again says so again

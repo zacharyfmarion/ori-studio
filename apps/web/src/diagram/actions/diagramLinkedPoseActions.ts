@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import type { SpreadDirection, SpreadKeep, SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   layerSpreadControls,
+  spreadFailedReason,
   type LayerSpreadChoice,
   type LayerSpreadControls,
 } from '../../cp-workspace/folded/layerSpreadControls';
@@ -433,14 +434,13 @@ export function buildDiagramSpreadControls(
   const hint = state.readOnly
     ? t('panels:diagram.actions.readOnlyHint', 'This diagram was made with a newer Ori Studio and opens read-only')
     : spreadBlocker(state, t);
-  const controls = layerSpreadControls(shown?.kind === stored.kind ? shown : stored, { hint, busy: state.busy, ...deps });
-  // Layers its Default spread could not take: another kind is the way on, and no value of its own changes them.
-  return state.spreadFailed ? { ...controls, valuesHeld: spreadFailedReason(t) } : controls;
-}
-
-/** What a step says of layers its Default spread could not take: under Spread layers, and on its held values. */
-function spreadFailedReason(t: TFunction): string {
-  return t('panels:cpProperties.folded.spreadUnavailable', 'These layers couldn’t be spread');
+  return layerSpreadControls(shown?.kind === stored.kind ? shown : stored, {
+    hint,
+    // Layers its Default spread could not take: another kind is the way on, and no value of its own changes them.
+    ...(state.spreadFailed ? { valuesHeld: spreadFailedReason(t) } : {}),
+    busy: state.busy,
+    ...deps,
+  });
 }
 
 /** The pose a render starts in: upright, from the front, the first layer order, Edit's camera. */
