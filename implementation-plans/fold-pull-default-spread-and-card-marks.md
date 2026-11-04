@@ -90,3 +90,14 @@ Two owner requests (2026-11-03) about steps taken from Fold into the Diagram:
 - Not done here: reusing a card's capture when Add is pressed. Add captures
   every step again, so a previewed pull pays twice. Reuse would need the
   marks given new ids.
+- Found while checking the frog, and fixed in its own commit: a connected
+  spread misdrew a crease piece whose crease runs on past its face.
+  - `connectedDrawing` (`layer-spread/connectedScene.ts`) kept such a piece's
+    `whole` crease unplaced, in the material scene's units rather than the
+    picture's, and the painter's erosion pulled the line's ends onto it.
+  - A flat sheet with two crossing precreases drew its cross as four skewed
+    spokes. The default spread would have put that on most imported steps.
+  - Such a piece is now eroded on its own ends. A regression test
+    (`connectedScene.test.ts`) fails without the fix.
+  - The same drawing serves Edit's and Fold's spread views, so they get the
+    fix too.
