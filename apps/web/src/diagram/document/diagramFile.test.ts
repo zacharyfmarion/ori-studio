@@ -3140,6 +3140,16 @@ describe('thumbnails and References cards in the file', () => {
 });
 
 describe('linked steps in the file', () => {
+  it.each([[0, 0], [-1.2, 1.6], [4.8, -6.4]])('preserves Default reveal (%s, %s) in a saved pose', (x, y) => {
+    const spread = { kind: 'connected', version: 1, amount: 0.37, reveal: [x, y] };
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[1].source.render.spread = spread;
+    const opened = readDiagram(written)!;
+    expect(opened.document.steps[1]).toMatchObject({ source: { render: { spread } } });
+    const again = throughJson(writeDiagram(opened.document));
+    expect(again.steps[1].source.render.spread).toEqual(spread);
+  });
+
   it('round-trips every render mode and captured picture unchanged', () => {
     const document = linkedDiagram();
     const read = readDiagram(throughJson(writeDiagram(document)))!;

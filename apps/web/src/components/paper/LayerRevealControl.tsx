@@ -8,6 +8,8 @@ import { FieldRow } from '../ui/fieldRows';
 import styles from './LayerRevealControl.module.css';
 
 const DIRECTIONS: SpreadDirection[] = ['left', 'up-left', 'up', 'up-right', 'right', 'down-right', 'down', 'down-left'];
+/** In the 100-unit SVG; also the pointer's reach as a share of the pad. */
+const PAD_RADIUS = 42;
 
 /** A Default spread's reveal, as the rows lay a spread out (`LayerSpreadRows`): its pad on the spread's drag. */
 export function LayerRevealControl({ spread }: { spread: LayerSpreadDrag }) {
@@ -60,7 +62,8 @@ export function LayerRevealPad({
   const gesture = useRef<{ id: number; start: [number, number]; shown: [number, number] } | null>(null);
   // A pointer released after Undo or a file change cannot start a fresh edit.
   useEffect(() => registerCanvasSessionEnder(() => { gesture.current = null; }), []);
-  const radius = Math.hypot(...value);
+  const radius = Math.min(REVEAL_RADIUS.max, Math.hypot(...value));
+  const padScale = PAD_RADIUS / REVEAL_RADIUS.max;
   const percent = new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 0 }).format(radius / REVEAL_RADIUS.max);
   const direction = spreadDirectionLabel(DIRECTIONS[(Math.round(Math.atan2(value[1], value[0]) / (Math.PI / 4)) + 8) % 8]!, t);
   const label = shownLabel ?? t('panels:diagram.spread.reveal', 'Layer reveal');
@@ -68,7 +71,7 @@ export function LayerRevealPad({
     const g = gesture.current;
     if (!g || g.id !== event.pointerId) return;
     const box = event.currentTarget.getBoundingClientRect();
-    const unit = Math.min(box.width, box.height) * 0.42 / REVEAL_RADIUS.max;
+    const unit = Math.min(box.width, box.height) * padScale / 100;
     g.shown = clampReveal([(event.clientX - box.left - box.width / 2) / unit, (event.clientY - box.top - box.height / 2) / unit], g.shown);
     update(g.shown);
   };
@@ -91,8 +94,8 @@ export function LayerRevealPad({
         {percent}
       </FieldRow>
       <button type="button" role="slider" className={styles.pad} disabled={disabled} title={title}
-        aria-label={label} aria-describedby={hintId} aria-valuemin={radius < REVEAL_RADIUS.min ? 0 : 5} aria-valuemax={100}
-        aria-valuenow={Math.round(radius / REVEAL_RADIUS.max * 100)} aria-valuetext={`${percent} · ${direction}`}
+        aria-label={label} aria-describedby={hintId} aria-valuemin={Math.min(radius, REVEAL_RADIUS.min) / REVEAL_RADIUS.max * 100} aria-valuemax={100}
+        aria-valuenow={radius / REVEAL_RADIUS.max * 100} aria-valuetext={`${percent} · ${direction}`}
         onPointerDown={(event) => {
           if (event.button !== 0 || gesture.current || !begin()) return;
           event.preventDefault();
@@ -115,8 +118,8 @@ export function LayerRevealPad({
         <svg viewBox="0 0 100 100" aria-hidden="true" className={styles.drawing}>
           <circle cx="50" cy="50" r="49" className={styles.surface} />
           <path d="M 14 50 H 86 M 50 14 V 86" className={styles.axes} />
-          <circle cx="50" cy="50" r="2.1" className={styles.excluded} />
-          <circle cx={50 + value[0] * 21} cy={50 + value[1] * 21} r="5" className={styles.handle} />
+          <circle cx="50" cy="50" r={REVEAL_RADIUS.min * padScale} className={styles.excluded} />
+          <circle cx={50 + value[0] * padScale} cy={50 + value[1] * padScale} r="5" className={styles.handle} />
         </svg>
       </button>
       <div id={hintId} className={styles.hint}>{t('panels:diagram.spread.padHint', 'Drag to reveal layers. Arrow keys adjust; Shift moves farther.')}</div>

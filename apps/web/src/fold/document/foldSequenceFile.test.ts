@@ -419,6 +419,16 @@ describe('versions and newer builds', () => {
 });
 
 describe('marks, notes, spreads and expect', () => {
+  it.each([[0, 0], [-1.2, 1.6], [4.8, -6.4]])('preserves Default reveal (%s, %s) on a step and its sequence default', (x, y) => {
+    const spread = { kind: 'connected', version: 1, amount: 0.37, reveal: [x, y] };
+    const held = readSteps([raw('a', null, { spread })], { defaultSpread: spread });
+    expect(held.document.defaultSpread).toEqual(spread);
+    expect((held.document.steps[0] as FoldStep).spread).toEqual(spread);
+    const reopened = readFoldSequence(JSON.parse(JSON.stringify(writeFoldSequence(held))))!;
+    expect(reopened.document.defaultSpread).toEqual(spread);
+    expect((reopened.document.steps[0] as FoldStep).spread).toEqual(spread);
+  });
+
   it('drops a malformed mark, carries a newer build’s, and writes the carried one back unchanged', () => {
     const kept = { id: 'm-ok', from: [0, 0], to: [1, 0], divide: { mode: 'count', parts: 2 } };
     const newerMode = { id: 'm-mode', from: [0, 0], to: [1, 0], divide: { mode: 'golden' } };
