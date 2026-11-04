@@ -736,3 +736,84 @@ fn a_petal_fold_of_a_squashed_flap_that_does_not_fold_is_refused() {
     assert!(!faces.is_empty());
     assert!(faces.iter().all(|f| analysis.top.contains(f)), "{faces:?}");
 }
+
+/// The sheet point under the model point `p` on the layer `depth` below the
+/// one the viewer sees on top there.
+fn seen_at(state: &State, p: [f64; 2], depth: usize) -> [f64; 2] {
+    let mut stack = state.stack_at(p).unwrap_or_default();
+    if state.view().flipped {
+        stack.reverse();
+    }
+    let face = *stack
+        .get(depth)
+        .unwrap_or_else(|| panic!("no layer {depth} at {p:?}"));
+    state.isometry(face).unwrap_or_default().inverse().apply(p)
+}
+
+/// A corner flap squashed open and its kite precreased
+/// ([`squashed_corner`]), with its landmarks in the model frame.
+struct SquashedCorner {
+    state: State,
+    /// H's ends on the squash's creases, halfway from the closed point to
+    /// the corner.
+    ends: [[f64; 2]; 2],
+    /// Inside the kite below H, on the top layer.
+    petal: [f64; 2],
+}
+
+/// The square folded on its diagonal, the corner (0, 0) over onto (1, 1);
+/// in half across that, the lower half up; the corner flap this makes — two
+/// layers hinged along y = 1/2 — squashed with its spine onto the hinge
+/// line; and the squashed flap's kite precreased, each lower edge of its top
+/// layer folded to the spine (the upper one through the flap's top two
+/// layers, the lower through every layer). The flap is a kite from the
+/// closed point (1/2, 1/2) to the sheet's corner at (1/2 + √2/2, 1/2), its
+/// top layer the whole kite. Its second layer ends at the sheet's raw edge
+/// x = 1, short of the corner, and below the spine runs on, flat across the
+/// hinge the squash unfolded, into the back layer above it.
+fn squashed_corner() -> SquashedCorner {
+    let (r2, t) = (std::f64::consts::SQRT_2, (std::f64::consts::PI / 8.0).tan());
+    let s = cases::valley(&cases::square(), [1.0, 0.0], [0.0, 1.0], [0.2, 0.2]);
+    let s = cases::valley(&s, [0.0, 0.5], [1.0, 0.5], [0.9, 0.2]);
+    let s = cases::squash(&s, [0.918, 0.673]).state;
+    let corner = [0.5 + r2 / 2.0, 0.5];
+    let x = 0.5 + r2 / 4.0;
+    let ends = [[x, 0.5 + r2 / 4.0 * t], [x, 0.5 - r2 / 4.0 * t]];
+    let flap = seen_at(&s, [0.95, 0.64], 1);
+    let s = cases::precrease(
+        &s,
+        ends[0],
+        corner,
+        [1.0, 0.68],
+        Seed::Flaps { at: vec![flap] },
+    );
+    let s = cases::precrease(&s, ends[1], corner, [1.0, 0.32], Seed::All);
+    SquashedCorner {
+        state: s,
+        ends,
+        petal: [1.0, 0.45],
+    }
+}
+
+/// A petal fold of a squashed corner whose second layer runs on, flat, into
+/// the back layer at one end: refused as needing H precreased, naming the
+/// back layer.
+#[test]
+fn a_petal_fold_of_a_squashed_corner_whose_second_layer_runs_on() {
+    let c = squashed_corner();
+    let op = cases::doubled_petal_op(&c.state, c.ends, c.petal);
+    let refused = refusal(&c.state, &op);
+    let FoldRefusal::PetalNotPrecreased {
+        faces,
+        missing: PetalCrease::Line,
+    } = &refused
+    else {
+        panic!("{refused:?}");
+    };
+    // The back layer above the spine: the sheet above its diagonal and y = 1/2.
+    let back = c
+        .state
+        .face_at([0.25, 0.9])
+        .unwrap_or_else(|| panic!("no back"));
+    assert_eq!(faces, &[back]);
+}
