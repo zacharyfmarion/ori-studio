@@ -26,7 +26,8 @@
 //!   pattern of a plain fold of the whole tip — as two blocks per flap.
 //!   Carried: pairs that stay, kept; pairs in one block, reversed. Seeded:
 //!   pairs across blocks, kept in absolute terms except corresponding halves
-//!   of nested openings along one spine, which turn together as a packet;
+//!   of openings along one spine that nest or interleave (walls of several
+//!   plies, `Tip::packet_pairs`), which turn together as a packet;
 //!   each block against its own
 //!   body, inside putting T1 over B1 and T2 under B2, outside the reverse.
 //!   The completion decides the rest: with these seeds it is unique in
@@ -590,28 +591,64 @@ impl RawOpening {
 }
 
 impl Tip {
-    /// Two openings form a nested packet only along the same spine, with
-    /// one upper half above the other's and its lower half below the other's.
+    /// Two openings along the same spine turn as one packet — upper half
+    /// with upper half, lower with lower — when their halves nest or
+    /// interleave:
+    ///
+    /// - **Nested:** one upper half above the other's and its lower half
+    ///   below the other's.
+    /// - **Interleaved:** the two openings share one gap (each upper half
+    ///   above the other's lower half), and some face of one half lies
+    ///   between two faces of the other's at one point. The halves are then
+    ///   two walls of several plies, wraps of both flaps in each: a corner
+    ///   folded in half twice and then in half again, or flaps hinged on a
+    ///   centre fold inside one half of it. Keeping the absolute order there
+    ///   would contradict each block's own reversal at that point, so this
+    ///   reading only lands folds that no order fitted before.
+    ///
     /// Test the actual moving-side pieces, not overlap elsewhere in a face.
     /// Pairwise coupling avoids merging unrelated sibling pockets through a
     /// common enclosing flap. All opposite-half and body contacts remain.
     pub(super) fn packet_pairs(&self, state: &State, plan: &Plan) -> Vec<[usize; 2]> {
+        let piece = |f: usize| self.side.pieces[f].as_deref();
+        let id = |f: usize| state.faces()[f].id;
         let above = |upper: &[usize], lower: &[usize]| {
             let mut overlaps = false;
             for &a in upper {
                 for &b in lower {
-                    let (Some(p), Some(q)) = (&self.side.pieces[a], &self.side.pieces[b]) else {
+                    let (Some(p), Some(q)) = (piece(a), piece(b)) else {
                         continue;
                     };
                     if convex::penetration(p, q) > TOL {
                         overlaps = true;
-                        if state.above(state.faces()[a].id, state.faces()[b].id) != Some(true) {
+                        if state.above(id(a), id(b)) != Some(true) {
                             return false;
                         }
                     }
                 }
             }
             overlaps
+        };
+        // A face of `inner` between two faces of `outer` where all three
+        // overlap.
+        let between = |outer: &[usize], inner: &[usize]| {
+            inner.iter().any(|&b| {
+                outer.iter().any(|&a1| {
+                    outer.iter().any(|&a2| {
+                        let (Some(p), Some(q), Some(r)) = (piece(a1), piece(b), piece(a2)) else {
+                            return false;
+                        };
+                        if a1 == a2
+                            || state.above(id(a1), id(b)) != Some(true)
+                            || state.above(id(b), id(a2)) != Some(true)
+                        {
+                            return false;
+                        }
+                        let pq = convex::clip(p, q);
+                        pq.len() >= 3 && convex::penetration(&pq, r) > TOL
+                    })
+                })
+            })
         };
         let mut coupled = Vec::new();
         for (a, outer) in plan.openings.iter().enumerate() {
@@ -632,7 +669,19 @@ impl Tip {
                 let nested = (above(&outer.upper, &inner.upper)
                     && above(&inner.lower, &outer.lower))
                     || (above(&inner.upper, &outer.upper) && above(&outer.lower, &inner.lower));
-                if same_spine && nested {
+                let interleaved = || {
+                    above(&outer.upper, &inner.lower)
+                        && above(&inner.upper, &outer.lower)
+                        && [
+                            (&outer.upper, &inner.upper),
+                            (&inner.upper, &outer.upper),
+                            (&outer.lower, &inner.lower),
+                            (&inner.lower, &outer.lower),
+                        ]
+                        .iter()
+                        .any(|(a, b)| between(a, b))
+                };
+                if same_spine && (nested || interleaved()) {
                     coupled.push([2 * a, 2 * b]);
                     coupled.push([2 * a + 1, 2 * b + 1]);
                 }
