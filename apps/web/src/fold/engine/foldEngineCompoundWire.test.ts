@@ -8,6 +8,7 @@ import {
   compoundStoredChoices,
   foldedLineOf,
   isFoldCompoundOp,
+  squashPocketsOf,
   type FoldCompoundFamily,
   type FoldCompoundReport,
   type FoldCompoundReportBase,
@@ -148,6 +149,17 @@ describe('the compound folds’ one wire', () => {
     // A vertex fold, a turn and the sheet fold along no one line.
     expect(foldedLineOf({ report: null, compound: REPORTS.vertex() })).toBeNull();
     expect(foldedLineOf({ report: null })).toBeNull();
+  });
+
+  it('counts the pockets a squash folded together by its vertices, one apiece', () => {
+    const squash = REPORTS.vertex();
+    expect(squashPocketsOf({ compound: squash })).toBeNull();
+    const pockets = { ...squash, vertices: [[0.75, 0.75], [0.25, 0.75]] } as FoldCompoundReport;
+    expect(squashPocketsOf({ compound: pockets })).toBe(2);
+    // Another vertex fold, another family, or none.
+    expect(squashPocketsOf({ compound: { ...pockets, kind: 'swivel' } as FoldCompoundReport })).toBeNull();
+    expect(squashPocketsOf({ compound: REPORTS.reverse() })).toBeNull();
+    expect(squashPocketsOf({})).toBeNull();
   });
 
   it('reads what any family stores as the document’s choices, and nothing for what had one way', () => {

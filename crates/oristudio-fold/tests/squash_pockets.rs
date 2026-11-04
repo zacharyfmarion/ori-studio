@@ -99,6 +99,13 @@ fn the_pockets_are_the_flap_the_analysis_shows() {
         assert!(analysis.upper.contains(&door(at)), "{at:?}");
     }
     assert!((analysis.wedge.abs() - std::f64::consts::FRAC_PI_2).abs() < 1e-9);
+    // Two pockets, which a tool offers no spine target for; a flap alone is one.
+    assert_eq!(analysis.pockets, 2);
+    let triangle = cases::small_triangle(false);
+    let alone = triangle
+        .analyse_squash(&squash_op(&triangle, [0.1, 0.5], None))
+        .unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(alone.pockets, 1);
 }
 
 #[test]

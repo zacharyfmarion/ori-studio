@@ -106,6 +106,12 @@ export interface FoldVertexWindowView {
   /** A squash's spine lands on its hinge line, or toward a point clicked. */
   target: 'hinge' | 'point';
   /**
+   * Pockets on one lower layer squash together: their spine lands on the
+   * hinge line only, so no target is offered. Absent for a flap alone and
+   * the other folds.
+   */
+  pockets?: true;
+  /**
    * A squash of a flap whose walls are several plies: its layers at the flap
    * point, the openings that land — each by how many layers lie above it,
    * the only ones offered — and the one it folds. Absent for a two-layer
@@ -592,9 +598,11 @@ function previewInstructions(
     const steps = swivelPreviewSteps(t, vertex, host, controls);
     return { ...steps, notes: queued };
   }
+  // Pockets squashing together have no spine to aim: nothing to choose there.
+  const choose = tool === 'squash' && vertex.pockets ? [] : [chooseStep(t, tool, host)];
   return {
     heading: t('tools:fold.window.instructions', 'Instructions'),
-    items: [chooseStep(t, tool, host), commitStep(t, tool, host)],
+    items: [...choose, commitStep(t, tool, host)],
     // The choices are optional, so the window leads with them and never marks them done.
     current: 0,
     notes: queued,
@@ -862,9 +870,10 @@ export function vertexControls(
         }
       : null,
     lineBy: lineByControl(t, vertex, verbs, readOnly),
-    // Where a squash's spine lands: the bold line on the folded pane, moved by a click there.
+    // Where a squash's spine lands: the bold line on the folded pane, moved by
+    // a click there. Never offered for pockets squashing together.
     target:
-      tool === 'squash' && located
+      tool === 'squash' && located && !vertex.pockets
         ? {
             label: t('tools:fold.vertex.target', 'Spine lands on'),
             value:

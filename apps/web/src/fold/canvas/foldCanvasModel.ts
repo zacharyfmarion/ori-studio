@@ -28,7 +28,7 @@ import { isLocated, locatesTakenLine, type FoldToolState } from '../tools/foldTo
 import type { FoldExtentMode } from '../tools/precrease/precreaseExtent';
 import { isLineTool, isSinkTool, isVertexTool, type FoldKeyLabel } from '../tools/foldToolCatalog';
 import { SWIVEL_TARGET_FROM } from '../tools/vertex/vertexInputs';
-import { nearestDirection, swivelFoldPick } from '../tools/vertex/vertexStep';
+import { nearestDirection, squashAimable, swivelFoldPick } from '../tools/vertex/vertexStep';
 import { swivelReachesNothing } from '../tools/vertex/swivelReach';
 import type { FoldVertexWindowView } from '../tools/vertex/vertexToolWindow';
 import { boundsOf } from './foldCanvasGeometry';
@@ -251,6 +251,7 @@ export function foldVertexWindowView(tools: FoldToolState, preview: FoldToolPrev
     described: vertex?.base != null,
     known: preview.step !== null,
     target: tools.compound.squashTarget ? 'point' : 'hinge',
+    ...(tool === 'squash' && vertex?.base && !squashAimable(vertex.base) ? { pockets: true as const } : {}),
     ...(tool === 'squash' && vertex?.squash ? { squash: vertex.squash } : {}),
     fourths: fourths.length,
     fourth: Math.max(0, fourths.indexOf(vertex?.emergent ?? -1)),

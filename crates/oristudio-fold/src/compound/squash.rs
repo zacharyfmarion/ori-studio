@@ -161,6 +161,10 @@ pub struct SquashAnalysis {
     /// direction's side, lie above where it opens.
     pub layers: usize,
     pub opening: usize,
+    /// How many pockets on one lower layer squash together: 1 for a flap
+    /// alone (`State::squash_other_reading`). Several take no spine target:
+    /// their shared crease is the symmetric squash's.
+    pub pockets: usize,
 }
 
 /// The flap by face positions, and its creases.
@@ -231,6 +235,7 @@ impl State {
             share: flap.share,
             layers: flap.layers,
             opening: flap.opening,
+            pockets: 1 + flap.partners.len(),
         })
     }
 

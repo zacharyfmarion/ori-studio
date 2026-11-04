@@ -25,6 +25,7 @@ import {
   picksPetalRegion,
   picksSwivelPivot,
   PLACEHOLDER_RAY,
+  squashAimable,
   squashOpeningToFold,
   squashOpenings,
   squashTargetToward,
@@ -620,6 +621,11 @@ describe('the choices a vertex fold takes of what the engine lists', () => {
       opening: 1,
       again: true,
     });
+    // Pockets squashing together land on the hinge alone: a target is never taken, nor asked again.
+    const pockets: FoldVertexAnalysed = { ...analysed, analysis: { ...analysed.analysis, pockets: 2 } as FoldVertexAnalysed['analysis'] };
+    expect(squashAimable(analysed)).toBe(true);
+    expect(squashAimable(pockets)).toBe(false);
+    expect(vertexChosenOp(squash, pockets, { ...NONE, squashTarget: [0, 1] })).toMatchObject({ op: squash, again: false });
     // A two-layer flap opens one way: an opening asked of it is not offered, nor folded.
     expect(squashOpenings(analysed)).toEqual([]);
     expect(vertexChosenOp(squash, analysed, { ...NONE, squashOpening: 2 })).toMatchObject({ op: squash, opening: 1, again: false });

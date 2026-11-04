@@ -41,10 +41,12 @@ steps, rebuilt outside the repo, land this only through Import CP.
   pockets are ordered by their upper layers' first faces, so either door
   names the same fold. The compound pipeline checks the motion and the
   layer order as for every squash.
-- **Bridge and tool.** No new field: the op is a plain squash at a point on
-  either door. The analysis' `upper` lists both doors; the report's
-  `vertices` both side corners. The tool previews and folds it as any
-  squash.
+- **Bridge and tool.** No new op field: the op is a plain squash at a point
+  on either door. The analysis' `upper` lists both doors and its `pockets`
+  counts them; the report's `vertices` names both side corners. The tool
+  previews and folds it as any squash, but offers no spine target (none
+  lands: the pockets share the symmetric crease), and the step's sentence
+  says the pockets were squashed together (from the report's vertices).
 
 ## Affected Areas
 
@@ -84,6 +86,9 @@ steps, rebuilt outside the repo, land this only through Import CP.
 - [x] fmt, clippy, fold and bridge tests, the fold web tests on the new wasm;
       every saved step of 112 real models (outside the repo) replays
       identically.
+- [x] Tool polish: no spine target offered for pockets (no "Spine lands
+      on" row, no aiming instruction, a click on the paper aims nothing);
+      the step reads "Squash-fold the pockets together." (8 locales).
 - [x] Browser check of the tool flow: both real steps made by hand with the
       Squash tool (one click on a door, Enter), each the same state as the
       scripted squash and the same paper as the saved import.
