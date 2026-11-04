@@ -1,25 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { modelViewFromCamera, unprojectDevicePoint } from '../../cp-workspace/renderer/camera';
-import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { foldUnitToUser } from './foldCanvasGeometry';
-import { foldCpModelToUser, foldCpSheetFill } from './foldCreasePatternView';
+import { foldCpModelToUser } from './foldCreasePatternView';
 
 const SHEET = [[2, 3], [4, 3], [2.5, 4]] as const;
-const STYLE = { ...DEFAULT_PAPER_STYLE, paper: { front: '#ff0000' as const, back: '#0000ff' as const } };
 
-describe('the Fold CP sheet', () => {
-  it('fills the actual polygon in each paper color, without filling its bounding rectangle', () => {
-    for (const side of ['front', 'back'] as const) {
-      const fill = foldCpSheetFill(SHEET, STYLE, side)!;
-      expect(fill.count).toBe(3);
-      const corners = Array.from({ length: fill.count }, (_, k) => [...fill.position.slice(k * 2, k * 2 + 2)]);
-      expect(corners).toEqual(expect.arrayContaining(SHEET.map((p) => [...p])));
-      expect([...fill.color]).toEqual(Array(3).fill(side === 'front' ? [1, 0, 0, 1] : [0, 0, 1, 1]).flat());
-    }
-    expect(foldCpSheetFill([], STYLE, 'front')).toBeNull();
-    expect(foldCpSheetFill([[0, 0], [1, 0]], STYLE, 'back')).toBeNull();
-  });
-
+describe('the Fold CP viewing side', () => {
   it('turns an asymmetric, off-origin sheet left to right and returns exactly to the front', () => {
     const front = foldCpModelToUser(SHEET, 'front');
     const back = foldCpModelToUser(SHEET, 'back');

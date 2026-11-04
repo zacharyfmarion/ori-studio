@@ -1957,7 +1957,7 @@
       "spreadLayers": "Écarter les couches",
       "spreadLayersTitle": "Écarte les couches pliées, comme un diagramme les dessine, à cette étape et aux suivantes",
       "stepCreases": "Plis de l’étape",
-      "stepCreasesTitle": "Dessiner les plis de cette étape avec les stylos d’instruction du papier",
+      "stepCreasesTitle": "Dessiner en gras les plis faits par l’étape affichée, comme son instruction",
       "toolbar": "Vue de pliage"
     },
     "collapse": {

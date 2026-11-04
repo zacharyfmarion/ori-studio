@@ -111,7 +111,7 @@ function union(a: Bounds | null, b: Bounds | null): Bounds | null {
  * policy; and the crease pattern — of the previewed fold's landed state while
  * there is one, the creases it adds its instruction, else the pending
  * creases its instruction — as the lines Edit's document would hold, which
- * the canvas draws in the paper's pens (`useFoldCreasePatternStrokes`).
+ * the canvas inks as Edit does (`useFoldCreasePatternStrokes`).
  *
  * The folded form's layers are spread by `spread`: the step's
  * (`foldStepSpread`) while the pane is at rest, none once a tool picks or
@@ -224,7 +224,8 @@ export function useFoldCanvasPaint(
   // The step on screen's own creases: all a Repeat made, not only its last operation's.
   const since = landed ? null : view.since;
   // An Import CP step's own creases are the whole pattern: there is nothing
-  // for them to stand out of, so they use the pattern pens.
+  // for them to stand out of, so they are drawn as the pattern is, at Edit's
+  // width, rather than as an instruction over it.
   const pattern = !landed && view.imported;
   const cpLines = useMemo(() => {
     if (!cpSource || !cpSummary) return null;

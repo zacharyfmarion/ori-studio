@@ -18,8 +18,9 @@ import styles from './FoldPaperPane.module.css';
  * diagram's (`PaperStyleChoiceRow`): a built-in — the Diagram style, which a
  * new sequence is drawn in — the export style from Settings, or a preset
  * saved there, copied into the sequence when chosen. The folded form and the
- * step cards paint from it; the crease pattern pane uses its paper colors
- * and pens, with a view-only control to turn the sheet over.
+ * step cards paint from it; the crease pattern pane is drawn as Edit draws a
+ * crease pattern, but for the step's own fold lines, in the style's diagram
+ * crease pens.
  *
  * The style and the sheet are the sequence's document state, so they arrive
  * in props and leave through callbacks. Which side starts up is labelled

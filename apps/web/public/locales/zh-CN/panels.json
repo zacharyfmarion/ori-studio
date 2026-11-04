@@ -1831,7 +1831,7 @@
       "spreadLayers": "错开层",
       "spreadLayersTitle": "像图解那样把折叠的层错开绘制，作用于本步及之后各步",
       "stepCreases": "本步折痕",
-      "stepCreasesTitle": "使用纸张的折叠指示画笔绘制此步骤的折痕",
+      "stepCreasesTitle": "用粗线画出当前步骤产生的折痕，作为该步骤的说明",
       "toolbar": "折叠视图"
     },
     "collapse": {

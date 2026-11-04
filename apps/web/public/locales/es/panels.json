@@ -1957,7 +1957,7 @@
       "spreadLayers": "Separar capas",
       "spreadLayersTitle": "Separa las capas plegadas, como las dibuja un diagrama, en este paso y los siguientes",
       "stepCreases": "Pliegues del paso",
-      "stepCreasesTitle": "Dibujar los pliegues de este paso con las plumas de instrucciones del papel",
+      "stepCreasesTitle": "Dibujar en trazo grueso los pliegues que hizo el paso mostrado, como su instrucción",
       "toolbar": "Vista de plegado"
     },
     "collapse": {

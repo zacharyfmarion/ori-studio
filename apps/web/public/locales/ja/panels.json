@@ -1831,7 +1831,7 @@
       "spreadLayers": "層をずらす",
       "spreadLayersTitle": "折った層を折り図のようにずらして描く（このステップとその後のステップ）",
       "stepCreases": "ステップの折り筋",
-      "stepCreasesTitle": "このステップの折り線を紙の折り指示用ペンで描画",
+      "stepCreasesTitle": "表示中のステップで付いた折り筋を、その指示として太線で描く",
       "toolbar": "折りの表示"
     },
     "collapse": {

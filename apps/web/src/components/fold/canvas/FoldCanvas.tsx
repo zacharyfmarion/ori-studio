@@ -130,7 +130,7 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
   const coarse = useIsCoarsePointerSurface();
   const phonePane = useFoldPhonePane();
   const readOnly = useFoldReadOnly();
-  // The sequence's own paper style (its Paper tab's), the Diagram style for a new sequence.
+  // The sequence's own paper style (its Paper tab's), the Diagram style by default.
   const style = useFoldPaperStyle();
   const wheelGesture = useSettingsStore((state) => state.cpWheelGesture);
   const snapRadius = useSettingsStore((state) => state.cpSnapRadius);
@@ -191,8 +191,8 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
   }, null, inks.accent) : null;
   const foldedTint = resolvingOrder ? orderTint : joinFills(paint.folded.tint, swivelMarks.tint);
   // The CP's own viewing side, independent of the folded form's Turn over step.
-  const cpView = useFoldCreasePatternView(summary?.sheet, style);
-  const cpStrokes = useFoldCreasePatternStrokes(paint.creasePattern.lines, style, cpView.side);
+  const cpView = useFoldCreasePatternView(summary?.sheet);
+  const cpStrokes = useFoldCreasePatternStrokes(paint.creasePattern.lines, viewport, theme.name, cpView.side);
   const sequenceId = useWorkspaceStore((state) => shownFoldSequence(state)?.document.id ?? 'blank');
   const sheetKey = summary ? summary.sheet.map(([x, y]) => `${x},${y}`).join(';') : 'none';
   const framingKey = `${sequenceId}:${sheetKey}`;
@@ -408,7 +408,6 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
               pane="crease-pattern"
               scene={null}
               creases={cpStrokes}
-              sheetFill={cpView.sheetFill}
               modelToUser={cpView.modelToUser}
               contentBounds={paint.creasePattern.contentBounds}
               keepInViewKey={paint.creasePattern.keepInView}

@@ -1957,7 +1957,7 @@
       "spreadLayers": "Separar camadas",
       "spreadLayersTitle": "Separa as camadas dobradas, como um diagrama as desenha, neste passo e nos seguintes",
       "stepCreases": "Vincos do passo",
-      "stepCreasesTitle": "Desenhar os vincos desta etapa com as canetas de instrução do papel",
+      "stepCreasesTitle": "Desenhar em negrito os vincos feitos pelo passo mostrado, como sua instrução",
       "toolbar": "Visualização da dobra"
     },
     "collapse": {

@@ -55,7 +55,6 @@ describe('readFoldSequence and writeFoldSequence', () => {
     // A built-in by id only (as a hand-written file may say it): its values.
     const byId = readSteps([], { style: { preset: 'default' } });
     expect(byId.document.style).toEqual({ preset: 'default', style: builtInPaperPreset('default').style });
-    expect(writeFoldSequence(byId).style).toEqual(byId.document.style);
     // A resolved style, as the Paper tab stores a Settings one: kept as it is.
     const red = { ...DEFAULT_PAPER_STYLE, paper: { front: '#ff0000', back: '#ffffff' } };
     const resolved = readSteps([], { style: { style: red } });

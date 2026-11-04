@@ -1,8 +1,20 @@
 /**
- * Front-relative crease assignments, using the same vocabulary as Send to
- * Edit. The view resolves these to the paper style's pens, reversing mountain
- * and valley on the back. Flat creases and marks use the auxiliary pen;
- * instructions stay separate so they can use the diagram-crease pens.
+ * The crease-pattern pane in Edit's vocabulary: each crease the pane shows as
+ * the line Edit's document would hold for it, so the pane is drawn the way
+ * Edit's canvas draws a crease pattern — its role inks, widths and dashes,
+ * on the canvas's own ground, no paper — and reads the same as the pattern
+ * Send to Edit lands.
+ *
+ * - The border is Edit's `Black0`, a fold its `Red1` or `Blue2` by the letter
+ *   it has from the front.
+ * - A flat crease — a precrease, or a fold undone — and a crease mark — a
+ *   pinch, a segment (`foldPaneMark`) — are what Send to Edit lands them as
+ *   (`foldEngineIoSendToEdit`): auxiliary lines, Edit's `Cyan3`, in the ink
+ *   and line style Edit draws its auxiliary lines in.
+ * - The instruction — the step's own creases and marks, or the ones a
+ *   previewed fold would add — is the line a tool is drawing, kept apart for
+ *   the pane to draw as Edit draws a tool's preview: in the crease colour it
+ *   would make, solid (`useFoldCreasePatternStrokes`).
  *
  * Which creases are shown, and which are the instruction, is the pane's one
  * rule (`foldPaneCrease`), shared with the paper picture of the same state

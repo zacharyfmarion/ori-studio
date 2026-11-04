@@ -1893,7 +1893,7 @@
       "spreadLayers": "Lagen auffächern",
       "spreadLayersTitle": "Die gefalteten Lagen auffächern, wie ein Diagramm sie zeichnet, in diesem Schritt und den folgenden",
       "stepCreases": "Schritt-Faltlinien",
-      "stepCreasesTitle": "Die Falten dieses Schritts mit den Anweisungsstiften des Papiers zeichnen",
+      "stepCreasesTitle": "Die Faltlinien des gezeigten Schritts fett zeichnen, als dessen Anleitung",
       "toolbar": "Faltansicht"
     },
     "collapse": {

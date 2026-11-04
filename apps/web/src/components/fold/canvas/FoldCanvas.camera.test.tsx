@@ -200,7 +200,7 @@ afterEach(() => {
 });
 
 describe('the Fold panes’ opening camera', () => {
-  it('turns the CP camera and sheet fill together, leaving the folded pane and zoom alone', () => {
+  it('turns the CP camera without adding a paper fill or changing the folded pane or zoom', () => {
     session.node.summary = SHEET_SUMMARY;
     box.width = PANE.width;
     box.height = PANE.height;
@@ -209,8 +209,7 @@ describe('the Fold panes’ opening camera', () => {
     const folded = host!.querySelector<HTMLCanvasElement>('[data-testid="fold-folded-canvas"]')!;
     const front = frames.get(cp)!;
     const foldedFront = frames.get(folded)!;
-    const frontFill = sheetFills.get(cp)!;
-    expect(frontFill.count).toBe(6);
+    expect(sheetFills.get(cp)).toBeNull();
     expect(front.view.ex[0]).toBeGreaterThan(0);
     const turn = host!.querySelector<HTMLButtonElement>('button[aria-label="Show back of crease pattern"]')!;
     act(() => turn.click());
@@ -218,13 +217,12 @@ describe('the Fold panes’ opening camera', () => {
     expect(back.view.ex[0]).toBe(-front.view.ex[0]);
     expect(back.view.ey).toEqual(front.view.ey);
     expect(back.userScalePx).toBe(front.userScalePx);
-    expect(sheetFills.get(cp)!.color).not.toEqual(frontFill.color);
-    expect(sheetFills.get(cp)!.position).toEqual(frontFill.position);
+    expect(sheetFills.get(cp)).toBeNull();
     expect(frames.get(folded)!.view).toEqual(foldedFront.view);
     expect(sheetFills.get(folded)).toBeNull();
     act(() => turn.click());
     expect(frames.get(cp)!.view).toEqual(front.view);
-    expect(sheetFills.get(cp)).toEqual(frontFill);
+    expect(sheetFills.get(cp)).toBeNull();
   });
   it('fits the sheet in both panes on a fresh open: the dock laid out, the sheet in after the panes mount', () => {
     box.width = PANE.width;

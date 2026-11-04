@@ -1893,7 +1893,7 @@
       "spreadLayers": "Spread layers",
       "spreadLayersTitle": "Spread the folded layers apart, as a diagram draws them, on this step and the ones after it",
       "stepCreases": "Step creases",
-      "stepCreasesTitle": "Draw this step’s creases with the paper’s instruction pens",
+      "stepCreasesTitle": "Draw the creases the step on show made in bold, as its instruction",
       "toolbar": "Fold view"
     },
     "collapse": {

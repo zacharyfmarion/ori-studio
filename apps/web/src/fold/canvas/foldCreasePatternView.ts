@@ -1,27 +1,8 @@
-import { paperSceneToFoldedGeometry } from '../../cp-workspace/adapters/cpFoldedToScene';
-import type { FillGeometry } from '../../cp-workspace/renderer/types';
 import type { Point } from '../../lib/geometry';
 import type { PaperSide } from '../../lib/paper/paperScene';
-import type { PaperStyle } from '../../lib/paper/paperStyle';
-import { PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { boundsOf, foldUnitToUser } from './foldCanvasGeometry';
 
 type Sheet = readonly (readonly [number, number])[];
-
-/** The actual sheet outline, in model coordinates, for the renderer's sheet-fill channel. */
-export function foldCpSheetFill(sheet: Sheet, style: PaperStyle, side: PaperSide): FillGeometry | null {
-  const bounds = boundsOf(sheet.map(([x, y]) => ({ x, y })));
-  if (!bounds || sheet.length < 3) return null;
-  return paperSceneToFoldedGeometry(
-    {
-      bounds,
-      sheet: Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY),
-      items: [{ kind: 'face', face: 0, side, rings: [sheet.map(([x, y]) => [x, y])], shade: 1, hidden: false }],
-    },
-    style,
-    { policy: PAPER_STYLE_POLICIES.fold }
-  ).fills;
-}
 
 /**
  * Turn left to right about the sheet's midpoint, including off-origin polygons.

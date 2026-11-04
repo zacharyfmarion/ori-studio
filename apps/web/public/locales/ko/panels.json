@@ -1831,7 +1831,7 @@
       "spreadLayers": "층 벌리기",
       "spreadLayersTitle": "접은 층을 접기 도해처럼 벌려 그립니다. 이 단계와 그 뒤의 단계에 적용됩니다",
       "stepCreases": "단계의 접은 선",
-      "stepCreasesTitle": "이 단계의 접기를 종이의 접기 지시 펜으로 그리기",
+      "stepCreasesTitle": "표시된 단계에서 생긴 접은 선을 그 단계의 지시로, 굵은 선으로 그리기",
       "toolbar": "접기 보기"
     },
     "collapse": {

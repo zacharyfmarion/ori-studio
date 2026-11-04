@@ -75,7 +75,7 @@ export function FoldViewportToolbar({
           label: t('panels:fold.canvas.stepCreases', 'Step creases'),
           title: t(
             'panels:fold.canvas.stepCreasesTitle',
-            'Draw this step’s creases with the paper’s instruction pens'
+            'Draw the creases the step on show made in bold, as its instruction'
           ),
           icon: <PenLine size={14} />,
           checked: display.stepCreases,

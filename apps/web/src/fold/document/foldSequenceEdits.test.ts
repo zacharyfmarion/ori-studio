@@ -179,7 +179,7 @@ describe('setFoldPaperStyle', () => {
 
   it('changes nothing for the style it has, the default included', () => {
     const original = document();
-    // A new sequence uses Diagram: picking it again changes nothing.
+    // A sequence with no style is drawn in the default, the Diagram style: picking it changes nothing.
     expect(setFoldPaperStyle(original, { preset: 'diagram' })).toBe(original);
     const styled = setFoldPaperStyle(original, { preset: 'default' });
     expect(setFoldPaperStyle(styled, { preset: 'default' })).toBe(styled);
