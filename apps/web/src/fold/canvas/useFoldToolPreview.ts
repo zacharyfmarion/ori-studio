@@ -446,9 +446,17 @@ export function useFoldToolPreview(
   // layers (`FoldCompoundStepAnswer.layers`), and a precrease whose extent's
   // points are still being clicked the whole line's: asked what it moves,
   // after the effect above has let the last step go, and never previewed.
+  // So does a fold whose orders the engine refused to resolve — a reverse
+  // fold, crimp or sink that lands no way at the opening or pocket taken —
+  // its base step's: the layers stay on show for its flaps to be picked
+  // again (owner feedback, 2026-11-04).
   const extentLayers =
     extentPending && !findingSeed && plainBuild.status === 'built' ? { op: plainBuild.op, choices: plainBuild.choices } : null;
-  const layersAsk = step ? null : (compoundStep?.layers ?? extentLayers);
+  const unresolved =
+    resolvedOrders.refused && baseStep && foldPreviewWants(baseStep.op).analysis
+      ? { op: baseStep.op, ...(baseStep.choices ? { choices: baseStep.choices } : {}) }
+      : null;
+  const layersAsk = step ? null : (compoundStep?.layers ?? unresolved ?? extentLayers);
   const layersKey = layersAsk ? foldStepInputKey(layersAsk) : null;
   useEffect(() => {
     if (layersAsk) void analyse(layersAsk.op, layersAsk.choices);
