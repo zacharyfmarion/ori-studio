@@ -27,6 +27,7 @@ import type { TurnKind } from '../../lib/steps/turn';
 import { turnName } from '../../lib/steps/turnWords';
 import {
   randomDiagramId,
+  spreadFailedOf,
   type DiagramCpRender,
   type DiagramFoldMoment,
   type DiagramIdFactory,
@@ -197,8 +198,8 @@ export interface FoldPulled {
   sent: SentDiagramEntry[];
   /** Steps that could not be captured (gone, no longer folding, the engine stopped), left out. */
   failed: number;
-  /** Steps Fold spreads by Default whose layers could not be spread here: added unspread. */
-  unspread: number;
+  /** Steps Fold spreads by Default whose layers could not be spread here: added unspread, their spread kept to say so. */
+  spreadFailed: number;
 }
 
 /**
@@ -208,7 +209,7 @@ export interface FoldPulled {
  * turn as a turn. A step whose capture fails is left out
  * and counted; so is one too detailed to keep as a drawing, which a pull
  * has no bitmap for. One whose layers could not be spread is added
- * unspread, and counted.
+ * unspread, its spread kept, and counted.
  */
 export async function pullFoldTargets(
   session: FoldSession,
@@ -218,7 +219,7 @@ export async function pullFoldTargets(
 ): Promise<FoldPulled> {
   const sent: SentDiagramEntry[] = [];
   let failed = 0;
-  let unspread = 0;
+  let spreadFailed = 0;
   // Held across every capture, so the engine is not started and stopped once a step.
   const release = session.retain();
   try {
@@ -238,8 +239,8 @@ export async function pullFoldTargets(
         failed += 1;
         continue;
       }
-      if (result.unspread) unspread += 1;
       const picture = result.captured.picture;
+      if (spreadFailedOf(picture)) spreadFailed += 1;
       const step: SentFoldStep = {
         source: result.source,
         picture,
@@ -251,5 +252,5 @@ export async function pullFoldTargets(
   } finally {
     release();
   }
-  return { sent, failed, unspread };
+  return { sent, failed, spreadFailed };
 }

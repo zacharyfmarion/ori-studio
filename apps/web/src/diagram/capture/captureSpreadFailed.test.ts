@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 /**
  * A step asked spread by Default whose layers can't be spread — the solve
- * over a resource limit, out of time, or its clip failing — is captured
- * unspread, Spread layers off, never refused its picture; turned on again, it
- * solves again. Over the real solve (`oristudio-layer-spread-wasm`), made to
- * fail on demand.
+ * over a resource limit, out of time, or its clip failing — is never refused
+ * its picture: the fold is drawn unspread and marked so, its spread kept, so
+ * the step can say it failed and offer another kind; the next capture solves
+ * again. Over the real solve (`oristudio-layer-spread-wasm`), made to fail on
+ * demand.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
@@ -14,7 +15,7 @@ import { sheetRegions } from '../../cp-workspace/sheets/cpSheetRegions';
 import { DEFAULT_DIAGRAM_STYLE, DEFAULT_LAYER_SPREAD, type DiagramCpRender } from '../document/diagramDocument';
 import { cpDocument, fakeCaptureRuntime, twoSquaresIndex } from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
-import { captureStep, type CaptureStepRequest, type CapturedPicture } from './captureFolded';
+import { captureStep, capturedSpreadFailed, type CaptureStepRequest, type CapturedPicture } from './captureFolded';
 import { createCaptureSession, type CaptureSessionDeps } from './captureSession';
 import { poseLinkedStep, type LinkedPoseRequest } from './linkedPose';
 
@@ -85,33 +86,33 @@ function keyOf(captured: CapturedPicture): string {
 }
 
 describe('a step captured with a Default spread its layers can’t take', () => {
-  it('is captured unspread, Spread layers off and its presentation gone, as the unspread fold draws', async () => {
+  it('keeps its spread, drops its presentation, and is drawn as the unspread fold, marked so', async () => {
     spread.solveFails = LIMIT;
     const result = await captureStep(fakeCaptureRuntime(), request(SPREAD_FLAT));
     if (result.status !== 'captured') throw new Error(`not captured: ${result.status}`);
-    expect(result.unspread).toBe(true);
-    expect(result.source.render).toEqual(FLAT);
+    expect(capturedSpreadFailed(result.captured)).toBe(true);
+    expect(result.source.render).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
     // The lease is let go, as a solved one is.
     expect(spread.released).toBe(spread.solves);
     const plain = await captureStep(fakeCaptureRuntime(), request(FLAT));
     if (plain.status !== 'captured') throw new Error('not captured');
-    expect(plain.unspread).toBe(false);
+    expect(capturedSpreadFailed(plain.captured)).toBe(false);
     expect(keyOf(result.captured)).toBe(keyOf(plain.captured));
   });
 
-  it('is captured unspread when the solve lands but its clip fails', async () => {
+  it('is marked so when the solve lands but its clip fails', async () => {
     spread.clipFails = true;
     const result = await captureStep(fakeCaptureRuntime(), request(SPREAD_FLAT));
-    expect(result).toMatchObject({ status: 'captured', unspread: true, source: { render: FLAT } });
+    if (result.status !== 'captured') throw new Error(`not captured: ${result.status}`);
+    expect(capturedSpreadFailed(result.captured)).toBe(true);
+    expect(result.source.render).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
   });
 
-  it('keeps a spread it can take, as it always did', async () => {
+  it('keeps a spread it can take, unmarked, as it always did', async () => {
     const result = await captureStep(fakeCaptureRuntime(), request({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD }));
-    expect(result).toMatchObject({
-      status: 'captured',
-      unspread: false,
-      source: { render: { ...FLAT, spread: DEFAULT_CONNECTED_SPREAD } },
-    });
+    if (result.status !== 'captured') throw new Error(`not captured: ${result.status}`);
+    expect(capturedSpreadFailed(result.captured)).toBe(false);
+    expect(result.source.render).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
   });
 });
 
@@ -132,25 +133,39 @@ describe('a step posed with a Default spread its layers can’t take', () => {
   if (choice.status !== 'found') throw new Error('the left region should be found');
   const pose = (held: ReturnType<typeof session>, render: DiagramCpRender, verb: LinkedPoseRequest) =>
     poseLinkedStep(held, { document, creases: choice.creases, render, style: DEFAULT_DIAGRAM_STYLE }, verb);
+  const failed = (posed: Awaited<ReturnType<typeof pose>>) => posed.status === 'posed' && capturedSpreadFailed(posed.picture);
 
-  it('is folded unspread, and solved again when Spread layers is turned on', async () => {
+  it('is folded unspread, its Default spread kept, and solved again by the next pose', async () => {
     const held = session();
     spread.solveFails = LIMIT;
     // Shown folded for the first time: a new flat pose starts spread by Default (13g).
     const folded = await pose(held, { mode: 'crease-pattern', rotationDeg: 0 }, { verb: 'show-folded' });
-    expect(folded).toMatchObject({ status: 'posed', unspread: true });
-    if (folded.status !== 'posed') return;
-    expect(folded.render).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 });
+    if (folded.status !== 'posed') throw new Error(`not posed: ${folded.status}`);
+    expect(failed(folded)).toBe(true);
+    expect(folded.render).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1, spread: DEFAULT_LAYER_SPREAD });
 
-    // The failed solve is not kept: turned on again, it solves again, on the same held fold.
+    // The failed solve is not kept: the next pose of the same held fold solves again.
     spread.solveFails = null;
     const solvesBefore = spread.solves;
-    const on = await pose(held, folded.render, { verb: 'spread-layers' });
+    const turned = await pose(held, folded.render, { verb: 'rotate-right' });
     expect(spread.solves).toBe(solvesBefore + 1);
-    expect(on).toMatchObject({ status: 'posed', unspread: false, render: { spread: DEFAULT_LAYER_SPREAD } });
+    expect(failed(turned)).toBe(false);
+    expect(turned).toMatchObject({ status: 'posed', render: { spread: DEFAULT_LAYER_SPREAD } });
   });
 
-  it('leaves a step as it was when an edit of its spread asks for one its layers can’t take', async () => {
+  it('takes another kind, which needs no solve, from a spread its layers couldn’t take', async () => {
+    const held = session();
+    spread.solveFails = LIMIT;
+    const folded = await pose(held, { mode: 'crease-pattern', rotationDeg: 0 }, { verb: 'show-folded' });
+    if (folded.status !== 'posed') throw new Error(`not posed: ${folded.status}`);
+    const solvesBefore = spread.solves;
+    const affine = await pose(held, folded.render, { verb: 'spread-kind', kind: 'affine' });
+    expect(spread.solves).toBe(solvesBefore);
+    expect(failed(affine)).toBe(false);
+    expect(affine).toMatchObject({ status: 'posed', render: { spread: { kind: 'affine' } } });
+  });
+
+  it('switches a spread that works to Default, kept, when its layers can’t take it', async () => {
     const held = session();
     spread.solveFails = LIMIT;
     const affine: DiagramCpRender = {
@@ -160,20 +175,17 @@ describe('a step posed with a Default spread its layers can’t take', () => {
       foldCase: 1,
       spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 },
     };
-    await expect(pose(held, affine, { verb: 'spread-kind', kind: 'connected' })).rejects.toBe(LIMIT);
-    // Undone by nothing: the next ask solves again.
-    spread.solveFails = null;
-    expect(await pose(held, affine, { verb: 'spread-kind', kind: 'connected' })).toMatchObject({
-      status: 'posed',
-      render: { spread: DEFAULT_CONNECTED_SPREAD },
-    });
+    const switched = await pose(held, affine, { verb: 'spread-kind', kind: 'connected' });
+    expect(failed(switched)).toBe(true);
+    expect(switched).toMatchObject({ status: 'posed', render: { spread: DEFAULT_CONNECTED_SPREAD } });
   });
 
-  it('is turned on again and stays off when it still can’t be spread', async () => {
+  it('turns Spread layers on, kept on, when its layers still can’t be spread', async () => {
     const held = session();
     spread.solveFails = LIMIT;
     const unspread: DiagramCpRender = { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 };
-    const again = await pose(held, unspread, { verb: 'spread-layers' });
-    expect(again).toMatchObject({ status: 'posed', unspread: true, render: unspread });
+    const on = await pose(held, unspread, { verb: 'spread-layers' });
+    expect(failed(on)).toBe(true);
+    expect(on).toMatchObject({ status: 'posed', render: { ...unspread, spread: DEFAULT_LAYER_SPREAD } });
   });
 });

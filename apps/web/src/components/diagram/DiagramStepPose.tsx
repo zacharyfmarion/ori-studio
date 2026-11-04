@@ -6,7 +6,7 @@ import type { DiagramLinkedPoseAction } from '../../diagram/actions/diagramLinke
 import type { DiagramStepLayerOrderRow } from '../../diagram/actions/diagramStepLayerOrderActions';
 import { useOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import { useDiagramFoldStepPose } from '../../diagram/fold/useDiagramFoldStepPose';
-import { isLockedStep, type DiagramStep } from '../../diagram/document/diagramDocument';
+import { isLockedStep, spreadFailedOf, type DiagramStep } from '../../diagram/document/diagramDocument';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { useReferencesStepWays } from '../../diagram/references/useReferencesStepWays';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -199,7 +199,7 @@ export function DiagramStepPose({
         // Its layers spread apart (Phase 13): on or off, by depth or affine (13g), and how.
         <>
         <LayerSpreadRows revealVisible={!perspective} toggle={linked.find((action) => action.id === 'spread-layers')} spread={linkedPose.spread} />
-        {render.spread?.kind === 'connected' && <SpreadPresentationRow key={step.id} value={render.presentation?.kind ?? 'diagram'} onChange={linkedPose.setPresentation} disabled={readOnly || step.annotations.some((annotation) => !!annotation.unknown)} />}
+        {render.spread?.kind === 'connected' && <SpreadPresentationRow key={step.id} value={render.presentation?.kind ?? 'diagram'} onChange={linkedPose.setPresentation} disabled={readOnly || step.annotations.some((annotation) => !!annotation.unknown) || spreadFailedOf(step.picture)} />}
         </>
       )}
     </>

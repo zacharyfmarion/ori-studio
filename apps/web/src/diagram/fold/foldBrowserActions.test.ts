@@ -8,10 +8,10 @@ import { foldStepSource, scenePicture } from '../document/diagramSteps.fixtures'
  * added`, `diagram turn added`), as a References pull is. The captures are
  * stubbed: what Fold's replay would send is given, so no engine runs.
  */
-const sent = vi.hoisted(() => ({ entries: [] as SentDiagramEntry[], unspread: 0 }));
+const sent = vi.hoisted(() => ({ entries: [] as SentDiagramEntry[], spreadFailed: 0 }));
 vi.mock('./foldPull', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./foldPull')>()),
-  pullFoldTargets: vi.fn(async () => ({ sent: sent.entries, failed: 0, unspread: sent.unspread })),
+  pullFoldTargets: vi.fn(async () => ({ sent: sent.entries, failed: 0, spreadFailed: sent.spreadFailed })),
 }));
 vi.mock('../../store/workspaceStore/foldSession', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../store/workspaceStore/foldSession')>()),
@@ -48,7 +48,7 @@ const TARGETS = [{ kind: 'step', step: 'fstep-1', moment: 'before' }] as const;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  sent.unspread = 0;
+  sent.spreadFailed = 0;
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   useWorkspaceStore.setState({ foldSequences: [{ document: { id: 'fold-1', steps: [] } }] as never });
 });
@@ -71,10 +71,10 @@ describe('a pull from Fold, counted (plan D17)', () => {
 
   it('adds steps whose layers couldn’t be spread, unspread, and says so', async () => {
     sent.entries = [foldStep('fstep-1'), foldStep('fstep-2')];
-    sent.unspread = 2;
+    sent.spreadFailed = 2;
     expect(await pullFromFold(TARGETS, { kind: 'end' }, { via: 'fold' })).toBe(2);
     expect(toasts.message).toHaveBeenCalledWith(
-      '2 steps’ layers couldn’t be spread, so they were added unspread. Turn on Spread layers to try again.'
+      '2 steps’ layers couldn’t be spread by Default, so they show them unspread. Try Affine or Depth instead.'
     );
     expect(toasts.error).not.toHaveBeenCalled();
   });

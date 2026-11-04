@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { useTranslation } from 'react-i18next';
 import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import { spreadValuesHold } from '../../cp-workspace/folded/layerSpreadControls';
 import { onEngineLost } from '../../engines/engineHost';
 import { announceUprightSet } from '../../lib/uprightFeedback';
 import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
@@ -31,6 +32,7 @@ import {
   clampSpreadAxis,
   clampSpreadSkew,
   showAsOf,
+  spreadFailedOf,
   stepById,
   type DiagramShowAs,
   type DiagramStep,
@@ -212,7 +214,10 @@ export function useDiagramLinkedPose(
   }, [controller, live, showsSpatial, view]);
 
   const flat = source?.render.mode === 'folded-flat' ? source.render : null;
-  const connectedKey = flat?.spread?.kind === 'connected' ? foldKey + ':' + flat.side + ':' + flat.foldCase : null;
+  // Layers its Default spread could not take: no live view to solve for again, only the picture it keeps.
+  const spreadFailed = spreadFailedOf(step?.picture);
+  const connectedKey =
+    flat?.spread?.kind === 'connected' && !spreadFailed ? foldKey + ':' + flat.side + ':' + flat.foldCase : null;
   const connectedView = connectedKey && connected?.key === connectedKey ? connected.view : null;
   const [finishedPreparation, setFinishedPreparation] = useState<string | null>(null);
   useEffect(() => {
@@ -285,6 +290,7 @@ export function useDiagramLinkedPose(
             busy,
             solutions,
             seeThrough,
+            spreadFailed,
             mirrorAxes,
             liveView: liveView !== null,
             constrained,
@@ -293,7 +299,7 @@ export function useDiagramLinkedPose(
             stale,
           }
         : null,
-    [render, readOnly, busy, solutions, seeThrough, mirrorAxes, liveView, constrained, place, record, stale]
+    [render, readOnly, busy, solutions, seeThrough, spreadFailed, mirrorAxes, liveView, constrained, place, record, stale]
   );
   const [actions, toolbar] = useMemo(() => {
     if (!poseState || !controller) return [[], []];
@@ -357,7 +363,7 @@ export function useDiagramLinkedPose(
         ),
       previewReveal: (value) => controller.previewSpread({ slider: 'reveal', value }),
       commit: () => void controller.commitSpread(),
-      start: () => !controls.disabled,
+      start: () => !spreadValuesHold(controls).disabled,
     };
   }, [poseState, shownPreview, t, controller]);
   const assets = useWorkspaceStore((state) => state.diagram?.assets);

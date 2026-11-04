@@ -6709,9 +6709,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
-    "toasts:diagram.capture.unspread": "04d46c9e5d3d",
-    "toasts:diagram.fold.someUnspread_one": "82821f4dae68",
-    "toasts:diagram.fold.someUnspread_other": "4254d60b760c"
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13423,9 +13423,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
-    "toasts:diagram.capture.unspread": "04d46c9e5d3d",
-    "toasts:diagram.fold.someUnspread_one": "82821f4dae68",
-    "toasts:diagram.fold.someUnspread_other": "4254d60b760c"
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20139,9 +20139,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
-    "toasts:diagram.capture.unspread": "04d46c9e5d3d",
-    "toasts:diagram.fold.someUnspread_one": "82821f4dae68",
-    "toasts:diagram.fold.someUnspread_other": "4254d60b760c"
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26476,8 +26476,8 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
-    "toasts:diagram.capture.unspread": "04d46c9e5d3d",
-    "toasts:diagram.fold.someUnspread_other": "4254d60b760c"
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32812,8 +32812,8 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
-    "toasts:diagram.capture.unspread": "04d46c9e5d3d",
-    "toasts:diagram.fold.someUnspread_other": "4254d60b760c"
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39525,9 +39525,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
-    "toasts:diagram.capture.unspread": "04d46c9e5d3d",
-    "toasts:diagram.fold.someUnspread_one": "82821f4dae68",
-    "toasts:diagram.fold.someUnspread_other": "4254d60b760c"
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46239,9 +46239,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
-    "toasts:diagram.capture.unspread": "04d46c9e5d3d",
-    "toasts:diagram.fold.someUnspread_one": "82821f4dae68",
-    "toasts:diagram.fold.someUnspread_other": "4254d60b760c"
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52576,7 +52576,7 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
-    "toasts:diagram.capture.unspread": "04d46c9e5d3d",
-    "toasts:diagram.fold.someUnspread_other": "4254d60b760c"
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54"
   }
 }

@@ -32,10 +32,10 @@
       "noPattern": "Open a crease pattern in Edit first.",
       "readOnly": "This diagram was made with a newer Ori Studio and opens read-only.",
       "refused": "This pattern doesn’t fold",
+      "spreadFailed": "Its layers couldn’t be spread by Default, so the step shows them unspread. Try Affine or Depth instead.",
       "tooDetailed": "Too detailed to keep as a drawing, so the step keeps it as an image.",
       "unavailable": "This pattern can’t be simulated.",
-      "unknown": "The crease pattern isn’t ready yet. Try again in a moment.",
-      "unspread": "Its layers couldn’t be spread, so the step shows them unspread. Turn on Spread layers to try again."
+      "unknown": "The crease pattern isn’t ready yet. Try again in a moment."
     },
     "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
     "fold": {
@@ -48,8 +48,8 @@
       "sequenceGone": "That Fold sequence isn’t in this project any more.",
       "someFailed_one": "A step couldn’t be captured from Fold, so it was left out.",
       "someFailed_other": "{{count}} steps couldn’t be captured from Fold, so they were left out.",
-      "someUnspread_one": "A step’s layers couldn’t be spread, so it was added unspread. Turn on Spread layers to try again.",
-      "someUnspread_other": "{{count}} steps’ layers couldn’t be spread, so they were added unspread. Turn on Spread layers to try again.",
+      "someSpreadFailed_one": "A step’s layers couldn’t be spread by Default, so it shows them unspread. Try Affine or Depth instead.",
+      "someSpreadFailed_other": "{{count}} steps’ layers couldn’t be spread by Default, so they show them unspread. Try Affine or Depth instead.",
       "stepGone": "That step isn’t in the Fold sequence any more."
     },
     "import": {

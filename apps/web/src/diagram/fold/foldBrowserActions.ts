@@ -52,8 +52,8 @@ export function hasFoldSteps(state: Parameters<typeof shownFoldSequence>[0]): bo
 /**
  * Add `targets` of the shown Fold sequence where `anchor` says, as one undo
  * step: each captured from Fold's replay, the steps that could not be left
- * out and said so, and those whose layers could not be spread added unspread
- * and said so. `opening` names the Fold browser opening it was pressed in.
+ * out and said so, and those whose layers could not be spread added unspread,
+ * their spread kept, and said so. `opening` names the Fold browser opening it was pressed in.
  * How many entries it added.
  */
 export async function pullFromFold(
@@ -67,7 +67,7 @@ export async function pullFromFold(
   const loadId = store.diagramLoadId;
   const t = i18n.t.bind(i18n);
   const fold = await loadFold();
-  const { sent, failed, unspread } = await fold.pullFoldTargets(fold.foldSession(), shown.document.id, targets, { t });
+  const { sent, failed, spreadFailed } = await fold.pullFoldTargets(fold.foldSession(), shown.document.id, targets, { t });
   if (failed > 0) {
     toast.error(
       t('toasts:diagram.fold.someFailed', {
@@ -77,13 +77,14 @@ export async function pullFromFold(
       })
     );
   }
-  if (unspread > 0) {
+  if (spreadFailed > 0) {
     toast.message(
-      t('toasts:diagram.fold.someUnspread', {
-        count: unspread,
-        defaultValue_one: 'A step’s layers couldn’t be spread, so it was added unspread. Turn on Spread layers to try again.',
+      t('toasts:diagram.fold.someSpreadFailed', {
+        count: spreadFailed,
+        defaultValue_one:
+          'A step’s layers couldn’t be spread by Default, so it shows them unspread. Try Affine or Depth instead.',
         defaultValue_other:
-          '{{count}} steps’ layers couldn’t be spread, so they were added unspread. Turn on Spread layers to try again.',
+          '{{count}} steps’ layers couldn’t be spread by Default, so they show them unspread. Try Affine or Depth instead.',
       })
     );
   }

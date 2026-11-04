@@ -75,6 +75,12 @@ export interface LayerSpreadControls {
   /** Whether the spread can be changed, and if not, why. */
   disabled: boolean;
   hint?: string;
+  /**
+   * Why the spread's own values are held while its kind is not: a Default
+   * spread whose layers could not be spread, which no value of its own
+   * changes — only another kind does. Absent where `disabled` says it all.
+   */
+  valuesHeld?: string;
   /** Default, Affine or Depth; every kind stays available after switching. */
   kinds: LayerSpreadChoice<SpreadKind>[];
   /** A depth spread's eight directions; none for an affine one. */
@@ -150,6 +156,12 @@ export function layerSpreadControls(
         ? SPREAD_KEEPS.map((each) => choice(each, spreadKeepLabel(each, t), each === spread.keep, keep))
         : [],
   };
+}
+
+/** Whether a spread's own values — its sliders, pad and choices but its kind — can be changed now, and if not, why. */
+export function spreadValuesHold(controls: LayerSpreadControls): { disabled: boolean; hint?: string } {
+  const hint = controls.hint ?? controls.valuesHeld;
+  return { disabled: controls.disabled || controls.valuesHeld !== undefined, ...(hint !== undefined ? { hint } : {}) };
 }
 
 /**

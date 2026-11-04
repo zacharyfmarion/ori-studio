@@ -1,4 +1,4 @@
-import { connectedFlatPicture } from '../capture/captureFolded';
+import { connectedFlatPicture, spreadFailedPicture } from '../capture/captureFolded';
 import { prepareConnected } from '../../layer-spread/prepareConnected';
 import { foldScenePattern } from './foldStepPicture';
 /**
@@ -30,7 +30,7 @@ import { xmlText } from '../../lib/xmlEscape';
 import type { CapturedPicture } from '../capture/captureFolded';
 import {
   randomDiagramId,
-  withoutSpread,
+  spreadFailedRender,
   type DiagramCpRender,
   type DiagramFoldMoment,
   type DiagramFoldStepSource,
@@ -53,12 +53,6 @@ export interface FoldStepCaptureRequest {
   moment: DiagramFoldMoment;
   /** A crease pattern, or a flat fold at `foldCase` 1. */
   render: DiagramCpRender;
-  /**
-   * The capture edits the spread the step has — its kind, a value, how it is
-   * presented: one its layers can't take fails, the step kept as it was,
-   * rather than being captured unspread.
-   */
-  keepSpread?: boolean;
 }
 
 export type FoldStepCaptureResult =
@@ -69,11 +63,6 @@ export type FoldStepCaptureResult =
       captured: CapturedPicture;
       /** The fold's line and arrow, tagged as the source's; empty when it brings none. */
       marks: KnownDiagramAnnotation[];
-      /**
-       * Asked spread by Default, its layers could not be spread: the picture
-       * and the source's render are unspread (`connectedFlatPicture`).
-       */
-      unspread: boolean;
     }
   /** The step is gone from the sequence, or no longer folds. */
   | { status: 'missing' }
@@ -207,11 +196,12 @@ export async function captureFoldStep(
       try {
         const spread = await connectedFlatPicture(scene, asked.rotationDeg, asked.spread, lease.promise, asked.presentation);
         if (spread.kind === 'spread') picture = foldStepPicture(input, asked, newId, spread.connected, spread.captured);
-        else if (request.keepSpread) throw spread.cause;
         else {
-          // Layers that could not be spread are kept unspread, for the user to spread again.
-          render = withoutSpread(asked);
-          picture = foldStepPicture(input, render, newId);
+          // Layers that could not be spread are drawn unspread, the spread kept to say so (`spreadFailedPicture`).
+          const { spread: _spread, presentation: _presentation, ...unspread } = asked;
+          const drawn = foldStepPicture(input, unspread, newId);
+          picture = { ...drawn, captured: spreadFailedPicture(drawn.captured) };
+          render = spreadFailedRender(asked);
         }
       } finally {
         lease.release();
@@ -245,7 +235,7 @@ export async function captureFoldStep(
       ...(sentence !== undefined ? { sentence } : {}),
     });
     if (!source) throw new Error('The capture made a link the file cannot read');
-    return { status: 'captured', source, captured: picture.captured, marks: picture.marks, unspread: render !== asked };
+    return { status: 'captured', source, captured: picture.captured, marks: picture.marks };
   } finally {
     release();
   }

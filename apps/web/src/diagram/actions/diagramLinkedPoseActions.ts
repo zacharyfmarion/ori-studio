@@ -73,6 +73,8 @@ export interface DiagramLinkedPoseAction {
    * again it does nothing; for Spread Layers, a toggle, whether it is on.
    */
   pressed?: boolean;
+  /** For Spread Layers, why the layers are not spread although it is on, said under its label. */
+  note?: string;
   run: () => void;
 }
 
@@ -91,6 +93,12 @@ export interface DiagramLinkedPoseState {
    * draws when it finds no layer order: no layers to spread.
    */
   seeThrough?: boolean;
+  /**
+   * The step's layers were asked spread by Default and could not be
+   * (`DiagramScenePicture.spreadFailed`): its picture shows them unspread,
+   * and only another kind, or none, changes it.
+   */
+  spreadFailed?: boolean;
   /**
    * The held flat fold's mirror axes, unturned; null or absent when not
    * known yet — Upright then folds it to find out — and empty for a fold with
@@ -300,12 +308,16 @@ export function buildDiagramLinkedPoseActions(
     hint: t('panels:diagram.pose.setUprightNeedsView', 'Its live view isn’t showing, so there is no up to set'),
     run: deps.setUpright,
   });
-  const spreadLayers = action('spread-layers', t('panels:diagram.pose.spreadLayers', 'Spread Layers'), {
-    disabled: spreadHeld !== undefined,
-    hint: spreadHeld,
-    pressed: spreadOn,
-    toggle: true,
-  });
+  const spreadLayers: DiagramLinkedPoseAction = {
+    ...action('spread-layers', t('panels:diagram.pose.spreadLayers', 'Spread Layers'), {
+      disabled: spreadHeld !== undefined,
+      hint: spreadHeld,
+      pressed: spreadOn,
+      toggle: true,
+    }),
+    // On, but its layers could not be spread: said where the switch is, as Edit's figure says it.
+    ...(spreadOn && state.spreadFailed ? { note: spreadFailedReason(t) } : {}),
+  };
 
   const { solutions } = state;
   const foldCase = render.mode === 'folded-flat' ? render.foldCase : 1;
@@ -421,7 +433,14 @@ export function buildDiagramSpreadControls(
   const hint = state.readOnly
     ? t('panels:diagram.actions.readOnlyHint', 'This diagram was made with a newer Ori Studio and opens read-only')
     : spreadBlocker(state, t);
-  return layerSpreadControls(shown?.kind === stored.kind ? shown : stored, { hint, busy: state.busy, ...deps });
+  const controls = layerSpreadControls(shown?.kind === stored.kind ? shown : stored, { hint, busy: state.busy, ...deps });
+  // Layers its Default spread could not take: another kind is the way on, and no value of its own changes them.
+  return state.spreadFailed ? { ...controls, valuesHeld: spreadFailedReason(t) } : controls;
+}
+
+/** What a step says of layers its Default spread could not take: under Spread layers, and on its held values. */
+function spreadFailedReason(t: TFunction): string {
+  return t('panels:cpProperties.folded.spreadUnavailable', 'These layers couldn’t be spread');
 }
 
 /** The pose a render starts in: upright, from the front, the first layer order, Edit's camera. */

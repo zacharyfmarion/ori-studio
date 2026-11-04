@@ -31,10 +31,10 @@
       "noPattern": "请先在编辑中打开折痕图。",
       "readOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开。",
       "refused": "此图样无法折叠",
+      "spreadFailed": "无法按“默认”错开其层，因此此步骤以未错开的方式显示。请改用“仿射”或“深度”。",
       "tooDetailed": "过于精细，无法保留为矢量图，因此此步骤将其保留为图像。",
       "unavailable": "无法模拟此图样。",
-      "unknown": "折痕图尚未就绪。请稍后再试。",
-      "unspread": "无法错开其层，因此此步骤以未错开的方式显示。打开“错开层”即可重试。"
+      "unknown": "折痕图尚未就绪。请稍后再试。"
     },
     "dropReadOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开，因此无法向其中添加图片。",
     "fold": {
@@ -45,7 +45,7 @@
       "sent_other": "已将 {{count}} 个步骤添加到图解",
       "sequenceGone": "该折叠序列已不在此项目中。",
       "someFailed_other": "有 {{count}} 个步骤无法从折叠采集，已略过。",
-      "someUnspread_other": "有 {{count}} 个步骤无法错开层，已以未错开的方式添加。打开“错开层”即可重试。",
+      "someSpreadFailed_other": "有 {{count}} 个步骤无法按“默认”错开层，因此以未错开的方式显示。请改用“仿射”或“深度”。",
       "stepGone": "该步骤已不在折叠序列中。"
     },
     "import": {

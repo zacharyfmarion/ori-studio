@@ -33,10 +33,10 @@
       "noPattern": "Primeiro abra um padrão de vincos em Editar.",
       "readOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura.",
       "refused": "Este padrão não dobra",
+      "spreadFailed": "Não foi possível separar as camadas com Padrão, então o passo as mostra sem separar. Tente Afim ou Profundidade.",
       "tooDetailed": "Detalhado demais para manter como desenho, então o passo o guarda como imagem.",
       "unavailable": "Este padrão não pode ser simulado.",
-      "unknown": "O padrão de vincos ainda não está pronto. Tente de novo em instantes.",
-      "unspread": "Não foi possível separar as camadas, então o passo as mostra sem separar. Ative Separar camadas para tentar de novo."
+      "unknown": "O padrão de vincos ainda não está pronto. Tente de novo em instantes."
     },
     "dropReadOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura, então não é possível adicionar imagens.",
     "fold": {
@@ -51,9 +51,9 @@
       "someFailed_one": "Um passo não pôde ser capturado de Dobrar e foi deixado de fora.",
       "someFailed_many": "{{count}} passos não puderam ser capturados de Dobrar e foram deixados de fora.",
       "someFailed_other": "{{count}} passos não puderam ser capturados de Dobrar e foram deixados de fora.",
-      "someUnspread_one": "Não foi possível separar as camadas de um passo, então ele foi adicionado sem separá-las. Ative Separar camadas para tentar de novo.",
-      "someUnspread_many": "Não foi possível separar as camadas de {{count}} passos, então eles foram adicionados sem separá-las. Ative Separar camadas para tentar de novo.",
-      "someUnspread_other": "Não foi possível separar as camadas de {{count}} passos, então eles foram adicionados sem separá-las. Ative Separar camadas para tentar de novo.",
+      "someSpreadFailed_one": "Não foi possível separar as camadas de um passo com Padrão, então ele as mostra sem separar. Tente Afim ou Profundidade.",
+      "someSpreadFailed_many": "Não foi possível separar as camadas de {{count}} passos com Padrão, então eles as mostram sem separar. Tente Afim ou Profundidade.",
+      "someSpreadFailed_other": "Não foi possível separar as camadas de {{count}} passos com Padrão, então eles as mostram sem separar. Tente Afim ou Profundidade.",
       "stepGone": "Esse passo não está mais na sequência de Dobrar."
     },
     "import": {

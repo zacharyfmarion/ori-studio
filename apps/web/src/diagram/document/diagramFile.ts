@@ -856,8 +856,8 @@ const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<str
 };
 /** The fields each kind of picture is written with, as {@link SOURCE_KEYS} are a source's. */
 const PICTURE_KEYS: Readonly<Record<DiagramPicture['kind'], ReadonlySet<string>>> = {
-  asset: new Set(['kind', 'assetId', 'paperScale', 'styleKey', 'key', 'sceneFrame']),
-  scene: new Set(['kind', 'sceneJson', 'paperScale', 'styleKey', 'key', 'paperFaces']),
+  asset: new Set(['kind', 'assetId', 'paperScale', 'styleKey', 'key', 'sceneFrame', 'spreadFailed']),
+  scene: new Set(['kind', 'sceneJson', 'paperScale', 'styleKey', 'key', 'paperFaces', 'spreadFailed']),
   fixed: new Set(['kind', 'svg', 'widthPx', 'heightPx', 'key']),
   'step-diagram': new Set(['kind', 'model', 'mirrored', 'key']),
 };
@@ -1051,7 +1051,8 @@ function withPicture(
 /**
  * A posed picture with the faces on the paper it was read with, when they
  * agree with its scene and its pose is a flat fold; else as it was read,
- * without them.
+ * without them. A fold whose layers could not be spread is drawn unspread,
+ * whatever its spread.
  */
 function withFittingFaces(
   picture: DiagramPicture | null,
@@ -1059,13 +1060,18 @@ function withFittingFaces(
   paperFaces: ReturnType<typeof readPaperFaces> | undefined
 ): DiagramPicture | null {
   const flat = render.mode === 'folded-flat' ? render : null;
-  return picture?.kind === 'scene' &&
-    flat &&
-    paperFaces &&
-    paperFaces !== NEWER_PAPER_FACES &&
-    paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined)
-    ? { ...picture, paperFaces: paperFaces.json }
-    : picture;
+  if (
+    picture?.kind !== 'scene' ||
+    !flat ||
+    !paperFaces ||
+    paperFaces === NEWER_PAPER_FACES ||
+    !paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined && picture.spreadFailed !== true)
+  ) {
+    return picture;
+  }
+  // Its faces where a capture writes them, before the mark, so a load writes back what it read.
+  const { spreadFailed, ...unmarked } = picture;
+  return { ...unmarked, paperFaces: paperFaces.json, ...(spreadFailed ? { spreadFailed } : {}) };
 }
 
 /**
@@ -1632,6 +1638,8 @@ function readPictureOfKind(
   const key = value.key;
   if (typeof key !== 'string' || key.length === 0) return null;
   const paperScale = positiveOrNull(value.paperScale);
+  // A fold whose layers could not be spread, drawn unspread: anything but `true` says nothing.
+  const spreadFailed = value.spreadFailed === true ? { spreadFailed: true as const } : {};
   switch (kind) {
     case 'asset': {
       const assetId = value.assetId;
@@ -1646,13 +1654,14 @@ function readPictureOfKind(
       return {
         kind: 'asset', assetId, paperScale, ...(styleKey === null ? {} : { styleKey }), key,
         ...(frame === undefined ? {} : { sceneFrame: frame as [number, number, number, number] }),
+        ...spreadFailed,
       };
     }
     case 'scene': {
       const read = readSceneJson(value.sceneJson);
       if (read === null || read === NEWER) return read;
       const styleKey = typeof value.styleKey === 'string' ? value.styleKey : null;
-      const picture: DiagramScenePicture = { kind: 'scene', sceneJson: read.json, paperScale, styleKey, key };
+      const picture: DiagramScenePicture = { kind: 'scene', sceneJson: read.json, paperScale, styleKey, key, ...spreadFailed };
       readScenes.set(picture, read.scene);
       return picture;
     }
