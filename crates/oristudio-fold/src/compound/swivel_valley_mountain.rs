@@ -150,7 +150,7 @@ const SEEN_SLACK: f64 = MIN_FEATURE / 2.0;
 /// naming different paper (the folded edges of two flaps that abut along one
 /// line), are all returned, the one the swivel can fold picked by
 /// [`SwivelValleyMountain::reading`], never one silently.
-fn folds_at(state: &State, v: Point) -> Vec<Point> {
+pub(super) fn folds_at(state: &State, v: Point) -> Vec<Point> {
     let landmarks = state.landmarks(&[]);
     let seen = seen_fold_within(&landmarks, v, |_| TOL, true);
     if !seen.is_empty() {
@@ -166,7 +166,7 @@ fn folds_at(state: &State, v: Point) -> Vec<Point> {
 /// Whether the folded edge through the sheet point `fold` ends at the model
 /// point `v` with nothing straight on past it: no flat crease continues its
 /// run on the sheet from there.
-fn ends_bare(state: &State, fold: Point, v: Point) -> bool {
+pub(super) fn ends_bare(state: &State, fold: Point, v: Point) -> bool {
     let Some((_, support)) = fold_support(state, fold) else {
         return false;
     };
@@ -302,12 +302,12 @@ enum Reading {
 
 /// A swivel by its valley and mountain resolved in its parent: its fan and
 /// which of the folded edge's two faces is in front.
-struct Built {
-    fan: FoldFan,
+pub(super) struct Built {
+    pub(super) fan: FoldFan,
     /// The face that faces the viewer, which takes the named creases, and
     /// the one behind, which creases along the computed one.
-    front: usize,
-    behind: usize,
+    pub(super) front: usize,
+    pub(super) behind: usize,
 }
 
 impl SwivelValleyMountain {
@@ -365,7 +365,7 @@ impl SwivelValleyMountain {
     }
 
     /// The swivel resolved on the folded edge through the sheet point `fold`.
-    fn build(&self, state: &State, fold: Point) -> Result<Built, Refused> {
+    pub(super) fn build(&self, state: &State, fold: Point) -> Result<Built, Refused> {
         let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
         let (k, support) = fold_support(state, fold).ok_or_else(meeting)?;
         let faces = match state.topology().crease_faces[k][..] {
