@@ -498,7 +498,9 @@ function words(t: TFunction, refused: FoldRefused, context: FoldRefusalContext):
     case 'swivel_misses_fold':
     case 'swivel_fold_wide':
     case 'swivel_inside_free':
-      return vertexRefusalWords(t, refusal, context.vertex ?? vertexContextOf(refusal.code)) ?? invalidWords(t);
+      return (
+        vertexRefusalWords(t, refusal, context.vertex ?? vertexContextOf(refusal.code), refused.fixes) ?? invalidWords(t)
+      );
     // The sinks'.
     case 'sink_several_points':
     case 'sink_point_open':
@@ -944,7 +946,8 @@ function fixActions(
       ];
     }
     case 'use_emergent':
-      // A rabbit ear's or a swivel's: its tool's button (`vertexFixActions`), above.
+    case 'precrease_first':
+      // A rabbit ear's or a swivel's, a petal fold's: its tool's button (`vertexFixActions`), above.
       return [];
     case 'other_sink': {
       const { otherSink } = verbs;

@@ -1049,8 +1049,11 @@
         },
         "line": {
           "crease": "O vinco da dobradiça não atravessa todas as camadas abaixo dele que dobram. Pré-vinque a dobradiça através de todas as camadas; depois faça a dobra pétala.",
+          "creaseNoRoute": "O vinco da dobradiça não atravessa todas as camadas abaixo dele que dobram, e pré-vincá-lo através de todas as camadas também não permitiria a dobra pétala. Escolha outra dobradiça ou indique esta pelas duas pontas.",
           "ends": "A dobradiça cruza papel da segunda camada, que se dobra para dentro ao lado da pipa, e a dobra não consegue vincá-lo enquanto a aba sobe. Pré-vinque a dobradiça através de todas as camadas; depois faça a dobra pétala.",
-          "titleHinge": "Pré-vinque antes a dobradiça"
+          "endsNoRoute": "A dobradiça cruza papel da segunda camada, que se dobra para dentro ao lado da pipa, e a dobra não consegue vincá-lo enquanto a aba sobe. Pré-vincar a dobradiça através de todas as camadas também não permitiria a dobra pétala. Escolha outra dobradiça.",
+          "titleHinge": "Pré-vinque antes a dobradiça",
+          "titleNoRoute": "A dobradiça não pode dobrar aqui"
         },
         "lineMeeting": {
           "textValleyMountain": "O vale e a montanha se encontram em um ponto de uma borda dobrada que você vê, longe das pontas dela. Escolha duas linhas que se cruzem ali.",

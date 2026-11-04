@@ -1049,8 +1049,11 @@
         },
         "line": {
           "crease": "Le pli de charnière ne traverse pas toutes les couches en dessous qui se plient. Pré-pliez la charnière à travers toutes les couches, puis faites le pli pétale.",
+          "creaseNoRoute": "Le pli de charnière ne traverse pas toutes les couches en dessous qui se plient, et le pré-plier à travers toutes les couches ne permettrait pas non plus de faire le pli pétale. Choisissez une autre charnière, ou désignez celle-ci par ses deux extrémités.",
           "ends": "La charnière traverse du papier de la deuxième couche, qui se replie à côté du cerf-volant, et le pliage ne peut pas le marquer pendant que le rabat se soulève. Pré-pliez la charnière à travers toutes les couches, puis faites le pli pétale.",
-          "titleHinge": "Pré-pliez d’abord la charnière"
+          "endsNoRoute": "La charnière traverse du papier de la deuxième couche, qui se replie à côté du cerf-volant, et le pliage ne peut pas le marquer pendant que le rabat se soulève. Pré-plier la charnière à travers toutes les couches ne permettrait pas non plus de faire le pli pétale. Choisissez une autre charnière.",
+          "titleHinge": "Pré-pliez d’abord la charnière",
+          "titleNoRoute": "La charnière ne peut pas se plier ici"
         },
         "lineMeeting": {
           "textValleyMountain": "La vallée et la montagne se rejoignent en un point d’un bord plié visible, loin de ses extrémités. Choisissez deux lignes qui s’y croisent.",

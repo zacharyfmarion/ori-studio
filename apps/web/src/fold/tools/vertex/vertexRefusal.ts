@@ -9,16 +9,17 @@
  * Every fix the engine offers a vertex fold is a button — the other
  * direction, a fan's other fourth ray or a swivel's other ridge
  * (`use_emergent`), a swivel's plain fold along its bisector (`use_line`,
- * the shared notice's) — and so is what the tools can do for a refusal the
- * engine offers no fix for:
+ * the shared notice's), a petal fold's hinge precreased first
+ * (`precrease_first`: the Precrease tool through its two ends, every
+ * layer, which the engine offers only where the fold then lands) — and so
+ * is what the tools can do for a refusal the engine offers no fix for:
  *
  * - a squash's spine aimed outside its wedge goes back onto the hinge;
  * - a petal fold over a hinge crease whose kite creases are not there takes
  *   the same hinge by its two ends, so the fold creases them, or
- *   the Precrease tool on the edge-to-edge axiom that makes them; a hinge the
- *   fold cannot crease through the layers that fold takes the Precrease
- *   tool through its two ends. The engine cannot offer these: it cannot
- *   know the kite's corner before the kite is creased;
+ *   the Precrease tool on the edge-to-edge axiom that makes them. The engine
+ *   cannot offer these: it cannot know the kite's corner before the kite is
+ *   creased;
  * - a swivel by its edge onto a line whose crease meets the folded edge too
  *   steeply (`swivel_fold_wide`) needs the edge's layer creased twice, the
  *   branch that form does not build and Valley and mountain folds: the tool
@@ -103,7 +104,7 @@ export interface FoldVertexFixVerbs {
   takeEmergent?: (direction: FoldModelPoint) => void;
   /** Put a squash's spine back onto its hinge line. */
   resetSquashTarget?: () => void;
-  /** Precrease a petal fold's hinge first: the Precrease tool through its two ends. */
+  /** Precrease a petal fold's hinge first: the Precrease tool through its two ends, every layer. */
   precreaseLine?: () => void;
   /** Precrease a petal fold's kite first: the Precrease tool on the edge-to-edge axiom. */
   precreaseKite?: () => void;
@@ -299,11 +300,16 @@ function swivelWords(
   }
 }
 
-/** A vertex fold's refusal in a folder's words; null for any other code. */
+/**
+ * A vertex fold's refusal in a folder's words, with the fixes the engine
+ * offers it (a petal fold's hinge is told to be precreased only when the
+ * engine says that lands); null for any other code.
+ */
 export function vertexRefusalWords(
   t: TFunction,
   refusal: FoldRefusalBody,
-  context: FoldVertexRefusalContext
+  context: FoldVertexRefusalContext,
+  fixes: readonly FoldFix[] = []
 ): { title: string; text: string } | null {
   switch (refusal.code) {
     case 'squash_no_flap':
@@ -349,6 +355,22 @@ export function vertexRefusalWords(
             'tools:fold.vertex.refusal.kite.creaseOrPrecrease',
             'Over a hinge crease, a petal fold refolds creases already there, and a kite crease is not. Name the hinge by its two ends instead, and the fold creases the kites itself; or precrease them first, with the Precrease tool on Axiom 3: a lower edge of the top flap onto its centre line, the flaps behind left out.'
           ),
+        };
+      }
+      // Precreasing the hinge is said only where the engine found it lands (`precrease_first`).
+      if (!fixes.some((fix) => fix.fix === 'precrease_first')) {
+        return {
+          title: t('tools:fold.vertex.refusal.line.titleNoRoute', 'The hinge cannot fold here'),
+          text:
+            context.hinge === 'points'
+              ? t(
+                  'tools:fold.vertex.refusal.line.endsNoRoute',
+                  'The hinge crosses paper of the second layer that folds in beside the kite, and the fold cannot crease that as the flap lifts. Precreasing the hinge through every layer would not let it petal fold either. Pick another hinge.'
+                )
+              : t(
+                  'tools:fold.vertex.refusal.line.creaseNoRoute',
+                  'The hinge crease does not run through every layer below it that folds, and precreasing it through every layer would not let it petal fold either. Pick another hinge, or name this one by its two ends.'
+                ),
         };
       }
       return {
@@ -565,6 +587,20 @@ export function vertexFixActions(
             : t('tools:fold.vertex.fix.emergentNumber', 'Use fourth crease {{number}}', { number });
       return [{ id: `vertex-emergent-${position}`, label, run: () => takeEmergent(fix.direction), disabled }];
     }
+    case 'precrease_first': {
+      // A petal fold's hinge, which the engine found lands precreased through every layer.
+      const { precreaseLine } = verbs;
+      return context.tool === 'petal' && precreaseLine
+        ? [
+            {
+              id: `vertex-precrease-line-${position}`,
+              label: t('tools:fold.vertex.fix.precreaseHinge', 'Precrease the hinge first'),
+              run: precreaseLine,
+              disabled,
+            },
+          ]
+        : [];
+    }
     default:
       return null;
   }
@@ -600,11 +636,8 @@ export function vertexExtraActions(
           ...action('vertex-precrease-kite', t('tools:fold.vertex.fix.precreaseKite', 'Precrease the kite'), verbs.precreaseKite),
         ];
       }
-      return action(
-        'vertex-precrease-line',
-        t('tools:fold.vertex.fix.precreaseHinge', 'Precrease the hinge first'),
-        verbs.precreaseLine
-      );
+      // The hinge precreased is the engine's own fix (`precrease_first`), offered where it lands.
+      return [];
     case 'swivel_fold_wide': {
       // Its edge onto a line folds the layer once; by its valley and mountain, twice.
       const { setSwivelInput } = verbs;

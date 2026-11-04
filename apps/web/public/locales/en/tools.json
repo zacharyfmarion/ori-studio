@@ -1026,8 +1026,11 @@
         },
         "line": {
           "crease": "The hinge crease does not run through every layer below it that folds. Precrease the hinge through every layer, then petal fold.",
+          "creaseNoRoute": "The hinge crease does not run through every layer below it that folds, and precreasing it through every layer would not let it petal fold either. Pick another hinge, or name this one by its two ends.",
           "ends": "The hinge crosses paper of the second layer that folds in beside the kite, and the fold cannot crease that as the flap lifts. Precrease the hinge through every layer, then petal fold.",
-          "titleHinge": "Precrease the hinge first"
+          "endsNoRoute": "The hinge crosses paper of the second layer that folds in beside the kite, and the fold cannot crease that as the flap lifts. Precreasing the hinge through every layer would not let it petal fold either. Pick another hinge.",
+          "titleHinge": "Precrease the hinge first",
+          "titleNoRoute": "The hinge cannot fold here"
         },
         "lineMeeting": {
           "textValleyMountain": "The valley and the mountain meet at a point of a folded edge you can see, away from its ends. Pick two lines that cross there.",

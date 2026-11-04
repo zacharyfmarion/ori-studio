@@ -1049,8 +1049,11 @@
         },
         "line": {
           "crease": "El pliegue bisagra no atraviesa todas las capas de debajo que se pliegan. Premarca la bisagra a través de todas las capas; luego haz el pliegue pétalo.",
+          "creaseNoRoute": "El pliegue bisagra no atraviesa todas las capas de debajo que se pliegan, y premarcarlo a través de todas las capas tampoco permitiría hacer el pliegue pétalo. Elige otra bisagra o indica esta por sus dos extremos.",
           "ends": "La bisagra cruza papel de la segunda capa, que se pliega hacia dentro junto a la cometa, y el pliegue no puede marcarlo mientras la solapa se levanta. Premarca la bisagra a través de todas las capas; luego haz el pliegue pétalo.",
-          "titleHinge": "Premarca antes la bisagra"
+          "endsNoRoute": "La bisagra cruza papel de la segunda capa, que se pliega hacia dentro junto a la cometa, y el pliegue no puede marcarlo mientras la solapa se levanta. Premarcar la bisagra a través de todas las capas tampoco permitiría hacer el pliegue pétalo. Elige otra bisagra.",
+          "titleHinge": "Premarca antes la bisagra",
+          "titleNoRoute": "La bisagra no se puede plegar aquí"
         },
         "lineMeeting": {
           "textValleyMountain": "El valle y el monte se juntan en un punto de un borde plegado que ves, lejos de sus extremos. Elige dos líneas que se crucen ahí.",

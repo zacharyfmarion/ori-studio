@@ -1026,8 +1026,11 @@
         },
         "line": {
           "crease": "Die Scharnierlinie läuft nicht durch jede Lage darunter, die mitfaltet. Falte das Scharnier durch alle Lagen vor, dann die Blütenblattfalte.",
+          "creaseNoRoute": "Die Scharnierlinie läuft nicht durch jede Lage darunter, die mitfaltet, und auch durch alle Lagen vorgefaltet würde sie die Blütenblattfalte nicht ermöglichen. Wähle ein anderes Scharnier oder gib dieses über seine beiden Enden an.",
           "ends": "Das Scharnier kreuzt Papier der zweiten Lage, das sich neben dem Drachen einfaltet, und die Faltung kann es beim Anheben der Lasche nicht falten. Falte das Scharnier durch alle Lagen vor, dann die Blütenblattfalte.",
-          "titleHinge": "Zuerst das Scharnier vorfalten"
+          "endsNoRoute": "Das Scharnier kreuzt Papier der zweiten Lage, das sich neben dem Drachen einfaltet, und die Faltung kann es beim Anheben der Lasche nicht falten. Auch ein Vorfalten des Scharniers durch alle Lagen würde die Blütenblattfalte nicht ermöglichen. Wähle ein anderes Scharnier.",
+          "titleHinge": "Zuerst das Scharnier vorfalten",
+          "titleNoRoute": "Das Scharnier lässt sich hier nicht falten"
         },
         "lineMeeting": {
           "textValleyMountain": "Tal und Berg treffen sich an einem Punkt einer sichtbaren gefalteten Kante, abseits ihrer Enden. Wähle zwei Linien, die sich dort kreuzen.",
