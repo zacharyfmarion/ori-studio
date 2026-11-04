@@ -7,7 +7,7 @@ Studio, while preserving the exact view of existing saved models.
 
 ## Approach
 
-- Expand the shared reveal-vector radius from 2 to 8 (four times the previous
+- Expand the shared reveal-vector radius from 2 to 3 (1.5 times the previous
   maximum). Keep stored vectors, projection, height amounts, defaults and the
   absolute minimum edit radius of 0.1 unchanged. No migration or version bump.
 - Use the same range for edits and file validation, including Fold, Diagram,
@@ -31,20 +31,20 @@ Studio, while preserving the exact view of existing saved models.
 - [x] Trace the shared control, edit, projection and persistence paths.
 - [x] Expand the range and keep circle geometry consistent.
 - [x] Cover saved-view compatibility and expanded edits with regression tests.
-- [x] Run web lint, typecheck, relevant tests and browser verification.
+- [x] Revalidate the requested 1.5× range with focused tests, lint, typecheck and the browser.
 - [x] Prepare the draft PR handoff and leave the local app running for review.
 
 Validation: full web lint passed, with targeted lint after the final test edits.
 TypeScript passed after rebuilding the workspace libraries and all WASM bridges
 (the primary checkout's copied artifacts were incomplete/stale). The affected
-11-suite run passed 693 tests; the final pad-only rerun passed 17 tests, including
-one added rim-tolerance case. File tests cover unchanged old values and expanded
+11-suite run passed all 694 tests after the requested 1.5× revision. Targeted lint,
+TypeScript and the browser check also passed again. File tests cover unchanged old values and expanded
 values in Fold defaults/steps, Diagram poses and native project folded figures.
-Projection tests confirm four times the lateral displacement at the same height
+Projection tests confirm 1.5 times the lateral displacement at the same height
 on both sides of a fold.
 
 In-app browser: created a two-layer valley fold, enabled Default at 7% height,
-dragged reveal to 100%, reset to the original vector (12.5% of the expanded
+dragged reveal to 100%, reset to the original vector (33⅓% of the expanded
 radius), then undid the reset in one step. Paper and thumbnail both updated.
 Local screenshot: `artifacts/spread-inclination/reveal-max.png` (ignored).
 Server: `http://localhost:5257/fold`, started with `scripts/dev-server.sh`.

@@ -3140,7 +3140,7 @@ describe('thumbnails and References cards in the file', () => {
 });
 
 describe('linked steps in the file', () => {
-  it.each([[0, 0], [-1.2, 1.6], [4.8, -6.4]])('preserves Default reveal (%s, %s) in a saved pose', (x, y) => {
+  it.each([[0, 0], [-1.2, 1.6], [1.8, -2.4]])('preserves Default reveal (%s, %s) in a saved pose', (x, y) => {
     const spread = { kind: 'connected', version: 1, amount: 0.37, reveal: [x, y] };
     const written = throughJson(writeDiagram(linkedDiagram()));
     written.steps[1].source.render.spread = spread;

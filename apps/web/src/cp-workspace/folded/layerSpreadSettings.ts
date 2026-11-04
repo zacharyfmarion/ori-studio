@@ -286,7 +286,7 @@ export function writeLayerSpread(spread: LayerSpreadOptions): Record<string, unk
 
 /** Absolute shear, independent of height. Expanding the maximum leaves saved
  * views unchanged. The minimum applies only to edits, never to saved values. */
-export const REVEAL_RADIUS = { min: 0.1, max: 8 } as const;
+export const REVEAL_RADIUS = { min: 0.1, max: 3 } as const;
 
 /** Screen-space reveal. Saved documents are read unchanged, including zero. */
 export function clampReveal(

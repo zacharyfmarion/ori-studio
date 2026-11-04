@@ -2660,7 +2660,7 @@ describe('a crease pattern’s layer orders', () => {
     it.each<[string, LayerSpreadOptions]>([
       ['Default', DEFAULT_CONNECTED_SPREAD],
       ['Default at the old reveal limit', { ...DEFAULT_CONNECTED_SPREAD, amount: 0.37, reveal: [-1.2, 1.6] }],
-      ['Default with expanded reveal', { ...DEFAULT_CONNECTED_SPREAD, amount: 0.37, reveal: [4.8, -6.4] }],
+      ['Default with expanded reveal', { ...DEFAULT_CONNECTED_SPREAD, amount: 0.37, reveal: [1.8, -2.4] }],
       ['Affine', DEFAULT_AFFINE_SPREAD],
       ['Depth', DEFAULT_DEPTH_SPREAD],
     ])('saves a %s spread with its scene in the bag, and attaches both back on open', (_kind, spread) => {

@@ -419,7 +419,7 @@ describe('versions and newer builds', () => {
 });
 
 describe('marks, notes, spreads and expect', () => {
-  it.each([[0, 0], [-1.2, 1.6], [4.8, -6.4]])('preserves Default reveal (%s, %s) on a step and its sequence default', (x, y) => {
+  it.each([[0, 0], [-1.2, 1.6], [1.8, -2.4]])('preserves Default reveal (%s, %s) on a step and its sequence default', (x, y) => {
     const spread = { kind: 'connected', version: 1, amount: 0.37, reveal: [x, y] };
     const held = readSteps([raw('a', null, { spread })], { defaultSpread: spread });
     expect(held.document.defaultSpread).toEqual(spread);

@@ -7,7 +7,7 @@ import { clampReveal } from '../cp-workspace/folded/layerSpreadSettings';
 import { connectedPaperScene, type ConnectedDrawing, type ConnectedPaperScene } from './connectedScene';
 import { perspectiveDrawing } from './perspective';
 
-it.each([false, true])('reveals four times farther at the expanded rim without increasing height (back=%s)', (back) => {
+it.each([false, true])('reveals 1.5 times as far at the expanded rim without increasing height (back=%s)', (back) => {
   const kernel = plainBook();
   const source = connectedSpreadSource(kernel);
   source.back = back;
@@ -22,12 +22,12 @@ it.each([false, true])('reveals four times farther at the expanded rim without i
   }) as ConnectedPaperScene).connected.mesh.positions;
   const flat = draw([0, 0]);
   const oldRim = draw([1.2, -1.6]);
-  const expandedRim = draw(clampReveal([4.8, -6.4]));
+  const expandedRim = draw(clampReveal([1.8, -2.4]));
   expect(oldRim).not.toEqual(flat);
   for (let i = 0; i < flat.length; i++) {
     for (const axis of [0, 1]) {
       expect(expandedRim[i]![axis]! - flat[i]![axis]!)
-        .toBeCloseTo(4 * (oldRim[i]![axis]! - flat[i]![axis]!), 12);
+        .toBeCloseTo(1.5 * (oldRim[i]![axis]! - flat[i]![axis]!), 12);
     }
     expect(expandedRim[i]![2]).toBe(oldRim[i]![2]);
   }
