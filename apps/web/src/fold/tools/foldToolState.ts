@@ -491,8 +491,12 @@ export interface FoldTools {
   setDivide(divide: Partial<FoldDivideSettings>): void;
   setHoveredFlap(flap: number | null): void;
   // A compound fold's choices, one block per family.
-  /** The reverse fold's kind; null takes the one that lands. */
-  setReverseKind(kind: FoldReverseKind | null): void;
+  /**
+   * The reverse fold's kind; null takes the one that lands. The ways listed
+   * are the kind's (`reverseLandingWays`), so `opening`, when given, is where
+   * the way on screen is among them.
+   */
+  setReverseKind(kind: FoldReverseKind | null, opening?: number): void;
   /** Step through the ways the flaps open, of `count`. */
   stepOpening(delta: number, count: number): void;
   /** Step through the layer orders listed, of `count`. */
@@ -791,12 +795,13 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
 
     // A compound fold's choices are made along its line: a fix's line in
     // place of the picks' (the override) is kept through them.
-    setReverseKind(reverseKind) {
-      set((state) =>
-        state.compound.reverseKind === reverseKind
+    setReverseKind(reverseKind, opening) {
+      set((state) => {
+        const at = opening ?? state.compound.opening;
+        return state.compound.reverseKind === reverseKind && state.compound.opening === at
           ? state
-          : { ...state, compound: { ...state.compound, reverseKind, order: 0 } }
-      );
+          : { ...state, compound: { ...state.compound, reverseKind, opening: at, order: 0 } };
+      });
     },
 
     stepOpening(delta, count) {

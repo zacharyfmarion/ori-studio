@@ -2,12 +2,19 @@ import { useEffect, useMemo, useRef } from 'react';
 import { trackFoldChoiceOffered } from '../../analytics';
 import type { FoldChoices, FoldCompletionChoice, FoldCrimpKind, FoldCrimpOp } from '../document/foldSequenceDocument';
 import type { FoldCrimpAnalysed } from '../engine/foldEngineCrimpTuckWire';
-import type { FoldAxiomCandidate, FoldEngineRefused } from '../engine/foldEngineWire';
+import type { FoldAxiomCandidate, FoldEngineRefused, FoldFlap } from '../engine/foldEngineWire';
 import type { FoldSessionSurface } from '../session/useFoldSession';
 import { buildCrimpStep, crimpKindToFold, crimpLines, type FoldCrimpLines } from '../tools/crimp/crimpStep';
 import type { FoldStepBuild } from '../tools/foldStepBuilder';
 import type { FoldSeededToolState } from '../tools/foldToolState';
-import { chosenAt, reverseOpenWays, type FoldReverseOpenWay, type FoldReverseWays } from '../tools/reverse/reverseStep';
+import {
+  chosenAt,
+  lockedFlaps,
+  reverseLandingWays,
+  type FoldReverseOpenWay,
+  type FoldReverseTip,
+  type FoldReverseWays,
+} from '../tools/reverse/reverseStep';
 import type { FoldPickIndex } from './foldPicking';
 import { useFoldCompoundAsk, useFoldCompoundOrders } from './useFoldCompoundAsk';
 
@@ -19,9 +26,13 @@ export interface FoldCrimpPreview {
   kind: FoldCrimpKind;
   /** The kinds that land; empty while unknown, or while neither does. */
   kinds: readonly FoldCrimpKind[];
-  /** The ways the tip opens at ℓ1, when a flap has a choice; the one taken. */
+  /** The ways the tip opens at ℓ1 that land, when a flap has a choice (`reverseLandingWays`); the one taken. */
   ways: FoldReverseWays;
   way: FoldReverseOpenWay | null;
+  /** The engine's answer for the tip at ℓ1 with no opening named, which the ways are listed from. */
+  tip?: FoldReverseTip | null;
+  /** The tip's flaps it cannot be crimped without, which the window keeps picked. */
+  locked?: readonly FoldFlap[];
   /** The orders the kind leaves, when it leaves several; the one taken. */
   orders: readonly FoldCompletionChoice[];
   order: FoldCompletionChoice | null;
@@ -90,7 +101,14 @@ export function useFoldCrimpStep(
         : { op: located.op, ...(located.choices ? { choices: located.choices } : {}) };
   const first = useFoldCompoundAsk(session, stateKey, tip, 'crimp', 'fold:crimp');
   const described = first?.asked ?? null;
-  const ways = useMemo(() => (described ? reverseOpenWays(described.analysis.tip) : []), [described]);
+  const tipAnswer = useMemo<FoldReverseTip | null>(
+    () => (described ? { analysis: described.analysis.tip, landings: described.landings ?? null } : null),
+    [described]
+  );
+  // Only the ways that land as the kind asked for — either, on Automatic.
+  const requested = compound.reverseKind;
+  const ways = useMemo(() => (tipAnswer ? reverseLandingWays(tipAnswer, requested) : []), [tipAnswer, requested]);
+  const locked = useMemo(() => lockedFlaps(tipAnswer), [tipAnswer]);
   const way = chosenAt(ways, compound.opening);
   // With a flap's opening chosen, the kinds are that opening's.
   const opened = useMemo(
@@ -165,7 +183,7 @@ export function useFoldCrimpStep(
   if (!enabled) return { build: { status: 'unlocated' }, crimp: null, refused: null };
   return {
     build,
-    crimp: { asked, kind, kinds, ways, way, orders, order, lines },
+    crimp: { asked, kind, kinds, ways, way, orders, order, lines, tip: tipAnswer, locked },
     refused: refusedTip,
   };
 }

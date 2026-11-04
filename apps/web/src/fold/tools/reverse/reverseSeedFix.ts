@@ -14,7 +14,7 @@ import type { FoldCrossSection, FoldFlap } from '../../engine/foldEngineWire';
 import { flapsAlong, sameFlap } from '../crossSection';
 import type { FoldResolvedSeed } from '../foldToolState';
 import type { FoldRefused } from '../refusalNotice';
-import { reverseOpenWays } from './reverseStep';
+import { reverseLandingWays } from './reverseStep';
 
 /** The refusals a narrower seed may answer: no opening lets the tip turn, or no way of stacking the layers does. */
 const NARROWED = new Set<string>(['reverse_no_opening', 'reverse_kind_infeasible']);
@@ -44,7 +44,7 @@ export function narrowerReverseFlaps(
 /** The narrower seed that lands: its flaps, and the way of opening that does, of how many listed. */
 export interface FoldReverseSeedFix {
   flaps: readonly FoldFlap[];
-  /** By index into the ways the engine lists for the narrower tip; 0 when it opens one way. */
+  /** By index into the ways the tools list for the narrower tip (`reverseLandingWays`); 0 when it opens one way. */
   opening: number;
   ways: number;
 }
@@ -65,7 +65,8 @@ export async function findReverseSeedFix(
   const lands = (kinds: readonly FoldReverseKind[]) => (wanted === null ? kinds.length > 0 : kinds.includes(wanted));
   const first = await ask(step.op, step.choices);
   if (!first) return null;
-  const ways = reverseOpenWays(first.analysis);
+  // The ways the narrower tip lists, as the tools will step them once the fix is taken.
+  const ways = reverseLandingWays({ analysis: first.analysis, landings: first.landings ?? null }, wanted);
   if (ways.length === 0) return lands(first.kinds) ? { flaps, opening: 0, ways: 0 } : null;
   for (let way = 0; way < Math.min(ways.length, SEED_FIX_WAYS); way += 1) {
     const opening = ways.at(way);
