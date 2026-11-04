@@ -1,4 +1,4 @@
-//! Read-only input for the spatial spread experiment. No production wire API.
+//! Export production render/snapshot data for spatial spread regression checks.
 //! cargo run -p oristudio-cp --release --example fold3d_spread_source -- input.fold
 //! `--strip` makes the synthetic two-plane, coupled-order hinge case.
 
@@ -34,20 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     if session.snapshot().current_fold_case != case {
         return Err(IoError::new(ErrorKind::InvalidInput, "solution stream wrapped").into());
     }
-    let frame = session.folded_form_frame(None)?;
-    let placement = &session.admission().placement;
-    // Interchange keeps used vertices in increasing material-ID order, choosing
-    // each vertex's lowest-face image. Use its geometry, not coordinate welding.
-    let used: std::collections::BTreeSet<usize> =
-        placement.rings.iter().flatten().copied().collect();
-    let sheet: Vec<_> = used
-        .iter()
-        .map(|&v| [placement.points[v].x, placement.points[v].y])
-        .collect();
     let result = json!({
-        "version": "spatial-spread-experiment-1",
-        "folded": frame,
-        "sheet": sheet,
         "render": session.render_model(),
         "snapshot": session.snapshot(),
     });

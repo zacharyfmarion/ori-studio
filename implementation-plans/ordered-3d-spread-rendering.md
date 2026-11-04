@@ -6,18 +6,15 @@ Make a spread 3D folded figure obey its known layer order from the current
 camera, with matching paper, crease lines, picking and exports. Keep all material
 creases connected and retain geometric occlusion between unrelated surfaces.
 
-This is the rendering implementation plan requested on 2026-11-03, following
-the working numerical experiment in
-[`connected-3d-layer-spread.md`](connected-3d-layer-spread.md). The user accepted
-the opening aesthetic and requested the visibility correction that the flat
-spread already provides. Production now labels the full range 0–100%, with
+The implementation combines connected material displacement with the
+camera-aware visibility correction that flat spread already provides.
+Production labels the full range 0–100%, with
 100% multiplying the original displacement field by four (twice the previous
 maximum). The initial unit displacement is 25% on that scale. This is a drawing
-control, not a physical strain bound. Historical prototype measurements below
-use the original percentage of unit displacement.
+control, not a physical strain bound.
 
-The prototype established the visibility policy. Production implementation is
-delivered: a versioned material source and Rust/WASM vector solve feed
+Production implementation is delivered: a versioned material source and
+Rust/WASM vector solve feed
 one mesh used by ordered GPU rendering, picking and settled capture. The
 upstream fold and FOLD interchange geometry remain unchanged.
 
@@ -25,10 +22,9 @@ upstream fold and FOLD interchange geometry remain unchanged.
 
 ### 1. Separate geometry from the intended drawing order
 
-The initial prototype drew the deformed material mesh with an ordinary depth
-buffer. Its QP has soft separation penalties, so a geometrically nearer layer
-can still be the wrong visible layer. Changing the amount alone cannot correct
-that drawing rule.
+The QP has soft separation penalties, so a geometrically nearer layer can still
+be the wrong visible layer. An ordinary depth buffer cannot enforce the known
+layer order. Changing the amount alone cannot correct that drawing rule.
 
 Flat spread already separates these concerns:
 
@@ -55,26 +51,19 @@ remove a geometric intersection. Continue reporting uncorrected geometric
 diagnostics separately. Cross-plane contact constraints remain a separate
 solver investigation, not a substitute for this rendering work.
 
-### 2. Prototype delivered and its precise policy
+### 2. Production visibility policy
 
-The local viewer at `http://127.0.0.1:8743/` has **Enforce layer order**, on by
-default, alongside the 0–200% slider. Turn it off to compare geometric depth.
-Front/Back presets and orbit exercise the side reversal. Amount zero and the
-no-stack control still use the original cell-skin buffers.
-
-`scripts/layer-spread/spatial/solver.py::render_order` exports per-plane
-lower/upper pairs with their source-cell witnesses, display-layer groups,
-normals and origins. It only admits determined sources. `order.mjs` expands
-zero-angle pieces into their display layer and constructs direct blockers.
+`folded3dMaterial.ts` derives per-plane lower/upper pairs from the production
+material source, with source-cell witnesses, display-layer groups, normals and
+origins. It only admits determined sources. The shared layer-spread package
+constructs direct blockers and defines the CPU visibility policy.
 
 For each pixel:
 
 1. Determine each source plane's side with `normal · (eye - planeOrigin)`.
    This uses the actual perspective eye, not a global front/back flag or a
    triangle's warped normal. Use the deterministic front convention in a small edge-on band, shared by
-   live views and cold captures. The reference also accepts an explicit previous
-   side for future gesture hysteresis; production deliberately has no hidden
-   camera history.
+   live views and cold captures, without hidden camera history.
 2. Reverse the local known pairs when viewing the opposite side.
 3. Suppress a candidate wherever one of its known blockers on that plane is
    also projected there. A blocker counts by projected coverage even if another
@@ -83,24 +72,22 @@ For each pixel:
 5. Where a projected cycle suppresses every local candidate, retain that
    plane's physical baseline. Then compare it with survivors from other planes.
 
-`renderer.mjs` implements this using a blocker stencil bit and a survivor-union
-bit. The union records depth-failed survivors too: an unrelated foreground
+`spatialMeshRenderer.ts` implements this using a blocker stencil bit and a
+survivor-union bit. The union records depth-failed survivors too: an unrelated foreground
 plane must not make cycle fallback resurrect a buried layer in front of it.
 All planes ultimately share geometric depth. Crease lines have material-face
 owners and use the same blockers as fills. Arrangement and triangulation cuts
-are never ink. Geometry, normals and solver results are unchanged by the toggle.
+are never ink. Visibility correction does not alter geometry or solver results.
 
 This deliberately reuses the *local-mask semantics*, rather than the flat
 acyclic global ranks. Unrelated faces within one plane also retain geometric
 depth; a transitive chain in separate cells does not invent a new direct pair.
 
-**Prototype limit:** a witnessed pair currently applies to the whole source
+**Scope:** a witnessed pair applies to the whole source
 display layer, including newly overlapping projected pieces. Cell witnesses
 are retained but masks are not yet limited by cell-support polygons. Mutually
-opposed cell-local relations therefore reach the cycle fallback. Decide and
-test that support policy in phase A before promising general cyclic-model
-compatibility. The prototype has no picking/vector export path, and its simple
-line renderer does not yet implement the product's aux, hinge and pen policies.
+opposed cell-local relations therefore reach the cycle fallback. Picking and
+vector/raster captures use the same visibility policy as live rendering.
 
 ### 3. Why the production 3D rendering boundary must change
 
@@ -143,7 +130,7 @@ fallback. Region-scoped masks are a future extension, not silently inferred.
 
 Resolve the cell-support decision using synthetic woven stacks with opposite
 relations in disjoint cells, zero-angle subdivisions and newly overlapping
-regions. Start from the prototype's conservative direct-blocker rule. Retain
+regions. Use the conservative direct-blocker rule. Retain
 support provenance so an extension to region-scoped masks does not require
 another mesh/schema rewrite. Do not borrow global ranks from another plane.
 
@@ -253,10 +240,8 @@ kirigami cylinder and separated rectangles, at 0, tiny positive, 25, 100 and
 source remain explicit refusals. Report geometric failures separately from
 visibility failures. Keep private corpus files and generated results ignored.
 
-Prototype validation: seven Python geometry/source tests, six Node policy tests
-and eleven real WebGL pixel checks, plus interactive review of model selection,
-amount, order toggle and front/back cameras. Production checks are phase gates:
-focused Rust/source tests, rebuilt changed WASM bridges, web lint/typecheck/unit
+Production checks are phase gates: focused Rust/source tests, rebuilt changed
+WASM bridges, web lint/typecheck/unit
 tests, worker/bundle build coverage, renderer/export parity and browser/Tauri
 checks. Run upstream oracles only if ported semantics actually change.
 
@@ -272,15 +257,13 @@ checks. Run upstream oracles only if ported semantics actually change.
 | `useFolded3dMeshRuntime.ts`, `folded3dWindow.ts`, `Folded3dWindowLayer.tsx` | Concern-scoped runtime wiring and frame delivery |
 | `folded3dScene.ts`, Diagram pictures, settled captures | Shared geometry, picking and render/export parity |
 | Figure settings/stores and project/share extensions | Availability, recipes, undo, rehydration and compatibility |
-| `scripts/layer-spread/spatial/` | Reproducible prototype and independent reference/GPU checks |
+| `scripts/layer-spread/spatial/` | Production GPU, picking, capture and orbit regression checks |
 
 ## Checklist
 
-- [x] Confirm the initial prototype lacks the flat spread's visibility correction.
 - [x] Trace current flat masks and production 3D skin/scene/worker boundaries.
-- [x] Export plane-scoped orders and cell witnesses into the prototype.
-- [x] Add camera-conditioned fill and crease masks, cycle fallback and comparison toggle.
-- [x] Keep 200% maximum and add a Back view preset.
+- [x] Derive plane-scoped orders and cell witnesses from the production material source.
+- [x] Add camera-conditioned fill and crease masks with cycle fallback.
 - [x] Validate the pure policy, source adapter and real GPU pixel decisions.
 - [x] Phase A: freeze spatial source/visibility contracts and the cell-support policy.
 - [x] Phase B: implement the shared material mesh, provenance and ink mapping.
@@ -291,6 +274,8 @@ checks. Run upstream oracles only if ported semantics actually change.
 - [x] Run production checks and the external camera/amount/performance sweeps.
 - [x] Normalize the production slider to 0–100% and validate the doubled maximum.
 - [x] Reproduce and fix the Pangolin corner ink protrusions, with a focused rendering regression.
+- [x] Remove the standalone numerical/viewer prototype and Python dependencies;
+      retain checks of production modules with direct Rust fixture generation.
 
 ### Delivery notes and limits
 
@@ -320,9 +305,9 @@ retains the previous one, rather than persisting arbitrary markup or claiming
 that an old picture represents the new recipe. All seven review examples fit
 the vector budget. Typed persisted bitmap pictures are a separate follow-up.
 
-The original numerical experiment documented intersections on penguin and
-cylinder, and the renderer does not remove them. At 200%, the UI scales the
-accepted unit displacement; it does not rerun the QP at doubled constraints.
+Penguin and cylinder retain geometric intersections, and the renderer does not
+remove them. At 100%, the UI scales the accepted unit displacement by four;
+it does not rerun the QP at enlarged constraints.
 The geometry is intended for illustrations, with no collision-free or rigid
 paper guarantee. Contact-aware constraints and region-scoped masks remain
 future numerical/visibility extensions.
