@@ -12,7 +12,11 @@
 //!   face of T it meets (or meets none), for a mountain tuck the mirror. The
 //!   spike's hinges-only closure leaves such a layer inside the taco (its
 //!   case 4d). T itself never moves: a seed or a crease that would take it
-//!   is refused.
+//!   is refused. Where that tuck lands in no order or would take T, a layer
+//!   that crosses ℓ and lies beyond T on the stationary side stays with T
+//!   instead of coming along (`Reach`): a second block tucked against one
+//!   already inside a flap, a corner tucked under its own plies past layers
+//!   that cross the fold.
 //! - **T is a layer.** The faces joined to T across unfolded creases, the
 //!   cross-section's display layer, are T too: they stay, and bound the
 //!   closure as T does. A precrease splits one layer into faces, and a piece
@@ -259,6 +263,22 @@ impl Context {
     }
 }
 
+/// Where the closure reads whether a moving-side layer lies short of T, the
+/// side of T the block comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Reach {
+    /// Where its piece on the moving side meets T; a layer whose piece meets
+    /// no face of T is short of it. Every tuck read it this way first.
+    Piece,
+    /// Wherever its face meets T, on either side of ℓ. A layer that crosses
+    /// ℓ and lies beyond T where the two meet stays: the pocket the block
+    /// goes into opens against T, everything beyond T stays with T, and the
+    /// block never passes it. Read only when the tuck read by its pieces
+    /// lands in no order or would move T (see [`State::tuck_moving`]), so a
+    /// tuck that landed before lands as it did.
+    Face,
+}
+
 /// A tuck's line, moving side and seed on a state, before its target.
 struct Tuck {
     classified: Classified,
@@ -298,9 +318,15 @@ impl Tuck {
 
     /// The faces that move for a tuck against the faces at positions
     /// `targets` (or against no face yet, for the targets' listing), per face
-    /// position (see the module docs). Refused when everything would move, or
-    /// a target's layer would.
-    fn closure(&self, state: &State, targets: &[usize]) -> Result<Vec<bool>, Refused> {
+    /// position (see the module docs), a layer's relation to T read where
+    /// `reach` says. Refused when everything would move, or a target's layer
+    /// would.
+    fn closure(
+        &self,
+        state: &State,
+        targets: &[usize],
+        reach: Reach,
+    ) -> Result<Vec<bool>, Refused> {
         let faces = state.faces();
         // Each target with its whole flat layer: a layer is between the
         // block and T only where it lies short of every face of that layer
@@ -317,7 +343,11 @@ impl Tuck {
         let short_of_target = |c: usize| {
             targets.iter().all(|&t| {
                 self.side.pieces[c].as_ref().is_none_or(|piece| {
-                    convex::penetration(piece, &state.geometry().images[t]) <= TOL
+                    let meets: &[Point] = match reach {
+                        Reach::Piece => piece,
+                        Reach::Face => &state.geometry().images[c],
+                    };
+                    convex::penetration(meets, &state.geometry().images[t]) <= TOL
                         || state.above(faces[c].id, faces[t].id) == Some(!under)
                 })
             })
@@ -529,21 +559,30 @@ impl State {
         limits: &CompletionLimits,
     ) -> Result<TuckAnalysis, Refused> {
         let tuck = self.tuck(op)?;
-        let open = tuck.closure(self, &[])?;
+        let open = tuck.closure(self, &[], Reach::Piece)?;
         let faces = self.faces();
-        // A target with no paper on the moving side is not met by the
-        // closure, so its moving set is the open one; a target that crosses
-        // ℓ keeps the layers above it (below it) out, so it is grown its own.
+        // Read by pieces, a target with no paper on the moving side is not
+        // met by the closure, so its moving set is the open one; a target
+        // that crosses ℓ keeps the layers above it (below it) out, so it is
+        // grown its own. A moving set against T is part of the open one
+        // without T, so the block lands on no face that one misses.
         let mut sets: Vec<Vec<bool>> = vec![open.clone()];
         let mut listed: Vec<(usize, usize)> = Vec::new();
+        let mut reach = open.clone();
         for f in 0..faces.len() {
-            let moving = if tuck.side.pieces[f].is_some() {
-                match tuck.closure(self, &[f]) {
-                    Ok(moving) => moving,
-                    Err(_) => continue,
-                }
+            reach[f] = false;
+            let missed = !tuck.lands_on(self, &reach, f);
+            reach[f] = open[f];
+            if missed {
+                continue;
+            }
+            let by_piece = if tuck.side.pieces[f].is_some() {
+                tuck.closure(self, &[f], Reach::Piece)
             } else {
-                open.clone()
+                Ok(open.clone())
+            };
+            let Ok(moving) = self.tuck_moving_given(&tuck, &[f], by_piece, limits) else {
+                continue;
             };
             if !tuck.lands_on(self, &moving, f) {
                 continue;
@@ -652,7 +691,7 @@ impl State {
             .map_err(|r| refused(r.into()))?;
         let target = targets[0];
         let target_id = self.faces()[target].id;
-        let moving = tuck.closure(self, &targets).map_err(refused)?;
+        let moving = self.tuck_moving(&tuck, &targets, limits).map_err(refused)?;
         for &target in &targets {
             if !tuck.lands_on(self, &moving, target) {
                 let mut problem = if diagnose {
@@ -738,6 +777,70 @@ impl State {
             },
             context,
         })))
+    }
+
+    /// The faces a tuck against the faces at positions `targets` moves, per
+    /// face position: its closure read by the layers' pieces on the moving
+    /// side ([`Reach::Piece`]), unless that tuck would move T or lands in no
+    /// order and the closure read by whole faces ([`Reach::Face`]) lands.
+    /// The two differ only by layers that cross ℓ and lie beyond T; when
+    /// they agree, or the first lands (or is undecided within `limits`), it
+    /// is the first, so every tuck that landed before moves what it did.
+    fn tuck_moving(
+        &self,
+        tuck: &Tuck,
+        targets: &[usize],
+        limits: &CompletionLimits,
+    ) -> Result<Vec<bool>, Refused> {
+        let by_piece = tuck.closure(self, targets, Reach::Piece);
+        self.tuck_moving_given(tuck, targets, by_piece, limits)
+    }
+
+    /// [`State::tuck_moving`], the closure read by pieces given.
+    fn tuck_moving_given(
+        &self,
+        tuck: &Tuck,
+        targets: &[usize],
+        by_piece: Result<Vec<bool>, Refused>,
+        limits: &CompletionLimits,
+    ) -> Result<Vec<bool>, Refused> {
+        let Ok(by_face) = tuck.closure(self, targets, Reach::Face) else {
+            return by_piece;
+        };
+        if let Ok(moving) = &by_piece
+            && (*moving == by_face || self.tuck_lands(tuck, moving, targets, limits) != Some(false))
+        {
+            return by_piece;
+        }
+        if self.tuck_lands(tuck, &by_face, targets, limits) == Some(true) {
+            Ok(by_face)
+        } else {
+            by_piece
+        }
+    }
+
+    /// Whether the block `moving` lands on every face at positions `targets`
+    /// and some order puts it against all of them; none when the budget ran
+    /// out first.
+    fn tuck_lands(
+        &self,
+        tuck: &Tuck,
+        moving: &[bool],
+        targets: &[usize],
+        limits: &CompletionLimits,
+    ) -> Option<bool> {
+        if !targets.iter().all(|&t| tuck.lands_on(self, moving, t)) {
+            return Some(false);
+        }
+        let Ok(prepared) = tuck.prepare(self, moving) else {
+            return Some(false);
+        };
+        let under = tuck.under();
+        let pairs: Vec<[FaceId; 2]> = targets
+            .iter()
+            .flat_map(|&t| placements(self, &prepared, self.faces()[t].id, under))
+            .collect();
+        prepared.lands_placed(pairs, limits)
     }
 
     fn tuck_target_positions(&self, op: &TuckFold) -> Result<Vec<usize>, FoldRefusal> {
@@ -914,7 +1017,9 @@ impl State {
             .filter(|&f| f != target && tuck.lands_on(self, moving, f))
             .filter(|&f| {
                 tuck.side.pieces[f].is_none()
-                    || tuck.closure(self, &[f]).is_ok_and(|other| other == moving)
+                    || tuck
+                        .closure(self, &[f], Reach::Piece)
+                        .is_ok_and(|other| other == moving)
             })
             .collect();
         near.sort_by_key(|&f| (self.above(self.faces()[f].id, target_id).is_none(), f));
@@ -968,7 +1073,7 @@ impl State {
     pub fn analyse_tuck_fold(&self, op: &TuckFold) -> Result<FoldAnalysis, Refused> {
         let tuck = self.tuck(op)?;
         let targets = self.tuck_target_positions(op)?;
-        let moving = tuck.closure(self, &targets)?;
+        let moving = self.tuck_moving(&tuck, &targets, &CompletionLimits::default())?;
         for target in targets {
             if !tuck.lands_on(self, &moving, target) {
                 return Err(FoldRefusal::TuckInfeasible {
