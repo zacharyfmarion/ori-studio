@@ -231,6 +231,7 @@ function maskedFragments(
   for (const own of mesh.visibility.cyclic === false ? [] : original) {
     let pieces = [own.polygon];
     for (const other of survivors) {
+      if (mesh.visibility.planeOf && mesh.visibility.planeOf[own.face] !== mesh.visibility.planeOf[other.face]) continue;
       if (!overlap(own.box, other.box)) continue;
       pieces = subtract(pieces, other.polygon, other.box);
       if (!pieces.length) break;
@@ -259,7 +260,7 @@ function maskedFragments(
     }
     return out;
   };
-  return [...physical(fallback), ...physical(survivors)];
+  return mesh.visibility.planeOf ? physical([...fallback, ...survivors]) : [...physical(fallback), ...physical(survivors)];
 }
 
 /** Prepare once for all the ink in one immutable posed mesh. This is scoped to

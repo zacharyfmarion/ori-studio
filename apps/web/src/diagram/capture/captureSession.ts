@@ -260,7 +260,7 @@ export interface CaptureSession {
     lineIds: readonly number[]
   ) => Promise<SpatialHold | { kind: 'refused'; refusal: OristudioCpFold3dRefusal }>;
   /** The held 3D fold's picture at a camera, in the diagram's light. */
-  spatialPicture: (camera: FoldedFigureCamera, style: DiagramStyle) => CapturedPicture;
+  spatialPicture: (camera: FoldedFigureCamera, style: DiagramStyle, spread?: import('../../cp-workspace/folded/foldedFigureSpread').SpatialSpread) => Promise<CapturedPicture>;
   /**
    * Let the held fold go, and any fold still searching: it is freed as it
    * lands. Idempotent; the session can fold again afterwards.
@@ -570,10 +570,10 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
       return hold;
     },
 
-    spatialPicture(camera, style) {
+    spatialPicture(camera, style, spread) {
       if (!held) throw new CaptureSessionClosedError();
       if (held.kind !== 'spatial' || held.epoch !== deps.epoch()) throw new Error('No 3D fold is held');
-      return capture3dPicture(held.fold, camera, style, held.aux);
+      return capture3dPicture(held.fold, camera, style, held.aux, spread);
     },
 
     dispose: letGo,

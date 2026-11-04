@@ -1,5 +1,7 @@
 import {withSpreadCamera} from '../../layer-spread/presentation';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
+import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
+import { clampSpatialSpreadAmount } from '../../cp-workspace/folded/spatialSpreadSettings';
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 /**
  * What a Pose verb does to a linked step's picture (D5): the new render, and
@@ -239,14 +241,15 @@ export async function poseLinkedStep(
     };
   };
 
-  const spatial = async (camera: FoldedFigureCamera, side: 'front' | 'back'): Promise<LinkedPoseResult> => {
+  const spatial = async (camera: FoldedFigureCamera, side: 'front' | 'back', spread: SpatialSpread | null | undefined = render.mode === 'folded-3d' ? render.spread : undefined): Promise<LinkedPoseResult> => {
     const held = await session.spatial(document, creases.foldLineIds);
     if (held.kind === 'refused') return { status: 'refused', refusal: held.refusal };
+    if (spread && held.fold.snapshot.verdict.verdict !== 'folded') return { status: 'unavailable' };
     return {
       status: 'posed',
-      render: { mode: 'folded-3d', camera, side },
-      picture: session.spatialPicture(camera, style),
-      noLayerOrder: false,
+      render: { mode: 'folded-3d', camera, side, ...(spread ? { spread } : {}) },
+      picture: await session.spatialPicture(camera, style, spread ?? undefined),
+      noLayerOrder: held.fold.snapshot.verdict.verdict !== 'folded',
       spatial: held,
     };
   };
@@ -428,6 +431,10 @@ export async function poseLinkedStep(
   const { camera, side } = render;
   const fromSide = (view: FoldedFigureCamera) => (side === 'back' ? antipodalCamera(view) : view);
   switch (verb) {
+    case 'spread-layers':
+      return spatial(camera, side, render.spread ? null : { kind: 'spatial', version: 1, amount: 1 });
+    case 'spread-amount':
+      return spatial(camera, side, render.spread && request.verb === 'spread-amount' ? { ...render.spread, amount: clampSpatialSpreadAmount(request.amount) } : undefined);
     case 'orbit':
       return spatial(request.verb === 'orbit' ? request.camera : camera, side);
     case 'turn-over':

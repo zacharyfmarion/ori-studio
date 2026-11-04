@@ -254,7 +254,7 @@ export type DiagramCpRender =
       spread?: DiagramLayerSpread;
       presentation?: SpreadPresentation;
     }
-  | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' }
+  | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back'; spread?: import('../../cp-workspace/folded/foldedFigureSpread').SpatialSpread }
   | {
       /** The simulator's model at a fold %, from a camera (D19). */
       mode: 'simulated';

@@ -646,7 +646,7 @@ export async function keptPicture(
   return {
     picture: {
       kind: 'asset', assetId: id, paperScale, styleKey: diagramStyleKey(style), key: `raster-${id}`,
-      ...(render.mode === 'folded-flat' && render.spread?.kind === 'connected' && !spreadFailed ? { sceneFrame } : {}),
+      ...(!spreadFailed && ((render.mode === 'folded-flat' && render.spread?.kind === 'connected') || (render.mode === 'folded-3d' && render.spread)) ? { sceneFrame } : {}),
       ...(spreadFailed ? { spreadFailed: true as const } : {}),
     },
     asset: { id, kind: 'raster', src, widthPx: width, heightPx: height, bytes: src.length },

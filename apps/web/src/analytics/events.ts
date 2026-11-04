@@ -1830,6 +1830,7 @@ export const ANALYTICS_EVENTS = {
    * value itself. A slider's drag is one event, at its end.
    */
   foldSpreadChanged: 'fold spread changed',
+  spatialSpreadChanged: 'spatial spread changed',
   foldFreeLineSnapChanged: 'fold free line snapping changed',
   /**
    * The Fold engine crashed and the session restarted it, or gave up: how
