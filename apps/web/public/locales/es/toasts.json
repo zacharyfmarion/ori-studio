@@ -35,7 +35,8 @@
       "refused": "Este patrón no se puede plegar",
       "tooDetailed": "Es demasiado detallado para conservarlo como dibujo, así que el paso lo guarda como imagen.",
       "unavailable": "Este patrón no se puede simular.",
-      "unknown": "El patrón de pliegues aún no está listo. Inténtalo de nuevo en un momento."
+      "unknown": "El patrón de pliegues aún no está listo. Inténtalo de nuevo en un momento.",
+      "unspread": "No se pudieron separar sus capas, así que el paso las muestra sin separar. Activa Separar capas para volver a intentarlo."
     },
     "dropReadOnly": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en solo lectura, así que no se le pueden añadir imágenes.",
     "fold": {
@@ -50,6 +51,9 @@
       "someFailed_one": "No se pudo capturar un paso desde Plegar, así que se omitió.",
       "someFailed_many": "No se pudieron capturar {{count}} pasos desde Plegar, así que se omitieron.",
       "someFailed_other": "No se pudieron capturar {{count}} pasos desde Plegar, así que se omitieron.",
+      "someUnspread_one": "No se pudieron separar las capas de un paso, así que se añadió sin separarlas. Activa Separar capas para volver a intentarlo.",
+      "someUnspread_many": "No se pudieron separar las capas de {{count}} pasos, así que se añadieron sin separarlas. Activa Separar capas para volver a intentarlo.",
+      "someUnspread_other": "No se pudieron separar las capas de {{count}} pasos, así que se añadieron sin separarlas. Activa Separar capas para volver a intentarlo.",
       "stepGone": "Ese paso ya no está en la secuencia de Plegar."
     },
     "import": {

@@ -47,6 +47,8 @@ export type DiagramFoldCaptureOutcome =
       render: DiagramCpRender;
       /** Too detailed to keep as vector; kept as a bitmap. */
       tooDetailed: boolean;
+      /** Asked spread by Default, its layers could not be spread, so it was captured unspread, Spread layers off. */
+      unspread: boolean;
       /** Marks the fold brought that the author had edited, swapped for its own (RM6). */
       replaced: number;
     }
@@ -86,6 +88,7 @@ export async function runDiagramFoldCapture(
       changed: committed.changed,
       render: result.source.render,
       tooDetailed: committed.tooDetailed,
+      unspread: result.unspread,
       replaced: committed.replaced ?? 0,
     };
   } catch (error) {

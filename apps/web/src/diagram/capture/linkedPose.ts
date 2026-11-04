@@ -35,9 +35,11 @@ import {
   renderToShowAs,
   withCreasePatternSide,
   withCreasesFlipped,
+  withoutSpread,
   type DiagramCpRender,
   type DiagramCreasePatternRender,
   type DiagramCpSource,
+  type DiagramFlatRender,
   type DiagramLayerSpread,
   type DiagramSimulatedView,
   type DiagramSpreadStarts,
@@ -98,6 +100,11 @@ export type LinkedPoseResult =
       render: DiagramCpRender;
       picture: CapturedPicture;
       noLayerOrder: boolean;
+      /**
+       * For a flat fold asked spread by Default: its layers could not be
+       * spread, so it is posed unspread, Spread layers off. Absent is false.
+       */
+      unspread?: boolean;
       /** For a flat fold: how many layer orders are found, and whether another can be searched for. */
       solutions?: FlatSolutions;
       /** For a flat fold: its mirror axes, unturned (`foldedMirrorAxes`); none for a fold with no symmetry. */
@@ -163,6 +170,16 @@ interface FlatPose {
 /** Straight down at the paper. */
 const VIEW_TOP: FoldedFigureCamera = { yaw: 0, pitch: 0, zoom: 1 };
 
+/**
+ * The verbs that edit the spread a flat fold has — its kind, a value, how it
+ * is presented and from where: one its layers can't take leaves the step as
+ * it was. Every other flat pose, Spread layers turned on among them, is
+ * posed unspread instead (`CaptureSession.flatPicture`).
+ */
+function editsSpread(request: LinkedPoseRequest): boolean {
+  return request.verb === 'spread-kind' || request.verb === 'spread-presentation' || request.verb === 'orbit' || isSpreadFieldRequest(request);
+}
+
 export async function poseLinkedStep(
   session: CaptureSession,
   {
@@ -215,19 +232,21 @@ export async function poseLinkedStep(
     if (move === 'next-solution') state = await session.nextSolution();
     const mirrorAxes = await session.flatMirrorAxes();
     const turn = upright ? (uprightTurn(mirrorAxes, rotationDeg) ?? rotationDeg) : rotationDeg;
-    const picture = await session.flatPicture(turn, spread, presentation);
+    const { captured, unspread } = await session.flatPicture(turn, spread, presentation, { keepSpread: editsSpread(request) });
+    const drawn: DiagramFlatRender = {
+      mode: 'folded-flat',
+      side: state.side,
+      rotationDeg: turn,
+      foldCase: state.foldCase,
+      ...(spread ? { spread } : {}),
+      ...(presentation ? { presentation } : {}),
+    };
     return {
       status: 'posed',
-      render: {
-        mode: 'folded-flat',
-        side: state.side,
-        rotationDeg: turn,
-        foldCase: state.foldCase,
-        ...(spread ? { spread } : {}),
-        ...(presentation ? { presentation } : {}),
-      },
-      picture,
+      render: unspread ? withoutSpread(drawn) : drawn,
+      picture: captured,
       noLayerOrder: state.noLayerOrder,
+      unspread,
       solutions: { discovered: state.discovered, hasNext: state.hasNext, none: state.noLayerOrder },
       mirrorAxes,
       ...(shownOrder ? { layerOrder: shownOrder } : {}),

@@ -1,6 +1,5 @@
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
-import { captureFlatScenePicture } from './captureFolded';
 import { prepareConnected, type ConnectedLease } from '../../layer-spread/prepareConnected';
 import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 /**
@@ -52,9 +51,11 @@ import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamer
 import {
   capture3dPicture,
   captureModel,
+  connectedFlatPicture,
   flatPicture,
   type CapturedPicture,
   type CpCaptureRuntime,
+  type FlatCapture,
 } from './captureFolded';
 
 export interface CaptureSessionDeps {
@@ -217,13 +218,22 @@ export interface CaptureSession {
   turnOver: () => Promise<FlatFoldState>;
   /** The held flat fold's next solution, on the same handle. */
   nextSolution: () => Promise<FlatFoldState>;
+  /** The held flat fold's Default spread, solved for the live view; null when it has no paper scene. */
+  connectedView: () => Promise<ConnectedSpreadView | null>;
   /**
    * The held flat fold's picture, turned clockwise by `rotationDeg`, its
    * layers spread when asked: read from the kernel once per side and layer
-   * order, then drawn from what was read.
+   * order, then drawn from what was read. A Default spread its layers could
+   * not take is drawn unspread (`connectedFlatPicture`) — or, `keepSpread`,
+   * for a verb that edits the spread, rejects with why — and its solve is
+   * forgotten, so the next ask solves again.
    */
-  connectedView: () => Promise<ConnectedSpreadView | null>;
-  flatPicture: (rotationDeg: number, spread?: LayerSpreadOptions, presentation?: SpreadPresentation) => Promise<CapturedPicture>;
+  flatPicture: (
+    rotationDeg: number,
+    spread?: LayerSpreadOptions,
+    presentation?: SpreadPresentation,
+    options?: { keepSpread?: boolean }
+  ) => Promise<FlatCapture>;
   /**
    * The held flat fold's mirror axes, unturned (`foldedMirrorAxes`): measured
    * on what the kernel read for its picture, so read once per side and layer
@@ -516,14 +526,24 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
       return {scene, prepared};
     },
 
-    async flatPicture(rotationDeg, spread, presentation) {
+    async flatPicture(rotationDeg, spread, presentation, { keepSpread = false } = {}) {
       const hold = flatHold();
-      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
-      if (spread?.kind === 'connected' && hold.read.scene) {
-        const view = await this.connectedView();
-        if (view) return captureFlatScenePicture(view.scene, rotationDeg, spread, view.prepared, presentation);
+      const read = (hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle));
+      if (spread?.kind !== 'connected' || !read.scene) {
+        return { captured: flatPicture(read, rotationDeg, deps.env, spread), unspread: false };
       }
-      return flatPicture(hold.read, rotationDeg, deps.env, spread);
+      const lease = (hold.spreadLease ??= prepareConnected(read.scene));
+      const spreadPicture = await connectedFlatPicture(read.scene, rotationDeg, spread, lease.promise, presentation);
+      // Let go of meanwhile, whatever the spread came to.
+      if (held !== hold || hold.spreadLease !== lease) throw new CaptureSessionClosedError();
+      if (spreadPicture.kind === 'spread') {
+        hold.connected = spreadPicture.connected;
+        return { captured: spreadPicture.captured, unspread: false };
+      }
+      lease.release();
+      hold.spreadLease = undefined;
+      if (keepSpread) throw spreadPicture.cause;
+      return { captured: flatPicture(read, rotationDeg, deps.env), unspread: true };
     },
 
     async flatMirrorAxes() {

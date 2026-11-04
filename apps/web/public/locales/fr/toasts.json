@@ -35,7 +35,8 @@
       "refused": "Ce patron ne se plie pas",
       "tooDetailed": "Trop détaillé pour rester un dessin\u00a0: l’étape le garde comme image.",
       "unavailable": "Ce motif ne peut pas être simulé.",
-      "unknown": "Le patron de plis n’est pas encore prêt. Réessayez dans un instant."
+      "unknown": "Le patron de plis n’est pas encore prêt. Réessayez dans un instant.",
+      "unspread": "Ses couches n’ont pas pu être écartées\u00a0: l’étape les montre sans écart. Activez Écarter les couches pour réessayer."
     },
     "dropReadOnly": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule\u00a0: on ne peut pas y ajouter d’images.",
     "fold": {
@@ -50,6 +51,9 @@
       "someFailed_one": "Une étape n’a pas pu être capturée depuis Plier et a été omise.",
       "someFailed_many": "{{count}} étapes n’ont pas pu être capturées depuis Plier et ont été omises.",
       "someFailed_other": "{{count}} étapes n’ont pas pu être capturées depuis Plier et ont été omises.",
+      "someUnspread_one": "Les couches d’une étape n’ont pas pu être écartées\u00a0: elle a été ajoutée sans écart. Activez Écarter les couches pour réessayer.",
+      "someUnspread_many": "Les couches de {{count}} étapes n’ont pas pu être écartées\u00a0: elles ont été ajoutées sans écart. Activez Écarter les couches pour réessayer.",
+      "someUnspread_other": "Les couches de {{count}} étapes n’ont pas pu être écartées\u00a0: elles ont été ajoutées sans écart. Activez Écarter les couches pour réessayer.",
       "stepGone": "Cette étape n’est plus dans la séquence de Plier."
     },
     "import": {

@@ -125,6 +125,11 @@ export type DiagramCaptureOutcome =
       render: DiagramCpRender;
       /** The fold found no layer order; the picture is its transparent development. */
       noLayerOrder: boolean;
+      /**
+       * Asked spread by Default, its layers could not be spread, so it was
+       * captured unspread, Spread layers off. Absent is false.
+       */
+      unspread?: boolean;
       /** Too detailed to keep as vector; kept as a bitmap. */
       tooDetailed: boolean;
       /**
@@ -483,6 +488,7 @@ export async function runDiagramCapture(
       changed: committed.changed,
       render: result.source.render,
       noLayerOrder: result.noLayerOrder,
+      unspread: result.unspread,
       tooDetailed: committed.tooDetailed,
       flagged: result.attention && !sameAttention(before, result.attention) ? result.attention : null,
     };

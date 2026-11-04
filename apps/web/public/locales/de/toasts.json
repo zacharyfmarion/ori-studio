@@ -34,7 +34,8 @@
       "refused": "Dieses Muster lässt sich nicht falten",
       "tooDetailed": "Zu detailliert, um es als Zeichnung zu behalten, daher behält der Schritt es als Bild.",
       "unavailable": "Dieses Muster lässt sich nicht simulieren.",
-      "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal."
+      "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal.",
+      "unspread": "Seine Lagen ließen sich nicht auffächern, daher zeigt der Schritt sie unaufgefächert. Schalte „Lagen auffächern“ ein, um es erneut zu versuchen."
     },
     "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",
     "fold": {
@@ -47,6 +48,8 @@
       "sequenceGone": "Diese Falten-Folge ist nicht mehr in diesem Projekt.",
       "someFailed_one": "Ein Schritt ließ sich nicht aus Falten erfassen und wurde ausgelassen.",
       "someFailed_other": "{{count}} Schritte ließen sich nicht aus Falten erfassen und wurden ausgelassen.",
+      "someUnspread_one": "Die Lagen eines Schritts ließen sich nicht auffächern, daher wurde er unaufgefächert hinzugefügt. Schalte „Lagen auffächern“ ein, um es erneut zu versuchen.",
+      "someUnspread_other": "Die Lagen von {{count}} Schritten ließen sich nicht auffächern, daher wurden sie unaufgefächert hinzugefügt. Schalte „Lagen auffächern“ ein, um es erneut zu versuchen.",
       "stepGone": "Dieser Schritt ist nicht mehr in der Falten-Folge."
     },
     "import": {

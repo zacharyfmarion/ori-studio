@@ -417,6 +417,18 @@ function creasePatternRender(rotationDeg: number, side: 'front' | 'back', flipCr
   };
 }
 
+/** A flat fold's render. */
+export type DiagramFlatRender = Extract<DiagramCpRender, { mode: 'folded-flat' }>;
+
+/**
+ * A flat fold with its layers unspread, its pose as it was: no spread, and
+ * no presentation, which only a Default spread is drawn in.
+ */
+export function withoutSpread(render: DiagramFlatRender): DiagramFlatRender {
+  const { spread: _spread, presentation: _presentation, ...unspread } = render;
+  return unspread;
+}
+
 /** How a render shows its pattern. */
 export function showAsOf(render: DiagramCpRender): DiagramShowAs {
   switch (render.mode) {

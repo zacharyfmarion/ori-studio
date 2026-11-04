@@ -31,6 +31,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramFoldCaptureOutcome } from '../../store/workspaceStore/diagramFoldCapture';
 import { turnedOverFrom } from '../capture/linkedPose';
 import { poseCaptureBlocksViewport, trackPose, type TrackedPoseVerb } from '../capture/poseController';
+import { sayUnspread } from '../capture/stepCaptureActions';
 import {
   creasePatternSide,
   isLockedStep,
@@ -56,15 +57,22 @@ function foldSourceOf(stepId: string): DiagramFoldStepSource | null {
   return step.source;
 }
 
-/** Capture the step again from its Fold step in `render`, and say what came of it. Whether it was captured. */
+/**
+ * Capture the step again from its Fold step in `render`, and say what came of
+ * it. `keepSpread` for a verb that edits the step's spread: one its layers
+ * can't take leaves the step as it was, rather than capturing it unspread.
+ */
 async function captureAs(
   stepId: string,
   source: DiagramFoldStepSource,
   render: DiagramCpRender,
   label: string,
-  joinEntry?: object,
-  current?: () => boolean,
-  blocksPose = true
+  {
+    joinEntry,
+    current,
+    blocksPose = true,
+    keepSpread = false,
+  }: { joinEntry?: object; current?: () => boolean; blocksPose?: boolean; keepSpread?: boolean } = {}
 ): Promise<DiagramFoldCaptureOutcome> {
   const { sequence, step, through, moment } = source;
   const outcome = await useWorkspaceStore.getState().captureDiagramFoldStep(stepId, {
@@ -77,6 +85,7 @@ async function captureAs(
     label,
     current,
     blocksPose,
+    ...(keepSpread ? { keepSpread } : {}),
     ...(joinEntry ? { joinEntry } : {}),
   });
   sayFoldCaptureOutcome(outcome);
@@ -93,7 +102,7 @@ export function refreshDiagramFoldStep(
   { label = 'Refresh picture', joinEntry }: { label?: string; joinEntry?: object } = {}
 ): Promise<DiagramFoldCaptureOutcome> | null {
   const source = foldSourceOf(stepId);
-  return source ? captureAs(stepId, source, source.render, label, joinEntry) : null;
+  return source ? captureAs(stepId, source, source.render, label, { joinEntry }) : null;
 }
 
 /**
@@ -128,7 +137,9 @@ export async function duplicateFoldStepAs(stepId: string, way: DiagramShowAs): P
   const copyId = useWorkspaceStore.getState().duplicateDiagramStep(stepId);
   if (copyId === null || showAsOf(source.render) === way) return copyId;
   const duplicated = useWorkspaceStore.getState().diagramHistory.past.at(-1);
-  const outcome = await captureAs(copyId, source, renderToShowAs(source, way, foldSpreadOf(source)), 'Duplicate step', duplicated);
+  const outcome = await captureAs(copyId, source, renderToShowAs(source, way, foldSpreadOf(source)), 'Duplicate step', {
+    joinEntry: duplicated,
+  });
   if (outcome.status !== 'captured') {
     const now = useWorkspaceStore.getState();
     if (duplicated !== undefined && now.diagramHistory.past.at(-1) === duplicated) now.undoDiagram();
@@ -207,6 +218,15 @@ export function spreadFoldRender(
 }
 
 /**
+ * The pose verbs that edit the spread a flat fold has — its kind, a value, how
+ * it is presented: one its layers can't take leaves the step as it was.
+ * Spread layers turned on is not one: it is captured unspread instead.
+ */
+function editsSpread(verb: TrackedPoseVerb): boolean {
+  return verb.startsWith('spread-') && verb !== 'spread-layers';
+}
+
+/**
  * Capture a Fold step again in `render`, as one undo step labelled as a pose,
  * and count it as `verb` when it changed the picture. Whether it now shows
  * that pose.
@@ -220,7 +240,11 @@ async function poseAs(
   blocksPose = poseCaptureBlocksViewport(verb)
 ): Promise<boolean> {
   if (JSON.stringify(render) === JSON.stringify(source.render)) return true;
-  const outcome = await captureAs(stepId, source, render, 'Adjust pose', undefined, current, blocksPose);
+  const outcome = await captureAs(stepId, source, render, 'Adjust pose', {
+    current,
+    blocksPose,
+    keepSpread: editsSpread(verb),
+  });
   if (outcome.status === 'captured' && outcome.changed) trackPose(verb, outcome.render);
   return outcome.status === 'captured';
 }
@@ -311,15 +335,17 @@ export function openDiagramStepInFold(stepId: string): void {
 
 /**
  * Tell the user what a Fold step's capture came to, when there is something
- * to tell: a picture kept as a bitmap, marks the author had edited that the
- * fold's own replaced (with Undo), or a capture that could not be made and
- * why. One the user moved on from says nothing.
+ * to tell: marks the author had edited that the fold's own replaced (with
+ * Undo), layers kept unspread that could not be spread, a picture kept as a
+ * bitmap, or a capture that could not be made and why. One the user moved
+ * on from says nothing.
  */
 export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void {
   const t = i18n.t.bind(i18n);
   switch (outcome.status) {
     case 'captured':
       if (outcome.replaced > 0) toast.message(replacedEdited(outcome.replaced), { action: undoNewest() });
+      else if (outcome.unspread) sayUnspread();
       else if (outcome.tooDetailed) {
         toast.message(
           t('toasts:diagram.capture.tooDetailed', 'Too detailed to keep as a drawing, so the step keeps it as an image.')

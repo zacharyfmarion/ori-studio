@@ -296,6 +296,16 @@ describe('refreshDiagramStep', () => {
     expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('flat', 'no_layer_order', 'refresh');
   });
 
+  it('keeps a step whose layers couldn’t be spread unspread, says how to try again, and counts it', async () => {
+    answer({ ...CAPTURED, unspread: true, render: { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 } });
+    expect(await refreshDiagramStep('step-flat')).toBe(true);
+    expect(toasts.message).toHaveBeenCalledWith(
+      'Its layers couldn’t be spread, so the step shows them unspread. Turn on Spread layers to try again.'
+    );
+    expect(toasts.error).not.toHaveBeenCalled();
+    expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('flat', 'spread_failed', 'refresh');
+  });
+
   it('does nothing for a step that is not linked, and counts nothing it did not try', async () => {
     const capture = answer(CAPTURED);
     expect(await refreshDiagramStep('step-empty')).toBe(false);

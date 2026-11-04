@@ -564,6 +564,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       changed: committed.changed,
       render: result.render,
       noLayerOrder: result.noLayerOrder,
+      unspread: result.unspread ?? false,
       tooDetailed: committed.tooDetailed,
       flagged: attention,
     };

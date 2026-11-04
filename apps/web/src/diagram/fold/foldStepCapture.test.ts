@@ -33,9 +33,25 @@ import {
 } from '../../fold/session/foldSession.fixtures';
 import { selectFoldNode } from '../../fold/session/foldSessionState';
 import { foldStepSentence, type FoldSentenceStep } from '../../fold/stepSentence';
+import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import { foldDiagramSentence } from './foldDiagramSentence';
 import { FOLD_PULL_RENDER } from './foldPull';
 import { captureFoldStep } from './foldStepCapture';
+
+// A Default spread's solve, failing as one over its resource limit does: no step here is captured spread otherwise.
+const spreadSolve = vi.hoisted(() => ({ released: 0 }));
+vi.mock('../../layer-spread/prepareConnected', () => ({
+  prepareConnected: () => {
+    const promise = Promise.reject(new Error('Spread resource limit exceeded: overlap regions'));
+    void promise.catch(() => {});
+    return {
+      promise,
+      release: () => {
+        spreadSolve.released += 1;
+      },
+    };
+  },
+}));
 
 // The app's own i18next, started on the inline English defaults.
 const t = i18n.t.bind(i18n);
@@ -225,5 +241,41 @@ describe('a Fold step captured while the session lingers', () => {
     await vi.advanceTimersByTimeAsync(LINGER);
     expect(await capturedSentence(session)).toBe('Inside reverse fold.');
     expect(replayed()).toEqual(['sheet', 'step:inside-reverse', 'sheet', 'step:inside-reverse']);
+  });
+});
+
+describe('a Fold step captured with a Default spread its layers can’t take', () => {
+  it('is captured unspread, Spread layers off, rather than refused its picture', async () => {
+    const session = await sessionOf(REVERSE);
+    const result = await captureFoldStep(
+      session,
+      { sequence: 'fold-a', step: 'fstep-1', moment: 'before', render: { ...FOLD_PULL_RENDER, spread: DEFAULT_CONNECTED_SPREAD } },
+      { t }
+    );
+    if (result.status !== 'captured') throw new Error(`not captured: ${JSON.stringify(result)}`);
+    expect(result.unspread).toBe(true);
+    expect(result.source.render).toEqual(FOLD_PULL_RENDER);
+    expect(result.captured.kind).toBe('picture');
+    expect(spreadSolve.released).toBe(1);
+    // Asked unspread, it says nothing was dropped.
+    const plain = await captureFoldStep(session, { sequence: 'fold-a', step: 'fstep-1', moment: 'before', render: FOLD_PULL_RENDER }, { t });
+    expect(plain.status === 'captured' && plain.unspread).toBe(false);
+  });
+
+  it('fails, the step kept as it was, when the capture edits the spread the step has', async () => {
+    const session = await sessionOf(REVERSE);
+    await expect(
+      captureFoldStep(
+        session,
+        {
+          sequence: 'fold-a',
+          step: 'fstep-1',
+          moment: 'before',
+          render: { ...FOLD_PULL_RENDER, spread: DEFAULT_CONNECTED_SPREAD },
+          keepSpread: true,
+        },
+        { t }
+      )
+    ).rejects.toThrow(/resource limit/);
   });
 });
