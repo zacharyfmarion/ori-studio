@@ -66,7 +66,8 @@ export function UpdateCard() {
 
   const onDismiss = useCallback(() => {
     // Dismissing hides the card for this run; it does not discard the staged
-    // download, and a relaunch brings it back. Turning updates off entirely
+    // download, which still installs when the app quits, and a relaunch brings
+    // the card back if it has not. Turning updates off entirely
     // lives in Settings, where a standing decision belongs.
     snoozeForSession();
     track(ANALYTICS_EVENTS.appUpdateDismissed, { scope: 'session' });

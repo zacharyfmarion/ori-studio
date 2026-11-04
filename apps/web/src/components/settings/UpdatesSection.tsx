@@ -111,7 +111,7 @@ export function UpdatesSection() {
       <p className="settings-toggle-row__desc">
         {t(
           'dialogs:settings.updates.description',
-          'Updates are downloaded in full — Ori Studio has no partial updates. Nothing installs until you choose to relaunch.'
+          'Updates are downloaded in full — Ori Studio has no partial updates. A downloaded update installs when you relaunch, or the next time you quit.'
         )}
       </p>
       <div className="settings-toggle-row settings-toggle-row--action">

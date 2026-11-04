@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const service = vi.hoisted(() => ({
   readUpdateEnvironment: vi.fn(),
   checkForUpdate: vi.fn(),
+  downloadUpdate: vi.fn(),
+  isUpdateStaged: vi.fn(() => false),
 }));
 vi.mock('../platform/updateService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../platform/updateService')>();
@@ -10,6 +12,8 @@ vi.mock('../platform/updateService', async (importOriginal) => {
     ...actual,
     readUpdateEnvironment: service.readUpdateEnvironment,
     checkForUpdate: service.checkForUpdate,
+    downloadUpdate: service.downloadUpdate,
+    isUpdateStaged: service.isUpdateStaged,
   };
 });
 
@@ -142,6 +146,8 @@ describe('runUpdateCheck', () => {
     });
     service.readUpdateEnvironment.mockReset();
     service.checkForUpdate.mockReset();
+    service.downloadUpdate.mockReset();
+    service.isUpdateStaged.mockReset().mockReturnValue(false);
     analytics.track.mockClear();
     monitoring.reportError.mockClear();
   });
@@ -227,5 +233,50 @@ describe('runUpdateCheck', () => {
       trigger: 'automatic',
     });
     expect(useUpdateStore.getState().lastCheck).toMatchObject({ ok: true });
+  });
+
+  it('keeps a staged update on screen and does not fetch it again', async () => {
+    useUpdateStore.setState({ status: 'ready', version: '0.6.0', readyAt: 1 });
+    service.readUpdateEnvironment.mockResolvedValue({ installKind: 'nsis', selfUpdateSupported: true });
+    service.checkForUpdate.mockImplementation(async () => {
+      // The card must not blink out while the check runs.
+      expect(useUpdateStore.getState().status).toBe('ready');
+      return { version: '0.6.0' };
+    });
+    service.isUpdateStaged.mockReturnValue(true);
+
+    await expect(runUpdateCheck('automatic')).resolves.toBe('available');
+
+    expect(service.downloadUpdate).not.toHaveBeenCalled();
+    expect(useUpdateStore.getState()).toMatchObject({ status: 'ready', readyAt: 1 });
+    expect(useUpdateStore.getState().lastCheck).toMatchObject({ ok: true });
+  });
+
+  it('keeps a staged update when the check fails', async () => {
+    useUpdateStore.setState({ status: 'ready', version: '0.6.0', readyAt: 1 });
+    service.readUpdateEnvironment.mockResolvedValue({ installKind: 'nsis', selfUpdateSupported: true });
+    service.checkForUpdate.mockRejectedValue(new UpdateCheckError('dns', chain));
+
+    await expect(runUpdateCheck('automatic')).resolves.toBe('failed');
+
+    expect(useUpdateStore.getState().status).toBe('ready');
+  });
+
+  it('counts a dropped download as the network, and keeps it out of Sentry', async () => {
+    service.readUpdateEnvironment.mockResolvedValue({ installKind: 'nsis', selfUpdateSupported: true });
+    service.checkForUpdate.mockResolvedValue({ version: '0.6.0' });
+    service.downloadUpdate.mockRejectedValue(
+      new UpdateCheckError('network', 'the connection closed after 4000 of 42044001 bytes')
+    );
+
+    await runUpdateCheck('automatic');
+
+    expect(analytics.track).toHaveBeenCalledWith('app update failed', {
+      stage: 'download',
+      reason: 'network',
+      install_kind: 'nsis',
+      trigger: 'automatic',
+    });
+    expect(monitoring.reportError).not.toHaveBeenCalled();
   });
 });
