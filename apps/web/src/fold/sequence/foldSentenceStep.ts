@@ -14,6 +14,9 @@
  * - **Unfolds.** A valley or mountain fold along a bend that laid its flap
  *   flat is stored as the fold it was made with (plan D3); the engine's
  *   report says it only unfolded (`foldedLineOf`), and it reads as an unfold.
+ * - **Pockets.** A squash stored at one flap may fold the pockets that share
+ *   its lower layer with it; the engine's report names a vertex per pocket
+ *   (`squashPocketsOf`), and it reads as the pockets squashed together.
  * - **Names.** The sheet's own corners, edges and diagonals are named by
  *   description only where a reader agrees they are those: on a silhouette
  *   that is an upright rectangle (the flat sheet, or one folded to a
@@ -62,6 +65,11 @@ export interface FoldSentenceContext {
    * — and whether a plain fold only unfolded (`foldedLineOf`).
    */
   report: FoldedLine | null;
+  /**
+   * A squash that folded several pockets on one lower layer together: how
+   * many (`squashPocketsOf`). Absent or null for any other step.
+   */
+  pockets?: number | null;
 }
 
 /** How close a point is to a corner or a side, in sheet units, to be named as one. */
@@ -133,7 +141,9 @@ export function foldSentenceStepOf(op: FoldEngineOp, context: FoldSentenceContex
       // Never "in half" either: what moves is the flap, tucked away.
       return { op: 'tuck', direction: op.direction, line: sentenceLine(op.line, null, context) };
     case 'squash':
-      return { op: 'vertex', fold: 'squash', direction: op.direction, ...(op.hinge ? { form: { squashHinge: 'line' as const } } : {}) };
+      if (op.hinge) return { op: 'vertex', fold: 'squash', direction: op.direction, form: { squashHinge: 'line' } };
+      // Pockets on one lower layer, folded together: only the engine's report says so.
+      return { op: 'vertex', fold: 'squash', direction: op.direction, ...(context.pockets ? { form: { squashPockets: true as const } } : {}) };
     case 'rabbit-ear':
       return { op: 'vertex', fold: op.kind, direction: op.direction };
     // How a petal fold named its hinge, and a swivel its form.

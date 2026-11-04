@@ -117,6 +117,8 @@ export type FoldVertexSentenceForm =
   | { hinge: 'crease' | 'points' }
   /** A squash about a drawn hinge: only the flap's end beyond it squashes. */
   | { squashHinge: 'line' }
+  /** A squash of pockets on one lower layer, folded together (the engine's report says so). */
+  | { squashPockets: true }
   | { swivel: 'rays' }
   /**
    * A swivel by its valley and mountain on the layer that faces the viewer:

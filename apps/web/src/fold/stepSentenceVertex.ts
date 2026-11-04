@@ -73,7 +73,8 @@ function swivelFoldSentence(t: TFunction, direction: FoldDirection, target: 'cre
 
 /**
  * The step's sentence: "Squash-fold the flap.", "Squash-fold the flap
- * behind." A petal fold by two points creases its hinge as it lifts; a
+ * behind.", "Squash-fold the pockets together." when pockets on one lower
+ * layer fold as one. A petal fold by two points creases its hinge as it lifts; a
  * swivel by its edge lays the edge on its target, its creases meeting at a
  * pivot or on a folded edge.
  */
@@ -96,9 +97,12 @@ export function vertexSentence(
   const scores = form !== undefined && 'hinge' in form && form.hinge === 'points';
   // About a drawn hinge, only the flap's end beyond it squashes.
   const end = form !== undefined && 'squashHinge' in form;
+  // Pockets on one lower layer squash together.
+  const pockets = form !== undefined && 'squashPockets' in form;
   if (direction === 'mountain') {
     switch (fold) {
       case 'squash':
+        if (pockets) return t('panels:fold.sentence.behind.squashPockets', 'Squash-fold the pockets behind, together.');
         return end
           ? t('panels:fold.sentence.behind.squashEnd', 'Squash-fold the end of the flap behind, lifting it along the line.')
           : t('panels:fold.sentence.behind.squash', 'Squash-fold the flap behind.');
@@ -114,6 +118,7 @@ export function vertexSentence(
   }
   switch (fold) {
     case 'squash':
+      if (pockets) return t('panels:fold.sentence.squashPockets', 'Squash-fold the pockets together.');
       return end
         ? t('panels:fold.sentence.squashEnd', 'Squash-fold the end of the flap, lifting it along the line.')
         : t('panels:fold.sentence.squash', 'Squash-fold the flap.');
@@ -218,7 +223,7 @@ function swivelKindRow(t: TFunction, inside: boolean): FoldVertexRow {
  * and for a swivel by its rays, whose creases its sentence covers.
  */
 export function vertexRows(t: TFunction, form: FoldVertexSentenceForm | undefined): FoldVertexRow[] {
-  if (!form) return [];
+  if (!form || 'squashPockets' in form) return [];
   if ('squashHinge' in form) {
     return [
       {

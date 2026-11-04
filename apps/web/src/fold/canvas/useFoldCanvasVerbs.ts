@@ -69,6 +69,7 @@ import {
   picksFanHinge,
   picksPetalRegion,
   picksSwivelPivot,
+  squashAimable,
   squashTargetToward,
   steppedFourth,
   swivelEdgePick,
@@ -532,7 +533,8 @@ export function useFoldCanvasVerbs(
     const aimSquash = (at: { x: number; y: number }) => {
       const { view: shown, preview: previewed } = live.current;
       const analysis = previewed.vertex?.base?.analysis;
-      if (!shown.index || analysis?.kind !== 'squash') return;
+      // Pockets squashing together take no target: the click aims nothing.
+      if (!shown.index || analysis?.kind !== 'squash' || !squashAimable(previewed.vertex?.base ?? null)) return;
       const target = squashTargetToward(analysis.vertex, toPair(shown.index.toModel(at)));
       if (target) tools.setSquashTarget(target);
     };

@@ -6708,7 +6708,9 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13419,7 +13421,9 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20132,7 +20136,9 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26466,7 +26472,9 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32800,7 +32808,9 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39511,7 +39521,9 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46222,7 +46234,9 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52556,6 +52570,8 @@
     "dialogs:share.waitingForFigure": "038913417dd7",
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
-    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c"
+    "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
   }
 }

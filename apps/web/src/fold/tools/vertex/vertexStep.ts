@@ -586,6 +586,17 @@ export function squashWallsOpening(answer: FoldVertexAnalysed | null): number | 
 }
 
 /**
+ * Whether a squash's spine can be aimed off its hinge: not when pockets on
+ * one lower layer squash together, whose shared crease is the symmetric
+ * squash's (`State::squash_other_reading`), so a target never lands and is
+ * never offered. False for any other fold.
+ */
+export function squashAimable(answer: FoldVertexAnalysed | null): boolean {
+  const analysis = answer?.analysis;
+  return analysis?.kind === 'squash' && (analysis.pockets ?? 1) === 1;
+}
+
+/**
  * The openings of a squash of a flap whose walls are several plies that land,
  * each by how many of its layers lie above it, from the direction's side: all
  * the folder is offered (owner feedback, 2026-10-12: a choice that cannot fold
@@ -692,15 +703,17 @@ export function vertexChosenOp(
   if (fan && emergent === null) return null;
   const walls = squashWallsOpening(first);
   const opening = squashOpeningToFold(taken.squashOpening, first);
+  // A spine aimed where it cannot be (pockets squashing together) is not taken.
+  const target = squashAimable(first) ? taken.squashTarget : null;
   // Folded the way and the kind asked: one that does not land is refused, never swapped.
   return {
-    op: withOpening(withTarget(withEmergent(base, first, emergent), taken.squashTarget), opening, walls),
+    op: withOpening(withTarget(withEmergent(base, first, emergent), target), opening, walls),
     emergent,
     direction: vertexDirectionOf(base),
     kind: isFoldedSwivelOp(base) ? swivelKindOf(base) : null,
     ...(opening !== null ? { opening } : {}),
     again:
-      (base.kind === 'squash' && (taken.squashTarget !== null || opening !== walls)) ||
+      (base.kind === 'squash' && (target !== null || opening !== walls)) ||
       (emergent !== null && emergent !== namedChoice(first)),
   };
 }

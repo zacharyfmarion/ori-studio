@@ -873,3 +873,81 @@ pub fn fold_swivel_cases() -> Vec<FoldSwivelCase> {
         },
     ]
 }
+
+// --- Two pockets on one lower layer (`compound::squash`) ----------------------
+
+/// A plain fold of every layer along the line through the sheet points `p`
+/// and `q`'s images, `toward`'s image moving.
+fn fold_through(state: &State, [p, q, toward]: [Point; 3], direction: Direction) -> State {
+    let image = |s: Point| {
+        state
+            .image_of(s)
+            .unwrap_or_else(|| panic!("no paper at {s:?}"))
+    };
+    let l = line(image(p), image(q));
+    state
+        .fold(&PlainFold::new(l, side(&l, image(toward)), direction))
+        .unwrap_or_else(|e| panic!("{e}"))
+        .state
+}
+
+/// An inside reverse fold of every layer along the line through the sheet
+/// points `p` and `q`'s images, `tip`'s image on the tip side, its flap
+/// opened the first way that lands.
+fn inside_reverse_through(state: &State, [p, q, tip]: [Point; 3]) -> State {
+    let image = |s: Point| {
+        state
+            .image_of(s)
+            .unwrap_or_else(|| panic!("no paper at {s:?}"))
+    };
+    let l = line(image(p), image(q));
+    let op = ReverseFold {
+        line: l,
+        side: side(&l, image(tip)),
+        anchor: Seed::All,
+        kind: ReverseKind::Inside,
+    };
+    let analysis = state.analyse_reverse(&op).unwrap_or_else(|e| panic!("{e}"));
+    for opening in analysis.flaps.iter().flat_map(|f| &f.openings) {
+        let choices = ReverseChoices {
+            openings: vec![opening.stored.clone()],
+            order: None,
+        };
+        if let Ok(ReverseOutcome::Landed(folded)) = state.reverse_fold(&op, &choices) {
+            return folded.state;
+        }
+    }
+    panic!("no opening of the reverse fold lands")
+}
+
+/// The square's corners folded to its centre, valleys, then collapsed into
+/// a preliminary base behind: in half on the midline y = 1/2, the lower
+/// half behind, and its two side corners reversed inside on the book folds.
+/// Its front panel (the blintzed square's top quarter, flat, between the
+/// side corners (1/4, 3/4) and (3/4, 3/4)) carries two blintz flaps, the
+/// doors, each joined to the panel along an upper edge and wrapped with it
+/// round a lower edge: two pockets on one lower layer. `mirror` folds the
+/// mirror image.
+pub fn two_pockets(mirror: bool) -> State {
+    let m = |p| m(mirror, p);
+    let mut s = square();
+    for [p, q, toward] in [
+        [[0.1, 0.6], [0.4, 0.9], [0.1, 0.9]],
+        [[0.6, 0.9], [0.9, 0.6], [0.9, 0.9]],
+        [[0.9, 0.4], [0.6, 0.1], [0.9, 0.1]],
+        [[0.4, 0.1], [0.1, 0.4], [0.1, 0.1]],
+    ] {
+        s = fold_through(&s, [m(p), m(q), m(toward)], Direction::Valley);
+    }
+    s = fold_through(
+        &s,
+        [m([0.1, 0.5]), m([0.9, 0.5]), m([0.5, 0.2])],
+        Direction::Mountain,
+    );
+    s = inside_reverse_through(&s, [m([0.05, 0.05]), m([0.2, 0.2]), m([0.05, 0.35])]);
+    inside_reverse_through(&s, [m([0.95, 0.05]), m([0.8, 0.2]), m([0.95, 0.35])])
+}
+
+/// Model points over [`two_pockets`]' doors as the viewer sees them: the
+/// right door above and below the side corners' diagonal, then the left.
+pub const DOORS: [Point; 4] = [[0.583, 0.85], [0.583, 0.65], [0.417, 0.85], [0.417, 0.65]];
