@@ -1017,6 +1017,17 @@
         "swivelPicture": "Les plis se rejoignent au point, le bord se pose sur le trait gras, et le papier éclairé bouge.",
         "swivelValleyMountainPicture": "Les plis se rejoignent au point. Le pli en pointillé est sur la couche de derrière et découle de la vallée et de la montagne ; le papier éclairé bouge."
       },
+      "otherEnd": {
+        "action": "Pivoter là aussi",
+        "behindRunsOn": "Le pli de derrière se prolonge jusqu’à un autre bord plié.",
+        "label": "Autre extrémité",
+        "mountainRunsOn": "La montagne se prolonge jusqu’à un autre bord plié.",
+        "pickMountainBehind": "L’autre extrémité : choisissez sa ligne de montagne, depuis le même point.",
+        "pickMountainShared": "L’autre extrémité : choisissez sa ligne de montagne, depuis là où la vallée rejoint l’autre bord plié.",
+        "pickValleyBehind": "L’autre extrémité : choisissez sa ligne de vallée, sur la couche visible, depuis là où le pli de derrière rejoint l’autre bord plié.",
+        "pickValleyShared": "L’autre extrémité : choisissez sa ligne de vallée, depuis là où la montagne rejoint l’autre bord plié.",
+        "valleyRunsOn": "La vallée se prolonge jusqu’à un autre bord plié."
+      },
       "refusal": {
         "blocked": {
           "steppers": "Un pli buterait sur du papier qui ne plie pas avec lui, ou le papier retiendrait ensemble deux parties du pliage. Faites défiler Couches pour plier plus de couches, ou Quatrième pli pour en prendre un autre.",

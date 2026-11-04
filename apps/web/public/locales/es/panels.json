@@ -2894,7 +2894,9 @@
       "swivelFoldLine": "Gira el borde sobre la línea, con los pliegues juntándose en el borde plegado.",
       "swivelInsideCrease": "Gira el borde sobre el pliegue con un giro interior, con los pliegues juntándose en el borde plegado.",
       "swivelInsideLine": "Gira el borde sobre la línea con un giro interior, con los pliegues juntándose en el borde plegado.",
+      "swivelInsidePair": "Haz girar ambas solapas a la vez con giros interiores a lo largo de sus valles y montes.",
       "swivelInsideValleyMountain": "Haz girar la solapa con un giro interior a lo largo del valle y el monte.",
+      "swivelPair": "Haz girar ambas solapas a la vez con pliegues giratorios a lo largo de sus valles y montes.",
       "swivelValleyMountain": "Haz girar la solapa con un pliegue giratorio a lo largo del valle y el monte.",
       "tuckMountain": "Pliega en monte y remete la solapa por detrás, sobre la capa elegida.",
       "tuckValley": "Pliega en valle y remete la solapa bajo la capa elegida.",
@@ -3218,6 +3220,7 @@
       "title": "Paso {{number}}",
       "valley": "Valle",
       "valleyMountainHelp": "En la capa que ves, el valle y el monte que delimitan la solapa y se juntan en el borde plegado. El pliegue de la capa de detrás resulta de ellos.",
+      "valleyMountainPairHelp": "Dos pliegues giratorios hechos a la vez, cada uno con su valle y su monte sobre su propio borde plegado. Un pliegue de uno sigue hasta el otro y es el mismo pliegue, plegado una vez.",
       "vertex": {
         "blocksHelp": "Trozos de papel que giran juntos: cada uno gira sobre los mismos pliegues, en el mismo orden, hasta donde queda."
       }
@@ -3316,6 +3319,7 @@
       "unsink": "Deshacer hundido",
       "valleyFold": "Pliegue valle",
       "valleyMountain": "Valle y monte",
+      "valleyMountainBothEnds": "Valle y monte, en ambos extremos",
       "valleyPrecrease": "Pliegue valle y desdoblar"
     }
   },

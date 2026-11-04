@@ -257,6 +257,21 @@ export interface FoldSwivelValleyMountainAnalysis {
   layers: number[];
   regions: FoldSwivelRegion[];
   fold: FoldSwivelFold;
+  /**
+   * A swivel's: where one of its creases runs on to another folded edge —
+   * the other end, where a second swivel can share it. Two swivels made
+   * together's (`otherEnd`): the second's vertex and the crease they share.
+   * Absent when there is none.
+   */
+  other_end?: FoldSwivelOtherEndAnalysis;
+}
+
+/** Which crease a second swivel shares (`SwivelOtherEnd`): the valley or the mountain on the layer in front, or the crease behind. */
+export type FoldSwivelShared = 'valley' | 'mountain' | 'behind';
+
+export interface FoldSwivelOtherEndAnalysis {
+  vertex: FoldModelPoint;
+  shared: FoldSwivelShared;
 }
 
 export type FoldVertexAnalysis =

@@ -8,7 +8,7 @@ mod support;
 mod vertex;
 use oristudio_fold::{
     CompoundRefused, CreaseKind, Direction, FoldRefusal, Sheet, StartSide, State, SwivelKind,
-    SwivelPair, SwivelValleyMountain, VertexChoices, VertexFolded,
+    SwivelPair, SwivelShared, SwivelValleyMountain, VertexChoices, VertexFolded,
 };
 use oristudio_geometry::Line;
 use support::{all, fold, x_eq};
@@ -247,4 +247,92 @@ fn crossing_creases_behind_are_refused() {
         swivels: [up(LEFT), up(RIGHT)],
     };
     assert!(state.swivel_pair(&pair, &VertexChoices::default()).is_err());
+}
+
+fn near(a: Point, b: Point) -> bool {
+    (a[0] - b[0]).abs() < 1e-9 && (a[1] - b[1]).abs() < 1e-9
+}
+
+#[test]
+fn a_swivel_names_the_other_end_of_the_crease_it_can_share() {
+    // The crease behind runs on to the other flap's folded edge; the valley
+    // in front, to the other folded edge.
+    for (direction, swivel, shared) in [
+        (
+            Direction::Valley,
+            shared_behind as fn(Point) -> SwivelValleyMountain,
+            SwivelShared::Behind,
+        ),
+        (Direction::Mountain, shared_in_front, SwivelShared::Valley),
+    ] {
+        let state = cupboard(direction);
+        for (here, there) in [(LEFT, RIGHT), (RIGHT, LEFT)] {
+            let a = state.analyse_swivel_valley_mountain(&swivel(here)).unwrap();
+            let end = a
+                .other_end
+                .unwrap_or_else(|| panic!("{direction:?} {here:?}"));
+            assert!(near(end.vertex, there), "{direction:?}: {:?}", end.vertex);
+            assert_eq!(end.shared, shared);
+        }
+    }
+    // A swivel whose creases all run to the paper's raw edge has none.
+    let flat = State::flat(Sheet::square(), StartSide::Front).unwrap();
+    let half = fold(&flat, &all(x_eq(0.5), [0.8, 0.5], Direction::Valley)).state;
+    let lone = SwivelValleyMountain {
+        valley: Line::from_points([0.5, 0.5], [0.1, 0.8]).unwrap(),
+        mountain: Line::from_points([0.5, 0.5], [0.05, 0.1]).unwrap(),
+        kind: SwivelKind::Open,
+    };
+    assert!(
+        half.analyse_swivel_valley_mountain(&lone)
+            .unwrap()
+            .other_end
+            .is_none()
+    );
+}
+
+#[test]
+fn the_pair_previews_both_swivels_and_the_crease_they_share_once() {
+    for (direction, swivel, shared) in [
+        (
+            Direction::Valley,
+            shared_behind as fn(Point) -> SwivelValleyMountain,
+            SwivelShared::Behind,
+        ),
+        (Direction::Mountain, shared_in_front, SwivelShared::Valley),
+    ] {
+        let state = cupboard(direction);
+        let pair = SwivelPair {
+            swivels: [swivel(LEFT), swivel(RIGHT)],
+        };
+        let a = state.analyse_swivel_pair(&pair).unwrap();
+        assert!(near(a.vertex, LEFT));
+        let end = a.other_end.unwrap();
+        assert!(near(end.vertex, RIGHT) && end.shared == shared);
+        // The two flaps, and the layer both share.
+        assert_eq!(a.layers.len(), 3, "{direction:?}");
+        assert!(!a.regions.is_empty());
+        // Each swivel's two named creases, and the shared crease once along
+        // the whole way between the vertices.
+        let along_shared = |c: &oristudio_fold::SwivelCrease| {
+            (c.from[1] - 0.25).abs() < 1e-9 && (c.to[1] - 0.25).abs() < 1e-9
+        };
+        let span: f64 = a
+            .creases
+            .iter()
+            .filter(|c| along_shared(c))
+            .map(|c| (c.to[0] - c.from[0]).abs())
+            .sum();
+        assert!((span - 0.5).abs() < 1e-9, "{direction:?}: {span}");
+        let named = a.creases.iter().filter(|c| !along_shared(c)).count();
+        assert!(named >= 4, "{direction:?}: {named}");
+        // Its picture: the shared crease, the arrow from the strip across it.
+        let picture = state.swivel_pair_action(&pair, None).unwrap();
+        let [p, q] = picture.line.unwrap();
+        assert!(
+            (p.y - q.y).abs() < 1e-9,
+            "{direction:?}: the picture's line is the shared crease"
+        );
+        assert!(picture.grip.is_some());
+    }
 }

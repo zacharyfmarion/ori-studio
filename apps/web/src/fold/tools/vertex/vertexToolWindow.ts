@@ -54,6 +54,7 @@
  */
 import type { TFunction } from 'i18next';
 import { FOLD_SWIVEL_KINDS, type FoldDirection, type FoldSwivelKind } from '../../document/foldSequenceDocument';
+import type { FoldSwivelShared } from '../../engine/foldEngineSquashWire';
 import type { FoldModelPoint } from '../../engine/foldEngineWire';
 import { FOLD_LINE_BY, foldToolLabel, lineModeSteps, type FoldLineBy, type FoldVertexToolId } from '../foldToolCatalog';
 import {
@@ -98,6 +99,14 @@ export interface FoldVertexWindowView {
   lineTaken?: boolean;
   /** The picks have located that line: it can be taken. */
   lineLocated?: boolean;
+  /**
+   * A swivel by its valley and mountain's other end: one of its creases —
+   * `shared`: the valley or the mountain in front, or the crease behind —
+   * runs on to another folded edge, where a second swivel can share it.
+   * Offered once the swivel is previewed (`locating` false); then, taken,
+   * the second swivel's lines are located, the first's held (`locating`).
+   */
+  otherEnd?: { locating: boolean; shared: FoldSwivelShared };
   direction: FoldDirection;
   /** The engine has described the flap, line or fan the clicks name: there is something to choose about. */
   described: boolean;
@@ -162,6 +171,8 @@ export interface FoldVertexWindowVerbs {
   setVertexDirection?: (direction: FoldDirection) => void;
   /** A swivel on a folded edge's kind: its strip on top, or tucked between the layers. */
   setSwivelKind?: (kind: FoldSwivelKind) => void;
+  /** Take the swivel previewed as the first of two, and locate the one at the other end of the crease they share. */
+  swivelOtherEnd?: () => void;
   stepEmergent?: (delta: number) => void;
   stepFanLayers?: (delta: number) => void;
   /** Step a squash of several plies through the openings that land. */
@@ -211,6 +222,12 @@ export interface FoldVertexControls {
    * than one opening lands; null for the other folds and a two-layer flap.
    */
   opening?: FoldChoiceStepper | null;
+  /**
+   * A swivel by its valley and mountain whose crease runs on to another
+   * folded edge: a button that goes on to the swivel at that other end, made
+   * with this one. Null for every other fold, and once it is being located.
+   */
+  otherEnd?: { label: string; action: string; note: string; disabled: boolean; run: () => void } | null;
   /** A swivel's ridge selector; null for rabbit ears and the other tools. */
   emergent: FoldChoiceStepper | null;
   /** Status of the rabbit ear's selected hinge region; null for other folds. */
@@ -230,7 +247,13 @@ export interface FoldVertexControls {
 /** Whether a vertex fold has any choice to show beside its direction. */
 export function hasVertexChoices(controls: FoldVertexControls): boolean {
   return Boolean(
-    controls.target || controls.opening || controls.emergent || controls.emergentNote || controls.layers || controls.order
+    controls.otherEnd ||
+      controls.target ||
+      controls.opening ||
+      controls.emergent ||
+      controls.emergentNote ||
+      controls.layers ||
+      controls.order
   );
 }
 
@@ -431,6 +454,38 @@ function squashHingeControl(
  * (as a pleat's are), and what comes after — Enter takes the valley, then
  * Enter folds. On the layer that faces the viewer, so the intro says so.
  */
+/**
+ * At a swivel's other end: what to pick, by the crease the two share — its
+ * mountain once the shared valley is taken for it; its valley, then its
+ * mountain, from where the crease behind meets the other folded edge; or its
+ * valley alone where the mountain is shared.
+ */
+function otherEndIntro(t: TFunction, shared: FoldSwivelShared, valley: boolean): string {
+  if (shared === 'valley') {
+    return t(
+      'tools:fold.vertex.otherEnd.pickMountainShared',
+      'The other end: pick its mountain line, from where the valley meets the other folded edge.'
+    );
+  }
+  if (shared === 'mountain') {
+    return t(
+      'tools:fold.vertex.otherEnd.pickValleyShared',
+      'The other end: pick its valley line, from where the mountain meets the other folded edge.'
+    );
+  }
+  return valley
+    ? t(
+        'tools:fold.vertex.otherEnd.pickValleyBehind',
+        'The other end: pick its valley line, on the layer you see, from where the crease behind meets the other folded edge.'
+      )
+    : t('tools:fold.vertex.otherEnd.pickMountainBehind', 'The other end: pick its mountain line, from the same point.');
+}
+
+/** Whether a swivel by its valley and mountain takes the line its picks locate before it folds: its valley, but not the other end's valley where the mountain is shared. */
+function takesValley(vertex: FoldVertexWindowView): boolean {
+  return !vertex.lineTaken && !(vertex.otherEnd?.locating && vertex.otherEnd.shared === 'mountain');
+}
+
 function valleyMountainInstructions(
   t: TFunction,
   view: FoldToolWindowView,
@@ -447,8 +502,18 @@ function valleyMountainInstructions(
   const take = host.coarse
     ? t('tools:fold.vertex.valleyMountain.takeValleyTouch', 'Tap Use as the valley.')
     : t('tools:fold.vertex.valleyMountain.takeValley', 'Press Enter to take it as the valley.');
-  const items = [...clicks, valley ? take : commit];
+  const items = [...clicks, takesValley(vertex) ? take : commit];
   const inside = vertex.swivelKind === 'inside';
+  const otherEnd = vertex.otherEnd?.locating ? vertex.otherEnd : null;
+  if (otherEnd) {
+    return {
+      heading: t('tools:fold.window.instructions', 'Instructions'),
+      intro: otherEndIntro(t, otherEnd.shared, valley),
+      items,
+      current: Math.min(view.picks, items.length - 1),
+      notes: lineModeNotes(t, view.lineMode, host, view.freeLineSnap),
+    };
+  }
   return {
     heading: t('tools:fold.window.instructions', 'Instructions'),
     intro: valley
@@ -795,6 +860,35 @@ function swivelKindControl(
 }
 
 /**
+ * A swivel's other end, once it is previewed and one of its creases runs on
+ * to another folded edge: the row that names that crease and goes on to the
+ * second swivel there, folded with this one. Null for every other fold, and
+ * while the other end is located.
+ */
+function otherEndControl(
+  t: TFunction,
+  vertex: FoldVertexWindowView,
+  verbs: FoldToolWindowVerbs,
+  readOnly: boolean
+): FoldVertexControls['otherEnd'] {
+  const end = vertex.otherEnd;
+  if (!isValleyMountain(vertex) || !end || end.locating) return null;
+  const note =
+    end.shared === 'behind'
+      ? t('tools:fold.vertex.otherEnd.behindRunsOn', 'The crease behind runs on to another folded edge.')
+      : end.shared === 'valley'
+        ? t('tools:fold.vertex.otherEnd.valleyRunsOn', 'The valley runs on to another folded edge.')
+        : t('tools:fold.vertex.otherEnd.mountainRunsOn', 'The mountain runs on to another folded edge.');
+  return {
+    label: t('tools:fold.vertex.otherEnd.label', 'Other end'),
+    action: t('tools:fold.vertex.otherEnd.action', 'Swivel there too'),
+    note,
+    disabled: readOnly || !verbs.swivelOtherEnd,
+    run: () => verbs.swivelOtherEnd?.(),
+  };
+}
+
+/**
  * A vertex fold's controls (see the module docs). `located` once every click
  * is in: its choices are offered once the engine has described what the
  * clicks name, never about a flap it refused.
@@ -877,6 +971,7 @@ export function vertexControls(
                 : null,
           }
         : null,
+    otherEnd: located ? otherEndControl(t, vertex, verbs, readOnly) : null,
     // Where a squash of several plies opens: between its walls unless stepped.
     opening: located ? squashOpeningStepper(t, vertex, verbs, readOnly) : null,
     emergent: ridges && located ? fourthStepper(t, vertex, verbs, readOnly) : null,
@@ -916,13 +1011,15 @@ export function vertexToolWindow(
   // A swivel by its valley and mountain locates its lines with the line
   // modes, the select named by the line it locates now.
   const valleyMountain = isValleyMountain(vertex);
-  const locatingValley = valleyMountain && !vertex.lineTaken;
+  // The valley, taken before the mountain is located: at the other end, not
+  // where the mountain is the crease the two share and the valley comes last.
+  const locatingValley = valleyMountain && takesValley(vertex);
   // So does a squash its drawn hinge, until it is taken.
   const locatingHinge = isLocatingHinge(vertex);
   const lineMode = valleyMountain
     ? {
         ...lineModeSelect(t, view, verbs),
-        label: locatingValley
+        label: !vertex.lineTaken
           ? t('tools:fold.vertex.valleyMountain.valleyLine', 'Valley line')
           : t('tools:fold.vertex.valleyMountain.mountainLine', 'Mountain line'),
       }

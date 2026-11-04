@@ -2665,7 +2665,9 @@
       "swivelFoldLine": "Drehe die Kante auf die Linie; die Faltlinien treffen sich auf der gefalteten Kante.",
       "swivelInsideCrease": "Drehe die Kante mit einer inneren Drehfalte auf die Faltlinie; die Faltlinien treffen sich auf der gefalteten Kante.",
       "swivelInsideLine": "Drehe die Kante mit einer inneren Drehfalte auf die Linie; die Faltlinien treffen sich auf der gefalteten Kante.",
+      "swivelInsidePair": "Drehe beide Klappen zusammen mit inneren Drehfalten entlang ihrer Tal- und Berglinien.",
       "swivelInsideValleyMountain": "Drehe die Klappe mit einer inneren Drehfalte entlang der Tal- und der Berglinie.",
+      "swivelPair": "Drehe beide Klappen zusammen mit Drehfalten entlang ihrer Tal- und Berglinien.",
       "swivelValleyMountain": "Drehe die Klappe mit einer Drehfalte entlang der Tal- und der Berglinie.",
       "tuckMountain": "Falte als Bergfalte und stecke die Lasche hinten über die gewählte Lage.",
       "tuckValley": "Falte als Talfalte und stecke die Lasche unter die gewählte Lage.",
@@ -2937,6 +2939,7 @@
       "title": "Schritt {{number}}",
       "valley": "Tal",
       "valleyMountainHelp": "Auf der sichtbaren Lage Tal und Berg, die die Klappe begrenzen und sich auf der gefalteten Kante treffen. Die Faltlinie auf der Lage dahinter ergibt sich aus ihnen.",
+      "valleyMountainPairHelp": "Zwei Drehfalten zusammen, jede mit ihrer Tal- und Berglinie auf ihrer eigenen gefalteten Kante. Eine Faltlinie der einen läuft bis zur anderen weiter und ist dieselbe Faltlinie, einmal gefaltet.",
       "vertex": {
         "blocksHelp": "Papierstücke, die sich als Ganzes drehen: jedes dreht sich um dieselben Faltlinien, in derselben Reihenfolge, dorthin, wo es landet."
       }
@@ -3028,6 +3031,7 @@
       "unsink": "Versenken aufheben",
       "valleyFold": "Talfalte",
       "valleyMountain": "Tal und Berg",
+      "valleyMountainBothEnds": "Tal und Berg, an beiden Enden",
       "valleyPrecrease": "Talfalte vorfalten"
     }
   },

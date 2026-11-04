@@ -2438,7 +2438,9 @@
       "swivelFoldLine": "让折痕交于折边，将边旋转到线上。",
       "swivelInsideCrease": "让折痕交于折边，以内旋转折将边旋转到折痕上。",
       "swivelInsideLine": "让折痕交于折边，以内旋转折将边旋转到线上。",
+      "swivelInsidePair": "沿各自的谷与山，将两个翼片一起做内旋转折。",
       "swivelInsideValleyMountain": "沿谷与山将翼片做内旋转折。",
+      "swivelPair": "沿各自的谷与山，将两个翼片一起做旋转折。",
       "swivelValleyMountain": "沿谷与山将翼片做旋转折。",
       "tuckMountain": "山折，在背面把翼片塞到所选层的上面。",
       "tuckValley": "谷折，把翼片塞到所选层的下面。",
@@ -2658,6 +2660,7 @@
       "title": "第 {{number}} 步",
       "valley": "谷折",
       "valleyMountainHelp": "可见层上界定翼片、交于折边的谷与山。后面一层的折痕由它们决定。",
+      "valleyMountainPairHelp": "一起做的两个旋转折，各自在自己的折边上由谷与山确定。其中一个的折痕延伸到另一个，是同一条折痕，只折一次。",
       "vertex": {
         "blocksHelp": "作为整体一起转动的纸块：每块都绕同样的折痕、按同样的顺序转到它落下的位置。"
       }
@@ -2742,6 +2745,7 @@
       "unsink": "反沉折",
       "valleyFold": "谷折",
       "valleyMountain": "谷与山",
+      "valleyMountainBothEnds": "谷与山，两端",
       "valleyPrecrease": "谷折后展开"
     }
   },

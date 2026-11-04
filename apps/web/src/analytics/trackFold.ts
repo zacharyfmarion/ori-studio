@@ -47,7 +47,8 @@ type FoldStepAddedDetails =
  * edge on a folded edge, or by its rays — and, by its edge, its target
  * (`swivel_form`, `target`), and on a folded edge whether it is the open
  * swivel or the inside one (`swivel_kind`); a squash its hinge, folded or
- * a drawn line (`squash_hinge`).
+ * a drawn line (`squash_hinge`). Two swivels made together say which crease
+ * they share (`swivel_shared`).
  */
 export function trackFoldStepAdded(opKind: FoldStepAddedOpKind, details?: FoldStepAddedDetails): void {
   track(ANALYTICS_EVENTS.foldStepAdded, { op_kind: opKind, ...detailProperties(details) });
@@ -78,7 +79,13 @@ function detailProperties(details: FoldStepAddedDetails | undefined): Record<str
 function vertexFormProperties(form: FoldStepVertexForm): Record<string, string> {
   if ('hinge' in form) return { hinge: form.hinge };
   if ('squashHinge' in form) return { squash_hinge: form.squashHinge };
-  if (form.swivelForm === 'valley_mountain') return { swivel_form: 'valley_mountain', swivel_kind: form.swivelKind };
+  if (form.swivelForm === 'valley_mountain') {
+    return {
+      swivel_form: 'valley_mountain',
+      swivel_kind: form.swivelKind,
+      ...(form.swivelShared ? { swivel_shared: form.swivelShared } : {}),
+    };
+  }
   if (form.swivelForm === 'rays') return { swivel_form: 'rays' };
   if (form.swivelForm === 'fold') return { swivel_form: 'fold', target: form.target, swivel_kind: form.swivelKind };
   return { swivel_form: form.swivelForm, target: form.target };

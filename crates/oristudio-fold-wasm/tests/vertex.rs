@@ -1535,6 +1535,64 @@ fn a_swivel_by_its_valley_and_mountain_is_refused_by_code() {
     assert_eq!(refused(&mut bridge, along), "swivel_no_flap");
 }
 
+/// A square's side strips folded to the middle, in front, on x = 1/4 and
+/// x = 3/4; and a swivel at each folded edge's point on y = 1/4, its valley
+/// up to the middle and its mountain down to the bottom edge's middle: the
+/// crease behind both runs across y = 1/4 from one to the other.
+fn cupboard_pair(bridge: &mut Bridge) -> (u32, Value, Value) {
+    let flat = square(bridge);
+    let left = land(bridge, flat, valley([[0.25, 0.0], [0.25, 1.0]], [0.1, 0.5]));
+    let both = land(bridge, left, valley([[0.75, 0.0], [0.75, 1.0]], [0.9, 0.5]));
+    let free = |a: Point, b: Point| json!({ "line": { "via": "free", "through": [a, b] } });
+    // On each flap: the sheet points under its valley and mountain.
+    let end = |v: Point, out: f64| {
+        json!({
+            "valley": free(v, [v[0] + out * 0.1, 0.35]),
+            "mountain": free(v, [v[0] + out * 0.1, 0.15]),
+        })
+    };
+    (both, end([0.25, 0.25], -1.0), end([0.75, 0.25], 1.0))
+}
+
+#[test]
+fn a_swivel_with_its_other_end_lands_previews_and_reads_its_field() {
+    let mut bridge = Bridge::default();
+    let (state, left, right) = cupboard_pair(&mut bridge);
+    let single = valley_mountain(left["valley"].clone(), left["mountain"].clone(), "open");
+    // Alone, its preview names the other end of the crease behind.
+    let a = analysis(&bridge, state, single.clone());
+    let end = &a["analysis"]["other_end"];
+    assert_eq!(end["shared"], "behind", "{a}");
+    let at = end["vertex"].as_array().unwrap();
+    assert!(
+        (at[0].as_f64().unwrap() - 0.75).abs() < 1e-9
+            && (at[1].as_f64().unwrap() - 0.25).abs() < 1e-9
+    );
+    // With its other end: one fold, both previewed, the second's vertex named.
+    let mut pair = single.clone();
+    pair["otherEnd"] = right.clone();
+    let a = analysis(&bridge, state, pair.clone());
+    assert_eq!(a["analysis"]["kind"], "swivel-valley-mountain");
+    assert_eq!(a["analysis"]["other_end"]["shared"], "behind");
+    assert_eq!(a["kinds"][0][0], true, "{a}");
+    let applied = apply(&mut bridge, state, pair.clone(), json!({}));
+    assert_eq!(applied["status"], "ok", "{applied}");
+    let picture = ok(bridge.action(state, &op(pair.clone()), &Choices::default()));
+    assert!(picture["action"]["line"].is_array(), "{picture}");
+    // Its own keys only: a kind or a direction of its own is the caller's mistake.
+    for key in ["swivel", "direction"] {
+        let mut extra = pair.clone();
+        extra["otherEnd"][key] = json!("inside");
+        assert!(serde_json::from_value::<Op>(extra).is_err(), "{key}");
+    }
+    let mut missing = pair;
+    missing["otherEnd"]
+        .as_object_mut()
+        .unwrap()
+        .remove("mountain");
+    assert!(serde_json::from_value::<Op>(missing).is_err());
+}
+
 /// Every saved swivel on a folded edge (the example projects) is made again,
 /// to the same state, by the valley and the mountain it makes on the layer
 /// in front: read off its own question, named by two sheet points each, and

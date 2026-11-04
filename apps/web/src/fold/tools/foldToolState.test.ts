@@ -13,6 +13,8 @@ import {
   isLocated,
   locatesTakenLine,
   picksAlongLine,
+  swivelMeetingLine,
+  takesLocatedLine,
   type FoldResolvedSeed,
   type FoldToolState,
 } from './foldToolState';
@@ -503,6 +505,39 @@ it('keeps a swivel’s valley taken while the mountain’s line mode changes, an
   tools.clear();
   expect(tools.store.getState().takenLine).toBeUndefined();
   expect(hasToolInput(tools.store.getState())).toBe(false);
+});
+
+it('holds a swivel taken as the first of two while its other end is located, the shared valley taken for it', () => {
+  const line = (n: [number, number], d: number) => ({
+    line: { via: 'free' as const, through: [[0, 0], [1, 1]] as [[number, number], [number, number]] },
+    sceneLine: { n, d },
+  });
+  const [valley, mountain, meetingLine] = [line([1, -1], 0), line([1, 1], 1), { n: [0, 1] as [number, number], d: 0.25 }];
+  for (const shared of ['valley', 'mountain', 'behind'] as const) {
+    const tools = createFoldTools();
+    tools.selectTool('swivel');
+    tools.setSwivelInput('valley-mountain');
+    tools.setSwivelKind('inside');
+    tools.takeLine(valley);
+    tools.takeOtherEnd({ valley, mountain, shared, meetingLine });
+    const state = tools.store.getState();
+    expect(state.otherEnd).toMatchObject({ shared, meetingLine });
+    // The shared valley is the other end's valley, taken; otherwise it is located next.
+    expect(state.takenLine).toEqual(shared === 'valley' ? valley : undefined);
+    expect(takesLocatedLine(state)).toBe(shared === 'behind');
+    expect(swivelMeetingLine(state)).toBe(meetingLine);
+    expect(state.compound.swivelKind).toBe('inside');
+    // Another line mode, and the other end's valley taken: the first swivel stays held.
+    tools.selectLineMode('crease');
+    expect(tools.store.getState().otherEnd?.shared).toBe(shared);
+    tools.takeLine(line([0, 1], 0.5));
+    expect(tools.store.getState().otherEnd?.shared).toBe(shared);
+    expect(hasToolInput(tools.store.getState())).toBe(true);
+    // Escape lets go of both.
+    tools.clear();
+    expect(tools.store.getState().otherEnd).toBeUndefined();
+    expect(hasToolInput(tools.store.getState())).toBe(false);
+  }
 });
 
 it('keeps the kind a swivel by its valley and mountain asks for across its locates, and asks anew by its edge', () => {

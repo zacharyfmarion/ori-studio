@@ -32,6 +32,7 @@ import {
 } from '../document/foldSequenceDocument';
 import type { FoldReverseKind } from '../engine/foldEngineReverseWire';
 import type { FoldSinkKind } from '../engine/foldEngineSinkWire';
+import type { FoldSwivelShared } from '../engine/foldEngineSquashWire';
 import type { FoldFlap, FoldModelPoint } from '../engine/foldEngineWire';
 import type { FoldSessionSurface } from '../session/useFoldSession';
 import { sameFlap, wovenIntervalAt } from '../tools/crossSection';
@@ -52,8 +53,9 @@ import {
   foldToolInput,
   foldToolInputKey,
   isLocated,
-  locatesTakenLine,
   picksAlongLine,
+  swivelMeetingLine,
+  takesLocatedLine,
   type FoldTools,
   type FoldToolState,
 } from '../tools/foldToolState';
@@ -96,6 +98,7 @@ import {
 import type { FoldToolPreview } from './useFoldToolPreview';
 import type { FoldStateView } from './useFoldStateView';
 import { swivelMeetingPick, swivelMeetings } from './vertex/swivelMeeting';
+import { swivelOtherEndTaken } from './vertex/swivelOtherEnd';
 
 /** A free point: Alt held, or on a touch screen its latch. */
 export function freePointHeld(): boolean {
@@ -184,6 +187,8 @@ export interface FoldCanvasVerbs {
   setSquashHinge: (hinge: FoldSquashHinge) => void;
   /** A swivel on a folded edge's kind: its strip on top, or tucked between the layers. */
   setSwivelKind: (kind: FoldSwivelKind) => void;
+  /** Take the swivel previewed as the first of two, and locate the swivel at the other end of the crease they share. */
+  swivelOtherEnd: () => void;
   /** The same vertex fold, the other direction. */
   vertexOtherWay: () => void;
   /** Step through a fan's fourth-ray candidates; take one by its direction (a fix's). */
@@ -356,11 +361,15 @@ function opKindOf(op: FoldOp): FoldStepAddedOpKind | null {
  * petal fold's hinge, a swivel's form and target, and on a folded edge its
  * kind.
  */
-function vertexFormOf(op: FoldOp): FoldStepVertexForm | undefined {
+function vertexFormOf(op: FoldOp, shared: FoldSwivelShared | undefined): FoldStepVertexForm | undefined {
   if (op.kind === 'petal') return { hinge: 'ends' in op ? 'points' : 'crease' };
   if (op.kind === 'squash') return { squashHinge: op.hinge ? 'line' : 'folded' };
   if (op.kind !== 'swivel') return undefined;
-  if (isSwivelValleyMountainOp(op)) return { swivelForm: 'valley_mountain', swivelKind: swivelKindOf(op) };
+  if (isSwivelValleyMountainOp(op)) {
+    // Made with its other end: the crease the two share, as the tools took it.
+    const pair = op.otherEnd && shared ? { swivelShared: shared } : {};
+    return { swivelForm: 'valley_mountain', swivelKind: swivelKindOf(op), ...pair };
+  }
   if (!isSwivelEdgeOp(op)) return { swivelForm: 'rays' };
   if (isSwivelOnFoldOp(op)) return { swivelForm: 'fold', target: op.target.via, swivelKind: swivelKindOf(op) };
   return { swivelForm: 'edge', target: op.target.via };
@@ -371,7 +380,7 @@ function vertexFormOf(op: FoldOp): FoldStepVertexForm | undefined {
  * was committed, so a flaps seed is the top flap taken by default, not
  * flaps the folder picked (`layer_scope: top`).
  */
-function trackCommitted(op: FoldOp, defaulted: boolean): void {
+function trackCommitted(op: FoldOp, defaulted: boolean, shared: FoldSwivelShared | undefined): void {
   const kind = opKindOf(op);
   if (!kind) return;
   // A rotation says how far it turned, bucketed: a preset, or `other` for an exact angle.
@@ -381,7 +390,7 @@ function trackCommitted(op: FoldOp, defaulted: boolean): void {
   }
   // A vertex fold takes no line and no layer scope of a plain fold's: how it named its own lines instead.
   if (isVertexOp(op)) {
-    const vertex = vertexFormOf(op);
+    const vertex = vertexFormOf(op, shared);
     trackFoldStepAdded(kind, vertex ? { vertex } : undefined);
     return;
   }
@@ -470,10 +479,11 @@ export function useFoldCanvasVerbs(
       if (useFoldImportOrderUi.getState().choosing) return;
       committing.current = true;
       const defaulted = tools.store.getState().seed.scope === 'top';
+      const shared = tools.store.getState().otherEnd?.shared;
       void live.current.session.commitStep(op, choices).then((outcome) => {
         committing.current = false;
         if (outcome.status !== 'committed') return;
-        trackCommitted(op, defaulted);
+        trackCommitted(op, defaulted, shared);
         tools.clear();
         // A rotation applied puts Rotate down, as Turn over is done at once:
         // left in hand, it would preview another turn on the step just made.
@@ -649,9 +659,11 @@ export function useFoldCanvasVerbs(
         // edge: near there, a point the mountain's line takes is that point
         // exactly, unless a free point is asked for, or a free line's end
         // snaps to nothing.
-        const valley = tool.tool === 'swivel' ? tool.takenLine : undefined;
+        // At its other end, the second swivel's lines run from where the
+        // crease the two share meets the other folded edge.
+        const meetingLine = swivelMeetingLine(tool);
         const snaps = !free && (step.snap !== 'free' || (step.snapFree === true && tool.freeLineSnap));
-        const meeting = valley && snaps ? swivelMeetingPick(swivelMeetings(index, valley.sceneLine), pane, at, radii.point, step.snap) : null;
+        const meeting = meetingLine && snaps ? swivelMeetingPick(swivelMeetings(index, meetingLine), pane, at, radii.point, step.snap) : null;
         if (meeting) return { pane, at, pick: meeting };
         // A swivel's meeting point from which nothing can swing: a click
         // picks another point in its place, as its first click would.
@@ -821,6 +833,16 @@ export function useFoldCanvasVerbs(
       setSwivelInput: tools.setSwivelInput,
       setSquashHinge: tools.setSquashHinge,
       setSwivelKind: (kind) => tools.setSwivelKind(kind),
+      swivelOtherEnd: () => {
+        const { preview, session, view, picking } = live.current;
+        if (session.readOnly) return;
+        // In the frame its meeting points are found in (`hitTest`).
+        const index = picking === undefined ? view.index : picking;
+        const first = swivelOtherEndTaken(index, state(), preview.vertex?.base ?? null, preview.locatedLine);
+        if (!first) return;
+        setQueued(null);
+        tools.takeOtherEnd(first);
+      },
 
       vertexOtherWay,
 
@@ -1046,7 +1068,7 @@ export function useFoldCanvasVerbs(
         // A swivel by its valley and mountain, or a squash about a drawn
         // hinge: Enter takes the line located — the valley, or the hinge —
         // and the picks go on to the mountain, or the flap's end.
-        if (locatesTakenLine(current) && !current.takenLine) {
+        if (takesLocatedLine(current)) {
           const { locatedLine, refused } = live.current.preview;
           if (!locatedLine || refused || live.current.session.readOnly) return false;
           setQueued(null);
@@ -1107,7 +1129,13 @@ export function useFoldCanvasVerbs(
           return true;
         }
         const tool = state();
-        const held = tool.takenLine !== undefined || tool.picks.length > 0 || tool.override !== null || tool.seed.scope !== 'top' || tool.swapped;
+        const held =
+          tool.takenLine !== undefined ||
+          tool.otherEnd !== undefined ||
+          tool.picks.length > 0 ||
+          tool.override !== null ||
+          tool.seed.scope !== 'top' ||
+          tool.swapped;
         if (!held) return false;
         setQueued(null);
         tools.clear();

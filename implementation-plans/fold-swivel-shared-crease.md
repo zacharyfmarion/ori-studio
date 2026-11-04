@@ -40,39 +40,63 @@ Land the two swivels together, as one fold, exactly.
   its valley and mountain reads them (`folds_at`, `build`); where several
   folded edges qualify, the pair that compiles. Then one compiled fold
   (`Compiled::land_checked`, every offered order landed first).
+- **Where the other end is.** A single swivel's analysis names it
+  (`other_end`): the first of its hinge, its crease behind and its other
+  named crease whose run through its own paper stops at a fold of that
+  paper, inside the folded edge and away from its ends (not one that leaves
+  at the paper's edge, whatever other paper lies there), and which crease
+  that is, by its letter as seen or `behind`.
+- **Preview and picture.** The pair's analysis is a swivel's: both sets of
+  creases (the shared one once, a shared crease behind hidden from each end
+  as far as that end's layer in front covers it), the moving paper by the
+  first swivel's wedge of each block, `other_end` the second's vertex. Its
+  picture is the strip's: the shared crease, the arrow from the paper both
+  swivels move across it.
 - **Not yet.** Paper beyond the four layers that holds the wedges (the stack
-  reading of `folded_swivel::assign`) refuses `fan_ray_blocked`; the
-  multi-ply case waits for a real need of it.
+  reading of `folded_swivel::assign`) refuses `fan_ray_blocked`.
 
-### Open product question (not built)
+### The format (decided: one step)
 
-How the folder names the pair. Options:
+The valley-and-mountain swivel op takes an optional `otherEnd: { valley,
+mountain }`: the swivel at the other end of the crease the two share,
+located as the first's lines are, of the first's kind. Named for what it is
+in the fold — the other end of the shared crease — beside `valley`,
+`mountain` and `swivel`, and the tool's own words. Written last and only when
+there is one, so a single swivel is written as it always was. No
+`formatVersion` bump: as with `fold` and `swivel` before it, a build that
+does not know the key reads the op as one it cannot read and locks the step,
+written back unchanged, rather than fold one swivel of the two. The wasm
+bridge denies unknown fields in it too.
 
-1. **One step, the second swivel named with the first**: the
-   valley-and-mountain op takes an optional second pair
-   (`also: { valley, mountain }`); the Swivel tool, once the first pair's
-   preview shows its shared crease running to another folded edge, offers
-   the other end's two lines (the valley pre-filled when it is shared).
-   Diagram-faithful (every one of these steps draws both sides at once);
-   a document-format change (the reader rejects the field today) and new
-   tool UI.
-2. **Two steps, the second made after the first**: no format change, but the
-   second swivel's lines lie on the carried paper, where no diagram draws
-   them, and the engine needs a new reading of that corner (a flap whose
-   hinges show one letter, or two coincident flaps) in
-   `swivel_hinge_end.rs`.
-3. **A new op kind** (`swivel-pair`): as 1, in its own op.
+### The tool
 
-Recommendation: 1.
+In the Swivel tool's Valley and mountain, once the swivel is previewed and
+its analysis names an other end, the window offers **Other end: Swivel there
+too** (with which crease runs on). It takes the swivel as the first of two
+(`FoldToolState.otherEnd`) and goes on to the second's lines: the valley
+already taken when it is the shared crease; where the mountain is shared,
+the valley located last, which folds. While they are located the first's
+lines stay drawn in their pens and the second's lines meet, dotted, where the
+shared crease crosses the other folded edge. Escape lets go of both. The
+committed step is one swivel op with its `otherEnd`; analytics adds
+`swivel_shared` to `fold step added`.
 
 ## Affected Areas
 
 - `crates/oristudio-fold/src/compound/folded_swivel.rs` (the two-layer
   reading over several fans)
-- `crates/oristudio-fold/src/compound/swivel_pair.rs` (new)
+- `crates/oristudio-fold/src/compound/swivel_pair.rs` (new: fold, preview,
+  picture)
 - `crates/oristudio-fold/src/compound/swivel_valley_mountain.rs` (resolution
-  helpers shared)
-- `crates/oristudio-fold/tests/swivel_pair.rs` (synthetic cases)
+  helpers shared, `other_end`)
+- `crates/oristudio-fold-wasm/src/ops_squash_family.rs` (`otherEnd`)
+- `apps/web/src/fold`: document type, reader and writer, wire type, tool
+  state, vertex step, window, canvas verbs, overlay, Repeat, step sentences
+- `apps/web/src/components/fold/vertex/FoldVertexControls.tsx`
+- `apps/web/src/analytics`, `docs/analytics.md`, locales (8)
+- Tests: `crates/oristudio-fold/tests/swivel_pair.rs`,
+  `crates/oristudio-fold-wasm/tests/vertex.rs`, the web unit tests and
+  `swivelPairToolFlow.wasm.test.tsx`
 
 ## Checklist
 
@@ -86,9 +110,18 @@ Recommendation: 1.
       side's creases are its own swivel's, the figure its own mirror image,
       not the single swivel's paper, order-independent, replays); refusals
 - [x] Every saved swivel in real models still replays identically
-- [x] Real-design check outside the repo (provisional, local wire field):
-      the three pairs, and a fourth step of the same shape, land the
-      imported paper exactly, and every later step still lands
-- [ ] The product question answered; then the wire op, the tool, its
-      preview and picture, words, analytics
-- [ ] A pair through the stack (multi-ply flaps), when a step needs it
+- [x] Real-design check outside the repo: the three pairs, and a fourth step
+      of the same shape, land the saved paper exactly, and every later step
+      still lands
+- [x] The product question answered (one step); the `otherEnd` field through
+      the bridge and the reader and writer, with tests (round trip, a single
+      swivel unchanged, malformed or foreign keys locked)
+- [x] The analysis' `other_end`, the pair's preview and picture
+- [x] The tool: Other end offered, the second's lines, Escape; overlay,
+      Repeat, sentences, words in all 8 locales, `swivel_shared`
+- [x] Tool flow over the real bridge (the pair, the single swivel alone,
+      Escape), and in the app by hand: each of the three real steps from its
+      before file, the same paper as the scripted step; a single swivel made
+      fresh
+- [ ] A pair through the stack (multi-ply flaps): the stack reading
+      (`assign`) over two fans

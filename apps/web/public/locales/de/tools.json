@@ -994,6 +994,17 @@
         "swivelPicture": "Die Faltlinien treffen sich am Punkt, die Kante landet auf der fetten Linie, und das hervorgehobene Papier bewegt sich.",
         "swivelValleyMountainPicture": "Die Faltlinien treffen sich am Punkt. Die gepunktete Faltlinie liegt auf der Lage dahinter und ergibt sich aus Tal und Berg; das hervorgehobene Papier bewegt sich."
       },
+      "otherEnd": {
+        "action": "Auch dort drehen",
+        "behindRunsOn": "Die Faltlinie dahinter läuft bis zu einer anderen gefalteten Kante weiter.",
+        "label": "Anderes Ende",
+        "mountainRunsOn": "Die Berglinie läuft bis zu einer anderen gefalteten Kante weiter.",
+        "pickMountainBehind": "Das andere Ende: Wähle seine Berglinie, vom selben Punkt aus.",
+        "pickMountainShared": "Das andere Ende: Wähle seine Berglinie, von dort, wo die Tallinie die andere gefaltete Kante trifft.",
+        "pickValleyBehind": "Das andere Ende: Wähle seine Tallinie auf der sichtbaren Lage, von dort, wo die Faltlinie dahinter die andere gefaltete Kante trifft.",
+        "pickValleyShared": "Das andere Ende: Wähle seine Tallinie, von dort, wo die Berglinie die andere gefaltete Kante trifft.",
+        "valleyRunsOn": "Die Tallinie läuft bis zu einer anderen gefalteten Kante weiter."
+      },
       "refusal": {
         "blocked": {
           "steppers": "Eine Faltlinie würde auf Papier treffen, das nicht mitfaltet, oder Papier würde zwei Teile der Faltung zusammenhalten. Blättere bei Lagen, um mehr Lagen zu falten, oder bei Vierte Faltlinie zu einer anderen.",

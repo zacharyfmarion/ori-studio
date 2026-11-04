@@ -252,7 +252,11 @@ Compound folds (plan D4, D15, Phases 9 and 11):
     reading takes both fans: coincident rays are one cut, and paper joined
     to two wedges that move differently, or to a wedge and the paper that
     stays, holds them (`fan_ray_blocked`; the reading through the stack is a
-    single swivel's only). Engine only: no document op names it yet.
+    single swivel's only). A swivel's analysis names where one of its
+    creases runs on through its paper to another fold (`other_end`), which a
+    tool offers; the document stores the second swivel as the op's
+    `otherEnd`, of the first's kind. Its picture is the strip's, across the
+    shared crease.
 - `compound::sink`: the open sink, the closed sink and the unsink (research
   §5.4). The point is one flap; its geometry is the plain fold of the whole
   point, so only letters and order are decided. Refused up front: an open

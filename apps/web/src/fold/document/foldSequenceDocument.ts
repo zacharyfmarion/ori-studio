@@ -586,6 +586,13 @@ export interface FoldLocatedLine {
  * a swivel whose pair lies behind is made by turning the model over first.
  * Open, its strip folding up across the valley, unless `swivel` says
  * `'inside'`: the strip tucks under across the mountain.
+ *
+ * `otherEnd`: a second swivel made with it, at the other end of a crease the
+ * two share — the valley across the layer in front, or the crease behind,
+ * run on to another folded edge (engine `compound::swivel_pair`) — named by
+ * its own valley and mountain, of the same kind. Written only when there is
+ * one; a build before it reads it as a key it does not know and locks the
+ * step rather than fold one swivel of the two.
  */
 export interface FoldSwivelValleyMountainOp {
   kind: 'swivel';
@@ -593,6 +600,13 @@ export interface FoldSwivelValleyMountainOp {
   valley: FoldLocatedLine;
   mountain: FoldLocatedLine;
   swivel?: 'inside';
+  otherEnd?: FoldSwivelOtherEnd;
+}
+
+/** The swivel at the other end of the crease two swivels share: its valley and its mountain. */
+export interface FoldSwivelOtherEnd {
+  valley: FoldLocatedLine;
+  mountain: FoldLocatedLine;
 }
 
 /** Where a swivel on a folded edge puts the other layer's strip: on top, or tucked between the two layers. */

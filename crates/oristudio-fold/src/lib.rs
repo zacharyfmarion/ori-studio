@@ -142,7 +142,9 @@ pub use compound::swivel::{
     SwivelRegion, SwivelWedge,
 };
 pub use compound::swivel_pair::SwivelPair;
-pub use compound::swivel_valley_mountain::{SwivelValleyMountain, SwivelValleyMountainAnalysis};
+pub use compound::swivel_valley_mountain::{
+    SwivelOtherEnd, SwivelShared, SwivelValleyMountain, SwivelValleyMountainAnalysis,
+};
 pub use compound::tuck::{
     TuckAnalysis, TuckChoice, TuckChoices, TuckFold, TuckFolded, TuckOutcome, TuckReport, TuckSide,
     TuckTarget,
