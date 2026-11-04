@@ -83,7 +83,8 @@ export function connectedDrawing(
   const ink: ConnectedInk[] = preparedInk(source, baseInk).map((edge) => {
     const a = interpolate(edge.ids, edge.a, positions),
       b = interpolate(edge.ids, edge.b, positions);
-    const whole = edge.line.whole;
+    // Never the crease as the material scene has it: those ends are in its units, not the scene's.
+    const { whole, ...line } = edge.line;
     const wa = edge.wholeA ? interpolate(edge.wholeA.ids, edge.wholeA.weights, positions) : null;
     const wb = edge.wholeB ? interpolate(edge.wholeB.ids, edge.wholeB.weights, positions) : null;
     return {
@@ -91,11 +92,13 @@ export function connectedDrawing(
       a,
       b,
       line: {
-        ...edge.line,
+        ...line,
         a: [a[0], a[1]],
         b: [b[0], b[1]],
         hidden: false,
         joined: edge.joined,
+        // A crease that runs on past this face has an end none of its triangles holds: the
+        // piece is then eroded on its own ends, which it flags only where the crease ends.
         ...(whole && wa && wb ? { whole: { ...whole, a: [wa[0], wa[1]], b: [wb[0], wb[1]] } } : {}),
       },
     };
