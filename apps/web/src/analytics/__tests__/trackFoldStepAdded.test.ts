@@ -72,5 +72,13 @@ describe('trackFoldStepAdded for a swivel', () => {
       swivel_form: 'valley_mountain',
       swivel_kind: 'inside',
     });
+    // Made with its other end: the crease the two share.
+    trackFoldStepAdded('swivel', { vertex: { swivelForm: 'valley_mountain', swivelKind: 'open', swivelShared: 'behind' } });
+    expect(runtime.track).toHaveBeenLastCalledWith('fold step added', {
+      op_kind: 'swivel',
+      swivel_form: 'valley_mountain',
+      swivel_kind: 'open',
+      swivel_shared: 'behind',
+    });
   });
 });

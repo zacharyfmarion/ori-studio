@@ -62,7 +62,7 @@
 //! two letters would be the other way round, which is the same lines picked
 //! the other way.
 use super::CompoundRefused;
-use super::folded_swivel::{FoldCompiled, FoldFan, compile, flat_region};
+use super::folded_swivel::{FoldCompiled, FoldFan, compile, flat_region, ray_run};
 use super::swivel::{
     SwivelCrease, SwivelFold, SwivelKind, SwivelRay, SwivelRegion, SwivelWedge, dot, edge_run,
     internal, sub,
@@ -102,6 +102,33 @@ pub struct SwivelValleyMountainAnalysis {
     pub layers: Vec<FaceId>,
     pub regions: Vec<SwivelRegion>,
     pub fold: SwivelFold,
+    /// The other end of a crease this swivel can share with a second one
+    /// (`super::swivel_pair`): where its hinge, its other named crease or
+    /// the crease behind runs on to another folded edge. For a pair, the
+    /// second swivel's vertex and the crease the two share. None when no
+    /// crease of a swivel on a folded edge runs on to another one, and for a
+    /// flap turned about the end of its hinges.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub other_end: Option<SwivelOtherEnd>,
+}
+
+/// Which of a swivel's creases another swivel shares: one of the two named
+/// on the layer in front, by its letter as seen, or the crease behind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SwivelShared {
+    Valley,
+    Mountain,
+    Behind,
+}
+
+/// Where a swivel's crease ends on another folded edge, and which crease it
+/// is: the other end, where a second swivel can share it.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct SwivelOtherEnd {
+    /// On the other folded edge, in the parent's model frame.
+    pub vertex: Point,
+    pub shared: SwivelShared,
 }
 
 /// A folded run may be subdivided by flat precreases at the meeting point.
@@ -150,7 +177,7 @@ const SEEN_SLACK: f64 = MIN_FEATURE / 2.0;
 /// naming different paper (the folded edges of two flaps that abut along one
 /// line), are all returned, the one the swivel can fold picked by
 /// [`SwivelValleyMountain::reading`], never one silently.
-fn folds_at(state: &State, v: Point) -> Vec<Point> {
+pub(super) fn folds_at(state: &State, v: Point) -> Vec<Point> {
     let landmarks = state.landmarks(&[]);
     let seen = seen_fold_within(&landmarks, v, |_| TOL, true);
     if !seen.is_empty() {
@@ -166,7 +193,7 @@ fn folds_at(state: &State, v: Point) -> Vec<Point> {
 /// Whether the folded edge through the sheet point `fold` ends at the model
 /// point `v` with nothing straight on past it: no flat crease continues its
 /// run on the sheet from there.
-fn ends_bare(state: &State, fold: Point, v: Point) -> bool {
+pub(super) fn ends_bare(state: &State, fold: Point, v: Point) -> bool {
     let Some((_, support)) = fold_support(state, fold) else {
         return false;
     };
@@ -245,7 +272,7 @@ fn seen_fold_within(
 /// How far from `from` along the unit direction `u` the layer of face
 /// `layer` covers the line without a gap: the reach of the chords its
 /// flat-connected faces' images cut, joined end to end from `from`.
-fn covered(state: &State, layer: usize, from: Point, u: Point) -> f64 {
+pub(super) fn covered(state: &State, layer: usize, from: Point, u: Point) -> f64 {
     let images = &state.geometry().images;
     let chords: Vec<[f64; 2]> = flat_region(state, layer)
         .into_iter()
@@ -302,12 +329,12 @@ enum Reading {
 
 /// A swivel by its valley and mountain resolved in its parent: its fan and
 /// which of the folded edge's two faces is in front.
-struct Built {
-    fan: FoldFan,
+pub(super) struct Built {
+    pub(super) fan: FoldFan,
     /// The face that faces the viewer, which takes the named creases, and
     /// the one behind, which creases along the computed one.
-    front: usize,
-    behind: usize,
+    pub(super) front: usize,
+    pub(super) behind: usize,
 }
 
 impl SwivelValleyMountain {
@@ -365,7 +392,7 @@ impl SwivelValleyMountain {
     }
 
     /// The swivel resolved on the folded edge through the sheet point `fold`.
-    fn build(&self, state: &State, fold: Point) -> Result<Built, Refused> {
+    pub(super) fn build(&self, state: &State, fold: Point) -> Result<Built, Refused> {
         let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
         let (k, support) = fold_support(state, fold).ok_or_else(meeting)?;
         let faces = match state.topology().crease_faces[k][..] {
@@ -485,6 +512,155 @@ fn front_face(
         .ok_or_else(|| internal("the folded edge's layers are not at its vertex"))
 }
 
+/// A swivel's creases as a tool previews them (the analysis' `creases`): the
+/// crease behind, split where the layer in front hides it, then the front
+/// layer's `c` and its hinge `b`, each by its letter as seen, from the vertex
+/// to where it leaves its paper (`ends`: the crease behind's, `c`'s, `b`'s).
+pub(super) fn creases_of(
+    state: &State,
+    built: &Built,
+    [behind_to, counter_to, second_to]: [Point; 3],
+    kind: SwivelKind,
+) -> Vec<SwivelCrease> {
+    let fan = &built.fan;
+    let v = fan.vertex;
+    let inside = kind == SwivelKind::Inside;
+    let crease = |ray, direction, from, to, letter, ridge, hidden| SwivelCrease {
+        ray,
+        direction,
+        from,
+        to,
+        letter,
+        ridge,
+        hidden,
+    };
+    // The layer in front hides the crease behind as far as it reaches.
+    let length = dot(sub(behind_to, v), fan.swivel);
+    let hidden_to = covered(state, built.front, v, fan.swivel).min(length);
+    let split = [
+        v[0] + hidden_to * fan.swivel[0],
+        v[1] + hidden_to * fan.swivel[1],
+    ];
+    let mut creases = vec![crease(
+        SwivelRay::Meet,
+        fan.swivel,
+        v,
+        split,
+        Letter::Valley,
+        false,
+        true,
+    )];
+    if length - hidden_to > TOL {
+        creases.push(crease(
+            SwivelRay::Meet,
+            fan.swivel,
+            split,
+            behind_to,
+            Letter::Valley,
+            false,
+            false,
+        ));
+    }
+    let (counter_letter, second_letter) = if inside {
+        (Letter::Valley, Letter::Mountain)
+    } else {
+        (Letter::Mountain, Letter::Valley)
+    };
+    creases.push(crease(
+        SwivelRay::Meet,
+        fan.counter,
+        v,
+        counter_to,
+        counter_letter,
+        !inside,
+        false,
+    ));
+    creases.push(crease(
+        SwivelRay::Hinge,
+        fan.second,
+        v,
+        second_to,
+        second_letter,
+        inside,
+        false,
+    ));
+    creases
+}
+
+/// A swivel's folded edge, and the half of it that opens.
+pub(super) fn fold_of(state: &State, built: &Built) -> Result<SwivelFold, Refused> {
+    let fan = &built.fan;
+    let v = fan.vertex;
+    let end = fan
+        .fold_run
+        .into_iter()
+        .max_by(|a, b| dot(sub(*a, v), fan.opens).total_cmp(&dot(sub(*b, v), fan.opens)))
+        .ok_or_else(|| internal("no fold end"))?;
+    Ok(SwivelFold {
+        edge: fan.fold_run,
+        opens: [v, end],
+        faces: fan.ids(state),
+    })
+}
+
+/// Whether the crease from the swivel's vertex along `u` through the layer
+/// of face `layer` stops at a fold of that paper, inside its folded edge
+/// and away from its ends, other than the swivel's own folded edge: where a
+/// second swivel's lines can meet. Where it is; none at the paper's edge.
+fn runs_on_to_a_fold(state: &State, built: &Built, layer: usize, u: Point) -> Option<Point> {
+    let run = ray_run(state, layer, built.fan.vertex, u).ok()?;
+    let at = run.end;
+    let images = &state.geometry().vertex_images;
+    let topology = state.topology();
+    let on = |k: usize| {
+        let [a, b] = state.creases()[k].vertices.map(|w| images[w.index()]);
+        let d = sub(b, a);
+        let length = dot(d, d).sqrt();
+        let along = dot(sub(at, a), d) / length;
+        length > TOL
+            && (cross(d, sub(at, a)) / length).abs() <= TOL
+            && along > -TOL
+            && along < length + TOL
+    };
+    // A fold of the paper the crease runs in, where it stops: one of that
+    // sheet's own folds, whichever of its faces it bounds there.
+    let region = flat_region(state, layer);
+    let fold = (0..state.creases().len()).find(|&k| {
+        matches!(state.creases()[k].kind, CreaseKind::Folded(_))
+            && topology.crease_faces[k].iter().any(|&f| region[f])
+            && on(k)
+    })?;
+    let [a, b] = state.creases()[fold]
+        .vertices
+        .map(|w| state.vertices()[w.index()]);
+    let edge = edge_run(state, [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0]).ok()?;
+    let away = |p: Point| sub(p, at)[0].hypot(sub(p, at)[1]) >= MIN_FEATURE;
+    let another = !edge.creases.iter().any(|k| built.fan.run.contains(k));
+    (another && edge.ends.iter().all(|&p| away(p))).then_some(at)
+}
+
+/// The other end of a crease a second swivel can share (the analysis'
+/// `other_end`): the first of the swivel's hinge, the crease behind and its
+/// other named crease that runs on through its paper to a fold of it
+/// (`runs_on_to_a_fold`) — not one that leaves at the paper's edge, whatever
+/// other paper lies there.
+pub(super) fn other_end(state: &State, built: &Built, kind: SwivelKind) -> Option<SwivelOtherEnd> {
+    let (counter, second) = match kind {
+        SwivelKind::Open => (SwivelShared::Mountain, SwivelShared::Valley),
+        SwivelKind::Inside => (SwivelShared::Valley, SwivelShared::Mountain),
+    };
+    let fan = &built.fan;
+    [
+        (built.front, fan.second, second),
+        (built.behind, fan.swivel, SwivelShared::Behind),
+        (built.front, fan.counter, counter),
+    ]
+    .into_iter()
+    .find_map(|(layer, u, shared)| {
+        runs_on_to_a_fold(state, built, layer, u).map(|vertex| SwivelOtherEnd { vertex, shared })
+    })
+}
+
 impl State {
     /// A swivel by its valley and mountain before it folds (the module docs):
     /// its vertex, its creases with their letters as seen — the one behind
@@ -503,87 +679,17 @@ impl State {
                     layers: turn.layers(self),
                     regions: turn.regions(self),
                     fold: turn.fold(self),
+                    other_end: None,
                 });
             }
         };
-        let fan = &built.fan;
-        let v = fan.vertex;
-        let inside = op.kind == SwivelKind::Inside;
-        let [behind_to, counter_to, second_to] = reading.ends;
-        let crease = |ray, direction, from, to, letter, ridge, hidden| SwivelCrease {
-            ray,
-            direction,
-            from,
-            to,
-            letter,
-            ridge,
-            hidden,
-        };
-        // The layer in front hides the crease behind as far as it reaches.
-        let length = dot(sub(behind_to, v), fan.swivel);
-        let hidden_to = covered(self, built.front, v, fan.swivel).min(length);
-        let split = [
-            v[0] + hidden_to * fan.swivel[0],
-            v[1] + hidden_to * fan.swivel[1],
-        ];
-        let mut creases = vec![crease(
-            SwivelRay::Meet,
-            fan.swivel,
-            v,
-            split,
-            Letter::Valley,
-            false,
-            true,
-        )];
-        if length - hidden_to > TOL {
-            creases.push(crease(
-                SwivelRay::Meet,
-                fan.swivel,
-                split,
-                behind_to,
-                Letter::Valley,
-                false,
-                false,
-            ));
-        }
-        let (counter_letter, second_letter) = if inside {
-            (Letter::Valley, Letter::Mountain)
-        } else {
-            (Letter::Mountain, Letter::Valley)
-        };
-        creases.push(crease(
-            SwivelRay::Meet,
-            fan.counter,
-            v,
-            counter_to,
-            counter_letter,
-            !inside,
-            false,
-        ));
-        creases.push(crease(
-            SwivelRay::Hinge,
-            fan.second,
-            v,
-            second_to,
-            second_letter,
-            inside,
-            false,
-        ));
-        let end = fan
-            .fold_run
-            .into_iter()
-            .max_by(|a, b| dot(sub(*a, v), fan.opens).total_cmp(&dot(sub(*b, v), fan.opens)))
-            .ok_or_else(|| internal("no fold end"))?;
         Ok(SwivelValleyMountainAnalysis {
-            vertex: v,
-            creases,
+            vertex: built.fan.vertex,
+            creases: creases_of(self, &built, reading.ends, op.kind),
             layers: vec![self.faces()[built.front].id, self.faces()[built.behind].id],
             regions: super::swivel_on_edge::on_fold_regions(self, &reading),
-            fold: SwivelFold {
-                edge: fan.fold_run,
-                opens: [v, end],
-                faces: fan.ids(self),
-            },
+            fold: fold_of(self, &built)?,
+            other_end: other_end(self, &built, op.kind),
         })
     }
 

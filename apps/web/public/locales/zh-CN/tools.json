@@ -971,6 +971,17 @@
         "swivelPicture": "折痕交于圆点，边落在粗线上，高亮的纸会移动。",
         "swivelValleyMountainPicture": "折痕交于圆点。虚线折痕位于后面一层，由谷与山决定；高亮的纸会移动。"
       },
+      "otherEnd": {
+        "action": "那里也旋转折",
+        "behindRunsOn": "后面的折痕延伸到另一条折边。",
+        "label": "另一端",
+        "mountainRunsOn": "山线延伸到另一条折边。",
+        "pickMountainBehind": "另一端：从同一点选择它的山线。",
+        "pickMountainShared": "另一端：从谷与另一条折边相交处选择它的山线。",
+        "pickValleyBehind": "另一端：在可见层上，从后面的折痕与另一条折边相交处选择它的谷线。",
+        "pickValleyShared": "另一端：从山与另一条折边相交处选择它的谷线。",
+        "valleyRunsOn": "谷线延伸到另一条折边。"
+      },
       "refusal": {
         "blocked": {
           "steppers": "有一条折痕会碰到不随之折叠的纸，或者纸会把折叠的两部分连在一起。切换“层”以折更多层，或把“第四折痕”换成另一条。",

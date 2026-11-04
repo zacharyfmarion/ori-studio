@@ -34,6 +34,7 @@ function verbs(roots = 1, extents = true): FoldCanvasVerbs {
     tuckTarget: vi.fn(),
     setVertexDirection: vi.fn(),
     setSwivelKind: vi.fn(),
+    swivelOtherEnd: vi.fn(),
     setSwivelInput: vi.fn(),
     setSquashHinge: vi.fn(),
     vertexOtherWay: vi.fn(),

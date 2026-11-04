@@ -788,6 +788,59 @@ describe('a swivel by its valley and mountain', () => {
     expect(previewed.vertex?.kind?.options.map((option) => option.disabled)).toEqual([false, false]);
     expect(previewed.vertex?.lineBy).toBeNull();
   });
+
+  describe('and its other end', () => {
+    const previewed = { ...valleyStep, lineTaken: true, onFold: true, described: true, known: true, swivelKind: 'open' as const };
+
+    it('offers the other end once previewed, where a crease runs on to another folded edge', () => {
+      const actions = { ...verbs(), swivelOtherEnd: vi.fn() };
+      const window = foldToolWindow(t, view({ ...previewed, otherEnd: { locating: false, shared: 'behind' } }, { preview: preview() }), actions, mouse)!;
+      expect(window.vertex?.otherEnd).toMatchObject({
+        label: 'Other end',
+        action: 'Swivel there too',
+        note: 'The crease behind runs on to another folded edge.',
+        disabled: false,
+      });
+      window.vertex!.otherEnd!.run();
+      expect(actions.swivelOtherEnd).toHaveBeenCalledOnce();
+      // A single swivel with nothing running on, and every other fold: no row.
+      expect(foldToolWindow(t, view(previewed, { preview: preview() }), actions, mouse)!.vertex?.otherEnd).toBeNull();
+      // Not before it is previewed.
+      const locating = foldToolWindow(t, view({ ...valleyStep, otherEnd: { locating: false, shared: 'behind' } }, { lineMode: 'crease' }), actions, mouse)!;
+      expect(locating.vertex?.otherEnd ?? null).toBeNull();
+    });
+
+    it('locates the other end’s mountain from the shared valley, taken for it', () => {
+      const shared = { ...valleyStep, lineTaken: true, otherEnd: { locating: true, shared: 'valley' as const } };
+      const window = foldToolWindow(t, view(shared, { lineMode: 'axiom-1' }), verbs(), mouse)!;
+      expect(window.lineMode).toMatchObject({ label: 'Mountain line' });
+      expect(window.instructions.intro).toBe('The other end: pick its mountain line, from where the valley meets the other folded edge.');
+      expect(window.instructions.items.at(-1)).toBe('Press Enter to fold.');
+      expect(window.vertex?.otherEnd ?? null).toBeNull();
+    });
+
+    it('locates the other end’s valley, then its mountain, from the crease behind', () => {
+      const behind = { ...valleyStep, otherEnd: { locating: true, shared: 'behind' as const } };
+      const valley = foldToolWindow(t, view(behind, { picks: 2, lineMode: 'axiom-1', preview: preview() }), verbs(), mouse)!;
+      expect(valley.phase).toBe('locate');
+      expect(valley.lineMode).toMatchObject({ label: 'Valley line' });
+      expect(valley.instructions.intro).toBe(
+        'The other end: pick its valley line, on the layer you see, from where the crease behind meets the other folded edge.'
+      );
+      expect(valley.footer?.commit).toMatchObject({ label: 'Use as the valley' });
+      const mountain = foldToolWindow(t, view({ ...behind, lineTaken: true }, { lineMode: 'axiom-1' }), verbs(), mouse)!;
+      expect(mountain.instructions.intro).toBe('The other end: pick its mountain line, from the same point.');
+    });
+
+    it('takes the other end’s valley last where the mountain is the crease they share: it folds', () => {
+      const mountainShared = { ...valleyStep, described: true, known: true, otherEnd: { locating: true, shared: 'mountain' as const } };
+      const window = foldToolWindow(t, view(mountainShared, { picks: 2, lineMode: 'axiom-1', preview: preview() }), verbs(), mouse)!;
+      expect(window.phase).toBe('preview');
+      expect(window.lineMode).toMatchObject({ label: 'Valley line' });
+      expect(window.instructions.intro).toBe('The other end: pick its valley line, from where the mountain meets the other folded edge.');
+      expect(window.footer?.commit.label).toBe('Swivel fold');
+    });
+  });
 });
 
 describe('a swivel never folds another way or kind than the one asked', () => {

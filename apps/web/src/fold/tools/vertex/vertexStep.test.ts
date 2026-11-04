@@ -32,6 +32,7 @@ import {
   swivelDirectionsOf,
   swivelFoldPick,
   swivelKindsLanding,
+  swivelLinesOf,
   vertexAskedOp,
   vertexChosenOp,
   vertexStepFrom,
@@ -191,6 +192,43 @@ describe('a swivel by its valley and mountain', () => {
       mountain,
       swivel: 'inside',
     });
+  });
+
+  it('with its other end, is asked only once the second swivel’s lines are in too, of the one kind', () => {
+    const byLines = { tool: 'swivel' as const, swivelInput: 'valley-mountain' as const };
+    const otherEnd = { valley: mountain, mountain: valley };
+    const first = { ...byLines, swivelValley: valley, swivelMountain: mountain, swivelPairing: true };
+    expect(vertexAskedOp(intent(first), index)).toBeNull();
+    expect(vertexAskedOp(intent({ ...first, swivelOtherEnd: otherEnd, swivelKind: 'inside' }), index)).toEqual({
+      kind: 'swivel',
+      via: 'valley-mountain',
+      valley,
+      mountain,
+      otherEnd,
+      swivel: 'inside',
+    });
+  });
+
+  it('reads both swivels’ lines from the tools, by the crease they share', () => {
+    const scene = { sceneLine: { n: [1, 0] as [number, number], d: 0.5 } };
+    const taken = { ...valley, ...scene };
+    const held = (shared: 'valley' | 'mountain' | 'behind') => ({
+      valley: taken,
+      mountain: { ...mountain, ...scene },
+      shared,
+      meetingLine: scene.sceneLine,
+    });
+    const other = { line: { via: 'free' as const, through: [[0.6, 0.5], [0.9, 0.2]] as const } };
+    // One swivel: the valley taken, then the mountain located.
+    expect(swivelLinesOf(undefined, valley, undefined)).toEqual({ swivelValley: valley, swivelMountain: undefined });
+    expect(swivelLinesOf(undefined, valley, mountain)).toEqual({ swivelValley: valley, swivelMountain: mountain });
+    // At its other end: the first's two, and the second's once in.
+    const pairing = { swivelValley: valley, swivelMountain: mountain, swivelPairing: true };
+    expect(swivelLinesOf(held('behind'), undefined, other)).toEqual(pairing);
+    expect(swivelLinesOf(held('behind'), other, valley)).toEqual({ ...pairing, swivelOtherEnd: { valley: other, mountain: valley } });
+    expect(swivelLinesOf(held('valley'), valley, other)).toEqual({ ...pairing, swivelOtherEnd: { valley, mountain: other } });
+    // The shared mountain is the second's: its valley, located, is the last line in.
+    expect(swivelLinesOf(held('mountain'), undefined, other)).toEqual({ ...pairing, swivelOtherEnd: { valley: other, mountain } });
   });
 });
 

@@ -49,14 +49,32 @@ export function FoldVertexDirection({ controls }: { controls: FoldVertexControls
 }
 
 /**
- * A vertex fold's choices: a squash's spine target and, for a flap whose
- * walls are several plies, where it opens; a fan's fourth crease and layers;
- * and the layer order — each only when there is a choice to make.
+ * A vertex fold's choices: a swivel's other end, when one of its creases
+ * runs on to another folded edge; a squash's spine target and, for a flap
+ * whose walls are several plies, where it opens; a fan's fourth crease and
+ * layers; and the layer order — each only when there is a choice to make.
  */
 export function FoldVertexChoices({ controls }: { controls: FoldVertexControls }) {
-  const { target, opening, emergent, emergentNote, layers, order } = controls;
+  const { otherEnd, target, opening, emergent, emergentNote, layers, order } = controls;
   return (
     <>
+      {/* A swivel whose crease runs on to another folded edge: the second swivel there, made with it. */}
+      {otherEnd && (
+        <>
+          <FieldRow label={otherEnd.label} kind="static" divider={false} disabled={otherEnd.disabled}>
+            <Button
+              size="sm"
+              variant="secondary"
+              data-fold-swivel-other-end=""
+              disabled={otherEnd.disabled}
+              onClick={otherEnd.run}
+            >
+              {otherEnd.action}
+            </Button>
+          </FieldRow>
+          <p className={styles.note}>{otherEnd.note}</p>
+        </>
+      )}
       {/* Moved by a click on the folded paper, as the steps above say. */}
       {target && (
         <FieldRow label={target.label} kind="static" divider={false}>

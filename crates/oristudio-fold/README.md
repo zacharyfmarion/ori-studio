@@ -243,6 +243,20 @@ Compound folds (plan D4, D15, Phases 9 and 11):
     letter as the flap shows it; the other is computed, as the crease behind
     a swivel on a folded edge is, so the folder's line only has to run into
     the flap. A flap whose hinges show it one letter cannot be named this way.
+  - `compound::swivel_pair`: two swivels by their valleys and mountains made
+    together, each on its own folded edge, where one crease of each runs
+    across to the other's folded edge and is the same crease (the valley
+    across the layer in front, or the crease behind). One at a time, the
+    first would carry the other side's flap; together, the paper between the
+    two vertices along the shared crease is one wedge of both. The two-layer
+    reading takes both fans: coincident rays are one cut, and paper joined
+    to two wedges that move differently, or to a wedge and the paper that
+    stays, holds them (`fan_ray_blocked`; the reading through the stack is a
+    single swivel's only). A swivel's analysis names where one of its
+    creases runs on through its paper to another fold (`other_end`), which a
+    tool offers; the document stores the second swivel as the op's
+    `otherEnd`, of the first's kind. Its picture is the strip's, across the
+    shared crease.
 - `compound::sink`: the open sink, the closed sink and the unsink (research
   §5.4). The point is one flap; its geometry is the plain fold of the whole
   point, so only letters and order are decided. Refused up front: an open

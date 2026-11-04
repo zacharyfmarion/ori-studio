@@ -284,12 +284,12 @@ export function useFoldToolPreview(
   const locatedLine = useMemo(() => located && !('status' in located)
     ? { line: located.line, ...(located.choices?.root ? { root: located.choices.root } : {}), sceneLine: located.sceneLine } : null,
     [located]);
-  // A swivel's mountain, once the valley is taken: the line located now, as the op stores it.
-  const swivelMountain = useMemo(
-    () => (tool === 'swivel' && takenLine ? storedLine(locatedLine ?? undefined) : undefined),
-    [tool, takenLine, locatedLine]
+  // A swivel's line located now, as the op stores it: its mountain once the valley is taken, or a line at its other end.
+  const swivelLocated = useMemo(
+    () => (tool === 'swivel' ? storedLine(locatedLine ?? undefined) : undefined),
+    [tool, locatedLine]
   );
-  const vertexStep = useFoldVertexStep(session, index, tools, vertexing, swivelMountain);
+  const vertexStep = useFoldVertexStep(session, index, tools, vertexing, swivelLocated);
   // A precrease of part of its line: its points along the line, and a pinch's
   // length, which the engine names for the state's sheet.
   const along = picksAlongLine(tools);

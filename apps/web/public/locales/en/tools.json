@@ -994,6 +994,17 @@
         "swivelPicture": "The creases meet at the dot, the edge lands on the bold line, and the lit paper moves.",
         "swivelValleyMountainPicture": "The creases meet at the dot. The dotted crease is on the layer behind, and follows from the valley and the mountain; the lit paper moves."
       },
+      "otherEnd": {
+        "action": "Swivel there too",
+        "behindRunsOn": "The crease behind runs on to another folded edge.",
+        "label": "Other end",
+        "mountainRunsOn": "The mountain runs on to another folded edge.",
+        "pickMountainBehind": "The other end: pick its mountain line, from the same point.",
+        "pickMountainShared": "The other end: pick its mountain line, from where the valley meets the other folded edge.",
+        "pickValleyBehind": "The other end: pick its valley line, on the layer you see, from where the crease behind meets the other folded edge.",
+        "pickValleyShared": "The other end: pick its valley line, from where the mountain meets the other folded edge.",
+        "valleyRunsOn": "The valley runs on to another folded edge."
+      },
       "refusal": {
         "blocked": {
           "steppers": "A crease would run into paper that does not fold with it, or paper would hold two parts of the fold together. Step Layers to fold more layers, or Fourth crease to another one.",

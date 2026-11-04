@@ -2440,7 +2440,9 @@
       "swivelFoldLine": "접힌 변 위에서 접는 선들이 만나도록, 변을 돌려 선 위에 놓습니다.",
       "swivelInsideCrease": "접힌 변 위에서 접는 선들이 만나도록, 안쪽 회전 접기로 변을 돌려 접은 선 위에 놓습니다.",
       "swivelInsideLine": "접힌 변 위에서 접는 선들이 만나도록, 안쪽 회전 접기로 변을 돌려 선 위에 놓습니다.",
+      "swivelInsidePair": "두 플랩을 각자의 골과 산을 따라 함께 안쪽 회전 접기로 접습니다.",
       "swivelInsideValleyMountain": "골과 산을 따라 플랩을 안쪽 회전 접기로 접습니다.",
+      "swivelPair": "두 플랩을 각자의 골과 산을 따라 함께 회전 접기로 접습니다.",
       "swivelValleyMountain": "골과 산을 따라 플랩을 회전 접기로 접습니다.",
       "tuckMountain": "산접기하고, 뒤쪽에서 고른 겹 위로 플랩을 끼워 넣습니다.",
       "tuckValley": "골접기하고, 고른 겹 아래로 플랩을 끼워 넣습니다.",
@@ -2660,6 +2662,7 @@
       "title": "{{number}}단계",
       "valley": "골",
       "valleyMountainHelp": "보이는 층에서 플랩의 경계를 이루며 접힌 변 위에서 만나는 골과 산입니다. 뒤쪽 층의 접은 선은 이들에 따라 정해집니다.",
+      "valleyMountainPairHelp": "함께 접는 두 회전 접기로, 각각 자기 접힌 변 위의 골과 산으로 정해집니다. 한쪽의 접는 선이 다른 쪽까지 이어져 같은 접는 선이 되며, 한 번만 접힙니다.",
       "vertex": {
         "blocksHelp": "한 덩어리로 함께 도는 종이 조각입니다. 각 조각은 같은 접는 선을 축으로, 같은 순서로 돌아 놓일 자리로 갑니다."
       }
@@ -2744,6 +2747,7 @@
       "unsink": "가라앉혀 접기 되돌리기",
       "valleyFold": "골접기",
       "valleyMountain": "골과 산",
+      "valleyMountainBothEnds": "골과 산, 양쪽 끝",
       "valleyPrecrease": "골접기 후 펼치기"
     }
   },
