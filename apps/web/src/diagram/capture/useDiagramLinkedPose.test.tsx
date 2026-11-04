@@ -436,3 +436,56 @@ it('does not let an old preparation clear a newer step’s loading state', async
   expect(seen.pose!.connectedPreparing).toBe(false);
   expect(seen.pose!.connected).not.toBeNull();
 });
+
+describe('turning a Default spread in Pose', () => {
+  const rotation = (stepId: string) => {
+    const source = stepsIn(state().diagram!).find((step) => step.id === stepId)?.source;
+    return source?.kind === 'cp' && source.render.mode === 'folded-flat' ? source.render.rotationDeg : null;
+  };
+  const verb = (id: string) => seen.pose!.toolbar.find((action) => action.id === id)!;
+
+  /** The live view's preparation and the picture's capture, for real and at once. */
+  async function spreadForReal() {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const { initSync, solve_layer_spread } = await import('../../generated/oristudio-layer-spread-wasm/oristudio_layer_spread_wasm');
+    initSync({ module: readFileSync(resolve('src/generated/oristudio-layer-spread-wasm/oristudio_layer_spread_wasm_bg.wasm')) });
+    preparation.start.mockImplementation((scene) => {
+      const source = connectedSpreadSource(scene);
+      return { promise: Promise.resolve({ source, solution: solve_layer_spread(source.input) }), release: vi.fn() };
+    });
+    capture.scene.mockImplementation(async (scene) => connectedPaperScene(scene.connected, scene.sheet, true));
+  }
+
+  it('shows each turn at once and takes the next while the last is captured, nothing covering the view', async () => {
+    await spreadForReal();
+    const stepId = await flatStep(DEFAULT_CONNECTED_SPREAD);
+    await act(async () => {
+      await vi.waitFor(() => expect(seen.pose!.connected).not.toBeNull());
+    });
+    const releaseLookup = holdTheLookup();
+    act(() => verb('rotate-right').run());
+    expect(seen.pose!.turn).toBe(15);
+    await act(async () => {
+      await vi.waitFor(() => expect(state().diagramCaptures[stepId]).toBeDefined());
+    });
+    expect(seen.pose!.connectedPreparing).toBe(false);
+    // The turns wait for no capture, from the toolbar or the field, each from the turn shown; the rest wait.
+    expect(verb('rotate-right').waiting).toBe(false);
+    expect(verb('turn-over').waiting).toBe(true);
+    act(() => verb('rotate-right').run());
+    expect(seen.pose!.turn).toBe(30);
+    act(() => seen.pose!.rotateTo(100));
+    expect(seen.pose!.turn).toBe(100);
+    expect(rotation(stepId)).toBe(0);
+    await act(async () => {
+      releaseLookup();
+      await vi.waitFor(() => expect(rotation(stepId)).toBe(100));
+    });
+    expect(seen.pose!.turn).toBe(100);
+    expect(seen.pose!.connectedPreparing).toBe(false);
+    await act(async () => {
+      await vi.waitFor(() => expect(state().diagramCaptures[stepId]).toBeUndefined());
+    });
+  });
+});

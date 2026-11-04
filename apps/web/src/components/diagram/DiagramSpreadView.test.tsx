@@ -50,6 +50,7 @@ beforeEach(() => {
     capturedSpread: DEFAULT_CONNECTED_SPREAD,
     picture: { url: 'final-1.svg', scene: null },
     rotationDeg: 0,
+    capturedRotationDeg: 0,
     style: DEFAULT_DIAGRAM_STYLE,
     onCamera: vi.fn(), onReveal: vi.fn(), fallback: <img src="fallback.svg" alt="" />,
   };
@@ -103,6 +104,22 @@ it('keeps previews live until the saved spread catches up, with no new solve or 
   await decode();
   expect(final()?.getAttribute('src')).toBe('final-2.svg');
   expect(renderer.request.mock.lastCall![0].spread).toEqual(spread);
+});
+
+it('draws a turn live until the saved turn catches up, never under the picture of the turn before', async () => {
+  await show();
+  await decode();
+  await rest();
+  expect(final()).not.toBeNull();
+  await show({ rotationDeg: 15 });
+  expect(final()).toBeNull();
+  expect(renderer.request.mock.lastCall![0].rotationDeg).toBe(15);
+  await rest();
+  expect(final()).toBeNull();
+  await show({ capturedRotationDeg: 15, picture: { url: 'final-2.svg', scene: null } });
+  await decode();
+  await rest();
+  expect(final()?.getAttribute('src')).toBe('final-2.svg');
 });
 
 it('shares viewing zoom with the host and accumulates wheel input before the host rerenders', async () => {

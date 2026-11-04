@@ -85,7 +85,9 @@ import { creasesThumbnail } from './captureThumbnail';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus } from './linkStatus';
 import { lightingChanged } from '../pictures/lighting';
-import { poseLinkedStep, type FlatSolutions, type LinkedPoseRequest } from './linkedPose';
+import { poseLinkedStep, turnedTo, type FlatSolutions, type LinkedPoseRequest, type TurnRequest } from './linkedPose';
+import { queueStepPoseEdit } from './stepPoseQueue';
+import { turnsLive } from '../actions/diagramLinkedPoseActions';
 import { captureKind, sayCaptureOutcome, sayStepSolutionPress, trackStepLayerOrderAttention } from './stepCaptureActions';
 import { beginStepSolutionStep, dropStepSolutionCursor } from './stepSolutionCursor';
 import {
@@ -117,8 +119,12 @@ const SOLUTION_STEP_LABELS = { next: 'Show another solution', previous: 'Show pr
 interface PoseOptions {
   current?: () => boolean;
   tracked?: boolean;
+  /** The verb it is counted as, when not its own: a turn pressed as Rotate Left or Right lands as an angle. */
+  trackedAs?: TrackedPoseVerb;
   label?: string;
   landed?: (source: DiagramCpSource) => void;
+  /** Pose's view shows it already (`turn`): its capture covers nothing, and a spread's preview stays up. */
+  background?: boolean;
 }
 
 /** Who asked Pose for the Layer order dialog: its own Edit order…, or the Step pane beside it. */
@@ -311,6 +317,8 @@ export interface PoseControllerListener {
   mirrorAxes: (axes: readonly number[] | null, key: string) => void;
   /** A spread previewed before it is committed; null when the preview ends. */
   preview: (preview: SpreadPreview | null, key: string | null) => void;
+  /** A turn Pose's view shows before its picture lands (`turn`); null once it landed or was dropped. */
+  turn?: (degrees: number | null) => void;
 }
 
 /**
@@ -345,6 +353,15 @@ export interface PoseController {
    * also counted as a pose.
    */
   run: (request: LinkedPoseRequest, options?: { tracked?: boolean; current?: () => boolean }) => Promise<void>;
+  /**
+   * Turn the step a step either way, or to an angle. A turn Pose draws itself
+   * (`turnsLive`) shows at once — from the turn shown, so presses add up — and
+   * is captured behind the view once the step's other captures are done, a
+   * newer turn taking the place of one waiting and dropping one in flight: a
+   * run of presses lands as one undo step, where it ends, counted as the verb
+   * pressed. Any other picture turns as `run` poses it.
+   */
+  turn: (request: TurnRequest) => void;
   /** The 3D view moved: capture it once it rests, if it is not where the step already is. */
   orbit: (camera: FoldedFigureCamera, stored: FoldedFigureCamera | null) => void;
   /**
@@ -405,7 +422,8 @@ export interface PoseController {
   documentReplaced: () => void;
   /** The engine is gone: forget the fold without freeing it, since its slots are reused. */
   engineLost: () => void;
-  dispose: (options?: {flushOrbit?:boolean}) => void;
+  /** `flush`: capture what the view shows and the step does not hold yet — an orbit, a turn — before letting go. */
+  dispose: (options?: {flush?:boolean}) => void;
 }
 
 const store = { get: useWorkspaceStore.getState, set: useWorkspaceStore.setState };
@@ -442,6 +460,8 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   let spreading: Promise<void> | null = null;
   let committing: { slide: SpreadSlide; revision: number | undefined } | null = null;
   const waiting = new Map<SpreadSlider | 'reveal', SpreadSlide>();
+  /** The newest turn the view shows and the step does not hold yet, until its capture is over (`turn`). */
+  let turning: { degrees: number; settled: Promise<void> } | null = null;
   const session: CaptureSession = createCaptureSession({
     search: (work) => {
       if (!start) throw new Error('A pose fold ran outside a capture');
@@ -548,7 +568,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     if (!committed) return { status: 'discarded' };
     options.landed?.(source);
     if (committed.changed && options.tracked !== false && request.verb !== 'layer-order') {
-      trackPose(request.verb, result.render);
+      trackPose(options.trackedAs ?? request.verb, result.render);
     }
     // Said once, as the step comes to need a look or its reason changes; a turn of a flagged step says nothing new.
     const attention = newAttention(linked, source);
@@ -580,8 +600,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     options: PoseOptions & { opened?: StepLayerOrderGuard } = {}
   ): Promise<DiagramCaptureOutcome | null> => {
     // Any other verb makes a picture the preview was not drawn over — a drag
-    // that ended where it began commits nothing and would leave one up.
-    if (!SLIDE_VERBS.has(request.verb)) endPreview();
+    // that ended where it began commits nothing and would leave one up. A
+    // turn the view shows already leaves the spread as it is.
+    const keepsPreview = SLIDE_VERBS.has(request.verb) || options.background === true;
+    if (!keepsPreview) endPreview();
     const outcome = await capturing(async (begun, linked): Promise<DiagramCaptureOutcome> => {
       begun.guard.current = options?.current;
       // Shown another way since the simulator came to rest: an undo, or a verb.
@@ -590,10 +612,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       const { document, choice } = await creasesFor(begun, linked);
       if (choice.status !== 'found') return choice;
       return posed(begun, linked, document, choice.creases, request, options);
-    }, poseCaptureBlocksViewport(request.verb));
+    }, !options.background && poseCaptureBlocksViewport(request.verb));
     // A drag begun while this verb captured was drawn over the spread before
     // it: drawn again over the one it left, or taken down if that has none.
-    if (!SLIDE_VERBS.has(request.verb)) showPreview(false);
+    if (!keepsPreview) showPreview(false);
     if (!outcome || !('status' in outcome)) return null;
     // Only what is news: a see-through fold says so as it is first folded.
     const repeated = outcome.status === 'captured' && outcome.noLayerOrder && request.verb !== 'show-folded';
@@ -712,6 +734,29 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       return;
     }
     await pose(request, options);
+  };
+
+  const turn = (request: TurnRequest): void => {
+    const linked = currentLinkedSource(stepId);
+    if (disposed || !linked) return;
+    if (!turnsLive(linked.render)) {
+      void run(request);
+      return;
+    }
+    const from = turning?.degrees ?? linked.render.rotationDeg;
+    const degrees = turnedTo(request, from);
+    if (degrees === from) return;
+    // The view draws the turn now; only the step's picture waits, behind it,
+    // for the captures before it. A newer turn takes this one's place.
+    const settled: Promise<void> = queueStepPoseEdit(stepId, 'turn', (current) =>
+      run({ verb: 'rotate-to', degrees }, { current, background: true, trackedAs: request.verb })
+    ).finally(() => {
+      if (turning?.settled !== settled) return;
+      turning = null;
+      listener.turn?.(null);
+    });
+    turning = { degrees, settled };
+    listener.turn?.(degrees);
   };
 
   /**
@@ -929,6 +974,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   };
   const dispose=()=>{
     disposed=true;cancelOrbit();waiting.clear();heldFor=null;endPreview();
+    if (turning) {
+      turning = null;
+      listener.turn?.(null);
+    }
     dropStepSolutionCursor(stepId);
     if(start)useWorkspaceStore.getState().stopDiagramCapture(stepId);
     session.dispose();
@@ -936,6 +985,8 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
   return {
     run,
+
+    turn,
 
     editLayerOrder,
 
@@ -1100,10 +1151,14 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     },
 
     dispose(options) {
-      if(options?.flushOrbit&&(nextOrbit||orbiting)) {
+      const flushing: Promise<unknown>[] = [];
+      if(options?.flush&&(nextOrbit||orbiting)) {
         if(orbitTimer)clearTimeout(orbitTimer);orbitTimer=null;
-        void drainOrbit().finally(dispose);
-      } else dispose();
+        flushing.push(drainOrbit());
+      }
+      if (options?.flush && turning) flushing.push(turning.settled);
+      if (flushing.length > 0) void Promise.allSettled(flushing).finally(dispose);
+      else dispose();
     },
   };
 }
