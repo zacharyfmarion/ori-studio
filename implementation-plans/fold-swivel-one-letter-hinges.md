@@ -81,5 +81,6 @@ No wire, UI, document-format or op change.
       refused; a precrease along the crease on the flap folds
 - [x] Real-design check outside the repo: both corpus nodes land the same
       paper, and every later node still does
-- [ ] App check: make the step by hand with the Swivel tool
-- [ ] Draft PR with before/after files
+- [x] App check: make the step by hand with the Swivel tool (both steps:
+      the same state as the scripted ones)
+- [x] Draft PR with before/after files
