@@ -12,8 +12,10 @@
  * A figure whose layers cannot be spread keeps its rows in place, disabled,
  * and says why under Spread layers (`foldedFigureSpreadBlock`); its spread is
  * kept for when it can. The switch itself is held too, but for a spread the
- * canvas could not draw, which it can always turn off. There is no word while
- * a spread is being prepared: the figure draws flat until it lands.
+ * canvas could not draw, which it can always turn off — and Spread by, which
+ * stays open for it: Affine and Depth need no solve, so another kind may draw
+ * what Default could not, and only Default's own values wait. There is no
+ * word while a spread is being prepared: the figure draws flat until it lands.
  *
  * Discrete edits — the switch, a kind, a direction, the layer held still, a
  * reset — are one entry each (`setSpread`); a drag on Amount, Skew, Axis or
@@ -33,7 +35,14 @@ import {
 } from './foldedFigureSpread';
 import type { FoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
-import { layerSpreadControls, spreadAmountSlider, spreadSliderEdit, type LayerSpreadChoice } from './layerSpreadControls';
+import {
+  layerSpreadControls,
+  spreadAmountSlider,
+  spreadFailedReason,
+  spreadSliderEdit,
+  spreadValuesHold,
+  type LayerSpreadChoice,
+} from './layerSpreadControls';
 import { spatialSpreadFromPercent, spatialSpreadPercent } from './spatialSpreadSettings';
 import {
   DEFAULT_CONNECTED_SPREAD,
@@ -93,7 +102,7 @@ export function foldedFigureSpreadReason(block: FoldedFigureSpreadBlock, t: TFun
     case 'refold':
       return t('panels:cpProperties.folded.spreadRefold', 'Refold to show the spread');
     case 'unavailable':
-      return t('panels:cpProperties.folded.spreadUnavailable', 'These layers couldn’t be spread');
+      return spreadFailedReason(t);
   }
 }
 
@@ -154,34 +163,41 @@ export function foldedFigureSpreadSection(
     };
   }
   const shown = foldedFigureSpreadOptions(figure);
+  // Layers the canvas could not spread: another kind may, so only the spread's own values wait.
+  const held = block === 'unavailable' ? { hint: undefined, valuesHeld: reason } : { hint: reason };
   return {
     id: 'spread',
     title: t('panels:cpProperties.folded.spread', 'Spread'),
-    fields: shown ? [toggle, ...spreadValueFields(shown, reason, undoLabel, deps)] : [toggle],
+    fields: shown ? [toggle, ...spreadValueFields(shown, held, undoLabel, deps)] : [toggle],
   };
 }
 
-/** The rows under Spread layers while on: its kind and values, each disabled with `reason` while one applies. */
+/**
+ * The rows under Spread layers while on: its kind and values. `held.hint`
+ * disables every one, saying why; `held.valuesHeld`, the values alone, with
+ * Spread by left open.
+ */
 function spreadValueFields(
   shown: LayerSpreadOptions,
-  reason: string | undefined,
+  held: { hint: string | undefined; valuesHeld?: string },
   undoLabel: string,
   deps: FoldedFigureSpreadFieldDeps
 ): PropertyField[] {
   const { t } = deps;
-  const support: { support: PropertySupport; reason?: string } = reason
-    ? { support: 'unsupported', reason }
-    : { support: 'supported' };
   const set = (spread: LayerSpreadOptions) => deps.setSpread({ kind: 'record', spread });
   const edit = (value: LayerSpreadEdit) => set(withSpreadField(shown, value));
   const controls = layerSpreadControls(shown, {
-    hint: reason,
+    ...held,
     busy: false,
     t,
     kind: (kind) => set(deps.spreadStarts()[kind]),
     direction: (toward) => edit({ verb: 'spread-direction', toward }),
     keep: (keep) => edit({ verb: 'spread-keep', keep }),
   });
+  const supportOf = (reason: string | undefined): { support: PropertySupport; reason?: string } =>
+    reason ? { support: 'unsupported', reason } : { support: 'supported' };
+  const kindSupport = supportOf(controls.hint);
+  const support = supportOf(spreadValuesHold(controls).hint);
   const percent = (value: number) =>
     new Intl.NumberFormat(deps.locale, { style: 'percent', maximumFractionDigits: 0 }).format(value / 100);
   const degrees = (value: number) =>
@@ -208,7 +224,7 @@ function spreadValueFields(
       // Depth are too wide to sit beside their label in Edit's narrower pane.
       layout: 'stacked',
       label: t('panels:diagram.pose.spreadKind', 'Spread by'),
-      ...support,
+      ...kindSupport,
       undoLabel,
       options: controls.kinds.map(({ value, label }) => ({ id: value, label })),
       // Where affine spreading comes from, beside Spread by as the spread rows have it.

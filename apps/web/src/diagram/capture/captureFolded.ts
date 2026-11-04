@@ -56,11 +56,14 @@ import type { PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import {
   creasePatternSide,
   creasesFlipped,
+  spreadFailedOf,
+  spreadFailedRender,
   type DiagramCpRender,
   type DiagramCpScope,
   type DiagramCpSource,
   type DiagramCreasePatternRender,
   type DiagramFixedPicture,
+  type DiagramFlatRender,
   type DiagramLayerSpread,
   type DiagramPaperFaces,
   type DiagramScenePicture,
@@ -120,7 +123,13 @@ export const SCENE_BUDGET_BYTES = 2 * 1024 * 1024;
  */
 export type CapturedPicture =
   | { kind: 'picture'; picture: DiagramScenePicture | DiagramFixedPicture }
-  | { kind: 'over-budget'; scene: PaperScene; paperScale: number | null };
+  | {
+      kind: 'over-budget';
+      scene: PaperScene;
+      paperScale: number | null;
+      /** The fold drawn unspread for a Default spread its layers could not take, as a scene's (`spreadFailed`). */
+      spreadFailed?: true;
+    };
 
 /**
  * The folded-figure model a capture folds with: the document's own (a reopened
@@ -612,18 +621,73 @@ export async function captureStep(
     const picture = await readFoldedPicture(runtime, folded.handle, state.displayStyle);
     const captured = await captureFlatPicture(picture, render.rotationDeg, env, render.spread, render.presentation);
     const noLayerOrder = !hasFoldedLayerOrder(state) || !picture.scene?.faces.length;
-    return { status: 'captured', source: source({ ...render, foldCase }), captured, noLayerOrder, attention: null };
+    const drawn = capturedSpreadFailed(captured) ? spreadFailedRender(render) : render;
+    return { status: 'captured', source: source({ ...drawn, foldCase }), captured, noLayerOrder, attention: null };
   } finally {
     await runtime.free(folded.handle);
   }
 }
 
-/** Cold capture prepares once; subsequent amount/camera edits use the shared cache. */
+/**
+ * A flat fold's picture, its layers spread when asked; a Default spread its
+ * layers could not take is drawn unspread and marked so
+ * (`connectedFlatPicture`, `spreadFailedPicture`). Cold capture prepares
+ * once; subsequent amount/camera edits use the shared cache.
+ */
 export async function captureFlatPicture(picture: FoldedPicture, rotationDeg: number, env?: SanitizeEnv, spread?: LayerSpreadOptions, presentation?: SpreadPresentation): Promise<CapturedPicture> {
   if (spread?.kind !== 'connected' || !picture.scene) return flatPicture(picture, rotationDeg, env, spread);
   const lease = prepareConnected(picture.scene);
-  try { return await captureFlatScenePicture(picture.scene, rotationDeg, spread, await lease.promise, presentation); }
-  finally { lease.release(); }
+  try {
+    const spreadPicture = await connectedFlatPicture(picture.scene, rotationDeg, spread, lease.promise, presentation);
+    return spreadPicture.kind === 'spread' ? spreadPicture.captured : spreadFailedPicture(flatPicture(picture, rotationDeg, env));
+  } finally {
+    lease.release();
+  }
+}
+
+/**
+ * A flat fold's picture drawn unspread for a Default spread its layers could
+ * not take, marked so (`DiagramScenePicture.spreadFailed`): its step keeps
+ * the spread, says it failed, and offers another kind.
+ */
+export function spreadFailedPicture(captured: CapturedPicture): CapturedPicture {
+  if (captured.kind === 'over-budget') return { ...captured, spreadFailed: true };
+  const { picture } = captured;
+  return picture.kind === 'scene' ? { kind: 'picture', picture: { ...picture, spreadFailed: true } } : captured;
+}
+
+/** Whether a capture is a flat fold drawn unspread for a Default spread its layers could not take. */
+export function capturedSpreadFailed(captured: CapturedPicture): boolean {
+  return captured.kind === 'over-budget' ? captured.spreadFailed === true : spreadFailedOf(captured.picture);
+}
+
+/** A flat fold's picture spread by Default, or why its layers could not be spread. */
+export type ConnectedFlatPicture =
+  | { kind: 'spread'; captured: CapturedPicture; connected: PreparedConnectedSpread }
+  | { kind: 'failed'; cause: unknown };
+
+/**
+ * A flat fold's picture spread by Default, from its solve (`solve`, a lease's)
+ * and its clip (`captureFlatScenePicture`) — or `failed`, with why, when
+ * its layers could not be spread: the solve or the clip failed, over a
+ * resource limit, out of time, the worker gone. A step is not refused its
+ * picture for its spread: the caller draws the fold unspread, marked so
+ * (`spreadFailedPicture`), and keeps the spread (`spreadFailedRender`), for
+ * the step to say it failed and offer another kind.
+ */
+export async function connectedFlatPicture(
+  scene: OristudioCpFoldedPaperScene,
+  rotationDeg: number,
+  spread: LayerSpreadOptions,
+  solve: Promise<PreparedConnectedSpread>,
+  presentation?: SpreadPresentation
+): Promise<ConnectedFlatPicture> {
+  try {
+    const connected = await solve;
+    return { kind: 'spread', captured: await captureFlatScenePicture(scene, rotationDeg, spread, connected, presentation), connected };
+  } catch (cause) {
+    return { kind: 'failed', cause };
+  }
 }
 
 /** Live poses share this geometry with the capture worker. */
@@ -666,7 +730,7 @@ async function captureInLayerOrder(
     env,
     source,
   }: {
-    render: Extract<DiagramCpRender, { mode: 'folded-flat' }>;
+    render: DiagramFlatRender;
     env: SanitizeEnv | undefined;
     source: (render: DiagramCpRender, layerOrder: StepLayerOrder | null) => DiagramCpSource;
   }
@@ -690,9 +754,10 @@ async function captureInLayerOrder(
     const noLayerOrder = !hasFoldedLayerOrder(state) || !picture.scene?.faces.length;
     // The case the new figure reports, which means nothing beside a record.
     const foldCase = Math.max(1, state.currentCase ?? 1);
+    const drawn = capturedSpreadFailed(captured) ? spreadFailedRender(render) : render;
     return {
       status: 'captured',
-      source: source({ ...render, foldCase }, shown.layerOrder),
+      source: source({ ...drawn, foldCase }, shown.layerOrder),
       captured,
       noLayerOrder,
       attention: shown.attention,

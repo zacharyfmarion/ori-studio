@@ -30,6 +30,7 @@ import {
   setFoldStepPicture,
   setLinkedLayerOrder,
   setLinkedPicture,
+  spreadFailedOf,
   spreadStartsFor,
   type DiagramCpRender,
   type DiagramCpScope,
@@ -116,6 +117,14 @@ export interface DiagramCaptureRequest {
   layerOrderApplied?: { applied: LayerOrderApplied; frame: PaperFrame };
 }
 
+/**
+ * A capture asked spread by Default whose layers could not be spread, so the
+ * fold is drawn unspread, its spread kept to say so: `new` where the step's
+ * picture before was spread or of something else — said, once — and `again`
+ * where its layers could not be spread before either, which says nothing new.
+ */
+export type SpreadFailure = 'new' | 'again';
+
 export type DiagramCaptureOutcome =
   | {
       status: 'captured';
@@ -125,6 +134,8 @@ export type DiagramCaptureOutcome =
       render: DiagramCpRender;
       /** The fold found no layer order; the picture is its transparent development. */
       noLayerOrder: boolean;
+      /** Asked spread by Default, its layers could not be spread ({@link SpreadFailure}); absent when they were, or not asked. */
+      spreadFailed?: SpreadFailure;
       /** Too detailed to keep as vector; kept as a bitmap. */
       tooDetailed: boolean;
       /**
@@ -300,8 +311,9 @@ export function stepCaptureRuntime(start: StepCaptureStart): CpCaptureRuntime {
 /**
  * Commit a captured picture to its step as one undo step — unless the diagram
  * was replaced, or the step is gone or its source changed, since the capture
- * began. Null when it was dropped; otherwise whether anything changed, and
- * whether the picture is kept as a bitmap.
+ * began. Null when it was dropped; otherwise whether anything changed,
+ * whether the picture is kept as a bitmap, and whether its layers could not
+ * be spread ({@link SpreadFailure}), against the picture it had.
  */
 export async function commitStepCapture(
   store: DiagramCaptureStore,
@@ -310,7 +322,7 @@ export async function commitStepCapture(
   captured: StepCaptured,
   label: string,
   joinEntry?: object
-): Promise<{ changed: boolean; tooDetailed: boolean; replaced?: number } | null> {
+): Promise<{ changed: boolean; tooDetailed: boolean; spreadFailed?: SpreadFailure; replaced?: number } | null> {
   if (start.guard.current?.() === false) return null;
   const kept = await keptPicture(captured.picture, captured.source.render, start.style);
   const now = store.get();
@@ -340,8 +352,14 @@ export async function commitStepCapture(
     join
   );
   if (next && landed) trackSeeded(next, stepId, landed);
-  // How many edited marks a Fold step's own replaced, said only when any were.
-  return { changed: next !== null, tooDetailed: kept.asset !== undefined, ...(next && replaced > 0 ? { replaced } : {}) };
+  const spreadFailed: SpreadFailure | null = spreadFailedOf(kept.picture) ? (spreadFailedOf(current.picture) ? 'again' : 'new') : null;
+  // How many edited marks a Fold step's own replaced, said only when any were; layers not spread, likewise.
+  return {
+    changed: next !== null,
+    tooDetailed: kept.asset !== undefined,
+    ...(spreadFailed ? { spreadFailed } : {}),
+    ...(next && replaced > 0 ? { replaced } : {}),
+  };
 }
 
 /**
@@ -483,6 +501,7 @@ export async function runDiagramCapture(
       changed: committed.changed,
       render: result.source.render,
       noLayerOrder: result.noLayerOrder,
+      ...(committed.spreadFailed ? { spreadFailed: committed.spreadFailed } : {}),
       tooDetailed: committed.tooDetailed,
       flagged: result.attention && !sameAttention(before, result.attention) ? result.attention : null,
     };
@@ -622,10 +641,13 @@ export async function keptPicture(
     captured.scene.bounds.minX - margin, captured.scene.bounds.minY - margin,
     width / pxPerScenePx, height / pxPerScenePx,
   ];
+  // A fold whose layers could not be spread is drawn unspread, with no spread's frame to keep.
+  const spreadFailed = captured.spreadFailed === true;
   return {
     picture: {
       kind: 'asset', assetId: id, paperScale, styleKey: diagramStyleKey(style), key: `raster-${id}`,
-      ...((render.mode === 'folded-flat' && render.spread?.kind === 'connected') || (render.mode === 'folded-3d' && render.spread) ? { sceneFrame } : {}),
+      ...(!spreadFailed && ((render.mode === 'folded-flat' && render.spread?.kind === 'connected') || (render.mode === 'folded-3d' && render.spread)) ? { sceneFrame } : {}),
+      ...(spreadFailed ? { spreadFailed: true as const } : {}),
     },
     asset: { id, kind: 'raster', src, widthPx: width, heightPx: height, bytes: src.length },
   };

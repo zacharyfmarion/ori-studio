@@ -97,7 +97,8 @@ export function paperFacesOf(step: DiagramStep): StepFaces | null {
     faces =
       render.mode === 'crease-pattern'
         ? creasePatternFaces(scene, render.rotationDeg, creasesFlipped(render))
-        : flatFaces(scene, picture.paperFaces, render.spread !== undefined);
+        : // A fold whose layers could not be spread is drawn unspread, whatever its spread.
+          flatFaces(scene, picture.paperFaces, render.spread !== undefined && picture.spreadFailed !== true);
   }
   memo.set(picture, { render: key, faces });
   return faces;

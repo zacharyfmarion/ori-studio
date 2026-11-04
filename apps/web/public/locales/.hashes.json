@@ -6709,6 +6709,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
     "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
@@ -13422,6 +13425,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
     "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
@@ -20137,6 +20143,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
     "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
@@ -26473,6 +26482,8 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
     "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
@@ -32809,6 +32820,8 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
     "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
@@ -39522,6 +39535,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
     "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
@@ -46235,6 +46251,9 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
     "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
@@ -52571,6 +52590,8 @@
     "tools:fold.vertex.refusal.noFlap.openingOutside": "b3be8cb30d3e",
     "tools:fold.vertex.squashOpensOver": "7f4dac78c004",
     "tools:fold.vertex.squashOpensUnder": "b3ed6753776c",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
     "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   }

@@ -49,11 +49,35 @@ describe('a dialog figure’s Spread layers', () => {
     expect(spread).not.toBeNull();
   });
 
-  it('says a spread that could not be made was turned off, and can be turned on to try again', () => {
-    const { toggle, deps } = controls({ failed: true });
-    expect(toggle).toMatchObject({ pressed: false, disabled: false, note: 'These layers couldn’t be spread' });
+  it('keeps a spread on whose layers could not be spread, says so, and offers another kind', () => {
+    const reason = 'These layers couldn’t be spread';
+    const { toggle, spread, deps } = controls({ setting: DEFAULT_CONNECTED_SPREAD, failed: true });
+    expect(toggle).toMatchObject({ pressed: true, disabled: false, note: reason });
+    expect(spread).toMatchObject({ disabled: false, valuesHeld: reason });
+    expect(spread!.kinds.map((kind) => kind.disabled)).toEqual([false, false, false]);
+    // No value of Default's own changes layers it could not spread: a drag waits.
+    expect(spread!.start()).toBe(false);
+    spread!.preview('amount', 1);
+    spread!.previewReveal([0, 0]);
+    spread!.commit();
+    expect(deps.commit).not.toHaveBeenCalled();
+    expect(deps.preview).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'connected' }));
+    // Affine and Depth need no solve: either is the way on.
+    spread!.kinds.find((kind) => kind.value === 'affine')!.run();
+    expect(deps.commit).toHaveBeenCalledWith(DEFAULT_SPREAD_STARTS.affine);
+    // And it turns off as ever.
     toggle.run();
-    expect(deps.commit).toHaveBeenCalledWith(DEFAULT_SPREAD_STARTS.any);
+    expect(deps.commit).toHaveBeenLastCalledWith(null);
+  });
+
+  it('holds a depth spread’s direction with its other values while its layers could not be spread', () => {
+    const { spread, deps } = controls({ setting: DEFAULT_SPREAD_STARTS.depth, failed: true });
+    const left = spread!.directions.find((direction) => direction.value === 'left')!;
+    expect(left).toMatchObject({ disabled: true, hint: 'These layers couldn’t be spread' });
+    left.run();
+    expect(deps.commit).not.toHaveBeenCalled();
+    spread!.kinds.find((kind) => kind.value === 'connected')!.run();
+    expect(deps.commit).toHaveBeenCalledWith(DEFAULT_SPREAD_STARTS.connected);
   });
 
   it('is held, saying why on hover, once the share card is made', () => {

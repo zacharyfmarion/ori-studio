@@ -35,11 +35,13 @@ import {
   creasePatternSide,
   creasesFlipped,
   renderToShowAs,
+  spreadFailedRender,
   withCreasePatternSide,
   withCreasesFlipped,
   type DiagramCpRender,
   type DiagramCreasePatternRender,
   type DiagramCpSource,
+  type DiagramFlatRender,
   type DiagramLayerSpread,
   type DiagramSimulatedView,
   type DiagramSpreadStarts,
@@ -49,6 +51,7 @@ import type { StepCreases } from './captureCreases';
 import {
   captureCreasePattern,
   captureSimulated,
+  capturedSpreadFailed,
   defaultCaptureCamera,
   flatStill,
   type CapturedPicture,
@@ -218,16 +221,18 @@ export async function poseLinkedStep(
     const mirrorAxes = await session.flatMirrorAxes();
     const turn = upright ? (uprightTurn(mirrorAxes, rotationDeg) ?? rotationDeg) : rotationDeg;
     const picture = await session.flatPicture(turn, spread, presentation);
+    const drawn: DiagramFlatRender = {
+      mode: 'folded-flat',
+      side: state.side,
+      rotationDeg: turn,
+      foldCase: state.foldCase,
+      ...(spread ? { spread } : {}),
+      ...(presentation ? { presentation } : {}),
+    };
     return {
       status: 'posed',
-      render: {
-        mode: 'folded-flat',
-        side: state.side,
-        rotationDeg: turn,
-        foldCase: state.foldCase,
-        ...(spread ? { spread } : {}),
-        ...(presentation ? { presentation } : {}),
-      },
+      // Layers its Default spread could not take keep the spread, to say so (`spreadFailedPicture`).
+      render: capturedSpreadFailed(picture) ? spreadFailedRender(drawn) : drawn,
       picture,
       noLayerOrder: state.noLayerOrder,
       solutions: { discovered: state.discovered, hasNext: state.hasNext, none: state.noLayerOrder },
