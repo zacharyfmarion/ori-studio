@@ -68,10 +68,10 @@ use crate::compound::vertex::{
     piece_centroid, rotate, stack_toward, toward, unit,
 };
 use crate::fold::line::Axis;
-use crate::fold::{ActionKind, FoldActionGeometry, FoldAnalysis, Snap, Within};
+use crate::fold::{ActionKind, FoldActionGeometry, FoldAnalysis, PlainFold, Seed, Snap, Within};
 use crate::numerics::{MIN_FEATURE, TOL};
 use crate::pattern::{CreaseKind, FaceId};
-use crate::refusal::{FoldRefusal, Refused, Side};
+use crate::refusal::{Fix, FoldRefusal, Refused, Side};
 use crate::state::State;
 use crate::view::Direction;
 
@@ -240,10 +240,13 @@ struct KitePair {
 }
 
 impl State {
-    /// A petal fold's flap and creases, without folding.
+    /// A petal fold's flap and creases, without folding. A refusal for H
+    /// uncreased offers to precrease it first where the fold then lands.
     pub fn analyse_petal(&self, op: &PetalFold) -> Result<PetalAnalysis, Refused> {
         let direction = self.view().model_direction(op.direction);
-        let petal = self.petal_flap(op, direction)?;
+        let petal = self
+            .petal_flap(op, direction)
+            .map_err(|refused| self.with_hinge_fix(op, refused, &CompletionLimits::default()))?;
         let ids = |faces: &[usize]| faces.iter().map(|&f| self.faces()[f].id).collect();
         let scores =
             |k: usize| !petal.kite.cuts[k].is_empty() || !petal.second_kite.cuts[k].is_empty();
@@ -271,7 +274,8 @@ impl State {
         self.petal_fold_within(op, choices, &CompletionLimits::default())
     }
 
-    /// [`State::petal_fold`] under `limits`; refusals as the squash's.
+    /// [`State::petal_fold`] under `limits`; refusals as the squash's, and
+    /// one for H uncreased as [`State::analyse_petal`]'s.
     pub fn petal_fold_within(
         &self,
         op: &PetalFold,
@@ -279,12 +283,51 @@ impl State {
         limits: &CompletionLimits,
     ) -> Result<VertexOutcome, CompoundRefused> {
         let direction = self.view().model_direction(op.direction);
-        let compiled = self
-            .compile_petal(op, direction)
-            .map_err(CompoundRefused::Refused)?;
+        let compiled = self.compile_petal(op, direction).map_err(|refused| {
+            CompoundRefused::Refused(self.with_hinge_fix(op, refused, limits))
+        })?;
         compiled.land(self, choices, limits, || {
             self.compile_petal(op, direction.opposite()).ok()
         })
+    }
+
+    /// `refused` with [`Fix::PrecreaseFirst`] when it refuses H uncreased
+    /// across paper that folds (`petal_not_precreased`, the line) and the
+    /// same petal fold lands over H precreased through every layer, the
+    /// petal's side moving, in its direction — what the tools' Precrease
+    /// tool through H's ends makes. Its fixes are ones that land: where the
+    /// precrease would not let it fold, none is offered.
+    fn with_hinge_fix(
+        &self,
+        op: &PetalFold,
+        mut refused: Refused,
+        limits: &CompletionLimits,
+    ) -> Refused {
+        let FoldRefusal::PetalNotPrecreased {
+            missing: PetalCrease::Line,
+            ..
+        } = refused.refusal
+        else {
+            return refused;
+        };
+        let Some(line) = op.hinge.line() else {
+            return refused;
+        };
+        let lands = || -> Option<bool> {
+            let at = self.image_of(op.petal)?;
+            let side = Side::of_point(&line, at)?;
+            let precreased = self
+                .precrease(&PlainFold::new(line, side, op.direction).with_seed(Seed::All))
+                .ok()?
+                .state;
+            let direction = precreased.view().model_direction(op.direction);
+            let compiled = precreased.compile_petal(op, direction).ok()?;
+            Some(compiled.lands(&precreased, limits))
+        };
+        if lands() == Some(true) {
+            refused.fixes.push(Fix::PrecreaseFirst { line });
+        }
+        refused
     }
 
     /// The picture of the petal fold `op` on this state, with `landed`'s

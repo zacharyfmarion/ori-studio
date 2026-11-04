@@ -15,9 +15,9 @@ use std::collections::BTreeSet;
 
 use oristudio_fold::{
     CompletionLimits, CompoundRefused, CreaseKind, CreasePatternInput, Direction, EdgeId, Face,
-    FaceId, FoldRefusal, ImportKind, ImportSegment, ImportSpace, ImportTarget, ImportedPattern,
-    Letter, NoPetal, NoPetalDetail, PetalCrease, PetalFold, PetalHinge, Seed, StartSide, State,
-    VertexChoices, VertexFolded,
+    FaceId, Fix, FoldRefusal, ImportKind, ImportSegment, ImportSpace, ImportTarget,
+    ImportedPattern, Letter, NoPetal, NoPetalDetail, PetalCrease, PetalFold, PetalHinge, Seed,
+    StartSide, State, VertexChoices, VertexFolded,
 };
 use oristudio_geometry::convex;
 use oristudio_layer_order::{LayerOrder, Violation};
@@ -98,6 +98,55 @@ fn a_petal_fold_needs_its_creases_precreased() {
     let json = serde_json::to_value(&refused).unwrap_or_default();
     assert_eq!(json["code"], "petal_not_precreased");
     assert_eq!(json["missing"], "line");
+}
+
+/// A petal fold refused for H uncreased offers to precrease H through every
+/// layer first only where the same fold then lands: over the kites it does
+/// (the bird base's route), and the fold and the analysis both say so;
+/// with nothing precreased the kites would still be missing, so nothing is
+/// offered.
+#[test]
+fn a_petal_fold_offers_to_precrease_h_only_where_it_then_lands() {
+    let marks: PetalMarks = cases::petal_marks(false);
+    let base = cases::preliminary(false).last().clone();
+    let kites = cases::kites(&base, &marks);
+    let op = cases::petal_op(&kites, &marks);
+    let PetalHinge::Crease { line } = op.hinge else {
+        unreachable!()
+    };
+    let refused = match kites.petal_fold(&op, &VertexChoices::default()) {
+        Err(CompoundRefused::Refused(refused)) => refused,
+        other => panic!("{other:?}"),
+    };
+    assert!(matches!(
+        refused.refusal,
+        FoldRefusal::PetalNotPrecreased {
+            missing: PetalCrease::Line,
+            ..
+        }
+    ));
+    assert_eq!(refused.fixes, vec![Fix::PrecreaseFirst { line }]);
+    let analysed = kites.analyse_petal(&op).err();
+    assert_eq!(analysed.map(|r| r.fixes), Some(refused.fixes.clone()));
+    // The fix's route lands.
+    let with_h = cases::precrease(&kites, marks.ends[0], marks.ends[1], marks.t, Seed::All);
+    landed(with_h.petal_fold(&cases::petal_op(&with_h, &marks), &VertexChoices::default()));
+    let json = serde_json::to_value(&refused.fixes[0]).unwrap_or_default();
+    assert_eq!(json["fix"], "precrease_first");
+
+    let bare = cases::petal_op(&base, &marks);
+    let refused = match base.petal_fold(&bare, &VertexChoices::default()) {
+        Err(CompoundRefused::Refused(refused)) => refused,
+        other => panic!("{other:?}"),
+    };
+    assert!(matches!(
+        refused.refusal,
+        FoldRefusal::PetalNotPrecreased {
+            missing: PetalCrease::Line,
+            ..
+        }
+    ));
+    assert!(refused.fixes.is_empty(), "{:?}", refused.fixes);
 }
 
 /// The analysis names H's ends on the closed edges, the open corner the

@@ -636,6 +636,9 @@ pub enum Fix {
     UseEmergent { direction: Point },
     /// The same point sinks the other way: closed, or open.
     OtherSink { kind: SinkKind },
+    /// Precrease this model line through every layer first: the same fold
+    /// then lands (a petal fold's H).
+    PrecreaseFirst { line: Line },
 }
 
 impl From<EngineFix> for Fix {
@@ -653,6 +656,7 @@ impl From<EngineFix> for Fix {
             EngineFix::TuckTarget { face, at } => Fix::TuckTarget { face, at },
             EngineFix::UseEmergent { direction } => Fix::UseEmergent { direction },
             EngineFix::OtherSink { kind } => Fix::OtherSink { kind },
+            EngineFix::PrecreaseFirst { line } => Fix::PrecreaseFirst { line },
         }
     }
 }
