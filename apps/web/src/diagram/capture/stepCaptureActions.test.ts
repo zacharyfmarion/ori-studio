@@ -296,6 +296,23 @@ describe('refreshDiagramStep', () => {
     expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('flat', 'no_layer_order', 'refresh');
   });
 
+  it('says once that a step’s layers couldn’t be spread, with the kinds to try, and counts it each time', async () => {
+    const render = { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 } as const;
+    answer({ ...CAPTURED, spreadFailed: 'new', render });
+    expect(await refreshDiagramStep('step-flat')).toBe(true);
+    expect(toasts.message).toHaveBeenCalledWith(
+      'Its layers couldn’t be spread by Default, so the step shows them unspread. Try Affine or Depth instead.'
+    );
+    expect(toasts.error).not.toHaveBeenCalled();
+    expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('flat', 'spread_failed', 'refresh');
+    // Refreshed again, its layers still can’t be spread: nothing new to say, but counted.
+    toasts.message.mockClear();
+    answer({ ...CAPTURED, spreadFailed: 'again', render });
+    expect(await refreshDiagramStep('step-flat')).toBe(true);
+    expect(toasts.message).not.toHaveBeenCalled();
+    expect(analytics.trackDiagramPictureCaptured).toHaveBeenLastCalledWith('flat', 'spread_failed', 'refresh');
+  });
+
   it('does nothing for a step that is not linked, and counts nothing it did not try', async () => {
     const capture = answer(CAPTURED);
     expect(await refreshDiagramStep('step-empty')).toBe(false);

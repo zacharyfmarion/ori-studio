@@ -46,6 +46,10 @@ import {
 import { folded3dMesh, type Folded3dMeshResult } from './folded3dMesh';
 import { folded3dFigureBoxCssPx, folded3dPaperScene, folded3dSceneCamera } from './folded3dScene';
 import { folded3dFrameRadius, type FoldedFigureCamera } from './folded3dCamera';
+import { ensureSpatialSpread, posedSpatialMesh, spatialAmount } from './folded3dSpread';
+import { captureSpatialScene } from '../../layer-spread/spatialCapture';
+import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
+import type { FoldedFigureSpread } from './foldedFigureSpread';
 
 /**
  * What a scene needs off the figure. Every field is on the entry, and the four
@@ -54,6 +58,7 @@ import { folded3dFrameRadius, type FoldedFigureCamera } from './folded3dCamera';
  * its stored picture before it is an entry.
  */
 export interface Folded3dSceneFigure extends Partial<FoldedFigureDrawing> {
+  spread?: FoldedFigureSpread | null;
   camera?: FoldedFigureCamera | null;
   displayStyle: OristudioCpFoldedFigureDisplayStyle;
   folded3d?: OristudioCpFolded3dSnapshot | null;
@@ -101,6 +106,7 @@ export function folded3dFigureScene(
 ): PaperScene | null {
   const folded3d = figure.folded3d;
   if (!folded3d) return null;
+  if ((spatialAmount(figure) ?? 0) > 0) return capturedScene(model, captureKey(figure, { style, space, markHidden, aux }), aux);
   const built = meshOf(model, aux);
   if (built.kind !== 'mesh') return null;
   const box = sceneBox(figure, model, space);
@@ -207,6 +213,7 @@ function shiftScene(scene: PaperScene, [dx, dy]: ScenePoint): PaperScene {
       }
       return {
         ...item,
+        svg: `<g transform="translate(${dx} ${dy})">${item.svg}</g>`,
         bounds: {
           minX: item.bounds.minX + dx,
           minY: item.bounds.minY + dy,
@@ -223,9 +230,8 @@ function shiftScene(scene: PaperScene, [dx, dy]: ScenePoint): PaperScene {
  * measured against the sheet, so a scene that scaled its points and not its
  * sheet would pull its creases back by a different fraction of the paper.
  *
- * Markup carries its own already-drawn SVG and cannot be rescaled from here —
- * the mesh producer emits none, so a 3D figure's scene never holds one, and
- * only its bounds are carried (as {@link shiftScene} carries them).
+ * A bounded spatial raster carries trusted, generated markup. Transform its
+ * picture together with its bounds, just as the vector points are transformed.
  */
 function scaleScene(scene: PaperScene, factor: number): PaperScene {
   const grow = ([x, y]: ScenePoint): ScenePoint => [x * factor, y * factor];
@@ -252,7 +258,7 @@ function scaleScene(scene: PaperScene, factor: number): PaperScene {
             : {}),
         };
       }
-      return { ...item, bounds: growBounds(item.bounds) };
+      return { ...item, svg: `<g transform="scale(${factor})">${item.svg}</g>`, bounds: growBounds(item.bounds) };
     }),
   };
 }
@@ -281,4 +287,32 @@ function meshOf(
   const built = folded3dMesh(model, aux);
   meshes.set(model, { aux, built });
   return built;
+}
+
+
+// A small per-model cache of settled pictures, not an unbounded camera history.
+const captures = new WeakMap<OristudioCpFolded3dRenderModel, { key: string; aux: OristudioCpFolded3dAuxLines | null; scene: PaperScene }[]>();
+function captureKey(figure: Folded3dSceneFigure, options: Folded3dFigureSceneOptions): string {
+  return JSON.stringify([figure.camera, figure.spread, figure.frameRadius, figure.placement, options.space, options.style]);
+}
+function capturedScene(model: OristudioCpFolded3dRenderModel, key: string, aux: OristudioCpFolded3dAuxLines | null): PaperScene | null {
+  return captures.get(model)?.find(c => c.key === key && c.aux === aux)?.scene ?? null;
+}
+
+/** Save/export wait for this boundary; live windows only move an amount uniform.
+ * A stale completion can fill the cache but cannot replace a newer figure. */
+export async function settledFolded3dFigureScene(figure: Folded3dSceneFigure, model: OristudioCpFolded3dRenderModel, options: Folded3dFigureSceneOptions, signal?: AbortSignal): Promise<PaperScene | null> {
+  if ((spatialAmount(figure) ?? 0) <= 0) return folded3dFigureScene(figure, model, options);
+  if (figure.folded3d?.verdict.verdict !== 'folded') throw new Error('Spatial spread requires a determined, closed fold');
+  const aux = options.aux ?? null, key = captureKey(figure, options);
+  const cached = capturedScene(model, key, aux);
+  if (cached) return cached;
+  await ensureSpatialSpread(model, aux, signal);
+  const mesh = posedSpatialMesh(figure, model, aux), box = sceneBox(figure, model, options.space);
+  if (!mesh || !box) throw new Error('No settled spatial geometry');
+  const camera = folded3dSceneCamera(figure.camera, mesh, box.side);
+  const scene = await captureSpatialScene(mesh, camera, surfacePaperStyle(options.style, PAPER_STYLE_POLICIES['folded-3d']), signal);
+  const placed = box.shift ? shiftScene(scene, box.shift) : scene;
+  captures.set(model, [{ key, aux, scene: placed }, ...(captures.get(model) ?? []).slice(0, 3)]);
+  return placed;
 }

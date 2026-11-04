@@ -1,6 +1,5 @@
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
-import { captureFlatScenePicture } from './captureFolded';
 import { prepareConnected, type ConnectedLease } from '../../layer-spread/prepareConnected';
 import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene';
 /**
@@ -52,7 +51,9 @@ import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamer
 import {
   capture3dPicture,
   captureModel,
+  connectedFlatPicture,
   flatPicture,
+  spreadFailedPicture,
   type CapturedPicture,
   type CpCaptureRuntime,
 } from './captureFolded';
@@ -217,12 +218,15 @@ export interface CaptureSession {
   turnOver: () => Promise<FlatFoldState>;
   /** The held flat fold's next solution, on the same handle. */
   nextSolution: () => Promise<FlatFoldState>;
+  /** The held flat fold's Default spread, solved for the live view; null when it has no paper scene. */
+  connectedView: () => Promise<ConnectedSpreadView | null>;
   /**
    * The held flat fold's picture, turned clockwise by `rotationDeg`, its
    * layers spread when asked: read from the kernel once per side and layer
-   * order, then drawn from what was read.
+   * order, then drawn from what was read. A Default spread its layers could
+   * not take is drawn unspread and marked so (`spreadFailedPicture`), and its
+   * solve is forgotten, so the next ask solves again.
    */
-  connectedView: () => Promise<ConnectedSpreadView | null>;
   flatPicture: (rotationDeg: number, spread?: LayerSpreadOptions, presentation?: SpreadPresentation) => Promise<CapturedPicture>;
   /**
    * The held flat fold's mirror axes, unturned (`foldedMirrorAxes`): measured
@@ -256,7 +260,7 @@ export interface CaptureSession {
     lineIds: readonly number[]
   ) => Promise<SpatialHold | { kind: 'refused'; refusal: OristudioCpFold3dRefusal }>;
   /** The held 3D fold's picture at a camera, in the diagram's light. */
-  spatialPicture: (camera: FoldedFigureCamera, style: DiagramStyle) => CapturedPicture;
+  spatialPicture: (camera: FoldedFigureCamera, style: DiagramStyle, spread?: import('../../cp-workspace/folded/foldedFigureSpread').SpatialSpread) => Promise<CapturedPicture>;
   /**
    * Let the held fold go, and any fold still searching: it is freed as it
    * lands. Idempotent; the session can fold again afterwards.
@@ -518,12 +522,19 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
 
     async flatPicture(rotationDeg, spread, presentation) {
       const hold = flatHold();
-      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
-      if (spread?.kind === 'connected' && hold.read.scene) {
-        const view = await this.connectedView();
-        if (view) return captureFlatScenePicture(view.scene, rotationDeg, spread, view.prepared, presentation);
+      const read = (hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle));
+      if (spread?.kind !== 'connected' || !read.scene) return flatPicture(read, rotationDeg, deps.env, spread);
+      const lease = (hold.spreadLease ??= prepareConnected(read.scene));
+      const spreadPicture = await connectedFlatPicture(read.scene, rotationDeg, spread, lease.promise, presentation);
+      // Let go of meanwhile, whatever the spread came to.
+      if (held !== hold || hold.spreadLease !== lease) throw new CaptureSessionClosedError();
+      if (spreadPicture.kind === 'spread') {
+        hold.connected = spreadPicture.connected;
+        return spreadPicture.captured;
       }
-      return flatPicture(hold.read, rotationDeg, deps.env, spread);
+      lease.release();
+      hold.spreadLease = undefined;
+      return spreadFailedPicture(flatPicture(read, rotationDeg, deps.env));
     },
 
     async flatMirrorAxes() {
@@ -559,10 +570,10 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
       return hold;
     },
 
-    spatialPicture(camera, style) {
+    spatialPicture(camera, style, spread) {
       if (!held) throw new CaptureSessionClosedError();
       if (held.kind !== 'spatial' || held.epoch !== deps.epoch()) throw new Error('No 3D fold is held');
-      return capture3dPicture(held.fold, camera, style, held.aux);
+      return capture3dPicture(held.fold, camera, style, held.aux, spread);
     },
 
     dispose: letGo,

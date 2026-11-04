@@ -6721,7 +6721,12 @@
     "tools:fold.vertex.otherEnd.pickMountainShared": "db692f135571",
     "tools:fold.vertex.otherEnd.pickValleyBehind": "c60c72701c1b",
     "tools:fold.vertex.otherEnd.pickValleyShared": "3180f3ae1ca5",
-    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4"
+    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
+    "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13445,7 +13450,12 @@
     "tools:fold.vertex.otherEnd.pickMountainShared": "db692f135571",
     "tools:fold.vertex.otherEnd.pickValleyBehind": "c60c72701c1b",
     "tools:fold.vertex.otherEnd.pickValleyShared": "3180f3ae1ca5",
-    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4"
+    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
+    "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20171,7 +20181,12 @@
     "tools:fold.vertex.otherEnd.pickMountainShared": "db692f135571",
     "tools:fold.vertex.otherEnd.pickValleyBehind": "c60c72701c1b",
     "tools:fold.vertex.otherEnd.pickValleyShared": "3180f3ae1ca5",
-    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4"
+    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
+    "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26518,7 +26533,11 @@
     "tools:fold.vertex.otherEnd.pickMountainShared": "db692f135571",
     "tools:fold.vertex.otherEnd.pickValleyBehind": "c60c72701c1b",
     "tools:fold.vertex.otherEnd.pickValleyShared": "3180f3ae1ca5",
-    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4"
+    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
+    "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32865,7 +32884,11 @@
     "tools:fold.vertex.otherEnd.pickMountainShared": "db692f135571",
     "tools:fold.vertex.otherEnd.pickValleyBehind": "c60c72701c1b",
     "tools:fold.vertex.otherEnd.pickValleyShared": "3180f3ae1ca5",
-    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4"
+    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
+    "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39589,7 +39612,12 @@
     "tools:fold.vertex.otherEnd.pickMountainShared": "db692f135571",
     "tools:fold.vertex.otherEnd.pickValleyBehind": "c60c72701c1b",
     "tools:fold.vertex.otherEnd.pickValleyShared": "3180f3ae1ca5",
-    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4"
+    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
+    "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46313,7 +46341,12 @@
     "tools:fold.vertex.otherEnd.pickMountainShared": "db692f135571",
     "tools:fold.vertex.otherEnd.pickValleyBehind": "c60c72701c1b",
     "tools:fold.vertex.otherEnd.pickValleyShared": "3180f3ae1ca5",
-    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4"
+    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
+    "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52660,6 +52693,10 @@
     "tools:fold.vertex.otherEnd.pickMountainShared": "db692f135571",
     "tools:fold.vertex.otherEnd.pickValleyBehind": "c60c72701c1b",
     "tools:fold.vertex.otherEnd.pickValleyShared": "3180f3ae1ca5",
-    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4"
+    "tools:fold.vertex.otherEnd.valleyRunsOn": "21bfb57243d4",
+    "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
+    "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
+    "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
   }
 }

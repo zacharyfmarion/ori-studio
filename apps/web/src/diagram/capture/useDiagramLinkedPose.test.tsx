@@ -6,7 +6,7 @@ import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { resetFoldedFigureHandles, setFoldedFigureHandleFree } from '../../cp-workspace/folded/foldedFigureHandles';
 import { sheetRegions } from '../../cp-workspace/sheets/cpSheetRegions';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import type { DiagramCpRender, DiagramLayerSpread } from '../document/diagramDocument';
+import { spreadFailedOf, type DiagramCpRender, type DiagramLayerSpread } from '../document/diagramDocument';
 import { stepsIn } from '../document/diagramSteps.fixtures';
 import type { LayerOrderRequest, LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
 import {
@@ -193,17 +193,34 @@ it('covers Affine → Default from the click through post-fold solve and capture
   await act(async()=>{finishCapture();await vi.waitFor(()=>expect(state().diagramCaptures[stepId]).toBeUndefined());});
 });
 
-it('removes transition loading after a failed Default solve while keeping the saved Affine pose', async () => {
+it('lands a switch to a Default its layers can’t take on Default, unspread, with another kind still to pick', async () => {
   let fail!: (error:Error)=>void;
   preparation.start.mockReturnValue({promise:new Promise((_,reject)=>{fail=reject;}),release:vi.fn()});
   const stepId = await flatStep(AFFINE);
   act(()=>seen.pose!.spread!.kinds.find(kind=>kind.value==='connected')!.run());
   await act(async()=>{await vi.waitFor(()=>expect(preparation.start).toHaveBeenCalledOnce());});
   expect(seen.pose!.connectedPreparing).toBe(true);
-  await act(async()=>fail(new Error('Solve failed')));
+  await act(async()=>fail(new Error('Spread resource limit exceeded: overlap regions')));
+  await act(async()=>{await vi.waitFor(()=>expect(spreadOf(stepId)?.kind).toBe('connected'));});
   expect(seen.pose!.connectedPreparing).toBe(false);
   expect(state().diagramCaptures[stepId]).toBeUndefined();
-  expect(spreadOf(stepId)).toEqual(AFFINE);
+  // Drawn unspread and said so: under Spread layers, on its own values, and once as it happened.
+  const step = stepsIn(state().diagram!).find((each) => each.id === stepId)!;
+  expect(spreadFailedOf(step.picture)).toBe(true);
+  const failed = 'These layers couldn’t be spread';
+  expect(seen.pose!.actions.find((action) => action.id === 'spread-layers')).toMatchObject({ pressed: true, note: failed });
+  expect(seen.pose!.spread).toMatchObject({ disabled: false, valuesHeld: failed });
+  expect(seen.pose!.spread!.kinds.find((kind) => kind.value === 'affine')).toMatchObject({ disabled: false });
+  expect(toasts.message).toHaveBeenCalledWith(
+    'Its layers couldn’t be spread by Default, so the step shows them unspread. Try Affine or Depth instead.'
+  );
+  // Nothing is solved again for a live view of layers that can't be spread.
+  expect(preparation.start).toHaveBeenCalledOnce();
+  // Another kind needs no solve: picked, the step is spread again.
+  act(()=>seen.pose!.spread!.kinds.find(kind=>kind.value==='depth')!.run());
+  await act(async()=>{await vi.waitFor(()=>expect(spreadOf(stepId)?.kind).toBe('depth'));});
+  expect(spreadFailedOf(stepsIn(state().diagram!).find((each) => each.id === stepId)!.picture)).toBe(false);
+  expect(seen.pose!.actions.find((action) => action.id === 'spread-layers')?.note).toBeUndefined();
 });
 
 it('does not carry an Affine → Default loading state into another step', async () => {

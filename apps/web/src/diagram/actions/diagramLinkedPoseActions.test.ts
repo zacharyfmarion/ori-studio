@@ -362,16 +362,16 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(pose.mock.calls).toEqual([['spread-layers'], ['spread-layers']]);
   });
 
-  it('is held, saying why, for a fold in 3D or one with no layer order, and waits for a capture', () => {
+  it('offers 3D spread, refuses unknown order, and waits for a capture', () => {
     const pose = vi.fn();
     const spatial = toggle({ render: { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' } }, pose);
-    expect(spatial).toMatchObject({ disabled: true, hint: 'Only a flat folded picture has layers to spread' });
+    expect(spatial).toMatchObject({ disabled: false });
     const reason = 'This fold has no layer order, so it has no layers to spread';
     expect(toggle({ seeThrough: true }, pose)).toMatchObject({ disabled: true, hint: reason });
     expect(toggle({ solutions: { discovered: 1, hasNext: false, none: true } }, pose)).toMatchObject({ disabled: true, hint: reason });
     const waiting = toggle({ busy: true, render: { ...FLAT, spread: SPREAD } }, pose);
     expect(waiting).toMatchObject({ disabled: false, waiting: true, pressed: true });
-    for (const held of [spatial, waiting]) held.run();
+    waiting.run();
     expect(pose).not.toHaveBeenCalled();
   });
 

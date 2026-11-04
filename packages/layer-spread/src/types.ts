@@ -51,6 +51,8 @@ export interface ProjectedSpread {
   visibility: Visibility;
 }
 export interface Visibility {
+  /** Spatial stacks resolve cycles independently, then share physical depth. */
+  planeOf?: number[];
   /** Global topological depth bands for acyclic stacks; null for cycles.
    * Faces in the same band use physical depth and triangle order. */
   ranks: number[] | null;

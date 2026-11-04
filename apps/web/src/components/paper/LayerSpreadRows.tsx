@@ -15,6 +15,7 @@ import {
 import type { SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   spreadAmountSlider,
+  spreadValuesHold,
   type LayerSpreadChoice,
   type LayerSpreadDrag,
   type LayerSpreadToggle,
@@ -53,8 +54,8 @@ const ARROWS: Record<SpreadDirection, LucideIcon> = {
  * step (`useFoldStepSpread`), and the Export and Share dialogs' folded
  * figure, whose setting is the dialog's own (`useExportFoldedSpread`) — so it
  * reads and works the same in each. This only lays the verbs out
- * (`layerSpreadControls.ts`), and says under Spread layers why it is off
- * where a surface says so (`LayerSpreadToggle.note`).
+ * (`layerSpreadControls.ts`), and says under Spread layers why its layers
+ * are not spread where a surface says so (`LayerSpreadToggle.note`).
  */
 export function LayerSpreadRows({
   toggle,
@@ -84,6 +85,8 @@ export function LayerSpreadRows({
     });
   const shown = spread?.spread;
   const amount = shown ? spreadAmountSlider(shown.kind, shown.amount) : null;
+  // Its kind, and its own values: held apart where only another kind can change the picture (`valuesHeld`).
+  const values = spread ? spreadValuesHold(spread) : { disabled: true };
   const kinds =
     spread?.kinds.map(({ value, label, disabled, waiting, hint }) => ({
       value,
@@ -155,8 +158,8 @@ export function LayerSpreadRows({
                       },
                     )
             }
-            disabled={spread.disabled}
-            title={spread.hint}
+            disabled={values.disabled}
+            title={values.hint}
             onChange={(value) => spread.preview('amount', value / amount.scale)}
             onGestureStart={spread.start}
             onGestureCommit={spread.commit}
@@ -177,7 +180,7 @@ export function LayerSpreadRows({
             <FieldRow
               label={t('panels:diagram.pose.spreadDirection', 'Direction')}
               kind="segmented"
-              title={spread.hint}
+              title={values.hint}
             >
               <SpreadDirectionCompass
                 label={t('panels:diagram.pose.spreadDirectionName', 'Spread direction')}
@@ -190,8 +193,8 @@ export function LayerSpreadRows({
                 label={t('panels:diagram.pose.spreadKeep', 'Keep still')}
                 value={shown.keep}
                 options={spread.keeps.map(({ value, label }) => ({ id: value, label }))}
-                disabled={spread.disabled}
-                title={spread.hint}
+                disabled={values.disabled}
+                title={values.hint}
                 help={t(
                   'panels:diagram.pose.spreadKeepHelp',
                   'The layer that does not move: the one on top, or the one at the bottom, as the front shows them.',
@@ -211,8 +214,8 @@ export function LayerSpreadRows({
                     percent: percent(value),
                   })
                 }
-                disabled={spread.disabled}
-                title={spread.hint}
+                disabled={values.disabled}
+                title={values.hint}
                 onChange={(value) => spread.preview('skew', value / 100)}
                 onGestureStart={spread.start}
                 onGestureCommit={spread.commit}
@@ -230,8 +233,8 @@ export function LayerSpreadRows({
                     degrees: degrees(value),
                   })
                 }
-                disabled={spread.disabled}
-                title={spread.hint}
+                disabled={values.disabled}
+                title={values.hint}
                 onChange={(value) => spread.preview('axis', value)}
                 onGestureStart={spread.start}
                 onGestureCommit={spread.commit}

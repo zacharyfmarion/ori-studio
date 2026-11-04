@@ -1,4 +1,4 @@
-import { captureFlatScenePicture } from '../capture/captureFolded';
+import { connectedFlatPicture, spreadFailedPicture } from '../capture/captureFolded';
 import { prepareConnected } from '../../layer-spread/prepareConnected';
 import { foldScenePattern } from './foldStepPicture';
 /**
@@ -30,6 +30,7 @@ import { xmlText } from '../../lib/xmlEscape';
 import type { CapturedPicture } from '../capture/captureFolded';
 import {
   randomDiagramId,
+  spreadFailedRender,
   type DiagramCpRender,
   type DiagramFoldMoment,
   type DiagramFoldStepSource,
@@ -186,18 +187,28 @@ export async function captureFoldStep(
     const read = await readFoldStepCapture(session, request, t);
     if (read.status !== 'ready') return read;
     const { picture: input, ready, parent, node, engineVersion, run } = read.input;
-    const lease = request.render.mode === 'folded-flat' && request.render.spread?.kind === 'connected'
-      ? prepareConnected(foldScenePattern(input.shown, request.render.side)) : null;
+    const asked = request.render;
+    let render = asked;
     let picture: ReturnType<typeof foldStepPicture>;
-    try {
-      const connected = await lease?.promise;
-      const render = request.render;
-      const captured = connected && render.mode === 'folded-flat' && render.spread
-        ? await captureFlatScenePicture(foldScenePattern(input.shown, render.side), render.rotationDeg, render.spread, connected, render.presentation)
-        : undefined;
-      picture = foldStepPicture(input, render, newId, connected, captured);
+    if (asked.mode === 'folded-flat' && asked.spread?.kind === 'connected') {
+      const scene = foldScenePattern(input.shown, asked.side);
+      const lease = prepareConnected(scene);
+      try {
+        const spread = await connectedFlatPicture(scene, asked.rotationDeg, asked.spread, lease.promise, asked.presentation);
+        if (spread.kind === 'spread') picture = foldStepPicture(input, asked, newId, spread.connected, spread.captured);
+        else {
+          // Layers that could not be spread are drawn unspread, the spread kept to say so (`spreadFailedPicture`).
+          const { spread: _spread, presentation: _presentation, ...unspread } = asked;
+          const drawn = foldStepPicture(input, unspread, newId);
+          picture = { ...drawn, captured: spreadFailedPicture(drawn.captured) };
+          render = spreadFailedRender(asked);
+        }
+      } finally {
+        lease.release();
+      }
+    } else {
+      picture = foldStepPicture(input, asked, newId);
     }
-    finally { lease?.release(); }
     const sentence = run
       ? xmlText(run.sentence)
       : sentenceOf(
@@ -220,7 +231,7 @@ export async function captureFoldStep(
       state: request.moment === 'after' ? ready.fingerprint : ready.parentFingerprint,
       engine: engineVersion,
       thumbnail: picture.thumbnail,
-      render: request.render,
+      render,
       ...(sentence !== undefined ? { sentence } : {}),
     });
     if (!source) throw new Error('The capture made a link the file cannot read');

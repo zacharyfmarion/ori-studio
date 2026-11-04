@@ -398,3 +398,32 @@ fn a_flat_figure_is_refused_rather_than_skipped() {
         .expect_err("a flat figure has no 3D folded form");
     assert_eq!(error.code, "folded_figure_kind_mismatch");
 }
+
+/// The drawing source is welded by material identity with exactly the same
+/// deterministic placement as actual FOLD interchange, before any display spread.
+#[test]
+fn deformable_material_matches_folded_interchange() {
+    let mut session = CpSession::default();
+    let document = load_fixture(&mut session, "box_90");
+    let handle = fold_3d(&mut session, document);
+    let model = session
+        .folded_figure_3d_fold_another(handle)
+        .expect("render model")
+        .render;
+    let material = model.material.as_ref().expect("material source");
+    let folded = export(&session, document, &[handle]);
+    let frame = &folded["file_frames"][0];
+    assert_eq!(
+        serde_json::to_value(&material.positions).unwrap(),
+        frame["vertices_coords"]
+    );
+    assert_eq!(
+        serde_json::to_value(&material.faces).unwrap(),
+        frame["faces_vertices"]
+    );
+    assert_eq!(material.faces.len(), model.face_count as usize);
+    assert!(model.validate().is_ok());
+    let mut invalid = model.clone();
+    invalid.material.as_mut().unwrap().faces[0][0] = usize::MAX;
+    assert!(invalid.validate().is_err());
+}

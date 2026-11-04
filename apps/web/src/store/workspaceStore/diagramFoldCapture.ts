@@ -26,6 +26,7 @@ import {
   endStepCapture,
   type DiagramCaptureStore,
   type DiagramCommit,
+  type SpreadFailure,
 } from './diagramCapture';
 
 export interface DiagramFoldCaptureRequest extends FoldStepCaptureRequest {
@@ -47,6 +48,8 @@ export type DiagramFoldCaptureOutcome =
       render: DiagramCpRender;
       /** Too detailed to keep as vector; kept as a bitmap. */
       tooDetailed: boolean;
+      /** Asked spread by Default, its layers could not be spread ({@link SpreadFailure}); null when they were, or not asked. */
+      spreadFailed: SpreadFailure | null;
       /** Marks the fold brought that the author had edited, swapped for its own (RM6). */
       replaced: number;
     }
@@ -86,6 +89,7 @@ export async function runDiagramFoldCapture(
       changed: committed.changed,
       render: result.source.render,
       tooDetailed: committed.tooDetailed,
+      spreadFailed: committed.spreadFailed ?? null,
       replaced: committed.replaced ?? 0,
     };
   } catch (error) {
