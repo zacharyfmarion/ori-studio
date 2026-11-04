@@ -397,8 +397,8 @@ function packingInvalidJunction(
     flapIds: [...junction.flapIds],
     riverIds: [],
     paths: junction.polygon,
-    overlap: junction.narrowness,
-    message: `Flaps ${junction.flapIds.join(' and ')} overlap by ${formatSigned(Math.abs(junction.narrowness))}`,
+    overlap: junction.overlap,
+    message: `Flaps ${junction.flapIds.join(' and ')} overlap by ${formatSigned(junction.overlap)}`,
   };
 }
 

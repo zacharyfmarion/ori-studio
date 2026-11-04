@@ -219,28 +219,44 @@ export function bpPackingFlapClearanceRect(
 
 /**
  * Box Pleating Studio's narrowness ratio for one invalid-junction outline
- * (`client/project/components/layout/junction.ts#getNarrowness`): how flat the
- * lens between two arcs is. Only two-arc paths have one — anything else is left
- * unstroked, matching BP's `NaN` result for longer paths.
+ * (`client/project/components/layout/junction.ts#getNarrowness`): the arcs'
+ * anchor span over their chord, so a lens that is all chord and no bulge tends
+ * to zero. Only two-arc paths have one — anything else is left unstroked,
+ * matching BP's `NaN` result for longer paths.
  */
-/**
- * Thickness of a two-arc conflict region across its middle, in grid units.
- *
- * The region is a lens: two arcs over a shared chord, bulging apart. Its widest
- * point is the sum of the two arcs' sagittas. Used to keep the outline stroke
- * from dwarfing the shape it is meant to make visible.
- */
-export function bpArcPathThickness(path: readonly OristudioBpArcPoint[]): number | null {
+export function bpArcPathNarrowness(path: readonly OristudioBpArcPoint[]): number | null {
   if (path.length !== 2) return null;
   const [first, second] = path;
-  if (first.r == null || second.r == null) return null;
-  const half = Math.hypot(second.x - first.x, second.y - first.y) / 2;
-  if (half === 0) return null;
-  const sagitta = (radius: number): number =>
-    radius <= half ? radius : radius - Math.sqrt(radius * radius - half * half);
-  return sagitta(Math.abs(first.r)) + sagitta(Math.abs(second.r));
+  if (!first.arc || !second.arc) return null;
+  const span = Math.hypot(second.x - first.x, second.y - first.y);
+  if (span === 0) return null;
+  return Math.hypot(second.arc.x - first.arc.x, second.arc.y - first.arc.y) / span;
 }
 
+/**
+ * Box Pleating Studio strokes a conflict outline only when its lens is too
+ * narrow to read as a filled shape (`Junction.$draw`): under this narrowness,
+ * `2 / narrowness` screen pixels, never wider than one grid cell on screen.
+ * Everything else is fill-only.
+ */
+const BP_CONFLICT_NARROWNESS_THRESHOLD = 0.4;
+
+/**
+ * Stroke width for one conflict outline, in screen pixels — 0 for a lens that
+ * is legible on its own.
+ *
+ * A hairline overlap — one grid step of error, the common case — has a
+ * narrowness near zero, so this is what turns it into a bar the eye can find.
+ * The stroke is centred on the outline, whose outer edges are the two flap
+ * circles, so it paints a little past each: that is what upstream draws, and
+ * the price of seeing the conflict at all. `cellPx` is upstream's
+ * `ProjectService.scale`, screen pixels per grid unit at the current zoom.
+ */
+export function bpConflictStrokePx(path: readonly OristudioBpArcPoint[], cellPx: number): number {
+  const narrowness = bpArcPathNarrowness(path);
+  if (narrowness === null || narrowness >= BP_CONFLICT_NARROWNESS_THRESHOLD) return 0;
+  return Math.min(2 / narrowness, cellPx);
+}
 
 /**
  * Renders an arc outline as an SVG path `d`, mirroring BP's canvas drawing of an
