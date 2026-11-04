@@ -70,12 +70,12 @@ use oristudio_geometry::{Line, convex};
 use serde::{Deserialize, Serialize};
 
 use crate::complete::CompletionLimits;
-use crate::compound::CompoundRefused;
 use crate::compound::pieces::{Cut, score_cuts};
 use crate::compound::vertex::{
     Compiled, VertexChoices, VertexFoldKind, VertexOutcome, angle_between, cross, drop_empty,
     piece_centroid, rotate, stack_toward, toward, unit,
 };
+use crate::compound::{Against, CompoundRefused};
 use crate::fold::line::Axis;
 use crate::fold::{ActionKind, FoldActionGeometry, FoldAnalysis, Push, Snap, Within};
 use crate::numerics::{MIN_FEATURE, TOL};
@@ -165,10 +165,13 @@ pub struct SquashAnalysis {
     /// alone (`State::squash_other_reading`). Several take no spine target:
     /// their shared crease is the symmetric squash's.
     pub pockets: usize,
+    /// A closed pocket, its walls joined on the hinge too
+    /// (`compound::squash_closed`): it takes no spine target either.
+    pub closed: bool,
 }
 
 /// The flap by face positions, and its creases.
-struct Flap {
+pub(super) struct Flap {
     upper: Vec<usize>,
     lower: Vec<usize>,
     /// Its layers at the flap point, and how many lie above the opening.
@@ -187,6 +190,9 @@ struct Flap {
     wedge: f64,
     share: f64,
     lines: [Line; 4],
+    /// A closed pocket's (`super::squash_closed`): its walls carry what is
+    /// folded on them, which may wrap round paper that stays.
+    closed: bool,
     /// Pockets on its lower layer that squash with it (see
     /// [`State::squash_other_reading`]): each its own upper layer, riders,
     /// vertex and creases, no lower layer of its own.
@@ -236,6 +242,7 @@ impl State {
             layers: flap.layers,
             opening: flap.opening,
             pockets: 1 + flap.partners.len(),
+            closed: flap.closed,
         })
     }
 
@@ -361,7 +368,23 @@ impl State {
             turns.push(vec![(0, f.spine_line()), (1, first.lower_crease())]);
             turns.push(vec![(1, f.hinge_line())]);
         }
+        let lower_folds = block_of.contains(&Some(0));
         let turns = drop_empty(&mut block_of, turns);
+        // A closed pocket's walls carry what is folded on them, which may
+        // wrap round paper that stays: only the lower wall folding onto
+        // itself is placed, toward the direction; the rest is the
+        // completion's.
+        let against = flap.closed.then(|| {
+            if lower_folds {
+                vec![Against {
+                    block: 0,
+                    faces: flap.lower.clone(),
+                    above: direction == Direction::Valley,
+                }]
+            } else {
+                Vec::new()
+            }
+        });
         Ok(Compiled {
             kind: VertexFoldKind::Squash,
             scoring,
@@ -370,7 +393,7 @@ impl State {
             vertices: flaps.iter().map(|f| f.vertex).collect(),
             direction,
             extra: Vec::new(),
-            against: None,
+            against,
         })
     }
 
@@ -379,6 +402,16 @@ impl State {
     /// reading is refused, a flap that squashes together with the pockets on
     /// its lower layer ([`State::squash_other_reading`]).
     fn squash_flap(&self, op: &Squash, direction: Direction) -> Result<Flap, Refused> {
+        let refused = match self.squash_flap_first(op, direction) {
+            Ok(flap) => return Ok(flap),
+            Err(refused) => refused,
+        };
+        self.squash_closed_reading(op, direction).ok_or(refused)
+    }
+
+    /// The flap read as it always was, at the spine's first end with a hinge,
+    /// or else squashed together with the pockets on its lower layer.
+    fn squash_flap_first(&self, op: &Squash, direction: Direction) -> Result<Flap, Refused> {
         let base = self.squash_base(op, direction)?;
         let vertices = self.squash_vertices(op, &base)?;
         let first = vertices
@@ -386,7 +419,7 @@ impl State {
             .copied()
             .ok_or_else(|| base.no_flap(self, NoFlap::NoHinge))?;
         let refused = match self
-            .squash_reading(op, &base, first)
+            .squash_reading(op, &base, first, Growth::Flat)
             .and_then(|reading| self.squash_checked(vec![reading], direction))
         {
             Ok(flap) => return Ok(flap),
@@ -423,7 +456,7 @@ impl State {
         }
         let mut found = Vec::new();
         for &vertex in vertices {
-            let Ok(reading) = self.squash_reading(op, base, vertex) else {
+            let Ok(reading) = self.squash_reading(op, base, vertex, Growth::Flat) else {
                 continue;
             };
             if let Some(readings) = self.squash_partners(op, reading, direction)
@@ -484,13 +517,46 @@ impl State {
                 .squash_vertices(&op, &base)
                 .ok()?
                 .into_iter()
-                .filter_map(|vertex| self.squash_reading(&op, &base, vertex).ok())
+                .filter_map(|vertex| self.squash_reading(&op, &base, vertex, Growth::Flat).ok())
                 .filter(shares)
                 .collect();
             if matching.len() != 1 {
                 return None;
             }
             readings.push(matching.remove(0));
+        }
+    }
+
+    /// The flap point's image and the layers there, from the direction's
+    /// side: the flap point's face first, or refused as covered.
+    pub(super) fn squash_stack(
+        &self,
+        op: &Squash,
+        direction: Direction,
+    ) -> Result<(Point, Vec<usize>), Refused> {
+        let faces = self.faces();
+        let ids = |set: &[usize]| -> Vec<FaceId> {
+            let mut ids: Vec<FaceId> = set.iter().map(|&f| faces[f].id).collect();
+            ids.sort_unstable();
+            ids.dedup();
+            ids
+        };
+        let p = self
+            .face_at(op.flap)
+            .and_then(|id| self.face_position(id))
+            .ok_or(FoldRefusal::WitnessNotInFace { point: op.flap })?;
+        let at = self.geometry().isometries[p].apply(op.flap);
+        let stack = stack_toward(self, at, direction).ok_or(FoldRefusal::Internal {
+            message: "the layers at the flap point do not stack".to_string(),
+        })?;
+        match stack.iter().position(|&f| f == p) {
+            Some(0) => Ok((at, stack)),
+            Some(i) => Err(FoldRefusal::SquashFlapCovered {
+                faces: ids(&stack[..i]),
+                flap: ids(&[p]),
+            }
+            .into()),
+            None => Err(FoldRefusal::WitnessNotInFace { point: op.flap }.into()),
         }
     }
 
@@ -506,25 +572,8 @@ impl State {
             ids.dedup();
             ids
         };
-        let p = self
-            .face_at(op.flap)
-            .and_then(|id| self.face_position(id))
-            .ok_or(FoldRefusal::WitnessNotInFace { point: op.flap })?;
-        let at = geometry.isometries[p].apply(op.flap);
-        let stack = stack_toward(self, at, direction).ok_or(FoldRefusal::Internal {
-            message: "the layers at the flap point do not stack".to_string(),
-        })?;
-        match stack.iter().position(|&f| f == p) {
-            Some(0) => {}
-            Some(i) => {
-                return Err(FoldRefusal::SquashFlapCovered {
-                    faces: ids(&stack[..i]),
-                    flap: ids(&[p]),
-                }
-                .into());
-            }
-            None => return Err(FoldRefusal::WitnessNotInFace { point: op.flap }.into()),
-        }
+        let (at, stack) = self.squash_stack(op, direction)?;
+        let p = stack[0];
         let Some(&q) = stack.get(1) else {
             return Err(FoldRefusal::SquashNoFlap {
                 faces: ids(&[p]),
@@ -574,14 +623,7 @@ impl State {
         let spine_line = Line::from_points(a, b).ok_or(FoldRefusal::Internal {
             message: "a spine crease has no length".to_string(),
         })?;
-        // Its two ends: the extreme vertices along it.
-        let mut ends: Vec<(f64, usize)> = spine
-            .iter()
-            .flat_map(|&k| creases[k].vertices)
-            .map(|v| (spine_line.parameter(images[v.index()]), v.index()))
-            .collect();
-        ends.sort_by(|x, y| x.0.total_cmp(&y.0));
-        let (Some(&(_, lo)), Some(&(_, hi))) = (ends.first(), ends.last()) else {
+        let Some(ends) = spine_ends(self, &spine, &spine_line) else {
             return Err(no_flap(NoFlap::NoSpine));
         };
         Ok(Base {
@@ -591,8 +633,9 @@ impl State {
             lower_region,
             spine,
             spine_line,
-            ends: [lo, hi],
+            ends,
             at,
+            direction,
         })
     }
 
@@ -603,7 +646,7 @@ impl State {
     /// starting from the lower face actually incident to that end, not the
     /// picked subdivision (which need not reach either endpoint); the first
     /// is today's reading. For a drawn hinge, where it crosses the spine.
-    fn squash_vertices(&self, op: &Squash, base: &Base) -> Result<Vec<Vertex>, Refused> {
+    pub(super) fn squash_vertices(&self, op: &Squash, base: &Base) -> Result<Vec<Vertex>, Refused> {
         let creases = self.creases();
         let topology = self.topology();
         let images = &self.geometry().vertex_images;
@@ -649,8 +692,17 @@ impl State {
     }
 
     /// The flap of `base` read at `vertex`: its creases, and which wall each
-    /// of its faces is in, before it is checked free and uncovered.
-    fn squash_reading(&self, op: &Squash, base: &Base, vertex: Vertex) -> Result<Reading, Refused> {
+    /// of its faces is in, before it is checked free and uncovered. Each
+    /// wall grows across flat creases off the hinge, and with
+    /// [`Growth::Folded`] across folded ones off the spine and the hinge
+    /// too, carrying the paper folded flat against it.
+    pub(super) fn squash_reading(
+        &self,
+        op: &Squash,
+        base: &Base,
+        vertex: Vertex,
+        growth: Growth,
+    ) -> Result<Reading, Refused> {
         let faces = self.faces();
         let topology = self.topology();
         let creases = self.creases();
@@ -725,59 +777,14 @@ impl State {
         // Which wall each face is in: a ply's own, across flat creases; across
         // the spine from paper that is no ply's, the other wall. A ply above
         // the opening is the upper wall's.
-        let joins = |k: usize| {
-            reaches(k)
-                && match creases[k].kind {
-                    CreaseKind::Flat(_) => !on(&hinge_line, k),
-                    CreaseKind::Folded(_) => on(&spine_line, k),
-                    CreaseKind::Border => false,
-                }
+        let wall = match growth {
+            Growth::Flat => self
+                .squash_flat_walls(base, &hinge_line, &reaches)
+                .ok_or(no_flap(NoFlap::NoSpine))?,
+            Growth::Folded => self
+                .squash_closed_walls(base, &hinge_line)
+                .ok_or(no_flap(NoFlap::NoSpine))?,
         };
-        let mut wall: Vec<Option<bool>> = vec![None; faces.len()];
-        let mut queue = Vec::new();
-        for (i, &f) in plies.iter().enumerate() {
-            wall[f] = Some(i < opening);
-            queue.push(f);
-        }
-        while let Some(f) = queue.pop() {
-            for &k in &topology.face_creases[f] {
-                let Some(g) = topology.across(k, f) else {
-                    continue;
-                };
-                if !matches!(creases[k].kind, CreaseKind::Flat(_)) || !joins(k) {
-                    continue;
-                }
-                match wall[g] {
-                    None => {
-                        wall[g] = wall[f];
-                        queue.push(g);
-                    }
-                    Some(other) if Some(other) != wall[f] => return Err(no_flap(NoFlap::NoSpine)),
-                    Some(_) => {}
-                }
-            }
-        }
-        let ply: Vec<bool> = wall.iter().map(Option::is_some).collect();
-        let mut queue: Vec<usize> = (0..faces.len()).filter(|&f| ply[f]).collect();
-        while let Some(f) = queue.pop() {
-            for &k in &topology.face_creases[f] {
-                let Some(g) = topology.across(k, f).filter(|_| joins(k)) else {
-                    continue;
-                };
-                let flat = matches!(creases[k].kind, CreaseKind::Flat(_));
-                let side = wall[f].map(|upper| upper == flat);
-                match wall[g] {
-                    None => {
-                        wall[g] = side;
-                        queue.push(g);
-                    }
-                    Some(other) if !ply[g] && Some(other) != side => {
-                        return Err(no_flap(NoFlap::NoSpine));
-                    }
-                    Some(_) => {}
-                }
-            }
-        }
         let upper_face = |f: usize| wall[f] == Some(true);
         // Plies joined across the opening anywhere but on the spine or the
         // hinge would tear as it opens: no opening there.
@@ -799,6 +806,7 @@ impl State {
         Ok(Reading {
             plies: plies.clone(),
             wall,
+            growth,
             layers,
             opening,
             vertex,
@@ -810,6 +818,80 @@ impl State {
             moving_lower,
             lines: [hinge_line, spine_line, lower_crease, upper_crease],
         })
+    }
+
+    /// Which wall each face of `base`'s flap is in, as the squash always read
+    /// it: a ply's own, across flat creases off the hinge; across the spine
+    /// from paper that is no ply's, the other wall. A ply above the opening
+    /// is the upper wall's. None when a face is reached from both walls.
+    fn squash_flat_walls(
+        &self,
+        base: &Base,
+        hinge_line: &Line,
+        reaches: &dyn Fn(usize) -> bool,
+    ) -> Option<Vec<Option<bool>>> {
+        let faces = self.faces();
+        let topology = self.topology();
+        let creases = self.creases();
+        let images = &self.geometry().vertex_images;
+        let on = |line: &Line, k: usize| {
+            creases[k]
+                .vertices
+                .iter()
+                .all(|v| line.distance_to_point(images[v.index()]) <= TOL)
+        };
+        let joins = |k: usize| {
+            reaches(k)
+                && match creases[k].kind {
+                    CreaseKind::Flat(_) => !on(hinge_line, k),
+                    CreaseKind::Folded(_) => on(&base.spine_line, k),
+                    CreaseKind::Border => false,
+                }
+        };
+        let mut wall: Vec<Option<bool>> = vec![None; faces.len()];
+        let mut queue = Vec::new();
+        for (i, &f) in base.plies.iter().enumerate() {
+            wall[f] = Some(i < base.opening);
+            queue.push(f);
+        }
+        while let Some(f) = queue.pop() {
+            for &k in &topology.face_creases[f] {
+                let Some(g) = topology.across(k, f) else {
+                    continue;
+                };
+                if !matches!(creases[k].kind, CreaseKind::Flat(_)) || !joins(k) {
+                    continue;
+                }
+                match wall[g] {
+                    None => {
+                        wall[g] = wall[f];
+                        queue.push(g);
+                    }
+                    Some(other) if Some(other) != wall[f] => return None,
+                    Some(_) => {}
+                }
+            }
+        }
+        let ply: Vec<bool> = wall.iter().map(Option::is_some).collect();
+        let mut queue: Vec<usize> = (0..faces.len()).filter(|&f| ply[f]).collect();
+        while let Some(f) = queue.pop() {
+            for &k in &topology.face_creases[f] {
+                let Some(g) = topology.across(k, f).filter(|_| joins(k)) else {
+                    continue;
+                };
+                let flat = matches!(creases[k].kind, CreaseKind::Flat(_));
+                let side = wall[f].map(|upper| upper == flat);
+                match wall[g] {
+                    None => {
+                        wall[g] = side;
+                        queue.push(g);
+                    }
+                    Some(other) if !ply[g] && Some(other) != side => return None,
+                    Some(_) => {}
+                }
+            }
+        }
+        Some(wall)
     }
 
     /// The paper outside every one of `readings`' flaps that holds one of
@@ -849,7 +931,7 @@ impl State {
     /// flap read at the flap point, the others pockets on its lower layer
     /// (see [`State::squash_other_reading`]). Each upper layer must be held
     /// along its own hinge.
-    fn squash_checked(
+    pub(super) fn squash_checked(
         &self,
         readings: Vec<Reading>,
         direction: Direction,
@@ -887,11 +969,14 @@ impl State {
                         .any(|&v| side.signed_distance(v) < -TOL)
                 })
             };
+            // A closed pocket's upper wall is held by the lower one there.
+            let holds =
+                |g: usize| !in_flap[g] || (r.growth == Growth::Folded && r.wall[g] == Some(false));
             let hinged = (0..faces.len()).any(|f| {
                 r.wall[f] == Some(true)
                     && (crosses(f)
                         || topology.face_creases[f].iter().any(|&k| {
-                            topology.across(k, f).is_some_and(|g| !in_flap[g])
+                            topology.across(k, f).is_some_and(holds)
                                 && r.on(self, &r.hinge_line(), k)
                         }))
             });
@@ -992,6 +1077,7 @@ impl State {
                 wedge: r.wedge,
                 share: r.share,
                 lines: r.lines,
+                closed: r.growth == Growth::Folded,
                 partners: Vec::new(),
             }
         });
@@ -1058,7 +1144,7 @@ impl State {
 
     /// Connected subdivisions of one material layer, ignoring flat precreases.
     /// Folded creases remain boundaries, even when another layer overlaps it.
-    fn squash_flat_region(&self, seed: usize) -> Vec<bool> {
+    pub(super) fn squash_flat_region(&self, seed: usize) -> Vec<bool> {
         let topology = self.topology();
         let mut region = vec![false; self.faces().len()];
         region[seed] = true;
@@ -1265,22 +1351,34 @@ impl State {
 }
 
 /// What every reading of a flap starts from (see [`State::squash_base`]).
-struct Base {
+pub(super) struct Base {
     /// Its layers at the flap point, from the direction's side.
-    plies: Vec<usize>,
-    layers: usize,
+    pub(super) plies: Vec<usize>,
+    pub(super) layers: usize,
     /// How many of them lie above where it opens.
-    opening: usize,
+    pub(super) opening: usize,
     /// The lower wall, discovered across flat creases (the hinge too): what
     /// the hinge is found from.
-    lower_region: Vec<bool>,
+    pub(super) lower_region: Vec<bool>,
     /// The folded creases joining the walls, on the spine's line.
-    spine: Vec<usize>,
-    spine_line: Line,
+    pub(super) spine: Vec<usize>,
+    pub(super) spine_line: Line,
     /// The spine's extreme vertices along its line.
-    ends: [usize; 2],
+    pub(super) ends: [usize; 2],
     /// The flap point's image.
-    at: Point,
+    pub(super) at: Point,
+    /// The direction in the model frame: which side of the opening is up.
+    pub(super) direction: Direction,
+}
+
+/// How a squash's walls grow from their plies (see [`State::squash_reading`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Growth {
+    /// Across flat creases off the hinge: the walls as they always were.
+    Flat,
+    /// Across folded creases off the spine and the hinge too: a closed
+    /// pocket's walls, each with the paper folded flat against it.
+    Folded,
 }
 
 impl Base {
@@ -1292,9 +1390,22 @@ impl Base {
     }
 }
 
+/// A spine's two ends: the extreme vertices of its creases along `line`.
+pub(super) fn spine_ends(state: &State, spine: &[usize], line: &Line) -> Option<[usize; 2]> {
+    let creases = state.creases();
+    let images = &state.geometry().vertex_images;
+    let mut ends: Vec<(f64, usize)> = spine
+        .iter()
+        .flat_map(|&k| creases[k].vertices)
+        .map(|v| (line.parameter(images[v.index()]), v.index()))
+        .collect();
+    ends.sort_by(|x, y| x.0.total_cmp(&y.0));
+    Some([ends.first()?.1, ends.last()?.1])
+}
+
 /// A vertex a flap may be read at (see [`State::squash_vertices`]).
 #[derive(Debug, Clone, Copy)]
-struct Vertex {
+pub(super) struct Vertex {
     vertex: Point,
     /// The spine's far end from it.
     spine_end: Point,
@@ -1307,10 +1418,12 @@ struct Vertex {
 /// A flap read at one vertex, before it is checked free and uncovered (see
 /// [`State::squash_reading`]).
 #[derive(Debug, Clone)]
-struct Reading {
+pub(super) struct Reading {
     plies: Vec<usize>,
     /// Per face position: in the upper wall, the lower one, or neither.
     wall: Vec<Option<bool>>,
+    /// How its walls grew: a closed pocket's carry what is folded on them.
+    growth: Growth,
     layers: usize,
     opening: usize,
     vertex: Point,
@@ -1327,10 +1440,18 @@ struct Reading {
 }
 
 impl Reading {
-    fn hinge_line(&self) -> Line {
+    pub(super) fn hinge_line(&self) -> Line {
         self.lines[0]
     }
-    fn lower_crease(&self) -> Line {
+    /// Per face position: in the upper wall, the lower one, or neither.
+    pub(super) fn walls(&self) -> &[Option<bool>] {
+        &self.wall
+    }
+    /// The side of the lower layer's crease that moves: the spine's.
+    pub(super) fn moving_lower(&self) -> &convex::HalfPlane {
+        &self.moving_lower
+    }
+    pub(super) fn lower_crease(&self) -> Line {
         self.lines[2]
     }
     fn upper(&self) -> Vec<usize> {

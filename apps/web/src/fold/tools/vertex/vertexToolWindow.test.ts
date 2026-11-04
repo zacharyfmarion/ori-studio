@@ -278,7 +278,7 @@ describe('a vertex fold’s window while it previews', () => {
 
   it('offers no spine target for pockets squashing together, which never land one', () => {
     const calls = verbs();
-    const model = foldToolWindow(t, view(vertex({ pockets: true }), { preview: preview() }), calls, mouse);
+    const model = foldToolWindow(t, view(vertex({ spineFixed: true }), { preview: preview() }), calls, mouse);
     // The direction and the hinge only: nowhere else for the spine to land.
     expect(model?.vertex?.target).toBeNull();
     expect(model?.meta).toBe('2 settings');
@@ -313,6 +313,20 @@ describe('a vertex fold’s window while it previews', () => {
     expect(two?.vertex?.opening).toBeNull();
     const clicking = foldToolWindow(t, view(plies, { preview: null }), calls, mouse);
     expect(clicking?.vertex?.opening ?? null).toBeNull();
+    // Refused between the walls, a closed pocket opens deeper: shown even when one opening lands, nothing to step.
+    const deeper = foldToolWindow(
+      t,
+      view(vertex({ spineFixed: true, squash: { layers: 4, openings: [3], opening: 3, deeper: true } }), { preview: preview() }),
+      calls,
+      mouse
+    );
+    expect(deeper?.vertex?.opening).toMatchObject({
+      label: 'Opens under',
+      value: 'Top 3 of 4',
+      previous: { disabled: true },
+      next: { disabled: true },
+    });
+    expect(deeper?.vertex?.target).toBeNull();
   });
 
   it('offers layers but no separate fourth-crease selector for a rabbit ear', () => {

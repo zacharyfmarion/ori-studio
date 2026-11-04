@@ -251,7 +251,7 @@ export function foldVertexWindowView(tools: FoldToolState, preview: FoldToolPrev
     described: vertex?.base != null,
     known: preview.step !== null,
     target: tools.compound.squashTarget ? 'point' : 'hinge',
-    ...(tool === 'squash' && vertex?.base && !squashAimable(vertex.base) ? { pockets: true as const } : {}),
+    ...(tool === 'squash' && vertex?.base && !squashAimable(vertex.base) ? { spineFixed: true as const } : {}),
     ...(tool === 'squash' && vertex?.squash ? { squash: vertex.squash } : {}),
     fourths: fourths.length,
     fourth: Math.max(0, fourths.indexOf(vertex?.emergent ?? -1)),

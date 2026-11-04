@@ -143,6 +143,41 @@ fn named() -> Vec<Landed> {
             }
         }
     }
+    // A closed pocket: the paper hat opened between its walls from either
+    // half, each order; the triangle it then makes, valley and mountain.
+    let hat = cases::paper_hat();
+    for (name, at) in [("right", cases::HAT_RIGHT), ("left", cases::HAT_LEFT)] {
+        let op = oristudio_fold::Squash {
+            opening: Some(3),
+            ..cases::squash_op(&hat, at, None)
+        };
+        for (k, folded) in cases::every(hat.squash(&op, &VertexChoices::default()))
+            .into_iter()
+            .enumerate()
+        {
+            push(format!("closed hat {name} c{k}"), folded.state);
+        }
+    }
+    let triangle = cases::hat_triangle();
+    for direction in [Direction::Valley, Direction::Mountain] {
+        let flap = match direction {
+            Direction::Valley => cases::seen_top(&triangle, cases::TRIANGLE_HALF),
+            Direction::Mountain => cases::seen_bottom(&triangle, cases::TRIANGLE_HALF),
+        };
+        let op = oristudio_fold::Squash {
+            flap,
+            target: None,
+            direction,
+            hinge: None,
+            opening: Some(4),
+        };
+        for (k, folded) in cases::every(triangle.squash(&op, &VertexChoices::default()))
+            .into_iter()
+            .enumerate()
+        {
+            push(format!("closed triangle {direction:?} c{k}"), folded.state);
+        }
+    }
     // H through two points anywhere along the flap: each that lands.
     let (base, petals) = cases::petal_sweep();
     for (s, op) in petals {

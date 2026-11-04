@@ -106,18 +106,18 @@ export interface FoldVertexWindowView {
   /** A squash's spine lands on its hinge line, or toward a point clicked. */
   target: 'hinge' | 'point';
   /**
-   * Pockets on one lower layer squash together: their spine lands on the
-   * hinge line only, so no target is offered. Absent for a flap alone and
-   * the other folds.
+   * A squash whose spine lands on the hinge line only — pockets on one
+   * lower layer squashing together, or a closed pocket — so no target is
+   * offered. Absent for any other squash and the other folds.
    */
-  pockets?: true;
+  spineFixed?: true;
   /**
    * A squash of a flap whose walls are several plies: its layers at the flap
    * point, the openings that land — each by how many layers lie above it,
    * the only ones offered — and the one it folds. Absent for a two-layer
    * flap and the other folds.
    */
-  squash?: { layers: number; openings: readonly number[]; opening: number };
+  squash?: { layers: number; openings: readonly number[]; opening: number; deeper?: true };
   /**
    * A rabbit ear's fourth creases that land — a swivel's ridges that land —
    * the only ones offered, numbered among themselves, and the position of
@@ -598,8 +598,8 @@ function previewInstructions(
     const steps = swivelPreviewSteps(t, vertex, host, controls);
     return { ...steps, notes: queued };
   }
-  // Pockets squashing together have no spine to aim: nothing to choose there.
-  const choose = tool === 'squash' && vertex.pockets ? [] : [chooseStep(t, tool, host)];
+  // A spine landing on the hinge line only has nothing to aim: nothing to choose there.
+  const choose = tool === 'squash' && vertex.spineFixed ? [] : [chooseStep(t, tool, host)];
   return {
     heading: t('tools:fold.window.instructions', 'Instructions'),
     items: [...choose, commitStep(t, tool, host)],
@@ -655,17 +655,22 @@ function squashOpeningStepper(
   if (!squash) return null;
   const { layers, openings, opening } = squash;
   const valley = vertex.direction === 'valley';
-  return choiceStepper(
-    t,
-    valley ? t('tools:fold.vertex.squashOpensUnder', 'Opens under') : t('tools:fold.vertex.squashOpensOver', 'Opens over'),
-    Math.max(0, openings.indexOf(opening)),
-    openings.length,
-    verbs.stepSquashOpening,
-    readOnly,
-    valley
-      ? t('tools:fold.vertex.layersTop', 'Top {{count}} of {{total}}', { count: opening, total: layers })
-      : t('tools:fold.vertex.layersBottom', 'Bottom {{count}} of {{total}}', { count: opening, total: layers })
-  );
+  const label = valley
+    ? t('tools:fold.vertex.squashOpensUnder', 'Opens under')
+    : t('tools:fold.vertex.squashOpensOver', 'Opens over');
+  const value = valley
+    ? t('tools:fold.vertex.layersTop', 'Top {{count}} of {{total}}', { count: opening, total: layers })
+    : t('tools:fold.vertex.layersBottom', 'Bottom {{count}} of {{total}}', { count: opening, total: layers });
+  const stepper = choiceStepper(t, label, Math.max(0, openings.indexOf(opening)), openings.length, verbs.stepSquashOpening, readOnly, value);
+  if (stepper || !squash.deeper || openings.length !== 1) return stepper;
+  // Refused between the walls, it opens deeper: where, even with one opening that lands.
+  const none = () => {};
+  return {
+    label,
+    value,
+    previous: { label: t('tools:fold.reverse.previous', 'Previous'), disabled: true, run: none },
+    next: { label: t('tools:fold.reverse.next', 'Next'), disabled: true, run: none },
+  };
 }
 
 /**
@@ -871,9 +876,9 @@ export function vertexControls(
       : null,
     lineBy: lineByControl(t, vertex, verbs, readOnly),
     // Where a squash's spine lands: the bold line on the folded pane, moved by
-    // a click there. Never offered for pockets squashing together.
+    // a click there. Never offered where it lands on the hinge line only.
     target:
-      tool === 'squash' && located && !vertex.pockets
+      tool === 'squash' && located && !vertex.spineFixed
         ? {
             label: t('tools:fold.vertex.target', 'Spine lands on'),
             value:
