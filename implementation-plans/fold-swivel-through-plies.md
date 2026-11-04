@@ -34,10 +34,25 @@ Land those steps exactly, and change nothing that lands today.
   sector modes per fan, probes cut by every fan's lines, and each fan's own
   `beyond`, layer and group rules. A pair tries it where its two-layer
   reading is held.
+- **The search backjumps.** The stack reading's search for motions was
+  chronological with a step budget. On the second side of a two-sided step
+  a face chose to move with a neighbour, and the face that contradicts it
+  came dozens of faces later, so the budget ran out undoing unrelated
+  faces. A face with no motion left now goes back to the latest face whose
+  motion its failure reads: a neighbour, or a face of its sheet or a
+  neighbour's sheet, which are all its agreement looks at. The choices
+  skipped all fail there alike, so the search finds the motions the plain
+  one finds, in no more steps; it can only succeed where the plain one ran
+  out of budget.
 - **Nested plies open with the fold.** Where a swivel's fold has other folds
   along it through the vertex, nested between its two layers, each nested
   fold is a fan of its own with the same three rays, made together with it
-  through the list-of-fans reading. Only where the swivel alone refuses.
+  through the list-of-fans reading. Only in readings no swivel had before:
+  a swivel read through the meeting-rule fallback, and a pair whose
+  two-layer reading is held. A swivel read as before (on a fold the meeting
+  rule settles) reads its folded edge alone, even where it then has no
+  order: changing that would change what those lines land today, so it is
+  left for a decision.
 
 ## Affected Areas
 
@@ -59,9 +74,16 @@ No wire, document or UI change.
 - [x] Meeting-rule fallback, single and pair; synthetic tests (a ply ending
       bare beside the fold; folds in view ending over a hidden one), each
       refusing without the fallback
-- [ ] Stack reading over several fans, single swivels unchanged
-- [ ] A pair through the stack (multi-ply flaps; a pair on hidden folds)
-- [ ] Nested plies opening with the fold
+- [x] Stack reading over several fans, single swivels unchanged (every
+      fold test, every corpus model replays unchanged)
+- [x] The search backjumps (the second of two mirror-image pairs on hidden
+      folds ran out of budget)
+- [x] A pair through the stack: synthetic (each flap's raw-edge strip
+      folded over, holding its wedges), refused without it; a pair on
+      hidden folds in a real design
+- [ ] Nested plies opening with the fold: synthetic (four plies in each
+      side's folded edge of a pair; four plies under a corner that ends at
+      the vertex), each refused without them
 - [ ] Real-design check outside the repo: each node lands the saved paper,
       every later node still lands, every corpus model replays unchanged
 - [ ] App check: each step made by hand from its before file; a single

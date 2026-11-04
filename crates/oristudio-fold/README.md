@@ -237,7 +237,9 @@ Compound folds (plan D4, D15, Phases 9 and 11):
     one) and the lines turn no flap about the end of its hinges, the swivel
     folds on the one fold that runs on through the point and compiles: in
     view, or where none in view does, hidden. A pair's swivels are read the
-    same way.
+    same way. The search for the motions backjumps: a face with none
+    left goes back to the latest face its failure reads, so it finds the
+    same motions in fewer steps.
   - `compound::swivel_hinge_end`: a valley and a mountain that meet where a
     flap's two hinges end — a flat vertex of four folds — turn the flap
     about it. Both hinges move one angle ψ the same way round: the flap's
@@ -262,8 +264,10 @@ Compound folds (plan D4, D15, Phases 9 and 11):
     two vertices along the shared crease is one wedge of both. The two-layer
     reading takes both fans: coincident rays are one cut, and paper joined
     to two wedges that move differently, or to a wedge and the paper that
-    stays, holds them (`fan_ray_blocked`; the reading through the stack is a
-    single swivel's only). A swivel's analysis names where one of its
+    stays, holds them. Then both are read through the stack together, their
+    motions shared where they move paper alike, each fan's sectors, layers
+    and groups its own: `fan_ray_blocked` where no motion frees them. A
+    swivel's analysis names where one of its
     creases runs on through its paper to another fold (`other_end`), which a
     tool offers; the document stores the second swivel as the op's
     `otherEnd`, of the first's kind. Its picture is the strip's, across the

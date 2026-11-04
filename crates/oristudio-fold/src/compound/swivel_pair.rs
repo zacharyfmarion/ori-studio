@@ -31,14 +31,19 @@
 //! **Its picture** is the strip's: the shared crease, with the arrow from
 //! the paper both swivels move across it.
 //!
+//! **Through the stack.** Where paper beyond the four layers holds the
+//! wedges, both fans are read through the stack together
+//! (`super::folded_swivel`). A pair its four layers fold reads them alone,
+//! as before.
+//!
 //! **Refusals**: either swivel's own (`swivel_line_meeting`,
 //! `swivel_no_flap`, the fan's); both at one vertex, or several pairs of
 //! folded edges that compile (`swivel_line_meeting`); paper joined to two
 //! wedges that move differently, or to a wedge and the paper that stays,
-//! including paper beyond the four layers (`fan_ray_blocked`: the reading
-//! through the stack is a single swivel's only); and no order (`no_order`).
+//! that no motion through the stack frees (`fan_ray_blocked`); and no order
+//! (`no_order`).
 use super::CompoundRefused;
-use super::folded_swivel::{Layered, RayRun, finish_together, ray_run, two_layers_of};
+use super::folded_swivel::{Layered, RayRun, compile_together, ray_run};
 use super::swivel::{SwivelCrease, SwivelKind, SwivelRegion, SwivelWedge, dot, internal, sub};
 use super::swivel_valley_mountain::{
     Built, SwivelOtherEnd, SwivelShared, SwivelValleyMountain, SwivelValleyMountainAnalysis,
@@ -193,12 +198,9 @@ impl SwivelPair {
                 runs: &runs[1],
             },
         ];
-        let read = two_layers_of(state, &swivels)?
-            .map_err(|faces| Refused::from(FoldRefusal::FanRayBlocked { faces }))?;
-        let members = read.2.clone();
         let kinds: [SwivelKind; 2] = self.swivels.each_ref().map(|s| s.kind);
         let direction = state.view().model_direction(Direction::Valley);
-        let compiled = finish_together(state, &swivels, &kinds, direction, read)?;
+        let (compiled, members, _) = compile_together(state, &swivels, &kinds, direction)?;
         Ok((compiled, ends, members))
     }
 }

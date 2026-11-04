@@ -3,16 +3,17 @@
 //! where the folds there do not settle the meeting — a ply that wraps the
 //! fold on one side ends there on its raw edge, or every fold in view ends
 //! there over a hidden one — the swivel folds on the fold that runs on
-//! through the point.
+//! through the point. And two swivels made together whose wedges paper
+//! beyond their four layers holds, read through the stack together.
 mod beloch;
 mod support;
 mod vertex;
 use oristudio_fold::{
-    Direction, Sheet, StartSide, State, SwivelKind, SwivelValleyMountain, VertexChoices,
-    VertexFolded,
+    Direction, Sheet, StartSide, State, SwivelKind, SwivelPair, SwivelValleyMountain,
+    VertexChoices, VertexFolded,
 };
 use oristudio_geometry::Line;
-use support::{all, fold, through, y_eq};
+use support::{all, depth, fold, through, top_sheet_point, x_eq, y_eq};
 use vertex::cases;
 
 type Point = [f64; 2];
@@ -208,4 +209,98 @@ fn where_every_fold_in_view_ends_the_hidden_fold_through_the_vertex_swivels() {
             ));
         }
     }
+}
+
+const LEFT: Point = [0.25, 0.25];
+const RIGHT: Point = [0.75, 0.25];
+
+/// The point `p` given for the left vertex, mirrored for the right one.
+fn mirrored_for(v: Point, p: Point) -> Point {
+    if v[0] > 0.5 { [1.0 - p[0], p[1]] } else { p }
+}
+
+/// #582's swivel with its flap in front: on the flap the valley up to the
+/// middle and the mountain down to the bottom edge's middle; the crease
+/// behind, y = 1/4, is shared.
+fn shared_behind(v: Point) -> SwivelValleyMountain {
+    op(
+        v,
+        mirrored_for(v, [0.5, 0.5]),
+        mirrored_for(v, [0.5, 0.0]),
+        SwivelKind::Open,
+    )
+}
+
+fn pair_landed(state: &State, pair: &SwivelPair) -> Vec<VertexFolded> {
+    cases::every(state.swivel_pair(pair, &VertexChoices::default()))
+}
+
+/// The figure is its own mirror image across x = 1/2.
+fn mirror_symmetric(state: &State) -> bool {
+    let mirror = |p: Point| [1.0 - p[0], p[1]];
+    samples().all(|p| {
+        let (x, y) = (paper_at(state, p), paper_at(state, mirror(p)));
+        x.len() == y.len()
+            && x.iter()
+                .zip(&y)
+                .all(|(s, t)| near(mirror(s.0), t.0) && s.1 == t.1)
+    })
+}
+
+fn same_paper(a: &State, b: &State) -> bool {
+    samples().all(|p| same_stacks(&paper_at(a, p), &paper_at(b, p)))
+}
+
+/// #582's cupboard — the square's sides folded to the middle in front on
+/// x = 1/4 and x = 3/4 — then each flap's strip along its raw edge folded
+/// over it on x = 0.45 and x = 0.55. Each swivel's hinge and mountain run
+/// from its vertex into that fold, and the strip, hinged to its flap all
+/// along, joins the flap's wedges and the paper that stays: beyond the
+/// four layers, it holds them.
+fn cupboard_with_strips() -> State {
+    let flat = State::flat(Sheet::square(), StartSide::Front).unwrap();
+    let one = fold(&flat, &all(x_eq(0.25), [0.1, 0.5], Direction::Valley)).state;
+    let mut state = fold(&one, &all(x_eq(0.75), [0.9, 0.5], Direction::Valley)).state;
+    for (x, p) in [(0.45, [0.48, 0.5]), (0.55, [0.52, 0.5])] {
+        let at = top_sheet_point(&state, p);
+        state = fold(&state, &depth(x_eq(x), p, Direction::Valley, at, 1)).state;
+    }
+    state
+}
+
+/// Whether the landed state has a folded crease, not along x, crossing the
+/// sheet's strip `x` in (lo, hi): the strip creased along a ray.
+fn strip_creased(state: &State, lo: f64, hi: f64) -> bool {
+    state.creases().iter().any(|c| {
+        let [a, b] = c.vertices.map(|v| state.vertices()[v.0 as usize]);
+        let mid = [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0];
+        c.kind.is_folded() && (a[0] - b[0]).abs() > 1e-9 && mid[0] > lo && mid[0] < hi
+    })
+}
+
+#[test]
+fn a_pair_held_beyond_its_four_layers_folds_through_the_stack() {
+    let state = cupboard_with_strips();
+    let pair = SwivelPair {
+        swivels: [shared_behind(LEFT), shared_behind(RIGHT)],
+    };
+    let folds = pair_landed(&state, &pair);
+    assert_eq!(folds.len(), 1);
+    let folded = &folds[0].state;
+    support::assert_valid(folded);
+    assert!(mirror_symmetric(folded));
+    // Each strip is creased along its swivel's rays (on the sheet, the
+    // strips are x < 0.05 and x > 0.95).
+    assert!(strip_creased(folded, 0.0, 0.05));
+    assert!(strip_creased(folded, 0.95, 1.0));
+    // Not the first swivel alone, which carries the other side's flap.
+    let alone = landed(&state, &shared_behind(LEFT));
+    assert!(alone.iter().all(|one| !same_paper(&one.state, folded)));
+    // Named in the other order, the same fold; replayed, the same state.
+    let swapped = SwivelPair {
+        swivels: [shared_behind(RIGHT), shared_behind(LEFT)],
+    };
+    assert!(same_paper(&pair_landed(&state, &swapped)[0].state, folded));
+    let replay = cases::every(state.swivel_pair(&pair, &folds[0].report.stored));
+    assert!(same_paper(&replay[0].state, folded));
 }
