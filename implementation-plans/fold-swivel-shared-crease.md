@@ -123,5 +123,5 @@ committed step is one swivel op with its `otherEnd`; analytics adds
       Escape), and in the app by hand: each of the three real steps from its
       before file, the same paper as the scripted step; a single swivel made
       fresh
-- [ ] A pair through the stack (multi-ply flaps): the stack reading
-      (`assign`) over two fans
+- [x] A pair through the stack (multi-ply flaps): the stack reading
+      (`assign`) over two fans (`fold-swivel-through-plies.md`)

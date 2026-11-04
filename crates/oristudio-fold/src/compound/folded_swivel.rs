@@ -36,6 +36,27 @@
 //! order (`no_order`); where there is no such motion, or anything else stops
 //! the stack reading, the swivel is refused as the two-layer reading was:
 //! paper holds two wedges (`fan_ray_blocked`, naming that paper).
+//!
+//! The search for those motions is depth first, and where a face has no
+//! motion left it goes back to the latest face whose motion its failure
+//! reads (a neighbour, or a face of its sheet or a neighbour's), not just the
+//! one before: the choices it skips all fail there alike, so it finds the
+//! motions the plain search finds, in fewer steps.
+//!
+//! **Several swivels through the stack.** Swivels made together
+//! (`super::swivel_pair`) are read through the stack the same way, over a
+//! list of fans ([`compile_together`]): their motions are shared where two
+//! fans move paper alike (a crease they share, and the paper between them
+//! along it), each fan moves the faces crossing its own rays by its own
+//! sectors, a crease folds along any fan's line by that fan's reflection,
+//! and each fan's own layers, paper beyond its folded edge and layer groups
+//! are its own. One fan reads exactly as above.
+//!
+//! **Nested plies.** Folds nested in a swivel's folded edge through its
+//! vertex (a stack folded in half, a flap several plies thick) can open
+//! with it, each a fan of its own with the same rays on its own fold
+//! ([`compile_nest`]). The callers decide where (`super::swivel_valley_mountain`):
+//! only in readings no swivel had before.
 use crate::complete::CompletionLimits;
 use crate::compound::motion::reflection;
 use crate::compound::pieces::{Cut, Scoring, score_cuts};
@@ -313,19 +334,81 @@ fn partner(x: usize, line: usize) -> Option<usize> {
     }
 }
 
+/// The motions of several swivels made together, one index per isometry:
+/// where two fans move paper alike (a crease they share, the paper between
+/// them along it), the same motion. By index, the first fan's near, turn and
+/// beyond wedges, the paper that stays ([`STAYS`]), then each later fan's
+/// wedges that move unlike any before them — so a single swivel's motions
+/// are its wedges' indices.
+struct Motions {
+    /// Per fan, its near, turn and beyond wedges' motions.
+    of: Vec<[usize; 3]>,
+    count: usize,
+}
+
+impl Motions {
+    fn of(swivels: &[Layered]) -> Result<Motions, Refused> {
+        let alike =
+            |m: &Isometry, n: &Isometry| m.0.iter().zip(n.0).all(|(a, b)| (a - b).abs() <= TOL);
+        let mut isometries: Vec<Isometry> = Vec::new();
+        let mut of = Vec::with_capacity(swivels.len());
+        for (i, one) in swivels.iter().enumerate() {
+            let mut ids = [STAYS; 3];
+            for (w, id) in ids.iter_mut().enumerate() {
+                let m = wedge_motion(one.fan, w)?;
+                *id = match isometries.iter().position(|n| alike(n, &m)) {
+                    Some(k) => k,
+                    None => {
+                        isometries.push(m);
+                        isometries.len() - 1
+                    }
+                };
+            }
+            if i == 0 {
+                if isometries.len() != STAYS {
+                    return Err(internal("a swivel's wedges move alike"));
+                }
+                isometries.push(Isometry::IDENTITY);
+            }
+            of.push(ids);
+        }
+        Ok(Motions {
+            of,
+            count: isometries.len(),
+        })
+    }
+
+    /// The motion of fan `i`'s wedge `w`, or of the paper that stays.
+    fn id(&self, i: usize, w: usize) -> usize {
+        if w == STAYS { STAYS } else { self.of[i][w] }
+    }
+
+    /// [`partner`] for fan `i`'s line `line`, by motion: none where `x` is
+    /// no motion of that fan's.
+    fn partner(&self, x: usize, (i, line): (usize, usize)) -> Option<usize> {
+        let w = if x == STAYS {
+            STAYS
+        } else {
+            self.of[i].iter().position(|&m| m == x)?
+        };
+        partner(w, line).map(|p| self.id(i, p))
+    }
+}
+
 /// How one face moves.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Mode {
     /// All of it by one motion (by index).
     Rigid(usize),
-    /// By sector like the edge's layer, creased along `s` where it crosses.
-    Edge,
-    /// By sector like the other layer, creased along `c` and `b`.
-    Other,
+    /// By sector like fan `i`'s edge layer, creased along its `s` where it
+    /// crosses.
+    Edge(usize),
+    /// By sector like fan `i`'s other layer, creased along its `c` and `b`.
+    Other(usize),
 }
 
-/// The sectors round the vertex: angles from the half of the folded edge
-/// that opens, toward the paper.
+/// The sectors round a fan's vertex: angles from the half of the folded
+/// edge that opens, toward the paper.
 struct Sectors {
     vertex: Point,
     opens: Point,
@@ -348,16 +431,46 @@ impl Sectors {
         }
     }
 
-    /// How a face in `mode` moves at the model point `p`.
-    fn class(&self, mode: Mode, p: Point) -> usize {
+    /// The wedge (or [`STAYS`]) paper moving by sector like the edge's
+    /// layer (`edge`) or the other one is in at the model point `p`.
+    fn wedge(&self, edge: bool, p: Point) -> usize {
         let theta = self.sign * angle_between(self.opens, sub(p, self.vertex));
         let inside = |hi: f64| theta > 0.0 && theta < hi;
+        if edge {
+            if inside(self.angles[S]) { 0 } else { STAYS }
+        } else if inside(self.angles[C]) {
+            1
+        } else if inside(self.angles[B]) {
+            2
+        } else {
+            STAYS
+        }
+    }
+}
+
+/// The fans of the swivels a stack reading reads together, their sectors
+/// and their shared motions.
+struct Fans<'a, 'b> {
+    swivels: &'a [Layered<'b>],
+    sectors: Vec<Sectors>,
+    motions: Motions,
+}
+
+impl<'a, 'b> Fans<'a, 'b> {
+    fn of(swivels: &'a [Layered<'b>]) -> Result<Fans<'a, 'b>, Refused> {
+        Ok(Fans {
+            swivels,
+            sectors: swivels.iter().map(|one| Sectors::of(one.fan)).collect(),
+            motions: Motions::of(swivels)?,
+        })
+    }
+
+    /// How a face in `mode` moves at the model point `p`, by motion.
+    fn class(&self, mode: Mode, p: Point) -> usize {
         match mode {
             Mode::Rigid(x) => x,
-            Mode::Edge if inside(self.angles[S]) => 0,
-            Mode::Other if inside(self.angles[C]) => 1,
-            Mode::Other if inside(self.angles[B]) => 2,
-            Mode::Edge | Mode::Other => STAYS,
+            Mode::Edge(i) => self.motions.id(i, self.sectors[i].wedge(true, p)),
+            Mode::Other(i) => self.motions.id(i, self.sectors[i].wedge(false, p)),
         }
     }
 }
@@ -407,17 +520,22 @@ fn crossed_ahead(ring: &[Point], v: Point, u: Point) -> bool {
 struct Probe {
     /// Points just inside each of the crease's two faces.
     at: [Point; 2],
-    /// The rays and half folded edge the crease runs along there (two rays
-    /// can coincide).
-    lines: Vec<usize>,
-    /// Whether the crease is one of the folded edge's own.
-    edge: bool,
+    /// The rays and half folded edges the crease runs along there, each by
+    /// its fan and index (two rays can coincide).
+    lines: Vec<(usize, usize)>,
+    /// Per fan, whether the crease is one of its folded edge's own.
+    edge: Vec<bool>,
+}
+
+/// A fan's lines by index: its rays ([`S`], [`C`], [`B`]) and the half of
+/// its folded edge that opens ([`H`]).
+fn lines_of(built: &FoldFan) -> [Point; 4] {
+    [built.swivel, built.counter, built.second, built.opens]
 }
 
 /// The probes of crease `k`: one per stretch of it between the places it
-/// crosses a ray's line, each just inside both faces.
-fn probes(state: &State, built: &FoldFan, k: usize, faces: [usize; 2]) -> Vec<Probe> {
-    let v = built.vertex;
+/// crosses a fan's line, each just inside both faces.
+fn probes(state: &State, fans: &[Layered], k: usize, faces: [usize; 2]) -> Vec<Probe> {
     let images = &state.geometry().images;
     let [a, b] = state.creases()[k]
         .vertices
@@ -428,12 +546,14 @@ fn probes(state: &State, built: &FoldFan, k: usize, faces: [usize; 2]) -> Vec<Pr
         return Vec::new();
     }
     let n = [-d[1] / length, d[0] / length];
-    let lines = [built.swivel, built.counter, built.second, built.opens];
     let mut cuts = vec![0.0, 1.0];
-    for u in lines {
-        let (da, db) = (cross(u, sub(a, v)), cross(u, sub(b, v)));
-        if da * db < 0.0 {
-            cuts.push(da / (da - db));
+    for one in fans {
+        let v = one.fan.vertex;
+        for u in lines_of(one.fan) {
+            let (da, db) = (cross(u, sub(a, v)), cross(u, sub(b, v)));
+            if da * db < 0.0 {
+                cuts.push(da / (da - db));
+            }
         }
     }
     cuts.sort_by(f64::total_cmp);
@@ -453,73 +573,113 @@ fn probes(state: &State, built: &FoldFan, k: usize, faces: [usize; 2]) -> Vec<Pr
             let at = |t: f64| [a[0] + t * d[0], a[1] + t * d[1]];
             let (p, q) = (at(w[0]), at(w[1]));
             let m = at((w[0] + w[1]) / 2.0);
-            let on = |u: Point| {
+            let on = |v: Point, u: Point| {
                 [p, q].iter().all(|&x| {
                     let r = sub(x, v);
                     cross(u, r).abs() <= TOL && dot(u, r) >= -TOL
                 })
             };
+            let lines = fans
+                .iter()
+                .enumerate()
+                .flat_map(|(i, one)| {
+                    let us = lines_of(one.fan);
+                    (0..4)
+                        .filter(move |&l| on(one.fan.vertex, us[l]))
+                        .map(move |l| (i, l))
+                })
+                .collect();
             Probe {
                 at: faces.map(|f| inward(f, m)),
-                lines: (0..4).filter(|&l| on(lines[l])).collect(),
-                edge: built.run.contains(&k),
+                lines,
+                edge: fans.iter().map(|one| one.fan.run.contains(&k)).collect(),
             }
         })
         .collect()
 }
 
-/// How every face moves (module docs): the edge's layer's run along `s` and
-/// the other layer's along `c` and `b` by sector, and each other face the
-/// first mode, in a breadth-first order from them, that agrees with every
-/// neighbour it has been given, backtracking where none does. None when no
-/// assignment is found; the faces where the search last failed.
-fn assign(
-    state: &State,
-    built: &FoldFan,
-    [edge_layer, other_layer]: [usize; 2],
-    runs: &[RayRun; 3],
-) -> Result<Vec<Mode>, Vec<usize>> {
+/// How every face moves (module docs): each fan's edge layer's run along its
+/// `s` and its other layer's along its `c` and `b` by that fan's sectors,
+/// and each other face the first mode, in a breadth-first order from them,
+/// that agrees with every neighbour it has been given, backjumping where
+/// none does. None when no assignment is found; the faces where the search
+/// last failed.
+fn assign(state: &State, fans: &Fans) -> Result<Vec<Mode>, Vec<usize>> {
     let nf = state.faces().len();
     let topology = state.topology();
     let images = &state.geometry().images;
-    let sectors = Sectors::of(built);
-    let v = built.vertex;
-    let edge_region = flat_region(state, edge_layer);
-    let other_region = flat_region(state, other_layer);
+    let swivels = fans.swivels;
+    let edge_regions: Vec<Vec<bool>> = swivels
+        .iter()
+        .map(|one| flat_region(state, one.layers[0]))
+        .collect();
+    let other_regions: Vec<Vec<bool>> = swivels
+        .iter()
+        .map(|one| flat_region(state, one.layers[1]))
+        .collect();
     // The faces each face meets, by the probes of the creases they share.
     let mut meets: Vec<Vec<(usize, Vec<Probe>)>> = (0..nf).map(|_| Vec::new()).collect();
     for k in 0..state.creases().len() {
         if let [f, g] = topology.crease_faces[k][..] {
-            meets[f].push((g, probes(state, built, k, [f, g])));
-            meets[g].push((f, probes(state, built, k, [g, f])));
+            meets[f].push((g, probes(state, swivels, k, [f, g])));
+            meets[g].push((f, probes(state, swivels, k, [g, f])));
         }
     }
+    // Each fan's runs, by sector: its `s` like its edge's layer, its `c` and
+    // `b` like the other (which a run of both crosses). A face two fans' runs
+    // cross moves as the first does, where the two read it alike (a crease
+    // they share); one run the edge's layer of one fan and the other's of
+    // another holds them.
     let mut fixed: Vec<Option<Mode>> = vec![None; nf];
-    for &f in &runs[S].faces {
-        fixed[f] = Some(Mode::Edge);
+    for (i, one) in swivels.iter().enumerate() {
+        let claims = one.runs[S].faces.iter().map(|&f| (f, Mode::Edge(i))).chain(
+            one.runs[C]
+                .faces
+                .iter()
+                .chain(&one.runs[B].faces)
+                .map(|&f| (f, Mode::Other(i))),
+        );
+        for (f, mode) in claims {
+            fixed[f] = match (fixed[f], mode) {
+                (None, _) => Some(mode),
+                (Some(Mode::Edge(j)), Mode::Other(_)) if j == i => Some(mode),
+                (Some(Mode::Edge(j)), Mode::Edge(_)) => Some(Mode::Edge(j)),
+                (Some(Mode::Other(j)), Mode::Other(_)) => Some(Mode::Other(j)),
+                _ => return Err(vec![f]),
+            };
+        }
     }
-    for &f in runs[C].faces.iter().chain(&runs[B].faces) {
-        fixed[f] = Some(Mode::Other);
-    }
-    // Paper on the far side of the folded edge's line cannot move by sector.
-    let beyond = |f: usize| {
+    // Paper on the far side of a fan's folded edge's line cannot move by its
+    // sectors.
+    let beyond = |i: usize, f: usize| {
+        let (built, sectors) = (swivels[i].fan, &fans.sectors[i]);
+        let v = built.vertex;
         images[f].iter().any(|&p| {
             sectors.sign * angle_between(built.opens, sub(p, v)) < -TOL
                 && cross(built.opens, sub(p, v)).abs() > TOL
         })
     };
-    let rays = built.rays();
+    // The fans' own layers crease only along their own runs.
+    let in_layers =
+        |f: usize| (0..swivels.len()).any(|i| edge_regions[i][f] || other_regions[i][f]);
     let domain = |f: usize| -> Vec<Mode> {
         if let Some(mode) = fixed[f] {
             return vec![mode];
         }
-        let mut modes: Vec<Mode> = (0..4).map(Mode::Rigid).collect();
-        if !edge_region[f] && !other_region[f] && !beyond(f) {
+        let mut modes: Vec<Mode> = (0..fans.motions.count).map(Mode::Rigid).collect();
+        if in_layers(f) {
+            return modes;
+        }
+        for (i, one) in swivels.iter().enumerate() {
+            if beyond(i, f) {
+                continue;
+            }
+            let (v, rays) = (one.fan.vertex, one.fan.rays());
             if crossed_ahead(&images[f], v, rays[S]) {
-                modes.push(Mode::Edge);
+                modes.push(Mode::Edge(i));
             }
             if crossed_ahead(&images[f], v, rays[C]) || crossed_ahead(&images[f], v, rays[B]) {
-                modes.push(Mode::Other);
+                modes.push(Mode::Other(i));
             }
         }
         modes
@@ -557,14 +717,14 @@ fn assign(
             regions.push(members);
         }
     }
-    // Whether face `f`, in `mode`, belongs to the edge's layer group (`edge`)
-    // or the other's: by its sheet, or by a face of its sheet that moves by
-    // sector.
-    let in_group = |f: usize, mode: Mode, modes: &[Option<Mode>], edge: bool| {
+    // Whether face `f`, in `mode`, belongs to fan `i`'s edge layer group
+    // (`edge`) or its other one: by its sheet, or by a face of its sheet that
+    // moves by that fan's sector.
+    let in_group = |i: usize, f: usize, mode: Mode, modes: &[Option<Mode>], edge: bool| {
         let (region, sector) = if edge {
-            (&edge_region, Mode::Edge)
+            (&edge_regions[i], Mode::Edge(i))
         } else {
-            (&other_region, Mode::Other)
+            (&other_regions[i], Mode::Other(i))
         };
         region[f]
             || mode == sector
@@ -572,29 +732,30 @@ fn assign(
                 .iter()
                 .any(|&g| g != f && modes[g] == Some(sector))
     };
-    // A crease along `s` folds only in paper of the edge's layer group, along
-    // `c` or `b` only in the other's: never in a face of the other group.
-    let creases_along = |line: usize, f: usize, mode: Mode, modes: &[Option<Mode>]| match line {
-        S => !in_group(f, mode, modes, false),
-        C | B => !in_group(f, mode, modes, true),
-        _ => true,
-    };
-    // Between two faces of the two layers themselves a crease folds or
-    // unfolds only where a ray's run reuses it, or along the folded edge's
-    // own half that opens: as the two-layer reading has it.
-    let in_layers = |f: usize| edge_region[f] || other_region[f];
-    let toggles = |f: usize, g: usize, probe: &Probe, line: usize| {
+    // A crease along a fan's `s` folds only in paper of its edge's layer
+    // group, along its `c` or `b` only in its other's: never in a face of
+    // that fan's other group.
+    let creases_along =
+        |(i, line): (usize, usize), f: usize, mode: Mode, modes: &[Option<Mode>]| match line {
+            S => !in_group(i, f, mode, modes, false),
+            C | B => !in_group(i, f, mode, modes, true),
+            _ => true,
+        };
+    // Between two faces of the fans' layers themselves a crease folds or
+    // unfolds only where a ray's run reuses it, or along a folded edge's own
+    // half that opens: as the two-layer reading has it.
+    let toggles = |f: usize, g: usize, probe: &Probe, (i, line): (usize, usize)| {
         !(in_layers(f) && in_layers(g))
             || if line == H {
-                probe.edge
+                probe.edge[i]
             } else {
                 fixed[f].is_some() || fixed[g].is_some()
             }
     };
     let agrees = |f: usize, mode: Mode, modes: &[Option<Mode>]| {
         let group_held = match mode {
-            Mode::Edge => !in_group(f, mode, modes, false),
-            Mode::Other => !in_group(f, mode, modes, true),
+            Mode::Edge(i) => !in_group(i, f, mode, modes, false),
+            Mode::Other(i) => !in_group(i, f, mode, modes, true),
             Mode::Rigid(_) => true,
         };
         group_held
@@ -603,11 +764,11 @@ fn assign(
                     return true;
                 };
                 probes.iter().all(|probe| {
-                    let x = sectors.class(mode, probe.at[0]);
-                    let y = sectors.class(other, probe.at[1]);
+                    let x = fans.class(mode, probe.at[0]);
+                    let y = fans.class(other, probe.at[1]);
                     x == y
                         || probe.lines.iter().any(|&line| {
-                            partner(x, line) == Some(y)
+                            fans.motions.partner(x, line) == Some(y)
                                 && toggles(f, *g, probe, line)
                                 && creases_along(line, f, mode, modes)
                                 && creases_along(line, *g, other, modes)
@@ -616,12 +777,15 @@ fn assign(
             })
     };
     // Prefer moving with a neighbour, then creasing, then the rest.
+    let creasing: Vec<Mode> = (0..swivels.len())
+        .flat_map(|i| [Mode::Edge(i), Mode::Other(i)])
+        .collect();
     let preferred = |f: usize, modes: &[Option<Mode>]| -> Vec<Mode> {
         let mut seen: Vec<usize> = Vec::new();
         for (g, probes) in &meets[f] {
             if let Some(other) = modes[*g] {
                 for probe in probes {
-                    let y = sectors.class(other, probe.at[1]);
+                    let y = fans.class(other, probe.at[1]);
                     if !seen.contains(&y) {
                         seen.push(y);
                     }
@@ -634,15 +798,32 @@ fn assign(
             .map(|&y| Mode::Rigid(y))
             .filter(|mode| all.contains(mode))
             .collect();
-        for mode in [Mode::Edge, Mode::Other].into_iter().chain(all.clone()) {
+        for mode in creasing.iter().copied().chain(all.clone()) {
             if all.contains(&mode) && !ordered.contains(&mode) {
                 ordered.push(mode);
             }
         }
         ordered
     };
+    // Every face whose mode a face's agreement reads: its neighbours, and the
+    // faces of its sheet and of each neighbour's (the group rules).
+    let reads = |f: usize| -> Vec<usize> {
+        let mut read: Vec<usize> = regions[region_of[f]].clone();
+        for (g, _) in &meets[f] {
+            read.push(*g);
+            read.extend(&regions[region_of[*g]]);
+        }
+        read
+    };
+    // A depth-first search over the breadth-first order, backjumping: a face
+    // with no mode left goes back to the latest face whose mode its failure
+    // reads, which inherits the rest of the failure's reasons. It skips only
+    // choices that cannot lead to an assignment, so it finds the one the
+    // plain search finds, in fewer steps.
     let mut modes: Vec<Option<Mode>> = vec![None; nf];
+    let mut depth: Vec<usize> = vec![usize::MAX; nf];
     let mut choices: Vec<Vec<Mode>> = Vec::with_capacity(nf);
+    let mut conflicts: Vec<Vec<usize>> = Vec::with_capacity(nf);
     let mut budget = 40 * nf + 1000;
     let mut deepest = 0;
     let mut failed: Vec<usize> = Vec::new();
@@ -651,6 +832,7 @@ fn assign(
         let f = order[i];
         if choices.len() == i {
             choices.push(preferred(f, &modes));
+            conflicts.push(Vec::new());
         }
         let next = loop {
             match choices[i].first().copied() {
@@ -666,6 +848,7 @@ fn assign(
         match next {
             Some(mode) => {
                 modes[f] = Some(mode);
+                depth[f] = i;
                 i += 1;
             }
             None => {
@@ -679,12 +862,33 @@ fn assign(
                         .collect();
                 }
                 budget = budget.saturating_sub(1);
-                if i == 0 || budget == 0 {
+                if budget == 0 {
                     return Err(failed);
                 }
-                choices.truncate(i);
-                i -= 1;
-                modes[order[i]] = None;
+                // Back to the latest face whose mode the failure reads (none:
+                // no assignment exists), skipping those between, whose modes
+                // it does not read: every choice of theirs fails here alike.
+                let mut culprits: Vec<usize> = reads(f)
+                    .into_iter()
+                    .filter(|&g| modes[g].is_some())
+                    .map(|g| depth[g])
+                    .chain(conflicts[i].iter().copied())
+                    .filter(|&d| d < i)
+                    .collect();
+                culprits.sort_unstable();
+                culprits.dedup();
+                let Some(j) = culprits.pop() else {
+                    return Err(failed);
+                };
+                for &g in &order[j..i] {
+                    modes[g] = None;
+                }
+                choices.truncate(j + 1);
+                conflicts.truncate(j + 1);
+                conflicts[j].extend(culprits);
+                conflicts[j].sort_unstable();
+                conflicts[j].dedup();
+                i = j;
             }
         }
     }
@@ -696,17 +900,21 @@ fn assign(
 
 /// One swivel as the two-layer reading scores it: its fan, its folded
 /// edge's two layers (the edge's, then the other), and its rays' runs.
+#[derive(Clone, Copy)]
 pub(super) struct Layered<'a> {
     pub(super) fan: &'a FoldFan,
     pub(super) layers: [usize; 2],
     pub(super) runs: &'a [RayRun; 3],
 }
 
-/// The two-layer reading of several swivels made together: the scored
-/// paper, each piece's block, and per block the swivels' wedges that move
-/// as it, each `[swivel, wedge]` with the wedge by the index of
+/// Per block of several swivels made together, the swivels' wedges that
+/// move as it, each `[swivel, wedge]` with the wedge by the index of
 /// [`SwivelWedge`]'s blocks (near, turn, beyond).
-pub(super) type Together = (Scoring, Vec<Option<usize>>, Vec<Vec<[usize; 2]>>);
+pub(super) type Members = Vec<Vec<[usize; 2]>>;
+
+/// The two-layer reading of several swivels made together: the scored
+/// paper, each piece's block, and each block's [`Members`].
+pub(super) type Together = (Scoring, Vec<Option<usize>>, Members);
 
 /// The paper scored along the rays and each piece's block: the two-layer
 /// reading, in which only the folded edge's two layers crease (each along
@@ -1036,11 +1244,24 @@ pub(super) fn compile(
 fn through_the_stack(
     state: &State,
     built: &FoldFan,
-    [edge_layer, other_layer]: [usize; 2],
+    layers: [usize; 2],
     runs: &[RayRun; 3],
 ) -> Result<Blocks, Refused> {
-    let v = built.vertex;
-    let modes = assign(state, built, [edge_layer, other_layer], runs).map_err(|failed| {
+    let one = Layered {
+        fan: built,
+        layers,
+        runs,
+    };
+    let fans = Fans::of(std::slice::from_ref(&one))?;
+    // One fan's motions are its wedges' indices: each piece's block.
+    through_the_stack_of(state, &fans)
+}
+
+/// [`through_the_stack`] for several swivels made together: the scored
+/// paper, and per piece the motion it moves by (none for paper that stays).
+fn through_the_stack_of(state: &State, fans: &Fans) -> Result<Blocks, Refused> {
+    let swivels = fans.swivels;
+    let modes = assign(state, fans).map_err(|failed| {
         let mut faces: Vec<FaceId> = failed.into_iter().map(|f| state.faces()[f].id).collect();
         faces.sort_unstable();
         faces.dedup();
@@ -1049,65 +1270,83 @@ fn through_the_stack(
     // Each ray creases its own layer's run and every other face that moves
     // by sector with that layer and lies across it.
     let images = &state.geometry().images;
-    let rays = built.rays();
     let nf = state.faces().len();
-    let mut cut_faces = [vec![false; nf], vec![false; nf], vec![false; nf]];
-    for (r, run) in runs.iter().enumerate() {
-        for &f in &run.faces {
-            cut_faces[r][f] = true;
-        }
-    }
+    let mut cut_faces: Vec<[Vec<bool>; 3]> = swivels
+        .iter()
+        .map(|one| {
+            one.runs.each_ref().map(|run| {
+                let mut mask = vec![false; nf];
+                for &f in &run.faces {
+                    mask[f] = true;
+                }
+                mask
+            })
+        })
+        .collect();
     for f in 0..nf {
-        let family: &[usize] = match modes[f] {
-            Mode::Edge => &[S],
-            Mode::Other => &[C, B],
-            Mode::Rigid(_) => &[],
+        let (i, family): (usize, &[usize]) = match modes[f] {
+            Mode::Edge(i) => (i, &[S]),
+            Mode::Other(i) => (i, &[C, B]),
+            Mode::Rigid(_) => continue,
         };
+        let (v, rays) = (swivels[i].fan.vertex, swivels[i].fan.rays());
         // A face the ray only runs along the side of moves whole.
         for &r in family {
             if crossed_ahead(&images[f], v, rays[r])
                 && images[f].iter().any(|&p| cross(rays[r], sub(p, v)) > TOL)
                 && images[f].iter().any(|&p| cross(rays[r], sub(p, v)) < -TOL)
             {
-                cut_faces[r][f] = true;
+                cut_faces[i][r][f] = true;
             }
         }
     }
-    let s_line = built.swivel_line()?;
-    let counter_line = built.counter_line()?;
-    let second_line = built.second_line()?;
-    let [s_faces, c_faces, b_faces] = cut_faces;
-    // Coincident rays are one cut through both layers (the historical
-    // edge-to-target construction). Scoring the same axis twice would
-    // incorrectly try to split its already-created boundary again.
-    let mut cuts = if cross(rays[S], rays[C]).abs() < 1e-12 && dot(rays[S], rays[C]) > 0.0 {
-        vec![Cut {
-            axis: Axis::new(&s_line, Side::Positive),
-            faces: s_faces
+    let mut cuts: Vec<Cut> = Vec::new();
+    // Per cut, its line and the swivel that made it.
+    let mut made: Vec<(Line, usize)> = Vec::new();
+    for (i, (one, [s_faces, c_faces, b_faces])) in swivels.iter().zip(cut_faces).enumerate() {
+        let built = one.fan;
+        let rays = built.rays();
+        // Coincident rays are one cut through both layers (the historical
+        // edge-to-target construction). Scoring the same axis twice would
+        // incorrectly try to split its already-created boundary again.
+        let mut own = if cross(rays[S], rays[C]).abs() < 1e-12 && dot(rays[S], rays[C]) > 0.0 {
+            let both = s_faces.iter().zip(&c_faces).map(|(a, b)| *a || *b);
+            vec![(built.swivel_line()?, both.collect())]
+        } else {
+            vec![
+                (built.swivel_line()?, s_faces),
+                (built.counter_line()?, c_faces),
+            ]
+        };
+        own.push((built.second_line()?, b_faces));
+        for (line, faces) in own {
+            // A ray along another swivel's is one cut with it.
+            match made
                 .iter()
-                .zip(&c_faces)
-                .map(|(a, b)| *a || *b)
-                .collect(),
-        }]
-    } else {
-        vec![
-            Cut {
-                axis: Axis::new(&s_line, Side::Positive),
-                faces: s_faces,
-            },
-            Cut {
-                axis: Axis::new(&counter_line, Side::Positive),
-                faces: c_faces,
-            },
-        ]
-    };
-    cuts.push(Cut {
-        axis: Axis::new(&second_line, Side::Positive),
-        faces: b_faces,
-    });
+                .position(|(other, by)| *by != i && other.approx_eq(&line))
+            {
+                Some(k) => {
+                    for (f, crossed) in faces.into_iter().enumerate() {
+                        cuts[k].faces[f] |= crossed;
+                    }
+                }
+                None => {
+                    cuts.push(Cut {
+                        axis: Axis::new(&line, Side::Positive),
+                        faces,
+                    });
+                    made.push((line, i));
+                }
+            }
+        }
+    }
     let scoring: Scoring = score_cuts(state, &cuts)?;
     // Each piece moves as its face's mode says where it lies.
-    let sectors = Sectors::of(built);
+    let v = swivels
+        .first()
+        .ok_or_else(|| internal("a swivel reading with no swivel"))?
+        .fan
+        .vertex;
     let geometry = state.geometry();
     let block_of: Vec<Option<usize>> = (0..scoring.faces.len())
         .map(|p| {
@@ -1115,11 +1354,128 @@ fn through_the_stack(
             let centre = convex::centroid(&scoring.polygon(p))
                 .map(|c| geometry.isometries[old].apply(c))
                 .unwrap_or(v);
-            let class = sectors.class(modes[old], centre);
+            let class = fans.class(modes[old], centre);
             (class != STAYS).then_some(class)
         })
         .collect();
     Ok((scoring, block_of))
+}
+
+/// The reading through the stack of several swivels made together, as the
+/// two-layer reading gives it ([`Together`]): one block per motion that
+/// moves paper, in the order of the motions, each with every fan's wedge
+/// that moves by it.
+fn stacked_together(state: &State, swivels: &[Layered]) -> Result<Together, Refused> {
+    let fans = Fans::of(swivels)?;
+    let (scoring, motion_of) = through_the_stack_of(state, &fans)?;
+    let mut used: Vec<usize> = motion_of.iter().flatten().copied().collect();
+    used.sort_unstable();
+    used.dedup();
+    let block_of = motion_of
+        .iter()
+        .map(|m| m.and_then(|m| used.iter().position(|&u| u == m)))
+        .collect();
+    let members = used
+        .iter()
+        .map(|&m| {
+            fans.motions
+                .of
+                .iter()
+                .enumerate()
+                .flat_map(|(i, ids)| (0..3).filter(move |&w| ids[w] == m).map(move |w| [i, w]))
+                .collect()
+        })
+        .collect();
+    Ok((scoring, block_of, members))
+}
+
+/// Several swivels made together, compiled: on their layers
+/// ([`two_layers_of`]), or through the stack where paper beyond them holds
+/// the wedges, refused as the two-layer reading is when that is refused
+/// too. Where the two-layer reading is held, the plies `nested` in their
+/// folded edges open with them: the reading, on their layers and then
+/// through the stack, is of all of them. `kinds` gives each swivel's kind,
+/// then each nested ply's. Per block, the swivels' wedges that move as it
+/// (by index into the swivels, then the nested plies); and whether it folds
+/// through the stack.
+pub(super) fn compile_together(
+    state: &State,
+    swivels: &[Layered],
+    nested: &[Layered],
+    kinds: &[SwivelKind],
+    direction: Direction,
+) -> Result<(Compiled, Members, bool), Refused> {
+    let all: Vec<Layered> = swivels.iter().chain(nested).copied().collect();
+    let (read, stacked, fans) = match two_layers_of(state, swivels)? {
+        Ok(read) => (read, false, swivels),
+        Err(held) if !nested.is_empty() => match two_layers_of(state, &all)? {
+            Ok(read) => (read, false, &all[..]),
+            Err(_) => match stacked_together(state, &all) {
+                Ok(read) => (read, true, &all[..]),
+                Err(_) => return Err(FoldRefusal::FanRayBlocked { faces: held }.into()),
+            },
+        },
+        Err(held) => match stacked_together(state, swivels) {
+            Ok(read) => (read, true, swivels),
+            Err(_) => return Err(FoldRefusal::FanRayBlocked { faces: held }.into()),
+        },
+    };
+    let members = read.2.clone();
+    let compiled = finish_together(state, fans, kinds, direction, read)?;
+    Ok((compiled, members, stacked))
+}
+
+/// A swivel on a folded edge with the plies nested in it at its vertex
+/// (`fans`: its fan and layers, then each ply's, the same rays on the ply's
+/// own fold), made as one fold ([`compile_together`]): compiled as the
+/// swivel, each block named by the first wedge that moves as it. Each order
+/// it offers is landed before it is offered.
+pub(super) fn compile_nest(
+    state: &State,
+    fans: &[(&FoldFan, [usize; 2])],
+    kind: SwivelKind,
+    direction: Direction,
+) -> Result<FoldCompiled, Refused> {
+    let runs: Vec<[RayRun; 3]> = fans
+        .iter()
+        .map(|&(fan, [edge, other])| {
+            let v = fan.vertex;
+            Ok([
+                ray_run(state, edge, v, fan.swivel)?,
+                ray_run(state, other, v, fan.counter)?,
+                ray_run(state, other, v, fan.second)?,
+            ])
+        })
+        .collect::<Result<_, Refused>>()?;
+    let layered: Vec<Layered> = fans
+        .iter()
+        .zip(&runs)
+        .map(|(&(fan, layers), runs)| Layered { fan, layers, runs })
+        .collect();
+    let kinds = vec![kind; fans.len()];
+    let (compiled, members, _) = compile_together(state, &layered, &[], &kinds, direction)?;
+    let names = [SwivelWedge::Near, SwivelWedge::Turn, SwivelWedge::Beyond];
+    let wedges = members
+        .iter()
+        .map(|m| {
+            m.first()
+                .map(|w| names[w[1].min(2)])
+                .ok_or_else(|| internal("a swivel block with no wedge"))
+        })
+        .collect::<Result<_, Refused>>()?;
+    let (&(_, [edge_layer, other_layer]), first) = fans
+        .first()
+        .zip(runs.first())
+        .ok_or_else(|| internal("a nest with no swivel"))?;
+    Ok(FoldCompiled {
+        compiled,
+        wedges,
+        edge_layer,
+        other_layer,
+        ends: first.each_ref().map(|run| run.end),
+        reach: None,
+        stacked: true,
+    })
 }
 
 /// The compiled fold from its scored paper and blocks: each block's turns,
