@@ -866,12 +866,14 @@ export function useFoldCanvasVerbs(
 
       precreaseLine: () => {
         const ends = hingeEnds();
-        // Precrease the hinge in the petal fold's direction, through its two ends.
+        // Precrease the hinge in the petal fold's direction, through its two ends and every layer: the
+        // route the engine checked lands before offering it (`precrease_first`).
         tools.setPrecreaseDirection(state().vertexDirection);
         tools.selectTool('precrease');
         tools.setExtent('whole');
         tools.selectLineMode('axiom-1');
         for (const pick of ends ?? []) tools.pick(pick);
+        tools.setSeed({ scope: 'all' });
       },
 
       precreaseKite: () => {

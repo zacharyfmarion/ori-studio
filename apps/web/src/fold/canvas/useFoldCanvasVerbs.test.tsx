@@ -617,7 +617,7 @@ describe('a vertex fold’s choices on the canvas', () => {
     act(() => bound!.verbs.stepFanLayers(-1));
     expect(tools.store.getState().compound.fanLayers).toBeNull();
 
-    // A petal fold's hinge refused: the Precrease tool through its two ends, or on the edge-to-edge axiom.
+    // A petal fold's hinge refused: the Precrease tool through its two ends and every layer, or on the edge-to-edge axiom.
     const end = (x: number) => ({ kind: 'point', provenance: 'free', sheet: [x, 0.5], mark: null, scene: { x, y: 0.5 } }) as const;
     act(() => tools.selectTool('petal'));
     act(() => tools.setVertexDirection('mountain'));
@@ -625,7 +625,14 @@ describe('a vertex fold’s choices on the canvas', () => {
     expect(tools.store.getState().petalHinge).toBe('points');
     for (const x of [0.2, 0.8]) act(() => void tools.pick(end(x)));
     act(() => bound!.verbs.precreaseLine());
-    expect(tools.store.getState()).toMatchObject({ tool: 'precrease', precreaseDirection: 'mountain', extent: 'whole', lineMode: 'axiom-1', picks: [end(0.2), end(0.8)] });
+    expect(tools.store.getState()).toMatchObject({
+      tool: 'precrease',
+      precreaseDirection: 'mountain',
+      extent: 'whole',
+      lineMode: 'axiom-1',
+      picks: [end(0.2), end(0.8)],
+      seed: { scope: 'all' },
+    });
     act(() => bound!.verbs.precreaseKite());
     expect(tools.store.getState()).toMatchObject({ tool: 'precrease', precreaseDirection: 'mountain', extent: 'whole', lineMode: 'axiom-3', picks: [] });
 

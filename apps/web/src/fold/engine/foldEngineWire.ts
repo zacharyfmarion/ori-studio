@@ -355,7 +355,13 @@ export type FoldFix =
    */
   | { readonly fix: 'use_emergent'; readonly direction: FoldModelPoint }
   /** The same point sinks the other way: closed where an open sink is refused, open where a closed one is. */
-  | { readonly fix: 'other_sink'; readonly kind: FoldSinkKind };
+  | { readonly fix: 'other_sink'; readonly kind: FoldSinkKind }
+  /**
+   * Precrease this line, in the parent's model frame, through every layer
+   * first: the same fold then lands. A petal fold's hinge, offered only when
+   * the engine found that route lands.
+   */
+  | { readonly fix: 'precrease_first'; readonly line: FoldModelLine };
 
 export interface FoldEngineRefused {
   status: 'refused';

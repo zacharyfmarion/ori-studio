@@ -503,7 +503,9 @@ describe('a vertex fold’s window while it previews', () => {
     });
     expect(model?.footer?.commit.disabled).toBe(true);
     // A refusal with a fix to take says so first.
-    const unprecreased = refused({ code: 'petal_not_precreased', faces: [], missing: 'line' });
+    const unprecreased = refused({ code: 'petal_not_precreased', faces: [], missing: 'line' }, [
+      { fix: 'precrease_first', line: { n: [1, 0], d: 0.5 } },
+    ]);
     const petal = foldToolWindow(
       t,
       view(vertex({ tool: 'petal', described: false, known: false }), { preview: preview({ refused: unprecreased }) }),
@@ -669,15 +671,24 @@ describe('a vertex fold’s refusals', () => {
     target.actions[0]?.run();
     expect(calls.resetSquashTarget).toHaveBeenCalledTimes(1);
 
+    // A hinge the fold cannot crease: precreased first only where the engine says that lands.
     const line = { code: 'petal_not_precreased' as const, faces: [], missing: 'line' as const };
-    const crease = foldRefusalNotice(t, refused(line), vertexContext('petal'), calls);
+    const precreaseFirst = [{ fix: 'precrease_first' as const, line: { n: [1, 0] as const, d: 0.5 } }];
+    const crease = foldRefusalNotice(t, refused(line, precreaseFirst), vertexContext('petal'), calls);
     expect(crease.title).toBe('Precrease the hinge first');
     expect(crease.text).toMatch(/^The hinge crease does not run through every layer/);
     expect(crease.actions.map((action) => action.label)).toEqual(['Precrease the hinge first']);
-    const ends = foldRefusalNotice(t, refused(line), vertexContext('petal', { hinge: 'points' }), calls);
+    const ends = foldRefusalNotice(t, refused(line, precreaseFirst), vertexContext('petal', { hinge: 'points' }), calls);
     expect(ends.text).toMatch(/^The hinge crosses paper of the second layer/);
     ends.actions[0]?.run();
     expect(calls.precreaseLine).toHaveBeenCalledTimes(1);
+    // Where it would not land, the notice says so and offers no precrease.
+    for (const hinge of ['crease', 'points'] as const) {
+      const none = foldRefusalNotice(t, refused(line), vertexContext('petal', { hinge }), calls);
+      expect(none.title).toBe('The hinge cannot fold here');
+      expect(none.text).toMatch(/would not let it petal fold either/);
+      expect(none.actions).toEqual([]);
+    }
 
     const kiteBody = { code: 'petal_not_precreased' as const, faces: [1], missing: 'kite' as const };
     const kite = foldRefusalNotice(t, refused(kiteBody), vertexContext('petal', { hinge: 'crease' }), calls);
@@ -690,7 +701,8 @@ describe('a vertex fold’s refusals', () => {
     const byEnds = foldRefusalNotice(t, refused(kiteBody), vertexContext('petal', { hinge: 'points' }), calls);
     expect(byEnds.actions.map((action) => action.label)).toEqual(['Precrease the kite']);
     // Read-only: shown, none taken.
-    const locked = foldRefusalNotice(t, refused(line), { ...vertexContext('petal'), readOnly: true }, calls);
+    const locked = foldRefusalNotice(t, refused(line, precreaseFirst), { ...vertexContext('petal'), readOnly: true }, calls);
+    expect(locked.actions.length).toBeGreaterThan(0);
     expect(locked.actions.every((action) => action.disabled)).toBe(true);
   });
 
