@@ -130,15 +130,6 @@
   font-size: 0.72rem;
 }
 
-/* A Fold step's form, drawn as Fold's strip draws it: its lines in the theme's inks, on the well's own ground. */
-.thumbnail {
-  box-sizing: border-box;
-  display: grid;
-  width: 100%;
-  height: 100%;
-  padding: var(--space-3);
-}
-
 /* What a step already does with the card, at the foot's end: off the picture, whose letters reach its corners. */
 .flag {
   min-width: 0;

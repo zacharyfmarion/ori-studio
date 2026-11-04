@@ -50,6 +50,9 @@
       "someFailed_one": "No se pudo capturar un paso desde Plegar, así que se omitió.",
       "someFailed_many": "No se pudieron capturar {{count}} pasos desde Plegar, así que se omitieron.",
       "someFailed_other": "No se pudieron capturar {{count}} pasos desde Plegar, así que se omitieron.",
+      "someUnspread_one": "No se pudieron separar las capas de un paso, así que se añadió sin separar.",
+      "someUnspread_many": "No se pudieron separar las capas de {{count}} pasos, así que se añadieron sin separar.",
+      "someUnspread_other": "No se pudieron separar las capas de {{count}} pasos, así que se añadieron sin separar.",
       "stepGone": "Ese paso ya no está en la secuencia de Plegar."
     },
     "import": {

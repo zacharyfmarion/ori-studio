@@ -50,6 +50,9 @@
       "someFailed_one": "Um passo não pôde ser capturado de Dobrar e foi deixado de fora.",
       "someFailed_many": "{{count}} passos não puderam ser capturados de Dobrar e foram deixados de fora.",
       "someFailed_other": "{{count}} passos não puderam ser capturados de Dobrar e foram deixados de fora.",
+      "someUnspread_one": "Não foi possível separar as camadas de um passo, então ele foi adicionado sem separação.",
+      "someUnspread_many": "Não foi possível separar as camadas de {{count}} passos, então eles foram adicionados sem separação.",
+      "someUnspread_other": "Não foi possível separar as camadas de {{count}} passos, então eles foram adicionados sem separação.",
       "stepGone": "Esse passo não está mais na sequência de Dobrar."
     },
     "import": {

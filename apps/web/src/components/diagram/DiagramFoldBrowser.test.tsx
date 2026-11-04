@@ -3,18 +3,26 @@ import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DiagramPullAnchor } from '../../diagram/document/diagramDocument';
-import type { FoldBrowserCard, FoldBrowserPicture } from '../../diagram/fold/foldPull';
+import { createStep, DEFAULT_DIAGRAM_STYLE, type DiagramPullAnchor, type DiagramStep } from '../../diagram/document/diagramDocument';
+import { FOLD_PULL_RENDER, type FoldBrowserCard, type FoldBrowserPicture } from '../../diagram/fold/foldPull';
 import type { FoldBrowserCardsState, FoldBrowserProvider } from '../../diagram/fold/useFoldBrowser';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { DiagramFoldBrowser } from './DiagramFoldBrowser';
 
-/** What a landed card's paint has come to: painted, still painting (undefined), or failed (null). */
-const paint = vi.hoisted(() => ({ result: 'data:image/svg+xml,test-paper' as string | null | undefined }));
+/** What a landed card's capture has come to: the step it adds, still capturing (undefined), or nothing to draw (null). */
+const preview = vi.hoisted(() => ({ result: undefined as DiagramStep | null | undefined, asked: [] as unknown[] }));
 
-vi.mock('../../fold/sequence/useFoldCardPictures', () => ({
-  useFoldCardPicture: (source: unknown) => (source ? paint.result : null),
+vi.mock('../../diagram/fold/useFoldPullPreview', () => ({
+  useFoldPullPreview: (request: unknown) => {
+    if (request) preview.asked.push(request);
+    return request ? preview.result : undefined;
+  },
+}));
+// The step is painted as a Diagram card paints one: here, as a fixed picture.
+vi.mock('../../diagram/pictures/useStepPictureUrl', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../diagram/pictures/useStepPictureUrl')>()),
+  useStepPictureUrl: () => 'data:image/svg+xml,test-step',
 }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -31,10 +39,17 @@ afterEach(() => {
 
 beforeEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
-  paint.result = 'data:image/svg+xml,test-paper';
+  preview.result = createStep();
+  preview.asked = [];
 });
 
-const THUMBNAIL: FoldBrowserPicture = { status: 'landed', source: { state: { generation: 0, id: 1 }, key: 'fs1:1', spread: null } };
+const REQUEST = {
+  sequence: 'fold-1',
+  target: { kind: 'step', step: 'fstep-1', moment: 'before' },
+  render: FOLD_PULL_RENDER,
+  key: 'fold-1|fstep-1||before|fh1:1',
+} as const;
+const THUMBNAIL: FoldBrowserPicture = { status: 'landed', preview: REQUEST };
 
 /** A sequence's path as the browser lists it: two folds with a turn between them, and Finished; step 3 still folding. */
 function cards(third: FoldBrowserPicture = { status: 'pending' }): FoldBrowserCard[] {
@@ -60,7 +75,9 @@ function render(provider: FoldBrowserProvider, anchor: DiagramPullAnchor = { kin
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
-  act(() => root?.render(<DiagramFoldBrowser state={{ anchor, opening: 7 }} provider={provider} />));
+  act(() =>
+    root?.render(<DiagramFoldBrowser state={{ anchor, opening: 7 }} style={DEFAULT_DIAGRAM_STYLE} provider={provider} />)
+  );
 }
 
 const text = () => host?.textContent ?? '';
@@ -82,8 +99,11 @@ describe('the Fold browser (D17)', () => {
       'Finished',
     ]);
     expect(text()).toContain('Valley fold in half.');
-    expect(host?.querySelectorAll('img[data-fold-picture="paper"]')).toHaveLength(4);
-    expect(host?.querySelector('img')?.getAttribute('src')).toBe('data:image/svg+xml,test-paper');
+    // Each landed card is the step it adds, drawn as a Diagram card draws it, on its paper.
+    expect(host?.querySelectorAll('img[data-pull-picture]')).toHaveLength(4);
+    expect(host?.querySelector('img')?.getAttribute('src')).toBe('data:image/svg+xml,test-step');
+    expect(options()[0]!.querySelector('[data-picture]')).not.toBeNull();
+    expect(preview.asked).toContainEqual(REQUEST);
     // A step Fold has not folded yet cannot be chosen, and says why.
     expect(options()[3]!.getAttribute('aria-disabled')).toBe('true');
     expect(options()[3]!.title).toContain('can’t be added yet');
@@ -96,10 +116,11 @@ describe('the Fold browser (D17)', () => {
     expect(replaying.textContent).not.toContain('Can’t be drawn');
   });
 
-  it('shows a landed step still being painted as loading', () => {
-    paint.result = undefined;
+  it('shows a landed step still being captured as loading, on the well’s own ground', () => {
+    preview.result = undefined;
     render(fakeProvider());
     expect(options()[0]!.querySelector('[data-picture-loading]')).not.toBeNull();
+    expect(options()[0]!.querySelector('[data-picture]')).toBeNull();
     expect(text()).not.toContain('Can’t be drawn');
   });
 
@@ -109,8 +130,8 @@ describe('the Fold browser (D17)', () => {
     expect(options()[3]!.querySelector('[data-picture-loading]')).toBeNull();
   });
 
-  it('says a landed step can’t be drawn when its paint failed', () => {
-    paint.result = null;
+  it('says a landed step can’t be drawn when its capture came to nothing', () => {
+    preview.result = null;
     render(fakeProvider());
     expect(options()[0]!.textContent).toContain('Can’t be drawn');
     expect(options()[0]!.querySelector('[data-picture-loading]')).toBeNull();

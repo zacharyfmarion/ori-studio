@@ -44,6 +44,7 @@
       "sent_other": "已将 {{count}} 个步骤添加到图解",
       "sequenceGone": "该折叠序列已不在此项目中。",
       "someFailed_other": "有 {{count}} 个步骤无法从折叠采集，已略过。",
+      "someUnspread_other": "有 {{count}} 个步骤的层无法错开，已不错开直接添加。",
       "stepGone": "该步骤已不在折叠序列中。"
     },
     "import": {

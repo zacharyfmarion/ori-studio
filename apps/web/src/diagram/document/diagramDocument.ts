@@ -2211,6 +2211,28 @@ export type SentReferencesEntry = SentReferencesStep | DiagramTurnKind;
 export type SentDiagramEntry = SentDiagramStep | DiagramTurnKind;
 
 /**
+ * A card as the new step a pull makes of it: its marks lifted, in step with
+ * its sheet, when they fit (17d); `baked` when they did not, and the card's
+ * whole picture shows them. The Fold browser draws its cards so
+ * (`foldPullPreviews.ts`), as the step Add makes.
+ */
+export function sentStep(card: SentDiagramStep, newId: DiagramIdFactory = randomDiagramId): { step: DiagramStep; baked: boolean } {
+  const step = createStep(newId);
+  const lifted = card.lifted && card.lifted.annotations.length <= MAX_STEP_ANNOTATIONS ? card.lifted : null;
+  const picture = lifted?.picture ?? card.picture;
+  return {
+    step: {
+      ...step,
+      source: card.source,
+      picture,
+      ...(lifted ? { annotations: [...lifted.annotations], annotatedPictureKey: picture.key } : {}),
+      text: xmlText(card.text),
+    },
+    baked: !lifted && card.lifted !== undefined,
+  };
+}
+
+/**
  * Cards pulled from References — or steps from Fold (plan D17), which pull
  * the same way — placed by `anchor`, in order: each a step, a turn-over card
  * (a Fold turn or rotation) a turn (D22). An anchor whose step is gone, or
@@ -2228,20 +2250,11 @@ export function pullReferencesSteps(
 ): { document: DiagramDocument; stepIds: string[]; turnIds: string[] } & PulledMarks {
   const baked: string[] = [];
   if (sent.length === 0) return { document, stepIds: [], turnIds: [], baked, replaced: 0 };
-  /** The card as a new step: its marks lifted, in step with its sheet, when they fit (17d). */
   const make = (card: SentDiagramEntry): DiagramEntry => {
     if ('kind' in card) return createTurn(card, newId);
-    const step = createStep(newId);
-    const lifted = card.lifted && card.lifted.annotations.length <= MAX_STEP_ANNOTATIONS ? card.lifted : null;
-    if (!lifted && card.lifted !== undefined) baked.push(step.id);
-    const picture = lifted?.picture ?? card.picture;
-    return {
-      ...step,
-      source: card.source,
-      picture,
-      ...(lifted ? { annotations: [...lifted.annotations], annotatedPictureKey: picture.key } : {}),
-      text: xmlText(card.text),
-    };
+    const made = sentStep(card, newId);
+    if (made.baked) baked.push(made.step.id);
+    return made.step;
   };
   const insertAt = (index: number, cards: readonly SentDiagramEntry[], into = document) => {
     const entries = cards.map(make);

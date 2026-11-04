@@ -47,6 +47,8 @@
       "sequenceGone": "That Fold sequence isn’t in this project any more.",
       "someFailed_one": "A step couldn’t be captured from Fold, so it was left out.",
       "someFailed_other": "{{count}} steps couldn’t be captured from Fold, so they were left out.",
+      "someUnspread_one": "A step’s layers couldn’t be spread, so it was added unspread.",
+      "someUnspread_other": "{{count}} steps’ layers couldn’t be spread, so they were added unspread.",
       "stepGone": "That step isn’t in the Fold sequence any more."
     },
     "import": {
