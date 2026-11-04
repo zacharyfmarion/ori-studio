@@ -128,14 +128,47 @@ it('stacks Spread by over its choices where asked, with the Affine credit beside
 
 it('clicks and drags both coordinates, caps the rim, and commits only on release', () => {
   pointer('pointerdown', 92, 50);
-  expect(preview).toHaveBeenLastCalledWith([2, 0]);
+  expect(preview).toHaveBeenLastCalledWith([3, 0]);
+  expect(pad().getAttribute('aria-valuenow')).toBe('100');
+  const handle = pad().querySelector('circle:last-child')!;
+  expect([handle.getAttribute('cx'), handle.getAttribute('cy')]).toEqual(['92', '50']);
   pointer('pointermove', 50, 8);
-  expect(preview).toHaveBeenLastCalledWith([0, -2]);
+  expect(preview).toHaveBeenLastCalledWith([0, -3]);
+  pointer('pointermove', 50, -100);
+  expect(preview).toHaveBeenLastCalledWith([0, -3]);
   pointer('pointermove', 50, 50);
   expect(preview).toHaveBeenLastCalledWith([0, -0.1]);
+  expect(Number(pad().getAttribute('aria-valuenow'))).toBeCloseTo(100 / 30);
+  expect(Number(pad().getAttribute('aria-valuemin'))).toBeCloseTo(100 / 30);
   expect(commit).not.toHaveBeenCalled();
   pointer('pointerup', 50, 50);
   pointer('lostpointercapture', 50, 50);
+  expect(commit).toHaveBeenCalledTimes(1);
+});
+
+it.each<[number, number, number]>([[0, 0, 0], [0.8, 0.6, 100 / 3], [2, 0, 200 / 3], [0, -3, 100], [3.000005, 0, 100]])(
+  'places saved reveal (%s, %s) inside the expanded pad without editing it',
+  async (x, y, percent) => {
+    await act(async () => root.render(<Harness key="saved-reveal" initial={{ ...DEFAULT_CONNECTED_SPREAD, reveal: [x, y] }} />));
+    expect(Number(pad().getAttribute('aria-valuenow'))).toBeCloseTo(percent);
+    const handle = pad().querySelector('circle:last-child')!;
+    expect(Number(handle.getAttribute('cx'))).toBeCloseTo(50 + x * 14);
+    expect(Number(handle.getAttribute('cy'))).toBeCloseTo(50 + y * 14);
+    expect(preview).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+  },
+);
+
+it('allows fine keyboard edits past the old rim and restores the saved vector on cancellation', async () => {
+  await act(async () => root.render(<Harness key="old-rim" initial={{ ...DEFAULT_CONNECTED_SPREAD, reveal: [2, 0] }} />));
+  pad().setPointerCapture = vi.fn();
+  pad().getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+  act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
+  expect(preview).toHaveBeenLastCalledWith([2.05, 0]);
+  commit.mockClear();
+  pointer('pointerdown', 92, 50);
+  pointer('pointercancel', 92, 50);
+  expect(preview).toHaveBeenLastCalledWith([2.05, 0]);
   expect(commit).toHaveBeenCalledTimes(1);
 });
 

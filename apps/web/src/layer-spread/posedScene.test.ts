@@ -3,8 +3,35 @@ import type { ConnectedSpread, Point3, SpreadSolution } from '@oristudio/layer-s
 import { connectedSpreadSource } from '../cp-workspace/folded/connectedSpreadSource';
 import { foldedFlatPaperScene } from '../cp-workspace/folded/foldedFlatScene';
 import { plainBook } from '../cp-workspace/folded/foldedPrecrease.fixtures';
+import { clampReveal } from '../cp-workspace/folded/layerSpreadSettings';
 import { connectedPaperScene, type ConnectedDrawing, type ConnectedPaperScene } from './connectedScene';
 import { perspectiveDrawing } from './perspective';
+
+it.each([false, true])('reveals 1.5 times as far at the expanded rim without increasing height (back=%s)', (back) => {
+  const kernel = plainBook();
+  const source = connectedSpreadSource(kernel);
+  source.back = back;
+  const solution = {
+    heights: source.vertices.map((id) => id === 2 || id === 5 ? 0.2 : 0),
+    references: [{ plane: [0, 0, 0] }, { plane: [0, 0, 0] }],
+  } as SpreadSolution;
+  const options = { connected: { source, solution }, live: true, markHidden: false, scale: 1,
+    toScenePx: (p: { x: number; y: number }): [number, number] => [p.x, p.y] };
+  const draw = (reveal: [number, number]) => (foldedFlatPaperScene(kernel, {
+    ...options, spread: { kind: 'connected', version: 1, amount: 0.14, reveal },
+  }) as ConnectedPaperScene).connected.mesh.positions;
+  const flat = draw([0, 0]);
+  const oldRim = draw([1.2, -1.6]);
+  const expandedRim = draw(clampReveal([1.8, -2.4]));
+  expect(oldRim).not.toEqual(flat);
+  for (let i = 0; i < flat.length; i++) {
+    for (const axis of [0, 1]) {
+      expect(expandedRim[i]![axis]! - flat[i]![axis]!)
+        .toBeCloseTo(1.5 * (oldRim[i]![axis]! - flat[i]![axis]!), 12);
+    }
+    expect(expandedRim[i]![2]).toBe(oldRim[i]![2]);
+  }
+});
 
 it.each([0, 0.5, 2])('doubles Perspective height and ink at amount %s without changing Diagram or the recipe', (amount) => {
   const kernel = plainBook();

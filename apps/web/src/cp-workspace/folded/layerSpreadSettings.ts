@@ -252,7 +252,7 @@ export function readLayerSpread(value: unknown): LayerSpreadOptions | undefined 
     if (typeof value.version !== 'number' || !Array.isArray(value.reveal) || value.reveal.length !== 2) return null;
     const x = finiteNumber(value.reveal[0]), y = finiteNumber(value.reveal[1]);
     if (x === null || y === null) return null;
-    if (past || value.version !== 1 || Math.hypot(x, y) > 2.00001) return NEWER;
+    if (past || value.version !== 1 || Math.hypot(x, y) > REVEAL_RADIUS.max + 0.00001) return NEWER;
     return { kind: 'connected', version: 1, amount, reveal: [x, y] };
   }
   if (known === 'depth') {
@@ -284,8 +284,9 @@ export function writeLayerSpread(spread: LayerSpreadOptions): Record<string, unk
     : { kind: spread.kind, amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
 }
 
-/** The reveal pad excludes the inner 5% of its radius, for user edits only. */
-export const REVEAL_RADIUS = { min: 0.1, max: 2 } as const;
+/** Absolute shear, independent of height. Expanding the maximum leaves saved
+ * views unchanged. The minimum applies only to edits, never to saved values. */
+export const REVEAL_RADIUS = { min: 0.1, max: 3 } as const;
 
 /** Screen-space reveal. Saved documents are read unchanged, including zero. */
 export function clampReveal(
