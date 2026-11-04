@@ -107,8 +107,8 @@ describe('the pane’s strokes, through Edit’s renderer path', () => {
   let themed: HTMLDivElement;
   let latest: FoldCreasePatternStrokes | null = null;
 
-  function Probe({ lines }: { lines: FoldCreasePatternLines }) {
-    latest = useFoldCreasePatternStrokes(lines, themed, 'theme');
+  function Probe({ lines, side = 'front' }: { lines: FoldCreasePatternLines; side?: 'front' | 'back' }) {
+    latest = useFoldCreasePatternStrokes(lines, themed, 'theme', side);
     return null;
   }
 
@@ -135,6 +135,42 @@ describe('the pane’s strokes, through Edit’s renderer path', () => {
 
   const rgb = (color: Float32Array, at: number) =>
     [0, 1, 2].map((k) => Math.round((color[at * 4 + k] ?? 0) * 255).toString(16).padStart(2, '0')).join('');
+
+  it.each(['color', 'black-one-dot'] as const)('reverses viewed M/V in %s while keeping auxiliary ink, borders and instruction widths', (lineStyle) => {
+    useWorkspaceStore.setState((state) => ({
+      oristudioCpViewport: { ...state.oristudioCpViewport, lineStyle, lineWidth: 1.5 },
+    }));
+    const lines: FoldCreasePatternLines = {
+      creases: ['Red1', 'Blue2', 'Cyan3', 'Black0'].map((color, x) => ({
+        a: { x: x / 4, y: 0 }, b: { x: x / 4, y: 1 }, color,
+      })),
+      instruction: [{ a: { x: 0, y: 0.25 }, b: { x: 1, y: 0.25 }, letter: 'valley' }],
+    };
+    const source = structuredClone(lines);
+    act(() => root.render(<Probe lines={lines} />));
+    const front = latest!;
+    act(() => root.render(<Probe lines={lines} side="back" />));
+    const back = latest!;
+    expect(rgb(back.creases.color, 0)).toBe(rgb(front.creases.color, 1));
+    expect(rgb(back.creases.color, 1)).toBe(rgb(front.creases.color, 0));
+    expect(back.creases.dashSlot?.[0]).toBe(front.creases.dashSlot?.[1]);
+    expect(back.creases.dashSlot?.[1]).toBe(front.creases.dashSlot?.[0]);
+    for (const at of [2, 3]) {
+      expect(rgb(back.creases.color, at)).toBe(rgb(front.creases.color, at));
+      expect(back.creases.dashSlot?.[at]).toBe(SOLID_DASH_SLOT);
+    }
+    expect(rgb(back.creases.color, 2)).toBe('64c8c8');
+    expect(back.lineWidth).toBe(front.lineWidth);
+    expect(back.creases.widthMul).toEqual(front.creases.widthMul);
+    expect(rgb(front.instruction!.color, 0)).toBe('60a5fa');
+    expect(rgb(back.instruction!.color, 0)).toBe('ff4d5d');
+    expect(back.instruction!.dashSlot?.[0]).toBe(SOLID_DASH_SLOT);
+    expect(back.instruction!.widthMul[0]).toBe(FOLD_INSTRUCTION_WIDTH_MUL);
+    // Reflection belongs to the camera; the document and its line coordinates stay intact.
+    expect(lines).toEqual(source);
+    act(() => root.render(<Probe lines={lines} />));
+    expect(latest).toEqual(front);
+  });
 
   it('inks the pattern as Edit does and draws the instruction solid in its crease colour, wider', () => {
     const lines = creasePatternPaneLines(bookWithPrecrease(), {

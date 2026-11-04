@@ -51,6 +51,7 @@ import { useFoldPhonePane } from '../../../fold/canvas/foldPhonePane';
 import { useFoldCanvasInks } from '../../../fold/canvas/useFoldCanvasInks';
 import { foldedPreviewScene, restingSpread, useFoldCanvasPaint } from '../../../fold/canvas/useFoldCanvasPaint';
 import { useFoldCreasePatternStrokes } from '../../../fold/canvas/useFoldCreasePatternStrokes';
+import { useFoldCreasePatternView } from '../../../fold/canvas/useFoldCreasePatternView';
 import { foldCanvasChoice, marksMadeAt, useFoldCanvasVerbs } from '../../../fold/canvas/useFoldCanvasVerbs';
 import { useFoldCanvasShortcuts } from '../../../fold/canvas/useFoldCanvasShortcuts';
 import { useFoldReadOnly } from '../../../fold/canvas/useFoldRailGroups';
@@ -189,8 +190,9 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
     picked: 0, at: () => null,
   }, null, inks.accent) : null;
   const foldedTint = resolvingOrder ? orderTint : joinFills(paint.folded.tint, swivelMarks.tint);
-  // The crease pattern as Edit's canvas draws one, not as paper.
-  const cpStrokes = useFoldCreasePatternStrokes(paint.creasePattern.lines, viewport, theme.name);
+  // The CP's own viewing side, independent of the folded form's Turn over step.
+  const cpView = useFoldCreasePatternView(summary?.sheet);
+  const cpStrokes = useFoldCreasePatternStrokes(paint.creasePattern.lines, viewport, theme.name, cpView.side);
   const sequenceId = useWorkspaceStore((state) => shownFoldSequence(state)?.document.id ?? 'blank');
   const sheetKey = summary ? summary.sheet.map(([x, y]) => `${x},${y}`).join(';') : 'none';
   const framingKey = `${sequenceId}:${sheetKey}`;
@@ -406,13 +408,17 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
               pane="crease-pattern"
               scene={null}
               creases={cpStrokes}
+              modelToUser={cpView.modelToUser}
               contentBounds={paint.creasePattern.contentBounds}
               keepInViewKey={paint.creasePattern.keepInView}
               hitTest={(at, radii) => verbs.hitTest('crease-pattern', at, radii)}
               overlay={creaseOverlay}
               onHover={onCreaseHover}
               onZoomPercentChange={showFolded ? undefined : setZoomPercent}
-              ariaLabel={t(
+              ariaLabel={cpView.side === 'back' ? t(
+                'panels:fold.canvas.creasePatternBackLabel',
+                'The crease pattern so far, back up. Mountain and valley creases are reversed. Click its points and creases to locate a fold.'
+              ) : t(
                 'panels:fold.canvas.creasePatternLabel',
                 'The crease pattern so far, front up. Click its points and creases to locate a fold.'
               )}
@@ -425,6 +431,8 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
           camera={camera}
           display={display}
           onDisplay={setFoldPaneDisplay}
+          cpSide={cpView.side}
+          onTurnCpOver={cpView.turnOver}
           spread={spread?.toggle ?? null}
           adjustSpread={reveal.action}
           phoneGroups={phoneGroups}

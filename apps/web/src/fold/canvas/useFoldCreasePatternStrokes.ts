@@ -2,9 +2,11 @@ import { useMemo } from 'react';
 import { cpPatternStrokes, type CpPatternStrokes } from '../../cp-workspace/adapters/cpPatternStrokes';
 import { cpCreaseStrokeWidthPx } from '../../cp-workspace/cpSizingScales';
 import { DEFAULT_ORISTUDIO_CP_LINE_STYLE } from '../../lib/creasePatternViewport';
+import type { PaperSide } from '../../lib/paper/paperScene';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { FoldLetter } from '../engine/foldEngineWire';
 import { foldLetterLineColor, type FoldCreasePatternLines } from './foldCreasePatternLines';
+import { foldCpViewedColor } from './foldCreasePatternView';
 
 /**
  * How much wider the instruction is drawn than a crease: the step's own lines
@@ -56,7 +58,8 @@ export function foldPaneStrokeWidthPx(
 export function useFoldCreasePatternStrokes(
   lines: FoldCreasePatternLines | null,
   element: Element | null,
-  themeKey: string
+  themeKey: string,
+  side: PaperSide = 'front'
 ): FoldCreasePatternStrokes | null {
   const lineStyle = useWorkspaceStore((state) => state.oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE);
   const lineWidth = useWorkspaceStore((state) => state.oristudioCpViewport.lineWidth ?? 1);
@@ -64,10 +67,14 @@ export function useFoldCreasePatternStrokes(
     if (!element || !lines) return null;
     const groups = LETTERS.map((letter) => ({
       color: foldLetterLineColor(letter),
-      segments: lines.instruction.filter((line) => line.letter === letter),
+      segments: lines.instruction.filter((line) => (line.letter === letter) !== (side === 'back')),
     }));
-    return cpPatternStrokes(lines.creases, element, { lineStyle, lineWidth }, { groups, widthMul: FOLD_INSTRUCTION_WIDTH_MUL });
+    // Reverse only the viewed assignment; Edit still chooses every ink, dash and width.
+    const creases = side === 'front' ? lines.creases : lines.creases.map((line) => ({
+      ...line, color: foldCpViewedColor(line.color, side),
+    }));
+    return cpPatternStrokes(creases, element, { lineStyle, lineWidth }, { groups, widthMul: FOLD_INSTRUCTION_WIDTH_MUL });
     // The theme is read off the element: its key is what says it changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, element, themeKey, lineStyle, lineWidth]);
+  }, [lines, element, themeKey, lineStyle, lineWidth, side]);
 }

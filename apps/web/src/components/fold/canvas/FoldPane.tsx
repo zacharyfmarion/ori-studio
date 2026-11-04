@@ -51,6 +51,8 @@ export interface FoldPaneProps {
    * feedback from the edge pen.
    */
   creases?: FoldCreasePatternStrokes | null;
+  /** Override the model-to-user map for the CP's horizontal turnover; also drives picking and overlays. */
+  modelToUser?: (point: Point) => Point;
   /** A tint over the paper, in the pane's frame: the moving set of a located fold. */
   tint?: FillGeometry | null;
   /**
@@ -116,7 +118,7 @@ const takesPick = (hit: FoldHit) => hit.pick != null;
  * handle.
  */
 export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function FoldPane(props, ref) {
-  const { pane, scene, style, ink = FOLD_INK, creases = null, tint = null, offset, inkKey,
+  const { pane, scene, style, ink = FOLD_INK, creases = null, modelToUser, tint = null, offset, inkKey,
     spreadRenderer, spreadDisplay, preparing, revealGesture, ...surface } = props;
   const { t } = useTranslation();
   const redraw = useRef<() => void>(() => undefined);
@@ -153,7 +155,7 @@ export const FoldPane = forwardRef<CpSurfaceControls, FoldPaneProps>(function Fo
       scene={scene}
       // The painter reads the 3D figure's surface when none is named.
       look={{ style, policy: ink.policy ?? PAPER_STYLE_POLICIES['folded-3d'], faceAlpha: ink.faceAlpha, faces: ink.faces }}
-      modelToSvg={modelToSvg}
+      modelToSvg={modelToUser ?? modelToSvg}
       creases={creases?.creases ?? null}
       fills={tint}
       // The crease pattern's instruction, under the tool's feedback.

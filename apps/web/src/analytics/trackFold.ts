@@ -192,3 +192,8 @@ export function trackFoldOrdersSearched(result: 'exhausted' | 'incomplete' | 'st
 export function trackFoldFreeLineSnapChanged(enabled: boolean): void {
   track(ANALYTICS_EVENTS.foldFreeLineSnapChanged, { state: enabled ? 'on' : 'off' });
 }
+
+/** Viewing the CP's other side, independently of a Turn over step; no model data. */
+export function trackFoldCpSideChanged(side: 'front' | 'back'): void {
+  track(ANALYTICS_EVENTS.foldCpSideChanged, { side });
+}
