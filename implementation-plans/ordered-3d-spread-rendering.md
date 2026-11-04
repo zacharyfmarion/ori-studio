@@ -10,9 +10,11 @@ This is the rendering implementation plan requested on 2026-11-03, following
 the working numerical experiment in
 [`connected-3d-layer-spread.md`](connected-3d-layer-spread.md). The user accepted
 the opening aesthetic and requested the visibility correction that the flat
-spread already provides. The prototype's maximum amount is now 200% of the
-original displacement field. Production preserves that range, with 100% as
-the initial amount; it is a drawing control, not a physical strain bound.
+spread already provides. Production now labels the full range 0–100%, with
+100% multiplying the original displacement field by four (twice the previous
+maximum). The initial unit displacement is 25% on that scale. This is a drawing
+control, not a physical strain bound. Historical prototype measurements below
+use the original percentage of unit displacement.
 
 The prototype established the visibility policy. Production implementation is
 delivered: a versioned material source and Rust/WASM vector solve feed
@@ -287,6 +289,8 @@ checks. Run upstream oracles only if ported semantics actually change.
 - [x] Phase E: integrate versioned solve, availability, persistence and controls.
 - [x] Record numerical/contact acceptance separately from drawing correctness.
 - [x] Run production checks and the external camera/amount/performance sweeps.
+- [x] Normalize the production slider to 0–100% and validate the doubled maximum.
+- [x] Reproduce and fix the Pangolin corner ink protrusions, with a focused rendering regression.
 
 ### Delivery notes and limits
 
@@ -334,6 +338,38 @@ raster depth at independent near-coincident surfaces; none violated a known
 blocker. This is not a claim of bit-exact depth at intersections. Save/reopen
 was also exercised in the actual Edit app at 200%, preserving recipe and scene.
 Private source files and reports remain under ignored `artifacts/`.
+
+### Range and shared-crease correction
+
+The production slider is 0–100%; its maximum now multiplies the unit field by
+four, doubling the former maximum of two. One shared range definition feeds
+Edit, Diagram, captures and recipe validation. No solver or geometry migration
+is involved.
+
+Pangolin exposed an ink ownership defect: a hinge was drawn once for each
+incident face, and the copy from the adjoining source plane did not inherit the
+other face's known blockers. A shared hinge now has one stroke subject to both
+incident planes' covers. Coplanar fold outlines retain independent owners;
+auxiliary segments keep their material ownership. A third stencil bit accumulates
+the hinge's blockers, gated by survivor coverage for cyclic planes. Vector
+capture intersects the same owners' visible line intervals. Fills and physical
+depth between unrelated surfaces are unchanged.
+
+The synthetic buried-hinge regression fails on the previous renderer and passes
+with this correction, alongside exposed-hinge and cyclic-fallback checks. The
+production harness now has twelve GPU/CPU policy cases. The extended seven-model
+sweep passes 84 captures and 15,760 interior face-ID comparisons at the new
+maximum, with the same four independent cylinder contact ties. Pangolin's paper
+pixels are identical before/after the ink correction at the sampled camera.
+Its separate sweep passes twelve captures and 633 interior face-ID comparisons
+with no contact ties. The final focused web run passes 591 tests; lint and
+typecheck pass. No Rust/solver, native shell or bundling changes require a new
+workspace/oracle/build run for this correction.
+The app-browser Penguin orbit check at 1600 pixels still submits draws in
+0.93 ms on average, presents 283 frames during three seconds of 8 ms input,
+and has a 15.15 ms 95th-percentile presentation gap (16.31 ms trailing delay).
+These are local callback timings, not display refresh rates. A software-backed
+headless graphics run is useful for pixel checks but not interactive timing.
 
 Upstream oracles were not rerun because ported folding semantics were not
 changed; the material source is tested against the existing FOLD interchange.

@@ -14,6 +14,8 @@ const root = fileURLToPath(new URL('../../../', import.meta.url)).replace(
 const base = process.env.ORISTUDIO_SPATIAL_URL ?? 'http://localhost:5234';
 const path = `${base}/@fs${root}/scripts/layer-spread/spatial`;
 const out = `${root}/artifacts/spatial-production`;
+const modelArg = process.argv.indexOf('--model');
+const selectedModel = modelArg >= 0 ? process.argv[modelArg + 1] : undefined;
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 try {
@@ -31,7 +33,7 @@ try {
   if (!pixels.passed)
     throw new Error(`GPU policy failed: ${JSON.stringify(pixels)}`);
   console.log(`${pixels.result.length} production GPU policy cases passed`);
-  if (process.argv.includes('--examples')) {
+  if (process.argv.includes('--examples') || selectedModel) {
     await page.goto(`${path}/production-examples.html`);
     await page.waitForFunction(
       () => document.querySelector('#result').textContent.includes('"ready"'),
@@ -39,7 +41,7 @@ try {
     );
     const sweep = [],
       picks = [];
-    for (const name of [
+    for (const name of selectedModel ? [selectedModel] : [
       'strip',
       'waterbomb',
       'three-plane',
@@ -48,7 +50,7 @@ try {
       'cylinder',
       'rectangles',
     ]) {
-      for (const amount of [0, 0.001, 0.25, 1, 2])
+      for (const amount of [0, 0.001, 0.25, 1, 2, 4])
         for (const back of [false, true]) {
           const result = await page.evaluate(
             async ({ name, amount, back }) =>
@@ -58,7 +60,7 @@ try {
           if (result.status !== 'ready' || !result.items)
             throw new Error(`Capture failed: ${name} ${amount} ${back}`);
           sweep.push({ name, back, ...result });
-          if (amount === 2) {
+          if (amount === 4) {
             const parity = await page.evaluate(() =>
               window.checkSpatialPixels()
             );
@@ -70,10 +72,10 @@ try {
           }
         }
       console.log(
-        `${name}: zero–200%, both camera sides, capture and picking passed`
+        `${name}: 0–100% (0–4× displacement), both camera sides, capture and picking passed`
       );
     }
-    await page.evaluate(() => window.runSpatialCase('strip', 2));
+    await page.evaluate(() => window.runSpatialCase('strip', 4));
     const raster = await page.evaluate(() => window.captureSpatialRaster());
     if (raster.markup !== 1)
       throw new Error('Raster fallback did not produce an image');

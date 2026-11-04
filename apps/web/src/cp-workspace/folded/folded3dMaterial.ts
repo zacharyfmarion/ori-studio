@@ -24,6 +24,7 @@ import {
   type Folded3dRange,
 } from './folded3dMesh';
 import { modelCentroid, modelRadius } from './folded3dModelReader';
+import { clampSpatialSpreadAmount } from './spatialSpreadSettings';
 
 export interface SpatialSpreadInput {
   positions: Point3[];
@@ -230,12 +231,13 @@ export function spatialMaterialMesh(
 ): Folded3dMesh {
   const { source, input, scale } = prepared;
   const center = modelCentroid(model);
+  const spreadAmount = clampSpatialSpreadAmount(amount);
   const posed = source.positions.map(
     (p, v) =>
       p.map(
         (x, a) =>
           x +
-          Math.max(0, Math.min(2, amount)) *
+          spreadAmount *
             scale *
             solution.displacements[v]![a]! -
           center[a]!

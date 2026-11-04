@@ -24,6 +24,7 @@ import {
 import type { Folded3dMesh } from './folded3dMesh';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { lightVector } from '../../lib/paper/paperStyleResolve';
+import { intersectInkIntervals, spatialInkOwnership } from './spatialInkOwnership';
 
 interface Corner {
   view: Point3;
@@ -206,6 +207,7 @@ export function spatialPaperScene(
       hidden: false,
     });
   const clip = createLineClipper(projected);
+  const inkOwners = spatialInkOwnership(mesh.spatial!, mesh.topology.edgeIndices);
   const boundary = edgeBoundaryFlags(mesh.topology);
   const roles: PaperLineRole[] = ['edge', 'mountain', 'valley', 'aux'];
   const near = camera.camDist * 0.1,
@@ -255,7 +257,12 @@ export function spatialPaperScene(
       onBoundary,
     };
     items.push({ kind: 'line', role, face, ...whole, hidden: true });
-    for (const [s, t] of clip(face, pa, pb))
+    const owners = inkOwners[e];
+    if (!owners) continue;
+    let visible = clip(owners[0]!, pa, pb);
+    for (const owner of owners.slice(1))
+      visible = intersectInkIntervals(visible, clip(owner, pa, pb));
+    for (const [s, t] of visible)
       items.push({
         kind: 'line',
         role,

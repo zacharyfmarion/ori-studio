@@ -34,6 +34,7 @@ import {
 import type { FoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
 import { layerSpreadControls, spreadAmountSlider, spreadSliderEdit, type LayerSpreadChoice } from './layerSpreadControls';
+import { spatialSpreadFromPercent, spatialSpreadPercent } from './spatialSpreadSettings';
 import {
   DEFAULT_CONNECTED_SPREAD,
   SPREAD_AXIS_RANGE,
@@ -143,10 +144,10 @@ export function foldedFigureSpreadSection(
         id: 'spreadAmount', kind: 'slider', label: t('panels:diagram.pose.spreadAmount', 'Amount'),
         ariaLabel: t('panels:diagram.pose.spreadAmountName', 'Spread amount'),
         support: reason ? 'unsupported' : 'supported', reason, undoLabel,
-        min: 0, max: 200, step: 1, value: onSliderGrid(figure.spread.amount * 100, 1),
+        min: 0, max: 100, step: 1, value: onSliderGrid(spatialSpreadPercent(figure.spread.amount), 1),
         format: value => `${Math.round(value)}%`, valueText: value => `${Math.round(value)}%`,
         protocol: 'continuous', begin: () => deps.begin('spread-amount'),
-        update: amount => deps.writeSpread({ verb: 'spread-amount', amount: amount / 100 }),
+        update: amount => deps.writeSpread({ verb: 'spread-amount', amount: spatialSpreadFromPercent(amount) }),
         end: () => deps.end(undoLabel), held: deps.held,
         reset: () => deps.setSpread({ kind: 'spatial', version: 1, amount: 1 }),
       }],

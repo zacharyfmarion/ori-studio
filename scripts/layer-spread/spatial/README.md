@@ -190,7 +190,7 @@ ORISTUDIO_SPATIAL_URL=http://localhost:5234 \
   node scripts/layer-spread/spatial/check-production.mjs
 ```
 
-This runs nine synthetic WebGL2 pixel cases using the production material
+This runs twelve synthetic WebGL2 pixel cases using the production material
 renderer and CPU visibility reference, without private files. Visit
 `/@fs/<absolute-worktree-root>/scripts/layer-spread/spatial/production-check.html`
 on that server to see the tiles.
@@ -208,10 +208,19 @@ ORISTUDIO_SPATIAL_URL=http://localhost:5234 \
 
 `production-examples.html`, beside the checks page, shows the live GPU image
 and settled vector capture. Drag to orbit, change amount, or use Front/Back.
-The script sweeps seven models at 0, 0.1, 25, 100 and 200%, from both sides,
-then checks material picks against GPU face IDs at interior pixels. It also
+Production controls show 0–100%, with 100% scaling the original unit field by
+four. The script sweeps seven models at displacement multipliers 0, 0.001,
+0.25, 1, 2 and 4, from both sides, then checks material picks against GPU face
+IDs at the new maximum. It also
 exercises the raster fallback and refusal of unknown ordering. Reports and
 screenshots go to `artifacts/spatial-production/`.
+
+Use `--model pangolin` to sweep that case alone after extracting its OSF
+projection with `scripts/osf-fold-projection.mjs` and running the current
+`fold3d_spread_source` example into `artifacts/spatial-production/pangolin.json`.
+The viewer accepts `?model=pangolin&size=1600` for corner inspection; optional
+`yaw`, `pitch` (radians) and `zoom` reproduce a specific camera. Amount/camera
+sweeps retain source identity and reuse the solve, as the app does.
 
 Near-coincident independent surfaces are reported as `contactTies` separately
 from visibility failures, using a `2e-5` normalized depth tolerance. This

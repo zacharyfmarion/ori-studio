@@ -19,6 +19,7 @@ import { noteFoldedFigureSpreadSet } from './foldedFigureSpreadStarts';
 import { foldedFigureCurrentCase, foldedFigureFrontier } from './foldedFigureState';
 import { withSpreadField, type LayerSpreadEdit } from './layerSpreadSettings';
 import { openFoldedFigureExport } from './openFoldedFigureExport';
+import { clampSpatialSpreadAmount } from './spatialSpreadSettings';
 
 /**
  * The folded-figure layer's one-entry setters as React-free functions over the
@@ -141,7 +142,7 @@ export function writeFoldedFigureSpreadEdit(id: string, edit: LayerSpreadEdit): 
   const figure = store.oristudioCpFoldedFigures.find((entry) => entry.id === id);
   if (figure?.spread?.kind === 'spatial') {
     if (edit.verb === 'spread-amount' && Number.isFinite(edit.amount)) {
-      store.setOristudioCpFoldedFigureSpread(id, { ...figure.spread, amount: Math.max(0, Math.min(2, edit.amount)) });
+      store.setOristudioCpFoldedFigureSpread(id, { ...figure.spread, amount: clampSpatialSpreadAmount(edit.amount) });
       noteFoldedFigureSpreadSet(id);
     }
     return;

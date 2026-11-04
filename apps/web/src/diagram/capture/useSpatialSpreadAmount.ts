@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { clampSpatialSpreadAmount } from '../../cp-workspace/folded/spatialSpreadSettings';
 import type { DiagramCpRender } from '../document/diagramDocument';
 import type { PoseController } from './poseController';
 
@@ -38,7 +39,7 @@ export function useSpatialSpreadAmount(
               const next = {
                 key,
                 stored,
-                amount: Math.max(0, Math.min(2, amount)),
+                amount: clampSpatialSpreadAmount(amount),
               };
               current.current = next;
               setPreviewed(next);

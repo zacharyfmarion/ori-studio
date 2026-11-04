@@ -13,6 +13,7 @@ import type {
 import type { SpatialMeshOrder } from '../cp-workspace/folded/folded3dMaterial';
 import { renderSpatialMesh } from './spatialMeshRenderer';
 import { prepareSpatialDrawPlan, type SpatialDrawPlane } from './spatialDrawPlan';
+import { prepareSpatialInkPlan, type SpatialInkGroup } from './spatialInkPlan';
 
 /**
  * A 3D folded figure as something the worker can draw, with no solver behind it.
@@ -80,7 +81,8 @@ export class FoldedMeshSource {
      */
     readonly depthBits: number,
     private readonly spatial?: SpatialMeshOrder,
-    private readonly spatialPlan?: SpatialDrawPlane[]
+    private readonly spatialPlan?: SpatialDrawPlane[],
+    private readonly spatialInk?: SpatialInkGroup[]
   ) {}
 
   static create(
@@ -96,7 +98,7 @@ export class FoldedMeshSource {
         : undefined;
       if (payload.spatial) {
         core.gl.bindFramebuffer(core.gl.FRAMEBUFFER, null);
-        if (Number(core.gl.getParameter(core.gl.STENCIL_BITS)) < 2) throw new Error('Spatial visibility needs stencil coverage');
+        if (Number(core.gl.getParameter(core.gl.STENCIL_BITS)) < 3) throw new Error('Spatial visibility needs stencil coverage');
       }
       // `u_originalPosition` holds absolute rest positions and `u_lastPosition`
       // a displacement from them — the shader adds the two — so a static figure
@@ -135,7 +137,10 @@ export class FoldedMeshSource {
         payload.undeterminedFaceAlpha,
         readDepthBits(core),
         payload.spatial,
-        spatialPlan
+        spatialPlan,
+        payload.spatial && spatialPlan
+          ? prepareSpatialInkPlan(payload.spatial, spatialPlan, new Uint32Array(payload.edgeIndices))
+          : undefined
       );
     } catch {
       core.dispose();
@@ -167,7 +172,7 @@ export class FoldedMeshSource {
   ): void {
     if (this.spatial) {
       renderSpatialMesh(
-        this.core.gl, this.mesh, this.spatial, this.spatialPlan!,
+        this.core.gl, this.mesh, this.spatial, this.spatialPlan!, this.spatialInk!,
         camera, settings, target
       );
       return;

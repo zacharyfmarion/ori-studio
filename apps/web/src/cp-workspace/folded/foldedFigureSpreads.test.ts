@@ -294,8 +294,8 @@ describe('the scenes a save reads', () => {
   });
 });
 
-it('round trips the spatial recipe and carries an unknown version losslessly', () => {
-  const spatial = { ...figure('spatial'), spread: { kind: 'spatial', version: 1, amount: 2 } as const };
+it.each([2, 4])('round trips spatial amount %s and carries an unknown version losslessly', (amount) => {
+  const spatial = { ...figure('spatial'), spread: { kind: 'spatial', version: 1, amount } as const };
   const bag = saved({}, [spatial]);
   expect(linkFoldedFigureSpreads(bag, bare([spatial])).figures[0]!.spread).toEqual(spatial.spread);
   const future = structuredClone(bag);
@@ -304,4 +304,8 @@ it('round trips the spatial recipe and carries an unknown version losslessly', (
   const reopened = linkFoldedFigureSpreads(future, bare([spatial]));
   expect(reopened.figures[0]!.spread?.kind).toBe('newer');
   expect(saved(reopened.extensions, reopened.figures)).toEqual(future);
+  entries.spatial!.spread = { kind: 'spatial', version: 1, amount: 5 };
+  const tooLarge = linkFoldedFigureSpreads(future, bare([spatial]));
+  expect(tooLarge.figures[0]!.spread?.kind).toBe('newer');
+  expect(saved(tooLarge.extensions, tooLarge.figures)).toEqual(future);
 });

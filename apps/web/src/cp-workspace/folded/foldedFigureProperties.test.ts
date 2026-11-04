@@ -1181,7 +1181,7 @@ describe('the Spread section', () => {
   });
 });
 
-it('offers a 3D vector spread with one 0–200% amount and a continuous undo gesture', () => {
+it('offers a 3D spread up to 100%, doubling the former maximum without changing saved amounts', () => {
   const d=deps();const before=sheetFor(SPATIAL,d);
   const toggle=field(before,'spreadLayers') as ToggleField;
   expect(toggle.support).toBe('supported');toggle.commit(true);
@@ -1189,12 +1189,15 @@ it('offers a 3D vector spread with one 0–200% amount and a continuous undo ges
   const shown=sheetFor({...SPATIAL,spread:{kind:'spatial',version:1,amount:2}},d);
   expect(shown.sections.find(s=>s.id==='spread')!.fields.map(f=>f.id)).toEqual(['spreadLayers','spreadAmount']);
   const amount=field(shown,'spreadAmount') as SliderField;
-  expect(amount).toMatchObject({min:0,max:200,value:200,protocol:'continuous'});
+  expect(amount).toMatchObject({min:0,max:100,value:50,protocol:'continuous'});
   amount.begin();amount.update(75);amount.end();
   expect(d.begin).toHaveBeenCalledWith('spread-amount');
-  expect(d.writeSpread).toHaveBeenCalledWith({verb:'spread-amount',amount:.75});
+  expect(d.writeSpread).toHaveBeenCalledWith({verb:'spread-amount',amount:3});
   expect(d.end).toHaveBeenCalledWith('Change layer spread');
-  expect(field(sheetFor({...SPATIAL,spread:{kind:'spatial',version:1,amount:.57}}),'spreadAmount')).toMatchObject({value:57});
+  expect(field(sheetFor({...SPATIAL,spread:{kind:'spatial',version:1,amount:.57}}),'spreadAmount')).toMatchObject({value:14});
+  amount.begin();amount.update(100);amount.end();
+  expect(d.writeSpread).toHaveBeenLastCalledWith({verb:'spread-amount',amount:4});
+  expect(field(sheetFor({...SPATIAL,spread:{kind:'spatial',version:1,amount:4}}),'spreadAmount')).toMatchObject({max:100,value:100});
 });
 
 it('lets a spatial recipe be disabled after the figure is refolded flat', () => {

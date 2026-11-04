@@ -3,6 +3,7 @@ import {
   posedSpatialMesh,
 } from '../../../apps/web/src/cp-workspace/folded/folded3dSpread';
 import { folded3dMesh } from '../../../apps/web/src/cp-workspace/folded/folded3dMesh';
+import { spatialSpreadFromPercent, spatialSpreadPercent } from '../../../apps/web/src/cp-workspace/folded/spatialSpreadSettings';
 import {
   folded3dSceneCamera,
   folded3dPaperScene,
@@ -26,8 +27,11 @@ import {
 import type { OristudioCpFold3dStepResult } from '../../../apps/web/src/engine/oristudioCpTypes';
 import type { Folded3dMesh } from '../../../apps/web/src/cp-workspace/folded/folded3dMesh';
 
+const params = new URLSearchParams(location.search);
+const size = Math.max(128, Math.min(1600, Number(params.get('size')) || 480));
 const canvas = document.querySelector<HTMLCanvasElement>('#live')!;
-const buffer = new OffscreenCanvas(480, 480);
+canvas.width = canvas.height = size;
+const buffer = new OffscreenCanvas(size, size);
 const result = document.querySelector('#result')!;
 const style = surfacePaperStyle(
   DEFAULT_PAPER_STYLE,
@@ -37,7 +41,14 @@ let source: FoldedMeshSource | null = null,
   opened: Folded3dMesh,
   legacy: Folded3dMesh;
 let data: Pick<OristudioCpFold3dStepResult, 'render' | 'snapshot'>;
-let camera = { ...DEFAULT_FOLDED_3D_CAMERA, zoom: 0.82 },
+let loadedName: string | null = null;
+const initialCamera = {
+  ...DEFAULT_FOLDED_3D_CAMERA,
+  yaw: Number(params.get('yaw') ?? DEFAULT_FOLDED_3D_CAMERA.yaw),
+  pitch: Number(params.get('pitch') ?? DEFAULT_FOLDED_3D_CAMERA.pitch),
+  zoom: Number(params.get('zoom') ?? 0.82),
+};
+let camera = { ...initialCamera },
   amount = 1,
   serial = 0;
 const figure = () => ({
@@ -53,7 +64,7 @@ function draw() {
     lastMesh = mesh;
   }
   if (!source) throw new Error('Graphics unavailable');
-  const view = folded3dSceneCamera(camera, mesh, 480);
+  const view = folded3dSceneCamera(camera, mesh, size);
   source.render(view, {
     ...folded3dWindowRenderSettings({
       style,
@@ -62,14 +73,14 @@ function draw() {
     }),
     displacementScale: amount,
   });
-  canvas.getContext('2d')!.clearRect(0, 0, 480, 480);
+  canvas.getContext('2d')!.clearRect(0, 0, size, size);
   canvas.getContext('2d')!.drawImage(buffer, 0, 0);
 }
 async function capture() {
   const revision = serial;
   const mesh =
     amount > 0 ? posedSpatialMesh(figure(), data.render, null)! : legacy;
-  const view = folded3dSceneCamera(camera, mesh, 480);
+  const view = folded3dSceneCamera(camera, mesh, size);
   const started = performance.now();
   const scene =
     amount > 0
@@ -85,7 +96,7 @@ async function capture() {
     project: (p) => p,
     keepHiddenFaces: false,
   });
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480">${body}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${body}</svg>`;
   (document.querySelector('#captured') as HTMLImageElement).src =
     `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   result.textContent = JSON.stringify(
@@ -108,21 +119,26 @@ async function load(name: string) {
   source?.dispose();
   source = null;
   lastMesh = null;
-  data = await (
-    await fetch(
-      new URL(
-        `../../../artifacts/spatial-production/${name}.json`,
-        import.meta.url
+  // Retain source identity across amount/camera samples, as the app does, so
+  // sweeps exercise the cached solve instead of solving a fresh JSON object.
+  if (loadedName !== name) {
+    data = await (
+      await fetch(
+        new URL(
+          `../../../artifacts/spatial-production/${name}.json`,
+          import.meta.url
+        )
       )
-    )
-  ).json();
+    ).json();
+    loadedName = name;
+  }
   if (data.snapshot.verdict.verdict !== 'folded')
     throw new Error(`Spread refused: ${data.snapshot.verdict.verdict}`);
   opened = await ensureSpatialSpread(data.render);
   const built = folded3dMesh(data.render);
   if (built.kind !== 'mesh') throw new Error('Mesh unavailable');
   legacy = built.mesh;
-  camera = { ...DEFAULT_FOLDED_3D_CAMERA, zoom: 0.82 };
+  camera = { ...initialCamera };
   draw();
   await capture();
 }
@@ -137,9 +153,9 @@ const safely = (task: Promise<unknown>) =>
   safely(load((e.target as HTMLSelectElement).value));
 (document.querySelector('#amount') as HTMLInputElement).oninput = (e) => {
   ++serial;
-  amount = Number((e.target as HTMLInputElement).value) / 100;
+  amount = spatialSpreadFromPercent(Number((e.target as HTMLInputElement).value));
   document.querySelector('#amount-label')!.textContent =
-    `${Math.round(amount * 100)}%`;
+    `${Math.round(spatialSpreadPercent(amount))}%`;
   draw();
 };
 (document.querySelector('#amount') as HTMLInputElement).onchange = () =>
@@ -149,7 +165,7 @@ document
   .addEventListener('click', () => safely(capture()));
 document.querySelector('#front')!.addEventListener('click', () => {
   ++serial;
-  camera = { ...DEFAULT_FOLDED_3D_CAMERA, zoom: 0.82 };
+  camera = { ...initialCamera };
   draw();
   safely(capture());
 });
@@ -184,10 +200,10 @@ Object.assign(window, {
     amount = value;
     (document.querySelector('#model') as HTMLSelectElement).value = name;
     (document.querySelector('#amount') as HTMLInputElement).value = String(
-      value * 100
+      spatialSpreadPercent(value)
     );
     document.querySelector('#amount-label')!.textContent =
-      `${Math.round(value * 100)}%`;
+      `${Math.round(spatialSpreadPercent(value))}%`;
     await load(name);
     if (back) {
       camera = antipodalCamera(camera);
@@ -197,7 +213,9 @@ Object.assign(window, {
     return JSON.parse(result.textContent!);
   },
 });
-safely(load('strip'));
+const initialModel = params.get('model') ?? 'strip';
+(document.querySelector('#model') as HTMLSelectElement).value = initialModel;
+safely(load(initialModel));
 
 // Independent picking checks sample away from projected boundaries, where
 // coverage antialiasing is not a material-selection question.
@@ -207,9 +225,9 @@ Object.assign(window, {
       await import('../../../apps/web/src/cp-workspace/folded/folded3dSpatialScene');
     const { pickSpread, barycentric } = await import('@oristudio/layer-spread');
     const mesh = posedSpatialMesh(figure(), data.render, null)!;
-    const view = folded3dSceneCamera(camera, mesh, 480);
+    const view = folded3dSceneCamera(camera, mesh, size);
     const projected = projectSpatialMesh(mesh, view).projected;
-    const offscreen = new OffscreenCanvas(480, 480);
+    const offscreen = new OffscreenCanvas(size, size);
     offscreen.getContext('webgl2', {
       antialias: false,
       alpha: true,
@@ -243,9 +261,9 @@ Object.assign(window, {
       pixel = new Uint8Array(4);
     let checked = 0;
     const mismatches = [];
-    for (let y = 16; y < 464; y += 7)
-      for (let x = 16; x < 464; x += 7) {
-        const point: [number, number] = [x + 0.5, 480 - y - 0.5];
+    for (let y = 16; y < size - 16; y += 7)
+      for (let x = 16; x < size - 16; x += 7) {
+        const point: [number, number] = [x + 0.5, size - y - 0.5];
         const picks = [
           [0, 0],
           [-1, 0],
@@ -318,7 +336,7 @@ Object.assign(window, {
   },
   captureSpatialRaster: async () => {
     const mesh = posedSpatialMesh(figure(), data.render, null)!;
-    const view = folded3dSceneCamera(camera, mesh, 480);
+    const view = folded3dSceneCamera(camera, mesh, size);
     return new Promise((resolve, reject) => {
       const worker = new Worker(
         new URL(
@@ -340,7 +358,7 @@ Object.assign(window, {
             keepHiddenFaces: false,
           });
         (document.querySelector('#captured') as HTMLImageElement).src =
-          `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480">${body}</svg>`)}`;
+          `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${body}</svg>`)}`;
         resolve({
           items: scene.items.length,
           markup: scene.items.filter((i: any) => i.kind === 'markup').length,

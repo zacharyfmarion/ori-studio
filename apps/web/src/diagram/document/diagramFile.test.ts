@@ -3921,11 +3921,11 @@ describe('a linked step’s layer order', () => {
 });
 
 
-it('round trips a spatial spread recipe and locks an unknown spatial version',()=>{
+it.each([2, 4])('round trips spatial amount %s and locks an unknown spatial version',(amount)=>{
   const written=throughJson(writeDiagram(linkedDiagram()));
-  written.steps[2].source.render.spread={kind:'spatial',version:1,amount:2};
+  written.steps[2].source.render.spread={kind:'spatial',version:1,amount};
   const read=readDiagram(written)!;
-  expect((stepsIn(read.document)[2]!.source as DiagramCpSource).render).toMatchObject({spread:{kind:'spatial',version:1,amount:2}});
+  expect((stepsIn(read.document)[2]!.source as DiagramCpSource).render).toMatchObject({spread:{kind:'spatial',version:1,amount}});
   expect(throughJson(writeDiagram(read.document)).steps[2].source.render.spread).toEqual(written.steps[2].source.render.spread);
   written.steps[2].source.render.spread.version=2;
   expect(stepsIn(readDiagram(written)!.document)[2]!.unknown).toBeDefined();

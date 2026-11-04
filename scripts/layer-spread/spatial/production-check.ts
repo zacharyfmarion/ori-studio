@@ -3,7 +3,7 @@ import {
   folded3dMeshPayload,
   folded3dWindowRenderSettings,
 } from '../../../apps/web/src/cp-workspace/folded/folded3dWindow';
-import { projectSpatialMesh } from '../../../apps/web/src/cp-workspace/folded/folded3dSpatialScene';
+import { projectSpatialMesh, spatialPaperScene } from '../../../apps/web/src/cp-workspace/folded/folded3dSpatialScene';
 import { pickSpread, type SpatialPlane } from '@oristudio/layer-spread';
 import { DEFAULT_PAPER_STYLE } from '../../../apps/web/src/lib/paper/paperStyle';
 import type { Folded3dMesh } from '../../../apps/web/src/cp-workspace/folded/folded3dMesh';
@@ -106,6 +106,29 @@ const cases = [
     planes: [plane([0, 1], [[0, 1]])],
     ink: 0,
   },
+  {
+    name: 'buried hinge cannot escape through its adjoining plane',
+    depths: [0.5, 0, 0.5],
+    planes: [plane([0, 1], [[0, 1]]), plane([2], [])],
+    hinge: true,
+    ink: 0,
+  },
+  {
+    name: 'exposed hinge retains its outline',
+    depths: [0.5, 0, 0.5],
+    planes: [plane([0, 1], [[1, 0]]), plane([2], [])],
+    hinge: true,
+    ink: 0,
+    inkVisible: true,
+  },
+  {
+    name: 'shared hinge retains local cycle physical fallback',
+    depths: [0.5, 0, 0.5],
+    planes: [plane([0, 1], [[0, 1], [1, 0]]), plane([2], [])],
+    hinge: true,
+    ink: 0,
+    inkVisible: true,
+  },
 ];
 const camera: CameraUniforms = {
   center: [0, 0, 0],
@@ -197,6 +220,16 @@ try {
       mesh.topology.edgeAssignments = Uint8Array.from([0]);
       mesh.spatial!.ranges[test.ink]!.edgeCount = 1;
       mesh.spatial!.edgeFaces = [test.ink];
+      if (test.hinge) {
+        // A second material face meeting the buried edge, edge-on to this
+        // camera. Its old, separately masked crease copy leaked through.
+        mesh.positions.set([-0.4, 0, 0.5, 0.4, 0, 0.5, 0, 0, 0.9], 18);
+        mesh.topology.edgeIndices = Uint32Array.from([n * 3, n * 3 + 1, n * 3, n * 3 + 1]);
+        mesh.topology.edgeAssignments = Uint8Array.from([0, 0]);
+        mesh.spatial!.ranges[2]!.edgeStart = 1;
+        mesh.spatial!.ranges[2]!.edgeCount = 1;
+        mesh.spatial!.edgeFaces = [test.ink, 2];
+      }
     }
     const canvas = new OffscreenCanvas(128, 128);
     const { payload } = folded3dMeshPayload(mesh);
@@ -230,11 +263,18 @@ try {
       projectSpatialMesh(mesh, camera).projected,
       [64.5, 63.5]
     )?.face;
+    const sceneInk = test.ink === undefined ? undefined : spatialPaperScene(mesh, camera, DEFAULT_PAPER_STYLE).items.some(item => {
+      if (item.kind !== 'line' || item.hidden) return false;
+      return Math.abs(item.a[1] - 64) < 1e-6 && Math.abs(item.b[1] - 64) < 1e-6 &&
+        Math.min(item.a[0], item.b[0]) < 64 && Math.max(item.a[0], item.b[0]) > 64;
+    });
     const passed =
       expected !== undefined &&
-      colors[expected]!.every((v, i) => Math.abs(pixel[i]! - v * 255) < 3) &&
+      (sceneInk === undefined || sceneInk === !!test.inkVisible) &&
+      (test.inkVisible ? [0, 1, 2].every(i => pixel[i]! < 3)
+        : colors[expected]!.every((v, i) => Math.abs(pixel[i]! - v * 255) < 3)) &&
       gl.getError() === gl.NO_ERROR;
-    result.push({ name: test.name, expected, pixel: [...pixel], passed });
+    result.push({ name: test.name, expected, pixel: [...pixel], sceneInk, passed });
     const figure = document.createElement('figure'),
       label = document.createElement('figcaption'),
       shown = document.createElement('canvas');

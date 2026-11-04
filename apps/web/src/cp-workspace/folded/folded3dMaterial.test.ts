@@ -78,9 +78,10 @@ describe('shared spatial material', () => {
         ),
       ]).toEqual(expect.arrayContaining(shared));
   });
-  it('is exactly the folded material at zero and supports twice the unit field', () => {
+  it('is exactly the folded material at zero and doubles the former maximum displacement', () => {
     const zero = spatialMaterialMesh(model, prepared, solution, 0),
       two = spatialMaterialMesh(model, prepared, solution, 2),
+      four = spatialMaterialMesh(model, prepared, solution, 4),
       center = modelCentroid(model);
     prepared.source.positions.forEach((p, v) => {
       const rest = toSimBasis(
@@ -93,9 +94,14 @@ describe('shared spatial material', () => {
           n + 2 * prepared.scale * delta[i]!,
           4
         );
+        expect(four.positions[3 * v + i]! - n).toBeCloseTo(
+          2 * (two.positions[3 * v + i]! - n),
+          4
+        );
       });
     });
     expect(two.radius).toBe(zero.radius);
+    expect(four.radius).toBe(zero.radius);
   });
   it('refuses unknown cells, missing material and excessive mask work before GPU upload', () => {
     expect(() =>
