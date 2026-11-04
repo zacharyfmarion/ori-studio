@@ -115,6 +115,53 @@ fn a_precrease_on_the_line_does_not_split_the_target_layer() {
     }
 }
 
+/// The square folded in half twice, four raw corners at (0, 0): from the top
+/// P1, P2, P3 and P4, named by the sheet points (0.95, 0.05), (0.95, 0.95),
+/// (0.05, 0.95) and (0.05, 0.05). The Mountain tool on P2's corner puts it in
+/// the pocket between the halves; then the Valley tool on P3's corner offers
+/// it against that first block, P1's corner over it on the moving side
+/// staying where it is.
+#[test]
+fn the_second_block_of_a_pocket_is_offered_against_the_first() {
+    let sheet = State::flat(Sheet::square(), StartSide::Front).unwrap();
+    let half = fold(&sheet, &all(y_eq(0.5), [0.5, 0.75], Direction::Valley)).state;
+    let quarter = fold(&half, &all(x_eq(0.5), [0.75, 0.25], Direction::Valley)).state;
+    let line = through([0., 0.3], [0.3, 0.]);
+    let corner = |direction, at: [f64; 2]| {
+        all(line, [0.02, 0.02], direction).with_seed(Seed::Flaps { at: vec![at] })
+    };
+    let stack = |state: &State, points: &[[f64; 2]]| {
+        state.stack_at([0.2, 0.2])
+            == Some(points.iter().map(|&p| state.face_at(p).unwrap()).collect())
+    };
+    let mut first = FoldPlacementSearch::new(&quarter, &corner(Direction::Mountain, [0.95, 0.95]));
+    complete(&mut first);
+    let inside = [[0.8, 0.2], [0.8, 0.8], [0.9, 0.9], [0.2, 0.8], [0.2, 0.2]];
+    let Some(first) = first.candidates().iter().find(|c| stack(&c.state, &inside)) else {
+        panic!("the first block is not offered inside the pocket");
+    };
+    let parent = &first.state;
+    let mut second = FoldPlacementSearch::new(parent, &corner(Direction::Valley, [0.05, 0.95]));
+    complete(&mut second);
+    let selected = vec![parent.face_at([0.05, 0.95]).unwrap()];
+    assert!(second.candidates().iter().all(|c| c.moving == selected));
+    let both = [
+        [0.8, 0.2],
+        [0.8, 0.8],
+        [0.9, 0.9],
+        [0.1, 0.9],
+        [0.2, 0.8],
+        [0.2, 0.2],
+    ];
+    let against_first = second
+        .candidates()
+        .iter()
+        .find(|c| stack(&c.state, &both))
+        .unwrap_or_else(|| panic!("offered: {:?}", second.candidates().len()));
+    assert!(matches!(against_first.landing, FoldLanding::Against { .. }));
+    assert_valid(&against_first.state);
+}
+
 #[test]
 fn a_limited_search_does_not_claim_its_outer_result_is_unique() {
     let sheet = State::flat(Sheet::square(), StartSide::Front).unwrap();
