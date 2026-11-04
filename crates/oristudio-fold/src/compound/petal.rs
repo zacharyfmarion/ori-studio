@@ -19,16 +19,17 @@
 //!   creases that reach below H; its folded creases to the rest that reach
 //!   below H are its closed edges, which H meets at its two ends PL and PR.
 //!   The *second layer* is the paper across the closed edges, grown the same
-//!   way — at each end, the paper across that end's closed edge. The two are
-//!   one where the second layer is one piece of paper, as on the bird and
-//!   frog bases; where they are not, each end's kite crease folds its own
-//!   alone. On a corner squashed with its spine onto its hinge line, the
-//!   second layer at the end below the spine runs on, flat across the hinge
-//!   the squash unfolded, into the back layer above it, under the other
-//!   end's second layer and the paper folded in behind that. The back layer
-//!   is then the first end's paper, inside that end's kite, and stays: the
-//!   other end's kite crease does not fold it, though it lies outside that
-//!   crease's line.
+//!   way — at each end, the paper across that end's closed edge, and each
+//!   end's kite crease folds its own paper alone. On the bird and frog bases
+//!   the two ends' paper is two pieces, each wholly inside the other end's
+//!   kite, so no piece lies outside the other end's kite crease line. On a
+//!   corner squashed with its spine onto its hinge line, the second layer at
+//!   the end below the spine runs on, flat across the hinge the squash
+//!   unfolded, into the back layer above it, under the other end's second
+//!   layer and the paper folded in behind that. The back layer is then the
+//!   first end's paper, inside that end's kite, and stays: the other end's
+//!   kite crease does not fold it, though it lies outside that crease's
+//!   line.
 //! - **The kite creases**, one per layer at each end. At PL, H, the closed
 //!   edge above PL and the two layers' kite creases meet, and the closed
 //!   edge below PL unfolds: that folds flat (Kawasaki at PL) exactly when
@@ -197,8 +198,7 @@ struct Petal {
     top: Vec<usize>,
     second: Vec<usize>,
     /// Per end (in `ends`' order), the second layer's paper across that
-    /// end's closed edge: what its kite crease folds. Both are all of
-    /// `second` on a flap whose second layer is one piece of paper.
+    /// end's closed edge: what its kite crease folds. Together, `second`.
     second_at: [Vec<usize>; 2],
     /// The kite creases of the top layer and of the second.
     kite: Kite,

@@ -31,8 +31,10 @@ crease pattern has no crease in it.
 against the paper across *its own* end's closed edge alone (`second_at` in
 `compound/petal.rs`): kite pairs read that end's flat creases, the kite cuts
 cross that end's faces, the `reaching` check and the block of each piece look
-at its own end's kite. Where both ends' paper is one piece (bird base, frog
-base) this is the old rule exactly.
+at its own end's kite. On the bird and frog bases the two ends' paper is
+already two pieces, each wholly inside the other end's kite, so the old rule
+(every piece against either kite's line) decided the same; a differential
+build confirmed it (below).
 
 **Honest refusal.** A new engine fix, `precrease_first { line }`, is attached
 to `petal_not_precreased` (line) when the same petal fold lands over H
