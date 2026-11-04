@@ -6713,7 +6713,12 @@
     "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
     "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
-    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13429,7 +13434,12 @@
     "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
     "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
-    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20147,7 +20157,12 @@
     "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
     "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
-    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26485,7 +26500,11 @@
     "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
     "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
-    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32823,7 +32842,11 @@
     "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
     "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
-    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39539,7 +39562,12 @@
     "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
     "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
-    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46255,7 +46283,12 @@
     "toasts:diagram.fold.someSpreadFailed_one": "8f2f448b9287",
     "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
-    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52593,6 +52626,10 @@
     "toasts:diagram.capture.spreadFailed": "a215e0eab0ab",
     "toasts:diagram.fold.someSpreadFailed_other": "36c46f2b1f54",
     "panels:cpProperties.folded.spreadNeedsPaper": "61124820497a",
-    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55"
+    "panels:cpProperties.folded.spreadRecipe": "608ec2a53c55",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   }
 }

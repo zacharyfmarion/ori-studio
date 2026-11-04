@@ -370,8 +370,10 @@
     "flap": {
       "chip_other": "플랩 {{number}}, {{count}}겹",
       "chipAdded_other": "플랩 {{number}}, {{count}}겹, 접기와 함께 움직임",
+      "chipLocked_other": "플랩 {{number}}, {{count}}겹, 뺄 수 없음",
       "groupLabel": "접을 플랩",
       "layers_other": "{{count}}겹",
+      "locked": "{{flap}}은(는) 뺄 수 없습니다. 이 플랩이 없으면 접기가 성립하지 않습니다.",
       "name": "플랩 {{number}}"
     },
     "group": {
@@ -769,6 +771,8 @@
       "rowAdded": "{{layer}}번째 겹, {{flap}}, 접기와 함께 움직임",
       "rowAddedBeside": "{{layer}}번째 겹, {{flap}}, 접기와 함께 움직임, {{above}}번째 겹 옆",
       "rowBeside": "{{layer}}번째 겹, {{flap}}, {{above}}번째 겹 옆",
+      "rowLocked": "{{layer}}번째 겹, {{flap}}, 뺄 수 없음",
+      "rowLockedBeside": "{{layer}}번째 겹, {{flap}}, {{above}}번째 겹 옆, 뺄 수 없음",
       "top": "위"
     },
     "sink": {

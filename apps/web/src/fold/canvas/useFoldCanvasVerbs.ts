@@ -754,10 +754,12 @@ export function useFoldCanvasVerbs(
       swapSide: tools.swapSide,
 
       toggleFlap: (flap) => {
-        const section = live.current.preview.section;
+        const { section, reverse, crimp, seed } = live.current.preview;
         const target = section?.flaps[flap];
         if (!section || !target) return;
-        tools.toggleFlap(target, section.flaps, live.current.preview.seed);
+        // A flap the reverse fold or crimp cannot land without stays picked, however it is pressed.
+        if (((reverse ?? crimp)?.locked ?? []).some((locked) => sameFlap(locked, target))) return;
+        tools.toggleFlap(target, section.flaps, seed);
       },
 
       hoverFlap: tools.setHoveredFlap,

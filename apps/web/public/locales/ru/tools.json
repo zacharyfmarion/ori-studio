@@ -406,11 +406,16 @@
       "chipAdded_few": "Клапан {{number}}, {{count}} слоя, движется вместе со сгибом",
       "chipAdded_many": "Клапан {{number}}, {{count}} слоёв, движется вместе со сгибом",
       "chipAdded_other": "Клапан {{number}}, {{count}} слоя, движется вместе со сгибом",
+      "chipLocked_one": "Клапан {{number}}, {{count}} слой, нельзя исключить",
+      "chipLocked_few": "Клапан {{number}}, {{count}} слоя, нельзя исключить",
+      "chipLocked_many": "Клапан {{number}}, {{count}} слоёв, нельзя исключить",
+      "chipLocked_other": "Клапан {{number}}, {{count}} слоя, нельзя исключить",
       "groupLabel": "Клапаны для сгиба",
       "layers_one": "{{count}} слой",
       "layers_few": "{{count}} слоя",
       "layers_many": "{{count}} слоёв",
       "layers_other": "{{count}} слоя",
+      "locked": "{{flap}} нельзя исключить: без него сгиб не получится.",
       "name": "Клапан {{number}}"
     },
     "group": {
@@ -823,6 +828,8 @@
       "rowAdded": "Слой {{layer}}, {{flap}}, движется вместе со сгибом",
       "rowAddedBeside": "Слой {{layer}}, {{flap}}, движется вместе со сгибом, рядом со слоем {{above}}",
       "rowBeside": "Слой {{layer}}, {{flap}}, рядом со слоем {{above}}",
+      "rowLocked": "Слой {{layer}}, {{flap}}, нельзя исключить",
+      "rowLockedBeside": "Слой {{layer}}, {{flap}}, рядом со слоем {{above}}, нельзя исключить",
       "top": "Верх"
     },
     "sink": {

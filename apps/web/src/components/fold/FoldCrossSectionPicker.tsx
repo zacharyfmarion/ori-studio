@@ -1,10 +1,32 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FoldSectionPickerModel, FoldSectionRow } from '../../fold/tools/crossSection';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import styles from './FoldCrossSectionPicker.module.css';
 
 /** How far a bracket bulges past the point it joins, in hundredths of the track. */
 const BRACKET_BULGE = 4;
+
+/**
+ * A row's flap name at the side. A flap the fold cannot land without
+ * carries a dot — a state, so never a dash, which is a valley fold — and a
+ * tooltip saying why it stays picked; the option's own name says so too.
+ */
+function RowTag({ row }: { row: FoldSectionRow }) {
+  const tag = (
+    <span className={styles.tag} aria-hidden="true">
+      {row.locked && row.tag && <span className={styles.locked} />}
+      {row.tag}
+    </span>
+  );
+  if (!row.lockedReason || !row.tag) return tag;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{tag}</TooltipTrigger>
+      <TooltipContent>{row.lockedReason}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 /**
  * The layers at the fold line (plan D14), as a listbox: a row per display
@@ -38,8 +60,9 @@ export function FoldCrossSectionPicker({
   // The tab stop: the row last moved to, else the first picked, else the top.
   const stop = focused !== null && focused < model.rows.length ? focused : Math.max(0, firstPicked);
 
+  // A flap the fold cannot land without stays picked.
   const toggle = (row: FoldSectionRow | undefined) => {
-    if (row && !disabled) onToggle(row.flap);
+    if (row && !disabled && !row.locked) onToggle(row.flap);
   };
 
   const moveTo = (index: number) => {
@@ -99,12 +122,13 @@ export function FoldCrossSectionPicker({
               role="option"
               aria-label={row.label}
               aria-selected={row.state === 'picked'}
-              aria-disabled={disabled || undefined}
+              aria-disabled={disabled || row.locked || undefined}
               tabIndex={index === stop ? 0 : -1}
               className={styles.row}
               data-state={row.state}
               data-needed={row.needed || undefined}
               data-unordered={row.unordered || undefined}
+              data-locked={row.locked || undefined}
               onClick={() => {
                 setFocused(index);
                 toggle(row);
@@ -118,9 +142,7 @@ export function FoldCrossSectionPicker({
                   style={{ left: `${row.from * 100}%`, width: `${Math.max(0, row.to - row.from) * 100}%` }}
                 />
               </span>
-              <span className={styles.tag} aria-hidden="true">
-                {row.tag}
-              </span>
+              <RowTag row={row} />
             </div>
           ))}
         </div>

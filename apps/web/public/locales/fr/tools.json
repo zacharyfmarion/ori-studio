@@ -394,10 +394,14 @@
       "chipAdded_one": "Rabat {{number}}, {{count}} couche, bouge avec le pli",
       "chipAdded_many": "Rabat {{number}}, {{count}} couches, bouge avec le pli",
       "chipAdded_other": "Rabat {{number}}, {{count}} couches, bouge avec le pli",
+      "chipLocked_one": "Rabat {{number}}, {{count}} couche, ne peut pas être laissé de côté",
+      "chipLocked_many": "Rabat {{number}}, {{count}} couches, ne peut pas être laissé de côté",
+      "chipLocked_other": "Rabat {{number}}, {{count}} couches, ne peut pas être laissé de côté",
       "groupLabel": "Rabats à plier",
       "layers_one": "{{count}} couche",
       "layers_many": "{{count}} couches",
       "layers_other": "{{count}} couches",
+      "locked": "{{flap}} ne peut pas être laissé de côté : sans lui, le pli n’est pas possible.",
       "name": "Rabat {{number}}"
     },
     "group": {
@@ -805,6 +809,8 @@
       "rowAdded": "Couche {{layer}}, {{flap}}, bouge avec le pli",
       "rowAddedBeside": "Couche {{layer}}, {{flap}}, bouge avec le pli, à côté de la couche {{above}}",
       "rowBeside": "Couche {{layer}}, {{flap}}, à côté de la couche {{above}}",
+      "rowLocked": "Couche {{layer}}, {{flap}}, ne peut pas être laissé de côté",
+      "rowLockedBeside": "Couche {{layer}}, {{flap}}, à côté de la couche {{above}}, ne peut pas être laissé de côté",
       "top": "Haut"
     },
     "sink": {

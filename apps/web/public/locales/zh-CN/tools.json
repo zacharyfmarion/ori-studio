@@ -370,8 +370,10 @@
     "flap": {
       "chip_other": "翼片 {{number}}，{{count}} 层",
       "chipAdded_other": "翼片 {{number}}，{{count}} 层，随折叠一起移动",
+      "chipLocked_other": "翼片 {{number}}，{{count}} 层，不能排除",
       "groupLabel": "要折的翼片",
       "layers_other": "{{count}} 层",
+      "locked": "{{flap}} 不能排除：没有它，这次折叠无法完成。",
       "name": "翼片 {{number}}"
     },
     "group": {
@@ -769,6 +771,8 @@
       "rowAdded": "第 {{layer}} 层，{{flap}}，随折叠一起移动",
       "rowAddedBeside": "第 {{layer}} 层，{{flap}}，随折叠一起移动，在第 {{above}} 层旁边",
       "rowBeside": "第 {{layer}} 层，{{flap}}，在第 {{above}} 层旁边",
+      "rowLocked": "第 {{layer}} 层，{{flap}}，不能排除",
+      "rowLockedBeside": "第 {{layer}} 层，{{flap}}，在第 {{above}} 层旁边，不能排除",
       "top": "顶部"
     },
     "sink": {

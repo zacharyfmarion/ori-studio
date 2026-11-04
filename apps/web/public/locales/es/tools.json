@@ -394,10 +394,14 @@
       "chipAdded_one": "Solapa {{number}}, {{count}} capa, se mueve con el pliegue",
       "chipAdded_many": "Solapa {{number}}, {{count}} capas, se mueve con el pliegue",
       "chipAdded_other": "Solapa {{number}}, {{count}} capas, se mueve con el pliegue",
+      "chipLocked_one": "Solapa {{number}}, {{count}} capa, no se puede omitir",
+      "chipLocked_many": "Solapa {{number}}, {{count}} capas, no se puede omitir",
+      "chipLocked_other": "Solapa {{number}}, {{count}} capas, no se puede omitir",
       "groupLabel": "Solapas que se pliegan",
       "layers_one": "{{count}} capa",
       "layers_many": "{{count}} capas",
       "layers_other": "{{count}} capas",
+      "locked": "{{flap}} no se puede omitir: sin ella el pliegue no es posible.",
       "name": "Solapa {{number}}"
     },
     "group": {
@@ -805,6 +809,8 @@
       "rowAdded": "Capa {{layer}}, {{flap}}, se mueve con el pliegue",
       "rowAddedBeside": "Capa {{layer}}, {{flap}}, se mueve con el pliegue, junto a la capa {{above}}",
       "rowBeside": "Capa {{layer}}, {{flap}}, junto a la capa {{above}}",
+      "rowLocked": "Capa {{layer}}, {{flap}}, no se puede omitir",
+      "rowLockedBeside": "Capa {{layer}}, {{flap}}, junto a la capa {{above}}, no se puede omitir",
       "top": "Arriba"
     },
     "sink": {

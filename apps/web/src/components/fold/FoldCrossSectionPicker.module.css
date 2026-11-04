@@ -123,6 +123,18 @@
   color: var(--text-secondary);
 }
 
+/* A flap the fold cannot land without: a dot before its name, in the
+   name's ink. It still moves, so its bar keeps the picked ink. */
+.locked {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+
 /* Over the bars' column only, so a bracket's x is the bar's. */
 .brackets {
   position: absolute;
