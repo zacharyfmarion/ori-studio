@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DiagramTurnKind, SentDiagramEntry, SentFoldStep } from '../document/diagramDocument';
 import { foldStepSource, scenePicture } from '../document/diagramSteps.fixtures';
 
@@ -45,6 +45,13 @@ const ROTATE: DiagramTurnKind = { kind: 'rotate', rotate: { amount: 'quarter', d
 
 /** Targets only say how many: the stubbed replay sends `entries` whatever is asked. */
 const TARGETS = [{ kind: 'step', step: 'fstep-1', moment: 'before' }] as const;
+
+// A pull lazily loads the whole Fold workspace: under a full run its cold transform alone can
+// take a test's five seconds, and a pull still running then counts into the next test.
+beforeAll(async () => {
+  const { loadFold } = await import('../../workspaces/foldGateway');
+  await loadFold();
+}, 30_000);
 
 beforeEach(() => {
   vi.clearAllMocks();

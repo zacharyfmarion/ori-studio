@@ -284,8 +284,9 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     expect((shown.source as DiagramFoldStepSource).render).toEqual(render);
     expect((added.source as DiagramFoldStepSource).render).toEqual(render);
     expect(shown.picture?.key).toBe(added.picture?.key);
-    expect(shown.annotations.map((mark) => mark.kind)).toEqual(added.annotations.map((mark) => mark.kind));
-    expect(shown.annotations.map((mark) => mark.kind)).toEqual(expect.arrayContaining(['valley-line', 'valley-arrow']));
+    const kinds = (step: DiagramStep) => step.annotations.map((mark) => (mark.unknown ? 'unknown' : mark.kind));
+    expect(kinds(shown)).toEqual(kinds(added));
+    expect(kinds(shown)).toEqual(expect.arrayContaining(['valley-line', 'valley-arrow']));
   });
 
   it('gives the title block the crease pattern of the last step sent, every crease so far, and of a step chosen', async () => {
