@@ -1,0 +1,49 @@
+.start-grid {
+  /* Side length 96px, altitude 96 * sqrt(3) / 2: the repeat stays equilateral
+     at every viewport size. Two rows per tile keep all six edges aligned at
+     each vertex. */
+  --start-grid-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='166.2768775266' viewBox='0 0 96 166.2768775266'%3E%3Cpath d='M0 0H96M0 83.1384387633H96M0 166.2768775266H96M0 0L96 166.2768775266M96 0L0 166.2768775266' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  mask-image: radial-gradient(ellipse at 60% 35%, black 15%, transparent 75%);
+}
+
+.start-grid::before,
+.start-grid::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  mask-image: var(--start-grid-tile);
+  mask-size: 96px 166.2768775266px;
+  mask-repeat: repeat;
+}
+
+.start-grid::before {
+  background: var(--text-muted);
+  opacity: 0.08;
+}
+
+.start-grid::after {
+  background: linear-gradient(110deg, transparent 40%, var(--text-secondary) 50%, transparent 60%);
+  background-size: 300% 100%;
+  opacity: 0.12;
+  animation: start-grid-shimmer 18s ease-in-out infinite;
+}
+
+@keyframes start-grid-shimmer {
+  0% { background-position: 100% 0; opacity: 0; }
+  15% { opacity: 0.12; }
+  85% { opacity: 0.12; }
+  100% { background-position: 0% 0; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-grid::after {
+    animation: none;
+    opacity: 0;
+  }
+}
