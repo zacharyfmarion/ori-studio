@@ -31,6 +31,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramFoldCaptureOutcome } from '../../store/workspaceStore/diagramFoldCapture';
 import { turnedOverFrom } from '../capture/linkedPose';
 import { poseCaptureBlocksViewport, trackPose, type TrackedPoseVerb } from '../capture/poseController';
+import { saySpreadFailed } from '../capture/stepCaptureActions';
 import {
   creasePatternSide,
   isLockedStep,
@@ -311,15 +312,17 @@ export function openDiagramStepInFold(stepId: string): void {
 
 /**
  * Tell the user what a Fold step's capture came to, when there is something
- * to tell: a picture kept as a bitmap, marks the author had edited that the
- * fold's own replaced (with Undo), or a capture that could not be made and
- * why. One the user moved on from says nothing.
+ * to tell: marks the author had edited that the fold's own replaced (with
+ * Undo), layers that newly could not be spread, a picture kept as a bitmap,
+ * or a capture that could not be made and why. One the user moved on from
+ * says nothing.
  */
 export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void {
   const t = i18n.t.bind(i18n);
   switch (outcome.status) {
     case 'captured':
       if (outcome.replaced > 0) toast.message(replacedEdited(outcome.replaced), { action: undoNewest() });
+      else if (outcome.spreadFailed === 'new') saySpreadFailed();
       else if (outcome.tooDetailed) {
         toast.message(
           t('toasts:diagram.capture.tooDetailed', 'Too detailed to keep as a drawing, so the step keeps it as an image.')

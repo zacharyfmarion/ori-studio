@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Ori Studio · spread orbit benchmark</title>
+<h1>Spread orbit benchmark</h1>
+<p>Production Edit runtime and worker, with continuous camera input. Local corpus only.</p>
+<div id="app"></div><pre id="result">Preparing…</pre>
+<script type="module">
+import RefreshRuntime from '/@react-refresh';
+RefreshRuntime.injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;
+window.__vite_plugin_react_preamble_installed__ = true;
+</script>
+<script type="module" src="./orbit-benchmark.tsx"></script>

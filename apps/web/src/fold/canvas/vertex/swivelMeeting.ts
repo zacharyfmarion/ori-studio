@@ -13,7 +13,7 @@
 import type { Point } from '../../../lib/geometry';
 import type { FoldModelLine } from '../../document/foldSequenceDocument';
 import type { FoldStepSnap } from '../../tools/foldToolRegistry';
-import type { FoldToolState } from '../../tools/foldToolState';
+import { swivelMeetingLine, type FoldToolState } from '../../tools/foldToolState';
 import { nearestOnSegment, sideOf } from '../foldCanvasGeometry';
 import type { FoldOverlayInks, FoldOverlayMarks } from '../foldPaneOverlays';
 import type { FoldPaneId, FoldPick, FoldPickIndex, FoldPointPick } from '../foldPicking';
@@ -105,11 +105,12 @@ export function swivelMeetingPick(
  */
 export function swivelMeetingMarks(
   index: FoldPickIndex | null,
-  tools: Pick<FoldToolState, 'tool' | 'takenLine'>,
+  tools: Pick<FoldToolState, 'tool' | 'takenLine' | 'otherEnd'>,
   inks: Pick<FoldOverlayInks, 'accent' | 'outline'> | null
 ): FoldOverlayMarks | null {
-  const valley = tools.tool === 'swivel' ? tools.takenLine : undefined;
-  const meetings = index && valley && inks ? swivelMeetings(index, valley.sceneLine) : [];
+  // At a swivel's other end, the line the two swivels share.
+  const line = swivelMeetingLine(tools);
+  const meetings = index && line && inks ? swivelMeetings(index, line) : [];
   if (!inks || meetings.length === 0) return null;
   return {
     dots: meetings.map(({ drawn }) => ({ at: drawn, radius: MEETING_RADIUS, fill: inks.accent, stroke: inks.outline })),

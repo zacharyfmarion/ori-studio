@@ -259,6 +259,8 @@ export function vertexOverlayMarks(
       break;
     case 'swivel-valley-mountain':
       dot(analysis.vertex);
+      // The other end of the crease a second swivel can share, or does.
+      if (analysis.other_end) dot(analysis.other_end.vertex);
       break;
     case 'swivel-by-edge':
       // Where the edge lands, on the target.

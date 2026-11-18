@@ -3,6 +3,7 @@
 mod prepare;
 mod qp;
 mod reference;
+pub mod spatial;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

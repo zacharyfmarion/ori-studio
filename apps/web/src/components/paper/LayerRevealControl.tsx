@@ -2,7 +2,7 @@ import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/can
 import { useEffect, useId, useRef, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clampReveal, DEFAULT_CONNECTED_SPREAD, REVEAL_RADIUS } from '../../cp-workspace/folded/layerSpreadSettings';
-import { spreadDirectionLabel, type LayerSpreadDrag } from '../../cp-workspace/folded/layerSpreadControls';
+import { spreadDirectionLabel, spreadValuesHold, type LayerSpreadDrag } from '../../cp-workspace/folded/layerSpreadControls';
 import type { SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
 import { FieldRow } from '../ui/fieldRows';
 import styles from './LayerRevealControl.module.css';
@@ -12,10 +12,12 @@ const DIRECTIONS: SpreadDirection[] = ['left', 'up-left', 'up', 'up-right', 'rig
 /** A Default spread's reveal, as the rows lay a spread out (`LayerSpreadRows`): its pad on the spread's drag. */
 export function LayerRevealControl({ spread }: { spread: LayerSpreadDrag }) {
   if (spread.spread.kind !== 'connected') return null;
+  const { disabled, hint } = spreadValuesHold(spread);
   return (
     <LayerRevealPad
       value={spread.spread.reveal}
-      disabled={spread.disabled}
+      disabled={disabled}
+      title={hint}
       begin={spread.start}
       update={spread.previewReveal}
       end={spread.commit}

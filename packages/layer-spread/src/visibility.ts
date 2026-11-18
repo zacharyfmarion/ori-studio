@@ -81,6 +81,19 @@ export function createWinner(order: Visibility): WinnerQuery {
     }
     if (++stamp === 0xffffffff) { present.fill(0); checked.fill(0); stamp = 1; }
     for (const c of candidates) present[c.face] = stamp;
+    if (order.planeOf) {
+      const physical = new Map<number, T>();
+      const survivors = new Map<number, T>();
+      for (const c of candidates) {
+        const plane = order.planeOf[c.face];
+        physical.set(plane, ahead(physical.get(plane) ?? null, c));
+        if (!order.above[c.face].some(f => present[f] === stamp)) {
+          survivors.set(plane, ahead(survivors.get(plane) ?? null, c));
+        }
+      }
+      for (const [plane, baseline] of physical) best = ahead(best, survivors.get(plane) ?? baseline);
+      return best;
+    }
     let physical: T | null = null;
     for (const c of candidates) {
       physical = ahead(physical, c);

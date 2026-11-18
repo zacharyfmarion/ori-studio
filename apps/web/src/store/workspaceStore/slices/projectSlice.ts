@@ -1,3 +1,4 @@
+import { foldedFiguresWithSpatialScenes } from '../../../cp-workspace/folded/settledSpatialFigures';
 import {
   activeDesignTab,
   createDesignTab,
@@ -2002,7 +2003,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       (handle) => getOristudioCpFoldedFigurePaperScene(handle, documentHandle),
       (error) => reportError(error, { surface: 'folded-figure-spread:save' }),
       getOristudioCpFoldedFigureSnapshot
-    );
+    ).then(foldedFiguresWithSpatialScenes);
   };
 
   const currentEditableCreasePatternProjectInput = async (

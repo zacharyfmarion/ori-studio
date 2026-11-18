@@ -39,7 +39,7 @@ import type { Point } from '../../lib/geometry';
 import type { PaperExportTarget } from '../../paperExport/paperExportTarget';
 import { foldedFigurePivot } from '../adapters/cpFoldedToScene';
 import { folded3dSceneStyleKey } from './folded3dScene';
-import { folded3dFigureScene, folded3dStoredSceneInCssPx } from './folded3dStoredScene';
+import { settledFolded3dFigureScene, folded3dStoredSceneInCssPx } from './folded3dStoredScene';
 import { foldedFigureExportDocument } from './foldedFigureExport';
 import { foldedFigureSpreadOptions } from './foldedFigureSpread';
 import { foldedFigureSpreadExport, scaledSpreadFrame } from './foldedFigureSpreadExport';
@@ -48,6 +48,7 @@ import { foldedFlatFigureScenePxPerUnit } from './foldedFlatFigureExport';
 import { foldedFlatPaperScene } from './foldedFlatScene';
 import { foldedFigureSpreadDrawable } from './foldedFlatSpreadScene';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
+import { spatialAmount } from './folded3dSpread';
 
 /** The figure's picture, in the form it can give it. */
 export type FoldedFigureExportPicture =
@@ -142,19 +143,25 @@ export function foldedFigureExportTarget({
   } satisfies Partial<PaperExportTarget>;
 
   switch (picture.kind) {
-    case 'live-3d':
+    case 'live-3d': {
+      const controller = new AbortController();
       return {
         ...base,
         buriesFaces: true,
         sceneKey: ({ style, markHidden }) => `${folded3dSceneStyleKey(style)}|${markHidden}`,
-        buildScene: async ({ style, markHidden }) =>
-          folded3dFigureScene(figure, picture.model, {
+        release: () => controller.abort(),
+        buildScene: async ({ style, markHidden }) => {
+          const scene = await settledFolded3dFigureScene(figure, picture.model, {
             style,
             space: picture.cssPerUserUnit,
             markHidden,
             aux: picture.aux,
-          }) ?? picture.stored,
+          }, controller.signal);
+          if ((spatialAmount(figure) ?? 0) > 0 && !scene) throw new Error('Spatial spread has no settled picture');
+          return scene ?? picture.stored;
+        },
       };
+    }
     case 'stored-3d':
       return {
         ...base,

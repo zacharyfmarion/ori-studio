@@ -1018,6 +1018,15 @@ export const FOLDED_3D_EDGE_UNKNOWN = 2;
  */
 export interface OristudioCpFolded3dRenderModel {
   schema_version: number;
+  /** Material identity and folded geometry, shared by rendering and spreading. */
+  material?: {
+    version: 1;
+    sheet: [number, number][];
+    positions: [number, number, number][];
+    faces: number[][];
+    edges: [number, number][];
+    fold_degrees: (number | null)[];
+  };
   span: number;
   face_count: number;
   plane_count: number;

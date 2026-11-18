@@ -235,6 +235,8 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
     radius: mesh.radius,
     sheet: mesh.sheet,
     skins: mesh.skins,
+    spatial: mesh.spatial,
+    displacement: mesh.displacement ? packFolded3dPositionTexture(mesh.displacement, mesh.topology.textureDim).buffer as ArrayBuffer : undefined,
     translucent: mesh.translucent,
     undetermined: mesh.undetermined,
     undeterminedFaceAlpha: UNDETERMINED_FACE_ALPHA,
@@ -247,6 +249,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
       payload.edgeIndices,
       payload.edgeAssignments,
       payload.auxEnds,
+      ...(payload.displacement ? [payload.displacement] : []),
     ],
   };
 }

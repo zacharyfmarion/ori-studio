@@ -1080,7 +1080,6 @@ describe('the Spread section', () => {
   });
 
   it.each<[string, OristudioCpFoldedFigureEntry, string]>([
-    ['a 3D figure', SPATIAL, 'Only a flat folded picture has layers to spread'],
     [
       'a fold with no layer order',
       { ...FLAT, snapshot: { ...FLAT.snapshot!, discovered_fold_cases: 0 } },
@@ -1136,16 +1135,20 @@ describe('the Spread section', () => {
     }
   });
 
-  it('keeps the switch for a spread the canvas couldn’t draw, so it can be turned off, and holds the rest', () => {
+  it('keeps the switch and Spread by for a spread the canvas couldn’t draw, and holds Default’s own values', () => {
     const d = deps({ spreadStatus: 'unavailable' });
     const sheet = sheetFor(spreadOn(), d);
     const reason = 'These layers couldn’t be spread';
     expect(toggle(sheet)).toMatchObject({ support: 'supported', value: true, note: { kind: 'reason', text: reason } });
-    for (const id of ['spreadKind', 'spreadAmount', 'spreadReveal']) {
+    for (const id of ['spreadAmount', 'spreadReveal']) {
       expect(field(sheet, id)).toMatchObject({ support: 'unsupported', reason });
     }
+    // Affine and Depth need no solve: another kind is the way on.
+    expect(field(sheet, 'spreadKind').support).toBe('supported');
+    segmented(sheet, 'spreadKind').commit('affine');
+    expect(d.setSpread).toHaveBeenCalledWith(record(DEFAULT_AFFINE_SPREAD));
     toggle(sheet).commit(false);
-    expect(d.setSpread).toHaveBeenCalledWith(null);
+    expect(d.setSpread).toHaveBeenLastCalledWith(null);
     // Preparing says nothing: the figure draws flat until its solve lands.
     expect(toggle(sheetFor(spreadOn(), deps({ spreadStatus: 'preparing' }))).note).toBeUndefined();
   });
@@ -1180,4 +1183,31 @@ describe('the Spread section', () => {
       expect(shadows).not.toHaveProperty('note');
     }
   });
+});
+
+it('offers a 3D spread up to 100%, doubling the former maximum without changing saved amounts', () => {
+  const d=deps();const before=sheetFor(SPATIAL,d);
+  const toggle=field(before,'spreadLayers') as ToggleField;
+  expect(toggle.support).toBe('supported');toggle.commit(true);
+  expect(d.setSpread).toHaveBeenCalledWith({kind:'spatial',version:1,amount:1});
+  const shown=sheetFor({...SPATIAL,spread:{kind:'spatial',version:1,amount:2}},d);
+  expect(shown.sections.find(s=>s.id==='spread')!.fields.map(f=>f.id)).toEqual(['spreadLayers','spreadAmount']);
+  const amount=field(shown,'spreadAmount') as SliderField;
+  expect(amount).toMatchObject({min:0,max:100,value:50,protocol:'continuous'});
+  amount.begin();amount.update(75);amount.end();
+  expect(d.begin).toHaveBeenCalledWith('spread-amount');
+  expect(d.writeSpread).toHaveBeenCalledWith({verb:'spread-amount',amount:3});
+  expect(d.end).toHaveBeenCalledWith('Change layer spread');
+  expect(field(sheetFor({...SPATIAL,spread:{kind:'spatial',version:1,amount:.57}}),'spreadAmount')).toMatchObject({value:14});
+  amount.begin();amount.update(100);amount.end();
+  expect(d.writeSpread).toHaveBeenLastCalledWith({verb:'spread-amount',amount:4});
+  expect(field(sheetFor({...SPATIAL,spread:{kind:'spatial',version:1,amount:4}}),'spreadAmount')).toMatchObject({max:100,value:100});
+});
+
+it('lets a spatial recipe be disabled after the figure is refolded flat', () => {
+  const d=deps();
+  const held=field(sheetFor({...FLAT,spread:{kind:'spatial',version:1,amount:1}},d),'spreadLayers') as ToggleField;
+  expect(held).toMatchObject({support:'supported',value:true,note:{text:'Turn spread off and on to use this figure’s spread'}});
+  held.commit(false);
+  expect(d.setSpread).toHaveBeenCalledWith(null);
 });
