@@ -242,7 +242,12 @@ Compound folds (plan D4, D15, Phases 9 and 11):
     valley on the flap). The crease on the flap sets ψ and keeps its hinge's
     letter as the flap shows it; the other is computed, as the crease behind
     a swivel on a folded edge is, so the folder's line only has to run into
-    the flap. A flap whose hinges show it one letter cannot be named this way.
+    the flap. A flap whose hinges show it one letter lies over both layers
+    (or under both): the crease on it keeps that letter, and it leaves the
+    hinge that gives it room (`swivel_line_meeting` where both do). It is
+    read only where the viewer sees it along the crease named on it and the
+    lines turn no flap whose hinges show it two letters, and a precrease its
+    new creases run along folds with them.
   - `compound::swivel_pair`: two swivels by their valleys and mountains made
     together, each on its own folded edge, where one crease of each runs
     across to the other's folded edge and is the same crease (the valley
