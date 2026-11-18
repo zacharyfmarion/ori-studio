@@ -46,6 +46,7 @@ const folded3dStoredScene = vi.hoisted(() => ({ folded3dFigureScene: vi.fn() }))
 vi.mock('../../cp-workspace/folded/folded3dStoredScene', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../cp-workspace/folded/folded3dStoredScene')>()),
   ...folded3dStoredScene,
+  settledFolded3dFigureScene: folded3dStoredScene.folded3dFigureScene,
 }));
 
 
@@ -83,7 +84,7 @@ function sessionWith(runtime: CpCaptureRuntime = fakeCaptureRuntime()) {
 const placed = {
   status: 'placed' as const,
   handle: 11,
-  snapshot: {} as never,
+  snapshot: { verdict: { verdict: 'folded' } } as never,
   render: { cell_points: [0, 0, 0, 1, 0, 0, 0, 1, 0], span: 1 } as never,
 };
 

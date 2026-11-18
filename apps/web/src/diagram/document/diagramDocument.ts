@@ -254,7 +254,7 @@ export type DiagramCpRender =
       spread?: DiagramLayerSpread;
       presentation?: SpreadPresentation;
     }
-  | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' }
+  | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back'; spread?: import('../../cp-workspace/folded/foldedFigureSpread').SpatialSpread }
   | {
       /** The simulator's model at a fold %, from a camera (D19). */
       mode: 'simulated';
@@ -415,6 +415,24 @@ function creasePatternRender(rotationDeg: number, side: 'front' | 'back', flipCr
     ...(side === 'back' ? { side: 'back' as const } : {}),
     ...(flipCreases ? { flipCreases: true as const } : {}),
   };
+}
+
+/** A flat fold's render. */
+export type DiagramFlatRender = Extract<DiagramCpRender, { mode: 'folded-flat' }>;
+
+/**
+ * A flat fold whose layers its Default spread could not spread, as its step
+ * keeps it: the spread kept, so the step says it failed and offers another
+ * kind, and no presentation, which only a spread drawn is drawn in.
+ */
+export function spreadFailedRender(render: DiagramFlatRender): DiagramFlatRender {
+  const { presentation: _presentation, ...kept } = render;
+  return kept;
+}
+
+/** Whether a step's picture is its fold drawn unspread because its layers could not be spread (`spreadFailed`). */
+export function spreadFailedOf(picture: DiagramPicture | null | undefined): boolean {
+  return (picture?.kind === 'scene' || picture?.kind === 'asset') && picture.spreadFailed === true;
 }
 
 /** How a render shows its pattern. */
@@ -715,6 +733,8 @@ export interface DiagramAssetPicture {
    */
   styleKey?: string;
   key: string;
+  /** A capture of a fold whose layers could not be spread, as a scene's ({@link DiagramScenePicture.spreadFailed}). */
+  spreadFailed?: true;
 }
 
 /**
@@ -739,6 +759,14 @@ export interface DiagramScenePicture {
    * capture made before it, which anchors nothing until it is refreshed.
    */
   paperFaces?: string;
+  /**
+   * Set when its render asks the layers spread by Default and they could not
+   * be — the solve over a resource limit, out of time, the worker gone — so
+   * this is the fold drawn unspread, as with no spread at all: the step keeps
+   * its spread to say so, and to offer another kind. Written only then; a
+   * capture that spreads them leaves it behind with the picture it was for.
+   */
+  spreadFailed?: true;
 }
 
 /**

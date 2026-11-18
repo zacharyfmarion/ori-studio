@@ -87,6 +87,7 @@ import type {
   DiagramCaptureOutcome,
   DiagramCaptureRequest,
   DiagramCaptureRun,
+  SpreadFailure,
   StepCaptureStart,
 } from './diagramCapture';
 import type { DiagramFoldCaptureOutcome, DiagramFoldCaptureRequest } from './diagramFoldCapture';
@@ -2651,7 +2652,7 @@ export interface DiagramSliceActions {
     start: StepCaptureStart,
     captured: { source: DiagramCpSource; picture: CapturedPicture },
     label: string
-  ) => Promise<{ changed: boolean; tooDetailed: boolean } | null>;
+  ) => Promise<{ changed: boolean; tooDetailed: boolean; spreadFailed?: SpreadFailure } | null>;
   /**
    * Commit a linked step's layer order record, flagged, its picture kept, as
    * one undo step under the same guard (layer order D10): what a Pose verb

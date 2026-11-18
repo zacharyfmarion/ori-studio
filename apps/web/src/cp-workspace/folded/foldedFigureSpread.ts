@@ -1,5 +1,5 @@
 /**
- * A flat folded figure's layer spread as Edit holds it, on the figure
+ * A folded figure's layer spread as Edit holds it, on the figure
  * (`OristudioCpFoldedFigureEntry.spread`). Like the figure's layer order, the
  * project file keeps it in the crease pattern's extensions bag, which every
  * build since v0.2.0 writes back as it came, so an older build carries a
@@ -21,7 +21,9 @@ import type { LayerSpreadOptions } from './foldedLayerSpread';
 import type { FoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import { foldedFigureHasLayerOrder } from './foldedFigureState';
 
+export interface SpatialSpread { readonly kind: 'spatial'; readonly version: 1; readonly amount: number }
 export type FoldedFigureSpread =
+  | SpatialSpread
   | {
       /** A spread this build reads: drawn whenever the figure can spread. */
       readonly kind: 'record';
@@ -53,7 +55,7 @@ export function foldedFigureSpreadLook(style: OristudioCpFoldedFigureDisplayStyl
  * can — or will, once its solve lands:
  *
  * - `newer`: its spread is a newer build's, to change and draw there;
- * - `spatial`: it is folded in 3D;
+ * - `recipe`: the saved recipe belongs to a different fold dimensionality;
  * - `no-layer-order`: its fold found no layer order, so it has no layers;
  * - `look`: it is drawn as Wireframe, or a legacy style;
  * - `refold`: it has no fold to spread — reopened from a file without the
@@ -65,14 +67,21 @@ export function foldedFigureSpreadLook(style: OristudioCpFoldedFigureDisplayStyl
  * A spread set on such a figure is kept, never cleared: switching back to
  * Paper, or folding again, shows it.
  */
-export type FoldedFigureSpreadBlock = 'newer' | 'spatial' | 'no-layer-order' | 'look' | 'refold' | 'unavailable';
+export type FoldedFigureSpreadBlock = 'newer' | 'no-layer-order' | 'look' | 'spatial-look' | 'recipe' | 'refold' | 'unavailable';
 
 export function foldedFigureSpreadBlock(
   figure: OristudioCpFoldedFigureEntry,
   status: FoldedFigureSpreadStatus | null
 ): FoldedFigureSpreadBlock | null {
   if (figure.spread?.kind === 'newer') return 'newer';
-  if (figure.folded3d != null) return 'spatial';
+  if (figure.folded3d != null) {
+    if (figure.folded3d.verdict.verdict !== 'folded') return 'no-layer-order';
+    if (figure.displayStyle !== 'Paper5') return 'spatial-look';
+    if (figure.spread?.kind === 'record') return 'recipe';
+    if (figure.status === 'error' || figure.handle == null) return 'refold';
+    return status === 'unavailable' ? 'unavailable' : null;
+  }
+  if (figure.spread?.kind === 'spatial') return 'recipe';
   if (foldedFigureHasLayerOrder(figure) === false) return 'no-layer-order';
   if (!foldedFigureSpreadLook(figure.displayStyle)) return 'look';
   if (figure.status === 'error' || (figure.handle == null && figure.spreadScene == null)) return 'refold';

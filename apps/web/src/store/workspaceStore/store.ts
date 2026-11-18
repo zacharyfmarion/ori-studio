@@ -22,6 +22,7 @@ import { createDiagramSlice } from './slices/diagramSlice';
 import { createFoldSlice } from './slices/foldSlice';
 import { resolveEditingContext } from '../../workspaces/editingContext';
 import { installFolded3dAuxLinesSync } from './folded3dAuxLinesSync';
+import { installSpatialSpreadScenes } from './spatialSpreadScenes';
 import { installFoldedFigurePaperMirror } from './foldedFigurePaperMirror';
 import { hasProjectDocument } from './projectDocuments';
 import { installCompoundHistory } from './compoundHistory';
@@ -115,6 +116,7 @@ useWorkspaceStore.subscribe((state) => {
 // the slice: the slice owns the write, this owns *when*.
 installCompoundHistory(useWorkspaceStore);
 installFoldedFigurePaperMirror(useWorkspaceStore);
+installSpatialSpreadScenes(useWorkspaceStore);
 
 // A 3D figure's aux lines are the document's as they stand now — nothing folds
 // one — so they are asked for again when the document's change, and the stored

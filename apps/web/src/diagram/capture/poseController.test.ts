@@ -68,6 +68,7 @@ vi.mock('../../cp-workspace/folded/folded3dStoredScene', async (importOriginal) 
   return {
     ...(await importOriginal<typeof import('../../cp-workspace/folded/folded3dStoredScene')>()),
     folded3dFigureScene: () => drawn(),
+    settledFolded3dFigureScene: async () => drawn(),
   };
 });
 // The host engine, for a step with a layer order: the record's order applies, unless a test says otherwise.
@@ -1135,7 +1136,7 @@ describe('a step with a layer order, posed (H7)', () => {
       fold3d: vi.fn(async () => ({
         status: 'placed' as const,
         handle: 11,
-        snapshot: {} as never,
+        snapshot: { verdict: { verdict: 'folded' } } as never,
         render: { cell_points: [0, 0, 0, 1, 0, 0, 0, 1, 0], span: 1 } as never,
       })),
     });

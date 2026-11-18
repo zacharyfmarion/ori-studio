@@ -70,6 +70,7 @@ mod squash_closed;
 pub mod swivel;
 mod swivel_hinge_end;
 pub mod swivel_on_edge;
+pub mod swivel_pair;
 pub mod swivel_valley_mountain;
 pub mod vertex;
 
@@ -105,8 +106,9 @@ pub(crate) enum Across {
     /// its own strip, and orders nothing else of the tip against the strip
     /// afresh.
     Alike,
-    /// Corresponding halves of nested openings turn as one packet. Only
-    /// these explicit block pairs carry their order through the motion;
+    /// Corresponding halves of nested or interleaved openings turn as one
+    /// packet. Only these explicit block pairs carry their order through the
+    /// motion;
     /// other pairs keep their absolute order (or, for a crimp, do so only
     /// within the strip or tip). Pocket placements remain per opening.
     Packets {

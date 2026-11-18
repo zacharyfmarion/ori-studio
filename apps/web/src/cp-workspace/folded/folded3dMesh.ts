@@ -280,6 +280,8 @@ export interface Folded3dRange {
 }
 
 export interface Folded3dMesh {
+  spatial?: import('./folded3dMaterial').SpatialMeshOrder;
+  displacement?: Float32Array;
   /**
    * Tight `x, y, z` per vertex, in the **renderer's** basis and relative to the
    * model centroid.
