@@ -68,6 +68,19 @@ describe('a vertex fold’s words', () => {
     });
   });
 
+  it('say pockets on one lower layer squashed together, as the engine reported them', () => {
+    const context = { parent: null, child: null, report: null, pockets: 2 };
+    const valley = foldSentenceStepOf({ kind: 'squash', flap: [0.2, 0.1], direction: 'valley' }, context);
+    const behind = foldSentenceStepOf({ kind: 'squash', flap: [0.2, 0.1], direction: 'mountain' }, context);
+    expect(valley).toEqual({ op: 'vertex', fold: 'squash', direction: 'valley', form: { squashPockets: true } });
+    expect(foldStepSentence(t, valley)).toBe('Squash-fold the pockets together.');
+    expect(foldStepSentence(t, behind)).toBe('Squash-fold the pockets behind, together.');
+    expect(valley.op === 'vertex' ? vertexRows(t, valley.form) : null).toEqual([]);
+    // One flap, or no word from the engine yet: the flap.
+    const alone = foldSentenceStepOf({ kind: 'squash', flap: [0.2, 0.1], direction: 'valley' }, { ...context, pockets: null });
+    expect(foldStepSentence(t, alone)).toBe('Squash-fold the flap.');
+  });
+
   it('say how a petal fold named its hinge: a crease there, or two points the fold creases', () => {
     const context = { paper: { kind: 'square' }, marks: [] } as unknown as Parameters<typeof foldSentenceStepOf>[1];
     const byCrease = foldSentenceStepOf({ kind: 'petal', crease: [0.3, 0.6], petal: [0.2, 0.7], direction: 'valley' }, context);

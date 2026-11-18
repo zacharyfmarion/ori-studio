@@ -100,6 +100,12 @@ export interface FoldSquashAnalysis {
    */
   layers?: number;
   opening?: number;
+  /**
+   * How many pockets on one lower layer squash together: 1 for a flap alone.
+   * Several share one crease, so their spine lands on the hinge line only:
+   * no target is offered. Absent in a test double: one.
+   */
+  pockets?: number;
 }
 
 /**

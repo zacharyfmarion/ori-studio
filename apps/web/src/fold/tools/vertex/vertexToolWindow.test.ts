@@ -276,6 +276,16 @@ describe('a vertex fold’s window while it previews', () => {
     expect(aimed?.footer?.commit).toMatchObject({ label: 'Squash fold', disabled: false });
   });
 
+  it('offers no spine target for pockets squashing together, which never land one', () => {
+    const calls = verbs();
+    const model = foldToolWindow(t, view(vertex({ pockets: true }), { preview: preview() }), calls, mouse);
+    // The direction and the hinge only: nowhere else for the spine to land.
+    expect(model?.vertex?.target).toBeNull();
+    expect(model?.meta).toBe('2 settings');
+    expect(model?.instructions.items).toEqual(['Press Enter, or click Squash fold, to fold.']);
+    expect(model?.footer?.commit).toMatchObject({ label: 'Squash fold', disabled: false });
+  });
+
   it('offers where a squash of several plies opens, among the openings that land, named from the direction’s side', () => {
     const calls = verbs();
     const plies = vertex({ squash: { layers: 4, openings: [1, 2, 3], opening: 2 } });

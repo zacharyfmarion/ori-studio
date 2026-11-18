@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FoldPaper, FoldSequenceDocument } from '../document/foldSequenceDocument';
-import { foldedLineOf } from '../engine/foldEngineCompoundWire';
+import { foldedLineOf, squashPocketsOf } from '../engine/foldEngineCompoundWire';
 import type { FoldEngineStateHandle } from '../engine/foldEnginePort';
 import type { FoldEngineOp, FoldReport } from '../engine/foldEngineWire';
 import { useFoldSessionState } from '../session/useFoldSession';
@@ -80,6 +80,7 @@ export function useFoldSequenceView(): FoldSequenceView {
               parent: frames[index - 1] ?? null,
               child: frames[index] ?? null,
               report: foldedLineOf(entry.session),
+              pockets: squashPocketsOf(entry.session),
             })
           : { op: 'unknown' }
       ),
@@ -91,10 +92,11 @@ export function useFoldSequenceView(): FoldSequenceView {
     const op = pendingStep.request.op;
     const report = pendingStep.status === 'landed' ? pendingStep.report : null;
     const folded = pendingStep.status === 'landed' ? foldedLineOf(pendingStep) : null;
+    const pockets = pendingStep.status === 'landed' ? squashPocketsOf(pendingStep) : null;
     return {
       status: pendingStep.status,
       op,
-      words: foldSentenceStepOf(op, { returnStep: op.kind === 'unfold-to' ? entries.find((e) => e.id === op.target)?.number : null, parent: frames[cursor] ?? null, child: pendingFrame, report: folded }),
+      words: foldSentenceStepOf(op, { returnStep: op.kind === 'unfold-to' ? entries.find((e) => e.id === op.target)?.number : null, parent: frames[cursor] ?? null, child: pendingFrame, report: folded, pockets }),
       state: pendingStep.status === 'landed' ? pendingStep.state : null,
       frame: pendingFrame,
       report,
