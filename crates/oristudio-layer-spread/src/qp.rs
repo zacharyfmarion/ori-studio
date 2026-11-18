@@ -1,5 +1,5 @@
 use crate::{
-    Diagnostics, Input, SPAN, Solution, SpreadError, VERSION, WARP,
+    Diagnostics, Input, SPAN, Solution, SpreadError, VERSION, WARP, inplane,
     prepare::{Prepared, Row, row, value},
     reference,
 };
@@ -286,10 +286,12 @@ pub fn solve(input: &Input, p: &Prepared) -> Result<Solution, SpreadError> {
         reference::visible(input, p, &heights, false)?,
         reference::visible(input, p, &heights, true)?,
     ];
+    let shifts = inplane::shifts(input, &heights, [references[0].plane, references[1].plane]);
     Ok(Solution {
         version: VERSION.into(),
         heights,
         references,
+        shifts,
         diagnostics: Diagnostics {
             status: format!("{:?}", result.status),
             iterations: result.iterations,

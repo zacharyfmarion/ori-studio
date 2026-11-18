@@ -2,6 +2,7 @@ import { preparedInk } from './preparedInk';
 import {
   interpolate,
   pickSpread,
+  shiftedXY,
   visibility,
   visibleFragments,
   createLineClipper,
@@ -66,8 +67,10 @@ export function connectedDrawing(
   const origin = toScenePx({ x: 0, y: 0 }),
     basis = toScenePx({ x: unit, y: 0 });
   const scale = Math.hypot(basis[0] - origin[0], basis[1] - origin[1]);
+  // Lifted paper keeps its size: faces draw shortened along their slope.
+  const placed = shiftedXY(input, solution, spread.amount, back);
   const positions: Point3[] = input.xy.map(([x, y], v) => {
-    const p = toScenePx(scenePoint(source, [x, y]));
+    const p = toScenePx(scenePoint(source, placed[v]!));
     const z = solution.heights[v]!;
     const h = spread.amount * (z - reference[0] * x - reference[1] * y - reference[2]) * scale;
     // A screen drag pulls the near side; layers behind reveal oppositely.

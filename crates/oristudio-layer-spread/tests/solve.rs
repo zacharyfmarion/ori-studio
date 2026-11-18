@@ -125,3 +125,38 @@ fn narrow_triangle_keeps_height_precision_through_validation() {
     assert!(result.diagnostics.mean_gap > 0.1);
     assert_eq!(result.heights.len(), input.xy.len());
 }
+
+#[test]
+fn shift_keeps_the_opened_book_its_own_size() {
+    let input = book();
+    let result = solve(&input).unwrap();
+    for (side, reference) in result.references.iter().enumerate() {
+        let shift = &result.shifts[side];
+        assert_eq!(shift.len(), 2 * input.xy.len());
+        let [a, b, c] = reference.plane;
+        let above = |v: usize| result.heights[v] - a * input.xy[v][0] - b * input.xy[v][1] - c;
+        // Both leaves run from the crease at x = 1 to their free edge at x = 0.
+        for (free, crease) in [(0, 1), (3, 2), (4, 1), (5, 2)] {
+            let lift = above(free) - above(crease);
+            let flat = input.xy[crease][0] - input.xy[free][0];
+            let shifted = flat + shift[2 * crease] - shift[2 * free];
+            let before = (flat * flat + lift * lift).sqrt() - 1.;
+            let after = (shifted * shifted + lift * lift).sqrt() - 1.;
+            assert!(before > 0.005);
+            assert!(after.abs() < before / 20.);
+        }
+    }
+}
+
+#[test]
+fn single_layer_has_no_shift() {
+    let mut input = book();
+    input.xy.truncate(4);
+    input.faces.truncate(1);
+    input.triangles.truncate(2);
+    input.triangle_faces.truncate(2);
+    input.orders.clear();
+    input.cells[0].faces = vec![0];
+    let result = solve(&input).unwrap();
+    assert!(result.shifts.iter().flatten().all(|&v| v == 0.));
+}
