@@ -13,6 +13,9 @@ interface PreparedInk {
   b: Point3;
   wholeA: Sample | null;
   wholeB: Sample | null;
+  /** Where this piece's ends sit along its whole crease, 0 at the crease's
+   * start and 1 at its end. Null without a crease longer than the piece. */
+  span: [number, number] | null;
   joined: [boolean, boolean];
 }
 const cache = new WeakMap<ConnectedSpreadSource, WeakMap<readonly PaperItem[], PreparedInk[]>>();
@@ -36,6 +39,15 @@ export function preparedInk(source: ConnectedSpreadSource, items: readonly Paper
       wholeB = whole ? at(whole.b) : null;
     const from = sourcePoint(source, { x: line.a[0], y: line.a[1] }),
       to = sourcePoint(source, { x: line.b[0], y: line.b[1] });
+    // A crease can run on into faces this piece is not in, where no triangle
+    // of this face holds its ends. Its share of the crease is still known.
+    const start = whole ? sourcePoint(source, { x: whole.a[0], y: whole.a[1] }) : null,
+      end = whole ? sourcePoint(source, { x: whole.b[0], y: whole.b[1] }) : null;
+    const length2 = start && end ? (end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2 : 0;
+    const along = (t: number): number =>
+      ((from[0] + t * (to[0] - from[0]) - start![0]) * (end![0] - start![0]) +
+        (from[1] + t * (to[1] - from[1]) - start![1]) * (end![1] - start![1])) /
+      length2;
     for (const segment of faceLineSegments(source.input, face, from, to))
       result.push({
         line: { ...line, onBoundary: [segment.lo === 0 && line.onBoundary[0], segment.hi === 1 && line.onBoundary[1]] },
@@ -45,6 +57,7 @@ export function preparedInk(source: ConnectedSpreadSource, items: readonly Paper
         b: segment.wb,
         wholeA,
         wholeB,
+        span: length2 > 0 ? [along(segment.lo), along(segment.hi)] : null,
         joined: [segment.lo > 0 || line.joined?.[0] === true, segment.hi < 1 || line.joined?.[1] === true],
       });
   }

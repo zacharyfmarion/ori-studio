@@ -87,8 +87,17 @@ export function connectedDrawing(
     const a = interpolate(edge.ids, edge.a, positions),
       b = interpolate(edge.ids, edge.b, positions);
     const whole = edge.line.whole;
-    const wa = edge.wholeA ? interpolate(edge.wholeA.ids, edge.wholeA.weights, positions) : null;
-    const wb = edge.wholeB ? interpolate(edge.wholeB.ids, edge.wholeB.weights, positions) : null;
+    // A crease end this face holds is drawn where the face puts it. One in
+    // another face lies on this piece's own drawn line, at the piece's share
+    // of the crease, so the crease still erodes along the piece.
+    const creaseEnd = (sample: typeof edge.wholeA, at: 0 | 1): Point3 | null => {
+      if (sample) return interpolate(sample.ids, sample.weights, positions);
+      if (!edge.span || edge.span[0] === edge.span[1]) return null;
+      const t = (at - edge.span[0]) / (edge.span[1] - edge.span[0]);
+      return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])];
+    };
+    const wa = whole ? creaseEnd(edge.wholeA, 0) : null;
+    const wb = whole ? creaseEnd(edge.wholeB, 1) : null;
     return {
       face: edge.face,
       a,
@@ -99,7 +108,8 @@ export function connectedDrawing(
         b: [b[0], b[1]],
         hidden: false,
         joined: edge.joined,
-        ...(whole && wa && wb ? { whole: { ...whole, a: [wa[0], wa[1]], b: [wb[0], wb[1]] } } : {}),
+        // Never the ink's own `whole`: it is in the fold's coordinates, not the picture's.
+        whole: whole && wa && wb ? { ...whole, a: [wa[0], wa[1]], b: [wb[0], wb[1]] } : undefined,
       },
     };
   });
