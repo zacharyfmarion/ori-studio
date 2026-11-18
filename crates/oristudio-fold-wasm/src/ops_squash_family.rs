@@ -102,9 +102,9 @@ use oristudio_fold::numerics::MIN_FEATURE;
 use oristudio_fold::{
     ChoiceCount, CompoundRefused, Direction, FanAnalysis, FoldActionGeometry, LineRefusal,
     PetalAnalysis, PetalFold, PetalHinge, RabbitEar, Refused, Squash, SquashAnalysis, State,
-    StepSummary, Swivel, SwivelByEdge, SwivelEdgeAnalysis, SwivelKind, SwivelValleyMountain,
-    SwivelValleyMountainAnalysis, VertexChoice, VertexChoices, VertexFolded, VertexOutcome,
-    WitnessOrder,
+    StepSummary, Swivel, SwivelByEdge, SwivelEdgeAnalysis, SwivelKind, SwivelPair,
+    SwivelValleyMountain, SwivelValleyMountainAnalysis, VertexChoice, VertexChoices, VertexFolded,
+    VertexOutcome, WitnessOrder,
 };
 use oristudio_geometry::Line;
 use serde::{Deserialize, Serialize};
@@ -265,7 +265,9 @@ pub struct LocatedLine {
 }
 
 /// `FoldSwivelValleyMountainOp`: the valley and the mountain the swivel makes
-/// on the layer that faces the viewer, and the kind, open unless `'inside'`.
+/// on the layer that faces the viewer, and the kind, open unless `'inside'`;
+/// and `otherEnd`, the second swivel made with it where a crease of each is
+/// the same crease (engine `compound::swivel_pair`), of the same kind.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SwivelValleyMountainOp {
@@ -274,6 +276,17 @@ pub struct SwivelValleyMountainOp {
     pub mountain: LocatedLine,
     #[serde(default)]
     pub swivel: Option<SwivelKind>,
+    #[serde(default, rename = "otherEnd")]
+    pub other_end: Option<SwivelOtherEndOp>,
+}
+
+/// `FoldSwivelOtherEnd`: the valley and the mountain of the swivel at the
+/// other end of the crease the two share, located as the first's are.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SwivelOtherEndOp {
+    pub valley: LocatedLine,
+    pub mountain: LocatedLine,
 }
 
 /// A located line in the parent's model frame: an axiom's root as stored,
@@ -316,6 +329,8 @@ pub enum EngineOp {
     Swivel(Swivel),
     SwivelByEdge(SwivelByEdge),
     SwivelValleyMountain(SwivelValleyMountain),
+    /// A swivel by its valley and mountain with its other end (`otherEnd`).
+    SwivelPair(SwivelPair),
 }
 
 /// Resolve a vertex op's anchors in `parent`; any other op is the caller's
@@ -418,11 +433,25 @@ pub fn resolve(parent: &State, op: &Op, choices: &Choices) -> Result<VertexFold,
             })
         }
         Op::Swivel(SwivelOp::ValleyMountain(op)) => {
-            EngineOp::SwivelValleyMountain(SwivelValleyMountain {
+            let kind = op.swivel.unwrap_or_default();
+            let first = SwivelValleyMountain {
                 valley: located_line(parent, &op.valley)?,
                 mountain: located_line(parent, &op.mountain)?,
-                kind: op.swivel.unwrap_or_default(),
-            })
+                kind,
+            };
+            match &op.other_end {
+                None => EngineOp::SwivelValleyMountain(first),
+                Some(other) => EngineOp::SwivelPair(SwivelPair {
+                    swivels: [
+                        first,
+                        SwivelValleyMountain {
+                            valley: located_line(parent, &other.valley)?,
+                            mountain: located_line(parent, &other.mountain)?,
+                            kind,
+                        },
+                    ],
+                }),
+            }
         }
         Op::Swivel(SwivelOp::Edge(op)) => {
             finite_point("edge", op.edge)?;
@@ -563,6 +592,7 @@ fn picture(
         EngineOp::Swivel(op) => parent.swivel_action(op, landed),
         EngineOp::SwivelByEdge(op) => parent.swivel_by_edge_action(op, landed),
         EngineOp::SwivelValleyMountain(op) => parent.swivel_valley_mountain_action(op, landed),
+        EngineOp::SwivelPair(op) => parent.swivel_pair_action(op, landed),
     }
 }
 
@@ -576,6 +606,7 @@ fn fold(parent: &State, fold: &VertexFold) -> Result<VertexOutcome, CompoundRefu
         EngineOp::Swivel(op) => parent.swivel(op, choices),
         EngineOp::SwivelByEdge(op) => parent.swivel_by_edge(op, choices),
         EngineOp::SwivelValleyMountain(op) => parent.swivel_valley_mountain(op, choices),
+        EngineOp::SwivelPair(op) => parent.swivel_pair(op, choices),
     }
 }
 
@@ -594,6 +625,7 @@ fn fold_within(
         EngineOp::SwivelValleyMountain(op) => {
             parent.swivel_valley_mountain_within(op, choices, limits)
         }
+        EngineOp::SwivelPair(op) => parent.swivel_pair_within(op, choices, limits),
     }
 }
 
@@ -610,6 +642,11 @@ fn analyse(parent: &State, op: &EngineOp) -> Result<VertexAnalysis, Refused> {
         EngineOp::SwivelByEdge(op) => parent
             .analyse_swivel_by_edge(op)
             .map(|a| VertexAnalysis::SwivelByEdge(Box::new(a))),
+        // Two swivels' preview is a swivel's, both sets of creases in it and
+        // `other_end` the second's vertex.
+        EngineOp::SwivelPair(op) => parent
+            .analyse_swivel_pair(op)
+            .map(|a| VertexAnalysis::SwivelValleyMountain(Box::new(a))),
     }
 }
 
@@ -719,6 +756,33 @@ struct SwivelWays {
 /// fold. A swivel by its valley and mountain folds its letters' way only:
 /// per kind, its valley column (module docs).
 fn swivel_ways(parent: &State, op: &EngineOp) -> Option<SwivelWays> {
+    // Two swivels made together, both of one kind: per kind, both of it.
+    if let EngineOp::SwivelPair(pair) = op {
+        let asked_kind = pair.swivels[0].kind;
+        let mut asked = None;
+        let mut kinds = Vec::with_capacity(SWIVEL_KINDS.len());
+        for kind in SWIVEL_KINDS {
+            let outcome = parent.swivel_pair(
+                &SwivelPair {
+                    swivels: pair
+                        .swivels
+                        .clone()
+                        .map(|s| SwivelValleyMountain { kind, ..s }),
+                },
+                &VertexChoices::default(),
+            );
+            kinds.push([outcome.is_ok(), false]);
+            if kind == asked_kind {
+                asked = Some(outcome);
+            }
+        }
+        let directions = kinds[SWIVEL_KINDS.iter().position(|&k| k == asked_kind)?].to_vec();
+        return Some(SwivelWays {
+            kinds,
+            directions,
+            asked: asked?,
+        });
+    }
     if let EngineOp::SwivelValleyMountain(swivel) = op {
         let mut asked = None;
         let mut kinds = Vec::with_capacity(SWIVEL_KINDS.len());

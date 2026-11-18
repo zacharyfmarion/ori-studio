@@ -121,9 +121,10 @@ export type FoldVertexSentenceForm =
   /**
    * A swivel by its valley and mountain on the layer that faces the viewer:
    * its letters are the viewer's, so it never folds behind. `inside` for the
-   * inside swivel, its strip tucked under.
+   * inside swivel, its strip tucked under; `pair` for two made together, at
+   * the two ends of a crease they share.
    */
-  | { swivel: 'valley-mountain'; inside?: true }
+  | { swivel: 'valley-mountain'; inside?: true; pair?: true }
   | { swivel: 'edge'; target: 'crease' | 'free'; ridge: 'foot' | 'end' }
   /**
    * A swivel by its edge whose creases meet on a folded edge: no ridge to

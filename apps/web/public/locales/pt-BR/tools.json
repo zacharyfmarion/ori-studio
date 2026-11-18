@@ -1017,6 +1017,17 @@
         "swivelPicture": "Os vincos se encontram no ponto, a borda pousa na linha grossa e o papel aceso se move.",
         "swivelValleyMountainPicture": "Os vincos se encontram no ponto. O vinco pontilhado está na camada de trás e decorre do vale e da montanha; o papel aceso se move."
       },
+      "otherEnd": {
+        "action": "Girar lá também",
+        "behindRunsOn": "O vinco de trás continua até outra borda dobrada.",
+        "label": "Outra ponta",
+        "mountainRunsOn": "A montanha continua até outra borda dobrada.",
+        "pickMountainBehind": "A outra ponta: escolha a linha de montanha dela, a partir do mesmo ponto.",
+        "pickMountainShared": "A outra ponta: escolha a linha de montanha dela, a partir de onde o vale encontra a outra borda dobrada.",
+        "pickValleyBehind": "A outra ponta: escolha a linha de vale dela, na camada que você vê, a partir de onde o vinco de trás encontra a outra borda dobrada.",
+        "pickValleyShared": "A outra ponta: escolha a linha de vale dela, a partir de onde a montanha encontra a outra borda dobrada.",
+        "valleyRunsOn": "O vale continua até outra borda dobrada."
+      },
       "refusal": {
         "blocked": {
           "steppers": "Um vinco esbarraria em papel que não dobra junto, ou o papel prenderia duas partes da dobra. Passe Camadas para dobrar mais camadas, ou Quarto vinco para outro.",
