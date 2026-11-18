@@ -31,18 +31,24 @@
 //! **Its picture** is the strip's: the shared crease, with the arrow from
 //! the paper both swivels move across it.
 //!
+//! **Through the stack.** Where paper beyond the four layers holds the
+//! wedges, both fans are read through the stack together
+//! (`super::folded_swivel`), and the plies nested in each folded edge at its
+//! vertex (a flap several plies thick) open with it, each the same swivel on
+//! its own fold. A pair its four layers fold reads them alone, as before.
+//!
 //! **Refusals**: either swivel's own (`swivel_line_meeting`,
 //! `swivel_no_flap`, the fan's); both at one vertex, or several pairs of
 //! folded edges that compile (`swivel_line_meeting`); paper joined to two
 //! wedges that move differently, or to a wedge and the paper that stays,
-//! including paper beyond the four layers (`fan_ray_blocked`: the reading
-//! through the stack is a single swivel's only); and no order (`no_order`).
+//! that no motion through the stack frees (`fan_ray_blocked`); and no order
+//! (`no_order`).
 use super::CompoundRefused;
-use super::folded_swivel::{Layered, RayRun, finish_together, ray_run, two_layers_of};
+use super::folded_swivel::{Layered, RayRun, compile_together, ray_run};
 use super::swivel::{SwivelCrease, SwivelKind, SwivelRegion, SwivelWedge, dot, internal, sub};
 use super::swivel_valley_mountain::{
     Built, SwivelOtherEnd, SwivelShared, SwivelValleyMountain, SwivelValleyMountainAnalysis,
-    covered, creases_of, ends_bare, fold_of, folds_at,
+    covered, creases_of, ends_bare, fold_of, folds_at, folds_through, nested,
 };
 use super::vertex::{Compiled, VertexChoices, VertexOutcome, cross};
 use crate::fold::Within;
@@ -80,6 +86,10 @@ fn lines(built: &Built) -> [Point; 3] {
 impl SwivelPair {
     /// The folded edges each swivel can fold on: built on every one its
     /// lines meet on, or that swivel's refusal.
+    /// Where those the lines meet on are a meeting they do not settle, the
+    /// folded edges that run on through the point (`folds_through`), as a
+    /// single swivel's lines are read; the meeting's refusal where none
+    /// builds.
     fn candidates(swivel: &SwivelValleyMountain, state: &State) -> Result<Vec<Built>, Refused> {
         let meeting = || Refused::from(FoldRefusal::SwivelLineMeeting);
         let at = swivel
@@ -87,9 +97,26 @@ impl SwivelPair {
             .intersect(&swivel.mountain)
             .ok_or_else(meeting)?;
         let folds = folds_at(state, at);
-        if folds.len() > 1 && folds.iter().any(|&fold| ends_bare(state, fold, at)) {
-            return Err(meeting());
+        let settled = if folds.len() > 1 && folds.iter().any(|&fold| ends_bare(state, fold, at)) {
+            Err(meeting())
+        } else {
+            Self::built_on(swivel, state, folds)
+        };
+        match settled {
+            Err(refused) if refused.refusal == FoldRefusal::SwivelLineMeeting => {
+                Self::built_on(swivel, state, folds_through(state, at)).map_err(|_| refused)
+            }
+            settled => settled,
         }
+    }
+
+    /// The swivel built on each of the folded edges through the sheet points
+    /// `folds`; the first refusal where none builds.
+    fn built_on(
+        swivel: &SwivelValleyMountain,
+        state: &State,
+        folds: Vec<Point>,
+    ) -> Result<Vec<Built>, Refused> {
         let mut first: Option<Refused> = None;
         let mut built = Vec::new();
         for fold in folds {
@@ -101,7 +128,7 @@ impl SwivelPair {
             }
         }
         if built.is_empty() {
-            return Err(first.unwrap_or_else(meeting));
+            return Err(first.unwrap_or_else(|| FoldRefusal::SwivelLineMeeting.into()));
         }
         Ok(built)
     }
@@ -150,7 +177,7 @@ impl SwivelPair {
         if apart[0].hypot(apart[1]) < MIN_FEATURE {
             return Err(FoldRefusal::SwivelLineMeeting.into());
         }
-        let runs = |x: &Built| -> Result<[RayRun; 3], Refused> {
+        let runs_of = |x: &Built| -> Result<[RayRun; 3], Refused> {
             let v = x.fan.vertex;
             Ok([
                 ray_run(state, x.behind, v, x.fan.swivel)?,
@@ -158,7 +185,7 @@ impl SwivelPair {
                 ray_run(state, x.front, v, x.fan.second)?,
             ])
         };
-        let runs = [runs(a)?, runs(b)?];
+        let runs = [runs_of(a)?, runs_of(b)?];
         let ends = runs.each_ref().map(|r| r.each_ref().map(|run| run.end));
         let swivels = [
             Layered {
@@ -172,12 +199,41 @@ impl SwivelPair {
                 runs: &runs[1],
             },
         ];
-        let read = two_layers_of(state, &swivels)?
-            .map_err(|faces| Refused::from(FoldRefusal::FanRayBlocked { faces }))?;
-        let members = read.2.clone();
-        let kinds: [SwivelKind; 2] = self.swivels.each_ref().map(|s| s.kind);
+        // The plies nested in each folded edge, which open with it where the
+        // two-layer reading is held (none where one has no runs of its own).
+        let plies: Vec<(Built, SwivelKind)> = [a, b]
+            .into_iter()
+            .zip(&self.swivels)
+            .flat_map(|(x, swivel)| nested(state, x).into_iter().map(|ply| (ply, swivel.kind)))
+            .collect();
+        let ply_runs: Vec<[RayRun; 3]> = plies
+            .iter()
+            .map(|(ply, _)| runs_of(ply))
+            .collect::<Result<_, _>>()
+            .unwrap_or_default();
+        let nested_layers: Vec<Layered> = plies
+            .iter()
+            .zip(&ply_runs)
+            .map(|((ply, _), runs)| Layered {
+                fan: &ply.fan,
+                layers: [ply.behind, ply.front],
+                runs,
+            })
+            .collect();
+        let kinds: Vec<SwivelKind> = self
+            .swivels
+            .iter()
+            .map(|s| s.kind)
+            .chain(
+                plies
+                    .iter()
+                    .take(nested_layers.len())
+                    .map(|(_, kind)| *kind),
+            )
+            .collect();
         let direction = state.view().model_direction(Direction::Valley);
-        let compiled = finish_together(state, &swivels, &kinds, direction, read)?;
+        let (compiled, members, _) =
+            compile_together(state, &swivels, &nested_layers, &kinds, direction)?;
         Ok((compiled, ends, members))
     }
 }
