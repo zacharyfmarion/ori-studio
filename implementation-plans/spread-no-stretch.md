@@ -89,10 +89,27 @@ front side, default reveal. Nothing from the corpus is committed.
 | Models with paper drawn mirrored | 0 → 0 | 0 → 0 | 0 → 1 | 3 → 11 |
 
 Without the hold, 46 models draw paper mirrored at 100%. The spike's solve
-took a median of 2 ms and at most 162 ms per model in unoptimised JavaScript,
-and at most 1,020 iterations. The app's vector capture took the same time
+needed at most 1,020 iterations. The app's vector capture took the same time
 with and without the shift on 24 models (14 to 1,474 faces), with 7–9% more
 fragments.
+
+## As built
+
+- The shipped solver's front shift matches the spike's on all 442 corpus
+  models, to within 0.0005% of each model's largest shift, and no side came
+  back empty.
+- Cost, measured by running the same wasm solver built with and without the
+  shift, one after the other, on 73 corpus inputs including the four largest:
+  a median of 1.3 ms added per solve, 36 ms at the 95th percentile, 73 ms at
+  most, and 1.6% of the total solve time. The uncompressed wasm grows from
+  444,226 to 459,955 bytes.
+- Checked in the browser on a blintz at 25%, 50% and 100% in the Diagram
+  presentation and at 25% in Perspective 3D, against the same view with the
+  shift switched off: the four flaps now pull back from each other and show
+  the layer underneath. The step picture saved by Done shows the same, so the
+  vector capture follows.
+- Not measured: live frame time in the browser, the back side on the corpus,
+  and a physical touch device.
 
 ## Affected Areas
 
@@ -106,10 +123,10 @@ fragments.
 
 ## Checklist
 
-- [ ] Solve the shift in the crate, for both reference planes, with tests.
-- [ ] Carry it through the wasm bridge and the shared types.
-- [ ] Apply it, with the hold, in the shared projection and the app's drawing.
-- [ ] Validate and account for it in the solve service.
-- [ ] Rust format, clippy and crate tests; package tests; web lint, typecheck
+- [x] Solve the shift in the crate, for both reference planes, with tests.
+- [x] Carry it through the wasm bridge and the shared types.
+- [x] Apply it, with the hold, in the shared projection and the app's drawing.
+- [x] Validate and account for it in the solve service.
+- [x] Rust format, clippy and crate tests; package tests; web lint, typecheck
       and the spread suites.
-- [ ] Check before and after in the browser, in Diagram and Perspective 3D.
+- [x] Check before and after in the browser, in Diagram and Perspective 3D.
