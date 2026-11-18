@@ -111,6 +111,23 @@ fragments.
 - Not measured: live frame time in the browser, the back side on the corpus,
   and a physical touch device.
 
+## Follow-ups (2026-11-18)
+
+**Crease pieces drawn off their line.** With lower layers now showing through,
+their precreases drew as stray lines running out of the paper. Not caused by
+the shift: a crease that runs on into another face has ends no triangle of the
+piece's own face holds, `connectedDrawing` then left the ink's `whole` in the
+fold's own coordinates, and `erodeLine` snapped the piece's ends onto it. The
+same code on `main` draws all four visible pieces of a cross-precreased sheet
+off their line. A crease end outside the face is now placed on the piece's own
+drawn line, at the piece's share of the crease, and a stale `whole` is never
+kept. A picture captured before the fix keeps its lines until it is re-posed.
+
+**Reveal can be none.** The pad kept a reveal at least 5% long because a
+Default spread with no reveal drew the flat fold. The shift opens the paper
+without one, so zero is a reveal like any other: the pad's centre snaps a
+pointer to it, arrow keys step onto it, and saved zeros still read unchanged.
+
 ## Affected Areas
 
 - `crates/oristudio-layer-spread/src/inplane.rs` (new), `lib.rs`, `qp.rs`,

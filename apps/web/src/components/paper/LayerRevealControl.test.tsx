@@ -131,20 +131,31 @@ it('clicks and drags both coordinates, caps the rim, and commits only on release
   expect(preview).toHaveBeenLastCalledWith([2, 0]);
   pointer('pointermove', 50, 8);
   expect(preview).toHaveBeenLastCalledWith([0, -2]);
+  // The centre of the pad is no reveal at all.
   pointer('pointermove', 50, 50);
-  expect(preview).toHaveBeenLastCalledWith([0, -0.1]);
+  expect(preview).toHaveBeenLastCalledWith([0, 0]);
+  expect(pad().getAttribute('aria-valuenow')).toBe('0');
+  expect(pad().getAttribute('aria-valuetext')).toBe('0%');
   expect(commit).not.toHaveBeenCalled();
   pointer('pointerup', 50, 50);
   pointer('lostpointercapture', 50, 50);
   expect(commit).toHaveBeenCalledTimes(1);
 });
 
-it('supports arrow keys and reset without reaching zero', () => {
+it('supports arrow keys and reset, and steps onto zero', () => {
   act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, shiftKey: true })));
   expect(preview).toHaveBeenLastCalledWith([1, 0.6]);
   expect(commit).toHaveBeenCalledTimes(1);
   act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true })));
   expect(preview).toHaveBeenLastCalledWith([0.8, 0.6]);
+  // Five Shift steps left and three up: 0.8 and 0.6 in fifths, without float residue.
+  const press = (key: string) => act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, shiftKey: true })));
+  for (let i = 0; i < 4; i++) press('ArrowLeft');
+  for (let i = 0; i < 3; i++) press('ArrowUp');
+  expect(preview).toHaveBeenLastCalledWith([0, 0]);
+  // And off it again: a key is not caught by the centre the way a pointer is.
+  act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
+  expect(preview).toHaveBeenLastCalledWith([0.05, 0]);
 });
 
 it('keeps read-only gestures inert', async () => {
