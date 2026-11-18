@@ -86,6 +86,9 @@ export type FoldStepRotationAmount = 'eighth' | 'quarter' | 'half' | 'other';
  * through two points (`target`); and on a folded edge its kind, open or
  * inside (`swivel_kind`, since 2026-10-12); and a squash's hinge, the
  * folded edge it infers or a line drawn (`squash_hinge`, since 2026-10-21).
+ * A swivel by its valley and mountain made with its other end says which
+ * crease the two share (`swivel_shared`, since 2026-11-03): the valley or
+ * the mountain in front, or the crease behind.
  */
 export type FoldStepVertexForm =
   | { hinge: 'crease' | 'points' }
@@ -93,7 +96,7 @@ export type FoldStepVertexForm =
   | { swivelForm: 'edge'; target: 'crease' | 'free' }
   | { swivelForm: 'fold'; target: 'crease' | 'free'; swivelKind: 'open' | 'inside' }
   | { swivelForm: 'rays' }
-  | { swivelForm: 'valley_mountain'; swivelKind: 'open' | 'inside' };
+  | { swivelForm: 'valley_mountain'; swivelKind: 'open' | 'inside'; swivelShared?: 'valley' | 'mountain' | 'behind' };
 
 /**
  * How the reader set a Fold step moving: Space, the Play button, or either on
@@ -499,12 +502,15 @@ export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d' | 'simulated' 
 
 /**
  * What became of a capture: kept (`rasterized` when too detailed to keep as
- * vector, `no_layer_order` when the fold could not be ordered), or not: the 3D
- * folder refused the creases, the user stopped it, or it failed.
+ * vector, `no_layer_order` when the fold could not be ordered, `spread_failed`
+ * when its layers could not be spread by Default and are drawn unspread, the
+ * spread kept), or not: the 3D folder refused the creases, the user stopped
+ * it, or it failed.
  */
 export type DiagramCaptureOutcome =
   | 'ok'
   | 'no_layer_order'
+  | 'spread_failed'
   | 'rasterized'
   | 'refused'
   | 'stopped'
@@ -1827,6 +1833,7 @@ export const ANALYTICS_EVENTS = {
    * value itself. A slider's drag is one event, at its end.
    */
   foldSpreadChanged: 'fold spread changed',
+  spatialSpreadChanged: 'spatial spread changed',
   foldFreeLineSnapChanged: 'fold free line snapping changed',
   /**
    * The Fold engine crashed and the session restarted it, or gave up: how

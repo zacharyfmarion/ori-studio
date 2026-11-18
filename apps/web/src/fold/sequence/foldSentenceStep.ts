@@ -146,7 +146,11 @@ export function foldSentenceStepOf(op: FoldEngineOp, context: FoldSentenceContex
           op: 'vertex',
           fold: 'swivel',
           direction: 'valley',
-          form: { swivel: 'valley-mountain', ...(op.swivel === 'inside' ? { inside: true as const } : {}) },
+          form: {
+            swivel: 'valley-mountain',
+            ...(op.swivel === 'inside' ? { inside: true as const } : {}),
+            ...(op.otherEnd ? { pair: true as const } : {}),
+          },
         };
       }
       return {

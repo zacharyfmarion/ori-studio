@@ -12,6 +12,7 @@ import type { TFunction } from 'i18next';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   spreadSliderEdit,
+  spreadValuesHold,
   type LayerSpreadDrag,
   type SpreadSlider,
 } from '../../cp-workspace/folded/layerSpreadControls';
@@ -25,7 +26,12 @@ import {
   type DiagramLinkedPoseState,
 } from '../actions/diagramLinkedPoseActions';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
-import type { DiagramFoldStepSource, DiagramScenePicture, DiagramStep } from '../document/diagramDocument';
+import {
+  spreadFailedOf,
+  type DiagramFoldStepSource,
+  type DiagramScenePicture,
+  type DiagramStep,
+} from '../document/diagramDocument';
 import type { FoldStepCaptureInput } from './foldStepCapture';
 import { rotateDiagramFoldStepTo, spreadDiagramFoldStep } from './foldStepActions';
 
@@ -181,7 +187,9 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
   const { t } = useTranslation();
   const camera = useFoldSpreadCamera(step, live);
   const source = foldSource(step);
-  const { view: connected, preparing } = useFoldSpreadView(source, live);
+  // Layers its Default spread could not take: no live view to solve for again, only the picture it keeps.
+  const spreadFailed = spreadFailedOf(step?.picture);
+  const { view: connected, preparing } = useFoldSpreadView(spreadFailed ? null : source, live);
   const stepId = source ? step!.id : null;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const busy = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
@@ -205,9 +213,10 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
             solutions: null,
             // A flat fold drawn see-through has no layers to spread.
             seeThrough: source.render.mode === 'folded-flat' && step?.picture?.kind === 'fixed',
+            spreadFailed,
           }
         : null,
-    [source, readOnly, busy, step?.picture?.kind],
+    [source, readOnly, busy, step?.picture?.kind, spreadFailed],
   );
 
   const annotationsHint = t(
@@ -233,7 +242,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
       keep: (keep) => void spreadDiagramFoldStep(stepId, { verb: 'spread-keep', keep }),
     });
     if (!controls) return null;
-    const held = controls.disabled || unknownMarks;
+    const held = spreadValuesHold(controls).disabled || unknownMarks;
     return {
       ...controls,
       ...(unknownMarks ? { disabled: true, hint: annotationsHint } : {}),
@@ -316,7 +325,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
             connectedPreparing,
             connectedSpread,
             setPresentation,
-            presentationHeld: readOnly || unknownMarks,
+            presentationHeld: readOnly || unknownMarks || spreadFailed,
             onCamera,
             onReveal,
             spreadToggle,
@@ -342,6 +351,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
       readOnly,
       busy,
       unknownMarks,
+      spreadFailed,
       preview,
     ],
   );

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   EDGE_QUAD_VERTICES,
   EDGE_STRIDE,
@@ -121,6 +121,8 @@ function recorder(): Recorder {
       scissorBox = [x, y, width, height];
     },
     depthFunc: () => {},
+    colorMask: () => {},
+    stencilMask: () => {},
     depthMask: () => {},
     blendFunc: () => {},
     blendFuncSeparate: () => {
@@ -554,5 +556,58 @@ describe('highlighted triangles', () => {
     renderer.render(CAMERA, { ...SETTINGS, showFaces: false }, null, { highlight: true });
 
     expect(draws).toEqual([]);
+  });
+});
+
+
+describe('scoped range draw batches', () => {
+  it('uploads shared uniforms once per pipeline while preserving every range draw', () => {
+    const { core, gl, draws, arrayDraws } = recorder();
+    const renderer = new MeshRenderer(core, topology());
+    const scalar = vi.spyOn(gl, 'uniform1f');
+    const program = vi.spyOn(gl, 'useProgram');
+    const settings = { ...SETTINGS, showEdges: true };
+    renderer.render(CAMERA, settings, null);
+    const singleUniforms = scalar.mock.calls.length;
+    scalar.mockClear(); program.mockClear(); draws.length = 0; arrayDraws.length = 0;
+    renderer.withDrawBatch(() => {
+      for (let i = 0; i < 10; i++) renderer.render(CAMERA, settings, null, { clear: false, faceRange: { start: 0, count: 3 } });
+    });
+    expect(scalar).toHaveBeenCalledTimes(singleUniforms);
+    expect(draws).toEqual(Array.from({ length: 10 }, () => ({ count: 3, offset: 0 })));
+    expect(arrayDraws).toHaveLength(10);
+    // Switching back to a program does not invalidate its uniforms.
+    expect(program).toHaveBeenCalledTimes(20);
+    scalar.mockClear();
+    renderer.render(CAMERA, settings, null);
+    expect(scalar).toHaveBeenCalledTimes(singleUniforms);
+  });
+
+  it('refreshes camera/style changes and restores an uncached pipeline after a failed batch', () => {
+    const { core, gl, floats } = recorder();
+    const renderer = new MeshRenderer(core, topology());
+    const scalar = vi.spyOn(gl, 'uniform1f');
+    const bind = vi.spyOn(gl, 'bindVertexArray');
+    const colorMask = vi.spyOn(gl, 'colorMask');
+    renderer.withDrawBatch(() => {
+      renderer.render(CAMERA, SETTINGS, null);
+      scalar.mockClear();
+      renderer.render(CAMERA, SETTINGS, null, { clear: false });
+      expect(scalar).not.toHaveBeenCalled();
+      renderer.render({ ...CAMERA, scale: 4 }, SETTINGS, null, { clear: false });
+      expect(scalar.mock.calls.length).toBeGreaterThan(0);
+      renderer.render(CAMERA, { ...SETTINGS, displacementScale: 2 }, null, { clear: false });
+      expect(floats.get('u_displacementScale')).toBe(2);
+    });
+    expect(() => renderer.withDrawBatch(() => {
+      renderer.render(CAMERA, SETTINGS, null);
+      gl.colorMask(false, false, false, false);
+      throw new Error('interrupted');
+    })).toThrow('interrupted');
+    expect(bind).toHaveBeenLastCalledWith(null);
+    expect(colorMask).toHaveBeenLastCalledWith(true, true, true, true);
+    scalar.mockClear();
+    renderer.render(CAMERA, SETTINGS, null);
+    expect(scalar.mock.calls.length).toBeGreaterThan(0);
   });
 });

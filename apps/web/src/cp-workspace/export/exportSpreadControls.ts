@@ -13,9 +13,11 @@
  * across the renders its own previews cause, as Fold's is, so the end of a
  * drag commits its last move even when both arrive in one event.
  *
- * Spread layers says, under its label, why it is off when it cannot be on:
- * a fold with no layer order has no layers to spread, and one whose layers
- * could not be spread was turned off. While the figure is still folding it
+ * Spread layers says, under its label, why the layers are not spread. A fold
+ * with no layer order has none to spread, and is held off. Layers a spread
+ * could not be made of keep it on, with Spread by open — Affine and Depth need
+ * no solve, so another kind may spread what Default could not — and its own
+ * values held, as a Diagram step's are. While the figure is still folding it
  * shows the setting and says nothing, since nothing yet speaks against it.
  *
  * React-free and store-free, as `foldedFigureActions.ts` is.
@@ -24,7 +26,9 @@ import type { TFunction } from 'i18next';
 import type { LayerSpreadOptions } from '../folded/foldedLayerSpread';
 import {
   layerSpreadControls,
+  spreadFailedReason,
   spreadSliderEdit,
+  spreadValuesHold,
   type LayerSpreadDrag,
   type LayerSpreadToggle,
 } from '../folded/layerSpreadControls';
@@ -39,7 +43,7 @@ export interface ExportSpreadControlsState {
    * and say nothing against it.
    */
   readonly spreadable: boolean | null;
-  /** The last spread could not be spread, and was turned off. */
+  /** The setting's layers could not be spread: it stays on, and the figure is drawn unspread. */
   readonly failed: boolean;
   /** What Spread layers turned on, or a kind chosen, starts from. */
   readonly starts: LayerSpreadStarts;
@@ -82,7 +86,7 @@ export function exportSpreadControls(
     spreadable === false
       ? t('panels:diagram.pose.spreadNeedsOrder', 'This fold has no layer order, so it has no layers to spread')
       : failed
-        ? t('panels:cpProperties.folded.spreadUnavailable', 'These layers couldn’t be spread')
+        ? spreadFailedReason(t)
         : undefined;
   const refused = spreadable === false || held !== undefined;
   const hint = reason ?? held;
@@ -109,6 +113,8 @@ export function exportSpreadControls(
   };
   const controls = layerSpreadControls(value, {
     hint: held,
+    // Layers this spread could not be made of: another kind is the way on, and no value of its own changes them.
+    ...(failed ? { valuesHeld: spreadFailedReason(t) } : {}),
     // A capture never holds a choice back: a newer setting takes its place.
     busy: false,
     t,
@@ -116,8 +122,9 @@ export function exportSpreadControls(
     direction: (toward) => press(withSpreadField(setting, { verb: 'spread-direction', toward })),
     keep: (keep) => press(withSpreadField(setting, { verb: 'spread-keep', keep })),
   });
+  const valuesHeld = spreadValuesHold(controls).disabled;
   const move = (next: LayerSpreadOptions) => {
-    if (held !== undefined) return;
+    if (valuesHeld) return;
     deps.sitting.current = next;
     deps.preview(next);
   };
@@ -128,7 +135,7 @@ export function exportSpreadControls(
       defaultAmount: DEFAULT_CONNECTED_SPREAD.amount,
       start: () => {
         deps.sitting.current = null;
-        return held === undefined;
+        return !valuesHeld;
       },
       preview: (slider, at) =>
         move(withSpreadField(deps.sitting.current ?? setting, spreadSliderEdit(slider, setting.kind, at))),

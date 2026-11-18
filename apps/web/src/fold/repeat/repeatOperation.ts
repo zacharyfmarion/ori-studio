@@ -230,7 +230,15 @@ export function mirrorOperation(
         // from the other side, its pair lies on the layer behind, which only
         // a turn over brings in front.
         if (turned) throw new RepeatFailure('repeat_swivel_behind');
-        next = { ...op, valley: located(op.valley), mountain: located(op.mountain) };
+        next = {
+          ...op,
+          valley: located(op.valley),
+          mountain: located(op.mountain),
+          // Its other end's two lines, carried as its own are.
+          ...(op.otherEnd
+            ? { otherEnd: { valley: located(op.otherEnd.valley), mountain: located(op.otherEnd.mountain) } }
+            : {}),
+        };
       }
       else if ('fold' in op)
         next = { ...op, fold: p(op.fold), edge: p(op.edge), target: line(op.target) as typeof op.target };

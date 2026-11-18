@@ -1,28 +1,29 @@
 import type { SpreadInput, SpreadSolution } from '@oristudio/layer-spread';
-import type { SpreadRequest, SpreadResponse } from './protocol';
+type Request<I> = { generation: number; input: I };
+type Response<S> = { generation: number; kind: 'ready'; solution: S } | { generation: number; kind: 'unavailable'; message: string };
 import { validSolution } from './protocol';
 
-export interface SpreadWorker {
-  postMessage(request: SpreadRequest): void;
+export interface SpreadWorker<I = SpreadInput, S = SpreadSolution> {
+  postMessage(request: Request<I>): void;
   terminate(): void;
-  onmessage: ((event: MessageEvent<SpreadResponse>) => void) | null;
+  onmessage: ((event: MessageEvent<Response<S>>) => void) | null;
   onerror: ((event: ErrorEvent) => void) | null;
 }
-export interface SpreadLease {
-  promise: Promise<SpreadSolution>;
+export interface SpreadLease<S = SpreadSolution> {
+  promise: Promise<S>;
   release(): void;
 }
-interface Pending {
-  input: SpreadInput;
+interface Pending<I, S> {
+  input: I;
   key: string;
   refs: number;
   priority: number;
-  promise: Promise<SpreadSolution>;
-  resolve: (value: SpreadSolution) => void;
+  promise: Promise<S>;
+  resolve: (value: S) => void;
   reject: (reason: Error) => void;
 }
-interface Cached {
-  solution: SpreadSolution;
+interface Cached<S> {
+  solution: S;
   bytes: number;
 }
 
@@ -30,21 +31,26 @@ interface Cached {
  * Releasing a lease never cancels another consumer. Termination interrupts
  * synchronous WASM, rather than merely ignoring its eventual answer.
  */
-export class SpreadService {
-  private worker: SpreadWorker | null = null;
+export class SpreadService<I = SpreadInput, S = SpreadSolution> {
+  private worker: SpreadWorker<I, S> | null = null;
   private generation = 0;
-  private active: Pending | null = null;
-  private pending = new Map<string, Pending>();
-  private cache = new Map<string, Cached>();
+  private active: Pending<I, S> | null = null;
+  private pending = new Map<string, Pending<I, S>>();
+  private cache = new Map<string, Cached<S>>();
   private bytes = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
   constructor(
-    private factory: () => SpreadWorker,
+    private factory: () => SpreadWorker<I, S>,
     private budget = 32 * 1024 * 1024,
     private timeoutMs = 15_000,
+    private validate: (solution: S, input: I) => boolean = validSolution as unknown as (solution: S, input: I) => boolean,
+    // Preserve the flat solver's O(1) accounting and cache capacity without
+    // serializing its results. Other result shapes provide their own estimator.
+    private solutionBytes: (solution: S) => number = solution => 8 * (solution as SpreadSolution).heights.length,
+    private workerLifetime: 'reuse' | 'recycle' = 'reuse',
   ) {}
 
-  acquire(input: SpreadInput, priority = 1): SpreadLease {
+  acquire(input: I, priority = 1): SpreadLease<S> {
     // An exact content key, not a lossy hash. View/style are absent by contract.
     const key = JSON.stringify(input);
     const cached = this.cache.get(key);
@@ -55,8 +61,8 @@ export class SpreadService {
     }
     let request = this.pending.get(key);
     if (!request) {
-      let resolve!: Pending['resolve'], reject!: Pending['reject'];
-      const promise = new Promise<SpreadSolution>((yes, no) => {
+      let resolve!: Pending<I, S>['resolve'], reject!: Pending<I, S>['reject'];
+      const promise = new Promise<S>((yes, no) => {
         resolve = yes;
         reject = no;
       });
@@ -93,7 +99,7 @@ export class SpreadService {
     };
   }
 
-  peek(input: SpreadInput): SpreadSolution | null {
+  peek(input: I): S | null {
     return this.cache.get(JSON.stringify(input))?.solution ?? null;
   }
   get retainedBytes(): number {
@@ -126,7 +132,7 @@ export class SpreadService {
       this.worker.onmessage = ({ data }) => {
         if (data.generation !== generation || this.active !== next) return;
         if (data.kind === 'unavailable') this.finish(next, new Error(data.message));
-        else if (!validSolution(data.solution, next.input)) this.finish(next, new Error('Invalid layer spread result'));
+        else if (!this.validate(data.solution, next.input)) this.finish(next, new Error('Invalid layer spread result'));
         else this.finish(next, null, data.solution);
       };
       this.worker.onerror = () => {
@@ -140,7 +146,7 @@ export class SpreadService {
       this.finish(next, error instanceof Error ? error : new Error(String(error)));
     }
   }
-  private finish(request: Pending, error: Error | null, solution?: SpreadSolution): void {
+  private finish(request: Pending<I, S>, error: Error | null, solution?: S): void {
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
     this.active = null;
@@ -149,7 +155,7 @@ export class SpreadService {
       this.stopWorker();
       request.reject(error ?? new Error('Missing layer spread result'));
     } else {
-      const bytes = 2 * request.key.length + 8 * solution.heights.length + 2048;
+      const bytes = 2 * request.key.length + this.solutionBytes(solution) + 2048;
       if (bytes <= this.budget) {
         while (this.bytes + bytes > this.budget) {
           const oldest = this.cache.entries().next().value;
@@ -160,6 +166,9 @@ export class SpreadService {
         this.cache.set(request.key, { solution, bytes });
         this.bytes += bytes;
       }
+      // Free the worker's WASM high-water memory, retaining only the small
+      // solution cache. Pump starts a fresh worker if another lease is queued.
+      if (this.workerLifetime === 'recycle') this.stopWorker();
       request.resolve(solution);
     }
     this.pump();

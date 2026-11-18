@@ -33,6 +33,7 @@ import { swivelReachesNothing } from '../tools/vertex/swivelReach';
 import type { FoldVertexWindowView } from '../tools/vertex/vertexToolWindow';
 import { boundsOf } from './foldCanvasGeometry';
 import type { FoldOverlayAlong } from './foldPaneOverlays';
+import { swivelOtherEndOffered } from './vertex/swivelOtherEnd';
 import type { FoldFreePick, FoldPaneId, FoldPick, FoldPointPick } from './foldPicking';
 import type { FoldCanvasChoice } from './useFoldCanvasVerbs';
 import type { FoldExtentPreview, FoldToolPreview } from './useFoldToolPreview';
@@ -224,6 +225,8 @@ export function foldVertexWindowView(tools: FoldToolState, preview: FoldToolPrev
   const swivelKinds = onFold && kinds ? FOLD_SWIVEL_KINDS.filter((_, k) => kinds[k]) : null;
   // A swivel's meeting point nothing can swing from: its next click takes another.
   const nothingSwings = tool === 'swivel' && !valleyMountain && tools.picks.length === 1 && swivelReachesNothing(vertex?.reach ?? null);
+  // A swivel's crease that runs on to another folded edge: its other end, which a second swivel can share.
+  const otherEndOffered = swivelOtherEndOffered(tools, vertex?.base ?? null);
   return {
     tool,
     // The way it folds: the folder's, always.
@@ -234,6 +237,13 @@ export function foldVertexWindowView(tools: FoldToolState, preview: FoldToolPrev
           swivelInput: tools.swivelInput ?? 'edge',
           lineTaken: tools.takenLine !== undefined,
           lineLocated: preview.locatedLine != null,
+          // The other end of a crease a second swivel can share: offered once
+          // the swivel is previewed, or being located.
+          ...(tools.otherEnd
+            ? { otherEnd: { locating: true, shared: tools.otherEnd.shared } }
+            : otherEndOffered
+              ? { otherEnd: { locating: false, shared: otherEndOffered.shared } }
+              : {}),
         }
       : {}),
     ...(tool === 'squash'
@@ -411,21 +421,29 @@ export function foldLocatedLines(
  * has described its fold, across the paper on the folded pane, each in its
  * letter's diagram pen, as the fold will crease them. A swivel by its valley
  * and mountain: the valley taken, and the line the picks locate now — the
- * valley until it is taken, then the mountain. A squash's drawn hinge, as it
- * is located and once taken, in its direction's pen: the flap's upper layer
- * folds along it. Null for any other tool, and with no line in.
+ * valley until it is taken, then the mountain; at its other end, the first
+ * swivel's two as well. A squash's drawn hinge, as it is located and once
+ * taken, in its direction's pen: the flap's upper layer folds along it. Null
+ * for any other tool, and with no line in.
  */
 export function takenLinesPending(
   index: FoldPickIndex | null,
-  tools: Pick<FoldToolState, 'tool' | 'swivelInput' | 'squashHinge' | 'takenLine' | 'vertexDirection'>,
+  tools: Pick<FoldToolState, 'tool' | 'swivelInput' | 'squashHinge' | 'takenLine' | 'otherEnd' | 'vertexDirection'>,
   located: FoldToolPreview['locatedLine']
 ): FoldPendingCreases | null {
   if (!index || !locatesTakenLine(tools)) return null;
-  const { takenLine } = tools;
+  const { takenLine, otherEnd } = tools;
+  const first: [FoldToolState['takenLine'], FoldLetter][] = otherEnd
+    ? [
+        [otherEnd.valley, 'valley'],
+        [otherEnd.mountain, 'mountain'],
+      ]
+    : [];
   const lines: [FoldToolState['takenLine'] | null | undefined, FoldLetter][] =
     tools.tool === 'squash'
       ? [[takenLine ?? located, tools.vertexDirection]]
       : [
+          ...first,
           [takenLine, 'valley'],
           [located, takenLine ? 'mountain' : 'valley'],
         ];

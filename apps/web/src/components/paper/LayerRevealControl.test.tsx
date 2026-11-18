@@ -13,10 +13,11 @@ const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const preview = vi.fn(), amountPreview = vi.fn(), commit = vi.fn(), choose = vi.fn();
 let disabled = false;
-function Harness({ initial = DEFAULT_CONNECTED_SPREAD, busy = false, kindLayout }: { initial?: LayerSpreadOptions; busy?: boolean; kindLayout?: 'row' | 'stacked' }) {
+function Harness({ initial = DEFAULT_CONNECTED_SPREAD, busy = false, kindLayout, valuesHeld }: { initial?: LayerSpreadOptions; busy?: boolean; kindLayout?: 'row' | 'stacked'; valuesHeld?: string }) {
   const [spread, setSpread] = useState<LayerSpreadOptions>(initial);
   const controls = layerSpreadControls(spread, { t, busy, hint: disabled ? 'Read-only' : undefined, kind: choose, direction: vi.fn(), keep: vi.fn() });
-  return <TooltipProvider><LayerSpreadRows kindLayout={kindLayout} toggle={{ pressed: true, disabled, run: vi.fn() }} spread={{ ...controls,
+  return <TooltipProvider><LayerSpreadRows kindLayout={kindLayout} toggle={{ pressed: true, disabled, run: vi.fn(), ...(valuesHeld ? { note: valuesHeld } : {}) }} spread={{ ...controls,
+    ...(valuesHeld ? { valuesHeld } : {}),
     start: () => !disabled, commit,
     preview: (field, value) => {
       amountPreview(field, value);
@@ -72,6 +73,21 @@ it.each<{ initial: LayerSpreadOptions; shown: string; max: string }>([
   expect([amount.value, amount.max]).toEqual([shown, max]);
   expect(amountPreview).not.toHaveBeenCalled();
   expect(commit).not.toHaveBeenCalled();
+});
+
+it('holds a Default spread’s own values, never its kind, while its layers can’t be spread', async () => {
+  const failed = 'These layers couldn’t be spread';
+  await act(async () => root.render(<Harness key="failed" valuesHeld={failed} />));
+  // Said under Spread layers, and on the values it holds.
+  expect(host.textContent).toContain(failed);
+  const amount = host.querySelector<HTMLInputElement>('input[aria-label="Spread amount"]')!;
+  expect(amount.disabled).toBe(true);
+  expect(pad().disabled).toBe(true);
+  expect(pad().title).toBe(failed);
+  const kinds = [...host.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Spread by"] button')];
+  expect(kinds.every((kind) => !kind.disabled && kind.getAttribute('aria-disabled') !== 'true')).toBe(true);
+  act(() => kinds.find((kind) => kind.textContent === 'Affine')!.click());
+  expect(choose).toHaveBeenCalledWith('affine');
 });
 
 it('offers Default, Affine and Depth without extra captions or a busy-state layout row', async () => {

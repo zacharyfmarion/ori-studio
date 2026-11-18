@@ -85,6 +85,12 @@ export function vertexSentence(
 ): string {
   // By its valley and mountain: on the layer that faces the viewer, never behind.
   if (form && 'swivel' in form && form.swivel === 'valley-mountain') {
+    // Two made together: a flap at each end of the crease they share.
+    if (form.pair) {
+      return form.inside
+        ? t('panels:fold.sentence.swivelInsidePair', 'Inside-swivel both flaps along their valleys and mountains, together.')
+        : t('panels:fold.sentence.swivelPair', 'Swivel-fold both flaps along their valleys and mountains, together.');
+    }
     return form.inside
       ? t('panels:fold.sentence.swivelInsideValleyMountain', 'Inside-swivel the flap along the valley and the mountain.')
       : t('panels:fold.sentence.swivelValleyMountain', 'Swivel-fold the flap along the valley and the mountain.');
@@ -251,11 +257,18 @@ export function vertexRows(t: TFunction, form: FoldVertexSentenceForm | undefine
     return [
       {
         label: t('panels:fold.step.construction', 'Construction'),
-        value: t('panels:fold.words.valleyMountain', 'Valley and mountain'),
-        help: t(
-          'panels:fold.step.valleyMountainHelp',
-          'On the layer you see, the valley and the mountain that bound the flap, meeting on the folded edge. The crease on the layer behind follows from them.'
-        ),
+        value: form.pair
+          ? t('panels:fold.words.valleyMountainBothEnds', 'Valley and mountain, both ends')
+          : t('panels:fold.words.valleyMountain', 'Valley and mountain'),
+        help: form.pair
+          ? t(
+              'panels:fold.step.valleyMountainPairHelp',
+              'Two swivels made together, each by its valley and mountain on its own folded edge. A crease of one runs on to the other and is the same crease, folded once.'
+            )
+          : t(
+              'panels:fold.step.valleyMountainHelp',
+              'On the layer you see, the valley and the mountain that bound the flap, meeting on the folded edge. The crease on the layer behind follows from them.'
+            ),
       },
       swivelKindRow(t, form.inside === true),
     ];

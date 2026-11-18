@@ -1,0 +1,415 @@
+# Ordered rendering for 3D folded-figure spread
+
+## Goal
+
+Make a spread 3D folded figure obey its known layer order from the current
+camera, with matching paper, crease lines, picking and exports. Keep all material
+creases connected and retain geometric occlusion between unrelated surfaces.
+
+The implementation combines connected material displacement with the
+camera-aware visibility correction that flat spread already provides.
+Production labels the full range 0–100%, with
+100% multiplying the original displacement field by four (twice the previous
+maximum). The initial unit displacement is 25% on that scale. This is a drawing
+control, not a physical strain bound.
+
+Production implementation is delivered: a versioned material source and
+Rust/WASM vector solve feed
+one mesh used by ordered GPU rendering, picking and settled capture. The
+upstream fold and FOLD interchange geometry remain unchanged.
+
+## Approach
+
+### 1. Separate geometry from the intended drawing order
+
+The QP has soft separation penalties, so a geometrically nearer layer can still
+be the wrong visible layer. An ordinary depth buffer cannot enforce the known
+layer order. Changing the amount alone cannot correct that drawing rule.
+
+Flat spread already separates these concerns:
+
+- `packages/layer-spread/src/visibility.ts` defines ranks/direct blockers,
+  camera side and the CPU winner rule.
+- `apps/web/src/cp-workspace/renderer/programs/spreadProgram.ts` implements
+  rank bands or stencil masks, including the physical fallback for cycles.
+- `packages/layer-spread/src/fragments.ts` supplies the vector/picking
+  counterparts, with bounded clipping work.
+
+For a spatial figure, use the known order only within its originating stack
+plane. Applying one global rank across the model would bring unrelated rear
+surfaces in front of nearer paper. Also keep three different concepts explicit:
+
+| Fact | Authority |
+| --- | --- |
+| Which layer covers another within a stack | Determined kernel cell stacks and their source-plane orientation |
+| Which unrelated spatial surface is nearer | Deformed triangle depth at this pixel |
+| Which side/colour and shade a face shows | Deformed triangle winding and normal |
+
+Visibility correction is allowed to override geometric depth for a witnessed
+layer relation; it is not restricted to numerical depth ties. It does not
+remove a geometric intersection. Continue reporting uncorrected geometric
+diagnostics separately. Cross-plane contact constraints remain a separate
+solver investigation, not a substitute for this rendering work.
+
+### 2. Production visibility policy
+
+`folded3dMaterial.ts` derives per-plane lower/upper pairs from the production
+material source, with source-cell witnesses, display-layer groups, normals and
+origins. It only admits determined sources. The shared layer-spread package
+constructs direct blockers and defines the CPU visibility policy.
+
+For each pixel:
+
+1. Determine each source plane's side with `normal · (eye - planeOrigin)`.
+   This uses the actual perspective eye, not a global front/back flag or a
+   triangle's warped normal. Use the deterministic front convention in a small edge-on band, shared by
+   live views and cold captures, without hidden camera history.
+2. Reverse the local known pairs when viewing the opposite side.
+3. Suppress a candidate wherever one of its known blockers on that plane is
+   also projected there. A blocker counts by projected coverage even if another
+   plane hides it. Never infer a relation through a blocker absent at the pixel.
+4. Compare surviving candidates by their actual geometric depth.
+5. Where a projected cycle suppresses every local candidate, retain that
+   plane's physical baseline. Then compare it with survivors from other planes.
+
+`spatialMeshRenderer.ts` implements this using a blocker stencil bit and a
+survivor-union bit. The union records depth-failed survivors too: an unrelated foreground
+plane must not make cycle fallback resurrect a buried layer in front of it.
+All planes ultimately share geometric depth. Crease lines have material-face
+owners and use the same blockers as fills. Arrangement and triangulation cuts
+are never ink. Visibility correction does not alter geometry or solver results.
+
+This deliberately reuses the *local-mask semantics*, rather than the flat
+acyclic global ranks. Unrelated faces within one plane also retain geometric
+depth; a transitive chain in separate cells does not invent a new direct pair.
+
+**Scope:** a witnessed pair applies to the whole source
+display layer, including newly overlapping projected pieces. Cell witnesses
+are retained but masks are not yet limited by cell-support polygons. Mutually
+opposed cell-local relations therefore reach the cycle fallback. Picking and
+vector/raster captures use the same visibility policy as live rendering.
+
+### 3. Why the production 3D rendering boundary must change
+
+`folded3dMesh.ts` builds `(cell, stack-slot)` geometry and two exposed skins per
+plane. `foldedMeshSource.ts` chooses a skin and uploads static positions once;
+camera changes are cheap redraws. This is a good unspread representation, but
+a buried layer discarded by a skin cannot appear when the stack opens.
+
+`folded3dScene.ts` already derives the vector picture from the same mesh. Its
+all-layer slot ranges and ranks let `meshToPaperScene` order *coplanar* paper.
+After deformation, those slots are no longer coplanar; a geometric BSP plus
+the old coplanar rank cannot reproduce an intentional visibility override.
+Replacing only the GPU renderer would make the screen disagree with export.
+
+The needed foundation is an all-material mesh with stable provenance and one
+visibility policy consumed by GPU, CPU picking and settled capture. Preserve
+the existing shared worker/context, camera, paper style and mesh-to-scene work;
+do not introduce a second independently built geometry for export.
+
+### 4. Production delivery sequence
+
+#### Phase A — Freeze the source and visibility contracts
+
+Add a versioned, read-only spatial spread source at the CP session boundary:
+material vertex IDs, face rings, unfolded/placed positions, crease/cut roles,
+face and display-layer IDs, source planes and determined cell stacks. Reuse
+the deterministic lowest-incident-face placement convention of
+`folded_form_frame`; do not weld by folded coordinates or alter kernel closure
+diagnostics. Provide equivalent WASM/native access.
+
+Keep geometric, projected and semantic facts in separate records. Specify
+`SpatialVisibility` with local pair witnesses, optional cell support, side
+selection, survivor/cycle fallback and deterministic tie policy. Make one pure
+CPU winner function the executable reference. Explicitly distinguish unknown
+order from known cycles; unknown cells must not silently become an order.
+
+**Chosen policy:** whole display-layer direct blockers, with cell witnesses
+retained. Conflicting local witnesses use the documented per-plane cycle
+fallback. Region-scoped masks are a future extension, not silently inferred.
+
+Resolve the cell-support decision using synthetic woven stacks with opposite
+relations in disjoint cells, zero-angle subdivisions and newly overlapping
+regions. Use the conservative direct-blocker rule. Retain
+support provenance so an extension to region-scoped masks does not require
+another mesh/schema rewrite. Do not borrow global ranks from another plane.
+
+Exit: admitted source validation and CPU winner tests specify every pixel-level
+decision, including cold captures near edge-on.
+
+#### Phase B — Build one deformable material mesh and its ink
+
+Add a material mesh representation beside the current optimized skins.
+Triangulate whole material faces with every shared boundary subedge preserved.
+Cell-derived render pieces must refer back to material triangles by IDs and
+barycentric weights; duplicated render vertices must never become independent
+solver variables. Carry face/plane/cell/slot provenance where applicable.
+
+Evaluate `p = p_folded + amount * displacement` once per material vertex.
+Interpolate render pieces from those positions and recompute deformed normals.
+Map every crease and auxiliary-line segment to its owning material triangle(s),
+splitting at triangle boundaries. Revisit the old skin-based hinge omission
+rule: a newly uncovered layer can legitimately expose a formerly hidden bend.
+
+Keep current source skins at spread off/zero until the replacement proves
+pixel parity. Exercise the transition through small positive amounts. Keep
+the rest frame fixed during a gesture; the first release preserves the existing
+frame and camera zoom. Large openings can extend beyond it, so users can zoom
+out rather than having each amount change recenter or resize the figure.
+
+Exit: all buried layers can be revealed without cracks, invented cut edges,
+arrangement ink, changed paper-side colours or divergent auxiliary lines.
+
+#### Phase C — Add ordered visibility to the shared GPU worker
+
+Extend `Folded3dMeshPayload` and `FoldedMeshSource` to hold rest geometry,
+displacements, material ranges, provenance and local order. Add an amount
+update without rebuilding/loading the mesh; orbit updates only projection and
+per-plane side. The simulator's existing texture transport can carry posed
+positions, but folded figures still do not need a running physical simulation.
+
+Implement the shared winner policy through masks or an equivalent tested GPU
+method. Preserve actual depth when compositing different planes. Keep all-mask
+cycle fallback local to its plane, and apply the identical decision to ink.
+Reuse stencil lanes/scissor/batching patterns where helpful, but do not import
+the flat figure's global depth-band assumption. Explicitly own/reset GL state
+so figures and simulator sessions sharing the worker cannot affect each other.
+
+Bound face/mask work and memory; handle context loss, eviction, stale replies,
+resize and cancellation. Keep the last correct settled image when preparation
+is pending or a budget is exceeded, and report the unavailable state. Do not
+silently switch an ordered figure to an incorrect geometric-depth drawing.
+
+Exit: GPU colour/face-ID and crease coverage agree with the CPU reference over
+camera/amount sweeps, and measured large-model costs fit the viewport budget.
+
+#### Phase D — Make picking and export consume that same result
+
+Project the same posed triangles and line pieces. Clip at the camera near plane
+before perspective division. Keep perspective-correct barycentric material
+coordinates for picks and annotations; interpolating screen weights directly
+as material weights is insufficient.
+
+Use the shared per-plane rule for picking. For vector capture, subtract known
+blockers, resolve local cycle fallback and physical survivors, then resolve
+geometric occlusion across planes. Adapt the bounded `visibleFragments` and
+line-interval machinery rather than relying on BSP coplanar sorting after
+deformation. Preserve hidden paper and source IDs for editable `PaperScene`
+semantics; visible-fragment clipping alone must not erase that material.
+
+Raster capture must use the live renderer's policy, style, camera and side
+decision. Use the existing settled-capture lifecycle and bounded raster
+fallback when vector complexity is too high. Check PNG, SVG/PDF and saved
+Diagram pictures against the on-screen result, including crease widths and aux
+lines. Picked material must be the material the user can see.
+
+Exit: preview/pick/vector/raster parity, including cycles and unrelated
+foreground surfaces. A geometry-only export is not a substitute for the
+ordered drawing the user approved.
+
+#### Phase E — Integrate the spatial solver and product lifecycle
+
+Port the accepted coupled-vector solve under its own version, retaining the
+existing flat solver and settings unchanged. Cache by material topology,
+folded source, order solution and solver version. Amount/camera/style changes
+must not solve again. Complete numerical acceptance and contact investigations
+from the original plan; present limitations separately from visibility success.
+
+Replace the unconditional `spatial` block in `foldedFigureSpreadBlock` only
+after the complete render/capture path is ready. Add a distinct spatial recipe
+to folded-figure storage and Diagram captures, preserving unknown versions and
+the last saved picture through rehydration. Cover undo, refold, next ordering
+solution, save/reopen and share. Keep actual FOLD interchange geometry intact.
+
+Use existing action catalogs, concern hooks, controls/CSS modules and central
+analytics conventions. Initially scope to opaque Paper. Define X-ray and
+wireframe behavior explicitly before exposing spread there; neither can inherit
+opaque masking blindly. Simulator meshes and fold animation remain separate.
+
+### 5. Acceptance and validation
+
+Synthetic gates: inverted geometric order; opposite-side and edge-on cameras;
+offset planes under perspective; independent foreground/background; no blocker
+present; zero-angle subdivisions; partial and all-masked cycles; a cycle whose
+survivor is occluded by another plane; buried crease/aux lines; cuts; exact zero
+and no-stack identity; near-plane clipping; stable material picking and ties.
+
+External review: joined strip, waterbomb, three-plane stacks, spikes, penguin,
+kirigami cylinder and separated rectangles, at 0, tiny positive, 25, 100 and
+200%, across presets and continuous orbit. Unknown-order airplane and unclosed
+source remain explicit refusals. Report geometric failures separately from
+visibility failures. Keep private corpus files and generated results ignored.
+
+Production checks are phase gates: focused Rust/source tests, rebuilt changed
+WASM bridges, web lint/typecheck/unit
+tests, worker/bundle build coverage, renderer/export parity and browser/Tauri
+checks. Run upstream oracles only if ported semantics actually change.
+
+## Affected Areas
+
+| Area | Responsibility |
+| --- | --- |
+| `crates/oristudio-cp/src/folding3d/`, CP session, WASM/native clients | Material source, stable identity, local stacks and diagnostics |
+| `crates/oristudio-layer-spread*` | Separate spatial solve/version and numerical acceptance |
+| `packages/layer-spread/src/` | Spatial visibility contract, CPU winner, projected clipping and material mapping |
+| `apps/web/src/cp-workspace/folded/folded3dMesh.ts`, model reader/aux modules | Material mesh, per-piece provenance and owned ink |
+| `apps/web/src/simulator/foldedMeshSource.ts`, `simulatorSession.ts` | Shared GPU rendering, amount updates, resources and visibility passes |
+| `useFolded3dMeshRuntime.ts`, `folded3dWindow.ts`, `Folded3dWindowLayer.tsx` | Concern-scoped runtime wiring and frame delivery |
+| `folded3dScene.ts`, Diagram pictures, settled captures | Shared geometry, picking and render/export parity |
+| Figure settings/stores and project/share extensions | Availability, recipes, undo, rehydration and compatibility |
+| `scripts/layer-spread/spatial/` | Production GPU, picking, capture and orbit regression checks |
+
+## Checklist
+
+- [x] Trace current flat masks and production 3D skin/scene/worker boundaries.
+- [x] Derive plane-scoped orders and cell witnesses from the production material source.
+- [x] Add camera-conditioned fill and crease masks with cycle fallback.
+- [x] Validate the pure policy, source adapter and real GPU pixel decisions.
+- [x] Phase A: freeze spatial source/visibility contracts and the cell-support policy.
+- [x] Phase B: implement the shared material mesh, provenance and ink mapping.
+- [x] Phase C: integrate ordered GPU rendering in the existing worker with budgets.
+- [x] Phase D: validate picking, editable scene, vector and raster against the shared policy.
+- [x] Phase E: integrate versioned solve, availability, persistence and controls.
+- [x] Record numerical/contact acceptance separately from drawing correctness.
+- [x] Run production checks and the external camera/amount/performance sweeps.
+- [x] Normalize the production slider to 0–100% and validate the doubled maximum.
+- [x] Reproduce and fix the Pangolin corner ink protrusions, with a focused rendering regression.
+- [x] Remove the standalone numerical/viewer prototype and Python dependencies;
+      retain checks of production modules with direct Rust fixture generation.
+
+### Delivery notes and limits
+
+The replacement material renderer is used for positive spatial spread in Edit
+and Diagram. Off and exact zero retain the optimized skin renderer for existing
+pixel parity. The material source is additive and shares the FOLD export weld;
+the fold solver, closure verdict and interchange positions are unchanged.
+Spatial spread is available for determined, closed 3D folds in opaque Paper.
+X-ray and wireframe retain their existing rendering and keep the recipe dormant.
+
+The `spatial-vector-v1` Rust/WASM solve caches one vector per material vertex.
+Amount changes only the GPU displacement uniform; camera changes only camera
+and plane-side selection. Source/auxiliary changes rebuild the material mesh.
+Separate cancellable capture workers produce settled scenes; stale camera and
+mesh replies close their bitmaps without overwriting a newer frame. A store
+subscription settles unwindowed figures too, and save waits for the current
+recipe's picture. Versioned recipes survive reopen and unknown future recipes
+remain preserved. A reopened figure retains its picture until refold.
+
+Vector clipping and GPU masking share whole display-layer direct blockers.
+Conflicting witnesses use per-plane physical fallback; there is no inferred
+order across planes or through absent intermediate faces. Raster capture uses
+the same GPU path. Diagram and exports can use a bounded PNG when vector work
+exceeds budget. **Edit's native folded-picture schema currently stores only
+faces and lines:** it explicitly refuses an over-budget changed picture and
+retains the previous one, rather than persisting arbitrary markup or claiming
+that an old picture represents the new recipe. All seven review examples fit
+the vector budget. Typed persisted bitmap pictures are a separate follow-up.
+
+Penguin and cylinder retain geometric intersections, and the renderer does not
+remove them. At 100%, the UI scales the accepted unit displacement by four;
+it does not rerun the QP at enlarged constraints.
+The geometry is intended for illustrations, with no collision-free or rigid
+paper guarantee. Contact-aware constraints and region-scoped masks remain
+future numerical/visibility extensions.
+
+Validation includes changed Rust crate tests and clippy, rebuilt WASM, the full
+web suite, the visibility and simulator package suites, lint, typecheck, i18n,
+production bundling and landing prerender. The standalone browser harness uses
+the production shaders and workers: nine synthetic pixel cases and seven real
+models across zero, tiny positive, 25%, 100% and 200%, front and back. Interior
+face-ID comparisons separate near-contact physical depth ties from ordering
+errors: four sampled cylinder pixels differed between CPU arithmetic and GPU
+raster depth at independent near-coincident surfaces; none violated a known
+blocker. This is not a claim of bit-exact depth at intersections. Save/reopen
+was also exercised in the actual Edit app at 200%, preserving recipe and scene.
+Private source files and reports remain under ignored `artifacts/`.
+
+### Range and shared-crease correction
+
+The production slider is 0–100%; its maximum now multiplies the unit field by
+four, doubling the former maximum of two. One shared range definition feeds
+Edit, Diagram, captures and recipe validation. No solver or geometry migration
+is involved.
+
+Pangolin exposed an ink ownership defect: a hinge was drawn once for each
+incident face, and the copy from the adjoining source plane did not inherit the
+other face's known blockers. A shared hinge now has one stroke subject to both
+incident planes' covers. Coplanar fold outlines retain independent owners;
+auxiliary segments keep their material ownership. A third stencil bit accumulates
+the hinge's blockers, gated by survivor coverage for cyclic planes. Vector
+capture intersects the same owners' visible line intervals. Fills and physical
+depth between unrelated surfaces are unchanged.
+
+The synthetic buried-hinge regression fails on the previous renderer and passes
+with this correction, alongside exposed-hinge and cyclic-fallback checks. The
+production harness now has twelve GPU/CPU policy cases. The extended seven-model
+sweep passes 84 captures and 15,760 interior face-ID comparisons at the new
+maximum, with the same four independent cylinder contact ties. Pangolin's paper
+pixels are identical before/after the ink correction at the sampled camera.
+Its separate sweep passes twelve captures and 633 interior face-ID comparisons
+with no contact ties. The final focused web run passes 591 tests; lint and
+typecheck pass. No Rust/solver, native shell or bundling changes require a new
+workspace/oracle/build run for this correction.
+The app-browser Penguin orbit check at 1600 pixels still submits draws in
+0.93 ms on average, presents 283 frames during three seconds of 8 ms input,
+and has a 15.15 ms 95th-percentile presentation gap (16.31 ms trailing delay).
+These are local callback timings, not display refresh rates. A software-backed
+headless graphics run is useful for pixel checks but not interactive timing.
+
+Upstream oracles were not rerun because ported folding semantics were not
+changed; the material source is tested against the existing FOLD interchange.
+Unrelated Rust workspace crates and the native desktop shell were not rebuilt:
+the changed behavior runs in the shared frontend/worker, with no native command,
+menu, filesystem or packaging changes. Browser graphics checks ran in Chromium;
+Safari/WebKit and native desktop GPU behavior remain CI/manual review coverage.
+
+### Dense-stack solver efficiency
+
+The Tortoise investigation is now integrated; see
+[`spatial-spread-solver-efficiency.md`](spatial-spread-solver-efficiency.md).
+Streaming weighted crossing compaction, bounded coefficient canonicalization
+and removal of redundant slack inequalities reduce its production preparation
+to about 2.4 seconds and 95 MB of WASM memory (previously about 14.3 seconds and
+499 MB with the old cap raised). The service recycles completed spatial workers
+while retaining cached displacement fields. Tortoise now fits the compacted
+problem budget and passes the full amount/front/back capture and picking sweep.
+The nine-model review totals 108 captures and 18,024 interior pixel checks.
+
+### Flat cache accounting and shared rendering context
+
+Restore the flat-spread cache's original constant-time height-array accounting
+and reusable-worker policy; spatial results keep their separate accounting and
+worker recycling.
+
+Ordinary figures, spatial spread and simulation share the worker's existing
+canvas and resize policy. Its context requests stencil support at creation so
+spatial rendering works regardless of which kind of view opens first. Only the
+spatial renderer uses stencil masks; ordinary rendering keeps its existing draw
+passes. Raster captures retain their existing private canvases.
+
+Use one shared context rather than separate ordinary and spatial drawing
+buffers: the split added context lifecycle and resize bookkeeping, could raise
+total GPU memory in mixed documents, and had no measured net performance benefit.
+Large spatial views can influence the shared buffer's size, as other large
+views do. Releasing a spatial mesh frees its resources without destroying the
+shared context.
+
+- [x] Restore flat cache accounting without serializing completed flat results.
+- [x] Restore one shared stencil-capable canvas and remove split lifecycle code.
+- [x] Retain mixed ordinary/spatial worker checks in both load orders, including
+      repeated release/reopen while ordinary rendering stays live.
+- [x] Rebuild shared renderer, run lint/typecheck and relevant tests, and repeat
+      real GPU/capture checks plus the production worker presentation path.
+
+The shared layer-spread WASM still includes both solvers, and the lightweight
+workspace listener still checks for spatial figures. This change does not claim
+to eliminate every shared code/loading cost.
+
+Validation: 397 simulator-package tests pass (one existing skip), alongside 164
+focused web tests across seven files. Full web lint and the normal production
+build pass, including TypeScript, all generated bridges and the 37-page
+prerender. Chromium passes twelve GPU policy cases plus two mixed worker cases
+in both load orders with repeated release/reopen. Tortoise passes twelve
+captures and 1,632 interior picking comparisons with no mismatches or contact
+ties. No Rust algorithm, native shell or file-format behavior changed; unrelated
+Rust/oracle/native checks and the full web suite were not rerun.

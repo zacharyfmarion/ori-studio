@@ -123,6 +123,9 @@ export class GlCore {
       // paper renders see-through. The solver's compute passes render to their
       // own depthless FBOs and are unaffected.
       depth: true,
+      // Figures and simulation share this context. Request coverage masks at
+      // creation so spatial spread also works when an ordinary view opens first.
+      stencil: true,
       premultipliedAlpha: false,
       preserveDrawingBuffer: glAttributeOverrides.preserveDrawingBuffer ?? false,
     });

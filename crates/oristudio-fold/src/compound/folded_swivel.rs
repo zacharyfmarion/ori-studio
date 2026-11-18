@@ -14,7 +14,8 @@
 //! **Two layers first.** Each ray creases its own layer from the vertex to
 //! the paper's edge or to a fold, and every other face moves with the paper
 //! it is joined to ([`two_layers`]). Where that holds no two wedges together,
-//! that is the swivel.
+//! that is the swivel. The same reading takes two swivels made together
+//! where they share a crease ([`two_layers_of`], `super::swivel_pair`).
 //!
 //! **Through the stack.** Where paper beyond the two layers joins two wedges
 //! (or a wedge and the paper that stays), every face moves by one of the
@@ -36,6 +37,7 @@
 //! the stack reading, the swivel is refused as the two-layer reading was:
 //! paper holds two wedges (`fan_ray_blocked`, naming that paper).
 use crate::complete::CompletionLimits;
+use crate::compound::motion::reflection;
 use crate::compound::pieces::{Cut, Scoring, score_cuts};
 use crate::compound::swivel::{SwivelKind, SwivelWedge, dot, internal, sub};
 use crate::compound::vertex::{
@@ -43,6 +45,7 @@ use crate::compound::vertex::{
 };
 use crate::compound::{Against, CompoundRefused};
 use crate::fold::line::Axis;
+use crate::isometry::Isometry;
 use crate::numerics::{Band, MIN_FEATURE, TOL};
 use crate::pattern::{CreaseKind, FaceId, VertexId};
 use crate::refusal::{FoldRefusal, NearMissCause, Refused, Side};
@@ -691,6 +694,20 @@ fn assign(
         .collect())
 }
 
+/// One swivel as the two-layer reading scores it: its fan, its folded
+/// edge's two layers (the edge's, then the other), and its rays' runs.
+pub(super) struct Layered<'a> {
+    pub(super) fan: &'a FoldFan,
+    pub(super) layers: [usize; 2],
+    pub(super) runs: &'a [RayRun; 3],
+}
+
+/// The two-layer reading of several swivels made together: the scored
+/// paper, each piece's block, and per block the swivels' wedges that move
+/// as it, each `[swivel, wedge]` with the wedge by the index of
+/// [`SwivelWedge`]'s blocks (near, turn, beyond).
+pub(super) type Together = (Scoring, Vec<Option<usize>>, Vec<Vec<[usize; 2]>>);
+
 /// The paper scored along the rays and each piece's block: the two-layer
 /// reading, in which only the folded edge's two layers crease (each along
 /// its own run) and every other face moves with the paper it is joined to
@@ -700,12 +717,37 @@ fn assign(
 fn two_layers(
     state: &State,
     built: &FoldFan,
-    [edge_layer, other_layer]: [usize; 2],
+    layers: [usize; 2],
     runs: &[RayRun; 3],
 ) -> Result<Result<Blocks, Vec<FaceId>>, Refused> {
-    let v = built.vertex;
+    let one = Layered {
+        fan: built,
+        layers,
+        runs,
+    };
+    Ok(two_layers_of(state, &[one])?.map(|(scoring, block_of, _)| (scoring, block_of)))
+}
+
+/// A wedge's motion: near `R_s`, turn `R_s ∘ R_h`, beyond `R_b`.
+fn wedge_motion(fan: &FoldFan, wedge: usize) -> Result<Isometry, Refused> {
+    Ok(match wedge {
+        0 => reflection(&fan.swivel_line()?),
+        1 => reflection(&fan.swivel_line()?).after(&reflection(&fan.fold_line)),
+        _ => reflection(&fan.second_line()?),
+    })
+}
+
+/// [`two_layers`] for one or more swivels made together. Each swivel's rays
+/// crease its own two layers; rays of two swivels along one line are one
+/// crease, and the paper between them along it one wedge of both, which
+/// moves as one where the two swivels move it alike. The paper that stays is
+/// one part. None when paper joins two wedges that move differently, or a
+/// wedge and the paper that stays: it holds them.
+pub(super) fn two_layers_of(
+    state: &State,
+    swivels: &[Layered],
+) -> Result<Result<Together, Vec<FaceId>>, Refused> {
     let nf = state.faces().len();
-    let rays = built.rays();
     let mask = |runs: &[&RayRun]| {
         let mut mask = vec![false; nf];
         for run in runs {
@@ -715,38 +757,56 @@ fn two_layers(
         }
         mask
     };
-    let s_line = built.swivel_line()?;
-    let counter_line = built.counter_line()?;
-    let second_line = built.second_line()?;
-    let [s_edge, s_other, s_second] = runs;
-    // Coincident rays are one cut through both layers (the historical
-    // edge-to-target construction). Scoring the same axis twice would
-    // incorrectly try to split its already-created boundary again.
-    let mut cuts = if cross(rays[S], rays[C]).abs() < 1e-12 && dot(rays[S], rays[C]) > 0.0 {
-        vec![Cut {
-            axis: Axis::new(&s_line, Side::Positive),
-            faces: mask(&[s_edge, s_other]),
-        }]
-    } else {
-        vec![
-            Cut {
-                axis: Axis::new(&s_line, Side::Positive),
-                faces: mask(&[s_edge]),
-            },
-            Cut {
-                axis: Axis::new(&counter_line, Side::Positive),
-                faces: mask(&[s_other]),
-            },
-        ]
-    };
-    cuts.push(Cut {
-        axis: Axis::new(&second_line, Side::Positive),
-        faces: mask(&[s_second]),
-    });
+    let mut cuts: Vec<Cut> = Vec::new();
+    // Per cut, its line and the swivel that made it.
+    let mut made: Vec<(Line, usize)> = Vec::new();
+    for (i, one) in swivels.iter().enumerate() {
+        let built = one.fan;
+        let rays = built.rays();
+        let s_line = built.swivel_line()?;
+        let counter_line = built.counter_line()?;
+        let second_line = built.second_line()?;
+        let [s_edge, s_other, s_second] = one.runs;
+        // Coincident rays are one cut through both layers (the historical
+        // edge-to-target construction). Scoring the same axis twice would
+        // incorrectly try to split its already-created boundary again.
+        let own = if cross(rays[S], rays[C]).abs() < 1e-12 && dot(rays[S], rays[C]) > 0.0 {
+            vec![
+                (s_line, mask(&[s_edge, s_other])),
+                (second_line, mask(&[s_second])),
+            ]
+        } else {
+            vec![
+                (s_line, mask(&[s_edge])),
+                (counter_line, mask(&[s_other])),
+                (second_line, mask(&[s_second])),
+            ]
+        };
+        for (line, faces) in own {
+            // So is a ray along another swivel's.
+            let shared = made
+                .iter()
+                .position(|(other, by)| *by != i && other.approx_eq(&line));
+            match shared {
+                Some(k) => {
+                    for (f, crossed) in faces.into_iter().enumerate() {
+                        cuts[k].faces[f] |= crossed;
+                    }
+                }
+                None => {
+                    cuts.push(Cut {
+                        axis: Axis::new(&line, Side::Positive),
+                        faces,
+                    });
+                    made.push((line, i));
+                }
+            }
+        }
+    }
     let scoring = score_cuts(state, &cuts)?;
 
-    // The folded edge's half that opens: the pieces of the run's creases
-    // past the vertex on the edge's side.
+    // Each folded edge's half that opens: the pieces of its run's creases
+    // past its vertex on the edge's side.
     let geometry = state.geometry();
     let topology = state.topology();
     let parent_sheet = state.vertices();
@@ -760,16 +820,20 @@ fn two_layers(
         .iter()
         .filter(|c| {
             let [p, q] = c.vertices.map(|w| scoring.vertices[w.index()]);
-            built.run.iter().any(|&k| {
-                let [ka, kb] = state.creases()[k].vertices.map(|w| parent_sheet[w.index()]);
-                if !on_segment(p, ka, kb) || !on_segment(q, ka, kb) {
-                    return false;
-                }
-                let Some(&g) = topology.crease_faces[k].first() else {
-                    return false;
-                };
-                let mid = geometry.isometries[g].apply([(p[0] + q[0]) / 2.0, (p[1] + q[1]) / 2.0]);
-                dot(sub(mid, v), built.opens) > MIN_FEATURE / 2.0
+            swivels.iter().any(|one| {
+                let built = one.fan;
+                built.run.iter().any(|&k| {
+                    let [ka, kb] = state.creases()[k].vertices.map(|w| parent_sheet[w.index()]);
+                    if !on_segment(p, ka, kb) || !on_segment(q, ka, kb) {
+                        return false;
+                    }
+                    let Some(&g) = topology.crease_faces[k].first() else {
+                        return false;
+                    };
+                    let mid =
+                        geometry.isometries[g].apply([(p[0] + q[0]) / 2.0, (p[1] + q[1]) / 2.0]);
+                    dot(sub(mid, built.vertex), built.opens) > MIN_FEATURE / 2.0
+                })
             })
         })
         .map(|c| c.vertices)
@@ -784,23 +848,26 @@ fn two_layers(
     let mut cut: Vec<(u32, u32)> = created.iter().chain(&opened).map(|&e| key(e)).collect();
     // A ray may reuse a flat crease instead of splitting a face. It is a
     // boundary between moving wedges just as a newly scored crease is.
-    for (run, direction) in runs.iter().zip(rays) {
-        for (p, face) in scoring.faces.iter().enumerate() {
-            let old = scoring.old[p];
-            if !run.faces.contains(&old) {
-                continue;
-            }
-            let transform = geometry.isometries[old];
-            for i in 0..face.ring.len() {
-                let edge = [face.ring[i], face.ring[(i + 1) % face.ring.len()]];
-                if edge.iter().all(|w| {
-                    let at = transform.apply(scoring.vertices[w.index()]);
-                    let rel = sub(at, v);
-                    cross(direction, rel).abs() <= TOL
-                        && dot(direction, rel) >= -TOL
-                        && dot(direction, rel) <= dot(direction, sub(run.end, v)) + TOL
-                }) {
-                    cut.push(key(edge));
+    for one in swivels {
+        let v = one.fan.vertex;
+        for (run, direction) in one.runs.iter().zip(one.fan.rays()) {
+            for (p, face) in scoring.faces.iter().enumerate() {
+                let old = scoring.old[p];
+                if !run.faces.contains(&old) {
+                    continue;
+                }
+                let transform = geometry.isometries[old];
+                for i in 0..face.ring.len() {
+                    let edge = [face.ring[i], face.ring[(i + 1) % face.ring.len()]];
+                    if edge.iter().all(|w| {
+                        let at = transform.apply(scoring.vertices[w.index()]);
+                        let rel = sub(at, v);
+                        cross(direction, rel).abs() <= TOL
+                            && dot(direction, rel) >= -TOL
+                            && dot(direction, rel) <= dot(direction, sub(run.end, v)) + TOL
+                    }) {
+                        cut.push(key(edge));
+                    }
                 }
             }
         }
@@ -836,8 +903,8 @@ fn two_layers(
     }
     let component: Vec<usize> = (0..count).map(|p| root(&mut parent, p)).collect();
 
-    // Each wedge's piece at the vertex, by a point just inside it.
-    let piece = |layer: usize, from: Point, to: Point| -> Result<usize, Refused> {
+    // Each wedge's piece at its vertex, by a point just inside it.
+    let piece = |v: Point, layer: usize, from: Point, to: Point| -> Result<usize, Refused> {
         let mid = unit([from[0] + to[0], from[1] + to[1]])
             .ok_or_else(|| internal("a swivel wedge has no middle"))?;
         let step = MIN_FEATURE / 4.0;
@@ -850,21 +917,40 @@ fn two_layers(
             })
             .ok_or_else(|| internal("a swivel wedge has no paper at the vertex"))
     };
-    let (opens, stays, swivel, second) = (built.opens, built.stays, built.swivel, built.second);
-    let staying = component[piece(edge_layer, swivel, stays)?];
-    let wedges = [
-        component[piece(edge_layer, opens, swivel)?],
-        component[piece(other_layer, opens, built.counter)?],
-        component[piece(other_layer, built.counter, second)?],
-    ];
-    let beyond_stays = component[piece(other_layer, second, stays)?];
-    if beyond_stays != staying {
-        return Err(internal("the paper that stays is in two parts"));
+    // Per swivel, the part that stays at its vertex.
+    let mut stays_at: Vec<usize> = Vec::new();
+    let mut wedges: Vec<([usize; 2], usize, Isometry)> = Vec::new();
+    for (i, one) in swivels.iter().enumerate() {
+        let built = one.fan;
+        let [edge_layer, other_layer] = one.layers;
+        let v = built.vertex;
+        let (opens, stays, swivel, second) = (built.opens, built.stays, built.swivel, built.second);
+        let stays_here = component[piece(v, edge_layer, swivel, stays)?];
+        let at = [
+            piece(v, edge_layer, opens, swivel)?,
+            piece(v, other_layer, opens, built.counter)?,
+            piece(v, other_layer, built.counter, second)?,
+        ];
+        let beyond_stays = component[piece(v, other_layer, second, stays)?];
+        if beyond_stays != stays_here {
+            return Err(internal("the paper that stays is in two parts"));
+        }
+        stays_at.push(stays_here);
+        for (w, p) in at.into_iter().enumerate() {
+            wedges.push(([i, w], component[p], wedge_motion(built, w)?));
+        }
     }
+    let staying = *stays_at
+        .first()
+        .ok_or_else(|| internal("a swivel reading with no swivel"))?;
     // Paper joined to two wedges holds them together: named by the faces in
     // that part no ray creases, or all of it.
     let held = |c: usize| -> Vec<FaceId> {
-        let creased = |f: usize| runs.iter().any(|r| r.faces.contains(&f));
+        let creased = |f: usize| {
+            swivels
+                .iter()
+                .any(|one| one.runs.iter().any(|r| r.faces.contains(&f)))
+        };
         let part: Vec<usize> = (0..count).filter(|&p| component[p] == c).collect();
         let holding: Vec<usize> = part
             .iter()
@@ -879,15 +965,35 @@ fn two_layers(
         ids.dedup();
         ids
     };
-    for (i, &c) in wedges.iter().enumerate() {
-        if c == staying || wedges[..i].contains(&c) {
-            return Ok(Err(held(c)));
+    // Where two swivels' creases part the paper that stays at one vertex
+    // from the paper that stays at the other, that paper is held between them.
+    if let Some(&apart) = stays_at.iter().find(|&&c| c != staying) {
+        return Ok(Err(held(apart)));
+    }
+    // Two wedges in one part move as one only where their motions are one:
+    // a crease two swivels share, and the paper between them along it.
+    let alike = |m: &Isometry, n: &Isometry| m.0.iter().zip(n.0).all(|(a, b)| (a - b).abs() <= TOL);
+    let mut parts: Vec<usize> = Vec::new();
+    let mut members: Vec<Vec<[usize; 2]>> = Vec::new();
+    for (k, (wedge, c, motion)) in wedges.iter().enumerate() {
+        let apart = wedges[..k]
+            .iter()
+            .any(|(_, d, other)| d == c && !alike(motion, other));
+        if *c == staying || apart {
+            return Ok(Err(held(*c)));
+        }
+        match parts.iter().position(|d| d == c) {
+            Some(b) => members[b].push(*wedge),
+            None => {
+                parts.push(*c);
+                members.push(vec![*wedge]);
+            }
         }
     }
     let block_of = (0..count)
-        .map(|p| wedges.iter().position(|&c| c == component[p]))
+        .map(|p| parts.iter().position(|&c| c == component[p]))
         .collect();
-    Ok(Ok((scoring, block_of)))
+    Ok(Ok((scoring, block_of, members)))
 }
 
 /// The swivel `built` compiled with `edge_layer` as the edge's layer: on its
@@ -1101,5 +1207,71 @@ fn finish(
         ends: [runs[S].end, runs[C].end, runs[B].end],
         reach: None,
         stacked: false,
+    })
+}
+
+/// Several swivels' two-layer reading compiled as one fold: each block
+/// turns as the wedges that move as it, and is placed as [`finish`] places
+/// each of them, against its own swivel's body across its hinge.
+pub(super) fn finish_together(
+    state: &State,
+    swivels: &[Layered],
+    kinds: &[SwivelKind],
+    direction: Direction,
+    (scoring, block_of, members): Together,
+) -> Result<Compiled, Refused> {
+    let toward = direction == Direction::Valley;
+    let body = |layer| {
+        flat_region(state, layer)
+            .into_iter()
+            .enumerate()
+            .filter_map(|(face, belongs)| belongs.then_some(face))
+            .collect::<Vec<_>>()
+    };
+    let mut turns = Vec::with_capacity(members.len());
+    let mut against: Vec<Against> = Vec::new();
+    for (block, wedges) in members.iter().enumerate() {
+        let &[first, w] = wedges
+            .first()
+            .ok_or_else(|| internal("a swivel block with no wedge"))?;
+        let fan = swivels[first].fan;
+        turns.push(match w {
+            0 => vec![(1, fan.swivel_line()?)],
+            1 => vec![(0, fan.fold_line), (1, fan.swivel_line()?)],
+            _ => vec![(1, fan.second_line()?)],
+        });
+        for &[i, w] in wedges {
+            let [edge_layer, other_layer] = swivels[i].layers;
+            let placed = if w == 0 {
+                Against {
+                    block,
+                    faces: body(edge_layer),
+                    above: toward,
+                }
+            } else {
+                Against {
+                    block,
+                    faces: body(other_layer),
+                    above: if kinds[i] == SwivelKind::Open {
+                        toward
+                    } else {
+                        !toward
+                    },
+                }
+            };
+            if !against.contains(&placed) {
+                against.push(placed);
+            }
+        }
+    }
+    Ok(Compiled {
+        kind: VertexFoldKind::Swivel,
+        scoring,
+        block_of,
+        turns,
+        vertices: swivels.iter().map(|one| one.fan.vertex).collect(),
+        direction,
+        extra: Vec::new(),
+        against: Some(against),
     })
 }
