@@ -51,7 +51,7 @@ export function useFoldPaneSpread(view: FoldStateView, spread: LayerSpreadOption
     if (!source || !index || spread?.kind !== 'connected') return;
     setDisplayed(was => {
       const bindings = payload.bindings ?? (was?.source === source ? was.bindings : new Map());
-      const map = foldPaneSpreadMap(source.scene, spread, source.prepared, bindings, foldPickDrawing(source, payload.positions))!;
+      const map = foldPaneSpreadMap(source.scene, spread, source.prepared, bindings, foldPickDrawing(source, payload.positions, payload.visibility))!;
       return { source, bindings, map, bounds: payload.bounds, index: { ...index, spread: map, folded: hydratePanePick(payload.folded) } };
     });
   }, [source, index, spread]);

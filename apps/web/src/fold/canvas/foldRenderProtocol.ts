@@ -1,4 +1,4 @@
-import type { ConnectedSpread, Point3 } from '@oristudio/layer-spread';
+import type { ConnectedSpread, Point3, Visibility } from '@oristudio/layer-spread';
 import type { FoldedSceneInk } from '../../cp-workspace/adapters/cpFoldedToScene';
 import type { CpSurfacePaperFrame } from '../../cp-workspace/surface/useCpSurface';
 import type { UserBounds } from '../../cp-workspace/renderer/camera';
@@ -39,6 +39,8 @@ export interface FoldRenderPayload {
   folded: PanePickData;
   /** Sent once per source, never again for camera or parameter changes. */
   bindings?: FoldSheetBindings;
+  /** The pose's layer order, when it is not the stack's own (`connectedPoseVisibility`). */
+  visibility?: Visibility;
 }
 export type FoldRenderMessage = BitmapRequest<FoldRenderSource, FoldRenderFrame>;
 export interface FoldLiveRenderer {
