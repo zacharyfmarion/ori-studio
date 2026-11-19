@@ -6,7 +6,7 @@ import { facesAt } from '../annotate/behindFlaps';
 import { overlapsWider, piecesPart, piecesWithin } from '../annotate/faceOverlap';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramStep } from '../document/diagramDocument';
 import { diagramScenePaintStyle } from '../pictures/diagramPaperStyle';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { craneStep } from '../zoom/zoom.fixtures';
 import { FLAPS, flapsStep, handFold, knotStep, rect } from './xray.fixtures';
 import { pickedAnchor } from '../zoom/zoomAnchor';

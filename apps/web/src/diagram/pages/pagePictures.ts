@@ -80,7 +80,7 @@ import {
 } from '../zoom/paintZoomed';
 import type { PictureBox } from '../zoom/zoomModel';
 import { zoomContentBox } from '../zoom/zoomContent';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { prefixIds } from '../pictures/prefixIds';
 import { fontFaceId } from '../fonts/diagramFontFaces';
 import { setUploadText } from '../upload/uploadText';

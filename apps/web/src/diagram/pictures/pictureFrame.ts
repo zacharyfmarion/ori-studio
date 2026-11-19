@@ -9,9 +9,7 @@
  *
  * Pure: no DOM, no store.
  */
-import type { PaperScene } from '@treemaker/origami-simulator';
-import { readPaperScene } from '../../lib/paper/paperSceneValidate';
-import { isLockedStep, type DiagramAsset, type DiagramScenePicture, type DiagramStep } from '../document/diagramDocument';
+import { isLockedStep, type DiagramAsset, type DiagramStep } from '../document/diagramDocument';
 import { frameOf, type PictureFrame } from '../annotate/annotationModel';
 import { mmToCssPx, pagePtPerPx, PT_PER_CSS_PX } from '../../lib/paper/paperSvg';
 import {
@@ -22,21 +20,7 @@ import {
   stepScenePage,
   type StepPictureSource,
 } from './paintDiagramStep';
-
-const scenes = new WeakMap<DiagramScenePicture, PaperScene | null>();
-
-/** A stored scene, read once per picture object; null for one that does not read. */
-export function storedScene(picture: DiagramScenePicture): PaperScene | null {
-  if (scenes.has(picture)) return scenes.get(picture)!;
-  let scene: PaperScene | null;
-  try {
-    scene = readPaperScene(JSON.parse(picture.sceneJson));
-  } catch {
-    scene = null;
-  }
-  scenes.set(picture, scene);
-  return scene;
-}
+import { storedScene } from './storedScene';
 
 /**
  * Whether a step can be annotated: made by this build, with a picture this

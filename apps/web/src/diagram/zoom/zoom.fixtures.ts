@@ -8,7 +8,7 @@ import type {
 import { storedSceneJson } from '../document/diagramFile';
 import { cpStep } from '../document/diagramSteps.fixtures';
 import { CAPTURE_PX_PER_UNIT, sceneBoundsOf } from '../capture/captureGeometry';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { turnClockwise } from '../../lib/geometry';
 import type { PaperItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import type { PicturePoint } from '../annotate/annotationModel';

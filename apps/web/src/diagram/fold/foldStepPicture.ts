@@ -58,7 +58,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { storedAnnotations } from '../document/diagramFile';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { repeatCalloutMark, type FoldRepeatCallout } from './foldRepeatCallout';
 import type { FoldStepAction } from './foldStepMarkPlan';
 

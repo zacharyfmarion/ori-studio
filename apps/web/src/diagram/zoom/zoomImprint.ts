@@ -44,7 +44,7 @@ import {
   type DiagramZoomOutline,
 } from '../document/diagramDocument';
 import { readPaperFaces } from '../document/paperFacesFile';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { distanceOutside, distanceToSegment, zoomCore, zoomShapeOf } from './zoomModel';
 
 type Pt = PicturePoint;

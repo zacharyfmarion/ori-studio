@@ -36,7 +36,7 @@ import {
 import { diagramPaperStyle, diagramScenePaintStyle } from '../pictures/diagramPaperStyle';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
 import { stepDiagramToPicture } from '../pictures/paintStepDiagram';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import type { PicturePoint } from './annotationModel';
 
 /** What a step's picture is, as far as its points and angles go. */
