@@ -314,9 +314,11 @@ impl State {
     ///
     /// A mark crosses a crease of its own layer where its part on one face
     /// ends and its part on the next begins, so a crossing at the end of a
-    /// part counts, once per mark and feature; at the mark's own ends it is
-    /// the end. A crease mark lies on one layer like any crease, so its
-    /// visibility is a crease's, and one on a hidden layer is not seen.
+    /// part counts, once per mark and feature, and is seen when either part
+    /// sees it (the bend at a strip's edge, where the part on top turns
+    /// under); at the mark's own ends it is the end. A crease mark lies on
+    /// one layer like any crease, so its visibility is a crease's, and one on
+    /// a hidden layer is not seen.
     fn crease_mark_landmarks(
         &self,
         cover: &Cover<'_>,
@@ -366,20 +368,10 @@ impl State {
             }
         }
 
-        // Crossings: (mark, its fraction, feature, the feature's sheet point
-        // and fraction along it, the point), deduplicated by mark, feature
-        // and fraction.
-        let mut seen: Vec<(usize, Feature, f64)> = Vec::new();
-        let mut first_time = |mark: usize, feature: Feature, s: f64| {
-            let slack = TOL / marks[mark].length().max(f64::MIN_POSITIVE);
-            let new = !seen
-                .iter()
-                .any(|&(m, f, t)| m == mark && f == feature && (t - s).abs() <= slack);
-            if new {
-                seen.push((mark, feature, s));
-            }
-            new
-        };
+        // Crossings, one per mark, feature and fraction along the mark. One
+        // at the end of a part is found from the parts on both sides of it,
+        // one of which may be hidden under the other: it is seen from either.
+        let mut found: Vec<MarkCrossing> = Vec::new();
         for (piece, span) in &pieces {
             let mark = piece.crease_mark;
             // Another mark's parts are taken from the lower-numbered mark of
@@ -422,28 +414,44 @@ impl State {
                     Feature::Segment(_) => v > other_slack && v < 1.0 - other_slack,
                     Feature::CreaseMark(_) => v >= -other_slack && v <= 1.0 + other_slack,
                 };
-                if !other_inside || !first_time(mark, feature, s) {
+                if !other_inside {
                     continue;
                 }
                 let visible =
                     crossing_seen((piece.at, &piece.visible, u), (other_at, other_visible, v));
-                let on = Feature::CreaseMark(mark);
-                for (where_, crossed, sheet) in [
-                    (on, feature, piece.sheet.at(u)),
-                    (feature, on, other_sheet.at(v)),
-                ] {
-                    points.add(
-                        x,
-                        PointSource {
-                            sheet,
-                            visible,
-                            kind: PointKind::CreaseMarkCrossing {
-                                on: where_,
-                                other: crossed,
-                            },
-                        },
-                    );
+                let same = |c: &&mut MarkCrossing| {
+                    c.mark == mark && c.feature == feature && (c.s - s).abs() <= mark_slack
+                };
+                match found.iter_mut().find(same) {
+                    Some(crossing) => crossing.visible |= visible,
+                    None => found.push(MarkCrossing {
+                        mark,
+                        feature,
+                        s,
+                        at: x,
+                        sheet: [piece.sheet.at(u), other_sheet.at(v)],
+                        visible,
+                    }),
                 }
+            }
+        }
+        for crossing in found {
+            let on = Feature::CreaseMark(crossing.mark);
+            for (where_, crossed, sheet) in [
+                (on, crossing.feature, crossing.sheet[0]),
+                (crossing.feature, on, crossing.sheet[1]),
+            ] {
+                points.add(
+                    crossing.at,
+                    PointSource {
+                        sheet,
+                        visible: crossing.visible,
+                        kind: PointKind::CreaseMarkCrossing {
+                            on: where_,
+                            other: crossed,
+                        },
+                    },
+                );
             }
         }
         pieces.into_iter().map(|(piece, _)| piece).collect()
@@ -504,6 +512,19 @@ impl State {
         }
         out
     }
+}
+
+/// Where a crease mark crosses a feature, before it joins the points.
+struct MarkCrossing {
+    /// The mark, by its index in the state's crease marks.
+    mark: usize,
+    feature: Feature,
+    /// How far along the mark, as a fraction of its length.
+    s: f64,
+    at: Point,
+    /// The sheet points on the mark and on the feature.
+    sheet: [Point; 2],
+    visible: bool,
 }
 
 /// Point landmarks under construction: one grid place per landmark.
@@ -868,6 +889,17 @@ mod tests {
         state.precrease(&op).unwrap_or_else(|e| panic!("{e}")).state
     }
 
+    /// A crease mark along `l` from `from` to `to`: a partial precrease.
+    fn crease_mark(state: &State, l: Line, toward: Point, [from, to]: [Point; 2]) -> State {
+        let side = Side::of_point(&l, toward).unwrap_or_else(|| unreachable!());
+        let op = PlainFold::new(l, side, Direction::Valley);
+        let extent = crate::crease_marks::Extent::Segment { from, to };
+        state
+            .precrease_extent(&op, &extent)
+            .unwrap_or_else(|e| panic!("{e}"))
+            .state
+    }
+
     fn vertices_at(landmarks: &Landmarks, at: Point) -> Vec<Point> {
         let Some(p) = landmarks.point_at(at) else {
             panic!("no landmark at {at:?}");
@@ -1077,6 +1109,51 @@ mod tests {
         let l = s.landmarks(&[]);
         assert!(crossing_near(&l, bottom));
         assert!(!crossing_near(&l, bend));
+    }
+
+    /// A mark drawn edge to edge across the sheet, then the sheet folded in
+    /// half across it: the mark's two parts meet at the bend, one on top and
+    /// one under it, and both find the crossing there. It is seen through the
+    /// part on top, whichever part the landmarks reach first: fold either
+    /// half over, and look from either side. It was hidden when the part
+    /// underneath came first, so a strip's lines could not be picked at the
+    /// edge where they turn under.
+    #[test]
+    fn a_mark_crossing_a_bend_is_seen_through_the_part_on_top() {
+        let marked = crease_mark(
+            &square(),
+            line([0.0, 1.0], 0.5),
+            [0.5, 0.9],
+            [[0.0, 0.5], [1.0, 0.5]],
+        );
+        for toward in [[0.9, 0.5], [0.1, 0.5]] {
+            let folded = fold(&marked, line([1.0, 0.0], 0.5), toward);
+            for view in [folded.clone(), folded.turn_over()] {
+                let l = view.landmarks(&[]);
+                let p = l
+                    .point_at([0.5, 0.5])
+                    .unwrap_or_else(|| panic!("no crossing at the bend"));
+                let seen: Vec<Point> = p
+                    .sources
+                    .iter()
+                    .filter(|s| s.visible && matches!(s.kind, PointKind::CreaseMarkCrossing { .. }))
+                    .map(|s| s.sheet)
+                    .collect();
+                assert!(p.visible, "toward {toward:?}: {:?}", p.sources);
+                assert!(
+                    !seen.is_empty() && seen.iter().all(|&s| distance(s, [0.5, 0.5]) < 1e-12),
+                    "toward {toward:?}: {:?}",
+                    p.sources
+                );
+                // Once per mark and feature: one source on the mark, one on the bend.
+                let crossings = p
+                    .sources
+                    .iter()
+                    .filter(|s| matches!(s.kind, PointKind::CreaseMarkCrossing { .. }))
+                    .count();
+                assert_eq!(crossings, 2, "{:?}", p.sources);
+            }
+        }
     }
 
     #[test]
