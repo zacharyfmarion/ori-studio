@@ -154,6 +154,7 @@ export async function readFoldRunCapture(
       parent: foldStateFrame(scenes[index]!),
       child: foldStateFrame(scenes[index + 1]!),
       report: readies[index]!.folded,
+      pockets: readies[index]!.pockets,
     })
   );
   const { summary, engineVersion } = facts.value;

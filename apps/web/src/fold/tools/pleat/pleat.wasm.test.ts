@@ -309,3 +309,111 @@ it('resolves the second axiom on the original pose, replays its root, and refuse
   expect(e.step(sheet.state, { ...rooted, secondRoot: { n: [1, 0], d: 0.7 } }))
     .toMatchObject({ status: 'refused', refusal: { code: 'pleat_failed', reason: 'reference' } });
 });
+
+describe('a pleat whose mountain end moves', () => {
+  // The smallest stack where the front layer must pleat apart from the back:
+  // a square folded in half, the top half down over the bottom, so the two
+  // layers are joined only at the fold (image y = 0.5) and the front layer's
+  // free edge is at y = 0. The pleat's valley lies nearer that hinge (image
+  // y = 0.35), its mountain nearer the free edge (y = 0.2). Sheet points are
+  // the front layer's: its image of sheet y is 1 − y.
+  const valleyLine = { via: 'free', through: [[0.2, 0.65], [0.8, 0.65]] } as const;
+  const mountainLine = { via: 'free', through: [[0.2, 0.8], [0.8, 0.8]] } as const;
+  const freeEnd: [number, number] = [0.5, 0.9];
+  const front: FoldPleatOp = {
+    kind: 'pleat', line: mountainLine, second: valleyLine, end: 'mountain',
+    seed: { scope: 'flaps', at: [freeEnd] },
+  };
+  async function halfFolded() {
+    const e = await engine();
+    const sheet = e.sheet({ shape: { kind: 'square' }, startSide: 'front' });
+    if (sheet.status !== 'ok') throw Error('sheet');
+    const half = e.step(sheet.state, {
+      kind: 'valley', line: { via: 'free', through: [[0, 0.5], [1, 0.5]] },
+      moving: [0.5, 0.9], seed: { scope: 'all' }, landing: { kind: 'outer' },
+    });
+    if (half.status !== 'ok') throw Error(JSON.stringify(half));
+    return { e, half };
+  }
+
+  it('can only move both layers from the valley end: they join at the hinge on that side', async () => {
+    const { e, half } = await halfFolded();
+    // The front layer between the lines: on the mountain's side toward the valley.
+    const { end: _end, ...valleyEnd } = { ...front, seed: { scope: 'flaps', at: [[0.5, 0.7]] } } as FoldPleatOp;
+    const analysed = e.analyse(half.state, valleyEnd);
+    expect(analysed).toMatchObject({ status: 'ok', analysis: { flaps: [expect.anything()] } });
+    if (analysed.status !== 'ok') return;
+    expect(analysed.analysis.moving).toHaveLength(e.scene(half.state).faces.length);
+  });
+
+  it('moves the front layer alone and lands the paper of the two plain folds it is made of', async () => {
+    const { e, half } = await halfFolded();
+    const analysed = e.analyse(half.state, front);
+    expect(analysed).toMatchObject({ status: 'ok', analysis: { direction: 'valley', flaps: [expect.anything(), expect.anything()] } });
+    if (analysed.status !== 'ok') return;
+    expect(analysed.analysis.moving).toHaveLength(1);
+    const live = e.live();
+    const orders = e.orderSelection(half.state, front, undefined, { index: 0 });
+    expect(orders, JSON.stringify(orders)).toMatchObject({ status: 'ok', count: { orders: 1, exact: true } });
+    expect(e.live()).toBe(live);
+    if (orders.status !== 'ok') return;
+    const saved: FoldPleatOp = { ...front, resolved: orders.pleat };
+    const pleated = e.step(half.state, saved);
+    if (pleated.status !== 'ok') throw Error(JSON.stringify(pleated));
+    // By hand: the valley folds the front layer's free end up; the mountain,
+    // a valley as the turned-over paper is now seen, folds it back down.
+    const up = e.step(half.state, {
+      kind: 'valley', line: valleyLine, moving: freeEnd, seed: { scope: 'flaps', at: [freeEnd] }, landing: { kind: 'outer' },
+    });
+    if (up.status !== 'ok') throw Error(JSON.stringify(up));
+    const down = e.step(up.state, {
+      kind: 'valley', line: mountainLine, moving: freeEnd, seed: { scope: 'flaps', at: [freeEnd] }, landing: { kind: 'outer' },
+    });
+    if (down.status !== 'ok') throw Error(JSON.stringify(down));
+    expect(pleated.fingerprint).toBe(down.fingerprint);
+    // The back layer has no crease of the pleat: both lines cross the front layer only.
+    const back = e.scene(pleated.state).creases.filter((c) => c.letter && c.made_at === pleated.summary.step && c.from.y < 0.5);
+    expect(back).toEqual([]);
+    // Its picture: the valley first, then the mountain on the moving material.
+    expect(e.action(half.state, saved)).toMatchObject({ status: 'ok', action: {
+      direction: 'valley', spans: expect.arrayContaining([expect.objectContaining({ direction: 'mountain' })]), pleat: { kinks: 1 },
+    } });
+    // Saved and opened again, it replays to the same paper.
+    const replay = e.step(half.state, JSON.parse(JSON.stringify(saved)));
+    expect(replay).toMatchObject({ status: 'ok', fingerprint: pleated.fingerprint });
+  });
+
+  it('is repeated on the other side with the same end moving', async () => {
+    const e = await engine();
+    const sheet = e.sheet({ shape: { kind: 'square' }, startSide: 'front' });
+    if (sheet.status !== 'ok') throw Error('sheet');
+    // On a flat sheet: the valley at x = 0.7 folds first, the mountain at x = 0.85 returns the end beyond it.
+    const right: FoldPleatOp = {
+      kind: 'pleat', end: 'mountain', moving: [0.95, 0.5], seed: { scope: 'all' },
+      line: { via: 'free', through: [[0.85, 0], [0.85, 1]] },
+      second: { via: 'free', through: [[0.7, 0], [0.7, 1]] },
+    };
+    const orders = e.orderSelection(sheet.state, right, undefined, { index: 0 });
+    if (orders.status !== 'ok') throw Error(JSON.stringify(orders));
+    right.resolved = orders.pleat;
+    const source = e.step(sheet.state, right);
+    if (source.status !== 'ok') throw Error(JSON.stringify(source));
+    const repeated = prepareRepeat(e, {
+      parent: source.state,
+      source: { first: 'pleat', last: 'pleat', revision: 'test' },
+      axis: { n: [1, 0], d: 0.5 },
+      steps: [{ id: 'pleat', before: sheet.state, after: source.state, op: right }],
+    });
+    expect(repeated, JSON.stringify(repeated)).toMatchObject({ status: 'ready', op: { kind: 'repeat', steps: [{ op: { kind: 'pleat', end: 'mountain' } }] } });
+    if (repeated.status !== 'ready') return;
+    const result = e.step(source.state, repeated.op);
+    if (result.status !== 'ok') throw Error(JSON.stringify(result));
+    expect(e.scene(result.state).creases.filter((c) => c.letter)).toHaveLength(4);
+  });
+
+  it('refuses two lines that are one, whichever end moves', async () => {
+    const { e, half } = await halfFolded();
+    expect(e.orderSelection(half.state, { ...front, line: valleyLine }, undefined, { index: 0 }))
+      .toMatchObject({ status: 'refused', refusal: { code: 'pleat_failed', reason: 'lines' } });
+  });
+});

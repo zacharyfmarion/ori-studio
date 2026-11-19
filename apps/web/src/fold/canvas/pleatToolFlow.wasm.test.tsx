@@ -82,6 +82,77 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE)('independent pleat lines', () => {
       expect(selectFoldCursorNode(fresh.store.getState()).fingerprint).toBe(committed.fingerprint);
     } finally { fresh.dispose(); }
   });
+  it('pleats the front layer alone with Swap, its end beyond the mountain line moving, and replays it', async () => {
+    const document = createFoldSequence({ shape: { kind: 'square' }, startSide: 'front' });
+    useWorkspaceStore.getState().installFoldSequences([{ document, readOnlyRaw: null }], initialFoldReaderState(document.id));
+    await untilFlow(() => cursor().status === 'ok', 'the sheet');
+    // Folded in half, the top half down: the front layer is joined to the
+    // back only at the fold (y = 0.5), its free edge at y = 0.
+    expect(await session.commitStep({
+      kind: 'valley', line: { via: 'free', through: [[0, 0.5], [1, 0.5]] },
+      moving: [0.5, 0.9], seed: { scope: 'all' },
+    })).toMatchObject({ status: 'committed' });
+    await settle();
+    const index = await shownPickIndex(session);
+    const tools = createFoldTools();
+    tools.selectTool('pleat'); tools.setFreeLineSnap(false);
+    const seen: FoldFlowSeenRef = { current: null };
+    await act(async () => {
+      root.render(<FoldFlowCanvas session={session} tools={tools} view={{ index } as FoldStateView} seenRef={seen} />);
+      await settle();
+    });
+    // The mountain nearer the free edge, the valley nearer the fold.
+    await clickPane(seen, { x: 0.3, y: 0.2 });
+    await clickPane(seen, { x: 0.7, y: 0.2 });
+    await clickPane(seen, { x: 0.3, y: 0.35 });
+    await clickPane(seen, { x: 0.7, y: 0.35 });
+    // By default the valley's end moves: the fold's side, where both layers are one flap.
+    const joined = await untilFlow(() => {
+      const p = seen.current?.preview;
+      return p?.landed && !p.landing && !p.orderResolution?.waiting && p;
+    }, 'the pleat of both layers');
+    expect(joined.section?.flaps).toHaveLength(1);
+    expect(joined.analysis?.moving).toHaveLength(2);
+    await act(async () => { expect(seen.current!.verbs.swapSide()).toBe(true); await settle(); });
+    const preview = await untilFlow(() => {
+      const p = seen.current?.preview;
+      return p?.landed && !p.landing && !p.orderResolution?.waiting && p.section?.flaps.length === 2 && p;
+    }, 'the pleat of the front layer');
+    expect(preview.refused).toBeNull();
+    // The valley line's section on the mountain's side: the front layer, the top flap, alone moves.
+    expect(preview.analysis?.moving).toHaveLength(1);
+    const committed = await commitPreviewed(session, seen);
+    expect(committed.op).toMatchObject({ kind: 'pleat', end: 'mountain', seed: { scope: 'flaps' }, resolved: expect.any(Array) });
+    // The paper the two plain folds land: the valley up, then back down.
+    const parent = useWorkspaceStore.getState().foldSequences[0]!.document.steps[0]!;
+    const byHand = await session.withNode(parent.id, async (engine, state) => {
+      const up = await engine.step(state, {
+        kind: 'valley', line: { via: 'free', through: [[0.2, 0.65], [0.8, 0.65]] },
+        moving: [0.5, 0.9], seed: { scope: 'flaps', at: [[0.5, 0.9]] }, landing: { kind: 'outer' },
+      });
+      if (up.status !== 'ok') throw new Error(JSON.stringify(up));
+      const down = await engine.step(up.state, {
+        kind: 'valley', line: { via: 'free', through: [[0.2, 0.8], [0.8, 0.8]] },
+        moving: [0.5, 0.9], seed: { scope: 'flaps', at: [[0.5, 0.9]] }, landing: { kind: 'outer' },
+      });
+      if (down.status !== 'ok') throw new Error(JSON.stringify(down));
+      await engine.release([up.state, down.state]);
+      return down.fingerprint;
+    });
+    expect(byHand).toEqual({ status: 'answered', value: committed.fingerprint });
+    const saved = useWorkspaceStore.getState().foldSequences[0]!.document;
+    const reopened = readFoldSequence(JSON.parse(JSON.stringify(saved)))?.document;
+    if (!reopened) throw new Error('saved pleat did not reopen');
+    useWorkspaceStore.getState().installFoldSequences([{ document: reopened, readOnlyRaw: null }],
+      withFoldCursor(initialFoldReaderState(reopened.id), reopened, reopened.steps.at(-1)!.id));
+    const fresh = createFoldSession({ document: foldSessionDocumentSource(useWorkspaceStore), runtime: await foldFlowBridge() });
+    try {
+      fresh.retain();
+      await untilFlow(() => selectFoldCursorNode(fresh.store.getState()).status === 'ok', 'fresh replay');
+      expect(selectFoldCursorNode(fresh.store.getState()).fingerprint).toBe(committed.fingerprint);
+    } finally { fresh.dispose(); }
+  });
+
   it('changes the active valley to an axiom through the normal verbs and saves its root', async () => {
     const document = createFoldSequence({ shape: { kind: 'square' }, startSide: 'front' });
     useWorkspaceStore.getState().installFoldSequences([{ document, readOnlyRaw: null }], initialFoldReaderState(document.id));

@@ -97,7 +97,10 @@ export type FoldLineSectionTools = Pick<FoldToolState, 'tool' | 'lineMode' | 'pi
  * hinged on it.
  *
  * The side is the one the step will fold: located as the step locates it,
- * with every layer, which names the same line and side as any seed.
+ * with every layer, which names the same line and side as any seed. A
+ * pleat's is its first fold's (`locatePleatFirst`): the mountain line toward
+ * the valley line, or with Swap the valley line toward the mountain line, so
+ * the layers offered are those the end beyond the mountain line carries.
  */
 export function lineSectionProbe(
   tools: FoldLineSectionTools,

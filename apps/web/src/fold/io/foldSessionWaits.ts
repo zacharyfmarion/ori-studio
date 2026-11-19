@@ -13,7 +13,7 @@
 
 import type { FoldPathDigest, FoldStateFingerprint } from '../document/foldDigest';
 import type { FoldOp, FoldPaper } from '../document/foldSequenceDocument';
-import { foldedLineOf, type FoldedLine } from '../engine/foldEngineCompoundWire';
+import { foldedLineOf, squashPocketsOf, type FoldedLine } from '../engine/foldEngineCompoundWire';
 import type { FoldEngineStateHandle } from '../engine/foldEnginePort';
 import type { FoldSession } from '../session/foldSession';
 import { selectFoldCursorNode, type FoldSessionNode, type FoldSessionSnapshot } from '../session/foldSessionState';
@@ -114,6 +114,8 @@ export interface FoldStepReady {
    * vertex fold.
    */
   readonly folded: FoldedLine | null;
+  /** A squash that folded pockets on one lower layer together: how many (`squashPocketsOf`); null otherwise. */
+  readonly pockets: number | null;
 }
 
 /**
@@ -165,6 +167,7 @@ export function foldStepReady(
       path: node.path,
       op: held.op,
       folded: foldedLineOf(node),
+      pockets: squashPocketsOf(node),
     };
   });
 }

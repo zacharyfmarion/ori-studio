@@ -188,6 +188,17 @@ export function foldedLineOf(landed: {
 }
 
 /**
+ * How many pockets on one lower layer a landed squash folded together, by the
+ * vertices its report names (one per pocket); null for a squash of one flap
+ * and for every other step.
+ */
+export function squashPocketsOf(landed: { readonly compound?: FoldCompoundReport }): number | null {
+  const report = landed.compound;
+  if (report?.family !== 'vertex' || report.kind !== 'squash') return null;
+  return report.vertices.length > 1 ? report.vertices.length : null;
+}
+
+/**
  * What a landed compound step stores, as the document's choices: the
  * openings chosen among several, the order chosen among several, a closed
  * sink's pocket. Nothing for what had one way only. The engine spells each

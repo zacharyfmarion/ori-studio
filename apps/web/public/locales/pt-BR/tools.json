@@ -523,8 +523,9 @@
       "blocked": "As duas dobras devem caber na aba selecionada sem mover outras partes do papel. Verifique as linhas e as camadas selecionadas.",
       "intro": "Localize primeiro a linha de montanha e depois a de vale no modelo antes de dobrá-lo.",
       "layers": "Escolha a aba para dobrar. A ponta além da linha de vale é dobrada de volta.",
+      "layersMountainEnd": "Escolha a aba para dobrar. A ponta além da linha de montanha é dobrada de volta.",
       "limit": "Há muitas disposições de camadas para resolver esta dobra. Selecione uma aba menor.",
-      "lines": "A linha de vale deve ficar além da linha de montanha, na direção da ponta que se move. Verifique as linhas ou pressione Inverter.",
+      "linesApart": "As linhas de montanha e de vale precisam estar separadas. Escolha duas linhas diferentes.",
       "mountainInstruction": "Linha de montanha: {{instruction}}",
       "mountainLine": "Linha de montanha",
       "refusedTitle": "Não é possível fazer a dobra sanfona aqui",
@@ -1023,6 +1024,17 @@
         "swivelPicture": "Os vincos se encontram no ponto, a borda pousa na linha grossa e o papel aceso se move.",
         "swivelValleyMountainPicture": "Os vincos se encontram no ponto. O vinco pontilhado está na camada de trás e decorre do vale e da montanha; o papel aceso se move."
       },
+      "otherEnd": {
+        "action": "Girar lá também",
+        "behindRunsOn": "O vinco de trás continua até outra borda dobrada.",
+        "label": "Outra ponta",
+        "mountainRunsOn": "A montanha continua até outra borda dobrada.",
+        "pickMountainBehind": "A outra ponta: escolha a linha de montanha dela, a partir do mesmo ponto.",
+        "pickMountainShared": "A outra ponta: escolha a linha de montanha dela, a partir de onde o vale encontra a outra borda dobrada.",
+        "pickValleyBehind": "A outra ponta: escolha a linha de vale dela, na camada que você vê, a partir de onde o vinco de trás encontra a outra borda dobrada.",
+        "pickValleyShared": "A outra ponta: escolha a linha de vale dela, a partir de onde a montanha encontra a outra borda dobrada.",
+        "valleyRunsOn": "O vale continua até outra borda dobrada."
+      },
       "refusal": {
         "blocked": {
           "steppers": "Um vinco esbarraria em papel que não dobra junto, ou o papel prenderia duas partes da dobra. Passe Camadas para dobrar mais camadas, ou Quarto vinco para outro.",
@@ -1055,8 +1067,11 @@
         },
         "line": {
           "crease": "O vinco da dobradiça não atravessa todas as camadas abaixo dele que dobram. Pré-vinque a dobradiça através de todas as camadas; depois faça a dobra pétala.",
+          "creaseNoRoute": "O vinco da dobradiça não atravessa todas as camadas abaixo dele que dobram, e pré-vincá-lo através de todas as camadas também não permitiria a dobra pétala. Escolha outra dobradiça ou indique esta pelas duas pontas.",
           "ends": "A dobradiça cruza papel da segunda camada, que se dobra para dentro ao lado da pipa, e a dobra não consegue vincá-lo enquanto a aba sobe. Pré-vinque a dobradiça através de todas as camadas; depois faça a dobra pétala.",
-          "titleHinge": "Pré-vinque antes a dobradiça"
+          "endsNoRoute": "A dobradiça cruza papel da segunda camada, que se dobra para dentro ao lado da pipa, e a dobra não consegue vincá-lo enquanto a aba sobe. Pré-vincar a dobradiça através de todas as camadas também não permitiria a dobra pétala. Escolha outra dobradiça.",
+          "titleHinge": "Pré-vinque antes a dobradiça",
+          "titleNoRoute": "A dobradiça não pode dobrar aqui"
         },
         "lineMeeting": {
           "textValleyMountain": "O vale e a montanha se encontram em um ponto de uma borda dobrada que você vê, longe das pontas dela. Escolha duas linhas que se cruzem ali.",

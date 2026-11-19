@@ -103,6 +103,7 @@ import {
   type FoldStepNode,
   type FoldStepSpreadEntry,
   type FoldSwivelEdgeOp,
+  type FoldSwivelOtherEnd,
   type FoldSwivelValleyMountainOp,
   type FoldVertexOp,
   type FoldVertexOpKind,
@@ -368,7 +369,8 @@ const OP_KEYS = new Map<string, ReadonlySet<string>>([
   // Compound folds (plan D4), one block per family.
   ['inside-reverse', ALONG_LINE_KEYS],
   ['outside-reverse', ALONG_LINE_KEYS],
-  ['pleat', new Set([...ALONG_LINE_KEYS, 'second', 'secondRoot', 'resolved'])],
+  // `end`, which no build before it knew: the end beyond the mountain line moves.
+  ['pleat', new Set([...ALONG_LINE_KEYS, 'second', 'secondRoot', 'end', 'resolved'])],
   ['crimp', new Set([...ALONG_LINE_KEYS, 'second', 'crimp'])],
   ['tuck', new Set([...ALONG_LINE_KEYS, 'direction', 'target', 'additionalTargets'])],
   ['squash', new Set(['kind', 'flap', 'target', 'direction', 'hinge', 'opening'])],
@@ -400,8 +402,14 @@ const SWIVEL_EDGE_KEYS = new Set([
   'swivel',
 ]);
 
-/** A swivel by its valley and mountain's keys (`FoldSwivelValleyMountainOp`): no direction. */
-const SWIVEL_VALLEY_MOUNTAIN_KEYS = new Set(['kind', 'via', 'valley', 'mountain', 'swivel']);
+/**
+ * A swivel by its valley and mountain's keys (`FoldSwivelValleyMountainOp`):
+ * no direction; `otherEnd`, which no build before it knew, its second swivel.
+ */
+const SWIVEL_VALLEY_MOUNTAIN_KEYS = new Set(['kind', 'via', 'valley', 'mountain', 'swivel', 'otherEnd']);
+
+/** The keys of a swivel's other end (`FoldSwivelOtherEnd`): its own two lines; its kind is the first's. */
+const SWIVEL_OTHER_END_KEYS = new Set(['valley', 'mountain']);
 
 /** The keys this build knows for an op: its kind's, or its form's when its kind has several. */
 function opKeys(value: Record<string, unknown>, kind: string): ReadonlySet<string> | undefined {
@@ -524,8 +532,11 @@ function readOp(value: unknown, depth = 0, budget = { remaining: 256 }): FoldOp 
         return landing && completion !== null ? { landing, ...(completion ? { completion } : {}) } : null;
       });
       const secondRoot = value.secondRoot === undefined ? undefined : readModelLine(value.secondRoot);
+      // Only the mountain's end is ever written: any other value is a newer build's.
+      if (value.end !== undefined && value.end !== 'mountain') return null;
       if (!along || !second || secondRoot === null || (secondRoot && second.via !== 'axiom') || (second.via === 'axiom' && !secondRoot) || resolved === null || (resolved && resolved.length !== 2)) return null;
-      return { kind, ...along, second, ...(secondRoot ? { secondRoot } : {}), ...(resolved ? { resolved: [resolved[0]!, resolved[1]!] as const } : {}) };
+      return { kind, ...along, second, ...(secondRoot ? { secondRoot } : {}), ...(value.end === 'mountain' ? { end: 'mountain' as const } : {}),
+        ...(resolved ? { resolved: [resolved[0]!, resolved[1]!] as const } : {}) };
     }
     case 'crimp': {
       const along = readAlongLine(value);
@@ -646,12 +657,30 @@ function readVertexOp(kind: FoldVertexOpKind, value: Record<string, unknown>): F
  * A swivel by its valley and mountain (`via: 'valley-mountain'`): each line
  * as a fold's line is located, an axiom's with its root; `swivel: 'inside'`
  * for the inside swivel, the only value it is written with. No direction.
+ * Its other end, when it has one, its two lines read the same way: one that
+ * does not read, or names anything else, does not read the op.
  */
 function readSwivelValleyMountainOp(value: Record<string, unknown>): FoldSwivelValleyMountainOp | null {
   const valley = readLocatedLine(value.valley);
   const mountain = readLocatedLine(value.mountain);
   if (!valley || !mountain || (value.swivel !== undefined && value.swivel !== 'inside')) return null;
-  return { kind: 'swivel', via: 'valley-mountain', valley, mountain, ...(value.swivel === 'inside' ? { swivel: 'inside' as const } : {}) };
+  let otherEnd: FoldSwivelOtherEnd | undefined;
+  if (value.otherEnd !== undefined) {
+    const other = value.otherEnd;
+    if (!isRecord(other) || hasNewerKey(other, SWIVEL_OTHER_END_KEYS)) return null;
+    const otherValley = readLocatedLine(other.valley);
+    const otherMountain = readLocatedLine(other.mountain);
+    if (!otherValley || !otherMountain) return null;
+    otherEnd = { valley: otherValley, mountain: otherMountain };
+  }
+  return {
+    kind: 'swivel',
+    via: 'valley-mountain',
+    valley,
+    mountain,
+    ...(value.swivel === 'inside' ? { swivel: 'inside' as const } : {}),
+    ...(otherEnd ? { otherEnd } : {}),
+  };
 }
 
 /**
@@ -1142,7 +1171,8 @@ export function writeFoldOp(op: FoldOp): Record<string, unknown> {
     case 'unsink':
       return { kind: op.kind, line: writeLine(op.line), ...writeMotion(op) };
     case 'pleat':
-      return { kind: op.kind, line: writeLine(op.line), second: writeLine(op.second), ...(op.secondRoot ? { secondRoot: { n: [...op.secondRoot.n], d: op.secondRoot.d } } : {}), ...writeMotion(op),
+      return { kind: op.kind, line: writeLine(op.line), second: writeLine(op.second), ...(op.secondRoot ? { secondRoot: { n: [...op.secondRoot.n], d: op.secondRoot.d } } : {}),
+        ...(op.end ? { end: op.end } : {}), ...writeMotion(op),
         ...(op.resolved ? { resolved: op.resolved.map((r) => ({ landing: r.landing,
           ...(r.completion ? { completion: { faces: r.completion.faces.map(writePoint), orders: r.completion.orders.map((o) => [...o]) } } : {}),
         })) } : {}) };
@@ -1201,12 +1231,16 @@ function writeVertexOp(op: FoldVertexOp): Record<string, unknown> {
       };
     case 'swivel':
       if ('via' in op && op.via === 'valley-mountain') {
+        // Its other end last, and only when it has one: a single swivel is written as it always was.
         return {
           kind: op.kind,
           via: op.via,
           valley: writeLocatedLine(op.valley),
           mountain: writeLocatedLine(op.mountain),
           ...(op.swivel === 'inside' ? { swivel: op.swivel } : {}),
+          ...(op.otherEnd
+            ? { otherEnd: { valley: writeLocatedLine(op.otherEnd.valley), mountain: writeLocatedLine(op.otherEnd.mountain) } }
+            : {}),
         };
       }
       if ('via' in op && 'fold' in op) {

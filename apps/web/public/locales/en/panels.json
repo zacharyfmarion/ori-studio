@@ -2056,6 +2056,7 @@
         "rabbitEar": "Rabbit-ear the triangle behind.",
         "squash": "Squash-fold the flap behind.",
         "squashEnd": "Squash-fold the end of the flap behind, lifting it along the line.",
+        "squashPockets": "Squash-fold the pockets behind, together.",
         "swivel": "Swivel-fold the paper behind, about the point.",
         "swivelEdgeCrease": "Swivel the edge behind onto the crease, pivoting at the point.",
         "swivelEdgeLine": "Swivel the edge behind onto the line, pivoting at the point.",
@@ -2657,9 +2658,11 @@
       "petal": "Petal-fold the flap.",
       "petalScores": "Petal-fold the flap, creasing its hinge as it lifts.",
       "pleat": "Pleat along the two lines: mountain first, then valley.",
+      "pleatMountainEnd": "Pleat along the two lines: valley first, then mountain.",
       "rabbitEar": "Rabbit-ear the triangle.",
       "squash": "Squash-fold the flap.",
       "squashEnd": "Squash-fold the end of the flap, lifting it along the line.",
+      "squashPockets": "Squash-fold the pockets together.",
       "swivel": "Swivel-fold the paper about the point.",
       "swivelEdgeCrease": "Swivel the edge onto the crease, pivoting at the point.",
       "swivelEdgeLine": "Swivel the edge onto the line, pivoting at the point.",
@@ -2667,7 +2670,9 @@
       "swivelFoldLine": "Swivel the edge onto the line, the creases meeting on the folded edge.",
       "swivelInsideCrease": "Inside-swivel the edge onto the crease, the creases meeting on the folded edge.",
       "swivelInsideLine": "Inside-swivel the edge onto the line, the creases meeting on the folded edge.",
+      "swivelInsidePair": "Inside-swivel both flaps along their valleys and mountains, together.",
       "swivelInsideValleyMountain": "Inside-swivel the flap along the valley and the mountain.",
+      "swivelPair": "Swivel-fold both flaps along their valleys and mountains, together.",
       "swivelValleyMountain": "Swivel-fold the flap along the valley and the mountain.",
       "tuckMountain": "Mountain fold and tuck the flap in at the back, over the chosen layer.",
       "tuckValley": "Valley fold and tuck the flap in, under the chosen layer.",
@@ -2939,6 +2944,7 @@
       "title": "Step {{number}}",
       "valley": "Valley",
       "valleyMountainHelp": "On the layer you see, the valley and the mountain that bound the flap, meeting on the folded edge. The crease on the layer behind follows from them.",
+      "valleyMountainPairHelp": "Two swivels made together, each by its valley and mountain on its own folded edge. A crease of one runs on to the other and is the same crease, folded once.",
       "vertex": {
         "blocksHelp": "Pieces of paper that turn as one: each turns about the same creases, in the same order, to where it lands."
       }
@@ -3030,6 +3036,7 @@
       "unsink": "Unsink",
       "valleyFold": "Valley fold",
       "valleyMountain": "Valley and mountain",
+      "valleyMountainBothEnds": "Valley and mountain, both ends",
       "valleyPrecrease": "Valley fold and unfold"
     }
   },

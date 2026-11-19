@@ -25,6 +25,7 @@ import {
   storedLine,
   swivelDirectionsOf,
   swivelKindsLanding,
+  swivelLinesOf,
   vertexAskedOp,
   vertexChosenOp,
   vertexStepFrom,
@@ -127,11 +128,11 @@ export function useFoldVertexStep(
   index: FoldPickIndex | null,
   tools: FoldToolState,
   enabled: boolean,
-  swivelMountain?: FoldLocatedLine
+  swivelLocated?: FoldLocatedLine
 ): FoldVertexStepAnswer {
   const state = session.cursor.state;
   const stateKey = state ? `${state.generation}:${state.id}` : null;
-  const { tool, petalHinge, swivelTarget, swivelInput, squashHinge, takenLine, picks, vertexDirection, compound } = tools;
+  const { tool, petalHinge, swivelTarget, swivelInput, squashHinge, takenLine, otherEnd, picks, vertexDirection, compound } = tools;
   const { squashTarget, fanLayers, emergent: chosenEmergent, order: chosenOrder } = compound;
   const squashOpening = compound.squashOpening ?? null;
 
@@ -144,6 +145,10 @@ export function useFoldVertexStep(
   const swivelKind = compound.swivelKind ?? 'open';
   // The line taken — a swivel's valley, a squash's drawn hinge — as the op stores it: its scene line is the canvas's.
   const line = useMemo(() => storedLine(takenLine), [takenLine]);
+  // A swivel by its valley and mountain's lines: its valley and the mountain
+  // located once the valley is taken; at its other end, the first swivel's,
+  // and the second's as they come in.
+  const swivelLines = useMemo(() => swivelLinesOf(otherEnd, line, swivelLocated), [otherEnd, line, swivelLocated]);
 
   const intent = useMemo<FoldVertexIntent | null>(
     () =>
@@ -153,8 +158,7 @@ export function useFoldVertexStep(
             petalHinge,
             swivelTarget,
             swivelInput,
-            swivelValley: tool === 'swivel' ? line : undefined,
-            swivelMountain,
+            ...(tool === 'swivel' ? swivelLines : {}),
             ...(tool === 'squash' ? { squashHinge: squashHinge ?? 'folded', hinge: squashHinge === 'line' ? line : undefined } : {}),
             picks,
             direction,
@@ -162,7 +166,7 @@ export function useFoldVertexStep(
             swivelKind,
           }
         : null,
-    [enabled, tool, petalHinge, swivelTarget, swivelInput, squashHinge, line, swivelMountain, picks, direction, fanLayers, swivelKind]
+    [enabled, tool, petalHinge, swivelTarget, swivelInput, squashHinge, line, swivelLines, picks, direction, fanLayers, swivelKind]
   );
   const taken = useMemo<FoldVertexTaken>(
     () => ({ squashTarget, squashOpening, emergent: chosenEmergent, order: chosenOrder }),

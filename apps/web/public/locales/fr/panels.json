@@ -2133,6 +2133,7 @@
         "rabbitEar": "Faites une oreille de lapin avec le triangle, vers l’arrière.",
         "squash": "Faites un pli écrasé avec le rabat, vers l’arrière.",
         "squashEnd": "Faites un pli écrasé avec l’extrémité du rabat, vers l’arrière, en la soulevant le long de la ligne.",
+        "squashPockets": "Faites un pli écrasé avec les poches ensemble, vers l’arrière.",
         "swivel": "Faites pivoter le papier vers l’arrière autour du point par un pli pivot.",
         "swivelEdgeCrease": "Faites pivoter le bord vers l’arrière sur le pli, autour du point.",
         "swivelEdgeLine": "Faites pivoter le bord vers l’arrière sur la ligne, autour du point.",
@@ -2886,9 +2887,11 @@
       "petal": "Faites un pli pétale avec le rabat.",
       "petalScores": "Faites un pli pétale avec le rabat, en marquant sa charnière pendant qu’il se soulève.",
       "pleat": "Plier le long des deux lignes : montagne d’abord, puis vallée.",
+      "pleatMountainEnd": "Plier le long des deux lignes : vallée d’abord, puis montagne.",
       "rabbitEar": "Faites une oreille de lapin avec le triangle.",
       "squash": "Faites un pli écrasé avec le rabat.",
       "squashEnd": "Faites un pli écrasé avec l’extrémité du rabat, en la soulevant le long de la ligne.",
+      "squashPockets": "Faites un pli écrasé avec les poches ensemble.",
       "swivel": "Faites pivoter le papier autour du point par un pli pivot.",
       "swivelEdgeCrease": "Faites pivoter le bord sur le pli, autour du point.",
       "swivelEdgeLine": "Faites pivoter le bord sur la ligne, autour du point.",
@@ -2896,7 +2899,9 @@
       "swivelFoldLine": "Faites pivoter le bord sur la ligne, les plis se rejoignant sur le bord plié.",
       "swivelInsideCrease": "Faites pivoter le bord sur le pli en pli pivot intérieur, les plis se rejoignant sur le bord plié.",
       "swivelInsideLine": "Faites pivoter le bord sur la ligne en pli pivot intérieur, les plis se rejoignant sur le bord plié.",
+      "swivelInsidePair": "Faites pivoter les deux rabats ensemble en plis pivots intérieurs le long de leurs vallées et montagnes.",
       "swivelInsideValleyMountain": "Faites pivoter le rabat en pli pivot intérieur le long de la vallée et de la montagne.",
+      "swivelPair": "Faites pivoter les deux rabats ensemble par des plis pivots le long de leurs vallées et montagnes.",
       "swivelValleyMountain": "Faites pivoter le rabat par un pli pivot le long de la vallée et de la montagne.",
       "tuckMountain": "Pliez en montagne et rentrez le rabat par l’arrière, sur la couche choisie.",
       "tuckValley": "Pliez en vallée et rentrez le rabat sous la couche choisie.",
@@ -3220,6 +3225,7 @@
       "title": "Étape {{number}}",
       "valley": "Vallée",
       "valleyMountainHelp": "Sur la couche visible, la vallée et la montagne qui bordent le rabat et se rejoignent sur le bord plié. Le pli sur la couche de derrière en découle.",
+      "valleyMountainPairHelp": "Deux plis pivots faits ensemble, chacun par sa vallée et sa montagne sur son propre bord plié. Un pli de l’un se prolonge jusqu’à l’autre et c’est le même pli, plié une fois.",
       "vertex": {
         "blocksHelp": "Morceaux de papier qui tournent d’un seul tenant : chacun tourne autour des mêmes plis, dans le même ordre, jusqu’à l’endroit où il se pose."
       }
@@ -3318,6 +3324,7 @@
       "unsink": "Désenfoncer",
       "valleyFold": "Pli vallée",
       "valleyMountain": "Vallée et montagne",
+      "valleyMountainBothEnds": "Vallée et montagne, aux deux extrémités",
       "valleyPrecrease": "Pli vallée puis dépli"
     }
   },

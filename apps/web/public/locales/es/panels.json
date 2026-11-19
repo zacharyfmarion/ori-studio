@@ -2133,6 +2133,7 @@
         "rabbitEar": "Haz una oreja de conejo con el triángulo por detrás.",
         "squash": "Haz un pliegue aplastado con la solapa por detrás.",
         "squashEnd": "Haz un pliegue aplastado con el extremo de la solapa por detrás, levantándolo a lo largo de la línea.",
+        "squashPockets": "Haz un pliegue aplastado con los bolsillos a la vez, por detrás.",
         "swivel": "Haz girar el papel por detrás alrededor del punto con un pliegue giratorio.",
         "swivelEdgeCrease": "Gira el borde por detrás sobre el pliegue, pivotando en el punto.",
         "swivelEdgeLine": "Gira el borde por detrás sobre la línea, pivotando en el punto.",
@@ -2886,9 +2887,11 @@
       "petal": "Haz un pliegue de pétalo con la solapa.",
       "petalScores": "Haz un pliegue de pétalo con la solapa, marcando su bisagra mientras se levanta.",
       "pleat": "Pliega por las dos líneas: primero en montaña y luego en valle.",
+      "pleatMountainEnd": "Pliega por las dos líneas: primero en valle y luego en montaña.",
       "rabbitEar": "Haz una oreja de conejo con el triángulo.",
       "squash": "Haz un pliegue aplastado con la solapa.",
       "squashEnd": "Haz un pliegue aplastado con el extremo de la solapa, levantándolo a lo largo de la línea.",
+      "squashPockets": "Haz un pliegue aplastado con los bolsillos a la vez.",
       "swivel": "Haz girar el papel alrededor del punto con un pliegue giratorio.",
       "swivelEdgeCrease": "Gira el borde sobre el pliegue, pivotando en el punto.",
       "swivelEdgeLine": "Gira el borde sobre la línea, pivotando en el punto.",
@@ -2896,7 +2899,9 @@
       "swivelFoldLine": "Gira el borde sobre la línea, con los pliegues juntándose en el borde plegado.",
       "swivelInsideCrease": "Gira el borde sobre el pliegue con un giro interior, con los pliegues juntándose en el borde plegado.",
       "swivelInsideLine": "Gira el borde sobre la línea con un giro interior, con los pliegues juntándose en el borde plegado.",
+      "swivelInsidePair": "Haz girar ambas solapas a la vez con giros interiores a lo largo de sus valles y montes.",
       "swivelInsideValleyMountain": "Haz girar la solapa con un giro interior a lo largo del valle y el monte.",
+      "swivelPair": "Haz girar ambas solapas a la vez con pliegues giratorios a lo largo de sus valles y montes.",
       "swivelValleyMountain": "Haz girar la solapa con un pliegue giratorio a lo largo del valle y el monte.",
       "tuckMountain": "Pliega en monte y remete la solapa por detrás, sobre la capa elegida.",
       "tuckValley": "Pliega en valle y remete la solapa bajo la capa elegida.",
@@ -3220,6 +3225,7 @@
       "title": "Paso {{number}}",
       "valley": "Valle",
       "valleyMountainHelp": "En la capa que ves, el valle y el monte que delimitan la solapa y se juntan en el borde plegado. El pliegue de la capa de detrás resulta de ellos.",
+      "valleyMountainPairHelp": "Dos pliegues giratorios hechos a la vez, cada uno con su valle y su monte sobre su propio borde plegado. Un pliegue de uno sigue hasta el otro y es el mismo pliegue, plegado una vez.",
       "vertex": {
         "blocksHelp": "Trozos de papel que giran juntos: cada uno gira sobre los mismos pliegues, en el mismo orden, hasta donde queda."
       }
@@ -3318,6 +3324,7 @@
       "unsink": "Deshacer hundido",
       "valleyFold": "Pliegue valle",
       "valleyMountain": "Valle y monte",
+      "valleyMountainBothEnds": "Valle y monte, en ambos extremos",
       "valleyPrecrease": "Pliegue valle y desdoblar"
     }
   },

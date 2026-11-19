@@ -32,6 +32,17 @@ it('counts Repeat mode and a bucketed range size without source content', () => 
   });
 });
 
+it('says which end of a pleat moved, and nothing of the sort for another fold', () => {
+  for (const pleatEnd of ['valley', 'mountain'] as const) {
+    trackFoldStepAdded('pleat', { layerScope: 'top', via: 'crease', pleatEnd });
+    expect(runtime.track).toHaveBeenLastCalledWith('fold step added', {
+      op_kind: 'pleat', layer_scope: 'top', via: 'crease', pleat_end: pleatEnd,
+    });
+  }
+  trackFoldStepAdded('crimp', { layerScope: 'all', via: 'free' });
+  expect(runtime.track).toHaveBeenLastCalledWith('fold step added', { op_kind: 'crimp', layer_scope: 'all', via: 'free' });
+});
+
 it('counts tuck targets only in buckets, distinguishing a single target from multiple targets', () => {
   for (const [targetCount, bucket] of [[1, '<=1'], [2, '<=5'], [6, '<=10']] as const) {
     trackFoldStepAdded('tuck', { layerScope: 'depth', via: 'free', targetCount });
@@ -71,6 +82,14 @@ describe('trackFoldStepAdded for a swivel', () => {
       op_kind: 'swivel',
       swivel_form: 'valley_mountain',
       swivel_kind: 'inside',
+    });
+    // Made with its other end: the crease the two share.
+    trackFoldStepAdded('swivel', { vertex: { swivelForm: 'valley_mountain', swivelKind: 'open', swivelShared: 'behind' } });
+    expect(runtime.track).toHaveBeenLastCalledWith('fold step added', {
+      op_kind: 'swivel',
+      swivel_form: 'valley_mountain',
+      swivel_kind: 'open',
+      swivel_shared: 'behind',
     });
   });
 });

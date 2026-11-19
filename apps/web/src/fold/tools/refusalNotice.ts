@@ -142,7 +142,8 @@ function words(t: TFunction, refused: FoldRefused, context: FoldRefusalContext):
   switch (refusal.code) {
     case 'pleat_failed':
       return { title: t('tools:fold.pleat.refusedTitle', 'The pleat cannot fold here'), text: refusal.reason === 'lines'
-          ? t('tools:fold.pleat.lines', 'The valley line must be beyond the mountain line, toward the end that moves. Check the lines or press Swap.')
+          // Either end can move (Swap), so two lines that refuse are one line.
+          ? t('tools:fold.pleat.linesApart', 'The mountain and valley lines must be apart. Pick two different lines.')
           : refusal.reason === 'limit'
             ? t('tools:fold.pleat.limit', 'There are too many layer arrangements to resolve this pleat. Select a smaller flap.')
             : t('tools:fold.pleat.blocked', 'Both folds must fit within the selected flap without moving other paper. Check the lines and selected layers.') };
@@ -498,7 +499,9 @@ function words(t: TFunction, refused: FoldRefused, context: FoldRefusalContext):
     case 'swivel_misses_fold':
     case 'swivel_fold_wide':
     case 'swivel_inside_free':
-      return vertexRefusalWords(t, refusal, context.vertex ?? vertexContextOf(refusal.code)) ?? invalidWords(t);
+      return (
+        vertexRefusalWords(t, refusal, context.vertex ?? vertexContextOf(refusal.code), refused.fixes) ?? invalidWords(t)
+      );
     // The sinks'.
     case 'sink_several_points':
     case 'sink_point_open':
@@ -944,7 +947,8 @@ function fixActions(
       ];
     }
     case 'use_emergent':
-      // A rabbit ear's or a swivel's: its tool's button (`vertexFixActions`), above.
+    case 'precrease_first':
+      // A rabbit ear's or a swivel's, a petal fold's: its tool's button (`vertexFixActions`), above.
       return [];
     case 'other_sink': {
       const { otherSink } = verbs;

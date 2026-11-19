@@ -73,6 +73,12 @@ export type FoldStepVia = 'axiom' | 'crease' | 'free';
 /** How much of its line a Fold precrease creased: all of it, a segment between two points, or a pinch. */
 export type FoldStepExtent = 'whole' | 'segment' | 'pinch';
 
+/**
+ * Which end of a Fold pleat moved (`pleat_end`, since 2026-11-18): the end
+ * beyond its valley line, the default, or beyond its mountain line (Swap).
+ */
+export type FoldStepPleatEnd = 'valley' | 'mountain';
+
 /** How far a Fold rotation turned the model: its preset, or `other` for an exact angle (never the angle itself). */
 export type FoldStepRotationAmount = 'eighth' | 'quarter' | 'half' | 'other';
 
@@ -86,6 +92,9 @@ export type FoldStepRotationAmount = 'eighth' | 'quarter' | 'half' | 'other';
  * through two points (`target`); and on a folded edge its kind, open or
  * inside (`swivel_kind`, since 2026-10-12); and a squash's hinge, the
  * folded edge it infers or a line drawn (`squash_hinge`, since 2026-10-21).
+ * A swivel by its valley and mountain made with its other end says which
+ * crease the two share (`swivel_shared`, since 2026-11-03): the valley or
+ * the mountain in front, or the crease behind.
  */
 export type FoldStepVertexForm =
   | { hinge: 'crease' | 'points' }
@@ -93,7 +102,7 @@ export type FoldStepVertexForm =
   | { swivelForm: 'edge'; target: 'crease' | 'free' }
   | { swivelForm: 'fold'; target: 'crease' | 'free'; swivelKind: 'open' | 'inside' }
   | { swivelForm: 'rays' }
-  | { swivelForm: 'valley_mountain'; swivelKind: 'open' | 'inside' };
+  | { swivelForm: 'valley_mountain'; swivelKind: 'open' | 'inside'; swivelShared?: 'valley' | 'mountain' | 'behind' };
 
 /**
  * How the reader set a Fold step moving: Space, the Play button, or either on

@@ -172,6 +172,8 @@ export interface FoldToolWindowView extends FoldToolsView {
   // The crimp's and the tuck's (`tools/crimp/crimpToolWindow`, `tools/tuck/tuckToolWindow`).
   /** How a crimp's second line is located; absent for every other tool. */
   secondLineMode?: FoldSecondLineModeId;
+  /** A pleat whose mountain end moves (Swap, `FoldPleatOp.end`); absent for the valley's, and for every other tool. */
+  pleatEnd?: 'mountain';
   /** The crimp tool's kind and choices, while it previews: a reverse fold's, on both lines. */
   crimp?: FoldReverseWindowView;
   /** The tuck tool's direction, and its targets and orders while it previews. */

@@ -117,13 +117,16 @@ export type FoldVertexSentenceForm =
   | { hinge: 'crease' | 'points' }
   /** A squash about a drawn hinge: only the flap's end beyond it squashes. */
   | { squashHinge: 'line' }
+  /** A squash of pockets on one lower layer, folded together (the engine's report says so). */
+  | { squashPockets: true }
   | { swivel: 'rays' }
   /**
    * A swivel by its valley and mountain on the layer that faces the viewer:
    * its letters are the viewer's, so it never folds behind. `inside` for the
-   * inside swivel, its strip tucked under.
+   * inside swivel, its strip tucked under; `pair` for two made together, at
+   * the two ends of a crease they share.
    */
-  | { swivel: 'valley-mountain'; inside?: true }
+  | { swivel: 'valley-mountain'; inside?: true; pair?: true }
   | { swivel: 'edge'; target: 'crease' | 'free'; ridge: 'foot' | 'end' }
   /**
    * A swivel by its edge whose creases meet on a folded edge: no ridge to
@@ -167,7 +170,8 @@ export type FoldSentenceStep =
    * as a reverse fold's is found, and its second, drawn or an existing crease;
    * its layers the tip's anchor, as a reverse fold's are.
    */
-  | { op: 'pleat'; line: FoldSentenceLine; second: FoldSentenceLine; scope: FoldLayerScope }
+  /** `end`: the end beyond the mountain line moves, the valley folding first (`FoldPleatOp.end`). */
+  | { op: 'pleat'; line: FoldSentenceLine; second: FoldSentenceLine; scope: FoldLayerScope; end?: 'mountain' }
   | { op: 'crimp'; crimp: 'inside' | 'outside'; line: FoldSentenceLine; second: CrimpSecondLine; scope: FoldLayerScope }
   /**
    * A fold slid under the chosen layer (a valley) or over it (a mountain), as
@@ -366,7 +370,9 @@ export function foldStepSentence(t: TFunction, step: FoldSentenceStep): string {
     case 'reverse':
       return reverseFoldSentence(t, step.kind, lineClause(t, step.line), step.scope);
     case 'pleat':
-      return t('panels:fold.sentence.pleat', 'Pleat along the two lines: mountain first, then valley.');
+      return step.end === 'mountain'
+        ? t('panels:fold.sentence.pleatMountainEnd', 'Pleat along the two lines: valley first, then mountain.')
+        : t('panels:fold.sentence.pleat', 'Pleat along the two lines: mountain first, then valley.');
     case 'crimp':
       return crimpSentence(t, step.crimp, lineClause(t, step.line), step.second, step.scope);
     case 'tuck':

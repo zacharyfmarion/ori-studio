@@ -2133,6 +2133,7 @@
         "rabbitEar": "Faça uma orelha de coelho com o triângulo, por trás.",
         "squash": "Faça uma dobra esmagada com a aba, por trás.",
         "squashEnd": "Faça uma dobra esmagada com a ponta da aba, por trás, levantando-a ao longo da linha.",
+        "squashPockets": "Faça uma dobra esmagada com os bolsos juntos, por trás.",
         "swivel": "Gire o papel por trás em torno do ponto com uma dobra giratória.",
         "swivelEdgeCrease": "Gire a borda por trás sobre o vinco, pivotando no ponto.",
         "swivelEdgeLine": "Gire a borda por trás sobre a linha, pivotando no ponto.",
@@ -2886,9 +2887,11 @@
       "petal": "Faça uma dobra pétala com a aba.",
       "petalScores": "Faça uma dobra pétala com a aba, vincando a dobradiça enquanto ela sobe.",
       "pleat": "Dobre ao longo das duas linhas: primeiro montanha, depois vale.",
+      "pleatMountainEnd": "Dobre ao longo das duas linhas: primeiro vale, depois montanha.",
       "rabbitEar": "Faça uma orelha de coelho com o triângulo.",
       "squash": "Faça uma dobra esmagada com a aba.",
       "squashEnd": "Faça uma dobra esmagada com a ponta da aba, levantando-a ao longo da linha.",
+      "squashPockets": "Faça uma dobra esmagada com os bolsos juntos.",
       "swivel": "Gire o papel em torno do ponto com uma dobra giratória.",
       "swivelEdgeCrease": "Gire a borda sobre o vinco, pivotando no ponto.",
       "swivelEdgeLine": "Gire a borda sobre a linha, pivotando no ponto.",
@@ -2896,7 +2899,9 @@
       "swivelFoldLine": "Gire a borda sobre a linha, com os vincos se encontrando na borda dobrada.",
       "swivelInsideCrease": "Gire a borda sobre o vinco com um giro interno, com os vincos se encontrando na borda dobrada.",
       "swivelInsideLine": "Gire a borda sobre a linha com um giro interno, com os vincos se encontrando na borda dobrada.",
+      "swivelInsidePair": "Gire as duas abas juntas com giros internos ao longo dos seus vales e montanhas.",
       "swivelInsideValleyMountain": "Gire a aba com um giro interno ao longo do vale e da montanha.",
+      "swivelPair": "Gire as duas abas juntas com dobras giratórias ao longo dos seus vales e montanhas.",
       "swivelValleyMountain": "Gire a aba com uma dobra giratória ao longo do vale e da montanha.",
       "tuckMountain": "Dobre em monte e encaixe a aba por trás, sobre a camada escolhida.",
       "tuckValley": "Dobre em vale e encaixe a aba sob a camada escolhida.",
@@ -3220,6 +3225,7 @@
       "title": "Passo {{number}}",
       "valley": "Vale",
       "valleyMountainHelp": "Na camada que você vê, o vale e a montanha que delimitam a aba e se encontram na borda dobrada. O vinco na camada de trás decorre deles.",
+      "valleyMountainPairHelp": "Duas dobras giratórias feitas juntas, cada uma pelo seu vale e sua montanha na própria borda dobrada. Um vinco de uma continua até a outra e é o mesmo vinco, dobrado uma vez.",
       "vertex": {
         "blocksHelp": "Pedaços de papel que giram juntos: cada um gira em torno dos mesmos vincos, na mesma ordem, até onde pousa."
       }
@@ -3318,6 +3324,7 @@
       "unsink": "Desfazer afundamento",
       "valleyFold": "Dobra vale",
       "valleyMountain": "Vale e montanha",
+      "valleyMountainBothEnds": "Vale e montanha, nas duas pontas",
       "valleyPrecrease": "Dobra vale e desdobra"
     }
   },

@@ -73,11 +73,13 @@ import {
   type FoldPetalHinge,
   type FoldSeed,
   type FoldSwivelKind,
+  type FoldSwivelOtherEnd,
   type FoldSwivelTarget,
   type FoldVertexOp,
   type SheetPoint,
 } from '../../document/foldSequenceDocument';
 import type { FoldVertexAnalysed } from '../../engine/foldEngineSquashWire';
+import type { FoldSwivelOtherEndTaken } from '../foldToolState';
 import type { FoldEngineRefused, FoldModelPoint } from '../../engine/foldEngineWire';
 import { applyIsometry, invertIsometry, lineThrough, polygonArea, sideOf, toPair } from '../../canvas/foldCanvasGeometry';
 import { foldStackAt, type FoldPick, type FoldPickIndex, type FoldSegmentPick } from '../../canvas/foldPicking';
@@ -97,6 +99,13 @@ export interface FoldVertexIntent {
   /** A swivel by its valley and mountain's valley, once taken, and its mountain, once located. */
   swivelValley?: FoldLocatedLine;
   swivelMountain?: FoldLocatedLine;
+  /**
+   * Its other end is being located (`FoldToolState.otherEnd`): the swivel
+   * above is the first of two, and there is no fold to ask about until the
+   * second's lines are in too (`swivelOtherEnd`).
+   */
+  swivelPairing?: boolean;
+  swivelOtherEnd?: FoldSwivelOtherEnd;
   /** A squash's hinge: the folded edge, or a line drawn; and that line, once taken. */
   squashHinge?: FoldSquashHinge;
   hinge?: FoldLocatedLine;
@@ -241,6 +250,32 @@ export function petalOpAt(
 /** A line the tools took (`FoldToolState.takenLine`) as a step stores it: without its line on the folded pane. */
 export function storedLine(line: (FoldLocatedLine & { sceneLine?: FoldModelLine }) | undefined): FoldLocatedLine | undefined {
   return line ? { line: line.line, ...(line.root ? { root: line.root } : {}) } : undefined;
+}
+
+/**
+ * A swivel by its valley and mountain's lines as the tools hold them: the
+ * valley taken, and the mountain the picks locate after it. At its other end
+ * (`FoldToolState.otherEnd`), the first swivel's two, and the second's once
+ * in: the valley taken and the mountain located — or, where the mountain is
+ * the crease the two share, the valley located and the first's mountain.
+ */
+export function swivelLinesOf(
+  otherEnd: FoldSwivelOtherEndTaken | undefined,
+  taken: FoldLocatedLine | undefined,
+  located: FoldLocatedLine | undefined
+): Pick<FoldVertexIntent, 'swivelValley' | 'swivelMountain' | 'swivelPairing' | 'swivelOtherEnd'> {
+  if (!otherEnd) return { swivelValley: taken, swivelMountain: taken ? located : undefined };
+  const firstMountain = storedLine(otherEnd.mountain);
+  const second =
+    otherEnd.shared === 'mountain'
+      ? located && firstMountain ? { valley: located, mountain: firstMountain } : undefined
+      : taken && located ? { valley: taken, mountain: located } : undefined;
+  return {
+    swivelValley: storedLine(otherEnd.valley),
+    swivelMountain: firstMountain,
+    swivelPairing: true,
+    ...(second ? { swivelOtherEnd: second } : {}),
+  };
 }
 
 /** A squash of the flap a sheet point names, about the hinge the intent takes: the drawn one, when it is. */
@@ -466,10 +501,12 @@ export function vertexAskedOp(intent: FoldVertexIntent, index: FoldPickIndex): F
     }
     case 'swivel': {
       // By its valley and mountain: both lines in, the kind asked; no direction.
+      // At its other end, both swivels' lines in.
       if (intent.swivelInput === 'valley-mountain') {
-        const { swivelValley: valley, swivelMountain: mountain } = intent;
-        if (!valley || !mountain) return null;
-        return withSwivelKind({ kind: 'swivel', via: 'valley-mountain', valley, mountain }, intent.swivelKind ?? 'open');
+        const { swivelValley: valley, swivelMountain: mountain, swivelOtherEnd: otherEnd } = intent;
+        if (!valley || !mountain || (intent.swivelPairing && !otherEnd)) return null;
+        const op = { kind: 'swivel', via: 'valley-mountain', valley, mountain, ...(otherEnd ? { otherEnd } : {}) } as const;
+        return withSwivelKind(op, intent.swivelKind ?? 'open');
       }
       if (picks.length < SWIVEL_TARGET_FROM + lineByClicks(intent.swivelTarget)) return null;
       const [pivotPick, edgePick, ...targetPicks] = picks;
@@ -586,6 +623,17 @@ export function squashWallsOpening(answer: FoldVertexAnalysed | null): number | 
 }
 
 /**
+ * Whether a squash's spine can be aimed off its hinge: not when pockets on
+ * one lower layer squash together, whose shared crease is the symmetric
+ * squash's (`State::squash_other_reading`), so a target never lands and is
+ * never offered. False for any other fold.
+ */
+export function squashAimable(answer: FoldVertexAnalysed | null): boolean {
+  const analysis = answer?.analysis;
+  return analysis?.kind === 'squash' && (analysis.pockets ?? 1) === 1;
+}
+
+/**
  * The openings of a squash of a flap whose walls are several plies that land,
  * each by how many of its layers lie above it, from the direction's side: all
  * the folder is offered (owner feedback, 2026-10-12: a choice that cannot fold
@@ -692,15 +740,17 @@ export function vertexChosenOp(
   if (fan && emergent === null) return null;
   const walls = squashWallsOpening(first);
   const opening = squashOpeningToFold(taken.squashOpening, first);
+  // A spine aimed where it cannot be (pockets squashing together) is not taken.
+  const target = squashAimable(first) ? taken.squashTarget : null;
   // Folded the way and the kind asked: one that does not land is refused, never swapped.
   return {
-    op: withOpening(withTarget(withEmergent(base, first, emergent), taken.squashTarget), opening, walls),
+    op: withOpening(withTarget(withEmergent(base, first, emergent), target), opening, walls),
     emergent,
     direction: vertexDirectionOf(base),
     kind: isFoldedSwivelOp(base) ? swivelKindOf(base) : null,
     ...(opening !== null ? { opening } : {}),
     again:
-      (base.kind === 'squash' && (taken.squashTarget !== null || opening !== walls)) ||
+      (base.kind === 'squash' && (target !== null || opening !== walls)) ||
       (emergent !== null && emergent !== namedChoice(first)),
   };
 }

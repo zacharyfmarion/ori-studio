@@ -679,6 +679,10 @@ pub enum Fix {
     /// The same point sinks the other way: closed where an open sink is
     /// refused, open where a closed one is.
     OtherSink { kind: SinkKind },
+    /// Precrease this line (in the parent's model frame) through every
+    /// layer first: the same fold then lands. A petal fold's H, where the
+    /// paper it crosses uncreased is what refused it.
+    PrecreaseFirst { line: Line },
 }
 
 /// A refused operation and what could be done instead.

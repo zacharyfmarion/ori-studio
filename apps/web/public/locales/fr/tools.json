@@ -523,8 +523,9 @@
       "blocked": "Les deux plis doivent tenir dans le volet sélectionné sans déplacer le reste du papier. Vérifiez les lignes et les couches sélectionnées.",
       "intro": "Placez d’abord la ligne montagne, puis la ligne vallée, sur le modèle avant le pliage.",
       "layers": "Choisissez le volet à plier. L’extrémité au-delà de la ligne vallée se replie en sens inverse.",
+      "layersMountainEnd": "Choisissez le volet à plier. L’extrémité au-delà de la ligne montagne se replie en sens inverse.",
       "limit": "Il y a trop de dispositions de couches pour résoudre ce pli. Sélectionnez un volet plus petit.",
-      "lines": "La ligne vallée doit se trouver au-delà de la ligne montagne, vers l’extrémité mobile. Vérifiez les lignes ou appuyez sur Inverser.",
+      "linesApart": "Les lignes montagne et vallée doivent être séparées. Choisissez deux lignes différentes.",
       "mountainInstruction": "Ligne montagne : {{instruction}}",
       "mountainLine": "Ligne montagne",
       "refusedTitle": "Ce pli ne peut pas être réalisé ici",
@@ -1023,6 +1024,17 @@
         "swivelPicture": "Les plis se rejoignent au point, le bord se pose sur le trait gras, et le papier éclairé bouge.",
         "swivelValleyMountainPicture": "Les plis se rejoignent au point. Le pli en pointillé est sur la couche de derrière et découle de la vallée et de la montagne ; le papier éclairé bouge."
       },
+      "otherEnd": {
+        "action": "Pivoter là aussi",
+        "behindRunsOn": "Le pli de derrière se prolonge jusqu’à un autre bord plié.",
+        "label": "Autre extrémité",
+        "mountainRunsOn": "La montagne se prolonge jusqu’à un autre bord plié.",
+        "pickMountainBehind": "L’autre extrémité : choisissez sa ligne de montagne, depuis le même point.",
+        "pickMountainShared": "L’autre extrémité : choisissez sa ligne de montagne, depuis là où la vallée rejoint l’autre bord plié.",
+        "pickValleyBehind": "L’autre extrémité : choisissez sa ligne de vallée, sur la couche visible, depuis là où le pli de derrière rejoint l’autre bord plié.",
+        "pickValleyShared": "L’autre extrémité : choisissez sa ligne de vallée, depuis là où la montagne rejoint l’autre bord plié.",
+        "valleyRunsOn": "La vallée se prolonge jusqu’à un autre bord plié."
+      },
       "refusal": {
         "blocked": {
           "steppers": "Un pli buterait sur du papier qui ne plie pas avec lui, ou le papier retiendrait ensemble deux parties du pliage. Faites défiler Couches pour plier plus de couches, ou Quatrième pli pour en prendre un autre.",
@@ -1055,8 +1067,11 @@
         },
         "line": {
           "crease": "Le pli de charnière ne traverse pas toutes les couches en dessous qui se plient. Pré-pliez la charnière à travers toutes les couches, puis faites le pli pétale.",
+          "creaseNoRoute": "Le pli de charnière ne traverse pas toutes les couches en dessous qui se plient, et le pré-plier à travers toutes les couches ne permettrait pas non plus de faire le pli pétale. Choisissez une autre charnière, ou désignez celle-ci par ses deux extrémités.",
           "ends": "La charnière traverse du papier de la deuxième couche, qui se replie à côté du cerf-volant, et le pliage ne peut pas le marquer pendant que le rabat se soulève. Pré-pliez la charnière à travers toutes les couches, puis faites le pli pétale.",
-          "titleHinge": "Pré-pliez d’abord la charnière"
+          "endsNoRoute": "La charnière traverse du papier de la deuxième couche, qui se replie à côté du cerf-volant, et le pliage ne peut pas le marquer pendant que le rabat se soulève. Pré-plier la charnière à travers toutes les couches ne permettrait pas non plus de faire le pli pétale. Choisissez une autre charnière.",
+          "titleHinge": "Pré-pliez d’abord la charnière",
+          "titleNoRoute": "La charnière ne peut pas se plier ici"
         },
         "lineMeeting": {
           "textValleyMountain": "La vallée et la montagne se rejoignent en un point d’un bord plié visible, loin de ses extrémités. Choisissez deux lignes qui s’y croisent.",

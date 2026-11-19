@@ -73,7 +73,8 @@ function swivelFoldSentence(t: TFunction, direction: FoldDirection, target: 'cre
 
 /**
  * The step's sentence: "Squash-fold the flap.", "Squash-fold the flap
- * behind." A petal fold by two points creases its hinge as it lifts; a
+ * behind.", "Squash-fold the pockets together." when pockets on one lower
+ * layer fold as one. A petal fold by two points creases its hinge as it lifts; a
  * swivel by its edge lays the edge on its target, its creases meeting at a
  * pivot or on a folded edge.
  */
@@ -85,6 +86,12 @@ export function vertexSentence(
 ): string {
   // By its valley and mountain: on the layer that faces the viewer, never behind.
   if (form && 'swivel' in form && form.swivel === 'valley-mountain') {
+    // Two made together: a flap at each end of the crease they share.
+    if (form.pair) {
+      return form.inside
+        ? t('panels:fold.sentence.swivelInsidePair', 'Inside-swivel both flaps along their valleys and mountains, together.')
+        : t('panels:fold.sentence.swivelPair', 'Swivel-fold both flaps along their valleys and mountains, together.');
+    }
     return form.inside
       ? t('panels:fold.sentence.swivelInsideValleyMountain', 'Inside-swivel the flap along the valley and the mountain.')
       : t('panels:fold.sentence.swivelValleyMountain', 'Swivel-fold the flap along the valley and the mountain.');
@@ -96,9 +103,12 @@ export function vertexSentence(
   const scores = form !== undefined && 'hinge' in form && form.hinge === 'points';
   // About a drawn hinge, only the flap's end beyond it squashes.
   const end = form !== undefined && 'squashHinge' in form;
+  // Pockets on one lower layer squash together.
+  const pockets = form !== undefined && 'squashPockets' in form;
   if (direction === 'mountain') {
     switch (fold) {
       case 'squash':
+        if (pockets) return t('panels:fold.sentence.behind.squashPockets', 'Squash-fold the pockets behind, together.');
         return end
           ? t('panels:fold.sentence.behind.squashEnd', 'Squash-fold the end of the flap behind, lifting it along the line.')
           : t('panels:fold.sentence.behind.squash', 'Squash-fold the flap behind.');
@@ -114,6 +124,7 @@ export function vertexSentence(
   }
   switch (fold) {
     case 'squash':
+      if (pockets) return t('panels:fold.sentence.squashPockets', 'Squash-fold the pockets together.');
       return end
         ? t('panels:fold.sentence.squashEnd', 'Squash-fold the end of the flap, lifting it along the line.')
         : t('panels:fold.sentence.squash', 'Squash-fold the flap.');
@@ -218,7 +229,7 @@ function swivelKindRow(t: TFunction, inside: boolean): FoldVertexRow {
  * and for a swivel by its rays, whose creases its sentence covers.
  */
 export function vertexRows(t: TFunction, form: FoldVertexSentenceForm | undefined): FoldVertexRow[] {
-  if (!form) return [];
+  if (!form || 'squashPockets' in form) return [];
   if ('squashHinge' in form) {
     return [
       {
@@ -251,11 +262,18 @@ export function vertexRows(t: TFunction, form: FoldVertexSentenceForm | undefine
     return [
       {
         label: t('panels:fold.step.construction', 'Construction'),
-        value: t('panels:fold.words.valleyMountain', 'Valley and mountain'),
-        help: t(
-          'panels:fold.step.valleyMountainHelp',
-          'On the layer you see, the valley and the mountain that bound the flap, meeting on the folded edge. The crease on the layer behind follows from them.'
-        ),
+        value: form.pair
+          ? t('panels:fold.words.valleyMountainBothEnds', 'Valley and mountain, both ends')
+          : t('panels:fold.words.valleyMountain', 'Valley and mountain'),
+        help: form.pair
+          ? t(
+              'panels:fold.step.valleyMountainPairHelp',
+              'Two swivels made together, each by its valley and mountain on its own folded edge. A crease of one runs on to the other and is the same crease, folded once.'
+            )
+          : t(
+              'panels:fold.step.valleyMountainHelp',
+              'On the layer you see, the valley and the mountain that bound the flap, meeting on the folded edge. The crease on the layer behind follows from them.'
+            ),
       },
       swivelKindRow(t, form.inside === true),
     ];
