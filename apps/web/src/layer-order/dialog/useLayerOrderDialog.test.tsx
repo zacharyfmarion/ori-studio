@@ -55,6 +55,7 @@ const REQUEST: LayerOrderRequest = {
     xray: false,
     lineStyle: 'color',
     lineWidth: 1,
+    foldAngleDisplay: 'opacity',
   },
   shown: fakeLayerOrderScene(FAKE_LAYER_ORDER_FIGURE, [0, 1, 2, 3], 'front'),
 };

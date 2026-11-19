@@ -11,7 +11,9 @@
  *
  * Roles rather than colours: the card's stylesheet inks each role
  * (`.sheet-card__stroke--*` in `theme.css`), so both rails read one pattern's
- * lines the same way and draw them alike.
+ * lines the same way and draw them alike. A crease folded short of 180° also
+ * carries its angle, which every painter shades as Edit's canvas does
+ * (`sheetStrokeInk`).
  *
  * Model space is y-down and so is SVG, so the strokes go through unflipped; the
  * only transform is the uniform fit, which keeps the pattern's aspect ratio — a
@@ -33,6 +35,27 @@ export interface SheetStroke {
   x2: number;
   y2: number;
   role: SheetStrokeRole;
+  /**
+   * How far a crease that folds short of a full fold folds: `|ρ|` in degrees,
+   * at least 0 and under 180, which a painter shades as Edit's canvas does
+   * (`sheetStrokeInk`). Absent on everything else — a classic crease, the
+   * edge, an aux line — so a pattern with no such crease is the same
+   * thumbnail, field for field, as before fold angles reached it.
+   */
+  foldDegrees?: number;
+}
+
+/**
+ * `stroke` with its fold angle, if it has one: kept off the object when it
+ * has none, so a classic stroke is written without the field.
+ */
+function withFoldDegrees<T extends object>(stroke: T, foldDegrees: number | undefined): T & Pick<SheetStroke, 'foldDegrees'> {
+  return foldDegrees === undefined ? stroke : { ...stroke, foldDegrees };
+}
+
+/** Whether a stroke is a crease short of a full fold, which a painter shades. */
+export function isPartialFoldStroke(stroke: SheetStroke): stroke is SheetStroke & { foldDegrees: number } {
+  return stroke.foldDegrees !== undefined;
 }
 
 export interface SheetThumbnail {
@@ -73,13 +96,18 @@ export function fitSheetThumbnail(strokes: readonly SheetStroke[], size = 100): 
   const scale = size / span;
   const offsetX = (size - (maxX - minX) * scale) / 2;
   const offsetY = (size - (maxY - minY) * scale) / 2;
-  const fitted = strokes.map((stroke) => ({
-    x1: (stroke.x1 - minX) * scale + offsetX,
-    y1: (stroke.y1 - minY) * scale + offsetY,
-    x2: (stroke.x2 - minX) * scale + offsetX,
-    y2: (stroke.y2 - minY) * scale + offsetY,
-    role: stroke.role,
-  }));
+  const fitted = strokes.map((stroke) =>
+    withFoldDegrees(
+      {
+        x1: (stroke.x1 - minX) * scale + offsetX,
+        y1: (stroke.y1 - minY) * scale + offsetY,
+        x2: (stroke.x2 - minX) * scale + offsetX,
+        y2: (stroke.y2 - minY) * scale + offsetY,
+        role: stroke.role,
+      },
+      stroke.foldDegrees
+    )
+  );
   fitted.sort((a, b) => ROLE_LAYER[a.role] - ROLE_LAYER[b.role]);
   return { viewBox: `0 0 ${size} ${size}`, strokes: fitted };
 }
@@ -97,7 +125,7 @@ export const MAX_STORED_STROKES = 20_000;
 
 /** The fields a stored thumbnail is written with, and each of its strokes. */
 const THUMBNAIL_KEYS: ReadonlySet<string> = new Set(['viewBox', 'strokes']);
-const STROKE_KEYS: ReadonlySet<string> = new Set(['x1', 'y1', 'x2', 'y2', 'role']);
+const STROKE_KEYS: ReadonlySet<string> = new Set(['x1', 'y1', 'x2', 'y2', 'role', 'foldDegrees']);
 
 /**
  * Whether a stored thumbnail is a newer build's: a field, a stroke's field or
@@ -165,13 +193,14 @@ const EMPTY_THUMBNAIL: SheetThumbnail = { viewBox: '0 0 100 100', strokes: [] };
 export function storedSheetThumbnail(thumbnail: SheetThumbnail | null): SheetThumbnail {
   if (!thumbnail) return EMPTY_THUMBNAIL;
   const snap = (value: number) => Math.round(value * 10) / 10 + 0;
-  const snapped = thumbnail.strokes.map((stroke) => ({
-    x1: snap(stroke.x1),
-    y1: snap(stroke.y1),
-    x2: snap(stroke.x2),
-    y2: snap(stroke.y2),
-    role: stroke.role,
-  }));
+  // The fold angle is kept as it came: snapped, a crease just short of 180°
+  // would round to a full fold.
+  const snapped = thumbnail.strokes.map((stroke) =>
+    withFoldDegrees(
+      { x1: snap(stroke.x1), y1: snap(stroke.y1), x2: snap(stroke.x2), y2: snap(stroke.y2), role: stroke.role },
+      stroke.foldDegrees
+    )
+  );
   // Within what a file takes back, so a dense pattern can still be linked.
   return { viewBox: thumbnail.viewBox, strokes: withinStoredBudget(snapped) };
 }
@@ -179,7 +208,10 @@ export function storedSheetThumbnail(thumbnail: SheetThumbnail | null): SheetThu
 /**
  * A thumbnail as a file holds it (a Diagram step keeps the one it was linked
  * with), or null: a numeric viewBox and finite strokes of known roles, every
- * one — a thumbnail missing lines is a different pattern.
+ * one — a thumbnail missing lines is a different pattern. A stroke's fold
+ * angle, where it has one, is a finite number at least 0 and under 180; any
+ * other is damage too, since dropping it would draw a 3D crease as a full
+ * fold.
  */
 export function readSheetThumbnail(value: unknown): SheetThumbnail | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -192,17 +224,22 @@ export function readSheetThumbnail(value: unknown): SheetThumbnail | null {
   const strokes: SheetStroke[] = [];
   for (const entry of record.strokes) {
     if (entry === null || typeof entry !== 'object') return null;
-    const { x1, y1, x2, y2, role } = entry as Record<string, unknown>;
+    const { x1, y1, x2, y2, role, foldDegrees } = entry as Record<string, unknown>;
     const coords = [x1, y1, x2, y2];
     if (coords.some((n) => typeof n !== 'number' || !Number.isFinite(n))) return null;
     if (typeof role !== 'string' || !STROKE_ROLES.has(role)) return null;
-    strokes.push({
-      x1: x1 as number,
-      y1: y1 as number,
-      x2: x2 as number,
-      y2: y2 as number,
-      role: role as SheetStrokeRole,
-    });
+    const degrees = foldDegrees === undefined ? undefined : isFoldDegrees(foldDegrees) ? foldDegrees : null;
+    if (degrees === null) return null;
+    strokes.push(
+      withFoldDegrees(
+        { x1: x1 as number, y1: y1 as number, x2: x2 as number, y2: y2 as number, role: role as SheetStrokeRole },
+        degrees
+      )
+    );
   }
   return { viewBox: box.join(' '), strokes };
+}
+
+function isFoldDegrees(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value < 180;
 }

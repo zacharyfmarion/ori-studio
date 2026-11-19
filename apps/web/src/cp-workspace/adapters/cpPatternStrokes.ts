@@ -6,7 +6,9 @@
  *
  * - Each line takes its ink and dash from Edit's line-style table
  *   (`createCpLineAppearanceResolver`, for the line style given) and is
- *   packed by Edit's builder (`cpSnapshotToScene`), on the crease channel.
+ *   packed by Edit's builder (`cpSnapshotToScene`), on the crease channel —
+ *   a crease folded short of 180° shaded by its angle, in the fold-angle
+ *   style given, as Edit's canvas shades it.
  * - An instruction over it is drawn as Edit draws a tool's line: in the
  *   colour of the crease it makes, solid (`previewGroupsToStrokes`), wider
  *   than the pattern by its own multiplier, on the preview channel.
@@ -18,9 +20,11 @@
  *
  * Pure: no React, no store.
  */
-import type { OristudioCpLineStyle } from '../../lib/creasePatternViewport';
+import type { OristudioCpFoldAngleDisplay, OristudioCpLineStyle } from '../../lib/creasePatternViewport';
 import type { Point } from '../../lib/geometry';
 import { cpLineStyleDashPatterns } from '../../lib/oristudioCpLineStyle';
+import { FOLD_ANGLE_ANCHOR_FALLBACK, FOLD_ANGLE_ANCHOR_VAR } from '../foldAngle/foldAngleRamp';
+import { readCssVarColor } from '../renderer/cssColor';
 import { previewGroupsToStrokes, type PreviewStrokeGroup } from '../renderer/previewStrokes';
 import type { StrokeGeometry } from '../renderer/types';
 import { resolveCpLineColor } from './cpLineColor';
@@ -33,6 +37,8 @@ export interface CpPatternStyle {
   lineStyle: OristudioCpLineStyle;
   /** A crease is drawn at Edit's crease width over it. */
   lineWidth: number;
+  /** Which channel a crease folded short of 180° spends on its angle, as Edit's canvas does. */
+  foldAngleDisplay: OristudioCpFoldAngleDisplay;
 }
 
 /** Lines over the pattern that make one kind of crease. */
@@ -68,7 +74,18 @@ export function cpPatternStrokes(
   instruction: CpPatternInstruction | null = null
 ): CpPatternStrokes {
   const appearanceFor = createCpLineAppearanceResolver(style.lineStyle, 'mvf', element);
-  const pattern = cpSnapshotToScene(creases, appearanceFor, cpLineStyleDashPatterns(style.lineStyle)).strokes;
+  const foldAngle = {
+    display: style.foldAngleDisplay,
+    anchor: readCssVarColor(element, FOLD_ANGLE_ANCHOR_VAR, FOLD_ANGLE_ANCHOR_FALLBACK),
+  };
+  const pattern = cpSnapshotToScene(
+    creases,
+    appearanceFor,
+    cpLineStyleDashPatterns(style.lineStyle),
+    undefined,
+    undefined,
+    foldAngle
+  ).strokes;
   const groups: PreviewStrokeGroup[] = (instruction?.groups ?? []).flatMap((group) =>
     group.segments.length > 0 ? [{ segments: group.segments, color: resolveCpLineColor(group.color, 'mvf', element) }] : []
   );
