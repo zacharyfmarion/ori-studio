@@ -2,10 +2,10 @@
  * Which of a step's marks hide the lines of its picture they are drawn along
  * (`implementation-plans/diagram-annotate-lines-under-marks.md`): every
  * straight line mark that is drawn — a valley, mountain, hidden, solid or
- * uncreased line — that lies along a line of the picture a mark can hide:
- * one drawn in a crease's pen, never an edge. A line snapped to the picture's
- * points lies exactly on the line it was drawn along; one drawn by hand a
- * hair off never does, so no "was snap on" needs keeping.
+ * uncreased line — that lies along a line the picture draws, an edge as much
+ * as a crease. A line snapped to the picture's points lies exactly on the
+ * line it was drawn along; one drawn by hand a hair off never does, so no
+ * "was snap on" needs keeping.
  *
  * Nothing is stored: the marks say it each time a picture is painted
  * (`pictures/sceneUnderMarks.ts` leaves the lines out), so a mark moved off a
@@ -26,13 +26,14 @@ import {
   type DiagramStyle,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import { diagramScenePaintStyle, diagramStyleKey } from '../pictures/diagramPaperStyle';
+import { diagramScenePaintStyle, diagramStyleKey, diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
 import { stepDiagramScene, stepDiagramSheetBox } from '../pictures/paintStepDiagram';
 import { storedScene } from '../pictures/pictureFrame';
 import { hideableSceneLines, type CoveringMarks, type MarkPoint } from '../pictures/sceneUnderMarks';
 import { stepAsDrawn, viewOfStep } from '../zoom/stepView';
 import { fromBox } from '../zoom/zoomFrames';
+import { ptInPictureUnits } from './canvasInk';
 import { PICTURE_POINT_EPSILON } from './pictureGeometry';
 
 /** The marks drawn as a straight line from `from` to `to`, which hide what they lie along. */
@@ -46,14 +47,27 @@ const LINE_MARKS: ReadonlySet<DiagramAnnotationKind> = new Set<DiagramAnnotation
 
 /**
  * How near a line of the picture lies to a mark to be under it, as a share
- * of the frame the mark is drawn on: a thousandth, some 0.05 mm on a 50 mm
- * card — far under half any pen's width, so nothing it takes shows beside the
- * mark, and far over a stored point's rounding. A flat fold draws a crease
- * once per layer, and two layers' copies can lie that little apart (the
- * example crane's step 7: 0.0003 at one end); a point's own tolerance would
- * take one copy and leave the other showing through the dashes.
+ * of the frame the mark is drawn on: near enough that less than half the
+ * mark's width shows between the two inks, so the line reads as one with it
+ * and through its gaps — a fold line mark's width and half an edge's, 0.0071
+ * in the Diagram style's pens (0.35 mm on a 50 mm card). A flat fold draws a
+ * line once per layer and spreads the layers apart by less: the example
+ * crane's step 7 draws its precrease's second copy 0.0003 off the first, and
+ * step 13 its flap's edges fanning out to 0.0066 off the edge its valley line
+ * is snapped to. Read once per style object, which a diagram replaces rather
+ * than edits.
  */
-const UNDER_MARK_SHARE = 1e-3;
+function markReach(style: DiagramStyle): number {
+  let reach = reachByStyle.get(style);
+  if (reach === undefined) {
+    const { valleyDiagramCreases, mountainDiagramCreases, edges } = diagramSurfaceStyle(style);
+    reach = ptInPictureUnits(Math.max(valleyDiagramCreases.width, mountainDiagramCreases.width) + edges.width / 2);
+    reachByStyle.set(style, reach);
+  }
+  return reach;
+}
+
+const reachByStyle = new WeakMap<DiagramStyle, number>();
 
 /** A line of a picture a mark can hide, in picture units, and its box. */
 interface HideableLine {
@@ -90,7 +104,7 @@ export function linesUnderMarks(
   if (marks.length === 0) return null;
   const hideable = hideableLines(step, assets, style);
   if (hideable.length === 0) return null;
-  const { toPicture, tolerance } = markFrame(step);
+  const { toPicture, tolerance } = markFrame(step, style);
   const lines = marks
     .map((mark): readonly [MarkPoint, MarkPoint] => [toPicture(mark.from), toPicture(mark.to)])
     .filter(([from, to]) => lineCoverOf(from, to, hideable, tolerance) !== 'none');
@@ -114,23 +128,26 @@ export function markLineCover(
   style: DiagramStyle
 ): LineCover {
   if (!hidesLinesUnder(mark)) return 'none';
-  const { toPicture, tolerance } = markFrame(step);
+  const { toPicture, tolerance } = markFrame(step, style);
   return lineCoverOf(toPicture(mark.from), toPicture(mark.to), hideableLines(step, assets, style), tolerance);
 }
 
 /**
  * Where a step's marks are drawn, in its picture's units: a mark's point
  * there — an enlarged step's marks are in its window's — and how near a line
- * lies to be under a mark ({@link UNDER_MARK_SHARE} of the frame they are
- * drawn on, a window's for an enlarged step), never finer than the
- * picture's own points are kept to.
+ * lies to be under a mark ({@link markReach} of the frame they are drawn on,
+ * a window's for an enlarged step), never finer than the picture's own
+ * points are kept to.
  */
-function markFrame(step: DiagramStep): { toPicture: (point: MarkPoint) => MarkPoint; tolerance: number } {
+function markFrame(
+  step: DiagramStep,
+  style: DiagramStyle
+): { toPicture: (point: MarkPoint) => MarkPoint; tolerance: number } {
   const window = viewOfStep(step).window;
   const frame = window ? Math.max(window.width, window.height) : 1;
   return {
     toPicture: (point) => (window ? fromBox(window, [point[0], point[1]]) : point),
-    tolerance: Math.max(PICTURE_POINT_EPSILON, UNDER_MARK_SHARE * frame),
+    tolerance: Math.max(PICTURE_POINT_EPSILON, markReach(style) * frame),
   };
 }
 
@@ -183,9 +200,10 @@ const READ_SHEET_MM = 50;
 
 /**
  * The lines of a step's picture a mark can hide, in picture units, read once
- * per picture object from the scene it is painted from — what
- * `sceneUnderMarks` leaves out, so a mark that lies along one always changes
- * the picture, and one along an edge never repaints it. A captured scene's
+ * per picture object from the scene it is painted from: what
+ * `sceneUnderMarks` leaves out, as drawn — a crease another layer covers part
+ * of is the pieces that show, where the snap reads the whole crease — so a
+ * mark that lies along one always changes the picture. A captured scene's
  * frame is its bounds; a References step's, its sheet.
  */
 function hideableLines(

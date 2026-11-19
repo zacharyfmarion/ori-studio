@@ -7,10 +7,11 @@
  * draws a step's marks over its picture.
  *
  * Only the stretch a mark lies along goes: a valley line along half a long
- * precrease takes that half, and the rest is drawn as it was. A paper edge
- * never goes, so the paper's outline never has a gap in it. Nothing else
- * changes — a scene keeps its bounds, so its frame, and so every mark on it
- * and every page it is laid out on, stays where it was.
+ * precrease takes that half, and the rest is drawn as it was. An edge goes as
+ * a crease does — a fold line is often drawn where two flaps' raw edges meet
+ * — so the paper's outline has a gap only where a mark is drawn in it.
+ * Nothing else changes — a scene keeps its bounds, so its frame, and so every
+ * mark on it and every page it is laid out on, stays where it was.
  *
  * Pure: no DOM, no store.
  */
@@ -42,20 +43,19 @@ interface SceneMark {
 }
 
 /**
- * The lines of `scene` a mark drawn along one leaves out, in scene px: every
- * line drawn in a crease's pen that some pixel shows — never an edge, and an
- * aux line only where `auxDrawn` — and each side of a face that strokes its
- * outline in one. What a mark is tried against before a picture is painted
- * under it ({@link sceneUnderMarks}), so a mark along nothing it hides — an
- * edge — paints nothing new.
+ * The lines of `scene` a mark drawn along one leaves out, in scene px, as they
+ * are drawn: every line some pixel shows — an aux line only where `auxDrawn` —
+ * and each side of a face that strokes its own outline. What a mark is tried
+ * against before a picture is painted under it ({@link sceneUnderMarks}), so
+ * a mark along none of them paints nothing new.
  */
 export function hideableSceneLines(scene: PaperScene, auxDrawn: boolean): (readonly [ScenePoint, ScenePoint])[] {
-  const hides = (role: PaperLineItem['role']) => role !== 'edge' && (auxDrawn || role !== 'aux');
+  const drawn = (role: PaperLineItem['role']) => auxDrawn || role !== 'aux';
   const lines: (readonly [ScenePoint, ScenePoint])[] = [];
   for (const item of scene.items) {
     if (item.hidden) continue;
-    if (item.kind === 'line' && hides(item.role)) lines.push([item.a, item.b]);
-    else if (item.kind === 'face' && item.outline !== undefined && hides(item.outline)) {
+    if (item.kind === 'line' && drawn(item.role)) lines.push([item.a, item.b]);
+    else if (item.kind === 'face' && item.outline !== undefined && drawn(item.outline)) {
       for (const side of faceOutlineLines(item)) lines.push([side.a, side.b]);
     }
   }
@@ -83,11 +83,12 @@ export function storedSceneUnderMarks(scene: PaperScene, covering: CoveringMarks
  * the two lies on the other's line, within the tolerance, and they overlap by
  * more than it. Each part of a line that is left keeps the crease it is a
  * piece of, so erode still measures on the crease, and a cut end is the
- * pen's own end, joined to nothing. A face that strokes its own outline in a
- * crease's pen — a face a flat fold bounds by precreases alone — gives it up
- * for a line per side, right after it, as a flat fold emits a face with lines
- * of its own, so that one side can go and the rest stay. The scene itself,
- * the same object, when no line lies under any of them.
+ * pen's own end, joined to nothing. A face that strokes its own outline — a
+ * flat fold gives one to a face whose sides all take one pen, most often the
+ * edge's — gives it up for a line per side, right after it, as a flat fold
+ * emits a face with lines of its own, so that one side can go and the rest
+ * stay. The scene itself, the same object, when no line lies under any of
+ * them.
  */
 export function sceneUnderMarks(
   scene: PaperScene,
@@ -108,7 +109,7 @@ export function sceneUnderMarks(
         items.push(...left);
         changed = true;
       }
-    } else if (item.kind === 'face' && item.outline !== undefined && item.outline !== 'edge') {
+    } else if (item.kind === 'face' && item.outline !== undefined && nearAMark(item, marks)) {
       const sides = outlineSides(item);
       const lefts = sides.map((side) => lineLeft(side, marks, tolerance));
       if (lefts.every((left) => left === null)) {
@@ -138,6 +139,24 @@ function sceneMark(a: ScenePoint, b: ScenePoint, tolerance: number): SceneMark[]
 }
 
 /**
+ * Whether any of `marks` comes within a face's box: a flat fold outlines
+ * nearly every face, and one no mark comes near keeps its outline without its
+ * sides being read.
+ */
+function nearAMark(face: PaperFaceItem, marks: readonly SceneMark[]): boolean {
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const ring of face.rings) {
+    for (const [x, y] of ring) {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  return marks.some(({ box }) => maxX >= box[0] && minX <= box[2] && maxY >= box[1] && minY <= box[3]);
+}
+
+/**
  * The lines a face's outline stands for, in its pen, each joined at both
  * ends as the flat fold joins a face's lines that share one role, in its
  * group if it has one, so the file still holds them with it.
@@ -153,10 +172,9 @@ function outlineSides(face: PaperFaceItem): PaperLineItem[] {
 /**
  * What is left of `line` under `marks`: null where none lies along it, so
  * the line is kept as it is; else its parts no mark covers, none when they
- * cover all of it. An edge is never covered.
+ * cover all of it.
  */
 function lineLeft(line: PaperLineItem, marks: readonly SceneMark[], tolerance: number): PaperLineItem[] | null {
-  if (line.role === 'edge') return null;
   const [ax, ay] = line.a;
   const [bx, by] = line.b;
   const dx = bx - ax;

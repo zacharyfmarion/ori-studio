@@ -73,19 +73,23 @@ describe('sceneUnderMarks', () => {
     expect(lines(under(scene, covering([[0, 0], [100, 100]])))).toEqual([]);
   });
 
-  it('never leaves out an edge, or a line a mark only crosses or runs beside', () => {
-    const edge = line('edge', [0, 100], [100, 100]);
+  it('leaves out an edge a mark lies along, as it does a crease', () => {
+    const edge = line('edge', [0, 100], [100, 100], { joined: [true, true] });
     const scene = sceneOf([face([SQUARE]), edge, precrease]);
-    // Along the edge; across the precrease; a hair off the precrease; on its line past its end.
-    const left = under(
-      scene,
-      covering([[0, 100], [100, 100]], [[50, 0], [50, 100]], [[0, 50.1], [100, 50.1]], [[120, 50], [160, 50]])
-    );
+    expect(lines(under(scene, covering([[0, 100], [100, 100]])))).toEqual([precrease]);
+    const [rest] = lines(under(scene, covering([[50, 100], [100, 100]])));
+    expect(rest).toMatchObject({ role: 'edge', a: [0, 100], b: [50, 100], joined: [true, false] });
+  });
+
+  it('never leaves out a line a mark only crosses or runs beside', () => {
+    const scene = sceneOf([face([SQUARE]), line('edge', [0, 100], [100, 100]), precrease]);
+    // Across the precrease and the edge; a hair off the precrease; on its line past its end.
+    const left = under(scene, covering([[50, 0], [50, 100]], [[0, 50.1], [100, 50.1]], [[120, 50], [160, 50]]));
     expect(left).toBe(scene);
   });
 
-  it('gives a face outlined in a crease’s pen a line per side, and leaves the covered one out', () => {
-    const outlined = face([SQUARE], { outline: 'aux', face: 7, group: 'patch-1' });
+  it.each(['edge', 'aux'] as const)('gives a face outlined in the %s pen a line per side, and leaves the covered one out', (outline) => {
+    const outlined = face([SQUARE], { outline, face: 7, group: 'patch-1' });
     const after = line('edge', [0, 0], [10, 10]);
     const scene = sceneOf([outlined, after]);
     const left = under(scene, covering([[0, 100], [100, 100]]));
@@ -98,19 +102,35 @@ describe('sceneUnderMarks', () => {
       [[0, 100], [0, 0]],
     ]);
     for (const side of sides) {
-      expect(side).toMatchObject({ kind: 'line', role: 'aux', face: 7, joined: [true, true], group: 'patch-1', hidden: false });
+      expect(side).toMatchObject({ kind: 'line', role: outline, face: 7, joined: [true, true], group: 'patch-1', hidden: false });
     }
     expect(left.items.at(-1)).toBe(after);
   });
 
-  it('keeps a face outlined in a crease’s pen whole where no mark lies along a side', () => {
-    const scene = sceneOf([face([SQUARE], { outline: 'aux' })]);
+  it.each(['edge', 'aux'] as const)('keeps a face outlined in the %s pen whole where no mark lies along a side', (outline) => {
+    const near = face([SQUARE], { outline });
+    // Far off the mark, and so never read side by side.
+    const far = face([[[200, 0], [300, 0], [300, 100], [200, 100]]], { outline });
+    const scene = sceneOf([near, far]);
     expect(under(scene, covering([[0, 50], [100, 50]]))).toBe(scene);
+    expect(under(scene, covering([[0, 100], [100, 100]])).items.at(-1)).toBe(far);
   });
 
-  it('never touches a face outlined as the paper’s edge', () => {
+  it('draws an edge outline’s other sides as the face’s own stroke drew them, and nothing along the covered one', () => {
     const scene = sceneOf([face([SQUARE], { outline: 'edge' })]);
-    expect(under(scene, covering([[0, 0], [100, 0]]))).toBe(scene);
+    const body = paperSceneSvgBody(under(scene, covering([[0, 100], [100, 100]])), DEFAULT_PAPER_STYLE, {
+      project: (point) => point,
+      unitsPerPt: 1,
+      keepHiddenFaces: false,
+    });
+    const pen = `stroke="${DEFAULT_PAPER_STYLE.edges.color}" stroke-width="${DEFAULT_PAPER_STYLE.edges.width.toFixed(2)}"`;
+    // The face's stroke turned each corner round; each side now meets the next with a round end.
+    const sides = body.split('\n').filter((element) => element.includes('<line'));
+    expect(sides).toHaveLength(3);
+    for (const side of sides) expect(side).toContain(`${pen} stroke-linecap="round"`);
+    expect(body).not.toContain('x1="100.00" y1="100.00" x2="0.00" y2="100.00"');
+    // The face no longer strokes in the edge's pen: only its own colour's seam, as any face without an outline.
+    expect(body).not.toContain(`${pen}/>`);
   });
 
   it('draws what is left as the painter draws any line, and nothing under the mark', () => {

@@ -4,8 +4,10 @@ import {
   createDiagram,
   type DiagramScenePicture,
   type DiagramStep,
+  type DiagramStyle,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
+import { diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
 import { storedScene } from '../pictures/pictureFrame';
 import { storedSceneUnderMarks } from '../pictures/sceneUnderMarks';
 import { hidesLinesUnder, linesUnderMarks, markLineCover } from './linesUnderMarks';
@@ -44,8 +46,9 @@ describe('linesUnderMarks', () => {
     expect(covering?.lines).toHaveLength(2);
   });
 
-  it('is null where no line mark lies along a line: one a hair off, across one, or only touching its end', () => {
-    const off = annotation({ id: 'off', kind: 'valley-line', from: [0, 0.502], to: [1, 0.502] });
+  it('is null where no line mark lies along a line: one beside it, across one, or only touching its end', () => {
+    // Far enough off that the paper shows between the two inks.
+    const off = annotation({ id: 'off', kind: 'valley-line', from: [0, 0.51], to: [1, 0.51] });
     const across = annotation({ id: 'across', kind: 'valley-line', from: [0.3, 0], to: [0.3, 1] });
     const onward = annotation({ id: 'onward', kind: 'valley-line', from: [1, 0.5], to: [1.3, 0.5] });
     const step = withMarks(sceneStep(PATTERN_ITEMS), off, across, onward);
@@ -72,15 +75,18 @@ describe('linesUnderMarks', () => {
     }
   });
 
-  it('hides nothing under a mark along an edge, a face’s edge outline included, and a face’s crease outline under one', () => {
+  it('hides an edge under a mark along it, and a side of a face’s own outline in either pen', () => {
     const alongTop = annotation({ id: 'top', kind: 'valley-line', from: [0, 0], to: [1, 0] });
-    expect(linesUnderMarks(withMarks(sceneStep(PATTERN_ITEMS), alongTop), NO_ASSETS, style)).toBeNull();
-    expect(markLineCover(alongTop, sceneStep(PATTERN_ITEMS), NO_ASSETS, style)).toBe('none');
-    const edged = sceneStep([face([SQUARE], { outline: 'edge' })]);
-    expect(linesUnderMarks(withMarks(edged, alongTop), NO_ASSETS, style)).toBeNull();
-    // A face a flat fold bounds by precreases alone strokes its outline in their pen: its sides hide.
-    const creased = sceneStep([face([SQUARE], { outline: 'aux' })]);
-    expect(linesUnderMarks(withMarks(creased, alongTop), NO_ASSETS, style)?.lines).toHaveLength(1);
+    expect(linesUnderMarks(withMarks(sceneStep(PATTERN_ITEMS), alongTop), NO_ASSETS, style)?.lines).toEqual([
+      [[0, 0], [1, 0]],
+    ]);
+    expect(markLineCover(alongTop, sceneStep(PATTERN_ITEMS), NO_ASSETS, style)).toBe('whole');
+    // A flat fold strokes a face's outline itself where its sides share a pen: the edge's, or the precreases'.
+    for (const outline of ['edge', 'aux'] as const) {
+      const outlined = sceneStep([face([SQUARE], { outline })]);
+      expect(linesUnderMarks(withMarks(outlined, alongTop), NO_ASSETS, style)?.lines).toHaveLength(1);
+      expect(markLineCover({ ...alongTop, to: [0.5, 0] }, outlined, NO_ASSETS, style)).toBe('part');
+    }
   });
 
   it('never hides anything on an upload', () => {
@@ -102,20 +108,43 @@ describe('linesUnderMarks', () => {
     expect(only?.[1][1]).toBeCloseTo(0.4);
   });
 
-  it('takes a crease’s copy another layer draws a hair off it, and leaves a line drawn beside it', () => {
-    // As the example crane's step 7 draws its precrease: a second layer's copy 0.0003 off at its far end.
+  it('takes each layer’s copy of a line that reads as one with the mark, and leaves one drawn beside it', () => {
+    // As the example crane draws them: step 7's precrease copy 0.0003 off at its far end, step 13's
+    // flap edges fanning out from a tip to 0.0066 off; a line 0.01 off shows the paper between.
     const step = sceneStep([
       face([SQUARE]),
       line('aux', [50, 0], [50, 100]),
       line('aux', [50.03, 98.75], [50, 0]),
-      line('aux', [50.3, 0], [50.3, 100]),
+      line('edge', [50, 100], [50.66, 30]),
+      line('aux', [51, 0], [51, 100]),
     ]);
     const mark = annotation({ id: 'centre', kind: 'valley-line', from: [0.5, 0], to: [0.5, 1] });
     const covering = linesUnderMarks(withMarks(step, mark), NO_ASSETS, style);
     const left = storedSceneUnderMarks(storedScene(step.picture as DiagramScenePicture)!, covering).items.filter(
       (item) => item.kind === 'line'
     );
-    expect(left.map((item) => item.kind === 'line' && item.a)).toEqual([[50.3, 0]]);
+    expect(left.map((item) => item.kind === 'line' && item.a)).toEqual([[51, 0]]);
+  });
+
+  it('reaches as far off a mark as the style’s pens make a line read as one with it', () => {
+    const tolerance = (drawnIn: DiagramStyle) =>
+      linesUnderMarks(withMarks(sceneStep(PATTERN_ITEMS), valleyAlongPrecrease), NO_ASSETS, drawnIn)?.tolerance ?? 0;
+    // The Diagram style's 0.75 pt fold line and half its 0.5 pt edge, on a 50 mm frame.
+    expect(tolerance(style)).toBeCloseTo(0.00706, 4);
+    const step = sceneStep([face([SQUARE]), line('aux', [50.9, 0], [50.9, 100])]);
+    const mark = annotation({ id: 'centre', kind: 'valley-line', from: [0.5, 0], to: [0.5, 1] });
+    expect(markLineCover(mark, step, NO_ASSETS, style)).toBe('none');
+    // Fold lines twice as heavy: a line 0.009 off now runs against the mark's ink.
+    const drawn = diagramSurfaceStyle(style);
+    const heavy: DiagramStyle = {
+      style: {
+        ...drawn,
+        valleyDiagramCreases: { ...drawn.valleyDiagramCreases, width: 1.5 },
+        mountainDiagramCreases: { ...drawn.mountainDiagramCreases, width: 1.5 },
+      },
+    };
+    expect(tolerance(heavy)).toBeGreaterThan(0.009);
+    expect(markLineCover(mark, step, NO_ASSETS, heavy)).toBe('whole');
   });
 
   it('says how much of a line a mark takes, as it is put down: all of one, a stretch of one, or none', () => {
@@ -126,7 +155,7 @@ describe('linesUnderMarks', () => {
     expect(cover({ ...valleyAlongPrecrease, to: [0.5, 0.5] })).toBe('part');
     // Half the diagonal valley, from its end: a stretch, whatever line kind takes it.
     expect(cover({ ...valleyAlongPrecrease, kind: 'mountain-line', from: [0, 0], to: [0.5, 0.5] })).toBe('part');
-    expect(cover({ ...valleyAlongPrecrease, from: [0, 0.502], to: [1, 0.502] })).toBe('none');
+    expect(cover({ ...valleyAlongPrecrease, from: [0, 0.51], to: [1, 0.51] })).toBe('none');
     // A mark that hides nothing takes nothing, wherever it lies.
     expect(cover({ ...valleyAlongPrecrease, kind: 'valley-arrow' })).toBe('none');
   });
