@@ -21,7 +21,8 @@ import type { PreparedConnectedSpread } from '../../layer-spread/connectedScene'
  *   mirrored, every stack read from the other end, every face's other side
  *   up. Then `flatScenePicture`, with its faces on the paper.
  * - **Marks.** Before a fold, its line and its arrow, from the engine's
- *   picture of the step (`FoldActionGeometry`), as the Diagram's own
+ *   picture of the step (`FoldActionGeometry`) — before a collapse, every
+ *   mountain and valley it folds — as the Diagram's own
  *   annotations, tagged as the source's (`imported: 'untouched'`) so a
  *   refresh brings the step's own again and the author's stay. Drawn on the
  *   folded picture, which is in the frame they are given in.
@@ -130,8 +131,8 @@ export interface FoldStepPictureInput {
   moment: DiagramFoldMoment;
   /**
    * What the step does — a run's first — on the state it folds from, its
-   * marks placed by its references (`foldStepMarkPlan.ts`); null for a turn,
-   * a rotation or an import.
+   * marks placed by its references (`foldStepMarkPlan.ts`), or a collapse's
+   * creases; null for a turn or a rotation.
    */
   action: FoldStepAction | null;
   /** Repeat's affected material in the starting pose, with localized callout words. */

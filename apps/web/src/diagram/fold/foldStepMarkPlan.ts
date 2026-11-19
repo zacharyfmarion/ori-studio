@@ -32,6 +32,9 @@
  *   as the engine does, and the rest of its line across the paper it folds
  *   dotted ({@link uncreasedStretches}): the fold is made across the paper
  *   and pressed only at the mark.
+ * - **A collapse** — a crease pattern imported folded — has no picture of
+ *   the engine's: it draws every crease it folds the same way, each mountain
+ *   and valley in its own line, and no arrow ({@link collapseAction}).
  *
  * Anything else keeps the engine's picture. Every point is in the scene
  * frame of the state the step folds from — the picture's, before it is
@@ -90,6 +93,30 @@ const along = (from: Point, direction: Point, by: number): Point => ({ x: from.x
 
 /** The steps drawn by every crease they fold, read off the states either side (see the module docs): every form of each. */
 const DRAWN_BY_FOLDED_CREASES: ReadonlySet<FoldOp['kind']> = new Set(['rabbit-ear', 'petal', 'squash', 'swivel']);
+
+/**
+ * What a step's marks are drawn from: the engine's picture of it placed by
+ * its references ({@link foldStepAction}), or for a collapse, which the engine
+ * draws none of, the creases it folds ({@link collapseAction}); null for a
+ * step that brings no marks — a turn, a rotation, a sheet.
+ */
+export function foldStepMarkAction(action: FoldActionGeometry | null, context: FoldStepMarkContext): FoldStepAction | null {
+  if (action) return foldStepAction(action, context);
+  if (context.op?.kind === 'cp-jump' && context.child) return collapseAction(context.parent, context.child);
+  return null;
+}
+
+/**
+ * A collapse's picture: every crease the imported pattern folds, as the state
+ * it folds from shows it ({@link stepFoldedCreases}) — the mountain and valley
+ * folds the reader collapses the paper along, existing precreases among them.
+ * No line of its own and no arrow; null when it folds nothing new.
+ */
+export function collapseAction(parent: FoldScene, child: FoldScene): FoldStepAction | null {
+  const spans = stepFoldedCreases(parent, child);
+  if (spans.length === 0) return null;
+  return { kind: 'fold', direction: spans[0]!.direction ?? 'valley', line: null, spans, moving: [], grip: null };
+}
 
 /** `action` with its marks placed by the step's own references (see the module docs). */
 export function foldStepAction(action: FoldActionGeometry, context: FoldStepMarkContext): FoldStepAction {

@@ -39,7 +39,7 @@ import {
 } from '../document/diagramDocument';
 import { storedFoldStepSource } from '../document/diagramFile';
 import { foldDiagramSentence } from './foldDiagramSentence';
-import { foldStepAction } from './foldStepMarkPlan';
+import { foldStepMarkAction } from './foldStepMarkPlan';
 import { foldStepPicture, type FoldStepPictureInput } from './foldStepPicture';
 import { foldRepeatCallout } from './foldRepeatCallout';
 import { readFoldRunCapture } from './foldRunCapture';
@@ -164,8 +164,8 @@ export async function readFoldStepCapture(
         // Every crease made since the state it folds from is the step's: a Repeat's every operation's.
         own: { scene, step: summary.step, sheet: summary.sheet, since: parent.value.step },
         moment: request.moment,
-        action:
-          request.moment === 'before' && action ? foldStepAction(action, { op, parent: parent.value.scene, child: scene }) : null,
+        // A collapse's marks are the creases it folds: the engine draws none of an import.
+        action: request.moment === 'before' ? foldStepMarkAction(action, { op, parent: parent.value.scene, child: scene }) : null,
         ...(repeat ? { repeat } : {}),
       },
       ready,
