@@ -110,4 +110,14 @@ precrease plan in the paper style, for the same reason.
 - [x] Layer order and Fold crease-pattern panes pass the fold-angle style
 - [x] Unit tests (encoder, helpers, thumbnail round trip, both painters)
 - [x] Browser: before/after of the Diagram pattern picker and the Simulate rail with a real 3D file
-- [ ] Lint, typecheck, relevant vitest files; draft PR
+- [x] Lint, typecheck, relevant vitest files; draft PR
+
+## Follow-ups
+
+- Diagram page pictures (a step shown as a crease pattern, the title
+  block's pattern) still draw a 3D crease in the full diagram pen — a
+  design question for the printed diagram.
+- A step linked before this change keeps a thumbnail with no angle in it
+  (its card corner and Pattern row draw at full ink) until it is linked
+  again; refreshing an up-to-date link's thumbnail on open would change
+  the saved file, so it is left for a decision.
