@@ -80,7 +80,7 @@ import {
 } from '../zoom/paintZoomed';
 import type { PictureBox } from '../zoom/zoomModel';
 import { zoomContentBox } from '../zoom/zoomContent';
-import { storedScene } from '../pictures/storedScene';
+import { paintedScene, storedScene } from '../pictures/storedScene';
 import { prefixIds } from '../pictures/prefixIds';
 import { fontFaceId } from '../fonts/diagramFontFaces';
 import { setUploadText } from '../upload/uploadText';
@@ -808,7 +808,7 @@ function draw(
 ): DrawnPicture | null {
   switch (source.kind) {
     case 'scene': {
-      const scene = storedScene(source.picture);
+      const scene = paintedScene(source.picture, source.simulated ?? false);
       if (!scene) return null;
       const scale = source.picture.paperScale;
       const { minX, minY, maxX, maxY } = scene.bounds;

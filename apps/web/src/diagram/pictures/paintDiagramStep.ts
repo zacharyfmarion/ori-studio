@@ -22,7 +22,6 @@ export {STEP_CARD_PADDING_MM} from './pictureMetrics';
 import { DEFAULT_PAPER_SIZE_MM, type PaperPage, type PaperSizeMeasure } from '../../lib/paper/paperPage';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { PT_PER_CSS_PX, pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
-import { readPaperScene } from '../../lib/paper/paperSceneValidate';
 import {
   posedRenderOf,
   type DiagramAsset,
@@ -37,6 +36,7 @@ import {
 import { SVG_NS } from '../upload/svgSanitize';
 import { diagramScenePaintStyle } from './diagramPaperStyle';
 import { paintStepDiagram } from './paintStepDiagram';
+import { paintedScene } from './storedScene';
 
 /** A box in a painted picture, in its CSS px. */
 export interface PictureBox {
@@ -123,6 +123,8 @@ export interface SceneSource {
   kind: 'scene';
   picture: DiagramScenePicture;
   pattern: boolean;
+  /** A simulated capture, painted with its lines as late as nothing covers them (`paintedScene`). */
+  simulated?: boolean;
 }
 
 /** What a scene's page size measures: a crease pattern's sheet, a folded model's figure. */
@@ -165,7 +167,12 @@ export function stepPictureSource(
     case 'scene': {
       // Measured as a pattern sheet unless its pose folds it.
       const render = posedRenderOf(source);
-      return { kind: 'scene', picture, pattern: !(render && render.mode !== 'crease-pattern') };
+      return {
+        kind: 'scene',
+        picture,
+        pattern: !(render && render.mode !== 'crease-pattern'),
+        simulated: render?.mode === 'simulated',
+      };
     }
     case 'fixed':
       return { kind: 'fixed', picture };
@@ -236,20 +243,14 @@ function itemExtent(item: PaperScene['items'][number]): { minX: number; minY: nu
  * this is a guard, not a path.
  */
 export function paintScene(
-  { picture, pattern }: SceneSource,
+  { picture, pattern, simulated = false }: SceneSource,
   style: DiagramStyle,
   paddingMm: number = STEP_CARD_PADDING_MM,
   scale = 1,
   cull: PictureBox | null = null
 ): PaintedPicture | null {
   const measure = sceneMeasure(pattern);
-  let raw: unknown;
-  try {
-    raw = JSON.parse(picture.sceneJson);
-  } catch {
-    return null;
-  }
-  const read = readPaperScene(raw);
+  const read = paintedScene(picture, simulated);
   if (!read) return null;
   const scene = sceneCulledTo(read, cull);
   const surface = diagramScenePaintStyle(style, pattern);
