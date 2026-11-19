@@ -439,15 +439,16 @@ describe('DiagramAnnotateCanvas', () => {
     ]);
     expect(Object.hasOwn(annotations()[0]!, 'color')).toBe(false);
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
-      ['solid_line', 'nothing_near', { color: 'ink' }],
-      ['solid_line', 'nothing_near', { color: 'green' }],
-      ['solid_line', 'nothing_near', { color: 'custom' }],
+      // An upload has no lines to lie along: nothing is hidden under any of them.
+      ['solid_line', 'nothing_near', { color: 'ink', covers: 'none' }],
+      ['solid_line', 'nothing_near', { color: 'green', covers: 'none' }],
+      ['solid_line', 'nothing_near', { color: 'custom', covers: 'none' }],
     ]);
     // Another type of line takes no colour, whatever the select says.
     act(() => useSettingsStore.getState().setDiagramAnnotateLineType('valley'));
     drag(at(0.2, 0.9), at(0.6, 0.9));
     expect(Object.hasOwn(annotations()[3]!, 'color')).toBe(false);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls.at(-1)).toEqual(['valley_line', 'nothing_near']);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls.at(-1)).toEqual(['valley_line', 'nothing_near', { covers: 'none' }]);
   });
 
   it('washes a selected solid line under its stroke, so the colour it is drawn in shows as it is (17a)', () => {
@@ -1288,7 +1289,7 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     rerender();
     expect(last()).toMatchObject({ kind: 'valley-line', from: [0.3, 0.4], to: [0.6, 0.4] });
     expect(targets()).toEqual([]);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_line', 'snapped']]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_line', 'snapped', { covers: 'none' }]]);
   });
 
   it('draws an arrow where it is drawn, its ends pulled onto no point near them, nothing shown to land on (Zach)', () => {
@@ -1360,7 +1361,7 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     click(at(0.605, 0.505));
     expect(last().from).toEqual([expect.closeTo(0.605, 6), expect.closeTo(0.505, 6)]);
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
-      ['valley_line', 'free'],
+      ['valley_line', 'free', { covers: 'none' }],
       ['circle', 'off'],
     ]);
   });
