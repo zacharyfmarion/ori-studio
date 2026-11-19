@@ -66,6 +66,7 @@ pub mod petal;
 pub(crate) mod pieces;
 pub mod rabbit;
 pub mod squash;
+mod squash_closed;
 pub mod swivel;
 mod swivel_hinge_end;
 pub mod swivel_on_edge;
