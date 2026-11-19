@@ -125,7 +125,8 @@ export function foldSentenceStepOf(op: FoldEngineOp, context: FoldSentenceContex
         scope: scopeOf(op.seed),
       };
     case 'pleat':
-      return { op: 'pleat', line: sentenceLine(op.line, null, context), second: sentenceLine(op.second, null, context), scope: scopeOf(op.seed) };
+      return { op: 'pleat', line: sentenceLine(op.line, null, context), second: sentenceLine(op.second, null, context), scope: scopeOf(op.seed),
+        ...(op.end ? { end: op.end } : {}) };
     case 'crimp':
       return {
         op: 'crimp',

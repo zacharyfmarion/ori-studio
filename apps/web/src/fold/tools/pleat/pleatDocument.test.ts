@@ -88,3 +88,35 @@ it('round-trips the independently chosen second axiom root and locks missing or 
     expect(isLockedStep(readFoldSequence(malformed)!.document.steps[0]!)).toBe(true);
   }
 });
+
+describe('a pleat whose mountain end moves', () => {
+  // The valley folds first: its moving side, toward the mountain line, is the seed's.
+  const swapped = { ...op, end: 'mountain', moving: [0.6, 0.5] };
+  const withOp = (value: unknown) => ({ ...doc, steps: [{ ...doc.steps[0], op: value }] });
+  it('round-trips its end with both lines and both decisions, after the second line', () => {
+    const held = readFoldSequence(withOp(swapped))!;
+    expect(isLockedStep(held.document.steps[0]!)).toBe(false);
+    expect(held.document.steps[0]!.op).toMatchObject({ kind: 'pleat', end: 'mountain' });
+    const written = (writeFoldSequence(held).steps as { op: Record<string, unknown> }[])[0]!.op;
+    expect(written).toEqual(swapped);
+    expect(Object.keys(written)).toEqual(['kind', 'line', 'second', 'end', 'moving', 'seed', 'resolved']);
+    expect(readFoldSequence(JSON.parse(JSON.stringify(writeFoldSequence(held))))?.document).toEqual(held.document);
+  });
+  it('writes a pleat whose valley end moves exactly as before: no end', () => {
+    const written = (writeFoldSequence(readFoldSequence(doc)!).steps as { op: Record<string, unknown> }[])[0]!.op;
+    expect(written).not.toHaveProperty('end');
+    expect(Object.keys(written)).toEqual(['kind', 'line', 'second', 'moving', 'seed', 'resolved']);
+  });
+  it('is a key a build before it does not know, which locks a step: as any key this build does not know', () => {
+    const held = readFoldSequence(withOp({ ...swapped, start: 'valley' }))!;
+    expect(isLockedStep(held.document.steps[0]!)).toBe(true);
+    expect((writeFoldSequence(held).steps as { op: unknown }[])[0]!.op).toEqual({ ...swapped, start: 'valley' });
+  });
+  it('locks an end only a newer build could have written, and saves it as it came', () => {
+    for (const end of ['valley', 'Mountain', null, 1, ['mountain'], { end: 'mountain' }]) {
+      const held = readFoldSequence(withOp({ ...op, end }))!;
+      expect(isLockedStep(held.document.steps[0]!), JSON.stringify(end)).toBe(true);
+      expect((writeFoldSequence(held).steps as { op: unknown }[])[0]!.op).toEqual({ ...op, end });
+    }
+  });
+});

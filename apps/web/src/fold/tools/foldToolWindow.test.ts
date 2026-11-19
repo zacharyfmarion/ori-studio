@@ -452,6 +452,16 @@ it('offers every construction separately for the mountain and valley lines of a 
   expect(calls.selectLineMode).toHaveBeenCalledWith('axiom-1', 'first');
 });
 
+it('names the end of a pleat that folds back: the valley’s, or with Swap the mountain’s', () => {
+  const pleat = { tool: 'pleat', lineMode: 'free', secondLineMode: 'free', picks: 4, preview: preview() } as const;
+  expect(foldToolWindow(t, view(pleat), verbs(), mouse)!.instructions.items[0]).toBe(
+    'Choose the flap to pleat. The end beyond the valley line folds back.'
+  );
+  expect(foldToolWindow(t, view({ ...pleat, pleatEnd: 'mountain' }), verbs(), mouse)!.instructions.items[0]).toBe(
+    'Choose the flap to pleat. The end beyond the mountain line folds back.'
+  );
+});
+
 it('says while a pleat’s layer orders are searched for, beside the Escape that stops it, and that a confirmation made meanwhile waits', () => {
   const pleat = { tool: 'pleat', lineMode: 'free', secondLineMode: 'free', picks: 4 } as const;
   const found = foldToolWindow(t, view({ ...pleat, preview: preview() }), verbs(), mouse)!;

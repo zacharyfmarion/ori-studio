@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyIsometry, lineThrough, transformLine } from '../../canvas/foldCanvasGeometry';
 import type { FoldIsometry, FoldLineSpan } from '../../engine/foldEngineWire';
 import { squareScene } from '../../sequence/foldScene.fixtures';
-import { pleatArrow, pleatValleySpans } from './pleatActionGeometry';
+import { pleatArrow, pleatReturnSpans } from './pleatActionGeometry';
 
 const first = { n: [0, 1] as const, d: 0.6 };
 const second = { n: [0, 1] as const, d: 0.4 };
@@ -48,10 +48,12 @@ describe('pleat instruction geometry', () => {
       { polygon: rect(0.5, 0.8), faces_top_to_bottom: [0, 1] },
       { polygon: rect(0.8, 1), faces_top_to_bottom: [0] },
     ];
-    expect(pleatValleySpans(scene, [0], first, second, -1)).toEqual([
+    expect(pleatReturnSpans(scene, [0], first, second, -1)).toEqual([
       { from: { x: 0.3, y: 0.4 }, to: { x: 0.5, y: 0.4 }, hidden: true, direction: 'valley' },
       { from: { x: 0.5, y: 0.4 }, to: { x: 1, y: 0.4 }, hidden: false, direction: 'valley' },
     ]);
-    expect(pleatValleySpans(scene, [0], first, second, 1)).toEqual([]);
+    expect(pleatReturnSpans(scene, [0], first, second, 1)).toEqual([]);
+    // With the mountain end moving, the line that returns it is the mountain.
+    expect(pleatReturnSpans(scene, [0], first, second, -1, 'mountain').map((span) => span.direction)).toEqual(['mountain', 'mountain']);
   });
 });

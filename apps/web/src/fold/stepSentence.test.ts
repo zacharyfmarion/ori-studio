@@ -238,6 +238,10 @@ describe('foldStepSentence', () => {
     expect(foldStepSentence(t, { op: 'tuck', direction: 'valley', line: { via: 'free' } })).toBe(
       'Valley fold and tuck the flap in, under the chosen layer.'
     );
+    // A pleat says which line folds first: the valley when its mountain end moves.
+    const pleat = { op: 'pleat', line: { via: 'free' }, second: { via: 'crease' }, scope: all } as const;
+    expect(foldStepSentence(t, pleat)).toBe('Pleat along the two lines: mountain first, then valley.');
+    expect(foldStepSentence(t, { ...pleat, end: 'mountain' })).toBe('Pleat along the two lines: valley first, then mountain.');
     expect(foldStepSentence(t, { op: 'tuck', direction: 'mountain', line: { via: 'crease' } })).toBe(
       'Mountain fold and tuck the flap in at the back, over the chosen layer.'
     );
