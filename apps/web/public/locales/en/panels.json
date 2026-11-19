@@ -2658,6 +2658,7 @@
       "petal": "Petal-fold the flap.",
       "petalScores": "Petal-fold the flap, creasing its hinge as it lifts.",
       "pleat": "Pleat along the two lines: mountain first, then valley.",
+      "pleatMountainEnd": "Pleat along the two lines: valley first, then mountain.",
       "rabbitEar": "Rabbit-ear the triangle.",
       "squash": "Squash-fold the flap.",
       "squashEnd": "Squash-fold the end of the flap, lifting it along the line.",

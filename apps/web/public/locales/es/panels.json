@@ -2887,6 +2887,7 @@
       "petal": "Haz un pliegue de pétalo con la solapa.",
       "petalScores": "Haz un pliegue de pétalo con la solapa, marcando su bisagra mientras se levanta.",
       "pleat": "Pliega por las dos líneas: primero en montaña y luego en valle.",
+      "pleatMountainEnd": "Pliega por las dos líneas: primero en valle y luego en montaña.",
       "rabbitEar": "Haz una oreja de conejo con el triángulo.",
       "squash": "Haz un pliegue aplastado con la solapa.",
       "squashEnd": "Haz un pliegue aplastado con el extremo de la solapa, levantándolo a lo largo de la línea.",

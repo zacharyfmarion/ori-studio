@@ -12,6 +12,7 @@ import type {
   FoldStepAddedOpKind,
   FoldStepExtent,
   FoldStepLayerScope,
+  FoldStepPleatEnd,
   FoldStepRotationAmount,
   FoldStepVertexForm,
   FoldStepVia,
@@ -21,7 +22,7 @@ import { spreadProperties, spreadTracking } from './trackDiagram';
 
 /** What a committed step says beyond its kind: how its line was located, how far it turned, or how it named its lines. */
 type FoldStepAddedDetails =
-  | { layerScope: FoldStepLayerScope; via: FoldStepVia; extent?: FoldStepExtent; targetCount?: number }
+  | { layerScope: FoldStepLayerScope; via: FoldStepVia; extent?: FoldStepExtent; targetCount?: number; pleatEnd?: FoldStepPleatEnd }
   | { amount: FoldStepRotationAmount }
   | { vertex: FoldStepVertexForm }
   | {
@@ -48,7 +49,7 @@ type FoldStepAddedDetails =
  * (`swivel_form`, `target`), and on a folded edge whether it is the open
  * swivel or the inside one (`swivel_kind`); a squash its hinge, folded or
  * a drawn line (`squash_hinge`). Two swivels made together say which crease
- * they share (`swivel_shared`).
+ * they share (`swivel_shared`). A pleat says which end moved (`pleat_end`).
  */
 export function trackFoldStepAdded(opKind: FoldStepAddedOpKind, details?: FoldStepAddedDetails): void {
   track(ANALYTICS_EVENTS.foldStepAdded, { op_kind: opKind, ...detailProperties(details) });
@@ -72,6 +73,7 @@ function detailProperties(details: FoldStepAddedDetails | undefined): Record<str
     via: details.via,
     ...(details.extent ? { extent: details.extent } : {}),
     ...(details.targetCount !== undefined ? { target_count_bucket: bucketCount(details.targetCount, COUNT_BUCKETS) } : {}),
+    ...(details.pleatEnd ? { pleat_end: details.pleatEnd } : {}),
   };
 }
 

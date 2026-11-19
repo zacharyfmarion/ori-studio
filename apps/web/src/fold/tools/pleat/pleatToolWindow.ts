@@ -46,10 +46,13 @@ export function pleatToolWindow(
       ),
       items: preview
         ? [
-            t(
-              'tools:fold.pleat.layers',
-              'Choose the flap to pleat. The end beyond the valley line folds back.',
-            ),
+            // Swap moves the end beyond the mountain line (`FoldPleatOp.end`).
+            view.pleatEnd === 'mountain'
+              ? t('tools:fold.pleat.layersMountainEnd', 'Choose the flap to pleat. The end beyond the mountain line folds back.')
+              : t(
+                  'tools:fold.pleat.layers',
+                  'Choose the flap to pleat. The end beyond the valley line folds back.',
+                ),
             finish,
           ]
         : [

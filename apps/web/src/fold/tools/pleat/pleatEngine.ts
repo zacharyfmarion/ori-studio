@@ -41,7 +41,7 @@ import {
   RepeatFailure,
 } from '../../repeat/repeatGeometry';
 
-import { pleatArrow, pleatValleySpans } from './pleatActionGeometry';
+import { pleatArrow, pleatReturnSpans } from './pleatActionGeometry';
 
 type Raw = FoldWasmEngine & FoldWasmCompoundEngine;
 export type PleatInput = Extract<FoldEngineOp, { kind: 'pleat' }>;
@@ -61,39 +61,55 @@ const take = <T>(value: FoldEngineOutcome<T>): T => {
   if (value.status !== 'ok') throw new Refused(value);
   return value;
 };
+/** Whether the end beyond the mountain line moves (Swap): the valley folds first, and the mountain returns it. */
+export function pleatMovesMountainEnd(op: Pick<FoldPleatOp, 'end'>): boolean {
+  return op.end === 'mountain';
+}
+/**
+ * The fold a pleat makes first, along the line nearer the paper that stays:
+ * the mountain along `line`, or with the mountain end moving the valley
+ * along `second`. It takes the pleat's seed and moving side, and its first
+ * placement once resolved.
+ */
 export function pleatFirst(op: PleatInput): FoldEngineOp {
+  const mountainEnd = pleatMovesMountainEnd(op);
   return {
-    kind: 'mountain',
-    line: op.line,
+    kind: mountainEnd ? 'valley' : 'mountain',
+    line: mountainEnd ? op.second : op.line,
     seed: op.seed,
     ...(op.moving ? { moving: op.moving } : {}),
-    ...(op.side ? { side: op.side } : {}),
+    // A side is one of `line`'s, a model line's; the valley never is one.
+    ...(op.side && !mountainEnd ? { side: op.side } : {}),
     ...(op.resolved ? { landing: op.resolved[0].landing } : {}),
   };
 }
+/** The first fold's choices: its line's root — the step's own, or the valley's (`secondRoot`) when it folds first — and its completion. */
 export function pleatFirstChoices(
   choices?: FoldChoices,
   op?: PleatInput,
 ): FoldChoices | undefined {
-  return choices?.root || op?.resolved?.[0].completion
-    ? {
-        ...(choices?.root ? { root: choices.root } : {}),
-        ...(op?.resolved?.[0].completion
-          ? { completion: op.resolved[0].completion }
-          : {}),
-      }
+  const root = op && pleatMovesMountainEnd(op) ? op.secondRoot : choices?.root;
+  const completion = op?.resolved?.[0].completion;
+  return root || completion
+    ? { ...(root ? { root } : {}), ...(completion ? { completion } : {}) }
     : undefined;
 }
 function pointInModel(scene: FoldScene, at: SheetPoint) {
   return applyIsometry(modelMap(scene, faceAt(scene, at)), toPoint(at));
 }
+/**
+ * The line a pleat folds second, located on the starting pose: the valley,
+ * or with the mountain end moving the mountain. An axiom's by its root, a
+ * free line through its points, a crease by its ends.
+ */
 function secondLine(
   raw: Raw,
   parent: number,
   scene: FoldScene,
   root: FoldModelLine | undefined,
-  second: FoldPleatOp['second'],
+  second: PleatInput['line'],
 ): FoldModelLine {
+  if (second.via === 'model') return second.line;
   if (second.via === 'axiom') {
     const result = take(raw.axiom_candidates(parent, second) as FoldEngineOutcome<FoldAxiomCandidates>);
     if (!root) throw new Refused(fail('reference'));
@@ -138,13 +154,16 @@ function geometry(
   op: PleatInput,
   choices?: FoldChoices,
 ) {
+  const mountainEnd = pleatMovesMountainEnd(op);
   const first = pleatFirst(op),
     rooted = pleatFirstChoices(choices, op);
   const analysis = take(
     raw.analyse(parent, first, rooted) as FoldEngineOutcome<FoldAnalysed>,
   ).analysis;
   const source = raw.scene(parent) as FoldScene;
-  const second = secondLine(raw, parent, source, op.secondRoot, op.second),
+  const second = mountainEnd
+      ? secondLine(raw, parent, source, choices?.root, op.line)
+      : secondLine(raw, parent, source, op.secondRoot, op.second),
     a = analysis.line;
   const parallel = Math.abs(a.n[0] * second.n[1] - a.n[1] * second.n[0]) < 1e-8;
   const sign = a.n[0] * second.n[0] + a.n[1] * second.n[1] < 0 ? -1 : 1;
@@ -153,6 +172,7 @@ function geometry(
     d: second.d * sign,
   };
   const side = analysis.side === 'positive' ? 1 : -1;
+  // The line folded second must lie on the side that moves, apart from the first.
   if (parallel && (aligned.d - a.d) * side <= 1e-6)
     throw new Refused(fail('lines'));
   return {
@@ -162,6 +182,7 @@ function geometry(
     source,
     second: aligned,
     side: side as 1 | -1,
+    mountainEnd,
   };
 }
 function returnFold(
@@ -204,9 +225,10 @@ function returnFold(
   }
   if (!witnesses.length) throw new Refused(fail('tip'));
   // The first fold turned the flap over. A mountain as seen now makes the
-  // VALLEY line specified on the original pose, and keeps the strip stationary.
+  // VALLEY line specified on the original pose, and a valley the MOUNTAIN
+  // when the mountain end moves; either keeps the strip stationary.
   const second: FoldEngineOp = {
-    kind: 'mountain',
+    kind: g.mountainEnd ? 'valley' : 'mountain',
     line: { via: 'model', line },
     side: g.side === 1 ? 'positive' : 'negative',
     seed: { scope: 'flaps', at: witnesses },
@@ -501,18 +523,20 @@ export function pleatAction(
       original = take(
         raw.action(parent, g.first, g.rooted) as FoldEngineOutcome<FoldActed>,
       );
-    const valley = pleatValleySpans(g.source, g.analysis.moving, g.analysis.line, g.second, g.side);
+    // The first fold's spans are its own letter's: the return's are the other.
+    const returned = pleatReturnSpans(g.source, g.analysis.moving, g.analysis.line, g.second, g.side,
+      g.mountainEnd ? 'mountain' : 'valley');
     const arrow = pleatArrow(
       transformLine(g.source.view_transform, g.analysis.line),
       transformLine(g.source.view_transform, g.second),
-      valley,
+      returned,
     );
     return {
       status: 'ok',
       action: {
         ...original.action,
         grip: null,
-        spans: [...original.action.spans, ...valley],
+        spans: [...original.action.spans, ...returned],
         ...(arrow ? { pleat: arrow } : {}),
       },
     };

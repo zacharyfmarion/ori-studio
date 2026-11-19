@@ -62,12 +62,40 @@ describe('Pleat authoring', () => {
     expect(build.movingSign).toBe(-1);
     expect(build.op.kind).toBe('pleat');
     expect(lineSectionProbe(state, index, null)?.side).toBe('negative');
+    expect(build.op).not.toHaveProperty('end');
+  });
+  it('moves the end beyond the mountain line with Swap: the valley folds first, toward the mountain line', () => {
+    const tools = createFoldTools();
+    tools.selectTool('pleat');
+    // Mountain at y = 0.6, valley at y = 0.5.
+    for (const p of [free(0, 0.6), free(1, 0.6), free(0, 0.5), free(1, 0.5)])
+      tools.pick(p);
+    const index = foldPickIndex(flatSquareScene(), flatSquareLandmarks(), []);
+    const plain = buildPleatStep({ ...tools.store.getState(), seed: FOLD_EVERY_LAYER, candidate: null }, index);
     tools.swapSide();
-    const opposite = buildPleatStep(
-      { ...tools.store.getState(), seed: FOLD_EVERY_LAYER, candidate: null },
-      index,
-    );
-    expect(opposite.status === 'built' && opposite.movingSign).toBe(1);
+    const state = tools.store.getState();
+    const swapped = buildPleatStep({ ...state, seed: FOLD_EVERY_LAYER, candidate: null }, index);
+    expect(swapped.status).toBe('built');
+    if (swapped.status !== 'built' || plain.status !== 'built') return;
+    // The same two lines, stored as they were; only the end that moves is new.
+    expect(swapped.op).toMatchObject({ kind: 'pleat', end: 'mountain' });
+    if (swapped.op.kind !== 'pleat' || plain.op.kind !== 'pleat') return;
+    expect(swapped.op.line).toEqual(plain.op.line);
+    expect(swapped.op.second).toEqual(plain.op.second);
+    // The first fold is the valley's: its line in the scene, its side the mountain's (up).
+    expect(Math.abs(swapped.sceneLine.d * swapped.sceneLine.n[1])).toBeCloseTo(0.5);
+    const above = swapped.sceneLine.n[1] * 0.6 - swapped.sceneLine.d;
+    expect(Math.sign(above)).toBe(swapped.movingSign);
+    // Every layer, by a free line: a point on that side names it.
+    const moving = swapped.op.moving!;
+    expect(moving[1]).toBeGreaterThan(0.5);
+    // The layer picker sections the valley line on the same side.
+    const probe = lineSectionProbe(state, index, null);
+    expect(probe?.side).toBe(swapped.movingSign === 1 ? 'positive' : 'negative');
+    expect(Math.abs(probe!.line.d)).toBeCloseTo(0.5);
+    // Swapping back is the pleat as it was.
+    tools.swapSide();
+    expect(buildPleatStep({ ...tools.store.getState(), seed: FOLD_EVERY_LAYER, candidate: null }, index)).toEqual(plain);
   });
 });
 

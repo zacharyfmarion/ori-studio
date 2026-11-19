@@ -369,7 +369,8 @@ const OP_KEYS = new Map<string, ReadonlySet<string>>([
   // Compound folds (plan D4), one block per family.
   ['inside-reverse', ALONG_LINE_KEYS],
   ['outside-reverse', ALONG_LINE_KEYS],
-  ['pleat', new Set([...ALONG_LINE_KEYS, 'second', 'secondRoot', 'resolved'])],
+  // `end`, which no build before it knew: the end beyond the mountain line moves.
+  ['pleat', new Set([...ALONG_LINE_KEYS, 'second', 'secondRoot', 'end', 'resolved'])],
   ['crimp', new Set([...ALONG_LINE_KEYS, 'second', 'crimp'])],
   ['tuck', new Set([...ALONG_LINE_KEYS, 'direction', 'target', 'additionalTargets'])],
   ['squash', new Set(['kind', 'flap', 'target', 'direction', 'hinge', 'opening'])],
@@ -531,8 +532,11 @@ function readOp(value: unknown, depth = 0, budget = { remaining: 256 }): FoldOp 
         return landing && completion !== null ? { landing, ...(completion ? { completion } : {}) } : null;
       });
       const secondRoot = value.secondRoot === undefined ? undefined : readModelLine(value.secondRoot);
+      // Only the mountain's end is ever written: any other value is a newer build's.
+      if (value.end !== undefined && value.end !== 'mountain') return null;
       if (!along || !second || secondRoot === null || (secondRoot && second.via !== 'axiom') || (second.via === 'axiom' && !secondRoot) || resolved === null || (resolved && resolved.length !== 2)) return null;
-      return { kind, ...along, second, ...(secondRoot ? { secondRoot } : {}), ...(resolved ? { resolved: [resolved[0]!, resolved[1]!] as const } : {}) };
+      return { kind, ...along, second, ...(secondRoot ? { secondRoot } : {}), ...(value.end === 'mountain' ? { end: 'mountain' as const } : {}),
+        ...(resolved ? { resolved: [resolved[0]!, resolved[1]!] as const } : {}) };
     }
     case 'crimp': {
       const along = readAlongLine(value);
@@ -1167,7 +1171,8 @@ export function writeFoldOp(op: FoldOp): Record<string, unknown> {
     case 'unsink':
       return { kind: op.kind, line: writeLine(op.line), ...writeMotion(op) };
     case 'pleat':
-      return { kind: op.kind, line: writeLine(op.line), second: writeLine(op.second), ...(op.secondRoot ? { secondRoot: { n: [...op.secondRoot.n], d: op.secondRoot.d } } : {}), ...writeMotion(op),
+      return { kind: op.kind, line: writeLine(op.line), second: writeLine(op.second), ...(op.secondRoot ? { secondRoot: { n: [...op.secondRoot.n], d: op.secondRoot.d } } : {}),
+        ...(op.end ? { end: op.end } : {}), ...writeMotion(op),
         ...(op.resolved ? { resolved: op.resolved.map((r) => ({ landing: r.landing,
           ...(r.completion ? { completion: { faces: r.completion.faces.map(writePoint), orders: r.completion.orders.map((o) => [...o]) } } : {}),
         })) } : {}) };

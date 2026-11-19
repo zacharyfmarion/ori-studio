@@ -734,12 +734,31 @@ export interface FoldPleatPlacement {
   landing: FoldLanding;
   completion?: FoldCompletionChoice;
 }
+/**
+ * A pleat: `line` is its mountain, `second` its valley, both as the viewer
+ * sees them on the starting pose. One end moves:
+ *
+ * - by default the end beyond the valley line: the mountain folds first, its
+ *   moving side the one that holds the valley line, and the valley returns it;
+ * - with `end: 'mountain'` (Swap) the end beyond the mountain line: the
+ *   valley folds first, its moving side the one that holds the mountain line,
+ *   and the mountain returns it. The creases are the same either way; which
+ *   paper is carried is not, since a flap hinged beyond one line moves only
+ *   with what it is joined to there.
+ *
+ * `seed` and `moving` name the moving side of the line folded first, and
+ * `resolved` the placements of the first fold and of the return. `end` is
+ * written only when it is the mountain's; a build before it reads a key it
+ * does not know and locks the step rather than move the other end.
+ */
 export interface FoldPleatOp {
   kind: 'pleat';
   line: FoldLineInput;
   second: FoldLineInput;
   /** The valley construction's chosen root in the starting model frame. */
   secondRoot?: FoldModelLine;
+  /** The end beyond the mountain line moves; absent, the end beyond the valley line. */
+  end?: 'mountain';
   seed: FoldSeed;
   moving?: SheetPoint;
   /** Native placement choices for the first fold and the transported return fold. */
