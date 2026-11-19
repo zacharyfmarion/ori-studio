@@ -270,6 +270,12 @@ export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' 
 export type DiagramDivisionsPlaced = 'drag' | 'line';
 
 /**
+ * How much of the picture's lines a new line mark lies along, and so leaves
+ * out under it: all of one (`whole`), a stretch of one (`part`), or none.
+ */
+export type DiagramLineCover = 'whole' | 'part' | 'none';
+
+/**
  * A mark's colour, by name (17a): the style's ink (none stored), References'
  * magenta, one of the five print colours, or one picked by hand. Never the
  * colour itself.

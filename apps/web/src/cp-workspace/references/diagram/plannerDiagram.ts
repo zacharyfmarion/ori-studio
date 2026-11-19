@@ -64,6 +64,7 @@ import {
 } from '../../../lib/stepDiagram/stepDiagramGeometry';
 import { alsoLetters, inputLetters, sameRef, type InputLetters } from './inputLetters';
 import type { Point } from '../../../lib/geometry';
+import { uncoveredSpans } from '../../../lib/uncoveredSpans';
 import type { DiagramFrame, DiagramGridLine, DiagramSegment } from './diagramFrames';
 import type {
   DiagramLineStyleName,
@@ -908,11 +909,9 @@ export function creasedSpans(
 }
 
 /**
- * The parts of `segment` that `creases` do not cover, as segments.
- *
- * Along the segment as a parameter: the creases become intervals, merged, and
- * the gaps between them from one end to the other are what is left. A gap
- * shorter than a hair is rounding, not crease.
+ * The parts of `segment` that `creases` do not cover, as segments: the
+ * creases as stretches along it, and what they leave (`uncoveredSpans`). A
+ * gap shorter than a hair is rounding, not crease.
  */
 function uncreased(
   segment: DiagramSegment,
@@ -924,24 +923,9 @@ function uncreased(
   const span = dx * dx + dy * dy;
   if (span === 0) return [];
   const at = (p: Point) => ((p.x - a.x) * dx + (p.y - a.y) * dy) / span;
-  // Clipped to the segment: a crease of the same line that lies beyond
-  // either end is not a gap in *this* segment, and unclipped it produced one
-  // running from the segment's end out to the crease — markhor's step 39
-  // drew the blank between two of step 38's runs as if it were creased.
-  const covered = creases
-    .map(([p, q]) => [at(p), at(q)].sort((u, v) => u - v) as [number, number])
-    .map(([u, v]) => [Math.max(0, u), Math.min(1, v)] as [number, number])
-    .filter(([u, v]) => v > u)
-    .sort((u, v) => u[0] - v[0]);
-  const gaps: DiagramSegment[] = [];
-  let cursor = 0;
   const point = (t: number): Point => ({ x: a.x + dx * t, y: a.y + dy * t });
-  for (const [start, end] of covered) {
-    if (start > cursor + UNCREASED_EPSILON) gaps.push([point(cursor), point(start)]);
-    cursor = Math.max(cursor, end);
-  }
-  if (cursor < 1 - UNCREASED_EPSILON) gaps.push([point(cursor), point(1)]);
-  return gaps;
+  const covered = creases.map(([p, q]) => [at(p), at(q)] as const);
+  return uncoveredSpans(covered, UNCREASED_EPSILON).map(([start, end]): DiagramSegment => [point(start), point(end)]);
 }
 
 /** A gap along a chord shorter than this fraction of it is rounding. */

@@ -38,11 +38,13 @@ import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
 import {
   paintSource,
+  sourceUnderMarks,
   STEP_CARD_PADDING_MM,
   stepPictureSource,
   type PaintedPicture,
   type StepPictureSource,
 } from '../pictures/paintDiagramStep';
+import type { CoveringMarks } from '../pictures/sceneUnderMarks';
 import { paintedFrameLongerPx, stepPictureFrame } from '../pictures/pictureFrame';
 import { prefixIds } from '../pictures/prefixIds';
 import { SVG_NS } from '../upload/svgSanitize';
@@ -205,6 +207,17 @@ export function zoomedSource(step: DiagramStep, assets: Readonly<Record<string, 
   const source = stepPictureSource(step, assets);
   const pictureFrame = stepPictureFrame(step, assets);
   return source && pictureFrame ? { view, source, pictureFrame, silhouette: paperSilhouette(step, assets) } : null;
+}
+
+/**
+ * A window painted from its picture with the lines the step's marks lie
+ * along left out (`sourceUnderMarks`), as a surface that draws its marks on
+ * it paints it. The window itself with none, and with no window.
+ */
+export function zoomedUnderMarks(zoomed: ZoomedSource | null, covering: CoveringMarks | null): ZoomedSource | null {
+  if (!zoomed || !covering) return zoomed;
+  const source = sourceUnderMarks(zoomed.source, covering);
+  return source === zoomed.source ? zoomed : { ...zoomed, source };
 }
 
 /** What a window is painted from, for a cache's key: the frame, its shape and how its edge draws. */
