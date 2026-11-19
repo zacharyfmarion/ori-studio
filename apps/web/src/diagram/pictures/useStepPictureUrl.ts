@@ -7,6 +7,7 @@ import type {
   KnownDiagramAsset,
 } from '../document/diagramDocument';
 import { annotatedPicture, hasDrawnAnnotations } from '../annotate/paintAnnotations';
+import { useLinesUnderMarks } from '../annotate/useLinesUnderMarks';
 import type { PictureLayers } from '../annotate/pictureGeometry';
 import { sourcePaper, viewGeometry, viewOfStep } from '../zoom/stepView';
 import { annotatedXRaySurface, xrayPainter, type XRaySurface } from '../xray/xrayPaint';
@@ -17,6 +18,7 @@ import {
   zoomedCardPicture,
   zoomedKey,
   zoomedSource,
+  zoomedUnderMarks,
   zoomSurroundRegion,
   type ZoomedSource,
 } from '../zoom/paintZoomed';
@@ -26,11 +28,13 @@ import {
   paintScene,
   paintSource,
   poseTransform,
+  sourceUnderMarks,
   stepPictureSource,
   type PictureBox,
   type PicturePose,
   type StepPictureSource,
 } from './paintDiagramStep';
+import type { CoveringMarks } from './sceneUnderMarks';
 import { cachedPictureUrl, objectSerial, svgDataUrl } from './stepPictureCache';
 
 /** How far outside the view a card starts painting, so a scroll lands on pictures. */
@@ -46,8 +50,13 @@ export function useStepPictureUrl(
   assets: Readonly<Record<string, DiagramAsset>>,
   style: DiagramStyle
 ): string | null {
-  const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
-  const zoomed = useMemo(() => zoomedSource(step, assets), [step, assets]);
+  // Its lines under the line marks drawn along them are left out, as every surface that draws its marks prints it.
+  const covering = useLinesUnderMarks(step, assets, style);
+  const source = useMemo(() => {
+    const bare = stepPictureSource(step, assets);
+    return bare && sourceUnderMarks(bare, covering);
+  }, [step, assets, covering]);
+  const zoomed = useMemo(() => zoomedUnderMarks(zoomedSource(step, assets), covering), [step, assets, covering]);
   const annotated = hasDrawnAnnotations(step.annotations);
   // A flat fold's layers, in the units the marks are in: a mark behind a flap is dotted under it (15e).
   const layers = useMemo(() => annotated ? viewGeometry(viewOfStep(step), assets, style).layers : null, [annotated, step, assets, style]);
@@ -235,18 +244,27 @@ function throughCache(key: string, kept: boolean, paint: () => string | null): s
   return kept ? cachedPictureUrl(key, paint) : paint();
 }
 
-/** What a source's picture is, for a key: the object it is drawn from, and how. */
+/**
+ * What a source's picture is, for a key: the object it is drawn from, and
+ * how — for a scene or a References step, which of its lines the marks over
+ * it leave out, so a mark edit that hides nothing new paints nothing new.
+ */
 function sourceKey(source: StepPictureSource): string {
   switch (source.kind) {
     case 'asset':
       return `asset|${objectSerial(source.asset)}|${source.pose.rotationQuarterTurns}|${source.pose.mirrored ? 'm' : ''}`;
     case 'scene':
-      return `scene|${objectSerial(source.picture)}|${source.pattern ? 'pattern' : 'figure'}`;
+      return `scene|${objectSerial(source.picture)}|${source.pattern ? 'pattern' : 'figure'}${coveringKey(source.covering)}`;
     case 'fixed':
       return `fixed|${objectSerial(source.picture)}`;
     case 'step-diagram':
-      return `step-diagram|${objectSerial(source.picture)}`;
+      return `step-diagram|${objectSerial(source.picture)}${coveringKey(source.covering)}`;
   }
+}
+
+/** What the marks over a picture leave out of it, for a key; nothing where they leave out nothing. */
+function coveringKey(covering: CoveringMarks | undefined): string {
+  return covering ? `|under|${covering.key}` : '';
 }
 
 /**
@@ -274,7 +292,7 @@ export function stepPictureUrl(source: StepPictureSource, style: DiagramStyle, k
       return cachedPictureUrl(`fixed|${objectSerial(picture)}`, paint) ?? paint();
     }
     case 'step-diagram': {
-      const key = `step-diagram|${objectSerial(source.picture)}|${diagramStyleKey(style)}`;
+      const key = `${sourceKey(source)}|${diagramStyleKey(style)}`;
       const paint = () => svgDataUrl(paintSource(source, style)!.svg);
       return cachedPictureUrl(key, paint) ?? paint();
     }

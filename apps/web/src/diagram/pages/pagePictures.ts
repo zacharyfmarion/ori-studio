@@ -60,10 +60,18 @@ import {
   paintSource,
   poseTransform,
   sceneCulledTo,
+  sourceUnderMarks,
   stepPictureSource,
   type StepPictureSource,
 } from '../pictures/paintDiagramStep';
-import { stepDiagramPaintStyle, stepDiagramScene, stepDiagramSheetBox } from '../pictures/paintStepDiagram';
+import {
+  stepDiagramPaintStyle,
+  stepDiagramScene,
+  stepDiagramSceneUnderMarks,
+  stepDiagramSheetBox,
+} from '../pictures/paintStepDiagram';
+import { storedSceneUnderMarks } from '../pictures/sceneUnderMarks';
+import { linesUnderMarks } from '../annotate/linesUnderMarks';
 import { hasDrawnAnnotations, placeAnnotations, type CloseUpPicture } from '../annotate/paintAnnotations';
 import { annotationDrawing, annotationReach } from '../annotate/annotationPrimitives';
 import { frameOf } from '../annotate/annotationModel';
@@ -75,6 +83,7 @@ import {
   zoomCull,
   zoomEdgePen,
   zoomedSource,
+  zoomedUnderMarks,
   zoomPlacement,
   type ZoomedSource,
 } from '../zoom/paintZoomed';
@@ -542,8 +551,11 @@ export function cellPicture(
 ): CellPicture | null {
   // An enlarged step's marks far off its window are neither drawn nor measured.
   const step = stepAsDrawn(whole);
-  const source = stepPictureSource(step, assets);
-  if (!source) return null;
+  const bare = stepPictureSource(step, assets);
+  if (!bare) return null;
+  // Its lines under the line marks drawn along them are left out, a close-up's inside included.
+  const covering = linesUnderMarks(step, assets, style);
+  const source = sourceUnderMarks(bare, covering);
   // A flat fold's layers, in the marks' units: a mark behind a flap is drawn dotted under it (15e).
   const layers = hasDrawnAnnotations(step.annotations) ? viewGeometry(viewOfStep(step), assets, style).layers : null;
   // A References picture's sheet: a label's halo is filled with the face it stands on (17b).
@@ -552,7 +564,7 @@ export function cellPicture(
   const xraySurface = annotatedXRaySurface(step);
   const placing = { paper: textPaper, xRays: xraySurface && xrayPainter(xraySurface, style) };
   // An enlarged step draws its window (Revision 2), a close-up's inside included.
-  const zoomed = zoomedSource(step, assets);
+  const zoomed = zoomedUnderMarks(zoomedSource(step, assets), covering);
   const drawPicture = (inner: Rect, mmPerUnit: number | null, framePt: number | null) =>
     zoomed ? drawZoomed(zoomed, step, style, inner, framePt, text) : draw(source, step, style, inner, mmPerUnit, framePt, text);
   const area = cell.drawMm ?? { x: cell.pictureMm.x, y: cell.pictureMm.y, w: cell.pictureMm.size, h: cell.pictureMm.size };
@@ -818,7 +830,8 @@ function draw(
           : longerSide(scene.bounds) > 0
             ? fitScale(box, maxX - minX, maxY - minY, framePt)
             : PT_PER_CSS_PX;
-      const placed = placedScene(sceneCulledTo(scene, cull), diagramScenePaintStyle(style, source.pattern), box, ptPerPx);
+      const drawn = storedSceneUnderMarks(sceneCulledTo(scene, cull), source.covering);
+      const placed = placedScene(drawn, diagramScenePaintStyle(style, source.pattern), box, ptPerPx);
       // A scene's frame is its bounds; its ink reaches past them.
       return {
         ...placed,
@@ -838,7 +851,7 @@ function draw(
             ? framePt / PT_PER_MM
             : fittedSheetMm(source.picture, style, boxMm);
       const { model, mirrored } = source.picture;
-      const scene = stepDiagramScene(model, mirrored, style, sheetMm);
+      const scene = stepDiagramSceneUnderMarks(stepDiagramScene(model, mirrored, style, sheetMm), model, mirrored, sheetMm, source.covering);
       // Built at its size on the page: one scene px is one CSS px of it.
       const placed = placedScene(scene, stepDiagramPaintStyle(style), box, PT_PER_CSS_PX);
       const letters = labelsOf(source.picture);
