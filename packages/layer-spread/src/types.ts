@@ -21,6 +21,10 @@ export interface SpreadSolution {
   version: 'normalized-50-v1';
   heights: number[];
   references: [SpreadReference, SpreadReference];
+  /** In-plane shift at amount 1 that keeps the lifted paper its true size:
+   * `x, y` per vertex, for the front then the back reference. A side the
+   * solver could not shift is empty; a solution from before the shift has none. */
+  shifts?: [number[], number[]];
   diagnostics: {
     status: string;
     iterations: number;

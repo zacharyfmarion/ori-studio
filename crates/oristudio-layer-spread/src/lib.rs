@@ -1,5 +1,6 @@
 //! Original display-only geometry. No fold or layer-order search is changed.
 //! Heights share material vertices; crossing penalties remain soft.
+mod inplane;
 mod prepare;
 mod qp;
 mod reference;
@@ -71,6 +72,11 @@ pub struct Solution {
     pub version: String,
     pub heights: Vec<f64>,
     pub references: [Reference; 2],
+    /// In-plane shift at amount 1 that keeps the lifted paper its true size:
+    /// `x, y` per vertex, for the front then the back reference. It scales
+    /// with the square of the amount. A side with no usable shift is empty.
+    #[serde(default)]
+    pub shifts: [Vec<f64>; 2],
     pub diagnostics: Diagnostics,
 }
 
