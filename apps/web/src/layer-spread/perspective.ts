@@ -1,6 +1,6 @@
 import { cameraUniforms, projectVertices, viewDepthAxis, viewRotationFor } from '@treemaker/origami-simulator';
 import { orderSide, visibility, type Point3 } from '@oristudio/layer-spread';
-import type { ConnectedDrawing, PreparedConnectedSpread } from './connectedScene';
+import { connectedPoseVisibility, type ConnectedDrawing, type PreparedConnectedSpread } from './connectedScene';
 import type { SpreadPresentation } from './presentation';
 
 /** The simulator camera, applied to the unsheared solved paper. Reciprocal
@@ -66,6 +66,11 @@ export function perspectiveDrawing(
     ...drawing,
     front,
     ink,
-    mesh: { ...drawing.mesh, positions, visibility: visibility(front.length, prepared.source.input.orders, back, prepared.source.input.planeGroups) },
+    mesh: {
+      ...drawing.mesh,
+      positions,
+      visibility: connectedPoseVisibility(prepared.source, positions, back,
+        visibility(front.length, prepared.source.input.orders, back, prepared.source.input.planeGroups)),
+    },
   };
 }

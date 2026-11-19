@@ -1,3 +1,4 @@
+import type { Visibility } from '@oristudio/layer-spread';
 import type { ConnectedDrawing } from '../../layer-spread/connectedScene';
 import { connectedVisibility, hasConnectedDrawing } from '../../layer-spread/connectedScene';
 import { spreadGeometry } from '../../layer-spread/spreadGeometry';
@@ -9,10 +10,10 @@ import { prepareFoldSheetBindings } from './foldPickPreparation';
 import type { FoldRenderFrame, FoldRenderPayload, FoldRenderSource } from './foldRenderProtocol';
 
 /** Recreate the pick mesh from the very vertices drawn, never a second projection. */
-export function foldPickDrawing(source: FoldRenderSource, positions: FoldRenderPayload['positions']): ConnectedDrawing {
+export function foldPickDrawing(source: FoldRenderSource, positions: FoldRenderPayload['positions'],
+  visibility: Visibility = connectedVisibility(source.prepared.source)): ConnectedDrawing {
   const { input } = source.prepared.source;
-  return { mesh: { positions, triangles: input.triangles, triangleFaces: input.triangleFaces,
-    visibility: connectedVisibility(source.prepared.source) },
+  return { mesh: { positions, triangles: input.triangles, triangleFaces: input.triangleFaces, visibility },
   rings: input.faces, front: source.scene.faces.map(face => face.front_up), ink: [] };
 }
 
@@ -26,10 +27,13 @@ export function prepareFoldRender(source: FoldRenderSource) {
     if (!hasConnectedDrawing(scene)) throw new Error('Fold spread geometry unavailable');
     const positions: FoldRenderPayload['positions'] = scene.connected.mesh.positions.map(([x, y, z]) =>
       [x / FOLD_USER_PER_UNIT - frame.offset.x, y / FOLD_USER_PER_UNIT + frame.offset.y, z / FOLD_USER_PER_UNIT]);
-    const drawing = foldPickDrawing(source, positions);
+    // Scaling and shifting the drawn vertices keeps which face is nearer, so they keep its order.
+    const order = scene.connected.mesh.visibility;
+    const drawing = foldPickDrawing(source, positions, order);
     const map = foldPaneSpreadMap(source.scene, frame.spread, source.prepared, bindings, drawing);
     const index = foldPickIndex(source.scene, source.landmarks, source.marks, map, base);
-    const payload: FoldRenderPayload = { bounds: scene.bounds, positions, folded: panePickData(index.folded), ...(first ? { bindings } : {}) };
+    const payload: FoldRenderPayload = { bounds: scene.bounds, positions, folded: panePickData(index.folded), ...(first ? { bindings } : {}),
+      ...(order === connectedVisibility(source.prepared.source) ? {} : { visibility: order }) };
     first = false;
     return { geometry: spreadGeometry(scene, frame.style, frame.ink), payload };
   };

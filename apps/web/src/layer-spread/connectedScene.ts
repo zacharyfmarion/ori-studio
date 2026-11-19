@@ -1,15 +1,19 @@
 import { preparedInk } from './preparedInk';
 import {
   interpolate,
+  layerChains,
   pickSpread,
+  poseVisibility,
   shiftedXY,
   visibility,
   visibleFragments,
   createLineClipper,
   type ConnectedSpread,
+  type LayerChains,
   type Point3,
   type ProjectedSpread,
   type SpreadSolution,
+  type Visibility,
 } from '@oristudio/layer-spread';
 import type { OristudioCpFoldedPaperScene } from '../engine/oristudioCpTypes';
 import type { Point } from '../lib/geometry';
@@ -50,6 +54,30 @@ export function connectedVisibility(source: ConnectedSpreadSource): ReturnType<t
   return result;
 }
 
+const chainsCache = new WeakMap<ConnectedSpreadSource, LayerChains | null>();
+function connectedChains(source: ConnectedSpreadSource): LayerChains | null {
+  if (!chainsCache.has(source)) {
+    const { input } = source;
+    chainsCache.set(source, layerChains(input.faces.length, input.orders, input.planeGroups));
+  }
+  return chainsCache.get(source)!;
+}
+
+/**
+ * The visibility `positions` draw with: the stack's ranks, re-solved where
+ * this pose slides a layer over an unrelated one it lies under
+ * (`poseVisibility`). `back` and `base` are the side the pose is seen from.
+ */
+export function connectedPoseVisibility(
+  source: ConnectedSpreadSource,
+  positions: readonly Point3[],
+  back = source.back,
+  base: Visibility = connectedVisibility(source),
+): Visibility {
+  const { triangles, triangleFaces, faces } = source.input;
+  return poseVisibility(base, connectedChains(source), { positions, triangles, triangleFaces, rings: faces }, back);
+}
+
 /** Shared placed geometry. Reveal is screen-relative, after the host's turn.
  * Solve coordinates and reference planes never change with a camera gesture.
  */
@@ -81,7 +109,7 @@ export function connectedDrawing(
     positions,
     triangles: input.triangles,
     triangleFaces: input.triangleFaces,
-    visibility: connectedVisibility(source),
+    visibility: connectedPoseVisibility(source, positions),
   };
   const ink: ConnectedInk[] = preparedInk(source, baseInk).map((edge) => {
     const a = interpolate(edge.ids, edge.a, positions),
