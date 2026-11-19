@@ -119,6 +119,16 @@ describe('the order lines are drawn in', () => {
     expect(order([EDGE, fixed, face('own', SQUARE)])).toEqual(['edge', 'fixed', 'own']);
   });
 
+  it('keeps a line under a face the caller says it stays under, though it only touches it', () => {
+    const items = [EDGE, CORNER, face('own', SQUARE)];
+    const stays = (_line: number, at: number) => items[at]!.id === 'own';
+    expect(linesAsLateAsUncovered(items, (item) => item.shape, { stays }).map((item) => item.id)).toEqual([
+      'corner',
+      'edge',
+      'own',
+    ]);
+  });
+
   it('keeps the order of lines that land in one place, and of every face', () => {
     const second = line('second', [10, 0], [10, 10]);
     expect(order([EDGE, second, face('own', SQUARE), CORNER])).toEqual(['own', 'corner', 'edge', 'second']);

@@ -63,18 +63,26 @@ export interface LineOrderOptions {
    * line does not split the face where it costs the line nothing.
    */
   reach?: number;
+  /**
+   * Whether the line at index `line` stays under the face at index `face`
+   * even where the face does not cover it: a face whose order against the
+   * line the caller has decided some other way. Asked only of faces after the
+   * line that come near it. Absent, only a cover keeps a line under a face.
+   */
+  stays?: (line: number, face: number) => boolean;
 }
 
 /**
  * `items` with each line moved to just before the first face after it that
- * covers some of it ({@link coversLine}), or to the end of the drawing when
- * none does. Faces and fixed items keep their order; lines that land at the
- * same place keep theirs. A line never moves past a fixed item.
+ * covers some of it ({@link coversLine}) or that it {@link LineOrderOptions.stays}
+ * under, or to the end of the drawing when none does. Faces and fixed items
+ * keep their order; lines that land at the same place keep theirs. A line
+ * never moves past a fixed item.
  */
 export function linesAsLateAsUncovered<T>(
   items: readonly T[],
   shapeOf: (item: T) => DrawShape,
-  { eps = COVER_EPS, reach }: LineOrderOptions = {}
+  { eps = COVER_EPS, reach, stays }: LineOrderOptions = {}
 ): T[] {
   const count = items.length;
   const shapes = items.map(shapeOf);
@@ -93,6 +101,7 @@ export function linesAsLateAsUncovered<T>(
     const shape = shapes[index]!;
     if (shape.kind !== 'line') continue;
     let first = nextFixed[index + 1]!;
+    let covered = false;
     if (grid) {
       const candidates: number[] = [];
       grid.visit(segmentBox(shape.a, shape.b, eps), (face) => {
@@ -105,11 +114,18 @@ export function linesAsLateAsUncovered<T>(
         const faceShape = shapes[face] as FaceShape;
         if (coversLine(faceShape.rings, shape.a, shape.b, eps)) {
           first = face;
+          covered = true;
+          break;
+        }
+        if (stays?.(index, face)) {
+          first = face;
           break;
         }
       }
     }
-    before[index] = reach === undefined ? first : runStartFor(shapes, index, first, shape, reach);
+    // Only past a cover's own earlier pieces: a face the line stays under is
+    // ordered against it by the caller, piece by piece.
+    before[index] = reach === undefined || !covered ? first : runStartFor(shapes, index, first, shape, reach);
   }
 
   const moved = new Map<number, T[]>();

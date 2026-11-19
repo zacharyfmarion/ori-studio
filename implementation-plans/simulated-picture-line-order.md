@@ -28,10 +28,18 @@ already named the fault and called itself a tie-break, not a fix.
 after it that covers some of it (`coversLine`: the segment runs inside the
 face by more than 0.02 px), or to the end when none does. Every face it passes
 covers none of it, so the order stays valid; only which ink lies on top where
-they touch changes, and it is the line's, as on the GPU. Runs only on the
-simulator's path; the 3D folded figure (`layers`) keeps `creasesAfterOwnFace`,
-because its coplanar stacks lie exactly over one another and only the kernel's
-order says which layer's crease is on top.
+they touch changes, and it is the line's, as on the GPU.
+
+**3D folded figure.** The same fault shows there at some cameras: where the
+window draws a bend from one plane's side only, the face across the bend is
+drawn after that crease and leaves it a hairline (`strip_coupled`, `box_90`,
+`hinge_90` fixtures; 17–30% of visible lines had ink painted over). The pass
+runs there too, after `creasesAfterOwnFace`, with one rule more: a line stays
+under every face parallel to its own face (`stays`), because a plane's stack of
+layers lies exactly over itself and only the kernel's order (or the tree's, a
+hair apart) says which layer's crease is on top. Across a bend or at a vertex,
+faces of other planes are passed as in a simulated mesh. Checked against the
+window-parity harness: no ink the window lacks, none it draws missing.
 
 So that a line does not split a face the producer merges back together, a line
 whose cover is a later piece of a face also goes before that face's earlier
@@ -60,3 +68,7 @@ dropped as buried stay gone.
 - [x] Re-bless the simulator export golden: same elements, new order, plus two crease pieces no longer buried
 - [x] Paint saved simulated scenes through the same pass
 - [x] Verify in the browser: fresh capture and the saved step 14, before/after zooms
+- [x] 3D folded figure: measure the same fault on the kernel fixtures (32 cameras each)
+- [x] Run the pass under `layers`, staying under faces parallel to the line's own
+- [x] Window-parity harness green; `strip_coupled`/`hinge_90` painted-over lines to 0, `box_90` to 1
+- [x] Re-bless the folded-figure export golden's 3D entries (same elements, new order)
