@@ -170,7 +170,8 @@ export type FoldSentenceStep =
    * as a reverse fold's is found, and its second, drawn or an existing crease;
    * its layers the tip's anchor, as a reverse fold's are.
    */
-  | { op: 'pleat'; line: FoldSentenceLine; second: FoldSentenceLine; scope: FoldLayerScope }
+  /** `end`: the end beyond the mountain line moves, the valley folding first (`FoldPleatOp.end`). */
+  | { op: 'pleat'; line: FoldSentenceLine; second: FoldSentenceLine; scope: FoldLayerScope; end?: 'mountain' }
   | { op: 'crimp'; crimp: 'inside' | 'outside'; line: FoldSentenceLine; second: CrimpSecondLine; scope: FoldLayerScope }
   /**
    * A fold slid under the chosen layer (a valley) or over it (a mountain), as
@@ -369,7 +370,9 @@ export function foldStepSentence(t: TFunction, step: FoldSentenceStep): string {
     case 'reverse':
       return reverseFoldSentence(t, step.kind, lineClause(t, step.line), step.scope);
     case 'pleat':
-      return t('panels:fold.sentence.pleat', 'Pleat along the two lines: mountain first, then valley.');
+      return step.end === 'mountain'
+        ? t('panels:fold.sentence.pleatMountainEnd', 'Pleat along the two lines: valley first, then mountain.')
+        : t('panels:fold.sentence.pleat', 'Pleat along the two lines: mountain first, then valley.');
     case 'crimp':
       return crimpSentence(t, step.crimp, lineClause(t, step.line), step.second, step.scope);
     case 'tuck':

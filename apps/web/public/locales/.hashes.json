@@ -5802,7 +5802,6 @@
     "tools:fold.pleat.intro": "e3b8182647e5",
     "tools:fold.pleat.layers": "94e60fe14058",
     "tools:fold.pleat.limit": "6518c482dddb",
-    "tools:fold.pleat.lines": "af0b9964751c",
     "tools:fold.pleat.mountainInstruction": "23ae1170c2c6",
     "tools:fold.pleat.mountainLine": "11e25de28c83",
     "tools:fold.pleat.refusedTitle": "9459c7180f96",
@@ -6731,7 +6730,10 @@
     "tools:fold.vertex.refusal.line.endsNoRoute": "fd28dbd37497",
     "tools:fold.vertex.refusal.line.titleNoRoute": "55e1ea1b4fd4",
     "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
-    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
+    "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
+    "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -12536,7 +12538,6 @@
     "tools:fold.pleat.intro": "e3b8182647e5",
     "tools:fold.pleat.layers": "94e60fe14058",
     "tools:fold.pleat.limit": "6518c482dddb",
-    "tools:fold.pleat.lines": "af0b9964751c",
     "tools:fold.pleat.mountainInstruction": "23ae1170c2c6",
     "tools:fold.pleat.mountainLine": "11e25de28c83",
     "tools:fold.pleat.refusedTitle": "9459c7180f96",
@@ -13465,7 +13466,10 @@
     "tools:fold.vertex.refusal.line.endsNoRoute": "fd28dbd37497",
     "tools:fold.vertex.refusal.line.titleNoRoute": "55e1ea1b4fd4",
     "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
-    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
+    "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
+    "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -19272,7 +19276,6 @@
     "tools:fold.pleat.intro": "e3b8182647e5",
     "tools:fold.pleat.layers": "94e60fe14058",
     "tools:fold.pleat.limit": "6518c482dddb",
-    "tools:fold.pleat.lines": "af0b9964751c",
     "tools:fold.pleat.mountainInstruction": "23ae1170c2c6",
     "tools:fold.pleat.mountainLine": "11e25de28c83",
     "tools:fold.pleat.refusedTitle": "9459c7180f96",
@@ -20201,7 +20204,10 @@
     "tools:fold.vertex.refusal.line.endsNoRoute": "fd28dbd37497",
     "tools:fold.vertex.refusal.line.titleNoRoute": "55e1ea1b4fd4",
     "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
-    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
+    "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
+    "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -25684,7 +25690,6 @@
     "tools:fold.pleat.intro": "e3b8182647e5",
     "tools:fold.pleat.layers": "94e60fe14058",
     "tools:fold.pleat.limit": "6518c482dddb",
-    "tools:fold.pleat.lines": "af0b9964751c",
     "tools:fold.pleat.mountainInstruction": "23ae1170c2c6",
     "tools:fold.pleat.mountainLine": "11e25de28c83",
     "tools:fold.pleat.refusedTitle": "9459c7180f96",
@@ -26557,7 +26562,10 @@
     "tools:fold.vertex.refusal.line.endsNoRoute": "fd28dbd37497",
     "tools:fold.vertex.refusal.line.titleNoRoute": "55e1ea1b4fd4",
     "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
-    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
+    "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
+    "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32040,7 +32048,6 @@
     "tools:fold.pleat.intro": "e3b8182647e5",
     "tools:fold.pleat.layers": "94e60fe14058",
     "tools:fold.pleat.limit": "6518c482dddb",
-    "tools:fold.pleat.lines": "af0b9964751c",
     "tools:fold.pleat.mountainInstruction": "23ae1170c2c6",
     "tools:fold.pleat.mountainLine": "11e25de28c83",
     "tools:fold.pleat.refusedTitle": "9459c7180f96",
@@ -32913,7 +32920,10 @@
     "tools:fold.vertex.refusal.line.endsNoRoute": "fd28dbd37497",
     "tools:fold.vertex.refusal.line.titleNoRoute": "55e1ea1b4fd4",
     "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
-    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
+    "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
+    "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -38718,7 +38728,6 @@
     "tools:fold.pleat.intro": "e3b8182647e5",
     "tools:fold.pleat.layers": "94e60fe14058",
     "tools:fold.pleat.limit": "6518c482dddb",
-    "tools:fold.pleat.lines": "af0b9964751c",
     "tools:fold.pleat.mountainInstruction": "23ae1170c2c6",
     "tools:fold.pleat.mountainLine": "11e25de28c83",
     "tools:fold.pleat.refusedTitle": "9459c7180f96",
@@ -39647,7 +39656,10 @@
     "tools:fold.vertex.refusal.line.endsNoRoute": "fd28dbd37497",
     "tools:fold.vertex.refusal.line.titleNoRoute": "55e1ea1b4fd4",
     "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
-    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
+    "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
+    "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -45452,7 +45464,6 @@
     "tools:fold.pleat.intro": "e3b8182647e5",
     "tools:fold.pleat.layers": "94e60fe14058",
     "tools:fold.pleat.limit": "6518c482dddb",
-    "tools:fold.pleat.lines": "af0b9964751c",
     "tools:fold.pleat.mountainInstruction": "23ae1170c2c6",
     "tools:fold.pleat.mountainLine": "11e25de28c83",
     "tools:fold.pleat.refusedTitle": "9459c7180f96",
@@ -46381,7 +46392,10 @@
     "tools:fold.vertex.refusal.line.endsNoRoute": "fd28dbd37497",
     "tools:fold.vertex.refusal.line.titleNoRoute": "55e1ea1b4fd4",
     "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
-    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
+    "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
+    "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -51864,7 +51878,6 @@
     "tools:fold.pleat.intro": "e3b8182647e5",
     "tools:fold.pleat.layers": "94e60fe14058",
     "tools:fold.pleat.limit": "6518c482dddb",
-    "tools:fold.pleat.lines": "af0b9964751c",
     "tools:fold.pleat.mountainInstruction": "23ae1170c2c6",
     "tools:fold.pleat.mountainLine": "11e25de28c83",
     "tools:fold.pleat.refusedTitle": "9459c7180f96",
@@ -52737,6 +52750,9 @@
     "tools:fold.vertex.refusal.line.endsNoRoute": "fd28dbd37497",
     "tools:fold.vertex.refusal.line.titleNoRoute": "55e1ea1b4fd4",
     "panels:fold.sentence.behind.squashPockets": "4e6c2086dd8f",
-    "panels:fold.sentence.squashPockets": "7f1b66f83ea8"
+    "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
+    "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
+    "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
   }
 }

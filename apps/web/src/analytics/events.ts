@@ -73,6 +73,12 @@ export type FoldStepVia = 'axiom' | 'crease' | 'free';
 /** How much of its line a Fold precrease creased: all of it, a segment between two points, or a pinch. */
 export type FoldStepExtent = 'whole' | 'segment' | 'pinch';
 
+/**
+ * Which end of a Fold pleat moved (`pleat_end`, since 2026-11-18): the end
+ * beyond its valley line, the default, or beyond its mountain line (Swap).
+ */
+export type FoldStepPleatEnd = 'valley' | 'mountain';
+
 /** How far a Fold rotation turned the model: its preset, or `other` for an exact angle (never the angle itself). */
 export type FoldStepRotationAmount = 'eighth' | 'quarter' | 'half' | 'other';
 
