@@ -108,7 +108,8 @@ export interface BuildBspOptions {
    * only sometimes helps: a face drawn after a crease it merely touches paints
    * over part of the stroke, and the crease then reads as a thin line. Across
    * three views that stayed where it was, so treat this as the tie-break it is
-   * rather than a fix for that.
+   * rather than a fix for that. The fix is after the tree: `lineDrawOrder.ts`
+   * moves each line past the faces that only touch it.
    */
   edgeInk?: number;
   /** Which side of a plane is the near one. Defaults to the far side of `+depth`. */

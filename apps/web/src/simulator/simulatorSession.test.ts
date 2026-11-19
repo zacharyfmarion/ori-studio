@@ -1320,7 +1320,10 @@ describe('the export dialog’s page of a simulation', () => {
     // a solid fold's links are drawn round, and a sliver shorter than its own
     // width, which round would make a blob, is left to its neighbours. And
     // again when every face became a `<path>` rather than a `<polygon>`, so an
-    // editor's node tool reshapes it; nothing else changed.
+    // editor's node tool reshapes it; nothing else changed. And again when a
+    // line came to be drawn after the faces that only touch it
+    // (`lineDrawOrder.ts`): the same elements in another order, but for two
+    // pieces of crease the faces either side had painted over and buried.
     const session = createSimulatorSession();
     const info = session.load(miura(6, 6), {});
     session.setFoldPercent(60);
