@@ -284,7 +284,12 @@ async function storeAll(paths: readonly string[]): Promise<void> {
       continue;
     }
     if (await storedSubresource(cache, path)) continue;
-    const response = await fetchSubresource(path, { cache: 'force-cache' });
+    // One fetch, not `fetchSubresource`'s two. A worker whose build has left the site
+    // still warms its own manifest, and every path in it then answers with the
+    // fallback; asked past the HTTP cache, each would be downloaded again on every
+    // warm of every load, for nothing. A poisoned HTTP-cache entry is still repaired,
+    // by the retry in `cacheFirst`, the first time a page actually asks for the file.
+    const response = await fetch(path, { cache: 'force-cache' });
     if (isStorableSubresource(response)) await put(cache, path, response);
   }
 }
@@ -306,12 +311,16 @@ async function storedSubresource(
 }
 
 /**
- * Fetch anything but the shell. An HTML answer is Pages' SPA fallback (see
- * `isHtmlResponse`), and it may be the browser's HTTP cache answering, not the
- * network: the fallback arrives with the one-year header `/assets/*` carries, so
- * the browser keeps it long after the network has the real file. So ask once
- * more, past that cache. What comes back goes to the page either way, and is
- * stored only if it is not HTML.
+ * Fetch a file the page is asking for, other than the shell. An HTML answer is
+ * Pages' SPA fallback (see `isHtmlResponse`), and it may be the browser's HTTP
+ * cache answering, not the network: the fallback arrives with the one-year
+ * header `/assets/*` carries, so the browser keeps it long after the network has
+ * the real file. So ask once more, past that cache. What comes back goes to the
+ * page either way, and is stored only if it is not HTML.
+ *
+ * Past the browser's cache only: a `reload` is the same request with `no-cache`
+ * on it, which Cloudflare's edge ignores. The edge is kept from holding these
+ * answers at all, by `Cloudflare-CDN-Cache-Control` in `_headers`.
  */
 async function fetchSubresource(request: RequestInfo, init?: RequestInit): Promise<Response> {
   const response = await fetch(request, init);

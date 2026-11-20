@@ -45,6 +45,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { webkit } from 'playwright';
+import { headersFor, parseHeadersFile } from './lib/pages-headers.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distDir = path.join(repoRoot, 'apps/web/dist');
@@ -64,43 +65,9 @@ const MIME = {
   '.webp': 'image/webp',
 };
 
-/**
- * The `_headers` rules, read from the file Cloudflare Pages actually reads.
- *
- * Parsed rather than hardcoded on purpose: COOP/COEP live in
- * `apps/web/public/_headers`, and hardcoding them here would leave the one test
- * that can catch their removal passing after they were removed.
- *
- * Read from `dist/`, not from `public/`, for the same reason. Pages serves the
- * copy in the deployed output; a build that stopped copying it would ship with
- * no isolation at all, and a check reading the source would stay green through
- * it.
- */
-function parseHeadersFile(text) {
-  const rules = [];
-  let current = null;
-  for (const line of text.split('\n')) {
-    if (!line.trim() || line.trim().startsWith('#')) continue;
-    if (!/^\s/.test(line)) {
-      current = { pattern: line.trim(), headers: [] };
-      rules.push(current);
-      continue;
-    }
-    const colon = line.indexOf(':');
-    if (colon === -1 || !current) continue;
-    current.headers.push([line.slice(0, colon).trim(), line.slice(colon + 1).trim()]);
-  }
-  return rules;
-}
-
-function headersFor(rules, pathname) {
-  const out = {};
-  for (const rule of rules) {
-    const re = new RegExp(`^${rule.pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`);
-    if (re.test(pathname)) for (const [key, value] of rule.headers) out[key] = value;
-  }
-  return out;
-}
+// The `_headers` rules are read from `dist/`, not from `public/`: Pages serves the copy in
+// the deployed output, and a build that stopped copying it would ship with no isolation at
+// all while a check reading the source stayed green. See `lib/pages-headers.mjs`.
 
 /**
  * Stand in for Cloudflare Pages: static assets, `_headers`, the SPA fallback,

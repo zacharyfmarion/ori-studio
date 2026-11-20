@@ -274,6 +274,14 @@ jobs:
       - name: Diagram SVG sanitize check
         run: node scripts/diagram-svg-sanitize-check.mjs
 
+      # The real service worker, bundled the way the build bundles it, played through the
+      # 2026-11-19 incident: an entry answered with Pages' index.html fallback must not be
+      # stored, and the app must come back once the file is served. The predicates have unit
+      # tests; this is what covers their call sites in sw.ts. Both engines, no build, about
+      # 10 s. See scripts/sw-fallback-check.mjs.
+      - name: Service worker fallback check
+        run: node scripts/sw-fallback-check.mjs
+
       # Also the only place a production build runs in CI. The service worker is
       # emitted by `vite build` and nothing before this step would notice it
       # failing to.
