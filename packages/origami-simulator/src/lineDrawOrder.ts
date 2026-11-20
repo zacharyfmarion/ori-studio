@@ -25,7 +25,13 @@ export type Point = readonly [number, number];
 
 /** What one drawn item is, for the order: a line it may move, or a face it moves past. */
 export type DrawShape =
-  | { kind: 'line'; a: Point; b: Point }
+  | {
+      kind: 'line';
+      a: Point;
+      b: Point;
+      /** Drawn beneath the other lines it meets: see {@link linesUnderTheLinesTheyMeet}. */
+      under?: boolean;
+    }
   | FaceShape
   /** Neither: it keeps its place, and no line moves past it. */
   | { kind: 'fixed' };
@@ -141,6 +147,111 @@ export function linesAsLateAsUncovered<T>(
     const arriving = moved.get(index);
     if (arriving) for (const item of arriving) out.push(item);
     if (index < count && before[index] === -1) out.push(items[index]!);
+  }
+  return out;
+}
+
+// An aux line lies on its face and is only a reference: where it meets an
+// edge or a fold line, the edge's ink belongs on top, as the flat figure draws
+// it (a face, its aux lines, then its edges). In a painter's order an aux line
+// and the edge it ends on are often side by side — both as late as nothing
+// covers them — with the aux line last, and then its end paints over the edge.
+
+export interface LinesUnderOptions<T> {
+  /**
+   * How near two lines come before their ink overlaps, and how near a face
+   * comes before its fill and seam reach a line's ink, in the items' units:
+   * the widest pen, which is wider than the seam.
+   */
+  reach: number;
+  /**
+   * The group an item is written in (`PaperItem.group`): a line never leaves
+   * the run of items in its own group, so a group stays one run.
+   */
+  groupOf?: (item: T) => string | undefined;
+}
+
+/**
+ * `items` with each line whose shape is `under` drawn beneath the other lines
+ * its ink meets: moved to just before the first of them drawn before it, when
+ * nothing drawn between them comes within `reach` of it — so no face paints
+ * over any of its ink that it left alone before, and the order stays one the
+ * painter can draw. It moves past no fixed item and out of no group. Lines
+ * that land at the same place keep their order; nothing else moves.
+ */
+export function linesUnderTheLinesTheyMeet<T>(
+  items: readonly T[],
+  shapeOf: (item: T) => DrawShape,
+  { reach, groupOf }: LinesUnderOptions<T>
+): T[] {
+  const count = items.length;
+  const shapes = items.map(shapeOf);
+  if (!shapes.some((shape) => shape.kind === 'line' && shape.under)) return [...items];
+
+  // The earliest index each item may be drawn before: just after the last
+  // fixed item before it, and no earlier than its group's run starts.
+  const floor = new Int32Array(count);
+  let start = 0;
+  for (let index = 0; index < count; index += 1) {
+    if (shapes[index]!.kind === 'fixed') {
+      floor[index] = index;
+      start = index + 1;
+      continue;
+    }
+    if (groupOf && index > start && groupOf(items[index]!) !== groupOf(items[index - 1]!)) start = index;
+    floor[index] = start;
+  }
+
+  // Faces, and the lines an `under` line can go beneath.
+  const grid = boxGrid(
+    shapes.map((shape): Box | null => {
+      if (shape.kind === 'face') return ringsBox(shape.rings);
+      if (shape.kind === 'line' && !shape.under) return segmentBox(shape.a, shape.b, 0);
+      return null;
+    })
+  );
+  const before = new Int32Array(count).fill(-1);
+  const seen = new Int32Array(count).fill(-1);
+  for (let index = 0; index < count; index += 1) {
+    const shape = shapes[index]!;
+    if (shape.kind !== 'line' || !shape.under || !grid) continue;
+    const lowest = floor[index]!;
+    // The latest face before it that its ink is within reach of: as far back as it may go.
+    let blocked = lowest - 1;
+    const met: number[] = [];
+    grid.visit(segmentBox(shape.a, shape.b, reach), (other) => {
+      if (other >= index || other < lowest || seen[other] === index) return;
+      seen[other] = index;
+      const otherShape = shapes[other]!;
+      if (otherShape.kind === 'face') {
+        if (other > blocked && segmentToShapeDistance(otherShape.rings, shape.a, shape.b) <= reach) {
+          blocked = other;
+        }
+      } else if (otherShape.kind === 'line') {
+        if (segmentDistance(shape.a, shape.b, otherShape.a, otherShape.b) <= reach) met.push(other);
+      }
+    });
+    let target = -1;
+    for (const other of met) {
+      if (other > blocked && (target < 0 || other < target)) target = other;
+    }
+    before[index] = target;
+  }
+
+  const moved = new Map<number, T[]>();
+  for (let index = 0; index < count; index += 1) {
+    const target = before[index]!;
+    if (target < 0) continue;
+    const list = moved.get(target);
+    if (list) list.push(items[index]!);
+    else moved.set(target, [items[index]!]);
+  }
+  if (moved.size === 0) return [...items];
+  const out: T[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const arriving = moved.get(index);
+    if (arriving) for (const item of arriving) out.push(item);
+    if (before[index] === -1) out.push(items[index]!);
   }
   return out;
 }
@@ -328,6 +439,39 @@ function distanceToRings(rings: ReadonlyArray<ReadonlyArray<Point>>, point: Poin
   return best;
 }
 
+/** Zero where the segment crosses or lies inside the rings; otherwise how far it stays from them. */
+function segmentToShapeDistance(rings: ReadonlyArray<ReadonlyArray<Point>>, a: Point, b: Point): number {
+  if (insideRings(rings, a) || insideRings(rings, b)) return 0;
+  let best = Infinity;
+  for (const ring of rings) {
+    for (let i = 0; i < ring.length; i += 1) {
+      const distance = segmentDistance(a, b, ring[i]!, ring[(i + 1) % ring.length]!);
+      if (distance < best) best = distance;
+    }
+  }
+  return best;
+}
+
+/** How far apart two segments come: zero where they cross. */
+function segmentDistance(a: Point, b: Point, c: Point, d: Point): number {
+  if (segmentsCross(a, b, c, d)) return 0;
+  return Math.min(
+    distanceToSegment(a, c, d),
+    distanceToSegment(b, c, d),
+    distanceToSegment(c, a, b),
+    distanceToSegment(d, a, b)
+  );
+}
+
+function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
+  const side = (p: Point, q: Point, r: Point) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  const d1 = side(c, d, a);
+  const d2 = side(c, d, b);
+  const d3 = side(a, b, c);
+  const d4 = side(a, b, d);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
 function distanceToSegment([x, y]: Point, [ax, ay]: Point, [bx, by]: Point): number {
   const dx = bx - ax;
   const dy = by - ay;
@@ -342,9 +486,11 @@ interface FaceGrid {
 }
 
 function faceGrid(shapes: readonly DrawShape[]): FaceGrid | null {
-  const boxes: Array<Box | null> = shapes.map((shape): Box | null =>
-    shape.kind === 'face' ? ringsBox(shape.rings) : null
-  );
+  return boxGrid(shapes.map((shape): Box | null => (shape.kind === 'face' ? ringsBox(shape.rings) : null)));
+}
+
+/** The items with a box, by where they lie; null when none has one. */
+function boxGrid(boxes: ReadonlyArray<Box | null>): FaceGrid | null {
   let faces = 0;
   let minX = Infinity;
   let minY = Infinity;

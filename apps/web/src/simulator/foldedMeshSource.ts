@@ -139,7 +139,12 @@ export class FoldedMeshSource {
         payload.spatial,
         spatialPlan,
         payload.spatial && spatialPlan
-          ? prepareSpatialInkPlan(payload.spatial, spatialPlan, new Uint32Array(payload.edgeIndices))
+          ? prepareSpatialInkPlan(
+              payload.spatial,
+              spatialPlan,
+              new Uint32Array(payload.edgeIndices),
+              new Uint8Array(payload.edgeAssignments)
+            )
           : undefined
       );
     } catch {

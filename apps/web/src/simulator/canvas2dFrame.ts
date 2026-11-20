@@ -815,7 +815,12 @@ function drawTriangleEdges(
     [triangle.vertices[2], triangle.vertices[0]],
   ];
   ctx.setLineDash([]);
-  pairs.forEach(([from, to], side) => {
+  const sides = pairs.map(([from, to], side) => ({
+    from,
+    to,
+    edge: faceEdges[side] ?? findEdge(model.edgesVertices, from, to),
+  }));
+  for (const { from, to, edge } of auxEdgesFirst(model, sides, (side) => side.edge)) {
     drawEdgeSegment(
       ctx,
       model,
@@ -823,14 +828,27 @@ function drawTriangleEdges(
       map,
       from,
       to,
-      faceEdges[side] ?? findEdge(model.edgesVertices, from, to),
+      edge,
       alpha,
       palette,
       highlights,
       dpr,
       0.85,
     );
-  });
+  }
+}
+
+/**
+ * `edges` with the aux creases first, each half in its own order: an edge or
+ * fold an aux crease meets is stroked over its end, as every picture draws it.
+ */
+function auxEdgesFirst<T>(
+  model: SimulatorRenderModel,
+  edges: readonly T[],
+  edgeOf: (item: T) => number,
+): T[] {
+  const aux = (item: T) => model.edgeCodes[edgeOf(item)] === EDGE_CODE.aux;
+  return [...edges.filter(aux), ...edges.filter((item) => !aux(item))];
 }
 
 /** Every edge, front and back alike: the wireframe drawn when faces are off. */
@@ -848,7 +866,9 @@ function drawAllEdges(
   // Thinner than the visible-edge pass over faces, which keeps a wireframe of
   // every layer from reading as one solid mass. `drawEdgeSegment` applies each
   // crease kind's own pen and dash pattern per edge.
-  model.edgesVertices.forEach((edge, index) => {
+  const indices = model.edgesVertices.map((_, index) => index);
+  for (const index of auxEdgesFirst(model, indices, (edge) => edge)) {
+    const edge = model.edgesVertices[index]!;
     drawEdgeSegment(
       ctx,
       model,
@@ -863,7 +883,7 @@ function drawAllEdges(
       dpr,
       0.7,
     );
-  });
+  }
   ctx.setLineDash([]);
 }
 
@@ -879,7 +899,9 @@ function drawVisibleEdges(
   depthSurface: DepthSurface,
 ): void {
   ctx.setLineDash([]);
-  model.edgesVertices.forEach((edge, index) => {
+  const indices = model.edgesVertices.map((_, index) => index);
+  for (const index of auxEdgesFirst(model, indices, (edge) => edge)) {
+    const edge = model.edgesVertices[index]!;
     drawVisibleEdgeSegment(
       ctx,
       model,
@@ -894,7 +916,7 @@ function drawVisibleEdges(
       dpr,
       depthSurface,
     );
-  });
+  }
 }
 
 function drawEdgeSegment(

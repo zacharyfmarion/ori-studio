@@ -16,6 +16,7 @@ import {
   edgeBoundaryFlags,
   EDGE_BOUNDARY_A,
   EDGE_BOUNDARY_B,
+  withAuxLinesUnder,
   type CameraUniforms,
   type PaperScene,
   type PaperItem,
@@ -24,6 +25,7 @@ import {
 import type { Folded3dMesh } from './folded3dMesh';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { lightVector } from '../../lib/paper/paperStyleResolve';
+import { widestPenCssPx } from '../../lib/paper/paperSvg';
 import { intersectInkIntervals, spatialInkOwnership } from './spatialInkOwnership';
 
 interface Corner {
@@ -281,9 +283,14 @@ export function spatialPaperScene(
   // Editable hidden ink must stay under the visible paper when an export keeps
   // hidden pieces. Interleaving it after fills would paint buried creases on top.
   items.sort((a, b) => Number(b.hidden) - Number(a.hidden));
-  return {
-    sheet: mesh.sheet * camera.scale,
-    bounds: { minX, minY, maxX, maxY },
-    items,
-  };
+  // Every visible line follows every visible fragment, in edge order: an aux
+  // line goes beneath the edges and folds it meets, as in every other scene.
+  return withAuxLinesUnder(
+    {
+      sheet: mesh.sheet * camera.scale,
+      bounds: { minX, minY, maxX, maxY },
+      items,
+    },
+    widestPenCssPx(style)
+  );
 }

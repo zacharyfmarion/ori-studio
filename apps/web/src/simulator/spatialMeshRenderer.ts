@@ -135,7 +135,7 @@ export function renderSpatialMesh(
         if (cyclic) for (const face of plane.faces) draw(face, fallback);
       }
       if (!settings.showEdges) return;
-      for (const group of inkPlan) {
+      const ink = (group: SpatialInkGroup, edgeKinds?: 'aux' | 'lines') => {
         clear(4);
         for (const owner of group.owners) {
           const ranges = owner[sides.get(owner.plane)!];
@@ -161,6 +161,7 @@ export function renderSpatialMesh(
         mesh.render(camera, inkSettings, target, {
           clear: false,
           edgeRange: group.edges,
+          edgeKinds,
           configureDrawState: (g) => {
             g.colorMask(true, true, true, true);
             g.depthMask(false);
@@ -171,6 +172,15 @@ export function renderSpatialMesh(
             g.stencilOp(g.KEEP, g.KEEP, g.KEEP);
           },
         });
+      };
+      // Every group's aux creases before any group's lines: a hinge is a
+      // group of its own, so an aux crease ending on one would otherwise be
+      // drawn over it whenever its layer's group came later.
+      if (settings.showAux && inkPlan.some((group) => group.hasAux)) {
+        for (const group of inkPlan) if (group.hasAux) ink(group, 'aux');
+        for (const group of inkPlan) ink(group, 'lines');
+      } else {
+        for (const group of inkPlan) ink(group);
       }
     });
   } finally {

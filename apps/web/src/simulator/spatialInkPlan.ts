@@ -1,3 +1,4 @@
+import { EDGE_CODE } from '@treemaker/origami-simulator';
 import type { SpatialMeshOrder } from '../cp-workspace/folded/folded3dMaterial';
 import type { SpatialDrawPlane } from './spatialDrawPlan';
 import { spatialInkOwnership } from '../cp-workspace/folded/spatialInkOwnership';
@@ -11,6 +12,8 @@ export interface SpatialInkOwner {
 export interface SpatialInkGroup {
   owners: SpatialInkOwner[];
   edges: Range;
+  /** Whether any of its edges is an aux crease, which every group draws first. */
+  hasAux: boolean;
 }
 
 /** A hinge has one stroke and an owner on each incident source plane. Both
@@ -21,7 +24,8 @@ export interface SpatialInkGroup {
 export function prepareSpatialInkPlan(
   order: SpatialMeshOrder,
   planes: readonly SpatialDrawPlane[],
-  indices: Uint32Array
+  indices: Uint32Array,
+  assignments: Uint8Array
 ): SpatialInkGroup[] {
   const owners: SpatialInkOwner[] = [];
   for (const plane of planes) {
@@ -35,6 +39,7 @@ export function prepareSpatialInkPlan(
   spatialInkOwnership(order, indices).forEach((faces, e) => {
     if (!faces) return;
     const row = faces.map((f) => owners[f]!);
+    const aux = assignments[e] === EDGE_CODE.aux;
     const previous = groups.at(-1);
     if (
       previous &&
@@ -43,7 +48,8 @@ export function prepareSpatialInkPlan(
       previous.owners.every((o, i) => o === row[i])
     ) {
       previous.edges.count++;
-    } else groups.push({ owners: row, edges: { start: e, count: 1 } });
+      previous.hasAux ||= aux;
+    } else groups.push({ owners: row, edges: { start: e, count: 1 }, hasAux: aux });
   });
   return groups;
 }

@@ -455,6 +455,11 @@ const EDGE_ATTRS: ReadonlyArray<readonly [string, number]> = [
 /** Ribbon vertices per drawn crease: two triangles. */
 export const EDGE_QUAD_VERTICES = 6;
 
+/** `u_edgeKinds`: every kind, the aux creases alone, every kind but aux. */
+const EDGE_KINDS_ALL = 0;
+const EDGE_KINDS_AUX = 1;
+const EDGE_KINDS_LINES = 2;
+
 /**
  * Expand each drawn crease into a 2-triangle screen-space ribbon. Border,
  * mountain, valley and auxiliary edges are drawn (codes 0..3 — the shader
@@ -670,6 +675,9 @@ ${VIEW_GLSL}
 // arrays are: every line is drawn at its own pen's width.
 uniform float u_halfWidthPx[${DASH_KINDS}];
 uniform float u_showAux;
+// Which kinds this draw is for: 0 every kind, 1 the aux creases alone, 2 every
+// kind but aux. See MeshDrawOptions.edgeKinds.
+uniform float u_edgeKinds;
 uniform float u_erodePx;
 uniform float u_depthBias;
 // The same dash uniforms the fragment stage reads; see EDGE_FRAG.
@@ -714,9 +722,11 @@ float projectDepth(int index){
 
 void main(){
   v_assignment = int(a_assignment + 0.5);
-  // An auxiliary crease the style hides: put every vertex of its ribbon behind
-  // the far plane, so the triangle is clipped before it costs a fragment.
-  if (v_assignment == ${EDGE_CODE.aux} && u_showAux < 0.5){
+  // An auxiliary crease the style hides, or a crease of a kind this draw is
+  // not for: put every vertex of its ribbon behind the far plane, so the
+  // triangle is clipped before it costs a fragment.
+  bool aux = v_assignment == ${EDGE_CODE.aux};
+  if ((aux && u_showAux < 0.5) || (aux ? u_edgeKinds > 1.5 : (u_edgeKinds > 0.5 && u_edgeKinds < 1.5))){
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     v_alongPx = 0.0;
     return;
@@ -887,6 +897,15 @@ export interface MeshDrawOptions {
    */
   edgeRange?: { start: number; count: number };
   /**
+   * Draw one half of the creases: `'aux'` the auxiliary creases alone, or
+   * `'lines'` every other kind. Absent, both — the aux creases first, writing
+   * no depth, then the rest, so an edge or fold an aux crease meets is drawn
+   * over its end, as every picture draws it. A caller drawing its creases in
+   * several masked runs asks for the halves itself, every run's aux before
+   * any run's lines, so a later run's aux cannot cover an earlier run's edge.
+   */
+  edgeKinds?: 'aux' | 'lines';
+  /**
    * Redraw the triangles set by {@link MeshRenderer.setHighlightTriangles}, mixed
    * toward {@link RenderSettings.highlightColor}. Interactive frames ask for it;
    * an export never does, so the highlight is chrome on the screen and never
@@ -945,6 +964,13 @@ export class MeshRenderer {
   private readonly edgeVertexCount: number;
   /** Ribbon vertex offset per source edge — see {@link buildEdgeQuads}. */
   private readonly edgeVertexStart: Uint32Array;
+  /** How many aux creases come before each source edge, `edgeCount + 1` long. */
+  private readonly auxEdgesBefore: Uint32Array;
+  /**
+   * The `u_edgeKinds` the edge program holds. A uniform keeps its value in its
+   * program, which is this renderer's alone, and starts at 0, every kind.
+   */
+  private edgeKinds = EDGE_KINDS_ALL;
   private readonly textureDim: number;
   /** See {@link MeshRendererOptions.sheet}. */
   private readonly sheet: number;
@@ -1022,6 +1048,10 @@ export class MeshRenderer {
     const { interleaved, vertexStart } = buildEdgeQuads(topology);
     this.edgeVertexCount = interleaved.length / EDGE_STRIDE;
     this.edgeVertexStart = vertexStart;
+    this.auxEdgesBefore = new Uint32Array(topology.edgeAssignments.length + 1);
+    topology.edgeAssignments.forEach((code, edge) => {
+      this.auxEdgesBefore[edge + 1] = this.auxEdgesBefore[edge]! + (code === EDGE_CODE.aux ? 1 : 0);
+    });
     this.edgeVao = createVao(gl);
     gl.bindVertexArray(this.edgeVao);
     this.edgeBuffer = uploadFloats(gl, interleaved);
@@ -1222,12 +1252,8 @@ export class MeshRenderer {
         // the frame's own alpha by a faded crease's would punch a hole through
         // the paper on a transparent-backed window.
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        // A crease this faint has nothing to occlude, and writing depth would
-        // order the translucent ribbons against each other.
-        gl.depthMask(false);
       } else {
         gl.disable(gl.BLEND);
-        gl.depthMask(settings.creaseWritesDepth ?? true);
       }
       if (batch?.bound !== 'edge') {
         gl.bindVertexArray(this.edgeVao);
@@ -1282,8 +1308,36 @@ export class MeshRenderer {
       const edgeCount = clampRange(options.edgeRange?.count ?? edges - firstEdge, edges - firstEdge);
       const firstVertex = this.edgeVertexStart[firstEdge]!;
       const vertexCount = this.edgeVertexStart[firstEdge + edgeCount]! - firstVertex;
-      options.configureDrawState?.(gl);
-      if (vertexCount > 0) gl.drawArrays(gl.TRIANGLES, firstVertex, vertexCount);
+      const auxCount = this.auxEdgesBefore[firstEdge + edgeCount]! - this.auxEdgesBefore[firstEdge]!;
+      const hasAux = showAux && auxCount > 0;
+      const hasLines = vertexCount > auxCount * EDGE_QUAD_VERTICES;
+      // A crease this faint has nothing to occlude, and writing depth would
+      // order the translucent ribbons against each other.
+      const depthMask = faded ? false : (settings.creaseWritesDepth ?? true);
+      const draw = (kinds: number, writesDepth: boolean) => {
+        if (kinds !== this.edgeKinds) {
+          this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_edgeKinds', kinds);
+          this.edgeKinds = kinds;
+        }
+        gl.depthMask(depthMask);
+        options.configureDrawState?.(gl);
+        // An aux crease occludes nothing: a line it meets, drawn after it, has
+        // to land on top wherever their depths tie.
+        if (!writesDepth) gl.depthMask(false);
+        gl.drawArrays(gl.TRIANGLES, firstVertex, vertexCount);
+      };
+      if (vertexCount > 0) {
+        if (options.edgeKinds === 'aux') {
+          if (hasAux) draw(EDGE_KINDS_AUX, false);
+        } else if (options.edgeKinds === 'lines') {
+          if (hasLines) draw(EDGE_KINDS_LINES, true);
+        } else if (hasAux && hasLines) {
+          draw(EDGE_KINDS_AUX, false);
+          draw(EDGE_KINDS_LINES, true);
+        } else {
+          draw(EDGE_KINDS_ALL, !hasAux);
+        }
+      }
     }
 
     gl.depthMask(true);

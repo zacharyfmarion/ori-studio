@@ -36,13 +36,16 @@ it('shares cross-plane hinge ownership, preserving coplanar outlines and indepen
     [2],
   ]);
   const planes = prepareSpatialDrawPlan(order);
-  const plan = prepareSpatialInkPlan(order, planes, edges);
+  // Edge 1 is an aux crease: its group says so, so it can be inked first.
+  const assignments = Uint8Array.from([0, 3, 1, 1, 0]);
+  const plan = prepareSpatialInkPlan(order, planes, edges, assignments);
   expect(plan.map((g) => g.edges)).toEqual([
     { start: 0, count: 1 },
     { start: 1, count: 1 },
     { start: 2, count: 1 },
     { start: 4, count: 1 },
   ]);
+  expect(plan.map((g) => g.hasAux)).toEqual([false, true, false, false]);
   expect(plan[2]!.owners).toEqual([
     { plane: planes[0], front: [{ start: 3, count: 3 }], back: [] },
     { plane: planes[1], front: [], back: [] },
