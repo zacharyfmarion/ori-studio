@@ -1,5 +1,8 @@
 import type { Point, Point3, Triangle, Visibility } from './types.js';
-import { area, bounds, clean, clip, depthPlane, difference, overlap, partition, type Box, type Plane } from './polygons.js';
+import {
+  area, bounds, clean, clip, depthPlaneInto, difference, edges, keepsTriangle, overlap, partition, partitionBy, separated, triangleArea,
+  type Box, type Plane,
+} from './polygons.js';
 
 /**
  * Which display layers lie above which, through any chain of known pairs.
@@ -77,63 +80,187 @@ export interface PoseMesh {
   rings?: readonly (readonly number[])[];
 }
 
+/**
+ * The drawn pose in flat rows. A triangle `clean` drops, or one without a
+ * depth plane, is left out of its face; the rows of the others hold the
+ * numbers `clean`, `depthPlane`, `bounds` and `area` give.
+ */
 interface Posed {
-  polygons: Point[][];
-  planes: (Plane | null)[];
-  boxes: Box[];
-  /** Per face, its drawable triangles, the box round them, and the faces whose boxes overlap it. */
-  trianglesOf: number[][];
-  faceBoxes: Box[];
-  near: number[][];
+  /** Per triangle, six: its corners' x, y. */
+  corners: Float64Array;
+  /** Per triangle, four: x0, y0, x1, y1. */
+  boxes: Float64Array;
+  /** Per triangle, five: the depth plane's x and y slopes, depth, origin x, y. */
+  plane: Float64Array;
+  /** Per triangle: 1 where its corners wind with positive area, else -1. */
+  winding: Int8Array;
+  /** Face `f`'s drawable triangles are `triangles[triangleStart[f]..triangleStart[f + 1])`. */
+  triangleStart: Int32Array;
+  triangles: Int32Array;
+  /** Per face, four: the box round its drawable triangles. */
+  faceBoxes: Float64Array;
+  /**
+   * Of the faces whose boxes overlap face `f`, in the order the sweep finds
+   * them: those above its layer through a chain, its blockers, and those of
+   * layers no chain relates to its own.
+   */
+  blockers: Grouped;
+  unrelated: Grouped;
 }
 
-/** Drawable triangles, and every pair of faces whose boxes overlap, by an X sweep; null past the budget. */
-function posed(mesh: PoseMesh, faceCount: number, budget = 4_000_000): Posed | null {
-  const polygons = mesh.triangles.map((ids) => clean(ids.map((v) => [mesh.positions[v][0], mesh.positions[v][1]] as Point)));
-  const planes = mesh.triangles.map((ids) => depthPlane(ids.map((v) => mesh.positions[v])));
-  const boxes = polygons.map(bounds);
-  const trianglesOf: number[][] = Array.from({ length: faceCount }, () => []);
-  mesh.triangleFaces.forEach((face, t) => polygons[t].length && planes[t] && trianglesOf[face].push(t));
-  const faceBoxes = trianglesOf.map((ids) => {
-    const box: Box = [Infinity, Infinity, -Infinity, -Infinity];
-    for (const t of ids) {
-      box[0] = Math.min(box[0], boxes[t][0]);
-      box[1] = Math.min(box[1], boxes[t][1]);
-      box[2] = Math.max(box[2], boxes[t][2]);
-      box[3] = Math.max(box[3], boxes[t][3]);
+/** Lists per face: face `f`'s is `items[start[f]..start[f + 1])`. */
+interface Grouped {
+  start: Int32Array;
+  items: Int32Array;
+}
+
+/** `data`, with room for twice as much. */
+function grown(data: Int32Array<ArrayBuffer>): Int32Array<ArrayBuffer> {
+  const more = new Int32Array(2 * data.length);
+  more.set(data);
+  return more;
+}
+
+/**
+ * Each face's members from the first `length` of `data` (face, member, …), in
+ * their order; `mirror` also lists each face under its member.
+ */
+function grouped(data: Int32Array, length: number, faceCount: number, mirror: boolean): Grouped {
+  const start = new Int32Array(faceCount + 1);
+  for (let i = 0; i < length; i += 2) {
+    start[data[i] + 1]++;
+    if (mirror) start[data[i + 1] + 1]++;
+  }
+  for (let f = 0; f < faceCount; f++) start[f + 1] += start[f];
+  const items = new Int32Array(start[faceCount]);
+  const cursor = start.slice(0, faceCount);
+  for (let i = 0; i < length; i += 2) {
+    const f = data[i], g = data[i + 1];
+    items[cursor[f]++] = g;
+    if (mirror) items[cursor[g]++] = f;
+  }
+  return { start, items };
+}
+
+/** Box `a` overlaps row `i` of `boxes`, edges included. */
+const overlapAt = (a: Box, boxes: Float64Array, i: number) =>
+  a[0] <= boxes[4 * i + 2] && boxes[4 * i] <= a[2] && a[1] <= boxes[4 * i + 3] && boxes[4 * i + 1] <= a[3];
+
+/**
+ * Drawable triangles, and every pair of faces whose boxes overlap, by an X
+ * sweep, sorted as they are found into blockers and unrelated faces; null past
+ * the budget.
+ */
+function posed(mesh: PoseMesh, chains: LayerChains, back: boolean, budget = 4_000_000): Posed | null {
+  const { layerOf, words, above } = chains;
+  const faceCount = layerOf.length;
+  const { positions, triangleFaces } = mesh;
+  const count = mesh.triangles.length;
+  const corners = new Float64Array(6 * count), boxes = new Float64Array(4 * count), plane = new Float64Array(5 * count);
+  const winding = new Int8Array(count), drawable = new Uint8Array(count);
+  const triangleStart = new Int32Array(faceCount + 1);
+  for (let t = 0; t < count; t++) {
+    const [u, v, w] = mesh.triangles[t];
+    const a = positions[u], b = positions[v], c = positions[w];
+    const ax = a[0], ay = a[1], bx = b[0], by = b[1], cx = c[0], cy = c[1];
+    if (!keepsTriangle(ax, ay, bx, by, cx, cy) || !depthPlaneInto(a, b, c, plane, 5 * t)) continue;
+    drawable[t] = 1;
+    triangleStart[triangleFaces[t] + 1]++;
+    corners[6 * t] = ax;
+    corners[6 * t + 1] = ay;
+    corners[6 * t + 2] = bx;
+    corners[6 * t + 3] = by;
+    corners[6 * t + 4] = cx;
+    corners[6 * t + 5] = cy;
+    boxes[4 * t] = Math.min(Math.min(Math.min(Infinity, ax), bx), cx);
+    boxes[4 * t + 1] = Math.min(Math.min(Math.min(Infinity, ay), by), cy);
+    boxes[4 * t + 2] = Math.max(Math.max(Math.max(-Infinity, ax), bx), cx);
+    boxes[4 * t + 3] = Math.max(Math.max(Math.max(-Infinity, ay), by), cy);
+    winding[t] = triangleArea(ax, ay, bx, by, cx, cy) > 0 ? 1 : -1;
+  }
+  for (let f = 0; f < faceCount; f++) triangleStart[f + 1] += triangleStart[f];
+  const triangles = new Int32Array(triangleStart[faceCount]);
+  const fill = triangleStart.slice(0, faceCount);
+  for (let t = 0; t < count; t++) if (drawable[t]) triangles[fill[triangleFaces[t]]++] = t;
+  const faceBoxes = new Float64Array(4 * faceCount);
+  const sorted: number[] = [];
+  for (let f = 0; f < faceCount; f++) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = triangleStart[f]; i < triangleStart[f + 1]; i++) {
+      const b = 4 * triangles[i];
+      x0 = Math.min(x0, boxes[b]);
+      y0 = Math.min(y0, boxes[b + 1]);
+      x1 = Math.max(x1, boxes[b + 2]);
+      y1 = Math.max(y1, boxes[b + 3]);
     }
-    return box;
-  });
-  const near = trianglesOf.map((): number[] => []);
-  const sorted = trianglesOf.flatMap((ids, f) => (ids.length ? [f] : [])).sort((a, b) => faceBoxes[a][0] - faceBoxes[b][0]);
-  const active: number[] = [];
-  let work = 0;
+    faceBoxes[4 * f] = x0;
+    faceBoxes[4 * f + 1] = y0;
+    faceBoxes[4 * f + 2] = x1;
+    faceBoxes[4 * f + 3] = y1;
+    if (triangleStart[f + 1] > triangleStart[f]) sorted.push(f);
+  }
+  sorted.sort((a, b) => faceBoxes[4 * a] - faceBoxes[4 * b]);
+  // Each pair as it is found, so every face lists its blockers and unrelated
+  // faces in one order: by where they sort.
+  let blocking = new Int32Array(16 * sorted.length + 16), unrelated = new Int32Array(2 * sorted.length + 16);
+  let blockingLength = 0, unrelatedLength = 0;
+  const active = new Int32Array(sorted.length);
+  let live = 0, work = 0;
   for (const g of sorted) {
+    const gx0 = faceBoxes[4 * g], gy0 = faceBoxes[4 * g + 1], gx1 = faceBoxes[4 * g + 2], gy1 = faceBoxes[4 * g + 3];
+    const lg = layerOf[g];
     let kept = 0;
-    for (let i = 0; i < active.length; i++) {
-      const f = active[i];
-      if (faceBoxes[f][2] < faceBoxes[g][0]) continue;
+    for (let i = 0; i < live; i++) {
+      const f = active[i], b = 4 * f;
+      if (faceBoxes[b + 2] < gx0) continue;
       active[kept++] = f;
       if (++work > budget) return null;
-      if (!overlap(faceBoxes[f], faceBoxes[g])) continue;
-      near[f].push(g);
-      near[g].push(f);
+      if (!(faceBoxes[b] <= gx1 && gx0 <= faceBoxes[b + 2] && faceBoxes[b + 1] <= gy1 && gy0 <= faceBoxes[b + 3])) continue;
+      const lf = layerOf[f];
+      if (lf === lg) continue;
+      // Layer `lg` above `lf` through a chain, seen from the front; and the other way.
+      const up = (above[lf * words + (lg >>> 5)] >>> (lg & 31)) & 1, down = (above[lg * words + (lf >>> 5)] >>> (lf & 31)) & 1;
+      if (!up && !down) {
+        if (unrelatedLength + 2 > unrelated.length) unrelated = grown(unrelated);
+        unrelated[unrelatedLength++] = f;
+        unrelated[unrelatedLength++] = g;
+        continue;
+      }
+      if (blockingLength + 4 > blocking.length) blocking = grown(blocking);
+      // Seen from the back, the stack reads the other way up.
+      if (back ? down : up) {
+        blocking[blockingLength++] = f;
+        blocking[blockingLength++] = g;
+      }
+      if (back ? up : down) {
+        blocking[blockingLength++] = g;
+        blocking[blockingLength++] = f;
+      }
     }
-    active.length = kept;
-    active.push(g);
+    live = kept;
+    active[live++] = g;
   }
-  return { polygons, planes, boxes, trianglesOf, faceBoxes, near };
+  return {
+    corners, boxes, plane, winding, triangleStart, triangles, faceBoxes,
+    blockers: grouped(blocking, blockingLength, faceCount, false),
+    unrelated: grouped(unrelated, unrelatedLength, faceCount, true),
+  };
 }
 
 const scratch = [new Float64Array(64), new Float64Array(64)];
-/** Where convex polygons `a` (at most 16 corners) and `b` overlap, as flat x, y. */
-function intersect(a: readonly Point[], b: readonly Point[]): number[] {
+/** Where intersect left its last overlap. */
+let clipped = scratch[0];
+/**
+ * Where triangle `s` overlaps triangle `t`, whose corners wind by `sign`, as
+ * flat x, y in `clipped`; its length, 0 when they share no area.
+ */
+function intersect(corners: Float64Array, s: number, t: number, sign: number): number {
   let [polygon, next] = scratch;
-  let length = 0;
-  for (const [x, y] of a) (polygon[length++] = x), (polygon[length++] = y);
-  const sign = area(b) > 0 ? 1 : -1;
-  for (let e = 0; e < b.length && length >= 6; e++) {
-    const [ax, ay] = b[e], [bx, by] = b[(e + 1) % b.length];
+  let length = 6;
+  for (let i = 0; i < 6; i++) polygon[i] = corners[6 * s + i];
+  for (let e = 0; e < 3 && length >= 6; e++) {
+    const a = 6 * t + 2 * e, b = 6 * t + 2 * ((e + 1) % 3);
+    const ax = corners[a], ay = corners[a + 1], bx = corners[b], by = corners[b + 1];
     let out = 0;
     for (let i = 0; i < length; i += 2) {
       const j = (i + 2) % length;
@@ -146,44 +273,59 @@ function intersect(a: readonly Point[], b: readonly Point[]): number[] {
         next[out++] = polygon[i + 1] + k * (polygon[j + 1] - polygon[i + 1]);
       }
     }
-    [polygon, next] = [next, polygon];
+    const done = next;
+    next = polygon;
+    polygon = done;
     length = out;
   }
-  return length >= 6 ? Array.from(polygon.subarray(0, length)) : [];
+  clipped = polygon;
+  return length >= 6 ? length : 0;
 }
 
-/** Which of triangles `s`, `t` is nearer at any of `points` (flat x, y): bit 1 `s`, bit 2 `t`. */
-function nearer(planes: Posed['planes'], s: number, t: number, points: readonly number[], tolerance: number): number {
-  const a = planes[s]!, b = planes[t]!;
+/** Which of triangles `s`, `t` is nearer at `x`, `y`: bit 1 `s`, bit 2 `t`, 0 within the tolerance. */
+function nearerAt(plane: Float64Array, s: number, t: number, x: number, y: number, tolerance: number): number {
+  const a = 5 * s, b = 5 * t;
+  const d = plane[a] * (x - plane[a + 3]) + plane[a + 1] * (y - plane[a + 4]) + plane[a + 2] - (plane[b] * (x - plane[b + 3]) + plane[b + 1] * (y - plane[b + 4]) + plane[b + 2]);
+  return d > tolerance ? LOWER_NEARER : d < -tolerance ? HIGHER_NEARER : 0;
+}
+
+/** Which of triangles `s`, `t` is nearer at any of the first `length` of `points` (flat x, y): bit 1 `s`, bit 2 `t`. */
+function nearer(plane: Float64Array, s: number, t: number, points: ArrayLike<number>, length: number, tolerance: number): number {
   let bits = 0;
-  for (let i = 0; i < points.length; i += 2) {
-    const x = points[i], y = points[i + 1];
-    const d = a.x * (x - a.origin[0]) + a.y * (y - a.origin[1]) + a.z - (b.x * (x - b.origin[0]) + b.y * (y - b.origin[1]) + b.z);
-    if (d > tolerance) bits |= LOWER_NEARER;
-    else if (d < -tolerance) bits |= HIGHER_NEARER;
-  }
+  for (let i = 0; i < length; i += 2) bits |= nearerAt(plane, s, t, points[i], points[i + 1], tolerance);
   return bits;
 }
 
-/** Drawn faces that are convex: one mask each. Others mask triangle by triangle. */
-function convexRings(mesh: PoseMesh): (Point[] | null)[] {
-  const count = mesh.rings?.length ?? 0;
-  return Array.from({ length: count }, (_, face) => {
-    const ring = clean(mesh.rings![face].map((v) => [mesh.positions[v][0], mesh.positions[v][1]] as Point));
-    if (ring.length < 3) return null;
-    // Every turn the same way and once round: a simple convex ring.
-    let sign = 0, turning = 0;
-    for (let i = 0; i < ring.length; i++) {
-      const a = ring[i], b = ring[(i + 1) % ring.length], c = ring[(i + 2) % ring.length];
-      const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
-      const dot = (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1]);
-      if (cross === 0) continue;
-      if (sign && Math.sign(cross) !== sign) return null;
-      sign = Math.sign(cross);
-      turning += Math.atan2(cross, dot);
-    }
-    return Math.abs(Math.abs(turning) - 2 * Math.PI) < 1e-6 ? ring : null;
-  });
+/** A convex face's ring, with what `holds` needs of it: winding, and each edge's length. */
+interface ConvexRing {
+  points: Point[];
+  sign: number;
+  lengths: Float64Array;
+}
+
+/** A drawn face that is convex hides as one mask. Others, null, mask triangle by triangle. */
+function convexRing(mesh: PoseMesh, face: number): ConvexRing | null {
+  if (!mesh.rings || face >= mesh.rings.length) return null;
+  const ring = clean(mesh.rings[face].map((v) => [mesh.positions[v][0], mesh.positions[v][1]] as Point));
+  if (ring.length < 3) return null;
+  // Every turn the same way and once round: a simple convex ring.
+  let sign = 0, turning = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i], b = ring[(i + 1) % ring.length], c = ring[(i + 2) % ring.length];
+    const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    const dot = (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1]);
+    if (cross === 0) continue;
+    if (sign && Math.sign(cross) !== sign) return null;
+    sign = Math.sign(cross);
+    turning += Math.atan2(cross, dot);
+  }
+  if (!(Math.abs(Math.abs(turning) - 2 * Math.PI) < 1e-6)) return null;
+  const lengths = new Float64Array(ring.length);
+  for (let i = 0; i < ring.length; i++) {
+    const [ax, ay] = ring[i], [bx, by] = ring[(i + 1) % ring.length];
+    lengths[i] = Math.hypot(bx - ax, by - ay);
+  }
+  return { points: ring, sign: area(ring) > 0 ? 1 : -1, lengths };
 }
 
 /**
@@ -213,8 +355,6 @@ export function poseVisibility(
   if (!base.ranks || !chains || base.planeOf) return base;
   const { layerOf, layers, words, above } = chains;
   const bit = (lower: number, upper: number) => (above[lower * words + (upper >>> 5)] >>> (upper & 31)) & 1;
-  /** Layer `upper` lies above layer `lower` through a chain, seen from this side. */
-  const rises = back ? (lower: number, upper: number) => bit(upper, lower) : bit;
   let xLo = Infinity, yLo = Infinity, zLo = Infinity, xHi = -Infinity, yHi = -Infinity, zHi = -Infinity;
   for (const [x, y, z] of mesh.positions) {
     xLo = Math.min(xLo, x); xHi = Math.max(xHi, x);
@@ -226,107 +366,174 @@ export function poseVisibility(
   // ranks — a tenth of a pixel in a 1000 px figure. Such slivers, strips that
   // touch flat crossing by a hair once spread, would otherwise force masks.
   const unseen = options.unseen * Math.max(xHi - xLo, yHi - yLo) ** 2, tolerance = 1e-9 * (zHi - zLo);
-  const geometry = posed(mesh, layerOf.length);
+  const faceCount = layerOf.length;
+  const geometry = posed(mesh, chains, back);
   // Past the budget the vector capture refuses the pose too; keep today's ranks.
   if (!geometry) return base;
-  const { polygons, planes, boxes, trianglesOf, faceBoxes, near } = geometry;
+  const { corners, boxes, plane, winding, triangleStart, triangles, faceBoxes, blockers, unrelated } = geometry;
+  const triangleCount = winding.length;
+  // What clipping a triangle against masks needs, built only for those that do.
+  const polygons: (Point[] | undefined)[] = new Array(triangleCount), planes: (Plane | undefined)[] = new Array(triangleCount);
+  const polygonOf = (t: number): Point[] =>
+    (polygons[t] ??= [[corners[6 * t], corners[6 * t + 1]], [corners[6 * t + 2], corners[6 * t + 3]], [corners[6 * t + 4], corners[6 * t + 5]]]);
+  const planeOf = (t: number): Plane =>
+    (planes[t] ??= { x: plane[5 * t], y: plane[5 * t + 1], z: plane[5 * t + 2], origin: [plane[5 * t + 3], plane[5 * t + 4]] });
   const faces = mesh.triangleFaces;
 
   // Triangle pairs of faces no chain relates, lower layer id first. Their
   // depth bits over the common box hold the overlap's (depth is affine): most
-  // pairs the ranks already order are settled without clipping.
-  interface Pair { s: number; t: number; key: number; boxed: number; whole: number; overlap: number[]; shown: number | null }
-  const pairs: Pair[] = [];
-  const corners: number[] = [0, 0, 0, 0, 0, 0, 0, 0];
-  near.forEach((list, f) => {
+  // pairs the ranks already order are settled without clipping. Five per
+  // pair: its triangles, their layers, and those bits.
+  let pairs = new Int32Array(5 * 256), pairCount = 0;
+  for (let f = 0; f < faceCount; f++) {
     const lf = layerOf[f];
-    for (const g of list) {
-      const lg = layerOf[g];
-      if (lg <= lf || bit(lf, lg) || bit(lg, lf)) continue;
-      for (const s of trianglesOf[f])
-        for (const t of trianglesOf[g]) {
-          const a = boxes[s], b = boxes[t];
-          if (!overlap(a, b)) continue;
-          const x0 = Math.max(a[0], b[0]), y0 = Math.max(a[1], b[1]), x1 = Math.min(a[2], b[2]), y1 = Math.min(a[3], b[3]);
-          corners[0] = corners[6] = x0;
-          corners[2] = corners[4] = x1;
-          corners[1] = corners[3] = y0;
-          corners[5] = corners[7] = y1;
-          const boxed = nearer(planes, s, t, corners, tolerance);
-          if (boxed) pairs.push({ s, t, key: lf * layers + lg, boxed, whole: -1, overlap: [], shown: null });
+    for (let n = unrelated.start[f]; n < unrelated.start[f + 1]; n++) {
+      const g = unrelated.items[n], lg = layerOf[g];
+      if (lg <= lf) continue;
+      for (let i = triangleStart[f]; i < triangleStart[f + 1]; i++) {
+        const s = triangles[i], a = 4 * s;
+        for (let j = triangleStart[g]; j < triangleStart[g + 1]; j++) {
+          const t = triangles[j], b = 4 * t;
+          if (!(boxes[a] <= boxes[b + 2] && boxes[b] <= boxes[a + 2] && boxes[a + 1] <= boxes[b + 3] && boxes[b + 1] <= boxes[a + 3])) continue;
+          const x0 = Math.max(boxes[a], boxes[b]), y0 = Math.max(boxes[a + 1], boxes[b + 1]);
+          const x1 = Math.min(boxes[a + 2], boxes[b + 2]), y1 = Math.min(boxes[a + 3], boxes[b + 3]);
+          const boxed =
+            nearerAt(plane, s, t, x0, y0, tolerance) | nearerAt(plane, s, t, x1, y0, tolerance) |
+            nearerAt(plane, s, t, x1, y1, tolerance) | nearerAt(plane, s, t, x0, y1, tolerance);
+          if (!boxed) continue;
+          if (5 * pairCount === pairs.length) {
+            const grown = new Int32Array(2 * pairs.length);
+            grown.set(pairs);
+            pairs = grown;
+          }
+          const at = 5 * pairCount++;
+          pairs[at] = s;
+          pairs[at + 1] = t;
+          pairs[at + 2] = lf;
+          pairs[at + 3] = lg;
+          pairs[at + 4] = boxed;
         }
+      }
     }
-  });
-  if (!pairs.length) return base;
+  }
+  if (!pairCount) return base;
+  /** Per pair, the depth bits over its overlap and where both are shown; -1 until asked. */
+  const wholeBits = new Int8Array(pairCount).fill(-1), shownBits = new Int8Array(pairCount).fill(-1);
   /** Depth bits over the pair's overlap; 0 when they only touch. */
-  const whole = (pair: Pair) => {
-    if (pair.whole >= 0) return pair.whole;
-    const overlap = intersect(polygons[pair.s], polygons[pair.t]);
+  const whole = (p: number) => {
+    if (wholeBits[p] >= 0) return wholeBits[p];
+    const s = pairs[5 * p], t = pairs[5 * p + 1];
+    const length = intersect(corners, s, t, winding[t]);
     let twice = 0;
-    for (let i = 0; i < overlap.length; i += 2) {
-      const j = (i + 2) % overlap.length;
-      twice += overlap[i] * overlap[j + 1] - overlap[j] * overlap[i + 1];
+    for (let i = 0; i < length; i += 2) {
+      const j = (i + 2) % length;
+      twice += clipped[i] * clipped[j + 1] - clipped[j] * clipped[i + 1];
     }
     // Layers that only touch along an edge share no pixel.
-    pair.overlap = overlap;
-    return (pair.whole = Math.abs(twice) / 2 > unseen ? nearer(planes, pair.s, pair.t, overlap, tolerance) : 0);
+    return (wholeBits[p] = Math.abs(twice) / 2 > unseen ? nearer(plane, s, t, clipped, length, tolerance) : 0);
   };
   const rankOf = new Int32Array(layers);
-  for (let face = 0; face < layerOf.length; face++) rankOf[layerOf[face]] = base.ranks[face];
-  const violates = (key: number, bits: number, rank: ArrayLike<number>) => {
-    const lo = rank[Math.floor(key / layers)], hi = rank[key % layers];
+  for (let face = 0; face < faceCount; face++) rankOf[layerOf[face]] = base.ranks[face];
+  const violates = (p: number, bits: number, rank: ArrayLike<number>) => {
+    const lo = rank[pairs[5 * p + 2]], hi = rank[pairs[5 * p + 3]];
     return bits === LOWER_NEARER ? lo < hi : bits === HIGHER_NEARER ? hi < lo : bits !== 0 && lo !== hi;
   };
-  const rings = convexRings(mesh);
-  const blockerCache = new Map<number, number[]>();
+  const ringCache: (ConvexRing | null | undefined)[] = new Array(faceCount);
+  const ringOf = (face: number) => (ringCache[face] === undefined ? (ringCache[face] = convexRing(mesh, face)) : ringCache[face]);
+  /** A mask's edges, once per convex face or triangle that cuts. */
+  const ringEdges: (Plane[] | undefined)[] = new Array(faceCount), triangleEdges: (Plane[] | undefined)[] = new Array(triangleCount);
   /** Faces over face `f`'s box that lie above its layer through a chain. */
-  const blockersOf = (f: number) => {
-    let list = blockerCache.get(f);
-    if (!list) blockerCache.set(f, (list = near[f].filter((g) => rises(layerOf[f], layerOf[g]))));
-    return list;
-  };
-  const mark = new Int32Array(layerOf.length);
+  const blockersOf = (f: number) => blockers.items.subarray(blockers.start[f], blockers.start[f + 1]);
+  const mark = new Int32Array(faceCount);
   let stamp = 0;
   const edge = 1e-9 * Math.max(xHi - xLo, yHi - yLo);
-  /** Convex `ring` holds every point of `outline`, its boundary included. */
-  const holds = (ring: readonly Point[], outline: readonly Point[]) => {
-    const sign = area(ring) > 0 ? 1 : -1;
-    for (let i = 0; i < ring.length; i++) {
-      const [ax, ay] = ring[i], [bx, by] = ring[(i + 1) % ring.length];
-      const length = Math.hypot(bx - ax, by - ay);
-      for (const [x, y] of outline) if (sign * ((bx - ax) * (y - ay) - (by - ay) * (x - ax)) < -edge * length) return false;
+  /** Convex `ring` holds every point of `outline` (flat x, y), its boundary included. */
+  const holds = (ring: ConvexRing, outline: Float64Array) => {
+    const { points, sign, lengths } = ring;
+    for (let i = 0; i < points.length; i++) {
+      const [ax, ay] = points[i], [bx, by] = points[(i + 1) % points.length];
+      const length = lengths[i];
+      for (let k = 0; k < outline.length; k += 2) {
+        const x = outline[k], y = outline[k + 1];
+        if (sign * ((bx - ax) * (y - ay) - (by - ay) * (x - ax)) < -edge * length) return false;
+      }
     }
     return true;
   };
-  const contains = (outer: Box, inner: Box) => outer[0] <= inner[0] && outer[1] <= inner[1] && inner[2] <= outer[2] && inner[3] <= outer[3];
-  /** Depth bits where both are shown: their overlap less every face above either through a chain. */
-  const shown = (pair: Pair) => {
-    if (pair.shown !== null) return pair.shown;
-    const outline: Point[] = [];
-    for (let i = 0; i < pair.overlap.length; i += 2) outline.push([pair.overlap[i], pair.overlap[i + 1]]);
-    const box = bounds(outline);
-    const blockers = [...blockersOf(faces[pair.s]), ...blockersOf(faces[pair.t])];
-    // Usually one convex face above hides the whole overlap.
-    pair.shown = 0;
-    for (const face of blockers) if (rings[face] && contains(faceBoxes[face], box) && holds(rings[face]!, outline)) return 0;
-    let pieces = [outline];
-    stamp++;
-    for (const face of blockers) {
-      if (mark[face] === stamp || !overlap(box, faceBoxes[face])) continue;
-      mark[face] = stamp;
-      const masks = rings[face] ? [rings[face]!] : trianglesOf[face].map((t) => polygons[t]);
-      for (const mask of masks) {
-        const masked = rings[face] ? faceBoxes[face] : bounds(mask);
-        pieces = pieces.flatMap((piece) => (overlap(bounds(piece), masked) ? partition(piece, mask).outside : [piece]));
-        if (!pieces.length) return 0;
-      }
+  /** Some convex face of `list`, its box round `box`, holds all of `outline`. */
+  const heldBy = (list: Int32Array, box: Box, outline: Float64Array) => {
+    for (let i = 0; i < list.length; i++) {
+      const face = list[i], b = 4 * face;
+      if (!(faceBoxes[b] <= box[0] && faceBoxes[b + 1] <= box[1] && box[2] <= faceBoxes[b + 2] && box[3] <= faceBoxes[b + 3])) continue;
+      const ring = ringOf(face);
+      if (ring && holds(ring, outline)) return true;
     }
+    return false;
+  };
+  /** Depth bits where both are shown: their overlap less every face above either through a chain. */
+  const shown = (p: number) => {
+    if (shownBits[p] >= 0) return shownBits[p];
+    const s = pairs[5 * p], t = pairs[5 * p + 1];
+    // The overlap `whole` found, again.
+    const length = intersect(corners, s, t, winding[t]);
+    const overlapped = clipped.slice(0, length);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < overlapped.length; i += 2) {
+      x0 = Math.min(x0, overlapped[i]);
+      y0 = Math.min(y0, overlapped[i + 1]);
+      x1 = Math.max(x1, overlapped[i]);
+      y1 = Math.max(y1, overlapped[i + 1]);
+    }
+    const box: Box = [x0, y0, x1, y1];
+    const lists = [blockersOf(faces[s]), blockersOf(faces[t])];
+    shownBits[p] = 0;
+    // Usually one convex face above hides the whole overlap.
+    if (heldBy(lists[0], box, overlapped) || heldBy(lists[1], box, overlapped)) return 0;
+    const outline: Point[] = [];
+    for (let i = 0; i < overlapped.length; i += 2) outline.push([overlapped[i], overlapped[i + 1]]);
+    // Each piece with its box, which every mask tests.
+    let pieces = [outline], pieceBoxes = [box];
+    /** Cut every piece by one mask, its edges and its box in row `at` of `rows`. */
+    const cut = (halfplanes: readonly Plane[], rows: Float64Array, at: number) => {
+      const kept: Point[][] = [], keptBoxes: Box[] = [];
+      for (let k = 0; k < pieces.length; k++) {
+        const piece = pieces[k], pieceBox = pieceBoxes[k];
+        if (!overlapAt(pieceBox, rows, at) || separated(piece, halfplanes)) {
+          kept.push(piece);
+          keptBoxes.push(pieceBox);
+          continue;
+        }
+        for (const part of partitionBy(piece, halfplanes).outside) {
+          kept.push(part);
+          keptBoxes.push(part === piece ? pieceBox : bounds(part));
+        }
+      }
+      pieces = kept;
+      pieceBoxes = keptBoxes;
+    };
+    stamp++;
+    for (const list of lists)
+      for (const face of list) {
+        if (mark[face] === stamp || !overlapAt(box, faceBoxes, face)) continue;
+        mark[face] = stamp;
+        const ring = ringOf(face);
+        if (ring) {
+          cut((ringEdges[face] ??= edges(ring.points)), faceBoxes, face);
+          if (!pieces.length) return 0;
+          continue;
+        }
+        for (let i = triangleStart[face]; i < triangleStart[face + 1]; i++) {
+          const v = triangles[i];
+          cut((triangleEdges[v] ??= edges(polygonOf(v))), boxes, v);
+          if (!pieces.length) return 0;
+        }
+      }
     const seen = (region: readonly Point[][]) => region.reduce((sum, piece) => sum + Math.abs(area(piece)), 0) > unseen;
     if (!seen(pieces)) return 0;
-    const ls = layerOf[faces[pair.s]], lt = layerOf[faces[pair.t]];
+    const ls = layerOf[faces[s]], lt = layerOf[faces[t]];
     /** Triangle `a` nearer than triangle `b` by more than the tolerance: a half-plane. */
     const ahead = (a: number, b: number): Plane => {
-      const delta = difference(planes[a]!, planes[b]!);
+      const delta = difference(planeOf(a), planeOf(b));
       return { ...delta, z: delta.z - tolerance };
     };
     /**
@@ -342,13 +549,16 @@ export function poseVisibility(
       });
       if (!seen(region)) return false;
       const reach = bounds(region.flat());
-      for (const u of near[faces[front]]) {
-        const lu = layerOf[u];
-        if (lu === ls || lu === lt || bit(lu, ln) || bit(ln, lu) || !overlap(reach, faceBoxes[u])) continue;
-        if (blockersOf(u).some((face) => overlap(reach, faceBoxes[face]))) continue;
-        for (const v of trianglesOf[u]) {
-          if (!overlap(reach, boxes[v])) continue;
-          const mask = clip(polygons[v], ahead(v, front));
+      // Of the faces over front's box, only those no chain relates to it pass.
+      const of = faces[front];
+      for (let n = unrelated.start[of]; n < unrelated.start[of + 1]; n++) {
+        const u = unrelated.items[n], lu = layerOf[u];
+        if (lu === ls || lu === lt || bit(lu, ln) || bit(ln, lu) || !overlapAt(reach, faceBoxes, u)) continue;
+        if (blockersOf(u).some((face) => overlapAt(reach, faceBoxes, face))) continue;
+        for (let i = triangleStart[u]; i < triangleStart[u + 1]; i++) {
+          const v = triangles[i];
+          if (!overlapAt(reach, boxes, v)) continue;
+          const mask = clip(polygonOf(v), ahead(v, front));
           if (!mask.length) continue;
           const masked = bounds(mask);
           region = region.flatMap((piece) => (overlap(bounds(piece), masked) ? partition(piece, mask).outside : [piece]));
@@ -357,9 +567,9 @@ export function poseVisibility(
       }
       return seen(region);
     };
-    if (wins(pair.s, pair.t)) pair.shown |= LOWER_NEARER;
-    if (wins(pair.t, pair.s)) pair.shown |= HIGHER_NEARER;
-    return pair.shown;
+    if (wins(s, t)) shownBits[p] |= LOWER_NEARER;
+    if (wins(t, s)) shownBits[p] |= HIGHER_NEARER;
+    return shownBits[p];
   };
   /**
    * Chained layer pairs whose faces' boxes overlap, lower then upper as seen.
@@ -388,16 +598,17 @@ export function poseVisibility(
   let rank: ArrayLike<number> = rankOf;
   for (;;) {
     let grew = false;
-    for (const pair of pairs) {
-      const known = constraints.get(pair.key) ?? 0;
+    for (let p = 0; p < pairCount; p++) {
+      const key = pairs[5 * p + 2] * layers + pairs[5 * p + 3], boxed = pairs[5 * p + 4];
+      const known = constraints.get(key) ?? 0;
       // A pair adds only bits its layers lack. Its shown bits are among its
       // whole ones, which are among its boxed ones, so each test can only drop it.
-      if ((pair.boxed & ~known) === 0 || !violates(pair.key, pair.boxed, rank)) continue;
-      const overall = whole(pair);
-      if ((overall & ~known) === 0 || !violates(pair.key, overall, rank)) continue;
-      const bits = shown(pair);
-      if ((bits & ~known) === 0 || !violates(pair.key, bits, rank)) continue;
-      constraints.set(pair.key, known | bits);
+      if ((boxed & ~known) === 0 || !violates(p, boxed, rank)) continue;
+      const overall = whole(p);
+      if ((overall & ~known) === 0 || !violates(p, overall, rank)) continue;
+      const bits = shown(p);
+      if ((bits & ~known) === 0 || !violates(p, bits, rank)) continue;
+      constraints.set(key, known | bits);
       grew = true;
     }
     if (!grew) break;

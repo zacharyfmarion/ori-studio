@@ -41,6 +41,26 @@ export function area(p: readonly Point[]): number {
     }, 0) / 2
   );
 }
+/** `area` of the triangle a, b, c, step for step. */
+export function triangleArea(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
+  let s = 0;
+  s = s + (ax - ax) * (by - ay) - (ay - ay) * (bx - ax);
+  s = s + (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  s = s + (cx - ax) * (ay - ay) - (cy - ay) * (ax - ax);
+  return s / 2;
+}
+/** Whether `clean` keeps the triangle a, b, c, which it keeps whole or not at all; step for step. */
+export function keepsTriangle(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): boolean {
+  let magnitude = 1;
+  magnitude = Math.max(magnitude, Math.abs(ax), Math.abs(ay));
+  magnitude = Math.max(magnitude, Math.abs(bx), Math.abs(by));
+  magnitude = Math.max(magnitude, Math.abs(cx), Math.abs(cy));
+  const tolerance = 32 * Number.EPSILON * magnitude;
+  const ab = Math.hypot(ax - bx, ay - by), bc = Math.hypot(bx - cx, by - cy), ca = Math.hypot(cx - ax, cy - ay);
+  if (!(ab > tolerance && bc > tolerance && ca > tolerance)) return false;
+  const perimeter = 0 + ab + bc + ca;
+  return Math.abs(triangleArea(ax, ay, bx, by, cx, cy)) > tolerance * perimeter;
+}
 export function clean(p: Point[]): Point[] {
   // Repeated clipping can leave rings only a few coordinate ULPs wide. They
   // have no reliable area, but the SVG seam-closing stroke makes them visible.
@@ -85,7 +105,24 @@ export function edges(polygon: readonly Point[]): Plane[] {
     .filter((line) => Math.hypot(line.x, line.y) > 1e-14);
 }
 export function partition(subject: Point[], mask: readonly Point[]): { outside: Point[][]; inside: Point[] } {
-  const halfplanes = edges(mask);
+  return partitionBy(subject, edges(mask));
+}
+/**
+ * Whether `partitionBy` hands `subject` back whole, decided without clipping
+ * when it can be: true when the first edge `subject` does not lie within is
+ * one it lies wholly outside. Up to that edge clipping only drops corners, so
+ * there it clips away everything. False when it cannot tell.
+ */
+export function separated(subject: readonly Point[], halfplanes: readonly Plane[]): boolean {
+  for (const edge of halfplanes) {
+    let within = 0;
+    for (const p of subject) if (value(edge, p) >= 0) within++;
+    if (within < subject.length) return within === 0;
+  }
+  return false;
+}
+/** `partition` by a mask's `edges`, for a mask that cuts many subjects. */
+export function partitionBy(subject: Point[], halfplanes: readonly Plane[]): { outside: Point[][]; inside: Point[] } {
   let intersection = subject;
   for (const edge of halfplanes) {
     intersection = clip(intersection, edge);
@@ -101,16 +138,22 @@ export function partition(subject: Point[], mask: readonly Point[]): { outside: 
   }
   return { inside, outside };
 }
+const planeRow = new Float64Array(5);
 export function depthPlane(points: Point3[]): Plane | null {
   const [a, b, c] = points;
+  if (!depthPlaneInto(a, b, c, planeRow, 0)) return null;
+  return { x: planeRow[0], y: planeRow[1], z: planeRow[2], origin: [planeRow[3], planeRow[4]] };
+}
+/** `depthPlane` of corners a, b, c as `out[at..at + 5)`: x, y, z, origin x, y; false where that is null. */
+export function depthPlaneInto(a: Point3, b: Point3, c: Point3, out: Float64Array, at: number): boolean {
   const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
   const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
   const determinant = ux * vy - uy * vx;
-  if (Math.abs(determinant) < 1e-16) return null;
-  return {
-    x: (uz * vy - uy * vz) / determinant,
-    y: (ux * vz - uz * vx) / determinant,
-    z: a[2],
-    origin: [a[0], a[1]],
-  };
+  if (Math.abs(determinant) < 1e-16) return false;
+  out[at] = (uz * vy - uy * vz) / determinant;
+  out[at + 1] = (ux * vz - uz * vx) / determinant;
+  out[at + 2] = a[2];
+  out[at + 3] = a[0];
+  out[at + 4] = a[1];
+  return true;
 }
