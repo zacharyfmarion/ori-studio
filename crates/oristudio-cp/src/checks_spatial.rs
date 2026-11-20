@@ -1457,6 +1457,26 @@ pub struct InteriorBorder {
 /// (unsplit crossings, so the Euler gate rejects), this reports nothing rather
 /// than guessing — the same posture the rest of this module takes toward
 /// geometry it cannot read.
+///
+/// # Auxiliary lines are not traced
+///
+/// The arrangement is the sheet's: borders and creases, and not the `Cyan3`
+/// auxiliary lines the editor keeps in `line_segments` beside them — the same
+/// filter every other check in this module applies. A guide is drawn on the
+/// paper, not cut into it, and tracing one corrupts the answer both ways:
+///
+/// - Oriedita never splits a fold line against an auxiliary line, so a crease
+///   traced over a guide overlaps it. The face walk then follows one or the
+///   other through the shared vertices, and when the corrupted counts happen
+///   to pass the Euler gate its rings put outer edges in two faces. A box
+///   pattern drawn that way reported nine of its outer edges as cuts, each one
+///   the base of a triangle whose side carried a crease over a guide.
+/// - A guide that touches nothing is a second component, the gate refuses the
+///   whole arrangement, and a real cut goes unreported.
+///
+/// Every [`InteriorBorder::segment`] is still an index into the model's
+/// `line_segments`, mapped back through the filter.
+///
 /// # Cost
 ///
 /// Tracing the arrangement is the expensive half of this, and `dispatched_camv`
@@ -1476,10 +1496,40 @@ pub fn interior_border_segments(model: &CreasePatternModel) -> Vec<InteriorBorde
     {
         return Vec::new();
     }
-    interior_border_segments_in(&FoldGraph::from_sheet_segments(&model.line_segments))
+    if !has_auxiliary_lines(model) {
+        return interior_border_segments_in(&FoldGraph::from_sheet_segments(&model.line_segments));
+    }
+
+    let (sources, sheet): (Vec<usize>, Vec<LineSegment>) = model
+        .line_segments
+        .iter()
+        .enumerate()
+        .filter(|(_, segment)| segment.color != LineColor::Cyan3)
+        .map(|(index, segment)| (index, segment.clone()))
+        .unzip();
+    interior_border_segments_in(&FoldGraph::from_sheet_segments(&sheet))
+        .into_iter()
+        .filter_map(|border| {
+            Some(InteriorBorder {
+                segment: *sources.get(border.segment)?,
+                ..border
+            })
+        })
+        .collect()
+}
+
+fn has_auxiliary_lines(model: &CreasePatternModel) -> bool {
+    model
+        .line_segments
+        .iter()
+        .any(|segment| segment.color == LineColor::Cyan3)
 }
 
 /// [`interior_border_segments`] against an arrangement the caller already has.
+///
+/// `graph` must trace the sheet alone — no auxiliary lines — and its lines must
+/// be the model's `line_segments` in order, since each finding's index is
+/// returned as-is.
 pub(crate) fn interior_border_segments_in(graph: &FoldGraph) -> Vec<InteriorBorder> {
     if graph.faces.is_empty() {
         return Vec::new();
@@ -1529,9 +1579,11 @@ pub fn dispatched_camv(model: &CreasePatternModel) -> DispatchedCamv {
 /// [`dispatched_camv`] against an arrangement the caller already has.
 ///
 /// `arrangement` must be the traced arrangement of `model.line_segments`; it is
-/// used for nothing but [`interior_border_segments_in`]. The 3D admission gate
-/// needs the same arrangement to place faces, and building it twice made `admit`
-/// pay for the most expensive thing it does two times over.
+/// used for nothing but [`interior_border_segments_in`], and only when the model
+/// has no auxiliary line (see [`interior_border_segments`]). The 3D admission
+/// gate needs the same arrangement to place faces, and building it twice made
+/// `admit` pay for the most expensive thing it does two times over; its
+/// segments are fold lines only, so it never takes the second trace.
 pub(crate) fn dispatched_camv_in(
     model: &CreasePatternModel,
     arrangement: Option<&FoldGraph>,
@@ -1549,10 +1601,12 @@ pub(crate) fn dispatched_camv_in(
     // undecided crease says nothing about whether a border has paper on both
     // sides. An all-classic document's `CheckCamv` output stays what the
     // Oriedita oracle gates.
+    // A caller's arrangement is the sheet's only when the model has no
+    // auxiliary line for it to have traced; otherwise trace the sheet here.
     let interior_borders = match (has_non_classic_creases(model), arrangement) {
         (false, _) => Vec::new(),
-        (true, Some(graph)) => interior_border_segments_in(graph),
-        (true, None) => interior_border_segments(model),
+        (true, Some(graph)) if !has_auxiliary_lines(model) => interior_border_segments_in(graph),
+        (true, _) => interior_border_segments(model),
     };
     let mut flat = Vec::new();
     let mut spatial = Vec::new();
