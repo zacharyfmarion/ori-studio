@@ -47,6 +47,7 @@ const ASK: FoldImportLayerOrderAsk = {
     shown: SHOWN,
     look: { side: 'back', turn_deg: 270 },
   },
+  single: false,
 };
 const VIEW: FoldImportView = { style: DEFAULT_PAPER_STYLE, lineStyle: 'color', lineWidth: 2, foldAngleDisplay: 'opacity' };
 
@@ -133,6 +134,12 @@ describe('Import CP’s answer from the Layer order dialog', () => {
       dialog.answer = { kind };
       await chooseFoldImportLayerOrder(ASK, VIEW, t);
     }
+    expect(toasts.shown).toEqual([]);
+  });
+
+  it('says nothing when busy for a pattern with one order, which lands at once with no chooser to go to', async () => {
+    dialog.answer = { kind: 'busy' };
+    await expect(chooseFoldImportLayerOrder({ ...ASK, single: true }, VIEW, t)).resolves.toEqual({ kind: 'fallback' });
     expect(toasts.shown).toEqual([]);
   });
 });

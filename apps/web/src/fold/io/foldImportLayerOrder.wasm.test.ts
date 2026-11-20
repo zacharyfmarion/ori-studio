@@ -30,7 +30,9 @@ import {
  * What holds, on kabuto and `solution_sample_1`: the dialog opens on the
  * import's default order, held whole; Apply lands one step whose state is
  * the one Fold's own chooser lands for the order the dialog shows, stack for
- * stack; an Apply that changed nothing lands the default pick.
+ * stack; an Apply that changed nothing lands the default pick. A pattern
+ * with one order opens it too, for its Rotate, unless its faces can't be
+ * matched, when it lands at once.
  *
  * Skipped when the Fold bridge has not been built.
  */
@@ -233,4 +235,24 @@ describe.skipIf(!available)('Import CP’s order chosen in the Layer order dialo
       release();
     });
   }
+
+  it('a pattern with one order opens the dialog too, and its Rotate stores the imported step turned', async () => {
+    const wasm = await bridge();
+    const relative = 'fold-samples/pleat-in-eighths.fold';
+    const { source, state, seen } = await importThroughDialog(wasm, relative, false, -30);
+    expect(seen.opened).toMatchObject({ status: 'ok' });
+    expect(state).toMatchObject({ phase: 'done' });
+    expect(committedStep(source)?.op).toMatchObject({ kind: 'cp-jump', turnDeg: -30 });
+    expect(choosersPick(wasm, relative, seen.front!).orders).toBe(1);
+  });
+
+  it('a pattern with one order whose precreases Edit doesn’t fold lands at once, as before the dialog', async () => {
+    const wasm = await bridge();
+    const { source, state, seen } = await importThroughDialog(wasm, 'fold-samples/waterbomb-base.fold', false, -30);
+    // The engine can't open it onto the dialog's faces (`faces_differ`), so the dialog is never asked.
+    expect(seen.opened).toBeUndefined();
+    expect(state).toMatchObject({ phase: 'done' });
+    expect(committedStep(source)?.op).toMatchObject({ kind: 'cp-jump' });
+    expect(committedStep(source)?.op).not.toHaveProperty('turnDeg');
+  });
 });

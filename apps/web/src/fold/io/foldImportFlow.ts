@@ -8,8 +8,11 @@
  *
  * - **Open, choose, commit.** Opening reads the file with the CP kernel's
  *   loader and completes its layer order from its letters, a true ‹ n of m ›
- *   held in the engine. One order lands and commits at once; several wait
- *   for a choice. Edit's figure brings its own order and commits at once.
+ *   held in the engine. With the dialog (below), every import asks it, one
+ *   order or several, so even a pattern with nothing to choose can be
+ *   rotated before it lands; without it, one order commits at once and
+ *   several wait for a choice. Edit's figure brings its own order and
+ *   commits at once.
  * - **The choice is the Layer order dialog's** (`implementation-plans/layer-order-dialog.md`,
  *   row H10), when the app hands one in (`chooseLayerOrder`): the engine
  *   opens the import onto the dialog's faces, the dialog opens on the order
@@ -19,7 +22,8 @@
  *   import. When the dialog can't take it (another is open, its code didn't
  *   load, or the engine can't open this import onto its faces), the import
  *   keeps its own chooser: one listed order per independent component, each
- *   order pictured by the state it lands (a preview, landed and let go).
+ *   order pictured by the state it lands (a preview, landed and let go) —
+ *   or, for a pattern with one order, lands it at once, as before.
  *   The dialog never outlives the import: a reset, a dispose (the dialog's
  *   Import CP leaving the screen), a newer request or a move of the step it
  *   goes after withdraws it, and it closes.
@@ -87,6 +91,12 @@ export interface FoldProjectCpImport {
 export interface FoldImportLayerOrderAsk {
   readonly request: FoldImportRequest;
   readonly opening: FoldImportLayerOpening;
+  /**
+   * The pattern has one layer order: the dialog is there to rotate it, and
+   * when the dialog can't take it the import lands that order at once,
+   * with no chooser to send the user to.
+   */
+  readonly single: boolean;
 }
 
 /**
@@ -151,17 +161,18 @@ export interface FoldImportFlowOptions {
   /** An import was refused: the dialog now says why. Once per refusal, whichever step of the flow made it. */
   onRefused?: (refusal: FoldImportRefusal) => void;
   /**
-   * Ask the Layer order dialog for the order of an import with several
-   * (row H10). Left out, the import's own chooser asks, as before the dialog.
+   * Ask the Layer order dialog for an import's order (row H10), one order
+   * or several: with one, it is where the imported step is rotated. Left
+   * out, the import's own chooser asks for several, as before the dialog,
+   * and one lands at once.
    * `signal` aborts when the flow lets the import go while the dialog is open
    * (a reset, a dispose, a newer request, or the step it goes after moved):
    * the dialog closes then, and its answer lands nothing.
    */
   chooseLayerOrder?: (ask: FoldImportLayerOrderAsk, signal: AbortSignal) => Promise<FoldImportLayerOrderAnswer>;
   /**
-   * An import reported several orders, so `chooseLayerOrder` is about to be
-   * asked: the dialog's code can start loading beside the engine's opening.
-   * Never for a pattern with one order.
+   * An import opened, so `chooseLayerOrder` is about to be asked: the
+   * dialog's code can start loading beside the engine's opening.
    */
   prefetchLayerOrder?: () => void;
 }
@@ -450,7 +461,8 @@ export function createFoldImportFlow({
     request: FoldImportRequest,
     import_: Held,
     choice: readonly number[],
-    mine: number
+    mine: number,
+    single: boolean
   ): Promise<boolean> => {
     const opening = await ask(import_.where.state, (engine) => engine.importLayerOpening(import_.handle, choice)).catch(
       () => null
@@ -463,7 +475,7 @@ export function createFoldImportFlow({
     const asked = new AbortController();
     asking = asked;
     store.setState({ phase: 'ordering', request }, true);
-    const answer = await choose({ request, opening }, asked.signal);
+    const answer = await choose({ request, opening, single }, asked.signal);
     if (asking === asked) asking = null;
     // Withdrawn (a reset, a dispose, a newer request, the step it goes after moved): nothing lands.
     if (mine !== ticket || asked.signal.aborted) return true;
@@ -621,13 +633,18 @@ export function createFoldImportFlow({
       const import_: Held = { handle: opened.import, where, opened, ...(project ? { project } : {}) };
       held = import_;
       const choice = opened.components.map(() => 0);
-      if (foldOrderChoices(opened) === 0 && opened.count.exact) {
+      const single = foldOrderChoices(opened) === 0 && opened.count.exact;
+      if (chooseLayerOrder) {
+        prefetchLayerOrder?.();
+        if (await chooseInDialog(chooseLayerOrder, request, import_, choice, mine, single)) return;
+        if (mine !== ticket) return;
+      }
+      if (single) {
+        // Out of `ordering` first, as the dialog's answers that land are: the commit moves the cursor.
+        store.setState({ phase: 'working', request }, true);
         await pickAndCommit(request, import_, choice, mine);
         return;
       }
-      if (chooseLayerOrder) prefetchLayerOrder?.();
-      if (chooseLayerOrder && (await chooseInDialog(chooseLayerOrder, request, import_, choice, mine))) return;
-      if (mine !== ticket) return;
       for (const component of opened.components) if (component.orders > 1) onChoiceOffered?.(component.orders);
       const snapshot = session.store.getState();
       context = { cursor: snapshot.cursor, state: selectFoldCursorNode(snapshot).state };
