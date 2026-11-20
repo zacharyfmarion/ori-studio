@@ -1618,6 +1618,7 @@
       "previousSolution": "Orden de capas anterior",
       "reset": "Restablecer pose",
       "resetHint": "Ya está en su pose inicial",
+      "resumeSimulation": "Reanudar la simulación",
       "rotateLeft": "Girar a la izquierda",
       "rotateRight": "Girar a la derecha",
       "rotation": "Rotación",

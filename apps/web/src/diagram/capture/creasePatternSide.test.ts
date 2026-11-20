@@ -195,7 +195,7 @@ function openPose(verbs: Partial<DiagramLinkedPose>): DiagramLinkedPose {
     setSide: async () => true,
     setFlipCreases: async () => true,
     simulate: async () => {},
-    wantsRest: () => false,
+    wantsSave: () => false,
     spread: null,
     preview: null,
     ...verbs,

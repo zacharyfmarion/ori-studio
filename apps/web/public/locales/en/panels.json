@@ -1567,6 +1567,7 @@
       "previousSolution": "Previous Layer Order",
       "reset": "Reset Pose",
       "resetHint": "Already in its starting pose",
+      "resumeSimulation": "Resume simulation",
       "rotateLeft": "Rotate Left",
       "rotateRight": "Rotate Right",
       "rotation": "Rotation",

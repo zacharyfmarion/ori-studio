@@ -369,8 +369,8 @@ export function DiagramStepDetail({
             render={linked.render}
             style={style}
             annotations={ghost}
-            onRest={linkedPose.simulate}
-            wantsRest={linkedPose.wantsRest}
+            onSave={linkedPose.simulate}
+            wantsSave={linkedPose.wantsSave}
             registerLiveView={linkedPose.registerLiveView}
             fallback={picture}
             toolbar={poseToolbar}

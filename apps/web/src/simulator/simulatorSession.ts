@@ -497,15 +497,23 @@ export interface SimulatorStillSceneOptions extends SimulatorExportSceneOptions 
   size: number;
 }
 
-/** A live session's model where it is now (`SimulatorWorkerApi.sessionScene`). */
-export interface SimulatorSessionSceneOptions extends SimulatorStillSceneOptions {
+/** A live session's model where it is now (`SimulatorWorkerApi.sessionCapture`). */
+export interface SimulatorSessionCaptureOptions extends SimulatorStillSceneOptions {
   token: SimulatorSessionToken;
-  /**
-   * Settle the solver first, for up to this many steps: for a caller that
-   * cannot wait for it to come to rest — Pose closing a moment after a move —
-   * so what is drawn is the fold it was told, not one on its way there.
-   */
-  settleSteps?: number;
+}
+
+/**
+ * A live session's model as it is at one moment, read in one call so no tick
+ * runs between its parts: what a Diagram step shown as Simulated saves in
+ * Pose (D19).
+ */
+export interface SimulatorSessionCapture {
+  /** The model from the camera, framed as `flatScene` frames the flat sheet; null when it draws nothing. */
+  scene: PaperScene | null;
+  /** The shape the scene was drawn from, or why there is none (`readShape`). */
+  shape: SimulatorShapeRead;
+  /** Whether the solver had settled: a shape saved before it had is still on its way somewhere. */
+  settled: boolean;
 }
 
 /**
@@ -537,7 +545,7 @@ function sceneOfFrame(frame: SceneFrame, { style, markHidden }: SimulatorExportS
  * A model's positions from a camera, framed on their own shape in a `size`
  * square, with perspective whatever the screen draws: a Diagram step's
  * picture (D19), of the flat sheet (`flatScene`) or of a live session where it
- * is now (`sessionScene`). One framing for both, so a step captured in Pose at
+ * is now (`sessionCapture`). One framing for both, so a step captured in Pose at
  * 0% is the picture its headless 0% is, on every machine.
  */
 function stillFrame(
@@ -1817,12 +1825,13 @@ const api = {
   },
 
   /**
-   * A live session's model where the solver holds it now, from a camera,
-   * framed as {@link flatScene} frames the flat sheet: what a Diagram step
-   * shown as Simulated captures in Pose (D19). Null when the session has gone
-   * or the frame draws nothing.
+   * A live session's model where the solver holds it now — its picture from a
+   * camera, framed as {@link flatScene} frames the flat sheet, the shape it was
+   * drawn from and whether the solver had settled — as it is this moment,
+   * nothing settled first: what a Diagram step shown as Simulated saves in
+   * Pose (D19). Null when the session has gone.
    */
-  sessionScene(options: SimulatorSessionSceneOptions): PaperScene | null {
+  sessionCapture(options: SimulatorSessionCaptureOptions): SimulatorSessionCapture | null {
     const active = sessionFor(options.token);
     if (!active) return null;
     const prepared = active.model.prepared;
@@ -1836,14 +1845,15 @@ const api = {
     const flat = active.foldPercent === 0 && !active.backend.posed && !active.pinnedNodes;
     let positions = originalPositions;
     if (!flat) {
-      if (options.settleSteps) active.clock.runToConvergence(active.backend, options.settleSteps);
       positions = new Float32Array(prepared.vertexCount * 3);
       active.backend.readPositions(positions);
     }
-    return sceneOfFrame(
-      stillFrame(positions, prepared, originalPositions, options.view, options.size),
-      options
-    );
+    const scene = sceneOfFrame(stillFrame(positions, prepared, originalPositions, options.view, options.size), options);
+    // The flat sheet's shape where the picture is the flat sheet, at rest: a
+    // step saved at 0% opens on the sheet it shows.
+    const shape = flat ? flatShapeOf(active) : shapeOf(active);
+    const settled = flat || active.clock.converged;
+    return transfer({ scene, shape, settled }, typeof shape === 'string' ? [] : [shape.state.buffer as ArrayBuffer]);
   },
 
   /** Let a frozen frame go: its dialog closed. Snapshots also go with their session. */
@@ -2541,6 +2551,13 @@ function shapeOf(active: Session): SimulatorShapeRead {
     posed: active.poseKept,
     state: shapeStateOf(sheet, solverShape),
   };
+}
+
+/** The flat sheet as a session's shape: every node where it started, every crease unfolded. */
+function flatShapeOf(active: Session): SimulatorShapeRead {
+  const read = shapeOf(active);
+  if (typeof read !== 'string') read.state.fill(0);
+  return read;
 }
 
 /** Put a shape on a session at a fold target; see {@link SimulatorWorkerApi.restoreShape}. */

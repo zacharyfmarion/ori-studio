@@ -1618,6 +1618,7 @@
       "previousSolution": "Ordre des couches précédent",
       "reset": "Réinitialiser la pose",
       "resetHint": "Déjà dans sa pose de départ",
+      "resumeSimulation": "Reprendre la simulation",
       "rotateLeft": "Tourner à gauche",
       "rotateRight": "Tourner à droite",
       "rotation": "Rotation",

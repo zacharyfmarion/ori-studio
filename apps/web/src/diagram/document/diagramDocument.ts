@@ -262,17 +262,42 @@ export type DiagramCpRender =
       foldPercent: number;
       view: DiagramSimulatedView;
       /**
-       * The mesh the picture was captured from, pins and all, as a build with
-       * Pose's tools stores it (`implementation-plans/diagram-pose-simulator-tools.md`,
-       * What a step stores). This build has no tools that read it: it is
-       * carried as it came while the render stands, and a capture here, which
-       * makes a new render, leaves it behind with the picture it was for.
+       * The simulator's positions the picture was drawn from, as Pose saved
+       * them (`DiagramSavedShape`): what Pose opens on again. Absent on a step
+       * saved before Pose kept them, or one captured without Pose (0%,
+       * headless), which Pose folds from flat at its fold %. A render made
+       * anew never carries the one before it: a shape is only ever beside the
+       * picture drawn from it.
        */
       shape?: DiagramSimulatedShape;
     };
 
-/** Pose's stored mesh: opaque to this build, which only carries it (see the simulated render). */
+/**
+ * A simulated step's stored shape: positions as this build saves them
+ * (`DiagramSavedShape`), or any other record — another build's — carried as
+ * it came while the render stands and never read (decision 5): Pose folds
+ * such a step from flat, as one saved without positions.
+ */
 export type DiagramSimulatedShape = Readonly<Record<string, unknown>>;
+
+/**
+ * A simulated step's positions as Pose saves them
+ * (`implementation-plans/diagram-simulated-pose-save-on-done.md`), in the
+ * simulator's own encodings (`simulator/simulatorShape.ts`), so they are put
+ * back exactly: the picture Pose drew from them is the one it shows.
+ */
+export type DiagramSavedShape = {
+  /**
+   * The region's flat sheet they belong to (`sk1:`, `simulatorSheetKey`): a
+   * digest of the simulator's model, so other creases, another triangulation
+   * or another count of nodes is another key, and Pose folds from flat instead.
+   */
+  sheet: string;
+  /** `ss1:`: base64 of little-endian float32s, each node's offset from flat (×3), then each crease's angle. */
+  state: string;
+  /** Whether the solver had settled when Pose saved them: if not, Pose opens on them held, with Play to go on. */
+  settled: boolean;
+};
 
 /**
  * A flat fold's layers spread apart (`foldedLayerSpread.ts`), one of two
@@ -627,10 +652,20 @@ export function withRememberedPoses<S extends DiagramPosedSource>(before: Diagra
   const same = isPosedSource(before) && before.kind === after.kind ? before : null;
   const kept: Partial<Record<DiagramShowAs, DiagramCpRender>> = same ? { ...same.remembered } : {};
   if (same && showAsOf(same.render) !== showAsOf(after.render)) {
-    kept[showAsOf(same.render)] = same.render;
+    kept[showAsOf(same.render)] = rememberedRender(same.render);
   }
   delete kept[showAsOf(after.render)];
   return (Object.keys(kept).length > 0 ? { ...rest, remembered: kept } : rest) as S;
+}
+
+/**
+ * A render as a source remembers it: a simulated one without its shape, since
+ * coming back to Simulated keeps only its camera (`renderToShowAs`).
+ */
+function rememberedRender(render: DiagramCpRender): DiagramCpRender {
+  if (render.mode !== 'simulated' || !render.shape) return render;
+  const { shape: _shape, ...kept } = render;
+  return kept;
 }
 
 /** The planner settings a References plan was made with (D6): what made its steps the ones they are. */
