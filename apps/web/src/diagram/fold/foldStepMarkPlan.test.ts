@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FoldOp, FoldPointRef, FoldRef } from '../../fold/document/foldSequenceDocument';
 import type { FoldActionGeometry } from '../../fold/engine/foldEngineWire';
 import { diagonalHalfScene, squareScene } from '../../fold/sequence/foldScene.fixtures';
-import { foldStepAction, stepFoldedCreases } from './foldStepMarkPlan';
+import { foldStepAction, foldStepMarkAction, stepFoldedCreases } from './foldStepMarkPlan';
 
 const all = { scope: 'all' } as const;
 const pt = (x: number, y: number): FoldPointRef => ({ kind: 'point', at: [x, y] });
@@ -216,6 +216,36 @@ describe('where a Fold step’s marks go in the Diagram', () => {
     const free: FoldOp = { kind: 'precrease', direction: 'valley', line: { via: 'free', through: [[0, 0.5], [1, 0.5]] }, seed: all };
     expect(foldStepAction(action, { op: free, parent: squareScene() })).toEqual(action);
     expect(foldStepAction(action, { op: null, parent: squareScene() })).toEqual(action);
+  });
+});
+
+describe('what a step’s marks are drawn from', () => {
+  const collapse: FoldOp = { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'project_cp' };
+
+  it('draws a collapse, which the engine pictures none of, by every crease it folds — no line of its own, no arrow', () => {
+    const placed = foldStepMarkAction(null, { op: collapse, parent: squareScene(), child: diagonalHalfScene() });
+    expect(placed).toEqual({
+      kind: 'fold',
+      direction: 'valley',
+      line: null,
+      spans: stepFoldedCreases(squareScene(), diagonalHalfScene()),
+      moving: [],
+      grip: null,
+    });
+    expect(placed!.spans).toHaveLength(1);
+  });
+
+  it('brings no marks for a collapse that folds nothing new, or whose landed state is not known', () => {
+    expect(foldStepMarkAction(null, { op: collapse, parent: diagonalHalfScene(), child: diagonalHalfScene() })).toBeNull();
+    expect(foldStepMarkAction(null, { op: collapse, parent: squareScene() })).toBeNull();
+  });
+
+  it('brings none for a step the engine pictures nothing of — a turn — and places the engine’s picture of any other', () => {
+    const turn: FoldOp = { kind: 'turn', axis: 'vertical' };
+    expect(foldStepMarkAction(null, { op: turn, parent: squareScene(), child: diagonalHalfScene() })).toBeNull();
+    const action = engineAction([0, 0.5], [1, 0.5], [0.5, 0.15], [0.5, 0.85]);
+    const free: FoldOp = { kind: 'precrease', direction: 'valley', line: { via: 'free', through: [[0, 0.5], [1, 0.5]] }, seed: all };
+    expect(foldStepMarkAction(action, { op: free, parent: squareScene() })).toEqual(foldStepAction(action, { op: free, parent: squareScene() }));
   });
 });
 

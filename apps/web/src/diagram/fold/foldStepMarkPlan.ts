@@ -32,6 +32,9 @@
  *   as the engine does, and the rest of its line across the paper it folds
  *   dotted ({@link uncreasedStretches}): the fold is made across the paper
  *   and pressed only at the mark.
+ * - **A collapse** — a crease pattern imported folded — has no picture of
+ *   the engine's: it draws every crease it folds the same way, each mountain
+ *   and valley in its own line, and no arrow ({@link collapseAction}).
  *
  * Anything else keeps the engine's picture. Every point is in the scene
  * frame of the state the step folds from — the picture's, before it is
@@ -90,6 +93,30 @@ const along = (from: Point, direction: Point, by: number): Point => ({ x: from.x
 
 /** The steps drawn by every crease they fold, read off the states either side (see the module docs): every form of each. */
 const DRAWN_BY_FOLDED_CREASES: ReadonlySet<FoldOp['kind']> = new Set(['rabbit-ear', 'petal', 'squash', 'swivel']);
+
+/**
+ * What a step's marks are drawn from: the engine's picture of it placed by
+ * its references ({@link foldStepAction}), or for a collapse, which the engine
+ * draws none of, the creases it folds ({@link collapseAction}); null for a
+ * step that brings no marks — a turn, a rotation, a sheet.
+ */
+export function foldStepMarkAction(action: FoldActionGeometry | null, context: FoldStepMarkContext): FoldStepAction | null {
+  if (action) return foldStepAction(action, context);
+  if (context.op?.kind === 'cp-jump' && context.child) return collapseAction(context.parent, context.child);
+  return null;
+}
+
+/**
+ * A collapse's picture: every crease the imported pattern folds, as the state
+ * it folds from shows it ({@link stepFoldedCreases}) — the mountain and valley
+ * folds the reader collapses the paper along, existing precreases among them.
+ * No line of its own and no arrow; null when it folds nothing new.
+ */
+export function collapseAction(parent: FoldScene, child: FoldScene): FoldStepAction | null {
+  const spans = stepFoldedCreases(parent, child);
+  if (spans.length === 0) return null;
+  return { kind: 'fold', direction: spans[0]!.direction ?? 'valley', line: null, spans, moving: [], grip: null };
+}
 
 /** `action` with its marks placed by the step's own references (see the module docs). */
 export function foldStepAction(action: FoldActionGeometry, context: FoldStepMarkContext): FoldStepAction {
@@ -479,7 +506,7 @@ function landedCover(child: FoldScene, sheet: SheetPoint, image: Point): number 
  * made.
  */
 export function stepFoldedCreases(parent: FoldScene, child: FoldScene): FoldLineSpan[] {
-  const frame = foldStateFrame(parent);
+  const state = boxedState(parent);
   const folded = parent.creases.filter((crease) => crease.kind === 'fold' && crease.letter !== null);
   const spans: FoldLineSpan[] = [];
   for (const crease of child.creases) {
@@ -488,17 +515,68 @@ export function stepFoldedCreases(parent: FoldScene, child: FoldScene): FoldLine
     // Folded before, the same way: not this step's.
     if (folded.some((before) => before.letter === crease.letter && covers(before.from, before.to, from, to))) continue;
     const middle: SheetPoint = [(from.x + to.x) / 2, (from.y + to.y) / 2];
-    const face = faceOf(frame, middle);
+    const face = boxedFaceOf(state, middle);
     const transform = face < 0 ? undefined : parent.face_transforms[face];
     if (!transform) continue;
     const seen = parent.faces[face]!.front_up ? crease.letter : crease.letter === 'valley' ? 'mountain' : 'valley';
     const [a, b] = [applyIsometry(transform, from), applyIsometry(transform, to)];
     const at = (t: number): Point => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
-    for (const [t0, t1, shown] of seenStretches(parent, frame, from, to, a, b)) {
+    for (const [t0, t1, shown] of seenStretches(state, from, to, a, b)) {
       if (shown) spans.push({ from: at(t0), to: at(t1), direction: seen, hidden: false });
     }
   }
   return joinedSpans(spans);
+}
+
+/** A box: its least x and y, its greatest. */
+type Box = readonly [number, number, number, number];
+
+/**
+ * How far a box reaches past what it bounds: more than a point's tolerance
+ * on a face's ring (`ringContains`), so a point a face holds is always in
+ * its box, and a stretch that meets a stack always meets its box.
+ */
+const BOX_PAD = 1e-4;
+
+function boxOf(points: readonly (readonly [number, number])[]): Box {
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [x, y] of points) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  return [minX - BOX_PAD, minY - BOX_PAD, maxX + BOX_PAD, maxY + BOX_PAD];
+}
+
+const inBox = ([minX, minY, maxX, maxY]: Box, x: number, y: number) => x >= minX && x <= maxX && y >= minY && y <= maxY;
+
+/**
+ * A state with its faces boxed on the sheet and its stacks in the scene, so
+ * a point or a stretch is tested only against those it can touch: a
+ * collapse reads every crease of a pattern against a sheet precreased into
+ * as many faces. Finds what the unboxed tests find, in the same order.
+ */
+interface BoxedState {
+  scene: FoldScene;
+  frame: FoldStateFrame;
+  faces: Box[];
+  stacks: Box[];
+}
+
+function boxedState(scene: FoldScene): BoxedState {
+  const frame = foldStateFrame(scene);
+  return {
+    scene,
+    frame,
+    faces: frame.faces.map((face) => boxOf(face.sheet)),
+    stacks: scene.subfaces.map(({ polygon }) => boxOf(polygon.map(({ x, y }) => [x, y] as const))),
+  };
+}
+
+/** {@link faceOf}, through the boxes. */
+function boxedFaceOf(state: BoxedState, sheet: SheetPoint): number {
+  return state.frame.faces.findIndex((face, index) => inBox(state.faces[index]!, sheet[0], sheet[1]) && ringContains(face.sheet, sheet));
 }
 
 /** Whether the segment a–b of the sheet covers c–d: c and d both on it. */
@@ -522,20 +600,20 @@ function covers(a: Point, b: Point, c: Point, d: Point): boolean {
  * layer covers only part of — a swivel's on the layer behind, past where
  * the layer in front ends — is behind only there.
  */
-function seenStretches(
-  scene: FoldScene,
-  frame: FoldStateFrame,
-  from: Point,
-  to: Point,
-  a: Point,
-  b: Point
-): [number, number, boolean][] {
+function seenStretches(state: BoxedState, from: Point, to: Point, a: Point, b: Point): [number, number, boolean][] {
+  const { scene } = state;
   const length = distance(from, to);
   if (!(length > EPSILON)) return [];
   const ab = { x: b.x - a.x, y: b.y - a.y };
+  const span = boxOf([
+    [a.x, a.y],
+    [b.x, b.y],
+  ]);
+  const meets = (box: Box) => box[0] <= span[2] && span[0] <= box[2] && box[1] <= span[3] && span[1] <= box[3];
   // Where a–b crosses an edge of a stack, along it.
   const cuts = [0, 1];
-  for (const { polygon } of scene.subfaces) {
+  for (const [stack, { polygon }] of scene.subfaces.entries()) {
+    if (!meets(state.stacks[stack]!)) continue;
     for (const [index, p] of polygon.entries()) {
       const q = polygon[(index + 1) % polygon.length]!;
       const pq = { x: q.x - p.x, y: q.y - p.y };
@@ -554,11 +632,11 @@ function seenStretches(
     const middle = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
     return [1, -1].some((side) => {
       const sheet: SheetPoint = [middle.x + normal.x * side * step, middle.y + normal.y * side * step];
-      const face = faceOf(frame, sheet);
+      const face = boxedFaceOf(state, sheet);
       const transform = face < 0 ? undefined : scene.face_transforms[face];
       if (!transform) return false;
       const at = applyIsometry(transform, { x: sheet[0], y: sheet[1] });
-      const cell = scene.subfaces.find((each) => insideConvex(each.polygon, at, 1e-12));
+      const cell = scene.subfaces.find((each, index) => inBox(state.stacks[index]!, at.x, at.y) && insideConvex(each.polygon, at, 1e-12));
       return cell?.faces_top_to_bottom[0] === face;
     });
   };
