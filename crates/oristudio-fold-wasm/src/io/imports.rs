@@ -63,6 +63,12 @@ struct Held {
     /// clockwise on screen from the target's, in (−180, 180]: what every
     /// step it lands stores (`CpJump::turn_deg`).
     turn_deg: f64,
+    /// Whether [`Imports::turn_over`] has turned the import over, after its
+    /// turn: what every step it lands stores (`CpJump::turned_over`). The
+    /// held pattern's own view is never turned over, so the turn stays in
+    /// the terms of the side the import opened on; the stored op turns the
+    /// step over when it lands.
+    turned_over: bool,
 }
 
 /// A held import opened onto the Layer order dialog's faces (row H10): the
@@ -170,6 +176,7 @@ impl Imports {
             session: None,
             layer: None,
             turn_deg: 0.0,
+            turned_over: false,
         });
         Ok(Outcome::Ok(Opened {
             import,
@@ -263,6 +270,7 @@ impl Imports {
                     order_json,
                     origin: held.origin,
                     turn_deg: held.turn_deg,
+                    turned_over: held.turned_over,
                 },
             ),
             Err(refusal) => Ok(Outcome::Refused(refusal.into())),
@@ -275,8 +283,10 @@ impl Imports {
     /// dialog's Rotate, in its opening's `look` terms, which the import's
     /// look reads back. Every step it lands after this stores the turn
     /// (`CpJump::turn_deg`), so the imported step is drawn turned, with no
-    /// rotate step after it. Answers the look it has now. Not opened onto
-    /// the dialog, or a turn that is not a number, is the caller's mistake.
+    /// rotate step after it. Answers the look it has now. An import turned
+    /// over ([`Imports::turn_over`]) turns in the terms of the side it opened
+    /// on, as the dialog's turn is. Not opened onto the dialog, or a turn
+    /// that is not a number, is the caller's mistake.
     pub fn turn(&mut self, import: u32, turn_deg: f64) -> Result<ImportedLook, IoCallError> {
         let held = self
             .held
@@ -293,7 +303,33 @@ impl Imports {
         let by = link.faces.turn_to(&mut held.pattern, turn_deg);
         // Stored to a millionth of a degree, so a turn of whole steps stores whole degrees.
         held.turn_deg = shorter_turn(((held.turn_deg + by) * 1e6).round() / 1e6);
-        Ok(link.faces.look(&held.pattern))
+        Ok(shown_look(link.faces.look(&held.pattern), held.turned_over))
+    }
+
+    /// Turn a held import opened onto the Layer order dialog over, or back,
+    /// so that Fold shows it from the side the dialog's Side left it on
+    /// (row H12): `turned_over`, after its turn, about the display's
+    /// vertical axis, as a turn step would. Every step it lands after stores
+    /// it (`CpJump::turned_over`), so the imported step is drawn turned
+    /// over, with no turn step after it. The turn stays in the terms of the
+    /// side the import opened on, as the dialog's is. Answers the look it
+    /// has now. Not opened onto the dialog is the caller's mistake.
+    pub fn turn_over(
+        &mut self,
+        import: u32,
+        turned_over: bool,
+    ) -> Result<ImportedLook, IoCallError> {
+        let held = self
+            .held
+            .get_mut(&import)
+            .ok_or(IoCallError::UnknownImport(import))?;
+        let link = held.layer.as_ref().ok_or_else(|| {
+            IoCallError::invalid(format!(
+                "import {import} is not open in the Layer order dialog: open it first"
+            ))
+        })?;
+        held.turned_over = turned_over;
+        Ok(shown_look(link.faces.look(&held.pattern), turned_over))
     }
 
     /// Open a held import onto the Layer order dialog (row H10): the fold the
@@ -333,7 +369,7 @@ impl Imports {
             )
             .map_err(|error| EngineError::from(error).code)?
             .ok_or("no_subfaces")?;
-            let look = faces.look(&held.pattern);
+            let look = shown_look(faces.look(&held.pattern), held.turned_over);
             Ok((source, faces, shown, look))
         })();
         Ok(match opened {
@@ -410,6 +446,7 @@ impl Imports {
                     order_json,
                     origin: held.origin,
                     turn_deg: held.turn_deg,
+                    turned_over: held.turned_over,
                 },
             ),
             Err(refusal) => Ok(Outcome::Refused(refusal.into())),
@@ -611,6 +648,16 @@ fn edit_fold_source(cp_json: &str) -> Result<FoldSource, &'static str> {
     kernel
         .fold_source_of_selection(document, &lines, EDIT_STARTING_FACE)
         .map_err(|error| error.code)
+}
+
+/// How Fold shows a held import: its pattern's look, turned over when the
+/// steps it lands are ([`Imports::turn_over`]).
+fn shown_look(look: ImportedLook, turned_over: bool) -> ImportedLook {
+    if turned_over {
+        look.turned_over()
+    } else {
+        look
+    }
 }
 
 /// The face Edit's Fold starts from when no other is chosen.

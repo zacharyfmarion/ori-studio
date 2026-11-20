@@ -365,7 +365,8 @@ const OP_KEYS = new Map<string, ReadonlySet<string>>([
   ['refold', new Set(['kind', 'crease', 'direction', 'moving', 'seed'])],
   ['turn', new Set(['kind', 'axis'])],
   ['rotate', new Set(['kind', 'rotate'])],
-  ['cp-jump', new Set(['kind', 'cpJson', 'orderJson', 'origin', 'source', 'turnDeg'])],
+  // `turnedOver`, which no build before it knew: the dialog's Side on the import.
+  ['cp-jump', new Set(['kind', 'cpJson', 'orderJson', 'origin', 'source', 'turnDeg', 'turnedOver'])],
   // Compound folds (plan D4), one block per family.
   ['inside-reverse', ALONG_LINE_KEYS],
   ['outside-reverse', ALONG_LINE_KEYS],
@@ -510,10 +511,13 @@ function readOp(value: unknown, depth = 0, budget = { remaining: 256 }): FoldOp 
       if (turnDeg !== undefined && (typeof turnDeg !== 'number' || !Number.isFinite(turnDeg) || Math.abs(turnDeg) > 180)) {
         return null;
       }
+      // Its Side: turned over, or left out.
+      const { turnedOver } = value;
+      if (turnedOver !== undefined && typeof turnedOver !== 'boolean') return null;
       return origin && typeof cpJson === 'string' && typeof orderJson === 'string'
         ? { kind, cpJson, orderJson, origin, ...(source ? { source: {
           documentId: source.documentId as string, revision: source.revision as string, ...(region ? { region } : {}),
-        } } : {}), ...(turnDeg ? { turnDeg } : {}) }
+        } } : {}), ...(turnDeg ? { turnDeg } : {}), ...(turnedOver ? { turnedOver: true as const } : {}) }
         : null;
     }
     // Compound folds (plan D4), one block per family.
@@ -1162,6 +1166,7 @@ export function writeFoldOp(op: FoldOp): Record<string, unknown> {
         origin: op.origin,
         ...(op.source ? { source: { ...op.source } } : {}),
         ...(op.turnDeg ? { turnDeg: op.turnDeg } : {}),
+        ...(op.turnedOver ? { turnedOver: true } : {}),
       };
     // Compound folds (plan D4), one block per family.
     case 'inside-reverse':

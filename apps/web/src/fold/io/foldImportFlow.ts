@@ -105,12 +105,19 @@ export interface FoldImportLayerOrderAsk {
  * digest is `digest`); an Apply that changed nothing; Cancel; or no dialog
  * (`fallback`: another one is open, or its code didn't load), and the
  * import keeps its own chooser. Apply carries `turnDeg` when the dialog's
- * Rotate turned the import, in its opening's `look` terms: the step lands
- * turned so.
+ * Rotate turned the import, in its opening's `look` terms, and `turnedOver`
+ * when its Side left it on the other side (row H12): the step lands turned
+ * so, then turned over.
  */
 export type FoldImportLayerOrderAnswer =
-  | { readonly kind: 'applied'; readonly relations: Uint32Array; readonly digest: string; readonly turnDeg?: number }
-  | { readonly kind: 'unchanged'; readonly turnDeg?: number }
+  | {
+      readonly kind: 'applied';
+      readonly relations: Uint32Array;
+      readonly digest: string;
+      readonly turnDeg?: number;
+      readonly turnedOver?: true;
+    }
+  | { readonly kind: 'unchanged'; readonly turnDeg?: number; readonly turnedOver?: true }
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'fallback' };
 
@@ -430,19 +437,21 @@ export function createFoldImportFlow({
   };
 
   /**
-   * A land that turns the held import first, to the dialog's `turnDeg`, on
-   * the same ask: the step it lands stores the turn, so it is drawn turned
-   * with no rotate step after it. As it was with no turn.
+   * A land that first turns the held import to the dialog's `turnDeg`, then
+   * over when its Side left it on the other side (row H12), on the same ask:
+   * the step it lands stores both, so it is drawn as the dialog showed it,
+   * with no rotate or turn step after it. As it was with neither.
    */
-  const turnedFirst = <T>(
+  const shownFirst = <T>(
     import_: Held,
-    turnDeg: number | undefined,
+    { turnDeg, turnedOver }: { readonly turnDeg?: number; readonly turnedOver?: true },
     land: (engine: FoldSessionWorker) => Promise<T>
   ): ((engine: FoldSessionWorker) => Promise<T>) =>
-    turnDeg === undefined
+    turnDeg === undefined && !turnedOver
       ? land
       : async (engine) => {
-          await engine.importTurn(import_.handle, turnDeg);
+          if (turnDeg !== undefined) await engine.importTurn(import_.handle, turnDeg);
+          if (turnedOver) await engine.importTurnOver(import_.handle, true);
           return land(engine);
         };
 
@@ -487,9 +496,9 @@ export function createFoldImportFlow({
         store.setState(IDLE, true);
         return true;
       case 'unchanged': {
-        // The dialog opened on the default choice and Apply kept it, turned as its Rotate left it.
+        // The dialog opened on the default choice and Apply kept it, seen as its Rotate and Side left it.
         store.setState({ phase: 'working', request }, true);
-        const land = turnedFirst(import_, answer.turnDeg, (engine) => engine.importPick(import_.handle, choice));
+        const land = shownFirst(import_, answer, (engine) => engine.importPick(import_.handle, choice));
         await landAndCommit(request, import_, land, mine);
         return true;
       }
@@ -497,7 +506,7 @@ export function createFoldImportFlow({
         store.setState({ phase: 'working', request }, true);
         const { digest, relations } = answer;
         const pick = (engine: FoldSessionWorker) => engine.importPickLayerOrder(import_.handle, digest, relations);
-        await landAndCommit(request, import_, turnedFirst(import_, answer.turnDeg, pick), mine, 'layer_order');
+        await landAndCommit(request, import_, shownFirst(import_, answer, pick), mine, 'layer_order');
         return true;
       }
     }

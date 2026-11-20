@@ -134,6 +134,11 @@ function fakeIo({
         if (!held.has(handle)) throw { code: 'unknown_import', message: 'gone' };
         return { side: 'back' as const, turn_deg: turnDeg };
       },
+      importTurnOver(handle: number, turnedOver: boolean) {
+        calls.push(`importTurnOver:${turnedOver}`);
+        if (!held.has(handle)) throw { code: 'unknown_import', message: 'gone' };
+        return { side: turnedOver ? ('front' as const) : ('back' as const), turn_deg: 0 };
+      },
       importPickLayerOrder(handle: number, digest: string, relations: Uint32Array) {
         calls.push(`importPickLayerOrder:${digest}:${[...relations].join(',')}`);
         const import_ = opened.get(handle);
@@ -569,6 +574,29 @@ describe('Import CP’s order chosen in the Layer order dialog (row H10)', () =>
     expect(flow.store.getState()).toMatchObject({ phase: 'done' });
     expect(io().calls).toEqual(['importCp:after', 'importLayerOpening:0,0', 'importPick:0,0', 'releaseImports:101']);
     expect(source.commits).toEqual([expect.objectContaining({ op: expect.objectContaining({ orderJson: '[0,0]' }) })]);
+  });
+
+  it.each([
+    ['an Apply', { kind: 'applied', relations: PICKED, digest: DIGEST, turnedOver: true }, `importPickLayerOrder:${DIGEST}:3,1,4,1`],
+    ['an Apply that only turned it over', { kind: 'unchanged', turnedOver: true }, 'importPick:0,0'],
+  ] as const)('turns the import over to the dialog’s Side before it lands, so the step itself is stored turned over: %s', async (_what, answer, pick) => {
+    const { choose } = dialog(answer);
+    const { flow, source, io } = setup(sequenceOf([step('a', null)]), 'a', { orders: [3, 2] }, undefined, undefined, choose);
+    await flow.open(FILE);
+    await settle(10);
+    expect(flow.store.getState()).toMatchObject({ phase: 'done' });
+    expect(io().calls).toEqual(['importCp:after', 'importLayerOpening:0,0', 'importTurnOver:true', pick, 'releaseImports:101']);
+    // One step: no turn step after it.
+    expect(source.commits).toHaveLength(1);
+  });
+
+  it('turns first, then over, when the dialog did both', async () => {
+    const { choose } = dialog({ kind: 'unchanged', turnDeg: 45, turnedOver: true });
+    const { flow, io } = setup(sequenceOf([step('a', null)]), 'a', {}, undefined, undefined, choose);
+    await flow.open(SAMPLE);
+    await settle(10);
+    expect(flow.store.getState()).toMatchObject({ phase: 'done' });
+    expect(io().calls).toEqual(['importCp:after', 'importLayerOpening:', 'importTurn:45', 'importTurnOver:true', 'importPick:', 'releaseImports:101']);
   });
 
   it.each([

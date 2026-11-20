@@ -81,6 +81,7 @@ describe('Import CP’s Layer order request', () => {
         foldAngleDisplay: 'opacity',
       },
       shown: SHOWN,
+      takesSide: true,
       name: 'kabuto.fold',
     });
     // Only a file has a name to give.
@@ -107,6 +108,12 @@ describe('Import CP’s answer from the Layer order dialog', () => {
   it.each([
     [{ kind: 'applied', applied } as LayerOrderDialogOutcome, { kind: 'applied', relations, digest: 'fedcba9876543210' }],
     [{ kind: 'unchanged' } as LayerOrderDialogOutcome, { kind: 'unchanged' }],
+    // The dialog says the side only when Side left the folded pane on the other one (row H12).
+    [{ kind: 'unchanged', turnDeg: 30, side: 'front' } as LayerOrderDialogOutcome, { kind: 'unchanged', turnDeg: 30, turnedOver: true }],
+    [
+      { kind: 'applied', applied, side: 'front' } as LayerOrderDialogOutcome,
+      { kind: 'applied', relations, digest: 'fedcba9876543210', turnedOver: true },
+    ],
     [{ kind: 'cancelled' } as LayerOrderDialogOutcome, { kind: 'cancelled' }],
     [{ kind: 'unavailable' } as LayerOrderDialogOutcome, { kind: 'fallback' }],
     [{ kind: 'busy' } as LayerOrderDialogOutcome, { kind: 'fallback' }],

@@ -106,10 +106,21 @@ pub struct CpJump {
     /// before it was.
     #[serde(default, skip_serializing_if = "is_unturned")]
     pub turn_deg: f64,
+    /// Whether the step's view, after [`Self::turn_deg`], is turned over
+    /// about the display's vertical axis, as a turn step turns it: the Layer
+    /// order dialog's Side on the import ([`crate::io::Imports::turn_over`],
+    /// row H12), so no turn step need follow it. False, and left out of the
+    /// op, for not, as every step from before it was.
+    #[serde(default, skip_serializing_if = "is_not_turned_over")]
+    pub turned_over: bool,
 }
 
 fn is_unturned(turn_deg: &f64) -> bool {
     *turn_deg == 0.0
+}
+
+fn is_not_turned_over(turned_over: &bool) -> bool {
+    !*turned_over
 }
 
 /// Where an import lands.
@@ -575,6 +586,7 @@ mod tests {
             order_json: "[]".to_string(),
             origin: CpOrigin::EditFoldedFigure,
             turn_deg: 0.0,
+            turned_over: false,
         });
         assert_eq!(
             serde_json::to_value(&op).unwrap_or_default(),
@@ -593,9 +605,21 @@ mod tests {
             serde_json::to_value(&turned).unwrap_or_default()["turnDeg"],
             json!(-15.0)
         );
+        // A turned-over one says so; one from before the turn-over reads as not.
+        let over = JumpOp::CpJump(CpJump {
+            turned_over: true,
+            ..jump.clone()
+        });
+        assert_eq!(
+            serde_json::to_value(&over).unwrap_or_default()["turnedOver"],
+            json!(true)
+        );
         let before: Result<CpJump, _> =
             serde_json::from_value(json!({ "cpJson": "{}", "orderJson": "[]", "origin": "fold" }));
-        assert_eq!(before.map(|jump| jump.turn_deg).ok(), Some(0.0));
+        assert_eq!(
+            before.map(|jump| (jump.turn_deg, jump.turned_over)).ok(),
+            Some((0.0, false))
+        );
         let target: Target = serde_json::from_value(json!({ "kind": "empty" }))
             .unwrap_or(Target::After { state: 0 });
         assert_eq!(

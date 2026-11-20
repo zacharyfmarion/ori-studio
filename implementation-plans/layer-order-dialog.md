@@ -337,6 +337,7 @@ is built.
 | H6 | **Edit: "Another solution" within constraints** (D9). An in-memory cursor on the host engine, created on the first press, never on selection; the enabled state comes from saved data; `fold solution cycled` with `constrained`. Completes Phase 1 as the spec defines it | M | E6, H3 | – | Store and action tests; Playwright |
 | H10 | **Fold: Import CP chooses its order in the dialog** (added 2026-10-26, your ask after trying the branch: "when importing a CP in the fold workspace, the modal should open and i should choose a layer order that way"). This was spec decision 6, held out of v1; it comes in now. Fold's Import CP (and Collapse from CP and Update from CP, which also import a crease pattern into Fold) opens the Layer order dialog on the imported crease pattern; Apply imports in the chosen order, Cancel cancels the import, and the import withdrawing (Back, a reset) closes the dialog. With a single layer order there is nothing to choose, so the import goes straight through (my call); since 2026-11-20 it opens the dialog too, your ask: "please always show the layer order dialog even when only one layer order (allows for rotating / flipping the imported CP)". `surface: 'fold_import'` | M | U10, H2 | – | Import tests per outcome; the imported state's order equals the dialog's; parity: an import with one order, or with the dialog unavailable, behaves as today; Playwright through the real dialog |
 | H11 | **Rotate in the dialog** (added 2026-10-27, your ask: "Can you add left and right rotate buttons here? I want to be able to rotate the model from here. That rotation should be applied in the edit workspace if it's open from there or the fold workspace if we're importing a crease pattern from there, or the diagram workspace if we're opening it from there."). Rotate Left and Rotate Right after Fit on the folded pane's bar, the Pose controls' icons and words; the crease pattern never turns. Your decisions: **15° a press**; the turn **reaches the host with Apply** (rotating alone enables Apply and answers `unchanged` with the turn, no record written, D16; Cancel discards it); **a Fold import stores the imported step itself at the turn** ("so there doesn't need to be a separate rotate step afterward"): `import_turn` turns the held import, and the `cp-jump` op stores `turnDeg`. The turn is a view action in the model, off the ⌘Z history, like Side and X-ray; `layer order dialog closed` gains `rotated` | M | U10, H3, H5, H7, H8, H10 | – | Reducer and outcome tests; each host's turn and its undo; the engine's turn (crate test, and the stored step replayed over the built bridge); one browser check per host |
+| H12 | **Side turns a Fold import over** (added 2026-11-20, your ask: "please always show the layer order dialog even when only one layer order (allows for rotating / flipping the imported CP)", then "Yes, make Flip work"). Side stays a lens for every host but one that opts in with `takesSide` on its request: Fold's Import CP. For it, an Apply that leaves the folded pane on the other side hands back `side` beside `turnDeg` (`unchanged` when nothing else moved, D16), and the imported step is stored turned over: the `cp-jump` op gains `turnedOver: true`, and its replay turns the view over after its turn, about the display's vertical axis, as a Turn step would. So the step lands as the dialog showed it, with no turn step after it. An older build opens such a sequence read-only (an op key it doesn't know), as for any new op field | S | H10, H11 | – | Reducer: the side only for a host that takes it; the op's spelling and its absence on old steps; the engine's turn-over (crate test, and the stored step replayed over the built bridge); one browser check |
 | **Phase 2: Diagram and Pose** |
 | H7 | **Diagram step.** Capture with a record through H2 and `fold_with_order` (Refresh, Refresh All, Show as, Duplicate, paperFaces); the Diagram's `look` (`diagramScenePaintStyle`, the step's rotation and side, no spread); the Step-pane entry, shown disabled with its reason on a 3D step; the pager stop-gap until H9; the readout and link status show the record's state from saved data, never the engine (not #475's `useFoldLinkContext` pattern); the annotation-carry rule; the `needs-attention` outcome and event | L | E2, H1, H2, U4; U10 for its browser gates | Entry points, attention | `captureFolded` and action tests with the parity guard; a `Worker`-constructor spy: opening a Diagram with constrained steps spawns no worker; Playwright on a linked diagram (Apply, undo, Refresh after an edit, Show as round trip), and the dialog drawn in the Diagram's style |
 | H8 | **Pose.** Pose's `look` (as H7); the source comes from Pose's held fold; Apply replaces the held fold with a `fold_with_order` handle; `FoldKey` and `linkedFoldKey` include the record's digest, and `historyMoved` releases a held fold whose record no longer matches; the `layer-order` pose request (one "Adjust pose"); the toolbar's ‹ › with no readout, each disabled at its end, and "Edit order…"; Pose's keys stand down; Reset Pose keeps the constraints | M | H7 | Entry points | `linkedPose` and `poseController` tests, including Apply → undo → turn over draws the pre-Apply order; Playwright |
@@ -943,13 +944,21 @@ Settled while building H10 (Fold's Import CP):
 - **One order goes straight through,** as it did: the import's own count
   says so for free. A truncated count opens the dialog. *Changed
   2026-11-20 at your ask:* one order opens the dialog too, so the import can
-  be rotated before it lands (H11's Rotate; Side is still a lens and turns
-  nothing over). When the dialog can't take it, one order lands at once as
-  before, with no `busy` toast, since there is no chooser to point at.
+  be rotated, and turned over, before it lands (H11's Rotate, H12's Side).
+  When the dialog can't take it, one order lands at once as before, with no
+  `busy` toast, since there is no chooser to point at.
 - **When the dialog can't take it** (`busy`, `unavailable`, or the engine
   can't match the faces — an unassigned crease Fold folds and Edit doesn't),
   the canvas chooser asks, as before H10; `busy` says so in a toast, and the
   gateway already says why for `unavailable`.
+- **Side on the import (H12, 2026-11-20).** A host opts in with
+  `takesSide`; for it, `applied` and `unchanged` carry `side` when Side left
+  the pane on the other side, and the closed event says `turned_over`. The
+  engine never turns the held import's own view over: its turn stays in the
+  opening side's terms, as the dialog's is, and the landed step stores
+  `turnedOver`, which its replay applies after the turn (a rotate, then a
+  turn step, folded into the one step). Checked in the browser on a corner
+  fold, Back alone and Back with Rotate: Fold lands what the dialog shows.
 - **From the review (#541):**
   - *A host can withdraw its ask:* `openLayerOrderDialog(request, { signal })`
     closes the dialog when the signal aborts, answering `cancelled`. Import
@@ -1136,6 +1145,9 @@ Settled while building H10 (Fold's Import CP):
       ("I want to be able to rotate the model from here"): 15° a press, the
       host takes it with Apply (Cancel discards it), and a Fold import stores
       the imported step at the turn, with no rotate step after it
+- [x] H12: Fold's Import CP opens the dialog for one order too, and its Side
+      turns the import over (your ask 2026-11-20): `takesSide` on the
+      request, `side` on the outcome, `turnedOver` on the `cp-jump` op
 - [x] Deeper stacks: measured; the dialog's own cap is 20 million triples (#542; 4 of the 8 now open). Going further for your hand model (51.4 M, opens in ~35 s): your call 2026-10-26, "is there a way to cancel and a loading state? If so then raise to 60s" — open and restore deadlines to 60 s, the cap just above it, a "Large figures can take up to a minute" line after 5 s (#545)
 - [x] H3a pre-work: `.property-sheet` into a module (#514, no visual change)
 - [x] H3a: Edit's Properties pane (#517)

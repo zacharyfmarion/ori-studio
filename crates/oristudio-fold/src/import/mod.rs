@@ -632,6 +632,15 @@ impl ImportedPattern {
         self.unordered.rotate_view(angle);
     }
 
+    /// Turn the view the import lands in over, about the display's vertical
+    /// axis: the imported step is then seen from its other side, as if a
+    /// turn step followed it, with no step of its own (the Layer order
+    /// dialog's Side on the import, row H12). Only the view turns over; the
+    /// order, the letters and every stored point stay in the model frame.
+    pub fn turn_over_view(&mut self) {
+        self.unordered.turn_over_view();
+    }
+
     /// An input point in sheet coordinates.
     pub fn to_sheet(&self, p: Point) -> Point {
         self.placement.to_sheet(p)

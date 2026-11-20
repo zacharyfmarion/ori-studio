@@ -168,6 +168,13 @@ impl Unordered {
         self.parts.view = self.parts.view.rotated(angle);
     }
 
+    /// Turn the view every state of these parts is seen in over, about the
+    /// display's vertical axis, as a turn step turns it over. Only the view:
+    /// no face, crease, letter or constraint moves.
+    pub(crate) fn turn_over_view(&mut self) {
+        self.parts.view = self.parts.view.turned_over();
+    }
+
     /// The folded creases whose letter the order decides.
     pub fn unknown_letters(&self) -> &BTreeSet<EdgeId> {
         &self.unknown

@@ -322,6 +322,13 @@ export interface FoldCpJumpOp {
    * out for none, as every step from before it.
    */
   turnDeg?: number;
+  /**
+   * The step's view, after `turnDeg`, turned over about the display's
+   * vertical axis, as a turn step turns it: the Layer order dialog's Side
+   * on the import, so no turn step need follow it. Left out for not, as
+   * every step from before it.
+   */
+  turnedOver?: true;
 }
 
 // --- Compound folds (plan D4), one block per family -------------------------

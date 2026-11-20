@@ -12,7 +12,8 @@
  * - **Its look is Fold's**: the shown sequence's paper style through Fold's
  *   policy, from the side Fold shows the state and turned as Fold turns it,
  *   with the crease pattern in Edit's pen, as Fold's crease pattern pane
- *   draws it.
+ *   draws it. Its Rotate and its Side both reach the import (`takesSide`,
+ *   row H12): the step lands turned, and turned over, as the dialog shows it.
  * - **One door.** The dialog is reached through its gateway alone. `applied`
  *   hands the flow the chosen relations and the digest of the faces they
  *   name; `unchanged` and `cancelled` pass through; `busy` and `unavailable`
@@ -99,13 +100,22 @@ export function foldImportLayerOrderRequest(ask: FoldImportLayerOrderAsk, view: 
       foldAngleDisplay: view.foldAngleDisplay,
     },
     shown: opening.shown,
+    // Its Side turns the import over (row H12): the step is stored as the dialog shows it.
+    takesSide: true,
     ...(request.kind === 'file' ? { name: request.name } : {}),
   };
 }
 
-/** The turn an Apply hands back, in the opening's `look` terms, when the dialog's Rotate moved it. */
-function turnOf(outcome: { readonly turnDeg?: number }): { turnDeg?: number } {
-  return outcome.turnDeg === undefined ? {} : { turnDeg: outcome.turnDeg };
+/**
+ * How an Apply leaves the import seen: the turn, in the opening's `look`
+ * terms, when the dialog's Rotate moved it; turned over when its Side left
+ * it on the other side, which the dialog says only then (row H12).
+ */
+function shownOf(outcome: { readonly turnDeg?: number; readonly side?: string }): { turnDeg?: number; turnedOver?: true } {
+  return {
+    ...(outcome.turnDeg === undefined ? {} : { turnDeg: outcome.turnDeg }),
+    ...(outcome.side === undefined ? {} : { turnedOver: true as const }),
+  };
 }
 
 /** The dialog's answer as the import flow acts on it (see the module docs). */
@@ -113,10 +123,10 @@ export function foldImportLayerOrderAnswer(outcome: LayerOrderDialogOutcome): Fo
   switch (outcome.kind) {
     case 'applied': {
       const { relations, source } = outcome.applied;
-      return { kind: 'applied', relations, digest: source.digest, ...turnOf(outcome) };
+      return { kind: 'applied', relations, digest: source.digest, ...shownOf(outcome) };
     }
     case 'unchanged':
-      return { kind: 'unchanged', ...turnOf(outcome) };
+      return { kind: 'unchanged', ...shownOf(outcome) };
     case 'cancelled':
       return { kind: 'cancelled' };
     case 'busy':

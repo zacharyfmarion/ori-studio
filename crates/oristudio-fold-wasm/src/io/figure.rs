@@ -154,6 +154,7 @@ pub fn import_figure(
             order_json: order_json(&state)?,
             origin: CpOrigin::EditFoldedFigure,
             turn_deg: 0.0,
+            turned_over: false,
         };
         Ok((placed, jump))
     })();

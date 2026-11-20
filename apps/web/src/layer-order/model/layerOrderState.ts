@@ -321,7 +321,11 @@ export interface LayerHover {
 }
 
 export interface LayerView {
-  /** Front/Back is a lens: constraints are paper-relative, and Apply never turns the host over. */
+  /**
+   * Front/Back is a lens: constraints are paper-relative, and Apply never
+   * turns the host over, unless the host takes the side
+   * ({@link LayerHostTurn.takesSide}, H12).
+   */
   readonly side: LayerSide;
   readonly xray: boolean;
   readonly openSpots: boolean;
@@ -339,6 +343,8 @@ export interface LayerView {
 export interface LayerHostTurn {
   readonly side: LayerSide;
   readonly deg: number;
+  /** Whether Apply hands the host the side the folded pane shows when it is not {@link side} (`takesSide`, H12). */
+  readonly takesSide: boolean;
 }
 
 /** Which way a press of Rotate turns the folded pane, as seen: Left anticlockwise, Right clockwise. */
@@ -514,9 +520,17 @@ export type LayerOrderEffect =
   /**
    * Apply: hand the host its result (or nothing to write), then close.
    * `turnDeg` is the folded pane's turn in the host's terms when Rotate moved
-   * it from the host's, else null: the host turns its picture to it.
+   * it from the host's, else null: the host turns its picture to it. `side`
+   * is the side the folded pane shows when the host takes it and it is not
+   * the host's, else null: the host turns its picture over to it, after the
+   * turn (H12).
    */
-  | { readonly type: 'apply'; readonly result: LayerOrderApplyResult; readonly turnDeg: number | null }
+  | {
+      readonly type: 'apply';
+      readonly result: LayerOrderApplyResult;
+      readonly turnDeg: number | null;
+      readonly side: LayerSide | null;
+    }
   /** Cancel: close and leave the host untouched. */
   | { readonly type: 'close' }
   | { readonly type: 'track'; readonly fact: LayerOrderFact };
@@ -611,5 +625,7 @@ export interface LayerOrderDialogInit {
   readonly side?: LayerSide;
   /** How far the host turns its picture from that side (`look.turnDeg`). None when left out. */
   readonly turnDeg?: number;
+  /** The host takes the side Side leaves the folded pane on (`LayerOrderRequest.takesSide`, H12). Not when left out. */
+  readonly takesSide?: boolean;
   readonly at: number;
 }
