@@ -726,6 +726,17 @@ describe('erode', () => {
     expect(Number(crease!.x1)).toBeCloseTo(distancePx * ptPerPx + ROOM, 2);
   });
 
+  it('keeps or drops a segment it leaves whole by whether it has a length, as the hypot says', () => {
+    const odd = [0, -0, 1e-320, -1e-320, 1e-160, 3, -7.5, 1e300, Infinity, -Infinity, NaN];
+    for (const x of odd)
+      for (const y of odd)
+        for (const [onBoundary, distance] of [[[false, false], 5], [[true, true], 0], [[false, true], NaN]] as const) {
+          const kept = erodeSegment([0, 0], [x, y], onBoundary, distance);
+          expect(kept === null).toBe(!(Math.hypot(x, y) > 0));
+          if (kept) expect(kept).toEqual([[0, 0], [x, y]]);
+        }
+  });
+
   it('drops a segment the pull would invert', () => {
     // Shorter than twice the pull: the ends would cross the midpoint.
     const short = sceneOf([line('valley', [0, 0], [9, 0], { onBoundary: [true, true] })]);

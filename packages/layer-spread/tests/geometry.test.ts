@@ -14,6 +14,7 @@ import {
   visibleFragments,
   visibleLine,
   createWinner,
+  type Point3,
   type ProjectedSpread,
   type SpreadInput,
   type SpreadSolution,
@@ -109,6 +110,17 @@ describe('connected spread projection', () => {
   });
   it('interpolates inside the rendered triangle rather than over the whole warped face', () => {
     expect(barycentric([0, 0], [1, 0], [0, 1], [0.25, 0.5])).toEqual([0.25, 0.25, 0.5]);
+  });
+  it('interpolates to the last bit, signed zeros included, as summing the corners in order', () => {
+    let seed = 3;
+    const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+    const value = () => [0, -0, 1e-300, -2.5, 1e8 * (random() - 0.5), random() - 0.5][Math.floor(random() * 6)];
+    for (let n = 0; n < 2000; n++) {
+      const positions: Point3[] = Array.from({ length: 3 }, () => [value(), value(), value()]);
+      const weights: Point3 = [value(), value(), value()];
+      const reference = [0, 1, 2].map((axis) => weights.reduce((s, w, k) => s + w * positions[k][axis], 0));
+      interpolate([0, 1, 2], weights, positions).forEach((v, axis) => expect(Object.is(v, reference[axis])).toBe(true));
+    }
   });
 });
 describe('ordering in drawing, picking and vector output', () => {

@@ -154,7 +154,7 @@ export function connectedPaperScene(drawing: ConnectedDrawing, sheet: number, re
       kind: 'face',
       face,
       side: front[face] ? 'front' : 'back',
-      rings: [ring.map((v) => mesh.positions[v]!.slice(0, 2) as ScenePoint)],
+      rings: [ring.map((v): ScenePoint => [mesh.positions[v]![0], mesh.positions[v]![1]])],
       shade: 1,
       hidden: true,
     }),
@@ -164,7 +164,7 @@ export function connectedPaperScene(drawing: ConnectedDrawing, sheet: number, re
     : mesh.triangles.map((ids, triangle) => ({
         triangle,
         face: mesh.triangleFaces[triangle]!,
-        polygon: ids.map((v) => mesh.positions[v]!.slice(0, 2) as ScenePoint),
+        polygon: ids.map((v): ScenePoint => [mesh.positions[v]![0], mesh.positions[v]![1]]),
       }));
   for (const fragment of fragments)
     items.push({
