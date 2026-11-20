@@ -15,7 +15,8 @@ pub const WARP: f64 = 0.05;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Cell {
-    /// Top to bottom, as seen from the canonical front.
+    /// Top to bottom, as seen from the canonical front. Faces near each other
+    /// here are the pairs kept from crossing, so every overlap cell is listed.
     pub faces: Vec<usize>,
     pub point: [f64; 2],
     pub area: f64,
@@ -58,6 +59,9 @@ pub struct Diagnostics {
     pub variables: usize,
     pub constraints: usize,
     pub overlap_regions: usize,
+    /// How many places apart, in a stack, two layers may lie and still be kept
+    /// from crossing by a penalty of their own. 1 on a model too large for more.
+    pub reach: usize,
     pub crossing_weight: f64,
     pub opening_scale: f64,
     pub max_relative_warp: f64,
