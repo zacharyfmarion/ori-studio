@@ -32,8 +32,21 @@
 
 # Everything under /assets/ is content-hashed by the build, so a changed file is a new URL
 # and a cached one can never go stale. Served with a 4-hour max-age without this.
+#
+# But only for browsers. These rules apply by path, so Pages' answer for a file it does not
+# have (index.html at 200; there is no 404.html, see above) gets the same year. Cloudflare's
+# edge in front of oristudio.dev honoured that on 2026-11-19: a request that reached the new
+# entry a second before the deploy did cached index.html as the entry, and every visitor
+# that edge served got a blank page until the zone was purged. Unstamped names (workers,
+# CSS, fonts) recur across deploys, so a name asked for while absent (after a rollback, or
+# before it was ever deployed) would come back poisoned the same way. So the edge stores
+# none of it: `Cloudflare-CDN-Cache-Control` drives Cloudflare's own caching and is not
+# passed on, while browsers still get the year above. Pages serves these from its own cache,
+# as it does on oristudio.pages.dev, which has no zone cache at all. The deploy's ordering
+# (`scripts/assets-first-deploy.mjs`) is the other half, for browsers that race a deploy.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+  Cloudflare-CDN-Cache-Control: no-store
 
 # The Diagram's CJK fonts. The desktop app ships only the common files and reads a full
 # one from here when a text needs it (src/diagram/fonts/browserFontSource.ts), so it must
