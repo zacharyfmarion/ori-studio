@@ -244,7 +244,9 @@ export function meshSpreadGeometry(scene: ConnectedPaperScene, effective: PaperS
       if (!pen) continue;
       const eroded = ends[endsAt++];
       if (!eroded) continue;
-      const [from, to] = eroded;
+      // Read by index: WebKit runs a destructuring through the iterator, which left its optimized code every frame.
+      const from = eroded[0],
+        to = eroded[1];
       const s = strokeAt[item.face]!++;
       a[2 * s] = from[0];
       a[2 * s + 1] = from[1];

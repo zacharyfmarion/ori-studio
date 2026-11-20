@@ -97,36 +97,35 @@ export function connectedDrawing(
   const scale = Math.hypot(basis[0] - origin[0], basis[1] - origin[1]);
   // Lifted paper keeps its size: faces draw shortened along their slope.
   const placed = shiftedXY(input, solution, spread.amount, back);
-  const positions: Point3[] = input.xy.map(([x, y], v) => {
+  // Indexed loops through a frame's drawing: WebKit's optimized code left a
+  // per-frame `map`, `for…of` or destructuring at its end, every frame.
+  const positions: Point3[] = [];
+  for (let v = 0; v < input.xy.length; v++) {
+    const x = input.xy[v]![0],
+      y = input.xy[v]![1];
     const p = toScenePx(scenePoint(source, placed[v]!));
     const z = solution.heights[v]!;
     const h = spread.amount * (z - reference[0] * x - reference[1] * y - reference[2]) * scale;
     // A screen drag pulls the near side; layers behind reveal oppositely.
     const side = back ? -1 : 1;
-    return [p[0] + side * spread.reveal[0] * h, p[1] + side * spread.reveal[1] * h, side * spread.amount * z * scale];
-  });
+    positions.push([p[0] + side * spread.reveal[0] * h, p[1] + side * spread.reveal[1] * h, side * spread.amount * z * scale]);
+  }
   const mesh: ProjectedSpread = {
     positions,
     triangles: input.triangles,
     triangleFaces: input.triangleFaces,
     visibility: connectedPoseVisibility(source, positions),
   };
-  const ink: ConnectedInk[] = preparedInk(source, baseInk).map((edge) => {
+  const pieces = preparedInk(source, baseInk);
+  const ink: ConnectedInk[] = [];
+  for (let i = 0; i < pieces.length; i++) {
+    const edge = pieces[i]!;
     const a = interpolate(edge.ids, edge.a, positions),
       b = interpolate(edge.ids, edge.b, positions);
     const whole = edge.line.whole;
-    // A crease end this face holds is drawn where the face puts it. One in
-    // another face lies on this piece's own drawn line, at the piece's share
-    // of the crease, so the crease still erodes along the piece.
-    const creaseEnd = (sample: typeof edge.wholeA, at: 0 | 1): Point3 | null => {
-      if (sample) return interpolate(sample.ids, sample.weights, positions);
-      if (!edge.span || edge.span[0] === edge.span[1]) return null;
-      const t = (at - edge.span[0]) / (edge.span[1] - edge.span[0]);
-      return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])];
-    };
-    const wa = whole ? creaseEnd(edge.wholeA, 0) : null;
-    const wb = whole ? creaseEnd(edge.wholeB, 1) : null;
-    return {
+    const wa = whole ? creaseEnd(edge, edge.wholeA, 0, a, b, positions) : null;
+    const wb = whole ? creaseEnd(edge, edge.wholeB, 1, a, b, positions) : null;
+    ink.push({
       face: edge.face,
       a,
       b,
@@ -139,44 +138,59 @@ export function connectedDrawing(
         // Never the ink's own `whole`: it is in the fold's coordinates, not the picture's.
         whole: whole && wa && wb ? { ...whole, a: [wa[0], wa[1]], b: [wb[0], wb[1]] } : undefined,
       },
-    };
-  });
-  return { mesh, rings: input.faces, front: kernel.faces.map((f) => f.front_up), ink };
+    });
+  }
+  const front: boolean[] = [];
+  for (let f = 0; f < kernel.faces.length; f++) front.push(kernel.faces[f]!.front_up);
+  return { mesh, rings: input.faces, front, ink };
+}
+
+/**
+ * A crease end this face holds is drawn where the face puts it. One in
+ * another face lies on this piece's own drawn line, at the piece's share of
+ * the crease, so the crease still erodes along the piece.
+ */
+function creaseEnd(
+  edge: ReturnType<typeof preparedInk>[number],
+  sample: ReturnType<typeof preparedInk>[number]['wholeA'],
+  at: 0 | 1,
+  a: Point3,
+  b: Point3,
+  positions: readonly Point3[],
+): Point3 | null {
+  if (sample) return interpolate(sample.ids, sample.weights, positions);
+  if (!edge.span || edge.span[0] === edge.span[1]) return null;
+  const t = (at - edge.span[0]) / (edge.span[1] - edge.span[0]);
+  return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])];
 }
 
 export function connectedPaperScene(drawing: ConnectedDrawing, sheet: number, resolved = false): PaperScene {
   const { mesh, front, ink } = drawing;
+  const { positions } = mesh;
   const items: PaperItem[] = [];
+  const point = (v: number): ScenePoint => [positions[v]![0], positions[v]![1]];
   // The first item for a material face is its whole ring. Stored annotation
   // anchors and buried-face marks use it; it contributes no visible ink.
-  drawing.rings.forEach((ring, face) =>
-    items.push({
-      kind: 'face',
-      face,
-      side: front[face] ? 'front' : 'back',
-      rings: [ring.map((v): ScenePoint => [mesh.positions[v]![0], mesh.positions[v]![1]])],
-      shade: 1,
-      hidden: true,
-    }),
-  );
-  const fragments = resolved
-    ? visibleFragments(mesh)
-    : mesh.triangles.map((ids, triangle) => ({
-        triangle,
-        face: mesh.triangleFaces[triangle]!,
-        polygon: ids.map((v): ScenePoint => [mesh.positions[v]![0], mesh.positions[v]![1]]),
-      }));
-  for (const fragment of fragments)
-    items.push({
-      kind: 'face',
-      face: fragment.face,
-      side: front[fragment.face] ? 'front' : 'back',
-      rings: [fragment.polygon],
-      shade: 1,
-      hidden: false,
-    });
+  for (let face = 0; face < drawing.rings.length; face++) {
+    const ring = drawing.rings[face]!;
+    const outline: ScenePoint[] = [];
+    for (let k = 0; k < ring.length; k++) outline.push(point(ring[k]!));
+    items.push({ kind: 'face', face, side: front[face] ? 'front' : 'back', rings: [outline], shade: 1, hidden: true });
+  }
+  // A live picture's pieces are its triangles; a resolved one's, what shows of them.
+  if (resolved)
+    for (const fragment of visibleFragments(mesh))
+      items.push({ kind: 'face', face: fragment.face, side: front[fragment.face] ? 'front' : 'back', rings: [fragment.polygon], shade: 1, hidden: false });
+  else
+    for (let t = 0; t < mesh.triangles.length; t++) {
+      const ids = mesh.triangles[t]!,
+        face = mesh.triangleFaces[t]!;
+      const piece = [point(ids[0]), point(ids[1]), point(ids[2])];
+      items.push({ kind: 'face', face, side: front[face] ? 'front' : 'back', rings: [piece], shade: 1, hidden: false });
+    }
   const clipLine = resolved ? createLineClipper(mesh) : null;
-  for (const edge of ink) {
+  for (let i = 0; i < ink.length; i++) {
+    const edge = ink[i]!;
     if (!clipLine) {
       items.push(edge.line);
       continue;
@@ -196,7 +210,8 @@ export function connectedPaperScene(drawing: ConnectedDrawing, sheet: number, re
     }
   }
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-  for (const p of mesh.positions) {
+  for (let v = 0; v < positions.length; v++) {
+    const p = positions[v]!;
     bounds.minX = Math.min(bounds.minX, p[0]);
     bounds.minY = Math.min(bounds.minY, p[1]);
     bounds.maxX = Math.max(bounds.maxX, p[0]);
