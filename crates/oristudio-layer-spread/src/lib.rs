@@ -3,6 +3,7 @@
 mod inplane;
 mod prepare;
 mod qp;
+mod reach;
 mod reference;
 pub mod spatial;
 
