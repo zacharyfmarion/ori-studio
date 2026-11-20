@@ -184,8 +184,9 @@
  */
 
 import {
+  isHtmlResponse,
   isShellResponse,
-  isStorableResponse,
+  isStorableSubresource,
   isWarmablePath,
   routeRequest,
   shellEntryPath,
@@ -274,14 +275,48 @@ async function put(cache: Cache, key: RequestInfo, response: Response): Promise<
 async function storeAll(paths: readonly string[]): Promise<void> {
   const cache = await caches.open(CACHE_NAME);
   for (const path of paths) {
-    if (await cache.match(path)) continue;
-    const response = await fetch(path, { cache: 'force-cache' });
-    // The shell is the one entry whose *kind* matters: a redirect or an error
-    // page stored under `/` would be replayed to every offline navigation.
-    if (path === SHELL_KEY ? isShellResponse(response) : isStorableResponse(response)) {
-      await put(cache, path, response);
+    if (path === SHELL_KEY) {
+      if (await cache.match(path)) continue;
+      const response = await fetch(path, { cache: 'force-cache' });
+      // A redirect or an error page stored under `/` would be replayed to every
+      // offline navigation.
+      if (isShellResponse(response)) await put(cache, path, response);
+      continue;
     }
+    if (await storedSubresource(cache, path)) continue;
+    const response = await fetchSubresource(path, { cache: 'force-cache' });
+    if (isStorableSubresource(response)) await put(cache, path, response);
   }
+}
+
+/**
+ * The stored copy of anything but the shell, or nothing. A copy that is HTML was
+ * stored by a worker from before `isStorableSubresource` existed: it is dropped
+ * rather than replayed, so a browser holding one recovers on its next load
+ * instead of on the next deploy.
+ */
+async function storedSubresource(
+  cache: Cache,
+  request: RequestInfo
+): Promise<Response | undefined> {
+  const hit = await cache.match(request);
+  if (!hit || !isHtmlResponse(hit)) return hit;
+  await cache.delete(request);
+  return undefined;
+}
+
+/**
+ * Fetch anything but the shell. An HTML answer is Pages' SPA fallback (see
+ * `isHtmlResponse`), and it may be the browser's HTTP cache answering, not the
+ * network: the fallback arrives with the one-year header `/assets/*` carries, so
+ * the browser keeps it long after the network has the real file. So ask once
+ * more, past that cache. What comes back goes to the page either way, and is
+ * stored only if it is not HTML.
+ */
+async function fetchSubresource(request: RequestInfo, init?: RequestInit): Promise<Response> {
+  const response = await fetch(request, init);
+  if (!isHtmlResponse(response)) return response;
+  return fetch(request, { ...init, cache: 'reload' });
 }
 
 /** One warm per set per worker lifetime, in flight or finished. */
@@ -345,7 +380,7 @@ async function shellFirst(request: Request): Promise<Response> {
     // is returned has to be the cached `Response`, headers and all.
     if (shell) {
       const html = await shell.clone().text();
-      if (await cache.match(shellEntryPath(html, manifest.entry))) return shell;
+      if (await storedSubresource(cache, shellEntryPath(html, manifest.entry))) return shell;
     }
     // Rethrow so the browser shows its offline page. A hand-written one would
     // be the `new Response` trap in invariant 1.
@@ -356,10 +391,10 @@ async function shellFirst(request: Request): Promise<Response> {
 /** Cache first. Sound only for content-hashed names, which is where it is used. */
 async function cacheFirst(request: Request): Promise<Response> {
   const cache = await caches.open(CACHE_NAME);
-  const hit = await cache.match(request);
+  const hit = await storedSubresource(cache, request);
   if (hit) return hit;
-  const response = await fetch(request);
-  if (isStorableResponse(response)) {
+  const response = await fetchSubresource(request);
+  if (isStorableSubresource(response)) {
     const copy = response.clone();
     void put(cache, request, copy);
   }
@@ -373,9 +408,9 @@ async function cacheFirst(request: Request): Promise<Response> {
  */
 async function staleWhileRevalidate(event: FetchEventLike): Promise<Response> {
   const cache = await caches.open(CACHE_NAME);
-  const hit = await cache.match(event.request);
-  const update = fetch(event.request).then(async (response) => {
-    if (isStorableResponse(response)) await put(cache, event.request, response.clone());
+  const hit = await storedSubresource(cache, event.request);
+  const update = fetchSubresource(event.request).then(async (response) => {
+    if (isStorableSubresource(response)) await put(cache, event.request, response.clone());
     return response;
   });
   if (!hit) return update;
