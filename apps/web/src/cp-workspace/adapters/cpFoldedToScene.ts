@@ -341,7 +341,7 @@ function pointInRing(ring: readonly Point[], point: Point): boolean {
  * program's {@link MAX_DASH_SLOTS} are taken. One geometry carries one table,
  * so every figure on the channel shares this one.
  */
-class DashTable {
+export class DashTable {
   readonly patterns: number[][] = [];
   private readonly slots = new Map<string, number>();
 
@@ -842,7 +842,7 @@ export function foldedSceneLocalGeometry(
   // Per role, once: a dense scene is thousands of lines in a handful of pens.
   const inks = new Map<PaperLineRole, LineInk | null>();
   const inkOf = (role: PaperLineRole): LineInk | null => {
-    if (!inks.has(role)) inks.set(role, lineInk(penForRole(style, role), builder));
+    if (!inks.has(role)) inks.set(role, lineInk(penForRole(style, role), builder.dashes));
     return inks.get(role) ?? null;
   };
   const stroke = (line: PaperLineItem): void => {
@@ -923,7 +923,7 @@ export function paperSceneToFoldedGeometry(
 }
 
 /** How the scene's lines in one role are stroked: the pen's ink, and its dash. */
-interface LineInk {
+export interface LineInk {
   color: Rgba;
   /** pt: a stroke multiplier over a frame's device px per pt. */
   width: number;
@@ -935,7 +935,7 @@ interface LineInk {
 
 /**
  * A role's pen as the folded channel strokes it, or null for a role the style
- * leaves out; a dash takes a slot in `builder`'s table.
+ * leaves out; a dash takes a slot in `dashes`, the geometry's table.
  *
  * The painter centres each line's pattern on it (`centredDashOffset`): the
  * middle of the first run lands on the line's midpoint. The program measures
@@ -948,7 +948,7 @@ interface LineInk {
  * runs for the program to take one more pair goes over as it is, from each
  * line's start, as every other surface's dashes are drawn.
  */
-function lineInk(pen: Pen | null, builder: FoldedBuilder): LineInk | null {
+export function lineInk(pen: Pen | null, dashes: DashTable): LineInk | null {
   if (!pen) return null;
   const solid = { color: rgbaOf(pen.color, 1), width: pen.width, slot: 0, centred: false };
   const runsPt = penDashPt(pen);
@@ -961,11 +961,11 @@ function lineInk(pen: Pen | null, builder: FoldedBuilder): LineInk | null {
   const half = runs[0]! / 2;
   const centred = [half, ...runs.slice(1), half, 0];
   const fits = centred.length <= MAX_DASH_RUNS * 2;
-  return { ...solid, slot: builder.dashes.slot(fits ? centred : runs), centred: fits };
+  return { ...solid, slot: dashes.slot(fits ? centred : runs), centred: fits };
 }
 
 /** A face's fill: its paper, under the override's tint, at the override's alpha or every face's. */
-function faceFill(paper: Hex, faceAlpha: number, override: FoldedFaceInk | undefined): Rgba {
+export function faceFill(paper: Hex, faceAlpha: number, override: FoldedFaceInk | undefined): Rgba {
   const [r, g, b] = hexToUnitRgb(paper);
   const alpha = unit(override?.alpha ?? faceAlpha);
   const tint = override?.tint;
