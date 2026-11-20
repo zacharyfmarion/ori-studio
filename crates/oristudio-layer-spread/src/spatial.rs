@@ -3,6 +3,7 @@
 use crate::{
     SpreadError,
     prepare::{Row, Sample, row, value},
+    reach::Reach,
 };
 use clarabel::{algebra::CscMatrix, solver::*};
 use nalgebra::{Matrix3, Vector3};
@@ -42,6 +43,10 @@ pub struct Solution {
     pub mean_gap: f64,
     pub max_order_violation: f64,
     pub status: String,
+    /// How many places apart, in a stack, two layers may lie and still be kept
+    /// from crossing by a penalty of their own. 1 on a model too large for more.
+    #[serde(default)]
+    pub reach: usize,
 }
 
 fn invalid(s: &str) -> SpreadError {
@@ -110,7 +115,16 @@ impl Problem {
     }
 }
 
-fn samples(input: &Input) -> Result<(Vec<Sample>, Crossings), SpreadError> {
+struct Samples {
+    gaps: Vec<Sample>,
+    crossings: Crossings,
+    /// Overlap area of the ordered pairs that got no crossing penalty.
+    unpenalized: f64,
+}
+
+/// Gap targets between neighbours, and crossing penalties between the layers
+/// each cell stacks within `reach` of each other.
+fn samples(input: &Input, reach: Reach, max_work: usize) -> Result<Samples, SpreadError> {
     let mut face_triangles = vec![Vec::new(); input.faces.len()];
     for (t, &f) in input.triangle_faces.iter().enumerate() {
         face_triangles[f].push(t);
@@ -120,6 +134,7 @@ fn samples(input: &Input) -> Result<(Vec<Sample>, Crossings), SpreadError> {
     }
     let mut gaps = Vec::new();
     let mut crossings = CrossingAccumulator::default();
+    let mut unpenalized = 0.;
     let mut work = 0usize;
     for cell in &input.cells {
         let n = cell.normal;
@@ -154,7 +169,7 @@ fn samples(input: &Input) -> Result<(Vec<Sample>, Crossings), SpreadError> {
         for &f in &cell.faces {
             for &t in &face_triangles[f] {
                 work += 1;
-                if work > 2_000_000 {
+                if work > max_work {
                     return Err(SpreadError::Limit("spatial triangle preparation"));
                 }
                 let ids = input.triangles[t];
@@ -165,74 +180,88 @@ fn samples(input: &Input) -> Result<(Vec<Sample>, Crossings), SpreadError> {
                 triangles.insert(t, (convex::normalize(&[a, b, c]), inverse));
             }
         }
-        for i in 0..cell.faces.len() {
-            for j in i + 1..cell.faces.len() {
-                for &upper in &face_triangles[cell.faces[i]] {
-                    for &lower in &face_triangles[cell.faces[j]] {
+        // Every face of the stack covers the cell, so each pair left without
+        // a penalty overlaps in the cell's whole area.
+        unpenalized +=
+            reach.unpenalized(cell.faces.len()) as f64 * convex::signed_area(&support).abs();
+        for (i, j) in reach.pairs(cell.faces.len()) {
+            for &upper in &face_triangles[cell.faces[i]] {
+                for &lower in &face_triangles[cell.faces[j]] {
+                    work += 1;
+                    if work > max_work {
+                        return Err(SpreadError::Limit("spatial overlap pairs"));
+                    }
+                    let (up, ui) = &triangles[&upper];
+                    let (lo, li) = &triangles[&lower];
+                    if !convex::boxes_overlap(
+                        &convex::bounding_box(up),
+                        &convex::bounding_box(lo),
+                        0.,
+                    ) {
+                        continue;
+                    }
+                    let overlap = convex::clip(&convex::clip(up, lo), &support);
+                    let area = convex::signed_area(&overlap);
+                    if area < 1e-12 {
+                        continue;
+                    }
+                    let gap = |p: [f64; 2]| {
+                        let h = Vector3::new(p[0], p[1], 1.);
+                        let uw = ui * h;
+                        let lw = li * h;
+                        row([(upper, uw, 1.), (lower, lw, -1.)].into_iter().flat_map(
+                            |(t, w, s)| {
+                                input.triangles[t].into_iter().enumerate().flat_map(
+                                    move |(k, id)| {
+                                        (0..3).map(move |a| (3 * id + a, s * w[k] * n[a]))
+                                    },
+                                )
+                            },
+                        ))
+                    };
+                    if j == i + 1
+                        && let Some(center) = convex::centroid(&overlap)
+                    {
+                        gaps.push(Sample {
+                            row: gap(center),
+                            weight: area,
+                        });
+                        if gaps.len() > 100_000 {
+                            return Err(SpreadError::Limit("spatial gap samples"));
+                        }
+                    }
+                    for &point in &overlap {
+                        // Compaction bounds retained memory; this separately
+                        // bounds raw work even when every row is a duplicate.
                         work += 1;
-                        if work > 2_000_000 {
-                            return Err(SpreadError::Limit("spatial overlap pairs"));
+                        if work > max_work {
+                            return Err(SpreadError::Limit("spatial overlap samples"));
                         }
-                        let (up, ui) = &triangles[&upper];
-                        let (lo, li) = &triangles[&lower];
-                        if !convex::boxes_overlap(
-                            &convex::bounding_box(up),
-                            &convex::bounding_box(lo),
-                            0.,
-                        ) {
-                            continue;
-                        }
-                        let overlap = convex::clip(&convex::clip(up, lo), &support);
-                        let area = convex::signed_area(&overlap);
-                        if area < 1e-12 {
-                            continue;
-                        }
-                        let gap = |p: [f64; 2]| {
-                            let h = Vector3::new(p[0], p[1], 1.);
-                            let uw = ui * h;
-                            let lw = li * h;
-                            row([(upper, uw, 1.), (lower, lw, -1.)].into_iter().flat_map(
-                                |(t, w, s)| {
-                                    input.triangles[t].into_iter().enumerate().flat_map(
-                                        move |(k, id)| {
-                                            (0..3).map(move |a| (3 * id + a, s * w[k] * n[a]))
-                                        },
-                                    )
-                                },
-                            ))
-                        };
-                        if j == i + 1
-                            && let Some(center) = convex::centroid(&overlap)
-                        {
-                            gaps.push(Sample {
-                                row: gap(center),
-                                weight: area,
-                            });
-                            if gaps.len() > 100_000 {
-                                return Err(SpreadError::Limit("spatial gap samples"));
-                            }
-                        }
-                        for &point in &overlap {
-                            // Compaction bounds retained memory; this separately
-                            // bounds raw work even when every row is a duplicate.
-                            work += 1;
-                            if work > 2_000_000 {
-                                return Err(SpreadError::Limit("spatial overlap samples"));
-                            }
-                            crossings.push(Sample {
-                                row: gap(point),
-                                weight: area / overlap.len() as f64,
-                            })?;
-                        }
+                        crossings.push(Sample {
+                            row: gap(point),
+                            weight: area / overlap.len() as f64,
+                        })?;
                     }
                 }
             }
         }
     }
-    Ok((gaps, crossings.finish()))
+    Ok(Samples {
+        gaps,
+        crossings: crossings.finish(),
+        unpenalized,
+    })
 }
 
+/// Triangles, triangle pairs and overlap corners one preparation may visit.
+const MAX_WORK: usize = 2_000_000;
+
 pub fn solve(input: &Input) -> Result<Solution, SpreadError> {
+    solve_within(input, MAX_WORK)
+}
+
+/// `solve`, for a preparation that may visit `max_work` pieces.
+fn solve_within(input: &Input, max_work: usize) -> Result<Solution, SpreadError> {
     let nv = input.positions.len();
     let nf = input.faces.len();
     if nv > 10_000 || nf > 5_000 || input.triangles.len() > 20_000 || input.cells.len() > 40_000 {
@@ -260,12 +289,22 @@ pub fn solve(input: &Input) -> Result<Solution, SpreadError> {
     {
         return Err(invalid("spatial topology"));
     }
-    let (gaps, crossings) = samples(input)?;
-    let Crossings {
-        samples: crossings,
-        total_weight: crossing_mass,
-        rounding_gap_bound,
-    } = crossings;
+    // A model with too many near pairs to solve keeps the layers that touch.
+    let (reach, prepared) = Reach::widest(
+        |reach| samples(input, reach, max_work).map(|prepared| (reach, prepared)),
+        |error| matches!(error, SpreadError::Limit(_)),
+    )?;
+    let Samples {
+        gaps,
+        crossings:
+            Crossings {
+                samples: crossings,
+                total_weight: penalized,
+                rounding_gap_bound,
+            },
+        unpenalized,
+    } = prepared;
+    let crossing_mass = reach.mass(penalized, penalized + unpenalized);
     if gaps.is_empty() {
         return Ok(Solution {
             version: VERSION.into(),
@@ -274,6 +313,7 @@ pub fn solve(input: &Input) -> Result<Solution, SpreadError> {
             mean_gap: 0.,
             max_order_violation: 0.,
             status: "no-stacks".into(),
+            reach: reach.places(),
         });
     }
     let mut groups = BTreeMap::<usize, Vec<usize>>::new();
@@ -438,5 +478,83 @@ pub fn solve(input: &Input) -> Result<Solution, SpreadError> {
             .fold(0., f64::max)
             + rounding_gap_bound,
         status: format!("{:?}", result.status),
+        reach: reach.places(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `layers` loose coincident triangles in one cell, face 0 on top.
+    fn stack(layers: usize) -> Input {
+        let ring = vec![[-1., -1., 0.], [1., -1., 0.], [0., 1., 0.]];
+        Input {
+            positions: (0..layers).flat_map(|_| ring.clone()).collect(),
+            faces: (0..layers)
+                .map(|f| vec![3 * f, 3 * f + 1, 3 * f + 2])
+                .collect(),
+            triangles: (0..layers).map(|f| [3 * f, 3 * f + 1, 3 * f + 2]).collect(),
+            triangle_faces: (0..layers).collect(),
+            groups: (0..layers).collect(),
+            cells: vec![Cell {
+                ring,
+                faces: (0..layers).collect(),
+                normal: [0., 0., 1.],
+            }],
+        }
+    }
+
+    /// Every layer above every layer below it, at each corner, along the normal.
+    fn in_order(solution: &Solution, layers: usize) -> bool {
+        (0..layers).all(|upper| {
+            (upper + 1..layers).all(|lower| {
+                (0..3).all(|corner| {
+                    solution.displacements[3 * upper + corner][2]
+                        > solution.displacements[3 * lower + corner][2]
+                })
+            })
+        })
+    }
+
+    // Thirty layers: 204 pairs lie within eight places, 29 touch, 435 overlap.
+    // A preparation visits each triangle once, then a pair and its three corners.
+    const NEAR_WORK: usize = 30 + 4 * 204;
+    const TOUCHING_WORK: usize = 30 + 4 * 29;
+
+    #[test]
+    fn layers_far_apart_stay_in_order_without_a_penalty_of_their_own() {
+        let input = stack(30);
+        let prepared = samples(&input, Reach::Near, NEAR_WORK).unwrap();
+        // Coincident triangles share their corner rows across the cell.
+        assert_eq!(prepared.crossings.samples.len(), 3 * 204);
+        // The 231 pairs out of reach each overlap in the cell's two units.
+        assert!((prepared.unpenalized - 231. * 2.).abs() < 1e-9);
+        assert!((prepared.crossings.total_weight - 204. * 2.).abs() < 1e-9);
+        let solution = solve_within(&input, NEAR_WORK).unwrap();
+        assert_eq!(solution.reach, 8);
+        assert!(in_order(&solution, 30));
+    }
+
+    #[test]
+    fn too_many_near_pairs_fall_back_to_the_layers_that_touch() {
+        let input = stack(30);
+        let solution = solve_within(&input, NEAR_WORK - 1).unwrap();
+        assert_eq!(solution.reach, 1);
+        assert!(in_order(&solution, 30));
+        assert_eq!(solve_within(&input, TOUCHING_WORK).unwrap().reach, 1);
+        assert!(matches!(
+            solve_within(&input, TOUCHING_WORK - 1),
+            Err(SpreadError::Limit(_))
+        ));
+    }
+
+    #[test]
+    fn a_stack_within_reach_is_prepared_as_it_always_was() {
+        // Nine layers: every pair is within eight places, so nothing is left
+        // out and the weight is the penalized overlap alone.
+        let prepared = samples(&stack(9), Reach::Near, MAX_WORK).unwrap();
+        assert_eq!(prepared.unpenalized, 0.);
+        assert_eq!(prepared.crossings.samples.len(), 3 * 36);
+    }
 }

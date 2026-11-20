@@ -74,11 +74,52 @@ or 1).
 No corpus model needs the fallback: the largest has 158,419 near-pair regions,
 and 32,908 at reach 1.
 
+### 5. The 3D spread shares the rule
+
+The 3D (spatial) solve penalised every pair of each cell's stack too. Both
+solves now take the rule from one module, `reach.rs`: which places of a stack
+are penalised (`Reach::pairs`), what the penalties are weighed against
+(`Reach::mass`), and the fallback from near layers to touching ones
+(`Reach::widest`).
+
+In 3D the pairs are per cell, so the rule is exact there: a pair left out has
+eight faces between it over the whole cell. Every face of a cell's stack covers
+the cell, so each pair left out overlaps in the cell's area, and the weight
+adds that area back. A stack up to nine deep leaves nothing out and is prepared
+exactly as before.
+
+The 3D fallback is taken on any of its preparation limits (2,000,000 visits,
+100,000 distinct crossing rows).
+
+Results on the non-flat test corpus (14 models that fold; release wasm, one
+model per process). "Moved" is the largest change in any vertex's displacement,
+as a share of the model's largest displacement. Order violation is measured
+against every ordered pair.
+
+| Model | Deepest stack | Before | After | Moved | RMS order violation |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Tortoise, 1,242 faces | 55 | 2.0 s, 95 MB | 1.35 s, 71 MB | 1.1% | 5.0e-5 → 5.2e-5 |
+| Hex head 2, 122 faces | 76 | 2.8 s, 78 MB | 0.7 s, 27 MB | 0.7% | 3.8e-5 → 3.9e-5 |
+| Pangolin, 365 faces | 26 | 0.59 s, 32 MB | 0.55 s, 29 MB | 0.3% | 9.9e-5 → 1.0e-4 |
+| Stick on a floor, 519 faces | 131 | refused | 2.2 s, 79 MB | — | — |
+| Two penguins | 12, 14 | 0.11 s | 0.11 s | under 0.003% | unchanged |
+| The other eight | 7 or less | — | — | 0, bit for bit | unchanged |
+
+In the live 3D view at 100% spread, 900 pixels square, 905 pixels of the
+Tortoise differ (0.11%), 333 of Hex head 2 and 96 of the Pangolin. With every
+pair penalised the new code gives the old displacements bit for bit on the 12
+models with stacks that the old solve accepted.
+
+Most 3D models are shallow, so most see no change; the gain is on the few deep
+ones. "Stick on a floor" was refused for too many crossing rows and now spreads
+at the default reach. Its vector capture still runs out its 12 s and falls back
+to a bitmap, as any model too dense to clip in time does.
+
 ### Not changed
 
 - The input format, the gap objective, planarity, slope and warp limits, the
   reference planes and the in-plane shift.
-- The 3D (spatial) spread.
+- The 3D spread's version, input format, limits and worker lifetime.
 - The flat worker's lifetime. Peak memory falls with the problem size, so
   recycling the worker (as the 3D spread does) is left for when it is needed.
 - The solution's `version`. Heights move by less than a picture shows (below).
@@ -135,8 +176,13 @@ lifted (it ran out its 12 s), so they have no "before" to compare with.
   guard; unit tests of the fallback against a small cap.
 - `crates/oristudio-layer-spread/src/qp.rs`: the slack row, the weight's
   denominator, the crossing diagnostic's.
-- `crates/oristudio-layer-spread/src/lib.rs`, `packages/layer-spread/src/types.ts`:
-  the `reach` diagnostic.
+- `crates/oristudio-layer-spread/src/reach.rs`: the rule both solves share.
+- `crates/oristudio-layer-spread/src/spatial.rs`: near pairs per cell, the
+  weight of the pairs left out, the fallback; unit tests against a small
+  budget.
+- `crates/oristudio-layer-spread/src/lib.rs`, `packages/layer-spread/src/types.ts`,
+  `apps/web/src/cp-workspace/folded/folded3dMaterial.ts`: the `reach`
+  diagnostic of each solve.
 - `crates/oristudio-layer-spread/tests/solve.rs`: deep stacks, far pairs, a
   pair near in one cell only, a stack over the old cap.
 - `apps/web/src/generated/oristudio-layer-spread-wasm` (build output).
@@ -158,3 +204,10 @@ lifted (it ran out its 12 s), so they have no "before" to compare with.
 - [x] In the app: the trigger model opens, folds and spreads by Default in
       about 5 s, where it was refused.
 - [x] Owner's call (2026-11-19): reach 8 by default, reach 1 as the fallback.
+- [x] The 3D solve on the same rule, through a shared module; 34 crate tests.
+- [x] 3D before and after: displacements and order violations on the non-flat
+      corpus, live-view renders of the four deepest models (git-ignored
+      `artifacts/spread-touching-pairs/spread-3d-before-after.html`).
+- [x] `scripts/layer-spread/spatial/check-production.mjs --examples` (14
+      rendering cases; seven models, 84 captures, picking against GPU face
+      ids) and `--model tortoise` (12 captures) pass on the new solve.

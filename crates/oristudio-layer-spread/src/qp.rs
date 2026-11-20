@@ -300,7 +300,7 @@ pub fn solve(input: &Input, p: &Prepared) -> Result<Solution, SpreadError> {
             variables: n,
             constraints: m,
             overlap_regions: p.overlap_regions,
-            reach: p.reach,
+            reach: p.reach.places(),
             crossing_weight: coefficient,
             opening_scale: scale,
             max_relative_warp: warp,

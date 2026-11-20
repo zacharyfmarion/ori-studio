@@ -41,6 +41,9 @@ export interface SpatialSpreadSolution {
   mean_gap: number;
   max_order_violation: number;
   status: string;
+  /** How many places apart two layers may lie and still be kept from crossing
+   * directly: 8, or 1 on a model too large for that. A hand-built solution has none. */
+  reach?: number;
 }
 export interface SpatialMeshOrder {
   planes: SpatialPlane[];

@@ -1,4 +1,7 @@
-use crate::{Input, SpreadError};
+use crate::{
+    Input, SpreadError,
+    reach::{Reach, ordered_pairs},
+};
 use nalgebra::{Matrix3, Vector3};
 use oristudio_geometry::convex;
 use std::collections::{BTreeMap, HashMap};
@@ -30,9 +33,7 @@ pub struct Prepared {
     pub crossings: Vec<Sample>,
     /// The overlap area the crossing penalties are weighed against.
     pub crossing_mass: f64,
-    /// How many places apart two penalized faces may lie: `REACH`, or 1 for a
-    /// model with too many near pairs to solve.
-    pub reach: usize,
+    pub reach: Reach,
     pub overlap_regions: usize,
 }
 
@@ -40,11 +41,6 @@ fn invalid(message: &str) -> SpreadError {
     SpreadError::Invalid(message.into())
 }
 
-/// How many places apart two faces may lie in a cell's stack and still get a
-/// crossing penalty of their own. A stack of `n` layers then costs about
-/// `REACH * n` penalized pairs, not `n * n / 2`. At 8 the corpus pictures match
-/// the all-pairs solve (`implementation-plans/flat-spread-near-pairs.md`).
-const REACH: usize = 8;
 /// Overlapping triangle pairs that become crossing penalties: the solver's size.
 const MAX_OVERLAP_REGIONS: usize = 200_000;
 const TOO_MANY_REGIONS: &str = "overlap regions";
@@ -55,8 +51,8 @@ const MAX_PAIR_TESTS: usize = 20_000_000;
 #[derive(Clone, Copy)]
 struct Order {
     lower: usize,
-    /// The fewest places apart any overlap cell stacks the two, counted up to
-    /// `REACH`. `usize::MAX` when every cell has them further apart than that.
+    /// The fewest places apart any overlap cell stacks the two, when that is
+    /// near. `usize::MAX` when every cell has them further apart.
     apart: usize,
 }
 
@@ -159,7 +155,7 @@ impl Prepared {
             gaps: Vec::new(),
             crossings: Vec::new(),
             crossing_mass: 0.,
-            reach: REACH,
+            reach: Reach::Near,
             overlap_regions: 0,
         };
         // Overlap area summed over every ordered pair of faces.
@@ -172,19 +168,16 @@ impl Prepared {
             {
                 return Err(invalid("overlap cell"));
             }
-            for (place, &upper) in cell.faces.iter().enumerate() {
-                let below = cell.faces.iter().skip(place + 1).take(REACH);
-                for (between, &lower) in below.enumerate() {
-                    if let Some(order) = relation.get_mut(&pair_key(upper, lower)) {
-                        order.apart = order.apart.min(between + 1);
-                    }
+            for (upper, lower) in Reach::Near.pairs(cell.faces.len()) {
+                let pair = pair_key(cell.faces[upper], cell.faces[lower]);
+                if let Some(order) = relation.get_mut(&pair) {
+                    order.apart = order.apart.min(lower - upper);
                 }
             }
             if cell.area <= 1e-14 {
                 continue;
             }
-            let depth = cell.faces.len() as f64;
-            ordered_area += cell.area * depth * (depth - 1.) / 2.;
+            ordered_area += cell.area * ordered_pairs(cell.faces.len()) as f64;
             for pair in cell.faces.windows(2) {
                 let upper = prepared.at_face(input, pair[0], cell.point)?;
                 let lower = prepared.at_face(input, pair[1], cell.point)?;
@@ -199,31 +192,24 @@ impl Prepared {
                 }
             }
         }
-        match prepared.penalize(input, &polygons, &relation, REACH, max_regions) {
-            // Weighed against every ordered overlap, penalized or not, so a
-            // pair's penalty is as stiff as when every pair had one.
-            Ok(()) => prepared.crossing_mass = ordered_area,
-            // Too many near pairs to solve: keep only the layers that touch.
-            // At the stiffness above those alone let paper cross far more, so
-            // they are weighed against themselves. That holds the layers in
-            // order as well, and opens a deep stack less.
-            Err(SpreadError::Limit(TOO_MANY_REGIONS)) => {
-                prepared.penalize(input, &polygons, &relation, 1, max_regions)?;
-                prepared.crossing_mass = prepared.crossings.iter().map(|s| s.weight).sum();
-            }
-            Err(error) => return Err(error),
-        }
+        // A model with too many near pairs to solve keeps the layers that touch.
+        Reach::widest(
+            |reach| prepared.penalize(input, &polygons, &relation, reach, max_regions),
+            |error| matches!(error, SpreadError::Limit(TOO_MANY_REGIONS)),
+        )?;
+        let penalized = prepared.crossings.iter().map(|s| s.weight).sum();
+        prepared.crossing_mass = prepared.reach.mass(penalized, ordered_area);
         Ok(prepared)
     }
 
     /// Crossing samples for the overlapping triangles of every pair of faces
-    /// that some cell stacks within `reach` places of each other.
+    /// that some cell stacks within `reach` of each other.
     fn penalize(
         &mut self,
         input: &Input,
         polygons: &[Vec<[f64; 2]>],
         relation: &HashMap<(usize, usize), Order>,
-        reach: usize,
+        reach: Reach,
         max_regions: usize,
     ) -> Result<(), SpreadError> {
         self.crossings.clear();
@@ -251,7 +237,7 @@ impl Prepared {
                 // Faces far apart in every stack they share are held in order
                 // through the layers between them, each kept from crossing its
                 // neighbours. A penalty of their own would only repeat that.
-                if order.is_some_and(|order| order.apart > reach) {
+                if order.is_some_and(|order| order.apart > reach.places()) {
                     continue;
                 }
                 let polygon = convex::clip(&polygons[a], &polygons[b]);
@@ -364,7 +350,7 @@ mod tests {
     #[test]
     fn near_pairs_within_the_limit_are_weighed_against_every_overlap() {
         let prepared = Prepared::within(&stack(30), NEAR).unwrap();
-        assert_eq!(prepared.reach, REACH);
+        assert_eq!(prepared.reach, Reach::Near);
         assert_eq!(prepared.overlap_regions, NEAR);
         assert!((prepared.crossing_mass - 435.).abs() < 1e-9);
     }
@@ -373,7 +359,7 @@ mod tests {
     fn too_many_near_pairs_fall_back_to_the_layers_that_touch() {
         let input = stack(30);
         let prepared = Prepared::within(&input, NEAR - 1).unwrap();
-        assert_eq!(prepared.reach, 1);
+        assert_eq!(prepared.reach, Reach::Touching);
         assert_eq!(prepared.overlap_regions, TOUCHING);
         // Weighed against themselves: the overlap of the 29 touching pairs.
         assert!((prepared.crossing_mass - 29.).abs() < 1e-9);
