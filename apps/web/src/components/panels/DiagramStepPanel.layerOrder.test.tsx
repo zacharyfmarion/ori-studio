@@ -125,6 +125,7 @@ function publishPose(
     onCamera: () => {},
     registerLiveView: () => () => {},
     rotateTo: () => {},
+    turn: render.mode === 'crease-pattern' || render.mode === 'folded-flat' ? render.rotationDeg : null,
     showAs: async () => true,
     setSide: async () => true,
     setFlipCreases: async () => true,

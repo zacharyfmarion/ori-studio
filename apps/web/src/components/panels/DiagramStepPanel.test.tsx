@@ -502,6 +502,7 @@ describe('DiagramStepPanel', () => {
           onCamera: () => {},
           registerLiveView: () => () => {},
           rotateTo,
+          turn: render.rotationDeg,
           showAs: async () => true,
           setSide: async () => true,
           setFlipCreases: async () => true,
@@ -545,7 +546,11 @@ describe('DiagramStepPanel', () => {
       const verbs = { pose: vi.fn(), kind: vi.fn(), direction: vi.fn(), keep: vi.fn(), preview: vi.fn(), commit: vi.fn() };
       const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
         fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as never;
-      const publish = (render: DiagramCpRender, busy = false) => {
+      const publish = (
+        render: DiagramCpRender,
+        busy = false,
+        turn = render.mode === 'crease-pattern' || render.mode === 'folded-flat' ? render.rotationDeg : null
+      ) => {
         const poseState = { render, readOnly: false, busy, solutions: { discovered: 1, hasNext: false } };
         const controls = buildDiagramSpreadControls(poseState, null, { t, ...verbs });
         publishOpenLinkedPose('step-f', {
@@ -558,6 +563,7 @@ describe('DiagramStepPanel', () => {
           onCamera: () => {},
           registerLiveView: () => () => {},
           rotateTo: () => {},
+          turn,
           showAs: async () => true,
           setSide: async () => true,
           setFlipCreases: async () => true,
@@ -591,6 +597,22 @@ describe('DiagramStepPanel', () => {
       expect(select.disabled).toBe(false);
       act(() => select.click());
       expect([...document.querySelectorAll('[role="option"]')].map((el) => el.textContent)).toEqual(['Diagram', 'Perspective 3D']);
+    });
+
+    it('keeps a Default spread’s turn a field while its picture is captured, showing the turn on its way', () => {
+      const { publish, flat } = spreadPane();
+      const rotation = () => host!.querySelector<HTMLInputElement>('input[aria-label="Rotation"]')!;
+      const render = { ...flat, spread: DEFAULT_CONNECTED_SPREAD };
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram(), steps: [cpStep('step-f', render)] },
+          diagramCaptures: { 'step-f': { runId: null } } });
+        publish(render, true, 45);
+      });
+      expect(rotation().value).toBe('45');
+      expect(rotation().disabled).toBe(false);
+      // Any other spread is drawn by its capture, and its turn waits for it.
+      act(() => publish({ ...flat, spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 } }, true));
+      expect(rotation().disabled).toBe(true);
     });
 
     it('keeps Presentation available while a Fold-derived capture runs', () => {

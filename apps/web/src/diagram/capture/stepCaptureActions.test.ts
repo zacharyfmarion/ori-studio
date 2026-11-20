@@ -211,6 +211,7 @@ describe('showLinkedStepAs', () => {
     onCamera: () => {},
     registerLiveView: () => () => {},
     rotateTo: () => {},
+    turn: null,
     showAs: vi.fn(async () => landed),
     setSide: vi.fn(async () => landed),
     setFlipCreases: vi.fn(async () => landed),
