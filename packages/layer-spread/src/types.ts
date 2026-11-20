@@ -32,6 +32,10 @@ export interface SpreadSolution {
     variables: number;
     constraints: number;
     overlap_regions: number;
+    /** How many places apart two layers may lie and still be kept from crossing
+     * directly: 8, or 1 on a model too large for that, whose deep stacks then
+     * open less. A hand-built solution has none. */
+    reach?: number;
     crossing_weight: number;
     opening_scale: number;
     max_relative_warp: number;

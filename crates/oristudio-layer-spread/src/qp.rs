@@ -159,8 +159,7 @@ pub fn solve(input: &Input, p: &Prepared) -> Result<Solution, SpreadError> {
     let base = nv + 3 * nf;
     let n = base + p.crossings.len();
     let spacing_mass: f64 = p.gaps.iter().map(|s| s.weight).sum();
-    let crossing_mass: f64 = p.crossings.iter().map(|s| s.weight).sum();
-    let coefficient = 50. * spacing_mass / crossing_mass.max(1e-30);
+    let coefficient = 50. * spacing_mass / p.crossing_mass.max(1e-30);
     let depth = input.cells.iter().map(|c| c.faces.len()).max().unwrap_or(1);
     let target = SPAN / (depth.saturating_sub(1).max(1) as f64);
     let mut problem = Problem {
@@ -175,8 +174,9 @@ pub fn solve(input: &Input, p: &Prepared) -> Result<Solution, SpreadError> {
         let slack = base + i;
         let mut terms: Row = sample.row.iter().map(|&(v, w)| (v, -w)).collect();
         terms.push((slack, -1.));
+        // Minimizing the positive quadratic under s >= -gap already yields
+        // s = max(0, -gap). A second s >= 0 row is redundant at the optimum.
         problem.upper(&terms, 0.);
-        problem.upper(&vec![(slack, -1.)], 0.);
         problem
             .p
             .push(slack, slack, 2. * coefficient * sample.weight);
@@ -269,6 +269,7 @@ pub fn solve(input: &Input, p: &Prepared) -> Result<Solution, SpreadError> {
             "pose rejected: relative warp {warp}, slope {slope}"
         )));
     }
+    let penalized_mass: f64 = p.crossings.iter().map(|s| s.weight).sum();
     let mut max_crossing: f64 = 0.;
     let mut crossing_squared = 0.;
     for sample in &p.crossings {
@@ -299,12 +300,13 @@ pub fn solve(input: &Input, p: &Prepared) -> Result<Solution, SpreadError> {
             variables: n,
             constraints: m,
             overlap_regions: p.overlap_regions,
+            reach: p.reach,
             crossing_weight: coefficient,
             opening_scale: scale,
             max_relative_warp: warp,
             max_slope: slope,
             max_crossing,
-            rms_crossing: (crossing_squared / crossing_mass.max(1e-30)).sqrt(),
+            rms_crossing: (crossing_squared / penalized_mass.max(1e-30)).sqrt(),
             mean_gap,
         },
     })

@@ -28,6 +28,11 @@ pub struct Prepared {
     pub face_triangles: Vec<Vec<usize>>,
     pub gaps: Vec<Sample>,
     pub crossings: Vec<Sample>,
+    /// The overlap area the crossing penalties are weighed against.
+    pub crossing_mass: f64,
+    /// How many places apart two penalized faces may lie: `REACH`, or 1 for a
+    /// model with too many near pairs to solve.
+    pub reach: usize,
     pub overlap_regions: usize,
 }
 
@@ -35,8 +40,37 @@ fn invalid(message: &str) -> SpreadError {
     SpreadError::Invalid(message.into())
 }
 
+/// How many places apart two faces may lie in a cell's stack and still get a
+/// crossing penalty of their own. A stack of `n` layers then costs about
+/// `REACH * n` penalized pairs, not `n * n / 2`. At 8 the corpus pictures match
+/// the all-pairs solve (`implementation-plans/flat-spread-near-pairs.md`).
+const REACH: usize = 8;
+/// Overlapping triangle pairs that become crossing penalties: the solver's size.
+const MAX_OVERLAP_REGIONS: usize = 200_000;
+const TOO_MANY_REGIONS: &str = "overlap regions";
+/// Triangle pairs the sweep may look up. Most are skipped without a clip.
+const MAX_PAIR_TESTS: usize = 20_000_000;
+
+/// How two overlapping faces are ordered.
+#[derive(Clone, Copy)]
+struct Order {
+    lower: usize,
+    /// The fewest places apart any overlap cell stacks the two, counted up to
+    /// `REACH`. `usize::MAX` when every cell has them further apart than that.
+    apart: usize,
+}
+
+fn pair_key(a: usize, b: usize) -> (usize, usize) {
+    (a.min(b), a.max(b))
+}
+
 impl Prepared {
     pub fn new(input: &Input) -> Result<Self, SpreadError> {
+        Self::within(input, MAX_OVERLAP_REGIONS)
+    }
+
+    /// `new`, for a solver that may penalize `max_regions` overlap regions.
+    fn within(input: &Input, max_regions: usize) -> Result<Self, SpreadError> {
         let nv = input.xy.len();
         let nf = input.faces.len();
         if nv > 20_000 || input.triangles.len() > 40_000 || nf > 10_000 {
@@ -107,10 +141,13 @@ impl Prepared {
             if lo >= nf || hi >= nf || lo == hi {
                 return Err(invalid("layer relation"));
             }
-            let key = (lo.min(hi), lo.max(hi));
+            let order = Order {
+                lower: lo,
+                apart: usize::MAX,
+            };
             if relation
-                .insert(key, (lo, hi))
-                .is_some_and(|old| old != (lo, hi))
+                .insert(pair_key(lo, hi), order)
+                .is_some_and(|old| old.lower != lo)
             {
                 return Err(invalid("contradictory face-pair order"));
             }
@@ -121,8 +158,12 @@ impl Prepared {
             face_triangles,
             gaps: Vec::new(),
             crossings: Vec::new(),
+            crossing_mass: 0.,
+            reach: REACH,
             overlap_regions: 0,
         };
+        // Overlap area summed over every ordered pair of faces.
+        let mut ordered_area = 0.;
         for cell in &input.cells {
             if !cell.area.is_finite()
                 || cell.area < 0.
@@ -131,9 +172,19 @@ impl Prepared {
             {
                 return Err(invalid("overlap cell"));
             }
+            for (place, &upper) in cell.faces.iter().enumerate() {
+                let below = cell.faces.iter().skip(place + 1).take(REACH);
+                for (between, &lower) in below.enumerate() {
+                    if let Some(order) = relation.get_mut(&pair_key(upper, lower)) {
+                        order.apart = order.apart.min(between + 1);
+                    }
+                }
+            }
             if cell.area <= 1e-14 {
                 continue;
             }
+            let depth = cell.faces.len() as f64;
+            ordered_area += cell.area * depth * (depth - 1.) / 2.;
             for pair in cell.faces.windows(2) {
                 let upper = prepared.at_face(input, pair[0], cell.point)?;
                 let lower = prepared.at_face(input, pair[1], cell.point)?;
@@ -148,12 +199,43 @@ impl Prepared {
                 }
             }
         }
+        match prepared.penalize(input, &polygons, &relation, REACH, max_regions) {
+            // Weighed against every ordered overlap, penalized or not, so a
+            // pair's penalty is as stiff as when every pair had one.
+            Ok(()) => prepared.crossing_mass = ordered_area,
+            // Too many near pairs to solve: keep only the layers that touch.
+            // At the stiffness above those alone let paper cross far more, so
+            // they are weighed against themselves. That holds the layers in
+            // order as well, and opens a deep stack less.
+            Err(SpreadError::Limit(TOO_MANY_REGIONS)) => {
+                prepared.penalize(input, &polygons, &relation, 1, max_regions)?;
+                prepared.crossing_mass = prepared.crossings.iter().map(|s| s.weight).sum();
+            }
+            Err(error) => return Err(error),
+        }
+        Ok(prepared)
+    }
+
+    /// Crossing samples for the overlapping triangles of every pair of faces
+    /// that some cell stacks within `reach` places of each other.
+    fn penalize(
+        &mut self,
+        input: &Input,
+        polygons: &[Vec<[f64; 2]>],
+        relation: &HashMap<(usize, usize), Order>,
+        reach: usize,
+        max_regions: usize,
+    ) -> Result<(), SpreadError> {
+        self.crossings.clear();
+        self.overlap_regions = 0;
+        self.reach = reach;
         // Sweep in X: no quadratic all-triangle array or pairwise dense matrix.
         let boxes: Vec<_> = polygons.iter().map(|p| convex::bounding_box(p)).collect();
         let mut sorted: Vec<_> = (0..polygons.len()).collect();
         sorted.sort_by(|&a, &b| boxes[a][0].total_cmp(&boxes[b][0]).then(a.cmp(&b)));
         let mut active = Vec::<usize>::new();
         let mut dedup = HashMap::<Vec<(usize, i64)>, usize>::new();
+        let mut pair_tests = 0_usize;
         for &a in &sorted {
             active.retain(|&b| boxes[b][2] >= boxes[a][0]);
             for &b in &active {
@@ -161,19 +243,29 @@ impl Prepared {
                 if fa == fb || !convex::boxes_overlap(&boxes[a], &boxes[b], 0.) {
                     continue;
                 }
+                pair_tests += 1;
+                if pair_tests > MAX_PAIR_TESTS {
+                    return Err(SpreadError::Limit("overlap pairs"));
+                }
+                let order = relation.get(&pair_key(fa, fb)).copied();
+                // Faces far apart in every stack they share are held in order
+                // through the layers between them, each kept from crossing its
+                // neighbours. A penalty of their own would only repeat that.
+                if order.is_some_and(|order| order.apart > reach) {
+                    continue;
+                }
                 let polygon = convex::clip(&polygons[a], &polygons[b]);
                 let area = convex::signed_area(&polygon).abs();
                 if area <= 1e-16 || polygon.len() < 3 {
                     continue;
                 }
-                prepared.overlap_regions += 1;
-                if prepared.overlap_regions > 200_000 {
-                    return Err(SpreadError::Limit("overlap regions"));
+                self.overlap_regions += 1;
+                if self.overlap_regions > max_regions {
+                    return Err(SpreadError::Limit(TOO_MANY_REGIONS));
                 }
-                let key = (fa.min(fb), fa.max(fb));
-                let lower = match relation.get(&key) {
-                    Some(&(lo, _)) => {
-                        if lo == fa {
+                let lower = match order {
+                    Some(order) => {
+                        if order.lower == fa {
                             a
                         } else {
                             b
@@ -187,9 +279,8 @@ impl Prepared {
                 // coordinate is not a second geometric sample.
                 let weight = area / polygon.len() as f64;
                 for point in polygon {
-                    let terms = row(prepared.at_triangle(input, upper, point).into_iter().chain(
-                        prepared
-                            .at_triangle(input, lower, point)
+                    let terms = row(self.at_triangle(input, upper, point).into_iter().chain(
+                        self.at_triangle(input, lower, point)
                             .into_iter()
                             .map(|(v, w)| (v, -w)),
                     ));
@@ -201,16 +292,16 @@ impl Prepared {
                         .map(|&(v, w)| (v, (w * 1e10).round() as i64))
                         .collect();
                     if let Some(&at) = dedup.get(&key) {
-                        prepared.crossings[at].weight += weight;
+                        self.crossings[at].weight += weight;
                     } else {
-                        dedup.insert(key, prepared.crossings.len());
-                        prepared.crossings.push(Sample { row: terms, weight });
+                        dedup.insert(key, self.crossings.len());
+                        self.crossings.push(Sample { row: terms, weight });
                     }
                 }
             }
             active.push(a);
         }
-        Ok(prepared)
+        Ok(())
     }
 
     pub fn at_triangle(&self, input: &Input, triangle: usize, point: [f64; 2]) -> Row {
@@ -235,5 +326,76 @@ impl Prepared {
             Some((minimum, row)) if minimum >= -2e-5 => Ok(row),
             _ => Err(invalid("cell centroid outside its face")),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Cell, qp};
+
+    /// `layers` loose unit squares, face 0 on top. Two squares overlap in two
+    /// triangle pairs, of area one in all.
+    fn stack(layers: usize) -> Input {
+        let corners = [[0., 0.], [1., 0.], [1., 1.], [0., 1.]];
+        Input {
+            xy: (0..layers).flat_map(|_| corners).collect(),
+            faces: (0..layers).map(|f| (4 * f..4 * f + 4).collect()).collect(),
+            triangles: (0..layers)
+                .flat_map(|f| [[4 * f, 4 * f + 1, 4 * f + 2], [4 * f, 4 * f + 2, 4 * f + 3]])
+                .collect(),
+            triangle_faces: (0..layers).flat_map(|f| [f, f]).collect(),
+            orders: (0..layers)
+                .flat_map(|upper| (upper + 1..layers).map(move |lower| [lower, upper]))
+                .collect(),
+            plane_groups: None,
+            cells: vec![Cell {
+                faces: (0..layers).collect(),
+                point: [0.6, 0.3],
+                area: 1.,
+            }],
+        }
+    }
+
+    // Thirty layers: 204 pairs lie within eight places, 29 touch, 435 overlap.
+    const NEAR: usize = 2 * 204;
+    const TOUCHING: usize = 2 * 29;
+
+    #[test]
+    fn near_pairs_within_the_limit_are_weighed_against_every_overlap() {
+        let prepared = Prepared::within(&stack(30), NEAR).unwrap();
+        assert_eq!(prepared.reach, REACH);
+        assert_eq!(prepared.overlap_regions, NEAR);
+        assert!((prepared.crossing_mass - 435.).abs() < 1e-9);
+    }
+
+    #[test]
+    fn too_many_near_pairs_fall_back_to_the_layers_that_touch() {
+        let input = stack(30);
+        let prepared = Prepared::within(&input, NEAR - 1).unwrap();
+        assert_eq!(prepared.reach, 1);
+        assert_eq!(prepared.overlap_regions, TOUCHING);
+        // Weighed against themselves: the overlap of the 29 touching pairs.
+        assert!((prepared.crossing_mass - 29.).abs() < 1e-9);
+        let solution = qp::solve(&input, &prepared).unwrap();
+        assert_eq!(solution.diagnostics.reach, 1);
+        let level = |face: usize| &solution.heights[4 * face..4 * face + 4];
+        for upper in 0..29 {
+            let lowest = level(upper).iter().copied().fold(f64::INFINITY, f64::min);
+            let highest = level(upper + 1)
+                .iter()
+                .copied()
+                .fold(f64::NEG_INFINITY, f64::max);
+            assert!(lowest > highest, "face {upper} is not above the next");
+        }
+    }
+
+    #[test]
+    fn refuses_when_the_layers_that_touch_are_too_many_as_well() {
+        assert!(matches!(
+            Prepared::within(&stack(30), TOUCHING - 1),
+            Err(SpreadError::Limit(TOO_MANY_REGIONS))
+        ));
+        assert!(Prepared::within(&stack(30), TOUCHING).is_ok());
     }
 }
