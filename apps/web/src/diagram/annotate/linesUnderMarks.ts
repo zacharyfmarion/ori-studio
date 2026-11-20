@@ -29,7 +29,7 @@ import {
 import { diagramScenePaintStyle, diagramStyleKey, diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
 import { stepDiagramScene, stepDiagramSheetBox } from '../pictures/paintStepDiagram';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { hideableSceneLines, type CoveringMarks, type MarkPoint } from '../pictures/sceneUnderMarks';
 import { stepAsDrawn, viewOfStep } from '../zoom/stepView';
 import { fromBox } from '../zoom/zoomFrames';

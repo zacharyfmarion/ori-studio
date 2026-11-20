@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { CAPTURE_PX_PER_UNIT } from '../../diagram/capture/captureGeometry';
 import { flatScenePicture } from '../../diagram/capture/captureFolded';
 import { foldScenePattern, PATTERN_PER_SHEET_UNIT } from '../../diagram/fold/foldStepPicture';
-import { storedScene } from '../../diagram/pictures/pictureFrame';
+import { storedScene } from '../../diagram/pictures/storedScene';
 import type { Point } from '../../lib/geometry';
 import type { PaperLineItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import { erodeLine, erodeSegment } from '../../lib/paper/paperSvg';

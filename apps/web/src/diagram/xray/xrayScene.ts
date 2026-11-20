@@ -56,7 +56,7 @@ import { convexPieces, OVER_MIN_WIDTH, overlapsWider, piecesPart, piecesShared, 
 import type { PictureCover, PictureLayers } from '../annotate/pictureGeometry';
 import type { DiagramStep } from '../document/diagramDocument';
 import { sceneCulledTo, type PictureBox } from '../pictures/paintDiagramStep';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { faceAt, facePlacement, faceSpreadMove, paperFacesOf, ringArea, type StepFaces } from '../zoom/zoomImprint';
 
 type Pt = PicturePoint;

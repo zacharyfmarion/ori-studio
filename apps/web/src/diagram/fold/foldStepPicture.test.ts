@@ -15,7 +15,7 @@ import type {
   KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { readPaperFaces } from '../document/paperFacesFile';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { flatScenePicture, type CapturedPicture } from '../capture/captureFolded';
 import { CAPTURE_PX_PER_UNIT } from '../capture/captureGeometry';
 import type { FoldStepAction } from './foldStepMarkPlan';

@@ -8,7 +8,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { storedSceneUnderMarks } from '../pictures/sceneUnderMarks';
 import { hidesLinesUnder, linesUnderMarks, markLineCover } from './linesUnderMarks';
 import { annotation, FLAT, IN_3D, NO_ASSETS, sceneStep, uploadStep } from './pictureSnap.fixtures';

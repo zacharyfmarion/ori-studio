@@ -34,7 +34,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { cpSource, cpStep } from '../document/diagramSteps.fixtures';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 
 const ORIEDITA_TEST_RESOURCES = resolve(process.cwd(), '../../third_party/oriedita/oriedita-data/src/test/resources');
 

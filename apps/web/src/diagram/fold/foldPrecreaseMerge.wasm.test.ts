@@ -14,7 +14,7 @@ import type { PaperScene } from '../../lib/paper/paperScene';
 import { isKnownAnnotation, isStep, type DiagramFoldStepSource, type DiagramStep } from '../document/diagramDocument';
 import { readDiagram, writeDiagram } from '../document/diagramFile';
 import { resolveTitleBlock } from '../pages/titleBlockContent';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 
 /**
  * Merge symmetric precreases end to end, over the real Fold bridge
