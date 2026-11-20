@@ -6734,7 +6734,12 @@
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
-    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13471,7 +13476,12 @@
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
-    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20210,7 +20220,12 @@
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
-    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26569,7 +26584,11 @@
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
-    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32928,7 +32947,11 @@
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
-    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39665,7 +39688,12 @@
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
-    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46402,7 +46430,12 @@
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
-    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
+    "tools:fold.flap.chipLocked_one": "99e99dc3477b",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52761,6 +52794,10 @@
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
-    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
+    "tools:fold.flap.chipLocked_other": "2fedf032085c",
+    "tools:fold.flap.locked": "5df563101f50",
+    "tools:fold.section.rowLocked": "18dd655ce36e",
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
   }
 }

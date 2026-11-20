@@ -34,7 +34,7 @@ import type {
   FoldTuckOp,
 } from '../document/foldSequenceDocument';
 import type { FoldCompoundFingerprinted, FoldCompoundLanded, FoldCompoundReportBase } from './foldEngineCompoundWire';
-import type { FoldOpening, FoldReverseAnalysis, FoldReverseStored } from './foldEngineReverseWire';
+import type { FoldOpening, FoldReverseAnalysis, FoldReverseLandings, FoldReverseStored } from './foldEngineReverseWire';
 import type { FoldEngineLine, FoldSide, FoldSnap } from './foldEngineWire';
 
 // ---------------------------------------------------------------------------
@@ -71,6 +71,8 @@ export interface FoldCrimpAnalysed {
   analysis: FoldCrimpAnalysis;
   /** The kinds that land; null while a flap opening several ways is still to choose. */
   kinds: FoldCrimpKind[] | null;
+  /** With no opening named: how every way the tip opens at ℓ1 lands, and the flaps it cannot be crimped without. */
+  landings?: FoldReverseLandings;
 }
 
 /** Which side of its target a tuck's block lands on, in the model frame. */
