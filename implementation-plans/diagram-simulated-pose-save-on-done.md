@@ -134,8 +134,12 @@ no new call: `setFoldPercent` at the same target starts the clock again.
   until it answers. The panel can let the step's controller go in the same
   commit (another step opened, or Done with no step left inspected), so
   `dispose` waits for a save already handed over, as it waits for an orbit.
-- **At 0%** a step with no positions counts as its own: the flat sheet. An
-  untouched view there saves nothing.
+- **Kept without positions.** Untouched, two steps Pose cannot put
+  positions back on save nothing on leaving: one at 0% (the flat sheet a fold
+  from flat is — so Reset Pose and then Done is one undo step, not two), and
+  one whose shape is another build's, which an untouched Pose never replaces
+  (decision 1 of the launch review: a lagging build never deletes what it
+  cannot show).
 - **Save now** (`registerSimulatedSaveNow`, was rest now): Refresh on a step
   open in Pose saves what is shown.
 - **An undo or Reset from outside** moves the view to the render: its shape

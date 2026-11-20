@@ -294,6 +294,31 @@ describe('useDiagramSimulatedPose', () => {
     expect(wantsSave).toHaveBeenLastCalledWith(true);
   });
 
+  it('leaves a step whose positions are another build’s as it is, untouched', async () => {
+    const theirs = { id: 'shape-1', sheet: 'sk1:sheet', pins: [[0.25, 0.5]], posed: true, state: 'v1:AAAA' };
+    const { wantsSave } = mount({ render: { foldPercent: 45, view: VIEW, shape: theirs }, wantsSave: vi.fn(() => false) });
+    expect(sim.initialShape).toBeNull();
+    await act(async () => {});
+    push(VIEW);
+    unmount();
+    expect(wantsSave).toHaveBeenLastCalledWith(true);
+  });
+
+  it('has nothing to store after Reset Pose, the flat sheet at 0%', async () => {
+    const props = mount({ wantsSave: vi.fn(() => false) });
+    await act(async () => {});
+    push(VIEW);
+    act(() => seen.pose!.scrub(70));
+    // Reset Pose lands: the default camera at 0%, no positions.
+    const reset = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
+    mount({ ...props, render: { foldPercent: 0, view: reset } });
+    await act(async () => {});
+    expect(restoreShape).toHaveBeenLastCalledWith(0, null);
+    push(reset);
+    unmount();
+    expect(props.wantsSave).toHaveBeenLastCalledWith(true);
+  });
+
   it('saves the stored camera while the view is still at it, so float noise is no change', async () => {
     const { onSave } = mount();
     await act(async () => {});

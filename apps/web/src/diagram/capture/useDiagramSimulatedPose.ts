@@ -60,6 +60,15 @@ function samePose(
   return Math.abs(a.foldPercent - b.foldPercent) < 0.05 && sameCamera(a.view, b.view);
 }
 
+/**
+ * Whether a step Pose cannot put positions back on is, untouched, as the step
+ * already is: at 0%, the flat sheet a fold from flat is; or one whose shape is
+ * another build's, which an untouched Pose never replaces.
+ */
+function keptWithoutPositions(render: DiagramSimulatedPoseRender): boolean {
+  return render.foldPercent === 0 || (render.shape !== undefined && savedShapeOf(render.shape) === null);
+}
+
 /** A step's camera as the viewport's orbit holds it: its roll kept in the orientation. */
 function poseView(orbit: SimulatorOrbitView): DiagramSimulatedView {
   const kept = withRollAbsorbed(orbit);
@@ -321,8 +330,7 @@ export function useDiagramSimulatedPose({
   useEffect(() => {
     if (!loaded) return;
     const opened = loaded.restored !== null && loaded.restored !== 'mismatch';
-    // At 0% a step with no positions is the flat sheet, which is its own: nothing to store.
-    ownShapeRef.current = opened || (loaded.restored === null && followedRef.current.foldPercent === 0);
+    ownShapeRef.current = opened || keptWithoutPositions(followedRef.current);
     hold(opened && savedShapeOf(followedRef.current.shape)?.settled === false);
   }, [loaded, hold]);
 
@@ -357,16 +365,21 @@ export function useDiagramSimulatedPose({
     playheadRef.current.set(render.foldPercent);
     setFoldPercentShown(render.foldPercent);
     const shape = simulatorShapeOf(render.shape);
-    ownShapeRef.current = shape !== null;
+    ownShapeRef.current = shape !== null || keptWithoutPositions(render);
     hold(shape !== null && savedShapeOf(render.shape)?.settled === false);
     void (async () => {
-      const restored = shape ? await restoreShape(render.foldPercent, shape) : null;
-      if (restored && restored !== 'mismatch') return;
-      // Not put back — none, or another sheet's: the free fold, unless it is already at that fold %.
-      if (followedRef.current !== render) return;
-      ownShapeRef.current = false;
-      hold(false);
-      if (shape || moved) await restoreShape(render.foldPercent, null);
+      if (shape) {
+        const restored = await restoreShape(render.foldPercent, shape);
+        if (restored && restored !== 'mismatch') return;
+        // Another sheet's: folded freely from flat, as a render with none is.
+        if (followedRef.current !== render) return;
+        ownShapeRef.current = keptWithoutPositions(render);
+        hold(false);
+      } else if (!moved) {
+        // None, and already at its fold %: the paper stays as it is.
+        return;
+      }
+      await restoreShape(render.foldPercent, null);
     })();
   }, [render, restoreShape, hold]);
 
