@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { HISTORY_FILE } from './carry-forward-assets.mjs';
 import {
+  assertUncachedHost,
   assetReferences,
   ownAssets,
   servedPath,
@@ -14,6 +15,8 @@ import {
 
 const ORIGIN = 'https://oristudio.pages.dev';
 const HTML = 'text/html; charset=utf-8';
+const JS = 'application/javascript';
+const JSON_TYPE = 'application/json';
 
 /** A built `dist`: `files` maps a path under it to its text. */
 function dist(files) {
@@ -24,6 +27,8 @@ function dist(files) {
   }
   return root;
 }
+
+const stageDir = () => join(mkdtempSync(join(tmpdir(), 'ori-stage-')), 'stage');
 
 /**
  * The live site as Pages serves it: these paths, and `index.html` at 200 for anything else.
@@ -41,6 +46,7 @@ function site(files) {
 }
 
 const page = (entry) => `<!doctype html><link rel="modulepreload" href="${entry}"><div id="root"></div>`;
+const run = (root, out, fetchImpl) => stage({ dist: root, out, from: ORIGIN, fetchImpl, retryDelayMs: 0 });
 
 test('serves a page where Pages does, index files at their directory', () => {
   assert.equal(servedPath('index.html'), '/');
@@ -51,37 +57,55 @@ test('serves a page where Pages does, index files at their directory', () => {
 
 test('reads the hashed files a page or the worker names', () => {
   const text = `${page('/assets/index-A1.js')}<link href="/assets/index-B2.css">` +
-    `const m={entry:"/assets/index-A1.js",assets:["/assets/kernel-C3.wasm"]}`;
-  assert.deepEqual([...assetReferences(text)].sort(), ['assets/index-A1.js', 'assets/index-B2.css', 'assets/kernel-C3.wasm']);
+    `const m={entry:"/assets/index-A1.js",assets:["/assets/kernel-C3.wasm","/assets/index-A1.js.map"]}`;
+  assert.deepEqual(
+    [...assetReferences(text)].sort(),
+    ['assets/index-A1.js', 'assets/index-A1.js.map', 'assets/index-B2.css', 'assets/kernel-C3.wasm']
+  );
 });
 
-test('stages this build’s files behind the live pages and worker', async () => {
+// Both commands ask for files that may not exist yet. On the custom domain that request
+// is what caches the fallback at the edge.
+test('talks only to a host with no zone cache in front of it', () => {
+  assert.doesNotThrow(() => assertUncachedHost('https://oristudio.pages.dev'));
+  assert.doesNotThrow(() => assertUncachedHost('https://pr-604.oristudio.pages.dev/'));
+  assert.throws(() => assertUncachedHost('https://oristudio.dev'), /not a \*\.pages\.dev host/);
+  assert.throws(() => assertUncachedHost('https://oristudio.dev.evil.example'), /not a \*\.pages\.dev host/);
+});
+
+test('stages this build’s files behind the live pages, worker and history', async () => {
+  const liveHistory = JSON.stringify({ version: 1, deploys: [{ id: 'old', at: '2026-11-19T22:14:00Z', assets: ['assets/index-OLD.js'] }] });
   const root = dist({
     'index.html': page('/assets/index-NEW.js'),
     'ja/index.html': page('/assets/index-NEW.js'),
     'sw.js': 'const manifest={entry:"/assets/index-NEW.js"}',
+    [HISTORY_FILE]: '{"version":1,"deploys":[{"id":"new"}]}',
     'assets/index-NEW.js': 'new entry',
     // Carried forward from the live deploy.
     'assets/index-OLD.js': 'old entry',
     'locales/en/common.json': '{}',
   });
-  const out = join(mkdtempSync(join(tmpdir(), 'ori-stage-')), 'stage');
+  const out = stageDir();
   const { fetchImpl } = site({
     '/': [HTML, page('/assets/index-OLD.js')],
     '/ja/': [HTML, page('/assets/index-OLD.js').replace('root', 'root" lang="ja')],
-    '/sw.js': ['application/javascript', 'const manifest={entry:"/assets/index-OLD.js"}'],
+    '/sw.js': [JS, 'const manifest={entry:"/assets/index-OLD.js"}'],
+    [`/${HISTORY_FILE}`]: [JSON_TYPE, liveHistory],
   });
 
-  const result = await stage({ dist: root, out, from: ORIGIN, fetchImpl });
+  const result = await run(root, out, fetchImpl);
 
-  assert.deepEqual(result.replaced, ['index.html', 'ja/index.html', 'sw.js']);
+  assert.deepEqual(result.replaced, [HISTORY_FILE, 'index.html', 'ja/index.html', 'sw.js']);
+  assert.deepEqual(result.dead, []);
   assert.match(readFileSync(join(out, 'index.html'), 'utf8'), /index-OLD\.js/);
   assert.match(readFileSync(join(out, 'ja/index.html'), 'utf8'), /lang="ja"/);
   assert.match(readFileSync(join(out, 'sw.js'), 'utf8'), /index-OLD\.js/);
+  assert.equal(readFileSync(join(out, HISTORY_FILE), 'utf8'), liveHistory);
   // Everything else is this build's, the new entry included, and dist itself is untouched.
   assert.equal(readFileSync(join(out, 'assets/index-NEW.js'), 'utf8'), 'new entry');
   assert.ok(existsSync(join(out, 'locales/en/common.json')));
   assert.match(readFileSync(join(root, 'index.html'), 'utf8'), /index-NEW\.js/);
+  assert.match(readFileSync(join(root, HISTORY_FILE), 'utf8'), /"new"/);
 });
 
 test('a page this build adds is staged as the live site answers it: the live index.html', async () => {
@@ -91,45 +115,99 @@ test('a page this build adds is staged as the live site answers it: the live ind
     'assets/index-NEW.js': 'new',
     'assets/index-OLD.js': 'old',
   });
-  const out = join(mkdtempSync(join(tmpdir(), 'ori-stage-')), 'stage');
+  const out = stageDir();
   const { fetchImpl } = site({ '/': [HTML, page('/assets/index-OLD.js')] });
 
-  await stage({ dist: root, out, from: ORIGIN, fetchImpl });
+  await run(root, out, fetchImpl);
 
   assert.match(readFileSync(join(out, 'new-page/index.html'), 'utf8'), /index-OLD\.js/);
 });
 
-test('with no worker live, stages none rather than the fallback page under its name', async () => {
+test('with no worker or history live, stages neither rather than the fallback page under its name', async () => {
+  const root = dist({
+    'index.html': page('/assets/index-NEW.js'),
+    'sw.js': 'new worker',
+    [HISTORY_FILE]: '{}',
+    'assets/index-OLD.js': 'old',
+  });
+  const out = stageDir();
+  const { fetchImpl } = site({ '/': [HTML, page('/assets/index-OLD.js')] });
+
+  const result = await run(root, out, fetchImpl);
+
+  assert.deepEqual(result.removed, [HISTORY_FILE, 'sw.js']);
+  assert.ok(!existsSync(join(out, 'sw.js')));
+  assert.ok(!existsSync(join(out, HISTORY_FILE)));
+});
+
+// The production worker's manifest is written while the sourcemaps still exist, and the
+// Sentry plugin deletes them after. So the live worker always names files nobody serves.
+// Refusing over those made every real deploy fall back to one step.
+test('ignores names the live site does not serve either, such as deleted sourcemaps', async () => {
   const root = dist({
     'index.html': page('/assets/index-NEW.js'),
     'sw.js': 'new worker',
     'assets/index-OLD.js': 'old',
   });
-  const out = join(mkdtempSync(join(tmpdir(), 'ori-stage-')), 'stage');
-  const { fetchImpl } = site({ '/': [HTML, page('/assets/index-OLD.js')] });
+  const out = stageDir();
+  const { fetchImpl, requests } = site({
+    '/': [HTML, page('/assets/index-OLD.js')],
+    '/sw.js': [JS, 'const manifest={assets:["/assets/index-OLD.js","/assets/index-OLD.js.map"]}'],
+  });
 
-  const result = await stage({ dist: root, out, from: ORIGIN, fetchImpl });
+  const result = await run(root, out, fetchImpl);
 
-  assert.deepEqual(result.removed, ['sw.js']);
-  assert.ok(!existsSync(join(out, 'sw.js')));
+  assert.deepEqual(result.dead, ['assets/index-OLD.js.map']);
+  assert.ok(requests.includes('HEAD /assets/index-OLD.js.map'));
+  // A name the stage holds is never probed.
+  assert.ok(!requests.some((request) => request.endsWith('/assets/index-OLD.js')));
 });
 
-// The carry-forward step fails open. If it did not bring the live entry across, staging
-// would take the live site's own entry away for the length of the wait.
-test('refuses when a live page names a file the staged deployment would not serve', async () => {
+// The carry-forward step fails open. If it did not bring a live file across, staging would
+// take it away from the live pages for the length of the wait.
+test('refuses when a live page names a file the live site serves and the stage lacks', async () => {
   const root = dist({ 'index.html': page('/assets/index-NEW.js'), 'assets/index-NEW.js': 'new' });
-  const out = join(mkdtempSync(join(tmpdir(), 'ori-stage-')), 'stage');
-  const { fetchImpl } = site({ '/': [HTML, page('/assets/index-OLD.js')] });
+  const out = stageDir();
+  const { fetchImpl } = site({
+    '/': [HTML, page('/assets/index-OLD.js')],
+    '/assets/index-OLD.js': [JS, 'old entry'],
+  });
 
-  await assert.rejects(stage({ dist: root, out, from: ORIGIN, fetchImpl }), /name 1 file .*index-OLD\.js/);
+  await assert.rejects(run(root, out, fetchImpl), /name 1 file the live site serves .*index-OLD\.js/);
 });
 
-test('refuses when the live site does not answer a page', async () => {
+test('retries a page the live site fails to answer once', async () => {
+  const root = dist({ 'index.html': page('/assets/index-NEW.js'), 'assets/index-OLD.js': 'old' });
+  const out = stageDir();
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls += 1;
+    if (calls === 1) return new Response('busy', { status: 503 });
+    return new Response(page('/assets/index-OLD.js'), { headers: { 'content-type': HTML } });
+  };
+
+  const result = await run(root, out, fetchImpl);
+
+  assert.deepEqual(result.replaced, ['index.html']);
+  assert.equal(calls, 2);
+});
+
+test('refuses when the live site keeps failing to answer a page', async () => {
   const root = dist({ 'index.html': page('/assets/index-NEW.js') });
-  const out = join(mkdtempSync(join(tmpdir(), 'ori-stage-')), 'stage');
+  const out = stageDir();
   const fetchImpl = async () => new Response('busy', { status: 503 });
 
-  await assert.rejects(stage({ dist: root, out, from: ORIGIN, fetchImpl }), /answers \/ with 503/);
+  await assert.rejects(run(root, out, fetchImpl), /answers \/ with 503/);
+});
+
+test('refuses a host with a zone cache before asking it anything', async () => {
+  const root = dist({ 'index.html': page('/assets/index-NEW.js') });
+  const { fetchImpl, requests } = site({});
+  await assert.rejects(
+    stage({ dist: root, out: stageDir(), from: 'https://oristudio.dev', fetchImpl }),
+    /not a \*\.pages\.dev host/
+  );
+  assert.deepEqual(requests, []);
 });
 
 test('waits for this build’s own files, from the history the carry-forward step wrote', async () => {
@@ -152,10 +230,10 @@ test('waits for this build’s own files, from the history the carry-forward ste
 test('polls until every file is served, asks again only for the rest, then settles', async () => {
   const live = new Set(['/assets/a.js']);
   const requests = [];
-  const fetchImpl = async (url, init) => {
+  const fetchImpl = async (url) => {
     const { pathname } = new URL(url);
     requests.push(pathname);
-    const type = live.has(pathname) ? 'application/javascript' : HTML;
+    const type = live.has(pathname) ? JS : HTML;
     return new Response(null, { status: 200, headers: { 'content-type': type } });
   };
   const sleeps = [];
@@ -195,5 +273,12 @@ test('gives up when a file never shows up, rather than publishing pages that nam
       log: () => {},
     }),
     /1 files still not served, e.g. assets\/missing\.js/
+  );
+});
+
+test('will not poll a zone-cached host for files that may not exist yet', async () => {
+  await assert.rejects(
+    waitUntilServed({ origin: 'https://oristudio.dev', assets: ['assets/a.js'], log: () => {} }),
+    /not a \*\.pages\.dev host/
   );
 });

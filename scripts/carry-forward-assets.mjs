@@ -165,14 +165,14 @@ export function isServedAsset(response) {
 }
 
 /**
- * GET `origin/file`, retrying what may be passing: a request that failed outright and a
- * 5xx. Any other answer is the site's, and is returned as it is.
+ * GET `origin/file` (or what `init` asks for), retrying what may be passing: a request that
+ * failed outright and a 5xx. Any other answer is the site's, and is returned as it is.
  */
-async function fetchFromSite(origin, file, fetchImpl, retryDelayMs) {
+export async function fetchFromSite(origin, file, fetchImpl, retryDelayMs = RETRY_DELAY_MS, init = {}) {
   const url = `${origin.replace(/\/+$/, '')}/${file}`;
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const response = await fetchImpl(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      const response = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
       if (response.status < 500 || attempt === ATTEMPTS) return response;
     } catch (error) {
       if (attempt === ATTEMPTS) throw error;

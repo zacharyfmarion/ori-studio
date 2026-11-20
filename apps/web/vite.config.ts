@@ -214,9 +214,13 @@ function serviceWorkerManifest(
   bundleOutput: Rollup.OutputBundle,
   fail: (message: string) => never
 ): ServiceWorkerManifest & { buildId: string } {
+  // Not the sourcemaps. They are still in the bundle here, and a deploy build uploads them
+  // and has the Sentry plugin delete them from `dist` afterwards, so no deployment serves
+  // them; the worker never caches one either way. A name in this list claims the build
+  // ships that file, and the deploy reads it so (`scripts/assets-first-deploy.mjs`).
   const assets = Object.keys(bundleOutput)
     .sort()
-    .filter((name) => name.startsWith('assets/'));
+    .filter((name) => name.startsWith('assets/') && !name.endsWith('.map'));
 
   const entry = Object.values(bundleOutput).find((file) => file.type === 'chunk' && file.isEntry);
   if (!entry) fail('no entry chunk — the service worker has nothing to gate the shell on');
