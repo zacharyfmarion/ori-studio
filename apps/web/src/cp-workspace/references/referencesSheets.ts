@@ -18,6 +18,7 @@
  * thumbnail, so the two rails list the same patterns the same way.
  */
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import { partialFoldDegrees } from '../../lib/foldAngle';
 import {
   fitSheetThumbnail,
   type SheetStroke,
@@ -206,6 +207,7 @@ export function sheetThumbnail(
 ): SheetThumbnail | null {
   const endpoints = geometry.segEndpoints;
   const attr = geometry.segAttr;
+  const magnitudes = geometry.segFoldMagnitude;
   const strokes: SheetStroke[] = [];
   const add = (index: number, role: SheetStrokeRole) => {
     const base = index * 4;
@@ -216,6 +218,8 @@ export function sheetThumbnail(
       x2: endpoints[base + 2],
       y2: endpoints[base + 3],
       role,
+      // As Edit's canvas reads it: by the magnitude alone, the classic sentinel a full fold.
+      foldDegrees: partialFoldDegrees(magnitudes?.[index]),
     });
   };
   for (const index of component.border_segment_indices) add(index, 'edge');

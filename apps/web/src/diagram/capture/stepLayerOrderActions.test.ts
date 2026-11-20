@@ -87,9 +87,9 @@ beforeEach(() => {
 describe('opening the Layer order dialog on a step', () => {
   it('asks with the step’s fold, its paper as the Diagram paints it and its turn, the scene it shows, and its name', async () => {
     const stepId = await flatStep();
-    // Edit's view draws its creases in black and white, thicker.
+    // Edit's view draws its creases in black and white, thicker, a 3D crease's angle in hue.
     useWorkspaceStore.setState({
-      oristudioCpViewport: { ...state().oristudioCpViewport, lineStyle: 'black-white', lineWidth: 2 },
+      oristudioCpViewport: { ...state().oristudioCpViewport, lineStyle: 'black-white', lineWidth: 2, foldAngleDisplay: 'color' },
     });
     const entries = state().diagramHistory.past.length;
     expect(await openDiagramStepLayerOrder(stepId)).toBe(false);
@@ -106,10 +106,15 @@ describe('opening the Layer order dialog on a step', () => {
       xray: false,
       lineStyle: 'black-white',
       lineWidth: 2,
+      foldAngleDisplay: 'color',
     });
     expect(request.look).toEqual(diagramStepLayerOrderLook(DEFAULT_DIAGRAM_STYLE, FLAT, state().oristudioCpViewport));
     // Edit's view with none set: its defaults.
-    expect(diagramStepLayerOrderLook(DEFAULT_DIAGRAM_STYLE, FLAT, {})).toMatchObject({ lineStyle: 'color', lineWidth: 1 });
+    expect(diagramStepLayerOrderLook(DEFAULT_DIAGRAM_STYLE, FLAT, {})).toMatchObject({
+      lineStyle: 'color',
+      lineWidth: 1,
+      foldAngleDisplay: 'opacity',
+    });
     expect(request.record).toBeNull();
     expect(request.shown).toEqual(halfFoldKernelScene());
     expect(request.name).toBe('Step 1');

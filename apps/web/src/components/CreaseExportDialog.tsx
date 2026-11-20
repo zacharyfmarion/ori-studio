@@ -21,6 +21,8 @@ import {
   type CreaseExportTheme,
 } from '../lib/creaseExport';
 import { cpThumbnailSvg, type CpSegment } from '../lib/creasePatternSegmentation';
+import { FOLD_ANGLE_ANCHOR_FALLBACK, foldAngleCssInks } from '../cp-workspace/foldAngle/foldAngleRamp';
+import { parseCssColor } from '../cp-workspace/renderer/cssColor';
 import { hasNonClassicCreases, isFlatFoldableFold } from '../lib/creaseExportFold';
 import {
   ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS,
@@ -372,7 +374,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(page.svg)}`;
   }, [artwork, caption]);
 
-  const patterns = usePatternOptions(dialog.fold, dialog.segments, palette, t);
+  const patterns = usePatternOptions(dialog.fold, dialog.segments, palette, foldAngleDisplay, t);
 
   // Stepped aside while the Layer order dialog it opened is up: that dialog is
   // workspace-sized and over this one anyway, and a dialog hidden rather than
@@ -775,6 +777,7 @@ function usePatternOptions(
   fold: FoldDocument,
   segments: CpSegment[],
   palette: CreaseExportPalette,
+  foldAngleDisplay: CreaseExportOptions['foldAngleDisplay'],
   t: ReturnType<typeof useTranslation>['t']
 ): PatternOption[] {
   return useMemo(() => {
@@ -783,6 +786,11 @@ function usePatternOptions(
       size: THUMBNAIL_SIZE,
       strokes: thumbnailStrokes(palette),
       background: palette.canvas,
+      // The export's own encoding, in the style the dialog will export in.
+      foldAngleInk: foldAngleCssInks({
+        display: foldAngleDisplay,
+        anchor: parseCssColor(palette.foldAngleAnchor) ?? FOLD_ANGLE_ANCHOR_FALLBACK,
+      }),
     };
     return [
       {
@@ -796,5 +804,5 @@ function usePatternOptions(
         svg: cpThumbnailSvg(fold, [segment], thumbnailOptions),
       })),
     ];
-  }, [fold, segments, palette, t]);
+  }, [fold, segments, palette, foldAngleDisplay, t]);
 }

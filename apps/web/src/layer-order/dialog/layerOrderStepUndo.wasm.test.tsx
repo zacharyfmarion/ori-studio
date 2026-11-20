@@ -191,6 +191,7 @@ describe.skipIf(!existsSync(FOLD_WASM) || !existsSync(CP_WASM))('undo puts the e
         xray: false,
         lineStyle: 'color',
         lineWidth: 1,
+        foldAngleDisplay: 'opacity',
       },
       shown: scene,
     };

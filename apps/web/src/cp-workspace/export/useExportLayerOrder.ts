@@ -208,6 +208,7 @@ export function useExportLayerOrder(options: ExportLayerOrderOptions): ExportLay
           xray,
           lineStyle: host.lineStyle,
           lineWidth: host.lineWidth,
+          foldAngleDisplay: host.foldAngleDisplay,
           name,
           byline,
         });

@@ -49,8 +49,10 @@
  * whether one does. See {@link foldAngleInk}.
  */
 import type { Rgba } from '../renderer/types';
+import { parseCssColor } from '../renderer/cssColor';
 import { FOLD_MAGNITUDE_FULL } from '../../lib/foldAngle';
 import type { OristudioCpFoldAngleDisplay } from '../../lib/creasePatternViewport';
+import { rgbColorToHex } from '../../lib/rgbColor';
 
 /**
  * Blend `ink` toward `anchor` according to a stored fold magnitude.
@@ -143,11 +145,13 @@ export const FOLD_ANGLE_ANCHOR_FALLBACK: Rgba = [0.851, 0.275, 0.937, 1];
 export function applyFoldAngleOpacity(ink: Rgba, magnitudeUnits: number | undefined): Rgba {
   const fraction = nonClassicFoldFraction(magnitudeUnits);
   if (fraction === null) return ink;
-  const scale =
-    FOLD_ANGLE_MIN_OPACITY + (FOLD_ANGLE_MAX_OPACITY - FOLD_ANGLE_MIN_OPACITY) * fraction;
   // Multiply rather than assign, so an ink that already carries alpha composes
   // instead of being overridden. Every crease ink is opaque today.
-  return [ink[0], ink[1], ink[2], ink[3] * scale];
+  return [ink[0], ink[1], ink[2], ink[3] * opacityAt(fraction)];
+}
+
+function opacityAt(fraction: number): number {
+  return FOLD_ANGLE_MIN_OPACITY + (FOLD_ANGLE_MAX_OPACITY - FOLD_ANGLE_MIN_OPACITY) * fraction;
 }
 
 /**
@@ -173,6 +177,51 @@ export function foldAngleInk(
     default:
       return applyFoldAngleOpacity(ink, magnitudeUnits);
   }
+}
+
+/**
+ * A crease's ink as a painter that takes CSS colours sets it: an SVG line's
+ * `stroke` and `stroke-opacity`, a 2D canvas's `strokeStyle` and `globalAlpha`.
+ */
+export interface FoldAngleCssInk {
+  stroke: string;
+  opacity: number;
+}
+
+/**
+ * {@link foldAngleInk} for a painter that holds its inks as CSS colours — the
+ * exported picture, and every small drawing of a pattern outside Edit's
+ * canvas (the pattern pickers' thumbnails and the rails' cards). One encoder
+ * for all of them, so a crease is shaded the same wherever it is drawn.
+ *
+ * Returns an encoder rather than taking the ink each call, so each distinct
+ * ink is parsed once however many creases share it.
+ *
+ * - A classic crease comes back as it went in: `ink` untouched, opacity 1.
+ * - An ink that does not parse as a colour still fades, by the opacity mode's
+ *   alpha on the ink as given. In `color` mode that loses the hue, never the
+ *   fact that the crease is not a full fold.
+ */
+export function foldAngleCssInks(options: {
+  display: OristudioCpFoldAngleDisplay;
+  anchor: Rgba;
+}): (ink: string, magnitudeUnits: number | undefined) => FoldAngleCssInk {
+  const parsed = new Map<string, Rgba | null>();
+  return (ink, magnitudeUnits) => {
+    const fraction = nonClassicFoldFraction(magnitudeUnits);
+    if (fraction === null) return { stroke: ink, opacity: 1 };
+    let base = parsed.get(ink);
+    if (base === undefined) {
+      base = parseCssColor(ink);
+      parsed.set(ink, base);
+    }
+    if (base === null) return { stroke: ink, opacity: opacityAt(fraction) };
+    const encoded = foldAngleInk(base, magnitudeUnits, options);
+    return {
+      stroke: rgbColorToHex({ red: encoded[0] * 255, green: encoded[1] * 255, blue: encoded[2] * 255 }),
+      opacity: encoded[3],
+    };
+  };
 }
 
 /**

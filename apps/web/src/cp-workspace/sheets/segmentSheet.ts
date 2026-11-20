@@ -12,6 +12,7 @@
  */
 import { BoundsIndex } from '../../lib/boundsIndex';
 import type { FoldDocument } from '../../engine/types';
+import { foldEdgeMagnitudeUnits, partialFoldDegrees } from '../../lib/foldAngle';
 import {
   flatPlaneReader,
   pointInSegment,
@@ -70,8 +71,10 @@ function sheetGeometry(fold: FoldDocument) {
       return;
     const from = readPoint(coords[a]),
       to = readPoint(coords[b]);
+    const assignment = fold.edges_assignment?.[index] ?? 'U';
+    const foldMagnitude = foldEdgeMagnitudeUnits(assignment, fold.edges_foldAngle?.[index]) ?? undefined;
     loose.push({
-      edge: { a, b, assignment: fold.edges_assignment?.[index] ?? 'U' },
+      edge: foldMagnitude === undefined ? { a, b, assignment } : { a, b, assignment, foldMagnitude },
       middle: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
     });
   });
@@ -115,10 +118,17 @@ export function segmentSheetThumbnail(fold: FoldDocument, segment: CpSegment): S
       return pointInSegment(segment, middle) || pointOnSegmentBoundary(segment, middle) ? [edge] : [];
     });
   const strokes: SheetStroke[] = [...segmentEdges(fold, [segment]), ...looseInRegion].map(
-    ({ a, b, assignment }) => {
+    ({ a, b, assignment, foldMagnitude }) => {
       const from = readPoint(coords[a]);
       const to = readPoint(coords[b]);
-      return { x1: from.x, y1: from.y, x2: to.x, y2: to.y, role: strokeRole(assignment) };
+      return {
+        x1: from.x,
+        y1: from.y,
+        x2: to.x,
+        y2: to.y,
+        role: strokeRole(assignment),
+        foldDegrees: partialFoldDegrees(foldMagnitude),
+      };
     },
   );
   const thumbnail = fitSheetThumbnail(strokes);

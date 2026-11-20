@@ -48,7 +48,7 @@ const ASK: FoldImportLayerOrderAsk = {
     look: { side: 'back', turn_deg: 270 },
   },
 };
-const VIEW: FoldImportView = { style: DEFAULT_PAPER_STYLE, lineStyle: 'color', lineWidth: 2 };
+const VIEW: FoldImportView = { style: DEFAULT_PAPER_STYLE, lineStyle: 'color', lineWidth: 2, foldAngleDisplay: 'opacity' };
 
 beforeEach(() => {
   dialog.requests = [];
@@ -77,6 +77,7 @@ describe('Import CP’s Layer order request', () => {
         xray: false,
         lineStyle: 'color',
         lineWidth: 2,
+        foldAngleDisplay: 'opacity',
       },
       shown: SHOWN,
       name: 'kabuto.fold',
@@ -91,9 +92,9 @@ describe('Import CP’s Layer order request', () => {
   it('reads Fold’s paper and Edit’s pen off the workspace', () => {
     const view = foldImportView({
       foldSequences: [],
-      oristudioCpViewport: { lineWidth: 3 } as never,
+      oristudioCpViewport: { lineWidth: 3, foldAngleDisplay: 'color' } as never,
     });
-    expect(view).toMatchObject({ lineWidth: 3 });
+    expect(view).toMatchObject({ lineWidth: 3, foldAngleDisplay: 'color' });
     expect(view.style).toBeTruthy();
   });
 });

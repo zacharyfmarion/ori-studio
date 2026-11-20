@@ -49,6 +49,7 @@ describe('the Layer order dialog’s contract', () => {
         xray: false,
         lineStyle: 'black-white',
         lineWidth: 2,
+        foldAngleDisplay: 'color',
       },
     };
     // The side and the turn go together: a step turned over and a quarter turn from its back.

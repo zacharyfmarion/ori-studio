@@ -22,6 +22,7 @@ function parts(overrides: Partial<ExportLayerOrderRequestParts> = {}): ExportLay
     xray: false,
     lineStyle: 'color',
     lineWidth: 2,
+    foldAngleDisplay: 'color',
     name: 'Kabuto',
     ...overrides,
   };
@@ -41,6 +42,7 @@ describe('exportLayerOrderRequest', () => {
         xray: false,
         lineStyle: 'color',
         lineWidth: 2,
+        foldAngleDisplay: 'color',
       },
       shown: SHOWN,
       name: 'Kabuto',

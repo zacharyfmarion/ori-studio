@@ -35,6 +35,7 @@ const REQUEST: LayerOrderRequest = {
     xray: false,
     lineStyle: 'color',
     lineWidth: 1,
+    foldAngleDisplay: 'opacity',
   },
 };
 /** The toy figure as a host shows it: 2 over 3 over 0 over 1. */

@@ -12,15 +12,13 @@ import {
   applyCpModelToFold,
   cpModelToFoldTransform,
   IDENTITY_CP_MODEL_TO_FOLD,
-  isClassicFoldAngle,
   type CpModelToFoldTransform,
 } from './creaseExportFold';
 // The fold-angle encoding is the canvas's, not a second one written in hex: see
 // `foldAngleRamp`'s own tests, which pin each mode to a single channel. The
 // import direction (`lib/` -> `cp-workspace/`) follows `nativeProjectFile.ts`.
-import { foldAngleInk } from '../cp-workspace/foldAngle/foldAngleRamp';
+import { FOLD_ANGLE_ANCHOR_FALLBACK, foldAngleCssInks } from '../cp-workspace/foldAngle/foldAngleRamp';
 import { parseCssColor } from '../cp-workspace/renderer/cssColor';
-import type { Rgba } from '../cp-workspace/renderer/types';
 import { foldedFlatPaperScene } from '../cp-workspace/folded/foldedFlatScene';
 import {
   DEFAULT_PAPER_STYLE,
@@ -31,9 +29,8 @@ import {
 } from './paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from './paper/paperStyleResolve';
 import { paperSceneSvgBody } from './paper/paperSvg';
-import { degreesToFoldMagnitude } from './foldAngle';
+import { foldEdgeMagnitudeUnits } from './foldAngle';
 import { PAPER_EXPORT_STYLE_SLOT, type PaperExportStyleChoice } from './paperExportSettings';
-import { rgbColorToHex } from './rgbColor';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedPaperScene,
@@ -373,49 +370,20 @@ function edgeLineColor(assignment: string): string {
 }
 
 /**
- * `|ρ|` in kernel magnitude units for a crease that is not a full fold, or
- * `null` for anything the fold-angle encoding must leave alone.
- *
- * Three rules, each of which is a bug if dropped:
- *
- * - **Only `M` and `V` are creases.** `B` and `F` carry a fold angle of `0` by
- *   construction (`defaultFoldAngle`, and the kernel writes 0 for borders), so
- *   reading the angle alone would fade every sheet outline in the document to
- *   the opacity floor.
- * - **An absent angle is classic**, matching `foldAngleFromParts`, which reads an
- *   absent magnitude as a full ±180 fold.
- * - **±180 needs an epsilon.** A classic crease reaches FOLD through the kernel's
- *   unit conversion and can arrive as `179.9999999`; see
- *   {@link isClassicFoldAngle}.
- */
-function nonClassicMagnitudeUnits(
-  assignment: string,
-  angle: number | null | undefined
-): number | null {
-  if (assignment !== 'M' && assignment !== 'V') return null;
-  if (typeof angle !== 'number' || !Number.isFinite(angle)) return null;
-  if (isClassicFoldAngle(angle)) return null;
-  // Clamped rather than rejected: a hand-written file can carry |ρ| > 180, and a
-  // full fold is the safe reading of it. `degreesToFoldMagnitude` returns null
-  // outside 0..180, which would silently skip the crease instead.
-  return degreesToFoldMagnitude(Math.min(180, Math.abs(angle)));
-}
-
-/**
  * Resolve one edge's stroke, dash and opacity — the line-style table first, then
  * the fold-angle encoding on top of whatever ink it produced.
  *
  * Built once per artwork rather than called as a free function, so the palette
- * colours are parsed into {@link Rgba} once instead of once per crease. The
- * dialog rebuilds the whole artwork on every slider drag.
+ * colours are parsed once instead of once per crease. The dialog rebuilds the
+ * whole artwork on every slider drag.
  *
  * The line-style half is the ported table (see lib/oristudioCpLineStyle),
  * rendered with the export palette: its monochrome ink and grey stand in for
  * Oriedita's black and GREY_10 so a dark export stays legible. The fold-angle
- * half is {@link foldAngleInk}, the canvas's own encoder — so the two surfaces
- * cannot drift. What differs is the starting ink: the export runs the same
- * construction over its own palette, so an exported 90° mountain is not
- * pixel-equal to the canvas's.
+ * half is {@link foldAngleCssInks}, the canvas's own encoder in CSS terms — the
+ * one the pattern thumbnails use too — so the surfaces cannot drift. What
+ * differs is the starting ink: the export runs the same construction over its
+ * own palette, so an exported 90° mountain is not pixel-equal to the canvas's.
  */
 function edgeAppearances(
   lineStyle: OristudioCpLineStyle,
@@ -427,33 +395,18 @@ function edgeAppearances(
   /** 0 none, 1 mountain, 2 valley — `oristudio:edges_fold_direction_hint`. */
   directionHint?: number
 ) => EdgeAppearance {
-  const anchor = parseCssColor(palette.foldAngleAnchor);
-  const parsed = new Map<string, Rgba | null>();
-  const toRgba = (hex: string): Rgba | null => {
-    const cached = parsed.get(hex);
-    if (cached !== undefined) return cached;
-    const rgba = parseCssColor(hex);
-    parsed.set(hex, rgba);
-    return rgba;
-  };
+  const inkFor = foldAngleCssInks({
+    display,
+    anchor: parseCssColor(palette.foldAngleAnchor) ?? FOLD_ANGLE_ANCHOR_FALLBACK,
+  });
   /** The fold-angle encoding on an ink the line-style table has already chosen. */
   const encode = (
     ink: string,
     magnitude: number | null
   ): Pick<EdgeAppearance, 'stroke' | 'strokeOpacity'> => {
-    const base = magnitude === null ? null : toRgba(ink);
-    if (magnitude === null || base === null || anchor === null) {
-      return { stroke: ink, strokeOpacity: 1 };
-    }
-    const encoded = foldAngleInk(base, magnitude, { display, anchor });
-    return {
-      stroke: rgbColorToHex({
-        red: encoded[0] * 255,
-        green: encoded[1] * 255,
-        blue: encoded[2] * 255,
-      }),
-      strokeOpacity: encoded[3],
-    };
+    if (magnitude === null) return { stroke: ink, strokeOpacity: 1 };
+    const { stroke, opacity } = inkFor(ink, magnitude);
+    return { stroke, strokeOpacity: opacity };
   };
 
   return (assignment, angle, directionHint = 0) => {
@@ -461,7 +414,7 @@ function edgeAppearances(
     const ink = styleInk(assignment, lineColor, lineStyle, palette);
     const pattern = cpLineStyleDashPattern(lineStyle, lineColor);
     const base = {
-      ...encode(ink, nonClassicMagnitudeUnits(assignment, angle)),
+      ...encode(ink, foldEdgeMagnitudeUnits(assignment, angle)),
       dash: pattern ? scaleDash(pattern) : '',
     };
     // A hinted crease keeps the undecided grey and dash and takes the alternate
@@ -505,7 +458,7 @@ function edgeAppearances(
     // would repaint it in its own colour and say nothing. It compares the ink the
     // line style chose, *before* any fold-angle encoding: that is the question the
     // rule is asking, and a hinted crease is unassigned, so no encoding applies to
-    // it anyway (see {@link nonClassicMagnitudeUnits}).
+    // it anyway (see {@link foldEdgeMagnitudeUnits}).
     const hintAssignment = directionHint === 1 ? 'M' : directionHint === 2 ? 'V' : null;
     if (!hintAssignment || !pattern) return { ...base, hint: null };
     const hintStroke = styleInk(hintAssignment, edgeLineColor(hintAssignment), lineStyle, palette);

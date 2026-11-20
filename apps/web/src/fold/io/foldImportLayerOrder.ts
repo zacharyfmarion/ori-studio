@@ -30,8 +30,10 @@ import {
   type LayerOrderDialogOutcome,
 } from '../../layer-order/dialog/layerOrderDialogGateway';
 import {
+  DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+  type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
 } from '../../lib/creasePatternViewport';
 import type { LayerOrderRequest } from '../../lib/layerOrder/layerOrderRequest';
@@ -52,6 +54,8 @@ export interface FoldImportView {
   /** Edit's view's line style and width, which Fold's crease pattern pane draws in too. */
   lineStyle: OristudioCpLineStyle;
   lineWidth: number;
+  /** And its Fold angle style, which shades a crease folded short of 180°. */
+  foldAngleDisplay: OristudioCpFoldAngleDisplay;
 }
 
 /** The Fold workspace's view, as `state` holds it. */
@@ -60,6 +64,7 @@ export function foldImportView(state: Pick<WorkspaceState, 'foldSequences' | 'or
     style: documentPaperStyleOf(foldStoredPaperStyle(shownFoldSequence(state)?.document)),
     lineStyle: state.oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE,
     lineWidth: state.oristudioCpViewport.lineWidth ?? DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+    foldAngleDisplay: state.oristudioCpViewport.foldAngleDisplay ?? DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   };
 }
 
@@ -90,6 +95,7 @@ export function foldImportLayerOrderRequest(ask: FoldImportLayerOrderAsk, view: 
       xray: false,
       lineStyle: view.lineStyle,
       lineWidth: view.lineWidth,
+      foldAngleDisplay: view.foldAngleDisplay,
     },
     shown: opening.shown,
     ...(request.kind === 'file' ? { name: request.name } : {}),

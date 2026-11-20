@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizePoint, prepareFoldModel } from '@treemaker/origami-simulator';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
+import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from './foldAngle';
 import {
   assignmentByKeyOf,
   buildSegmentFold,
@@ -310,6 +311,56 @@ describe('cpThumbnailSvg', () => {
     expect(Math.min(...ys)).toBeLessThan(Math.max(...ys));
     // The first drawn edge starts at fold (0,0), which must be the topmost point.
     expect(Number(topEdge![2])).toBeCloseTo(Math.min(...ys), 5);
+  });
+
+  it('inks a crease folded short of 180° through the encoder it is given, and nothing else', () => {
+    // A square split by a 90° valley diagonal and a full mountain one.
+    const fold: FoldDocument = {
+      vertices_coords: [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+        [5, 5],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 4],
+        [4, 2],
+        [1, 4],
+        [4, 3],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'V', 'V', 'M', 'M'],
+      edges_foldAngle: [0, 0, 0, 0, 90, 90, -180, -179.9999999],
+      faces_vertices: [
+        [0, 1, 4],
+        [1, 2, 4],
+        [2, 3, 4],
+        [3, 0, 4],
+      ],
+    };
+    const [segment] = segmentFoldDocument(fold);
+    const strokes = { B: '#111111', M: '#ff0000', V: '#0000ff', F: '#00ffff' };
+    const seen: [string, number][] = [];
+    const svg = segmentThumbnailSvg(fold, segment!, {
+      strokes,
+      foldAngleInk: (ink, magnitude) => {
+        seen.push([ink, magnitude]);
+        return { stroke: '#abcdef', opacity: 0.5 };
+      },
+    });
+    // Only the two 90° valleys, at their own ink and magnitude.
+    expect(seen).toEqual([
+      ['#0000ff', 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE],
+      ['#0000ff', 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE],
+    ]);
+    expect(svg.match(/stroke="#abcdef" stroke-opacity="0.500"/g)).toHaveLength(2);
+    expect(svg.match(/stroke="#ff0000"/g)).toHaveLength(2);
+    // Without an encoder every crease is drawn at its full colour, as before.
+    expect(segmentThumbnailSvg(fold, segment!, { strokes })).not.toContain('stroke-opacity');
   });
 });
 
