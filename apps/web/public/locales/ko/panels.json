@@ -1516,6 +1516,7 @@
       "previousSolution": "이전 층 순서",
       "reset": "포즈 초기화",
       "resetHint": "이미 처음 자세입니다",
+      "resumeSimulation": "시뮬레이션 계속",
       "rotateLeft": "왼쪽으로 회전",
       "rotateRight": "오른쪽으로 회전",
       "rotation": "회전",

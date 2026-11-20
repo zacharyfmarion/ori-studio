@@ -1516,6 +1516,7 @@
       "previousSolution": "前の重なり順",
       "reset": "ポーズをリセット",
       "resetHint": "すでに最初のポーズです",
+      "resumeSimulation": "シミュレーションを再開",
       "rotateLeft": "左に回転",
       "rotateRight": "右に回転",
       "rotation": "回転",

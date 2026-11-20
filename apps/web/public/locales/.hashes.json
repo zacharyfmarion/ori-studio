@@ -6733,7 +6733,8 @@
     "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
-    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13469,7 +13470,8 @@
     "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
-    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20207,7 +20209,8 @@
     "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
-    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26565,7 +26568,8 @@
     "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
-    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32923,7 +32927,8 @@
     "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
-    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39659,7 +39664,8 @@
     "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
-    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46395,7 +46401,8 @@
     "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
-    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52753,6 +52760,7 @@
     "panels:fold.sentence.squashPockets": "7f1b66f83ea8",
     "panels:fold.sentence.pleatMountainEnd": "85852707d68b",
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
-    "tools:fold.pleat.linesApart": "dd8c2a9b9b48"
+    "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
+    "panels:diagram.pose.resumeSimulation": "1ce31bb28405"
   }
 }

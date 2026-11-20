@@ -601,7 +601,7 @@ function exportViewScene(
   }
 }
 
-describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
+describe('a Diagram step’s picture (flatScene, sessionCapture)', () => {
   const view = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
   const still = { view, size: 512, style: EXPORT_STYLE, markHidden: true };
 
@@ -612,7 +612,7 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     const info = session.load(fold, {});
     const flat = session.flatScene(fold, still);
     expect(flat).not.toBeNull();
-    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    expect(session.sessionCapture({ ...still, token: info.token })?.scene).toEqual(flat);
 
     // Folded and back: a solver at rest at 0% holds the sheet only to float
     // noise, which can split a face, so 0% is drawn from the flat sheet itself.
@@ -620,23 +620,66 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     await session.settle(2_000, { token: info.token });
     session.setFoldPercent(0, info.token);
     await session.settle(2_000, { token: info.token });
-    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    expect(session.sessionCapture({ ...still, token: info.token })?.scene).toEqual(flat);
     session.dispose();
   }, 30_000);
 
-  it('settles the solver first when asked, so a scene taken at once is the fold it was told', async () => {
+  it('is the model as it is this moment, settling nothing first, and says whether it had settled', async () => {
+    // Done saves what is on screen: a model still on its way is saved on its way, said so.
     const session = createSimulatorSession();
     const fold = miura(6, 6);
-    const settled = session.load(fold, {});
-    session.setFoldPercent(60, settled.token);
-    await session.settle(20_000, { token: settled.token });
-    const atRest = session.sessionScene({ ...still, token: settled.token });
-
-    const hurried = session.load(fold, {});
-    session.setFoldPercent(60, hurried.token);
+    const info = session.load(fold, {});
+    session.setFoldPercent(60, info.token);
     // Not a step taken yet: unsettled, it is still the flat sheet.
-    expect(session.sessionScene({ ...still, token: hurried.token })).toEqual(session.flatScene(fold, still));
-    expect(session.sessionScene({ ...still, token: hurried.token, settleSteps: 20_000 })).toEqual(atRest);
+    const hurried = session.sessionCapture({ ...still, token: info.token });
+    expect(hurried?.scene).toEqual(session.flatScene(fold, still));
+    expect(hurried?.settled).toBe(false);
+
+    await session.settle(20_000, { token: info.token });
+    const atRest = session.sessionCapture({ ...still, token: info.token });
+    expect(atRest?.settled).toBe(true);
+    expect(atRest?.scene).not.toEqual(hurried?.scene);
+    session.dispose();
+  }, 30_000);
+
+  it('is the shape its picture was drawn from, which puts the same picture back on another load', async () => {
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const a = session.load(fold, {});
+    session.setFoldPercent(60, a.token);
+    // Part way: a shape saved before the solver settled is put back as it was.
+    for (let tick = 0; tick < 3; tick += 1) await session.tick({ token: a.token });
+    const saved = session.sessionCapture({ ...still, token: a.token })!;
+    expect(saved.settled).toBe(false);
+    if (typeof saved.shape === 'string') throw new Error(`expected a shape, got ${saved.shape}`);
+
+    const b = session.load(fold, { solver: { foldPercent: 60 }, shape: saved.shape });
+    expect(b.restored).toEqual({ pins: [], posed: false });
+    const reopened = session.sessionCapture({ ...still, token: b.token })!;
+    expect(reopened.scene).toEqual(saved.scene);
+    if (typeof reopened.shape === 'string') throw new Error(`expected a shape, got ${reopened.shape}`);
+    expect([...reopened.shape.state]).toEqual([...saved.shape.state]);
+    // Held where it was put: nothing steps it until something changes.
+    expect(reopened.settled).toBe(true);
+    await session.tick({ token: b.token });
+    expect(session.sessionCapture({ ...still, token: b.token })!.scene).toEqual(saved.scene);
+    session.dispose();
+  }, 30_000);
+
+  it('is the flat sheet at rest at 0%, its shape too', async () => {
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const info = session.load(fold, {});
+    session.setFoldPercent(40, info.token);
+    await session.settle(2_000, { token: info.token });
+    session.setFoldPercent(0, info.token);
+    // On its way back: 0% is drawn, and stored, as the sheet itself.
+    await session.tick({ token: info.token });
+    const capture = session.sessionCapture({ ...still, token: info.token })!;
+    expect(capture.scene).toEqual(session.flatScene(fold, still));
+    expect(capture.settled).toBe(true);
+    if (typeof capture.shape === 'string') throw new Error(`expected a shape, got ${capture.shape}`);
+    expect(capture.shape.state.every((value) => value === 0)).toBe(true);
     session.dispose();
   }, 30_000);
 
@@ -646,7 +689,7 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     const info = session.load(fold, {});
     session.setFoldPercent(60, info.token);
     await session.settle(2_000, { token: info.token });
-    const folded = session.sessionScene({ ...still, token: info.token });
+    const folded = session.sessionCapture({ ...still, token: info.token })?.scene;
     expect(folded).not.toBeNull();
     expect(folded).not.toEqual(session.flatScene(fold, still));
     session.dispose();
@@ -666,13 +709,13 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     await session.setPinnedFaces([faces[0]!, faces[faces.length - 1]!], info.token);
     session.setFoldPercent(0, info.token);
     await session.settle(2_000, { token: info.token });
-    const pinned = session.sessionScene({ ...still, token: info.token });
+    const pinned = session.sessionCapture({ ...still, token: info.token })?.scene;
     expect(pinned).not.toBeNull();
     expect(pinned).not.toEqual(flat);
 
     // With the pins gone, 0% is the flat sheet again.
     await session.setPinnedFaces([], info.token);
-    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    expect(session.sessionCapture({ ...still, token: info.token })?.scene).toEqual(flat);
     session.dispose();
   }, 30_000);
 
@@ -692,7 +735,7 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     const session = createSimulatorSession();
     const info = session.load(miura(4, 4), {});
     session.release(info.token);
-    expect(session.sessionScene({ ...still, token: info.token })).toBeNull();
+    expect(session.sessionCapture({ ...still, token: info.token })).toBeNull();
     session.dispose();
   });
 });
@@ -1844,7 +1887,7 @@ describe('pulling the paper', () => {
   });
 
   it('is drawn as posed in a Diagram step’s picture at 0%, pinned or not, until it springs back', async () => {
-    // `sessionScene` draws 0% from the flat sheet; a pose is not one.
+    // `sessionCapture` draws 0% from the flat sheet; a pose is not one.
     const fold = miura(4, 4);
     const { session, info, drawn, pointOn, near, far } = await sheet(fold);
     const view = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
@@ -1857,16 +1900,16 @@ describe('pulling the paper', () => {
     await settled(session);
     session.endPull('keep');
     await settled(session);
-    expect(session.sessionScene({ ...still, token: info.token })).not.toEqual(flat);
+    expect(session.sessionCapture({ ...still, token: info.token })?.scene).not.toEqual(flat);
 
     // Unpinned, the pose still holds the shape.
     await session.setPinnedFaces([]);
-    const posed = session.sessionScene({ ...still, token: info.token });
+    const posed = session.sessionCapture({ ...still, token: info.token })?.scene;
     expect(posed).not.toBeNull();
     expect(posed).not.toEqual(flat);
 
     session.releasePose();
-    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    expect(session.sessionCapture({ ...still, token: info.token })?.scene).toEqual(flat);
     session.dispose();
   }, 30_000);
 

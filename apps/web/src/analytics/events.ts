@@ -1861,6 +1861,8 @@ export const ANALYTICS_EVENTS = {
   diagramStepOpened: 'diagram step opened',
   /** An uploaded picture turned or flipped from the step detail or the Step pane. */
   diagramPicturePosed: 'diagram picture posed',
+  /** Pose's play button over a Simulated step saved before it settled: the solver let go on from there. */
+  diagramSimulationResumed: 'diagram simulation resumed',
   /** An annotation drawn on a step's picture, by the tool that drew it. */
   diagramAnnotationAdded: 'diagram annotation added',
   /** A mark put behind a flap for the first time (15e): which ends, how deep. */

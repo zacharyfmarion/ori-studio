@@ -129,7 +129,7 @@ function publishPose(
     setSide: async () => true,
     setFlipCreases: async () => true,
     simulate: async () => {},
-    wantsRest: () => false,
+    wantsSave: () => false,
     spread: null,
     preview: null,
   };

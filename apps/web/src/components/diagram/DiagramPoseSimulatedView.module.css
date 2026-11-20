@@ -1,7 +1,8 @@
 /*
  * A step shown as Simulated, live in Pose (DiagramPoseSimulatedView.tsx): why
- * it cannot fold here, over the top of the stage, and the transport's slider
- * and readout in the Pose bar.
+ * it cannot fold here, over the top of the stage, the play button in its
+ * middle while the model is held, and the transport's slider and readout in
+ * the Pose bar.
  */
 .note {
   position: absolute;
@@ -18,6 +19,14 @@
   color: var(--text-secondary);
   font-size: 0.74rem;
   text-align: center;
+}
+
+/* In the middle of the view, over it: the view keeps every press around it. */
+.resume {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .scrub {

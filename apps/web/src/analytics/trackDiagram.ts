@@ -122,6 +122,14 @@ export function trackDiagramPictureUploaded(
   });
 }
 
+/**
+ * Pose's play button pressed over a step shown as Simulated that was saved
+ * before its solver settled: the simulation goes on from the positions saved.
+ */
+export function trackDiagramSimulationResumed(): void {
+  track(ANALYTICS_EVENTS.diagramSimulationResumed);
+}
+
 /** A step opened in detail, and in which half. */
 export function trackDiagramStepOpened(via: DiagramStepOpenedVia, detail: DiagramStepOpenedMode): void {
   track(ANALYTICS_EVENTS.diagramStepOpened, { via, detail });

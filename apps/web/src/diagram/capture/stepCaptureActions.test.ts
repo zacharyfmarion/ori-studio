@@ -215,7 +215,7 @@ describe('showLinkedStepAs', () => {
     setSide: vi.fn(async () => landed),
     setFlipCreases: vi.fn(async () => landed),
     simulate: async () => {},
-    wantsRest: () => false,
+    wantsSave: () => false,
     spread: null,
     preview: null,
   });

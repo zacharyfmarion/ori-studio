@@ -23,11 +23,12 @@ import {
   releaseSimulatorClient,
   retainSimulatorClient,
 } from '../../store/workspaceStore/simulatorRuntime';
-import type { DiagramCpScope, DiagramSimulatedView } from '../document/diagramDocument';
+import type { DiagramCpScope, DiagramSimulatedShape, DiagramSimulatedView } from '../document/diagramDocument';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
-import type { PaperScene } from '../../lib/paper/paperScene';
-import { registerSimulatedRestNow } from './openLinkedPose';
-import { ORBIT_SETTLE_MS, sameCamera, type SimulatedRest } from './poseController';
+import { trackDiagramSimulationResumed } from '../../analytics';
+import { registerSimulatedSaveNow } from './openLinkedPose';
+import { sameCamera, type SimulatedCapture, type SimulatedSave } from './poseController';
+import { savedShapeOf, simulatorShapeOf, storedSimulatedShape } from './simulatedShape';
 import { useCpSheetIndexState } from '../../cp-workspace/sheets/useCpSheetIndexState';
 
 /** Fold % per arrow press and per Step: Simulate's and an inline window's. */
@@ -35,23 +36,6 @@ const FOLD_STEP_PERCENT = 5;
 
 /** How often the fold readout follows the playhead while it plays. */
 const READOUT_INTERVAL_MS = 66;
-
-/**
- * How long a rest waits for the solver to settle before it is captured as it
- * is: a model can oscillate above the solver's epsilon for good, and Pose must
- * still capture it.
- */
-const MAX_SETTLE_WAIT_MS = 4000;
-
-/** How often a rest looks again while the solver settles. */
-const SETTLE_RECHECK_MS = 150;
-
-/**
- * How far the worker settles a model before the scene Pose takes as it
- * closes: the solver's own bound for a settle, enough for a move it had no
- * time to finish.
- */
-const CLOSING_SETTLE_STEPS = 20_000;
 
 /**
  * The simulator's own defaults, not the Simulate workspace's settings: a step's
@@ -105,19 +89,34 @@ export type DiagramSimulatedPoseStatus =
   | 'no-gpu'
   | 'error';
 
+/** A step's simulated render, as Pose opens it and follows it. */
+export interface DiagramSimulatedPoseRender {
+  foldPercent: number;
+  view: DiagramSimulatedView;
+  shape?: DiagramSimulatedShape;
+}
+
 export interface DiagramSimulatedPose {
   status: DiagramSimulatedPoseStatus;
   error: string | null;
   viewportRef: RefObject<SimulatorViewportHandle | null>;
   runtime: Pick<SimulatorRuntime, 'gpuActive' | 'setRenderSettings'>;
-  /** The viewport moved its camera: drawn, and captured once it rests. */
+  /** The viewport moved its camera: drawn, and saved with the rest when Pose saves. */
   pushCamera: (view: SimulatorOrbitView, width: number, height: number) => void;
   /** The camera the view shows, as the step would store it; null before the first draw. */
   view: DiagramSimulatedView | null;
   /** The view's size in the device px it draws at; null before the first draw. */
   size: { width: number; height: number } | null;
-  /** Whether the view shows the pose the step's picture was captured at, settled. */
+  /** Whether the view shows the pose the step's picture was captured at, settled or held there. */
   atStored: boolean;
+  /**
+   * Opened on positions the step saved before its solver settled, and nothing
+   * has moved them since: the model is held where it was saved, its solver
+   * still, until {@link resume} — or play, a scrub, a step, Back to Flat.
+   */
+  held: boolean;
+  /** Let held positions go on: the solver resumes from them, at rest, toward their fold %. */
+  resume: () => void;
   playing: boolean;
   /** The fold %, as the slider and the readout show it. */
   foldPercent: number;
@@ -131,16 +130,20 @@ export interface DiagramSimulatedPose {
 
 /**
  * Pose's live simulator for a step shown as Simulated (D19): the region's
- * model in the simulator's worker, loaded at the step's fold % and camera, the
- * transport and the simulator's keys while it is shown, and every rest
- * captured — the fold and the camera still for a moment, the solver settled —
- * through `onRest`, which is the step's pose controller. A rest's scene is
- * taken the moment it rests, with the worker held until it answers, so a rest
- * that waits behind another is of its own pose, and one sent as Pose closes
- * is answered by a worker the closing would otherwise end. The rest is captured
- * only when it is not the picture the step has (`PoseController.simulate`), so
- * opening Pose writes nothing unless the step is out of date: that is "Pose
- * again". Leaving Pose with a rest still pending captures it then.
+ * model in the simulator's worker, opened on the positions the step saved —
+ * held there, still, as they were — or, for a step saved without them or one
+ * whose creases changed since, folded from flat at the step's fold % and
+ * camera; the transport and the simulator's keys while it is shown.
+ *
+ * Nothing is captured as the model moves or rests. Leaving Pose — Done,
+ * Escape, another step — saves what it shows at that moment, through
+ * `onSave`, which is the step's pose controller: the positions, the picture
+ * drawn from them at the camera shown, the fold % and whether the solver had
+ * settled, read in one worker call, the worker held until it answers. So does
+ * Refresh on the step while it is open here (`registerSimulatedSaveNow`).
+ * A view untouched since it opened on the step's own positions saves nothing,
+ * unless the step's picture is out of date (`wantsSave`): what it shows is
+ * the step as it is.
  *
  * The model is the one the step's 0% picture is drawn from
  * (`storeSimulationFold`), so 0% here and headless are one picture.
@@ -150,18 +153,18 @@ export function useDiagramSimulatedPose({
   scope,
   known,
   render,
-  onRest,
-  wantsRest,
+  onSave,
+  wantsSave,
 }: {
   stepId: string;
   scope: DiagramCpScope;
   /** What the step remembers of its creases: its sheet is found wherever it is now. */
   known: KnownCreases;
   /** The step's simulated pose: what the view opens at, and follows on an undo. */
-  render: { foldPercent: number; view: DiagramSimulatedView };
-  onRest: (rest: SimulatedRest) => Promise<void>;
-  /** Whether a rest at this pose would be captured: asked before its scene is drawn. */
-  wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
+  render: DiagramSimulatedPoseRender;
+  onSave: (save: SimulatedSave) => Promise<void>;
+  /** Whether a save would commit anything, `untouched` the view still the step's own positions. */
+  wantsSave: (untouched: boolean) => boolean;
 }): DiagramSimulatedPose {
   // The sheet's model, built as the 0% picture builds it, again whenever the
   // pattern's sheet index is.
@@ -201,94 +204,100 @@ export function useDiagramSimulatedPose({
   const [view, setView] = useState<DiagramSimulatedView | null>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [settled, setSettled] = useState(false);
+  const [held, setHeld] = useState(false);
 
-  // The rest, read when its timer fires: refs, so a frame or a drag re-renders nothing.
+  // Read when Pose saves: refs, so a frame or a drag re-renders nothing.
   const viewRef = useRef<DiagramSimulatedView | null>(null);
   const convergedRef = useRef(false);
   const playingRef = useRef(false);
-  /** Since when a rest has waited for the solver: the last move, or the model coming up. */
-  const waitFromRef = useRef(0);
-  const restTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** A move not yet captured: what leaving Pose captures. */
-  const dirtyRef = useRef(false);
+  const readyRef = useRef(false);
+  /** The render the view last went to: the one it opened on, or one it followed. */
+  const followedRef = useRef(render);
+  /** The model is in the step's own stored positions: put back, and nothing has moved the fold or let them go on since. */
+  const ownShapeRef = useRef(false);
+  /** The positions shown were saved unsettled and nothing has let them go on: {@link DiagramSimulatedPose.held}. */
+  const heldRef = useRef(false);
   /**
-   * The rests handed over and not yet seen come back, oldest first: a capture
-   * of one of them landing is the view's own pose, or one it has moved on
-   * from, never a change to follow.
+   * The saves handed over and not yet seen come back, oldest first: a save of
+   * one of them landing is the view's own pose, or one it has moved on from,
+   * never a change to follow.
    */
   const sentRef = useRef<{ foldPercent: number; view: DiagramSimulatedView }[]>([]);
   const lastPublishedRef = useRef(0);
-  const restRef = useRef<() => void>(() => {});
-  const stillRef = useRef<SimulatorRuntime['stillScene'] | null>(null);
-  const handOver = useRef({ onRest, wantsRest });
+  const captureRef = useRef<SimulatorRuntime['stillCapture'] | null>(null);
+  const handOver = useRef({ onSave, wantsSave });
   useLayoutEffect(() => {
-    handOver.current = { onRest, wantsRest };
-  }, [onRest, wantsRest]);
+    handOver.current = { onSave, wantsSave };
+  }, [onSave, wantsSave]);
+
+  const hold = useCallback((next: boolean) => {
+    heldRef.current = next;
+    setHeld(next);
+  }, []);
 
   /**
-   * Hand a rest over with its scene asked for now — of this pose, from a live
-   * session — and the worker held until it answers. Nothing for a rest that
-   * would not be captured.
+   * Save the model as it is shown now: the worker asked at once for its
+   * picture, its positions and whether it had settled, held until it answers,
+   * and the save handed over with the fold % and camera shown — the stored
+   * camera while the view is still at it, so float noise is no change.
+   * Nothing when there is no model up, or nothing a save would commit.
    */
-  const sendRest = useCallback((rest: { foldPercent: number; view: DiagramSimulatedView }, settleSteps?: number) => {
-    const still = stillRef.current;
+  const save = useCallback(() => {
+    const capture = captureRef.current;
     const { diagram } = useWorkspaceStore.getState();
-    if (!still || !diagram || !handOver.current.wantsRest(rest)) return;
+    const stored = followedRef.current;
+    const shown = viewRef.current ?? stored.view;
+    const atStoredCamera = sameCamera(shown, stored.view);
+    const untouched = ownShapeRef.current && atStoredCamera;
+    if (!capture || !diagram || !readyRef.current || !handOver.current.wantsSave(untouched)) return;
+    const view = atStoredCamera ? stored.view : shown;
+    const foldPercent = storedPercent(playheadRef.current.value);
+    // Held positions are the unsettled ones they were saved as, whatever the still solver says.
+    const unsettled = heldRef.current;
     retainSimulatorClient();
-    const pending: Promise<PaperScene | null> = still({
-      view: rest.view,
+    const pending: Promise<SimulatedCapture | null> = capture({
+      view,
       size: SIMULATED_FRAME_PX,
       style: diagramPaperStyle(diagram.style),
       markHidden: true,
-      settleSteps,
     })
+      .then((captured): SimulatedCapture | null => {
+        if (!captured) return null;
+        const shape = storedSimulatedShape(captured.shape, captured.settled && !unsettled);
+        return shape ? { scene: captured.scene, shape } : { scene: captured.scene };
+      })
       .catch(() => null)
       .finally(releaseSimulatorClient);
-    sentRef.current.push(rest);
-    void handOver.current.onRest({ ...rest, still: () => pending });
+    sentRef.current.push({ foldPercent, view });
+    void handOver.current.onSave({ foldPercent, view, capture: pending });
   }, []);
 
-  const arm = useCallback((delay: number = ORBIT_SETTLE_MS) => {
-    if (restTimer.current) clearTimeout(restTimer.current);
-    restTimer.current = setTimeout(() => {
-      restTimer.current = null;
-      restRef.current();
-    }, delay);
-  }, []);
-  /** The user moved the fold or the camera: capture where it comes to rest. */
-  const moved = useCallback(() => {
-    waitFromRef.current = performance.now();
-    dirtyRef.current = true;
-    arm();
-  }, [arm]);
+  // Leaving Pose — Done, Escape, another step — saves what it shows. Declared
+  // before the runtime, so this runs before the runtime lets its model go:
+  // the capture is asked for first, and the worker answers in order.
+  useEffect(() => () => save(), [save]);
 
-  // Leaving Pose — Done, Escape, another step — with a move not yet captured
-  // captures it, the solver settled first in the worker: there is no time to
-  // wait for it here. Declared before the runtime, so this runs before the
-  // runtime lets its model go: the scene is asked for first, and the worker
-  // answers in order.
-  useEffect(
-    () => () => {
-      if (restTimer.current) clearTimeout(restTimer.current);
-      const shown = viewRef.current;
-      if (!dirtyRef.current || !shown) return;
-      sendRest({ foldPercent: storedPercent(playheadRef.current.value), view: shown }, CLOSING_SETTLE_STEPS);
-    },
-    [sendRest]
-  );
+  /** The user moved the fold: the view is not the step's positions, and held ones go on. */
+  const foldMoved = useCallback(() => {
+    ownShapeRef.current = false;
+    if (heldRef.current) hold(false);
+  }, [hold]);
 
   const handleFrame = useCallback(
     (frame: SimulatorFrameView) => {
       viewportRef.current?.showFrame(frame);
-      // Not `playhead.report`: here the playhead alone says where the fold is
-      // going, and a frame the worker began before a scrub reports the target
-      // the scrub just left — read back, it would capture the old fold.
       const wasConverged = convergedRef.current;
       convergedRef.current = frame.converged;
       if (frame.converged !== wasConverged) setSettled(frame.converged);
     },
     []
   );
+
+  // The step's positions, for the model to open on: put back before its first
+  // frame, and counted settled there, so nothing moves them until something
+  // changes. Read at load, as the fold % is.
+  const storedShape = render.shape;
+  const initialShape = useMemo(() => simulatorShapeOf(storedShape), [storedShape]);
 
   const runtime = useSimulatorRuntime({
     fold: gpu === true && fold ? fold : null,
@@ -297,47 +306,35 @@ export function useDiagramSimulatedPose({
     triangulate: true,
     canvas: null,
     bitmapOutput,
+    initialShape,
     onFrame: handleFrame,
   });
-  const { setFoldPercent, setCamera, reset, stillScene, status: runtimeStatus } = runtime;
+  const { setFoldPercent, setCamera, reset, restoreShape, stillCapture, status: runtimeStatus, model: loaded } = runtime;
   useLayoutEffect(() => {
-    stillRef.current = stillScene;
-  }, [stillScene]);
+    captureRef.current = stillCapture;
+    readyRef.current = runtimeStatus === 'ready';
+  }, [stillCapture, runtimeStatus]);
 
-  // A rest: captured once the solver has settled, or has had long enough.
+  // A model up: on the step's own positions when they were put back — held
+  // there if they were saved unsettled — or folded from flat when the step has
+  // none, or they are another sheet's.
   useEffect(() => {
-    restRef.current = () => {
-      if (playingRef.current || runtimeStatus !== 'ready') return;
-      const shown = viewRef.current;
-      // The model up before the view has said where it looks: wait for it.
-      if (!shown) {
-        arm(SETTLE_RECHECK_MS);
-        return;
-      }
-      if (!convergedRef.current && performance.now() - waitFromRef.current < MAX_SETTLE_WAIT_MS) {
-        arm(SETTLE_RECHECK_MS);
-        return;
-      }
-      dirtyRef.current = false;
-      sendRest({ foldPercent: storedPercent(playheadRef.current.value), view: shown });
-    };
-  });
+    if (!loaded) return;
+    const opened = loaded.restored !== null && loaded.restored !== 'mismatch';
+    // At 0% a step with no positions is the flat sheet, which is its own: nothing to store.
+    ownShapeRef.current = opened || (loaded.restored === null && followedRef.current.foldPercent === 0);
+    hold(opened && savedShapeOf(followedRef.current.shape)?.settled === false);
+  }, [loaded, hold]);
 
-  // Pose Again from beside the open step: a rest now, waiting for the solver
-  // if it is still on its way.
-  useEffect(
-    () =>
-      registerSimulatedRestNow(stepId, () => {
-        waitFromRef.current = performance.now();
-        restRef.current();
-      }),
-    [stepId]
-  );
+  // Refresh from beside the open step: save what it shows now.
+  useEffect(() => registerSimulatedSaveNow(stepId, save), [stepId, save]);
 
   // The step's pose changed from outside — an undo, Reset — so the view goes
-  // to it. A capture of a rest it sent is where the view is, or a pose it has
-  // moved on from: not followed.
+  // to it: its positions put back, or for a render with none, folded freely
+  // from flat to its fold %. A save it sent landing is where the view is, or a
+  // pose it has moved on from: not followed.
   useEffect(() => {
+    if (followedRef.current === render) return;
     const sent = sentRef.current;
     let match = -1;
     for (let index = sent.length - 1; index >= 0; index -= 1) {
@@ -346,6 +343,7 @@ export function useDiagramSimulatedPose({
         break;
       }
     }
+    followedRef.current = render;
     if (match >= 0) {
       sent.splice(0, match + 1);
       return;
@@ -353,39 +351,34 @@ export function useDiagramSimulatedPose({
     sentRef.current = [];
     const shown = viewRef.current;
     if (!shown || !sameCamera(shown, render.view)) viewportRef.current?.setView(render.view);
-    if (Math.abs(playheadRef.current.value - render.foldPercent) >= 0.05) {
-      playingRef.current = false;
-      setPlaying(false);
-      playheadRef.current.set(render.foldPercent);
-      setFoldPercentShown(render.foldPercent);
-      setFoldPercent(render.foldPercent);
-    }
-    dirtyRef.current = false;
-    if (restTimer.current) clearTimeout(restTimer.current);
-  }, [render, setFoldPercent]);
-
-  // The model up: a first rest, which captures nothing unless the step's
-  // picture is out of date — Pose again, for a model that settles or not.
-  // After the effect above, which clears the rest timer as it follows: in
-  // the same pass this one must come second, or the first rest goes with it.
-  useEffect(() => {
-    if (runtimeStatus !== 'ready') return;
-    waitFromRef.current = performance.now();
-    arm();
-  }, [runtimeStatus, arm]);
+    const moved = Math.abs(playheadRef.current.value - render.foldPercent) >= 0.05;
+    playingRef.current = false;
+    setPlaying(false);
+    playheadRef.current.set(render.foldPercent);
+    setFoldPercentShown(render.foldPercent);
+    const shape = simulatorShapeOf(render.shape);
+    ownShapeRef.current = shape !== null;
+    hold(shape !== null && savedShapeOf(render.shape)?.settled === false);
+    void (async () => {
+      const restored = shape ? await restoreShape(render.foldPercent, shape) : null;
+      if (restored && restored !== 'mismatch') return;
+      // Not put back — none, or another sheet's: the free fold, unless it is already at that fold %.
+      if (followedRef.current !== render) return;
+      ownShapeRef.current = false;
+      hold(false);
+      if (shape || moved) await restoreShape(render.foldPercent, null);
+    })();
+  }, [render, restoreShape, hold]);
 
   const pushCamera = useCallback(
     (orbit: SimulatorOrbitView, width: number, height: number) => {
       setCamera(orbit, width, height);
       const shown = poseView(orbit);
-      const before = viewRef.current;
       viewRef.current = shown;
       setView(shown);
       setSize((was) => (was?.width === width && was.height === height ? was : { width, height }));
-      // A resize or the view following the step moves nothing worth a capture.
-      if (before && !sameCamera(before, shown)) moved();
     },
-    [setCamera, moved]
+    [setCamera]
   );
 
   const scrub = useCallback(
@@ -396,9 +389,9 @@ export function useDiagramSimulatedPose({
       const next = playheadRef.current.value;
       setFoldPercentShown(next);
       setFoldPercent(next);
-      moved();
+      foldMoved();
     },
-    [setFoldPercent, moved]
+    [setFoldPercent, foldMoved]
   );
 
   const rewind = useCallback(() => {
@@ -407,8 +400,8 @@ export function useDiagramSimulatedPose({
     playheadRef.current.set(0);
     setFoldPercentShown(0);
     reset();
-    moved();
-  }, [reset, moved]);
+    foldMoved();
+  }, [reset, foldMoved]);
 
   const step = useCallback(() => {
     scrub(Math.min(100, Math.floor(playheadRef.current.value / FOLD_STEP_PERCENT + 1) * FOLD_STEP_PERCENT));
@@ -418,9 +411,16 @@ export function useDiagramSimulatedPose({
     const next = !playingRef.current;
     playingRef.current = next;
     setPlaying(next);
-    // Paused: where it stopped is a rest.
-    if (!next) moved();
-  }, [moved]);
+    foldMoved();
+  }, [foldMoved]);
+
+  const resume = useCallback(() => {
+    if (!heldRef.current) return;
+    foldMoved();
+    // The same fold target again, which sets the solver going from where it is held.
+    setFoldPercent(playheadRef.current.value);
+    trackDiagramSimulationResumed();
+  }, [foldMoved, setFoldPercent]);
 
   // Play advances the fold target over time; the worker does the solving.
   const percentPerSecond = DEFAULT_SIMULATOR_SETTINGS.foldPlayPercentPerSecond;
@@ -445,7 +445,6 @@ export function useDiagramSimulatedPose({
       if (next >= 100) {
         playingRef.current = false;
         setPlaying(false);
-        moved();
         return;
       }
       raf = window.requestAnimationFrame(tick);
@@ -456,7 +455,7 @@ export function useDiagramSimulatedPose({
       playhead.end();
       setFoldPercentShown(playhead.value);
     };
-  }, [playing, runtimeStatus, setFoldPercent, reset, moved, percentPerSecond]);
+  }, [playing, runtimeStatus, setFoldPercent, reset, percentPerSecond]);
 
   const status: DiagramSimulatedPoseStatus =
     sheets.status === 'no-pattern'
@@ -495,7 +494,7 @@ export function useDiagramSimulatedPose({
     },
   });
 
-  const atStored = settled && view !== null && !playing && samePose({ foldPercent, view }, render);
+  const atStored = (settled || held) && view !== null && !playing && samePose({ foldPercent, view }, render);
 
   return {
     status,
@@ -506,6 +505,8 @@ export function useDiagramSimulatedPose({
     view,
     size,
     atStored,
+    held: held && status === 'ready',
+    resume,
     playing,
     foldPercent,
     togglePlay,
