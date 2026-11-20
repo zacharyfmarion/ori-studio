@@ -38,7 +38,13 @@ import { createPoseController, linkedFoldKey } from './poseController';
 import { ensureCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
 import { ringsBounds } from '../../layer-order/panes/layerPaneFigure';
 import { stepsIn } from '../document/diagramSteps.fixtures';
-import type { DiagramCpRender, DiagramLayerSpread } from '../document/diagramDocument';
+import type {
+  DiagramCpRender,
+  DiagramCpSource,
+  DiagramLayerSpread,
+  DiagramSavedShape,
+  DiagramSimulatedView,
+} from '../document/diagramDocument';
 
 const bindings = vi.hoisted(() => ({ runtime: null as CpCaptureRuntime | null }));
 vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOriginal) => ({
@@ -260,38 +266,72 @@ describe('the Pose controller', () => {
     } finally { vi.useRealTimers(); }
   });
 
-  it('captures a rest of Pose’s simulator only when it is not the step’s picture already (D19)', async () => {
-    const stepId = await linkedStep();
-    const controller = createPoseController(stepId, listener());
-    const still = vi.fn(async () => sheetWithCrease());
-    const view = { yaw: 0.3, pitch: -0.8, zoom: 1.4 };
-    // Shown as its crease pattern: a rest of a simulator it left is nothing.
-    await controller.simulate({ foldPercent: 40, view, still });
-    expect(still).not.toHaveBeenCalled();
-
-    // Shown Simulated: folded to 40% and captured, one undo step.
+  /** A save of Pose's simulator whose capture is in: its scene, and the positions it was drawn from. */
+  const saved = (foldPercent: number, view: DiagramSimulatedView, shape?: DiagramSavedShape) => ({
+    foldPercent,
+    view,
+    capture: Promise.resolve({ scene: sheetWithCrease(), ...(shape ? { shape } : {}) }),
+  });
+  const positions = (state: string, settled = true): DiagramSavedShape => ({ sheet: 'sk1:sheet', state, settled });
+  /** The step shown Simulated, at a fold % and camera. */
+  const showSimulated = (stepId: string, foldPercent: number, view: DiagramSimulatedView) =>
     useWorkspaceStore.setState({
       diagram: {
         ...state().diagram!,
         steps: stepsIn(state().diagram!).map((step) =>
           step.id === stepId && step.source?.kind === 'cp'
-            ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent: 0, view } } }
+            ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent, view } } }
             : step
         ),
       },
     });
+
+  it('commits every save of Pose’s simulator, its positions with it, one undo step each (D19)', async () => {
+    const stepId = await linkedStep();
+    const controller = createPoseController(stepId, listener());
+    const view = { yaw: 0.3, pitch: -0.8, zoom: 1.4 };
+    // Shown as its crease pattern: a save of a simulator it left is nothing.
+    expect(controller.wantsSave(false)).toBe(false);
     const past = state().diagramHistory.past.length;
-    await controller.simulate({ foldPercent: 40, view, still });
-    expect(render(stepId)).toMatchObject({ render: { mode: 'simulated', foldPercent: 40, view } });
-    expect(state().diagramHistory.past.length).toBe(past + 1);
-    expect(still).toHaveBeenCalledOnce();
+    await controller.simulate(saved(40, view, positions('ss1:AAAAAA==')));
+    expect(state().diagramHistory.past.length).toBe(past);
 
-    // Resting where it is captured: nothing, so opening Pose writes nothing.
-    await controller.simulate({ foldPercent: 40.02, view, still });
-    expect(still).toHaveBeenCalledOnce();
-    expect(state().diagramHistory.past.length).toBe(past + 1);
+    // Shown Simulated: saved at 40%, positions and all.
+    showSimulated(stepId, 0, view);
+    const before = state().diagramHistory.past.length;
+    await controller.simulate(saved(40, view, positions('ss1:AAAAAA==', false)));
+    expect(render(stepId)).toMatchObject({
+      render: { mode: 'simulated', foldPercent: 40, view, shape: positions('ss1:AAAAAA==', false) },
+    });
+    expect(state().diagramHistory.past.length).toBe(before + 1);
 
-    // Its pattern changed since: the same rest is captured again (Pose again).
+    // 45 → 100 → 45: the same fold % and camera, another shape — saved.
+    await controller.simulate(saved(40, view, positions('ss1:AACAPw==')));
+    expect(render(stepId)).toMatchObject({ render: { shape: positions('ss1:AACAPw==') } });
+    expect(state().diagramHistory.past.length).toBe(before + 2);
+
+    // The very picture and positions it has: no undo step.
+    await controller.simulate(saved(40, view, positions('ss1:AACAPw==')));
+    expect(state().diagramHistory.past.length).toBe(before + 2);
+
+    // Positions the simulator could not read: the step is saved without them.
+    await controller.simulate(saved(40, { ...view, yaw: 1 }));
+    expect((render(stepId) as DiagramCpSource).render).not.toHaveProperty('shape');
+    controller.dispose();
+  });
+
+  it('wants a save of an untouched view only when the step’s picture is out of date (Pose again)', async () => {
+    const stepId = await linkedStep();
+    const controller = createPoseController(stepId, listener());
+    const view = { yaw: 0.3, pitch: -0.8, zoom: 1.4 };
+    showSimulated(stepId, 0, view);
+    // A picture of the crease pattern, shown Simulated: out of date.
+    expect(controller.wantsSave(true)).toBe(true);
+    await controller.simulate(saved(40, view, positions('ss1:AAAAAA==')));
+    // Saved here: the view it opens on is the step as it is.
+    expect(controller.wantsSave(false)).toBe(true);
+    expect(controller.wantsSave(true)).toBe(false);
+    // Its pattern changed since: the view it opens on is saved again.
     useWorkspaceStore.setState({
       diagram: {
         ...state().diagram!,
@@ -300,67 +340,67 @@ describe('the Pose controller', () => {
         ),
       },
     });
-    await controller.simulate({ foldPercent: 40, view, still });
-    expect(still).toHaveBeenCalledTimes(2);
-    expect(render(stepId)).toMatchObject({ fingerprint: expect.not.stringMatching(/^before$/) });
+    await vi.waitFor(() => expect(controller.wantsSave(true)).toBe(true));
     controller.dispose();
   });
 
-  it('captures the newest rest that came while one was captured, not refused as busy', async () => {
+  it('commits the newest save that came while one was committed, not refused as busy', async () => {
     const stepId = await linkedStep();
     const view = { yaw: 0.3, pitch: -0.8, zoom: 1.4 };
-    useWorkspaceStore.setState({
-      diagram: {
-        ...state().diagram!,
-        steps: stepsIn(state().diagram!).map((step) =>
-          step.id === stepId && step.source?.kind === 'cp'
-            ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent: 0, view } } }
-            : step
-        ),
-      },
-    });
+    showSimulated(stepId, 0, view);
     const controller = createPoseController(stepId, listener());
     let release = () => {};
-    const slow = vi.fn(() => new Promise<ReturnType<typeof sheetWithCrease>>((resolve) => (release = () => resolve(sheetWithCrease()))));
-    const still = vi.fn(async () => sheetWithCrease());
-    const first = controller.simulate({ foldPercent: 20, view, still: slow });
-    await vi.waitFor(() => expect(slow).toHaveBeenCalled());
-    // Two more while the first is captured: only the newest is.
-    void controller.simulate({ foldPercent: 30, view, still });
-    const last = controller.simulate({ foldPercent: 40, view, still });
+    const slow = new Promise<{ scene: ReturnType<typeof sheetWithCrease> }>(
+      (resolve) => (release = () => resolve({ scene: sheetWithCrease() }))
+    );
+    const past = state().diagramHistory.past.length;
+    const first = controller.simulate({ foldPercent: 20, view, capture: slow });
+    // Taken up, and waiting for its capture.
+    await Promise.resolve();
+    // Two more while the first is in: only the newest follows it.
+    void controller.simulate(saved(30, view));
+    const last = controller.simulate(saved(40, view));
     release();
     await first;
     await last;
-    expect(still).toHaveBeenCalledOnce();
     expect(render(stepId)).toMatchObject({ render: { foldPercent: 40 } });
+    expect(state().diagramHistory.past.length).toBe(past + 2);
     controller.dispose();
   });
 
-  it('drops a rest still waiting when an undo comes, so the undo stands and redo is kept', async () => {
+  it('lands the save Pose asked for as it closed, though the controller goes in the same moment', async () => {
     const stepId = await linkedStep();
     const view = { yaw: 0.3, pitch: -0.8, zoom: 1.4 };
-    const simulated = (foldPercent: number) =>
-      useWorkspaceStore.setState({
-        diagram: {
-          ...state().diagram!,
-          steps: stepsIn(state().diagram!).map((step) =>
-            step.id === stepId && step.source?.kind === 'cp'
-              ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent, view } } }
-              : step
-          ),
-        },
-      });
-    simulated(0);
+    showSimulated(stepId, 0, view);
     const controller = createPoseController(stepId, listener());
-    const still = vi.fn(async () => sheetWithCrease());
-    await controller.simulate({ foldPercent: 40, view, still });
+    let release = () => {};
+    const capture = new Promise<{ scene: ReturnType<typeof sheetWithCrease>; shape: DiagramSavedShape }>(
+      (resolve) => (release = () => resolve({ scene: sheetWithCrease(), shape: positions('ss1:AAAAAA==', false) }))
+    );
+    // The view's leave, then the panel letting the step's controller go (another step opened).
+    const landing = controller.simulate({ foldPercent: 35, view, capture });
+    controller.dispose({ flushOrbit: true });
+    release();
+    await landing;
+    await vi.waitFor(() =>
+      expect(render(stepId)).toMatchObject({ render: { foldPercent: 35, shape: positions('ss1:AAAAAA==', false) } })
+    );
+  });
+
+  it('drops a save still waiting when an undo comes, so the undo stands and redo is kept', async () => {
+    const stepId = await linkedStep();
+    const view = { yaw: 0.3, pitch: -0.8, zoom: 1.4 };
+    showSimulated(stepId, 0, view);
+    const controller = createPoseController(stepId, listener());
+    await controller.simulate(saved(40, view));
     expect(render(stepId)).toMatchObject({ render: { foldPercent: 40 } });
 
     let release = () => {};
-    const slow = vi.fn(() => new Promise<ReturnType<typeof sheetWithCrease>>((resolve) => (release = () => resolve(sheetWithCrease()))));
-    const first = controller.simulate({ foldPercent: 50, view, still: slow });
-    await vi.waitFor(() => expect(slow).toHaveBeenCalled());
-    void controller.simulate({ foldPercent: 70, view, still });
+    const slow = new Promise<{ scene: ReturnType<typeof sheetWithCrease> }>(
+      (resolve) => (release = () => resolve({ scene: sheetWithCrease() }))
+    );
+    const first = controller.simulate({ foldPercent: 50, view, capture: slow });
+    void controller.simulate(saved(70, view));
     // Undo, as Pose's key does it: the sessions hear of it first.
     controller.historyMoved();
     act(() => state().undoDiagram());

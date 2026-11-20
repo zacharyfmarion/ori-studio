@@ -9,7 +9,7 @@ import { precreasedBaseStates } from '../../fold/engine/foldPrecreasedBase.fixtu
 import type { PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import { flatScenePicture, type CapturedPicture } from '../capture/captureFolded';
 import type { DiagramPaperFaces } from '../document/diagramDocument';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { foldScenePattern } from './foldStepPicture';
 
 /**

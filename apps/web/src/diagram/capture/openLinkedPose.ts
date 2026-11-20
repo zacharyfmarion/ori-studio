@@ -40,24 +40,24 @@ export function openLinkedPoseOf(stepId: string): DiagramLinkedPose | null {
 
 /**
  * The live simulator Pose shows for a step shown as Simulated, as far as a
- * surface beside it needs it: its "rest now", which captures the model where
- * it is if that is not the step's picture already — Pose Again on a step
- * already open (D19). Registered by the view while it is up.
+ * surface beside it needs it: its "save now", which saves the model as it is
+ * shown, as Done would, and stays in Pose — Refresh on a step already open
+ * (D19). Registered by the view while it is up.
  */
-let restNow: { stepId: string; run: () => void } | null = null;
+let saveNow: { stepId: string; run: () => void } | null = null;
 
-/** The open simulated view's rest now, until the returned function lets it go. */
-export function registerSimulatedRestNow(stepId: string, run: () => void): () => void {
+/** The open simulated view's save now, until the returned function lets it go. */
+export function registerSimulatedSaveNow(stepId: string, run: () => void): () => void {
   const entry = { stepId, run };
-  restNow = entry;
+  saveNow = entry;
   return () => {
-    if (restNow === entry) restNow = null;
+    if (saveNow === entry) saveNow = null;
   };
 }
 
-/** Bring `stepId`'s live simulator to a rest now; false when Pose shows no simulator for it. */
-export function simulatedRestNow(stepId: string): boolean {
-  if (restNow === null || restNow.stepId !== stepId) return false;
-  restNow.run();
+/** Save `stepId`'s live simulator as it is shown now; false when Pose shows no simulator for it. */
+export function simulatedSaveNow(stepId: string): boolean {
+  if (saveNow === null || saveNow.stepId !== stepId) return false;
+  saveNow.run();
   return true;
 }

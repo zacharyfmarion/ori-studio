@@ -75,7 +75,7 @@ import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
 import { pickStepPictures } from './upload/addStepPictures';
 import { needsPose } from './capture/linkStatus';
-import { simulatedRestNow } from './capture/openLinkedPose';
+import { simulatedSaveNow } from './capture/openLinkedPose';
 import { lightingChanged } from './pictures/lighting';
 import { lacksPaperFaces } from './capture/stepPaperFaces';
 import { outOfDate } from './zoom/areaStatus';
@@ -342,10 +342,10 @@ function bindStepActions(
         const current = store().diagram;
         const step = current ? stepById(current, stepId) : null;
         // Folded part way in the simulator: only Pose captures it again (D19) —
-        // a rest now when Pose is open on it, else Pose opened, which rests as
-        // the model comes up.
+        // saved now when Pose is open on it, else Pose opened on it, and Done
+        // saves it in the diagram's light.
         if (step && needsPose(step)) {
-          if (!simulatedRestNow(stepId)) openDiagramStep(stepId, 'pose_again');
+          if (!simulatedSaveNow(stepId)) openDiagramStep(stepId, 'pose_again');
         } else if (step?.source?.kind === 'fold-step') {
           void refreshDiagramFoldStep(stepId);
         } else {

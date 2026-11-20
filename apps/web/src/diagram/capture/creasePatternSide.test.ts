@@ -6,7 +6,7 @@ import { sheetRegions } from '../../cp-workspace/sheets/cpSheetRegions';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramCpSource, DiagramStep, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { stepsIn } from '../document/diagramSteps.fixtures';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { cpDocument, fakeCaptureRuntime, twoSquaresIndex } from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
 import type { CpCaptureRuntime } from './captureFolded';
@@ -195,7 +195,7 @@ function openPose(verbs: Partial<DiagramLinkedPose>): DiagramLinkedPose {
     setSide: async () => true,
     setFlipCreases: async () => true,
     simulate: async () => {},
-    wantsRest: () => false,
+    wantsSave: () => false,
     spread: null,
     preview: null,
     ...verbs,

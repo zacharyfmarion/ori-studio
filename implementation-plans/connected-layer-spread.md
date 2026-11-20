@@ -913,3 +913,10 @@ follow-up. No new solve or per-frame work beyond the scalar multiplication.
 No corpus benchmark, production rebuild, Rust/oracle or native-shell checks
 were repeated for this shared TS parameter adjustment. Stored pictures remain
 snapshots until their next recapture, as before.
+
+## Paper that does not stretch (2026-11-18)
+
+The solver now also returns an in-plane shift that keeps the lifted paper its
+true size, and the shared projection applies it. Heights, references, the
+reveal and the recipe version are unchanged. See
+`implementation-plans/spread-no-stretch.md`.

@@ -1,5 +1,25 @@
 import type { ConnectedSpread, Point, Point3, SpreadInput, SpreadSolution, Triangle } from './types.js';
 
+/** The amount past which the no-stretch shift stops growing. Its second-order
+ * form overshoots once faces are steep, so it holds at the nominal opening. */
+export const SHIFT_HOLD_AMOUNT = 1;
+
+/** How much of the solved shift an amount shows. Heights scale with the
+ * amount, so the shortening they cause scales with its square. */
+export function shiftScale(amount: number): number {
+  const held = Math.min(Math.max(amount, 0), SHIFT_HOLD_AMOUNT);
+  return held * held;
+}
+
+/** Canonical XY with the paper kept its true size: lifted faces draw
+ * shortened along their slope instead of stretched. No solve per amount. */
+export function shiftedXY(input: SpreadInput, solution: SpreadSolution, amount: number, back: boolean): Point[] {
+  const shift = solution.shifts?.[back ? 1 : 0];
+  const scale = shiftScale(amount);
+  if (!shift || shift.length !== 2 * input.xy.length || scale === 0) return input.xy;
+  return input.xy.map(([x, y], v) => [x + scale * shift[2 * v], y + scale * shift[2 * v + 1]]);
+}
+
 /** The accepted visible-surface shear. The reference is fixed for the entire gesture. */
 export function diagramPositions(
   input: SpreadInput,
@@ -10,15 +30,18 @@ export function diagramPositions(
   const [a, b, c] = solution.references[back ? 1 : 0].plane;
   const sign = back ? -1 : 1;
   const [dx, dy] = spread.reveal;
+  const xy = shiftedXY(input, solution, spread.amount, back);
   return input.xy.map(([x, y], v) => {
     const z = solution.heights[v];
+    // Height is measured where the vertex lay flat; only its drawn place shifts.
     const h = spread.amount * (z - a * x - b * y - c);
-    return [x + dx * h, y - sign * dy * h, spread.amount * z];
+    return [xy[v][0] + dx * h, xy[v][1] - sign * dy * h, spread.amount * z];
   });
 }
 
-export function spatialPositions(input: SpreadInput, solution: SpreadSolution, amount: number): Point3[] {
-  return input.xy.map(([x, y], v) => [x, y, amount * solution.heights[v]]);
+export function spatialPositions(input: SpreadInput, solution: SpreadSolution, amount: number, back = false): Point3[] {
+  const xy = shiftedXY(input, solution, amount, back);
+  return xy.map(([x, y], v) => [x, y, amount * solution.heights[v]]);
 }
 
 /** Barycentric interpolation is shared by rendering, annotations and first-pick mapping. */

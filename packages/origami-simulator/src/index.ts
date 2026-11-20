@@ -52,6 +52,7 @@ export {
 export { type SvgMeshTopology } from './projectedMesh.js';
 export {
   meshToPaperScene,
+  withLinesDrawnLate,
   type MeshToPaperSceneOptions,
   type PaperFaceItem,
   type PaperItem,
@@ -64,6 +65,12 @@ export {
   type SceneBounds,
   type ScenePoint,
 } from './paperScene.js';
+export {
+  COVER_EPS,
+  coversLine,
+  linesAsLateAsUncovered,
+  type DrawShape,
+} from './lineDrawOrder.js';
 export { EDGE_CODE, type EdgeCode } from './edgeCodes.js';
 export {
   AUX_END_ON_OUTLINE_RELATIVE,

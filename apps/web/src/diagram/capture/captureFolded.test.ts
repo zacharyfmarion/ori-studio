@@ -183,10 +183,10 @@ describe('captureStep, simulated (D19)', () => {
     });
   });
 
-  // Relink asks again at 0% with the step's render, Pose's mesh and all, and
-  // Refresh with the render as it stands: the mesh was the old picture's.
-  it('leaves Pose’s stored mesh behind with the picture it was for', async () => {
-    const shape = { posed: true, pins: [[0, 1]] };
+  // Relink asks again at 0% with the step's render, Pose's positions and all,
+  // and Refresh with the render as it stands: they were the old picture's.
+  it('leaves Pose’s stored positions behind with the picture they were for', async () => {
+    const shape = { sheet: 'sk1:sheet', state: 'ss1:AAAAAA==', settled: false };
     const result = await captureStep(
       fakeCaptureRuntime(),
       request({ ...SIMULATED, shape } as DiagramCpRender, { simulateFlat: async () => sheetWithCrease() })

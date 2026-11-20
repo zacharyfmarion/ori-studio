@@ -1,7 +1,7 @@
 import { LINE_KINDS, type PicturePoint } from '../annotate/annotationModel';
 import { storedSceneStep } from '../capture/captureGeometry';
 import { isKnownAnnotation, isTurn, type DiagramDocument, type DiagramStep, type DiagramZoomOutline } from '../document/diagramDocument';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { fromBox, stepWindow } from './zoomFrames';
 import { landFrame, paperFacesOf, toScene } from './zoomImprint';
 

@@ -1,14 +1,19 @@
 import { preparedInk } from './preparedInk';
 import {
   interpolate,
+  layerChains,
   pickSpread,
+  poseVisibility,
+  shiftedXY,
   visibility,
   visibleFragments,
   createLineClipper,
   type ConnectedSpread,
+  type LayerChains,
   type Point3,
   type ProjectedSpread,
   type SpreadSolution,
+  type Visibility,
 } from '@oristudio/layer-spread';
 import type { OristudioCpFoldedPaperScene } from '../engine/oristudioCpTypes';
 import type { Point } from '../lib/geometry';
@@ -49,6 +54,30 @@ export function connectedVisibility(source: ConnectedSpreadSource): ReturnType<t
   return result;
 }
 
+const chainsCache = new WeakMap<ConnectedSpreadSource, LayerChains | null>();
+function connectedChains(source: ConnectedSpreadSource): LayerChains | null {
+  if (!chainsCache.has(source)) {
+    const { input } = source;
+    chainsCache.set(source, layerChains(input.faces.length, input.orders, input.planeGroups));
+  }
+  return chainsCache.get(source)!;
+}
+
+/**
+ * The visibility `positions` draw with: the stack's ranks, re-solved where
+ * this pose slides a layer over an unrelated one it lies under
+ * (`poseVisibility`). `back` and `base` are the side the pose is seen from.
+ */
+export function connectedPoseVisibility(
+  source: ConnectedSpreadSource,
+  positions: readonly Point3[],
+  back = source.back,
+  base: Visibility = connectedVisibility(source),
+): Visibility {
+  const { triangles, triangleFaces, faces } = source.input;
+  return poseVisibility(base, connectedChains(source), { positions, triangles, triangleFaces, rings: faces }, back);
+}
+
 /** Shared placed geometry. Reveal is screen-relative, after the host's turn.
  * Solve coordinates and reference planes never change with a camera gesture.
  */
@@ -66,8 +95,10 @@ export function connectedDrawing(
   const origin = toScenePx({ x: 0, y: 0 }),
     basis = toScenePx({ x: unit, y: 0 });
   const scale = Math.hypot(basis[0] - origin[0], basis[1] - origin[1]);
+  // Lifted paper keeps its size: faces draw shortened along their slope.
+  const placed = shiftedXY(input, solution, spread.amount, back);
   const positions: Point3[] = input.xy.map(([x, y], v) => {
-    const p = toScenePx(scenePoint(source, [x, y]));
+    const p = toScenePx(scenePoint(source, placed[v]!));
     const z = solution.heights[v]!;
     const h = spread.amount * (z - reference[0] * x - reference[1] * y - reference[2]) * scale;
     // A screen drag pulls the near side; layers behind reveal oppositely.
@@ -78,14 +109,23 @@ export function connectedDrawing(
     positions,
     triangles: input.triangles,
     triangleFaces: input.triangleFaces,
-    visibility: connectedVisibility(source),
+    visibility: connectedPoseVisibility(source, positions),
   };
   const ink: ConnectedInk[] = preparedInk(source, baseInk).map((edge) => {
     const a = interpolate(edge.ids, edge.a, positions),
       b = interpolate(edge.ids, edge.b, positions);
     const whole = edge.line.whole;
-    const wa = edge.wholeA ? interpolate(edge.wholeA.ids, edge.wholeA.weights, positions) : null;
-    const wb = edge.wholeB ? interpolate(edge.wholeB.ids, edge.wholeB.weights, positions) : null;
+    // A crease end this face holds is drawn where the face puts it. One in
+    // another face lies on this piece's own drawn line, at the piece's share
+    // of the crease, so the crease still erodes along the piece.
+    const creaseEnd = (sample: typeof edge.wholeA, at: 0 | 1): Point3 | null => {
+      if (sample) return interpolate(sample.ids, sample.weights, positions);
+      if (!edge.span || edge.span[0] === edge.span[1]) return null;
+      const t = (at - edge.span[0]) / (edge.span[1] - edge.span[0]);
+      return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])];
+    };
+    const wa = whole ? creaseEnd(edge.wholeA, 0) : null;
+    const wb = whole ? creaseEnd(edge.wholeB, 1) : null;
     return {
       face: edge.face,
       a,
@@ -96,7 +136,8 @@ export function connectedDrawing(
         b: [b[0], b[1]],
         hidden: false,
         joined: edge.joined,
-        ...(whole && wa && wb ? { whole: { ...whole, a: [wa[0], wa[1]], b: [wb[0], wb[1]] } } : {}),
+        // Never the ink's own `whole`: it is in the fold's coordinates, not the picture's.
+        whole: whole && wa && wb ? { ...whole, a: [wa[0], wa[1]], b: [wb[0], wb[1]] } : undefined,
       },
     };
   });

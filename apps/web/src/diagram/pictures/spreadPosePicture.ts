@@ -5,7 +5,7 @@ import { CAPTURE_PX_PER_UNIT } from '../capture/captureGeometry';
 import type { DiagramPicture, DiagramStyle } from '../document/diagramDocument';
 import { diagramScenePaintStyle } from './diagramPaperStyle';
 import { STEP_CARD_PADDING_MM, stepScenePage, type StepPictureSource } from './paintDiagramStep';
-import { storedScene } from './pictureFrame';
+import { storedScene } from './storedScene';
 import { stepPictureUrl } from './useStepPictureUrl';
 
 /** The same ink Pages paints, without Pose's ghost annotations. Captures kept

@@ -45,7 +45,7 @@ function linkedPose(preview: DiagramStep | null, actions: DiagramLinkedPoseActio
     setSide: async () => true,
     setFlipCreases: async () => true,
     simulate: async () => {},
-    wantsRest: () => false,
+    wantsSave: () => false,
     spread: null,
     preview,
   };

@@ -24,6 +24,7 @@ import { buildBsp, traverseBsp, type BspItem, type Vec3 } from './bsp.js';
 import { findVisiblePieces, type DrawnPiece } from './hiddenPieces.js';
 import { coplanarRuns, outlineOf, sourceFaceGroups, type RunPiece } from './coplanarRuns.js';
 import { shadeFor, type Vec3Like } from './shading.js';
+import { linesAsLateAsUncovered, type DrawShape } from './lineDrawOrder.js';
 import { EDGE_CODE } from './edgeCodes.js';
 import { EDGE_BOUNDARY_A, EDGE_BOUNDARY_B, edgeBoundaryFlags } from './edgeBoundary.js';
 import {
@@ -366,7 +367,16 @@ export function meshToPaperScene(
     ? buildBsp(items, { edgeInk: 0, eye, coplanarEps: layers.coplanarEps, orderBeforeKind: true })
     : buildBsp(items, { edgeInk: lineWidth / 2, eye });
   const traversed = traverseBsp(tree, eye);
-  const pieces = (
+  // Under `layers` a crease first follows its own face's piece. Then every
+  // line is drawn as late as nothing covers it, as the GPU draws its creases
+  // after the paper (see `lineDrawOrder.ts`) — except that under `layers` a
+  // line stays under every face parallel to its own: a plane's stack of
+  // layers lies exactly over itself, so a line on a buried layer touches the
+  // faces that bury it without being covered by them, and only the kernel's
+  // order (or, a hair apart, the tree's) says which is on top. Past the faces
+  // of other planes — across a bend, or meeting it at a vertex — it goes as
+  // in a simulated mesh, which has no such stacks.
+  const ordered = (
     layers
       ? creasesAfterOwnFace(
           traversed,
@@ -381,6 +391,29 @@ export function meshToPaperScene(
         )
       : traversed
   ).map((item) => ({ item, screen: item.points.map(toScreen) }));
+  const normals = triangleNormals(triangles, projected);
+  const pieces = linesAsLateAsUncovered(
+    ordered,
+    ({ item, screen }): DrawShape =>
+      item.kind === 1
+        ? { kind: 'line', a: screen[0]!, b: screen[1]! }
+        : { kind: 'face', rings: [screen], group: attributes[item.ref]!.face },
+    {
+      // The widest pen, which is wider than the seam: a face no nearer a line
+      // than that reaches none of its ink, and the line can go before it
+      // without splitting the face it is a piece of.
+      reach: lineWidth,
+      ...(layers
+        ? {
+            stays: (line, face) => {
+              const { from, to } = creases[ordered[line]!.item.ref]!;
+              const owners = byEdge.get(vertexKey(from, to)) ?? [];
+              return owners.some((owner) => normals.parallel(owner, ordered[face]!.item.ref));
+            },
+          }
+        : {}),
+    }
+  );
   // A vertex where the tree cut — what an uncut end of a crease piece still
   // carries verbatim, whichever space the cut was made in.
   const vertexAt = (vertex: number): Vec3 => cutPoints([vertex], true)[0]!;
@@ -506,6 +539,28 @@ export function meshToPaperScene(
 }
 
 /**
+ * A simulated mesh's scene with every line drawn as late as nothing covers
+ * it, as {@link meshToPaperScene} draws them now: for a scene stored before it
+ * did, whose faces still paint over the lines they only touch. Its faces are
+ * read as the merged rings they are now, and its markup keeps its place, with
+ * no line moved past it. A line such a capture marked buried and dropped,
+ * painted over on both sides by the faces it ran between, stays gone.
+ */
+export function withLinesDrawnLate(scene: PaperScene): PaperScene {
+  const items = linesAsLateAsUncovered(scene.items, (item): DrawShape => {
+    switch (item.kind) {
+      case 'line':
+        return { kind: 'line', a: item.a, b: item.b };
+      case 'face':
+        return { kind: 'face', rings: item.rings };
+      default:
+        return { kind: 'fixed' };
+    }
+  });
+  return { ...scene, items };
+}
+
+/**
  * Each crease moved to follow the piece of its own triangle, where the tree
  * drew that piece after it. Everything else keeps its order.
  *
@@ -591,6 +646,45 @@ function creasesAfterOwnFace(
     if (following) out.push(...following);
   });
   return out;
+}
+
+/**
+ * How far from parallel two triangles may be and still be one stack's, in
+ * radians: far past float rounding and the kernel's own angle tolerance
+ * (1e-7), and far below any fold a picture shows as a bend.
+ */
+const PARALLEL_RADIANS = 1e-3;
+
+/**
+ * Whether two triangles lie in parallel planes, by their view-space normals —
+ * whole triangles rather than the pieces the tree cut, which can be slivers
+ * with no steady plane of their own. Read once per triangle.
+ */
+function triangleNormals(
+  triangles: readonly Triangle[],
+  projected: ProjectedVertices
+): { parallel: (a: number, b: number) => boolean } {
+  const unit = new Map<number, Vec3 | null>();
+  const normalOf = (index: number): Vec3 | null => {
+    if (unit.has(index)) return unit.get(index)!;
+    const triangle = triangles[index];
+    let normal: Vec3 | null = null;
+    if (triangle) {
+      const [x, y, z] = viewNormal(triangle, projected);
+      const length = Math.hypot(x, y, z);
+      if (length > 0) normal = [x / length, y / length, z / length];
+    }
+    unit.set(index, normal);
+    return normal;
+  };
+  const cos = Math.cos(PARALLEL_RADIANS);
+  return {
+    parallel(a, b) {
+      const u = normalOf(a);
+      const v = normalOf(b);
+      return u !== null && v !== null && Math.abs(u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) >= cos;
+    },
+  };
 }
 
 /**

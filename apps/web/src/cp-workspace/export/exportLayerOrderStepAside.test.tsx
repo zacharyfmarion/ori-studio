@@ -195,6 +195,7 @@ function layerOrderHost(): CreaseExportLayerOrderHost {
     region: vi.fn(async () => null),
     lineStyle: 'color',
     lineWidth: 1,
+    foldAngleDisplay: 'opacity',
     documentName: 'Kabuto',
   };
 }

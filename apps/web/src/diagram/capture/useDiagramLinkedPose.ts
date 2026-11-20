@@ -49,7 +49,7 @@ import {
   withSlide,
   type DiagramPoseSpatialView,
   type PoseLayerOrderSurface,
-  type SimulatedRest,
+  type SimulatedSave,
   type SpreadPreview,
   type SpreadSlider,
 } from './poseController';
@@ -131,10 +131,10 @@ export interface DiagramLinkedPose {
    * asked; false for a pattern on its front, which has no such field.
    */
   setFlipCreases: (on: boolean) => Promise<boolean>;
-  /** Pose's simulator came to rest: captured, if it is not the step's picture already (D19). */
-  simulate: (rest: SimulatedRest) => Promise<void>;
-  /** Whether a rest at this pose would be captured: asked before its scene is drawn. */
-  wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
+  /** Pose's simulator saved: Done, Pose left another way, or Refresh while it is open (D19). */
+  simulate: (save: SimulatedSave) => Promise<void>;
+  /** Whether a save now would commit anything (`PoseController.wantsSave`): asked before its picture is drawn. */
+  wantsSave: (untouched: boolean) => boolean;
   /** A flat fold's spread, for the Step pane, while its layers are spread; null otherwise (Phase 13). */
   spread: DiagramLinkedSpread | null;
   /**
@@ -417,14 +417,14 @@ export function useDiagramLinkedPose(
   const setFlipCreases = useCallback((on: boolean) => drawPaper({ verb: 'flip-creases', on }), [drawPaper]);
 
   const simulate = useCallback(
-    async (rest: SimulatedRest) => {
-      if (controller && !readOnly) await controller.simulate(rest);
+    async (save: SimulatedSave) => {
+      if (controller && !readOnly) await controller.simulate(save);
     },
     [controller, readOnly]
   );
 
-  const wantsRest = useCallback(
-    (rest: Pick<SimulatedRest, 'foldPercent' | 'view'>) => controller !== null && !readOnly && controller.wantsRest(rest),
+  const wantsSave = useCallback(
+    (untouched: boolean) => controller !== null && !readOnly && controller.wantsSave(untouched),
     [controller, readOnly]
   );
 
@@ -452,7 +452,7 @@ export function useDiagramLinkedPose(
             setSide,
             setFlipCreases,
             simulate,
-            wantsRest,
+            wantsSave,
             spread,
             preview,
           }
@@ -479,7 +479,7 @@ export function useDiagramLinkedPose(
       setSide,
       setFlipCreases,
       simulate,
-      wantsRest,
+      wantsSave,
       spread,
       preview,
     ]

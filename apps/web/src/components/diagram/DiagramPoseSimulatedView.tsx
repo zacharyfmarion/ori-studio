@@ -2,16 +2,13 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause, Play, RotateCcw, StepForward } from 'lucide-react';
 import type { KnownCreases } from '../../diagram/capture/captureCreases';
-import type { SimulatedRest } from '../../diagram/capture/poseController';
+import type { SimulatedSave } from '../../diagram/capture/poseController';
 import {
   useDiagramSimulatedPose,
   type DiagramSimulatedPose,
+  type DiagramSimulatedPoseRender,
 } from '../../diagram/capture/useDiagramSimulatedPose';
-import type {
-  DiagramCpScope,
-  DiagramSimulatedView,
-  DiagramStyle,
-} from '../../diagram/document/diagramDocument';
+import type { DiagramCpScope, DiagramStyle } from '../../diagram/document/diagramDocument';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import { diagramPaperStyle, foldedModelPens } from '../../diagram/pictures/diagramPaperStyle';
 import { poseCreaseReferenceEdge } from '../../diagram/pictures/poseLineWeight';
@@ -24,6 +21,7 @@ import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry'
 import { SIMULATED_FRAME_PX } from '../../store/workspaceStore/diagramCapture';
 import { IconButton } from '../ui/IconButton';
 import { Slider } from '../ui/Slider';
+import { DiagramPoseResumeButton } from './DiagramPoseResumeButton';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
 import styles from './DiagramPoseSimulatedView.module.css';
 
@@ -32,9 +30,11 @@ const ignoreCanvas = () => {};
 
 /**
  * A step shown as Simulated, live in Pose (D19): the region's model in the
- * simulator, at the step's fold % and camera, to be folded with the transport
- * and turned with a drag or the view cube. Each rest is captured
- * (`useDiagramSimulatedPose`).
+ * simulator, on the positions the step saved — or at its fold % and camera,
+ * for one saved without them — to be folded with the transport and turned
+ * with a drag or the view cube. Leaving Pose saves what it shows
+ * (`useDiagramSimulatedPose`). A step saved before its solver settled opens
+ * held there, with a play button in the middle of the view to let it go on.
  *
  * The transport is handed to `toolbar`, the detail's Pose bar, between its
  * Show switch and its Reset. While the simulator cannot run here — no pattern
@@ -50,8 +50,8 @@ export function DiagramPoseSimulatedView({
   render,
   style,
   annotations,
-  onRest,
-  wantsRest,
+  onSave,
+  wantsSave,
   registerLiveView,
   fallback,
   toolbar,
@@ -60,19 +60,19 @@ export function DiagramPoseSimulatedView({
   scope: DiagramCpScope;
   /** What the step remembers of its creases: its sheet is folded wherever it is now. */
   known: KnownCreases;
-  render: { foldPercent: number; view: DiagramSimulatedView };
+  render: DiagramSimulatedPoseRender;
   style: DiagramStyle;
   /** The annotations to ghost, when they are in step with the stored picture; null otherwise. */
   annotations: DiagramPoseAnnotations | null;
-  onRest: (rest: SimulatedRest) => Promise<void>;
-  /** Whether a rest at a pose would be captured: asked before its scene is drawn. */
-  wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
+  onSave: (save: SimulatedSave) => Promise<void>;
+  /** Whether a save would commit anything, `untouched` the view still the step's own positions. */
+  wantsSave: (untouched: boolean) => boolean;
   registerLiveView?: (view: SimulatorViewHandle) => () => void;
   fallback: ReactNode;
   toolbar: (transport: ReactNode) => ReactNode;
 }) {
   const { t } = useTranslation();
-  const pose = useDiagramSimulatedPose({ stepId, scope, known, render, onRest, wantsRest });
+  const pose = useDiagramSimulatedPose({ stepId, scope, known, render, onSave, wantsSave });
   // Its folds in the edge pen, as the step's picture paints them.
   const paperStyle = useMemo(() => foldedModelPens(diagramPaperStyle(style)), [style]);
   // The view opens where the step is; later poses come through `setView`.
@@ -130,6 +130,7 @@ export function DiagramPoseSimulatedView({
           pitch={degrees.pitch}
         >
           {(canvasClassName) => (
+            <>
             <SimulatorViewport
               ref={pose.viewportRef}
               canvasKey="diagram-pose-simulated"
@@ -152,6 +153,12 @@ export function DiagramPoseSimulatedView({
               ariaLabel={t('panels:diagram.pose.viewSimulated', 'Simulated model: drag to turn it')}
               perfSurface="diagram-pose-simulated"
             />
+            {pose.held && (
+              <div className={styles.resume}>
+                <DiagramPoseResumeButton onResume={pose.resume} />
+              </div>
+            )}
+            </>
           )}
         </DiagramPoseStage>
       )}

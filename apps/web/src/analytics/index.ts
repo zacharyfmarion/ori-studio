@@ -157,6 +157,7 @@ export {
   trackDiagramMarkStyled,
   trackDiagramArrowShaped,
   trackDiagramPicturePosed,
+  trackDiagramSimulationResumed,
   trackDiagramPictureRemoved,
   trackDiagramSourceOpened,
   trackDiagramReferencesBrowserOpened,

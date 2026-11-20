@@ -951,3 +951,110 @@ pub fn two_pockets(mirror: bool) -> State {
 /// Model points over [`two_pockets`]' doors as the viewer sees them: the
 /// right door above and below the side corners' diagonal, then the left.
 pub const DOORS: [Point; 4] = [[0.583, 0.85], [0.583, 0.65], [0.417, 0.85], [0.417, 0.65]];
+
+// --- A closed pocket (`compound::squash_closed`) -----------------------------
+
+/// [`paper_hat`]'s sheet width (its height is 1) and the line its brims
+/// fold up on.
+pub const HAT_WIDTH: f64 = 0.625;
+pub const HAT_BRIM: f64 = 0.5 - HAT_WIDTH / 2.0;
+
+/// A plain fold along `p q` of the layers `seed` names, `toward`'s side moving.
+fn fold_seeded(
+    state: &State,
+    [p, q, toward]: [Point; 3],
+    direction: Direction,
+    seed: Seed,
+) -> State {
+    let l = line(p, q);
+    state
+        .fold(&PlainFold::new(l, side(&l, toward), direction).with_seed(seed))
+        .unwrap_or_else(|e| panic!("{e}"))
+        .state
+}
+
+/// A paper hat from a 1 × 1.6 rectangle (`HAT_WIDTH` × 1): the centre line
+/// precreased, the top half folded down over the bottom, its two top corners
+/// down to the centre line, the front's strip below them up over the corners
+/// and the back's behind. A closed pocket: its front and back walls are
+/// joined along both slanted edges, through the corner flaps folded onto
+/// the front.
+pub fn paper_hat() -> State {
+    let (w, c, b) = (HAT_WIDTH, HAT_WIDTH / 2.0, HAT_BRIM);
+    let s = precrease(&square_of(w), [c, 0.0], [c, 1.0], [0.05, 0.5], Seed::All);
+    let s = valley(&s, [0.0, 0.5], [w, 0.5], [c, 0.9]);
+    let s = valley(&s, [c, 0.5], [0.0, b], [0.02, 0.48]);
+    let s = valley(&s, [c, 0.5], [w, b], [w - 0.02, 0.48]);
+    let strip = [0.2, b / 2.0];
+    let front = seen_top(&s, strip);
+    let s = fold_seeded(
+        &s,
+        [[0.0, b], [w, b], strip],
+        Direction::Valley,
+        Seed::Depth {
+            at: front,
+            layers: 1,
+        },
+    );
+    fold_seeded(
+        &s,
+        [[0.0, b], [w, b], strip],
+        Direction::Mountain,
+        Seed::All,
+    )
+}
+
+/// Model points on [`paper_hat`]'s right and left halves, above the brims.
+pub const HAT_RIGHT: Point = [0.34, 0.42];
+pub const HAT_LEFT: Point = [0.285, 0.42];
+
+/// [`paper_hat`] squashed into a square from its right half (a valley,
+/// opening under its top three layers: the corner flap's two plies and the
+/// front wall), the first order; then the square's two flaps by its meeting
+/// corner folded up along the diagonal through its free corners, the front
+/// one and the back one: a triangle, a closed pocket of two eight-ply walls.
+pub fn hat_triangle() -> State {
+    let hat = paper_hat();
+    let op = Squash {
+        flap: seen_top(&hat, HAT_RIGHT),
+        target: None,
+        direction: Direction::Valley,
+        hinge: None,
+        opening: Some(3),
+    };
+    let square = every(hat.squash(&op, &VertexChoices::default()))
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("the hat does not squash"))
+        .state;
+    let (c, b) = (HAT_WIDTH / 2.0, HAT_BRIM);
+    let corner = [0.05, b + 0.05];
+    let diagonal = [[0.0, 0.5], [c, b], corner];
+    let near = seen_top(&square, corner);
+    let s = fold_seeded(
+        &square,
+        diagonal,
+        Direction::Valley,
+        Seed::Flaps { at: vec![near] },
+    );
+    let far = seen_bottom(&s, corner);
+    fold_seeded(
+        &s,
+        diagonal,
+        Direction::Mountain,
+        Seed::Flaps { at: vec![far] },
+    )
+}
+
+/// A model point on [`hat_triangle`]'s half nearer its meeting edge, where
+/// eight layers lie.
+pub const TRIANGLE_HALF: Point = [0.25, 0.3];
+
+/// A flat `width` × 1 rectangle, front side up.
+fn square_of(width: f64) -> State {
+    State::flat(
+        Sheet::rectangle(width, 1.0).unwrap_or_else(|e| panic!("{e}")),
+        StartSide::Front,
+    )
+    .unwrap_or_else(|e| panic!("{e}"))
+}

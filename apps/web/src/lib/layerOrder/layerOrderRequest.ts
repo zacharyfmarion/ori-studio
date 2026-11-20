@@ -12,7 +12,7 @@ import type {
   OristudioCpFoldedPaperScene,
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
-import type { OristudioCpLineStyle } from '../creasePatternViewport';
+import type { OristudioCpFoldAngleDisplay, OristudioCpLineStyle } from '../creasePatternViewport';
 import type { Point } from '../geometry';
 import type { PaperStyle } from '../paper/paperStyle';
 import type { SurfaceStylePolicy } from '../paper/paperStyleResolve';
@@ -93,6 +93,8 @@ export interface LayerOrderLook {
    */
   readonly lineStyle: OristudioCpLineStyle;
   readonly lineWidth: number;
+  /** Edit's view's Fold angle style, which shades a crease folded short of 180° in that pane as Edit does. */
+  readonly foldAngleDisplay: OristudioCpFoldAngleDisplay;
 }
 
 /**

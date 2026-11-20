@@ -6,7 +6,7 @@ import type {
 } from '../engine/oristudioCpTypes';
 import type { FoldDocument } from '../engine/types';
 import type { CreaseExportFoldedFigureSettings } from './creaseExport';
-import type { OristudioCpLineStyle } from './creasePatternViewport';
+import type { OristudioCpFoldAngleDisplay, OristudioCpLineStyle } from './creasePatternViewport';
 import type { Point } from './geometry';
 import {
   isOrieditaFoldableLineColor,
@@ -32,6 +32,7 @@ import { foldAppliedOrder } from './layerOrder/layerOrderFold';
 import type { LayerOrderApplied, LayerOrderRegion, LayerOrderSource } from './layerOrder/layerOrderRequest';
 import { layerOrderSourceOf } from './layerOrder/layerOrderSource';
 import { EDIT_PAPER_FRAME } from './layerOrder/paperFrame';
+import { FOLD_ANGLE_EPSILON, isClassicFoldAngle } from './foldAngle';
 
 // The kernel's fold calls, which lived here before the Layer order hosts
 // shared them (`cpFoldRuntime.ts`); every importer still finds them here.
@@ -86,27 +87,8 @@ export interface CreaseExportFoldResult {
   chosenOrder?: boolean;
 }
 
-/**
- * Tolerance for calling a fold angle flat. Angles reach FOLD via degrees that have been
- * through the kernel's own unit conversion, so exact equality would misreport a 180°
- * crease that arrived as 179.9999999.
- */
-const FLAT_ANGLE_EPSILON = 1e-6;
-
-/**
- * Whether a FOLD fold angle is a full ±180 fold — the kernel's classic crease.
- *
- * The epsilon is the whole point. A classic crease reaches FOLD through the
- * kernel's unit conversion and can arrive as `179.9999999`; exact equality reads
- * that as a 179.9999999° partial fold, which is the difference between "draw
- * this crease normally" and "fade every crease in the document".
- */
-export function isClassicFoldAngle(angle: number): boolean {
-  return Math.abs(Math.abs(angle) - 180) < FLAT_ANGLE_EPSILON;
-}
-
 function isFlatAngle(angle: number): boolean {
-  return Math.abs(angle) < FLAT_ANGLE_EPSILON || isClassicFoldAngle(angle);
+  return Math.abs(angle) < FOLD_ANGLE_EPSILON || isClassicFoldAngle(angle);
 }
 
 /**
@@ -369,6 +351,8 @@ export interface CreaseExportLayerOrderHost {
   /** Edit's view pen, which the dialog's crease-pattern pane draws in (D18). */
   readonly lineStyle: OristudioCpLineStyle;
   readonly lineWidth: number;
+  /** And its Fold angle style, which shades a crease folded short of 180° there. */
+  readonly foldAngleDisplay: OristudioCpFoldAngleDisplay;
   /** The document's name, which the dialog's title row shows for the whole pattern. */
   readonly documentName: string;
 }

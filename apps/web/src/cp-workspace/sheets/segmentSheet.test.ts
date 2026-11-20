@@ -85,6 +85,18 @@ describe('segmentSheetThumbnail', () => {
     ).toHaveLength(2);
   });
 
+  it('carries a FOLD crease’s angle when it folds short of 180°, and leaves the rest without one', () => {
+    const fold = twoSquares();
+    // The kernel writes 0 for a border and an aux line, ±180 (or 179.9999999) for a full fold.
+    fold.edges_foldAngle = [0, 0, 0, 0, -179.9999999, 0, 0, 0, 0, 90, 0, 180, 0];
+    const [left, right] = segmentFoldDocument(fold);
+    const withAngle = (segment: typeof left) =>
+      segmentSheetThumbnail(fold, segment!)?.strokes.filter((stroke) => stroke.foldDegrees !== undefined) ?? [];
+    expect(withAngle(left)).toEqual([]);
+    expect(withAngle(right)).toHaveLength(1);
+    expect(withAngle(right)[0]).toMatchObject({ role: 'valley', foldDegrees: 90 });
+  });
+
   it('fits each segment into its own box, the same way up as the editor', () => {
     const fold = twoSquares();
     const [left] = segmentFoldDocument(fold);

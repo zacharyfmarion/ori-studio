@@ -34,7 +34,7 @@ import type {
 } from '../document/diagramDocument';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
 import { stepDiagramToPicture } from '../pictures/paintStepDiagram';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import {
   ZOOM_CLOSED_SHARE,
   ZOOM_GAP_MM,

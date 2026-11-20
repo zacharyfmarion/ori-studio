@@ -8,20 +8,21 @@ import { readFoldSequences } from '../../fold/document/foldSequenceFile';
 import { parseNativeProjectFile } from '../../lib/nativeProjectFile';
 import { createFoldEngineCalls } from '../../fold/engine/foldEngineCalls';
 import { createFoldEngineCompoundCalls } from '../../fold/engine/foldEngineCompoundCalls';
+import { createFoldEngineIoCalls } from '../../fold/engine/foldEngineIoCalls';
 import type { FoldActionGeometry, FoldScene } from '../../fold/engine/foldEngineWire';
 import { foldStepCreaseDiagram } from '../../fold/io/foldStepPages';
 import { prepareRepeat, type RepeatSourceStep } from '../../fold/repeat/repeatPreparation';
 import { foldStateFrame, sheetToScene } from '../../fold/sequence/foldStateFrame';
 import type { Point } from '../../lib/geometry';
 import { FOLD_PULL_RENDER } from './foldPull';
-import { foldStepAction } from './foldStepMarkPlan';
+import { foldStepAction, foldStepMarkAction } from './foldStepMarkPlan';
 import { foldStepPicture } from './foldStepPicture';
 
 /**
  * A Fold step's marks in the Diagram drawn from the real engine's picture of
  * it and the real states either side: a rabbit ear's every crease and the
- * flap swung over, a petal fold's every crease, the circles and arrows the axioms place, and a Repeat's
- * every crease as its crease pattern's instruction. Skipped when the bridge
+ * flap swung over, a petal fold's every crease, the circles and arrows the axioms place, a Repeat's
+ * every crease as its crease pattern's instruction, and a collapse's every mountain and valley. Skipped when the bridge
  * has not been built.
  */
 const WASM = resolve(process.cwd(), 'src/generated/oristudio-fold-wasm/oristudio_fold_wasm_bg.wasm');
@@ -32,7 +33,7 @@ async function engine() {
   const wasm = await import('../../generated/oristudio-fold-wasm/oristudio_fold_wasm');
   wasm.initSync({ module: readFileSync(WASM) });
   const raw = new wasm.FoldEngine();
-  return { ...createFoldEngineCalls(raw), ...createFoldEngineCompoundCalls(raw) };
+  return { ...createFoldEngineCalls(raw), ...createFoldEngineCompoundCalls(raw), ...createFoldEngineIoCalls(raw) };
 }
 type Engine = Awaited<ReturnType<typeof engine>>;
 
@@ -358,5 +359,76 @@ describe.skipIf(!available)('a Fold step’s marks in the Diagram, from the real
     expect(instructions(before)).toBe(2);
     const page = foldStepCreaseDiagram(scene.creases, repeated.summary.sheet, step, before);
     expect(page.primitives.filter((primitive) => primitive.kind === 'line' && primitive.style === 'valley')).toHaveLength(2);
+  });
+  /** A square creased with a plus, neither crease's letter given: the import's completion decides them. */
+  const PLUS = JSON.stringify({
+    vertices_coords: [[0, 0], [1, 0], [1, 1], [0, 1], [0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5], [0.5, 0.5]],
+    edges_vertices: [[0, 4], [4, 1], [1, 5], [5, 2], [2, 6], [6, 3], [3, 7], [7, 0], [4, 8], [8, 6], [7, 8], [8, 5]],
+    edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'U', 'U', 'U', 'U'],
+  });
+
+  /** `pattern` imported after `state` and its first order landed, as Import CP commits it: the step and the states either side. */
+  function collapseAfter(calls: Engine, state: number, pattern: string) {
+    const opened = landed(calls.importCp({ format: 'fold', text: pattern }, { kind: 'after', state }));
+    const pick = landed(calls.importPick(opened.import, opened.components.map(() => 0)));
+    calls.releaseImports([opened.import]);
+    const acted = landed(calls.stepAction(pick.state));
+    return { op: pick.op as FoldOp, parent: calls.scene(state), child: calls.scene(pick.state), summary: pick.summary, engineAction: acted.action };
+  }
+
+  /** Whether the segment a–b lies along `span`. */
+  const lies = (span: { from: Point; to: Point }, a: Point, b: Point) =>
+    [a, b].every((p) => {
+      const d = length(span.from, span.to);
+      const off = Math.abs((p.x - span.from.x) * (span.to.y - span.from.y) - (p.y - span.from.y) * (span.to.x - span.from.x)) / d;
+      const t = ((p.x - span.from.x) * (span.to.x - span.from.x) + (p.y - span.from.y) * (span.to.y - span.from.y)) / (d * d);
+      return off < 1e-6 && t > -1e-6 && t < 1 + 1e-6;
+    });
+
+  /** Every mountain and valley the collapse folds, each under a span of its letter, and the marks the Diagram draws from them. */
+  function collapseMarks(collapse: ReturnType<typeof collapseAfter>) {
+    // The engine pictures nothing of an import.
+    expect(collapse.engineAction).toBeNull();
+    const placed = foldStepMarkAction(null, { op: collapse.op, parent: collapse.parent, child: collapse.child });
+    expect(placed).not.toBeNull();
+    expect(placed!.grip).toBeNull();
+    expect(placed!.spans.every((span) => !span.hidden)).toBe(true);
+    const folds = collapse.child.creases.filter((crease) => crease.kind === 'fold' && crease.letter !== null);
+    expect(folds).toHaveLength(4);
+    for (const crease of folds) {
+      const [a, b] = [at(collapse.parent, crease.from.x, crease.from.y), at(collapse.parent, crease.to.x, crease.to.y)];
+      expect(placed!.spans.filter((span) => span.direction === crease.letter && lies(span, a, b))).toHaveLength(1);
+    }
+    return foldStepPicture(
+      { shown: collapse.parent, own: { scene: collapse.child, step: collapse.summary.step, sheet: collapse.summary.sheet }, moment: 'before', action: placed },
+      FOLD_PULL_RENDER
+    ).marks;
+  }
+
+  it('draws every mountain and valley a collapse folds from the plain sheet as line marks, with no arrow', async () => {
+    const calls = await engine();
+    const sheet = landed(calls.sheet(SQUARE_PAPER)).state;
+    const marks = collapseMarks(collapseAfter(calls, sheet, PLUS));
+    // A plus folds flat three of one letter and one of the other: the line folded one way whole, the other in two halves.
+    const kinds = marks.map((mark) => mark.kind);
+    expect(kinds).toHaveLength(3);
+    expect(new Set(kinds)).toEqual(new Set(['valley-line', 'mountain-line']));
+    expect(marks.every((mark) => mark.imported === 'untouched')).toBe(true);
+  });
+
+  it('draws a collapse along creases precreased before it: each existing crease it folds becomes its mountain or valley mark', async () => {
+    const calls = await engine();
+    let state = landed(calls.sheet(SQUARE_PAPER)).state;
+    for (const through of [[[0, 0.5], [1, 0.5]], [[0.5, 0], [0.5, 1]]] as [number, number][][]) {
+      const op: FoldOp = { kind: 'precrease', direction: 'valley', line: { via: 'free', through: through as [[number, number], [number, number]] }, moving: [0.1, 0.1], seed: all };
+      state = landed(calls.step(state, op)).state;
+    }
+    const collapse = collapseAfter(calls, state, PLUS);
+    // Before the collapse the plus is creased flat: existing creases, no fold yet.
+    expect(collapse.parent.creases.filter((crease) => crease.kind === 'fold')).toHaveLength(0);
+    const marks = collapseMarks(collapse);
+    expect(marks.map((mark) => mark.kind)).toHaveLength(3);
+    // After it, nothing more to draw.
+    expect(foldStepMarkAction(null, { op: collapse.op, parent: collapse.child, child: collapse.child })).toBeNull();
   });
 });

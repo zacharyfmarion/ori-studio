@@ -46,7 +46,10 @@ export class SpreadService<I = SpreadInput, S = SpreadSolution> {
     private validate: (solution: S, input: I) => boolean = validSolution as unknown as (solution: S, input: I) => boolean,
     // Preserve the flat solver's O(1) accounting and cache capacity without
     // serializing its results. Other result shapes provide their own estimator.
-    private solutionBytes: (solution: S) => number = solution => 8 * (solution as SpreadSolution).heights.length,
+    private solutionBytes: (solution: S) => number = solution => {
+      const { heights, shifts } = solution as SpreadSolution;
+      return 8 * (heights.length + (shifts?.[0].length ?? 0) + (shifts?.[1].length ?? 0));
+    },
     private workerLifetime: 'reuse' | 'recycle' = 'reuse',
   ) {}
 

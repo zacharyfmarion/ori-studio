@@ -499,9 +499,9 @@ export type CaptureStepResult =
   | { status: 'unavailable' };
 
 /**
- * A render as a capture stores it: without Pose's stored mesh, which a newer
- * build wrote for the picture this capture replaces (Refresh and Refresh All
- * ask with the step's render as it stands, Relink with it at 0%).
+ * A render as a capture stores it: without Pose's stored positions, which were
+ * the picture's this capture replaces (Refresh and Refresh All ask with the
+ * step's render as it stands, Relink with it at 0%).
  */
 function withoutPoseMesh(render: DiagramCpRender): DiagramCpRender {
   if (render.mode !== 'simulated' || render.shape === undefined) return render;

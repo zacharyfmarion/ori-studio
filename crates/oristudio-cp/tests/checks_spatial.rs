@@ -719,8 +719,8 @@ fn a_hole_boundary_is_the_paper_edge_and_not_a_cut() {
     );
 }
 
-#[test]
-fn a_plain_square_has_no_interior_border() {
+/// A square sheet folded along one diagonal at 90 degrees.
+fn plain_square() -> CreasePatternModel {
     let mut model = CreasePatternModel::default();
     for pair in [
         ((0.0, 0.0), (200.0, 0.0)),
@@ -738,8 +738,59 @@ fn a_plain_square_has_no_interior_border() {
         ));
     }
     model.add_line_segment(crease(0.0, 0.0, 200.0, 200.0, LineColor::Red1, Some(90.0)));
+    model
+}
 
-    assert!(interior_border_segments(&model).is_empty());
+#[test]
+fn a_plain_square_has_no_interior_border() {
+    assert!(interior_border_segments(&plain_square()).is_empty());
+}
+
+/// An auxiliary line is a guide drawn on the paper, not an edge of it.
+///
+/// The editor keeps `Cyan3` guides in `line_segments` beside the creases, so a
+/// trace of every segment reads these two guides as a triangle of paper below
+/// the sheet, and the bottom edge as a cut with paper on both sides. A real box
+/// pattern did the same from the inside: its creases were traced over cyan
+/// guides, Oriedita never splits a fold line against an auxiliary one, and the
+/// overlapping pairs put four of each square's outer edges in two faces.
+#[test]
+fn a_guide_drawn_outside_the_sheet_is_not_paper() {
+    let mut model = plain_square();
+    model.add_line_segment(crease(0.0, 0.0, 100.0, -100.0, LineColor::Cyan3, None));
+    model.add_line_segment(crease(100.0, -100.0, 200.0, 0.0, LineColor::Cyan3, None));
+
+    assert!(
+        interior_border_segments(&model).is_empty(),
+        "the bottom edge has paper on one side only: {:?}",
+        interior_border_segments(&model)
+    );
+    assert!(dispatched_camv(&model).interior_borders.is_empty());
+}
+
+/// The other way an auxiliary line misled the check: a guide that touches
+/// nothing is a second component, the arrangement fails its Euler gate, and the
+/// real cut went unreported. With the guide set aside the cut is found, and
+/// each finding still names its own line in the document, not a position in
+/// the filtered list.
+#[test]
+fn a_guide_neither_hides_a_cut_nor_shifts_which_line_is_named() {
+    let mut model = divided_square(90.0);
+    model
+        .line_segments
+        .insert(0, crease(20.0, 150.0, 60.0, 150.0, LineColor::Cyan3, None));
+
+    let borders = interior_border_segments(&model);
+
+    assert_eq!(borders.len(), 2, "both halves of the divider: {borders:?}");
+    for border in &borders {
+        let line = &model.line_segments[border.segment];
+        assert_eq!(line.color, LineColor::Black0, "{border:?} names {line:?}");
+        assert!(
+            (line.a.x - 100.0).abs() < 1e-9 && (line.b.x - 100.0).abs() < 1e-9,
+            "{border:?} names {line:?}, not the divider"
+        );
+    }
 }
 
 /// The dispatch pays for the arrangement only where the spatial branch is the

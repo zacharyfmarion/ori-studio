@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { OristudioCpLineSegment } from '../engine/oristudioCpTypes';
 import {
+  FOLD_MAGNITUDE_CLASSIC,
   FOLD_MAGNITUDE_FULL,
   FOLD_MAGNITUDE_UNITS_PER_DEGREE,
   creaseFoldAngle,
   creaseFoldMagnitudeDegrees,
   degreesToFoldMagnitude,
+  foldEdgeMagnitudeUnits,
   formatFoldAngle,
   isClassicCrease,
+  isClassicFoldAngle,
   isFoldingCrease,
+  partialFoldDegrees,
 } from './foldAngle';
 
 function segment(
@@ -104,5 +108,41 @@ describe('formatFoldAngle', () => {
     expect(formatFoldAngle(-0)).toBe('0°');
     // Rounding a sub-precision mountain must not resurrect the negative zero.
     expect(formatFoldAngle(-0.001)).toBe('0°');
+  });
+});
+
+describe('partialFoldDegrees', () => {
+  it('is the angle of a crease short of a full fold, 0° included', () => {
+    expect(partialFoldDegrees(90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE)).toBe(90);
+    expect(partialFoldDegrees(0)).toBe(0);
+    expect(partialFoldDegrees(FOLD_MAGNITUDE_FULL - 1)).toBeLessThan(180);
+  });
+
+  it('is undefined for a full fold, however the magnitude says so', () => {
+    expect(partialFoldDegrees(undefined)).toBeUndefined();
+    expect(partialFoldDegrees(FOLD_MAGNITUDE_FULL)).toBeUndefined();
+    // The compact transport's sentinel for a classic crease.
+    expect(partialFoldDegrees(FOLD_MAGNITUDE_CLASSIC)).toBeUndefined();
+    expect(partialFoldDegrees(Number.NaN)).toBeUndefined();
+  });
+});
+
+describe('foldEdgeMagnitudeUnits', () => {
+  it('reads a FOLD mountain or valley short of a full fold, whichever its sign', () => {
+    expect(foldEdgeMagnitudeUnits('M', -90)).toBe(90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE);
+    expect(foldEdgeMagnitudeUnits('V', 45)).toBe(45 * FOLD_MAGNITUDE_UNITS_PER_DEGREE);
+  });
+
+  it('leaves the edge, aux lines, absent angles and a full fold that came through as 179.9999999', () => {
+    expect(foldEdgeMagnitudeUnits('B', 0)).toBeNull();
+    expect(foldEdgeMagnitudeUnits('F', 0)).toBeNull();
+    expect(foldEdgeMagnitudeUnits('M', null)).toBeNull();
+    expect(foldEdgeMagnitudeUnits('V', undefined)).toBeNull();
+    expect(foldEdgeMagnitudeUnits('V', 179.9999999)).toBeNull();
+    expect(isClassicFoldAngle(-179.9999999)).toBe(true);
+  });
+
+  it('reads |ρ| past 180 as a full fold rather than skipping the crease', () => {
+    expect(foldEdgeMagnitudeUnits('V', 200)).toBe(FOLD_MAGNITUDE_FULL);
   });
 });

@@ -3303,7 +3303,7 @@ describe('linked steps in the file', () => {
     expect(throughJson(writeDiagram(read.document))).toEqual(written);
   });
 
-  describe('a simulated step’s shape, as a build with Pose’s tools stores it (decision 5)', () => {
+  describe('a simulated step’s shape: Pose’s saved positions, or a build with Pose’s tools’ (decision 5)', () => {
     const shape = { id: 'shape-1', sheet: 'sheet-abc', pins: [[0.25, 0.5]], posed: true, state: 'v1:AAAA' };
 
     it('is carried as it came, and the step stays editable', () => {
@@ -3313,6 +3313,23 @@ describe('linked steps in the file', () => {
       const step = stepsIn(read.document)[6];
       expect(step.unknown).toBeUndefined();
       expect(step.source).toMatchObject({ render: { mode: 'simulated', foldPercent: 40.5, shape } });
+      expect(throughJson(writeDiagram(read.document))).toEqual(written);
+    });
+
+    it('as Pose saves it, unsettled, is written back as it came: what Pose opens on held', () => {
+      const saved = { sheet: 'sk1:sheet', state: 'ss1:AAAAPwAAgL8=', settled: false };
+      const written = throughJson(writeDiagram(linkedDiagram()));
+      written.steps[6].source.render.shape = saved;
+      const read = readDiagram(written)!;
+      expect(stepsIn(read.document)[6].source).toMatchObject({ render: { mode: 'simulated', foldPercent: 40.5, shape: saved } });
+      expect(throughJson(writeDiagram(read.document))).toEqual(written);
+    });
+
+    it('is absent on a step saved before Pose kept positions, which reads and writes as it did', () => {
+      const written = throughJson(writeDiagram(linkedDiagram()));
+      expect(written.steps[6].source.render).not.toHaveProperty('shape');
+      const read = readDiagram(written)!;
+      expect((stepsIn(read.document)[6].source as DiagramCpSource).render).not.toHaveProperty('shape');
       expect(throughJson(writeDiagram(read.document))).toEqual(written);
     });
 

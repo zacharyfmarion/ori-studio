@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import { FOLD_MAGNITUDE_CLASSIC, FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../../lib/foldAngle';
 import {
   chosenSheet,
   referencesSheets,
@@ -141,6 +142,17 @@ describe('sheetThumbnail', () => {
         expect(value).toBeLessThanOrEqual(100);
       }
     }
+  });
+
+  it('carries the angle of a crease folded short of 180°, reading the transport as Edit’s canvas does', () => {
+    // The mountain at 90°; every other slot the classic sentinel.
+    const segFoldMagnitude = new Uint32Array(9).fill(FOLD_MAGNITUDE_CLASSIC);
+    segFoldMagnitude[4] = 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE;
+    const thumbnail = sheetThumbnail({ ...geometry, segFoldMagnitude }, sheet(), 100);
+    const partial = thumbnail?.strokes.filter((stroke) => stroke.foldDegrees !== undefined) ?? [];
+    expect(partial).toEqual([expect.objectContaining({ role: 'mountain', foldDegrees: 90 })]);
+    // A transport with no magnitudes at all is a flat pattern, drawn as before.
+    expect(sheetThumbnail(geometry, sheet(), 100)?.strokes.some((stroke) => 'foldDegrees' in stroke)).toBe(false);
   });
 
   it('refuses a degenerate sheet rather than dividing by zero', () => {

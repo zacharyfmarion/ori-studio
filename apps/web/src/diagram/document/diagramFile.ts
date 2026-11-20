@@ -852,7 +852,7 @@ const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<str
   'crease-pattern': new Set(['mode', 'rotationDeg', 'side', 'flipCreases']),
   'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread', 'presentation']),
   'folded-3d': new Set(['mode', 'camera', 'side', 'spread']),
-  // `shape` is Pose's mesh, which this build carries and never reads (`readCpRender`).
+  // `shape` is the simulator's positions Pose saved, carried as they came (`readCpRender`).
   simulated: new Set(['mode', 'foldPercent', 'view', 'shape']),
 };
 /** The fields each kind of picture is written with, as {@link SOURCE_KEYS} are a source's. */
@@ -1590,7 +1590,8 @@ function readCpRender(value: unknown): DiagramCpRender | null {
       const foldPercent = finiteNumber(value.foldPercent);
       const view = readFoldedFigureCamera(value.view);
       if (foldPercent === null || foldPercent < 0 || foldPercent > 100 || !view) return null;
-      // Pose's mesh, carried as it came: one that is no record is dropped alone.
+      // Pose's saved positions, carried as they came — read only by Pose, which
+      // folds from flat on any it cannot put back — and dropped alone when no record.
       const shape = isRecord(value.shape) ? value.shape : undefined;
       return { mode: 'simulated', foldPercent, view, ...(shape ? { shape } : {}) };
     }

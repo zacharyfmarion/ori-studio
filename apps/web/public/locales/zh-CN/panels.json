@@ -1516,6 +1516,7 @@
       "previousSolution": "上一种层序",
       "reset": "重置姿态",
       "resetHint": "已处于初始姿态",
+      "resumeSimulation": "继续模拟",
       "rotateLeft": "向左旋转",
       "rotateRight": "向右旋转",
       "rotation": "旋转",

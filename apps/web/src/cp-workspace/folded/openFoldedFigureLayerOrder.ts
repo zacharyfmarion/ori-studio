@@ -46,8 +46,10 @@ import type {
 import { layerOrderSourceOf } from '../../lib/layerOrder/layerOrderSource';
 import { degreesToRadians, radiansToDegrees, wrapDegrees } from '../../lib/angleUnits';
 import {
+  DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+  type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
 } from '../../lib/creasePatternViewport';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
@@ -83,6 +85,8 @@ export interface EditFigureView {
   /** The line style and width Edit's view draws creases in (`oristudioCpViewport`). */
   lineStyle: OristudioCpLineStyle;
   lineWidth: number;
+  /** And its Fold angle style, which shades a crease folded short of 180°. */
+  foldAngleDisplay: OristudioCpFoldAngleDisplay;
 }
 
 /** Edit's view of the canvas, as `state` holds it. */
@@ -92,6 +96,7 @@ export function editFigureView(state: WorkspaceState): EditFigureView {
     cameraRotation: state.oristudioCpCamera?.rotation ?? 0,
     lineStyle: state.oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE,
     lineWidth: state.oristudioCpViewport.lineWidth ?? DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+    foldAngleDisplay: state.oristudioCpViewport.foldAngleDisplay ?? DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   };
 }
 
@@ -182,6 +187,7 @@ export function editFigureLook(
     xray: figure.xray,
     lineStyle: view.lineStyle,
     lineWidth: view.lineWidth,
+    foldAngleDisplay: view.foldAngleDisplay,
   };
 }
 

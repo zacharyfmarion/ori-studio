@@ -317,10 +317,16 @@ export function useLayerPatternPane({
   const contentBounds = useMemo(() => patternPaneFrame(source, region), [source, region]);
   const creases = useMemo(
     () =>
-      element ? cpPatternStrokes(lines, element, { lineStyle: look.lineStyle, lineWidth: look.lineWidth }) : null,
+      element
+        ? cpPatternStrokes(lines, element, {
+            lineStyle: look.lineStyle,
+            lineWidth: look.lineWidth,
+            foldAngleDisplay: look.foldAngleDisplay,
+          })
+        : null,
     // The theme is read off the element: its key is what says it changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lines, element, themeKey, look.lineStyle, look.lineWidth]
+    [lines, element, themeKey, look.lineStyle, look.lineWidth, look.foldAngleDisplay]
   );
   const faces = useMemo(() => (facesScene ? paneFacesOf(facesScene) : null), [facesScene]);
   const index = useMemo(() => {

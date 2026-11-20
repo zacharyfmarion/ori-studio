@@ -888,6 +888,20 @@ describe('the ways a linked pattern is shown (D19)', () => {
     expect(withRememberedPoses(null, cpSource(flat)).remembered).toBeUndefined();
   });
 
+  it('remembers a simulated pose by its camera alone, its saved positions left with its picture', () => {
+    const view = { yaw: 0.8, pitch: -0.9, zoom: 1.4 };
+    const simulated = {
+      mode: 'simulated' as const,
+      foldPercent: 54.6,
+      view,
+      shape: { sheet: 'sk1:sheet', state: 'ss1:AAAAPw==', settled: false },
+    };
+    const after = withRememberedPoses(cpSource(simulated), cpSource(pattern));
+    expect(after.remembered).toEqual({ simulated: { mode: 'simulated', foldPercent: 54.6, view } });
+    // Back to Simulated keeps only its camera, rebuilt at 0% (D19).
+    expect(renderToShowAs(after, 'simulated')).toEqual({ mode: 'simulated', foldPercent: 0, view });
+  });
+
   it('shows a way in the pose it last had, or turned as the step is from the front', () => {
     expect(renderToShowAs({ render: flat }, 'folded')).toBe(flat);
     expect(renderToShowAs({ render: pattern, remembered: { folded: flat } }, 'folded')).toBe(flat);
