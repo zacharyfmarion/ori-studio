@@ -2,6 +2,7 @@ import { alongLine, lineThrough, sideOf, toPoint } from '../../fold/canvas/foldC
 import { foldOpSteps, type FoldOp, type FoldRef, type FoldStepNode, type SheetPoint } from '../../fold/document/foldSequenceDocument';
 import { foldStepTree, pathTo } from '../../fold/document/foldStepTree';
 import { sheetToScene, type FoldStateFrame } from '../../fold/sequence/foldStateFrame';
+import { entirelyPrecreased } from './foldCreaseCoverage';
 
 // The Fold engine's tolerance for picking the interior of a crease (State::crease_at).
 const TOL = 1e-6;
@@ -39,7 +40,7 @@ function landsOnLine(point: FoldRef | undefined, edge: FoldRef | undefined, befo
   return target !== null && Math.abs(sideOf(target, toPoint(landed))) <= TOL;
 }
 
-/** Recover the original point references for a Diagram refold only when both points still land on their lines. */
+/** An extension of an earlier crease can use its maker's references if both points still land on their lines. */
 export function diagramFoldConstruction(
   steps: readonly FoldStepNode[],
   node: FoldStepNode,
@@ -50,7 +51,7 @@ export function diagramFoldConstruction(
   const op = node.op;
   if (op.kind !== 'refold' && op.kind !== 'valley' && op.kind !== 'mountain') return node;
   const witness = 'crease' in op ? op.crease : op.line.via === 'crease' ? op.line.at : null;
-  if (!witness) return node;
+  if (!witness || entirelyPrecreased(before, after)) return node;
   const crease = creaseAt(before, witness);
   if (!crease?.made_at || crease.kind !== 'flat') return node;
   const maker = creaseMaker(steps, node.parent, crease.made_at);

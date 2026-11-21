@@ -13,7 +13,8 @@
  * - **Point onto point** (O2): both points circled, the arrow from the one
  *   that moves to the one it lands on.
  * - **Two points onto two lines** (O6): one arrow per alignment, with both
- *   its endpoints circled on the picture before the fold.
+ *   its endpoints circled on the picture before the fold. A fully precreased
+ *   line keeps the engine's single arrow.
  * - **Line onto line** (O3): the arrow from the line that moves to the one
  *   it lands on. Lines that meet — a bisector — take it halfway along the
  *   shorter of the two edges brought together, as far out from the corner
@@ -51,6 +52,7 @@ import type { FoldOp, FoldRef, SheetPoint } from '../../fold/document/foldSequen
 import type { FoldActionGeometry, FoldGrip, FoldLineSpan, FoldScene } from '../../fold/engine/foldEngineWire';
 import { foldStateFrame, ringContains, sheetToScene, type FoldStateFrame } from '../../fold/sequence/foldStateFrame';
 import type { Point } from '../../lib/geometry';
+import { entirelyPrecreased } from './foldCreaseCoverage';
 
 /** A point a step's picture circles, and how many layers lie over it as the viewer sees them. */
 export interface FoldStepRing {
@@ -303,6 +305,7 @@ function axiomPlaced(
     return placed ? { ...action, grip: grip(placed.at, placed.sheet, placed.image) } : action;
   }
   if (axiom === 6) {
+    if (child && entirelyPrecreased(parent, child)) return action;
     const grips: FoldGrip[] = [];
     const rings: FoldStepRing[] = [];
     // Axiom order is point, line, point, line. Reflect in the chosen root:

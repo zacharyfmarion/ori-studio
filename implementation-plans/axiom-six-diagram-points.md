@@ -2,11 +2,11 @@
 
 ## Goal
 
-Show both point-to-line alignments of an imported Axiom 6 fold, including the Star Garland step that folds along an earlier precrease.
+Show both point-to-line alignments when an imported Axiom 6 fold creases new paper. A fold entirely along existing creases keeps its usual arrow and caption.
 
 ## Approach
 
-Use the chosen fold line in the picture before the step to place two arrows and circle their endpoints. For a fold along an existing crease, use the operation that made that crease on the same branch and check that its two points still land on their indicated lines. Use the same construction for the import card and captured step.
+Check the creases on the sheet before and after the step. Split creases keep their creation step, and earlier partial marks can cover any or all of a new edge. When a fold adds a new stretch, draw arrows from the two source points to their reflections across the chosen fold line and circle the endpoints. A fold that extends a picked crease can use the original construction when both points still land on their indicated lines.
 
 ## Affected Areas
 
@@ -14,7 +14,7 @@ Fold-to-Diagram mark placement, capture, import cards, translated instructions a
 
 ## Checklist
 
-- [x] Identify the construction behind Diagram step 7 in the supplied project.
-- [x] Place both arrows and the source and landing circles.
-- [x] Generate the direction-specific instruction for direct and reused constructions.
-- [x] Verify the garland example and run web checks.
+- [x] Locate the original Axiom 6 precreases and the later fold along a crease in Star Garland.
+- [x] Place the two arrows and their endpoint circles on new and partly precreased folds.
+- [x] Use the direction-specific instruction for those alignments and the ordinary caption for fully precreased folds.
+- [x] Verify both imports in Star Garland and cover full and partial reuse in engine-backed web tests.

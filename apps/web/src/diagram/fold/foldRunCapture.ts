@@ -31,7 +31,7 @@ import { foldStateFrame } from '../../fold/sequence/foldStateFrame';
 import type { FoldSession } from '../../fold/session/foldSession';
 import { FOLD_SCENE_QUERY } from '../../fold/session/foldStateQueries';
 import type { Point } from '../../lib/geometry';
-import { foldDiagramMergedSentence } from './foldDiagramSentence';
+import { diagramCreaseWords, foldDiagramMergedSentence } from './foldDiagramSentence';
 import { isMergeableRun, isPrecreaseStep } from './foldPrecreaseMerge';
 import { foldStepAction, type FoldStepAction } from './foldStepMarkPlan';
 import { captureRefusal, type FoldStepCaptureInput, type FoldStepCaptureRefusal } from './foldStepCapture';
@@ -71,13 +71,14 @@ async function stepActions(
   session: FoldSession,
   node: FoldStepNode,
   ready: FoldStepReady,
-  before: FoldScene
+  before: FoldScene,
+  after: FoldScene
 ): Promise<SeenAction[] | null> {
   if (isPrecreaseStep(node)) {
     const acted = await session.withState(ready.state, (engine, id) => engine.stepAction(id));
     if (acted.status !== 'answered') return null;
     const action = acted.value.status === 'ok' ? acted.value.action : null;
-    return action ? [{ action: foldStepAction(action, { op: node.op, parent: before }), view: before.view_transform }] : [];
+    return action ? [{ action: foldStepAction(action, { op: node.op, parent: before, child: after }), view: before.view_transform }] : [];
   }
   if (node.op?.kind !== 'repeat') return [];
   const entries = node.op.steps;
@@ -90,13 +91,17 @@ async function stepActions(
       for (const [index, entry] of entries.entries()) {
         const acted = await engine.action(current, entry.op, entry.choices);
         if (acted.status !== 'ok') return null;
-        seen.push({ action: foldStepAction(acted.action, { op: entry.op, parent: scene }), view: scene.view_transform });
-        if (index === entries.length - 1) break;
-        const next = await engine.apply(current, entry.op, entry.choices);
-        if (next.status !== 'ok') return null;
-        landed.push(next.state);
-        current = next.state;
-        scene = await engine.scene(current);
+        const parent = scene;
+        if (index === entries.length - 1) {
+          scene = after;
+        } else {
+          const next = await engine.apply(current, entry.op, entry.choices);
+          if (next.status !== 'ok') return null;
+          landed.push(next.state);
+          current = next.state;
+          scene = await engine.scene(current);
+        }
+        seen.push({ action: foldStepAction(acted.action, { op: entry.op, parent, child: scene }), view: parent.view_transform });
       }
       return seen;
     } finally {
@@ -145,19 +150,21 @@ export async function readFoldRunCapture(
   const shown = scenes[0]!;
   const actions: FoldStepAction[] = [];
   for (const [index, node] of run.entries()) {
-    const seen = await stepActions(session, node, readies[index]!, scenes[index]!);
+    const seen = await stepActions(session, node, readies[index]!, scenes[index]!, scenes[index + 1]!);
     if (seen === null) return UNAVAILABLE;
     actions.push(...seen.map(({ action, view }) => actionSeenIn(action, view, shown.view_transform)));
   }
   // Its words: each step it is made from, the mirror — the last — left out, said once for both sides.
-  const words = run.slice(0, -1).map((node, index) =>
-    foldNodeSentenceStep(node, {
-      parent: foldStateFrame(scenes[index]!),
-      child: foldStateFrame(scenes[index + 1]!),
+  const words = run.slice(0, -1).map((node, index) => {
+    const parent = foldStateFrame(scenes[index]!);
+    const child = foldStateFrame(scenes[index + 1]!);
+    const step = foldNodeSentenceStep(node, {
+      parent, child,
       report: readies[index]!.folded,
       pockets: readies[index]!.pockets,
-    })
-  );
+    });
+    return diagramCreaseWords(step, parent, child);
+  });
   const { summary, engineVersion } = facts.value;
   return {
     status: 'ready',

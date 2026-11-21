@@ -37,7 +37,7 @@ import {
   type SentFoldStep,
 } from '../document/diagramDocument';
 import type { PullCard } from '../references/referencesBrowserSelection';
-import { foldDiagramMergedSentence, foldDiagramSentence } from './foldDiagramSentence';
+import { diagramCreaseWords, foldDiagramMergedSentence, foldDiagramSentence } from './foldDiagramSentence';
 import { diagramFoldConstruction } from './foldCreaseConstruction';
 import type { FoldPrecreaseMerge } from './foldPrecreaseMerge';
 import { captureFoldStep } from './foldStepCapture';
@@ -145,7 +145,7 @@ export function foldBrowserCards(
       const constructed = diagramFoldConstruction(document.steps, entry.node, parent, child);
       if (constructed !== entry.node) return foldNodeSentenceStep(constructed, { parent, child, report: foldedLineOf(entry.session) });
     }
-    return words[index] ?? { op: 'unknown' as const };
+    return diagramCreaseWords(words[index] ?? { op: 'unknown' }, parent, child);
   };
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]!;

@@ -15,7 +15,17 @@
  * Pure and React-free.
  */
 import type { TFunction } from 'i18next';
+import type { FoldStateFrame } from '../../fold/sequence/foldStateFrame';
 import { foldStepSentence, type FoldSentenceLine, type FoldSentenceStep } from '../../fold/stepSentence';
+import { entirelyPrecreased } from './foldCreaseCoverage';
+
+/** An Axiom 6 step entirely on existing creases takes the ordinary fold instruction. */
+export function diagramCreaseWords(step: FoldSentenceStep, before: FoldStateFrame | null, after: FoldStateFrame | null): FoldSentenceStep {
+  if ((step.op === 'fold' || step.op === 'precrease') && pointsOntoLines(step.line) && before && after && entirelyPrecreased(before, after)) {
+    return { ...step, line: { via: 'crease' } };
+  }
+  return step;
+}
 
 function pointsOntoLines(line: FoldSentenceLine): boolean {
   return line.via === 'axiom' && line.axiom === 6 &&

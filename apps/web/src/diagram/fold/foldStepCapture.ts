@@ -35,7 +35,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { storedFoldStepSource } from '../document/diagramFile';
-import { foldDiagramSentence } from './foldDiagramSentence';
+import { diagramCreaseWords, foldDiagramSentence } from './foldDiagramSentence';
 import { diagramFoldConstruction } from './foldCreaseConstruction';
 import { foldStepMarkAction } from './foldStepMarkPlan';
 import { foldStepPicture, type FoldStepPictureInput } from './foldStepPicture';
@@ -145,7 +145,7 @@ export async function readFoldStepCapture(
     const childFrame = foldStateFrame(scene);
     node = diagramFoldConstruction(steps, stored, parentFrame, childFrame);
     const words = foldNodeSentenceStep(node, { parent: parentFrame, child: childFrame, report: ready.folded, pockets: ready.pockets });
-    sentence = foldDiagramSentence(t, words);
+    sentence = foldDiagramSentence(t, diagramCreaseWords(words, parentFrame, childFrame));
   }
   const op = node.op ?? null;
   let repeat: FoldStepPictureInput['repeat'];
