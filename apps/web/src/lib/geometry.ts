@@ -50,6 +50,18 @@ export function turnClockwise(degrees: number): (point: Point) => Point {
   return ({ x, y }) => ({ x: x * cos - y * sin, y: x * sin + y * cos });
 }
 
+/** How far `point` is from the segment `a`–`b`, each an `[x, y]` pair. */
+export function distanceToSegment(
+  point: readonly [number, number],
+  a: readonly [number, number],
+  b: readonly [number, number]
+): number {
+  const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+  const length = dx * dx + dy * dy;
+  const t = length > 0 ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / length)) : 0;
+  return Math.hypot(point[0] - (a[0] + t * dx), point[1] - (a[1] + t * dy));
+}
+
 export function formatNumber(value: number, digits = 3): string {
   return value.toFixed(digits).replace(/\.?0+$/, '');
 }

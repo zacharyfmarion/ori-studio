@@ -224,6 +224,12 @@ jobs:
       - name: Unit test simulator package
         run: npm run test:simulator
 
+      # packages/layer-spread's tests sit outside every vitest project above, so
+      # nothing ran them, among them spreadOpening's, which fixes how a version 2
+      # Default spread is drawn in Perspective 3D. They import ../src: no build.
+      - name: Unit test layer-spread package
+        run: npm run test:layer-spread
+
       # `scripts/*.test.mjs` sits outside every vitest project, so until now
       # nothing ran any of it — five files and 48 assertions, including the only
       # always-available cover for `osf-fold-projection`'s vertex/edge/face

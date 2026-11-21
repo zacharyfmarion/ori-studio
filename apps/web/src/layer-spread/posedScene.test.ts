@@ -5,6 +5,7 @@ import { foldedFlatPaperScene } from '../cp-workspace/folded/foldedFlatScene';
 import { plainBook } from '../cp-workspace/folded/foldedPrecrease.fixtures';
 import { connectedDrawing, connectedPaperScene, type ConnectedDrawing, type ConnectedPaperScene } from './connectedScene';
 import { perspectiveDrawing } from './perspective';
+import { equalOpeningGain } from './equalOpening';
 
 it.each([0, 0.5, 2])('doubles Perspective height and ink at amount %s without changing Diagram or the recipe', (amount) => {
   const kernel = plainBook();
@@ -79,4 +80,30 @@ it.each([0.25, 0.5, 1, 2])('keeps lifted paper its size at amount %s, holding th
   const doubled = connectedDrawing(kernel, connected, { ...spread, amount: amount * 2, reveal: [0, 0] }, toScenePx, []);
   const live = foldedFlatPaperScene(kernel, { ...options, connected, presentation }) as ConnectedPaperScene;
   expect(live.connected.mesh.positions).toEqual(perspectiveDrawing(doubled, connected, presentation).mesh.positions);
+});
+
+it.each([0.14, 1, 2])('draws a version 2 spread in Perspective at its equal-opening height, and alike in Diagram, at amount %s', (amount) => {
+  const kernel = plainBook();
+  const source = connectedSpreadSource(kernel);
+  const reference = { plane: [0, 0, 0] as Point3, center: [0, 0, 0] as Point3, samples: 1, rms: 0 };
+  const solution: SpreadSolution = {
+    version: 'normalized-50-v1',
+    heights: source.vertices.map((id) => id === 2 || id === 5 ? 0.02 : 0),
+    references: [reference, reference],
+    diagnostics: { status: 'solved', iterations: 1, qp_seconds: 0, variables: 6, constraints: 0,
+      overlap_regions: 1, crossing_weight: 50, opening_scale: 1, max_relative_warp: 0,
+      max_slope: 0.02, max_crossing: 0, rms_crossing: 0, mean_gap: 0.01 },
+  };
+  const connected = { source, solution };
+  const v1: ConnectedSpread = { kind: 'connected', version: 1, amount, reveal: [0.8, 0.6] };
+  const v2: ConnectedSpread = { ...v1, version: 2 };
+  const toScenePx = (p: { x: number; y: number }): [number, number] => [p.x, p.y];
+  const options = { connected, live: true, markHidden: false, scale: 1, toScenePx };
+  const presentation = { kind: 'perspective' as const, camera: { yaw: 0.4, pitch: 0.5, zoom: 1 }, orderSide: 'front' as const };
+  const gain = equalOpeningGain(connected);
+  expect(gain).toBeGreaterThan(1);
+  const raised = connectedDrawing(kernel, connected, { ...v2, amount: amount * 2 * gain, reveal: [0, 0] }, toScenePx, []);
+  const live = foldedFlatPaperScene(kernel, { ...options, spread: v2, presentation }) as ConnectedPaperScene;
+  expect(live.connected.mesh.positions).toEqual(perspectiveDrawing(raised, connected, presentation).mesh.positions);
+  expect(foldedFlatPaperScene(kernel, { ...options, spread: v2 })).toEqual(foldedFlatPaperScene(kernel, { ...options, spread: v1 }));
 });

@@ -22,7 +22,7 @@ import type {
   LayerSpreadOptions,
   SpreadKind,
 } from '../../cp-workspace/folded/foldedLayerSpread';
-import { spreadStartsAmong, type LayerSpreadStarts } from '../../cp-workspace/folded/layerSpreadSettings';
+import { spreadOutOfPerspective, spreadStartsAmong, type LayerSpreadStarts } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { DiagramWhiteArrowWidth } from '../../lib/stepDiagram/diagramInk';
 import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import type { WhiteArrowTail } from '../../lib/stepDiagram/stepDiagramGeometry';
@@ -448,11 +448,12 @@ export type DiagramFlatRender = Extract<DiagramCpRender, { mode: 'folded-flat' }
 /**
  * A flat fold whose layers its Default spread could not spread, as its step
  * keeps it: the spread kept, so the step says it failed and offers another
- * kind, and no presentation, which only a spread drawn is drawn in.
+ * kind, and no presentation, which only a spread drawn is drawn in. With no
+ * presentation, the spread is version 1 (`spreadOutOfPerspective`).
  */
 export function spreadFailedRender(render: DiagramFlatRender): DiagramFlatRender {
   const { presentation: _presentation, ...kept } = render;
-  return kept;
+  return kept.spread ? { ...kept, spread: spreadOutOfPerspective(kept.spread) } : kept;
 }
 
 /** Whether a step's picture is its fold drawn unspread because its layers could not be spread (`spreadFailed`). */

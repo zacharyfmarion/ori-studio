@@ -108,6 +108,15 @@ describe('a step captured with a Default spread its layers can’t take', () => 
     expect(result.source.render).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
   });
 
+  it('puts a version 2 spread back to version 1 with its presentation, which older builds would lock', async () => {
+    spread.solveFails = LIMIT;
+    const shown: DiagramCpRender = { ...SPREAD_FLAT, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } };
+    const result = await captureStep(fakeCaptureRuntime(), request(shown));
+    if (result.status !== 'captured') throw new Error(`not captured: ${result.status}`);
+    expect(capturedSpreadFailed(result.captured)).toBe(true);
+    expect(result.source.render).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
+  });
+
   it('keeps a spread it can take, unmarked, as it always did', async () => {
     const result = await captureStep(fakeCaptureRuntime(), request({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD }));
     if (result.status !== 'captured') throw new Error(`not captured: ${result.status}`);
@@ -151,6 +160,15 @@ describe('a step posed with a Default spread its layers can’t take', () => {
     expect(spread.solves).toBe(solvesBefore + 1);
     expect(failed(turned)).toBe(false);
     expect(turned).toMatchObject({ status: 'posed', render: { spread: DEFAULT_LAYER_SPREAD } });
+  });
+
+  it('leaves a spread shown in Perspective 3D whose layers can’t be spread at version 1, with no presentation', async () => {
+    const held = session();
+    spread.solveFails = LIMIT;
+    const entered = await pose(held, { ...FLAT, spread: DEFAULT_CONNECTED_SPREAD }, { verb: 'spread-presentation', kind: 'perspective' });
+    if (entered.status !== 'posed') throw new Error(`not posed: ${entered.status}`);
+    expect(failed(entered)).toBe(true);
+    expect(entered.render).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
   });
 
   it('takes another kind, which needs no solve, from a spread its layers couldn’t take', async () => {

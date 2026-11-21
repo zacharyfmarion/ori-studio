@@ -1,5 +1,6 @@
 import { SpatialSpreadAmountRow } from '../paper/SpatialSpreadAmountRow';
 import { SpreadPresentationRow } from './SpreadPresentationRow';
+import { SpreadEqualOpeningNotice } from './SpreadEqualOpeningNotice';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiagramPoseAction } from '../../diagram/actions/diagramPoseActions';
@@ -144,6 +145,8 @@ export function DiagramStepPose({
           <>
           <LayerSpreadRows revealVisible={!perspective} toggle={foldPose.spreadToggle} spread={foldPose.spread} />
           {render.spread?.kind === 'connected' && <SpreadPresentationRow key={step.id} value={render.presentation?.kind ?? 'diagram'} onChange={foldPose.setPresentation} disabled={foldPose.presentationHeld} />}
+          {/* Pose's alone, as a linked step's is: the Pages inspector has no open Pose to measure from. */}
+          {!main && foldPose.equalOpening && <div className={styles.notice}><SpreadEqualOpeningNotice update={foldPose.equalOpening} /></div>}
           </>
         )}
       </>
@@ -202,6 +205,7 @@ export function DiagramStepPose({
         <LayerSpreadRows revealVisible={!perspective} toggle={linked.find((action) => action.id === 'spread-layers')} spread={linkedPose.spread} />
         {linkedPose.spatialAmount && <SpatialSpreadAmountRow value={linkedPose.spatialAmount} />}
         {render.mode === 'folded-flat' && render.spread?.kind === 'connected' && <SpreadPresentationRow key={step.id} value={render.presentation?.kind ?? 'diagram'} onChange={linkedPose.setPresentation} disabled={readOnly || step.annotations.some((annotation) => !!annotation.unknown) || spreadFailedOf(step.picture)} />}
+        {linkedPose.equalOpening && <div className={styles.notice}><SpreadEqualOpeningNotice update={linkedPose.equalOpening} /></div>}
         </>
       )}
     </>

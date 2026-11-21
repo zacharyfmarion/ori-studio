@@ -162,6 +162,8 @@ const TRACKED: Record<TrackedPoseVerb, TrackedPoseAction> = {
   'spread-axis': 'spread_axis',
   'spread-reveal': 'spread_reveal',
   'spread-reveal-axis': 'spread_reveal',
+  // A Perspective 3D picture saved before equal opening, updated to it (`equalOpening.ts`).
+  'spread-equal-opening': 'spread_equal_opening',
   // A crease pattern's paper on the colour of one side: not a turn-over (Zach, 2026-10-06).
   'paper-side': 'paper_side',
   // On, or off when the verb left them unflipped (`trackPose`).
@@ -179,6 +181,7 @@ const SPREAD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
   'spread-axis',
   'spread-reveal',
   'spread-reveal-axis',
+  'spread-equal-opening',
 ]);
 
 /**

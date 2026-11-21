@@ -1637,6 +1637,8 @@
     "spread": {
       "diagram": "图解",
       "drag": "拖动以显示层次",
+      "equalOpeningNotice": "此图使用旧的“幅度”标度：简单模型比复杂模型张开得多。更新后外观保持不变，除非它张开超过新的 100%。",
+      "equalOpeningUpdate": "更新",
       "padHint": "拖动以显露纸层。使用方向键调整，按住 Shift 可增大移动幅度。",
       "perspective": "透视 3D",
       "presentation": "显示方式",

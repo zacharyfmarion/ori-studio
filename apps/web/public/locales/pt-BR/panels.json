@@ -1761,6 +1761,8 @@
     "spread": {
       "diagram": "Diagrama",
       "drag": "Arraste para revelar as camadas",
+      "equalOpeningNotice": "Esta imagem usa a escala antiga de Quantidade, que abre modelos simples muito mais do que os complexos. Atualizar mantém a aparência, a menos que ela se abra além dos novos 100%.",
+      "equalOpeningUpdate": "Atualizar",
       "padHint": "Arraste para revelar as camadas. Ajuste com as setas; Shift aumenta o deslocamento.",
       "perspective": "Perspectiva 3D",
       "presentation": "Apresentação",

@@ -1761,6 +1761,8 @@
     "spread": {
       "diagram": "Diagrama",
       "drag": "Arrastra para mostrar las capas",
+      "equalOpeningNotice": "Esta imagen usa la escala anterior de Cantidad, que abre los modelos sencillos mucho más que los complejos. Al actualizarla se conserva su aspecto, salvo que se abra más allá del nuevo 100 %.",
+      "equalOpeningUpdate": "Actualizar",
       "padHint": "Arrastra para mostrar las capas. Usa las flechas para ajustar; Mayús aumenta el desplazamiento.",
       "perspective": "Perspectiva 3D",
       "presentation": "Presentación",
