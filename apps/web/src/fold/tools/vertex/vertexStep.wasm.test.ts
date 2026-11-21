@@ -21,6 +21,7 @@ import {
   landingFourths,
   layerSheetPointAt,
   squashOpenings,
+  tryOtherFanAnchor,
   vertexAskedOp,
   vertexChosenOp,
   vertexStepFrom,
@@ -130,7 +131,7 @@ function vertexFold(engined: Engine, state: number, wanted: FoldVertexIntent, ta
   let base = vertexAskedOp(wanted, indexOf(engined.calls, state));
   if (!base || 'status' in base) throw new Error(`no op: ${JSON.stringify(base)}`);
   let first = described(ask(engined, state, base));
-  if (fanHasNoFourth(first)) {
+  if (tryOtherFanAnchor(first)) {
     const alternative = fanAnchorAlternative(wanted, indexOf(engined.calls, state), base);
     if (alternative) {
       const answer = described(ask(engined, state, alternative));

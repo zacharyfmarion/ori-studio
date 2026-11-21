@@ -26,6 +26,7 @@ import {
   swivelDirectionsOf,
   swivelKindsLanding,
   swivelLinesOf,
+  tryOtherFanAnchor,
   vertexAskedOp,
   vertexChosenOp,
   vertexStepFrom,
@@ -123,8 +124,8 @@ const NONE: FoldVertexStepAnswer = { step: null, vertex: null, refused: null };
  * fold the engine has not described. The preview and the commit go through
  * the session as every step's do.
  *
- * A rabbit ear tries the other stationary anchor when the first cannot
- * support the selected hinge. Neither attempt changes the hinge region.
+ * A rabbit ear tries the other anchor when it would keep more connected paper
+ * still or the first cannot land with the selected hinge.
  */
 export function useFoldVertexStep(
   session: FoldSessionSurface,
@@ -181,7 +182,7 @@ export function useFoldVertexStep(
   const initial = asked && 'kind' in asked ? asked : null;
   const told = asked && 'status' in asked ? asked : null;
   const first = useFoldCompoundAsk(session, stateKey, initial ? { op: initial } : null, 'vertex', 'fold:vertex');
-  const needsAnchor = initial?.kind === 'rabbit-ear' && (first?.refused != null || fanHasNoFourth(first?.asked ?? null));
+  const needsAnchor = initial?.kind === 'rabbit-ear' && (first?.refused != null || tryOtherFanAnchor(first?.asked ?? null));
   const alternative = useMemo(
     () => (needsAnchor && intent && index && initial ? fanAnchorAlternative(intent, index, initial) : null),
     [needsAnchor, intent, index, initial]
