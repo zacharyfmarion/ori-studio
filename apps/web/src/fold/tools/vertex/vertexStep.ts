@@ -441,8 +441,8 @@ export function fanSeed(
   return at ? { scope: 'depth', at, layers: Math.max(1, layers) } : null;
 }
 
-/** Prefer keeping the larger remaining region still, then try the other.
- * This anchors the body of a model instead of flipping it with the ear.
+/** Try the larger visible region first. The engine can prefer the other
+ * anchor once it knows which paper is physically attached to each wedge.
  */
 function fanAnchors(intent: FoldVertexIntent, index: FoldPickIndex, fan: FoldFanGiven, hinge: number): SheetPoint[] {
   return [0, 1, 2].filter(k => k !== hinge).map(k => ({
@@ -574,6 +574,12 @@ export function emergentToFold(chosen: number | null, answer: FoldVertexAnalysed
 export function fanHasNoFourth(answer: FoldVertexAnalysed | null): boolean {
   const kind = answer?.analysis.kind;
   return (kind === 'rabbit-ear' || kind === 'swivel') && landingFourths(answer).length === 0;
+}
+
+/** Try the other rabbit-ear anchor if the first cannot land or it would move more paper. */
+export function tryOtherFanAnchor(answer: FoldVertexAnalysed | null): boolean {
+  return answer?.analysis.kind === 'rabbit-ear' &&
+    (answer.analysis.prefers_other_anchor === true || fanHasNoFourth(answer));
 }
 
 /** The fourth crease `delta` on from `from` among the ones that land, round and round; null when none does. */

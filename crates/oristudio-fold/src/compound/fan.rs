@@ -489,24 +489,38 @@ pub(crate) struct FanFold {
     pub(crate) fourth: usize,
 }
 
+struct ConnectedFan {
+    scoring: Scoring,
+    /// The wedge cut from this face, if the fan scores it.
+    wedge_of: Vec<Option<usize>>,
+    /// Per face, the wedge that carries it, including paper beyond the scored layers.
+    attached: Vec<Option<usize>>,
+    anchor: usize,
+}
+
+impl ConnectedFan {
+    /// The two wedges away from the ridge can anchor a rabbit ear. Count sheet
+    /// area once per material face. Paper detached from the fan stays either way.
+    fn prefers_other_anchor(&self, fourth: usize) -> bool {
+        let mut area = [0.0; 4];
+        for (i, wedge) in self.attached.iter().enumerate() {
+            if let Some(w) = wedge {
+                area[*w] += convex::signed_area(&self.scoring.polygon(i)).abs();
+            }
+        }
+        [(fourth + 1) % 4, (fourth + 2) % 4]
+            .into_iter()
+            .any(|w| area[w] > area[self.anchor] + TOL * area[w].max(area[self.anchor]))
+    }
+}
+
 impl FanFold {
-    /// The fold compiled: the layers cut, every piece in the block of its
-    /// wedge, the anchor's staying, and each wedge's turns.
-    ///
-    /// The fourth ray rises as the ear's ridge (the module docs): it must be
-    /// one of the far wedge's two rays, refused otherwise, and seeds them in
-    /// every layer, which the direction alone leaves open (research §5.3:
-    /// two orders, differing in which of the two rises): the far wedge lies
-    /// over its neighbour across the fourth ray, toward the side the
-    /// direction names, and under its other neighbour. The fourth's crease
-    /// is then the one of each layer's four whose letter differs from the
-    /// other three's, which take the direction's.
-    pub(crate) fn compile(&self, state: &State) -> Result<Compiled, Refused> {
-        let fan = &self.fan;
-        let n = fan.rays.len();
+    /// Cut the selected layers and find which wedge carries each connected piece
+    /// of paper, including uncut faces joined to it outside the triangle.
+    fn connected_paper(&self, state: &State) -> Result<ConnectedFan, Refused> {
         let FanScoring { scoring, wedge_of } = match &self.patches {
-            Some(patches) => super::fan_precreased::score(state, fan, patches)?,
-            None => score_fan(state, fan, &self.layers)?,
+            Some(patches) => super::fan_precreased::score(state, &self.fan, patches)?,
+            None => score_fan(state, &self.fan, &self.layers)?,
         };
         let count = scoring.faces.len();
 
@@ -586,11 +600,42 @@ impl FanFold {
         let Some(&[anchor]) = wedges.get(&component[stayer]).map(Vec::as_slice) else {
             return Err(FoldRefusal::FanStayerDetached { point: self.stayer }.into());
         };
-        let mut block_of: Vec<Option<usize>> = (0..count)
-            .map(|a| {
-                let w = *wedges.get(&component[a])?.first()?;
-                (w != anchor).then_some(w)
-            })
+        let attached = component
+            .iter()
+            .map(|c| wedges.get(c)?.first().copied())
+            .collect();
+        Ok(ConnectedFan {
+            scoring,
+            wedge_of,
+            attached,
+            anchor,
+        })
+    }
+
+    /// The fold compiled: the layers cut, every piece in the block of its
+    /// wedge, the anchor's staying, and each wedge's turns.
+    ///
+    /// The fourth ray rises as the ear's ridge (the module docs): it must be
+    /// one of the far wedge's two rays, refused otherwise, and seeds them in
+    /// every layer, which the direction alone leaves open (research §5.3:
+    /// two orders, differing in which of the two rises): the far wedge lies
+    /// over its neighbour across the fourth ray, toward the side the
+    /// direction names, and under its other neighbour. The fourth's crease
+    /// is then the one of each layer's four whose letter differs from the
+    /// other three's, which take the direction's.
+    pub(crate) fn compile(&self, state: &State) -> Result<Compiled, Refused> {
+        let fan = &self.fan;
+        let n = fan.rays.len();
+        let ConnectedFan {
+            scoring,
+            wedge_of,
+            attached,
+            anchor,
+        } = self.connected_paper(state)?;
+        let count = scoring.faces.len();
+        let mut block_of: Vec<_> = attached
+            .into_iter()
+            .map(|w| w.filter(|&w| w != anchor))
             .collect();
 
         // Each wedge turns across the rays between it and the anchor, the
@@ -779,6 +824,10 @@ pub struct FanAnalysis {
     /// The layers the creases cut: the parent's faces, the first nearest the
     /// side the direction names.
     pub layers: Vec<FaceId>,
+    /// Authoring hint for a rabbit ear. The other eligible anchor would hold
+    /// more material still. Its landing must still be checked.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub prefers_other_anchor: bool,
 }
 
 struct FanLayers {
@@ -810,14 +859,25 @@ impl FanInput {
 
     pub(crate) fn analyse(&self, state: &State) -> Result<FanAnalysis, Refused> {
         let direction = state.view().model_direction(self.direction);
-        let layers = self.selected_layers(state, direction)?.faces;
+        let layers = self.selected_layers(state, direction)?;
+        let faces = layers.faces.iter().map(|&f| state.faces()[f].id).collect();
         let candidates = kawasaki(&self.given);
+        let emergent = nearest(&candidates, self.emergent);
+        let prefers_other_anchor = self.kind == VertexFoldKind::RabbitEar
+            && emergent
+                .and_then(|k| self.fan_geometry(candidates[k]).ok())
+                .is_some_and(|geometry| {
+                    let fold = self.on_layers(geometry, layers, direction);
+                    fold.connected_paper(state)
+                        .is_ok_and(|paper| paper.prefers_other_anchor(fold.fourth))
+                });
         Ok(FanAnalysis {
             center: self.center,
             given: self.given.to_vec(),
-            emergent: nearest(&candidates, self.emergent),
+            emergent,
             candidates,
-            layers: layers.iter().map(|&f| state.faces()[f].id).collect(),
+            layers: faces,
+            prefers_other_anchor,
         })
     }
 
@@ -841,28 +901,39 @@ impl FanInput {
         k: usize,
         direction: Direction,
     ) -> Result<(Fan, Compiled), Refused> {
+        let geometry = self.fan_geometry(candidates[k])?;
+        let layers = self.selected_layers(state, direction)?;
+        let fold = self.on_layers(geometry, layers, direction);
+        let compiled = fold.compile(state)?;
+        Ok((fold.fan, compiled))
+    }
+
+    fn fan_geometry(&self, emergent: Point) -> Result<(Fan, usize), Refused> {
         let mut rays = self.given.to_vec();
-        rays.push(candidates[k]);
+        rays.push(emergent);
         let fan = Fan::new(self.center, &rays).ok_or(FoldRefusal::FanNotFlat)?;
         if fan.widest() >= PI - 1e-9 {
             return Err(FoldRefusal::FanNotFlat.into());
         }
-        let fourth = nearest(&fan.rays, candidates[k]).ok_or(FoldRefusal::FanNotFlat)?;
-        let FanLayers {
-            faces: layers,
-            patches,
-        } = self.selected_layers(state, direction)?;
-        let compiled = FanFold {
-            patches,
+        let fourth = nearest(&fan.rays, emergent).ok_or(FoldRefusal::FanNotFlat)?;
+        Ok((fan, fourth))
+    }
+
+    fn on_layers(
+        &self,
+        (fan, fourth): (Fan, usize),
+        layers: FanLayers,
+        direction: Direction,
+    ) -> FanFold {
+        FanFold {
+            patches: layers.patches,
             kind: self.kind,
-            layers,
-            fan: fan.clone(),
+            layers: layers.faces,
+            fan,
             stayer: self.stayer,
             direction,
             fourth,
         }
-        .compile(state)?;
-        Ok((fan, compiled))
     }
 
     /// The fold's picture on `state`, with `landed`'s cover at the arrow's

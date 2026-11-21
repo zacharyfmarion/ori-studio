@@ -158,6 +158,8 @@ export interface FoldFanAnalysis {
   candidates: FoldModelPoint[];
   /** The candidate the op's emergent ray names. */
   emergent: number | null;
+  /** The other rabbit-ear anchor would keep more connected sheet area stationary. */
+  prefers_other_anchor?: boolean;
   /** The layers the creases cut, the first nearest the side the direction names. */
   layers: number[];
 }
