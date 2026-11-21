@@ -94,6 +94,7 @@ impl Opens for Tip {
 
     fn prepare_inside(&self, state: &State, plan: &Plan) -> Result<Prepared, FoldRefusal> {
         self.prepare(state, plan, ReverseKind::Inside)
+            .map(|(prepared, _)| prepared)
     }
 
     fn without(&self, state: &State, flap: usize) -> Option<Tip> {
