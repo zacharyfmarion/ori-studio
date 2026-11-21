@@ -2,8 +2,13 @@ import type { SpreadInput } from './types.js';
 
 /**
  * How far a solved spread opens its layers, read once from a solution at
- * amount 1 (`implementation-plans/spread-equal-opening.md`). Both are slopes,
- * height over normalized XY, so a scale of the heights scales them alike.
+ * amount 1 (`implementation-plans/spread-equal-opening.md`). Each is height
+ * over normalized XY, so a scale of the heights scales them alike.
+ *
+ * What it measures is part of how a version 2 Default spread is drawn
+ * (`apps/web/src/layer-spread/equalOpening.ts`): a change to any of it —
+ * the pairs, the sample points, the weights, the percentile — redraws saved
+ * pictures, so it needs a new `ConnectedSpread` version, not an edit here.
  */
 export interface SpreadOpening {
   /**
@@ -14,6 +19,8 @@ export interface SpreadOpening {
   opening: number;
   /** How steep the steepest paper is: the 99th percentile of `|∇h|` over triangles, by area. */
   steep: number;
+  /** How high any of the paper rises: the largest `|h|`, over the diagonal of the flat paper's box. */
+  reach: number;
 }
 
 /** The triangle of `face` holding `point`, or the nearest to holding it. */
@@ -72,5 +79,14 @@ export function spreadOpening(input: SpreadInput, heights: readonly number[]): S
     steep = slope;
     if (covered >= 0.99 * paper) break;
   }
-  return { opening: weight > 0 ? parting / weight : 0, steep };
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, highest = 0;
+  input.xy.forEach(([x, y], v) => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+    highest = Math.max(highest, Math.abs(heights[v] ?? 0));
+  });
+  const diagonal = Math.hypot(maxX - minX, maxY - minY);
+  return { opening: weight > 0 ? parting / weight : 0, steep, reach: diagonal > 0 ? highest / diagonal : 0 };
 }

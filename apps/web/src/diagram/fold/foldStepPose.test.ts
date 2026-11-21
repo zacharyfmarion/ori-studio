@@ -9,7 +9,9 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   flipFoldStepCreases,
   posedFoldRender,
+  presentDiagramFoldStep,
   rotatedFoldRender,
+  setDiagramFoldPresentation,
   showFoldStepPaperSide,
   spreadFoldRender,
 } from './foldStepActions';
@@ -154,6 +156,60 @@ describe('a Fold step’s crease pattern turned over (Flip creases)', () => {
     install(BACK);
     await showFoldStepPaperSide('s', 'front');
     expect(asked()).toEqual(PATTERN);
+  });
+});
+
+describe('a Fold step shown in Perspective 3D (equal opening)', () => {
+  const PERSPECTIVE = { kind: 'perspective' as const, camera: { yaw: 0.3, pitch: -0.4, zoom: 1 }, orderSide: 'front' as const };
+  const SHOWN: DiagramCpRender = { ...FLAT, spread: DEFAULT_CONNECTED_SPREAD };
+  const SAVED: DiagramCpRender = { ...SHOWN, presentation: PERSPECTIVE };
+  const capture = vi.fn();
+
+  beforeEach(() => {
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    capture.mockReset();
+    capture.mockImplementation(async (_stepId: string, request: { render: DiagramCpRender }) => ({
+      status: 'captured',
+      changed: true,
+      render: request.render,
+      tooDetailed: false,
+      replaced: 0,
+    }));
+    useWorkspaceStore.setState({ captureDiagramFoldStep: capture });
+  });
+
+  function install(render: DiagramCpRender) {
+    const document = insertSteps(createDiagram(), [foldStepStep('s', { render })], 0);
+    useWorkspaceStore.getState().installDiagram({ document, readOnly: false, raw: {} });
+  }
+  const asked = () => (capture.mock.calls.at(-1)?.[1] as { render: DiagramCpRender } | undefined)?.render;
+
+  it('draws a spread shown in Perspective 3D for the first time by version 2, at its amount', async () => {
+    install(SHOWN);
+    expect(await presentDiagramFoldStep('s', PERSPECTIVE)).toBe(true);
+    expect(asked()).toEqual({ ...SAVED, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } });
+  });
+
+  it('keeps a picture saved there by version 1 through a camera move, and back from Diagram', async () => {
+    install(SAVED);
+    const moved = { ...PERSPECTIVE, camera: { yaw: 1, pitch: -1, zoom: 1 } };
+    expect(await presentDiagramFoldStep('s', moved, undefined, true)).toBe(true);
+    expect(asked()).toEqual({ ...SAVED, presentation: moved });
+    // A Diagram presentation kept from Perspective 3D: switching back is reversible.
+    install({ ...SAVED, presentation: { ...PERSPECTIVE, kind: 'diagram' } });
+    await setDiagramFoldPresentation('s', 'perspective');
+    expect(asked()).toEqual(SAVED);
+  });
+
+  it('writes no presentation when Diagram is asked of a step never shown in Perspective 3D', async () => {
+    install(SHOWN);
+    await setDiagramFoldPresentation('s', 'diagram');
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it('puts a Default spread back to version 1 when Reset leaves it no presentation', () => {
+    const away: DiagramCpRender = { ...FLAT, rotationDeg: 90, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 }, presentation: { ...PERSPECTIVE, kind: 'diagram' } };
+    expect(posedFoldRender(away, 'reset')).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
   });
 });
 

@@ -19,6 +19,7 @@ import { trackDiagramSourceOpened } from '../../analytics';
 import type { LayerSpreadOptions, SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   DEFAULT_SPREAD_STARTS,
+  spreadOutOfPerspective,
   withSpreadField,
   type LayerSpreadEdit,
   type LayerSpreadStarts,
@@ -164,8 +165,9 @@ export function posedFoldRender(render: DiagramCpRender, verb: FoldStepPoseVerb)
       return { ...render, rotationDeg: quarter(render.rotationDeg) };
     case 'folded-flat':
       if (verb === 'reset') {
+        // With no presentation left, a Default spread goes back to version 1, which draws alike here.
         const { spread } = render;
-        return { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread } : {}) };
+        return { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread: spreadOutOfPerspective(spread) } : {}) };
       }
       if (verb === 'turn-over') {
         return { ...render, side: render.side === 'back' ? 'front' : 'back', rotationDeg: (360 - render.rotationDeg) % 360 };
@@ -365,7 +367,7 @@ export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void 
 export async function presentDiagramFoldStep(stepId: string, presentation: SpreadPresentation, current?: () => boolean, background = false): Promise<boolean> {
   const source=foldSourceOf(stepId);
   if(!source || source.render.mode!=='folded-flat' || source.render.spread?.kind!=='connected')return false;
-  // Newly shown in Perspective 3D, a spread is drawn by version 2; one already there keeps its version.
+  // Shown in Perspective 3D for the first time, a spread is drawn by version 2; one shown there before keeps its version.
   const { spread } = source.render;
   const shown = entersPerspective(source.render.presentation, presentation.kind) ? spreadInPerspective(spread) : spread;
   return poseAs(stepId,source,{...source.render,spread:shown,presentation},'spread-presentation',current,!background);
@@ -377,6 +379,8 @@ export function setDiagramFoldPresentation(stepId: string, kind: SpreadPresentat
     const source = foldSourceOf(stepId);
     if (source?.render.mode !== 'folded-flat' || source.render.spread?.kind !== 'connected') return;
     const previous = source.render.presentation;
+    // A presentation says the step has been in Perspective 3D: Diagram asked of one never there writes none.
+    if (kind === 'diagram' && !previous) return;
     await presentDiagramFoldStep(stepId, {
       kind,
       camera: previous?.camera ?? DEFAULT_FOLDED_3D_CAMERA,

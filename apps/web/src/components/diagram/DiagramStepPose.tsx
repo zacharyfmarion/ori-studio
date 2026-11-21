@@ -145,7 +145,8 @@ export function DiagramStepPose({
           <>
           <LayerSpreadRows revealVisible={!perspective} toggle={foldPose.spreadToggle} spread={foldPose.spread} />
           {render.spread?.kind === 'connected' && <SpreadPresentationRow key={step.id} value={render.presentation?.kind ?? 'diagram'} onChange={foldPose.setPresentation} disabled={foldPose.presentationHeld} />}
-          {foldPose.equalOpening && <div className={styles.notice}><SpreadEqualOpeningNotice update={foldPose.equalOpening} /></div>}
+          {/* Pose's alone, as a linked step's is: the Pages inspector has no open Pose to measure from. */}
+          {!main && foldPose.equalOpening && <div className={styles.notice}><SpreadEqualOpeningNotice update={foldPose.equalOpening} /></div>}
           </>
         )}
       </>

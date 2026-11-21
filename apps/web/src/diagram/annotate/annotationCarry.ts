@@ -17,6 +17,7 @@
  * pictures it carried marks to ({@link placesOnFaces}).
  */
 import { meanValueWeights } from '../../cp-workspace/folded/foldedLayerSpread';
+import { SPREAD_AMOUNT_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
 import { barycentric } from '@oristudio/layer-spread';
 import { readPaperFaces, NEWER_PAPER_FACES } from '../document/paperFacesFile';
 import type { DiagramPaperFaces } from '../document/diagramDocument';
@@ -231,6 +232,35 @@ function recolouredOnly(before: DiagramStep, after: DiagramStep): boolean {
     creasesFlipped(wasRender) === creasesFlipped(isRender) &&
     (creasePatternSide(wasRender) !== creasePatternSide(isRender) ||
       (wasRender.flipCreases === true) !== (isRender.flipCreases === true)) &&
+    samePosedLink(from, to)
+  );
+}
+
+/**
+ * Whether `after` is `before`'s Perspective 3D picture updated to equal
+ * opening and nothing else (Update, `spread-equal-opening`): the same posed
+ * link, side, turn, layer order, reveal and Perspective camera, its Default
+ * spread version 1 before and version 2 after, at the amount that draws the
+ * picture as it was. That amount is rounded to a hundredth of a percent, which
+ * moves points by a thousandth of a pixel: enough to change the stored scene's
+ * key, never the picture. An Update capped at 100% draws the picture lower,
+ * so one that lands on 100% is a new picture.
+ */
+function equalOpeningKept(before: DiagramStep, after: DiagramStep): boolean {
+  const [from, to] = [before.source, after.source];
+  const [was, is] = [before.picture, after.picture];
+  if (!isPosedSource(from) || !isPosedSource(to) || !was || !is || was.kind !== is.kind) return false;
+  if (was.kind === 'scene' && is.kind === 'scene' && was.paperScale !== is.paperScale) return false;
+  const [a, b] = [from.render, to.render];
+  if (a.mode !== 'folded-flat' || b.mode !== 'folded-flat') return false;
+  if (a.presentation?.kind !== 'perspective' || JSON.stringify(a.presentation) !== JSON.stringify(b.presentation)) return false;
+  if (a.side !== b.side || a.rotationDeg !== b.rotationDeg || !sameLayerOrder(a, b, from, to)) return false;
+  const [old, updated] = [a.spread, b.spread];
+  return (
+    old?.kind === 'connected' && old.version === 1 &&
+    updated?.kind === 'connected' && updated.version === 2 &&
+    old.reveal[0] === updated.reveal[0] && old.reveal[1] === updated.reveal[1] &&
+    updated.amount < SPREAD_AMOUNT_RANGE.connected.max &&
     samePosedLink(from, to)
   );
 }
@@ -566,7 +596,9 @@ export function withCarriedAnnotations(
   if (after.annotations.length === 0 || after.annotations !== before.annotations) return after;
   const inStep = before.annotatedPictureKey !== null && before.annotatedPictureKey === (before.picture?.key ?? null);
   // Nothing moved, so nothing is carried — not even an annotation this build cannot read.
-  if (inStep && recolouredOnly(before, after)) return { ...after, annotatedPictureKey: after.picture?.key ?? null };
+  if (inStep && (recolouredOnly(before, after) || equalOpeningKept(before, after))) {
+    return { ...after, annotatedPictureKey: after.picture?.key ?? null };
+  }
   const authorsGo = inStep && before.annotations.every(isKnownAnnotation);
   const goes = (annotation: DiagramAnnotation): annotation is KnownDiagramAnnotation =>
     isKnownAnnotation(annotation) && (authorsGo || isCardMark(before, annotation));
@@ -588,5 +620,6 @@ function ownPictureChange(
   assets: Readonly<Record<string, DiagramAsset>>
 ): OwnPictureChange {
   if (!before.picture || !after.picture) return null;
-  return recolouredOnly(before, after) ? 'recoloured' : pictureMove(before, after, assets);
+  // Updated to equal opening, the picture is where it was: as recoloured, nothing moved.
+  return recolouredOnly(before, after) || equalOpeningKept(before, after) ? 'recoloured' : pictureMove(before, after, assets);
 }

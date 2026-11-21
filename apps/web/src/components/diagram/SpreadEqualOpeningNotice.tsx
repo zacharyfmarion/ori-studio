@@ -4,8 +4,9 @@ import { Notice } from '../ui/Notice';
 
 /**
  * Under Presentation, for a Default spread saved in Perspective 3D before
- * every model's Amount opened alike (`implementation-plans/spread-equal-opening.md`):
- * that it is drawn the older way, and Update, which keeps how it looks.
+ * models' Amount opened alike (`implementation-plans/spread-equal-opening.md`):
+ * that it is drawn the older way, and Update, which keeps how it looks unless
+ * the older way opened it past the new 100%, where it comes down to 100%.
  */
 export function SpreadEqualOpeningNotice({ update }: { update: EqualOpeningUpdate }) {
   const { t } = useTranslation();

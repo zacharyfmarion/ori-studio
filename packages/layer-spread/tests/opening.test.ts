@@ -69,13 +69,36 @@ describe('spreadOpening', () => {
       orders: [],
       cells: [],
     };
-    // The big face rises 0.1 along x; the sliver, 0.1% of the paper, rises 10.
+    // The big face rises 0.1 along x; the sliver, 0.2% of the paper, rises 10.
     const heights = [0, 0.1, 0, 0, 0.02, 0];
-    expect(spreadOpening(input, heights)).toEqual({ opening: 0, steep: expect.closeTo(0.1, 12) });
+    expect(spreadOpening(input, heights)).toMatchObject({ opening: 0, steep: expect.closeTo(0.1, 12) });
+  });
+
+  it('reads each cell from the triangle of a bent face that holds its centroid', () => {
+    // Face 1 bends along its diagonal: its corner (1, 0) is lifted and (1, 1)
+    // is not, so its lower-right triangle rises (s, −s) and its upper-left one
+    // lies flat, against a flat face 0.
+    const s = 0.1;
+    const opening = (point: Point) => {
+      const { input, heights } = hinged([0, s], [{ faces: [1, 0], point, area: 1 }]);
+      heights[5] = 0;
+      return spreadOpening(input, heights).opening;
+    };
+    expect(opening([0.75, 0.25])).toBeCloseTo(s * Math.SQRT2, 12);
+    expect(opening([0.25, 0.75])).toBe(0);
+    // Just past the top edge: nearest the upper-left triangle, not the face's first.
+    expect(opening([0.5, 1.01])).toBe(0);
+  });
+
+  it('reads how high the paper rises against the flat paper’s diagonal, whichever way', () => {
+    const cells = [{ faces: [1, 0], point: [0.5, 0.5] as Point, area: 1 }];
+    const { input, heights } = hinged([-0.3, 0.1], cells);
+    // The box is the unit square: the highest point, 0.3 below, over √2.
+    expect(spreadOpening(input, heights).reach).toBeCloseTo(0.3 / Math.SQRT2, 12);
   });
 
   it('reads a flat solve as opening nothing', () => {
     const { input } = hinged([0, 0], [{ faces: [1, 0], point: [0.5, 0.5], area: 1 }]);
-    expect(spreadOpening(input, input.xy.map(() => 0))).toEqual({ opening: 0, steep: 0 });
+    expect(spreadOpening(input, input.xy.map(() => 0))).toEqual({ opening: 0, steep: 0, reach: 0 });
   });
 });

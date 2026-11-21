@@ -136,7 +136,7 @@ export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>, default
   let affine: AffineSpreadOptions | null = null;
   let connected: ConnectedSpread | null = null;
   for (const seen of earlier) {
-    const spread: LayerSpreadOptions = seen.kind === 'connected' && seen.version !== 1 ? { ...seen, version: 1 } : seen;
+    const spread = spreadOutOfPerspective(seen);
     any ??= spread;
     if (spread.kind === 'depth') depth ??= spread;
     else if (spread.kind === 'affine') affine ??= spread;
@@ -149,6 +149,17 @@ export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>, default
     affine: affine ?? defaults.affine,
     connected: connected ?? defaults.connected,
   };
+}
+
+/**
+ * A spread for a picture Perspective 3D does not show: a Default one at
+ * version 1. Versions draw alike outside Perspective (`equalOpening.ts`), so
+ * this changes no picture; it only keeps a version older builds lock out of a
+ * render that has no presentation — a start, Reset, a spread that failed —
+ * and showing it in Perspective again makes it version 2 again.
+ */
+export function spreadOutOfPerspective<Spread extends LayerSpreadOptions>(spread: Spread): Spread {
+  return spread.kind === 'connected' && spread.version !== 1 ? { ...spread, version: 1 } : spread;
 }
 
 /** Whether two spreads, or their absence, are one. */
@@ -170,7 +181,7 @@ export type LayerSpreadEdit =
   | { verb: 'spread-reveal'; reveal: [number, number] }
   | { verb: 'spread-reveal-axis'; axis: 0 | 1; value: number }
   | { verb: 'spread-amount'; amount: number; kind?: SpreadKind }
-  // A Default spread made version 2 at the amount that draws its picture as it was (`equalOpeningAmount`).
+  // A Default spread made version 2 at the amount that draws its picture as it was, no more than 100% (`equalOpeningAmount`).
   | { verb: 'spread-equal-opening'; amount: number }
   | { verb: 'spread-direction'; toward: SpreadDirection }
   | { verb: 'spread-keep'; keep: SpreadKeep }

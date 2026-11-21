@@ -10,6 +10,7 @@ import {
   annotationsOutOfStep,
   createDiagram,
   insertSteps,
+  setFoldStepPicture,
   setLinkedPicture,
   setReferencesSide,
   setStepPicture,
@@ -232,6 +233,44 @@ describe('a crease pattern put on its back’s colour (Front | Back)', () => {
     expect(back.annotatedPictureKey).toBe('scene-back');
   });
 
+});
+
+describe('a Perspective 3D picture updated to equal opening (Update)', () => {
+  const PERSPECTIVE = { kind: 'perspective' as const, camera: { yaw: 0.3, pitch: -0.4, zoom: 1 }, orderSide: 'front' as const };
+  const V1 = { kind: 'connected' as const, version: 1 as const, amount: 2, reveal: [0, 0] as [number, number] };
+  const SAVED = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 30, foldCase: 1, spread: V1, presentation: PERSPECTIVE };
+  // Update rounds the amount that keeps the picture, which can change the stored scene's key but not the picture.
+  const updated = (amount: number) => ({ ...SAVED, spread: { ...V1, version: 2 as const, amount } });
+
+  function linkedUpdate(render: typeof SAVED | ReturnType<typeof updated>, before = SAVED) {
+    const step = cpStep('step-1', before, scenePicture('scene-v1'));
+    return stepsIn(setLinkedPicture(annotated(step), 'step-1', { source: cpSource(render), picture: scenePicture('scene-v2') }))[0]!;
+  }
+
+  it('keeps the marks in step, where they were, when the picture is kept', () => {
+    const after = linkedUpdate(updated(0.1854));
+    expect(after.annotations).toEqual([ARROW]);
+    expect(after.annotatedPictureKey).toBe('scene-v2');
+    expect(annotationsOutOfStep(after)).toBe(false);
+  });
+
+  it('says the picture changed when the Update came down to 100%, or when the step only entered Perspective 3D', () => {
+    expect(annotationsOutOfStep(linkedUpdate(updated(2)))).toBe(true);
+    const entered = linkedUpdate(updated(2), { ...SAVED, presentation: { ...PERSPECTIVE, kind: 'diagram' } } as unknown as typeof SAVED);
+    expect(annotationsOutOfStep(entered)).toBe(true);
+  });
+
+  it('keeps a Fold step’s marks in step the same way', () => {
+    const step = foldStepStep('step-1', { render: SAVED }, scenePicture('scene-v1'));
+    const { document } = setFoldStepPicture(annotated(step), 'step-1', {
+      source: foldStepSource({ render: updated(0.1854) }),
+      picture: scenePicture('scene-v2'),
+      marks: [],
+    });
+    const after = stepsIn(document)[0]!;
+    expect(after.annotations).toEqual([ARROW]);
+    expect(annotationsOutOfStep(after)).toBe(false);
+  });
 });
 
 /** A scene mirrored side to side about its origin, as a crease pattern turned over is drawn. */

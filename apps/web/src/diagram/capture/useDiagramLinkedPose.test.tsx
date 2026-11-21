@@ -23,6 +23,7 @@ import { ensureCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
 import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import { connectedSpreadSource } from '../../cp-workspace/folded/connectedSpreadSource';
 import { connectedPaperScene } from '../../layer-spread/connectedScene';
+import { equalOpeningAmount } from '../../layer-spread/equalOpening';
 
 /**
  * The Step pane's spread rows reach the controller only through this hook:
@@ -452,4 +453,37 @@ it('does not let an old preparation clear a newer step’s loading state', async
   await act(async()=>finish[1]!({}));
   expect(seen.pose!.connectedPreparing).toBe(false);
   expect(seen.pose!.connected).not.toBeNull();
+});
+
+it('updates a picture saved in Perspective 3D to equal opening, at the amount that keeps it, as one undo step', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { initSync, solve_layer_spread } = await import('../../generated/oristudio-layer-spread-wasm/oristudio_layer_spread_wasm');
+  initSync({ module: readFileSync(resolve('src/generated/oristudio-layer-spread-wasm/oristudio_layer_spread_wasm_bg.wasm')) });
+  preparation.start.mockImplementation((scene) => {
+    const source = connectedSpreadSource(scene);
+    return { promise: Promise.resolve({ source, solution: solve_layer_spread(source.input) }), release: vi.fn() };
+  });
+  capture.scene.mockImplementation(async (scene) => connectedPaperScene(scene.connected, scene.sheet, true));
+  const saved = { ...DEFAULT_CONNECTED_SPREAD, amount: 0.4 };
+  const stepId = await linkedStep({
+    mode: 'folded-flat',
+    side: 'front',
+    rotationDeg: 0,
+    foldCase: 1,
+    spread: saved,
+    presentation: { kind: 'perspective', camera: { yaw: 0, pitch: -0.4, zoom: 1 }, orderSide: 'front' },
+  });
+  // Held until the live view's solve, which the amount is measured from, is ready.
+  expect(seen.pose!.equalOpening).toMatchObject({ disabled: true });
+  await act(async () => {
+    await vi.waitFor(() => expect(seen.pose!.equalOpening).toMatchObject({ disabled: false }));
+  });
+  const expected = { ...saved, version: 2 as const, amount: equalOpeningAmount(saved, seen.pose!.connected!.prepared) };
+  expect(expected.amount).not.toBe(saved.amount);
+  act(() => seen.pose!.equalOpening!.run());
+  await landed(stepId, expected);
+  expect(seen.pose!.equalOpening).toBeNull();
+  act(() => state().undoDiagram());
+  expect(spreadOf(stepId)).toEqual(saved);
 });

@@ -192,7 +192,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
   const source = foldSource(step);
   // Layers its Default spread could not take: no live view to solve for again, only the picture it keeps.
   const spreadFailed = spreadFailedOf(step?.picture);
-  const { view: connected, preparing } = useFoldSpreadView(spreadFailed ? null : source, live);
+  const { view: connected, preparing, solved } = useFoldSpreadView(spreadFailed ? null : source, live);
   const stepId = source ? step!.id : null;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const busy = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
@@ -317,7 +317,8 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
     },
     [stepId, readOnly, unknownMarks],
   );
-  const equalOpening = useEqualOpeningUpdate(source?.render, connected, readOnly || busy || unknownMarks, applyEqualOpening);
+  // Measured from the open Pose's solve, which the Step pane beside it does not hold itself.
+  const equalOpening = useEqualOpeningUpdate(source?.render, solved, readOnly || busy || unknownMarks, applyEqualOpening);
 
   const rotateTo = useCallback(
     (degrees: number) => {

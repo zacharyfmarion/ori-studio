@@ -441,7 +441,7 @@ export type DiagramPoseAction =
   | 'spread_skew'
   | 'spread_reveal' | 'spread_presentation'
   | 'spread_axis'
-  // A Perspective 3D picture saved before equal opening, updated to it, its picture kept.
+  // A Perspective 3D picture saved before equal opening, updated to it: its picture kept, or brought down to the new 100% where it opened further.
   | 'spread_equal_opening'
   | 'paper_side'
   // A crease pattern on its back turned over side to side, or back (the Step pane's Flip creases).

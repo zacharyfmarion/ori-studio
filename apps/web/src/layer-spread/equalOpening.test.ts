@@ -9,6 +9,7 @@ import {
   equalOpeningGain,
   equalOpeningGainOf,
   FULL_OPENING_DEG,
+  HIGHEST_AT_FULL,
   perspectiveHeightScale,
   spreadInPerspective,
   startedSpread,
@@ -35,34 +36,59 @@ function prepared(lift = 0.2) {
 }
 
 describe('how many times its version 1 height a model is drawn', () => {
-  it('opens neighbouring layers 12.4° at 100% when nothing is too steep', () => {
+  it('opens neighbouring layers 12.4° at 100% when nothing holds it back', () => {
     const opening = 0.01;
-    const gain = equalOpeningGainOf({ opening, steep: 0.02 });
+    const gain = equalOpeningGainOf({ opening, steep: 0.02, reach: 0.001 });
     expect(Math.atan(FULL * gain * opening) * (180 / Math.PI)).toBeCloseTo(FULL_OPENING_DEG, 9);
   });
 
-  it('brings a model that opened past it down, however steep', () => {
-    expect(equalOpeningGainOf({ opening: 0.2, steep: 0.1 })).toBeCloseTo(tanDeg(FULL_OPENING_DEG) / (FULL * 0.2), 12);
-    expect(equalOpeningGainOf({ opening: 0.2, steep: 0.1 })).toBeLessThan(1);
+  it('brings a model that opened past it down, however steep or high', () => {
+    expect(equalOpeningGainOf({ opening: 0.2, steep: 0.1, reach: 0.1 })).toBeCloseTo(tanDeg(FULL_OPENING_DEG) / (FULL * 0.2), 12);
+    expect(equalOpeningGainOf({ opening: 0.2, steep: 0.1, reach: 0.1 })).toBeLessThan(1);
   });
 
   it('holds a gain back where the steepest paper would pass 65°, never below version 1', () => {
     const steep = 0.05;
-    const held = equalOpeningGainOf({ opening: 0.001, steep });
+    const held = equalOpeningGainOf({ opening: 0.001, steep, reach: 0.001 });
     expect(Math.atan(FULL * held * steep) * (180 / Math.PI)).toBeCloseTo(STEEPEST_AT_FULL_DEG, 9);
     // Steeper at 100% than 65° already: no gain, and none taken away.
-    expect(equalOpeningGainOf({ opening: 0.001, steep: 1 })).toBe(1);
+    expect(equalOpeningGainOf({ opening: 0.001, steep: 1, reach: 0.001 })).toBe(1);
+  });
+
+  it('holds a gain back where some paper would rise past half the diagonal, never below version 1', () => {
+    // A deep strip: layers part fast by slope, yet the stack rises far.
+    const reach = 0.05;
+    const held = equalOpeningGainOf({ opening: 0.001, steep: 0.001, reach });
+    expect(FULL * held * reach).toBeCloseTo(HIGHEST_AT_FULL, 12);
+    // Higher than that at 100% already: no gain, and none taken away.
+    expect(equalOpeningGainOf({ opening: 0.001, steep: 0.001, reach: 0.2 })).toBe(1);
   });
 
   it('keeps a solve that opens nothing as it is, and bounds the rest', () => {
-    expect(equalOpeningGainOf({ opening: 0, steep: 0 })).toBe(1);
-    expect(equalOpeningGainOf({ opening: 1e-6, steep: 0 })).toBe(20);
+    expect(equalOpeningGainOf({ opening: 0, steep: 0, reach: 0 })).toBe(1);
+    expect(equalOpeningGainOf({ opening: 1e-6, steep: 0, reach: 0 })).toBe(20);
   });
 
-  it('measures a prepared solve once, as spreadOpening reads it', () => {
+  it('draws version 2 as saved files expect: its numbers are part of the format', () => {
+    // A change here redraws every saved version 2 picture: that is version 3, not an edit.
+    expect([FULL_OPENING_DEG, STEEPEST_AT_FULL_DEG, HIGHEST_AT_FULL]).toEqual([12.4, 65, 0.5]);
+    expect(equalOpeningGainOf({ opening: 0.01, steep: 0.02, reach: 0.001 })).toBeCloseTo(5.4966065, 6);
+    expect(equalOpeningGainOf({ opening: 0.001, steep: 0.05, reach: 0.001 })).toBeCloseTo(10.7225346, 6);
+    expect(equalOpeningGainOf({ opening: 0.001, steep: 0.001, reach: 0.05 })).toBeCloseTo(2.5, 12);
+  });
+
+  it('measures a prepared solve once per solution, as spreadOpening reads it', () => {
     const spread = prepared();
-    expect(equalOpeningGain(spread)).toBe(equalOpeningGainOf(spreadOpening(spread.source.input, spread.solution.heights)));
-    expect(equalOpeningGain(spread)).toBe(equalOpeningGain(spread));
+    const gain = equalOpeningGain(spread);
+    expect(gain).toBe(equalOpeningGainOf(spreadOpening(spread.source.input, spread.solution.heights)));
+    // The same solution through another wrapper is not read again, even with its heights changed in place.
+    const heights = spread.solution.heights;
+    for (let i = 0; i < heights.length; i++) heights[i] *= 10;
+    expect(equalOpeningGain({ ...spread })).toBe(gain);
+    // A new solution is.
+    const solved = { ...spread, solution: { ...spread.solution } };
+    expect(equalOpeningGain(solved)).toBe(equalOpeningGainOf(spreadOpening(solved.source.input, solved.solution.heights)));
+    expect(equalOpeningGain(solved)).not.toBe(gain);
   });
 });
 
@@ -108,11 +134,14 @@ describe('where version 2 is written', () => {
     expect(startedSpread(DEFAULT_CONNECTED_SPREAD, { kind: 'perspective', camera, orderSide: 'front' }).version).toBe(2);
   });
 
-  it('enters Perspective 3D from Diagram or from none, never from itself', () => {
+  it('enters Perspective 3D only for a pose never shown there, and never on a request for Diagram', () => {
     const camera = { yaw: 0, pitch: 0, zoom: 1 };
     expect(entersPerspective(undefined, 'perspective')).toBe(true);
-    expect(entersPerspective({ kind: 'diagram', camera, orderSide: 'front' }, 'perspective')).toBe(true);
+    // A Diagram presentation is kept from Perspective 3D: the pose comes back at its own version.
+    expect(entersPerspective({ kind: 'diagram', camera, orderSide: 'front' }, 'perspective')).toBe(false);
     expect(entersPerspective({ kind: 'perspective', camera, orderSide: 'front' }, 'perspective')).toBe(false);
     expect(entersPerspective({ kind: 'perspective', camera, orderSide: 'front' }, 'diagram')).toBe(false);
+    expect(entersPerspective({ kind: 'diagram', camera, orderSide: 'front' }, 'diagram')).toBe(false);
+    expect(entersPerspective(undefined, 'diagram')).toBe(false);
   });
 });

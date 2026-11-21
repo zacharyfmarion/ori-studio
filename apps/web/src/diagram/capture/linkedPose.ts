@@ -22,6 +22,7 @@ import {
 import type { SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   LAYER_SPREAD_EDIT_VERBS,
+  spreadOutOfPerspective,
   withSpreadField,
   type LayerSpreadEdit,
 } from '../../cp-workspace/folded/layerSpreadSettings';
@@ -311,8 +312,9 @@ export async function poseLinkedStep(
   if (request.verb === 'layer-order') {
     // A flat fold's, in the pose it was opened on: creases that fold in 3D now cannot take it.
     if (spatialRoute) return { status: 'order-refused' };
-    const { side, rotationDeg, foldCase, spread } = request.render;
-    return flat({ side, rotationDeg, foldCase, ...(spread ? { spread } : {}) }, undefined, undefined, {
+    // Shown as it was: a picture in Perspective 3D stays there, at its version.
+    const { side, rotationDeg, foldCase, spread, presentation } = request.render;
+    return flat({ side, rotationDeg, foldCase, ...(spread ? { spread } : {}), ...(presentation ? { presentation } : {}) }, undefined, undefined, {
       applied: { applied: request.applied, frame: request.frame },
     });
   }
@@ -383,7 +385,9 @@ export async function poseLinkedStep(
     const { rotationDeg, foldCase, spread } = render;
     const pose: FlatPose = { ...render };
     if (request.verb === 'spread-presentation' && spread?.kind === 'connected') {
-      // Newly shown in Perspective 3D, a spread is drawn by version 2; one already there keeps its version.
+      // A presentation says the pose has been in Perspective 3D: Diagram asked of one never there writes none.
+      if (request.kind === 'diagram' && !render.presentation) return flat(pose);
+      // Shown in Perspective 3D for the first time, a spread is drawn by version 2; one shown there before keeps its version.
       const shown = entersPerspective(render.presentation, request.kind) ? spreadInPerspective(spread) : spread;
       return flat({...pose, spread: shown, presentation: {...render.presentation, kind: request.kind,
         camera: render.presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA, orderSide: render.presentation?.orderSide ?? 'front'}});
@@ -419,8 +423,9 @@ export async function poseLinkedStep(
         // The order it leaves exists, though a fold opened fresh to go back has not found it.
         return flat({ ...pose, foldCase: Math.max(1, foldCase - 1) }, undefined, foldCase);
       case 'reset':
-        // Upright, from the front, the first order: the spread has its own off switch.
-        return flat({ side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread } : {}) });
+        // Upright, from the front, the first order: the spread has its own off switch. With
+        // no presentation left, a Default spread goes back to version 1, which draws alike here.
+        return flat({ side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread: spreadOutOfPerspective(spread) } : {}) });
       case 'spread-layers': {
         const { spread: _was, ...unspread } = pose;
         return flat(spread ? unspread : { ...unspread, spread: startedSpread(spreadStart.any, pose.presentation) });
