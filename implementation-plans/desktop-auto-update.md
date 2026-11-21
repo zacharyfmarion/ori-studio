@@ -125,10 +125,12 @@ install and test the real artifact — but `releases/latest` skips it, so no cli
 is offered anything. When you have launched it:
 
 ```bash
-gh release edit v0.3.0 --prerelease=false
+gh release edit v0.3.0 --prerelease=false --latest
 ```
 
-That single command is the arm. Nothing is offered until a human has run the
+That single command is the arm. Keep its `--latest`: a release published as a
+prerelease does not become Latest when the flag is cleared, so the quoted
+`created_at` rule alone never moves `releases/latest` to it (see `RELEASE.md`). Nothing is offered until a human has run the
 build.
 
 **Killing = flipping it back.**
@@ -395,7 +397,7 @@ than a fuzzy "touches the `.osf` codec."
 **Done when:** the release lands as a prerelease with `latest.json` attached,
 `minisign -V` passes against the config pubkey for every updater bundle, `verify`
 passes from outside, deliberately deleting an asset causes `verify` to re-draft,
-and `gh release edit --prerelease=false` demonstrably starts the offer while
+and `gh release edit --prerelease=false --latest` demonstrably starts the offer while
 `--prerelease=true` demonstrably stops it.
 
 ### Phase 3 — The chip
