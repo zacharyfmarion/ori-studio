@@ -167,7 +167,7 @@ export interface OristudioBpInvalidJunction {
   riverIds: number[];
   /** Closed arc outlines of the overlap region between the two flaps. */
   paths: OristudioBpArcPath[];
-  /** How far the two flaps overlap, in grid units (negative means overlapping). */
+  /** How much closer the flaps sit than the tree allows, in grid units. */
   overlap: number;
   message: string;
 }
@@ -763,10 +763,15 @@ export interface OristudioBpWasmInvalidJunction {
   id: string;
   flapIds: [number, number];
   /**
-   * Wire name kept as-is: the engine sends `InvalidJunction::distance_after_flap_radii`,
-   * which is the overlap distance, not Box Pleating Studio's per-path narrowness ratio.
+   * Wire name kept as-is: the engine sends `InvalidJunction::distance_after_flap_radii`
+   * — the river between the two flaps, which sizes the second rounded rect of the
+   * region. It is not Box Pleating Studio's per-path narrowness ratio, and it is
+   * not the overlap either: two directly connected flaps report 0 however far
+   * they intrude on each other.
    */
   narrowness: number;
+  /** How much closer the flaps sit than the tree allows, in grid units. */
+  overlap: number;
   polygon: OristudioBpWasmArcPoint[][];
 }
 
