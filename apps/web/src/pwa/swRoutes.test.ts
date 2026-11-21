@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { isShellResponse, isStorableResponse, routeRequest, shellEntryPath } from './swRoutes';
+import {
+  isHtmlResponse,
+  isShellResponse,
+  isStorableResponse,
+  isStorableSubresource,
+  routeRequest,
+  shellEntryPath,
+} from './swRoutes';
 
 const ORIGIN = 'https://oristudio.pages.dev';
 const NONE = new Set<string>();
@@ -118,6 +125,28 @@ describe('isStorableResponse', () => {
   // would break offline start rather than merely miss.
   it('rejects a redirected response', () => {
     expect(isStorableResponse(response({ redirected: true }))).toBe(false);
+  });
+});
+
+describe('isStorableSubresource', () => {
+  it('accepts a script, a stylesheet and a kernel', () => {
+    for (const contentType of ['application/javascript', 'text/css', 'application/wasm']) {
+      expect(isStorableSubresource(response({ contentType }))).toBe(true);
+    }
+  });
+
+  // What Pages answers for a file it does not have — during a deploy, the new
+  // entry script. A 200 with the one-year header, so only the body type tells.
+  it('rejects the SPA fallback answering for a missing file', () => {
+    const fallback = response({ contentType: 'text/html; charset=utf-8' });
+    expect(isStorableResponse(fallback)).toBe(true);
+    expect(isHtmlResponse(fallback)).toBe(true);
+    expect(isStorableSubresource(fallback)).toBe(false);
+  });
+
+  it('still rejects everything isStorableResponse rejects', () => {
+    expect(isStorableSubresource(response({ status: 404 }))).toBe(false);
+    expect(isStorableSubresource(response({ redirected: true }))).toBe(false);
   });
 });
 
