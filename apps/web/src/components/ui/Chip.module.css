@@ -59,6 +59,27 @@
   color: var(--bg-secondary);
 }
 
+/* Held as it is: `aria-disabled`, which the caller sets so the chip keeps its
+   tab stop and a tooltip saying why. Its pointer and hover say it does not
+   press. */
+.chip[aria-disabled='true'] {
+  cursor: default;
+}
+
+.chip[aria-disabled='true']:hover {
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+/* Pressed and held so: the pressed ink, a step quieter — its border, and a
+   tint of it under text that reads in every theme. */
+.chip[aria-pressed='true'][aria-disabled='true'],
+.chip[aria-pressed='true'][aria-disabled='true']:hover {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  color: var(--text-primary);
+}
+
 /* A finger needs the room a cursor does not: on a coarse pointer a chip is a
    full touch target, the height every field and button around it already
    grows to. The type grows with it, so the label does not sit lost in a big
