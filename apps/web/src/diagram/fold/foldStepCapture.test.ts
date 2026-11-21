@@ -9,7 +9,7 @@
  * engine as the bridge lands a compound fold: no plain report, the line in
  * the compound one.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import i18n from '../../i18n';
 import { initialFoldReaderState, withFoldCursor } from '../../fold/document/foldReaderState';
 import { sequenceOf, step } from '../../fold/document/foldSequence.fixtures';
@@ -246,6 +246,16 @@ describe('a Fold step captured while the session lingers', () => {
 });
 
 describe('a Fold step captured with a Default spread its layers can’t take', () => {
+  beforeEach(() => { spreadSolve.released = 0; });
+  it('refuses an explicit spacing update when the solver cannot produce its replacement picture', async () => {
+    const session = await sessionOf(REVERSE);
+    const render = { ...FOLD_PULL_RENDER, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3 as const } };
+    await expect(captureFoldStep(session, {
+      sequence: 'fold-a', step: 'fstep-1', moment: 'before', render, requireSpread: true,
+    }, { t })).rejects.toThrow();
+    expect(spreadSolve.released).toBe(1);
+  });
+
   it('is drawn unspread and marked so, its spread kept, rather than refused its picture', async () => {
     const session = await sessionOf(REVERSE);
     const asked = { ...FOLD_PULL_RENDER, spread: DEFAULT_CONNECTED_SPREAD };

@@ -1759,9 +1759,10 @@
       "withTurnOver": "Com a virada anterior"
     },
     "spread": {
+      "cappedOpeningNotice": "Esta vista ultrapassa o novo máximo. Ao atualizar, o valor passará a 100% e as camadas ficarão mais próximas.",
       "diagram": "Diagrama",
       "drag": "Arraste para revelar as camadas",
-      "equalOpeningNotice": "Esta imagem usa a escala antiga de Quantidade, que abre modelos simples muito mais do que os complexos. Atualizar mantém a aparência, a menos que ela se abra além dos novos 100%.",
+      "equalOpeningNotice": "Esta imagem usa uma escala de separação anterior. Atualize para manter o espaçamento desta vista com a nova escala.",
       "equalOpeningUpdate": "Atualizar",
       "padHint": "Arraste para revelar as camadas. Ajuste com as setas; Shift aumenta o deslocamento.",
       "perspective": "Perspectiva 3D",

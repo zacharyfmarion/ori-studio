@@ -24,6 +24,7 @@ import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCam
 import { foldedFigureGesture } from './foldedFigureGesture';
 import { buildFoldedFigureProperties, type FoldedFigurePropertyDeps } from './foldedFigureProperties';
 import type { FoldedFigureSpread } from './foldedFigureSpread';
+import { useFigureSpacingNotice } from './useFigureSpacingNotice';
 import { foldedFigureSpreadStarts } from './foldedFigureSpreadStarts';
 import { useFoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import { isFoldedFigureStale } from './foldedFigureStaleness';
@@ -145,10 +146,11 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
   const spreadStatus = useFoldedFigureSpreadStatus(id);
   const setSpread = useCallback(
     (spread: FoldedFigureSpread | null) => {
-      void setFoldedFigureSpreadAsEntry(id, spread, t);
+      return setFoldedFigureSpreadAsEntry(id, spread, t);
     },
     [id, t]
   );
+  const spacingNotice = useFigureSpacingNotice(figure, spreadStatus, gesture.held, setSpread, t);
   const writeSpread = useCallback(
     (edit: LayerSpreadEdit) => {
       // Aborted underneath (an undo from the menu bar): a write now would land
@@ -211,6 +213,7 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       liveCamera,
       setPlacement,
       spreadStatus,
+      spacingNotice,
       spreadStarts,
       setSpread,
       writeSpread,
@@ -235,6 +238,7 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       liveCamera,
       setPlacement,
       spreadStatus,
+      spacingNotice,
       spreadStarts,
       setSpread,
       writeSpread,

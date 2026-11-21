@@ -28,6 +28,7 @@ import { subscribeFolded3dOrbitCamera } from './folded/folded3dRuntime';
 import { useObjectPaperStyle } from './paper/objectPaperStyle';
 import { useFolded3dMeshRuntime } from './folded/useFolded3dMeshRuntime';
 import { useSpatialFoldedMesh } from './folded/useSpatialFoldedMesh';
+import { spatialDrawAmount } from './folded/spatialSpreadSettings';
 import { spatialAmount } from './folded/folded3dSpread';
 import {
   SimulatorViewport,
@@ -202,6 +203,7 @@ function Folded3dWindow({
   }, [model, aux]);
   const spatialMesh = useSpatialFoldedMesh(figure, model, aux);
   const amount = spatialAmount(figure);
+  const displacementScale = spatialDrawAmount(figure.spread?.kind === 'spatial' ? figure.spread : null, spatialMesh?.spreadGain);
   const mesh = amount != null && amount > 0 ? spatialMesh : legacyMesh;
 
   const presentFrame = useCallback((bitmap: ImageBitmap) => {
@@ -224,9 +226,9 @@ function Folded3dWindow({
             displayStyle: figure.displayStyle,
             devicePixelRatio:
               typeof window === 'undefined' ? 1 : (window.devicePixelRatio ?? 1),
-          }), displacementScale: amount ?? 0 }
+          }), displacementScale }
         : undefined,
-    [figure.folded3d, figure.displayStyle, paperStyle, amount]
+    [figure.folded3d, figure.displayStyle, paperStyle, displacementScale]
   );
 
   /**

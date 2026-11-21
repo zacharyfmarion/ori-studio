@@ -318,7 +318,9 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
     [stepId, readOnly, unknownMarks],
   );
   // Measured from the open Pose's solve, which the Step pane beside it does not hold itself.
-  const equalOpening = useEqualOpeningUpdate(source?.render, solved, { blocked: readOnly || unknownMarks, busy }, applyEqualOpening);
+  const equalOpening = useEqualOpeningUpdate(
+    source?.render, solved, { blocked: readOnly || unknownMarks || spreadFailed, busy }, applyEqualOpening,
+  );
 
   const rotateTo = useCallback(
     (degrees: number) => {

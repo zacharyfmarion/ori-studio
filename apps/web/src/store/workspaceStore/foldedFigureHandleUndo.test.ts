@@ -103,7 +103,7 @@ import {
   retainFoldedFigureHandle,
 } from '../../cp-workspace/folded/foldedFigureHandles';
 import { foldedFigureGesture } from '../../cp-workspace/folded/foldedFigureGesture';
-import { deleteFoldedFigure } from '../../cp-workspace/folded/foldedFigureVerbs';
+import { deleteFoldedFigure, setFoldedFigureSpreadAsEntry } from '../../cp-workspace/folded/foldedFigureVerbs';
 import { foldedSourceBounds } from '../../cp-workspace/folded/foldedFigureStaleness';
 import { endOpenCanvasSessions } from '../../cp-workspace/canvasObjects/canvasSessions';
 
@@ -248,6 +248,25 @@ beforeEach(async () => {
 });
 
 describe('a folded figure’s handle across Delete, Refold and undo', () => {
+  it('updates one figure’s spread version as one undoable edit while another keeps its saved recipe', async () => {
+    const first = await foldAsEntry('first');
+    const other = await foldAsEntry('other');
+    const spread = { kind: 'connected' as const, version: 1 as const, amount: 0.5, reveal: [0.8, 0.6] as [number, number] };
+    const legacy = { kind: 'record' as const, spread };
+    state().setOristudioCpFoldedFigureSpread(first.id, legacy);
+    state().setOristudioCpFoldedFigureSpread(other.id, legacy);
+    const updated = { kind: 'record' as const, spread: { ...spread, version: 3 as const, amount: 0.25 } };
+    const count = state().oristudioCpHistoryPast.length;
+    const recipes = () => state().oristudioCpFoldedFigures.map(f => f.spread);
+    await setFoldedFigureSpreadAsEntry(first.id, updated, t);
+    expect(recipes()).toEqual([updated, legacy]);
+    expect(state().oristudioCpHistoryPast).toHaveLength(count + 1);
+    await state().undo();
+    expect(recipes()).toEqual([legacy, legacy]);
+    await state().redo();
+    expect(recipes()).toEqual([updated, legacy]);
+  });
+
   it('keeps a deleted figure’s fold for its undo, which puts back a figure that still draws', async () => {
     const figure = await foldAsEntry('generated-1');
 

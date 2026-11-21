@@ -144,6 +144,17 @@ describe('a step posed with a Default spread its layers can’t take', () => {
     poseLinkedStep(held, { document, creases: choice.creases, render, style: DEFAULT_DIAGRAM_STYLE }, verb);
   const failed = (posed: Awaited<ReturnType<typeof pose>>) => posed.status === 'posed' && capturedSpreadFailed(posed.picture);
 
+  it('leaves the previous recipe and picture available when an explicit Update fails', async () => {
+    const held = session();
+    const saved = { ...FLAT, spread: DEFAULT_CONNECTED_SPREAD };
+    spread.solveFails = LIMIT;
+    expect(await pose(held, saved, { verb: 'spread-equal-opening', amount: 0.5 })).toEqual({ status: 'unavailable' });
+    spread.solveFails = null;
+    expect(await pose(held, saved, { verb: 'spread-equal-opening', amount: 0.5 })).toMatchObject({
+      status: 'posed', render: { spread: { version: 3, amount: 0.5 } },
+    });
+  });
+
   it('is folded unspread, its Default spread kept, and solved again by the next pose', async () => {
     const held = session();
     spread.solveFails = LIMIT;
@@ -195,7 +206,7 @@ describe('a step posed with a Default spread its layers can’t take', () => {
     };
     const switched = await pose(held, affine, { verb: 'spread-kind', kind: 'connected' });
     expect(failed(switched)).toBe(true);
-    expect(switched).toMatchObject({ status: 'posed', render: { spread: DEFAULT_CONNECTED_SPREAD } });
+    expect(switched).toMatchObject({ status: 'posed', render: { spread: DEFAULT_LAYER_SPREAD } });
   });
 
   it('turns Spread layers on, kept on, when its layers still can’t be spread', async () => {

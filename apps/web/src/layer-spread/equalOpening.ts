@@ -1,5 +1,5 @@
 import { spreadOpening, type ConnectedSpread, type SpreadOpening, type SpreadSolution } from '@oristudio/layer-spread';
-import { clampSpreadAmount, SPREAD_AMOUNT_RANGE } from '../cp-workspace/folded/layerSpreadSettings';
+import { SPREAD_AMOUNT_RANGE } from '../cp-workspace/folded/layerSpreadSettings';
 import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
 import type { PreparedConnectedSpread } from './connectedScene';
 import type { SpreadPresentation } from './presentation';
@@ -23,7 +23,8 @@ import type { SpreadPresentation } from './presentation';
  *
  * The numbers below, and what `spreadOpening` measures, define version 2 as
  * saved files draw it: a recalibration that moves a picture is version 3, and
- * version 2 keeps these.
+ * version 2 keeps these. Version 3 uses the same gain at the stored Amount
+ * in both head-on and Perspective views (2× at full Amount before gain).
  */
 
 /** How many times its solved heights version 1 draws a stored amount. */
@@ -75,26 +76,16 @@ export function equalOpeningGain({ source, solution }: PreparedConnectedSpread):
   return gain;
 }
 
-/** How many times its solved heights Perspective 3D draws `spread`'s amount. */
-export function perspectiveHeightScale(spread: ConnectedSpread, prepared: PreparedConnectedSpread): number {
+/** Multiplier on the stored Amount. Versions 1 and 2 retain their saved policy. */
+export function connectedHeightScale(spread: ConnectedSpread, prepared: PreparedConnectedSpread, perspective: boolean): number {
+  if (spread.version === 3) return equalOpeningGain(prepared);
+  if (!perspective) return 1;
   return spread.version === 1 ? DOUBLED : DOUBLED * equalOpeningGain(prepared);
 }
 
-/** A spread as Perspective 3D shows it from now on: a Default one by version 2. */
+/** Historical first visit to Perspective on a v1 flat pose. */
 export function spreadInPerspective<Spread extends LayerSpreadOptions>(spread: Spread): Spread {
-  return spread.kind === 'connected' && spread.version !== 2 ? { ...spread, version: 2 } : spread;
-}
-
-/**
- * A spread started fresh — Spread Layers turned on, or a kind chosen — in a
- * pose shown as `presentation`: by version 2 in a pose that has one, which has
- * been shown in Perspective 3D (`entersPerspective`). In Diagram it draws as
- * version 1 would, and back in Perspective 3D it opens as a new spread should;
- * kept at version 1 there, it would come back drawn by the older scale, with
- * an Update for a picture no one saved. As it is in a pose never shown there.
- */
-export function startedSpread<Spread extends LayerSpreadOptions>(spread: Spread, presentation: SpreadPresentation | undefined): Spread {
-  return presentation ? spreadInPerspective(spread) : spread;
+  return spread.kind === 'connected' && spread.version === 1 ? { ...spread, version: 2 } : spread;
 }
 
 /**
@@ -108,12 +99,8 @@ export function entersPerspective(from: SpreadPresentation | undefined, to: Spre
   return to === 'perspective' && from === undefined;
 }
 
-/**
- * The amount a version 1 spread takes in version 2 to draw the picture it
- * draws now, no more than 100%: a model version 1 opened past the new 100%
- * comes down to it.
- */
-export function equalOpeningAmount(spread: ConnectedSpread, prepared: PreparedConnectedSpread): number {
-  const scale = perspectiveHeightScale({ ...spread, version: 2 }, prepared);
-  return clampSpreadAmount('connected', (spread.amount * perspectiveHeightScale(spread, prepared)) / scale);
+/** Unclamped so the controls can disclose when preserving this view exceeds 100%. */
+export function sharedOpeningAmount(spread: ConnectedSpread, prepared: PreparedConnectedSpread, perspective: boolean): number {
+  if (spread.version === 2 && perspective) return DOUBLED * spread.amount;
+  return spread.amount * connectedHeightScale(spread, prepared, perspective) / equalOpeningGain(prepared);
 }

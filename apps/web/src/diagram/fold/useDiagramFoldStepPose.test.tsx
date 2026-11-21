@@ -5,7 +5,7 @@ import type { Point3, SpreadSolution } from '@oristudio/layer-spread';
 import { connectedSpreadSource } from '../../cp-workspace/folded/connectedSpreadSource';
 import { plainBook } from '../../cp-workspace/folded/foldedPrecrease.fixtures';
 import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
-import { equalOpeningAmount } from '../../layer-spread/equalOpening';
+import { spreadUpdate } from '../../layer-spread/spreadUpdate';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { createDiagram, insertSteps, type DiagramCpRender, type DiagramStep } from '../document/diagramDocument';
@@ -95,7 +95,7 @@ it('offers Update held until the open Pose shares its solve, then asks for the a
     await vi.waitFor(() => expect(capture).toHaveBeenCalled());
   });
   const asked = (capture.mock.calls.at(-1)?.[1] as { render: DiagramCpRender }).render;
-  expect(asked).toEqual({ ...SAVED, spread: { ...SAVED_SPREAD, version: 2, amount: equalOpeningAmount(SAVED_SPREAD, view.prepared) } });
+  expect(asked).toEqual({ ...SAVED, spread: { ...SAVED_SPREAD, version: 3, amount: spreadUpdate(SAVED_SPREAD, true, view.prepared, null)!.amount } });
 });
 
 it('shows the notice in Pose’s Step pane, and not in the Pages view’s inspector, which has no Pose to measure from', async () => {

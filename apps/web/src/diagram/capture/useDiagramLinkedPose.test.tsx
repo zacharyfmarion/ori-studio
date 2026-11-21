@@ -23,7 +23,7 @@ import { ensureCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
 import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
 import { connectedSpreadSource } from '../../cp-workspace/folded/connectedSpreadSource';
 import { connectedPaperScene } from '../../layer-spread/connectedScene';
-import { equalOpeningAmount } from '../../layer-spread/equalOpening';
+import { spreadUpdate } from '../../layer-spread/spreadUpdate';
 
 /**
  * The Step pane's spread rows reach the controller only through this hook:
@@ -186,7 +186,7 @@ it('covers Affine → Default from the click through post-fold solve and capture
     finishCapture();
     await vi.waitFor(()=>expect(seen.pose!.connected).not.toBeNull());
   });
-  expect(spreadOf(stepId)).toEqual(DEFAULT_CONNECTED_SPREAD);
+  expect(spreadOf(stepId)).toEqual({ ...DEFAULT_CONNECTED_SPREAD, version: 3 });
   expect(seen.pose!.connectedPreparing).toBe(false);
 
   // A live reveal captures in the background, without covering the interactive view.
@@ -444,7 +444,7 @@ it('keeps Pose busy after folding until spread preparation finishes, and stops o
 it('does not let an old preparation clear a newer step’s loading state', async () => {
   const finish: ((value: unknown)=>void)[] = [];
   preparation.start.mockImplementation(()=>({promise:new Promise(resolve=>finish.push(resolve)),release:vi.fn()}));
-  const first = await flatStep({kind:'connected',version:1,amount:.5,reveal:[.8,.6]});
+  const first = await flatStep({kind:'connected',version:3,amount:.5,reveal:[.8,.6]});
   await act(async()=>{await vi.waitFor(()=>expect(finish).toHaveLength(1));});
   const second = state().addDiagramStep()!;
   const original = stepsIn(state().diagram!).find(step=>step.id===first)!;
@@ -484,7 +484,7 @@ it('updates a picture saved in Perspective 3D to equal opening, at the amount th
   await act(async () => {
     await vi.waitFor(() => expect(seen.pose!.equalOpening).toMatchObject({ disabled: false }));
   });
-  const expected = { ...saved, version: 2 as const, amount: equalOpeningAmount(saved, seen.pose!.connected!.prepared) };
+  const expected = { ...saved, version: 3 as const, amount: spreadUpdate(saved, true, seen.pose!.connected!.prepared, null)!.amount };
   expect(expected.amount).not.toBe(saved.amount);
   // Held, its button kept, while a capture holds the step; free again once it is done.
   const captures = state().diagramCaptures;

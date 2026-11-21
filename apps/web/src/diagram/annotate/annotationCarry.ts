@@ -17,7 +17,6 @@
  * pictures it carried marks to ({@link placesOnFaces}).
  */
 import { meanValueWeights } from '../../cp-workspace/folded/foldedLayerSpread';
-import { SPREAD_AMOUNT_RANGE } from '../../cp-workspace/folded/layerSpreadSettings';
 import { barycentric } from '@oristudio/layer-spread';
 import { readPaperFaces, NEWER_PAPER_FACES } from '../document/paperFacesFile';
 import type { DiagramPaperFaces } from '../document/diagramDocument';
@@ -237,36 +236,23 @@ function recolouredOnly(before: DiagramStep, after: DiagramStep): boolean {
   );
 }
 
-/**
- * Whether `after` is `before`'s Perspective 3D picture updated to equal
- * opening and nothing else (Update, `spread-equal-opening`): the same posed
- * link, side, turn, layer order, reveal and Perspective camera, its Default
- * spread version 1 before and version 2 after, below 100% — and drawn as the
- * picture it replaces (`scenesDrawAlike`). Update rounds the amount that
- * keeps the picture, which changes the stored scene's key and its slivers but
- * nothing anyone could see. The fields alone are not enough: a picture an
- * older build drew (before the no-stretch shift) is drawn otherwise now. An
- * Update capped at 100% draws the picture lower, and a picture kept as a
- * bitmap cannot be compared, so either is a new picture.
- */
+/** Preserve marks when a scale upgrade in the same pose actually preserves the drawing. */
 function equalOpeningKept(before: DiagramStep, after: DiagramStep): boolean {
   const [from, to] = [before.source, after.source];
   const [was, is] = [before.picture, after.picture];
   if (!isPosedSource(from) || !isPosedSource(to) || was?.kind !== 'scene' || is?.kind !== 'scene') return false;
-  if (was.paperScale !== is.paperScale) return false;
+  if (was.paperScale !== is.paperScale || !samePosedLink(from, to)) return false;
   const [a, b] = [from.render, to.render];
+  if (a.mode === 'folded-3d' && b.mode === 'folded-3d') {
+    return a.spread?.version === 1 && b.spread?.version === 2 && a.side === b.side &&
+      JSON.stringify(a.camera) === JSON.stringify(b.camera) && drawnAlike(was, is);
+  }
   if (a.mode !== 'folded-flat' || b.mode !== 'folded-flat') return false;
-  if (a.presentation?.kind !== 'perspective' || JSON.stringify(a.presentation) !== JSON.stringify(b.presentation)) return false;
-  if (a.side !== b.side || a.rotationDeg !== b.rotationDeg || !sameLayerOrder(a, b, from, to)) return false;
   const [old, updated] = [a.spread, b.spread];
-  return (
-    old?.kind === 'connected' && old.version === 1 &&
-    updated?.kind === 'connected' && updated.version === 2 &&
-    old.reveal[0] === updated.reveal[0] && old.reveal[1] === updated.reveal[1] &&
-    updated.amount < SPREAD_AMOUNT_RANGE.connected.max &&
-    samePosedLink(from, to) &&
-    drawnAlike(was, is)
-  );
+  return old?.kind === 'connected' && old.version < 3 && updated?.kind === 'connected' && updated.version === 3 &&
+    JSON.stringify(a.presentation) === JSON.stringify(b.presentation) && a.side === b.side && a.rotationDeg === b.rotationDeg &&
+    sameLayerOrder(a, b, from, to) && old.reveal[0] === updated.reveal[0] && old.reveal[1] === updated.reveal[1] &&
+    drawnAlike(was, is);
 }
 
 /** Whether two scene pictures draw alike (`scenesDrawAlike`); not when either does not read. */

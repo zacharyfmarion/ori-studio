@@ -22,7 +22,7 @@ import type {
   LayerSpreadOptions,
   SpreadKind,
 } from '../../cp-workspace/folded/foldedLayerSpread';
-import { spreadOutOfPerspective, spreadStartsAmong, type LayerSpreadStarts } from '../../cp-workspace/folded/layerSpreadSettings';
+import { SHARED_SPREAD_STARTS, spreadOutOfPerspective, spreadStartsAmong, type LayerSpreadStarts } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { DiagramWhiteArrowWidth } from '../../lib/stepDiagram/diagramInk';
 import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import type { WhiteArrowTail } from '../../lib/stepDiagram/stepDiagramGeometry';
@@ -322,8 +322,8 @@ export {
   clampSpreadAxis,
   DEFAULT_DEPTH_SPREAD,
   DEFAULT_AFFINE_SPREAD,
-  DEFAULT_LAYER_SPREAD,
-  DEFAULT_SPREAD_STARTS,
+  SHARED_CONNECTED_SPREAD as DEFAULT_LAYER_SPREAD,
+  SHARED_SPREAD_STARTS as DEFAULT_SPREAD_STARTS,
   sameSpread,
 } from '../../cp-workspace/folded/layerSpreadSettings';
 
@@ -380,7 +380,7 @@ export function nearestEarlierShowAs(document: DiagramDocument, stepId: string):
 
 /** {@link DiagramSpreadStarts} for a step of `document`: the shared start rule over the steps before it. */
 export function spreadStartsFor(document: DiagramDocument, stepId: string): DiagramSpreadStarts {
-  return spreadStartsAmong(earlierSpreads(document, stepId));
+  return spreadStartsAmong(earlierSpreads(document, stepId), SHARED_SPREAD_STARTS);
 }
 
 /**

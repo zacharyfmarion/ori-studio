@@ -5,14 +5,13 @@ import { plainBook } from '../cp-workspace/folded/foldedPrecrease.fixtures';
 import { DEFAULT_CONNECTED_SPREAD, DEFAULT_DEPTH_SPREAD } from '../cp-workspace/folded/layerSpreadSettings';
 import {
   entersPerspective,
-  equalOpeningAmount,
+  sharedOpeningAmount,
   equalOpeningGain,
   equalOpeningGainOf,
   FULL_OPENING_DEG,
   HIGHEST_AT_FULL,
-  perspectiveHeightScale,
+  connectedHeightScale,
   spreadInPerspective,
-  startedSpread,
   STEEPEST_AT_FULL_DEG,
 } from './equalOpening';
 
@@ -92,30 +91,20 @@ describe('how many times its version 1 height a model is drawn', () => {
   });
 });
 
-describe('Perspective 3D’s height, by version', () => {
-  const v1: ConnectedSpread = { ...DEFAULT_CONNECTED_SPREAD, amount: 1.2 };
+describe('the scale of saved and new connected spreads', () => {
+  const v1 = DEFAULT_CONNECTED_SPREAD;
   const v2: ConnectedSpread = { ...v1, version: 2 };
-
-  it('doubles a version 1 amount, as every saved picture was drawn', () => {
-    expect(perspectiveHeightScale(v1, prepared())).toBe(2);
-    expect(perspectiveHeightScale(v1, prepared(0.0001))).toBe(2);
-  });
-
-  it('draws a version 2 amount at the model’s own gain, less the faster its solve opens', () => {
-    for (const lift of [0.02, 0.2]) {
-      const spread = prepared(lift);
-      expect(perspectiveHeightScale(v2, spread)).toBeCloseTo(2 * equalOpeningGain(spread), 12);
+  const v3: ConnectedSpread = { ...v1, version: 3 };
+  it.each([0.02, 0.2])('uses one version 3 scale at lift %s', (lift) => {
+    const solve = prepared(lift);
+    const g = equalOpeningGain(solve);
+    for (const perspective of [false, true]) {
+      expect(connectedHeightScale(v1, solve, perspective)).toBe(perspective ? 2 : 1);
+      expect(connectedHeightScale(v2, solve, perspective)).toBe(perspective ? 2 * g : 1);
+      expect(connectedHeightScale(v3, solve, perspective)).toBe(g);
     }
-    // Ten times the lift opens ten times as fast, so it is drawn a tenth as high.
-    expect(perspectiveHeightScale(v2, prepared(0.02)) / perspectiveHeightScale(v2, prepared(0.2))).toBeCloseTo(10, 9);
-  });
-
-  it('updates a version 1 amount to the version 2 one that draws the same height, no more than 100%', () => {
-    const spread = prepared(0.02);
-    const amount = equalOpeningAmount({ ...v1, amount: 0.2 }, spread);
-    expect(amount * perspectiveHeightScale(v2, spread)).toBeCloseTo(0.2 * 2, 3);
-    // Opened past the new 100% by version 1: it comes down to 100%.
-    expect(equalOpeningAmount({ ...v1, amount: 2 }, prepared(0.2))).toBe(2);
+    expect(sharedOpeningAmount({ ...v2, amount: 0.8 }, solve, true)).toBeCloseTo(1.6);
+    expect(sharedOpeningAmount({ ...v1, amount: 0.8 }, solve, false) * g).toBeCloseTo(0.8);
   });
 });
 
@@ -125,15 +114,6 @@ describe('where version 2 is written', () => {
     expect(spreadInPerspective(DEFAULT_DEPTH_SPREAD)).toBe(DEFAULT_DEPTH_SPREAD);
     const shown: ConnectedSpread = { ...DEFAULT_CONNECTED_SPREAD, version: 2 };
     expect(spreadInPerspective(shown)).toBe(shown);
-  });
-
-  it('starts a spread by version 2 in a pose shown in Perspective 3D, or kept from it in Diagram', () => {
-    const camera = { yaw: 0, pitch: 0, zoom: 1 };
-    expect(startedSpread(DEFAULT_CONNECTED_SPREAD, undefined)).toBe(DEFAULT_CONNECTED_SPREAD);
-    // Diagram keeps the presentation it came from, so the spread goes back to Perspective 3D as a new one.
-    expect(startedSpread(DEFAULT_CONNECTED_SPREAD, { kind: 'diagram', camera, orderSide: 'front' }).version).toBe(2);
-    expect(startedSpread(DEFAULT_CONNECTED_SPREAD, { kind: 'perspective', camera, orderSide: 'front' }).version).toBe(2);
-    expect(startedSpread(DEFAULT_DEPTH_SPREAD, { kind: 'perspective', camera, orderSide: 'front' })).toBe(DEFAULT_DEPTH_SPREAD);
   });
 
   it('enters Perspective 3D only for a pose never shown there, and never on a request for Diagram', () => {

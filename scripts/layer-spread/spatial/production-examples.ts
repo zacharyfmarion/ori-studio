@@ -3,7 +3,7 @@ import {
   posedSpatialMesh,
 } from '../../../apps/web/src/cp-workspace/folded/folded3dSpread';
 import { folded3dMesh } from '../../../apps/web/src/cp-workspace/folded/folded3dMesh';
-import { spatialSpreadFromPercent, spatialSpreadPercent } from '../../../apps/web/src/cp-workspace/folded/spatialSpreadSettings';
+import { DEFAULT_SPATIAL_SPREAD, spatialDrawAmount, spatialSpreadFromPercent, spatialSpreadPercent } from '../../../apps/web/src/cp-workspace/folded/spatialSpreadSettings';
 import {
   folded3dSceneCamera,
   folded3dPaperScene,
@@ -53,7 +53,7 @@ let camera = { ...initialCamera },
   serial = 0;
 const figure = () => ({
   displayStyle: 'Paper5' as const,
-  spread: { kind: 'spatial' as const, version: 1 as const, amount },
+  spread: { ...DEFAULT_SPATIAL_SPREAD, amount },
 });
 let lastMesh: Folded3dMesh | null = null;
 function draw() {
@@ -71,7 +71,7 @@ function draw() {
       displayStyle: 'Paper5',
       devicePixelRatio: 1,
     }),
-    displacementScale: amount,
+    displacementScale: spatialDrawAmount(figure().spread, opened.spreadGain),
   });
   canvas.getContext('2d')!.clearRect(0, 0, size, size);
   canvas.getContext('2d')!.drawImage(buffer, 0, 0);
@@ -234,7 +234,7 @@ Object.assign(window, {
     });
     const gpu = FoldedMeshSource.create(
       offscreen,
-      folded3dMeshPayload({ ...mesh, displacement: undefined }).payload
+      folded3dMeshPayload(opened).payload
     )!;
     const renderer = (gpu as unknown as { mesh: { render: Function } }).mesh;
     const original = renderer.render.bind(renderer);
@@ -252,6 +252,7 @@ Object.assign(window, {
         displayStyle: 'Paper5',
         devicePixelRatio: 1,
       }),
+      displacementScale: spatialDrawAmount(figure().spread, opened.spreadGain),
       lighting: false,
       showEdges: false,
     });

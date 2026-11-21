@@ -118,6 +118,17 @@ export const DEFAULT_SPREAD_STARTS: LayerSpreadStarts = {
   connected: DEFAULT_CONNECTED_SPREAD,
 };
 
+/** Creation defaults for Diagram and Edit. Persisted values use the version in the file. */
+export const SHARED_CONNECTED_SPREAD: ConnectedSpread = { ...DEFAULT_CONNECTED_SPREAD, version: 3 };
+export const SHARED_SPREAD_STARTS: LayerSpreadStarts = {
+  ...DEFAULT_SPREAD_STARTS, any: SHARED_CONNECTED_SPREAD, connected: SHARED_CONNECTED_SPREAD,
+};
+
+/** Borrow the controls of another picture when creating a new spread. */
+export function startedSpread(spread: LayerSpreadOptions): LayerSpreadOptions {
+  return spread.kind === 'connected' && spread.version !== 3 ? { ...spread, version: 3 } : spread;
+}
+
 /**
  * The start rule (13g): a picture's spreads start from the nearest earlier
  * picture's — of the kind asked for, for a kind — else the defaults, so a
@@ -125,10 +136,7 @@ export const DEFAULT_SPREAD_STARTS: LayerSpreadStarts = {
  * is the spreads of the pictures before, nearest first; how a surface walks
  * back to them — a diagram's order, a Fold step's path — is its own.
  *
- * A Default start is version 1 whatever it starts from: versions draw alike
- * but in Perspective 3D, and a pose that starts one where it has been shown
- * there makes it version 2 (`startedSpread`), so no picture that never shows
- * the difference is made one an older build would lock.
+ * Diagram and Edit create shared-scale spreads. Other callers retain their own start policy.
  */
 export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>, defaults: LayerSpreadStarts = DEFAULT_SPREAD_STARTS): LayerSpreadStarts {
   let any: LayerSpreadOptions | null = null;
@@ -136,7 +144,7 @@ export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>, default
   let affine: AffineSpreadOptions | null = null;
   let connected: ConnectedSpread | null = null;
   for (const seen of earlier) {
-    const spread = spreadOutOfPerspective(seen);
+    const spread = defaults.connected.version === 3 ? startedSpread(seen) : spreadOutOfPerspective(seen);
     any ??= spread;
     if (spread.kind === 'depth') depth ??= spread;
     else if (spread.kind === 'affine') affine ??= spread;
@@ -159,7 +167,7 @@ export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>, default
  * and showing it in Perspective again makes it version 2 again.
  */
 export function spreadOutOfPerspective<Spread extends LayerSpreadOptions>(spread: Spread): Spread {
-  return spread.kind === 'connected' && spread.version !== 1 ? { ...spread, version: 1 } : spread;
+  return spread.kind === 'connected' && spread.version === 2 ? { ...spread, version: 1 } : spread;
 }
 
 /** Whether two spreads, or their absence, are one. */
@@ -181,7 +189,7 @@ export type LayerSpreadEdit =
   | { verb: 'spread-reveal'; reveal: [number, number] }
   | { verb: 'spread-reveal-axis'; axis: 0 | 1; value: number }
   | { verb: 'spread-amount'; amount: number; kind?: SpreadKind }
-  // A Default spread made version 2 at the amount that draws its picture as it was, no more than 100% (`equalOpeningAmount`).
+  // An explicit upgrade to the shared scale at the converted (or capped) Amount.
   | { verb: 'spread-equal-opening'; amount: number }
   | { verb: 'spread-direction'; toward: SpreadDirection }
   | { verb: 'spread-keep'; keep: SpreadKeep }
@@ -220,7 +228,7 @@ export function withSpreadField(spread: LayerSpreadOptions, edit: LayerSpreadEdi
         ? { ...spread, amount: clampSpreadAmount(spread.kind, edit.amount) }
         : spread;
     case 'spread-equal-opening':
-      return spread.kind === 'connected' ? { ...spread, version: 2, amount: clampSpreadAmount('connected', edit.amount) } : spread;
+      return spread.kind === 'connected' ? { ...spread, version: 3, amount: clampSpreadAmount('connected', edit.amount) } : spread;
     case 'spread-direction':
       return spread.kind === 'depth' ? { ...spread, toward: edit.toward } : spread;
     case 'spread-keep':
@@ -274,7 +282,7 @@ export function readLayerSpread(value: unknown): LayerSpreadOptions | undefined 
     if (typeof value.version !== 'number' || !Array.isArray(value.reveal) || value.reveal.length !== 2) return null;
     const x = finiteNumber(value.reveal[0]), y = finiteNumber(value.reveal[1]);
     if (x === null || y === null) return null;
-    if (past || (value.version !== 1 && value.version !== 2) || Math.hypot(x, y) > 2.00001) return NEWER;
+    if (past || (value.version !== 1 && value.version !== 2 && value.version !== 3) || Math.hypot(x, y) > 2.00001) return NEWER;
     return { kind: 'connected', version: value.version, amount, reveal: [x, y] };
   }
   if (known === 'depth') {

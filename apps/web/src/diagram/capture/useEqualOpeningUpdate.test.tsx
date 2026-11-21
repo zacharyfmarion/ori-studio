@@ -5,7 +5,7 @@ import type { Point3, SpreadSolution } from '@oristudio/layer-spread';
 import { connectedSpreadSource } from '../../cp-workspace/folded/connectedSpreadSource';
 import { plainBook } from '../../cp-workspace/folded/foldedPrecrease.fixtures';
 import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
-import { equalOpeningAmount } from '../../layer-spread/equalOpening';
+import { spreadUpdate } from '../../layer-spread/spreadUpdate';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import type { DiagramCpRender } from '../document/diagramDocument';
 import { useEqualOpeningUpdate, type EqualOpeningHolds, type EqualOpeningUpdate } from './useEqualOpeningUpdate';
@@ -67,7 +67,16 @@ describe('Update for a picture saved in Perspective 3D before equal opening', ()
     act(() => root.render(<Probe render={SAVED} connected={connected} apply={apply} />));
     expect(seen).toMatchObject({ disabled: false });
     act(() => seen!.run());
-    expect(apply).toHaveBeenCalledWith(equalOpeningAmount({ ...DEFAULT_CONNECTED_SPREAD, amount: 0.4 }, connected.prepared));
+    expect(apply).toHaveBeenCalledWith(spreadUpdate({ ...DEFAULT_CONNECTED_SPREAD, amount: 0.4 }, true, connected.prepared, null)!.amount);
+  });
+
+  it.each([[1, false], [1.5, true]] as const)('offers exactly 100%% or a disclosed cap for v2 Perspective Amount %s', (amount, capped) => {
+    const apply = vi.fn();
+    const flat = { ...SAVED, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 as const, amount } };
+    act(() => root.render(<Probe render={flat} connected={view()} apply={apply} />));
+    expect(seen).toMatchObject({ disabled: false, capped });
+    act(() => seen!.run());
+    expect(apply).toHaveBeenCalledWith(2);
   });
 
   it('is held, its button kept, while a capture runs', () => {
@@ -89,13 +98,11 @@ describe('Update for a picture saved in Perspective 3D before equal opening', ()
     }
   });
 
-  it('is offered for nothing else: version 2, Diagram, another kind, another mode', () => {
+  it('is hidden for the current version, another kind or another mode', () => {
     const apply = vi.fn();
     const flat = SAVED as Extract<DiagramCpRender, { mode: 'folded-flat' }>;
     const others: DiagramCpRender[] = [
-      { ...flat, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } },
-      { ...flat, presentation: { kind: 'diagram', camera, orderSide: 'front' } },
-      { ...flat, presentation: undefined },
+      { ...flat, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3 } },
       { ...flat, spread: { kind: 'depth', amount: 0.05, toward: 'down' } },
       { mode: 'crease-pattern', rotationDeg: 0 },
     ];

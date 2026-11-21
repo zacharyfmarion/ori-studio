@@ -536,7 +536,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const one = createPoseController(first, listener());
     await one.run({ verb: 'show-folded' });
     // New steps use connected; an explicitly selected legacy spread still inherits.
-    expect(spreadOf(first)).toEqual(DEFAULT_CONNECTED_SPREAD);
+    expect(spreadOf(first)).toEqual({ ...DEFAULT_CONNECTED_SPREAD, version: 3 });
     await one.run({verb: 'spread-kind',kind:'affine'});
     await one.run({ verb: 'spread-keep', keep: 'bottom' });
     expect(spreadOf(first)).toEqual({ ...AFFINE, keep: 'bottom' });

@@ -1,8 +1,8 @@
 import {withSpreadCamera} from '../../layer-spread/presentation';
-import { entersPerspective, spreadInPerspective, startedSpread } from '../../layer-spread/equalOpening';
+import { entersPerspective, spreadInPerspective } from '../../layer-spread/equalOpening';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
 import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
-import { clampSpatialSpreadAmount } from '../../cp-workspace/folded/spatialSpreadSettings';
+import { clampSpatialSpreadAmount, DEFAULT_SPATIAL_SPREAD } from '../../cp-workspace/folded/spatialSpreadSettings';
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 /**
  * What a Pose verb does to a linked step's picture (D5): the new render, and
@@ -22,6 +22,7 @@ import {
 import type { SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   LAYER_SPREAD_EDIT_VERBS,
+  startedSpread,
   spreadOutOfPerspective,
   withSpreadField,
   type LayerSpreadEdit,
@@ -232,6 +233,7 @@ export async function poseLinkedStep(
     const mirrorAxes = await session.flatMirrorAxes();
     const turn = upright ? (uprightTurn(mirrorAxes, rotationDeg) ?? rotationDeg) : rotationDeg;
     const picture = await session.flatPicture(turn, spread, presentation);
+    if (request.verb === 'spread-equal-opening' && capturedSpreadFailed(picture)) return { status: 'unavailable' };
     const drawn: DiagramFlatRender = {
       mode: 'folded-flat',
       side: state.side,
@@ -283,7 +285,7 @@ export async function poseLinkedStep(
   const foldedAsRemembered = (): Promise<LinkedPoseResult> => {
     const target = renderToShowAs({ render, remembered }, 'folded', spreadStart.any);
     if (target.mode === 'folded-flat' && !spatialRoute) return flat(target);
-    if (target.mode === 'folded-3d' && spatialRoute) return spatial(target.camera, target.side);
+    if (target.mode === 'folded-3d' && spatialRoute) return spatial(target.camera, target.side, target.spread);
     return folded(target.mode === 'folded-flat' ? target.rotationDeg : 0);
   };
 
@@ -428,12 +430,12 @@ export async function poseLinkedStep(
         return flat({ side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread: spreadOutOfPerspective(spread) } : {}) });
       case 'spread-layers': {
         const { spread: _was, ...unspread } = pose;
-        return flat(spread ? unspread : { ...unspread, spread: startedSpread(spreadStart.any, pose.presentation) });
+        return flat(spread ? unspread : { ...unspread, spread: startedSpread(spreadStart.any) });
       }
       case 'spread-kind':
         // The other kind, from where the steps before left it: each kind keeps its own settings.
         if (!spread || request.verb !== 'spread-kind' || spread.kind === request.kind) return flat(pose);
-        return flat({ ...pose, spread: startedSpread(spreadStart[request.kind], pose.presentation) });
+        return flat({ ...pose, spread: startedSpread(spreadStart[request.kind]) });
       case 'spread-amount':
       case 'spread-equal-opening':
       case 'spread-direction':
@@ -453,9 +455,12 @@ export async function poseLinkedStep(
   const fromSide = (view: FoldedFigureCamera) => (side === 'back' ? antipodalCamera(view) : view);
   switch (verb) {
     case 'spread-layers':
-      return spatial(camera, side, render.spread ? null : { kind: 'spatial', version: 1, amount: 1 });
+      return spatial(camera, side, render.spread ? null : DEFAULT_SPATIAL_SPREAD);
     case 'spread-amount':
       return spatial(camera, side, render.spread && request.verb === 'spread-amount' ? { ...render.spread, amount: clampSpatialSpreadAmount(request.amount) } : undefined);
+    case 'spread-equal-opening':
+      if (request.verb !== 'spread-equal-opening' || render.spread?.version !== 1) return { status: 'unavailable' };
+      return spatial(camera, side, { ...render.spread, version: 2, amount: clampSpatialSpreadAmount(request.amount) });
     case 'orbit':
       return spatial(request.verb === 'orbit' ? request.camera : camera, side);
     case 'turn-over':

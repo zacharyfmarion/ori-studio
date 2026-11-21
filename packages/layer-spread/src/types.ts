@@ -54,9 +54,10 @@ export interface ConnectedSpread {
    * average, unless a model's steepness or height limit holds it back; neither
    * limit takes it below its version 1 height (`equalOpeningGainOf` in
    * apps/web, `implementation-plans/spread-equal-opening.md`). Diagram draws
-   * both alike.
+   * both alike. Version 3 applies the model gain in every presentation,
+   * without the additional Perspective doubling.
    */
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   amount: number;
   reveal: Point;
 }

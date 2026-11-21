@@ -1697,9 +1697,10 @@
       "withTurnOver": "With the turn-over before it"
     },
     "spread": {
+      "cappedOpeningNotice": "This view exceeds the new maximum. Update to use 100% and bring its layers closer together.",
       "diagram": "Diagram",
       "drag": "Drag to reveal layers",
-      "equalOpeningNotice": "This picture uses the older Amount scale, which opens simple models far more than complex ones. Updating keeps how it looks, unless it opens past the new 100%.",
+      "equalOpeningNotice": "This picture uses an older Amount scale. Update to keep the spacing in this view and use the new scale.",
       "equalOpeningUpdate": "Update",
       "padHint": "Drag to reveal layers. Arrow keys adjust; Shift moves farther.",
       "perspective": "Perspective 3D",

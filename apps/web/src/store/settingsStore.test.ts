@@ -712,7 +712,7 @@ describe('creasePatternFoldedFigureSpread', () => {
       { kind: 'connected', version: 1, amount: 'half', reveal: [0.8, 0.6] },
       { kind: 'depth', amount: 0.025 },
       // Version 2 is equal opening (`equalOpening.ts`); a later one is a newer build's.
-      { kind: 'connected', version: 3, amount: 0.5, reveal: [0.8, 0.6] },
+      { kind: 'connected', version: 4, amount: 0.5, reveal: [0.8, 0.6] },
       { kind: 'woven', amount: 0.5 },
       { ...DEFAULT, swirl: 1 },
     ]) {

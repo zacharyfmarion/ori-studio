@@ -604,14 +604,14 @@ describe('DiagramStepPanel', () => {
         useWorkspaceStore.setState({ diagram: { ...createDiagram(), steps: [cpStep('step-f', render)] } });
         publish(render, false, update);
       });
-      expect(host!.textContent).toContain('This picture uses the older Amount scale');
+      expect(host!.textContent).toContain('This picture uses an older Amount scale');
       act(() => textButton('Update')!.click());
       expect(update.run).toHaveBeenCalledOnce();
       // Held until it can be measured: the button stays, disabled, so nothing shifts.
       act(() => publish(render, false, { ...update, disabled: true }));
       expect(textButton('Update')!.disabled).toBe(true);
-      // A picture drawn by equal opening, or not in Perspective 3D, has nothing to update.
-      act(() => publish({ ...render, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } }, false, null));
+      // A picture drawn by equal opening, on the shared scale, has nothing to update.
+      act(() => publish({ ...render, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3 } }, false, null));
       expect(host!.textContent).not.toContain('older Amount scale');
       expect(textButton('Update')).toBeFalsy();
     });

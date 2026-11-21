@@ -3964,5 +3964,9 @@ it.each([2, 4])('round trips spatial amount %s and locks an unknown spatial vers
   expect((stepsIn(read.document)[2]!.source as DiagramCpSource).render).toMatchObject({spread:{kind:'spatial',version:1,amount}});
   expect(throughJson(writeDiagram(read.document)).steps[2].source.render.spread).toEqual(written.steps[2].source.render.spread);
   written.steps[2].source.render.spread.version=2;
+  const shared = readDiagram(written)!;
+  expect(stepsIn(shared.document)[2]!.unknown).toBeUndefined();
+  expect(throughJson(writeDiagram(shared.document)).steps[2].source.render.spread.version).toBe(2);
+  written.steps[2].source.render.spread.version=3;
   expect(stepsIn(readDiagram(written)!.document)[2]!.unknown).toBeDefined();
 });

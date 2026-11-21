@@ -4,6 +4,12 @@ import type { SpatialSpread } from './foldedFigureSpread';
 /** Stored amounts multiply the unit displacement field, independently of the
  * slider's 0–100% range. Raising the maximum leaves saved geometry unchanged. */
 export const MAX_SPATIAL_SPREAD_AMOUNT = 4;
+export const DEFAULT_SPATIAL_SPREAD: SpatialSpread = { kind: 'spatial', version: 2, amount: 1 };
+
+/** The stored amount is always in slider units. Only a v2 picture applies the mesh gain. */
+export function spatialDrawAmount(spread: SpatialSpread | null | undefined, gain = 1): number {
+  return spread ? spread.amount * (spread.version === 2 ? gain : 1) : 0;
+}
 
 export const clampSpatialSpreadAmount = (amount: number): number =>
   Math.max(0, Math.min(MAX_SPATIAL_SPREAD_AMOUNT, amount));
@@ -22,7 +28,7 @@ export function readSpatialSpread(
   if (
     hasNewerKey(value, new Set(['kind', 'version', 'amount'])) ||
     value.kind !== 'spatial' ||
-    value.version !== 1
+    (value.version !== 1 && value.version !== 2)
   )
     return NEWER;
   if (
@@ -32,5 +38,5 @@ export function readSpatialSpread(
   )
     return null;
   if (value.amount > MAX_SPATIAL_SPREAD_AMOUNT) return NEWER;
-  return { kind: 'spatial', version: 1, amount: value.amount };
+  return { kind: 'spatial', version: value.version, amount: value.amount };
 }

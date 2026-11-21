@@ -1850,6 +1850,7 @@ export const ANALYTICS_EVENTS = {
    */
   foldSpreadChanged: 'fold spread changed',
   spatialSpreadChanged: 'spatial spread changed',
+  figureSpacingUpdated: 'figure spacing updated',
   foldFreeLineSnapChanged: 'fold free line snapping changed',
   /**
    * The Fold engine crashed and the session restarted it, or gave up: how

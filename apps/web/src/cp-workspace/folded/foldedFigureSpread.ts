@@ -21,7 +21,7 @@ import type { LayerSpreadOptions } from './foldedLayerSpread';
 import type { FoldedFigureSpreadStatus } from './foldedFigureSpreadStatus';
 import { foldedFigureHasLayerOrder } from './foldedFigureState';
 
-export interface SpatialSpread { readonly kind: 'spatial'; readonly version: 1; readonly amount: number }
+export interface SpatialSpread { readonly kind: 'spatial'; readonly version: 1 | 2; readonly amount: number }
 export type FoldedFigureSpread =
   | SpatialSpread
   | {

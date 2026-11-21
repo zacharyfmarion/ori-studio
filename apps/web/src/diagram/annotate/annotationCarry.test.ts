@@ -242,7 +242,7 @@ describe('a Perspective 3D picture updated to equal opening (Update)', () => {
   const V1 = { kind: 'connected' as const, version: 1 as const, amount: 2, reveal: [0, 0] as [number, number] };
   const SAVED = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 30, foldCase: 1, spread: V1, presentation: PERSPECTIVE };
   // Update rounds the amount that keeps the picture, which can change the stored scene's key but not the picture.
-  const updated = (amount: number) => ({ ...SAVED, spread: { ...V1, version: 2 as const, amount } });
+  const updated = (amount: number) => ({ ...SAVED, spread: { ...V1, version: 3 as const, amount } });
 
   /** The step posed from `before`, its picture replaced by `picture` posed from `render`: by default drawn the same, under another key. */
   function linkedUpdate(render: DiagramCpRender, before: DiagramCpRender = SAVED, picture = scenePicture('scene-v2')) {
@@ -274,7 +274,7 @@ describe('a Perspective 3D picture updated to equal opening (Update)', () => {
   });
 
   it('says the picture changed when the Update came down to 100%, or anything but the version moved', () => {
-    expect(annotationsOutOfStep(linkedUpdate(updated(2)))).toBe(true);
+    expect(annotationsOutOfStep(linkedUpdate(updated(2), SAVED, cornerMoved(2)))).toBe(true);
     // Shown in Perspective 3D for the first time: version 2 at the same amount, which draws it otherwise.
     const { presentation: _shown, ...flat } = SAVED;
     expect(annotationsOutOfStep(linkedUpdate(updated(0.4), { ...flat, spread: { ...V1, amount: 0.4 } }))).toBe(true);
@@ -294,7 +294,7 @@ describe('a Perspective 3D picture updated to equal opening (Update)', () => {
     expect(after.annotations).toEqual([ARROW]);
     expect(after.annotatedPictureKey).toBe('scene-v2');
     expect(annotationsOutOfStep(after)).toBe(false);
-    const capped = stepsIn(setLinkedPicture(annotated(step), 'step-1', { source: cpSource(updated(2)), picture: scenePicture('scene-v2') }))[0]!;
+    const capped = stepsIn(setLinkedPicture(annotated(step), 'step-1', { source: cpSource(updated(2)), picture: cornerMoved(2) }))[0]!;
     expect(annotationsOutOfStep(capped)).toBe(true);
   });
 

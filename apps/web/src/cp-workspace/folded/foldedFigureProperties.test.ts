@@ -1189,7 +1189,7 @@ it('offers a 3D spread up to 100%, doubling the former maximum without changing 
   const d=deps();const before=sheetFor(SPATIAL,d);
   const toggle=field(before,'spreadLayers') as ToggleField;
   expect(toggle.support).toBe('supported');toggle.commit(true);
-  expect(d.setSpread).toHaveBeenCalledWith({kind:'spatial',version:1,amount:1});
+  expect(d.setSpread).toHaveBeenCalledWith({kind:'spatial',version:2,amount:1});
   const shown=sheetFor({...SPATIAL,spread:{kind:'spatial',version:1,amount:2}},d);
   expect(shown.sections.find(s=>s.id==='spread')!.fields.map(f=>f.id)).toEqual(['spreadLayers','spreadAmount']);
   const amount=field(shown,'spreadAmount') as SliderField;

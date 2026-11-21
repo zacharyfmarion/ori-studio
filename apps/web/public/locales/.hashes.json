@@ -6735,13 +6735,14 @@
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
     "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
-    "panels:diagram.spread.equalOpeningNotice": "37d220fd7f50",
+    "panels:diagram.spread.equalOpeningNotice": "7844f8d80b74",
     "panels:diagram.spread.equalOpeningUpdate": "c1c1009d3f37",
     "tools:fold.flap.chipLocked_one": "99e99dc3477b",
     "tools:fold.flap.chipLocked_other": "2fedf032085c",
     "tools:fold.flap.locked": "5df563101f50",
     "tools:fold.section.rowLocked": "18dd655ce36e",
-    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d",
+    "panels:diagram.spread.cappedOpeningNotice": "e582c8e3d831"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13479,13 +13480,14 @@
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
     "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
-    "panels:diagram.spread.equalOpeningNotice": "37d220fd7f50",
+    "panels:diagram.spread.equalOpeningNotice": "7844f8d80b74",
     "panels:diagram.spread.equalOpeningUpdate": "c1c1009d3f37",
     "tools:fold.flap.chipLocked_one": "99e99dc3477b",
     "tools:fold.flap.chipLocked_other": "2fedf032085c",
     "tools:fold.flap.locked": "5df563101f50",
     "tools:fold.section.rowLocked": "18dd655ce36e",
-    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d",
+    "panels:diagram.spread.cappedOpeningNotice": "e582c8e3d831"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20225,13 +20227,14 @@
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
     "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
-    "panels:diagram.spread.equalOpeningNotice": "37d220fd7f50",
+    "panels:diagram.spread.equalOpeningNotice": "7844f8d80b74",
     "panels:diagram.spread.equalOpeningUpdate": "c1c1009d3f37",
     "tools:fold.flap.chipLocked_one": "99e99dc3477b",
     "tools:fold.flap.chipLocked_other": "2fedf032085c",
     "tools:fold.flap.locked": "5df563101f50",
     "tools:fold.section.rowLocked": "18dd655ce36e",
-    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d",
+    "panels:diagram.spread.cappedOpeningNotice": "e582c8e3d831"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26591,12 +26594,13 @@
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
     "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
-    "panels:diagram.spread.equalOpeningNotice": "37d220fd7f50",
+    "panels:diagram.spread.equalOpeningNotice": "7844f8d80b74",
     "panels:diagram.spread.equalOpeningUpdate": "c1c1009d3f37",
     "tools:fold.flap.chipLocked_other": "2fedf032085c",
     "tools:fold.flap.locked": "5df563101f50",
     "tools:fold.section.rowLocked": "18dd655ce36e",
-    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d",
+    "panels:diagram.spread.cappedOpeningNotice": "e582c8e3d831"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32956,12 +32960,13 @@
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
     "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
-    "panels:diagram.spread.equalOpeningNotice": "37d220fd7f50",
+    "panels:diagram.spread.equalOpeningNotice": "7844f8d80b74",
     "panels:diagram.spread.equalOpeningUpdate": "c1c1009d3f37",
     "tools:fold.flap.chipLocked_other": "2fedf032085c",
     "tools:fold.flap.locked": "5df563101f50",
     "tools:fold.section.rowLocked": "18dd655ce36e",
-    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d",
+    "panels:diagram.spread.cappedOpeningNotice": "e582c8e3d831"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39699,13 +39704,14 @@
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
     "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
-    "panels:diagram.spread.equalOpeningNotice": "37d220fd7f50",
+    "panels:diagram.spread.equalOpeningNotice": "7844f8d80b74",
     "panels:diagram.spread.equalOpeningUpdate": "c1c1009d3f37",
     "tools:fold.flap.chipLocked_one": "99e99dc3477b",
     "tools:fold.flap.chipLocked_other": "2fedf032085c",
     "tools:fold.flap.locked": "5df563101f50",
     "tools:fold.section.rowLocked": "18dd655ce36e",
-    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d",
+    "panels:diagram.spread.cappedOpeningNotice": "e582c8e3d831"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46443,13 +46449,14 @@
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
     "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
-    "panels:diagram.spread.equalOpeningNotice": "37d220fd7f50",
+    "panels:diagram.spread.equalOpeningNotice": "7844f8d80b74",
     "panels:diagram.spread.equalOpeningUpdate": "c1c1009d3f37",
     "tools:fold.flap.chipLocked_one": "99e99dc3477b",
     "tools:fold.flap.chipLocked_other": "2fedf032085c",
     "tools:fold.flap.locked": "5df563101f50",
     "tools:fold.section.rowLocked": "18dd655ce36e",
-    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d",
+    "panels:diagram.spread.cappedOpeningNotice": "e582c8e3d831"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52809,11 +52816,12 @@
     "tools:fold.pleat.layersMountainEnd": "f83339a3303f",
     "tools:fold.pleat.linesApart": "dd8c2a9b9b48",
     "panels:diagram.pose.resumeSimulation": "1ce31bb28405",
-    "panels:diagram.spread.equalOpeningNotice": "37d220fd7f50",
+    "panels:diagram.spread.equalOpeningNotice": "7844f8d80b74",
     "panels:diagram.spread.equalOpeningUpdate": "c1c1009d3f37",
     "tools:fold.flap.chipLocked_other": "2fedf032085c",
     "tools:fold.flap.locked": "5df563101f50",
     "tools:fold.section.rowLocked": "18dd655ce36e",
-    "tools:fold.section.rowLockedBeside": "d87d2629c84d"
+    "tools:fold.section.rowLockedBeside": "d87d2629c84d",
+    "panels:diagram.spread.cappedOpeningNotice": "e582c8e3d831"
   }
 }

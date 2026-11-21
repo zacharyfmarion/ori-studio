@@ -1,7 +1,7 @@
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 import { queueStepPoseEdit } from '../capture/stepPoseQueue';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
-import { entersPerspective, spreadInPerspective, startedSpread } from '../../layer-spread/equalOpening';
+import { entersPerspective, spreadInPerspective } from '../../layer-spread/equalOpening';
 /**
  * The verbs of a Diagram step linked to a Fold step (plan D17), bound to the
  * store: Refresh, Show as, its pose — turned, turned over, to an angle, its
@@ -18,7 +18,8 @@ import { toast } from 'sonner';
 import { trackDiagramSourceOpened } from '../../analytics';
 import type { LayerSpreadOptions, SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
-  DEFAULT_SPREAD_STARTS,
+  SHARED_SPREAD_STARTS as DEFAULT_SPREAD_STARTS,
+  startedSpread,
   spreadOutOfPerspective,
   withSpreadField,
   type LayerSpreadEdit,
@@ -67,7 +68,8 @@ async function captureAs(
   label: string,
   joinEntry?: object,
   current?: () => boolean,
-  blocksPose = true
+  blocksPose = true,
+  requireSpread = false
 ): Promise<DiagramFoldCaptureOutcome> {
   const { sequence, step, through, moment } = source;
   const outcome = await useWorkspaceStore.getState().captureDiagramFoldStep(stepId, {
@@ -80,6 +82,7 @@ async function captureAs(
     label,
     current,
     blocksPose,
+    ...(requireSpread ? { requireSpread } : {}),
     ...(joinEntry ? { joinEntry } : {}),
   });
   sayFoldCaptureOutcome(outcome);
@@ -202,11 +205,11 @@ export function spreadFoldRender(
   const { spread, ...unspread } = render;
   switch (request.verb) {
     case 'spread-layers':
-      return spread ? unspread : { ...unspread, spread: startedSpread(starts.any, render.presentation) };
+      return spread ? unspread : { ...unspread, spread: startedSpread(starts.any) };
     case 'spread-kind':
       return !spread || spread.kind === request.kind
         ? render
-        : { ...render, spread: startedSpread(starts[request.kind], render.presentation) };
+        : { ...render, spread: startedSpread(starts[request.kind]) };
     default:
       return spread ? { ...render, spread: withSpreadField(spread, request) } : render;
   }
@@ -226,7 +229,7 @@ async function poseAs(
   blocksPose = poseCaptureBlocksViewport(verb)
 ): Promise<boolean> {
   if (JSON.stringify(render) === JSON.stringify(source.render)) return true;
-  const outcome = await captureAs(stepId, source, render, 'Adjust pose', undefined, current, blocksPose);
+  const outcome = await captureAs(stepId, source, render, 'Adjust pose', undefined, current, blocksPose, verb === 'spread-equal-opening');
   if (outcome.status === 'captured' && outcome.changed) trackPose(verb, outcome.render);
   return outcome.status === 'captured';
 }
@@ -254,8 +257,10 @@ async function captureSpreadEdit(stepId: string, request: FoldStepSpreadRequest,
 
 /** A new gesture may arrive while the previous capture is still running. */
 export async function spreadDiagramFoldStep(stepId: string, request: FoldStepSpreadRequest): Promise<boolean> {
+  const measuredSource = request.verb === 'spread-equal-opening' ? foldSourceOf(stepId) : null;
   let captured = false;
   await queueStepPoseEdit(stepId, request.verb === 'spread-layers' ? null : request.verb, async (current) => {
+    if (measuredSource && foldSourceOf(stepId) !== measuredSource) return;
     captured = await captureSpreadEdit(stepId, request, current);
   });
   return captured;
@@ -367,7 +372,7 @@ export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void 
 export async function presentDiagramFoldStep(stepId: string, presentation: SpreadPresentation, current?: () => boolean, background = false): Promise<boolean> {
   const source=foldSourceOf(stepId);
   if(!source || source.render.mode!=='folded-flat' || source.render.spread?.kind!=='connected')return false;
-  // Shown in Perspective 3D for the first time, a spread is drawn by version 2; one shown there before keeps its version.
+  // Older v1 poses adopt v2 on their first visit to Perspective. A shared-scale pose keeps v3.
   const { spread } = source.render;
   const shown = entersPerspective(source.render.presentation, presentation.kind) ? spreadInPerspective(spread) : spread;
   return poseAs(stepId,source,{...source.render,spread:shown,presentation},'spread-presentation',current,!background);

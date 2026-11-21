@@ -174,11 +174,11 @@ describe('a spread figure’s export', () => {
     expect(target.buriesFaces).toBe(false);
   });
 
-  it('settles a Default spread once, leaving its hidden anchor rings out', async () => {
+  it.each([1, 2, 3] as const)('settles a v%s Default spread once, leaving its hidden anchor rings out', async (version) => {
     workers.capture.mockImplementation(async (live: ConnectedPaperScene) =>
       connectedPaperScene(live.connected, live.sheet, true)
     );
-    const target = targetOf(figure(record(DEFAULT_CONNECTED_SPREAD)), plainBook());
+    const target = targetOf(figure(record({ ...DEFAULT_CONNECTED_SPREAD, version })), plainBook());
     const scene = await target.buildScene(input());
     expect(scene!.items.length).toBeGreaterThan(0);
     expect(scene!.items.some((item) => item.kind === 'face' && item.hidden)).toBe(false);

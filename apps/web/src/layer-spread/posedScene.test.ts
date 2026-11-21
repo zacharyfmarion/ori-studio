@@ -102,6 +102,11 @@ it.each([0.14, 1, 2])('draws a version 2 spread in Perspective at its equal-open
   const presentation = { kind: 'perspective' as const, camera: { yaw: 0.4, pitch: 0.5, zoom: 1 }, orderSide: 'front' as const };
   const gain = equalOpeningGain(connected);
   expect(gain).toBeGreaterThan(1);
+  const v3: ConnectedSpread = { ...v1, version: 3 };
+  expect(foldedFlatPaperScene(kernel, { ...options, spread: v3, presentation })).toEqual(
+    foldedFlatPaperScene(kernel, { ...options, spread: { ...v2, amount: amount / 2 }, presentation }));
+  expect(foldedFlatPaperScene(kernel, { ...options, spread: v3 })).toEqual(
+    foldedFlatPaperScene(kernel, { ...options, spread: { ...v1, amount: amount * gain } }));
   const raised = connectedDrawing(kernel, connected, { ...v2, amount: amount * 2 * gain, reveal: [0, 0] }, toScenePx, []);
   const live = foldedFlatPaperScene(kernel, { ...options, spread: v2, presentation }) as ConnectedPaperScene;
   expect(live.connected.mesh.positions).toEqual(perspectiveDrawing(raised, connected, presentation).mesh.positions);

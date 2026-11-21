@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildDiagramFoldStepPoseActions } from '../actions/diagramPoseActions';
 import { createDiagram, insertSteps, type DiagramCpRender } from '../document/diagramDocument';
 import { foldStepStep } from '../document/diagramSteps.fixtures';
-import { DEFAULT_LAYER_SPREAD } from '../../cp-workspace/folded/layerSpreadSettings';
+import { DEFAULT_LAYER_SPREAD } from '../document/diagramDocument';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   flipFoldStepCreases,
@@ -88,21 +88,21 @@ describe('a Fold step’s spread and angle (Phase 13 on a Fold step)', () => {
     expect(rotatedFoldRender(PATTERN, 382.5)).toEqual({ mode: 'crease-pattern', rotationDeg: 22.5 });
   });
 
-  it('starts a Default spread by version 2 only in Perspective 3D, and updates a saved one when asked (equal opening)', () => {
+  it('starts a Default spread at the shared scale, and updates a saved one when asked (equal opening)', () => {
     const presentation = { kind: 'perspective' as const, camera: { yaw: 0, pitch: -0.4, zoom: 1 }, orderSide: 'front' as const };
     const there: DiagramCpRender = { ...FLAT, presentation };
     expect(spreadFoldRender({ ...there, spread: affine }, { verb: 'spread-kind', kind: 'connected' }, starts))
-      .toEqual({ ...there, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } });
+      .toEqual({ ...there, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3 } });
     expect(spreadFoldRender(there, { verb: 'spread-layers' }, { ...starts, any: DEFAULT_CONNECTED_SPREAD }))
-      .toEqual({ ...there, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } });
+      .toEqual({ ...there, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3 } });
     expect(spreadFoldRender({ ...FLAT, spread: affine }, { verb: 'spread-kind', kind: 'connected' }, starts))
-      .toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
-    // A picture saved there keeps version 1 through a value, and takes 2 only from Update.
+      .toEqual({ ...FLAT, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3 } });
+    // A picture saved there keeps version 1 through a value, and takes 3 only from Update.
     const saved: DiagramCpRender = { ...there, spread: DEFAULT_CONNECTED_SPREAD };
     expect(spreadFoldRender(saved, { verb: 'spread-amount', amount: 0.5 }, starts))
       .toEqual({ ...saved, spread: { ...DEFAULT_CONNECTED_SPREAD, amount: 0.5 } });
     expect(spreadFoldRender(saved, { verb: 'spread-equal-opening', amount: 0.02 }, starts))
-      .toEqual({ ...saved, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2, amount: 0.02 } });
+      .toEqual({ ...saved, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3, amount: 0.02 } });
   });
 });
 
@@ -207,13 +207,13 @@ describe('a Fold step shown in Perspective 3D (equal opening)', () => {
     expect(capture).not.toHaveBeenCalled();
   });
 
-  it('restarts a spread under a Diagram kept from Perspective 3D by version 2, so it goes back at equal opening', async () => {
+  it('restarts a spread under a Diagram kept from Perspective 3D at the shared scale', async () => {
     const away: DiagramCpRender = { ...SAVED, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 }, presentation: { ...PERSPECTIVE, kind: 'diagram' } };
     // Spread Layers turned off and on; Default chosen again after another kind.
     const turnedOn = spreadFoldRender(spreadFoldRender(away, { verb: 'spread-layers' }), { verb: 'spread-layers' });
     const chosen = spreadFoldRender(spreadFoldRender(away, { verb: 'spread-kind', kind: 'affine' }), { verb: 'spread-kind', kind: 'connected' });
     for (const restarted of [turnedOn, chosen]) {
-      expect(restarted).toEqual(away);
+      expect(restarted).toEqual({ ...away, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3 } });
       install(restarted);
       await setDiagramFoldPresentation('s', 'perspective');
       expect(asked()).toEqual({ ...restarted, presentation: PERSPECTIVE });

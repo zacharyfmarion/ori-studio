@@ -1,3 +1,4 @@
+import { useSpatialOpeningGain } from '../../cp-workspace/folded/useSpatialFoldedMesh';
 import { useSpatialSpreadAmount, type SpatialSpreadAmount } from './useSpatialSpreadAmount';
 import { queueStepPoseEdit } from './stepPoseQueue';
 import { useEqualOpeningUpdate, type EqualOpeningUpdate } from './useEqualOpeningUpdate';
@@ -250,11 +251,20 @@ export function useDiagramLinkedPose(
   }, [controller, readOnly, stepId]);
   const applyEqualOpening = useCallback((amount: number) => {
     if (readOnly || !controller || !stepId) return Promise.resolve();
-    return queueStepPoseEdit(stepId, 'spread-equal-opening', (current) =>
-      controller.run({ verb: 'spread-equal-opening', amount }, { current }));
-  }, [controller, readOnly, stepId]);
+    return queueStepPoseEdit(stepId, 'spread-equal-opening', async (current) => {
+      const { diagram } = useWorkspaceStore.getState();
+      if (diagram && stepById(diagram, stepId)?.source === source) {
+        await controller.run({ verb: 'spread-equal-opening', amount }, { current });
+      }
+    });
+  }, [controller, readOnly, source, stepId]);
   const unknownMarks = step?.annotations.some((annotation) => !!annotation.unknown) ?? false;
-  const equalOpening = useEqualOpeningUpdate(source?.render, connectedView, { blocked: readOnly || unknownMarks, busy }, applyEqualOpening);
+  const updateBlocked = readOnly || unknownMarks || spreadFailed;
+  const legacySpatial = source?.render.mode === 'folded-3d' && source.render.spread?.version === 1;
+  const spatialGain = useSpatialOpeningGain(legacySpatial && !updateBlocked ? view?.model : undefined);
+  const equalOpening = useEqualOpeningUpdate(
+    source?.render, connectedView, { blocked: updateBlocked, busy }, applyEqualOpening, spatialGain,
+  );
   const storedCamera = source?.render.mode === 'folded-3d' ? source.render.camera : flat?.presentation?.camera ?? null;
   const onCamera = useCallback(
     (camera: FoldedFigureCamera) => controller?.orbit(camera, storedCamera),
