@@ -1,8 +1,6 @@
 /**
- * A Fold step's instruction as a Diagram step says it: the fold's kind and
- * nothing more — "Valley fold.", "Fold and unfold.", "Inside reverse fold."
- * — in the words published diagrams use (Lang's diagramming conventions,
- * the Yoshizawa–Randlett names), never a letter.
+ * A Fold step's instruction as a Diagram step says it. Most steps name the
+ * fold alone. Axiom 6 also names the points and lines its two arrows connect.
  *
  * Fold's own strip names what a step brings together by the letters Fold's
  * canvas draws on its references (`fold/stepSentence`). A Diagram step's
@@ -17,7 +15,22 @@
  * Pure and React-free.
  */
 import type { TFunction } from 'i18next';
-import { foldStepSentence, type FoldSentenceStep } from '../../fold/stepSentence';
+import { foldStepSentence, type FoldSentenceLine, type FoldSentenceStep } from '../../fold/stepSentence';
+
+function pointsOntoLines(line: FoldSentenceLine): boolean {
+  return line.via === 'axiom' && line.axiom === 6 &&
+    (!line.moving || (line.moving.includes(0) && line.moving.includes(2)));
+}
+
+function alignmentSentence(t: TFunction, direction: 'valley' | 'mountain'): string {
+  return direction === 'valley'
+    ? t('panels:diagram.fold.instruction.valleyPointsOntoLines', 'Valley fold the points onto the two indicated lines.')
+    : t('panels:diagram.fold.instruction.mountainPointsOntoLines', 'Mountain fold the points onto the two indicated lines.');
+}
+
+function then(t: TFunction, first: string, next: string): string {
+  return t('panels:diagram.fold.instruction.then', '{{first}} {{next}}', { first, next });
+}
 
 /** A precrease as an instruction says it: the whole line or a segment folded and unfolded, or a pinch. */
 type PrecreaseWords = 'valley' | 'mountain' | 'pinch';
@@ -38,7 +51,11 @@ function precreaseSentence(t: TFunction, words: PrecreaseWords): string {
 }
 
 /** The same precrease made on both sides, said once: a merged step's words. */
-function bothSidesSentence(t: TFunction, words: PrecreaseWords): string {
+function bothSidesSentence(t: TFunction, step: Extract<FoldSentenceStep, { op: 'precrease' }>): string {
+  const words = precreaseWords(step);
+  if (words !== 'pinch' && pointsOntoLines(step.line)) {
+    return then(t, foldDiagramSentence(t, step), t('panels:diagram.fold.instruction.repeatEarlier', 'Repeat on the other side.'));
+  }
   switch (words) {
     case 'valley':
       return t('panels:diagram.fold.instruction.precreaseBothSides', 'Fold and unfold on both sides.');
@@ -90,10 +107,14 @@ export function foldDiagramSentence(t: TFunction, step: FoldSentenceStep): strin
   switch (step.op) {
     case 'fold':
       if (step.inserted) return foldDiagramSentence(t, { op: 'tuck', direction: step.direction, line: step.line });
+      if (pointsOntoLines(step.line)) return alignmentSentence(t, step.direction);
       return step.direction === 'valley'
         ? t('panels:diagram.fold.instruction.valley', 'Valley fold.')
         : t('panels:diagram.fold.instruction.mountain', 'Mountain fold.');
     case 'precrease':
+      if (pointsOntoLines(step.line) && step.extent?.kind !== 'pinch') {
+        return then(t, alignmentSentence(t, step.direction), t('panels:diagram.fold.instruction.unfold', 'Unfold.'));
+      }
       return precreaseSentence(t, precreaseWords(step));
     case 'unfold':
       return t('panels:diagram.fold.instruction.unfold', 'Unfold.');
@@ -166,7 +187,7 @@ export function foldDiagramMergedSentence(t: TFunction, steps: readonly FoldSent
   for (const step of steps) {
     const words =
       step.op === 'precrease'
-        ? bothSidesSentence(t, precreaseWords(step))
+        ? bothSidesSentence(t, step)
         : step.op === 'fold' && !step.inserted
           ? step.direction === 'valley'
             ? t('panels:diagram.fold.instruction.valleyBothSides', 'Valley fold on both sides.')
@@ -175,7 +196,7 @@ export function foldDiagramMergedSentence(t: TFunction, steps: readonly FoldSent
     if (!said.includes(words)) said.push(words);
   }
   return said.reduce(
-    (all, next) => (all === '' ? next : t('panels:diagram.fold.instruction.then', '{{first}} {{next}}', { first: all, next })),
+    (all, next) => (all === '' ? next : then(t, all, next)),
     ''
   );
 }

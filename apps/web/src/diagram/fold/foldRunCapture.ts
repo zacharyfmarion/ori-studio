@@ -53,6 +53,7 @@ function actionSeenIn(action: FoldStepAction, from: FoldIsometry, to: FoldIsomet
     line: action.line ? [at(action.line[0]), at(action.line[1])] : null,
     spans: action.spans.map((span) => ({ ...span, from: at(span.from), to: at(span.to) })),
     grip: action.grip ? { ...action.grip, at: at(action.grip.at), image: at(action.grip.image) } : null,
+    ...(action.secondGrip ? { secondGrip: { ...action.secondGrip, at: at(action.secondGrip.at), image: at(action.secondGrip.image) } } : {}),
     ...(action.push ? { push: { at: at(action.push.at), toward: at(action.push.toward) } } : {}),
     ...(action.pleat ? { pleat: { ...action.pleat, from: at(action.pleat.from), to: at(action.pleat.to) } } : {}),
     ...(action.rings ? { rings: action.rings.map((ring) => ({ ...ring, at: at(ring.at) })) } : {}),
@@ -169,10 +170,9 @@ export async function readFoldRunCapture(
         merged: actions.slice(1),
       },
       ready: first,
-      parent: shown,
-      node: run[0]!,
       engineVersion,
-      run: { last, sentence: foldDiagramMergedSentence(t, words) },
+      last,
+      sentence: foldDiagramMergedSentence(t, words),
     },
   };
 }

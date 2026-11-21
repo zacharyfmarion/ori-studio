@@ -1124,6 +1124,7 @@
         "insideSwivelBehind": "Inside swivel fold behind.",
         "mountain": "Mountain fold.",
         "mountainBothSides": "Mountain fold on both sides.",
+        "mountainPointsOntoLines": "Mountain fold the points onto the two indicated lines.",
         "mountainPrecrease": "Mountain fold and unfold.",
         "mountainPrecreaseBothSides": "Mountain fold and unfold on both sides.",
         "openSink": "Open sink.",
@@ -1158,7 +1159,8 @@
         "unfoldToStep": "Unfold to step {{number}}.",
         "unsink": "Unsink.",
         "valley": "Valley fold.",
-        "valleyBothSides": "Valley fold on both sides."
+        "valleyBothSides": "Valley fold on both sides.",
+        "valleyPointsOntoLines": "Valley fold the points onto the two indicated lines."
       },
       "mergedCard": "Steps {{first}}–{{last}}",
       "mergePrecreases": "Merge symmetric precreases",

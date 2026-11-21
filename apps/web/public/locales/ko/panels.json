@@ -1084,6 +1084,7 @@
         "insideSwivelBehind": "뒤쪽에서 안쪽 회전 접기.",
         "mountain": "산접기.",
         "mountainBothSides": "양쪽 모두 산접기.",
+        "mountainPointsOntoLines": "두 점이 각각 표시된 선에 오도록 산접기.",
         "mountainPrecrease": "산접기했다 펼치기.",
         "mountainPrecreaseBothSides": "양쪽 모두 산접기했다 펼치기.",
         "openSink": "열린 가라앉혀 접기.",
@@ -1116,7 +1117,8 @@
         "unfoldToStep": "{{number}}단계까지 펼치기.",
         "unsink": "가라앉혀 접기 되돌리기.",
         "valley": "골접기.",
-        "valleyBothSides": "양쪽 모두 골접기."
+        "valleyBothSides": "양쪽 모두 골접기.",
+        "valleyPointsOntoLines": "두 점이 각각 표시된 선에 오도록 골접기."
       },
       "mergedCard": "{{first}}–{{last}}단계",
       "mergePrecreases": "대칭인 사전 접기 합치기",

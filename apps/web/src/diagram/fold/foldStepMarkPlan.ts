@@ -12,6 +12,8 @@
  *   left uncircled (owner, 2026-10-20).
  * - **Point onto point** (O2): both points circled, the arrow from the one
  *   that moves to the one it lands on.
+ * - **Two points onto two lines** (O6): one arrow per alignment, with both
+ *   its endpoints circled on the picture before the fold.
  * - **Line onto line** (O3): the arrow from the line that moves to the one
  *   it lands on. Lines that meet — a bisector — take it halfway along the
  *   shorter of the two edges brought together, as far out from the corner
@@ -58,6 +60,8 @@ export interface FoldStepRing {
 
 /** The engine's picture of a step, as the Diagram draws its marks: its arrow placed, the points it names circled. */
 export interface FoldStepAction extends FoldActionGeometry {
+  /** O6 moves two points along the same fold. Each has its own fold arrow. */
+  secondGrip?: FoldGrip;
   /** In the scene frame, as the rest; none when it names no point. */
   rings?: readonly FoldStepRing[];
   /**
@@ -297,6 +301,31 @@ function axiomPlaced(
     const extent = op.kind === 'precrease' && op.extent ? action.line : null;
     const placed = lineOntoLine(inputs, frame, fold, moving, extent);
     return placed ? { ...action, grip: grip(placed.at, placed.sheet, placed.image) } : action;
+  }
+  if (axiom === 6) {
+    const grips: FoldGrip[] = [];
+    const rings: FoldStepRing[] = [];
+    // Axiom order is point, line, point, line. Reflect in the chosen root:
+    // the landing need not be the nearest point of the target line.
+    for (const slot of [0, 2]) {
+      const point = inputs[slot];
+      const edge = placedSegment(frame, inputs[slot + 1]);
+      if (!point || point.kind === 'edge' || !edge) return action;
+      const at = scenePoint(frame, point.at);
+      if (!at) return action;
+      const image = reflect(fold, at);
+      const alongEdge = dot({ x: image.x - edge.a.x, y: image.y - edge.a.y }, edge.direction);
+      const target = sheetAlong(edge, alongEdge);
+      rings.push(
+        { at, behind: layersOver(parent, frame, point.at, at) },
+        { at: image, behind: layersOver(parent, frame, target, image) }
+      );
+      // Swap can move the line onto the point, independently for each pair.
+      grips.push(moving && Math.sign(sideOf(fold, at)) !== moving
+        ? grip(image, target, at)
+        : grip(at, point.at, image));
+    }
+    return withRings({ ...action, grip: grips[0]!, secondGrip: grips[1]! }, rings);
   }
   return action;
 }

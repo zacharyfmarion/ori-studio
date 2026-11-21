@@ -20,6 +20,8 @@
 import type { TFunction } from 'i18next';
 import { isLockedStep, turnKindOf, type FoldSequenceDocument } from '../../fold/document/foldSequenceDocument';
 import { foldStateSpread, foldStepSpread } from '../../fold/document/foldStepSpread';
+import { foldedLineOf } from '../../fold/engine/foldEngineCompoundWire';
+import { foldNodeSentenceStep } from '../../fold/sequence/foldSentenceStep';
 import { foldCardPictureSource, type FoldCardPictureSource } from '../../fold/sequence/foldCardPictureSource';
 import type { FoldSequenceView } from '../../fold/sequence/useFoldSequenceView';
 import type { FoldSession } from '../../fold/session/foldSession';
@@ -36,6 +38,7 @@ import {
 } from '../document/diagramDocument';
 import type { PullCard } from '../references/referencesBrowserSelection';
 import { foldDiagramMergedSentence, foldDiagramSentence } from './foldDiagramSentence';
+import { diagramFoldConstruction } from './foldCreaseConstruction';
 import type { FoldPrecreaseMerge } from './foldPrecreaseMerge';
 import { captureFoldStep } from './foldStepCapture';
 
@@ -129,13 +132,21 @@ function landed(entry: FoldSequenceView['entries'][number]): boolean {
  */
 export function foldBrowserCards(
   t: TFunction,
-  { document, entries, words, failed }: Pick<FoldSequenceView, 'document' | 'entries' | 'words' | 'failed'>,
+  { document, entries, words, frames, failed }: Pick<FoldSequenceView, 'document' | 'entries' | 'words' | 'frames' | 'failed'>,
   merges: readonly FoldPrecreaseMerge[] = []
 ): FoldBrowserCard[] {
   const cards: FoldBrowserCard[] = [];
   const mergeAt = new Map(merges.map((merge) => [merge.steps[0], merge]));
   // The words each card's step will take: the Diagram's (`foldDiagramSentence`), not the strip's lettered ones.
-  const wordsAt = (index: number) => words[index] ?? { op: 'unknown' as const };
+  const wordsAt = (index: number) => {
+    const entry = entries[index]!;
+    const parent = frames[index - 1] ?? null, child = frames[index] ?? null;
+    if (entry.node) {
+      const constructed = diagramFoldConstruction(document.steps, entry.node, parent, child);
+      if (constructed !== entry.node) return foldNodeSentenceStep(constructed, { parent, child, report: foldedLineOf(entry.session) });
+    }
+    return words[index] ?? { op: 'unknown' as const };
+  };
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]!;
     const node = entry.node;

@@ -1084,6 +1084,7 @@
         "insideSwivelBehind": "裏側で内側スイベル折り。",
         "mountain": "山折り。",
         "mountainBothSides": "両側で山折り。",
+        "mountainPointsOntoLines": "2つの点がそれぞれ図の線に重なるように山折りする。",
         "mountainPrecrease": "山折りで折りすじをつける。",
         "mountainPrecreaseBothSides": "両側に山折りで折りすじをつける。",
         "openSink": "開いた沈め折り。",
@@ -1116,7 +1117,8 @@
         "unfoldToStep": "ステップ {{number}} まで開く。",
         "unsink": "沈め折りを戻す。",
         "valley": "谷折り。",
-        "valleyBothSides": "両側で谷折り。"
+        "valleyBothSides": "両側で谷折り。",
+        "valleyPointsOntoLines": "2つの点がそれぞれ図の線に重なるように谷折りする。"
       },
       "mergedCard": "ステップ {{first}}–{{last}}",
       "mergePrecreases": "対称な下折りをまとめる",

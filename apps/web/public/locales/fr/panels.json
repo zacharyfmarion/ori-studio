@@ -1164,6 +1164,7 @@
         "insideSwivelBehind": "Pli pivot intérieur derrière.",
         "mountain": "Pli montagne.",
         "mountainBothSides": "Pli montagne des deux côtés.",
+        "mountainPointsOntoLines": "Faites un pli montagne pour amener les points sur les deux lignes indiquées.",
         "mountainPrecrease": "Pliez en montagne et dépliez.",
         "mountainPrecreaseBothSides": "Pliez en montagne et dépliez des deux côtés.",
         "openSink": "Enfoncement ouvert.",
@@ -1200,7 +1201,8 @@
         "unfoldToStep": "Dépliez jusqu’à l’étape {{number}}.",
         "unsink": "Désenfoncer.",
         "valley": "Pli vallée.",
-        "valleyBothSides": "Pli vallée des deux côtés."
+        "valleyBothSides": "Pli vallée des deux côtés.",
+        "valleyPointsOntoLines": "Faites un pli vallée pour amener les points sur les deux lignes indiquées."
       },
       "mergedCard": "Étapes {{first}}–{{last}}",
       "mergePrecreases": "Fusionner les prépliages symétriques",
