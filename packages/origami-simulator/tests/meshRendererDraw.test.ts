@@ -33,6 +33,8 @@ interface Recorder {
   draws: DrawCall[];
   /** Every `drawArrays` — the edge pass — as `[first, count]`. */
   arrayDraws: [number, number][];
+  /** Per `drawArrays`, the kinds it was for (`u_edgeKinds`) and whether it wrote depth. */
+  arrayDrawKinds: { kinds: number | undefined; writesDepth: boolean }[];
   /** The last scalar uploaded to each named uniform, across both programs. */
   floats: Map<string, number>;
   /** The last float array uploaded to each named uniform. */
@@ -54,6 +56,8 @@ function recorder(): Recorder {
   const clearColors: [number, number, number, number][] = [];
   const draws: DrawCall[] = [];
   const arrayDraws: [number, number][] = [];
+  const arrayDrawKinds: { kinds: number | undefined; writesDepth: boolean }[] = [];
+  let writesDepth = true;
   const floats = new Map<string, number>();
   const arrays = new Map<string, number[]>();
   let blends = 0;
@@ -123,7 +127,9 @@ function recorder(): Recorder {
     depthFunc: () => {},
     colorMask: () => {},
     stencilMask: () => {},
-    depthMask: () => {},
+    depthMask: (flag: boolean) => {
+      writesDepth = flag;
+    },
     blendFunc: () => {},
     blendFuncSeparate: () => {
       blends += 1;
@@ -154,7 +160,10 @@ function recorder(): Recorder {
     uniformMatrix3fv: () => {},
     drawElements: (_mode: number, count: number, _type: number, offset: number) =>
       draws.push({ count, offset }),
-    drawArrays: (_mode: number, first: number, count: number) => arrayDraws.push([first, count]),
+    drawArrays: (_mode: number, first: number, count: number) => {
+      arrayDraws.push([first, count]);
+      arrayDrawKinds.push({ kinds: floats.get('u_edgeKinds'), writesDepth });
+    },
   } as unknown as WebGL2RenderingContext;
 
   const core = {
@@ -169,6 +178,7 @@ function recorder(): Recorder {
     clearColors,
     draws,
     arrayDraws,
+    arrayDrawKinds,
     floats,
     arrays,
     get blends() {
@@ -395,10 +405,42 @@ describe('drawing the aux pass and the erode', () => {
       { ...SETTINGS, showEdges: true },
       null
     );
-    expect(shown.arrayDraws).toEqual([[0, 6 * EDGE_QUAD_VERTICES]]);
-    expect(hidden.arrayDraws).toEqual(shown.arrayDraws);
+    // Shown, the aux ribbons are drawn first, then the rest over their ends.
+    expect(shown.arrayDraws).toEqual([
+      [0, 6 * EDGE_QUAD_VERTICES],
+      [0, 6 * EDGE_QUAD_VERTICES],
+    ]);
+    expect(shown.arrayDrawKinds.map((draw) => draw.kinds)).toEqual([1, 2]);
+    expect(hidden.arrayDraws).toEqual([[0, 6 * EDGE_QUAD_VERTICES]]);
+    // Never asked for one half: the program keeps its first value, every kind.
+    expect(hidden.arrayDrawKinds.map((draw) => draw.kinds ?? 0)).toEqual([0]);
     expect(shown.floats.get('u_showAux')).toBe(1);
     expect(hidden.floats.get('u_showAux')).toBe(0);
+  });
+
+  it('draws the aux ribbons without writing depth, so a line they meet lands on top', () => {
+    const shown = recorder();
+    new MeshRenderer(shown.core, fanTopology()).render(
+      CAMERA,
+      { ...SETTINGS, showEdges: true, showAux: true },
+      null
+    );
+    expect(shown.arrayDrawKinds.map((draw) => draw.writesDepth)).toEqual([false, true]);
+  });
+
+  it('draws one half of the creases when asked, and nothing for a half the range lacks', () => {
+    const settings = { ...SETTINGS, showEdges: true, showAux: true };
+    const halves = recorder();
+    const renderer = new MeshRenderer(halves.core, fanTopology());
+    renderer.render(CAMERA, settings, null, { edgeKinds: 'aux' });
+    renderer.render(CAMERA, settings, null, { edgeKinds: 'lines' });
+    expect(halves.arrayDrawKinds.map((draw) => draw.kinds)).toEqual([1, 2]);
+    // The fan's first four edges are its border: no aux among them, one draw.
+    const border = recorder();
+    const borderRenderer = new MeshRenderer(border.core, fanTopology());
+    borderRenderer.render(CAMERA, settings, null, { edgeRange: { start: 0, count: 4 } });
+    borderRenderer.render(CAMERA, settings, null, { edgeRange: { start: 0, count: 4 }, edgeKinds: 'aux' });
+    expect(border.arrayDrawKinds.map((draw) => draw.kinds ?? 0)).toEqual([0]);
   });
 
   it('draws every kind at its own pen’s width, by assignment code', () => {

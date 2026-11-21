@@ -51,7 +51,9 @@ export {
 } from './bsp.js';
 export { type SvgMeshTopology } from './projectedMesh.js';
 export {
+  DEFAULT_SCENE_LINE_WIDTH,
   meshToPaperScene,
+  withAuxLinesUnder,
   withLinesDrawnLate,
   type MeshToPaperSceneOptions,
   type PaperFaceItem,
@@ -69,7 +71,9 @@ export {
   COVER_EPS,
   coversLine,
   linesAsLateAsUncovered,
+  linesUnderTheLinesTheyMeet,
   type DrawShape,
+  type LinesUnderOptions,
 } from './lineDrawOrder.js';
 export { EDGE_CODE, type EdgeCode } from './edgeCodes.js';
 export {

@@ -35,9 +35,15 @@ describe('the edge shader source', () => {
   });
 
   it('clips a hidden aux ribbon in the vertex stage and inks a shown one in its pen', () => {
-    expect(EDGE_VERT).toContain(`v_assignment == ${EDGE_CODE.aux} && u_showAux < 0.5`);
+    expect(EDGE_VERT).toContain(`bool aux = v_assignment == ${EDGE_CODE.aux};`);
+    expect(EDGE_VERT).toContain('(aux && u_showAux < 0.5)');
     expect(EDGE_FRAG).toContain(`v_assignment == ${EDGE_CODE.aux}`);
     expect(EDGE_FRAG).toContain('uniform vec3 u_auxColor;');
+  });
+
+  it('clips the kinds a draw is not for: the aux creases, or every other kind', () => {
+    expect(EDGE_VERT).toContain('uniform float u_edgeKinds;');
+    expect(EDGE_VERT).toContain('aux ? u_edgeKinds > 1.5 : (u_edgeKinds > 0.5 && u_edgeKinds < 1.5)');
   });
 
   it('sizes and fades every drawn kind by its own entry, indexed by assignment', () => {

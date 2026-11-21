@@ -24,7 +24,7 @@ import { buildBsp, traverseBsp, type BspItem, type Vec3 } from './bsp.js';
 import { findVisiblePieces, type DrawnPiece } from './hiddenPieces.js';
 import { coplanarRuns, outlineOf, sourceFaceGroups, type RunPiece } from './coplanarRuns.js';
 import { shadeFor, type Vec3Like } from './shading.js';
-import { linesAsLateAsUncovered, type DrawShape } from './lineDrawOrder.js';
+import { linesAsLateAsUncovered, linesUnderTheLinesTheyMeet, type DrawShape } from './lineDrawOrder.js';
 import { EDGE_CODE } from './edgeCodes.js';
 import { EDGE_BOUNDARY_A, EDGE_BOUNDARY_B, edgeBoundaryFlags } from './edgeBoundary.js';
 import {
@@ -262,7 +262,8 @@ export interface MeshToPaperSceneOptions {
   showEdges?: boolean;
 }
 
-const DEFAULT_LINE_WIDTH = 1.2;
+/** The widest pen a scene is built for when its caller names none, in scene px. */
+export const DEFAULT_SCENE_LINE_WIDTH = 1.2;
 
 /**
  * The scene a mesh makes at a camera: faces and lines in painter's order, hidden
@@ -298,7 +299,7 @@ export function meshToPaperScene(
   options: MeshToPaperSceneOptions
 ): PaperScene {
   const sheet = options.sheet * camera.scale;
-  const lineWidth = Math.max(0, options.lineWidth ?? DEFAULT_LINE_WIDTH);
+  const lineWidth = Math.max(0, options.lineWidth ?? DEFAULT_SCENE_LINE_WIDTH);
   const layers = options.layers;
   const perspective = options.perspective ?? true;
   const projected = projectVertices(positions, camera, { perspective });
@@ -535,7 +536,34 @@ export function meshToPaperScene(
     );
   });
 
-  return { bounds, sheet, items: out };
+  return withAuxLinesUnder({ bounds, sheet, items: out }, lineWidth);
+}
+
+/**
+ * `scene` with its aux lines drawn beneath the other lines they meet, as the
+ * flat figure draws them (`linesUnderTheLinesTheyMeet`): where an aux line
+ * ends on an edge or a fold line, the edge is on top. `reach` is the widest
+ * pen in scene px. For a scene a producer builds, and for one stored before
+ * it did, whose aux lines can still paint over the ends of the edges they
+ * meet. Order is all that changes.
+ */
+export function withAuxLinesUnder(scene: PaperScene, reach: number = DEFAULT_SCENE_LINE_WIDTH): PaperScene {
+  const items = linesUnderTheLinesTheyMeet(scene.items, paperItemShape, {
+    reach,
+    groupOf: (item) => (item.kind === 'markup' ? undefined : item.group),
+  });
+  return items.every((item, index) => item === scene.items[index]) ? scene : { ...scene, items };
+}
+
+function paperItemShape(item: PaperItem): DrawShape {
+  switch (item.kind) {
+    case 'line':
+      return { kind: 'line', a: item.a, b: item.b, under: item.role === 'aux' };
+    case 'face':
+      return { kind: 'face', rings: item.rings };
+    default:
+      return { kind: 'fixed' };
+  }
 }
 
 /**

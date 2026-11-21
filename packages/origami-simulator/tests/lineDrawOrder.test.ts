@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { COVER_EPS, coversLine, linesAsLateAsUncovered, type DrawShape, type Point } from '../src/lineDrawOrder.js';
-import { meshToPaperScene, withLinesDrawnLate, type PaperItem, type PaperLineItem } from '../src/paperScene.js';
+import {
+  COVER_EPS,
+  coversLine,
+  linesAsLateAsUncovered,
+  linesUnderTheLinesTheyMeet,
+  type DrawShape,
+  type Point,
+} from '../src/lineDrawOrder.js';
+import {
+  meshToPaperScene,
+  withAuxLinesUnder,
+  withLinesDrawnLate,
+  type PaperItem,
+  type PaperLineItem,
+} from '../src/paperScene.js';
 import { prepareFoldModel } from '../src/prepare.js';
 import { OrigamiModel } from '../src/model.js';
 import { ReferenceSolver } from '../src/referenceSolver.js';
@@ -168,6 +181,90 @@ describe('a stored scene’s lines, drawn late', () => {
   it('never moves a line past markup, which is drawn over the paper', () => {
     const scene = { bounds: { minX: 0, minY: 0, maxX: 10, maxY: 10 }, sheet: 10, items: [crease, markup, own] };
     expect(withLinesDrawnLate(scene).items).toEqual([crease, markup, own]);
+  });
+});
+
+type UnderItem = Item & { group?: string };
+
+const aux = (id: string, a: Point, b: Point): UnderItem => ({ id, shape: { kind: 'line', a, b, under: true } });
+const under = (items: UnderItem[], reach = 1) =>
+  linesUnderTheLinesTheyMeet(items, (item) => item.shape, { reach, groupOf: (item) => item.group }).map(
+    (item) => item.id
+  );
+/** An aux line on SQUARE, ending on its bottom edge. */
+const ON_EDGE = aux('aux', [5, 0], [5, 8]);
+
+describe('aux lines under the lines they meet', () => {
+  it('goes beneath an edge it ends on', () => {
+    expect(under([face('own', SQUARE), EDGE, ON_EDGE])).toEqual(['own', 'aux', 'edge']);
+  });
+
+  it('stays where it is when it is already beneath', () => {
+    expect(under([face('own', SQUARE), ON_EDGE, EDGE])).toEqual(['own', 'aux', 'edge']);
+  });
+
+  it('goes beneath the first of several lines it meets', () => {
+    const side = line('side', [5, 8], [10, 8]);
+    expect(under([face('own', SQUARE), EDGE, side, ON_EDGE])).toEqual(['own', 'aux', 'edge', 'side']);
+  });
+
+  it('leaves alone a line its ink does not reach', () => {
+    const far = line('far', [0, 10], [10, 10]);
+    expect(under([face('own', SQUARE), far, ON_EDGE])).toEqual(['own', 'far', 'aux']);
+  });
+
+  it('goes back past a face that comes nowhere near it', () => {
+    const away = face('away', [
+      [20, 20],
+      [30, 20],
+      [30, 30],
+    ]);
+    expect(under([face('own', SQUARE), EDGE, away, ON_EDGE])).toEqual(['own', 'aux', 'edge', 'away']);
+  });
+
+  it('never goes back past a face it lies on, or one whose seam reaches its ink', () => {
+    expect(under([EDGE, face('own', SQUARE), ON_EDGE])).toEqual(['edge', 'own', 'aux']);
+    const beside = face('beside', [
+      [5.5, 1],
+      [9, 1],
+      [9, 6],
+    ]);
+    expect(under([face('own', SQUARE), EDGE, beside, ON_EDGE])).toEqual(['own', 'edge', 'beside', 'aux']);
+  });
+
+  it('never goes back past a fixed item, or out of its group', () => {
+    const fixed: UnderItem = { id: 'fixed', shape: { kind: 'fixed' } };
+    expect(under([face('own', SQUARE), EDGE, fixed, ON_EDGE])).toEqual(['own', 'edge', 'fixed', 'aux']);
+    const grouped = { ...ON_EDGE, group: 'g' };
+    expect(under([face('own', SQUARE), EDGE, grouped])).toEqual(['own', 'edge', 'aux']);
+    expect(under([face('own', SQUARE), { ...EDGE, group: 'g' }, grouped])).toEqual(['own', 'aux', 'edge']);
+  });
+
+  it('keeps the order of aux lines that go beneath one line, and is the drawing itself when none does', () => {
+    const other = aux('other', [5, 0], [2, 6]);
+    expect(under([face('own', SQUARE), EDGE, ON_EDGE, other])).toEqual(['own', 'aux', 'other', 'edge']);
+    expect(under([face('own', SQUARE), EDGE])).toEqual(['own', 'edge']);
+    expect(under([])).toEqual([]);
+  });
+});
+
+describe('a scene’s aux lines, under its other lines', () => {
+  const own: PaperItem = { kind: 'face', face: 0, side: 'front', rings: [SQUARE], shade: 1, hidden: false };
+  const edge: PaperLineItem = { kind: 'line', role: 'edge', a: [0, 0], b: [10, 0], onBoundary: [false, false], hidden: false };
+  const auxLine: PaperLineItem = { kind: 'line', role: 'aux', a: [5, 0], b: [5, 8], onBoundary: [true, false], hidden: false };
+  const bounds = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
+
+  it('draws an aux line before the edge it ends on, and changes nothing else', () => {
+    const scene = { bounds, sheet: 10, items: [own, edge, auxLine] };
+    const ordered = withAuxLinesUnder(scene, 1);
+    expect(ordered.items).toEqual([own, auxLine, edge]);
+    expect(ordered.bounds).toBe(bounds);
+    expect(ordered.sheet).toBe(10);
+  });
+
+  it('is the scene itself when its aux lines are already beneath', () => {
+    const scene = { bounds, sheet: 10, items: [own, auxLine, edge] };
+    expect(withAuxLinesUnder(scene, 1)).toBe(scene);
   });
 });
 

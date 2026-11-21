@@ -128,6 +128,15 @@ describe('the scene a mesh makes', () => {
     expect(facet.some((line) => touches(line, FAR_TRIANGLE))).toBe(false);
   });
 
+  it('draws an aux crease beneath the creases it meets', () => {
+    // The near triangle's last edge is aux, and meets the other two at its ends.
+    const mesh = {
+      ...topology(),
+      edgeAssignments: new Uint8Array([EDGE_CODE.mountain, EDGE_CODE.valley, EDGE_CODE.aux, EDGE_CODE.facet]),
+    };
+    expect(lines(scene({}, positions(), mesh)).map((line) => line.role)).toEqual(['aux', 'mountain', 'valley']);
+  });
+
   it('reads the paper side off the screen winding when no side is given', () => {
     // The far triangle is wound the other way in the fixture.
     const drawn = faces(scene({ showEdges: false }));

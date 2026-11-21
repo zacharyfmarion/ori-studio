@@ -313,7 +313,8 @@ describe('drawFrame edges', () => {
       EMPTY_HIGHLIGHTS
     );
     expect(strokes()).toHaveLength(5);
-    expect(styles[4]).toBe('rgb(0 255 0)');
+    // First, so the edges it meets are stroked over its ends.
+    expect(styles[0]).toBe('rgb(0 255 0)');
     expect(strokeStyles()).toHaveLength(5);
   });
 
@@ -335,7 +336,7 @@ describe('drawFrame edges', () => {
         paintWith({ showFaces: false, showEdges: true, showAux: true, auxColor, erode }),
         EMPTY_HIGHLIGHTS
       );
-      return strokes()[4]!;
+      return strokes()[0]!;
     };
     const whole = draw(0);
     const eroded = draw(0.1);
@@ -433,7 +434,7 @@ describe('drawFrame edges', () => {
         paintWith({ showFaces: false, showEdges: true, showAux: true, edgeWidthPx: 2, ...render }),
         EMPTY_HIGHLIGHTS
       );
-      return widths[4];
+      return widths[0];
     };
     expect(auxWidth({ auxWidthPx: 4 })).toBeCloseTo(4 * 0.7, 9);
     expect(auxWidth({})).toBeCloseTo(2 * 0.7, 9);
