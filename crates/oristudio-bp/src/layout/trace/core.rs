@@ -1,7 +1,8 @@
 use crate::error::BpResult;
 use crate::layout::pattern::LayoutPattern;
 use crate::layout::{
-    CornerType, LayoutConfiguration, LayoutRepository, Quadrant, start_end_points,
+    CornerType, LayoutConfiguration, LayoutRepository, NodeStart, Quadrant, Rect, ValidJunction,
+    start_end_points, start_point_for,
 };
 use crate::math::BpFraction;
 use crate::math::geometry::{Line, PathPoint, Point, Vector, get_intersection};
@@ -150,12 +151,19 @@ impl Trace {
         &self.side_diagonals
     }
 
+    /// `node_start` is the starting point specific to the node being traced
+    /// (see [`Quadrant::start_point_for`]). If it differs from `start`, the
+    /// region next to the hinge between the two is filled by the flaps inside
+    /// the node, so the side diagonal emerges from `node_start` instead of
+    /// `start`, and the outgoing ridges ending in the filled region are
+    /// terminated there.
     pub fn generate(
         &self,
         hinges: &[PathPoint],
         start: &Point,
         end: &Point,
         raw_mode: bool,
+        node_start: Option<&NodeStart>,
     ) -> BpResult<Option<Vec<Point>>> {
         let Some(ctx) = TraceContext::new(self, hinges)? else {
             return Ok(None);
@@ -171,11 +179,26 @@ impl Trace {
         );
         let mut ridges = self.create_filtered_ridges(start, end, &directional_vector);
 
-        let start_diagonal = self
+        let mut start_diagonal = self
             .side_diagonals
             .iter()
-            .find(|diagonal| diagonal.line_contains(start));
-        let Some(mut cursor) = ctx.get_initial_node(&mut ridges, start_diagonal)? else {
+            .find(|diagonal| diagonal.line_contains(start))
+            .cloned();
+        if let Some(diagonal) = &start_diagonal
+            && let Some(NodeStart {
+                point,
+                filled: Some(filled),
+            }) = node_start
+        {
+            start_diagonal = Some(apply_filled_region(
+                diagonal,
+                start,
+                point,
+                filled,
+                &mut ridges,
+            )?);
+        }
+        let Some(mut cursor) = ctx.get_initial_node(&mut ridges, start_diagonal.as_ref())? else {
             return Ok(None);
         };
         let mut path = vec![cursor.point.clone()];
@@ -249,6 +272,17 @@ impl Trace {
     }
 }
 
+/// Where tracing starts and ends for one quadrant direction of a node's
+/// contour; see [`RepoTrace::resolve_start_end`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct StartEnd {
+    pub start: Point,
+    pub end: Point,
+    /// The node-specific starting point (see [`Quadrant::start_point_for`]).
+    /// It is the same as `start` in most cases.
+    pub node_start: NodeStart,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepoTrace {
     trace: Trace,
@@ -299,15 +333,23 @@ impl RepoTrace {
         &self.leaves
     }
 
+    /// Determine the starting/ending point of tracing for the contour of a node
+    /// (given by its leaves).
+    ///
+    /// `junctions` is every valid junction of the design; see
+    /// [`Quadrant::start_point_for`].
     pub fn resolve_start_end(
         &self,
         filtered: &[Quadrant],
         all: &[Quadrant],
+        junctions: &[ValidJunction],
+        leaves: &BTreeSet<NodeId>,
         tree: &BpTree,
-    ) -> BpResult<[Point; 2]> {
+    ) -> BpResult<StartEnd> {
         let [start, end] = start_end_points(filtered, tree)?;
         let mut start = Point::from_numbers(start.x, start.y)?;
         let mut end = Point::from_numbers(end.x, end.y)?;
+        let mut node_start = start_point_for(filtered, junctions, leaves, tree)?;
         if filtered.len() != all.len() {
             let mut sorted = filtered.to_vec();
             sorted.sort_by(|a, b| a.w.partial_cmp(&b.w).unwrap_or(std::cmp::Ordering::Equal));
@@ -320,6 +362,10 @@ impl RepoTrace {
                 let b = all[first].flap;
                 if let Some(ridge) = self.intersection_ridge(a, b) {
                     start = ridge.line.p1.clone();
+                    node_start = NodeStart {
+                        point: start.clone(),
+                        filled: None,
+                    };
                 }
             }
             if let Some(last) = sorted
@@ -334,7 +380,11 @@ impl RepoTrace {
                 }
             }
         }
-        Ok([start, end])
+        Ok(StartEnd {
+            start,
+            end,
+            node_start,
+        })
     }
 
     fn intersection_ridge(&self, mut a: NodeId, mut b: NodeId) -> Option<&Ridge> {
@@ -471,7 +521,7 @@ pub fn get_next_intersection(
         let is_p1 = intersection.point.equals(&ridge.line().p1);
         let is_p2 = intersection.point.equals(&ridge.line().p2);
         if !ridge.is_side_diagonal()
-            && !is_shift_touchable(ridge.line(), &node.point, &node.vector, shift_angle)
+            && !is_shift_touchable(ridge, &node.point, &node.vector, shift_angle)
         {
             continue;
         }
@@ -489,6 +539,61 @@ pub fn get_next_intersection(
         }
     }
     Ok(result)
+}
+
+/// When the region next to the hinge between `start` and the node-specific
+/// starting point `point` is filled by the flaps inside the node, the filled
+/// region acts like a flap region: the side diagonal emerges from the far
+/// corner of the region on the hinge (the node-specific starting point), and a
+/// diagonal ridge emerges from the far corner of the region inside the flap,
+/// except that the outgoing ridges ending in the filled region are terminated
+/// there instead (in which case they cancel out with the emerging diagonal).
+fn apply_filled_region(
+    diagonal: &SideDiagonal,
+    start: &Point,
+    point: &Point,
+    filled: &Rect,
+    ridges: &mut Vec<TraceLine>,
+) -> BpResult<SideDiagonal> {
+    let count = ridges.len();
+    ridges.retain(|ridge| {
+        let (x, y) = ridge.line().p2.value();
+        !(ridge.target_as_ray() && filled.contains(x, y))
+    });
+    let terminated = ridges.len() != count;
+
+    // The side diagonal is shifted to the node-specific starting point
+    let v = diagonal.line.vector();
+    let shifted = SideDiagonal::new(
+        Line::from_point_vector(point.clone(), &v),
+        diagonal.p0.sub_vector(&start.sub_point(point)),
+    );
+
+    // The diagonal ridge from the inner corner, pointing outwards (i.e. away
+    // from the side corner)
+    if !terminated {
+        let (x, y) = point.value();
+        let vertical = x == start.x.value(); // Whether the hinge is vertical
+        let inner = if vertical {
+            Point::from_numbers(if x == filled.x1 { filled.x2 } else { filled.x1 }, y)?
+        } else {
+            Point::from_numbers(x, if y == filled.y1 { filled.y2 } else { filled.y1 })?
+        };
+        let outward = if diagonal.p0.sub_point(&diagonal.line.p1).dot(&v) > 0.0 {
+            v.negated()
+        } else {
+            v
+        };
+        ridges.push(
+            Ridge::with_type(
+                Line::from_point_vector(inner, &outward),
+                CornerType::Side,
+                None,
+            )
+            .into(),
+        );
+    }
+    Ok(shifted)
 }
 
 fn raw_mode_final_check(
@@ -564,10 +669,16 @@ fn is_closer(candidate: &RidgeIntersection, current: Option<&RidgeIntersection>)
                 || !current.line.is_side_diagonal() && candidate.angle < current.angle)
 }
 
-fn is_shift_touchable(ridge: &Line, from: &Point, vector: &Vector, angle: Option<f64>) -> bool {
+fn is_shift_touchable(
+    ridge: &TraceLine,
+    from: &Point,
+    vector: &Vector,
+    angle: Option<f64>,
+) -> bool {
+    let line = ridge.line();
     let rotated_vector = vector.rotate90();
-    let v1 = ridge.p1.sub_point(from);
-    let v2 = ridge.p2.sub_point(from);
+    let v1 = line.p1.sub_point(from);
+    let v2 = line.p2.sub_point(from);
     let r1 = v1.dot(&rotated_vector);
     let r2 = v2.dot(&rotated_vector);
     let d1 = v1.dot(vector);
@@ -575,8 +686,10 @@ fn is_shift_touchable(ridge: &Line, from: &Point, vector: &Vector, angle: Option
     (r1 > 0.0 || r2 > 0.0)
         && (d1 > 0.0
             || d2 > 0.0
+            // or, the ridge is a ray extending to the front
+            || ridge.target_as_ray() && d2 > d1
             || angle
-                .is_some_and(|angle| angle != 0.0 && get_angle(vector, &ridge.vector()) > angle))
+                .is_some_and(|angle| angle != 0.0 && get_angle(vector, &line.vector()) > angle))
 }
 
 fn candidate_rough_contour_lines(path: &[PathPoint]) -> BpResult<Vec<Line>> {
