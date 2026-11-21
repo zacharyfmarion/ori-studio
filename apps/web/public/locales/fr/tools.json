@@ -895,7 +895,7 @@
       "repeatAxesTouch": "Touchez un axe de symétrie dessiné sur le papier, ou placez-en un avec Placer la ligne, dans l’un ou l’autre panneau.",
       "repeatCommit": "Appuyez sur Entrée pour ajouter les plis répétés.",
       "repeatCommitTouch": "Touchez {{action}} pour ajouter les plis répétés.",
-      "repeatStart": "Choisissez la première étape à répéter. La plage se termine à l’étape affichée.",
+      "repeatRange": "Choisissez la première et la dernière étape à répéter. La répétition est ajoutée après l’étape affichée.",
       "reverseFinish": "Choisissez les rabats à inverser, puis appuyez sur Entrée.",
       "reverseFinishTouch": "Choisissez les rabats à inverser, puis touchez {{action}}.",
       "rotateCommit": "Appuyez sur Entrée pour ajouter la rotation.",

@@ -2,13 +2,15 @@
  * Repeat's window, as the plain descriptor the one Fold window renderer draws
  * (`components/fold/FoldToolWindow`).
  *
- * Repeat folds a range of steps — from the one chosen through the step on
- * screen — again across a symmetry axis, on the other side or behind as the
- * folded state says, and previews it as every tool previews its step, from
- * the moment the range and the axis are set (`useFoldRepeatTool`). Its
- * window:
+ * Repeat folds a range of steps — from the one chosen through another, by
+ * default the step on screen — again across a symmetry axis, on the other
+ * side or behind as the folded state says, after the step on screen, and
+ * previews it as every tool previews its step, from the moment the range and
+ * the axis are set (`useFoldRepeatTool`). Its window:
  *
- * - **Start with**: the range's first step, among the ones it can start from;
+ * - **Start with** and **End with**: the range's first and last steps, among
+ *   the ones it can start and end with — a range ending before the step on
+ *   screen is one already repeated, repeated again across another axis;
  * - **Symmetry axis**: the verified symmetry axes of the range's starting
  *   state, by where they run as the folded pane shows them — the canvas
  *   draws them too, to hover and click; or one located on either pane with
@@ -33,6 +35,7 @@ import { foldToolLabel } from '../tools/foldToolCatalog';
 import {
   lineModeSelect,
   settingsMeta,
+  type FoldStepChoice,
   type FoldToolHost,
   type FoldToolWindowModel,
   type FoldToolWindowVerbs,
@@ -67,8 +70,15 @@ export type FoldRepeatPhase =
 
 /** What Repeat's window is drawn from, beside every tool's view. */
 export interface FoldRepeatWindowView {
-  /** The range and the steps it may start with; null while there is none. */
-  range: { entries: readonly FoldPathEntry[]; starts: readonly FoldPathEntry[]; first: string; count: number } | null;
+  /** The range and the steps it may start and end with; null while there is none. */
+  range: {
+    entries: readonly FoldPathEntry[];
+    starts: readonly FoldPathEntry[];
+    first: string;
+    ends: readonly FoldPathEntry[];
+    last: string;
+    count: number;
+  } | null;
   /** The range's verified axes, each a line on the sheet and the side it repeats on; null while they are being found. */
   axes: readonly RepeatSymmetry[] | null;
   /** How the folded pane shows the step on screen, turned over and rotated: what the axes are named by; null while it has not landed. */
@@ -98,6 +108,7 @@ export interface FoldRepeatWindowView {
 /** Repeat's own calls, beside every tool's. */
 export interface FoldRepeatWindowVerbs {
   setFirst: (id: string) => void;
+  setLast: (id: string) => void;
   /** Mirror across the axis listed at `index`. */
   setAxis: (index: number) => void;
   /** Preview the axis listed at `index` in the taken one's place, while the pointer is on it; null when it leaves. */
@@ -111,6 +122,8 @@ export interface FoldRepeatWindowVerbs {
 
 /** Repeat's own controls in the window. */
 export interface FoldRepeatControls {
+  /** The range's last step, under its first (`FoldToolWindowModel.steps`); null while there is no range. */
+  end: FoldStepChoice | null;
   axis: {
     label: string;
     value: string | null;
@@ -144,35 +157,35 @@ function summaryOf(t: TFunction, count: number, individual: boolean, side: Repea
       ? t('panels:fold.repeat.individualCountBehind', {
           count,
           defaultValue_one: 'Repeat {{count}} operation behind, as an individual entry.',
-          defaultValue_other: 'Repeat {{count}} operations through the current step behind, as individual entries.',
+          defaultValue_other: 'Repeat {{count}} operations behind, as individual entries.',
         })
       : t('panels:fold.repeat.groupCountBehind', {
           count,
           defaultValue_one: 'Repeat {{count}} operation behind, as one numbered step.',
-          defaultValue_other: 'Repeat {{count}} operations through the current step behind, as one numbered step.',
+          defaultValue_other: 'Repeat {{count}} operations behind, as one numbered step.',
         });
   if (side === 'same')
     return individual
       ? t('panels:fold.repeat.individualCountSame', {
           count,
           defaultValue_one: 'Repeat {{count}} operation on the other side, as an individual entry.',
-          defaultValue_other: 'Repeat {{count}} operations through the current step on the other side, as individual entries.',
+          defaultValue_other: 'Repeat {{count}} operations on the other side, as individual entries.',
         })
       : t('panels:fold.repeat.groupCountSame', {
           count,
           defaultValue_one: 'Repeat {{count}} operation on the other side, as one numbered step.',
-          defaultValue_other: 'Repeat {{count}} operations through the current step on the other side, as one numbered step.',
+          defaultValue_other: 'Repeat {{count}} operations on the other side, as one numbered step.',
         });
   return individual
     ? t('panels:fold.repeat.individualCount', {
         count,
         defaultValue_one: 'Repeat {{count}} operation as an individual entry.',
-        defaultValue_other: 'Repeat {{count}} operations through the current step as individual entries.',
+        defaultValue_other: 'Repeat {{count}} operations as individual entries.',
       })
     : t('panels:fold.repeat.groupCount', {
         count,
         defaultValue_one: 'Repeat {{count}} operation as one numbered step.',
-        defaultValue_other: 'Repeat {{count}} operations through the current step as one numbered step.',
+        defaultValue_other: 'Repeat {{count}} operations as one numbered step.',
       });
 }
 
@@ -318,7 +331,10 @@ export function repeatToolWindow(
     instructions: {
       heading: t('tools:fold.window.instructions', 'Instructions'),
       items: [
-        t('tools:fold.steps.repeatStart', 'Choose the first step to repeat. The range ends at the step on screen.'),
+        t(
+          'tools:fold.steps.repeatRange',
+          'Choose the first and last steps to repeat. The repeat is added after the step on screen.'
+        ),
         host.coarse
           ? t(
               'tools:fold.steps.repeatAxesTouch',
@@ -353,6 +369,15 @@ export function repeatToolWindow(
         }
       : null,
     repeat: {
+      end: range
+        ? {
+            label: t('panels:fold.repeat.to', 'End with'),
+            value: range.last,
+            options: range.ends.map((entry) => ({ id: entry.id ?? entry.key, label: foldReturnEntryLabel(t, entry, range.entries) })),
+            disabled: readOnly || adding || choosing !== null,
+            set: (id) => own?.setLast(id),
+          }
+        : null,
       axis: {
         label: t('panels:fold.repeat.axis', 'Symmetry axis'),
         value: repeat.axis >= 0 ? String(repeat.axis) : null,

@@ -876,7 +876,7 @@
       "repeatAxesTouch": "Tippe auf eine auf dem Papier gezeichnete Symmetrieachse oder bestimme eine mit „Linie bestimmen“, in einer der beiden Ansichten.",
       "repeatCommit": "Drücke die Eingabetaste, um die wiederholten Faltungen hinzuzufügen.",
       "repeatCommitTouch": "Tippe auf {{action}}, um die wiederholten Faltungen hinzuzufügen.",
-      "repeatStart": "Wähle den ersten Schritt, der wiederholt wird. Der Bereich endet beim angezeigten Schritt.",
+      "repeatRange": "Wähle den ersten und den letzten Schritt, die wiederholt werden. Die Wiederholung wird nach dem angezeigten Schritt eingefügt.",
       "reverseFinish": "Wähle die Laschen für den Gegenbruch, dann drücke die Eingabetaste.",
       "reverseFinishTouch": "Wähle die Laschen für den Gegenbruch, dann tippe auf {{action}}.",
       "rotateCommit": "Drücke die Eingabetaste, um die Drehung hinzuzufügen.",

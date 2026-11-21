@@ -144,10 +144,21 @@ export type FoldSentenceExtent =
   | { kind: 'pinch'; at: FoldSentenceReference }
   | { kind: 'segment'; from: FoldSentenceReference; to: FoldSentenceReference };
 
+/** Where a Repeat's range lies when it ends before the step the repeat is added after: its ends' step numbers. */
+export interface RepeatEarlierRange {
+  first: number | null;
+  last: number | null;
+}
+
 /** A step as its sentence reads it. */
 export type FoldSentenceStep =
-  /** `behind`: its mirror reversed the layers, so the range was folded on the back. */
-  | { op: 'repeat'; count: number; behind?: true }
+  /**
+   * `behind`: its mirror reversed the layers, so the range was folded on the
+   * back. `earlier`: the range ends before the step the repeat is added
+   * after — its first and last steps' numbers, null for a turn or where they
+   * are not known — so it is not "the previous" operations.
+   */
+  | { op: 'repeat'; count: number; behind?: true; earlier?: RepeatEarlierRange }
   | { op: 'unfold-to'; sheet: boolean; number?: number }
   | { op: 'fold'; direction: FoldDirection; line: FoldSentenceLine; scope: FoldLayerScope; inserted?: boolean }
   /**
@@ -350,6 +361,7 @@ export function foldStepSentence(t: TFunction, step: FoldSentenceStep): string {
       // sentence by a key of its own so the full stop is the language's.
       return t('panels:fold.sentence.turn', '{{turn}}.', { turn: turnName(step.turn, t) });
     case 'repeat':
+      if (step.earlier) return repeatEarlierSentence(t, step.count, step.earlier, step.behind === true);
       if (step.behind)
         return t('panels:fold.repeat.sentenceBehind', {
           count: step.count,
@@ -398,4 +410,31 @@ function sinkSentence(t: TFunction, kind: FoldSinkSentenceKind): string {
     case 'unsink':
       return t('panels:fold.sentence.unsink', 'Unsink the point: pull its tip back out.');
   }
+}
+
+/**
+ * A Repeat whose range ends before the step it is added after: its steps by
+ * number — a radial repeat says which steps it folds again — or, where an end
+ * is a turn and has none, how many earlier operations.
+ */
+function repeatEarlierSentence(t: TFunction, count: number, { first, last }: RepeatEarlierRange, behind: boolean): string {
+  if (first !== null && last !== null && first === last)
+    return behind
+      ? t('panels:fold.repeat.sentenceStepBehind', 'Repeat step {{number}} behind.', { number: first })
+      : t('panels:fold.repeat.sentenceStep', 'Repeat step {{number}} on the other side.', { number: first });
+  if (first !== null && last !== null)
+    return behind
+      ? t('panels:fold.repeat.sentenceStepsBehind', 'Repeat steps {{first}}–{{last}} behind.', { first, last })
+      : t('panels:fold.repeat.sentenceSteps', 'Repeat steps {{first}}–{{last}} on the other side.', { first, last });
+  return behind
+    ? t('panels:fold.repeat.sentenceEarlierBehind', {
+        count,
+        defaultValue_one: 'Repeat an earlier operation behind.',
+        defaultValue_other: 'Repeat {{count}} earlier operations behind.',
+      })
+    : t('panels:fold.repeat.sentenceEarlier', {
+        count,
+        defaultValue_one: 'Repeat an earlier operation on the other side.',
+        defaultValue_other: 'Repeat {{count}} earlier operations on the other side.',
+      });
 }

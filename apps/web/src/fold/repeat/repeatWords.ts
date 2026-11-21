@@ -20,8 +20,9 @@ export interface RepeatStop {
 /**
  * What Repeat's window lets the user change about a stopped repeat, which its
  * advice offers: another of the starting model's symmetry axes, and a range
- * that starts after the operation that stopped it (the range always ends at
- * the step on screen). Showing the steps individually is no remedy: it
+ * that starts after the operation that stopped it. (A range that ends before
+ * it is offered too, but repeats only part of what was asked.) Showing the
+ * steps individually is no remedy: it
  * changes how a repeat is saved, not whether it folds. Failing both, the
  * other side can still be folded with the tools, whose own window words
  * their refusals with fixes.

@@ -895,7 +895,7 @@
       "repeatAxesTouch": "Toca un eje de simetría dibujado en el papel, o sitúa uno con Situar la línea, en cualquiera de los dos paneles.",
       "repeatCommit": "Pulsa Intro para añadir los pliegues repetidos.",
       "repeatCommitTouch": "Toca {{action}} para añadir los pliegues repetidos.",
-      "repeatStart": "Elige el primer paso que se repite. El rango termina en el paso que está en pantalla.",
+      "repeatRange": "Elige el primer y el último paso que se repiten. La repetición se añade después del paso que está en pantalla.",
       "reverseFinish": "Elige qué solapas se invierten y pulsa Intro.",
       "reverseFinishTouch": "Elige qué solapas se invierten y toca {{action}}.",
       "rotateCommit": "Pulsa Intro para añadir el giro.",

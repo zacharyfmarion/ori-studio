@@ -53,11 +53,13 @@ const nextBranch = () => void moveFoldReader('nextBranch');
 export function useFoldStepStrip(view: FoldSequenceView): FoldStepStripModel {
   const { t } = useTranslation();
   const { document, paper, entries, words, cursor, pending, progress, failed } = view;
-  // Repeat's range, lit on its cards while the tool is in hand: its first step through the step on screen.
+  // Repeat's range, lit on its cards while the tool is in hand: its first step through its last.
   const repeating = useFoldTools((state) => state.tool === 'repeat');
   const repeatFirst = useFoldTools((state) => state.repeatFirst);
-  const range = repeating ? repeatRange(entries, cursor, repeatFirst) : null;
+  const repeatLast = useFoldTools((state) => state.repeatLast);
+  const range = repeating ? repeatRange(entries, cursor, repeatFirst, repeatLast) : null;
   const rangeStart = range?.start ?? -1;
+  const rangeEnd = range?.end ?? -1;
   // Each card pictures its landed state, kept by its fingerprint across replays, with
   // the layer spread the folded pane shows it with.
   const pictures = useMemo(
@@ -121,7 +123,7 @@ export function useFoldStepStrip(view: FoldSequenceView): FoldStepStripModel {
   return {
     cards:
       rangeStart > 0
-        ? cards.map((card) => ({ ...card, repeatSource: card.entry !== null && card.entry >= rangeStart && card.entry <= cursor }))
+        ? cards.map((card) => ({ ...card, repeatSource: card.entry !== null && card.entry >= rangeStart && card.entry <= rangeEnd }))
         : cards,
     active,
     label: stripLabel(t),

@@ -895,7 +895,7 @@
       "repeatAxesTouch": "Toque em um eixo de simetria desenhado no papel, ou localize um com Localizar a linha, em qualquer um dos dois painéis.",
       "repeatCommit": "Pressione Enter para adicionar as dobras repetidas.",
       "repeatCommitTouch": "Toque em {{action}} para adicionar as dobras repetidas.",
-      "repeatStart": "Escolha o primeiro passo a repetir. O intervalo termina no passo mostrado na tela.",
+      "repeatRange": "Escolha o primeiro e o último passo a repetir. A repetição é adicionada depois do passo mostrado na tela.",
       "reverseFinish": "Escolha quais abas se invertem e pressione Enter.",
       "reverseFinishTouch": "Escolha quais abas se invertem e toque em {{action}}.",
       "rotateCommit": "Pressione Enter para adicionar o giro.",

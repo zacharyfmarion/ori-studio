@@ -1,8 +1,11 @@
 /**
- * What the Repeat tool repeats, and across which axis (plan
- * `fold-sequence-tools`): the range — from a step the folder chooses through
- * the step on screen — the state before it, which its symmetry axes are found
- * on, and which of those axes is taken. A drawn axis is `repeatDrawn`'s.
+ * What the Repeat tool repeats, and across which axis (plans
+ * `fold-sequence-tools`, `repeat-range-end`): the range — from a step the
+ * folder chooses through another, by default the step on screen — the state
+ * before it, which its symmetry axes are found on, and which of those axes is
+ * taken. Wherever the range ends, the repeat is added after the step on
+ * screen: a range repeated once can be repeated again, across another axis.
+ * A drawn axis is `repeatDrawn`'s.
  *
  * Pure.
  */
@@ -17,29 +20,51 @@ export interface RepeatRange {
    * landed — the only starts a repeat can be prepared from.
    */
   starts: readonly FoldPathEntry[];
+  /**
+   * The steps the range may end with, in path order: its first step, and each
+   * after it through the step on screen while every step up to it has landed.
+   */
+  ends: readonly FoldPathEntry[];
   /** The range's first step. */
   first: FoldPathEntry;
   /** Its index in the path. */
   start: number;
+  /** The range's last step: the step on screen, unless an earlier one was chosen. */
+  last: FoldPathEntry;
+  /** Its index in the path. */
+  end: number;
   /** The state before the range — the flat sheet, or a step — on which its axes are found. */
   baseline: FoldPathEntry;
-  /** How many operations the range holds, the step on screen's included. */
+  /** How many operations the range holds, first through last. */
   count: number;
 }
 
 /**
- * The range from `chosen` — while it is one of the starts — or else from the
- * step on screen, through the step on screen; null at the flat sheet, and
- * while the step on screen has not landed.
+ * The range from `chosenFirst` — while it is one of the starts — or else from
+ * the step on screen, through `chosenLast` — while it is one of the ends — or
+ * else through the step on screen; null at the flat sheet, and while the step
+ * on screen has not landed, which the repeat is added after.
  */
-export function repeatRange(entries: readonly FoldPathEntry[], cursor: number, chosen: string | null): RepeatRange | null {
+export function repeatRange(
+  entries: readonly FoldPathEntry[],
+  cursor: number,
+  chosenFirst: string | null,
+  chosenLast: string | null
+): RepeatRange | null {
   if (cursor < 1 || cursor >= entries.length) return null;
-  const starts = entries.slice(1, cursor + 1).filter((entry, k) => entry.session.state !== null && entries[k]!.session.state !== null);
   const here = entries[cursor]!;
-  const first = starts.find((entry) => entry.id === chosen) ?? (starts.includes(here) ? here : null);
+  if (here.session.state === null) return null;
+  const starts = entries.slice(1, cursor + 1).filter((entry, k) => entry.session.state !== null && entries[k]!.session.state !== null);
+  const first = starts.find((entry) => entry.id === chosenFirst) ?? (starts.includes(here) ? here : null);
   if (!first) return null;
   const start = entries.indexOf(first);
-  return { starts, first, start, baseline: entries[start - 1]!, count: cursor - start + 1 };
+  const ends: FoldPathEntry[] = [];
+  for (let at = start; at <= cursor && entries[at]!.session.state !== null; at++) ends.push(entries[at]!);
+  // A last step before the first, or off the path, gives way to the step on screen.
+  const last = ends.find((entry) => entry.id === chosenLast) ?? (ends.includes(here) ? here : null);
+  if (!last) return null;
+  const end = entries.indexOf(last);
+  return { starts, ends, first, start, last, end, baseline: entries[start - 1]!, count: end - start + 1 };
 }
 
 /** Two lines alike, whichever way each is written: Repeat's tolerance on its normal and offset. */

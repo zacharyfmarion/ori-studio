@@ -857,7 +857,7 @@
       "repeatAxesTouch": "轻点纸上画出的对称轴，或用“确定折线”在任一窗格中确定一条轴。",
       "repeatCommit": "按 Enter 添加重复的折叠。",
       "repeatCommitTouch": "轻点“{{action}}”添加重复的折叠。",
-      "repeatStart": "选择要重复的第一个步骤。范围在屏幕上显示的步骤处结束。",
+      "repeatRange": "选择要重复的第一个和最后一个步骤。重复会添加在屏幕上显示的步骤之后。",
       "reverseFinish": "选择要翻折的翼片，然后按 Enter。",
       "reverseFinishTouch": "选择要翻折的翼片，然后轻点“{{action}}”。",
       "rotateCommit": "按 Enter 添加这次旋转。",

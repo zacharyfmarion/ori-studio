@@ -34,6 +34,16 @@ describe('foldStepSentence', () => {
     expect(foldStepSentence(t, { op: 'repeat', count: 1, behind: true })).toBe('Repeat the previous operation behind.');
   });
 
+  it('says which earlier steps a repeat folds again when its range ends before the step it is added after', () => {
+    expect(foldStepSentence(t, { op: 'repeat', count: 3, earlier: { first: 1, last: 3 } })).toBe('Repeat steps 1–3 on the other side.');
+    expect(foldStepSentence(t, { op: 'repeat', count: 1, earlier: { first: 2, last: 2 } })).toBe('Repeat step 2 on the other side.');
+    expect(foldStepSentence(t, { op: 'repeat', count: 3, behind: true, earlier: { first: 1, last: 3 } })).toBe('Repeat steps 1–3 behind.');
+    expect(foldStepSentence(t, { op: 'repeat', count: 1, behind: true, earlier: { first: 2, last: 2 } })).toBe('Repeat step 2 behind.');
+    // An end that is a turn has no number: how many, then.
+    expect(foldStepSentence(t, { op: 'repeat', count: 2, earlier: { first: null, last: 3 } })).toBe('Repeat 2 earlier operations on the other side.');
+    expect(foldStepSentence(t, { op: 'repeat', count: 1, behind: true, earlier: { first: null, last: null } })).toBe('Repeat an earlier operation behind.');
+  });
+
   it('says a half fold corner to corner as the design writes it, mover first', () => {
     const halfDiagonal: FoldSentenceLine = {
       via: 'axiom',

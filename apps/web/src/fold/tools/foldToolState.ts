@@ -274,10 +274,16 @@ export interface FoldToolState {
   unfoldTarget: { id: string | null } | null;
   /**
    * Repeat's range start, by id; null for the step on screen, a range of one.
-   * The range always ends at the step on screen. Let go each time the tool is
-   * taken up.
+   * Let go each time the tool is taken up.
    */
   repeatFirst: string | null;
+  /**
+   * Repeat's range end, by id; null for the step on screen. The repeat is
+   * added after the step on screen wherever the range ends, so a range
+   * repeated once can be repeated again across another axis. Let go each
+   * time the tool is taken up.
+   */
+  repeatLast: string | null;
   /**
    * The symmetry axis the folder last chose or drew, by its sheet line:
    * Repeat's axis whenever it is one of the range's verified axes. Kept for
@@ -333,6 +339,7 @@ export const FOLD_TOOL_INITIAL: FoldToolState = {
   resume: 'valley',
   unfoldTarget: null,
   repeatFirst: null,
+  repeatLast: null,
   repeatAxis: null,
   repeatAxisSource: 'listed',
   repeatIndividual: false,
@@ -599,12 +606,14 @@ export interface FoldTools {
   setUnfoldTarget(id: string | null): void;
   /** Start Repeat's range at this step. */
   setRepeatFirst(id: string): void;
+  /** End Repeat's range at this step. */
+  setRepeatLast(id: string): void;
   /** Mirror across this axis, by its sheet line: what Repeat remembers as the last axis chosen, and how it was (offered, by default). */
   setRepeatAxis(axis: FoldModelLine, source?: FoldToolState['repeatAxisSource']): void;
   setRepeatIndividual(individual: boolean): void;
   /**
    * Take up the tool that rebuilds `rebuild`'s step in place, its settings
-   * read from the step: an unfold's target, a repeat's range start and axis.
+   * read from the step: an unfold's target, a repeat's range and axis.
    * The step's parent must be on screen.
    */
   rebuildStep(rebuild: FoldToolRebuild): void;
@@ -692,7 +701,7 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
             resume: isOneStepTool(state.tool) ? state.resume : state.tool,
             rebuild: null,
             ...(tool === 'unfold-to' ? { unfoldTarget: null } : {}),
-            ...(tool === 'repeat' ? { repeatFirst: null } : {}),
+            ...(tool === 'repeat' ? { repeatFirst: null, repeatLast: null } : {}),
           };
         }
         return { ...restart(state), tool, rebuild: null };
@@ -1032,6 +1041,10 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
       set((state) => (state.repeatFirst === repeatFirst ? state : { ...state, repeatFirst }));
     },
 
+    setRepeatLast(repeatLast) {
+      set((state) => (state.repeatLast === repeatLast ? state : { ...state, repeatLast }));
+    },
+
     setRepeatAxis(repeatAxis, repeatAxisSource = 'listed') {
       set((state) =>
         state.repeatAxis &&
@@ -1053,7 +1066,14 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
       set((state) =>
         rebuild.tool === 'unfold-to'
           ? { ...state, rebuild, unfoldTarget: { id: rebuild.expected.target } }
-          : { ...state, rebuild, repeatFirst: rebuild.expected.source.first, repeatAxis: rebuild.expected.axis, repeatAxisSource: 'listed' }
+          : {
+              ...state,
+              rebuild,
+              repeatFirst: rebuild.expected.source.first,
+              repeatLast: rebuild.expected.source.last,
+              repeatAxis: rebuild.expected.axis,
+              repeatAxisSource: 'listed',
+            }
       );
     },
 
