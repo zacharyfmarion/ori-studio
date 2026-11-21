@@ -74,6 +74,25 @@ describe('spreadOpening', () => {
     expect(spreadOpening(input, heights)).toMatchObject({ opening: 0, steep: expect.closeTo(0.1, 12) });
   });
 
+  it('reads the slope only the steepest 1% of the paper passes: its 99th percentile by area', () => {
+    // Side by side, a face of area `gentle` rising 0.1 along x and one of area `steep` rising 1.
+    const two = (gentle: number, steep: number) => {
+      const input: SpreadInput = {
+        xy: [[0, 0], [2 * gentle, 0], [0, 1], [3, 0], [3 + 2 * steep, 0], [3, 1]],
+        faces: [[0, 1, 2], [3, 4, 5]],
+        triangles: [[0, 1, 2], [3, 4, 5]],
+        triangleFaces: [0, 1],
+        orders: [],
+        cells: [],
+      };
+      return spreadOpening(input, [0, 0.2 * gentle, 0, 0, 2 * steep, 0]).steep;
+    };
+    // 2% of the paper steep is more than the steepest 1%, so it sets the slope; 0.5% is not.
+    // With the sliver above, this holds the percentile between 98% and 99.5%: version 2 depends on it.
+    expect(two(0.98, 0.02)).toBeCloseTo(1, 12);
+    expect(two(0.995, 0.005)).toBeCloseTo(0.1, 12);
+  });
+
   it('reads each cell from the triangle of a bent face that holds its centroid', () => {
     // Face 1 bends along its diagonal: its corner (1, 0) is lifted and (1, 1)
     // is not, so its lower-right triangle rises (s, −s) and its upper-left one

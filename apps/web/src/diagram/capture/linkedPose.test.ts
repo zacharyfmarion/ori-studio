@@ -889,6 +889,23 @@ describe('equal opening in Perspective 3D (implementation-plans/spread-equal-ope
       .toEqual(DEFAULT_CONNECTED_SPREAD);
   });
 
+  it('restarts a spread under a Diagram kept from Perspective 3D by version 2, so it goes back at equal opening', async () => {
+    const { session } = sessionWith();
+    const shown: DiagramCpRender = { ...SAVED, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } };
+    const away = renderOf(await pose(session, shown, { verb: 'spread-presentation', kind: 'diagram' }))!;
+    // Spread Layers turned off and on; Default chosen again after another kind.
+    const off = renderOf(await pose(session, away, { verb: 'spread-layers' }))!;
+    const turnedOn = renderOf(await pose(session, off, { verb: 'spread-layers' }))!;
+    const affine = renderOf(await pose(session, away, { verb: 'spread-kind', kind: 'affine' }))!;
+    const chosen = renderOf(await pose(session, affine, { verb: 'spread-kind', kind: 'connected' }))!;
+    for (const [name, restarted] of [['spread-layers', turnedOn], ['spread-kind', chosen]] as const) {
+      expect(restarted, name).toMatchObject({ presentation: { kind: 'diagram', camera }, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } });
+      const back = await pose(session, restarted, { verb: 'spread-presentation', kind: 'perspective' });
+      expect(spreadDrawn(back), name).toBe(true);
+      expect(renderOf(back), name).toEqual({ ...restarted, presentation: PERSPECTIVE });
+    }
+  });
+
   it('updates a saved picture to version 2 at the amount it is given, still in Perspective 3D', async () => {
     const { session } = sessionWith();
     const updated = await pose(session, SAVED, { verb: 'spread-equal-opening', amount: 0.0185 });

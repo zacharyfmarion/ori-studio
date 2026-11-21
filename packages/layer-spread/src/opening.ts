@@ -17,7 +17,7 @@ export interface SpreadOpening {
    * averaged by the cell's area. Tilt a whole stack shares does not count.
    */
   opening: number;
-  /** How steep the steepest paper is: the 99th percentile of `|∇h|` over triangles, by area. */
+  /** How steep all but the steepest 1% of the paper is: the 99th percentile of `|∇h|` over triangles, by area. */
   steep: number;
   /** How high any of the paper rises: the largest `|h|`, over the diagonal of the flat paper's box. */
   reach: number;

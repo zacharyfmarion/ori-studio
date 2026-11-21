@@ -16,12 +16,14 @@ import {
   setStepPicture,
   setUploadPose,
   type DiagramAnnotation,
+  type DiagramCpRender,
   type DiagramDocument,
+  type DiagramScenePicture,
   type DiagramStep,
   type KnownDiagramAnnotation,
   type QuarterTurns,
 } from '../document/diagramDocument';
-import { storableScene } from '../capture/captureGeometry';
+import { storableScene, storedSceneStep } from '../capture/captureGeometry';
 import { storedSceneJson } from '../document/diagramFile';
 import {
   cpSource,
@@ -242,9 +244,20 @@ describe('a Perspective 3D picture updated to equal opening (Update)', () => {
   // Update rounds the amount that keeps the picture, which can change the stored scene's key but not the picture.
   const updated = (amount: number) => ({ ...SAVED, spread: { ...V1, version: 2 as const, amount } });
 
-  function linkedUpdate(render: typeof SAVED | ReturnType<typeof updated>, before = SAVED) {
+  /** The step posed from `before`, its picture replaced by `picture` posed from `render`: by default drawn the same, under another key. */
+  function linkedUpdate(render: DiagramCpRender, before: DiagramCpRender = SAVED, picture = scenePicture('scene-v2')) {
     const step = cpStep('step-1', before, scenePicture('scene-v1'));
-    return stepsIn(setLinkedPicture(annotated(step), 'step-1', { source: cpSource(render), picture: scenePicture('scene-v2') }))[0]!;
+    return stepsIn(setLinkedPicture(annotated(step), 'step-1', { source: cpSource(render), picture }))[0]!;
+  }
+
+  /** The replacing picture with its paper's far corner drawn `by` px further right. */
+  function cornerMoved(by: number): DiagramScenePicture {
+    const picture = scenePicture('scene-v2');
+    const scene = structuredClone(storedScene(picture)!);
+    const sheet = scene.items.find((item) => item.kind === 'face')!;
+    const [x, y] = sheet.rings[0]![2]!;
+    sheet.rings[0]![2] = [x + by, y];
+    return { ...picture, sceneJson: storedSceneJson(scene)! };
   }
 
   it('keeps the marks in step, where they were, when the picture is kept', () => {
@@ -252,12 +265,37 @@ describe('a Perspective 3D picture updated to equal opening (Update)', () => {
     expect(after.annotations).toEqual([ARROW]);
     expect(after.annotatedPictureKey).toBe('scene-v2');
     expect(annotationsOutOfStep(after)).toBe(false);
+    // Drawn a grid step otherwise, as rounding the amount can: the same picture.
+    expect(annotationsOutOfStep(linkedUpdate(updated(0.1854), SAVED, cornerMoved(storedSceneStep(100))))).toBe(false);
   });
 
-  it('says the picture changed when the Update came down to 100%, or when the step only entered Perspective 3D', () => {
+  it('says the picture changed when the Update draws it apart from the one it replaces, as an older build drew it', () => {
+    expect(annotationsOutOfStep(linkedUpdate(updated(0.1854), SAVED, cornerMoved(1)))).toBe(true);
+  });
+
+  it('says the picture changed when the Update came down to 100%, or anything but the version moved', () => {
     expect(annotationsOutOfStep(linkedUpdate(updated(2)))).toBe(true);
-    const entered = linkedUpdate(updated(2), { ...SAVED, presentation: { ...PERSPECTIVE, kind: 'diagram' } } as unknown as typeof SAVED);
-    expect(annotationsOutOfStep(entered)).toBe(true);
+    // Shown in Perspective 3D for the first time: version 2 at the same amount, which draws it otherwise.
+    const { presentation: _shown, ...flat } = SAVED;
+    expect(annotationsOutOfStep(linkedUpdate(updated(0.4), { ...flat, spread: { ...V1, amount: 0.4 } }))).toBe(true);
+    // The Amount moved at one version, either one.
+    expect(annotationsOutOfStep(linkedUpdate(updated(0.6), updated(0.5)))).toBe(true);
+    expect(annotationsOutOfStep(linkedUpdate({ ...SAVED, spread: { ...V1, amount: 0.6 } }, { ...SAVED, spread: { ...V1, amount: 0.5 } }))).toBe(true);
+    // Another camera.
+    const camera = { yaw: 0.9, pitch: -0.4, zoom: 1 };
+    expect(annotationsOutOfStep(linkedUpdate({ ...updated(0.1854), presentation: { ...PERSPECTIVE, camera } }))).toBe(true);
+  });
+
+  it('keeps an enlarged step’s marks in step the same way, its frame where it was', () => {
+    const frame = { centre: [0.4, 0.45] as [number, number], radius: 0.1 };
+    const step = { ...cpStep('step-1', SAVED, scenePicture('scene-v1')), zoom: { from: 'area-gone', shape: 'circle' as const, frame } };
+    const after = stepsIn(setLinkedPicture(annotated(step), 'step-1', { source: cpSource(updated(0.1854)), picture: scenePicture('scene-v2') }))[0]!;
+    expect(after.zoom!.frame).toEqual(frame);
+    expect(after.annotations).toEqual([ARROW]);
+    expect(after.annotatedPictureKey).toBe('scene-v2');
+    expect(annotationsOutOfStep(after)).toBe(false);
+    const capped = stepsIn(setLinkedPicture(annotated(step), 'step-1', { source: cpSource(updated(2)), picture: scenePicture('scene-v2') }))[0]!;
+    expect(annotationsOutOfStep(capped)).toBe(true);
   });
 
   it('keeps a Fold step’s marks in step the same way', () => {

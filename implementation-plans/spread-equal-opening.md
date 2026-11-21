@@ -8,10 +8,11 @@ already saved.
 
 Today Amount multiplies the spread solver's own heights, and Perspective 3D
 doubles that. The solver sizes those heights by the deepest stack and stops
-enlarging them at the first steep triangle. So at 100% a two-face fold's
-layers part by 40° (its leaves end up 46° apart) while an 86-deep model (bodo)
-barely parts: across 463 cpoogle designs, 100% opens neighbouring layers
-anywhere from 1.8° to 52° (median 12.4°), measured as `atan(4 · opening)`.
+enlarging them at the first steep triangle. So at 100%, in Zach's example
+file (`separation_bug_example.osf`), a two-face fold's layers part by 40° (its
+leaves end up 46° apart) while an 86-deep model (bodo) parts by 1.2°. Across
+463 cpoogle designs, 100% opens neighbouring layers anywhere from 1.8° to 52°
+(median 12.4°), measured as `atan(4 · opening)`.
 Zach, 2026-11-20: "doesn't allow for much separation with complex models but
 is HUGE for small simple models".
 
@@ -33,7 +34,10 @@ doubled) neighbouring layers open 12.4° on average — the corpus median, which
 keeps a typical design as it is today. Two limits hold a gain back, and
 neither ever takes a model below version 1:
 
-- The steepest 1% of the paper stays within 65° at 100%.
+- All but the steepest 1% of the paper (its area-weighted 99th-percentile
+  slope, `steep`) stays within 65° at 100%. The slivers in that 1% may be
+  steeper, which is the point of the percentile: at 100%, 90 of 463 designs
+  have some paper past 65°, up to 84.8° (Styracosaurus).
 - No point rises above half the paper's diagonal at 100% (`HIGHEST_AT_FULL`).
   Height is slope times lever arm, so a deep strip-shaped stack can open by
   slope alone and still rise past the Perspective eye, which stands about two
@@ -41,12 +45,13 @@ neither ever takes a model below version 1:
   Top).
 
 A solve that opens nothing keeps 1; no gain passes 20. On the corpus as
-shipped: k p10 0.46, p50 1.00, p90 2.09, max 6.93; bodo 10.8, two-face fold
-0.26, Lotus 0.80. The limits hold back 39 of 463 designs (29 by steepness, 10
-by height; 20 never binds), which open 3.3° to 12.3° at 100% instead of 12.4°.
-At 100% the highest point is a median 0.19 of the diagonal (0.5 at most), and
-the steepest 1% a median 40° (65° at most). The measure costs a median 0.17 ms
-per solve (26 ms at worst) and is cached per solution.
+shipped: k p10 0.46, p50 1.00, p90 2.09, max 6.93 (Styracosaurus), min 0.17;
+Lotus 0.80. In Zach's example file, outside the corpus: bodo 10.8, the
+two-face fold 0.26. The limits hold back 39 of 463 designs (29 by steepness,
+10 by height; 20 never binds), which open 3.3° to 12.3° at 100% instead of
+12.4°. At 100% the highest point is a median 0.19 of the diagonal (0.5 at
+most), and the 99th-percentile slope a median 40° (65° at most). The measure
+costs a median 0.17 ms per solve (26 ms at worst) and is cached per solution.
 
 These numbers and what `spreadOpening` measures define version 2 as saved
 files draw it: recalibrating them is version 3, and version 2 keeps them.
@@ -68,8 +73,11 @@ steps as possible:
   comes back at its own version — a version 1 picture as it was saved, with its
   Update. Diagram asked of a step never shown in Perspective writes no
   presentation, so "has a presentation" keeps meaning "has been shown there".
-- A Default spread started fresh while the step is in Perspective 3D (Spread
-  Layers turned on, or Default chosen).
+- A Default spread started fresh (Spread Layers turned on, or Default chosen)
+  in a step that has a presentation: shown in Perspective 3D, or in Diagram
+  kept from it. In Diagram it draws as version 1 would; kept at version 1, a
+  spread this build just made would come back to Perspective 3D by the older
+  scale, with an Update for a picture no one saved (review round 2, F1).
 - The Update action below.
 
 Everything else keeps the version it has: a remembered pose restored by Show
@@ -88,16 +96,35 @@ converts the step to version 2 at `amount / k`, which draws the same picture,
 capped at 100%: only pictures that opened past the new 100% (the two-face fold)
 come down. `k` is measured from the open Pose's own solve; a Fold step's pane
 reads the solve the open detail shares (`useFoldSpreadView`'s `solved`). One
-undo step, counted as the pose action `spread_equal_opening`. The step's marks
-stay in step with an Update that keeps the picture, though rounding the amount
-can change the stored scene's key (`equalOpeningKept`); an Update that came
-down to 100% says the picture changed.
+undo step, counted as the pose action `spread_equal_opening`. Update is held
+while a capture runs, and not offered where it could never run: a read-only
+diagram, or a step with marks a newer build made.
+
+**Marks after an Update.** They stay in step when the Update kept the picture
+(`equalOpeningKept`): its fields say only the version changed, below 100%,
+and the new picture draws as the old one did (`scenesDrawAlike`), every point
+of each within 2e-4 of the picture's longer side of the other's drawing. The
+fields alone are not enough, since a picture an older build drew is drawn
+otherwise now. Nor is comparing the pictures item by item: the least change of
+heights makes a clipped picture gain or lose sliver pieces, and the Update's
+rounding does so on every real model tried (bodo, Lotus, Styracosaurus), so
+such a check would flag nearly every Update. Measured on 14 models (the four
+above and ten cpoogle designs across the range of gains) at 7%, 25%, 50% and
+100%: an Update moves the drawing at most 5.7e-5 of the picture. The same step
+drawn without the no-stretch shift, which 0.9 did not have, lies 1.4e-3 to
+9.8e-3 off at 25% and up (1.2e-4 to 7.6e-4 at 7%), and is a new picture, but
+for bodo, whose layers barely lift (5.8e-5). The check as shipped reads all
+48 Updates as the picture kept, and every picture drawn without the shift as
+another but bodo's and three at 7%, all under 2e-4; it takes at most 31 ms
+(Styracosaurus), once per Update. An Update that came down to 100%, or a
+picture kept as a bitmap, which cannot be compared, is a new picture too.
 
 **No-stretch shift.** The shift holds at a drawn amount of 1
 (`SHIFT_HOLD_AMOUNT`), so with k > 1 the hold comes sooner (bodo 2.3% on the
 slider) and lifted paper stretches past it at high amounts, as version 1 did
-past 25%: bodo's steepest 1% is 54° at 100% (about 1.7× its length). A hold by
-slope instead of drawn amount is a possible follow-up.
+past 25%: 99% of bodo's paper stays within 54° at 100% (at most about 1.7×
+its length), and its steepest slivers, 0.05% of the paper, reach 86.5°, about
+16×. A hold by slope instead of drawn amount is a possible follow-up.
 
 **Older builds.** A shipped reader treats any connected version other than 1
 as a newer build's: a Diagram step shows its saved picture, locked, and is
@@ -117,7 +144,8 @@ written back as it came; a Fold step or Edit figure carries it.
   `diagram/fold/useDiagramFoldStepPose.ts`, `diagram/fold/useFoldSpreadView.ts`,
   `components/diagram/DiagramStepPose.tsx`,
   `components/diagram/SpreadEqualOpeningNotice.tsx`: the Update action.
-- `apps/web/src/diagram/annotate/annotationCarry.ts`: marks after an Update.
+- `apps/web/src/diagram/annotate/annotationCarry.ts`,
+  `diagram/pictures/scenesDrawAlike.ts`: marks after an Update.
 - Analytics: pose action `spread_equal_opening`.
 - i18n: two strings in `panels`.
 - CI: `npm run test:layer-spread`, which nothing ran before.
@@ -130,6 +158,7 @@ written back as it came; a Fold step or Edit figure carries it.
 - [x] Version 2 on first entry into Perspective and fresh starts there, in linked and Fold steps; back to version 1 without a presentation; start rule at version 1
 - [x] Update notice and action in both pose hooks, analytics, i18n for 8 locales
 - [x] Review of PR #616 (seven reviewers, three verifiers per finding): 23 findings confirmed and fixed
+- [x] Second review, of those fixes: 12 confirmed and fixed (F1 a restarted spread under a kept Diagram, F2 Update offered where it never runs, F3 marks kept for a picture drawn otherwise, F4–F7 tests that could not fail, F8–F12 docs); F3's item-by-item check replaced by a drawing comparison, after measuring
 - [x] Relevant vitest, typecheck, lint, i18n check; the package's tests in CI
 - [x] Browser: the example file's saved Perspective steps unchanged; Update keeps the picture; a new switch opens bodo visibly
 
@@ -150,7 +179,13 @@ written back as it came; a Fold step or Edit figure carries it.
   - The linked Update end to end, with Undo: `useDiagramLinkedPose.test.tsx`.
   - The Fold step pane's Update from the shared solve, and the notice in Pose
     only: `useDiagramFoldStepPose.test.tsx`, `useFoldSpreadView.test.tsx`.
-  - Marks after an Update: `annotationCarry.test.ts`.
+  - Marks after an Update: `annotationCarry.test.ts` (each guard, the enlarged
+    step, a picture drawn apart), and the drawing comparison:
+    `scenesDrawAlike.test.ts`.
+  - Every guard these tests cover was broken in turn, and a test failed each
+    time: the presentation, camera and version checks, the drawing comparison,
+    the enlarged step's carry, the restart rule, the blocked Update, the pose
+    analytics, and the 99th percentile (moved to 95%, 98% and 99.6%).
   - The Update hook and notice: `useEqualOpeningUpdate.test.tsx`,
     `DiagramStepPanel.test.tsx`.
 - Browser, Zach's `separation_bug_example.osf`:

@@ -207,6 +207,19 @@ describe('a Fold step shown in Perspective 3D (equal opening)', () => {
     expect(capture).not.toHaveBeenCalled();
   });
 
+  it('restarts a spread under a Diagram kept from Perspective 3D by version 2, so it goes back at equal opening', async () => {
+    const away: DiagramCpRender = { ...SAVED, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 }, presentation: { ...PERSPECTIVE, kind: 'diagram' } };
+    // Spread Layers turned off and on; Default chosen again after another kind.
+    const turnedOn = spreadFoldRender(spreadFoldRender(away, { verb: 'spread-layers' }), { verb: 'spread-layers' });
+    const chosen = spreadFoldRender(spreadFoldRender(away, { verb: 'spread-kind', kind: 'affine' }), { verb: 'spread-kind', kind: 'connected' });
+    for (const restarted of [turnedOn, chosen]) {
+      expect(restarted).toEqual(away);
+      install(restarted);
+      await setDiagramFoldPresentation('s', 'perspective');
+      expect(asked()).toEqual({ ...restarted, presentation: PERSPECTIVE });
+    }
+  });
+
   it('puts a Default spread back to version 1 when Reset leaves it no presentation', () => {
     const away: DiagramCpRender = { ...FLAT, rotationDeg: 90, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 }, presentation: { ...PERSPECTIVE, kind: 'diagram' } };
     expect(posedFoldRender(away, 'reset')).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });

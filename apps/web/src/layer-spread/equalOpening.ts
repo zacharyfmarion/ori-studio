@@ -14,9 +14,10 @@ import type { SpreadPresentation } from './presentation';
  * unchanged.
  *
  * Version 2 opens models alike: at 100% neighbouring layers part by
- * {@link FULL_OPENING_DEG} on average, unless that would tilt the steepest
- * paper past {@link STEEPEST_AT_FULL_DEG} or lift some of it past
- * {@link HIGHEST_AT_FULL}, which hold a model back (`equalOpeningGainOf`).
+ * {@link FULL_OPENING_DEG} on average, unless that would tilt all but the
+ * steepest 1% of the paper past {@link STEEPEST_AT_FULL_DEG} or lift some of
+ * it past {@link HIGHEST_AT_FULL}, which hold a model back
+ * (`equalOpeningGainOf`).
  * Diagram draws both versions alike, so version 2 is written only where
  * Perspective shows it.
  *
@@ -31,13 +32,17 @@ const DOUBLED = 2;
 const FULL_HEIGHT = DOUBLED * SPREAD_AMOUNT_RANGE.connected.max;
 /** How far neighbouring layers open at 100% in version 2: the cpoogle median at version 1, so a typical design looks as it did. */
 export const FULL_OPENING_DEG = 12.4;
-/** How steep the steepest 1% of the paper may be at 100%, unless version 1 already draws it steeper. */
+/**
+ * How steep all but the steepest 1% of the paper (its 99th-percentile slope,
+ * by area) may be at 100%, unless version 1 already draws it steeper. The
+ * slivers in that 1% may be steeper: that is the point of the percentile.
+ */
 export const STEEPEST_AT_FULL_DEG = 65;
 /**
  * How high any of the paper may rise at 100%, as a share of the flat paper's
- * diagonal, unless version 1 already lifts it higher: a deep strip opens by
- * slope alone without lifting far, and the Perspective eye stands about two
- * diagonals away.
+ * diagonal, unless version 1 already lifts it higher: height is slope times
+ * lever arm, so a deep strip can stay within the slope limit and still rise
+ * far, and the Perspective eye stands about two diagonals away.
  */
 export const HIGHEST_AT_FULL = 0.5;
 /** No model is drawn more than this many times its version 1 height. */
@@ -49,8 +54,8 @@ const gains = new WeakMap<SpreadSolution, number>();
 /**
  * How many times its version 1 height a model is drawn in version 2, from
  * how its solve opens (`spreadOpening`): what opens its neighbouring layers
- * {@link FULL_OPENING_DEG} at 100%, no more than keeps its steepest paper
- * within {@link STEEPEST_AT_FULL_DEG} and its highest within
+ * {@link FULL_OPENING_DEG} at 100%, no more than keeps all but its steepest
+ * 1% within {@link STEEPEST_AT_FULL_DEG} and its highest within
  * {@link HIGHEST_AT_FULL} — limits that only ever hold a gain back, never
  * take a model below version 1. A solve that opens nothing keeps its height.
  */
@@ -82,10 +87,14 @@ export function spreadInPerspective<Spread extends LayerSpreadOptions>(spread: S
 
 /**
  * A spread started fresh — Spread Layers turned on, or a kind chosen — in a
- * pose shown as `presentation`: by version 2 in Perspective 3D, as it is.
+ * pose shown as `presentation`: by version 2 in a pose that has one, which has
+ * been shown in Perspective 3D (`entersPerspective`). In Diagram it draws as
+ * version 1 would, and back in Perspective 3D it opens as a new spread should;
+ * kept at version 1 there, it would come back drawn by the older scale, with
+ * an Update for a picture no one saved. As it is in a pose never shown there.
  */
 export function startedSpread<Spread extends LayerSpreadOptions>(spread: Spread, presentation: SpreadPresentation | undefined): Spread {
-  return presentation?.kind === 'perspective' ? spreadInPerspective(spread) : spread;
+  return presentation ? spreadInPerspective(spread) : spread;
 }
 
 /**

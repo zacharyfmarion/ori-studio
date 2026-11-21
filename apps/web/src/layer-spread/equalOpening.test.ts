@@ -47,7 +47,7 @@ describe('how many times its version 1 height a model is drawn', () => {
     expect(equalOpeningGainOf({ opening: 0.2, steep: 0.1, reach: 0.1 })).toBeLessThan(1);
   });
 
-  it('holds a gain back where the steepest paper would pass 65°, never below version 1', () => {
+  it('holds a gain back where all but the steepest 1% of the paper would pass 65°, never below version 1', () => {
     const steep = 0.05;
     const held = equalOpeningGainOf({ opening: 0.001, steep, reach: 0.001 });
     expect(Math.atan(FULL * held * steep) * (180 / Math.PI)).toBeCloseTo(STEEPEST_AT_FULL_DEG, 9);
@@ -56,7 +56,7 @@ describe('how many times its version 1 height a model is drawn', () => {
   });
 
   it('holds a gain back where some paper would rise past half the diagonal, never below version 1', () => {
-    // A deep strip: layers part fast by slope, yet the stack rises far.
+    // A deep strip: gentle slopes, yet the stack rises far.
     const reach = 0.05;
     const held = equalOpeningGainOf({ opening: 0.001, steep: 0.001, reach });
     expect(FULL * held * reach).toBeCloseTo(HIGHEST_AT_FULL, 12);
@@ -101,7 +101,7 @@ describe('Perspective 3D’s height, by version', () => {
     expect(perspectiveHeightScale(v1, prepared(0.0001))).toBe(2);
   });
 
-  it('opens a version 2 amount alike on every model', () => {
+  it('draws a version 2 amount at the model’s own gain, less the faster its solve opens', () => {
     for (const lift of [0.02, 0.2]) {
       const spread = prepared(lift);
       expect(perspectiveHeightScale(v2, spread)).toBeCloseTo(2 * equalOpeningGain(spread), 12);
@@ -127,11 +127,13 @@ describe('where version 2 is written', () => {
     expect(spreadInPerspective(shown)).toBe(shown);
   });
 
-  it('starts a spread by version 2 only in Perspective 3D', () => {
+  it('starts a spread by version 2 in a pose shown in Perspective 3D, or kept from it in Diagram', () => {
     const camera = { yaw: 0, pitch: 0, zoom: 1 };
     expect(startedSpread(DEFAULT_CONNECTED_SPREAD, undefined)).toBe(DEFAULT_CONNECTED_SPREAD);
-    expect(startedSpread(DEFAULT_CONNECTED_SPREAD, { kind: 'diagram', camera, orderSide: 'front' })).toBe(DEFAULT_CONNECTED_SPREAD);
+    // Diagram keeps the presentation it came from, so the spread goes back to Perspective 3D as a new one.
+    expect(startedSpread(DEFAULT_CONNECTED_SPREAD, { kind: 'diagram', camera, orderSide: 'front' }).version).toBe(2);
     expect(startedSpread(DEFAULT_CONNECTED_SPREAD, { kind: 'perspective', camera, orderSide: 'front' }).version).toBe(2);
+    expect(startedSpread(DEFAULT_DEPTH_SPREAD, { kind: 'perspective', camera, orderSide: 'front' })).toBe(DEFAULT_DEPTH_SPREAD);
   });
 
   it('enters Perspective 3D only for a pose never shown there, and never on a request for Diagram', () => {

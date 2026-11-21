@@ -44,6 +44,7 @@ import {
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { stepPictureFrame } from '../pictures/pictureFrame';
+import { scenesDrawAlike } from '../pictures/scenesDrawAlike';
 import { storedScene } from '../pictures/storedScene';
 import { followOwnPicture, type OwnPictureChange } from '../zoom/zoomFrames';
 import { carryAnnotation, mirrorMove, type PictureMove, type PicturePoint } from './annotationModel';
@@ -240,17 +241,19 @@ function recolouredOnly(before: DiagramStep, after: DiagramStep): boolean {
  * Whether `after` is `before`'s Perspective 3D picture updated to equal
  * opening and nothing else (Update, `spread-equal-opening`): the same posed
  * link, side, turn, layer order, reveal and Perspective camera, its Default
- * spread version 1 before and version 2 after, at the amount that draws the
- * picture as it was. That amount is rounded to a hundredth of a percent, which
- * moves points by a thousandth of a pixel: enough to change the stored scene's
- * key, never the picture. An Update capped at 100% draws the picture lower,
- * so one that lands on 100% is a new picture.
+ * spread version 1 before and version 2 after, below 100% — and drawn as the
+ * picture it replaces (`scenesDrawAlike`). Update rounds the amount that
+ * keeps the picture, which changes the stored scene's key and its slivers but
+ * nothing anyone could see. The fields alone are not enough: a picture an
+ * older build drew (before the no-stretch shift) is drawn otherwise now. An
+ * Update capped at 100% draws the picture lower, and a picture kept as a
+ * bitmap cannot be compared, so either is a new picture.
  */
 function equalOpeningKept(before: DiagramStep, after: DiagramStep): boolean {
   const [from, to] = [before.source, after.source];
   const [was, is] = [before.picture, after.picture];
-  if (!isPosedSource(from) || !isPosedSource(to) || !was || !is || was.kind !== is.kind) return false;
-  if (was.kind === 'scene' && is.kind === 'scene' && was.paperScale !== is.paperScale) return false;
+  if (!isPosedSource(from) || !isPosedSource(to) || was?.kind !== 'scene' || is?.kind !== 'scene') return false;
+  if (was.paperScale !== is.paperScale) return false;
   const [a, b] = [from.render, to.render];
   if (a.mode !== 'folded-flat' || b.mode !== 'folded-flat') return false;
   if (a.presentation?.kind !== 'perspective' || JSON.stringify(a.presentation) !== JSON.stringify(b.presentation)) return false;
@@ -261,8 +264,15 @@ function equalOpeningKept(before: DiagramStep, after: DiagramStep): boolean {
     updated?.kind === 'connected' && updated.version === 2 &&
     old.reveal[0] === updated.reveal[0] && old.reveal[1] === updated.reveal[1] &&
     updated.amount < SPREAD_AMOUNT_RANGE.connected.max &&
-    samePosedLink(from, to)
+    samePosedLink(from, to) &&
+    drawnAlike(was, is)
   );
+}
+
+/** Whether two scene pictures draw alike (`scenesDrawAlike`); not when either does not read. */
+function drawnAlike(was: DiagramScenePicture, is: DiagramScenePicture): boolean {
+  const [a, b] = [storedScene(was), storedScene(is)];
+  return a !== null && b !== null && scenesDrawAlike(a, b);
 }
 
 /**

@@ -495,7 +495,9 @@ export const DIAGRAM_SPREAD_PERCENT_BUCKETS = [2.5, 7.5, 12.5] as const;
  * shows it — its height multiplier, 0 to 2, read as 0 to 100% — bucketed on
  * a ladder of its own: `<=10` (Fold's 7% start), `<=25` (the 25% every other
  * surface starts at), `<=50`, `>50`. The depth and affine ladder above would
- * put the 25% default in its top bucket every time. Never the value.
+ * put the 25% default in its top bucket every time. In Perspective 3D a
+ * version 2 spread draws a percent at its model's own gain (equal opening),
+ * so a bucket there is not one height on every model. Never the value.
  */
 export const DIAGRAM_CONNECTED_SPREAD_PERCENT_BUCKETS = [10, 25, 50] as const;
 

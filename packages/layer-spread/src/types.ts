@@ -50,8 +50,11 @@ export interface ConnectedSpread {
   /**
    * How Perspective 3D turns `amount` into height. 1: it doubles the solved
    * heights, so how far a model opens depends on its solve; every spread saved
-   * before 2 is, and keeps it. 2: every model's neighbouring layers open alike
-   * (`implementation-plans/spread-equal-opening.md`). Diagram draws both alike.
+   * before 2 is, and keeps it. 2: at 100% neighbouring layers part by 12.4° on
+   * average, unless a model's steepness or height limit holds it back; neither
+   * limit takes it below its version 1 height (`equalOpeningGainOf` in
+   * apps/web, `implementation-plans/spread-equal-opening.md`). Diagram draws
+   * both alike.
    */
   version: 1 | 2;
   amount: number;

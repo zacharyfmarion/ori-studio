@@ -126,9 +126,9 @@ export const DEFAULT_SPREAD_STARTS: LayerSpreadStarts = {
  * back to them — a diagram's order, a Fold step's path — is its own.
  *
  * A Default start is version 1 whatever it starts from: versions draw alike
- * but in Perspective 3D, and a pose that starts one there makes it version 2
- * (`startedSpread`), so no picture that never shows the difference is made one
- * an older build would lock.
+ * but in Perspective 3D, and a pose that starts one where it has been shown
+ * there makes it version 2 (`startedSpread`), so no picture that never shows
+ * the difference is made one an older build would lock.
  */
 export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>, defaults: LayerSpreadStarts = DEFAULT_SPREAD_STARTS): LayerSpreadStarts {
   let any: LayerSpreadOptions | null = null;

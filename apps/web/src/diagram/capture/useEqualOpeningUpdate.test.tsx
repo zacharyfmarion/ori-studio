@@ -8,7 +8,7 @@ import { DEFAULT_CONNECTED_SPREAD } from '../../cp-workspace/folded/layerSpreadS
 import { equalOpeningAmount } from '../../layer-spread/equalOpening';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import type { DiagramCpRender } from '../document/diagramDocument';
-import { useEqualOpeningUpdate, type EqualOpeningUpdate } from './useEqualOpeningUpdate';
+import { useEqualOpeningUpdate, type EqualOpeningHolds, type EqualOpeningUpdate } from './useEqualOpeningUpdate';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -38,8 +38,10 @@ let host: HTMLDivElement;
 let root: Root;
 let seen: EqualOpeningUpdate | null = null;
 
-function Probe(props: { render: DiagramCpRender; connected: ConnectedSpreadView | null; held: boolean; apply: (amount: number) => unknown }) {
-  const update = useEqualOpeningUpdate(props.render, props.connected, props.held, props.apply);
+const FREE: EqualOpeningHolds = { blocked: false, busy: false };
+
+function Probe(props: { render: DiagramCpRender; connected: ConnectedSpreadView | null; holds?: EqualOpeningHolds; apply: (amount: number) => unknown }) {
+  const update = useEqualOpeningUpdate(props.render, props.connected, props.holds ?? FREE, props.apply);
   useLayoutEffect(() => {
     seen = update;
   });
@@ -58,22 +60,33 @@ describe('Update for a picture saved in Perspective 3D before equal opening', ()
   it('runs the amount that keeps its picture, once the live view’s solve is ready', () => {
     const apply = vi.fn();
     const connected = view();
-    act(() => root.render(<Probe render={SAVED} connected={null} held={false} apply={apply} />));
+    act(() => root.render(<Probe render={SAVED} connected={null} apply={apply} />));
     expect(seen).toMatchObject({ disabled: true });
     act(() => seen!.run());
     expect(apply).not.toHaveBeenCalled();
-    act(() => root.render(<Probe render={SAVED} connected={connected} held={false} apply={apply} />));
+    act(() => root.render(<Probe render={SAVED} connected={connected} apply={apply} />));
     expect(seen).toMatchObject({ disabled: false });
     act(() => seen!.run());
     expect(apply).toHaveBeenCalledWith(equalOpeningAmount({ ...DEFAULT_CONNECTED_SPREAD, amount: 0.4 }, connected.prepared));
   });
 
-  it('is held while the step cannot be posed', () => {
+  it('is held, its button kept, while a capture runs', () => {
     const apply = vi.fn();
-    act(() => root.render(<Probe render={SAVED} connected={view()} held apply={apply} />));
+    const connected = view();
+    act(() => root.render(<Probe render={SAVED} connected={connected} holds={{ blocked: false, busy: true }} apply={apply} />));
     expect(seen).toMatchObject({ disabled: true });
     act(() => seen!.run());
     expect(apply).not.toHaveBeenCalled();
+    act(() => root.render(<Probe render={SAVED} connected={connected} apply={apply} />));
+    expect(seen).toMatchObject({ disabled: false });
+  });
+
+  it('is not offered where waiting would never enable it: a read-only diagram, marks a newer build made', () => {
+    const apply = vi.fn();
+    for (const busy of [false, true]) {
+      act(() => root.render(<Probe render={SAVED} connected={view()} holds={{ blocked: true, busy }} apply={apply} />));
+      expect(seen).toBeNull();
+    }
   });
 
   it('is offered for nothing else: version 2, Diagram, another kind, another mode', () => {
@@ -87,7 +100,7 @@ describe('Update for a picture saved in Perspective 3D before equal opening', ()
       { mode: 'crease-pattern', rotationDeg: 0 },
     ];
     for (const render of others) {
-      act(() => root.render(<Probe render={render} connected={view()} held={false} apply={apply} />));
+      act(() => root.render(<Probe render={render} connected={view()} apply={apply} />));
       expect(seen, JSON.stringify(render)).toBeNull();
     }
   });

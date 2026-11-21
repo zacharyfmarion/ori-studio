@@ -35,8 +35,9 @@ import type {
   KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { randomDiagramId } from '../document/diagramDocument';
+import { distanceToSegment } from '../../lib/geometry';
 
-export { ZOOM_CLICK, ZOOM_SCALE };
+export { ZOOM_CLICK, ZOOM_SCALE, distanceToSegment };
 
 /**
  * The id an enlarged step's frame is selected by on its canvas, beside its
@@ -397,12 +398,4 @@ function insideConvex(core: readonly PicturePoint[], point: PicturePoint): boole
     else if (Math.sign(cross) !== sign) return false;
   }
   return true;
-}
-
-/** How far `point` is from the segment `a`–`b`. */
-export function distanceToSegment(point: PicturePoint, a: PicturePoint, b: PicturePoint): number {
-  const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
-  const length = dx * dx + dy * dy;
-  const t = length > 0 ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / length)) : 0;
-  return Math.hypot(point[0] - (a[0] + t * dx), point[1] - (a[1] + t * dy));
 }

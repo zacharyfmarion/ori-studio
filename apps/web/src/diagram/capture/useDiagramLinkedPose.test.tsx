@@ -58,6 +58,11 @@ const dialog = vi.hoisted(() => ({ openLayerOrderDialog: vi.fn() }));
 vi.mock('../../layer-order/dialog/layerOrderDialogGateway', () => ({
   openLayerOrderDialog: dialog.openLayerOrderDialog,
 }));
+const analytics = vi.hoisted(() => ({ trackDiagramPicturePosed: vi.fn() }));
+vi.mock('../../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analytics')>()),
+  ...analytics,
+}));
 
 const sheets = twoSquaresIndex();
 const [left] = sheetRegions(sheets);
@@ -481,9 +486,25 @@ it('updates a picture saved in Perspective 3D to equal opening, at the amount th
   });
   const expected = { ...saved, version: 2 as const, amount: equalOpeningAmount(saved, seen.pose!.connected!.prepared) };
   expect(expected.amount).not.toBe(saved.amount);
+  // Held, its button kept, while a capture holds the step; free again once it is done.
+  const captures = state().diagramCaptures;
+  act(() => useWorkspaceStore.setState({ diagramCaptures: { ...captures, [stepId]: { runId: null, blocksPose: true } } }));
+  expect(seen.pose!.equalOpening).toMatchObject({ disabled: true });
+  act(() => seen.pose!.equalOpening!.run());
+  expect(spreadOf(stepId)).toEqual(saved);
+  act(() => useWorkspaceStore.setState({ diagramCaptures: captures }));
+  expect(seen.pose!.equalOpening).toMatchObject({ disabled: false });
+  analytics.trackDiagramPicturePosed.mockClear();
   act(() => seen.pose!.equalOpening!.run());
   await landed(stepId, expected);
   expect(seen.pose!.equalOpening).toBeNull();
+  // Counted as a pose action of its own, with the spread it landed.
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(analytics.trackDiagramPicturePosed).toHaveBeenCalledExactlyOnceWith('spread_equal_opening', 'flat', {
+        spread: { kind: 'connected', amount: expected.amount },
+      }));
+  });
   act(() => state().undoDiagram());
   expect(spreadOf(stepId)).toEqual(saved);
 });

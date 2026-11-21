@@ -254,7 +254,7 @@ export function useDiagramLinkedPose(
       controller.run({ verb: 'spread-equal-opening', amount }, { current }));
   }, [controller, readOnly, stepId]);
   const unknownMarks = step?.annotations.some((annotation) => !!annotation.unknown) ?? false;
-  const equalOpening = useEqualOpeningUpdate(source?.render, connectedView, readOnly || busy || unknownMarks, applyEqualOpening);
+  const equalOpening = useEqualOpeningUpdate(source?.render, connectedView, { blocked: readOnly || unknownMarks, busy }, applyEqualOpening);
   const storedCamera = source?.render.mode === 'folded-3d' ? source.render.camera : flat?.presentation?.camera ?? null;
   const onCamera = useCallback(
     (camera: FoldedFigureCamera) => controller?.orbit(camera, storedCamera),
