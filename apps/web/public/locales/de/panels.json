@@ -1124,6 +1124,7 @@
         "insideSwivelBehind": "Innere Drehfalte hinten.",
         "mountain": "Bergfalte.",
         "mountainBothSides": "Bergfalte auf beiden Seiten.",
+        "mountainPointsOntoLines": "Die Punkte mit einer Bergfalte auf die beiden markierten Linien legen.",
         "mountainPrecrease": "Als Bergfalte falten und wieder öffnen.",
         "mountainPrecreaseBothSides": "Auf beiden Seiten als Bergfalte falten und wieder öffnen.",
         "openSink": "Offenes Versenken.",
@@ -1158,7 +1159,8 @@
         "unfoldToStep": "Bis Schritt {{number}} auffalten.",
         "unsink": "Versenken aufheben.",
         "valley": "Talfalte.",
-        "valleyBothSides": "Talfalte auf beiden Seiten."
+        "valleyBothSides": "Talfalte auf beiden Seiten.",
+        "valleyPointsOntoLines": "Die Punkte mit einer Talfalte auf die beiden markierten Linien legen."
       },
       "mergedCard": "Schritte {{first}}–{{last}}",
       "mergePrecreases": "Symmetrische Vorfalten zusammenführen",

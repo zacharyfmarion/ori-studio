@@ -83,6 +83,18 @@ describe('a Fold step’s instruction in the Diagram', () => {
     expect(lettered.length).toBeGreaterThan(10);
   });
 
+  it.each(['valley', 'mountain'] as const)('names the two indicated lines of a %s Axiom 6 fold', (direction) => {
+    const line = { via: 'axiom', axiom: 6, inputs: [{ kind: 'point' }, { kind: 'line' }, { kind: 'point' }, { kind: 'line' }], moving: [0, 2] } as const;
+    const fold = { op: 'fold', direction, line, scope: all } as const;
+    const precrease = { ...fold, op: 'precrease' } as const;
+    const verb = direction === 'valley' ? 'Valley' : 'Mountain';
+    const words = `${verb} fold the points onto the two indicated lines.`;
+    expect(foldDiagramSentence(t, fold)).toBe(words);
+    expect(foldDiagramSentence(t, precrease)).toBe(`${words} Unfold.`);
+    expect(foldDiagramMergedSentence(t, [precrease])).toBe(`${words} Unfold. Repeat on the other side.`);
+    expect(foldDiagramSentence(t, { ...fold, line: { ...line, moving: [1, 3] } })).toBe(`${verb} fold.`);
+  });
+
   it('says a merged precrease and its mirror once, on both sides', () => {
     const line: FoldSentenceLine = { via: 'axiom', axiom: 3, inputs: [{ kind: 'line' }, { kind: 'line' }] };
     const valley: FoldSentenceStep = { op: 'precrease', direction: 'valley', line, scope: all };

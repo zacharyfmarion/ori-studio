@@ -1164,6 +1164,7 @@
         "insideSwivelBehind": "Dobra giratória interna atrás.",
         "mountain": "Dobra monte.",
         "mountainBothSides": "Dobra monte dos dois lados.",
+        "mountainPointsOntoLines": "Faça uma dobra monte levando os pontos até as duas linhas indicadas.",
         "mountainPrecrease": "Dobre em monte e desdobre.",
         "mountainPrecreaseBothSides": "Dobre em monte e desdobre dos dois lados.",
         "openSink": "Afundamento aberto.",
@@ -1200,7 +1201,8 @@
         "unfoldToStep": "Desdobre até a etapa {{number}}.",
         "unsink": "Desfazer afundamento.",
         "valley": "Dobra vale.",
-        "valleyBothSides": "Dobra vale dos dois lados."
+        "valleyBothSides": "Dobra vale dos dois lados.",
+        "valleyPointsOntoLines": "Faça uma dobra vale levando os pontos até as duas linhas indicadas."
       },
       "mergedCard": "Passos {{first}}–{{last}}",
       "mergePrecreases": "Juntar pré-dobras simétricas",

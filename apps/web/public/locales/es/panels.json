@@ -1164,6 +1164,7 @@
         "insideSwivelBehind": "Pliegue giratorio interior detrás.",
         "mountain": "Pliegue monte.",
         "mountainBothSides": "Pliegue monte en ambos lados.",
+        "mountainPointsOntoLines": "Haz un pliegue monte llevando los puntos a las dos líneas indicadas.",
         "mountainPrecrease": "Dobla en monte y desdobla.",
         "mountainPrecreaseBothSides": "Dobla en monte y desdobla en ambos lados.",
         "openSink": "Hundido abierto.",
@@ -1200,7 +1201,8 @@
         "unfoldToStep": "Desdobla hasta el paso {{number}}.",
         "unsink": "Deshacer hundido.",
         "valley": "Pliegue valle.",
-        "valleyBothSides": "Pliegue valle en ambos lados."
+        "valleyBothSides": "Pliegue valle en ambos lados.",
+        "valleyPointsOntoLines": "Haz un pliegue valle llevando los puntos a las dos líneas indicadas."
       },
       "mergedCard": "Pasos {{first}}–{{last}}",
       "mergePrecreases": "Unir prepliegues simétricos",

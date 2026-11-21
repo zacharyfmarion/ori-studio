@@ -13,8 +13,13 @@ import type { FoldActionGeometry, FoldScene } from '../../fold/engine/foldEngine
 import { foldStepCreaseDiagram } from '../../fold/io/foldStepPages';
 import { prepareRepeat, type RepeatSourceStep } from '../../fold/repeat/repeatPreparation';
 import { foldStateFrame, sheetToScene } from '../../fold/sequence/foldStateFrame';
+import { foldSentenceStepOf } from '../../fold/sequence/foldSentenceStep';
+import i18n from '../../i18n';
 import type { Point } from '../../lib/geometry';
+import { arrowApex } from '../annotate/annotationModel';
 import { FOLD_PULL_RENDER } from './foldPull';
+import { diagramFoldConstruction } from './foldCreaseConstruction';
+import { diagramCreaseWords, foldDiagramSentence } from './foldDiagramSentence';
 import { foldStepAction, foldStepMarkAction } from './foldStepMarkPlan';
 import { foldStepPicture } from './foldStepPicture';
 
@@ -301,6 +306,76 @@ describe.skipIf(!available)('a Fold step’s marks in the Diagram, from the real
     expect(placed.rings!.map((ring) => ring.at)).toEqual([placed.grip!.at, placed.grip!.image]);
     // The corner lands on top: nothing over it there.
     expect(placed.grip!.hidden_image).toBe(0);
+  });
+
+  it('draws both Axiom 6 alignments when any part of the fold is new and keeps the ordinary drawing on an existing crease', async () => {
+    const calls = await engine();
+    const sheet = landed(calls.sheet(SQUARE_PAPER)).state;
+    // The points at x=.2 and .8 on the bottom edge land on opposite diagonals at y=.2.
+    const line = { via: 'axiom', axiom: 6, inputs: [pt(0.2, 0), edge([0, 0], [1, 1]), pt(0.8, 0), edge([0, 1], [1, 0])] } as const;
+    const precrease: FoldOp = { kind: 'precrease', direction: 'valley', line, seed: all };
+    const first = stepOf(calls, sheet, precrease, [0, 1]);
+    const partial = stepOf(calls, sheet, {
+      ...precrease, extent: { kind: 'segment', from: pt(0.25, 0.1), to: pt(0.75, 0.1) },
+    }, [0, 1]);
+    const sentence = (op: FoldOp, step: typeof first) => {
+      const parent = foldStateFrame(step.parent), child = foldStateFrame(step.child);
+      const words = foldSentenceStepOf(op, { parent, child, report: null });
+      return foldDiagramSentence(i18n.t.bind(i18n), diagramCreaseWords(words, parent, child));
+    };
+    for (const kind of ['valley', 'mountain'] as const) {
+      const reused: FoldOp = { kind, line: { via: 'crease', at: [0.4, 0.1] }, moving: [0.5, 0], seed: all };
+      const second = stepOf(calls, first.state, reused);
+      const maker = { id: 'scored', parent: null, op: precrease };
+      const node = { id: 'refolded', parent: maker.id, op: reused };
+      const before = foldStateFrame(second.parent);
+      const constructed = diagramFoldConstruction([maker, node], node, before, foldStateFrame(second.child));
+      expect(constructed).toBe(node);
+      const direct = { kind, line, seed: all };
+      const standard = kind === 'valley' ? 'Valley fold.' : 'Mountain fold.';
+      for (const [step, op] of [[second, reused], [stepOf(calls, first.state, direct, [0, 1]), direct]] as const) {
+        expect(foldStepAction(step.action, { op, parent: step.parent, child: step.child })).toEqual(step.action);
+        expect(sentence(op, step)).toBe(standard);
+      }
+      for (const [step, op] of [[first, precrease], [stepOf(calls, sheet, direct, [0, 1]), direct], [stepOf(calls, partial.state, direct, [0, 1]), direct]] as const) {
+        const action = foldStepAction(step.action, { op, parent: step.parent, child: step.child });
+        expect(sentence(op, step)).toContain('fold the points onto the two indicated lines.');
+        for (const [i, grip] of [action.grip, action.secondGrip].entries()) {
+          const x = i === 0 ? 0.2 : 0.8;
+          expect(near(grip!.at, at(step.parent, x, 0))).toBe(true);
+          expect(near(grip!.image, at(step.parent, x, 0.2))).toBe(true);
+        }
+        const { marks } = foldStepPicture({
+          shown: step.parent, own: { scene: step.child, step: step.summary.step, sheet: step.summary.sheet }, moment: 'before', action,
+        }, FOLD_PULL_RENDER);
+        const arrows = marks.filter((mark) => mark.kind.endsWith('-arrow'));
+        const arrowKind = op.kind === 'precrease' ? 'fold-unfold-arrow' : `${kind}-arrow`;
+        expect(arrows.map((arrow) => arrow.kind)).toEqual([arrowKind, arrowKind]);
+        expect(marks.filter((mark) => mark.kind === 'circle').map((mark) => mark.from)).toEqual(arrows.flatMap((arrow) => [arrow.from, arrow.to]));
+        const [left, right] = arrows.map((arrow) => arrowApex(arrow.from, arrow.to, arrow.bend!));
+        expect(left![0]).toBeLessThan(arrows[0]!.from[0]);
+        expect(right![0]).toBeGreaterThan(arrows[1]!.from[0]);
+      }
+    }
+  });
+
+  it('uses the ordinary Axiom 6 fold arrow when two older segment precreases cover the entire line', async () => {
+    const calls = await engine();
+    let state = landed(calls.sheet(SQUARE_PAPER)).state;
+    const score = { via: 'free', through: [[0, 0.1], [1, 0.1]] } as const;
+    for (const [start, end] of [[0, 0.5], [0.5, 1]] as const) {
+      state = stepOf(calls, state, {
+        kind: 'precrease', line: score, seed: all, direction: 'valley', moving: [0.5, 0],
+        extent: { kind: 'segment', from: pt(start, 0.1), to: pt(end, 0.1) },
+      }).state;
+    }
+    const op: FoldOp = {
+      kind: 'valley', seed: all,
+      line: { via: 'axiom', axiom: 6, inputs: [pt(0.2, 0), edge([0, 0], [1, 1]), pt(0.8, 0), edge([0, 1], [1, 0])] },
+    };
+    const step = stepOf(calls, state, op, [0, 1]);
+    expect(step.parent.crease_marks).toHaveLength(2);
+    expect(foldStepAction(step.action, { op, parent: step.parent, child: step.child })).toEqual(step.action);
   });
 
   it('puts a bisector’s arrow halfway along the shorter edge, and a parallel one from line to line', async () => {

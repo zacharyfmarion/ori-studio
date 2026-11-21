@@ -58,7 +58,7 @@ function useAppFoldCards(merge: boolean): FoldBrowserCardsState {
   const { t } = useTranslation();
   useEffect(() => foldSession().retain(), []);
   const view = useFoldSequenceView();
-  const { entries, words, exists, document, failed } = view;
+  const { entries, words, frames, exists, document, failed } = view;
   const merges = useFoldPrecreaseMerges(foldSession(), document.id, entries);
   return useMemo(
     () =>
@@ -66,11 +66,11 @@ function useAppFoldCards(merge: boolean): FoldBrowserCardsState {
         ? {
             status: 'ready',
             sequence: document.id,
-            cards: foldBrowserCards(t, { document, entries, words, failed }, merge ? merges : []),
+            cards: foldBrowserCards(t, { document, entries, words, frames, failed }, merge ? merges : []),
             mergeable: merges.length > 0,
           }
         : { status: 'empty' },
-    [t, exists, document, entries, words, failed, merge, merges]
+    [t, exists, document, entries, words, frames, failed, merge, merges]
   );
 }
 
