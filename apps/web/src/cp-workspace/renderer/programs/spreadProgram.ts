@@ -343,6 +343,29 @@ float d=base+span*((rank+0.1+0.8*depth)/bands);
 gl_Position=vec4(p.x/viewport.x*2.0-1.0,1.0-p.y/viewport.y*2.0,1.0-2.0*d,1.0);ink=vec4(color.rgb,color.a*alpha);}`;
 const FRAG = `precision highp float;varying vec4 ink;void main(){gl_FragColor=vec4(ink.rgb*ink.a,ink.a);}`;
 
+const NO_PATTERNS: readonly (readonly number[])[] = [];
+
+/**
+ * Copies `arrays` into `into` in one go, and says so, when each is a view of
+ * one buffer, `stride` times its count long, starting where the one before it
+ * ends: what a builder that lays every face out in order hands over. False
+ * leaves `into` to be filled face by face.
+ */
+function copiedWhole(into: Float32Array, arrays: readonly (Float32Array | undefined)[], counts: readonly number[], stride: number): boolean {
+  const first = arrays[0];
+  if (!first) return false;
+  let end = first.byteOffset,
+    length = 0;
+  for (let i = 0; i < arrays.length; i++) {
+    const array = arrays[i];
+    if (!array || array.buffer !== first.buffer || array.byteOffset !== end || array.length !== counts[i]! * stride) return false;
+    end += array.byteLength;
+    length += array.length;
+  }
+  into.set(new Float32Array(first.buffer, first.byteOffset, length));
+  return true;
+}
+
 /**
  * Every face's lines as one geometry, in face order, so the picture's ink is
  * one draw. Each face numbers its own dash patterns, so the tables are joined
@@ -352,18 +375,26 @@ const FRAG = `precision highp float;varying vec4 ink;void main(){gl_FragColor=ve
 export function mergedSpreadInk(lines: readonly StrokeGeometry[]): StrokeGeometry | null {
   const table: (readonly number[])[] = [];
   const slotOf = new Map<string, number>();
-  const remap = lines.map((line) =>
-    (line.dashPatterns ?? []).map((pattern) => {
-      const key = pattern.join(',');
-      let slot = slotOf.get(key);
-      if (slot === undefined) {
-        table.push(pattern);
-        slot = table.length;
-        slotOf.set(key, slot);
-      }
-      return slot;
-    })
-  );
+  // A table many faces share joins once.
+  const joined = new Map<readonly (readonly number[])[], number[]>();
+  const remap = lines.map((line) => {
+    const patterns = line.dashPatterns ?? NO_PATTERNS;
+    let slots = joined.get(patterns);
+    if (!slots) {
+      slots = patterns.map((pattern) => {
+        const key = pattern.join(',');
+        let slot = slotOf.get(key);
+        if (slot === undefined) {
+          table.push(pattern);
+          slot = table.length;
+          slotOf.set(key, slot);
+        }
+        return slot;
+      });
+      joined.set(patterns, slots);
+    }
+    return slots;
+  });
   if (table.length > MAX_DASH_SLOTS) return null;
   const count = lines.reduce((total, line) => total + line.count, 0);
   const a = new Float32Array(count * 2);
@@ -374,16 +405,27 @@ export function mergedSpreadInk(lines: readonly StrokeGeometry[]): StrokeGeometr
   const depthEnd = new Float32Array(count);
   const dashSlot = new Float32Array(count);
   const dashPhase = new Float32Array(count);
+  const counts = lines.map((line) => line.count);
+  // Each attribute at once where the faces' runs lie back to back, else face by face.
+  const whole = {
+    a: copiedWhole(a, lines.map((line) => line.a), counts, 2),
+    b: copiedWhole(b, lines.map((line) => line.b), counts, 2),
+    color: copiedWhole(color, lines.map((line) => line.color), counts, 4),
+    widthMul: copiedWhole(widthMul, lines.map((line) => line.widthMul), counts, 1),
+    depth: copiedWhole(depth, lines.map((line) => line.depth), counts, 1),
+    depthEnd: copiedWhole(depthEnd, lines.map((line) => line.depthEnd ?? line.depth), counts, 1),
+    dashPhase: copiedWhole(dashPhase, lines.map((line) => line.dashPhase), counts, 1),
+  };
   let at = 0;
   lines.forEach((line, f) => {
     const n = line.count;
-    a.set(line.a.subarray(0, n * 2), at * 2);
-    b.set(line.b.subarray(0, n * 2), at * 2);
-    color.set(line.color.subarray(0, n * 4), at * 4);
-    widthMul.set(line.widthMul.subarray(0, n), at);
-    if (line.depth) depth.set(line.depth.subarray(0, n), at);
+    if (!whole.a) a.set(line.a.subarray(0, n * 2), at * 2);
+    if (!whole.b) b.set(line.b.subarray(0, n * 2), at * 2);
+    if (!whole.color) color.set(line.color.subarray(0, n * 4), at * 4);
+    if (!whole.widthMul) widthMul.set(line.widthMul.subarray(0, n), at);
+    if (line.depth && !whole.depth) depth.set(line.depth.subarray(0, n), at);
     const end = line.depthEnd ?? line.depth;
-    if (end) depthEnd.set(end.subarray(0, n), at);
+    if (end && !whole.depthEnd) depthEnd.set(end.subarray(0, n), at);
     const slots = remap[f]!;
     if (line.dashSlot) {
       for (let k = 0; k < n; k++) {
@@ -394,7 +436,7 @@ export function mergedSpreadInk(lines: readonly StrokeGeometry[]): StrokeGeometr
       // A face with a table and no slots dashes every line with its first pattern.
       dashSlot.fill(slots[0]!, at, at + n);
     }
-    if (line.dashPhase) dashPhase.set(line.dashPhase.subarray(0, n), at);
+    if (line.dashPhase && !whole.dashPhase) dashPhase.set(line.dashPhase.subarray(0, n), at);
     at += n;
   });
   return {
@@ -454,7 +496,8 @@ export function createSpreadProgram(regl: Regl) {
   let layout: SpreadLayout = WHOLE_CHANNEL_SPREAD;
   let bands = 1;
   let all: number[] = [];
-  let xrayOrder: number[] = [];
+  // Made the first time a plan or a draw needs it: most pictures never draw X-ray.
+  let xrayOrder: number[] | null = null;
   let plan: SpreadPass[] = [];
   // The fills in face order, and each face's range in them.
   let byFace: FillRun | null = null;
@@ -607,13 +650,20 @@ export function createSpreadProgram(regl: Regl) {
     const depth = new Float32Array(count);
     const rank = new Float32Array(count);
     const placed: FaceRange[] = [];
+    const fills = faceOrder.map((f) => data.faces[f]!.fills);
+    const counts = fills.map((face) => face.count);
+    const whole = {
+      position: copiedWhole(position, fills.map((face) => face.position), counts, 2),
+      color: copiedWhole(color, fills.map((face) => face.color), counts, 4),
+      depth: copiedWhole(depth, fills.map((face) => face.depth), counts, 1),
+    };
     let at = 0;
     for (const f of faceOrder) {
       const { fills: face } = data.faces[f]!;
       const n = face.count;
-      position.set(face.position.subarray(0, n * 2), at * 2);
-      color.set(face.color.subarray(0, n * 4), at * 4);
-      if (face.depth) depth.set(face.depth.subarray(0, n), at);
+      if (!whole.position) position.set(face.position.subarray(0, n * 2), at * 2);
+      if (!whole.color) color.set(face.color.subarray(0, n * 4), at * 4);
+      if (face.depth && !whole.depth) depth.set(face.depth.subarray(0, n), at);
       rank.fill(order?.ranks?.[f] ?? 0, at, at + n);
       placed[f] = { first: at, count: n };
       at += n;
@@ -635,15 +685,29 @@ export function createSpreadProgram(regl: Regl) {
     const { base, span } = layout.band;
     const inkBias = spreadInkDepthBias(bands, depthBits, span);
     const opacity = layout.opacity;
+    // Every face's baked depths in one buffer each, in face order, so they merge in one copy.
+    const sizes = { depth: 0, depthEnd: 0 };
+    for (const { strokes } of held.faces) {
+      sizes.depth += strokes.depth?.length ?? 0;
+      sizes.depthEnd += strokes.depthEnd?.length ?? 0;
+    }
+    const baked = { depth: new Float32Array(sizes.depth), depthEnd: new Float32Array(sizes.depthEnd) };
+    const next = { depth: 0, depthEnd: 0 };
     lines = held.faces.map(({ strokes }, f) => {
       const rank = order?.ranks?.[f] ?? 0;
-      const depth = (a: Float32Array | undefined) =>
-        a?.map((v) => base + span * ((rank + 0.1 + 0.8 * v) / bands) + inkBias);
+      const depth = (key: 'depth' | 'depthEnd') => {
+        const a = strokes[key];
+        if (!a) return undefined;
+        const into = baked[key], at = next[key];
+        for (let k = 0; k < a.length; k++) into[at + k] = base + span * ((rank + 0.1 + 0.8 * a[k]!) / bands) + inkBias;
+        next[key] += a.length;
+        return into.subarray(at, at + a.length);
+      };
       return {
         ...strokes,
         ...(opacity < 1 ? { color: strokes.color.map((v, k) => (k % 4 === 3 ? v * opacity : v)) } : {}),
-        depth: depth(strokes.depth),
-        depthEnd: depth(strokes.depthEnd),
+        depth: depth('depth'),
+        depthEnd: depth('depthEnd'),
       };
     });
     if (!order?.ranks) {
@@ -685,10 +749,24 @@ export function createSpreadProgram(regl: Regl) {
     }
     return program;
   }
+  function xrayOrderOf(): number[] {
+    xrayOrder ??= spreadXrayOrder(
+      order!,
+      held!.faces.map(({ fills }) => {
+        const depth = fills.depth;
+        if (!depth?.length) return 0;
+        let sum = 0;
+        for (const v of depth) sum += v;
+        return sum / depth.length;
+      })
+    );
+    return xrayOrder;
+  }
+  const drawPlan = () => spreadDrawPlan(order!, layout, all, layout.xray ? xrayOrderOf() : all);
   function xrayRun(): FillRun {
     byXray ??= emptyRun();
     if (xrayStale && held) {
-      upload(byXray, held, xrayOrder);
+      upload(byXray, held, xrayOrderOf());
       xrayStale = false;
     }
     return byXray;
@@ -724,7 +802,7 @@ export function createSpreadProgram(regl: Regl) {
     if (data === held) {
       if (sameLayout(next, layout)) return;
       layout = next;
-      plan = spreadDrawPlan(data.visibility, layout, all, xrayOrder);
+      plan = drawPlan();
       uploadInk();
       return;
     }
@@ -733,16 +811,7 @@ export function createSpreadProgram(regl: Regl) {
     order = data.visibility;
     bands = order.ranks ? Math.max(...order.ranks) + 1 : 1;
     all = data.faces.map((_, f) => f);
-    xrayOrder = spreadXrayOrder(
-      order,
-      data.faces.map(({ fills }) => {
-        const depth = fills.depth;
-        if (!depth?.length) return 0;
-        let sum = 0;
-        for (const v of depth) sum += v;
-        return sum / depth.length;
-      })
-    );
+    xrayOrder = null;
     byFace ??= emptyRun();
     ranges = upload(byFace, data, all);
     xrayStale = true;
@@ -791,7 +860,7 @@ export function createSpreadProgram(regl: Regl) {
       maskRun ??= regl.buffer([]);
       maskRun(positions);
     }
-    plan = spreadDrawPlan(order, layout, all, xrayOrder);
+    plan = drawPlan();
     uploadInk();
   }
   function draw(props: Draw) {

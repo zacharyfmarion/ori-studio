@@ -160,7 +160,8 @@ function posed(mesh: PoseMesh, chains: LayerChains, back: boolean, budget = 4_00
   const winding = new Int8Array(count), drawable = new Uint8Array(count);
   const triangleStart = new Int32Array(faceCount + 1);
   for (let t = 0; t < count; t++) {
-    const [u, v, w] = mesh.triangles[t];
+    const ids = mesh.triangles[t];
+    const u = ids[0], v = ids[1], w = ids[2];
     const a = positions[u], b = positions[v], c = positions[w];
     const ax = a[0], ay = a[1], bx = b[0], by = b[1], cx = c[0], cy = c[1];
     if (!keepsTriangle(ax, ay, bx, by, cx, cy) || !depthPlaneInto(a, b, c, plane, 5 * t)) continue;
@@ -322,8 +323,8 @@ function convexRing(mesh: PoseMesh, face: number): ConvexRing | null {
   if (!(Math.abs(Math.abs(turning) - 2 * Math.PI) < 1e-6)) return null;
   const lengths = new Float64Array(ring.length);
   for (let i = 0; i < ring.length; i++) {
-    const [ax, ay] = ring[i], [bx, by] = ring[(i + 1) % ring.length];
-    lengths[i] = Math.hypot(bx - ax, by - ay);
+    const a = ring[i], b = ring[(i + 1) % ring.length];
+    lengths[i] = Math.hypot(b[0] - a[0], b[1] - a[1]);
   }
   return { points: ring, sign: area(ring) > 0 ? 1 : -1, lengths };
 }
@@ -356,7 +357,8 @@ export function poseVisibility(
   const { layerOf, layers, words, above } = chains;
   const bit = (lower: number, upper: number) => (above[lower * words + (upper >>> 5)] >>> (upper & 31)) & 1;
   let xLo = Infinity, yLo = Infinity, zLo = Infinity, xHi = -Infinity, yHi = -Infinity, zHi = -Infinity;
-  for (const [x, y, z] of mesh.positions) {
+  for (const p of mesh.positions) {
+    const x = p[0], y = p[1], z = p[2];
     xLo = Math.min(xLo, x); xHi = Math.max(xHi, x);
     yLo = Math.min(yLo, y); yHi = Math.max(yHi, y);
     zLo = Math.min(zLo, z); zHi = Math.max(zHi, z);
@@ -451,7 +453,7 @@ export function poseVisibility(
   const holds = (ring: ConvexRing, outline: Float64Array) => {
     const { points, sign, lengths } = ring;
     for (let i = 0; i < points.length; i++) {
-      const [ax, ay] = points[i], [bx, by] = points[(i + 1) % points.length];
+      const ax = points[i][0], ay = points[i][1], next = points[(i + 1) % points.length], bx = next[0], by = next[1];
       const length = lengths[i];
       for (let k = 0; k < outline.length; k += 2) {
         const x = outline[k], y = outline[k + 1];

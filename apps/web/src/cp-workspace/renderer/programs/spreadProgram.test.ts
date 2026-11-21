@@ -451,6 +451,92 @@ describe('createSpreadProgram', () => {
   });
 });
 
+describe('faces laid out back to back in one buffer', () => {
+  /** Faces with 0–5 lines and 3–9 fill vertices, two dash tables shared and one face's own. */
+  function apart(): SpreadGeometry {
+    let seed = 5;
+    const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+    const values = (n: number) => Float32Array.from({ length: n }, () => random() * 10 - 5);
+    const shared = [[4, 2]];
+    return {
+      visibility: { ranks: Array.from({ length: 12 }, (_, f) => f % 4), cyclic: false, above: [] },
+      faces: Array.from({ length: 12 }, (_, f) => {
+        const lines = f % 5 === 0 ? 0 : 1 + (f % 5);
+        const vertices = 3 * (1 + (f % 3));
+        const dashed = f % 3 === 0;
+        return {
+          fills: { position: values(2 * vertices), color: values(4 * vertices), count: vertices, depth: values(vertices) },
+          strokes: {
+            a: values(2 * lines), b: values(2 * lines), color: values(4 * lines), widthMul: values(lines), count: lines,
+            depth: values(lines), depthEnd: values(lines),
+            ...(dashed ? { dashPatterns: f === 9 ? [[1, 1]] : shared, dashSlot: Float32Array.from({ length: lines }, (_, k) => k % 2), dashPhase: values(lines) } : {}),
+          },
+        };
+      }),
+    };
+  }
+  /** The same faces, each attribute views of one buffer per attribute, one face after another. */
+  function together(geometry: SpreadGeometry): SpreadGeometry {
+    const joined = (arrays: Float32Array[]) => {
+      const all = new Float32Array(arrays.reduce((n, a) => n + a.length, 0));
+      let at = 0;
+      return arrays.map((a) => {
+        all.set(a, at);
+        at += a.length;
+        return all.subarray(at - a.length, at);
+      });
+    };
+    const each = <T,>(pick: (face: SpreadGeometry['faces'][number]) => T) => geometry.faces.map(pick);
+    const fill = {
+      position: joined(each((f) => f.fills.position)),
+      color: joined(each((f) => f.fills.color)),
+      depth: joined(each((f) => f.fills.depth!)),
+    };
+    const line = {
+      a: joined(each((f) => f.strokes.a)),
+      b: joined(each((f) => f.strokes.b)),
+      color: joined(each((f) => f.strokes.color)),
+      widthMul: joined(each((f) => f.strokes.widthMul)),
+      depth: joined(each((f) => f.strokes.depth!)),
+      depthEnd: joined(each((f) => f.strokes.depthEnd!)),
+    };
+    return {
+      visibility: geometry.visibility,
+      faces: geometry.faces.map(({ fills, strokes }, f) => ({
+        fills: { ...fills, position: fill.position[f]!, color: fill.color[f]!, depth: fill.depth[f]! },
+        strokes: { ...strokes, a: line.a[f]!, b: line.b[f]!, color: line.color[f]!, widthMul: line.widthMul[f]!, depth: line.depth[f]!, depthEnd: line.depthEnd[f]! },
+      })),
+    };
+  }
+  const bytes = (value: unknown): unknown =>
+    ArrayBuffer.isView(value) ? Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength)) : value;
+  const asBytes = (ink: StrokeGeometry | null) => ink && Object.fromEntries(Object.entries(ink).map(([key, value]) => [key, bytes(value)]));
+
+  it('merge their lines to the byte, as faces held apart do', () => {
+    const lines = (geometry: SpreadGeometry) => geometry.faces.map(({ strokes }) => strokes);
+    const merged = asBytes(mergedSpreadInk(lines(apart())));
+    expect(merged).not.toBeNull();
+    expect(asBytes(mergedSpreadInk(lines(together(apart()))))).toEqual(merged);
+  });
+
+  it('upload the same fills and lines, to the byte, as faces held apart do', () => {
+    const uploads = (geometry: SpreadGeometry) => {
+      const regl = recordingRegl() as unknown as { buffer: (initial?: unknown) => RecordedBuffer };
+      const handles: RecordedBuffer[] = [];
+      const make = regl.buffer;
+      regl.buffer = (initial?: unknown) => {
+        const handle = make(initial);
+        handles.push(handle);
+        return handle;
+      };
+      recorded.ink = [];
+      createSpreadProgram(regl as unknown as Parameters<typeof createSpreadProgram>[0]).setData(geometry, BAND);
+      return { buffers: handles.map((handle) => bytes(handle.data)), ink: recorded.ink.map(asBytes) };
+    };
+    expect(uploads(together(apart()))).toEqual(uploads(apart()));
+  });
+});
+
 describe('scissorOnBuffer', () => {
   const viewport = { width: 100, height: 50, dpr: 1 };
   it('maps a box through the view, from the bottom left of the buffer', () => {

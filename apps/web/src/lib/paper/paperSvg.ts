@@ -541,9 +541,10 @@ export function erodeSegment(
 ): [ScenePoint, ScenePoint] | null {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
+  // A segment kept whole only needs to have a length, which needs no hypot.
+  if (!(distance > 0) || (!onBoundary[0] && !onBoundary[1])) return hasLength(dx, dy) ? [a, b] : null;
   const length = Math.hypot(dx, dy);
   if (!(length > 0)) return null;
-  if (!(distance > 0) || (!onBoundary[0] && !onBoundary[1])) return [a, b];
   if (distance >= length / 2) return null;
   const ux = (dx / length) * distance;
   const uy = (dy / length) * distance;
@@ -551,6 +552,12 @@ export function erodeSegment(
     onBoundary[0] ? [a[0] + ux, a[1] + uy] : a,
     onBoundary[1] ? [b[0] - ux, b[1] - uy] : b,
   ];
+}
+
+/** Exactly `Math.hypot(dx, dy) > 0`: an infinite side, or two numbers not both zero. */
+function hasLength(dx: number, dy: number): boolean {
+  if (Math.abs(dx) === Infinity || Math.abs(dy) === Infinity) return true;
+  return dx === dx && dy === dy && (dx !== 0 || dy !== 0);
 }
 
 function pointText([x, y]: ScenePoint): string {
