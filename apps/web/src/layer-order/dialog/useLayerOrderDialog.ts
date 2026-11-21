@@ -287,7 +287,7 @@ export function useLayerOrderDialog(
       try {
         // The model's verdict (D16), and the carried rows it still lists, which the save writes back by
         // record index: nothing in the session changes before a save that can still be refused.
-        const outcome = await latest.current.settle.apply(asked.result, asked.turnDeg);
+        const outcome = await latest.current.settle.apply(asked.result, asked.turnDeg, asked.side);
         if (outcome !== 'applied' && outcome !== 'unchanged') return;
         // Answered: the model closes, and says so.
         stateRef.current = step.state;

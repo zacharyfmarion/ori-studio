@@ -47,6 +47,7 @@ const ASK: FoldImportLayerOrderAsk = {
     shown: SHOWN,
     look: { side: 'back', turn_deg: 270 },
   },
+  single: false,
 };
 const VIEW: FoldImportView = { style: DEFAULT_PAPER_STYLE, lineStyle: 'color', lineWidth: 2, foldAngleDisplay: 'opacity' };
 
@@ -80,6 +81,7 @@ describe('Import CP’s Layer order request', () => {
         foldAngleDisplay: 'opacity',
       },
       shown: SHOWN,
+      takesSide: true,
       name: 'kabuto.fold',
     });
     // Only a file has a name to give.
@@ -106,6 +108,12 @@ describe('Import CP’s answer from the Layer order dialog', () => {
   it.each([
     [{ kind: 'applied', applied } as LayerOrderDialogOutcome, { kind: 'applied', relations, digest: 'fedcba9876543210' }],
     [{ kind: 'unchanged' } as LayerOrderDialogOutcome, { kind: 'unchanged' }],
+    // The dialog says the side only when Side left the folded pane on the other one (row H12).
+    [{ kind: 'unchanged', turnDeg: 30, side: 'front' } as LayerOrderDialogOutcome, { kind: 'unchanged', turnDeg: 30, turnedOver: true }],
+    [
+      { kind: 'applied', applied, side: 'front' } as LayerOrderDialogOutcome,
+      { kind: 'applied', relations, digest: 'fedcba9876543210', turnedOver: true },
+    ],
     [{ kind: 'cancelled' } as LayerOrderDialogOutcome, { kind: 'cancelled' }],
     [{ kind: 'unavailable' } as LayerOrderDialogOutcome, { kind: 'fallback' }],
     [{ kind: 'busy' } as LayerOrderDialogOutcome, { kind: 'fallback' }],
@@ -133,6 +141,12 @@ describe('Import CP’s answer from the Layer order dialog', () => {
       dialog.answer = { kind };
       await chooseFoldImportLayerOrder(ASK, VIEW, t);
     }
+    expect(toasts.shown).toEqual([]);
+  });
+
+  it('says nothing when busy for a pattern with one order, which lands at once with no chooser to go to', async () => {
+    dialog.answer = { kind: 'busy' };
+    await expect(chooseFoldImportLayerOrder({ ...ASK, single: true }, VIEW, t)).resolves.toEqual({ kind: 'fallback' });
     expect(toasts.shown).toEqual([]);
   });
 });

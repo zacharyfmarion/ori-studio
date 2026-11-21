@@ -30,7 +30,9 @@ import {
  * What holds, on kabuto and `solution_sample_1`: the dialog opens on the
  * import's default order, held whole; Apply lands one step whose state is
  * the one Fold's own chooser lands for the order the dialog shows, stack for
- * stack; an Apply that changed nothing lands the default pick.
+ * stack; an Apply that changed nothing lands the default pick. A pattern
+ * with one order opens it too, for its Rotate, unless its faces can't be
+ * matched, when it lands at once.
  *
  * Skipped when the Fold bridge has not been built.
  */
@@ -90,7 +92,7 @@ function sceneSpots(scene: OristudioCpFoldedPaperScene): number[][] {
  * either Applies untouched or commits one constraint that turns over a pair
  * the creases leave open, as Add does, then Applies.
  */
-function dialogOf(wasm: Wasm, touch: boolean, turnBy?: number) {
+function dialogOf(wasm: Wasm, touch: boolean, turnBy?: number, turnOver = false) {
   const engine = new wasm.FoldEngine();
   const seen: { opened?: LayerOpenOutcome; front?: number[][]; look?: FoldImportLayerOpening['look'] } = {};
   const choose = async ({ opening }: FoldImportLayerOrderAsk): Promise<FoldImportLayerOrderAnswer> => {
@@ -101,10 +103,12 @@ function dialogOf(wasm: Wasm, touch: boolean, turnBy?: number) {
     if (opened.status !== 'ok') return { kind: 'cancelled' };
     if (!touch) {
       seen.front = spots(engine.layer_stacks(opened.session, 'front') as LayerStacks);
-      // Rotate pressed: the host's turn, from the side the dialog opened on.
-      return turnBy === undefined
-        ? { kind: 'unchanged' }
-        : { kind: 'unchanged', turnDeg: (opening.look.turn_deg + turnBy + 360) % 360 };
+      // Rotate pressed: the host's turn, from the side the dialog opened on; Side to the other one.
+      return {
+        kind: 'unchanged',
+        ...(turnBy === undefined ? {} : { turnDeg: (opening.look.turn_deg + turnBy + 360) % 360 }),
+        ...(turnOver ? { turnedOver: true as const } : {}),
+      };
     }
     const upper = new Map<string, number>();
     for (let i = 0; i < shown.length; i += 2) {
@@ -137,12 +141,12 @@ function runtimeOf(wasm: Wasm) {
   }, wasm.fold_engine_version());
 }
 
-async function importThroughDialog(wasm: Wasm, relative: string, touch: boolean, turnBy?: number) {
+async function importThroughDialog(wasm: Wasm, relative: string, touch: boolean, turnBy?: number, turnOver = false) {
   const runtime = runtimeOf(wasm);
   const source = memoryFoldDocument();
   const session = createFoldSession({ document: source, runtime });
   sessions.push(session);
-  const dialog = dialogOf(wasm, touch, turnBy);
+  const dialog = dialogOf(wasm, touch, turnBy, turnOver);
   const flow = createFoldImportFlow({ session, editFoldedFigure: async () => null, chooseLayerOrder: dialog.choose });
   flows.push(flow);
   await flow.open(file(relative));
@@ -233,4 +237,46 @@ describe.skipIf(!available)('Import CP’s order chosen in the Layer order dialo
       release();
     });
   }
+
+  it('a pattern with one order opens the dialog too, and its Rotate stores the imported step turned', async () => {
+    const wasm = await bridge();
+    const relative = 'fold-samples/pleat-in-eighths.fold';
+    const { source, state, seen } = await importThroughDialog(wasm, relative, false, -30);
+    expect(seen.opened).toMatchObject({ status: 'ok' });
+    expect(state).toMatchObject({ phase: 'done' });
+    expect(committedStep(source)?.op).toMatchObject({ kind: 'cp-jump', turnDeg: -30 });
+    expect(choosersPick(wasm, relative, seen.front!).orders).toBe(1);
+  });
+
+  for (const relative of ['fold-samples/pleat-in-eighths.fold', 'oriedita/solution_sample_1.cp']) {
+    it(`${relative}: an Apply the dialog's Side left on the other side stores the imported step turned over`, async () => {
+      const wasm = await bridge();
+      const plain = await importThroughDialog(wasm, relative, false);
+      const { source, state } = await importThroughDialog(wasm, relative, false, -30, true);
+      expect(state).toMatchObject({ phase: 'done' });
+      const step = committedStep(source);
+      expect(step?.op).toMatchObject({ kind: 'cp-jump', turnDeg: -30, turnedOver: true });
+      // Seen otherwise, so its fingerprint differs from the untouched import's.
+      expect(step?.expect).not.toBe(committedStep(plain.source)?.expect);
+      // Opened again, the stored step replays to the step as it landed, turned over.
+      const again = createFoldSession({ document: source, runtime: runtimeOf(wasm) });
+      sessions.push(again);
+      const release = again.retain();
+      for (let round = 0; round < 200 && selectFoldCursorNode(again.store.getState()).status === 'pending'; round += 1) {
+        await settle(1);
+      }
+      expect(selectFoldCursorNode(again.store.getState())).toMatchObject({ status: 'ok', fingerprint: step?.expect });
+      release();
+    });
+  }
+
+  it('a pattern with one order whose precreases Edit doesn’t fold lands at once, as before the dialog', async () => {
+    const wasm = await bridge();
+    const { source, state, seen } = await importThroughDialog(wasm, 'fold-samples/waterbomb-base.fold', false, -30);
+    // The engine can't open it onto the dialog's faces (`faces_differ`), so the dialog is never asked.
+    expect(seen.opened).toBeUndefined();
+    expect(state).toMatchObject({ phase: 'done' });
+    expect(committedStep(source)?.op).toMatchObject({ kind: 'cp-jump' });
+    expect(committedStep(source)?.op).not.toHaveProperty('turnDeg');
+  });
 });

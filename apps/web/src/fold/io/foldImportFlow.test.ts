@@ -1,7 +1,7 @@
 /**
  * Import CP's flow over the session and a fake engine with Import CP's
- * calls: one order commits at once, several wait for a choice and are
- * pictured, an empty sequence adopts the pattern's sheet, Edit's figure
+ * calls: without the Layer order dialog one order commits at once and
+ * several wait for a choice and are pictured, an empty sequence adopts the pattern's sheet, Edit's figure
  * commits as it lands, a refusal is said, and every import and preview the
  * engine held is let go.
  */
@@ -133,6 +133,11 @@ function fakeIo({
         calls.push(`importTurn:${turnDeg}`);
         if (!held.has(handle)) throw { code: 'unknown_import', message: 'gone' };
         return { side: 'back' as const, turn_deg: turnDeg };
+      },
+      importTurnOver(handle: number, turnedOver: boolean) {
+        calls.push(`importTurnOver:${turnedOver}`);
+        if (!held.has(handle)) throw { code: 'unknown_import', message: 'gone' };
+        return { side: turnedOver ? ('front' as const) : ('back' as const), turn_deg: 0 };
       },
       importPickLayerOrder(handle: number, digest: string, relations: Uint32Array) {
         calls.push(`importPickLayerOrder:${digest}:${[...relations].join(',')}`);
@@ -572,6 +577,29 @@ describe('Import CP’s order chosen in the Layer order dialog (row H10)', () =>
   });
 
   it.each([
+    ['an Apply', { kind: 'applied', relations: PICKED, digest: DIGEST, turnedOver: true }, `importPickLayerOrder:${DIGEST}:3,1,4,1`],
+    ['an Apply that only turned it over', { kind: 'unchanged', turnedOver: true }, 'importPick:0,0'],
+  ] as const)('turns the import over to the dialog’s Side before it lands, so the step itself is stored turned over: %s', async (_what, answer, pick) => {
+    const { choose } = dialog(answer);
+    const { flow, source, io } = setup(sequenceOf([step('a', null)]), 'a', { orders: [3, 2] }, undefined, undefined, choose);
+    await flow.open(FILE);
+    await settle(10);
+    expect(flow.store.getState()).toMatchObject({ phase: 'done' });
+    expect(io().calls).toEqual(['importCp:after', 'importLayerOpening:0,0', 'importTurnOver:true', pick, 'releaseImports:101']);
+    // One step: no turn step after it.
+    expect(source.commits).toHaveLength(1);
+  });
+
+  it('turns first, then over, when the dialog did both', async () => {
+    const { choose } = dialog({ kind: 'unchanged', turnDeg: 45, turnedOver: true });
+    const { flow, io } = setup(sequenceOf([step('a', null)]), 'a', {}, undefined, undefined, choose);
+    await flow.open(SAMPLE);
+    await settle(10);
+    expect(flow.store.getState()).toMatchObject({ phase: 'done' });
+    expect(io().calls).toEqual(['importCp:after', 'importLayerOpening:', 'importTurn:45', 'importTurnOver:true', 'importPick:', 'releaseImports:101']);
+  });
+
+  it.each([
     ['an Apply', { kind: 'applied', relations: PICKED, digest: DIGEST, turnDeg: 120 }, `importPickLayerOrder:${DIGEST}:3,1,4,1`],
     ['an Apply that only turned it', { kind: 'unchanged', turnDeg: 120 }, 'importPick:0,0'],
   ] as const)('turns the import to the dialog’s Rotate before it lands, so the step itself is stored turned: %s', async (_what, answer, pick) => {
@@ -623,15 +651,49 @@ describe('Import CP’s order chosen in the Layer order dialog (row H10)', () =>
     expect(io().calls.slice(0, 2)).toEqual(['importCp:after', 'importLayerOpening:0']);
   });
 
-  it('imports a pattern with one order straight through, never asking the dialog', async () => {
+  it('asks the dialog for a pattern with one order too, so it can be rotated before it lands', async () => {
+    const { choose, asks } = dialog({ kind: 'unchanged', turnDeg: 120 });
+    const { flow, source, io, offered } = setup(sequenceOf([step('a', null)]), 'a', {}, undefined, undefined, choose);
+    await flow.open(SAMPLE);
+    await settle(10);
+    expect(choose).toHaveBeenCalledOnce();
+    expect(asks[0]).toMatchObject({ request: SAMPLE, single: true });
+    expect(flow.store.getState()).toMatchObject({ phase: 'done', origin: 'sample' });
+    expect(io().calls).toEqual(['importCp:after', 'importLayerOpening:', 'importTurn:120', 'importPick:', 'releaseImports:101']);
+    expect(source.commits).toHaveLength(1);
+    expect(offered).not.toHaveBeenCalled();
+  });
+
+  it('tells the dialog when there are several orders to choose among', async () => {
+    const { choose, asks } = dialog({ kind: 'cancelled' });
+    const { flow } = setup(sequenceOf([step('a', null)]), 'a', { orders: [2] }, undefined, undefined, choose);
+    await flow.open(FILE);
+    await settle(10);
+    expect(asks[0]).toMatchObject({ single: false });
+  });
+
+  it('cancels a one-order import on Cancel, as it cancels any other', async () => {
     const { choose } = dialog({ kind: 'cancelled' });
     const { flow, source, io } = setup(sequenceOf([step('a', null)]), 'a', {}, undefined, undefined, choose);
     await flow.open(SAMPLE);
-    await settle();
-    expect(choose).not.toHaveBeenCalled();
+    await settle(10);
+    expect(flow.store.getState()).toEqual({ phase: 'idle' });
+    expect(source.commits).toEqual([]);
+    expect(io().held.size).toBe(0);
+  });
+
+  it.each([
+    ['the dialog is busy or didn’t load', {}, { kind: 'fallback' }],
+    ['the engine can’t open it onto the dialog’s faces', { layerUnavailable: true }, { kind: 'cancelled' }],
+  ] as const)('lands a one-order import at once when %s, with no chooser', async (_what, engine, answer) => {
+    const { choose } = dialog(answer);
+    const { flow, source, io, offered } = setup(sequenceOf([step('a', null)]), 'a', engine, undefined, undefined, choose);
+    await flow.open(SAMPLE);
+    await settle(10);
     expect(flow.store.getState()).toMatchObject({ phase: 'done', origin: 'sample' });
-    expect(io().calls).toEqual(['importCp:after', 'importPick:', 'releaseImports:101']);
+    expect(io().calls).toEqual(['importCp:after', 'importLayerOpening:', 'importPick:', 'releaseImports:101']);
     expect(source.commits).toHaveLength(1);
+    expect(offered).not.toHaveBeenCalled();
   });
 
   it('withdraws the dialog on a reset, and drops its late answer', async () => {
@@ -707,11 +769,15 @@ describe('Import CP’s order chosen in the Layer order dialog (row H10)', () =>
     }
   });
 
-  it('asks for the dialog’s code only once an import reports several orders', async () => {
+  it('asks for the dialog’s code once an import opens, one order or several, and not for a refused one', async () => {
+    const refused = setup(sequenceOf([step('a', null)]), 'a', {}, undefined, undefined, dialog({ kind: 'cancelled' }).choose);
+    await refused.flow.open({ kind: 'file', name: 'x.pdf', source: null });
+    await settle();
+    expect(refused.prefetched).not.toHaveBeenCalled();
     const one = setup(sequenceOf([step('a', null)]), 'a', {}, undefined, undefined, dialog({ kind: 'cancelled' }).choose);
     await one.flow.open(SAMPLE);
-    await settle();
-    expect(one.prefetched).not.toHaveBeenCalled();
+    await settle(10);
+    expect(one.prefetched).toHaveBeenCalledOnce();
     const several = setup(sequenceOf([step('a', null)]), 'a', { orders: [2] }, undefined, undefined, dialog({ kind: 'cancelled' }).choose);
     await several.flow.open(FILE);
     await settle(10);
