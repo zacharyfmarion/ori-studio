@@ -124,13 +124,19 @@ export const DEFAULT_SPREAD_STARTS: LayerSpreadStarts = {
  * sequence's pictures spread alike without a setting of their own. `earlier`
  * is the spreads of the pictures before, nearest first; how a surface walks
  * back to them — a diagram's order, a Fold step's path — is its own.
+ *
+ * A Default start is version 1 whatever it starts from: versions draw alike
+ * but in Perspective 3D, and a pose that starts one there makes it version 2
+ * (`startedSpread`), so no picture that never shows the difference is made one
+ * an older build would lock.
  */
 export function spreadStartsAmong(earlier: Iterable<LayerSpreadOptions>, defaults: LayerSpreadStarts = DEFAULT_SPREAD_STARTS): LayerSpreadStarts {
   let any: LayerSpreadOptions | null = null;
   let depth: DepthSpreadOptions | null = null;
   let affine: AffineSpreadOptions | null = null;
   let connected: ConnectedSpread | null = null;
-  for (const spread of earlier) {
+  for (const seen of earlier) {
+    const spread: LayerSpreadOptions = seen.kind === 'connected' && seen.version !== 1 ? { ...seen, version: 1 } : seen;
     any ??= spread;
     if (spread.kind === 'depth') depth ??= spread;
     else if (spread.kind === 'affine') affine ??= spread;
@@ -164,6 +170,8 @@ export type LayerSpreadEdit =
   | { verb: 'spread-reveal'; reveal: [number, number] }
   | { verb: 'spread-reveal-axis'; axis: 0 | 1; value: number }
   | { verb: 'spread-amount'; amount: number; kind?: SpreadKind }
+  // A Default spread made version 2 at the amount that draws its picture as it was (`equalOpeningAmount`).
+  | { verb: 'spread-equal-opening'; amount: number }
   | { verb: 'spread-direction'; toward: SpreadDirection }
   | { verb: 'spread-keep'; keep: SpreadKeep }
   | { verb: 'spread-skew'; skew: number }
@@ -172,6 +180,7 @@ export type LayerSpreadEdit =
 /** The verbs of {@link LayerSpreadEdit}. */
 export const LAYER_SPREAD_EDIT_VERBS: ReadonlySet<string> = new Set([
   'spread-amount',
+  'spread-equal-opening',
   'spread-reveal',
   'spread-reveal-axis',
   'spread-direction',
@@ -199,6 +208,8 @@ export function withSpreadField(spread: LayerSpreadOptions, edit: LayerSpreadEdi
       return edit.kind === undefined || edit.kind === spread.kind
         ? { ...spread, amount: clampSpreadAmount(spread.kind, edit.amount) }
         : spread;
+    case 'spread-equal-opening':
+      return spread.kind === 'connected' ? { ...spread, version: 2, amount: clampSpreadAmount('connected', edit.amount) } : spread;
     case 'spread-direction':
       return spread.kind === 'depth' ? { ...spread, toward: edit.toward } : spread;
     case 'spread-keep':
@@ -252,8 +263,8 @@ export function readLayerSpread(value: unknown): LayerSpreadOptions | undefined 
     if (typeof value.version !== 'number' || !Array.isArray(value.reveal) || value.reveal.length !== 2) return null;
     const x = finiteNumber(value.reveal[0]), y = finiteNumber(value.reveal[1]);
     if (x === null || y === null) return null;
-    if (past || value.version !== 1 || Math.hypot(x, y) > 2.00001) return NEWER;
-    return { kind: 'connected', version: 1, amount, reveal: [x, y] };
+    if (past || (value.version !== 1 && value.version !== 2) || Math.hypot(x, y) > 2.00001) return NEWER;
+    return { kind: 'connected', version: value.version, amount, reveal: [x, y] };
   }
   if (known === 'depth') {
     if (typeof value.toward !== 'string') return null;

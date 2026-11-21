@@ -47,7 +47,13 @@ export interface SpreadSolution {
 }
 export interface ConnectedSpread {
   kind: 'connected';
-  version: 1;
+  /**
+   * How Perspective 3D turns `amount` into height. 1: it doubles the solved
+   * heights, so how far a model opens depends on its solve; every spread saved
+   * before 2 is, and keeps it. 2: every model's neighbouring layers open alike
+   * (`implementation-plans/spread-equal-opening.md`). Diagram draws both alike.
+   */
+  version: 1 | 2;
   amount: number;
   reveal: Point;
 }

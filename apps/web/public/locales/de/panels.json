@@ -1699,6 +1699,8 @@
     "spread": {
       "diagram": "Diagramm",
       "drag": "Ziehen, um Lagen sichtbar zu machen",
+      "equalOpeningNotice": "Dieses Bild nutzt die alte Skala für die Stärke, die einfache Modelle viel weiter öffnet als komplexe. Beim Aktualisieren bleibt das Aussehen erhalten, außer es öffnet sich über die neuen 100 % hinaus.",
+      "equalOpeningUpdate": "Aktualisieren",
       "padHint": "Ebenen durch Ziehen sichtbar machen. Pfeiltasten zum Anpassen; Umschalt für größere Schritte.",
       "perspective": "3D-Perspektive",
       "presentation": "Darstellung",

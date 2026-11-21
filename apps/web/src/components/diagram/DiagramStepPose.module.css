@@ -4,3 +4,8 @@
   display: grid;
   gap: var(--space-1);
 }
+
+/* A notice under the section's rows (SpreadEqualOpeningNotice), inset as they are. */
+.notice {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}

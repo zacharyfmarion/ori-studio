@@ -49,6 +49,32 @@ describe('the start rule (13g), shared by the Diagram and Fold', () => {
     spreadStartsAmong(earlier());
     expect(read).toBe(3);
   });
+
+  it('starts a Default spread at version 1, even from one Perspective 3D made version 2', () => {
+    const shown = { ...DEFAULT_CONNECTED_SPREAD, version: 2 as const, amount: 0.3 };
+    const starts = spreadStartsAmong([shown, depth(0.05)]);
+    expect(starts.connected).toEqual({ ...shown, version: 1 });
+    expect(starts.any).toEqual({ ...shown, version: 1 });
+    expect(shown.version).toBe(2);
+  });
+});
+
+describe('equal opening, as an edit (implementation-plans/spread-equal-opening.md)', () => {
+  it('makes a Default spread version 2 at the amount given, within its range', () => {
+    expect(withSpreadField(DEFAULT_CONNECTED_SPREAD, { verb: 'spread-equal-opening', amount: 0.18537 }))
+      .toEqual({ ...DEFAULT_CONNECTED_SPREAD, version: 2, amount: 0.1854 });
+    expect(withSpreadField(DEFAULT_CONNECTED_SPREAD, { verb: 'spread-equal-opening', amount: 7.7 }))
+      .toEqual({ ...DEFAULT_CONNECTED_SPREAD, version: 2, amount: 2 });
+  });
+
+  it('leaves a spread by depth or affine as it is', () => {
+    expect(withSpreadField(depth(0.05), { verb: 'spread-equal-opening', amount: 0.1 })).toEqual(depth(0.05));
+    expect(withSpreadField(affine(0.03), { verb: 'spread-equal-opening', amount: 0.1 })).toEqual(affine(0.03));
+  });
+
+  it('tells two spreads apart by their version alone', () => {
+    expect(sameSpread(DEFAULT_CONNECTED_SPREAD, { ...DEFAULT_CONNECTED_SPREAD, version: 2 })).toBe(false);
+  });
 });
 
 describe('a spread set by its controls', () => {
@@ -109,5 +135,15 @@ describe('a spread as a file holds it', () => {
     expect(readLayerSpread('affine')).toBeNull();
     // Before there were two kinds, every spread was by depth.
     expect(readLayerSpread({ amount: 0.05, toward: 'down' })).toEqual(depth(0.05));
+  });
+
+  it('keeps a Default spread’s version: 1 as every saved one is, 2 for equal opening, and a later one as news', () => {
+    for (const version of [1, 2] as const) {
+      const spread = { ...DEFAULT_CONNECTED_SPREAD, version };
+      const written = writeLayerSpread(spread);
+      expect(written).toEqual({ kind: 'connected', version, amount: 0.14, reveal: [0.8, 0.6] });
+      expect(readLayerSpread(JSON.parse(JSON.stringify(written)))).toEqual(spread);
+    }
+    expect(readLayerSpread({ ...writeLayerSpread(DEFAULT_CONNECTED_SPREAD), version: 3 })).toBe(NEWER);
   });
 });

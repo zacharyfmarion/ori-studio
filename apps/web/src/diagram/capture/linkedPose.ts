@@ -1,4 +1,5 @@
 import {withSpreadCamera} from '../../layer-spread/presentation';
+import { entersPerspective, spreadInPerspective, startedSpread } from '../../layer-spread/equalOpening';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
 import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
 import { clampSpatialSpreadAmount } from '../../cp-workspace/folded/spatialSpreadSettings';
@@ -382,7 +383,9 @@ export async function poseLinkedStep(
     const { rotationDeg, foldCase, spread } = render;
     const pose: FlatPose = { ...render };
     if (request.verb === 'spread-presentation' && spread?.kind === 'connected') {
-      return flat({...pose, presentation: {...render.presentation, kind: request.kind,
+      // Newly shown in Perspective 3D, a spread is drawn by version 2; one already there keeps its version.
+      const shown = entersPerspective(render.presentation, request.kind) ? spreadInPerspective(spread) : spread;
+      return flat({...pose, spread: shown, presentation: {...render.presentation, kind: request.kind,
         camera: render.presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA, orderSide: render.presentation?.orderSide ?? 'front'}});
     }
     if (request.verb === 'orbit' && spread?.kind === 'connected' && render.presentation?.kind === 'perspective') {
@@ -420,13 +423,14 @@ export async function poseLinkedStep(
         return flat({ side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread } : {}) });
       case 'spread-layers': {
         const { spread: _was, ...unspread } = pose;
-        return flat(spread ? unspread : { ...unspread, spread: spreadStart.any });
+        return flat(spread ? unspread : { ...unspread, spread: startedSpread(spreadStart.any, pose.presentation) });
       }
       case 'spread-kind':
         // The other kind, from where the steps before left it: each kind keeps its own settings.
         if (!spread || request.verb !== 'spread-kind' || spread.kind === request.kind) return flat(pose);
-        return flat({ ...pose, spread: spreadStart[request.kind] });
+        return flat({ ...pose, spread: startedSpread(spreadStart[request.kind], pose.presentation) });
       case 'spread-amount':
+      case 'spread-equal-opening':
       case 'spread-direction':
       case 'spread-keep':
       case 'spread-skew':

@@ -1,6 +1,7 @@
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 import { queueStepPoseEdit } from '../capture/stepPoseQueue';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
+import { entersPerspective, spreadInPerspective, startedSpread } from '../../layer-spread/equalOpening';
 /**
  * The verbs of a Diagram step linked to a Fold step (plan D17), bound to the
  * store: Refresh, Show as, its pose — turned, turned over, to an angle, its
@@ -199,9 +200,11 @@ export function spreadFoldRender(
   const { spread, ...unspread } = render;
   switch (request.verb) {
     case 'spread-layers':
-      return spread ? unspread : { ...unspread, spread: starts.any };
+      return spread ? unspread : { ...unspread, spread: startedSpread(starts.any, render.presentation) };
     case 'spread-kind':
-      return !spread || spread.kind === request.kind ? render : { ...render, spread: starts[request.kind] };
+      return !spread || spread.kind === request.kind
+        ? render
+        : { ...render, spread: startedSpread(starts[request.kind], render.presentation) };
     default:
       return spread ? { ...render, spread: withSpreadField(spread, request) } : render;
   }
@@ -362,7 +365,10 @@ export function sayFoldCaptureOutcome(outcome: DiagramFoldCaptureOutcome): void 
 export async function presentDiagramFoldStep(stepId: string, presentation: SpreadPresentation, current?: () => boolean, background = false): Promise<boolean> {
   const source=foldSourceOf(stepId);
   if(!source || source.render.mode!=='folded-flat' || source.render.spread?.kind!=='connected')return false;
-  return poseAs(stepId,source,{...source.render,presentation},'spread-presentation',current,!background);
+  // Newly shown in Perspective 3D, a spread is drawn by version 2; one already there keeps its version.
+  const { spread } = source.render;
+  const shown = entersPerspective(source.render.presentation, presentation.kind) ? spreadInPerspective(spread) : spread;
+  return poseAs(stepId,source,{...source.render,spread:shown,presentation},'spread-presentation',current,!background);
 }
 
 /** Presentation changes remain available while a picture is being captured. */

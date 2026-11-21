@@ -85,6 +85,23 @@ describe('a Fold step’s spread and angle (Phase 13 on a Fold step)', () => {
     expect(rotatedFoldRender({ ...FLAT, spread: depth }, -45)).toEqual({ ...FLAT, spread: depth, rotationDeg: 315 });
     expect(rotatedFoldRender(PATTERN, 382.5)).toEqual({ mode: 'crease-pattern', rotationDeg: 22.5 });
   });
+
+  it('starts a Default spread by version 2 only in Perspective 3D, and updates a saved one when asked (equal opening)', () => {
+    const presentation = { kind: 'perspective' as const, camera: { yaw: 0, pitch: -0.4, zoom: 1 }, orderSide: 'front' as const };
+    const there: DiagramCpRender = { ...FLAT, presentation };
+    expect(spreadFoldRender({ ...there, spread: affine }, { verb: 'spread-kind', kind: 'connected' }, starts))
+      .toEqual({ ...there, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } });
+    expect(spreadFoldRender(there, { verb: 'spread-layers' }, { ...starts, any: DEFAULT_CONNECTED_SPREAD }))
+      .toEqual({ ...there, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } });
+    expect(spreadFoldRender({ ...FLAT, spread: affine }, { verb: 'spread-kind', kind: 'connected' }, starts))
+      .toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
+    // A picture saved there keeps version 1 through a value, and takes 2 only from Update.
+    const saved: DiagramCpRender = { ...there, spread: DEFAULT_CONNECTED_SPREAD };
+    expect(spreadFoldRender(saved, { verb: 'spread-amount', amount: 0.5 }, starts))
+      .toEqual({ ...saved, spread: { ...DEFAULT_CONNECTED_SPREAD, amount: 0.5 } });
+    expect(spreadFoldRender(saved, { verb: 'spread-equal-opening', amount: 0.02 }, starts))
+      .toEqual({ ...saved, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2, amount: 0.02 } });
+  });
 });
 
 /**

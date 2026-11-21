@@ -34,6 +34,7 @@ import {
 } from '../document/diagramDocument';
 import type { FoldStepCaptureInput } from './foldStepCapture';
 import { rotateDiagramFoldStepTo, spreadDiagramFoldStep } from './foldStepActions';
+import { useEqualOpeningUpdate, type EqualOpeningUpdate } from '../capture/useEqualOpeningUpdate';
 
 /**
  * Pose for a Diagram step linked to a Fold step (plan D17), beyond the
@@ -62,6 +63,8 @@ export interface DiagramFoldStepPose {
   connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
   setPresentation: (kind: SpreadPresentation['kind']) => Promise<void>;
   presentationHeld: boolean;
+  /** Update, for a Default spread saved in Perspective 3D before equal opening; null for any other. */
+  equalOpening: EqualOpeningUpdate | null;
   onCamera: (camera: FoldedFigureCamera) => void;
   onReveal: (reveal: [number, number]) => void;
   /** Spread Layers, the pose verb: absent unless the step shows a flat fold. */
@@ -307,6 +310,14 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
   );
   const connectedSpread =
     ours?.spread.kind === 'connected' ? ours.spread : flat?.spread?.kind === 'connected' ? flat.spread : null;
+  const applyEqualOpening = useCallback(
+    (amount: number) => {
+      if (stepId === null || readOnly || unknownMarks) return Promise.resolve(false);
+      return spreadDiagramFoldStep(stepId, { verb: 'spread-equal-opening', amount });
+    },
+    [stepId, readOnly, unknownMarks],
+  );
+  const equalOpening = useEqualOpeningUpdate(source?.render, connected, readOnly || busy || unknownMarks, applyEqualOpening);
 
   const rotateTo = useCallback(
     (degrees: number) => {
@@ -326,6 +337,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
             connectedSpread,
             setPresentation,
             presentationHeld: readOnly || unknownMarks || spreadFailed,
+            equalOpening,
             onCamera,
             onReveal,
             spreadToggle,
@@ -342,6 +354,7 @@ export function useDiagramFoldStepPose(step: DiagramStep | null, live = false): 
       connectedPreparing,
       connectedSpread,
       setPresentation,
+      equalOpening,
       onCamera,
       onReveal,
       source,

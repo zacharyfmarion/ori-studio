@@ -1761,6 +1761,8 @@
     "spread": {
       "diagram": "Diagramme",
       "drag": "Glisser pour révéler les couches",
+      "equalOpeningNotice": "Cette image utilise l’ancienne échelle d’Ampleur, qui ouvre bien plus les modèles simples que les modèles complexes. La mettre à jour conserve son apparence, sauf si elle s’ouvre au-delà du nouveau 100 %.",
+      "equalOpeningUpdate": "Mettre à jour",
       "padHint": "Faites glisser pour révéler les couches. Ajustez avec les flèches ; Maj augmente le déplacement.",
       "perspective": "Perspective 3D",
       "presentation": "Présentation",

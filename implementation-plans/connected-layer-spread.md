@@ -336,7 +336,9 @@ label **Spread amount**; do not expose “Normalized 50”, reference-face selec
 or optimizer weights in the product UI.
 
 Perspective 3D applies twice the stored height multiplier before projection
-(2026-10-31 follow-up). Diagram retains the scale above. Both presentations
+(2026-10-31 follow-up). Since equal opening (`implementation-plans/spread-equal-opening.md`,
+2026-11-20) that is version 1 of a connected spread; version 2 opens every
+model's neighbouring layers alike, and every spread saved before keeps version 1. Diagram retains the scale above. Both presentations
 keep the same slider value and reuse the same cached solution; the shared
 drawing path applies the extra height to faces and ink for live and final output.
 
