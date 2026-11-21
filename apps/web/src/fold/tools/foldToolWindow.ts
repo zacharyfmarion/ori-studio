@@ -328,7 +328,8 @@ export interface FoldWindowButton {
 
 /**
  * A step of the path to choose, by its key: Unfold to step's step to return
- * to, Repeat's first step. Only the steps the tool can take are offered.
+ * to, Repeat's first step and its last. Only the steps the tool can take are
+ * offered.
  */
 export interface FoldStepChoice {
   label: string;
@@ -376,7 +377,7 @@ export interface FoldToolWindowModel {
   extent?: FoldKindChoice<FoldExtentMode> | null;
   /** Rotate's amount, exact angle and direction (`tools/rotate`); absent for every other tool. */
   rotate?: FoldRotateControls;
-  /** The step a sequence tool acts toward: Unfold to step's target, Repeat's first step. */
+  /** The step a sequence tool acts toward: Unfold to step's target, Repeat's first step (its last is Repeat's own, `repeat.end`). */
   steps?: FoldStepChoice | null;
   /** Repeat's axis, how it is saved, and a layer order to choose (`fold/repeat`); absent for every other tool. */
   repeat?: FoldRepeatControls;

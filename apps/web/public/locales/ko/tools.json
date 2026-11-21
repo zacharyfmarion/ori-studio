@@ -857,7 +857,7 @@
       "repeatAxesTouch": "종이에 그려진 대칭축을 탭하거나, ‘선 정하기’로 어느 창에서든 축을 정하세요.",
       "repeatCommit": "Enter 키를 누르면 반복 접기를 추가합니다.",
       "repeatCommitTouch": "{{action}}을(를) 탭하면 반복 접기를 추가합니다.",
-      "repeatStart": "반복할 첫 단계를 선택하세요. 범위는 화면에 표시된 단계에서 끝납니다.",
+      "repeatRange": "반복할 첫 단계와 마지막 단계를 선택하세요. 반복은 화면에 표시된 단계 다음에 추가됩니다.",
       "reverseFinish": "뒤집어 접을 플랩을 고른 뒤 Enter 키를 누르세요.",
       "reverseFinishTouch": "뒤집어 접을 플랩을 고른 뒤 {{action}}을(를) 탭하세요.",
       "rotateCommit": "Enter 키를 누르면 회전이 추가됩니다.",

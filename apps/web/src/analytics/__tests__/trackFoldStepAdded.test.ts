@@ -30,6 +30,11 @@ it('counts Repeat mode and a bucketed range size without source content', () => 
   expect(runtime.track).toHaveBeenLastCalledWith('fold step added', {
     op_kind: 'repeat', repeat_mode: 'grouped', count_bucket: '<=5', axis_source: 'drawn_cp', side: 'behind',
   });
+  // Whether its range ended before the step it was added after: an enum, never the steps.
+  trackFoldStepAdded('repeat', { repeat: { mode: 'grouped', count: 2, side: 'same', rangeEnd: 'earlier' } });
+  expect(runtime.track).toHaveBeenLastCalledWith('fold step added', {
+    op_kind: 'repeat', repeat_mode: 'grouped', count_bucket: '<=5', side: 'same', range_end: 'earlier',
+  });
 });
 
 it('says which end of a pleat moved, and nothing of the sort for another fold', () => {

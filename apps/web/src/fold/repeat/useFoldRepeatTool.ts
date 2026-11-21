@@ -95,9 +95,10 @@ function spanOf(sheet: readonly (readonly [number, number])[] | undefined): numb
 }
 
 /**
- * Repeat, the tool (plans `fold-sequence-tools`, `repeat-axis`): the range
- * from the first step chosen through the step on screen (`repeatRange`), the
- * verified symmetry axes of the state before it — asked of the worker once
+ * Repeat, the tool (plans `fold-sequence-tools`, `repeat-axis`,
+ * `repeat-range-end`): the range from the first step chosen through the last
+ * — by default the step on screen — added after the step on screen
+ * (`repeatRange`), the verified symmetry axes of the state before it — asked of the worker once
  * per state, each a line on the sheet that repeats on the other side or
  * behind — each prepared up front, one after another (`repeatPrepared`), and
  * the one taken: the axis last chosen or drawn while its repeat lands, else
@@ -131,8 +132,8 @@ export function useFoldRepeatTool(
   const sequenceId = useFoldSessionState((snapshot) => (active ? (snapshot.sequence?.id ?? null) : null));
   const readOnly = session.readOnly || session.cursor.status === 'locked';
   const range = useMemo(
-    () => (active ? repeatRange(entries, cursor, tools.repeatFirst) : null),
-    [active, entries, cursor, tools.repeatFirst]
+    () => (active ? repeatRange(entries, cursor, tools.repeatFirst, tools.repeatLast) : null),
+    [active, entries, cursor, tools.repeatFirst, tools.repeatLast]
   );
   const parent = active ? (entries[cursor]?.session ?? null) : null;
   const base = range?.baseline.session.state ?? null;
@@ -174,7 +175,7 @@ export function useFoldRepeatTool(
   // --- Every listed axis prepared up front (`repeatPrepared`): which land, and which are refused.
   const rangeKey =
     active && range && parent
-      ? [loadId, sequenceId, cursorId, parent.path, range.first.id, baseKey, rebuilding ? rebuild!.id : ''].join('|')
+      ? [loadId, sequenceId, cursorId, parent.path, range.first.id, range.last.id, baseKey, rebuilding ? rebuild!.id : ''].join('|')
       : null;
   const contextOf = (line: FoldModelLine | null | undefined) => (rangeKey === null ? null : `${rangeKey}|${line ? canonicalJson(line) : ''}`);
   const [store] = useState<RepeatPreparedStore>(createRepeatPreparedStore);
@@ -336,7 +337,7 @@ export function useFoldRepeatTool(
     if (!range || !parent?.state) return null;
     const generation = parent.state.generation;
     const steps: RepeatSourceStep[] = [];
-    for (let at = range.start; at <= cursor; at++) {
+    for (let at = range.start; at <= range.end; at++) {
       const entry = entries[at]!;
       const before = entries[at - 1]?.session.state;
       const after = entry.session.state;
@@ -353,10 +354,12 @@ export function useFoldRepeatTool(
    */
   const preparation = (line: FoldModelLine, accepted: Record<number, string>) => {
     const steps = sourceSteps();
-    if (!steps || !range || !parent?.state || !parent.path || !cursorId) return null;
+    const revision = range?.last.session.path;
+    if (!steps || !range || !parent?.state || !parent.path || !cursorId || !revision) return null;
     const request: RepeatRequest = {
       parent: parent.state.id,
-      source: { first: range.first.id!, last: cursorId, revision: parent.path },
+      // The source is the range, first through last; its revision, the last step's path, says when it changed.
+      source: { first: range.first.id!, last: range.last.id!, revision },
       steps,
       axis: line,
       selections: accepted,
@@ -488,7 +491,7 @@ export function useFoldRepeatTool(
   const commit = async () => {
     if (busy || error || result?.status !== 'ready' || !range || !cursorId || !parent?.path) return;
     const op = result.op;
-    if (op.source.first !== range.first.id) return;
+    if (op.source.first !== range.first.id || op.source.last !== range.last.id) return;
     const now = foldSession().store.getState();
     if (now.cursor !== cursorId || now.loadId !== loadId || now.nodes.get(cursorId)?.path !== parent.path) return;
     const pending = now.pending;
@@ -514,7 +517,16 @@ export function useFoldRepeatTool(
     }
     // An update in place is no step added, as an Unfold's rebuild is not.
     if (rebuilding) trackFoldRepeatRebuilt();
-    else trackFoldStepAdded('repeat', { repeat: { mode: individual ? 'individual' : 'grouped', count: op.steps.length, axisSource: source, side } });
+    else
+      trackFoldStepAdded('repeat', {
+        repeat: {
+          mode: individual ? 'individual' : 'grouped',
+          count: op.steps.length,
+          axisSource: source,
+          side,
+          rangeEnd: range.last.id === cursorId ? 'current' : 'earlier',
+        },
+      });
     putDown();
   };
 
@@ -587,7 +599,9 @@ export function useFoldRepeatTool(
 
   return {
     view: {
-      range: range ? { entries, starts: range.starts, first: range.first.id!, count: range.count } : null,
+      range: range
+        ? { entries, starts: range.starts, first: range.first.id!, ends: range.ends, last: range.last.id!, count: range.count }
+        : null,
       axes: axes === undefined ? null : (axes ?? []),
       // The axes are named as the folded pane shows them: the step on screen, in its view.
       foldedView: parent?.summary?.view ?? null,
@@ -609,6 +623,7 @@ export function useFoldRepeatTool(
     },
     verbs: {
       setFirst: (id) => foldTools().setRepeatFirst(id),
+      setLast: (id) => foldTools().setRepeatLast(id),
       setAxis,
       hoverAxis,
       setIndividual: (individual) => foldTools().setRepeatIndividual(individual),

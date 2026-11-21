@@ -6,7 +6,7 @@ import type { FoldReport } from '../engine/foldEngineWire';
 import { foldStepSentence } from '../stepSentence';
 import { operationBadge, operationLabel } from '../stepWords';
 import { diagonalHalfScene, squareScene } from './foldScene.fixtures';
-import { foldNodeSentenceStep, foldSentenceStepOf, foldsInHalf, movingInputs, referenceOf } from './foldSentenceStep';
+import { foldNodeSentenceStep, foldSentenceStepOf, foldsInHalf, movingInputs, referenceOf, repeatEarlierOf } from './foldSentenceStep';
 import { foldStateFrame } from './foldStateFrame';
 
 const t = i18n.t.bind(i18n);
@@ -128,6 +128,35 @@ describe('a stored step as its sentence reads it', () => {
     ).toEqual({ op: 'tuck', direction: 'mountain', line: { via: 'free' } });
     const locked: FoldLockedStep = { id: 'l', parent: null, unknown: { op: { kind: 'sink' } } };
     expect(foldNodeSentenceStep(locked, none)).toEqual({ op: 'unknown' });
+  });
+
+  it('reads a Repeat whose range ends before the step it is added after as repeating earlier steps, by number', () => {
+    const none = { parent: null, child: null, report: null };
+    const op = {
+      kind: 'repeat',
+      source: { first: 's1', last: 's2', revision: 'fh1:x' },
+      parentState: 'p',
+      axis: { n: [1, 0], d: 0.5 },
+      steps: [{ op: { kind: 'turn', axis: 'vertical' }, expect: 'a', sourceStep: 's1' }, { op: { kind: 'turn', axis: 'vertical' }, expect: 'b', sourceStep: 's2' }],
+    } as const;
+    // Added just after its range: the previous operations.
+    expect(foldNodeSentenceStep({ id: 'r', parent: 's2', op }, none)).toEqual({ op: 'repeat', count: 2 });
+    // Added after another step — a radial repeat's second — it repeats earlier ones, numbered where known.
+    expect(foldNodeSentenceStep({ id: 'r2', parent: 'r', op }, none)).toEqual({ op: 'repeat', count: 2, earlier: { first: null, last: null } });
+    const path = [
+      { id: null, number: 0 },
+      { id: 's1', number: 1 },
+      { id: 's2', number: 2 },
+      { id: 'r', number: 3 },
+    ];
+    const earlier = repeatEarlierOf(op, 'r', path);
+    expect(earlier).toEqual({ first: 1, last: 2 });
+    expect(foldNodeSentenceStep({ id: 'r2', parent: 'r', op }, { ...none, repeatEarlier: earlier })).toMatchObject({ earlier: { first: 1, last: 2 } });
+    expect(foldStepSentence(t, foldNodeSentenceStep({ id: 'r2', parent: 'r', op }, { ...none, repeatEarlier: earlier }))).toBe(
+      'Repeat steps 1–2 on the other side.'
+    );
+    expect(repeatEarlierOf(op, 's2', path)).toBeNull();
+    expect(repeatEarlierOf({ kind: 'turn', axis: 'vertical' }, 'r', path)).toBeNull();
   });
 
   it('names a partial precrease’s points as an axiom’s inputs are named', () => {

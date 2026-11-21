@@ -6,7 +6,7 @@ import { createFoldEngineCalls } from '../engine/foldEngineCalls';
 import { createFoldEngineCompoundCalls } from '../engine/foldEngineCompoundCalls';
 import type { FoldOp } from '../document/foldSequenceDocument';
 import { prepareRepeat, type RepeatSourceStep } from './repeatPreparation';
-import { repeatSymmetries, verifiedSymmetry } from './repeatGeometry';
+import { faceAt, mappedPoint, modelMap, repeatSymmetries, verifiedSymmetry } from './repeatGeometry';
 import { appendFoldStep, appendFoldSteps } from '../document/foldSequenceEdits';
 import { readFoldSequence, writeFoldSequence } from '../document/foldSequenceFile';
 import { resolveFoldReturn } from '../document/foldReturn';
@@ -630,5 +630,49 @@ describe('sequential Repeat through the public engine', () => {
       ),
     };
     expect(verifiedSymmetry(wrong, axis)).toBeNull();
+  });
+
+  it('repeats a range that ends before the step it is added after: one corner, radially across three axes', async () => {
+    const e = await engine();
+    const sheet = e.sheet({ shape: { kind: 'square' }, startSide: 'front' });
+    if (sheet.status !== 'ok') throw new Error('sheet');
+    // Fold the top right corner to the centre, then repeat that one step — the range [corner, corner] —
+    // after each repeat in turn: the range ends before the step the repeat is added after.
+    const corner: FoldOp = {
+      kind: 'valley',
+      line: { via: 'free', through: [[0.5, 1], [1, 0.5]] },
+      moving: [0.95, 0.95],
+      seed: { scope: 'all' },
+    };
+    const folded = e.step(sheet.state, corner);
+    if (folded.status !== 'ok') throw new Error(JSON.stringify(folded));
+    const steps: RepeatSourceStep[] = [{ id: 'corner', before: sheet.state, after: folded.state, op: corner }];
+    const source = { first: 'corner', last: 'corner', revision: 'test' };
+    const across = [
+      { n: [1, 0] as const, d: 0.5 },
+      { n: [0, 1] as const, d: 0.5 },
+      { n: [Math.SQRT1_2, Math.SQRT1_2] as const, d: Math.SQRT1_2 },
+    ];
+    let parent = folded.state;
+    const landed: number[] = [];
+    for (const axis of across) {
+      const prepared = prepareRepeat(e, { parent, axis, steps, source, baseline: null });
+      expect(prepared, JSON.stringify(prepared)).toMatchObject({ status: 'ready' });
+      if (prepared.status !== 'ready') return;
+      const result = e.step(parent, prepared.op);
+      if (result.status !== 'ok') throw new Error(JSON.stringify(result));
+      landed.push(result.state);
+      parent = result.state;
+    }
+    // Every corner lies at the centre: a blintz, the square's four corners folded in.
+    const blintz = e.scene(parent);
+    for (const p of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+      const face = faceAt(blintz, p);
+      const at = mappedPoint(modelMap(blintz, face), p);
+      expect(Math.hypot(at[0] - 0.5, at[1] - 0.5)).toBeLessThan(1e-9);
+    }
+    // A corner already folded is no mirror to fold again: the first axis, once more, is refused.
+    const again = prepareRepeat(e, { parent, axis: across[0]!, steps, source, baseline: null });
+    expect(again.status).toBe('blocked');
   });
 });

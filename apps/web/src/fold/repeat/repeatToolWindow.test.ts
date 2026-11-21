@@ -22,7 +22,7 @@ const entries = [entry(null, 0), entry('s1', 1), entry('s2', 2)];
 
 function repeat(phase: FoldRepeatPhase, extra: Partial<FoldRepeatWindowView> = {}): FoldRepeatWindowView {
   return {
-    range: { entries, starts: entries.slice(1), first: 's1', count: 2 },
+    range: { entries, starts: entries.slice(1), first: 's1', ends: entries.slice(1), last: 's2', count: 2 },
     axes: [
       { sheet: { n: [1, 0], d: 0.5 }, side: 'same' },
       { sheet: { n: [0, 1], d: 0.5 }, side: 'behind' },
@@ -51,6 +51,7 @@ function verbs() {
     setFreeLineSnap: vi.fn(),
     repeat: {
       setFirst: vi.fn(),
+      setLast: vi.fn(),
       setAxis: vi.fn(),
       hoverAxis: vi.fn(),
       setIndividual: vi.fn(),
@@ -69,11 +70,13 @@ function windowOf(state: FoldRepeatWindowView, calls = verbs(), lineMode: FoldTo
 }
 
 describe("Repeat's window", () => {
-  it('offers the range start, the verified axes by name and how it is added, and adds the repeat previewed', () => {
+  it('offers the range start and end, the verified axes by name and how it is added, and adds the repeat previewed', () => {
     const calls = verbs();
     const model = windowOf(repeat({ kind: 'ready', busy: false }), calls);
     expect(model.title).toBe('Repeat');
     expect(model.steps).toMatchObject({ label: 'Start with', value: 's1', options: [{ id: 's1', label: 'Step 1' }, { id: 's2', label: 'Step 2' }] });
+    expect(model.repeat?.end).toMatchObject({ label: 'End with', value: 's2', options: [{ id: 's1', label: 'Step 1' }, { id: 's2', label: 'Step 2' }] });
+    expect(model.instructions.items[0]).toBe('Choose the first and last steps to repeat. The repeat is added after the step on screen.');
     // Each axis by where it runs on the paper: with no view of the step on screen yet, as the crease pattern shows it.
     expect(model.repeat?.axis).toMatchObject({
       label: 'Symmetry axis',
@@ -84,7 +87,7 @@ describe("Repeat's window", () => {
       ],
     });
     expect(model.repeat?.individual).toMatchObject({ label: 'Show as individual steps', checked: false });
-    expect(model.repeat?.summary).toBe('Repeat 2 operations through the current step on the other side, as one numbered step.');
+    expect(model.repeat?.summary).toBe('Repeat 2 operations on the other side, as one numbered step.');
     // An axis of the folder's own is located as any fold's line is.
     expect(model.lineMode).toMatchObject({ label: 'Locate line', value: 'axiom-2' });
     // Drawn as a free line, the window offers its snapping, as every free line's; located otherwise, none.
@@ -98,9 +101,11 @@ describe("Repeat's window", () => {
     expect(model.footer?.cancel.label).toBe('Cancel');
     model.repeat?.axis.set('1');
     model.steps?.set('s2');
+    model.repeat?.end?.set('s1');
     model.repeat?.individual?.set(true);
     expect(calls.repeat.setAxis).toHaveBeenCalledWith(1);
     expect(calls.repeat.setFirst).toHaveBeenCalledWith('s2');
+    expect(calls.repeat.setLast).toHaveBeenCalledWith('s1');
     expect(calls.repeat.setIndividual).toHaveBeenCalledWith(true);
   });
 
@@ -164,7 +169,7 @@ describe("Repeat's window", () => {
 
   it('says it repeats behind when the axis previewed reverses the layers: the summary and the commit', () => {
     const behind = windowOf(repeat({ kind: 'ready', busy: false }, { side: 'behind', hovered: 1 }));
-    expect(behind.repeat?.summary).toBe('Repeat 2 operations through the current step behind, as one numbered step.');
+    expect(behind.repeat?.summary).toBe('Repeat 2 operations behind, as one numbered step.');
     expect(behind.footer?.commit.label).toBe('Repeat behind');
     // The axis taken stays the one chosen while another is only hovered: nothing moves under the pointer.
     expect(behind.repeat?.axis.value).toBe('0');
@@ -259,6 +264,7 @@ describe("Repeat's window", () => {
   it('has nothing to offer at the flat sheet', () => {
     const model = windowOf(repeat({ kind: 'unavailable', why: 'sheet' }, { range: null, axes: null, axis: -1, drawing: false }));
     expect(model.steps).toBeNull();
+    expect(model.repeat?.end).toBeNull();
     expect(model.instructions.notes).toEqual(['Fold a step first.']);
     expect(model.footer?.commit.disabled).toBe(true);
   });
