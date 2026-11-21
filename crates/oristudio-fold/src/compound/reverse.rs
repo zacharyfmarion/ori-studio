@@ -28,6 +28,8 @@
 //!   pairs across blocks, kept in absolute terms except corresponding halves
 //!   of openings along one spine that nest or interleave (walls of several
 //!   plies, `Tip::packet_pairs`), which turn together as a packet;
+//!   a pleat pinned to one wall at a vertex on ℓ rides with the wall when
+//!   opening it independently contradicts that wall’s reversal (see `carried`);
 //!   each block against its own
 //!   body, inside putting T1 over B1 and T2 under B2, outside the reverse.
 //!   The completion decides the rest: with these seeds it is unique in
@@ -43,6 +45,7 @@
 //!   offers only the openings that land, so it asks of every way the tip
 //!   opens which kinds do, and which flaps the tip cannot be folded without.
 
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
 use oristudio_geometry::{Line, convex};
@@ -64,6 +67,7 @@ use crate::state::State;
 use crate::view::Direction;
 use crate::witness::{Broken, BrokenWitness, WitnessOrder};
 
+mod carried;
 mod landings;
 
 pub use landings::{MAX_WAYS, ReverseLandings, ReverseWay};
@@ -342,7 +346,7 @@ impl State {
         };
         // The kinds share their geometry: prepared once, the outside fold is
         // the inside one with its placements turned.
-        let Ok(prepared) = tip.prepare(self, &plan, ReverseKind::Inside) else {
+        let Ok((prepared, _)) = tip.prepare(self, &plan, ReverseKind::Inside) else {
             return Ok(Vec::new());
         };
         let limits = CompletionLimits::default();
@@ -379,7 +383,7 @@ impl State {
         let Some(plan) = tip.choose(self, choices)? else {
             return Ok(ReverseOutcome::ChooseOpening(Box::new(tip.analysis(self))));
         };
-        let prepared = tip
+        let (prepared, plan) = tip
             .prepare(self, &plan, op.kind)
             .map_err(|r| CompoundRefused::Refused(r.into()))?;
         let context = Context::new(self, &tip, &plan, op.kind);
@@ -570,6 +574,8 @@ pub(super) struct RawOpening {
     pub(super) lower: Vec<usize>,
     pub(super) upper: Vec<usize>,
     spine: Option<Line>,
+    // A plan carrying pleats still names the opening the scan offered.
+    named_upper: Option<Vec<usize>>,
     across: Vec<usize>,
     pub(super) lower_body: Vec<usize>,
     pub(super) upper_body: Vec<usize>,
@@ -589,7 +595,9 @@ impl RawOpening {
             upper_body: ids(&self.upper_body),
             stored: StoredOpening {
                 upper: self
-                    .upper
+                    .named_upper
+                    .as_ref()
+                    .unwrap_or(&self.upper)
                     .iter()
                     .filter_map(|&f| state.face_witness(state.faces()[f].id))
                     .collect(),
@@ -637,27 +645,6 @@ impl Tip {
             }
             overlaps
         };
-        // A face of `inner` between two faces of `outer` where all three
-        // overlap.
-        let between = |outer: &[usize], inner: &[usize]| {
-            inner.iter().any(|&b| {
-                outer.iter().any(|&a1| {
-                    outer.iter().any(|&a2| {
-                        let (Some(p), Some(q), Some(r)) = (piece(a1), piece(b), piece(a2)) else {
-                            return false;
-                        };
-                        if a1 == a2
-                            || state.above(id(a1), id(b)) != Some(true)
-                            || state.above(id(b), id(a2)) != Some(true)
-                        {
-                            return false;
-                        }
-                        let pq = convex::clip(p, q);
-                        pq.len() >= 3 && convex::penetration(&pq, r) > TOL
-                    })
-                })
-            })
-        };
         let mut coupled = Vec::new();
         for (a, outer) in plan.openings.iter().enumerate() {
             for (b, inner) in plan.openings.iter().enumerate().skip(a + 1) {
@@ -687,7 +674,7 @@ impl Tip {
                             (&inner.lower, &outer.lower),
                         ]
                         .iter()
-                        .any(|(a, b)| between(a, b))
+                        .any(|(a, b)| self.between(state, a, b))
                 };
                 if same_spine && (nested || interleaved()) {
                     coupled.push([2 * a, 2 * b]);
@@ -696,6 +683,30 @@ impl Tip {
             }
         }
         coupled
+    }
+
+    // A face of `inner` between two faces of `outer` where all three
+    // overlap.
+    fn between(&self, state: &State, outer: &[usize], inner: &[usize]) -> bool {
+        let piece = |f: usize| self.side.pieces[f].as_deref();
+        let id = |f: usize| state.faces()[f].id;
+        inner.iter().any(|&b| {
+            outer.iter().any(|&a1| {
+                outer.iter().any(|&a2| {
+                    let (Some(p), Some(q), Some(r)) = (piece(a1), piece(b), piece(a2)) else {
+                        return false;
+                    };
+                    if a1 == a2
+                        || state.above(id(a1), id(b)) != Some(true)
+                        || state.above(id(b), id(a2)) != Some(true)
+                    {
+                        return false;
+                    }
+                    let pq = convex::clip(p, q);
+                    pq.len() >= 3 && convex::penetration(&pq, r) > TOL
+                })
+            })
+        })
     }
 
     fn new(
@@ -1005,18 +1016,26 @@ impl Tip {
     ) -> bool {
         self.prepare(state, plan, kind)
             .ok()
-            .is_some_and(|prepared| prepared.lands(limits))
+            .is_some_and(|(prepared, _)| prepared.lands(limits))
     }
 
     /// The compound fold of a plan, through the pipeline's steps 2–7: each
     /// opening two blocks against their bodies, each flap moving whole a
     /// block placed by the completion alone.
-    fn prepare(
+    fn prepare<'a>(
         &self,
         state: &State,
-        plan: &Plan,
+        plan: &'a Plan,
         kind: ReverseKind,
-    ) -> Result<Prepared, FoldRefusal> {
+    ) -> Result<(Prepared, Cow<'a, Plan>), FoldRefusal> {
+        let plan = match self.carried_opening(state, plan) {
+            Some(opening) => Cow::Owned(Plan {
+                openings: vec![opening],
+                whole: plan.whole.clone(),
+                stored: plan.stored.clone(),
+            }),
+            None => Cow::Borrowed(plan),
+        };
         let nf = state.faces().len();
         let mut block_of = vec![None; nf];
         let mut against = Vec::with_capacity(2 * plan.openings.len());
@@ -1046,16 +1065,17 @@ impl Tip {
             }
         }
         let reflection = self.classified.axis.reflection();
-        prepare(
+        let prepared = prepare(
             state,
             &Macro {
                 line: self.classified.clone(),
                 block_of,
                 blocks: vec![reflection; 2 * plan.openings.len() + plan.whole.len()],
                 against,
-                across: Across::packets(self.packet_pairs(state, plan), false),
+                across: Across::packets(self.packet_pairs(state, &plan), false),
             },
-        )
+        )?;
+        Ok((prepared, plan))
     }
 
     /// The admissible openings of the flap whose face positions are `flap`
@@ -1223,13 +1243,14 @@ impl Tip {
                     continue;
                 }
                 bodied_any = true;
-                if !bodies.separated(state, &lower_body, &upper_body) {
+                if !separated(state, &bodies.pieces, &lower_body, &upper_body) {
                     continue;
                 }
                 let opening = RawOpening {
                     lower,
                     upper,
                     spine,
+                    named_upper: None,
                     across,
                     lower_body,
                     upper_body,
@@ -1305,7 +1326,6 @@ impl Bodies {
     fn new(state: &State, tip: &Tip, flap: &[usize]) -> Bodies {
         let classes = &tip.classified.classes;
         let topology = state.topology();
-        let half = tip.classified.axis.moving_half_plane();
         let mut of_face: Vec<(usize, Vec<usize>)> = flap
             .iter()
             .map(|&f| {
@@ -1335,8 +1355,16 @@ impl Bodies {
                 }
             }
         }
+        Bodies {
+            of_face,
+            pieces: Self::stationary_pieces(state, tip),
+        }
+    }
+
+    fn stationary_pieces(state: &State, tip: &Tip) -> Vec<Option<Vec<Point>>> {
+        let half = tip.classified.axis.moving_half_plane();
         let images = &state.geometry().images;
-        let pieces = (0..state.faces().len())
+        (0..state.faces().len())
             .map(|f| {
                 if tip.side.pieces[f].is_none() {
                     return Some(images[f].clone());
@@ -1347,8 +1375,7 @@ impl Bodies {
                 half.map(|h| convex::split(&images[f], &h, TOL).outside)
                     .filter(|p| p.len() >= 3)
             })
-            .collect();
-        Bodies { of_face, pieces }
+            .collect()
     }
 
     /// The body of a block, ascending.
@@ -1363,28 +1390,32 @@ impl Bodies {
         body.dedup();
         body
     }
+}
 
-    /// No face in both, and the lower body below the upper wherever their
-    /// pieces that stay overlap.
-    fn separated(&self, state: &State, lower: &[usize], upper: &[usize]) -> bool {
-        let faces = state.faces();
-        for &a in lower {
-            for &b in upper {
-                if a == b {
-                    return false;
-                }
-                let (Some(p), Some(q)) = (&self.pieces[a], &self.pieces[b]) else {
-                    continue;
-                };
-                if convex::penetration(p, q) > TOL
-                    && state.above(faces[a].id, faces[b].id) != Some(false)
-                {
-                    return false;
-                }
+/// No face in both walls, and the lower below the upper wherever their pieces overlap.
+fn separated(
+    state: &State,
+    pieces: &[Option<Vec<Point>>],
+    lower: &[usize],
+    upper: &[usize],
+) -> bool {
+    let faces = state.faces();
+    for &a in lower {
+        for &b in upper {
+            if a == b {
+                return false;
+            }
+            let (Some(p), Some(q)) = (&pieces[a], &pieces[b]) else {
+                continue;
+            };
+            if convex::penetration(p, q) > TOL
+                && state.above(faces[a].id, faces[b].id) != Some(false)
+            {
+                return false;
             }
         }
-        true
     }
+    true
 }
 
 /// The ways to split pieces into a lower part that nothing of the upper part
