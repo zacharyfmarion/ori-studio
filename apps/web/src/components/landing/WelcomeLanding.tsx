@@ -27,6 +27,8 @@ export const LANDING_SECTIONS = [
   { id: 'landing-edit', section: 'edit' },
   { id: 'landing-design', section: 'design' },
   { id: 'landing-simulate', section: 'simulate' },
+  { id: 'landing-fold', section: 'fold' },
+  { id: 'landing-diagram', section: 'diagram' },
   { id: 'landing-compatibility', section: 'compatibility' },
   { id: 'landing-get', section: 'get' },
 ] as const satisfies ReadonlyArray<{ id: string; section: LandingSectionId }>;
@@ -36,7 +38,8 @@ export const LANDING_SECTIONS = [
  *
  * The pitch, in the order it lands: what this is, then the crease-pattern editor
  * (the bulk of the app, and the thing that decides whether someone stays), then
- * the design workspace and the simulator, then compatibility, then how to get in.
+ * the design workspace and the simulator, then folding step by step and the
+ * diagrams that come out of it, then compatibility, then how to get in.
  *
  * One claim it deliberately does **not** make: reading a crease pattern out of an
  * image. The detector ships only where `isCpDetectBuildEnabled` says so, and
@@ -62,7 +65,7 @@ export function WelcomeLanding() {
         title={t('landing:what.title', 'A free, open-source workspace for origami design')}
         lead={t(
           'landing:what.lead',
-          'Sketch a base, draw the crease pattern, and fold it to see whether it works — all in one place, with no account. Open it in a browser tab, or install the desktop app.'
+          'Sketch a base, draw the crease pattern, fold it to see whether it works, and diagram it for others to fold — all in one place, with no account. Open it in a browser tab, or install the desktop app.'
         )}
       >
         <LandingFigure
@@ -219,6 +222,82 @@ export function WelcomeLanding() {
             'landing:simulate.figureAlt',
             'A folded 3D model simulating inline beside its crease pattern.'
           )}
+        />
+      </LandingSection>
+
+      <LandingSection
+        id="landing-fold"
+        layout="split"
+        eyebrow={t('landing:fold.eyebrow', 'Fold')}
+        title={t('landing:fold.title', 'Fold a sheet the way you would by hand')}
+        lead={t(
+          'landing:fold.lead',
+          'Fold a model as you would by hand, one step at a time from a flat sheet of paper. Import from and export to the Edit workspace for steps that need a complicated collapse. When you are done, import the entire sequence into the Diagram workspace for complete, formatted diagrams!'
+        )}
+      >
+        <LandingFigure
+          name="fold"
+          alt={t(
+            'landing:fold.figureAlt',
+            'The Fold workspace: a strip of folding steps above the folded paper and its crease pattern.'
+          )}
+        />
+      </LandingSection>
+
+      <LandingSection
+        id="landing-diagram"
+        tone="raised"
+        eyebrow={t('landing:diagram.eyebrow', 'Diagram')}
+        title={t('landing:diagram.title', 'From model to printed instructions')}
+        lead={t(
+          'landing:diagram.lead',
+          'Import from the Edit, Fold and References workspaces to create a complete diagram of a model. Each step’s picture is drawn from your crease pattern or a Fold step, so it stays true to the model, and the finished pages export as a PDF ready to print.'
+        )}
+      >
+        <LandingSwipeCarousel
+          showTabs={!phone}
+          label={t('landing:diagram.carouselLabel', 'Diagram features')}
+          items={[
+            {
+              id: 'diagram-pages',
+              figure: 'diagram-pages',
+              title: t('landing:diagram.pages.title', 'Pages ready to print'),
+              body: t(
+                'landing:diagram.pages.body',
+                'Lay the steps out on A4, A5, B5 or Letter pages, in a grid or a winding flow, with a title block on page one. Export a PDF, or a ZIP of the step pictures.'
+              ),
+              figureAlt: t(
+                'landing:diagram.pages.figureAlt',
+                'Page one of a crane diagram: a title block with the crease pattern and the finished model above numbered steps.'
+              ),
+            },
+            {
+              id: 'diagram-annotate',
+              figure: 'diagram-annotate',
+              title: t('landing:diagram.annotate.title', 'All the annotations you need'),
+              body: t(
+                'landing:diagram.annotate.body',
+                'Valley, mountain and fold-and-unfold arrows, fold lines, equal divisions, callouts, close-ups and X-ray windows, snapped to the paper as you draw them.'
+              ),
+              figureAlt: t(
+                'landing:diagram.annotate.figureAlt',
+                'A close-up of a crane’s head open for annotation, with a fold-and-unfold arrow and its fold line beside the annotation tools.'
+              ),
+            },
+            {
+              id: 'diagram-pose',
+              figure: 'diagram-pose',
+              title: t('landing:diagram.pose.title', 'Pictures from the model itself'),
+              body: t(
+                'landing:diagram.pose.body',
+                'Show a step as its crease pattern, folded flat with its layers spread apart, or folded in 3D and turned to any angle. A step linked to the model says when the model has changed.'
+              ),
+              figureAlt: t(
+                'landing:diagram.pose.figureAlt',
+                'A box folded in 3D and turned to show its inside, in the Diagram’s Pose view.'
+              ),
+            },
+          ]}
         />
       </LandingSection>
 
