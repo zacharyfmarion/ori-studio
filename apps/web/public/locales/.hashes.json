@@ -6752,7 +6752,9 @@
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
     "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
     "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
-    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e",
+    "panels:diagram.pose.foldAgain": "33506c09c701",
+    "panels:diagram.pose.simulatedOutdated": "162eab8d766b"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13507,7 +13509,9 @@
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
     "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
     "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
-    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e",
+    "panels:diagram.pose.foldAgain": "33506c09c701",
+    "panels:diagram.pose.simulatedOutdated": "162eab8d766b"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20264,7 +20268,9 @@
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
     "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
     "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
-    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e",
+    "panels:diagram.pose.foldAgain": "33506c09c701",
+    "panels:diagram.pose.simulatedOutdated": "162eab8d766b"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26638,7 +26644,9 @@
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
     "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
     "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
-    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e",
+    "panels:diagram.pose.foldAgain": "33506c09c701",
+    "panels:diagram.pose.simulatedOutdated": "162eab8d766b"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -33012,7 +33020,9 @@
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
     "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
     "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
-    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e",
+    "panels:diagram.pose.foldAgain": "33506c09c701",
+    "panels:diagram.pose.simulatedOutdated": "162eab8d766b"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39767,7 +39777,9 @@
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
     "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
     "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
-    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e",
+    "panels:diagram.pose.foldAgain": "33506c09c701",
+    "panels:diagram.pose.simulatedOutdated": "162eab8d766b"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46522,7 +46534,9 @@
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
     "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
     "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
-    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e",
+    "panels:diagram.pose.foldAgain": "33506c09c701",
+    "panels:diagram.pose.simulatedOutdated": "162eab8d766b"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52896,6 +52910,8 @@
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
     "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
     "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
-    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e",
+    "panels:diagram.pose.foldAgain": "33506c09c701",
+    "panels:diagram.pose.simulatedOutdated": "162eab8d766b"
   }
 }

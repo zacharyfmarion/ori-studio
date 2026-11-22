@@ -19,6 +19,8 @@ import { SimulatorViewport } from '../../simulator/SimulatorViewport';
 import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
 import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import { SIMULATED_FRAME_PX } from '../../store/workspaceStore/diagramCapture';
+import { useDiagramOutdatedShapeEvent } from '../../analytics';
+import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Slider } from '../ui/Slider';
 import { DiagramPoseResumeButton } from './DiagramPoseResumeButton';
@@ -40,8 +42,10 @@ const ignoreCanvas = () => {};
  * Show switch and its Reset. While the simulator cannot run here — no pattern
  * open, the region gone, no WebGL2 in its worker, a region with no model, a
  * solver that failed — the captured picture (`fallback`) shows with a line
- * saying why, and the bar still shows the step another way. While it runs it
- * is registered (`registerLiveView`) for the bar's Set Upright.
+ * saying why, and the bar still shows the step another way. So does a step
+ * whose positions another build meshed differently (`outdated`), with Fold
+ * Again beside the line. While it runs it is registered (`registerLiveView`)
+ * for the bar's Set Upright.
  */
 export function DiagramPoseSimulatedView({
   stepId,
@@ -87,7 +91,9 @@ export function DiagramPoseSimulatedView({
     return markup ? { markup, ...size } : null;
   }, [annotations, size, atStored, style]);
 
-  const live = pose.status === 'ready' || pose.status === 'loading';
+  useDiagramOutdatedShapeEvent(pose.status === 'outdated');
+  // Mounted while outdated too: the model is loaded, paused, for Fold Again.
+  const live = pose.status === 'ready' || pose.status === 'loading' || pose.status === 'outdated';
   // Set Upright takes the up the view shows: only once it shows one.
   const ready = pose.status === 'ready';
   const { viewportRef } = pose;
@@ -113,6 +119,11 @@ export function DiagramPoseSimulatedView({
         return t('panels:diagram.pose.simulatedUnavailable', 'This pattern can’t be simulated.');
       case 'error':
         return pose.error ?? t('panels:diagram.pose.simulatedFailed', 'The simulation failed.');
+      case 'outdated':
+        return t(
+          'panels:diagram.pose.simulatedOutdated',
+          'An earlier version saved its shape, and this one can’t put it back. Its picture stays as it is.'
+        );
       default:
         return null;
     }
@@ -163,9 +174,16 @@ export function DiagramPoseSimulatedView({
         </DiagramPoseStage>
       )}
       {note && (
-        <p className={styles.note} role="status">
-          {note}
-        </p>
+        <div className={styles.note}>
+          <p className={styles.noteText} role="status">
+            {note}
+          </p>
+          {pose.status === 'outdated' && (
+            <Button size="sm" className={styles.foldAgain} onClick={pose.foldAgain}>
+              {t('panels:diagram.pose.foldAgain', 'Fold Again')}
+            </Button>
+          )}
+        </div>
       )}
       {toolbar(<DiagramSimulatedTransport pose={pose} />)}
     </>

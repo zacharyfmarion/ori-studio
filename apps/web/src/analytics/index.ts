@@ -158,6 +158,7 @@ export {
   trackDiagramArrowShaped,
   trackDiagramPicturePosed,
   trackDiagramSimulationResumed,
+  trackDiagramSimulationFoldedAgain,
   trackDiagramPictureRemoved,
   trackDiagramSourceOpened,
   trackDiagramReferencesBrowserOpened,
@@ -210,6 +211,7 @@ export {
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';
 export { useBpPatternNotFoundEvent } from './useBpPatternNotFoundEvent';
+export { useDiagramOutdatedShapeEvent } from './useDiagramOutdatedShapeEvent';
 export {
   useLandingSectionViewedEvents,
   useLandingViewedEvent,

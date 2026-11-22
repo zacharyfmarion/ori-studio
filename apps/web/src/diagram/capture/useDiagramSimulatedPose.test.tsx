@@ -9,6 +9,7 @@ import {
 } from '../document/diagramDocument';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { SimulatorFrameView } from '../../simulator/useSimulatorRuntime';
+import type { SimulatorShapeRestore } from '../../simulator/simulatorSession';
 import { encodeSimulatorShapeState, type SimulatorShape } from '../../simulator/simulatorShape';
 import { simulatedSaveNow } from './openLinkedPose';
 import type { SimulatedSave } from './poseController';
@@ -21,7 +22,8 @@ import {
 /**
  * Pose's live simulator against a stand-in runtime: what it saves as Pose
  * closes, and in what order it asks the worker; what it opens on, held or
- * not; which stored poses the view follows; and Refresh while it is open.
+ * not, or kept as its picture; which stored poses the view follows; and
+ * Refresh while it is open.
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -35,12 +37,17 @@ const sim = vi.hoisted(() => ({
   /** Whether the worker says its solver had settled when a capture is asked. */
   settled: true,
   tracked: [] as string[],
+  /** Whether the hook asked the runtime to stop stepping. */
+  paused: undefined as boolean | undefined,
+  /** How the step's link stands: `stale` once its creases changed. */
+  linkStatus: 'current',
 }));
 
 vi.mock('../../simulator/useSimulatorRuntime', () => ({
-  useSimulatorRuntime: (options: { onFrame?: (frame: unknown) => void; initialShape?: unknown }) => {
+  useSimulatorRuntime: (options: { onFrame?: (frame: unknown) => void; initialShape?: unknown; paused?: boolean }) => {
     sim.onFrame = options.onFrame ?? null;
     sim.initialShape = options.initialShape;
+    sim.paused = options.paused;
     // Its own effect, after the hook's: what the real runtime's release is.
     useEffect(() => () => void sim.log.push('runtime released'), []);
     return runtime;
@@ -48,6 +55,7 @@ vi.mock('../../simulator/useSimulatorRuntime', () => ({
 }));
 vi.mock('../../analytics', () => ({
   trackDiagramSimulationResumed: () => void sim.tracked.push('diagram simulation resumed'),
+  trackDiagramSimulationFoldedAgain: () => void sim.tracked.push('diagram simulation folded again'),
 }));
 
 /** The positions a capture reads: one node off the sheet, one crease turned. */
@@ -59,7 +67,9 @@ const stillCapture = vi.fn(async (_options: unknown) => {
   const shape: SimulatorShape = { sheet: 'sk1:sheet', pins: [], posed: false, state: STATE.slice() };
   return { scene: SCENE, shape, settled: sim.settled };
 });
-const restoreShape = vi.fn(async (_foldPercent: number, _shape: SimulatorShape | null) => ({ pins: [], posed: false }) as const);
+const restoreShape = vi.fn(
+  async (_foldPercent: number, _shape: SimulatorShape | null): Promise<SimulatorShapeRestore | null> => ({ pins: [], posed: false })
+);
 const setFoldPercent = vi.fn();
 const runtime = {
   status: 'ready',
@@ -82,7 +92,7 @@ vi.mock('../../cp-workspace/sheets/useCpSheetIndexState', () => ({
 }));
 const INDEX = {};
 const SHEET = { id: 0 };
-vi.mock('./linkStatus', () => ({ stepSheet: () => SHEET }));
+vi.mock('./linkStatus', () => ({ stepSheet: () => SHEET, stepLinkStatus: () => sim.linkStatus }));
 vi.mock('../../store/workspaceStore/diagramCapture', () => ({
   SIMULATED_FRAME_PX: 512,
   storeSimulationFold: async () => ({ faces_vertices: [[0, 1, 2]] }),
@@ -159,6 +169,8 @@ beforeEach(() => {
   sim.tracked = [];
   sim.model = { restored: null };
   sim.settled = true;
+  sim.paused = undefined;
+  sim.linkStatus = 'current';
   stillCapture.mockClear();
   restoreShape.mockClear();
   setFoldPercent.mockClear();
@@ -265,15 +277,71 @@ describe('useDiagramSimulatedPose', () => {
     expect((await landed(onSave)).captured).toEqual({ scene: SCENE, shape: stored(false) });
   });
 
-  it('folds from flat when its positions are another sheet’s, and its first save stores the new ones', async () => {
+  it('keeps the picture of a step whose positions another build meshed: nothing folds, nothing is saved', async () => {
     sim.model = { restored: 'mismatch' };
     const { onSave, wantsSave } = mount({ render: { foldPercent: 45, view: VIEW, shape: stored(false) } });
     await act(async () => {});
     push(VIEW);
+    expect(seen.pose!.status).toBe('outdated');
     expect(seen.pose!.held).toBe(false);
+    expect(sim.paused).toBe(true);
+    act(() => void simulatedSaveNow('step-s'));
+    unmount();
+    expect(wantsSave).not.toHaveBeenCalled();
+    expect(stillCapture).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('folds it from flat on Fold Again, and its first save stores the new positions', async () => {
+    sim.model = { restored: 'mismatch' };
+    const { onSave, wantsSave } = mount({ render: { foldPercent: 45, view: VIEW, shape: stored(false) } });
+    await act(async () => {});
+    push(VIEW);
+    await act(async () => seen.pose!.foldAgain());
+    expect(restoreShape).toHaveBeenLastCalledWith(45, null);
+    expect(seen.pose!.status).toBe('ready');
+    expect(sim.paused).toBe(false);
+    expect(sim.tracked).toEqual(['diagram simulation folded again']);
     unmount();
     expect(wantsSave).toHaveBeenLastCalledWith(false);
     expect((await landed(onSave)).captured?.shape).toEqual(stored(true));
+  });
+
+  it('folds from flat when its pattern changed since it was posed, and its first save stores the new positions', async () => {
+    sim.model = { restored: 'mismatch' };
+    sim.linkStatus = 'stale';
+    const { onSave, wantsSave } = mount({ render: { foldPercent: 45, view: VIEW, shape: stored(false) } });
+    await act(async () => {});
+    push(VIEW);
+    expect(seen.pose!.status).toBe('ready');
+    expect(sim.paused).toBe(false);
+    unmount();
+    expect(wantsSave).toHaveBeenLastCalledWith(false);
+    expect((await landed(onSave)).captured?.shape).toEqual(stored(true));
+  });
+
+  it('opens a refused step at 0% live: a fold from flat is the flat sheet it shows', async () => {
+    sim.model = { restored: 'mismatch' };
+    const { wantsSave } = mount({ render: { foldPercent: 0, view: VIEW, shape: stored(true) }, wantsSave: vi.fn(() => false) });
+    await act(async () => {});
+    push(VIEW);
+    expect(seen.pose!.status).toBe('ready');
+    unmount();
+    expect(wantsSave).toHaveBeenLastCalledWith(true);
+  });
+
+  it('keeps the picture when an undo goes back to positions another build meshed', async () => {
+    const props = mount();
+    await act(async () => {});
+    push(VIEW);
+    restoreShape.mockResolvedValueOnce('mismatch');
+    mount({ ...props, render: { foldPercent: 30, view: VIEW, shape: stored(true) } });
+    await act(async () => {});
+    expect(seen.pose!.status).toBe('outdated');
+    // Not folded freely from flat after it.
+    expect(restoreShape).toHaveBeenCalledOnce();
+    unmount();
+    expect(props.onSave).not.toHaveBeenCalled();
   });
 
   it('opens a step saved without positions as before — at its fold % and camera — and saves them on leaving', async () => {

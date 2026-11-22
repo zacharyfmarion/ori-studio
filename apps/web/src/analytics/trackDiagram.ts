@@ -130,6 +130,14 @@ export function trackDiagramSimulationResumed(): void {
   track(ANALYTICS_EVENTS.diagramSimulationResumed);
 }
 
+/**
+ * Fold Again pressed on a Simulated step whose saved shape this build cannot
+ * put back: the paper folds from flat, and leaving Pose saves what it shows.
+ */
+export function trackDiagramSimulationFoldedAgain(): void {
+  track(ANALYTICS_EVENTS.diagramSimulationFoldedAgain);
+}
+
 /** A step opened in detail, and in which half. */
 export function trackDiagramStepOpened(via: DiagramStepOpenedVia, detail: DiagramStepOpenedMode): void {
   track(ANALYTICS_EVENTS.diagramStepOpened, { via, detail });

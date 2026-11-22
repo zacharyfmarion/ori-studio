@@ -5,8 +5,8 @@ import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender, type DiagramCpScope } from
 import { cpStep } from '../document/diagramSteps.fixtures';
 import { referencesStep } from '../document/diagramSteps.fixtures';
 import { cpDocument, movedLines, TWO_SQUARES, twoSquaresIndex, type FixtureLine } from './capture.fixtures';
-import { chooseStepCreases, creasesFingerprint } from './captureCreases';
-import { linkStatus, refreshKind } from './linkStatus';
+import { chooseStepCreases, creasesFingerprint, knownCreasesOf } from './captureCreases';
+import { linkStatus, refreshKind, stepLinkStatus } from './linkStatus';
 
 const sheets = twoSquaresIndex();
 const [left] = sheetRegions(sheets);
@@ -53,6 +53,13 @@ describe('linkStatus', () => {
   it('cannot say with no pattern open, or a sheet before the index is ready', () => {
     expect(linkStatus(linked(regionScope), null, sheets)).toBe('unknown');
     expect(linkStatus(linked(regionScope), cpDocument(), null)).toBe('unknown');
+  });
+
+  it('reads the same from a scope and the creases a step remembers, as Simulated Pose asks', () => {
+    const known = knownCreasesOf(linked(regionScope));
+    expect(stepLinkStatus(regionScope, known, cpDocument(), sheets)).toBe('current');
+    expect(stepLinkStatus(regionScope, known, edited(), sheets)).toBe('stale');
+    expect(stepLinkStatus(regionScope, known, null, sheets)).toBe('unknown');
   });
 });
 

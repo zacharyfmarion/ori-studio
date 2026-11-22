@@ -2,10 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
 import type { CpSheetRegion } from '../../cp-workspace/sheets/cpSheetRegions';
 import type { KnownCreases } from './captureCreases';
-import { stepSheet } from './linkStatus';
+import { stepLinkStatus, stepSheet } from './linkStatus';
 import { withRollAbsorbed, type SimulatorOrbitView } from '../../lib/simulatorOrbit';
 import { DEFAULT_SIMULATOR_SETTINGS, simulatorMaterialOptions } from '../../lib/simulatorSettings';
 import { FoldPlayhead } from '../../simulator/foldPlayhead';
+import type { SimulatorShapeRestore } from '../../simulator/simulatorSession';
 import type { SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
 import { useSimulatorShortcuts } from '../../simulator/useSimulatorShortcuts';
 import {
@@ -25,7 +26,7 @@ import {
 } from '../../store/workspaceStore/simulatorRuntime';
 import type { DiagramCpScope, DiagramSimulatedShape, DiagramSimulatedView } from '../document/diagramDocument';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
-import { trackDiagramSimulationResumed } from '../../analytics';
+import { trackDiagramSimulationFoldedAgain, trackDiagramSimulationResumed } from '../../analytics';
 import { registerSimulatedSaveNow } from './openLinkedPose';
 import { sameCamera, type SimulatedCapture, type SimulatedSave } from './poseController';
 import { savedShapeOf, simulatorShapeOf, storedSimulatedShape } from './simulatedShape';
@@ -69,6 +70,16 @@ function keptWithoutPositions(render: DiagramSimulatedPoseRender): boolean {
   return render.foldPercent === 0 || (render.shape !== undefined && savedShapeOf(render.shape) === null);
 }
 
+/**
+ * Whether the worker refused a step's positions though its creases are the
+ * ones it was posed on: another build's mesh of the same sheet, one that
+ * merged or cut it differently. Pose then keeps its picture until Fold Again.
+ * Not at 0%, where a fold from flat is the flat sheet the step shows.
+ */
+function shapeOutdated(render: DiagramSimulatedPoseRender, restored: SimulatorShapeRestore | null, stale: boolean): boolean {
+  return restored === 'mismatch' && !stale && render.foldPercent !== 0;
+}
+
 /** A step's camera as the viewport's orbit holds it: its roll kept in the orientation. */
 function poseView(orbit: SimulatorOrbitView): DiagramSimulatedView {
   const kept = withRollAbsorbed(orbit);
@@ -81,6 +92,8 @@ function poseView(orbit: SimulatorOrbitView): DiagramSimulatedView {
  * Where Pose's simulator is:
  * - `loading`: the region's model is being built, or the solver is loading it;
  * - `ready`: live, and the transport and the keys are its;
+ * - `outdated`: the step's positions are another build's mesh of its sheet
+ *   (`shapeOutdated`): its picture shows until Fold Again, the solver paused;
  * - `no-pattern`: no crease pattern is open to fold the region from;
  * - `missing`: the region is not in the crease pattern any more;
  * - `unavailable`: the region has no model the simulator can fold, or the
@@ -92,6 +105,7 @@ function poseView(orbit: SimulatorOrbitView): DiagramSimulatedView {
 export type DiagramSimulatedPoseStatus =
   | 'loading'
   | 'ready'
+  | 'outdated'
   | 'no-pattern'
   | 'missing'
   | 'unavailable'
@@ -126,6 +140,8 @@ export interface DiagramSimulatedPose {
   held: boolean;
   /** Let held positions go on: the solver resumes from them, at rest, toward their fold %. */
   resume: () => void;
+  /** Fold an `outdated` step again from flat, at its fold % and camera: from then on, leaving Pose saves it. */
+  foldAgain: () => void;
   playing: boolean;
   /** The fold %, as the slider and the readout show it. */
   foldPercent: number;
@@ -142,7 +158,8 @@ export interface DiagramSimulatedPose {
  * model in the simulator's worker, opened on the positions the step saved —
  * held there, still, as they were — or, for a step saved without them or one
  * whose creases changed since, folded from flat at the step's fold % and
- * camera; the transport and the simulator's keys while it is shown.
+ * camera; for positions another build meshed differently, its picture until
+ * Fold Again; the transport and the simulator's keys while it is shown.
  *
  * Nothing is captured as the model moves or rests. Leaving Pose — Done,
  * Escape, another step — saves what it shows at that moment, through
@@ -186,6 +203,12 @@ export function useDiagramSimulatedPose({
     () => (index ? stepSheet(scope, { fingerprint, drawn }, document, index) : undefined),
     [index, scope, fingerprint, drawn, document]
   );
+  // Its creases changed since it was posed: a refused shape is then the
+  // pattern's doing, and folding afresh is what brings the step up to date.
+  const stale = useMemo(
+    () => index !== null && stepLinkStatus(scope, { fingerprint, drawn }, document, index) === 'stale',
+    [index, scope, fingerprint, drawn, document]
+  );
   const [model, setModel] = useState<{ sheet: CpSheetRegion; fold: SimulatorFoldDocument | null } | null>(null);
   useEffect(() => {
     if (!sheet) return undefined;
@@ -214,6 +237,7 @@ export function useDiagramSimulatedPose({
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [settled, setSettled] = useState(false);
   const [held, setHeld] = useState(false);
+  const [outdated, setOutdated] = useState(false);
 
   // Read when Pose saves: refs, so a frame or a drag re-renders nothing.
   const viewRef = useRef<DiagramSimulatedView | null>(null);
@@ -226,6 +250,9 @@ export function useDiagramSimulatedPose({
   const ownShapeRef = useRef(false);
   /** The positions shown were saved unsettled and nothing has let them go on: {@link DiagramSimulatedPose.held}. */
   const heldRef = useRef(false);
+  /** The step's positions were refused as another build's and Fold Again is not pressed: status `outdated`. */
+  const outdatedRef = useRef(false);
+  const staleRef = useRef(stale);
   /**
    * The saves handed over and not yet seen come back, oldest first: a save of
    * one of them landing is the view's own pose, or one it has moved on from,
@@ -237,11 +264,17 @@ export function useDiagramSimulatedPose({
   const handOver = useRef({ onSave, wantsSave });
   useLayoutEffect(() => {
     handOver.current = { onSave, wantsSave };
-  }, [onSave, wantsSave]);
+    staleRef.current = stale;
+  }, [onSave, wantsSave, stale]);
 
   const hold = useCallback((next: boolean) => {
     heldRef.current = next;
     setHeld(next);
+  }, []);
+
+  const markOutdated = useCallback((next: boolean) => {
+    outdatedRef.current = next;
+    setOutdated(next);
   }, []);
 
   /**
@@ -252,6 +285,8 @@ export function useDiagramSimulatedPose({
    * Nothing when there is no model up, or nothing a save would commit.
    */
   const save = useCallback(() => {
+    // An outdated step's picture stays until Fold Again: what the paused solver holds was never shown.
+    if (outdatedRef.current) return;
     const capture = captureRef.current;
     const { diagram } = useWorkspaceStore.getState();
     const stored = followedRef.current;
@@ -315,6 +350,7 @@ export function useDiagramSimulatedPose({
     triangulate: true,
     canvas: null,
     bitmapOutput,
+    paused: outdated,
     initialShape,
     onFrame: handleFrame,
   });
@@ -325,14 +361,17 @@ export function useDiagramSimulatedPose({
   }, [stillCapture, runtimeStatus]);
 
   // A model up: on the step's own positions when they were put back — held
-  // there if they were saved unsettled — or folded from flat when the step has
-  // none, or they are another sheet's.
+  // there if they were saved unsettled — waiting on Fold Again when they are
+  // another build's mesh of the same sheet, or folded from flat when the step
+  // has none, or they are another sheet's.
   useEffect(() => {
     if (!loaded) return;
     const opened = loaded.restored !== null && loaded.restored !== 'mismatch';
-    ownShapeRef.current = opened || keptWithoutPositions(followedRef.current);
+    const lost = shapeOutdated(followedRef.current, loaded.restored, staleRef.current);
+    ownShapeRef.current = opened || lost || keptWithoutPositions(followedRef.current);
     hold(opened && savedShapeOf(followedRef.current.shape)?.settled === false);
-  }, [loaded, hold]);
+    markOutdated(lost);
+  }, [loaded, hold, markOutdated]);
 
   // Refresh from beside the open step: save what it shows now.
   useEffect(() => registerSimulatedSaveNow(stepId, save), [stepId, save]);
@@ -370,18 +409,29 @@ export function useDiagramSimulatedPose({
     void (async () => {
       if (shape) {
         const restored = await restoreShape(render.foldPercent, shape);
-        if (restored && restored !== 'mismatch') return;
-        // Another sheet's: folded freely from flat, as a render with none is.
         if (followedRef.current !== render) return;
-        ownShapeRef.current = keptWithoutPositions(render);
+        if (restored && restored !== 'mismatch') {
+          markOutdated(false);
+          return;
+        }
         hold(false);
+        if (shapeOutdated(render, restored, staleRef.current)) {
+          // Another build's mesh: its picture stays, as it would have opened.
+          ownShapeRef.current = true;
+          markOutdated(true);
+          return;
+        }
+        // Another sheet's: folded freely from flat, as a render with none is.
+        ownShapeRef.current = keptWithoutPositions(render);
       } else if (!moved) {
         // None, and already at its fold %: the paper stays as it is.
+        markOutdated(false);
         return;
       }
+      markOutdated(false);
       await restoreShape(render.foldPercent, null);
     })();
-  }, [render, restoreShape, hold]);
+  }, [render, restoreShape, hold, markOutdated]);
 
   const pushCamera = useCallback(
     (orbit: SimulatorOrbitView, width: number, height: number) => {
@@ -435,6 +485,14 @@ export function useDiagramSimulatedPose({
     trackDiagramSimulationResumed();
   }, [foldMoved, setFoldPercent]);
 
+  const foldAgain = useCallback(() => {
+    if (!outdatedRef.current) return;
+    markOutdated(false);
+    foldMoved();
+    void restoreShape(playheadRef.current.value, null);
+    trackDiagramSimulationFoldedAgain();
+  }, [markOutdated, foldMoved, restoreShape]);
+
   // Play advances the fold target over time; the worker does the solving.
   const percentPerSecond = DEFAULT_SIMULATOR_SETTINGS.foldPlayPercentPerSecond;
   useEffect(() => {
@@ -484,7 +542,9 @@ export function useDiagramSimulatedPose({
               : runtimeStatus === 'error'
                 ? 'error'
                 : runtimeStatus === 'ready'
-                  ? 'ready'
+                  ? outdated
+                    ? 'outdated'
+                    : 'ready'
                   : 'loading';
 
   // The simulator's keys while it is shown, as in Simulate: its scope sits
@@ -520,6 +580,7 @@ export function useDiagramSimulatedPose({
     atStored,
     held: held && status === 'ready',
     resume,
+    foldAgain,
     playing,
     foldPercent,
     togglePlay,
