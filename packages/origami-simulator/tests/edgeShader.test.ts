@@ -26,6 +26,14 @@ describe('the edge shader source', () => {
     expect(DASH_KINDS).toBe(EDGE_CODE.aux + 1);
   });
 
+  it("places a drawn-on aux line's ends from their triangle's nodes", () => {
+    expect(EDGE_VERT).toContain('uniform int u_virtualStart;');
+    expect(EDGE_VERT).toContain('if (index < u_virtualStart) return nodePosition(index);');
+    // Two texels per end, nodes then weights, as `virtualVertexTexels` packs them.
+    expect(EDGE_VERT).toContain('int at = (index - u_virtualStart) * 2;');
+    expect(EDGE_VERT).toContain('texelFetch(u_virtual, virtualTexel(at + 1), 0)');
+  });
+
   it('reads the erode flags and distance the renderer uploads', () => {
     expect(EDGE_VERT).toContain('in float a_shrink;');
     expect(EDGE_VERT).toContain('uniform float u_erodePx;');

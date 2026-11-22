@@ -6750,7 +6750,9 @@
     "panels:fold.repeat.sentenceStep": "db3852b5ea50",
     "panels:fold.repeat.sentenceStepBehind": "ad1e4941b7f7",
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
-    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8"
+    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
+    "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13503,7 +13505,9 @@
     "panels:fold.repeat.sentenceStep": "db3852b5ea50",
     "panels:fold.repeat.sentenceStepBehind": "ad1e4941b7f7",
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
-    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8"
+    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
+    "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20258,7 +20262,9 @@
     "panels:fold.repeat.sentenceStep": "db3852b5ea50",
     "panels:fold.repeat.sentenceStepBehind": "ad1e4941b7f7",
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
-    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8"
+    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
+    "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26630,7 +26636,9 @@
     "panels:fold.repeat.sentenceStep": "db3852b5ea50",
     "panels:fold.repeat.sentenceStepBehind": "ad1e4941b7f7",
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
-    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8"
+    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
+    "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -33002,7 +33010,9 @@
     "panels:fold.repeat.sentenceStep": "db3852b5ea50",
     "panels:fold.repeat.sentenceStepBehind": "ad1e4941b7f7",
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
-    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8"
+    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
+    "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39755,7 +39765,9 @@
     "panels:fold.repeat.sentenceStep": "db3852b5ea50",
     "panels:fold.repeat.sentenceStepBehind": "ad1e4941b7f7",
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
-    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8"
+    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
+    "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46508,7 +46520,9 @@
     "panels:fold.repeat.sentenceStep": "db3852b5ea50",
     "panels:fold.repeat.sentenceStepBehind": "ad1e4941b7f7",
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
-    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8"
+    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
+    "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52880,6 +52894,8 @@
     "panels:fold.repeat.sentenceStep": "db3852b5ea50",
     "panels:fold.repeat.sentenceStepBehind": "ad1e4941b7f7",
     "panels:fold.repeat.sentenceSteps": "539095c22b1a",
-    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8"
+    "panels:fold.repeat.sentenceStepsBehind": "137c37d484a8",
+    "panels:simulatorViewControls.auxLinesAreFacets": "791a2406a14a",
+    "panels:simulatorViewControls.auxLinesAreFacetsHelp": "5d64b8aa174e"
   }
 }

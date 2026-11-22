@@ -3802,6 +3802,8 @@
     "patterns": "Padrões"
   },
   "simulatorViewControls": {
+    "auxLinesAreFacets": "Curvar ao longo dos vincos auxiliares",
+    "auxLinesAreFacetsHelp": "Desligado, as linhas auxiliares do padrão de vincos são desenhadas sobre o papel e nunca dobradas. Ligado, elas são incorporadas a ele como vincos mantidos planos ao longo dos quais ele pode se curvar, que é o que um arquivo que as usa como linhas de faceta quer dizer. Salvo com este padrão de vincos.",
     "axialStiffness": "Estiramento",
     "borderEdge": "Borda",
     "colorMode": "Cor",

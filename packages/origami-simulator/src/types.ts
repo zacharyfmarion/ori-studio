@@ -1,3 +1,5 @@
+import type { AuxOverlay } from './auxOverlay.js';
+
 export type FoldAssignment = 'B' | 'M' | 'V' | 'F' | 'U' | 'C' | 'J';
 
 export interface FoldDocument {
@@ -61,11 +63,23 @@ export interface PreparedOrigamiModel {
   edgesFaces: number[][];
   creaseParams: CreaseParameter[];
   diagnostics: SimulatorDiagnostics;
+  /**
+   * The fold's aux lines (`AUX_LINES_KEY`) cut to these triangles, drawn on
+   * the paper rather than built into it. Present only when asked for with
+   * {@link PrepareFoldOptions.auxLines} and some line lies on the paper.
+   */
+  auxOverlay?: AuxOverlay;
 }
 
 export interface PrepareFoldOptions {
   triangulate?: boolean;
   foldUseAngles?: boolean;
+  /**
+   * Cut the fold's aux lines to the final triangles (`auxOverlay`). For the
+   * prepare whose model a renderer draws; a prepare whose fold is only handed
+   * on carries the lines in the fold and need not.
+   */
+  auxLines?: boolean;
 }
 
 export interface SimulatorOptions {

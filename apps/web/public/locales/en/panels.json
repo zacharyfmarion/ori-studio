@@ -3506,6 +3506,8 @@
     "patterns": "Patterns"
   },
   "simulatorViewControls": {
+    "auxLinesAreFacets": "Bend along auxiliary creases",
+    "auxLinesAreFacetsHelp": "Off, the crease pattern’s auxiliary lines are drawn on the paper and never folded. On, they are built into it as creases held flat that it can bend along, which is what a file that uses them as facet lines means. Saved with this crease pattern.",
     "axialStiffness": "Stretch",
     "borderEdge": "Edge",
     "colorMode": "Color",

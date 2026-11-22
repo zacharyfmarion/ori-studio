@@ -3804,6 +3804,8 @@
     "patterns": "Patrons"
   },
   "simulatorViewControls": {
+    "auxLinesAreFacets": "Plier le long des plis auxiliaires",
+    "auxLinesAreFacetsHelp": "Désactivé, les lignes auxiliaires du canevas sont dessinées sur le papier et jamais pliées. Activé, elles y sont intégrées comme des plis maintenus à plat le long desquels il peut se courber, ce que veut dire un fichier qui les utilise comme lignes de facette. Enregistré avec ce canevas.",
     "axialStiffness": "Étirement",
     "borderEdge": "Bord",
     "colorMode": "Couleur",

@@ -1,4 +1,5 @@
 import earcut from 'earcut';
+import { auxLinesOf, cutAuxLines, withAuxLinesMapped } from './auxOverlay.js';
 import {
   assignmentFoldAngle,
   buildEdgeIndex,
@@ -38,6 +39,7 @@ export function prepareFoldModel(
   // collinear faces. One NaN contaminates the whole mesh -> a blank render. Drop
   // the degenerate primitives here so the solve stays finite.
   removeDegenerateGeometry(fold, diagnostics);
+  const auxOverlay = options.auxLines ? cutAuxLines(fold, auxLinesOf(fold)) : null;
   const vertexCount = fold.vertices_coords.length;
   const positions = new Float32Array(vertexCount * 3);
   fold.vertices_coords.forEach((coord, index) => {
@@ -77,6 +79,7 @@ export function prepareFoldModel(
     edgesFaces,
     creaseParams,
     diagnostics,
+    ...(auxOverlay ? { auxOverlay } : {}),
   };
 }
 
@@ -141,7 +144,7 @@ function normalizeFold(
   options: PrepareFoldOptions,
   diagnostics: SimulatorDiagnostics
 ): { fold: FoldDocument; facetKeys: Set<number> } {
-  const fold = cloneFold(source);
+  const fold = withAuxLinesMapped(cloneFold(source), (point) => normalizePoint([...point]));
   const facetKeys = inheritedFacetKeys(fold);
   fold.vertices_coords = fold.vertices_coords.map((coord) => normalizePoint(coord));
   fold.edges_assignment = fold.edges_vertices.map((_, index) =>
@@ -183,14 +186,7 @@ function normalizeFold(
 const REDUNDANT_VERTEX_EPSILON = 0.01;
 
 /**
- * Assignments the solver actually folds, and so the only ones a merge can rescue.
- * See `mergeEdge` for why the merge stops at these rather than taking every
- * matching pair as upstream does.
- */
-const DRIVEN_ASSIGNMENTS = new Set<FoldAssignment>(['M', 'V', 'F']);
-
-/**
- * Merge a crease split across two collinear segments back into one crease.
+ * Merge a line split across two collinear segments back into one line.
  *
  * Port of upstream `removeRedundantVertices` (pattern.js:865) with its `mergeEdge`
  * (pattern.js:918). A vertex with exactly two neighbours, collinear with both and
@@ -201,6 +197,11 @@ const DRIVEN_ASSIGNMENTS = new Set<FoldAssignment>(['M', 'V', 'F']);
  * them, the paper renderer never draws them, and the flat diagonal invented in
  * their place is held at 0 degrees. The crease silently disappears and the model
  * folds wrongly.
+ *
+ * Borders merge too, as upstream's do. A point on the paper's edge where nothing
+ * meets it is an accident of how the pattern was drawn -- a crease since deleted,
+ * an aux line that ended there -- and kept, it becomes a corner the triangulation
+ * fans diagonals from, each one a hinge the paper bends along.
  *
  * Sequential and mutating, like upstream: each merge rewrites the neighbour map,
  * so a chain of collinear vertices collapses progressively into one edge. A batch
@@ -303,16 +304,6 @@ function mergeEdge(
     );
     return false;
   }
-  // NARROWER THAN UPSTREAM, and deliberately. Upstream merges any matching pair,
-  // borders included, because nothing downstream of it cares about triangle
-  // quality. `delaunayFlipRing` does: it can only choose diagonals among vertices
-  // that already exist, so a face's ring points are the only mesh resolution it
-  // has. Merging a crease-free border subdivision throws that resolution away for
-  // no gain -- there is no crease on it to lose, and a zero-area sliver spanning
-  // it is covered by the straight edge that replaces it. On a 20x1 strip whose
-  // long sides carried 21 such points, merging them cost 40 triangles at 45
-  // degrees for 2 at 2.86 degrees, and slivers that size stop the solver settling.
-  if (!DRIVEN_ASSIGNMENTS.has(assignment ?? 'U')) return false;
   // Upstream never meets this case, because it removes redundant vertices before
   // faces exist and so cannot be re-run on its own output. Merging into an edge
   // that already exists would produce a duplicate, i.e. an edge with no face --

@@ -3202,6 +3202,8 @@
     "patterns": "折痕图"
   },
   "simulatorViewControls": {
+    "auxLinesAreFacets": "沿辅助折痕弯曲",
+    "auxLinesAreFacetsHelp": "关闭时，折痕图的辅助线只画在纸上，从不折叠。开启时，它们作为保持平整的折痕并入纸中，纸可以沿其弯曲——这正是把辅助线用作面线的文件的本意。此设置随该折痕图一起保存。",
     "axialStiffness": "拉伸",
     "borderEdge": "边缘",
     "colorMode": "着色",

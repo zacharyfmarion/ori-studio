@@ -1,6 +1,12 @@
-import { prepareFoldModel, type FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
+import {
+  AUX_LINES_KEY,
+  prepareFoldModel,
+  type AuxLine,
+  type FoldDocument as SimulatorFoldDocument,
+} from '@treemaker/origami-simulator';
 import type { FoldAssignment, FoldArtifacts, FoldDocument } from '../engine/types';
 import { remapEdgeExtensionArrays } from './foldEdgeArrays';
+import { foldAuxLinesAreFacets } from './simulationAuxLines';
 import type { CreaseLine, FacetShape, TreeProject } from './sampleProject';
 
 import type { ImportedCreasePatternFormat } from './fileFormats';
@@ -138,7 +144,14 @@ function buildImportedCreasePatternResult(
       : inferTopology(parsed.fold, diagnostics);
   const lineOnly = withTopology.faces_vertices.length === 0;
   const project = projectFromFold(withTopology, parsed.title);
-  const foldArtifacts = foldArtifactsFromFold(withTopology);
+  // No kernel holds a read-only import, so its aux lines come out of the
+  // simulated paper here, by the rule a live document's do.
+  const foldArtifacts = foldArtifactsSimulating(
+    withTopology,
+    foldAuxLinesAreFacets(parsed.sourceFold ?? parsed.fold)
+      ? withTopology
+      : foldWithAuxLinesDrawn(withTopology, diagnostics)
+  );
   if (foldArtifacts.simulation_model_error) {
     diagnostics.warnings.push(foldArtifacts.simulation_model_error);
   }
@@ -181,6 +194,62 @@ export function foldArtifactsFromFold(
     simulation_model: simulation.fold ? { fold: simulation.fold, crease_params: [] } : null,
     simulation_model_error: simulation.error,
   };
+}
+
+/**
+ * Fold artifacts whose simulation mesh is built from `simulationSource`: the
+ * pattern's fold lines alone, with its aux lines carried beside them
+ * (`AUX_LINES_KEY`) to be drawn on the paper. The base fold is the pattern as
+ * drawn, so segmentation and every export read it unchanged. With the fold
+ * itself as the source this is {@link foldArtifactsFromFold}.
+ */
+export function foldArtifactsSimulating(
+  fold: FoldDocument,
+  simulationSource: FoldDocument,
+  diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] }
+): FoldArtifacts {
+  if (simulationSource === fold) return foldArtifactsFromFold(fold, diagnostics);
+  const simulation = foldArtifactsFromFold(simulationSource, diagnostics);
+  return {
+    ...segmentationFoldArtifactsFromFold(fold, diagnostics),
+    simulation_model: simulation.simulation_model,
+    simulation_model_error: simulation.simulation_model_error,
+  };
+}
+
+/**
+ * A fold with its `F` edges taken out of the paper and carried beside it
+ * (`AUX_LINES_KEY`), its faces inferred from what is left — for a fold no
+ * kernel can export the fold lines of. The fold itself when it has none.
+ */
+function foldWithAuxLinesDrawn(
+  fold: FoldDocument,
+  diagnostics: ImportedCreasePatternDiagnostics
+): FoldDocument {
+  const kept: number[] = [];
+  const aux: AuxLine[] = [];
+  fold.edges_vertices.forEach((edge, index) => {
+    if ((fold.edges_assignment?.[index] ?? 'U') !== 'F') {
+      kept.push(index);
+      return;
+    }
+    const a = fold.vertices_coords[edge[0]];
+    const b = fold.vertices_coords[edge[1]];
+    if (a && b) aux.push([a, b]);
+  });
+  if (aux.length === 0) return fold;
+  const paper: FoldDocument = {
+    ...fold,
+    edges_vertices: kept.map((index) => fold.edges_vertices[index]!),
+    edges_assignment: kept.map((index) => fold.edges_assignment?.[index] ?? 'U'),
+    edges_foldAngle: kept.map((index) => fold.edges_foldAngle?.[index] ?? null),
+    faces_vertices: [],
+    faces_edges: [],
+    [AUX_LINES_KEY]: aux,
+  };
+  remapEdgeExtensionArrays(paper, fold, fold.edges_vertices.length, kept);
+  delete paper.edges_faces;
+  return inferTopology(paper, diagnostics);
 }
 
 /**

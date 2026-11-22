@@ -238,10 +238,11 @@ export function sourceFingerprintFor(
  * and offering a refresh we cannot perform is worse than staying quiet.
  *
  * Note the foldable-colour filter is deliberate and shared with folded figures.
- * Aux-coloured creases do reach the simulation mesh — they split faces and
- * become facet creases — but a flat crease across a facet changes the mesh's
- * discretization, not the folded form, and marking a window stale because
- * someone drew a construction line would be pure noise.
+ * An aux line is drawn on the simulated paper rather than built into it (or,
+ * where a document says its aux lines are facets, built in as a crease held
+ * flat), so drawing one changes no folded form, and marking a window stale
+ * because someone drew a construction line would be pure noise. A window
+ * keeps the aux lines it was built with until it is rebuilt.
  */
 export function isInlineSimulationStale(
   document: OristudioCpDocumentSnapshot | null | undefined,
