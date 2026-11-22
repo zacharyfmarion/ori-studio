@@ -11,8 +11,8 @@ browser at [oristudio.dev](https://oristudio.dev/) or as a desktop app for macOS
 Windows and Linux.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/diagram-pages-dark-1920w.webp">
-  <img alt="Page one of a crane diagram in the Diagram workspace: a title block with the crease pattern and the finished model above numbered steps." src="apps/web/public/landing/diagram-pages-light-1920w.webp">
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/overview-dark-1920w.webp">
+  <img alt="A non-flat crease pattern in the Edit workspace beside its folded 3D figure, which rises into a cluster of spikes." src="apps/web/public/landing/overview-light-1920w.webp">
 </picture>
 
 Under a modern web and desktop interface sits a family of Rust and WebAssembly
@@ -29,12 +29,17 @@ their file formats stays a priority.
 
 The **Edit** workspace is the heart of the app: a crease-pattern editor ported
 from Oriedita, with its construction and transform tools snapped to the grid and
-to angles. Foldability is checked as you draw — Kawasaki and Maekawa where the
-paper folds flat, and a 3D closure check for each vertex where it does not, so
-non-flat creases can be drawn, simulated and solved too. Fold a sheet into a
+to angles, and Kawasaki and Maekawa checked as you draw. Fold a sheet into a
 flat folded figure beside its crease pattern and choose its layer order, put
 reference photos and rich-text notes on the same canvas, and share a crease
 pattern as a link that opens in any browser.
+
+**Non-flat creases.** A crease can fold to any angle, not only a full valley or
+mountain, so models with 3D shape, such as boxes, tubes and spikes, can be
+drawn, checked, simulated and solved. The math behind it is
+**Brandon Wong**'s *3D Kawasaki's theorem with quaternions*: each vertex is
+checked for whether its creases close up in three dimensions, and up to three
+fold angles left open at a vertex can be solved from the rest.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/edit-foldability-dark-1920w.webp">
@@ -100,12 +105,12 @@ and export a PDF or a ZIP of the step pictures. An empty diagram offers an examp
 
 <p>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/diagram-annotate-dark-1920w.webp">
-  <img alt="A close-up of a crane’s head open for annotation, with a fold-and-unfold arrow and its fold line beside the annotation tools." src="apps/web/public/landing/diagram-annotate-light-1920w.webp" width="49%">
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/diagram-pages-dark-1920w.webp">
+  <img alt="Page one of a crane diagram in the Diagram workspace: a title block with the crease pattern and the finished model above numbered steps." src="apps/web/public/landing/diagram-pages-light-1920w.webp" width="49%">
 </picture>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/diagram-pose-dark-1920w.webp">
-  <img alt="A box folded in 3D and turned to show its inside, in the Diagram’s Pose view." src="apps/web/public/landing/diagram-pose-light-1920w.webp" width="49%">
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/diagram-annotate-dark-1920w.webp">
+  <img alt="A close-up of a crane’s head open for annotation, with a fold-and-unfold arrow and its fold line beside the annotation tools." src="apps/web/public/landing/diagram-annotate-light-1920w.webp" width="49%">
 </picture>
 </p>
 
