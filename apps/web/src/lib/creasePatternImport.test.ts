@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AUX_LINES_KEY, auxLinesOf } from '@treemaker/origami-simulator';
 import {
   foldArtifactsFromFold,
   parseImportedCreasePattern,
@@ -107,6 +108,54 @@ describe('crease pattern import', () => {
     expect(result.document.stats.faces).toBe(2);
     expect(result.project.creases.some((crease) => crease.fold === 'mountain')).toBe(true);
     expect(result.foldArtifacts.simulation_model?.fold.faces_vertices).toHaveLength(2);
+  });
+
+  describe('a read-only import simulates its aux lines as drawn on the paper', () => {
+    /** A square, its valley diagonal, and one F line across both halves. */
+    const squareWithAuxLine = (fileCreator: string) =>
+      JSON.stringify({
+        file_creator: fileCreator,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+          [0, 0.5],
+          [1, 0.5],
+        ],
+        edges_vertices: [
+          [0, 1],
+          [1, 5],
+          [5, 2],
+          [2, 3],
+          [3, 4],
+          [4, 0],
+          [0, 2],
+          [4, 5],
+        ],
+        edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'V', 'F'],
+      });
+    const source = { format: 'fold' as const, filename: 'square.fold', path: null };
+
+    it('leaves the line out of the paper and carries it beside it', () => {
+      const result = parseImportedCreasePattern(squareWithAuxLine('oriedita'), source);
+      const simulation = result.foldArtifacts.simulation_model!.fold;
+
+      // In the two halves face inference split it into where it crosses the valley.
+      expect(auxLinesOf(simulation)).toHaveLength(2);
+      // The border points the line ended on merge away: the valley's two halves.
+      expect(simulation.faces_vertices).toHaveLength(2);
+      // The pattern itself is unchanged, the line included.
+      expect(result.document.fold.edges_assignment).toContain('F');
+    });
+
+    it('builds the line in where the file means facets', () => {
+      const result = parseImportedCreasePattern(squareWithAuxLine('Origami Simulator'), source);
+      const simulation = result.foldArtifacts.simulation_model!.fold;
+
+      expect(simulation[AUX_LINES_KEY]).toBeUndefined();
+      expect(simulation.faces_vertices.length).toBeGreaterThan(2);
+    });
   });
 
   it('keeps a line-only CP document when no faces can be inferred', () => {

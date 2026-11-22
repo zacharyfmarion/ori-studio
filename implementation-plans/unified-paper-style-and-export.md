@@ -1894,7 +1894,10 @@ pattern is checked, and colour by direction is how a misassigned crease shows.
       and the worker's model info carry the buffer.
       Found, not fixed here: the kernel's simulation model leaves those free
       aux edges on no face, so in a simulation they stay in the flat sheet's
-      plane while the paper folds.
+      plane while the paper folds. Fixed by
+      `simulator-aux-lines-are-reference.md`: aux lines are no longer in the
+      simulation mesh at all, but cut to its triangles and drawn on them, so
+      they fold with the paper.
 
 ### Phase 10 — The pattern rails draw on the style's paper
 

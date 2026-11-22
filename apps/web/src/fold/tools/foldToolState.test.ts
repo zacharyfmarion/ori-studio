@@ -584,17 +584,19 @@ describe('the sequence tools in hand', () => {
     expect(tools.store.getState().unfoldTarget).toEqual({ id: null });
     tools.selectTool('repeat');
     tools.setRepeatFirst('s1');
+    tools.setRepeatLast('s2');
     tools.setRepeatAxis({ n: [1, 0], d: 0.5 });
     tools.setRepeatIndividual(true);
     // Escape's rung lets the picks go, not the settings.
     tools.clear();
-    expect(tools.store.getState()).toMatchObject({ repeatFirst: 's1', repeatIndividual: true });
+    expect(tools.store.getState()).toMatchObject({ repeatFirst: 's1', repeatLast: 's2', repeatIndividual: true });
     tools.putDown();
     tools.selectTool('repeat');
     tools.selectTool('unfold-to');
     expect(tools.store.getState()).toMatchObject({
       unfoldTarget: null,
       repeatFirst: null,
+      repeatLast: null,
       repeatAxis: { n: [1, 0], d: 0.5 },
       repeatIndividual: true,
     });
@@ -608,7 +610,7 @@ describe('the sequence tools in hand', () => {
       parent: 's2',
       expected: { kind: 'repeat', source: { first: 's1', last: 's2', revision: 'fh1:x' }, parentState: 'p', axis: { n: [0, 1], d: 0.5 }, steps: [] },
     });
-    expect(tools.store.getState()).toMatchObject({ tool: 'repeat', repeatFirst: 's1', repeatAxis: { n: [0, 1], d: 0.5 }, rebuild: { id: 'r' } });
+    expect(tools.store.getState()).toMatchObject({ tool: 'repeat', repeatFirst: 's1', repeatLast: 's2', repeatAxis: { n: [0, 1], d: 0.5 }, rebuild: { id: 'r' } });
     // A rebuild's op is the store's to check, never part of what the tools are asked to fold.
     expect(foldToolInputKey(tools.store.getState())).toContain('"rebuild":"r"');
     tools.selectTool('valley');

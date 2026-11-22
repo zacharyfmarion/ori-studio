@@ -98,6 +98,12 @@ export function foldDiagramSentence(t: TFunction, step: FoldSentenceStep): strin
     case 'unfold':
       return t('panels:diagram.fold.instruction.unfold', 'Unfold.');
     case 'repeat':
+      // A range that ends before the step it is added after is no "last" steps of the Diagram's, whose
+      // numbers are its own: the diagrammer's words without a count.
+      if (step.earlier)
+        return step.behind
+          ? t('panels:diagram.fold.instruction.repeatEarlierBehind', 'Repeat behind.')
+          : t('panels:diagram.fold.instruction.repeatEarlier', 'Repeat on the other side.');
       // The diagrammer's standard words for the steps folded again on the back.
       if (step.behind)
         return t('panels:diagram.fold.instruction.repeatBehind', {

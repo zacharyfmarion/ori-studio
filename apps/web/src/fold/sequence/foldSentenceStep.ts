@@ -49,12 +49,20 @@ import type {
   FoldSentenceLine,
   FoldSentenceReference,
   FoldSentenceStep,
+  RepeatEarlierRange,
 } from '../stepSentence';
 import { sceneToModel, sheetToScene, type FoldStateFrame } from './foldStateFrame';
 
 /** What the engine said about the states either side of a step. Each is null while unknown. */
 export interface FoldSentenceContext {
   returnStep?: number | null;
+  /**
+   * A Repeat whose range ends before the step it is added after: its first
+   * and last steps' numbers (null for a turn). Absent when its range ends
+   * there — the previous operations — or where it is not known; a stored
+   * step then says so from its own parent (`foldNodeSentenceStep`).
+   */
+  repeatEarlier?: RepeatEarlierRange | null;
   /** The state the step folds from: its frame is the sentence's. */
   parent: FoldStateFrame | null;
   /** The state it lands. */
@@ -78,9 +86,33 @@ const NAME_TOLERANCE = 1e-5;
 /** How close the folded area is to half, relatively, for "in half". */
 const HALF_TOLERANCE = 1e-4;
 
-/** A stored step, or one this build cannot read (locked), as its sentence reads it. */
+/**
+ * A stored step, or one this build cannot read (locked), as its sentence
+ * reads it. A Repeat whose range does not end at its parent is said to repeat
+ * earlier steps, numbered where the context knows them.
+ */
 export function foldNodeSentenceStep(node: FoldStepNode, context: FoldSentenceContext): FoldSentenceStep {
-  return isLockedStep(node) ? { op: 'unknown' } : foldSentenceStepOf(node.op, context);
+  if (isLockedStep(node)) return { op: 'unknown' };
+  const earlier =
+    node.op.kind === 'repeat' && node.op.source.last !== node.parent
+      ? (context.repeatEarlier ?? { first: null, last: null })
+      : null;
+  return foldSentenceStepOf(node.op, { ...context, repeatEarlier: earlier });
+}
+
+/**
+ * Where a Repeat's range lies, read off the path it is on: its ends' step
+ * numbers when it ends before `parent`, the step it is added after (null for
+ * the sheet); null when it ends there, or the op is no Repeat.
+ */
+export function repeatEarlierOf(
+  op: FoldEngineOp | null | undefined,
+  parent: string | null,
+  entries: readonly { id: string | null; number: number | null }[]
+): RepeatEarlierRange | null {
+  if (op?.kind !== 'repeat' || op.source.last === parent) return null;
+  const number = (id: string) => entries.find((entry) => entry.id === id)?.number ?? null;
+  return { first: number(op.source.first), last: number(op.source.last) };
 }
 
 /** An op — stored, or one a tool is previewing — as its sentence reads it. */
@@ -109,7 +141,12 @@ export function foldSentenceStepOf(op: FoldEngineOp, context: FoldSentenceContex
     case 'rotate':
       return { op: 'turn', turn: turnKindOf(op) };
     case 'repeat':
-      return { op: 'repeat', count: op.steps.length, ...(op.side === 'behind' ? { behind: true } : {}) };
+      return {
+        op: 'repeat',
+        count: op.steps.length,
+        ...(op.side === 'behind' ? { behind: true } : {}),
+        ...(context.repeatEarlier ? { earlier: context.repeatEarlier } : {}),
+      };
     case 'unfold-to':
       return { op: 'unfold-to', sheet: op.target === null, number: context.returnStep ?? undefined };
     case 'cp-jump':

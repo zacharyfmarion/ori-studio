@@ -50,6 +50,7 @@ const available = existsSync(WASM) && existsSync(FIXTURES);
 const NAMES = [
   'edge-crossing.osf',
   'ghost-precrease.osf',
+  'rabbit-ear-folded-corner.osf',
   'repeat-big-side-pleat.osf',
   'reverse-seed-segment.osf',
   'squash-covered.osf',

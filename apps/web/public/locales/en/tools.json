@@ -876,7 +876,7 @@
       "repeatAxesTouch": "Tap a symmetry axis drawn on the paper, or locate one with Locate line, on either pane.",
       "repeatCommit": "Press Enter to add the repeated folds.",
       "repeatCommitTouch": "Tap {{action}} to add the repeated folds.",
-      "repeatStart": "Choose the first step to repeat. The range ends at the step on screen.",
+      "repeatRange": "Choose the first and last steps to repeat. The repeat is added after the step on screen.",
       "reverseFinish": "Pick which flaps reverse, then press Enter.",
       "reverseFinishTouch": "Pick which flaps reverse, then tap {{action}}.",
       "rotateCommit": "Press Enter to add the turn.",

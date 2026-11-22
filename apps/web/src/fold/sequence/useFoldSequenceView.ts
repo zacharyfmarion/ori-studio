@@ -7,7 +7,7 @@ import { useFoldSessionState } from '../session/useFoldSession';
 import { sameFoldState, type FoldPendingStep, type FoldSessionProgress } from '../session/foldSessionState';
 import type { FoldSentenceStep } from '../stepSentence';
 import { useFoldTools } from '../tools/foldToolState';
-import { foldNodeSentenceStep, foldSentenceStepOf } from './foldSentenceStep';
+import { foldNodeSentenceStep, foldSentenceStepOf, repeatEarlierOf } from './foldSentenceStep';
 import type { FoldPathEntry } from './foldSequencePath';
 import type { FoldStateFrame } from './foldStateFrame';
 import { useFoldPath } from './useFoldPath';
@@ -77,6 +77,7 @@ export function useFoldSequenceView(): FoldSequenceView {
         entry.node
           ? foldNodeSentenceStep(entry.node, {
               returnStep: entry.node.op?.kind === 'unfold-to' ? entries.find((e) => entry.node?.op?.kind === 'unfold-to' && e.id === entry.node.op.target)?.number : null,
+              repeatEarlier: repeatEarlierOf(entry.node.op, entry.node.parent, entries),
               parent: frames[index - 1] ?? null,
               child: frames[index] ?? null,
               report: foldedLineOf(entry.session),
@@ -96,7 +97,15 @@ export function useFoldSequenceView(): FoldSequenceView {
     return {
       status: pendingStep.status,
       op,
-      words: foldSentenceStepOf(op, { returnStep: op.kind === 'unfold-to' ? entries.find((e) => e.id === op.target)?.number : null, parent: frames[cursor] ?? null, child: pendingFrame, report: folded, pockets }),
+      words: foldSentenceStepOf(op, {
+        returnStep: op.kind === 'unfold-to' ? entries.find((e) => e.id === op.target)?.number : null,
+        // A repeat is added after the step on screen, wherever its range ends.
+        repeatEarlier: repeatEarlierOf(op, entries[cursor]?.id ?? null, entries),
+        parent: frames[cursor] ?? null,
+        child: pendingFrame,
+        report: folded,
+        pockets,
+      }),
       state: pendingStep.status === 'landed' ? pendingStep.state : null,
       frame: pendingFrame,
       report,

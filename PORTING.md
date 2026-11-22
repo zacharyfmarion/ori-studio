@@ -1447,10 +1447,6 @@ crease graphs from a CP editor rather than upstream's hand-clean SVGs:
 - **`triangulateQuad` picks the diagonal by max-min-angle**, where upstream uses
   the shorter diagonal. Identical output on 42 real patterns; kept because it
   also rejects a diagonal falling outside a non-convex quad.
-- **`removeRedundantVertices` stops at driven creases (M/V/F).** Upstream merges
-  any collinear degree-2 pair with matching assignments, borders included. A
-  crease-free border subdivision has no crease to lose, and it is the only mesh
-  resolution `delaunayFlipRing` has to work with.
 - **`projectFaceTo2D`** picks the projection plane from the face's Newell normal;
   upstream retries earcut on each of the three axis rotations until one returns
   enough triangles. Same intent, fewer earcut calls.
@@ -1461,8 +1457,13 @@ crease graphs from a CP editor rather than upstream's hand-clean SVGs:
 - **Additions with no upstream counterpart:** `ReferenceSolver`, a CPU port that
   runs headlessly in Node and is what golden traces and CI use (upstream is
   GPU-only); `SimulationClock`, a time-budgeted scheduler in place of a fixed
-  step count; and a WebGL2 mesh renderer drawing from the position texture rather
-  than through three.js.
+  step count; a WebGL2 mesh renderer drawing from the position texture rather
+  than through three.js; and `auxOverlay`, which draws aux lines on the paper
+  instead of building them into the mesh. Each line is cut to the flat triangles
+  and each cut end placed in its triangle by barycentric weights, which the
+  renderers evaluate from the node positions. The solver never sees them, so a
+  pattern simulates as if its aux lines had never been drawn, as upstream's SVG
+  import leaves out a line of an unknown colour (`typeForStroke`).
 
 Simulator view OBJ export uses `saveSTL.js::saveOBJ`'s flat-sheet UV mapping:
 X/Z normalized by one longest span, preserving aspect ratio. It writes the

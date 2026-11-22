@@ -472,4 +472,44 @@ describe('the Repeat tool', () => {
     expect(seen!.view.axis).toBe(behind);
     expect(seen!.marks).toMatchObject({ taken: behind, refused: [same] });
   });
+
+  it('repeats a range that ends before the step on screen, after it: the corner fold again, across the other center line', async () => {
+    // The corner fold repeated across the vertical middle, added as step 3.
+    await taken(MIDDLE);
+    await until(() => seen?.view.phase.kind === 'ready' && previewed(), 'the first repeat');
+    act(() => {
+      expect(seen!.primary()).toBe(true);
+    });
+    const steps = () => useWorkspaceStore.getState().foldSequences[0]!.document.steps;
+    await until(() => steps().length === 3, 'the first repeat added');
+    const first = steps()[2]!;
+    await until(() => session.store.getState().cursor === first.id && selectFoldCursorNode(session.store.getState()).status === 'ok', 'the first repeat on screen');
+    // Repeat again: the corner fold alone — the range s1 through s1, two steps before the one on screen — across
+    // the horizontal middle, to the bottom right corner.
+    const horizontal: FoldModelLine = { n: [0, 1], d: 0.5 };
+    act(() => {
+      foldTools().setRepeatAxis(horizontal);
+      foldTools().selectTool('repeat');
+    });
+    act(() => {
+      foldTools().setRepeatFirst('s1');
+      foldTools().setRepeatLast('s1');
+    });
+    await until(() => seen?.view.range?.first === 's1' && seen.view.range.last === 's1' && seen.view.axes !== null, 'the range s1 through s1');
+    // It may end at its first step, or at any after it through the step on screen.
+    expect(seen!.view.range!.ends.map((entry) => entry.id)).toEqual(['s1', first.id]);
+    expect(seen!.view.range!.count).toBe(1);
+    const op = await until(() => seen?.view.phase.kind === 'ready' && previewed(), 'the second repeat');
+    expect(sameRepeatLine(op.axis, horizontal)).toBe(true);
+    expect(op.steps).toHaveLength(1);
+    // Its source is the range — whose revision is the last step's path — and it is folded from the step on screen.
+    const nodes = session.store.getState().nodes;
+    expect(op.source).toEqual({ first: 's1', last: 's1', revision: nodes.get('s1')!.path });
+    expect(op.parentState).toBe(nodes.get(first.id)!.fingerprint);
+    act(() => {
+      expect(seen!.primary()).toBe(true);
+    });
+    await until(() => steps().length === 4, 'the second repeat added');
+    expect(steps()[3]).toMatchObject({ parent: first.id, op: { kind: 'repeat', source: { first: 's1', last: 's1' } } });
+  });
 });

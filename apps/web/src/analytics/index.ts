@@ -195,6 +195,7 @@ export {
 } from './trackPaperExport';
 export { trackSymmetryPairChanged, type SymmetryPairAction } from './trackSymmetryPairChanged';
 export {
+  trackSimulatorAuxLinesChanged,
   trackSimulatorModelPulled,
   trackSimulatorPinnedFoldMoved,
   trackSimulatorPinsCleared,

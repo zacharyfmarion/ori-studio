@@ -33,6 +33,8 @@ type FoldStepAddedDetails =
         axisSource?: 'listed' | 'drawn_cp' | 'drawn_folded';
         /** Whether the mirror kept the layer order (the other side) or reversed it (behind). */
         side?: 'same' | 'behind';
+        /** Whether the range ended at the step it was added after, or at an earlier one (repeated again, across another axis). */
+        rangeEnd?: 'current' | 'earlier';
       };
     };
 
@@ -58,12 +60,13 @@ export function trackFoldStepAdded(opKind: FoldStepAddedOpKind, details?: FoldSt
 function detailProperties(details: FoldStepAddedDetails | undefined): Record<string, string> {
   if (!details) return {};
   if ('repeat' in details) {
-    const { mode, count, axisSource, side } = details.repeat;
+    const { mode, count, axisSource, side, rangeEnd } = details.repeat;
     return {
       repeat_mode: mode,
       count_bucket: bucketCount(count, COUNT_BUCKETS),
       ...(axisSource ? { axis_source: axisSource } : {}),
       ...(side ? { side } : {}),
+      ...(rangeEnd ? { range_end: rangeEnd } : {}),
     };
   }
   if ('amount' in details) return { amount: details.amount };

@@ -857,7 +857,7 @@
       "repeatAxesTouch": "紙に描かれた対称軸をタップするか、「線を決める」で、どちらのペインでも軸を決めてください。",
       "repeatCommit": "Enter を押すと、繰り返す折りを追加します。",
       "repeatCommitTouch": "「{{action}}」をタップすると、繰り返す折りを追加します。",
-      "repeatStart": "繰り返す最初のステップを選びます。範囲は表示中のステップで終わります。",
+      "repeatRange": "繰り返す最初と最後のステップを選びます。繰り返しは表示中のステップの後に追加されます。",
       "reverseFinish": "反転させるフラップを選んでから Enter を押します。",
       "reverseFinishTouch": "反転させるフラップを選んでから「{{action}}」をタップします。",
       "rotateCommit": "Enter を押すと回転を追加します。",

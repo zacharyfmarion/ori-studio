@@ -96,6 +96,9 @@ import {
   foldedFigureModelFromOrieditaMetadata,
 } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
+import { documentHasAuxLines } from '../../../cp-workspace/sheets/simulationLines';
+import { foldTextStatingAuxLines } from '../../../lib/simulationAuxLines';
+import { selectCpAuxLinesAreFacets } from '../cpSimulationAuxLines';
 import {
   buildSegmentSubFold,
   isSegmentImageFormat,
@@ -811,6 +814,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    * one the panel drives -- because in GPU-render mode positions never cross to
    * the main thread on their own.
    */
+  /**
+   * The document's FOLD export saying what its aux lines are when the file
+   * would otherwise imply the other (`foldTextStatingAuxLines`). A document
+   * with none has nothing to say, and its export is left unparsed.
+   */
+  const statingAuxLines = (document: OristudioCpDocumentSnapshot, text: string): string =>
+    documentHasAuxLines(document) ? foldTextStatingAuxLines(text, selectCpAuxLinesAreFacets(get())) : text;
+
   const readFoldedGeometry = async (): Promise<FoldedMesh | null> => {
     if (!get().foldArtifacts) {
       set({ projectMessage: 'Simulate a crease pattern before exporting its folded form' });
@@ -830,6 +841,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         positions: new Float32Array(snapshot.positions),
         triangles: new Uint32Array(snapshot.triangles),
         foldPercent: snapshot.foldPercent,
+        auxLines: new Float32Array(snapshot.auxLines),
       };
     } catch {
       // requireSession throws when the worker is running but holds no model.
@@ -3125,15 +3137,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (rejectDisabled('file.exportFold')) return false;
         const foldLoss = guardExportLoss('fold');
         if (foldLoss !== true && !(await foldLoss)) return false;
+        const cp = get().oristudioCpDocument;
         const contents =
-          get().oristudioCpDocument
-            ? await exportOristudioCpDocumentAsFold(
-                flattenTextAnnotations(get().oristudioCpAnnotations),
-                // Every 3D figure that still holds a kernel session rides along
-                // as a `foldedForm` frame. One reopened from an `.osf` has no
-                // session to describe it, and `guardExportLoss` above has
-                // already said so.
-                folded3dExportHandles(get().oristudioCpFoldedFigures)
+          cp
+            ? statingAuxLines(
+                cp.document,
+                await exportOristudioCpDocumentAsFold(
+                  flattenTextAnnotations(get().oristudioCpAnnotations),
+                  // Every 3D figure that still holds a kernel session rides along
+                  // as a `foldedForm` frame. One reopened from an `.osf` has no
+                  // session to describe it, and `guardExportLoss` above has
+                  // already said so.
+                  folded3dExportHandles(get().oristudioCpFoldedFigures)
+                )
               )
             : get().importedCreasePattern
             ? JSON.stringify(get().importedCreasePattern?.fold, null, 2)

@@ -1,11 +1,13 @@
+import { AUX_LINES_KEY } from '@treemaker/origami-simulator';
 import type { FoldArtifacts, FoldDocument } from '../../engine/types';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import { creaseFingerprint } from '../../lib/creaseFingerprint';
 import {
-  foldArtifactsFromFold,
+  foldArtifactsSimulating,
   segmentationFoldArtifactsFromFold,
 } from '../../lib/creasePatternImport';
 import { wholeFoldSegment } from '../../lib/creasePatternSegmentation';
+import { splitSimulationLines } from './simulationLines';
 import { exportOristudioCpLinesAsFold } from '../../store/workspaceStore/oristudioCpRuntime';
 import { ensureCpSheetIndex } from './cpSheetIndex';
 
@@ -86,24 +88,78 @@ export function ensureCpSheetArtifacts(
   return promise;
 }
 
+/** The sheets' meshes, by sheet and by what their aux lines are, for the same crease geometry. */
+let cachedSimulations: { fingerprint: string; sheets: Map<string, FoldArtifacts> } | null = null;
+const simulationsInFlight = new Map<string, Promise<FoldArtifacts | null>>();
+
 /**
  * {@link ensureCpSheetArtifacts} with the simulation mesh as well — the
- * triangulated fold an inline simulation window solves — built for this sheet
- * alone and kept with its faces.
+ * triangulated fold Simulate, an inline window and a Diagram pose solve —
+ * built for this sheet alone and cached with its faces.
+ *
+ * The mesh is the sheet's fold lines alone (`simulationSourceFold`), so an aux
+ * line never cuts the paper; it rides on it instead. With
+ * `auxLinesAreFacets`, the document's aux lines are facets and are built in.
  */
-export async function ensureCpSheetSimulationArtifacts(
+export function ensureCpSheetSimulationArtifacts(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  sheet: number
+  sheet: number,
+  auxLinesAreFacets = false
 ): Promise<FoldArtifacts | null> {
-  const artifacts = await ensureCpSheetArtifacts(document, sheet);
-  if (!artifacts || artifacts.simulation_model || artifacts.simulation_model_error) {
-    return artifacts;
-  }
-  // The faces are already there, so this only builds the mesh over them.
-  const meshed: FoldArtifacts = {
-    ...foldArtifactsFromFold(artifacts.fold),
-    segments: artifacts.segments,
-  };
-  if (cached?.sheets.get(sheet) === artifacts) cached.sheets.set(sheet, meshed);
-  return meshed;
+  if (!document) return Promise.resolve(null);
+  const fingerprint = creaseFingerprint(document);
+  const key = `${sheet}:${auxLinesAreFacets ? 'facets' : 'drawn'}`;
+  const hit = cachedSimulations?.fingerprint === fingerprint ? cachedSimulations.sheets.get(key) : undefined;
+  if (hit) return Promise.resolve(hit);
+  const flightKey = `${fingerprint}#${key}`;
+  const running = simulationsInFlight.get(flightKey);
+  if (running) return running;
+
+  const promise = (async (): Promise<FoldArtifacts | null> => {
+    const artifacts = await ensureCpSheetArtifacts(document, sheet);
+    const index = await ensureCpSheetIndex(document);
+    if (!artifacts || !index) return artifacts;
+    const source = await simulationSourceFold(document, index.lines(sheet), artifacts.fold, auxLinesAreFacets);
+    const meshed: FoldArtifacts = {
+      ...foldArtifactsSimulating(artifacts.fold, source),
+      segments: artifacts.segments,
+    };
+    if (cachedSimulations?.fingerprint !== fingerprint) {
+      cachedSimulations = { fingerprint, sheets: new Map() };
+    }
+    const sheets = cachedSimulations.sheets;
+    sheets.set(key, meshed);
+    if (sheets.size > MAX_CACHED_SHEETS) {
+      const oldest = sheets.keys().next().value;
+      if (oldest !== undefined) sheets.delete(oldest);
+    }
+    return meshed;
+  })()
+    .catch((error: unknown) => {
+      console.warn('Crease-pattern sheet mesh failed.', error);
+      return null;
+    })
+    .finally(() => {
+      simulationsInFlight.delete(flightKey);
+    });
+  simulationsInFlight.set(flightKey, promise);
+  return promise;
+}
+
+/**
+ * The fold a sheet's paper is simulated from: its fold lines alone, exported
+ * by the kernel so the faces it traces — and its Euler check — are those of
+ * exactly the paper simulated, with its aux lines carried beside them
+ * (`AUX_LINES_KEY`). The base fold when every line is the paper's.
+ */
+export async function simulationSourceFold(
+  document: OristudioCpDocumentSnapshot,
+  lineIds: readonly number[],
+  base: FoldDocument,
+  auxLinesAreFacets: boolean
+): Promise<FoldDocument> {
+  const { paper, aux } = splitSimulationLines(document, lineIds, auxLinesAreFacets);
+  if (aux.length === 0) return base;
+  const fold = JSON.parse(await exportOristudioCpLinesAsFold(paper)) as FoldDocument;
+  return { ...fold, [AUX_LINES_KEY]: aux };
 }

@@ -1763,6 +1763,14 @@ export const ANALYTICS_EVENTS = {
    */
   simulatorPullRefused: 'simulator pull refused',
   /**
+   * The user switched what the open crease pattern's aux lines are in its
+   * simulations. `aux_lines` is the new reading — `facets`, built into the
+   * paper as flat creases it can bend at, or `drawn`, drawn on it and left out
+   * of the simulation — and `file_says` what the file it came from implied,
+   * which tells overriding a file apart from restating it.
+   */
+  simulatorAuxLinesChanged: 'simulator aux lines changed',
+  /**
    * A pose ended, and what ended it: the fold control or a restart taking the
    * paper back, or Spring back asked for from the window, the menu or a key.
    * Whether people keep poses, or throw them away and how.
