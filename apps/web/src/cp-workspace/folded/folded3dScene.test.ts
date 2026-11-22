@@ -321,6 +321,46 @@ describe('the scene the 3D figure exports', () => {
       }
     }
   });
+
+  it('keeps a buried layer’s aux line under the layers that cover it, where it only touches them', () => {
+    // The pinwheel's base (face 1), with an aux line along the free edge of
+    // the left arm (face 0, x = 25) where the top arm (face 2) covers both:
+    // from above, the window shows face 2 there and no ink. The line runs
+    // along the edge of the cells either side, so the layers over it touch it
+    // and none covers it — only its layer's place in the stack keeps it under
+    // them. From below, the base is the layer the window shows.
+    const model = fixture('pinwheel');
+    const mesh = meshOf(model, { faces: [1], points: [25, 0, 0, 25, -25, 0] });
+    let buried = 0;
+    let shown = 0;
+    for (let yawStep = 0; yawStep < 4; yawStep += 1) {
+      for (const tiltDeg of [0, 30, 60, 100, 140, 200, 250, 300]) {
+        const camera: FoldedFigureCamera = {
+          yaw: (yawStep / 4) * Math.PI * 2 + 0.2,
+          pitch: -Math.PI / 2 + (tiltDeg / 180) * Math.PI,
+          zoom: 1,
+        };
+        const label = `yaw ${yawStep} tilt ${tiltDeg}`;
+        const scene = sceneOf(model, mesh, camera);
+        const result = compareWithWindow(mesh, scene, folded3dSceneCamera(camera, mesh, BOX));
+        expect(result.spuriousInkByRole.aux ?? 0, `${label}: aux ink over the paper that covers it`).toBe(0);
+        expect(result.missingInk, `${label}: ink the window draws`).toBe(0);
+        const aux = lines(scene).filter((line) => line.role === 'aux');
+        expect(aux.length, label).toBeGreaterThan(0);
+        // Cells 2 and 5 are the two the line runs between.
+        const onTop = [2, 5].map((cell) => cellFarToNear(model, cell, camera).at(-1) === 1);
+        if (onTop.every((top) => !top)) {
+          buried += 1;
+          expect(aux.every((line) => line.hidden), `${label}: the buried line is hidden`).toBe(true);
+        } else if (onTop.every((top) => top)) {
+          shown += 1;
+          expect(aux.some((line) => !line.hidden), `${label}: the line shows`).toBe(true);
+        }
+      }
+    }
+    expect(buried).toBeGreaterThan(0);
+    expect(shown).toBeGreaterThan(0);
+  });
 });
 
 describe('what the scene says about each item', () => {
