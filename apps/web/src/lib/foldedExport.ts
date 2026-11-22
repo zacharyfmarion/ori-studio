@@ -1,3 +1,4 @@
+import { AUX_LINES_KEY } from '@treemaker/origami-simulator';
 import type { FoldDocument } from '../engine/types';
 import { dropPerEdgeArrays } from './foldEdgeArrays';
 import type { SheetUvFailure } from './sheetUvs';
@@ -21,6 +22,12 @@ export interface FoldedMesh {
   triangles: Uint32Array;
   /** Fold percent the snapshot was taken at, recorded in FOLD metadata. */
   foldPercent: number;
+  /**
+   * The aux lines drawn on the paper (`auxOverlay`), where the fold holds
+   * them: two xyz ends per cut. Lines that are not mesh edges, so the folded
+   * form only keeps them if they are written out.
+   */
+  auxLines?: Float32Array;
 }
 
 export type FoldedObjUnavailableReason = SheetUvFailure | 'invalid-mesh' | 'expired-snapshot';
@@ -85,7 +92,41 @@ export function foldedFoldDocument(source: FoldDocument, mesh: FoldedMesh): Fold
   delete folded.faces_edges;
   delete folded.edges_faces;
   delete folded.face_orders;
-  return folded;
+  // The lines' flat-sheet coordinates mean nothing in a folded form.
+  delete folded[AUX_LINES_KEY];
+  return withAuxLineEdges(folded, mesh.auxLines);
+}
+
+/**
+ * The folded form with each drawn-on aux line cut as an `F` edge on two new
+ * vertices where the fold holds it, as an aux line folded into the mesh used
+ * to be written. The namespaced per-edge arrays describe the mesh's edges
+ * only, so they go rather than misalign.
+ */
+function withAuxLineEdges(folded: FoldDocument, auxLines: Float32Array | undefined): FoldDocument {
+  const cuts = Math.floor((auxLines?.length ?? 0) / 6);
+  if (!auxLines || cuts === 0) return folded;
+  const vertices = [...folded.vertices_coords];
+  const edges = [...(folded.edges_vertices ?? [])];
+  const assignment = folded.edges_assignment ? [...folded.edges_assignment] : null;
+  const foldAngle = folded.edges_foldAngle ? [...folded.edges_foldAngle] : null;
+  for (let cut = 0; cut < cuts; cut += 1) {
+    const first = vertices.length;
+    for (let end = 0; end < 2; end += 1) {
+      const at = cut * 6 + end * 3;
+      vertices.push([round(auxLines[at]!), round(auxLines[at + 1]!), round(auxLines[at + 2]!)]);
+    }
+    edges.push([first, first + 1]);
+    assignment?.push('F');
+    foldAngle?.push(0);
+  }
+  const next: FoldDocument = { ...folded, vertices_coords: vertices, edges_vertices: edges };
+  for (const key of Object.keys(next)) {
+    if (key.includes(':edges_')) delete next[key];
+  }
+  next.edges_assignment = assignment ?? edges.map((_, index) => (index < (folded.edges_vertices?.length ?? 0) ? 'U' : 'F'));
+  if (foldAngle) next.edges_foldAngle = foldAngle;
+  return next;
 }
 
 /** Wavefront OBJ. Indices are 1-based, which is the classic off-by-one here. */

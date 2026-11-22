@@ -3802,6 +3802,8 @@
     "patterns": "Patrones"
   },
   "simulatorViewControls": {
+    "auxLinesAreFacets": "Doblar por los pliegues auxiliares",
+    "auxLinesAreFacetsHelp": "Desactivado, las líneas auxiliares del patrón de pliegues se dibujan sobre el papel y nunca se pliegan. Activado, se integran en él como pliegues planos por los que puede doblarse, que es lo que significan en un archivo que las usa como líneas de faceta. Se guarda con este patrón de pliegues.",
     "axialStiffness": "Estiramiento",
     "borderEdge": "Borde",
     "colorMode": "Color",

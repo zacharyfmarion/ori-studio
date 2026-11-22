@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AUX_LINES_KEY } from '@treemaker/origami-simulator';
 import type { FoldDocument } from '../engine/types';
 import { parseImportedCreasePattern } from './creasePatternImport';
 import { foldedFoldDocument, foldedObj, foldedStl, type FoldedMesh } from './foldedExport';
@@ -58,6 +59,29 @@ describe('foldedFoldDocument', () => {
   it('keeps crease assignments when the vertex set is unchanged', () => {
     const folded = foldedFoldDocument(sourceFold(), mesh());
     expect(folded.edges_assignment).toEqual(['B', 'B', 'B', 'B', 'V']);
+  });
+
+  it('writes the aux lines drawn on the paper where the fold holds them', () => {
+    const source = {
+      ...sourceFold(),
+      [AUX_LINES_KEY]: [[[0, 0.5], [1, 0.5]]],
+      'oristudio:edges_line_colors': [0, 0, 0, 0, 2],
+    };
+    const folded = foldedFoldDocument(source, {
+      ...mesh(),
+      auxLines: new Float32Array([0, 0, 0.5, 0.5, 0.25, 0.5]),
+    });
+
+    expect(folded[AUX_LINES_KEY]).toBeUndefined();
+    expect(folded.vertices_coords).toHaveLength(6);
+    expect(folded.vertices_coords.slice(4)).toEqual([
+      [0, 0, 0.5],
+      [0.5, 0.25, 0.5],
+    ]);
+    expect(folded.edges_vertices.at(-1)).toEqual([4, 5]);
+    expect(folded.edges_assignment).toEqual(['B', 'B', 'B', 'B', 'V', 'F']);
+    // Describes the mesh's edges only, so it goes rather than misalign.
+    expect(folded['oristudio:edges_line_colors']).toBeUndefined();
   });
 
   it('drops edges when triangulation changed the vertex set', () => {

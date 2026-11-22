@@ -3202,6 +3202,8 @@
     "patterns": "パターン"
   },
   "simulatorViewControls": {
+    "auxLinesAreFacets": "補助折り線で曲げる",
+    "auxLinesAreFacetsHelp": "オフにすると、展開図の補助線は紙の上に描かれるだけで、折られることはありません。オンにすると、紙が曲がれる平らな折り線として紙に組み込まれます。補助線をファセット線として使うファイルの意図どおりです。この展開図とともに保存されます。",
     "axialStiffness": "伸び",
     "borderEdge": "端",
     "colorMode": "配色",

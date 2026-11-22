@@ -1123,6 +1123,12 @@ export interface CreasePatternSliceActions {
   markFoldSourceChanged: () => void;
   ensureFoldArtifacts: () => Promise<FoldArtifacts | null>;
   refreshFoldArtifacts: () => Promise<FoldArtifacts | null>;
+  /**
+   * Whether the open crease pattern's aux lines are built into the simulated
+   * paper as facets, rather than drawn on it — saved with the document, and
+   * every simulation of it rebuilt (`selectCpAuxLinesAreFacets`).
+   */
+  setCpAuxLinesAreFacets: (auxLinesAreFacets: boolean) => void;
   setCreaseColorMode: (mode: CreaseColorMode) => void;
   setSelectedSegment: (id: number | null) => void;
   /** Show this sheet in the Simulate workspace (see {@link CreasePatternSliceState.oristudioCpSimulateSheet}). */

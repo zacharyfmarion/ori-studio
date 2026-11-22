@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AUX_LINES_KEY } from '@treemaker/origami-simulator';
 import {
   createSimulatorSession,
   foldScaledForSolver,
@@ -1517,6 +1518,24 @@ describe('foldScaledForSolver', () => {
     expect(foldScaledForSolver(point)).toBe(point);
     expect(foldScaledForSolver({ vertices_coords: [] } as unknown as FoldDocument))
       .toEqual({ vertices_coords: [] });
+  });
+
+  it('moves the aux lines drawn on the paper with it', () => {
+    const scaled = foldScaledForSolver({
+      ...square(400),
+      [AUX_LINES_KEY]: [
+        [
+          [0, 200, 0],
+          [400, 200, 0],
+        ],
+      ],
+    });
+    expect(scaled[AUX_LINES_KEY]).toEqual([
+      [
+        [0, 0.5, 0],
+        [1, 0.5, 0],
+      ],
+    ]);
   });
 });
 
