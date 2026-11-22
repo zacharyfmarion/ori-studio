@@ -1447,10 +1447,6 @@ crease graphs from a CP editor rather than upstream's hand-clean SVGs:
 - **`triangulateQuad` picks the diagonal by max-min-angle**, where upstream uses
   the shorter diagonal. Identical output on 42 real patterns; kept because it
   also rejects a diagonal falling outside a non-convex quad.
-- **`removeRedundantVertices` stops at driven creases (M/V/F).** Upstream merges
-  any collinear degree-2 pair with matching assignments, borders included. A
-  crease-free border subdivision has no crease to lose, and it is the only mesh
-  resolution `delaunayFlipRing` has to work with.
 - **`projectFaceTo2D`** picks the projection plane from the face's Newell normal;
   upstream retries earcut on each of the three axis rotations until one returns
   enough triangles. Same intent, fewer earcut calls.
