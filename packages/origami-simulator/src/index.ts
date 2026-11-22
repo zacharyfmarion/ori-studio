@@ -1,4 +1,14 @@
 export { prepareFoldModel, EDGES_FACET_KEY } from './prepare.js';
+export {
+  AUX_LINES_KEY,
+  auxLinesOf,
+  cutAuxLines,
+  withAuxLinesMapped,
+  withVirtualVertices,
+  type AuxLine,
+  type AuxOverlay,
+  type VirtualVertices,
+} from './auxOverlay.js';
 export { createOrigamiSimulator } from './simulator.js';
 export { ReferenceSolver } from './referenceSolver.js';
 export { SimulationClock } from './simulationClock.js';

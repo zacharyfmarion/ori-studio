@@ -1457,8 +1457,13 @@ crease graphs from a CP editor rather than upstream's hand-clean SVGs:
 - **Additions with no upstream counterpart:** `ReferenceSolver`, a CPU port that
   runs headlessly in Node and is what golden traces and CI use (upstream is
   GPU-only); `SimulationClock`, a time-budgeted scheduler in place of a fixed
-  step count; and a WebGL2 mesh renderer drawing from the position texture rather
-  than through three.js.
+  step count; a WebGL2 mesh renderer drawing from the position texture rather
+  than through three.js; and `auxOverlay`, which draws aux lines on the paper
+  instead of building them into the mesh. Each line is cut to the flat triangles
+  and each cut end placed in its triangle by barycentric weights, which the
+  renderers evaluate from the node positions. The solver never sees them, so a
+  pattern simulates as if its aux lines had never been drawn, as upstream's SVG
+  import leaves out a line of an unknown colour (`typeForStroke`).
 
 Simulator view OBJ export uses `saveSTL.js::saveOBJ`'s flat-sheet UV mapping:
 X/Z normalized by one longest span, preserving aspect ratio. It writes the

@@ -1,4 +1,5 @@
 import earcut from 'earcut';
+import { auxLinesOf, cutAuxLines, withAuxLinesMapped } from './auxOverlay.js';
 import {
   assignmentFoldAngle,
   buildEdgeIndex,
@@ -38,6 +39,7 @@ export function prepareFoldModel(
   // collinear faces. One NaN contaminates the whole mesh -> a blank render. Drop
   // the degenerate primitives here so the solve stays finite.
   removeDegenerateGeometry(fold, diagnostics);
+  const auxOverlay = options.auxLines ? cutAuxLines(fold, auxLinesOf(fold)) : null;
   const vertexCount = fold.vertices_coords.length;
   const positions = new Float32Array(vertexCount * 3);
   fold.vertices_coords.forEach((coord, index) => {
@@ -77,6 +79,7 @@ export function prepareFoldModel(
     edgesFaces,
     creaseParams,
     diagnostics,
+    ...(auxOverlay ? { auxOverlay } : {}),
   };
 }
 
@@ -141,7 +144,7 @@ function normalizeFold(
   options: PrepareFoldOptions,
   diagnostics: SimulatorDiagnostics
 ): { fold: FoldDocument; facetKeys: Set<number> } {
-  const fold = cloneFold(source);
+  const fold = withAuxLinesMapped(cloneFold(source), (point) => normalizePoint([...point]));
   const facetKeys = inheritedFacetKeys(fold);
   fold.vertices_coords = fold.vertices_coords.map((coord) => normalizePoint(coord));
   fold.edges_assignment = fold.edges_vertices.map((_, index) =>

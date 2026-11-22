@@ -27,6 +27,7 @@ import { shadeFor, type Vec3Like } from './shading.js';
 import { linesAsLateAsUncovered, type DrawShape } from './lineDrawOrder.js';
 import { EDGE_CODE } from './edgeCodes.js';
 import { EDGE_BOUNDARY_A, EDGE_BOUNDARY_B, edgeBoundaryFlags } from './edgeBoundary.js';
+import { withVirtualVertices } from './auxOverlay.js';
 import {
   CREASE_DEPTH_BIAS_NDC,
   collectCreases,
@@ -301,7 +302,9 @@ export function meshToPaperScene(
   const lineWidth = Math.max(0, options.lineWidth ?? DEFAULT_LINE_WIDTH);
   const layers = options.layers;
   const perspective = options.perspective ?? true;
-  const projected = projectVertices(positions, camera, { perspective });
+  const projected = projectVertices(withVirtualVertices(positions, topology.virtual), camera, {
+    perspective,
+  });
   // Where the tree cuts: see the note above. Under `layers` a crease has no
   // nudge — it belongs to a layer of the plane it lies in, and its order there
   // says which.
@@ -320,7 +323,7 @@ export function meshToPaperScene(
       : collectCreases(topology, projected, (code) => code <= EDGE_CODE.aux);
   const attributes = triangleAttributes(triangles, topology, projected, options);
   const byEdge = trianglesByEdge(triangles);
-  const faceOfLine = lineFaces(creases, triangles, attributes, byEdge);
+  const faceOfLine = lineFaces(creases, triangles, attributes, byEdge, topology.edgeTriangles);
   const boundary = edgeBoundaryFlags(topology, projected.count);
   // How many drawn lines end at each vertex: an end another one shares is a
   // joint, not an end of the line.
@@ -792,9 +795,18 @@ function lineFaces(
   creases: readonly Crease[],
   triangles: readonly Triangle[],
   attributes: readonly TriangleAttributes[],
-  byEdge: ReadonlyMap<string, readonly number[]>
+  byEdge: ReadonlyMap<string, readonly number[]>,
+  edgeTriangles: ArrayLike<number> | undefined
 ): Array<number | undefined> {
+  // A drawn-on aux line's ends are its own, so its triangle is recorded, not found.
+  const collected = new Map<number, number>();
+  if (edgeTriangles) triangles.forEach((triangle, index) => collected.set(triangle.source, index));
   return creases.map((crease) => {
+    const own = edgeTriangles?.[crease.edge] ?? -1;
+    if (own >= 0) {
+      const index = collected.get(own);
+      return index === undefined ? undefined : attributes[index]!.face;
+    }
     let nearest: { depth: number; face: number } | undefined;
     for (const index of byEdge.get(vertexKey(crease.from, crease.to)) ?? []) {
       const depth = triangles[index]!.depth;

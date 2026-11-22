@@ -830,6 +830,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         positions: new Float32Array(snapshot.positions),
         triangles: new Uint32Array(snapshot.triangles),
         foldPercent: snapshot.foldPercent,
+        auxLines: new Float32Array(snapshot.auxLines),
       };
     } catch {
       // requireSession throws when the worker is running but holds no model.
