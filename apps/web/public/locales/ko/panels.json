@@ -3202,6 +3202,8 @@
     "patterns": "패턴"
   },
   "simulatorViewControls": {
+    "auxLinesAreFacets": "보조 접힘선을 따라 휘기",
+    "auxLinesAreFacetsHelp": "끄면 전개도의 보조선은 종이 위에 그려질 뿐 접히지 않습니다. 켜면 종이가 휠 수 있는 평평한 접힘선으로 종이에 포함됩니다. 보조선을 패싯 선으로 쓰는 파일이 뜻하는 바입니다. 이 전개도와 함께 저장됩니다.",
     "axialStiffness": "늘어남",
     "borderEdge": "가장자리",
     "colorMode": "색상",

@@ -3500,6 +3500,8 @@
     "patterns": "Muster"
   },
   "simulatorViewControls": {
+    "auxLinesAreFacets": "An Hilfsfalten biegen",
+    "auxLinesAreFacetsHelp": "Aus: Die Hilfslinien des Faltmusters werden auf das Papier gezeichnet und nie gefaltet. An: Sie werden als flach gehaltene Falten in das Papier eingebaut, an denen es sich biegen kann – so meint es eine Datei, die sie als Facettenlinien verwendet. Wird mit diesem Faltmuster gespeichert.",
     "axialStiffness": "Dehnung",
     "borderEdge": "Kante",
     "colorMode": "Farbe",

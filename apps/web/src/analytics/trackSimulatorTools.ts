@@ -140,3 +140,18 @@ export function trackSimulatorPullRefused(input: OnSurface & { reason: Simulator
 export function trackSimulatorPoseReleased(input: OnSurface & { source: SimulatorPoseReleaseSource }): void {
   track(ANALYTICS_EVENTS.simulatorPoseReleased, { surface: input.surface, source: input.source });
 }
+
+/**
+ * What the open crease pattern's aux lines are in its simulations was
+ * switched: built in as facets, or drawn on the paper. With what the file
+ * implied, so an override is told apart from a restatement.
+ */
+export function trackSimulatorAuxLinesChanged(input: {
+  auxLinesAreFacets: boolean;
+  fileSaysFacets: boolean;
+}): void {
+  track(ANALYTICS_EVENTS.simulatorAuxLinesChanged, {
+    aux_lines: input.auxLinesAreFacets ? 'facets' : 'drawn',
+    file_says: input.fileSaysFacets ? 'facets' : 'drawn',
+  });
+}
