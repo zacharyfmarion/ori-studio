@@ -73,14 +73,14 @@ Blender.
 
 ### Fold step by step
 
-The **Fold** workspace folds a sheet the way you would by hand: locate a line
-with the Huzita–Justin axioms or an existing crease, then make a valley,
-mountain or precrease fold, or a reverse, squash, petal, rabbit-ear, swivel,
-crimp, pleat or sink fold, through the layers you pick. After every step you
-see the flat folded form and its crease pattern. A sequence can start from a
-crease pattern on a square, a rectangle or another convex sheet of up to eight
-sides, repeat a run of steps on the other side, unfold back to an earlier step,
-and send its steps to the Diagram as illustrated steps.
+The **Fold** workspace lets you fold a model as you would by hand, one step at a
+time from a flat sheet of paper: a square, a rectangle or another convex shape.
+Each step shows the folded paper beside its crease pattern. You can repeat a run
+of steps on the other side, or unfold back to any earlier step. For a step that
+needs a complicated collapse, bring the crease pattern in from the Edit
+workspace, or send a step to Edit and work on it there. When you are done,
+import the whole sequence into the Diagram workspace to turn it into finished
+diagrams.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/fold-dark-1920w.webp">
