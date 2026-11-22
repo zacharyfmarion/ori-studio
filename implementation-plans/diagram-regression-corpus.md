@@ -33,7 +33,7 @@ It exists because of three problems found in a rose diagram on 2026-11-22:
 Done means:
 
 - One command runs all 38 files before and after and writes the page. The two
-  biggest Bodo files run on request. Run time is not measured yet.
+  biggest Bodo files run on request. Each side takes about two minutes.
 - On today's main, the checks that need no comparison flag bugs 1 and 2.
 - With main as "after" and main with 90591a0ca undone as "before", the rose's
   four unspread 3D steps appear on the page, and the 3D window check calls them
@@ -143,8 +143,9 @@ reports/         git-ignored; one page per run
 The harness is a vitest suite under `apps/web/src/diagram/dataset/`.
 
 - It is gated by `ORI_DIAGRAM_DATASET_DIR`.
-- It is given a jsdom sanitize environment. Without one, Node's `readDiagram`
-  silently drops SVG uploads.
+- It runs in vitest's jsdom environment, so `readDiagram` sanitizes SVG uploads
+  with the app's own default. Without a DOM, Node's `readDiagram` silently
+  drops them.
 
 Privacy follows the origami.me and cpoogle corpora:
 
@@ -341,12 +342,20 @@ four steps:
    - Otherwise, set up a second checkout of that commit, or reuse one. Copy the
      harness from your working copy into it, so both sides run the same checks.
      Reuse your wasm build when the Rust is the same on both commits; otherwise
-     build there. Run, and save the results.
+     build there, in that checkout's own Cargo target (a shared one would go
+     stale silently: Cargo judges freshness by modification times). Run, and
+     save the results.
 3. **After.** Rebuild what's stale in your working copy (the simulator dist and
-   the CP and layer-spread bridges), then run. Bare `vitest` and
+   the CP and layer-spread bridges), then run. This happens first in practice,
+   because "before" copies the working copy's bridges. Bare `vitest` and
    `node scripts/…` runs skip the npm pre-hooks, and bug 1 lived in
    `packages/origami-simulator`, which the app reads from its built `dist`.
 4. **Write the page.**
+
+Every child runs on the runner's own Node, and vitest starts from each
+checkout's own `node_modules` with the default reporter. On this machine
+`npx` would otherwise find Node 26, and vitest under an agent picks a reporter
+that hides output. `--remove-checkouts` deletes the cached checkouts.
 
 Options are `--base <ref>`, `--case <slug>` and `--with-big`. They are passed
 to vitest as env vars, because vitest rejects unknown flags.
@@ -427,35 +436,47 @@ spike first; several days in all)
     with the aux lines left out.
   - The box's "In progress view" shows no stray aux ink, so it does not
     reproduce bug 1.
-- [ ] Branch from current main. Move the CP worker API into a factory, in a
-      commit that changes no behaviour. (The spike's comlink mock works, but
-      the harness should not depend on one.)
-- [ ] The checks:
-  - the file check, the repaint, and the status check for crease-pattern links;
+- [x] Branch from current main. Move the CP worker API into its own module
+      (`oristudioCpWorkerApi.ts`, an exported object rather than a factory:
+      it holds no state of its own), in a commit that changes no behaviour.
+- [x] The checks:
+  - the file check, the repaint, and the status check (crease-pattern and
+    References links; Fold links read with no replay);
   - re-capture with the staged comparison;
-  - the 3D window check, with its synthetic unit test;
-  - the aux edit probe.
-- [ ] The runner:
+  - the 3D window check, moved into test support, with a unit test of its own
+    (a stray line is put down to its role). The synthetic bug-1 fixture
+    belongs to the bug-1 fix, where it can pass;
+  - the aux edit probe, drawn as the Line tool draws an aux line.
+- [x] The runner:
   - base detection and the second checkout;
   - wasm reuse when the Rust is unchanged;
   - the saved "before" results;
-  - `--base`, `--case` and `--with-big`.
-- [ ] The report page: changed steps only, before and after side by side, no
-      highlights, and one line on why each step is listed.
-- [ ] Safety rails:
+  - `--base`, `--case`, `--with-big` and `--remove-checkouts`.
+- [x] The report page: changed steps only, before and after side by side, no
+      highlights, and one line on why each step is listed. Captures are painted
+      together on one projection; repaints are each side's own.
+- [x] Safety rails:
   - it never writes inside the checkout;
   - without the corpus it skips and lists what it skipped;
   - `ORI_DIAGRAM_DATASET_REQUIRED=1` turns a skip into a failure.
-- [ ] The proof, as the first real run, with "before" set to main with
-      90591a0ca's layered-path change undone and "after" set to main. It should
-      show:
-  - the rose's four unspread 3D steps on the page, with the window check
-    calling them new problems;
-  - the aux probe failing on main;
-  - one older fix undone the same way (#453's flat aux order, on the crane), to
-    show the harness flags a bug it wasn't built around;
-  - one line on confidence for each bug.
-- [ ] `tests/corpus/README.md` and the AGENTS.md line. Open a draft PR.
+- [x] The proof (2026-11-22, local proof commits never pushed; after = this
+      branch):
+  - Before = 90591a0ca's simulator change undone: 7 of 420 steps changed. The
+    rose's four unspread 3D steps are on the page, each with "New problem: 3D
+    window check" (14, 11, 118 and 117 px of aux lines over the paper that
+    covers them); a fifth reads "draw order changed". The boat's 3D step 12
+    also gains 148 px of fold ink over bare paper: a lead, not checked.
+  - The aux probe fails on both sides: 113 steps under "already broken
+    before" (bug 2), while every crease-pattern step goes stale correctly.
+  - Before = #453 undone by hand (it no longer reverts cleanly: the face's aux
+    lines emitted after its edges again): 89 of 420 steps changed, every one
+    "draw order changed", in the three crane files (55) and ten more.
+  - Confidence. Bug 1, high: the window check flags all four steps on main
+    and none with the change undone, and the pictures show the stubs. Bug 2,
+    high: 113 folded steps whose picture changes with an aux line still read
+    current. The draw-order class, high for detection (exact item match);
+    whether each such change is visible needs the pictures.
+- [x] `tests/corpus/README.md` and the AGENTS.md line. Open a draft PR.
 - [ ] Then fix bugs 1 and 2 in their own PRs, each with a synthetic unit test.
       The bug-2 PR's run shows how many saved steps change status; the
       expected number is 0.
