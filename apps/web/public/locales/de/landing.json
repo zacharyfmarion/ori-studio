@@ -37,14 +37,14 @@
     },
     "carouselLabel": "Funktionen des Diagramms",
     "eyebrow": "Diagramm",
-    "lead": "Machen Sie aus demselben Projekt Faltdiagramme. Das Bild jedes Schritts wird aus Ihrem Faltmuster oder einem Faltschritt gezeichnet und bleibt so dem Modell treu, und die fertigen Seiten lassen sich als druckfertiges PDF exportieren.",
+    "lead": "Importiere aus den Arbeitsbereichen Bearbeiten, Falten und Referenzen, um ein vollständiges Diagramm eines Modells zu erstellen. Das Bild jedes Schritts wird aus deinem Faltmuster oder einem Faltschritt gezeichnet und bleibt so dem Modell treu, und die fertigen Seiten lassen sich als druckfertiges PDF exportieren.",
     "pages": {
-      "body": "Ordnen Sie die Schritte auf A4-, A5-, B5- oder Letter-Seiten an, im Raster oder in einem geschwungenen Fluss, mit einem Titelblock auf Seite eins. Exportieren Sie ein PDF oder ein ZIP mit den Schrittbildern.",
+      "body": "Ordne die Schritte auf A4-, A5-, B5- oder Letter-Seiten an, im Raster oder in einem geschwungenen Fluss, mit einem Titelblock auf Seite eins. Exportiere ein PDF oder ein ZIP mit den Schrittbildern.",
       "figureAlt": "Seite eins eines Kranich-Diagramms: ein Titelblock mit Faltmuster und fertigem Modell über nummerierten Schritten.",
       "title": "Druckfertige Seiten"
     },
     "pose": {
-      "body": "Zeigen Sie einen Schritt als Faltmuster, flach gefaltet mit aufgefächerten Lagen oder in 3D gefaltet und in jeden Winkel gedreht. Ein mit dem Modell verknüpfter Schritt meldet, wenn sich das Modell geändert hat.",
+      "body": "Zeige einen Schritt als Faltmuster, flach gefaltet mit aufgefächerten Lagen oder in 3D gefaltet und in jeden Winkel gedreht. Ein mit dem Modell verknüpfter Schritt meldet, wenn sich das Modell geändert hat.",
       "figureAlt": "Eine in 3D gefaltete Schachtel, so gedreht, dass ihr Inneres zu sehen ist, in der Pose-Ansicht des Diagramms.",
       "title": "Bilder direkt aus dem Modell"
     },
@@ -80,7 +80,7 @@
   "fold": {
     "eyebrow": "Falten",
     "figureAlt": "Der Arbeitsbereich Falten: eine Leiste mit Faltschritten über dem gefalteten Papier und seinem Faltmuster.",
-    "lead": "Bestimmen Sie jede Linie mit den Huzita–Justin-Axiomen oder einer vorhandenen Falte und falten Sie dann durch die Lagen, die Sie wählen: Tal und Berg, Gegenbruch, Quetschfalte, Blütenblatt, Hasenohr, Drehfalte, Crimp, Zickzackfalte und Versenken. Jeder Schritt behält seine gefaltete Form und sein Faltmuster, und die fertige Folge geht direkt ins Diagramm.",
+    "lead": "Falte ein Modell wie von Hand, Schritt für Schritt aus einem flachen Blatt Papier. Schritte, die ein kompliziertes Zusammenlegen brauchen, importierst du aus dem Bearbeiten-Arbeitsbereich und exportierst sie dorthin. Wenn du fertig bist, importiere die ganze Folge in den Diagramm-Arbeitsbereich und erhalte vollständige, gesetzte Diagramme!",
     "title": "Ein Blatt falten wie von Hand"
   },
   "formats": {

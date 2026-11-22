@@ -37,7 +37,7 @@
     },
     "carouselLabel": "Recursos do Diagrama",
     "eyebrow": "Diagrama",
-    "lead": "Transforme o mesmo projeto em diagramas de dobradura. A imagem de cada passo é desenhada a partir do seu padrão de vincos ou de um passo do Dobrar, então se mantém fiel ao modelo, e as páginas prontas são exportadas como um PDF pronto para imprimir.",
+    "lead": "Importe dos workspaces de Edição, Dobra e Referências para criar um diagrama completo de um modelo. A imagem de cada passo é desenhada a partir do seu padrão de vincos ou de um passo do Dobrar, então se mantém fiel ao modelo, e as páginas prontas são exportadas como um PDF pronto para imprimir.",
     "pages": {
       "body": "Organize os passos em páginas A4, A5, B5 ou Carta, em grade ou em um fluxo sinuoso, com um bloco de título na primeira página. Exporte um PDF ou um ZIP com as imagens dos passos.",
       "figureAlt": "Primeira página do diagrama de um tsuru: um bloco de título com o padrão de vincos e o modelo pronto acima dos passos numerados.",
@@ -80,7 +80,7 @@
   "fold": {
     "eyebrow": "Dobrar",
     "figureAlt": "O espaço de trabalho Dobrar: uma faixa de passos de dobradura acima do papel dobrado e do seu padrão de vincos.",
-    "lead": "Encontre cada linha com os axiomas de Huzita–Justin ou com um vinco existente e dobre as camadas que escolher: vale e montanha, invertida, esmagada, pétala, orelha de coelho, giro, crimp, dobra sanfona e afundamento. Cada passo guarda sua forma dobrada e seu padrão de vincos, e a sequência pronta vai direto para o Diagrama.",
+    "lead": "Dobre um modelo como faria à mão, um passo de cada vez a partir de uma folha de papel plana. Importe do workspace de Edição e exporte para ele os passos que precisam de um colapso complicado. Quando terminar, importe a sequência inteira para o workspace de Diagrama e tenha diagramas completos e formatados!",
     "title": "Dobre uma folha como você faria à mão"
   },
   "formats": {

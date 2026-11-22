@@ -37,7 +37,7 @@
     },
     "carouselLabel": "Funciones de Diagrama",
     "eyebrow": "Diagrama",
-    "lead": "Convierte el mismo proyecto en diagramas de plegado. La imagen de cada paso se dibuja a partir de tu patrón de pliegues o de un paso de Plegar, así que se mantiene fiel al modelo, y las páginas terminadas se exportan como un PDF listo para imprimir.",
+    "lead": "Importa desde los espacios de trabajo de edición, plegado y referencias para crear un diagrama completo de un modelo. La imagen de cada paso se dibuja a partir de tu patrón de pliegues o de un paso de Plegar, así que se mantiene fiel al modelo, y las páginas terminadas se exportan como un PDF listo para imprimir.",
     "pages": {
       "body": "Coloca los pasos en páginas A4, A5, B5 o Carta, en cuadrícula o en un flujo serpenteante, con un bloque de título en la primera página. Exporta un PDF o un ZIP con las imágenes de los pasos.",
       "figureAlt": "Primera página del diagrama de una grulla: un bloque de título con el patrón de pliegues y el modelo terminado sobre los pasos numerados.",
@@ -80,7 +80,7 @@
   "fold": {
     "eyebrow": "Plegar",
     "figureAlt": "El espacio de trabajo Plegar: una tira de pasos de plegado sobre el papel plegado y su patrón de pliegues.",
-    "lead": "Sitúa cada línea con los axiomas de Huzita–Justin o con un pliegue existente y pliega las capas que elijas: valle y monte, invertido, aplastado, pétalo, oreja de conejo, giro, crimp, pliegue escalonado y hundido. Cada paso conserva su forma plegada y su patrón de pliegues, y la secuencia terminada pasa directamente al Diagrama.",
+    "lead": "Pliega un modelo como lo harías a mano, paso a paso a partir de una hoja de papel plana. Importa desde el espacio de trabajo de edición y exporta a él los pasos que necesiten un colapso complicado. Cuando termines, ¡importa la secuencia completa al espacio de trabajo de diagrama para obtener diagramas completos y maquetados!",
     "title": "Pliega una hoja como lo harías a mano"
   },
   "formats": {

@@ -37,7 +37,7 @@
     },
     "carouselLabel": "Fonctions du Diagramme",
     "eyebrow": "Diagramme",
-    "lead": "Transformez le même projet en diagrammes de pliage. L’image de chaque étape est tirée de votre patron de pliage ou d’une étape de Plier, elle reste donc fidèle au modèle, et les pages terminées s’exportent en PDF prêt à imprimer.",
+    "lead": "Importez depuis les espaces de travail Édition, Plier et Références pour créer le diagramme complet d’un modèle. L’image de chaque étape est tirée de votre patron de pliage ou d’une étape de Plier, elle reste donc fidèle au modèle, et les pages terminées s’exportent en PDF prêt à imprimer.",
     "pages": {
       "body": "Disposez les étapes sur des pages A4, A5, B5 ou Lettre, en grille ou en flux sinueux, avec un bloc titre en première page. Exportez un PDF, ou un ZIP des images des étapes.",
       "figureAlt": "Première page d’un diagramme de grue : un bloc titre avec le patron de pliage et le modèle fini, au-dessus des étapes numérotées.",
@@ -80,7 +80,7 @@
   "fold": {
     "eyebrow": "Plier",
     "figureAlt": "L’espace de travail Plier : une bande d’étapes de pliage au-dessus du papier plié et de son patron de pliage.",
-    "lead": "Placez chaque ligne avec les axiomes de Huzita–Justin ou un pli existant, puis pliez à travers les couches que vous choisissez : vallée et montagne, pli inversé, écrasé, pétale, oreille de lapin, pivot, crimp, pli en accordéon et enfoncement. Chaque étape garde sa forme pliée et son patron de pliage, et la séquence terminée part directement dans le Diagramme.",
+    "lead": "Pliez un modèle comme vous le feriez à la main, étape par étape à partir d’une feuille de papier à plat. Importez depuis l’espace de travail Édition et exportez-y les étapes qui demandent un repli d’ensemble compliqué. Une fois terminé, importez toute la séquence dans l’espace de travail Diagramme pour obtenir des diagrammes complets et mis en page !",
     "title": "Pliez une feuille comme vous le feriez à la main"
   },
   "formats": {

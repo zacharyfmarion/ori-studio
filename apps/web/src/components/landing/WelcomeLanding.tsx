@@ -232,7 +232,7 @@ export function WelcomeLanding() {
         title={t('landing:fold.title', 'Fold a sheet the way you would by hand')}
         lead={t(
           'landing:fold.lead',
-          'Locate each line with the Huzita–Justin axioms or an existing crease, then fold through the layers you pick: valley and mountain, reverse, squash, petal, rabbit ear, swivel, crimp, pleat and sink. Every step keeps its folded form and its crease pattern, and the finished sequence goes straight to the Diagram.'
+          'Fold a model as you would by hand, one step at a time from a flat sheet of paper. Import from and export to the Edit workspace for steps that need a complicated collapse. When you are done, import the entire sequence into the Diagram workspace for complete, formatted diagrams!'
         )}
       >
         <LandingFigure
@@ -251,7 +251,7 @@ export function WelcomeLanding() {
         title={t('landing:diagram.title', 'From model to printed instructions')}
         lead={t(
           'landing:diagram.lead',
-          'Turn the same project into folding diagrams. Each step’s picture is drawn from your crease pattern or a Fold step, so it stays true to the model, and the finished pages export as a PDF ready to print.'
+          'Import from the Edit, Fold and References workspaces to create a complete diagram of a model. Each step’s picture is drawn from your crease pattern or a Fold step, so it stays true to the model, and the finished pages export as a PDF ready to print.'
         )}
       >
         <LandingSwipeCarousel
