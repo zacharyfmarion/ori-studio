@@ -65,6 +65,7 @@ describe('the window comparison', () => {
       a: [x - 6, y + 0.5],
       b: [x + 6, y + 0.5],
       onBoundary: [false, false],
+      hidden: false,
     };
     const drawnOnTop: PaperScene = { ...scene, items: [...scene.items, stray] };
     const after = compareWithWindow(mesh, drawnOnTop, camera);
