@@ -31,9 +31,9 @@
   },
   "diagram": {
     "annotate": {
-      "body": "Tal-, Berg-, Schiebe- und Falten-und-Öffnen-Pfeile, Faltlinien, gleiche Teilungen, Hinweise, Nahaufnahmen und Röntgenfenster, beim Zeichnen am Papier ausgerichtet.",
-      "figureAlt": "Ein Schritt eines Boot-Diagramms beim Annotieren, mit einem Schiebepfeil und einem Faltpfeil neben den Symbolwerkzeugen.",
-      "title": "Die üblichen Symbole"
+      "body": "Tal-, Berg- und Falten-und-Öffnen-Pfeile, Faltlinien, gleiche Teilungen, Hinweise, Nahaufnahmen und Röntgenfenster, beim Zeichnen am Papier ausgerichtet.",
+      "figureAlt": "Eine Nahaufnahme vom Kopf eines Kranichs beim Annotieren, mit einem Falten-und-Öffnen-Pfeil und seiner Faltlinie neben den Anmerkungswerkzeugen.",
+      "title": "Alle Anmerkungen, die du brauchst"
     },
     "carouselLabel": "Funktionen des Diagramms",
     "eyebrow": "Diagramm",

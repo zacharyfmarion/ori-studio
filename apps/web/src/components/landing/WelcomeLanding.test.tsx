@@ -131,7 +131,7 @@ describe('WelcomeLanding', () => {
 
     expect(titles).toEqual([
       'Pages ready to print',
-      'The standard symbols',
+      'All the annotations you need',
       'Pictures from the model itself',
     ]);
   });

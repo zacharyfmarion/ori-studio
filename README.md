@@ -94,14 +94,14 @@ step's picture comes from the project — a sheet of the crease pattern, shown a
 its crease pattern, folded (flat with its layers spread apart, or in 3D) or
 simulated; a Fold step; a References card — or from a picture of your own, and
 steps can be imported in batches from crease patterns, pictures or DEFOX
-projects. Mark each step up with the standard symbols, lay the steps out on A4,
-A5, B5 or Letter pages with a title block, and export a PDF or a ZIP of the step
-pictures. An empty diagram offers an example crane to start from.
+projects. Annotate each step with fold arrows, fold lines, callouts and
+close-ups, lay the steps out on A4, A5, B5 or Letter pages with a title block,
+and export a PDF or a ZIP of the step pictures. An empty diagram offers an example crane to start from.
 
 <p>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/diagram-annotate-dark-1920w.webp">
-  <img alt="A step of a boat diagram open for annotation, with a push arrow and a fold arrow beside the symbol tools." src="apps/web/public/landing/diagram-annotate-light-1920w.webp" width="49%">
+  <img alt="A close-up of a crane’s head open for annotation, with a fold-and-unfold arrow and its fold line beside the annotation tools." src="apps/web/public/landing/diagram-annotate-light-1920w.webp" width="49%">
 </picture>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/diagram-pose-dark-1920w.webp">

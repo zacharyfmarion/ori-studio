@@ -31,9 +31,9 @@
   },
   "diagram": {
     "annotate": {
-      "body": "Flechas de valle, monte, empuje y doblar y desdoblar, líneas de plegado, divisiones iguales, llamadas, primeros planos y ventanas de rayos X, ajustados al papel mientras los dibujas.",
-      "figureAlt": "Un paso del diagrama de un barco abierto para anotar, con una flecha de empuje y una flecha de plegado junto a las herramientas de símbolos.",
-      "title": "Los símbolos de siempre"
+      "body": "Flechas de valle, monte y doblar y desdoblar, líneas de plegado, divisiones iguales, llamadas, primeros planos y ventanas de rayos X, ajustados al papel mientras los dibujas.",
+      "figureAlt": "Un primer plano de la cabeza de una grulla abierto para anotar, con una flecha de doblar y desdoblar y su línea de plegado junto a las herramientas de anotación.",
+      "title": "Todas las anotaciones que necesitas"
     },
     "carouselLabel": "Funciones de Diagrama",
     "eyebrow": "Diagrama",

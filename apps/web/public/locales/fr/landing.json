@@ -31,9 +31,9 @@
   },
   "diagram": {
     "annotate": {
-      "body": "Flèches de vallée, de montagne, de poussée et de pli-déplié, lignes de pli, divisions égales, bulles, gros plans et fenêtres en rayons X, aimantés au papier à mesure que vous les tracez.",
-      "figureAlt": "Une étape d’un diagramme de bateau ouverte pour l’annotation, avec une flèche de poussée et une flèche de pli à côté des outils de symboles.",
-      "title": "Les symboles habituels"
+      "body": "Flèches de vallée, de montagne et de pli-déplié, lignes de pli, divisions égales, bulles, gros plans et fenêtres en rayons X, aimantés au papier à mesure que vous les tracez.",
+      "figureAlt": "Un gros plan de la tête d’une grue ouvert pour l’annotation, avec une flèche de pli-déplié et sa ligne de pli à côté des outils d’annotation.",
+      "title": "Toutes les annotations qu’il vous faut"
     },
     "carouselLabel": "Fonctions du Diagramme",
     "eyebrow": "Diagramme",

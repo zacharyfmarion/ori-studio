@@ -274,14 +274,14 @@ export function WelcomeLanding() {
             {
               id: 'diagram-annotate',
               figure: 'diagram-annotate',
-              title: t('landing:diagram.annotate.title', 'The standard symbols'),
+              title: t('landing:diagram.annotate.title', 'All the annotations you need'),
               body: t(
                 'landing:diagram.annotate.body',
-                'Valley, mountain, push and fold-and-unfold arrows, fold lines, equal divisions, callouts, close-ups and X-ray windows, snapped to the paper as you draw them.'
+                'Valley, mountain and fold-and-unfold arrows, fold lines, equal divisions, callouts, close-ups and X-ray windows, snapped to the paper as you draw them.'
               ),
               figureAlt: t(
                 'landing:diagram.annotate.figureAlt',
-                'A step of a boat diagram open for annotation, with a push arrow and a fold arrow beside the symbol tools.'
+                'A close-up of a crane’s head open for annotation, with a fold-and-unfold arrow and its fold line beside the annotation tools.'
               ),
             },
             {

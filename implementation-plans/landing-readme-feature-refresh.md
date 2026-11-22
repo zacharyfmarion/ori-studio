@@ -51,3 +51,7 @@ diagrams people make with them are the clearest picture of the product.
 - [x] Rewrite the README feature overview with images
 - [x] Verify the landing in the browser: light, dark, phone width
 - [x] Lint, typecheck, landing tests; draft PR
+- [x] Recapture the nine older figures in today's UI from the projects they
+      were made from (two simple test patterns rebuilt line for line)
+- [x] Replace the annotations slide with a zoomed-in crane step, retitled
+      "All the annotations you need"
