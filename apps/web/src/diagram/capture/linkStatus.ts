@@ -4,7 +4,9 @@
  * saying so, which a status written at save would hide.
  *
  * - `current`: the creases the scope chooses today are the ones captured —
- *   every line drawn, for a crease pattern; the lines folded, for a fold.
+ *   every line drawn, for a crease pattern; the lines folded, for a fold,
+ *   and every line its sheet holds when the link kept them, since a folded
+ *   picture draws the sheet's aux lines too (`drawnLinesMatch`).
  * - `stale`: they changed; Refresh captures them again.
  * - `missing`: there is nothing to choose — the region is gone, or has no
  *   foldable crease; Relink picks another.
@@ -29,7 +31,14 @@ import {
 } from '../document/diagramDocument';
 import type { FoldLinkContext } from '../fold/foldStepLink';
 import { lightingChanged } from '../pictures/lighting';
-import { chooseStepCreases, creasesMatch, knownCreasesOf, type KnownCreases, type StepCreaseChoice } from './captureCreases';
+import {
+  chooseStepCreases,
+  creasesMatch,
+  drawnLinesMatch,
+  knownCreasesOf,
+  type KnownCreases,
+  type StepCreaseChoice,
+} from './captureCreases';
 
 export type DiagramLinkStatus = 'current' | 'stale' | 'missing' | 'unknown';
 
@@ -93,9 +102,13 @@ export function refreshKind(
  * A step's sheet is found by what it is, not where it sits
  * (`chooseStepCreases`): moved, it is still current; changed in place,
  * stale; moved and changed, missing — it cannot be told from a deleted one.
+ * A folded step's sheet is found by its folds, so one whose aux lines
+ * changed, moved or not, is stale.
  */
 export function linkStatus(
-  source: (Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'> & { kind?: 'cp' }) | DiagramReferencesSource,
+  source:
+    | (Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'> & Partial<Pick<DiagramCpSource, 'drawnFingerprint'>> & { kind?: 'cp' })
+    | DiagramReferencesSource,
   document: OristudioCpDocumentSnapshot | null,
   sheets: CpSheetIndex | null
 ): DiagramLinkStatus {
@@ -107,7 +120,7 @@ export function linkStatus(
   // Sent while its sheet matched no region: there were no creases to keep,
   // so nothing to say it changed from.
   if (known.fingerprint === null) return 'unknown';
-  return creasesMatch(choice.creases, known) ? 'current' : 'stale';
+  return creasesMatch(choice.creases, known) && drawnLinesMatch(choice.creases, source) ? 'current' : 'stale';
 }
 
 /**

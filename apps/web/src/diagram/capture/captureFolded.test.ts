@@ -43,6 +43,7 @@ import {
   storeScene,
   type CaptureStepRequest,
 } from './captureFolded';
+import { chooseStepCreases } from './captureCreases';
 import { diagramLayerOrderFrame, stepLayerOrderOf, type CaptureLayerOrderResolve } from './captureLayerOrder';
 import type { LayerOrderResolution } from '../../layer-order/host/hostEngineGateway';
 import type { LayerOrderSource } from '../../lib/layerOrder/layerOrderRequest';
@@ -511,6 +512,42 @@ describe('captureStep, 3D', () => {
       refusal,
     });
     expect(runtime.free).not.toHaveBeenCalled();
+  });
+});
+
+// Bug 2 (since 2026-10-03): a folded picture draws its sheet's aux lines on its
+// paper, but its link kept only the lines it folds, so an aux edit never marked
+// it out of date.
+describe('a capture’s drawn lines', () => {
+  const placed: OristudioCpFold3dFoldResult = {
+    status: 'placed',
+    handle: 11,
+    snapshot: {} as never,
+    render: { cell_points: [0, 0, 0, 1, 0, 0, 0, 1, 0], span: 1 } as never,
+  };
+  const SIMULATED: DiagramCpRender = { mode: 'simulated', foldPercent: 0, view: { yaw: 0.5, pitch: -0.7, zoom: 1.4 } };
+
+  it.each([
+    ['a flat fold', FLAT, cpDocument()],
+    ['a 3D fold', FLAT, partial()],
+    ['a simulated sheet', SIMULATED, cpDocument()],
+  ])('keeps every line of the sheet beside the lines folded, for %s', async (_label, render, document) => {
+    folded3dStoredScene.folded3dFigureScene.mockReturnValue(sheetWithCrease());
+    const runtime = fakeCaptureRuntime({ fold3d: vi.fn(async () => placed) });
+    const result = await captureStep(runtime, request(render, { document, simulateFlat: async () => sheetWithCrease() }));
+    if (result.status !== 'captured') throw new Error('captured');
+    const choice = chooseStepCreases(document, scope, sheets);
+    if (choice.status !== 'found') throw new Error('found');
+    expect(result.source.fingerprint).toBe(choice.creases.fingerprint);
+    expect(result.source.drawnFingerprint).toBe(choice.creases.drawnFingerprint);
+    // The aux line is what tells them apart.
+    expect(result.source.drawnFingerprint).not.toBe(result.source.fingerprint);
+  });
+
+  it('keeps none for a crease pattern, whose fingerprint is of every line already', async () => {
+    const result = await captureStep(fakeCaptureRuntime(), request({ mode: 'crease-pattern', rotationDeg: 0 }));
+    if (result.status !== 'captured') throw new Error('captured');
+    expect(result.source).not.toHaveProperty('drawnFingerprint');
   });
 });
 
