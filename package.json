@@ -20,6 +20,7 @@
     "test:simulator": "npm --workspace @treemaker/origami-simulator run test",
     "test:web": "npm --workspace @treemaker/web run test",
     "test:scripts": "node --test \"scripts/*.test.mjs\" \"scripts/**/*.test.mjs\"",
+    "diagram-corpus": "node scripts/diagram-dataset/run.mjs",
     "test:web:folded-screenshot": "node scripts/folded-grid-screenshot.mjs",
     "test:web:webkit-pwa": "node scripts/webkit-pwa-check.mjs",
     "typecheck:web": "npm --workspace @treemaker/web run typecheck",
