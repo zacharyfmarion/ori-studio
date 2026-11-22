@@ -756,7 +756,6 @@
     "optimizingScale": "Optimisation de l'échelle",
     "paths": "Chemins"
   },
-      "cappedOpeningNotice": "Cette vue dépasse le nouveau maximum. La mise à jour appliquera 100 % et rapprochera les couches.",
   "diagram": {
     "actions": {
       "addStep": "Ajouter une étape",
@@ -1762,6 +1761,7 @@
       "withTurnOver": "Avec le retournement qui précède"
     },
     "spread": {
+      "cappedOpeningNotice": "Cette vue dépasse le nouveau maximum. La mise à jour appliquera 100 % et rapprochera les couches.",
       "diagram": "Diagramme",
       "drag": "Glisser pour révéler les couches",
       "equalOpeningNotice": "Cette image utilise une ancienne échelle d’écartement. La mise à jour conserve l’écartement de cette vue avec la nouvelle échelle.",
