@@ -243,44 +243,68 @@ Taking aux lines out of the arrangement also removes both Euler failures above.
 
 ## Checklist
 
-Baseline (before any change), on the bug file:
+Baseline (main, e3f5fb698), on `aux_crease_simulation_issue.fold`, CPU solver
+at the app's Play rate (28%/s, 80 steps a frame):
 
-- [ ] vertices, triangles, minimum angle; Play peak bend at aux lines.
+- [x] 37 vertices, 56 triangles (38 aux edges, 34 diagonals); smallest angle
+      2.29°; Play peak bend 28.5° at aux lines and 31.5° at diagonals, still
+      about 14° three seconds after 100%.
 
 Step 1 — merge:
 
-- [ ] Remove the narrowing in `prepare.ts` and `treemaker-fold`, keeping the
+- [x] Remove the narrowing in `prepare.ts` and `treemaker-fold`, keeping the
       existing-edge guard.
-- [ ] Rewrite the two strip tests; re-fixture the two n-gon tests; mirror in Rust.
-- [ ] Golden traces unchanged.
-- [ ] Measure the strip; `PORTING.md`.
+- [x] Rewrite the strip tests to upstream's behaviour; the n-gon tests use a
+      band between two rows of squares; Rust mirror rewritten.
+- [x] Golden traces unchanged (whole package suite passes).
+- [x] Strip measured: a crease-free 20×1 strip is 2 triangles at 2.86°, as
+      upstream makes it (test). `PORTING.md` updated.
 
 Step 2 — drawing:
 
-- [ ] Clip into an overlay of virtual vertices, with tests: a line across
-      triangles, on a crease, on the border, partly off the paper, a dangling
-      tick, across a fold; shared joints; the mesh identical with and without
-      the key.
-- [ ] Topology, GPU table and shader branch, CPU positions, paper scene.
-- [ ] `foldScaledForSolver`, segment scoping, face orientation carry the lines.
-- [ ] Canvas-2D fallback; Export Folded FOLD keeps aux lines.
+- [x] `cutAuxLines` into an overlay of virtual vertices, with tests: across a
+      fold (shared joint), along a crease, on the border, partly off the
+      paper, a dangling tick, two lines meeting, a slit parting a line, a
+      3-component sheet, the mesh identical with and without the key.
+- [x] Topology (`withAuxPieces`), GPU table and shader branch, CPU
+      `withVirtualVertices`, paper scene (`edgeTriangles` for a piece's face).
+- [x] `foldScaledForSolver` scales the lines; segment scoping and face
+      orientation carry them by spread (kernel-backed test).
+- [x] Canvas-2D fallback draws each triangle's pieces in its painter order;
+      Export Folded FOLD writes them as `F` edges.
+- [x] `bench:gpu-parity` passes (shader links in headless Chromium).
 
 Step 3 — switch:
 
-- [ ] Sheet artifacts from the fold lines plus the overlay; the setting in the
-      cache key; every caller.
-- [ ] Whole-canvas fallback and the read-only import.
-- [ ] Option A: derivation from the source FOLD, `.osf` field, FOLD key, the
-      switch, eight locales, `i18n:check`, analytics event.
-- [ ] Rewrite the inline-simulation staleness comment; close the paper-style
-      plan's note.
+- [x] Sheet artifacts from the fold lines plus the overlay, cached per
+      setting; Simulate, inline windows and the Diagram pass the setting.
+- [x] Whole-canvas fallback and the read-only import follow the same rule.
+- [x] Option A: derived from the source FOLD, saved in the document's
+      extensions (`oristudio.simulation`), stated in FOLD exports when the
+      file would imply the other; "Bend along auxiliary creases" in Creases;
+      eight locales, `i18n:check`; `simulator aux lines changed` event.
+- [x] Inline-simulation staleness comment rewritten; the paper-style plan's
+      note closed.
+- [ ] Not done: "Build crease pattern" still seeds Simulate's whole-canvas
+      fallback with TreeMaker's own artifacts until the next refresh. Simulate
+      reads the sheet path for an editable pattern, so this only reaches the
+      fallback.
 
-Verification:
+Verification (headless Chromium against this worktree's dev server, GPU):
 
-- [ ] Bug file before and after, in the app: two rigid triangles with the aux
-      lines drawn on them; Play shows no bend along them.
-- [ ] Inline window and Diagram Pose on the same file.
-- [ ] An Origami Simulator FOLD with facets is unchanged (switch on).
-- [ ] Canvas-2D fallback draws the pieces; SVG export draws aux lines.
-- [ ] `npm run lint:web`, `npm run typecheck:web`, relevant web and simulator
-      package tests, `cargo test -p treemaker-fold`, `cargo clippy`.
+- [x] Bug file: readout "4 vertices | 2 triangles", strain 0.0000; Play folds
+      two flat triangles with the aux lines riding them (CPU solver: smallest
+      angle 45°, no bend at all). With the setting on: "37 vertices | 56
+      triangles", and it crumples along the aux lines.
+- [x] `simulator_issue_gyosh_new.fold`: smallest angle 0.07° → 3.05°, 534 → 484
+      vertices.
+- [x] Inline window opens on the 2-triangle mesh with the aux lines drawn; the
+      Diagram's 0% simulated picture is 2 faces and 45 aux line pieces (53
+      faces with the setting on).
+- [x] `huffmanTower.fold` (svg-to-fold, 693 facets) opens with the setting on;
+      its mesh matches main's but for one merged border point. It blows up in
+      the CPU solver on main too (peak strain 42.65 on both).
+- [x] Canvas-2D fallback (readout "CPU") draws the pieces.
+- [x] `npm run typecheck:web`, eslint on the changed files, the web tests in
+      every touched area, the simulator package suite,
+      `cargo test -p treemaker-fold`, `cargo fmt --check`.
