@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { sheetRegions } from '../../cp-workspace/sheets/cpSheetRegions';
-import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender, type DiagramCpScope } from '../document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender, type DiagramCpScope, type DiagramStep } from '../document/diagramDocument';
 import { cpStep } from '../document/diagramSteps.fixtures';
 import { referencesStep } from '../document/diagramSteps.fixtures';
 import { cpDocument, movedLines, TWO_SQUARES, twoSquaresIndex, type FixtureLine } from './capture.fixtures';
 import { chooseStepCreases, creasesFingerprint, drawnLinesFingerprint } from './captureCreases';
-import { linkStatus, refreshKind } from './linkStatus';
+import { drawnLinesUntracked, linkStatus, refreshKind } from './linkStatus';
 
 const sheets = twoSquaresIndex();
 const [left] = sheetRegions(sheets);
@@ -209,5 +209,25 @@ describe('refreshKind', () => {
     expect(refreshKind(flat, 'unknown', style)).toBeNull();
     expect(refreshKind(flat, 'missing', style)).toBeNull();
     expect(refreshKind({ ...flat, source: null }, 'stale', style)).toBeNull();
+  });
+});
+
+describe('drawnLinesUntracked', () => {
+  const withoutAux = () => cpDocument(TWO_SQUARES.filter((line) => line[4] !== 'Cyan3'));
+
+  // Such a link reads by its folds alone, so an aux edit since it was saved
+  // cannot be told: Refresh is offered on it all the same.
+  it('marks a folded step linked before its link kept its drawn lines, on a pattern with aux lines', () => {
+    for (const render of FOLDED_RENDERS) expect(drawnLinesUntracked(cpStep('step', render), cpDocument())).toBe(true);
+  });
+
+  it('leaves a link that keeps them, a crease pattern, a pattern without aux lines, a locked step and no pattern', () => {
+    const step = cpStep('step', FOLDED);
+    const tracked = { ...step, source: { ...step.source!, drawnFingerprint: 'rc1:drawn' } } as DiagramStep;
+    expect(drawnLinesUntracked(tracked, cpDocument())).toBe(false);
+    expect(drawnLinesUntracked(cpStep('step', CREASE_PATTERN), cpDocument())).toBe(false);
+    expect(drawnLinesUntracked(step, withoutAux())).toBe(false);
+    expect(drawnLinesUntracked({ ...step, unknown: {} }, cpDocument())).toBe(false);
+    expect(drawnLinesUntracked(step, null)).toBe(false);
   });
 });

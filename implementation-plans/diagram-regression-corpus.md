@@ -480,6 +480,15 @@ spike first; several days in all)
 - [ ] Then fix bugs 1 and 2 in their own PRs, each with a synthetic unit test.
       The bug-2 PR's run shows how many saved steps change status; the
       expected number is 0.
+  - Bug 1: draft PR #624.
+  - Bug 2, run 2026-11-22 against main: 124 of 420 steps changed, each only
+    in the link a Refresh would store (it gains `drawnFingerprint`). No step
+    changes status on open, and the aux probe's 113 problems are fixed. It
+    flags 9 new ones: the probe's line lands on paper the picture does not
+    show, so the picture is unchanged but the step reads out of date. The
+    rule goes by the sheet's lines, not by what the picture shows, and this
+    is its cost: Refresh draws the same picture and clears it. The harness is
+    unchanged, so these 9 stay listed.
 
 Phase 2 — decide what goes in once Phase 1 has been used on a few real changes
 

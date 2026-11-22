@@ -16,6 +16,7 @@
  * Pure.
  */
 import type { CpSheetRegion } from '../../cp-workspace/sheets/cpSheetRegions';
+import { documentHasAuxLines } from '../../cp-workspace/sheets/simulationLines';
 import type { CpSheetIndex } from '../../engine/oristudioCpSheetIndex';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import { lineContentFingerprint } from '../../lib/creaseFingerprint';
@@ -73,6 +74,20 @@ export interface DiagramLinkContext {
  * fingerprinted on every line in it when it was sent (D6): its picture never
  * follows the pattern, so all its status can say is whether the sheet changed.
  */
+/**
+ * A folded step (flat, 3D or simulated) linked before its link kept the lines
+ * its sheet draws (`drawnFingerprint`), on a pattern that holds aux lines: an
+ * aux edit since then cannot be told from its link, which reads by its folds
+ * alone. Refresh is offered on it all the same, and its capture writes the
+ * field; its status, its chip and Refresh all are unchanged.
+ */
+export function drawnLinesUntracked(step: DiagramStep, document: OristudioCpDocumentSnapshot | null): boolean {
+  const source = step.source;
+  if (!document || step.unknown || source?.kind !== 'cp' || source.drawnFingerprint !== undefined) return false;
+  const { mode } = source.render;
+  return mode !== 'crease-pattern' && mode !== 'defox' && documentHasAuxLines(document);
+}
+
 /** Saved external views and partially simulated steps can only be replaced in Pose. */
 export function needsPose(step: DiagramStep): boolean {
   return step.source?.kind === 'cp' && (step.source.render.mode === 'defox' || (step.source.render.mode === 'simulated' && step.source.render.foldPercent > 0));

@@ -74,7 +74,7 @@ import { linkStatusNow, useDiagramLinkStatuses } from './capture/useLinkStatus';
 import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
 import { pickStepPictures } from './upload/addStepPictures';
-import { needsPose } from './capture/linkStatus';
+import { drawnLinesUntracked, needsPose } from './capture/linkStatus';
 import { simulatedSaveNow } from './capture/openLinkedPose';
 import { lightingChanged } from './pictures/lighting';
 import { lacksPaperFaces } from './capture/stepPaperFaces';
@@ -205,6 +205,7 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       breakBefore: step.breakBefore,
       lightingChanged: lightingChanged(step, diagram.style),
       facesMissing: lacksPaperFaces(step),
+      drawnLinesUntracked: drawnLinesUntracked(step, oristudioCpDocument?.document ?? null),
       capturing: Object.hasOwn(diagramCaptures, stepId),
       patternOpen: oristudioCpDocument !== null,
       showAs: showAsOfStep(step),
@@ -443,6 +444,8 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
     step && state.diagram ? lightingChanged(step, state.diagram.style) : false
   );
   const facesMissing = step ? lacksPaperFaces(step) : false;
+  const pattern = useWorkspaceStore((state) => state.oristudioCpDocument?.document ?? null);
+  const untracked = step ? drawnLinesUntracked(step, pattern) : false;
   const style = useWorkspaceStore((state) => state.diagram?.style);
   const cardMarks = useMemo(() => (step && style ? cardMarksGate(step, style) : null), [step, style]);
   const areaNumber = useWorkspaceStore((state) =>
@@ -482,6 +485,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
               breakBefore,
               lightingChanged: relight,
               facesMissing,
+              drawnLinesUntracked: untracked,
               capturing,
               patternOpen,
               showAs: showAsOfStep(step),
@@ -511,6 +515,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
       breakBefore,
       relight,
       facesMissing,
+      untracked,
       capturing,
       patternOpen,
       cardMarks,
