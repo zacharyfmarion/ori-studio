@@ -46,7 +46,10 @@ export interface MeshTopology {
    * (`withVirtualVertices`). Absent on a mesh with none.
    */
   virtual?: VirtualVertices;
-  /** Per edge, the triangle a drawn-on aux line lies on; -1 for the mesh's own edges. */
+  /**
+   * Per edge, the triangle a drawn-on aux line lies on — one of them, for a
+   * line across several of one face's; -1 for the mesh's own edges.
+   */
   edgeTriangles?: Int32Array;
   /** Square texture edge length the solver packs vertices into. */
   textureDim: number;
