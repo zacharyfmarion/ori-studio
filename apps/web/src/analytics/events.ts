@@ -708,6 +708,8 @@ export type LandingSectionId =
   | 'edit'
   | 'design'
   | 'simulate'
+  | 'fold'
+  | 'diagram'
   | 'compatibility'
   | 'get';
 
@@ -799,7 +801,10 @@ export type LandingFeatureId =
   | 'edit-share'
   | 'design-treemaker'
   | 'design-bp'
-  | 'design-explori';
+  | 'design-explori'
+  | 'diagram-pages'
+  | 'diagram-annotate'
+  | 'diagram-pose';
 
 /** Export target formats (the file's kind only — never its name or contents). */
 export type ExportFormat =

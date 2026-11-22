@@ -29,6 +29,27 @@
       "title": "Placement de cercles"
     }
   },
+  "diagram": {
+    "annotate": {
+      "body": "Flèches de vallée, de montagne, de poussée et de pli-déplié, lignes de pli, divisions égales, bulles, gros plans et fenêtres en rayons X, aimantés au papier à mesure que vous les tracez.",
+      "figureAlt": "Une étape d’un diagramme de bateau ouverte pour l’annotation, avec une flèche de poussée et une flèche de pli à côté des outils de symboles.",
+      "title": "Les symboles habituels"
+    },
+    "carouselLabel": "Fonctions du Diagramme",
+    "eyebrow": "Diagramme",
+    "lead": "Transformez le même projet en diagrammes de pliage. L’image de chaque étape est tirée de votre patron de pliage ou d’une étape de Plier, elle reste donc fidèle au modèle, et les pages terminées s’exportent en PDF prêt à imprimer.",
+    "pages": {
+      "body": "Disposez les étapes sur des pages A4, A5, B5 ou Lettre, en grille ou en flux sinueux, avec un bloc titre en première page. Exportez un PDF, ou un ZIP des images des étapes.",
+      "figureAlt": "Première page d’un diagramme de grue : un bloc titre avec le patron de pliage et le modèle fini, au-dessus des étapes numérotées.",
+      "title": "Des pages prêtes à imprimer"
+    },
+    "pose": {
+      "body": "Montrez une étape comme son patron de pliage, pliée à plat avec ses couches écartées, ou pliée en 3D et tournée sous n’importe quel angle. Une étape liée au modèle signale quand le modèle a changé.",
+      "figureAlt": "Une boîte pliée en 3D et tournée pour montrer son intérieur, dans la vue Pose du Diagramme.",
+      "title": "Des images tirées du modèle lui-même"
+    },
+    "title": "Du modèle aux instructions imprimées"
+  },
   "edit": {
     "angles": {
       "body": "Dessinez, simulez et résolvez des modèles d’origami dont les plis ne sont pas à plat.",
@@ -56,6 +77,12 @@
     "title": "Un éditeur qui suit le rythme"
   },
   "figureMissing": "Capture d’écran à placer ici",
+  "fold": {
+    "eyebrow": "Plier",
+    "figureAlt": "L’espace de travail Plier : une bande d’étapes de pliage au-dessus du papier plié et de son patron de pliage.",
+    "lead": "Placez chaque ligne avec les axiomes de Huzita–Justin ou un pli existant, puis pliez à travers les couches que vous choisissez : vallée et montagne, pli inversé, écrasé, pétale, oreille de lapin, pivot, crimp, pli en accordéon et enfoncement. Chaque étape garde sa forme pliée et son patron de pliage, et la séquence terminée part directement dans le Diagramme.",
+    "title": "Pliez une feuille comme vous le feriez à la main"
+  },
   "formats": {
     "a11yBoth": "ouvre et exporte",
     "a11yExport": "exporte seulement",
@@ -81,7 +108,7 @@
   "what": {
     "eyebrow": "De quoi s’agit-il",
     "figureAlt": "L’espace de travail d’Ori Studio : un patron de pliage sur le plan de travail, entouré de la barre d’outils et des panneaux d’inspection.",
-    "lead": "Esquissez une base, dessinez le patron de pliage, puis pliez-le pour voir s’il fonctionne — le tout au même endroit, sans compte. Ouvrez-le dans un onglet de navigateur, ou installez l’application de bureau.",
+    "lead": "Esquissez une base, dessinez le patron de pliage, pliez-le pour voir s’il fonctionne, puis faites-en un diagramme pour que d’autres le plient — le tout au même endroit, sans compte. Ouvrez-le dans un onglet de navigateur, ou installez l’application de bureau.",
     "title": "Un espace de travail libre et open source pour la conception d’origami"
   }
 }

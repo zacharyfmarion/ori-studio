@@ -29,6 +29,27 @@
       "title": "Kreispackung"
     }
   },
+  "diagram": {
+    "annotate": {
+      "body": "Tal-, Berg-, Schiebe- und Falten-und-Öffnen-Pfeile, Faltlinien, gleiche Teilungen, Hinweise, Nahaufnahmen und Röntgenfenster, beim Zeichnen am Papier ausgerichtet.",
+      "figureAlt": "Ein Schritt eines Boot-Diagramms beim Annotieren, mit einem Schiebepfeil und einem Faltpfeil neben den Symbolwerkzeugen.",
+      "title": "Die üblichen Symbole"
+    },
+    "carouselLabel": "Funktionen des Diagramms",
+    "eyebrow": "Diagramm",
+    "lead": "Machen Sie aus demselben Projekt Faltdiagramme. Das Bild jedes Schritts wird aus Ihrem Faltmuster oder einem Faltschritt gezeichnet und bleibt so dem Modell treu, und die fertigen Seiten lassen sich als druckfertiges PDF exportieren.",
+    "pages": {
+      "body": "Ordnen Sie die Schritte auf A4-, A5-, B5- oder Letter-Seiten an, im Raster oder in einem geschwungenen Fluss, mit einem Titelblock auf Seite eins. Exportieren Sie ein PDF oder ein ZIP mit den Schrittbildern.",
+      "figureAlt": "Seite eins eines Kranich-Diagramms: ein Titelblock mit Faltmuster und fertigem Modell über nummerierten Schritten.",
+      "title": "Druckfertige Seiten"
+    },
+    "pose": {
+      "body": "Zeigen Sie einen Schritt als Faltmuster, flach gefaltet mit aufgefächerten Lagen oder in 3D gefaltet und in jeden Winkel gedreht. Ein mit dem Modell verknüpfter Schritt meldet, wenn sich das Modell geändert hat.",
+      "figureAlt": "Eine in 3D gefaltete Schachtel, so gedreht, dass ihr Inneres zu sehen ist, in der Pose-Ansicht des Diagramms.",
+      "title": "Bilder direkt aus dem Modell"
+    },
+    "title": "Vom Modell zur gedruckten Anleitung"
+  },
   "edit": {
     "angles": {
       "body": "Zeichne, simuliere und löse Origami-Modelle mit nicht flachen Falten.",
@@ -56,6 +77,12 @@
     "title": "Ein Editor, der mitkommt"
   },
   "figureMissing": "Hier kommt ein Screenshot hin",
+  "fold": {
+    "eyebrow": "Falten",
+    "figureAlt": "Der Arbeitsbereich Falten: eine Leiste mit Faltschritten über dem gefalteten Papier und seinem Faltmuster.",
+    "lead": "Bestimmen Sie jede Linie mit den Huzita–Justin-Axiomen oder einer vorhandenen Falte und falten Sie dann durch die Lagen, die Sie wählen: Tal und Berg, Gegenbruch, Quetschfalte, Blütenblatt, Hasenohr, Drehfalte, Crimp, Zickzackfalte und Versenken. Jeder Schritt behält seine gefaltete Form und sein Faltmuster, und die fertige Folge geht direkt ins Diagramm.",
+    "title": "Ein Blatt falten wie von Hand"
+  },
   "formats": {
     "a11yBoth": "öffnet und exportiert",
     "a11yExport": "exportiert nur",
@@ -81,7 +108,7 @@
   "what": {
     "eyebrow": "Was es ist",
     "figureAlt": "Der Ori-Studio-Arbeitsbereich: ein Faltmuster auf der Fläche, darum herum die Werkzeugleiste und die Inspektor-Panels.",
-    "lead": "Skizzieren Sie eine Basis, zeichnen Sie das Faltmuster und falten Sie es, um zu sehen, ob es funktioniert — alles an einem Ort, ohne Konto. Im Browser-Tab öffnen oder die Desktop-App installieren.",
+    "lead": "Skizzieren Sie eine Basis, zeichnen Sie das Faltmuster, falten Sie es, um zu sehen, ob es funktioniert, und machen Sie daraus ein Diagramm, nach dem andere falten können — alles an einem Ort, ohne Konto. Im Browser-Tab öffnen oder die Desktop-App installieren.",
     "title": "Ein freier, quelloffener Arbeitsbereich für Origami-Entwurf"
   }
 }
