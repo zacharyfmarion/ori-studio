@@ -242,7 +242,7 @@ function prepareBaseCheckout(repo, commit, reuse) {
   if (!existsSync(join(checkout, 'node_modules'))) {
     step('Cloning node_modules from the working copy');
     console.log(`    ${cloneNodeModules(repo, checkout)} trees`);
-    if (!sameAsCommit(repo, commit, ['package-lock.json', 'package.json', 'apps/web/package.json', 'packages'])) {
+    if (!sameAsCommit(repo, commit, ['package-lock.json', ':(glob)**/package.json'])) {
       step('The package manifests differ from the working copy: npm install');
       npm(checkout, ['install']);
     }
