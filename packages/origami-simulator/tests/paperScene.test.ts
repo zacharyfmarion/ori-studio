@@ -749,6 +749,35 @@ describe('a crease under the layers of its own plane', () => {
       'face 9',
     ]);
   });
+
+  it('keeps an aux line on ends of its own there too, by the triangle recorded for it', () => {
+    // A 3D figure's aux cut, on two vertices no triangle shares, along the
+    // edge the upper layer meets the lower one by: only the lower layer's
+    // triangle, recorded for it, says which layer it is on.
+    const result = scene(
+      {
+        faceGroups: new Uint32Array([7, 9]),
+        layers: { coplanarEps: 1e-6 },
+        order: new Float32Array([0, 2]),
+        edgeOrder: new Float32Array([1]),
+        markHidden: false,
+      },
+      new Float32Array([...SHARED, -0.5, 0, 0, 0.5, 0, 0]),
+      {
+        faceIndices: SHARED_TOPOLOGY.faceIndices,
+        edgeIndices: new Uint32Array([6, 7]),
+        edgeAssignments: new Uint8Array([EDGE_CODE.aux]),
+        edgeTriangles: new Int32Array([0]),
+      },
+      OVERHEAD
+    );
+    expect(result.items.map((item) => (item.kind === 'face' ? `face ${item.face}` : 'line'))).toEqual([
+      'face 7',
+      'line',
+      'face 9',
+    ]);
+    expect(lines(result).map((line) => [line.role, line.face])).toEqual([['aux', 7]]);
+  });
 });
 
 describe('which endpoints lie on a boundary', () => {
