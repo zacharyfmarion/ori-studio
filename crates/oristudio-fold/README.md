@@ -178,9 +178,22 @@ Compound folds (plan D4, D15, Phases 9 and 11):
   deadline read before each target, the targets that move least decided
   first (`feasible: None` past it); a refusal (`tuck_infeasible`, naming no
   conflict for a target the block lands nowhere on) offers up to three
-  targets that do (`Fix::TuckTarget`). The plain fold's own
+  targets that do (`Fix::TuckTarget`). Where the strict reading lands in no
+  order at all, a layer's side of T is read only where the block, the layer
+  and T overlap together (`Reading::Local`): a side flap that lies over T at
+  the bottom but folds into the block's own fold at its hinge. A tuck that
+  landed before lands as it did. The plain fold's own
   `Placement::Over` and `Under` are unchanged: a closed-form placement the
   gate accepts or refuses.
+- `compound::tuck_in_place`: a flap already folded along ℓ, tucked against a
+  layer with no new crease (`TuckInPlace`). Its block is the seed's flap
+  hinged at ℓ (`InPlace::Flap`: an unfold and a fold against T in one step)
+  or the layers folded together at ℓ (`InPlace::Fold`); it moves by the
+  identity, so its images, inner order, creases and hinges are kept, and only
+  its order against the paper that stays is placed, as a tuck's. Reached as
+  a valley or mountain fold's landing (`FoldLanding::InPlace`), which the
+  placement search lists when the line runs along a fold at the seed; a line
+  along no folded edge of the seed is `tuck_not_at_fold`.
 - **A pleat is two plain folds**, not an operation of its own: a valley and
   a mountain along parallel lines, each of which lands a flat state by
   itself (unlike a crimp's first reverse), so a tool makes a pleat as two

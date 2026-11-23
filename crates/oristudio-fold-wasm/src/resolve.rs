@@ -497,6 +497,17 @@ fn resolved_landing(
             };
             compound(crate::ops_crimp_tuck::resolve_tuck(parent, &op, choices))
         }
+        oristudio_fold::FoldLanding::InPlace { targets, moves } => {
+            if targets.is_empty() || targets.len() > 65 {
+                return Err(BridgeError::InvalidInput(
+                    "a landing in place needs 1–65 targets".into(),
+                )
+                .into());
+            }
+            compound(crate::ops_tuck_in_place::resolve_in_place(
+                parent, a, direction, targets, *moves, choices,
+            ))
+        }
     }
 }
 

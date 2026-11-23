@@ -744,6 +744,10 @@
         "title": "No layer takes the tuck here",
         "under": "No layer that stays can take the flap under it here. Fold it the other way, swap the moving side, or locate another line."
       },
+      "tuckNotAtFold": {
+        "text": "To tuck a flap in place, draw the line along one of its folded edges and pick the flap.",
+        "title": "The flap is not folded along this line"
+      },
       "tuckTarget": {
         "text": "Pick a layer that stays put to tuck the flap against.",
         "title": "The layer to tuck under would move"

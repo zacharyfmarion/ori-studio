@@ -255,6 +255,14 @@ describe('foldStepSentence', () => {
     expect(foldStepSentence(t, { op: 'tuck', direction: 'mountain', line: { via: 'crease' } })).toBe(
       'Mountain fold and tuck the flap in at the back, over the chosen layer.'
     );
+    // A flap folded along the line already, tucked in place: no new crease.
+    const inPlace = { op: 'fold', line: { via: 'crease' }, scope: all, inserted: true, inPlace: true } as const;
+    expect(foldStepSentence(t, { ...inPlace, direction: 'valley' })).toBe(
+      'Tuck the folded flap in, under the chosen layer, with no new crease.'
+    );
+    expect(foldStepSentence(t, { ...inPlace, direction: 'mountain' })).toBe(
+      'Tuck the folded flap in at the back, over the chosen layer, with no new crease.'
+    );
   });
 
   it('says each sink by the move, its line the picture’s', () => {

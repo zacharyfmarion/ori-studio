@@ -134,7 +134,9 @@ export function mirrorOperation(
         line: line(op.line),
         ...(op.landing?.kind === 'against'
           ? { landing: { kind: 'against', targets: op.landing.targets.map(p) } }
-          : {}),
+          : op.landing?.kind === 'in_place'
+            ? { landing: { kind: 'in_place', targets: op.landing.targets.map(p), moves: op.landing.moves } }
+            : {}),
       };
       break;
     case 'precrease':

@@ -76,6 +76,12 @@ describe('operationLabel and operationBadge', () => {
       'Newer',
     ]);
   });
+
+  it('name a fold tucked in place by the tuck, not by a fold it does not make', () => {
+    const inPlace: FoldSentenceStep = { op: 'fold', direction: 'mountain', line: { via: 'crease' }, scope: ALL, inserted: true, inPlace: true };
+    expect(operationLabel(t, inPlace)).toBe('Tuck in place');
+    expect(operationBadge(t, inPlace)).toBe('Tuck');
+  });
 });
 
 describe('lineLabel', () => {

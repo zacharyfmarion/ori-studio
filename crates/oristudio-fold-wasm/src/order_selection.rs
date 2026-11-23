@@ -272,7 +272,11 @@ impl Bridge {
         choices: &Choices,
         query: &OrderQuery,
     ) -> Result<Outcome<OrderSelection>, BridgeError> {
-        if matches!(op, Op::Valley(_) | Op::Mountain(_)) {
+        // A fold landing in place names its targets: only its order is
+        // explored, as a tuck's is, never the fold's other landings.
+        if let Op::Valley(a) | Op::Mountain(a) = op
+            && !matches!(a.landing, FoldLanding::InPlace { .. })
+        {
             return self.placement_selection(state, op, choices, query);
         }
         self.placements = None;

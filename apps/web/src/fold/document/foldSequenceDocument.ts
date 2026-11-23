@@ -220,8 +220,21 @@ interface FoldAlongLine {
   seed: FoldSeed;
 }
 
-/** A valley or mountain fold: the direction is the kind. */
-export type FoldLanding = { kind: 'outer' } | { kind: 'against'; targets: readonly SheetPoint[] };
+/**
+ * Which paper a tuck in place moves: the flap the line is its hinge of
+ * (`flap`), or the layers folded together along the line (`fold`).
+ */
+export type FoldInPlaceMoves = 'flap' | 'fold';
+
+/**
+ * Where a valley or mountain fold's moving paper lands: on the outside, tucked
+ * against the targets (`against`), or — the flap folded along the line
+ * already — tucked in place against them with no new crease (`in_place`).
+ */
+export type FoldLanding =
+  | { kind: 'outer' }
+  | { kind: 'against'; targets: readonly SheetPoint[] }
+  | { kind: 'in_place'; targets: readonly SheetPoint[]; moves: FoldInPlaceMoves };
 
 export interface FoldPlainOp extends FoldAlongLine {
   /** Absent only on legacy/in-memory outer folds. Writers make it explicit. */

@@ -763,6 +763,10 @@
         "title": "Aucune couche ne reçoit le rabat ici",
         "under": "Aucune couche qui reste en place ne peut recevoir le rabat dessous ici. Pliez dans l’autre sens, inversez le côté qui bouge, ou placez une autre ligne."
       },
+      "tuckNotAtFold": {
+        "text": "Pour rentrer un rabat sur place, placez la ligne sur l’un de ses bords pliés et choisissez le rabat.",
+        "title": "Le rabat n’est pas plié le long de cette ligne"
+      },
       "tuckTarget": {
         "text": "Choisissez une couche qui reste en place contre laquelle rentrer le rabat.",
         "title": "La couche où rentrer bougerait"

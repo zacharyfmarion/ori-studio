@@ -763,6 +763,10 @@
         "title": "Aquí ninguna capa admite el remetido",
         "under": "Ninguna capa que se queda quieta admite aquí la solapa por debajo. Pliega en el otro sentido, cambia el lado que se mueve o sitúa otra línea."
       },
+      "tuckNotAtFold": {
+        "text": "Para remeter una solapa en su sitio, sitúa la línea sobre uno de sus bordes plegados y elige la solapa.",
+        "title": "La solapa no está plegada por esta línea"
+      },
       "tuckTarget": {
         "text": "Elige una capa que se quede quieta para remeter la solapa contra ella.",
         "title": "La capa donde remeter se movería"

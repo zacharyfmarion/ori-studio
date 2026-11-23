@@ -69,6 +69,8 @@ export type { FoldCpOrigin } from './document/foldSequenceDocument';
 export function operationLabel(t: TFunction, step: FoldSentenceStep): string {
   switch (step.op) {
     case 'fold':
+      // Nothing folds: the flap, folded already, is tucked where it lies.
+      if (step.inPlace) return t('panels:fold.words.tuckInPlace', 'Tuck in place');
       return step.direction === 'valley'
         ? t('panels:fold.words.valleyFold', 'Valley fold')
         : t('panels:fold.words.mountainFold', 'Mountain fold');
@@ -123,6 +125,7 @@ function sinkLabel(t: TFunction, kind: FoldSinkSentenceKind): string {
 export function operationBadge(t: TFunction, step: FoldSentenceStep): string {
   switch (step.op) {
     case 'fold':
+      if (step.inPlace) return t('panels:fold.words.badgeTuck', 'Tuck');
       return step.direction === 'valley'
         ? t('panels:fold.words.badgeValley', 'Valley')
         : t('panels:fold.words.badgeMountain', 'Mountain');

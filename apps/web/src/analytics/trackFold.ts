@@ -1,5 +1,5 @@
 import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
-import type { FoldCpOrigin } from '../fold/document/foldSequenceDocument';
+import type { FoldCpOrigin, FoldInPlaceMoves } from '../fold/document/foldSequenceDocument';
 import { ANALYTICS_EVENTS, bucketCount, COUNT_BUCKETS, FOLD_CHOICE_COUNT_BUCKETS } from './events';
 import type {
   DiagramStyleChoiceName,
@@ -22,7 +22,15 @@ import { spreadProperties, spreadTracking } from './trackDiagram';
 
 /** What a committed step says beyond its kind: how its line was located, how far it turned, or how it named its lines. */
 type FoldStepAddedDetails =
-  | { layerScope: FoldStepLayerScope; via: FoldStepVia; extent?: FoldStepExtent; targetCount?: number; pleatEnd?: FoldStepPleatEnd }
+  | {
+      layerScope: FoldStepLayerScope;
+      via: FoldStepVia;
+      extent?: FoldStepExtent;
+      targetCount?: number;
+      pleatEnd?: FoldStepPleatEnd;
+      /** A valley or mountain whose flap, folded along its line already, was tucked in place: what moved. */
+      inPlace?: FoldInPlaceMoves;
+    }
   | { amount: FoldStepRotationAmount }
   | { vertex: FoldStepVertexForm }
   | {
@@ -77,6 +85,7 @@ function detailProperties(details: FoldStepAddedDetails | undefined): Record<str
     ...(details.extent ? { extent: details.extent } : {}),
     ...(details.targetCount !== undefined ? { target_count_bucket: bucketCount(details.targetCount, COUNT_BUCKETS) } : {}),
     ...(details.pleatEnd ? { pleat_end: details.pleatEnd } : {}),
+    ...(details.inPlace ? { in_place: details.inPlace } : {}),
   };
 }
 

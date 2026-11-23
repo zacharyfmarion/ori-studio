@@ -101,6 +101,7 @@ pub mod ops_crimp_tuck;
 pub mod ops_reverse;
 pub mod ops_sinks;
 pub mod ops_squash_family;
+pub mod ops_tuck_in_place;
 
 use std::sync::Once;
 

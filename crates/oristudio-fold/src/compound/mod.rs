@@ -54,6 +54,7 @@ pub mod reverse_step;
 pub mod sink;
 pub mod sink_step;
 pub mod tuck;
+pub mod tuck_in_place;
 
 // The vertex folds (research §5.3): blocks are motion classes, seeded by a
 // direction (`vertex`), the rabbit ear's and the swivel's scored as a fan
@@ -334,6 +335,25 @@ impl Prepared {
     pub(crate) fn place(&mut self, pairs: impl IntoIterator<Item = [FaceId; 2]>) {
         let placed = self.seeds(pairs);
         self.fixed.extend(placed);
+    }
+
+    /// Pairs `[upper, lower]` kept as the parent has them, beside the ones
+    /// the carry keeps (step 6): in every completion and replay, and kept
+    /// when the fold is placed another way ([`Prepared::lands_placed`]). A
+    /// tuck in place keeps its block's hinges so. A pair of faces that do
+    /// not overlap is left out.
+    pub(crate) fn carry(&mut self, pairs: impl IntoIterator<Item = [FaceId; 2]>) {
+        let kept: Vec<FixedPair> = self
+            .seeds(pairs)
+            .into_iter()
+            .map(|pair| FixedPair {
+                kind: FixedKind::Carried,
+                ..pair
+            })
+            .collect();
+        let count = kept.len();
+        self.fixed.splice(self.placed..self.placed, kept);
+        self.placed += count;
     }
 
     /// Whether the same fold placed another way — `pairs` in place of every
