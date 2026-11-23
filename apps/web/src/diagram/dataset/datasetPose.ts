@@ -116,9 +116,17 @@ export const POSE_RING: readonly PoseCamera[] = [45, 135, 225, 315].flatMap((deg
 /** How many cameras a step is checked at: its own and the ring. */
 export const POSE_CAMERA_COUNT = POSE_RING.length + 1;
 
-/** Settle rounds of a re-solve, and the steps in each: at most 200,000 steps, the same on every run. */
-const SETTLE_ROUNDS = 10;
+/** Steps per settle of a re-solve, and the most a re-solve takes. */
 const SETTLE_STEPS = 20_000;
+const SOLVE_MAX_STEPS = 200_000;
+/**
+ * What a re-solve may cost, in node-steps: the CPU solver's time grows with
+ * both. Every corpus model but one settles well within it; the largest (818
+ * nodes) stops after about 12,000 steps instead of running a quarter of an
+ * hour, unsettled either way. A count of steps, so it stops at the same step
+ * on every run and machine.
+ */
+const SOLVE_WORK = 10_000_000;
 
 /** Where a step's frames go: `write(name, png)` returns the path the record keeps. */
 export type PoseImages = (name: string, png: Uint8Array) => string;
@@ -389,9 +397,10 @@ async function simulatedPose(
     const shapeOutcome: PoseRecord['shape'] = !shape ? 'none' : restored && restored !== 'mismatch' ? 'restored' : 'mismatch';
     let solve: PoseRecord['solve'];
     if (shapeOutcome !== 'restored') {
-      let frame = await session.settle(SETTLE_STEPS, { token: info.token });
-      for (let round = 1; round < SETTLE_ROUNDS && frame && !frame.converged; round += 1) {
-        frame = await session.settle(SETTLE_STEPS, { token: info.token });
+      const budget = Math.min(SOLVE_MAX_STEPS, Math.max(SETTLE_STEPS / 10, Math.floor(SOLVE_WORK / Math.max(1, info.vertexCount))));
+      let frame: Awaited<ReturnType<typeof session.settle>> = null;
+      for (let spent = 0; spent < budget && !frame?.converged; spent += SETTLE_STEPS) {
+        frame = await session.settle(Math.min(SETTLE_STEPS, budget - spent), { token: info.token });
       }
       solve = { steps: frame?.step ?? 0, settled: frame?.converged ?? false };
     }
