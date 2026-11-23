@@ -62,8 +62,12 @@ export interface ReportModel {
   steps: number;
   /** Steps not compared, by why. */
   notCompared: Record<string, number>;
-  /** Steps whose Pose view ran on both sides, and the most cameras one was checked at. */
-  pose: { steps: number; cameras: number };
+  /**
+   * Steps whose Pose view ran on both sides, and the most cameras one was
+   * checked at; and of those, the ones whose live view was not compared, by
+   * the reason the replay refused it.
+   */
+  pose: { steps: number; cameras: number; notReplayed: Record<string, number> };
   /** Steps whose capture moved by no more than rounding: not listed. */
   rounding: number;
   changedSteps: ReportStep[];
@@ -89,7 +93,13 @@ export function summaryLine(model: ReportModel): string {
     `diagram corpus: ${changed} of ${model.steps} steps changed`,
     `${model.steps - notCompared} re-captured, ${notCompared} not`,
   ];
-  if (model.pose.steps > 0) parts.push(`${model.pose.steps} Pose views at ${model.pose.cameras} cameras each`);
+  if (model.pose.steps > 0) {
+    const notReplayed = Object.values(model.pose.notReplayed).reduce((sum, count) => sum + count, 0);
+    parts.push(
+      `${model.pose.steps} Pose views at ${model.pose.cameras} cameras each` +
+        (notReplayed > 0 ? ` (${notReplayed} not replayed live: shaders the replay does not read)` : '')
+    );
+  }
   if (files > 0) parts.push(`${files} file-level change${files === 1 ? '' : 's'}`);
   if (model.alreadyBroken.length > 0) parts.push(`${model.alreadyBroken.length} problems already broken before`);
   return parts.join('; ');
@@ -229,7 +239,7 @@ type PoseCounts = Partial<Record<string, number>>;
 
 function countsOf(camera: PoseCameraRecord, part: 'live' | 'picture', measure: 'foreign' | 'gaps'): PoseCounts {
   const record = camera[part];
-  return 'error' in record ? {} : record[measure];
+  return !record || 'error' in record ? {} : record[measure];
 }
 
 interface PoseDiff {
@@ -239,6 +249,8 @@ interface PoseDiff {
   /** Ran on both sides, and the most cameras either side checked. */
   ran: boolean;
   cameras: number;
+  /** Why the live views were not compared: a side the replay refused, and why. */
+  liveNotReplayed: string | null;
 }
 
 /**
@@ -248,7 +260,7 @@ interface PoseDiff {
  * its own; everything else is held to the other side.
  */
 function diffPose(before: StepResult['pose'] | undefined, after: StepResult['pose'] | undefined): PoseDiff {
-  const diff: PoseDiff = { reasons: [], broken: [], picture: null, ran: false, cameras: 0 };
+  const diff: PoseDiff = { reasons: [], broken: [], picture: null, ran: false, cameras: 0, liveNotReplayed: null };
   const was = poseOutcome(before);
   const is = poseOutcome(after);
   if (was !== 'ran' || is !== 'ran') {
@@ -269,17 +281,19 @@ function diffPose(before: StepResult['pose'] | undefined, after: StepResult['pos
   if (x.solve && y.solve && x.solve.settled !== y.solve.settled) {
     diff.reasons.push(`The re-solve ${y.solve.settled ? 'now settles' : 'no longer settles'} within its steps`);
   }
-  const list = (values: readonly unknown[]) => values.map(String).join(' and ') || 'none';
-  const draws: Array<[string, readonly unknown[], readonly unknown[]]> = [
-    ['depth is perspective', x.draws.perspective, y.draws.perspective],
-    ['crease depth bias', x.draws.creaseBias, y.draws.creaseBias],
-    ['creases write depth', x.draws.creaseWritesDepth, y.draws.creaseWritesDepth],
-  ];
-  for (const [name, a, b] of draws) {
-    if (list(a) !== list(b)) diff.reasons.push(`The live view's draws: ${name} ${list(a)} → ${list(b)}`);
-  }
-  if (x.draws.shaders !== y.draws.shaders) {
-    diff.reasons.push("The live view's shaders differ: the replay reads both sides as this harness reads the mesh renderer");
+  // A side the replay refused has no live counts: its live view is not compared, for the reason it gave.
+  if (x.liveRefused !== undefined || y.liveRefused !== undefined) {
+    diff.liveNotReplayed = y.liveRefused !== undefined ? `after: ${y.liveRefused}` : `before: ${x.liveRefused}`;
+  } else {
+    const list = (values: readonly unknown[]) => values.map(String).join(' and ') || 'none';
+    const draws: Array<[string, readonly unknown[], readonly unknown[]]> = [
+      ['depth is perspective', x.draws.perspective, y.draws.perspective],
+      ['crease depth bias', x.draws.creaseBias, y.draws.creaseBias],
+      ['creases write depth', x.draws.creaseWritesDepth, y.draws.creaseWritesDepth],
+    ];
+    for (const [name, a, b] of draws) {
+      if (list(a) !== list(b)) diff.reasons.push(`The live view's draws: ${name} ${list(a)} → ${list(b)}`);
+    }
   }
 
   const afterByName = new Map(y.cameras.map((camera) => [camera.name, camera]));
@@ -289,6 +303,7 @@ function diffPose(before: StepResult['pose'] | undefined, after: StepResult['pos
   });
   let most: { delta: number; label: string; before: string | null; after: string | null } | null = null;
   for (const { part, name: partName } of POSE_PARTS) {
+    if (part === 'live' && diff.liveNotReplayed !== null) continue;
     for (const { measure, name, unit } of POSE_MEASURES) {
       const roles = new Set(pairs.flatMap(([a, b]) => [...Object.keys(countsOf(a, part, measure)), ...Object.keys(countsOf(b, part, measure))]));
       const changes: string[] = [];
@@ -327,7 +342,7 @@ function diffPose(before: StepResult['pose'] | undefined, after: StepResult['pos
     }
   }
   if (most) diff.picture = { kind: 'image', before: most.before, after: most.after, label: most.label };
-  else if (diff.reasons.length > 0 && pairs[0]) {
+  else if (diff.reasons.length > 0 && pairs[0] && pairs[0][0].liveImage && pairs[0][1].liveImage) {
     diff.picture = { kind: 'image', before: pairs[0][0].liveImage, after: pairs[0][1].liveImage, label: `${pairs[0][0].name}, the live view` };
   }
   return diff;
@@ -499,7 +514,7 @@ export function diffResults(before: DatasetResults, after: DatasetResults, dirs:
     files: 0,
     steps: 0,
     notCompared: {},
-    pose: { steps: 0, cameras: 0 },
+    pose: { steps: 0, cameras: 0, notReplayed: {} },
     rounding: 0,
     changedSteps: [],
     fileChanges: [],
@@ -551,6 +566,8 @@ export function diffResults(before: DatasetResults, after: DatasetResults, dirs:
       if (diff.pose.ran) {
         model.pose.steps += 1;
         model.pose.cameras = Math.max(model.pose.cameras, diff.pose.cameras);
+        const refused = diff.pose.liveNotReplayed;
+        if (refused !== null) model.pose.notReplayed[refused] = (model.pose.notReplayed[refused] ?? 0) + 1;
       }
       for (const problem of diff.broken) model.alreadyBroken.push({ slug: kase.slug, step: { id: step.id, number: step.number }, problem });
       if (diff.reasons.length === 0) continue;
@@ -659,6 +676,9 @@ ${model.bridges.length > 0 ? `<p>Different wasm on each side: ${model.bridges.ma
 ${model.rounding > 0 ? ` ${plural(model.rounding, 'step')} moved by no more than rounding and are not listed.` : ''}</p>
 ${notCompared ? `<p>Not captured again, so not compared as captures (their files, repaints and statuses were): ${escape(notCompared)}.</p>` : ''}
 ${model.pose.steps > 0 ? `<p>Pose views checked on both sides: ${plural(model.pose.steps, 'step')}, at ${model.pose.cameras} cameras each (live and the picture leaving Pose saves).</p>` : ''}
+${Object.entries(model.pose.notReplayed)
+  .map(([why, count]) => `<p>Live views not compared, the pictures only: ${plural(count, 'step')}. The replay refused one side's shaders, ${escape(why)}.</p>`)
+  .join('\n')}
 ${model.alreadyBroken.length > 0 ? `<p>${plural(model.alreadyBroken.length, 'problem')} found on both sides, listed at the end.</p>` : ''}
 </div>`);
 

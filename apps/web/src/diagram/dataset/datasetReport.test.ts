@@ -82,8 +82,9 @@ const counts = (foreign: OwnPaperRecord['foreign'] = {}): OwnPaperRecord => ({
   unchecked: 0,
 });
 
-/** A simulated step's Pose record: its live view's aux ink over paper not its own, by camera. */
+/** A simulated step's Pose record: its live view's aux ink over paper not its own, by camera; none when the replay refused it. */
 function pose(writer: ResultsWriter, id: string, auxByCamera: number[], extra: Partial<PoseRecord> = {}): PoseRecord {
+  const refused = extra.liveRefused !== undefined;
   return {
     view: 'simulated',
     frame: 're-solved',
@@ -92,8 +93,8 @@ function pose(writer: ResultsWriter, id: string, auxByCamera: number[], extra: P
     draws: { perspective: [false], creaseBias: [0.0008], creaseWritesDepth: [true], shaders: 'digest' },
     cameras: auxByCamera.map((aux, index) => ({
       name: index === 0 ? 'saved' : `ring ${index}`,
-      live: counts(aux > 0 ? { aux } : {}),
-      liveImage: writer.writeBytes(`${id}/pose-${index}-live.png`, new Uint8Array([index])),
+      live: refused ? null : counts(aux > 0 ? { aux } : {}),
+      liveImage: refused ? null : writer.writeBytes(`${id}/pose-${index}-live.png`, new Uint8Array([index])),
       picture: counts(),
       pictureImage: writer.writeBytes(`${id}/pose-${index}-picture.png`, new Uint8Array([index])),
     })),
@@ -133,6 +134,7 @@ describe('diffResults', () => {
       step('s7', captured(a, 's7', scene(line('valley', 1)), { timingSensitive: true })),
       step('s8', { outcome: 'not-captured', status: 'needs-pose', ms: 1 }, { render: 'simulated', pose: pose(a, 's8', [0, 0]) }),
       step('s9', { outcome: 'not-captured', status: 'needs-pose', ms: 1 }, { render: 'simulated', pose: pose(a, 's9', [3, 0], { shape: 'mismatch' }) }),
+      step('s10', { outcome: 'not-captured', status: 'needs-pose', ms: 1 }, { render: 'simulated', pose: pose(a, 's10', [0, 0]) }),
     ]);
     const after = results('after', [
       // The same.
@@ -153,11 +155,16 @@ describe('diffResults', () => {
       step('s8', { outcome: 'not-captured', status: 'needs-pose', ms: 1 }, { render: 'simulated', pose: pose(b, 's8', [0, 500]) }),
       // A saved shape Pose cannot put back, on both sides.
       step('s9', { outcome: 'not-captured', status: 'needs-pose', ms: 1 }, { render: 'simulated', pose: pose(b, 's9', [3, 0], { shape: 'mismatch' }) }),
+      // The replay refused this side's shaders: the live view is not compared, which is not a change.
+      step('s10', { outcome: 'not-captured', status: 'needs-pose', ms: 1 }, {
+        render: 'simulated',
+        pose: pose(b, 's10', [0, 900], { liveRefused: 'its edge shader declares faceDepth, which the replay does not read' }),
+      }),
     ]);
 
     const model = diffResults(before, after, { before: beforeDir, after: afterDir });
 
-    expect(model.steps).toBe(9);
+    expect(model.steps).toBe(10);
     expect(model.changedSteps.map((change) => [change.id, change.reasons])).toEqual([
       ['s2', ['Draw order changed: the same lines and faces, drawn in another order']],
       ['s3', ['Status: current → stale', 'Refresh: not needed → refresh']],
@@ -171,8 +178,12 @@ describe('diffResults', () => {
       label: 'ring 1, the live view',
     });
     expect(model.rounding).toBe(1);
-    expect(model.notCompared).toEqual({ 'over 10 s, timing-sensitive': 1, 'Simulated above 0%, which needs Pose': 2 });
-    expect(model.pose).toEqual({ steps: 2, cameras: 2 });
+    expect(model.notCompared).toEqual({ 'over 10 s, timing-sensitive': 1, 'Simulated above 0%, which needs Pose': 3 });
+    expect(model.pose).toEqual({
+      steps: 3,
+      cameras: 2,
+      notReplayed: { 'after: its edge shader declares faceDepth, which the replay does not read': 1 },
+    });
     expect(model.alreadyBroken).toEqual([
       { slug: 'case', step: { id: 's5', number: 5 }, problem: 'Aux probe: still reads current' },
       {
@@ -182,7 +193,8 @@ describe('diffResults', () => {
       },
     ]);
     expect(summaryLine(model)).toBe(
-      'diagram corpus: 4 of 9 steps changed; 6 re-captured, 3 not; 2 Pose views at 2 cameras each; 2 problems already broken before'
+      'diagram corpus: 4 of 10 steps changed; 6 re-captured, 4 not; ' +
+        '3 Pose views at 2 cameras each (1 not replayed live: shaders the replay does not read); 2 problems already broken before'
     );
 
     const out = tempDir();

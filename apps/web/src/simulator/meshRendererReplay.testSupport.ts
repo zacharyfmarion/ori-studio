@@ -114,6 +114,8 @@ interface DrawState {
 }
 
 interface DrawSnapshot {
+  /** The program that drew it. */
+  program: RecordedProgram;
   uniforms: ReadonlyMap<string, UniformValue>;
   /** The texture on each unit, as it was at the draw. */
   units: ReadonlyArray<RecordedTexture | null>;
@@ -139,8 +141,10 @@ type EdgeAttribute = (typeof EDGE_ATTRIBUTES)[number];
 export interface Recording {
   /** The draws to the default framebuffer, in order: what a frame shows. */
   commands: RecordedCommand[];
-  /** A digest of the face and crease programs' sources, or null before either was linked. */
+  /** The face and crease programs linked so far, by kind, with the digest of their code; `face:… edge:…`, or null before either was. */
   shaders: () => string | null;
+  /** The same programs, each with what it declares and why it would be refused (null when it is modeled). */
+  programs: () => Array<{ kind: RecordedProgramKind; digest: string; names: string[]; refusal: string | null }>;
   /** Forget the commands so far: the next frame starts clean. Textures, buffers and uniforms stay. */
   reset: () => void;
 }
@@ -151,6 +155,88 @@ function programKind(shaders: readonly RecordedShader[]): RecordedProgramKind {
   if (vertex.includes('a_assignment') && vertex.includes('u_depthBias')) return 'edge';
   if (vertex.includes('gl_VertexID') && fragment.includes('u_frontColor')) return 'face';
   return 'other';
+}
+
+/** A program's code with its comments and layout taken out: what decides how it draws. */
+function glslCode(program: RecordedProgram): string {
+  const source = (type: number) => program.shaders.find((shader) => shader.type === type)?.source ?? '';
+  return `${source(GL.VERTEX_SHADER)}\n${source(GL.FRAGMENT_SHADER)}`
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** The digest of a program's code, vertex shader then fragment. */
+function programDigest(program: RecordedProgram): string {
+  return createHash('sha256').update(glslCode(program)).digest('hex').slice(0, 12);
+}
+
+/**
+ * The programs this replay reads as arithmetic, by the digest of their code
+ * (`programDigest`). Read off `meshRenderer.ts`, whose GLSL changed once
+ * between v0.10.0 and main (dd7222a03):
+ *
+ * - **face** (`FACE_VERT`, `FACE_FRAG`): unchanged over that span;
+ * - **edge** (`EDGE_VERT`, `EDGE_FRAG`): v0.10.0's, and since 5b2b40eab the
+ *   same with aux lines drawn on the paper (`u_virtual`, `fetchPosition` of
+ *   a virtual vertex), unchanged to main.
+ *
+ * A frame drawn by any other program is refused, never replayed as one of
+ * these ({@link UnmodeledShaderError}). A change to the mesh renderer's GLSL
+ * comes here: read the new code into {@link replayFrame}, then add its digest.
+ */
+export const MODELED_PROGRAMS: Readonly<Record<'face' | 'edge', ReadonlySet<string>>> = {
+  face: new Set(['1f7073b7efc2']),
+  edge: new Set([
+    // v0.10.0
+    '78815e082893',
+    // 5b2b40eab to main
+    '63a25bfa2319',
+  ]),
+};
+
+/** The functions and uniforms the modeled programs declare, so a refusal can name what is new. */
+const MODELED_NAMES: ReadonlySet<string> = new Set([
+  ...['dashOn', 'dashPhase', 'fetchPosition', 'hueToRgb', 'main', 'nodePosition', 'projectDepth', 'projectNdc'],
+  ...['shadeFor', 'toNdc', 'toNdcDepth', 'toView', 'virtualTexel'],
+  ...['u_alpha', 'u_auxColor', 'u_backColor', 'u_borderColor', 'u_camDist', 'u_center', 'u_creaseAlpha'],
+  ...['u_dashCount', 'u_dashRuns', 'u_depthBias', 'u_depthRange', 'u_displacementScale', 'u_erodePx'],
+  ...['u_frontColor', 'u_halfWidthPx', 'u_lastPosition', 'u_lastVelocity', 'u_lightDir', 'u_lighting'],
+  ...['u_mountainColor', 'u_originalPosition', 'u_perspectiveDepth', 'u_scale', 'u_showAux', 'u_strainClip'],
+  ...['u_strainMode', 'u_textureDim', 'u_tintColor', 'u_tintMix', 'u_valleyColor', 'u_view', 'u_viewport'],
+  ...['u_virtual', 'u_virtualDim', 'u_virtualStart'],
+]);
+
+/** What a program declares: its functions and uniforms, by name. */
+function declaredNames(program: RecordedProgram): string[] {
+  const code = glslCode(program);
+  const functions = [...code.matchAll(/\b(?:void|float|int|uint|bool|[iu]?vec[234]|mat[234])\s+([A-Za-z_]\w*)\s*\(/g)];
+  const uniforms = [...code.matchAll(/\buniform\s+(?:(?:lowp|mediump|highp)\s+)?\w+\s+([A-Za-z_]\w*)/g)];
+  return [...new Set([...functions, ...uniforms].map((match) => match[1]!))].sort();
+}
+
+/**
+ * A live view drew with a program this replay does not read: replaying it
+ * as one it does would guess. The Pose check reports the view as not
+ * compared, with {@link reason}.
+ */
+export class UnmodeledShaderError extends Error {
+  constructor(readonly reason: string) {
+    super(`The CPU replay does not model the live view's shaders: ${reason}`);
+    this.name = 'UnmodeledShaderError';
+  }
+}
+
+/** Why a program is refused, or null when the replay models it. */
+function refusalOf(program: RecordedProgram): string | null {
+  if (program.kind === 'other') return null;
+  const digest = programDigest(program);
+  if (MODELED_PROGRAMS[program.kind].has(digest)) return null;
+  const unknown = declaredNames(program).filter((name) => !MODELED_NAMES.has(name));
+  return unknown.length > 0
+    ? `its ${program.kind} shader declares ${unknown.join(', ')}, which the replay does not read`
+    : `its ${program.kind} shader's code (${digest}) is not one the replay reads`;
 }
 
 function copyView(data: unknown): ArrayBufferView | null {
@@ -191,6 +277,7 @@ export function recordingCanvas(width = 2048, height = 2048): { canvas: Offscree
   let nextConstant = 0x100000;
 
   const snapshot = (): DrawSnapshot => ({
+    program: program!,
     uniforms: new Map(program!.uniforms),
     units: units.map((texture) => (texture ? { ...texture } : null)),
     state: {
@@ -363,15 +450,17 @@ export function recordingCanvas(width = 2048, height = 2048): { canvas: Offscree
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   } as unknown as OffscreenCanvas;
+  const linked = () =>
+    programs
+      .filter((program) => program.kind !== 'other')
+      .map((program) => ({ kind: program.kind, digest: programDigest(program), names: declaredNames(program), refusal: refusalOf(program) }));
   const recording: Recording = {
     commands,
     shaders: () => {
-      const sources = programs
-        .filter((linked) => linked.kind !== 'other')
-        .map((linked) => `${linked.kind}\n${linked.shaders.map((shader) => shader.source).join('\n')}`)
-        .sort();
-      return sources.length > 0 ? createHash('sha256').update(sources.join('\n')).digest('hex').slice(0, 12) : null;
+      const kinds = [...new Set(linked().map(({ kind, digest }) => `${kind}:${digest}`))].sort();
+      return kinds.length > 0 ? kinds.join(' ') : null;
     },
+    programs: linked,
     reset: () => {
       commands.length = 0;
     },
@@ -539,12 +628,7 @@ class ShaderView {
   }
 
   toNdcDepth(depth: number): number {
-    if (this.perspective) {
-      const near = this.camDist * 0.1;
-      const far = this.camDist + 2 * this.depthRange;
-      return (far + near) / (far - near) - (2 * far * near) / ((far - near) * Math.max(this.camDist - depth, 0.001));
-    }
-    return Math.max(-1, Math.min(1, -depth / this.depthRange));
+    return ndcDepth(depth, this, this.perspective);
   }
 }
 
@@ -720,18 +804,61 @@ function ribbonVertex(view: ShaderView, uniforms: Uniforms, geometry: RibbonGeom
   };
 }
 
+/** Where the last frame starts: its clear of the depth buffer. */
+function frameStart(commands: readonly RecordedCommand[]): number {
+  let start = 0;
+  commands.forEach((command, index) => {
+    if (command.kind === 'clear' && command.depth) start = index;
+  });
+  return start;
+}
+
+/** Refuses draws made with a program this replay does not read. */
+function assertModeled(commands: readonly RecordedCommand[]): void {
+  const refusals = new Set<string>();
+  for (const command of commands) {
+    if (command.kind === 'clear') continue;
+    const refusal = refusalOf(command.program);
+    if (refusal) refusals.add(refusal);
+  }
+  if (refusals.size > 0) throw new UnmodeledShaderError([...refusals].join('; '));
+}
+
+/**
+ * Whether the recorded frame's draws tested depth in perspective, as the
+ * renderer they were drawn by set `u_perspectiveDepth`: what a model of the
+ * frame that rasterises it by other means reads its depth mode from, rather
+ * than holding a copy. Refuses as {@link replayFrame} does.
+ */
+export function recordedPerspectiveDepth(recording: Recording): boolean {
+  const frame = recording.commands.slice(frameStart(recording.commands));
+  assertModeled(frame);
+  return frame.some((command) => command.kind !== 'clear' && num(command.uniforms, 'u_perspectiveDepth') > 0.5);
+}
+
+/** The mesh renderer's `toNdcDepth`: view depth to NDC z, linear or in perspective. */
+export function ndcDepth(depth: number, camera: { camDist: number; depthRange: number }, perspective: boolean): number {
+  if (perspective) {
+    const near = camera.camDist * 0.1;
+    const far = camera.camDist + 2 * camera.depthRange;
+    return (far + near) / (far - near) - (2 * far * near) / ((far - near) * Math.max(camera.camDist - depth, 0.001));
+  }
+  return Math.max(-1, Math.min(1, -depth / camera.depthRange));
+}
+
 /**
  * The recorded frame rasterised: the last clear and every draw after it, in
  * order, into the paper-on-top and ink buffers, with one depth buffer. An
  * opaque face covers the ink under it; a blended one (a translucent style, an
  * undetermined cell) covers neither paper nor ink.
+ *
+ * Throws {@link UnmodeledShaderError} when any of those draws used a program
+ * this replay does not read ({@link MODELED_PROGRAMS}).
  */
 export function replayFrame(recording: Recording, options: ReplayOptions): ReplayedFrame {
   const commands = recording.commands;
-  let start = 0;
-  commands.forEach((command, index) => {
-    if (command.kind === 'clear' && command.depth) start = index;
-  });
+  const start = frameStart(commands);
+  assertModeled(commands.slice(start));
   const firstDraw = commands.slice(start).find((command) => command.kind !== 'clear') as Exclude<RecordedCommand, { kind: 'clear' }> | undefined;
   const width = Math.max(1, Math.round(firstDraw?.state.viewport[2] ?? 1));
   const height = Math.max(1, Math.round(firstDraw?.state.viewport[3] ?? 1));

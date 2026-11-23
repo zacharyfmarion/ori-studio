@@ -9,10 +9,18 @@
  */
 import { projectVertices, type CameraUniforms, type PaperLineRole, type PaperScene } from '@treemaker/origami-simulator';
 import { EDGE_CODE, type RenderSettings } from '@treemaker/origami-simulator';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { FoldedMeshSource, folded3dDrawPasses } from '../../simulator/foldedMeshSource';
-import { recordingCanvas, replayFrame, type ReplayedFrame } from '../../simulator/meshRendererReplay.testSupport';
+import {
+  ndcDepth,
+  recordedPerspectiveDepth,
+  recordingCanvas,
+  replayFrame,
+  type Recording,
+  type ReplayedFrame,
+} from '../../simulator/meshRendererReplay.testSupport';
 import type { Folded3dMesh } from './folded3dMesh';
-import { FOLDED_3D_CREASE_DEPTH_BIAS, folded3dMeshPayload } from './folded3dWindow';
+import { FOLDED_3D_CREASE_DEPTH_BIAS, folded3dMeshPayload, folded3dWindowRenderSettings } from './folded3dWindow';
 
 /** The window's box in the comparison, in CSS px; scenes compared are built for it. */
 export const WINDOW_PARITY_BOX = 300;
@@ -141,15 +149,42 @@ export function stampSegment(
   }
 }
 
+/** The window, built on a recording canvas from the mesh's worker payload, as `FoldedMeshSource` builds it. */
+function recordedWindow(mesh: Folded3dMesh): { source: FoldedMeshSource; recording: Recording; indices: Uint32Array } {
+  const { payload } = folded3dMeshPayload(mesh);
+  const { canvas, recording } = recordingCanvas();
+  const source = FoldedMeshSource.create(canvas, payload);
+  if (!source) throw new Error('the 3D figure did not load on the recording canvas');
+  return { source, recording, indices: new Uint32Array(payload.faceIndices) };
+}
+
+const recordedWindows = new WeakMap<Folded3dMesh, ReturnType<typeof recordedWindow>>();
+
+/**
+ * Whether the window tests depth in perspective for this mesh, as
+ * `FoldedMeshSource` sets it: read from the draws it makes, so a change of
+ * depth mode there reaches the window model without a copy here. Throws
+ * `UnmodeledShaderError` when the window draws with shaders the replay does
+ * not read, rather than model them as main's.
+ */
+function windowPerspectiveDepth(mesh: Folded3dMesh, camera: CameraUniforms): boolean {
+  let window = recordedWindows.get(mesh);
+  if (!window) recordedWindows.set(mesh, (window = recordedWindow(mesh)));
+  window.recording.reset();
+  window.source.render(camera, folded3dWindowRenderSettings({ style: DEFAULT_PAPER_STYLE, displayStyle: 'Paper5', devicePixelRatio: 1 }));
+  return recordedPerspectiveDepth(window.recording);
+}
+
 /**
  * The window's frame: `folded3dDrawPasses` at the scene's own camera, under
- * the mesh renderer's perspective, with a depth buffer. What the GPU would
- * show, decided in the same arithmetic several steps before a canvas.
+ * the mesh renderer's perspective, with a depth buffer in the depth mode the
+ * window draws with. What the GPU would show, decided in the same arithmetic
+ * several steps before a canvas.
  */
 export function windowPicture(mesh: Folded3dMesh, camera: CameraUniforms, half: number): Picture {
   const projected = projectVertices(mesh.positions, camera);
-  const ndcZ = (v: number): number =>
-    Math.max(-1, Math.min(1, -(projected.view[v * 3 + 2] ?? 0) / camera.depthRange));
+  const perspective = windowPerspectiveDepth(mesh, camera);
+  const ndcZ = (v: number): number => ndcDepth(projected.view[v * 3 + 2] ?? 0, camera, perspective);
   const screen = (v: number): [number, number] => [
     projected.screen[v * 2]!,
     projected.screen[v * 2 + 1]!,
@@ -607,18 +642,15 @@ export interface LiveFrame {
  * packs) loaded into `FoldedMeshSource` on a recording canvas, and each frame
  * replayed from the draws `render` makes with `settings`. The depth mode,
  * crease bias and depth write, the passes and their order are whatever those
- * draws say.
+ * draws say; `render` throws `UnmodeledShaderError` for shaders the replay
+ * does not read.
  */
 export function liveFolded3dView(
   mesh: Folded3dMesh,
   settings: RenderSettings
 ): { shaders: string | null; render: (camera: CameraUniforms) => LiveFrame } {
-  const { payload } = folded3dMeshPayload(mesh);
-  const { canvas, recording } = recordingCanvas();
-  const source = FoldedMeshSource.create(canvas, payload);
-  if (!source) throw new Error('the 3D figure did not load on the recording canvas');
+  const { source, recording, indices } = recordedWindow(mesh);
   const faceOfVertex = folded3dFaceOfVertex(mesh);
-  const indices = new Uint32Array(payload.faceIndices);
   const creases = folded3dCreases(mesh);
   return {
     shaders: recording.shaders(),

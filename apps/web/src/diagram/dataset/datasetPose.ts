@@ -62,7 +62,7 @@ import type { OristudioCpFold3dTolerances, OristudioCpFolded3dRenderModel } from
 import type { FoldDocument } from '../../engine/types';
 import { DEFAULT_SIMULATOR_SETTINGS, simulatorMaterialOptions } from '../../lib/simulatorSettings';
 import { framingOf } from '../../simulator/framingFollow';
-import { recordingCanvas, replayFrame } from '../../simulator/meshRendererReplay.testSupport';
+import { UnmodeledShaderError, recordingCanvas, replayFrame } from '../../simulator/meshRendererReplay.testSupport';
 import { resolveRenderSettings } from '../../simulator/simulatorPalette';
 import { createSimulatorSession } from '../../simulator/simulatorSession';
 import { SIMULATED_FRAME_PX, storeSimulationFold, type DiagramCaptureStore } from '../../store/workspaceStore/diagramCapture';
@@ -173,21 +173,37 @@ function drawsOf(frames: ReadonlyArray<{ depth: { perspective: boolean[]; crease
 
 function cameraRecord(
   name: string,
-  live: { check: OwnPaperRecord; png: Uint8Array },
+  live: { check: OwnPaperRecord; png: Uint8Array } | null,
   picture: { check: OwnPaperRecord; png: Uint8Array } | { error: string },
   images: PoseImages,
   index: number
 ): PoseCameraRecord {
   return {
     name,
-    live: live.check,
-    liveImage: images(`pose-${index}-live.png`, live.png),
+    live: live?.check ?? null,
+    liveImage: live ? images(`pose-${index}-live.png`, live.png) : null,
     picture: 'error' in picture ? picture : picture.check,
     pictureImage: 'error' in picture ? null : images(`pose-${index}-picture.png`, picture.png),
   };
 }
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/**
+ * A live frame replayed, or null once the live view has been refused: a
+ * shader the replay does not read is reported (`refused`), never replayed as
+ * main's. The view's first frame decides for all its cameras.
+ */
+function replayed<T>(state: { refused?: string }, replay: () => T): T | null {
+  if (state.refused !== undefined) return null;
+  try {
+    return replay();
+  } catch (error) {
+    if (!(error instanceof UnmodeledShaderError)) throw error;
+    state.refused = error.reason;
+    return null;
+  }
+}
 
 /* ------------------------------------------------------------------------
  * 3D
@@ -247,10 +263,11 @@ async function folded3dPose(pattern: LoadedPattern, diagram: DiagramDocument, st
       ...POSE_RING.map((ring) => ({ name: ring.name, camera: { yaw: ring.yaw, pitch: ring.pitch, zoom: 1 } })),
     ];
     const frames: ReturnType<typeof live.render>[] = [];
+    const state: { refused?: string } = {};
     const records = cameras.map(({ name, camera }, index) => {
       const uniforms = folded3dSceneCamera(camera, mesh, POSE_FRAME_PX);
-      const frame = live.render(uniforms);
-      frames.push(frame);
+      const frame = replayed(state, () => live.render(uniforms));
+      if (frame) frames.push(frame);
       let picture: { check: OwnPaperRecord; png: Uint8Array } | { error: string };
       try {
         const scene = folded3dPaperScene(mesh, render, uniforms, { style, markHidden: true, tolerances, displayStyle: 'Paper5' });
@@ -258,12 +275,14 @@ async function folded3dPose(pattern: LoadedPattern, diagram: DiagramDocument, st
       } catch (error) {
         picture = { error: message(error) };
       }
-      return cameraRecord(name, { check: frame.check, png: rasterPng(frame.frame, (id) => frame.lines[id]?.role) }, picture, images, index);
+      const liveCheck = frame ? { check: frame.check, png: rasterPng(frame.frame, (id) => frame.lines[id]?.role) } : null;
+      return cameraRecord(name, liveCheck, picture, images, index);
     });
     return {
       view: 'folded-3d' as const,
       frame: 'folded' as const,
       draws: drawsOf(frames.map((frame) => frame.frame), live.shaders),
+      ...(state.refused !== undefined ? { liveRefused: state.refused } : {}),
       cameras: records,
     };
   });
@@ -422,24 +441,29 @@ async function simulatedPose(
       ...POSE_RING.map((ring) => ({ name: ring.name, view: { yaw: ring.yaw, pitch: ring.pitch, zoom: 1 } })),
     ];
     const frames: ReturnType<typeof replayFrame>[] = [];
+    const state: { refused?: string } = {};
     const records = cameras.map(({ name, view }, index) => {
       recording.reset();
       gpu.render(cameraUniforms(view, center, radius, POSE_FRAME_PX, POSE_FRAME_PX), settings, null, { highlight: true });
-      const frame = replayFrame(recording, { faceOfTriangle: (t) => faceGroups[t] ?? -1, positions });
-      frames.push(frame);
-      const lines = frame.lines.map(
-        (line): OwnPaperLine => ({
-          role: roleOfCode(line.code),
-          own: creases.ownOf(line.a, line.b),
-          // A simulated mesh's layers never coincide: each crease is its own line.
-          group: creases.groupOf(line.a, line.b),
-          from: line.from,
-          to: line.to,
-          halfWidthPx: line.halfWidthPx,
-          dashOn: line.dashOn,
-        })
-      );
-      const live = { check: ownPaperCheck(frame, lines), png: rasterPng(frame, (id) => lines[id]?.role) };
+      const frame = replayed(state, () => replayFrame(recording, { faceOfTriangle: (t) => faceGroups[t] ?? -1, positions }));
+      let live: { check: OwnPaperRecord; png: Uint8Array } | null = null;
+      if (frame) {
+        frames.push(frame);
+        // The ribbon's ends as the crease buffer names them: the topology's own here.
+        const lines = frame.lines.map(
+          (line): OwnPaperLine => ({
+            role: roleOfCode(line.code),
+            own: creases.ownOf(line.a, line.b),
+            // A simulated mesh's layers never coincide: each crease is its own line.
+            group: creases.groupOf(line.a, line.b),
+            from: line.from,
+            to: line.to,
+            halfWidthPx: line.halfWidthPx,
+            dashOn: line.dashOn,
+          })
+        );
+        live = { check: ownPaperCheck(frame, lines), png: rasterPng(frame, (id) => lines[id]?.role) };
+      }
       let picture: { check: OwnPaperRecord; png: Uint8Array } | { error: string };
       try {
         const scene = sessionPicture(session, { token: info.token, view, size: SIMULATED_FRAME_PX, style, markHidden: true });
@@ -461,6 +485,7 @@ async function simulatedPose(
       ...(solve ? { solve } : {}),
       shape: shapeOutcome,
       draws: drawsOf(frames, recording.shaders()),
+      ...(state.refused !== undefined ? { liveRefused: state.refused } : {}),
       cameras: records,
     };
   } finally {

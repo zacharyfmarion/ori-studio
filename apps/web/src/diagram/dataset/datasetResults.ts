@@ -98,17 +98,24 @@ export interface PoseRecord {
   solve?: { steps: number; settled: boolean };
   /** A simulated step's saved shape: none, put back, or one Pose cannot put back (another sheet's), which it folds from flat unsaid. */
   shape?: 'none' | 'restored' | 'mismatch';
-  /** The live view's draws as the replay read them, each distinct value once, and its shaders' digest. */
+  /** The live view's draws as the replay read them, each distinct value once, and its shaders' digests. */
   draws: { perspective: boolean[]; creaseBias: number[]; creaseWritesDepth: boolean[]; shaders: string | null };
+  /**
+   * Why the live view was not replayed: it draws with shaders the replay does
+   * not read (`MODELED_PROGRAMS`), and replaying them as main's would guess.
+   * Its cameras then carry no live counts; the pictures are still checked.
+   */
+  liveRefused?: string;
   cameras: PoseCameraRecord[];
 }
 
 export interface PoseCameraRecord {
   /** `saved`, or the ring camera's name. */
   name: string;
-  live: OwnPaperRecord;
+  /** Null when the live view was not replayed (`PoseRecord.liveRefused`). */
+  live: OwnPaperRecord | null;
   /** The live frame as it was replayed, a PNG relative to the side's folder. */
-  liveImage: string;
+  liveImage: string | null;
   /** The picture Pose would save at this camera, held to the same rule; `error` when it could not be built. */
   picture: OwnPaperRecord | { error: string };
   pictureImage: string | null;
