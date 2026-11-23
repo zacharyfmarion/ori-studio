@@ -353,7 +353,7 @@ describe('the Layer order dialog’s session', () => {
     expect(spawned[0]!.terminated).toBe(true);
   });
 
-  it('a press on the backdrop leaves it open: only Cancel, Escape and the close button close it', async () => {
+  it('a press on the backdrop leaves it open: only Cancel and the close button close it', async () => {
     mount();
     const { outcome } = await opened();
     await until(isReady, 'the session opened');
@@ -384,13 +384,32 @@ describe('the Layer order dialog’s session', () => {
     expect(monitoring.reportError).not.toHaveBeenCalled();
   });
 
-  it('Escape cancels', async () => {
+  it('Escape clears the sentence being built, and never closes the dialog', async () => {
     mount();
     const { outcome } = await opened();
     await until(isReady, 'the session opened');
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    let settled = false;
+    void outcome.then(() => {
+      settled = true;
     });
+    const escape = () =>
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
+    // A subject, picked from its menu as the keyboard picks it.
+    act(() => button(/^Subject:/).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    click(byRole(document.body, 'menuitemradio', 'Face C'));
+    expect(button(/^Subject: face C/)).toBeDefined();
+    escape();
+    await flush();
+    expect(button('Subject: pick a face')).toBeDefined();
+    // Nothing left to clear: it does nothing, and the dialog stays, its worker with it.
+    escape();
+    await flush();
+    expect(settled).toBe(false);
+    expect(dialog()).not.toBeNull();
+    expect(spawned[0]!.terminated).toBe(false);
+    click(button('Cancel'));
     await expect(outcome).resolves.toEqual({ kind: 'cancelled' });
     expect(spawned[0]!.terminated).toBe(true);
   });
@@ -695,6 +714,7 @@ describe('the Layer order dialog’s inspector, bound (U10)', () => {
       subject_origin: 'menu',
       object_origin: 'menu',
       object_count_bucket: '<=1',
+      added_by: 'button',
     });
     click(button('Cancel'));
     await expect(outcome).resolves.toEqual({ kind: 'cancelled' });

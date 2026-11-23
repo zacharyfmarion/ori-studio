@@ -8,11 +8,11 @@
  *   order on screen (the stack hit index, `stackHitIndex.ts`). Off the paper,
  *   none.
  * - **The events** carry the face, the pane it came from (the inspector
- *   model's pick origin, `pattern` or `folded`) and how it came: by a
- *   pointer, or a finger's tap. A tap has no hover before it, so its
- *   inspector stands the tap in for both: it shows the face's hint and picks
- *   it (D6). Inert faces are picked too; what a pick does with one is the
- *   inspector's.
+ *   model's pick origin, `pattern` or `folded`), how it came (by a pointer, or
+ *   a finger's tap) and whether Shift was held. A tap has no hover before it,
+ *   so its inspector stands the tap in for both: it shows the face's hint and
+ *   picks it (D6). Inert faces are picked too; what a pick does with one, and
+ *   what Shift changes, is the inspector's.
  * - **A double tap fits** both panes (D6, `Round4-Phone`): a second tap soon
  *   after and near the first is the fit, and picks nothing; the first one
  *   has already picked.
@@ -44,6 +44,8 @@ export interface LayerPaneFacePick {
   readonly face: LayerFace;
   readonly origin: LayerPaneId;
   readonly input: LayerPaneInput;
+  /** Shift was held as the press ended: the inspector picks without adding (a plain click adds). */
+  readonly shift: boolean;
 }
 
 /** The face under the pointer, or a finger, on a pane: null once there is none. */

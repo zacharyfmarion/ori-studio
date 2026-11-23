@@ -250,12 +250,14 @@ export type LayerHintText =
   | { readonly key: 'subject_stuck'; readonly subject: LayerFace; readonly why: LayerSettledWhy }
   /** "Pick one of the N labelled faces", or "tinted" past the label cap (D7). */
   | { readonly key: 'pick_object'; readonly objects: number; readonly tinted: boolean }
-  /** Once an object is picked: "Pick more faces to add them, or a picked face to remove it." (D21). */
+  /** Objects picked to keep (Shift+click, a face menu): "Shift-click to pick more faces or remove one." (D21). */
   | { readonly key: 'more_objects' }
   /** The subject's one open face is picked: "D is the only face to choose". */
   | { readonly key: 'only_object'; readonly object: LayerFace }
   /** "Checking C behind D, E…". */
   | { readonly key: 'checking'; readonly sentence: LayerSentenceView }
+  /** An Add in the worker, by the button or a plain click: "Adding C behind D, E…". */
+  | { readonly key: 'adding'; readonly sentence: LayerSentenceView }
   /** "Can't fit. Finding what it clashes with…". */
   | { readonly key: 'cant_fit_explaining'; readonly sentence: LayerSentenceView }
   /**
@@ -371,6 +373,14 @@ export function hintLine(state: LayerOrderDialogState): LayerHint | null {
     return { tone: 'quiet', action: 'keep_trying', text: { key: 'commit_timed_out', via: state.commit.via } };
   }
   if (hoveredReason) return quietHint({ key: 'row_not_applied', reason: hoveredReason });
+
+  // An Add in the worker: what it adds, the constraints after the list it commits, rather than the
+  // guidance for a sentence still being built.
+  const { commit } = state;
+  const adding = commit.kind === 'pending' && commit.via === 'add' ? commit.constraints.slice(state.rows.committed.length) : [];
+  if (adding.length > 0) {
+    return { tone: 'busy', action: null, text: { key: 'adding', sentence: candidatesSentence(state, adding) } };
+  }
 
   // A step that ran out (E9) is the newest thing on the line, until the next pick, Clear or step lets it
   // go. Keep trying waits while a change to the list is in the worker: a step can't be asked until then.

@@ -6527,7 +6527,7 @@
     "dialogs:layerOrder.hint.faceChoices_one": "ff25f4c55fa8",
     "dialogs:layerOrder.hint.faceChoices_other": "c3ca7a59dea6",
     "dialogs:layerOrder.hint.faceSettled": "36fe0a812ad5",
-    "dialogs:layerOrder.hint.moreObjects": "ca21fefc7fb9",
+    "dialogs:layerOrder.hint.moreObjects": "98cdc32c3431",
     "dialogs:layerOrder.hint.onlyObject": "267ad9ce0e3c",
     "dialogs:layerOrder.hint.pickFace_one": "3b5d1cb8246f",
     "dialogs:layerOrder.hint.pickFace_other": "cfd2a2b17ff2",
@@ -6769,7 +6769,9 @@
     "landing:fold.eyebrow": "92c122b5b1e2",
     "landing:fold.figureAlt": "f267bd9d8e4e",
     "landing:fold.lead": "fad0bc412cee",
-    "landing:fold.title": "b39b70e6dfd6"
+    "landing:fold.title": "b39b70e6dfd6",
+    "dialogs:layerOrder.hint.adding": "618046d258d1",
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13299,7 +13301,7 @@
     "dialogs:layerOrder.hint.faceChoices_one": "ff25f4c55fa8",
     "dialogs:layerOrder.hint.faceChoices_other": "c3ca7a59dea6",
     "dialogs:layerOrder.hint.faceSettled": "36fe0a812ad5",
-    "dialogs:layerOrder.hint.moreObjects": "ca21fefc7fb9",
+    "dialogs:layerOrder.hint.moreObjects": "98cdc32c3431",
     "dialogs:layerOrder.hint.onlyObject": "267ad9ce0e3c",
     "dialogs:layerOrder.hint.pickFace_one": "3b5d1cb8246f",
     "dialogs:layerOrder.hint.pickFace_other": "cfd2a2b17ff2",
@@ -13541,7 +13543,9 @@
     "landing:fold.eyebrow": "92c122b5b1e2",
     "landing:fold.figureAlt": "f267bd9d8e4e",
     "landing:fold.lead": "fad0bc412cee",
-    "landing:fold.title": "b39b70e6dfd6"
+    "landing:fold.title": "b39b70e6dfd6",
+    "dialogs:layerOrder.hint.adding": "618046d258d1",
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20073,7 +20077,7 @@
     "dialogs:layerOrder.hint.faceChoices_one": "ff25f4c55fa8",
     "dialogs:layerOrder.hint.faceChoices_other": "c3ca7a59dea6",
     "dialogs:layerOrder.hint.faceSettled": "36fe0a812ad5",
-    "dialogs:layerOrder.hint.moreObjects": "ca21fefc7fb9",
+    "dialogs:layerOrder.hint.moreObjects": "98cdc32c3431",
     "dialogs:layerOrder.hint.onlyObject": "267ad9ce0e3c",
     "dialogs:layerOrder.hint.pickFace_one": "3b5d1cb8246f",
     "dialogs:layerOrder.hint.pickFace_other": "cfd2a2b17ff2",
@@ -20315,7 +20319,9 @@
     "landing:fold.eyebrow": "92c122b5b1e2",
     "landing:fold.figureAlt": "f267bd9d8e4e",
     "landing:fold.lead": "fad0bc412cee",
-    "landing:fold.title": "b39b70e6dfd6"
+    "landing:fold.title": "b39b70e6dfd6",
+    "dialogs:layerOrder.hint.adding": "618046d258d1",
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26490,7 +26496,7 @@
     "dialogs:layerOrder.hint.faceAlone": "a49cb43cc8ca",
     "dialogs:layerOrder.hint.faceChoices_other": "c3ca7a59dea6",
     "dialogs:layerOrder.hint.faceSettled": "36fe0a812ad5",
-    "dialogs:layerOrder.hint.moreObjects": "ca21fefc7fb9",
+    "dialogs:layerOrder.hint.moreObjects": "98cdc32c3431",
     "dialogs:layerOrder.hint.onlyObject": "267ad9ce0e3c",
     "dialogs:layerOrder.hint.pickFace_other": "cfd2a2b17ff2",
     "dialogs:layerOrder.hint.pickObject_other": "10b09ba4596d",
@@ -26706,7 +26712,9 @@
     "landing:fold.eyebrow": "92c122b5b1e2",
     "landing:fold.figureAlt": "f267bd9d8e4e",
     "landing:fold.lead": "fad0bc412cee",
-    "landing:fold.title": "b39b70e6dfd6"
+    "landing:fold.title": "b39b70e6dfd6",
+    "dialogs:layerOrder.hint.adding": "618046d258d1",
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -32881,7 +32889,7 @@
     "dialogs:layerOrder.hint.faceAlone": "a49cb43cc8ca",
     "dialogs:layerOrder.hint.faceChoices_other": "c3ca7a59dea6",
     "dialogs:layerOrder.hint.faceSettled": "36fe0a812ad5",
-    "dialogs:layerOrder.hint.moreObjects": "ca21fefc7fb9",
+    "dialogs:layerOrder.hint.moreObjects": "98cdc32c3431",
     "dialogs:layerOrder.hint.onlyObject": "267ad9ce0e3c",
     "dialogs:layerOrder.hint.pickFace_other": "cfd2a2b17ff2",
     "dialogs:layerOrder.hint.pickObject_other": "10b09ba4596d",
@@ -33097,7 +33105,9 @@
     "landing:fold.eyebrow": "92c122b5b1e2",
     "landing:fold.figureAlt": "f267bd9d8e4e",
     "landing:fold.lead": "fad0bc412cee",
-    "landing:fold.title": "b39b70e6dfd6"
+    "landing:fold.title": "b39b70e6dfd6",
+    "dialogs:layerOrder.hint.adding": "618046d258d1",
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39627,7 +39637,7 @@
     "dialogs:layerOrder.hint.faceChoices_one": "ff25f4c55fa8",
     "dialogs:layerOrder.hint.faceChoices_other": "c3ca7a59dea6",
     "dialogs:layerOrder.hint.faceSettled": "36fe0a812ad5",
-    "dialogs:layerOrder.hint.moreObjects": "ca21fefc7fb9",
+    "dialogs:layerOrder.hint.moreObjects": "98cdc32c3431",
     "dialogs:layerOrder.hint.onlyObject": "267ad9ce0e3c",
     "dialogs:layerOrder.hint.pickFace_one": "3b5d1cb8246f",
     "dialogs:layerOrder.hint.pickFace_other": "cfd2a2b17ff2",
@@ -39869,7 +39879,9 @@
     "landing:fold.eyebrow": "92c122b5b1e2",
     "landing:fold.figureAlt": "f267bd9d8e4e",
     "landing:fold.lead": "fad0bc412cee",
-    "landing:fold.title": "b39b70e6dfd6"
+    "landing:fold.title": "b39b70e6dfd6",
+    "dialogs:layerOrder.hint.adding": "618046d258d1",
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46399,7 +46411,7 @@
     "dialogs:layerOrder.hint.faceChoices_one": "ff25f4c55fa8",
     "dialogs:layerOrder.hint.faceChoices_other": "c3ca7a59dea6",
     "dialogs:layerOrder.hint.faceSettled": "36fe0a812ad5",
-    "dialogs:layerOrder.hint.moreObjects": "ca21fefc7fb9",
+    "dialogs:layerOrder.hint.moreObjects": "98cdc32c3431",
     "dialogs:layerOrder.hint.onlyObject": "267ad9ce0e3c",
     "dialogs:layerOrder.hint.pickFace_one": "3b5d1cb8246f",
     "dialogs:layerOrder.hint.pickFace_other": "cfd2a2b17ff2",
@@ -46641,7 +46653,9 @@
     "landing:fold.eyebrow": "92c122b5b1e2",
     "landing:fold.figureAlt": "f267bd9d8e4e",
     "landing:fold.lead": "fad0bc412cee",
-    "landing:fold.title": "b39b70e6dfd6"
+    "landing:fold.title": "b39b70e6dfd6",
+    "dialogs:layerOrder.hint.adding": "618046d258d1",
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -52816,7 +52830,7 @@
     "dialogs:layerOrder.hint.faceAlone": "a49cb43cc8ca",
     "dialogs:layerOrder.hint.faceChoices_other": "c3ca7a59dea6",
     "dialogs:layerOrder.hint.faceSettled": "36fe0a812ad5",
-    "dialogs:layerOrder.hint.moreObjects": "ca21fefc7fb9",
+    "dialogs:layerOrder.hint.moreObjects": "98cdc32c3431",
     "dialogs:layerOrder.hint.onlyObject": "267ad9ce0e3c",
     "dialogs:layerOrder.hint.pickFace_other": "cfd2a2b17ff2",
     "dialogs:layerOrder.hint.pickObject_other": "10b09ba4596d",
@@ -53032,6 +53046,8 @@
     "landing:fold.eyebrow": "92c122b5b1e2",
     "landing:fold.figureAlt": "f267bd9d8e4e",
     "landing:fold.lead": "fad0bc412cee",
-    "landing:fold.title": "b39b70e6dfd6"
+    "landing:fold.title": "b39b70e6dfd6",
+    "dialogs:layerOrder.hint.adding": "618046d258d1",
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
   }
 }
