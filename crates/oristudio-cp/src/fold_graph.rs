@@ -1,3 +1,4 @@
+use crate::folding::quad_tree::{BBox, Comparator, QuadTree};
 use crate::geometry::{
     Epsilon, LineColor, LineSegment, Point, Polygon, angle, equal, find_line_symmetry_point,
 };
@@ -282,29 +283,50 @@ impl FoldGraph {
     /// `FoldedFigure.folding_estimated_03()` →
     /// `wireFrameWorker_foldedSubdivided.setLineSegmentSet(bb_worker.get())`.
     ///
-    /// **Keeps its faces when the Euler gate fails**, because upstream does:
-    /// `PointSet.calculateFaces` returns `false` with `faces[]` intact,
-    /// `WireFrame_Worker.setLineSegmentSet` (`:213`) drops the boolean, and
-    /// `folding_estimated_03` goes on to `configureSubFaces` regardless.
+    /// The Euler gate fails here on folds that are sound. These segments are
+    /// folded coordinates, where layers that should land on one point disagree
+    /// by rounding — measured 1e-10 to 1.7e-7 on user files — and
+    /// `divide_intersections` splits a crease where another ends on it only
+    /// when that end lies within [`Epsilon::SWEET_DISTANCE`] (1e-12). A
+    /// junction it misses leaves the crease unsplit, so a vertex sits on it
+    /// without being on it, and the trace comes out a few faces off. Whether
+    /// that happens depends on where the sheet sits and which face the fold
+    /// starts from, so the same pattern folds cleanly at one placement and not
+    /// at the next.
     ///
-    /// The gate fails here on folds that are sound. These segments are folded
-    /// coordinates, where layers that should land on one point disagree by
-    /// rounding — measured 1e-10 to 1.7e-7 on user files — and
-    /// `divide_intersections` splits a crease where another ends on it only when
-    /// that end lies within [`Epsilon::SWEET_DISTANCE`] (1e-12). A junction it
-    /// misses leaves one crease unsplit and the trace a few faces off, and
-    /// clearing every face for that stalled the fold at the wireframe on
-    /// patterns Oriedita folds from these very faces: its subface total is
-    /// their count.
+    /// Two answers, in order:
     ///
-    /// `include_faces` still reports the verdict, and the border index stays
-    /// empty on a failed gate, as upstream's does. Its paper drawer reads that
-    /// as "draw every line, cast no shadow", which is how
-    /// `should_draw_paper_edge` and `shadow_regions` read `None`.
+    /// 1. **Seal the missed junctions** ([`split_at_missed_junctions`]) and
+    ///    trace again, keeping the result only if it passes the gate. This is
+    ///    Ori Studio native: it gives the arrangement upstream builds when the
+    ///    rounding falls the other way, and with it the border index the paper
+    ///    view hides covered edges with. A passing arrangement never gets here,
+    ///    so every fold that worked before is untouched.
+    /// 2. Otherwise **keep the faces anyway**, as upstream does:
+    ///    `PointSet.calculateFaces` returns `false` with `faces[]` intact,
+    ///    `WireFrame_Worker.setLineSegmentSet` (`:213`) drops the boolean, and
+    ///    `folding_estimated_03` goes on to `configureSubFaces` regardless.
+    ///    `include_faces` still reports the verdict, and the border index stays
+    ///    empty as upstream's does — its paper drawer, like
+    ///    `should_draw_paper_edge` and `shadow_regions`, then draws every line
+    ///    and casts no shadow.
     pub(crate) fn from_subface_segments(segments: &[LineSegment]) -> Self {
-        let mut graph = Self::from_segments(segments, false);
-        graph.include_faces = graph.calculate_faces(FailedGate::KeepFaces);
-        graph
+        let traced = |segments: &[LineSegment]| {
+            let mut graph = Self::from_segments(segments, false);
+            graph.include_faces = graph.calculate_faces(FailedGate::KeepFaces);
+            graph
+        };
+        let graph = traced(segments);
+        if graph.include_faces {
+            return graph;
+        }
+        match split_at_missed_junctions(segments) {
+            Some(sealed) => {
+                let sealed = traced(&sealed);
+                if sealed.include_faces { sealed } else { graph }
+            }
+            None => graph,
+        }
     }
 
     pub(crate) fn from_segments(segments: &[LineSegment], calculate_faces: bool) -> Self {
@@ -1055,6 +1077,99 @@ impl VertexIndex {
     }
 }
 
+/// How near a crease's interior a vertex has to be to count as a junction on
+/// it: `rhit`, the radius `determine_line_segment_intersection_sweet` already
+/// uses to call an end at a crossing a T. The junctions it misses are its own
+/// Ts with the crossing a rounding error past the bar's end, so this is the
+/// classifier's own notion of "on", without its 1e-12 inside test.
+const MISSED_JUNCTION_RADIUS: f64 = Epsilon::UNKNOWN_001;
+
+/// The overlay with every crease split at each vertex that lies on its
+/// interior — within [`MISSED_JUNCTION_RADIUS`] of it and clear of its ends —
+/// or `None` when no vertex does.
+///
+/// **Ori Studio native**, for [`FoldGraph::from_subface_segments`] only. A
+/// vertex is whatever [`VertexIndex`] welds the segment ends into, so a cut
+/// lands exactly on the point the graph will build, and the arrangement
+/// traces as if `divide_intersections` had found the junction. Candidates come
+/// from the segments' bounding boxes through the ported [`QuadTree`], so the
+/// pass costs a query per vertex rather than a scan of every segment.
+fn split_at_missed_junctions(segments: &[LineSegment]) -> Option<Vec<LineSegment>> {
+    let mut index = VertexIndex::with_capacity(segments.len() * 2);
+    let ends: Vec<(usize, usize)> = segments
+        .iter()
+        .map(|segment| (index.index_of(segment.a), index.index_of(segment.b)))
+        .collect();
+    let points = index.into_points();
+    let boxes = segments
+        .iter()
+        .map(|segment| BBox::from_segment(segment.a, segment.b))
+        .collect();
+    let tree = QuadTree::new(boxes, &points, Comparator::Expand);
+
+    let mut cuts: Vec<Vec<(f64, usize)>> = vec![Vec::new(); segments.len()];
+    for (vertex, &point) in points.iter().enumerate() {
+        let near = BBox {
+            l: point.x - MISSED_JUNCTION_RADIUS,
+            r: point.x + MISSED_JUNCTION_RADIUS,
+            b: point.y - MISSED_JUNCTION_RADIUS,
+            t: point.y + MISSED_JUNCTION_RADIUS,
+        };
+        for candidate in tree.collect_rectangle(near) {
+            let (begin, end) = ends[candidate];
+            if vertex == begin || vertex == end {
+                continue;
+            }
+            let segment = &segments[candidate];
+            let (dx, dy) = (segment.b.x - segment.a.x, segment.b.y - segment.a.y);
+            let length = (dx * dx + dy * dy).sqrt();
+            if length == 0.0 {
+                continue;
+            }
+            let along = ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / length;
+            let across =
+                ((point.x - segment.a.x) * dy - (point.y - segment.a.y) * dx).abs() / length;
+            // Clear of both ends by more than the weld, or the cut would be a
+            // sliver the graph folds back into the end it started from.
+            if across < MISSED_JUNCTION_RADIUS
+                && along > Epsilon::POINT
+                && along < length - Epsilon::POINT
+            {
+                cuts[candidate].push((along, vertex));
+            }
+        }
+    }
+    if cuts.iter().all(Vec::is_empty) {
+        return None;
+    }
+
+    // A piece can land on a segment that already runs between the same two
+    // vertices — a stacked crease that did end at the junction — and a second
+    // edge between one pair of vertices is not an arrangement the trace can
+    // read. Keep the first, as `remove_line_segment_set_duplicates` does.
+    let mut sealed = Vec::with_capacity(segments.len());
+    let mut seen = std::collections::HashSet::new();
+    let mut keep = |segment: LineSegment, from: usize, to: usize| {
+        if from != to && seen.insert((from.min(to), from.max(to))) {
+            sealed.push(segment);
+        }
+    };
+    for ((segment, mut at), &(begin, end)) in segments.iter().zip(cuts).zip(&ends) {
+        at.sort_by(|left, right| left.0.total_cmp(&right.0));
+        let (mut from, mut from_vertex) = (segment.a, begin);
+        for (_, vertex) in at {
+            keep(
+                segment.with_coordinates(from, points[vertex]),
+                from_vertex,
+                vertex,
+            );
+            (from, from_vertex) = (points[vertex], vertex);
+        }
+        keep(segment.with_coordinates(from, segment.b), from_vertex, end);
+    }
+    Some(sealed)
+}
+
 /// Rotate the ring so its lowest point id comes first.
 ///
 /// The `remove(0)`/`push` loop this replaces stopped after the smallest `k` with
@@ -1662,13 +1777,51 @@ mod tests {
         segments
     }
 
-    /// The folded overlay keeps what it traced when the Euler gate fails, as
-    /// upstream's `PointSet.calculateFaces` does, and leaves the border index
-    /// empty, as upstream skips `findLineInFaceBorder()`. Every other
-    /// arrangement still clears its faces on the same geometry.
+    /// The folded overlay seals a junction `divide_intersections` missed and
+    /// traces what the sound overlay traces: the same four faces, past the
+    /// gate, with the border index the paper view hides covered edges by.
+    /// Every other arrangement still refuses the same geometry.
     #[test]
-    fn the_folded_overlay_keeps_its_faces_when_the_euler_gate_fails() {
+    fn the_folded_overlay_seals_a_missed_junction() {
         let segments = crossing_overlay(true);
+
+        let refused = FoldGraph::from_segments(&segments, true);
+        assert!(
+            !refused.include_faces,
+            "the unsplit crossing fails the gate"
+        );
+        assert!(refused.faces.is_empty(), "and a refusing build clears it");
+
+        let overlay = FoldGraph::from_subface_segments(&segments);
+        let sound = FoldGraph::from_segments(&crossing_overlay(false), true);
+        assert!(overlay.include_faces, "the sealed overlay passes the gate");
+        assert_eq!(overlay.faces.len(), sound.faces.len());
+        assert_eq!(overlay.lines.len(), sound.lines.len());
+        for line in 0..overlay.lines.len() {
+            assert!(
+                overlay.line_face_border(line).is_some(),
+                "line {line} borders a face"
+            );
+        }
+    }
+
+    /// When sealing cannot get the overlay past the gate — two creases crossing
+    /// where no vertex is, which no junction explains — the overlay keeps what
+    /// it traced, as upstream's `PointSet.calculateFaces` does, and leaves the
+    /// border index empty, as upstream skips `findLineInFaceBorder()`.
+    #[test]
+    fn the_folded_overlay_keeps_its_faces_when_sealing_cannot_pass_the_gate() {
+        let seg = |ax: f64, ay: f64, bx: f64, by: f64, color| {
+            LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), color)
+        };
+        let segments = vec![
+            seg(-200.0, -200.0, 200.0, -200.0, LineColor::Black0),
+            seg(200.0, -200.0, 200.0, 200.0, LineColor::Black0),
+            seg(200.0, 200.0, -200.0, 200.0, LineColor::Black0),
+            seg(-200.0, 200.0, -200.0, -200.0, LineColor::Black0),
+            seg(-200.0, -200.0, 200.0, 200.0, LineColor::Red1),
+            seg(200.0, -200.0, -200.0, 200.0, LineColor::Blue2),
+        ];
 
         let refused = FoldGraph::from_segments(&segments, true);
         assert!(

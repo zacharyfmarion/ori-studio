@@ -1,7 +1,7 @@
 mod additional_estimation;
 mod combination;
 pub mod permutation;
-mod quad_tree;
+pub(crate) mod quad_tree;
 
 use crate::fold_graph::{FacePositions, FoldGraph, FoldGraphError};
 use crate::geometry::{
