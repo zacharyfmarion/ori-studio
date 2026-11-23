@@ -24,11 +24,17 @@ Two owner requests (2026-11-03) about steps taken from Fold into the Diagram:
 - **A spread that cannot be drawn is not a lost step.** Before this change,
   most pulls had no spread to fail. Now every pull depends on the connected
   spread: preparing it, solving it, and clipping its picture within budget.
-  `captureFoldTarget` captures a target in its render. When the spread throws,
-  or the picture comes back over budget, it captures the target again without
-  the spread and says so (`flattened`). The pull counts those steps and names
-  them in a toast. The spread's error is reported (`reportError`) because it is
-  swallowed on purpose.
+  Main landed the fallback separately (74442273a, 1485453f6), and this
+  branch uses main's since the 2026-11-23 merge. `captureFoldStep` draws a
+  step whose layers its Default spread can't take unspread, keeps its spread,
+  and marks the picture `spreadFailed`. The pull counts those pictures, and
+  main's `someSpreadFailed` toast says so. This branch's own version is gone:
+  `captureFoldTarget` captured again without the spread and counted
+  `flattened`, with a toast of its own. `captureFoldTarget` is now only the
+  capture request that the pull and the cards share.
+  - Left to the owner: a Default spread whose picture is too detailed to keep
+    as a drawing. This branch captured it again unspread. Main leaves it out
+    of a pull and counts it, which every import can now meet.
 - **A card is the step it would become.** The card's picture is the same
   capture the pull makes (`captureFoldTarget` with the card's render), turned
   into the same step a pull makes (`sentStep`, taken out of
@@ -47,30 +53,32 @@ Two owner requests (2026-11-03) about steps taken from Fold into the Diagram:
 
 ## Affected Areas
 
-- `apps/web/src/diagram/fold/foldPull.ts`: render rule, capture with
-  fallback, sent-step helper
+- `apps/web/src/diagram/fold/foldPull.ts`: render rule, the capture request
+  the pull and the cards share, sent-step helper
 - `apps/web/src/diagram/fold/foldPullPreviews.ts` and
   `useFoldPullPreview.ts` (new): preview queue, cache and hook
-- `apps/web/src/diagram/fold/foldBrowserActions.ts`: toast for steps added
-  unspread
 - `apps/web/src/diagram/document/diagramDocument.ts`: `sentStep` taken out of
   `pullReferencesSteps`
-- `apps/web/src/components/diagram/DiagramFoldBrowser.tsx` and
-  `DiagramFoldPicture.tsx` (+ module CSS): the card shows the preview
-- `apps/web/public/locales/*/toasts.json`: the new toast
+- `apps/web/src/components/diagram/DiagramFoldBrowser.tsx`,
+  `DiagramFoldCard.tsx` (new) and `DiagramFoldPicture.tsx` (+ module CSS,
+  removed): the card shows the preview
 - Tests beside each
 
 ## Checklist
 
 - [x] `foldPullRender` defaults to `DEFAULT_LAYER_SPREAD`; tests updated
 - [x] `captureFoldTarget` falls back to unspread; the pull counts and toasts it
+      (replaced by main's fallback at the 2026-11-23 merge)
 - [x] `sentStep` extracted and shared by the pull and the preview
 - [x] Preview queue and cache with unit tests
 - [x] Browser cards show the preview; component test updated
-- [x] i18n: extract, translate for 8 locales, stamp, check
+- [x] i18n: extract, translate for 8 locales, stamp, check (the toast went
+      with the fallback; main's says it)
 - [x] lint, typecheck, relevant vitest
 - [x] Browser check: a real Fold sequence, cards show arrows and spread, Add
       matches the cards
+- [x] Merge main (2026-11-23): main's fallback and crease-piece fix kept, this
+      branch's dropped; checks run again
 
 ## Findings
 
@@ -97,7 +105,11 @@ Two owner requests (2026-11-03) about steps taken from Fold into the Diagram:
     picture's, and the painter's erosion pulled the line's ends onto it.
   - A flat sheet with two crossing precreases drew its cross as four skewed
     spokes. The default spread would have put that on most imported steps.
-  - Such a piece is now eroded on its own ends. A regression test
-    (`connectedScene.test.ts`) fails without the fix.
+  - This branch eroded such a piece on its own ends. Main fixed the same bug
+    separately (d154eaf95): it places the crease's far end on the piece's own
+    line. Main's fix replaced this branch's at the merge.
+  - This branch's regression test is kept beside main's in
+    `connectedScene.test.ts`. It passes on main's fix and checks how far the
+    piece is eroded at the paper's edge, which main's test does not.
   - The same drawing serves Edit's and Fold's spread views, so they get the
     fix too.
