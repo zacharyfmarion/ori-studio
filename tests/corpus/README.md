@@ -662,7 +662,9 @@ What each side records, per file and per step:
 - **3D window check.** Each unspread 3D step's scene against the window's
   depth-tested draw passes, with the step's own aux lines and camera. Aux ink
   over paper the window shows bare is a problem on its own; other stray ink is
-  held to the "before" side's.
+  held to the "before" side's. The model of the window takes its depth mode
+  from the draws the window makes, so it is refused, as the live views below
+  are, on a side whose shaders the replay does not read.
 - **Aux probe.** On a fresh copy, each sheet's steps refreshed, one aux line
   drawn inside a face, and each step captured again: a step whose picture
   changed must read out of date, and one whose picture did not must not.
@@ -689,16 +691,28 @@ What each side records, per file and per step:
   problem on its own. A changed step shows both sides' frames at the camera
   that moved most, as the replay draws them.
 
+  The replay reads only the shaders it models, known by the digest of their
+  code with comments and layout stripped (`MODELED_PROGRAMS`: the face
+  program, and the edge programs from v0.10.0 to main). It refuses a view
+  drawn with any other rather than replay it as the nearest one it knows: the
+  report lists that step's live views as not compared, with the side and what
+  the replay does not read ("its edge shader declares faceDepth, faceSlope,
+  which the replay does not read"), and still checks its pictures. A 3D window
+  check is refused the same way. The summary line counts both ("N not replayed
+  live", "3D window check not replayed on N steps") and says nothing of them
+  when neither happens. So a PR that changes the renderer's shaders teaches the
+  replay their code, its digest and its arithmetic beside the old, or its live
+  views go unchecked.
+
 Not captured again, and listed under "Not compared": Fold-linked steps,
 spatial spreads, layer-order records, and Simulated steps above 0% and Defox
 renders, which need Pose (their Pose views are checked as above). The
 workers' time limits are not run either; a capture over 10 s is marked
 timing-sensitive and not compared exactly.
 
-What the Pose check cannot see: GLSL that no longer says what the replay
-reads it as (the record carries the shaders' digest, and a side whose shaders
-differ says so), the GPU solver's own shape, float32 precision, bitmap
-presentation and the stage, WebKit and Windows' ANGLE, cameras off the ring,
-and spatial spreads. On the corpus it shows #621's simulated stubs against
-5b2b40eab, the last commit without them, and 90591a0ca's buried aux lines in
-3D pictures with #624 reverted.
+What the Pose check cannot see: shaders the replay does not read (refused, as
+above), the GPU solver's own shape, float32 precision, bitmap presentation and
+the stage, WebKit and Windows' ANGLE, cameras off the ring, and spatial
+spreads. On the corpus it shows #621's simulated stubs against 5b2b40eab, the
+last commit without them, and 90591a0ca's buried aux lines in 3D pictures with
+#624 reverted.

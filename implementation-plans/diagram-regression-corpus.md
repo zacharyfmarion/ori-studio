@@ -280,6 +280,9 @@ Default spread runs in Node without the app's time limits. So:
   own, and points where a line's own paper shows without its ink.
 - The report holds every count to the other side's and shows both sides'
   frames at the camera that moved most.
+- A view drawn with shaders the replay does not read is refused, never
+  replayed as the nearest one it knows: its live views are not compared,
+  with the reason, and its pictures still are.
 
 **Edit probes** (Phase 1 is the aux probe). Each runs on a fresh copy:
 
@@ -541,6 +544,32 @@ the harness itself.
     picture, at 5 of 9 cameras each; their live views do not change.
   - Re-solves take a few seconds a step, except the fish (818 nodes), now
     bounded by work; each side takes about four minutes.
+- [x] The replay refuses rather than guesses (2026-11-23). Two draft PRs,
+      #628 and #630, change the edge shader's depth: an end takes the depth
+      the face pass gives the paper under it (`faceDepth`), a ribbon lies on
+      its triangle's plane across its width (`faceSlope`), and every folded
+      figure draws with perspective depth. Replayed as main's, their frames
+      would show stubs and breaks the GPU no longer draws. The replay reads an
+      allow-list of programs by the digest of their code (`MODELED_PROGRAMS`),
+      and a frame drawn by any other throws, naming what it does not read. The
+      report lists such a side's live views, and its 3D window checks, as not
+      compared, with the side and the reason, and still holds its pictures to
+      the other side's. The window model takes its depth mode from the window's
+      draws, not from a copy. Run against #630's head (f3709dbb6) on the fan
+      and the rose: every live view and 3D window check on that side is
+      refused, and the pictures compare as before.
+- [ ] Whichever of this and #628/#630 lands second teaches the replay their
+      edge shader: its digest in `MODELED_PROGRAMS` and its new names in
+      `MODELED_NAMES`; `faceDepth` and `faceSlope` on `ShaderView`, read from
+      the virtual-vertex texture; the end depth in `ribbonGeometry` and the
+      corner depth in `ribbonVertex`, clamped as the shader clamps it. Each
+      end on a vertex of its own (#628's `ribbonTopology` for aux pieces,
+      #630's `folded3dHingeEnds` for hinges) has to be named back to the
+      creases' own vertices where a line's own paper is looked up:
+      `simulatedCreases` (`datasetPose.ts`) and `folded3dCreases`
+      (`folded3dWindowParity.testSupport.ts`). The window model's crease
+      depth in `windowPicture` gains the hinge's plane slope as the shader
+      does.
 - [ ] A GPU lane (`--pose`) in headless Chromium for what only the GPU shows:
       GLSL, precision, the GPU solver's shape. Left out for now; the
       investigation's capture scripts are the starting point.
