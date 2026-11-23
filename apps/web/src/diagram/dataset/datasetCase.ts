@@ -8,12 +8,14 @@
  * last, on fresh copies of the pattern. A check that throws is recorded on
  * the case, never fatal to the run.
  */
+import type { FoldDocument } from '../../engine/types';
 import { isStep, type DiagramStep } from '../document/diagramDocument';
 import { captureRecord, captureSkipReason, windowCheck } from './datasetCapture';
 import { caseText, sha256, type CorpusCase } from './datasetCorpus';
 import { checkFile, openCorpusProject } from './datasetFile';
 import { freePattern, loadPattern, type LoadedPattern } from './datasetKernel';
 import { repaintStep } from './datasetPaint';
+import { hasPoseView, poseCheck, type PoseStoreInputs } from './datasetPose';
 import { auxProbe } from './datasetProbe';
 import type { CaptureRecord, CaseResult, ResultsWriter, StepResult } from './datasetResults';
 import { statusRecords } from './datasetStatus';
@@ -51,6 +53,12 @@ export async function runCase(dir: string, kase: CorpusCase, writer: ResultsWrit
     });
     const steps: StepResult[] = [];
     const folder = (step: DiagramStep) => `cases/${kase.slug}/${step.id}`;
+    // What the store reads of the project when Pose builds a simulated model.
+    const companion = opened.project.workspace.creasePattern;
+    const poseStore: PoseStoreInputs = {
+      extensions: companion?.extensions ?? {},
+      sourceFold: (companion?.creasePattern.sourceFold ?? null) as FoldDocument | null,
+    };
     let number = 0;
     for (const entry of diagram.steps) {
       if (!isStep(entry)) continue;
@@ -82,6 +90,11 @@ export async function runCase(dir: string, kase: CorpusCase, writer: ResultsWrit
           }
         }
       }
+      const pose: StepResult['pose'] = !hasPoseView(step)
+        ? null
+        : pattern
+          ? await poseCheck(pattern, poseStore, diagram, step, (name, png) => writer.writeBytes(`${folder(step)}/${name}`, png))
+          : { skipped: 'the project has no crease pattern' };
       const source = step.unknown ? 'locked' : (step.source?.kind ?? 'empty');
       const render = step.source && 'render' in step.source ? (step.source.render?.mode ?? null) : null;
       const spread =
@@ -100,6 +113,7 @@ export async function runCase(dir: string, kase: CorpusCase, writer: ResultsWrit
         capture,
         window,
         probe: null,
+        pose,
       });
     }
     if (opened.creasePattern) {

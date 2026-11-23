@@ -11,10 +11,11 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import type { PaperLineRole } from '@treemaker/origami-simulator';
+import type { OwnPaperRecord } from '../../cp-workspace/folded/folded3dWindowParity.testSupport';
 
 export const RESULTS_FORMAT = 'ori-diagram-corpus-results';
 /** Raised when a field is added, removed or changes meaning, so a saved "before" from another version is not compared. */
-export const RESULTS_VERSION = 1;
+export const RESULTS_VERSION = 2;
 
 export interface DatasetResults {
   format: typeof RESULTS_FORMAT;
@@ -79,6 +80,38 @@ export interface StepResult {
   /** Null for a step that does not fold in 3D unspread; `error` when the check itself failed. */
   window: WindowRecord | { error: string } | null;
   probe: ProbeRecord | null;
+  /** Pose's live view of the step, checked at its cameras; null for a step Pose shows only as its picture. */
+  pose: PoseRecord | { skipped: string } | { error: string } | null;
+}
+
+/**
+ * A step's Pose view, live and as the picture leaving Pose saves, each held to
+ * "a line shows only on its own paper" at the step's own camera and the ring
+ * (`datasetPose.ts`). Needs no comparison to run; the report holds each count
+ * to the other side's.
+ */
+export interface PoseRecord {
+  view: 'folded-3d' | 'simulated';
+  /** What the frames are of: the 3D fold, the shape the step saved, or a re-solve from flat on the CPU. */
+  frame: 'folded' | 'saved-shape' | 're-solved';
+  /** A re-solve's steps, and whether the solver settled within them. */
+  solve?: { steps: number; settled: boolean };
+  /** A simulated step's saved shape: none, put back, or one Pose cannot put back (another sheet's), which it folds from flat unsaid. */
+  shape?: 'none' | 'restored' | 'mismatch';
+  /** The live view's draws as the replay read them, each distinct value once, and its shaders' digest. */
+  draws: { perspective: boolean[]; creaseBias: number[]; creaseWritesDepth: boolean[]; shaders: string | null };
+  cameras: PoseCameraRecord[];
+}
+
+export interface PoseCameraRecord {
+  /** `saved`, or the ring camera's name. */
+  name: string;
+  live: OwnPaperRecord;
+  /** The live frame as it was replayed, a PNG relative to the side's folder. */
+  liveImage: string;
+  /** The picture Pose would save at this camera, held to the same rule; `error` when it could not be built. */
+  picture: OwnPaperRecord | { error: string };
+  pictureImage: string | null;
 }
 
 export interface PictureRecord {
@@ -158,6 +191,14 @@ export class ResultsWriter {
     mkdirSync(dirname(absolute), { recursive: true });
     writeFileSync(absolute, gzipSync(Buffer.from(text, 'utf8')));
     return path;
+  }
+
+  /** Writes `bytes` as they are (a PNG, compressed already) at `relative`, returning it. */
+  writeBytes(relative: string, bytes: Uint8Array): string {
+    const absolute = join(this.dir, relative);
+    mkdirSync(dirname(absolute), { recursive: true });
+    writeFileSync(absolute, bytes);
+    return relative;
   }
 
   writeResults(results: DatasetResults): void {

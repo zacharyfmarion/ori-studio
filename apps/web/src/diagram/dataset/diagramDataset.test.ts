@@ -11,6 +11,7 @@
  * with, as the app's does.
  */
 import '../../layer-spread/captureWorker.testSupport';
+import './datasetSimulator.testSupport';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, it } from 'vitest';
