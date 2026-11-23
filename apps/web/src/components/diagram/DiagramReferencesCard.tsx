@@ -76,7 +76,7 @@ export function DiagramReferencesCard({
       kind={card.kind}
       title={title}
       badge={card.kind === 'fold' ? card.badge : ''}
-      picture={url ? <img className={styles.picture} src={url} alt="" draggable={false} decoding="async" /> : null}
+      picture={url ? <DiagramPullCardPicture url={url} /> : null}
       unreadable={unreadable}
       why={
         unreadable
@@ -123,8 +123,8 @@ export const DiagramPullCard = forwardRef<
     picture: ReactNode;
     /**
      * The picture is on the paper it prints on, white in either theme (a
-     * step's picture); false for lines in the theme's inks (a thumbnail).
-     * True by default.
+     * step's picture); false for what stands in for it — the loading state,
+     * or that it can't be drawn — on the well's own ground. True by default.
      */
     onPaper?: boolean;
     /** It cannot be added: a press does nothing; with no picture, the well says it cannot be drawn. */
@@ -226,9 +226,9 @@ export const DiagramPullCard = forwardRef<
   );
 });
 
-/** A Fold step's picture in a pull card: its folded form, as Fold's strip draws it, in the card's well. */
-export function DiagramPullCardThumbnail({ children }: { children: ReactNode }) {
-  return <span className={styles.thumbnail}>{children}</span>;
+/** A pull card's picture: the step it would become, painted as a URL, fitted to the card's well. */
+export function DiagramPullCardPicture({ url }: { url: string }) {
+  return <img className={styles.picture} src={url} alt="" draggable={false} decoding="async" data-pull-picture="" />;
 }
 
 /** What a pull card's well says when its picture failed to draw, or there is nothing to draw it from. */

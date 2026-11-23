@@ -1,11 +1,13 @@
 import { expect, it } from 'vitest';
 import type { ConnectedSpread, Point3, SpreadSolution } from '@oristudio/layer-spread';
-import { connectedSpreadSource } from '../cp-workspace/folded/connectedSpreadSource';
+import { connectedSpreadSource, type ConnectedSpreadSource } from '../cp-workspace/folded/connectedSpreadSource';
 import { foldedFlatPaperScene } from '../cp-workspace/folded/foldedFlatScene';
 import { kernelFace } from '../cp-workspace/folded/foldedPrecrease.fixtures';
+import { DEFAULT_CONNECTED_SPREAD } from '../cp-workspace/folded/layerSpreadSettings';
 import type { OristudioCpFoldedPaperScene } from '../engine/oristudioCpTypes';
 import type { PaperLineItem } from '../lib/paper/paperScene';
 import { erodeLine } from '../lib/paper/paperSvg';
+import { connectedDrawing } from './connectedScene';
 
 /**
  * A 2 × 2 sheet precreased in half both ways: four square faces around the
@@ -83,4 +85,71 @@ it.each([0, 1])('keeps a crease piece on its own drawn line when the crease runs
       expect(along).toBeLessThan(1 + 1e-9);
     }
   }
+});
+
+it('erodes a piece of a crease that runs on past its face at the paper’s edge only, in the scene’s units', () => {
+  // One flat layer: two unit squares side by side, the crease between them at x = 1.
+  const strip: ConnectedSpreadSource = {
+    frame: { origin: [0, 0], ex: [1, 0], ey: [0, 1] },
+    vertices: [0, 1, 2, 3, 4, 5],
+    back: false,
+    input: {
+      xy: [
+        [0, 0],
+        [1, 0],
+        [2, 0],
+        [2, 1],
+        [1, 1],
+        [0, 1],
+      ],
+      faces: [
+        [0, 1, 4, 5],
+        [1, 2, 3, 4],
+      ],
+      triangles: [
+        [0, 1, 4],
+        [0, 4, 5],
+        [1, 2, 3],
+        [1, 3, 4],
+      ],
+      triangleFaces: [0, 0, 1, 1],
+      orders: [],
+      cells: [],
+    },
+  };
+  // Every layer at the reference plane: the spread moves nothing, so the scene is the material, scaled.
+  const still = {
+    heights: [0, 0, 0, 0, 0, 0],
+    references: [{ plane: [0, 0, 0] }, { plane: [0, 0, 0] }],
+  } as unknown as SpreadSolution;
+  const kernel = { faces: [{ front_up: true }, { front_up: true }] } as unknown as OristudioCpFoldedPaperScene;
+  // A precrease across both faces, drawn as its piece on face 0: the crease's far end lies on face 1.
+  const piece: PaperLineItem = {
+    kind: 'line',
+    role: 'aux',
+    face: 0,
+    hidden: false,
+    a: [0, 0.5],
+    b: [1, 0.5],
+    onBoundary: [true, false],
+    whole: { a: [0, 0.5], b: [2, 0.5], onBoundary: [true, true] },
+  };
+  const drawing = connectedDrawing(
+    kernel,
+    { source: strip, solution: still },
+    DEFAULT_CONNECTED_SPREAD,
+    ({ x, y }) => [x * 10, y * 10],
+    [piece]
+  );
+  // Split where it crosses the face's diagonal; pulled in at the paper's edge only, and never off its own line.
+  expect(drawing.ink.map((edge) => erodeLine(edge.line, 0.5))).toEqual([
+    [
+      [0.5, 5],
+      [5, 5],
+    ],
+    [
+      [5, 5],
+      [10, 5],
+    ],
+  ]);
 });

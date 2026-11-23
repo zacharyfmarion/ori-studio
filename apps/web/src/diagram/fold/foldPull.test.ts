@@ -1,13 +1,31 @@
 import type { TFunction } from 'i18next';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { sequenceOf, step, valleyAt } from '../../fold/document/foldSequence.fixtures';
 import type { FoldStepNode } from '../../fold/document/foldSequenceDocument';
 import { foldNodeSentenceStep } from '../../fold/sequence/foldSentenceStep';
 import { foldPathEntries } from '../../fold/sequence/foldSequencePath';
+import type { FoldSession } from '../../fold/session/foldSession';
 import { FOLD_PENDING_NODE, type FoldSessionNode } from '../../fold/session/foldSessionState';
+import { capturedSpreadFailed } from '../capture/captureFolded';
+import { DEFAULT_LAYER_SPREAD } from '../document/diagramDocument';
+import { foldStepSource, scenePicture } from '../document/diagramSteps.fixtures';
 import { foldSendTargets } from './foldBrowserActions';
-import { FOLD_PULL_RENDER, foldBrowserCards, foldPullRender } from './foldPull';
+import { captureFoldTarget, FOLD_PULL_RENDER, foldBrowserCards, foldPullRender, pullFoldTargets, sentFoldStep } from './foldPull';
+import type { FoldStepCaptureRequest, FoldStepCaptureResult } from './foldStepCapture';
+
+/** The session's captures, stubbed: each answers as the test says. */
+const capture = vi.hoisted(() => ({
+  calls: [] as FoldStepCaptureRequest[],
+  answer: (_request: FoldStepCaptureRequest): Promise<FoldStepCaptureResult> => Promise.reject(new Error('unset')),
+}));
+vi.mock('./foldStepCapture', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./foldStepCapture')>()),
+  captureFoldStep: (_session: unknown, request: FoldStepCaptureRequest) => {
+    capture.calls.push(request);
+    return capture.answer(request);
+  },
+}));
 
 const t = ((_key: string, fallback: string | Record<string, unknown>, options?: Record<string, unknown>) => {
   const text = typeof fallback === 'string' ? fallback : String(fallback.defaultValue ?? _key);
@@ -96,20 +114,49 @@ describe('the Fold browser’s cards (D17)', () => {
     expect(stopped[2]!.picture.status).toBe('landed');
   });
 
-  it('pictures each landed state and its inherited spread, including turns and Finished', () => {
+  it('pictures each landed card as the step it adds, in the render a pull gives it — a turn’s as the state it leaves', () => {
     const spread = { kind: 'depth' as const, amount: 0.06, toward: 'down-right' as const };
     const document = sequenceOf(NODES.map((node, index) => index === 1 ? { ...node, spread } : node));
     const cards = foldBrowserCards(t, { ...view(true), document });
-    expect(cards.map((card) => card.picture)).toEqual([
-      { status: 'landed', source: { state: { generation: 0, id: 1 }, key: 'fs1:1', spread: null } },
-      { status: 'landed', source: { state: { generation: 0, id: 2 }, key: 'fs1:2', spread } },
-      { status: 'landed', source: { state: { generation: 0, id: 3 }, key: 'fs1:3', spread } },
-      { status: 'landed', source: { state: { generation: 0, id: 4 }, key: 'fs1:4', spread } },
-      { status: 'landed', source: { state: { generation: 0, id: 4 }, key: 'fs1:4', spread } },
+    const pictured = cards.map((card) => (card.picture.status === 'landed' ? card.picture.preview : card.picture));
+    expect(pictured.map((preview) => 'target' in preview && preview.target)).toEqual([
+      { kind: 'step', step: 'fstep-1', moment: 'before' },
+      { kind: 'step', step: 'fstep-2', moment: 'after' },
+      { kind: 'step', step: 'fstep-3', moment: 'before' },
+      { kind: 'step', step: 'fstep-4', moment: 'before' },
+      { kind: 'step', step: 'fstep-4', moment: 'after' },
+    ]);
+    // Before the turn Fold shows no spread: the default. From the turn on, the turn's own.
+    expect(pictured.map((preview) => 'render' in preview && preview.render.spread)).toEqual([
+      DEFAULT_LAYER_SPREAD,
+      spread,
+      spread,
+      spread,
+      spread,
+    ]);
+    // Each named by its step, the moment and the state it waits for, whatever its engine handle.
+    expect(pictured.map((preview) => 'key' in preview && preview.key.split('|').slice(0, 5).join('|'))).toEqual([
+      'fold-a|fstep-1||before|fs1:1',
+      'fold-a|fstep-2||after|fs1:2',
+      'fold-a|fstep-3||before|fs1:3',
+      'fold-a|fstep-4||before|fs1:4',
+      'fold-a|fstep-4||after|fs1:4',
     ]);
   });
 
-  it('draws a merge as one card, the step it becomes: numbered first to last, the last state’s picture, said for both sides', () => {
+  it('names a picture by the path to its state, once the replay has one', () => {
+    const nodes = new Map<string, FoldSessionNode>([
+      ['fstep-1', { ...landed(1), path: 'fh1:path-1' }],
+      ['fstep-2', landed(2)],
+      ['fstep-3', landed(3)],
+      ['fstep-4', landed(4)],
+    ]);
+    const entries = foldPathEntries(SEQUENCE, NODES.map((node) => node.id), landed(0), nodes, FOLD_PENDING_NODE);
+    const [first] = foldBrowserCards(t, { ...view(true), entries });
+    expect(first!.picture.status === 'landed' && first!.picture.preview.key).toContain('|fh1:path-1|');
+  });
+
+  it('draws a merge as one card, the step it becomes: numbered first to last, the run’s picture, said for both sides', () => {
     const merges = [{ steps: ['fstep-3', 'fstep-4'], kind: 'mirror' as const }];
     const cards = foldBrowserCards(t, view(true), merges);
     expect(cards.map((card) => [card.index, card.kind, card.number, card.through])).toEqual([
@@ -119,7 +166,11 @@ describe('the Fold browser’s cards (D17)', () => {
       [3, 'done', null, undefined],
     ]);
     expect(cards[2]!.step).toEqual({ kind: 'step', step: 'fstep-3', through: 'fstep-4', moment: 'before' });
-    expect(cards[2]!.picture).toEqual({ status: 'landed', source: { state: { generation: 0, id: 4 }, key: 'fs1:4', spread: null } });
+    // Pictured as the run is added, once its last step has landed, named by that step's state.
+    const picture = cards[2]!.picture;
+    expect(picture.status === 'landed' && picture.preview.target).toEqual(cards[2]!.step);
+    expect(picture.status === 'landed' && picture.preview.key).toContain('fold-a|fstep-3|fstep-4|before|fs1:4|');
+    expect(foldBrowserCards(t, view(false), merges)[2]!.picture).toEqual({ status: 'pending' });
     // The first step's kind, once, for both sides: the mirror's are not said again.
     const first = foldBrowserCards(t, view(true))[2]!.sentence;
     expect(first).toBe('Valley fold.');
@@ -153,17 +204,115 @@ describe('a pulled step’s spread', () => {
     step('fstep-3', 'fstep-1', valleyAt(0.25), { spread: depth }),
     step('fstep-4', 'fstep-3', valleyAt(0.75), { spread: 'off' }),
   ]);
+  const DEFAULT = { ...FOLD_PULL_RENDER, spread: DEFAULT_LAYER_SPREAD };
 
   it('is the spread Fold shows the state with: the parent’s before a step, the step’s own after it', () => {
     expect(foldPullRender(spread, 'fold-a', { step: 'fstep-4', moment: 'before' })).toEqual({ ...FOLD_PULL_RENDER, spread: depth });
-    expect(foldPullRender(spread, 'fold-a', { step: 'fstep-4', moment: 'after' })).toEqual(FOLD_PULL_RENDER);
-    // The first step folds from the sheet, with spread off by default.
-    expect(foldPullRender(spread, 'fold-a', { step: 'fstep-1', moment: 'before' })).toEqual(FOLD_PULL_RENDER);
+    expect(foldPullRender(spread, 'fold-a', { step: 'fstep-3', moment: 'after' })).toEqual({ ...FOLD_PULL_RENDER, spread: depth });
   });
 
-  it('is none for a sequence that is not the one asked for', () => {
-    expect(foldPullRender(spread, 'fold-b', { step: 'fstep-4', moment: 'before' })).toEqual(FOLD_PULL_RENDER);
-    expect(foldPullRender(null, 'fold-a', { step: 'fstep-4', moment: 'before' })).toEqual(FOLD_PULL_RENDER);
+  it('is the default where Fold shows the state unspread: no setting, the sequence’s default off, or turned off', () => {
+    // The first step folds from the sheet, with spread off by default.
+    expect(foldPullRender(spread, 'fold-a', { step: 'fstep-1', moment: 'before' })).toEqual(DEFAULT);
+    // Step 4 turns Fold's spread off; its state is spread all the same.
+    expect(foldPullRender(spread, 'fold-a', { step: 'fstep-4', moment: 'after' })).toEqual(DEFAULT);
+  });
+
+  it('is the default for a sequence that is not the one asked for', () => {
+    expect(foldPullRender(spread, 'fold-b', { step: 'fstep-4', moment: 'before' })).toEqual(DEFAULT);
+    expect(foldPullRender(null, 'fold-a', { step: 'fstep-4', moment: 'before' })).toEqual(DEFAULT);
+  });
+});
+
+/** The session a pull holds: the stubbed captures need nothing else of it. */
+const session = { retain: () => () => undefined, store: { getState: () => ({ sequence: SEQUENCE }) } } as unknown as FoldSession;
+
+describe('a pull whose layers cannot all be spread', () => {
+  /** A step as the capture draws it: unspread and marked so when its layers can't be spread (`captureFoldStep`). */
+  const captured = (step: string, spreadFailed: boolean): FoldStepCaptureResult => ({
+    status: 'captured',
+    source: foldStepSource({ sequence: 'fold-a', step }),
+    captured: { kind: 'picture', picture: { ...scenePicture(`scene-${step}`), ...(spreadFailed ? { spreadFailed: true as const } : {}) } },
+    marks: [],
+  });
+
+  beforeEach(() => {
+    capture.calls = [];
+  });
+
+  it('adds a step drawn unspread, counted apart from the steps it leaves out', async () => {
+    capture.answer = (request) =>
+      Promise.resolve(request.step === 'fstep-4' ? { status: 'missing' } : captured(request.step, request.step === 'fstep-1'));
+    const pulled = await pullFoldTargets(
+      session,
+      'fold-a',
+      [
+        { kind: 'step', step: 'fstep-1', moment: 'before' },
+        { kind: 'turn', turn: { kind: 'turn-over', axis: 'vertical' } },
+        { kind: 'step', step: 'fstep-3', moment: 'before' },
+        { kind: 'step', step: 'fstep-4', moment: 'before' },
+      ],
+      { t }
+    );
+    expect(pulled.spreadFailed).toBe(1);
+    expect(pulled.failed).toBe(1);
+    expect(pulled.sent).toHaveLength(3);
+    // Each step captured once, at the default spread: Fold shows none of them spread.
+    expect(capture.calls.map((request) => [request.step, request.render])).toEqual([
+      ['fstep-1', { ...FOLD_PULL_RENDER, spread: DEFAULT_LAYER_SPREAD }],
+      ['fstep-3', { ...FOLD_PULL_RENDER, spread: DEFAULT_LAYER_SPREAD }],
+      ['fstep-4', { ...FOLD_PULL_RENDER, spread: DEFAULT_LAYER_SPREAD }],
+    ]);
+  });
+});
+
+describe('a step whose spread picture is too detailed to keep as a drawing', () => {
+  const SPREAD = { ...FOLD_PULL_RENDER, spread: DEFAULT_LAYER_SPREAD };
+  const TARGET = { kind: 'step', step: 'fstep-1', moment: 'before' } as const;
+  const OVER_BUDGET = { kind: 'over-budget', scene: { bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 }, items: [] } as never, paperScale: 1 } as const;
+  /** Too detailed spread; unspread, a drawing unless `dense`. Its source in the render asked for, as a capture's is. */
+  const answering =
+    (dense: boolean) =>
+    (request: FoldStepCaptureRequest): Promise<FoldStepCaptureResult> =>
+      Promise.resolve({
+        status: 'captured',
+        source: foldStepSource({ sequence: 'fold-a', step: request.step, render: request.render }),
+        captured:
+          dense || (request.render.mode === 'folded-flat' && request.render.spread)
+            ? OVER_BUDGET
+            : { kind: 'picture', picture: scenePicture(`scene-${request.step}`) },
+        marks: [],
+      });
+
+  beforeEach(() => {
+    capture.calls = [];
+  });
+
+  it('is captured again unspread and added, its spread kept and marked as one its layers can’t take', async () => {
+    capture.answer = answering(false);
+    const result = await captureFoldTarget(session, 'fold-a', TARGET, SPREAD, { t });
+    expect(capture.calls.map((request) => request.render)).toEqual([SPREAD, FOLD_PULL_RENDER]);
+    if (result.status !== 'captured') throw new Error(`not captured: ${JSON.stringify(result)}`);
+    expect(capturedSpreadFailed(result.captured)).toBe(true);
+    expect(result.source.render).toEqual(SPREAD);
+    // A pull adds it, and counts it with the steps whose layers couldn't be spread: the same toast says so.
+    const pulled = await pullFoldTargets(session, 'fold-a', [TARGET], { t });
+    expect(pulled).toMatchObject({ failed: 0, spreadFailed: 1 });
+    expect(pulled.sent).toHaveLength(1);
+  });
+
+  it('is left out, and counted as not captured, when it is too detailed unspread as well', async () => {
+    capture.answer = answering(true);
+    const pulled = await pullFoldTargets(session, 'fold-a', [TARGET], { t });
+    expect(pulled).toEqual({ sent: [], failed: 1, spreadFailed: 0 });
+    expect(capture.calls.map((request) => request.render)).toEqual([SPREAD, FOLD_PULL_RENDER]);
+  });
+
+  it('is left out as before when the spread is Fold’s own Affine or Depth, which marks no failed spread', async () => {
+    capture.answer = answering(false);
+    const depth = { ...FOLD_PULL_RENDER, spread: { kind: 'depth' as const, amount: 0.06, toward: 'down-right' as const } };
+    expect(sentFoldStep(await captureFoldTarget(session, 'fold-a', TARGET, depth, { t }))).toBeNull();
+    expect(capture.calls).toHaveLength(1);
   });
 });
 

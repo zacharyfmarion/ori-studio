@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { FoldVertical } from 'lucide-react';
+import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { selectable } from '../../diagram/references/referencesBrowserSelection';
 import {
   APP_FOLD_PROVIDER,
@@ -10,7 +11,7 @@ import {
 } from '../../diagram/fold/useFoldBrowser';
 import type { DiagramFoldBrowserState } from '../../store/workspaceStore/types';
 import { Button } from '../ui/Button';
-import { DiagramFoldPicture } from './DiagramFoldPicture';
+import { DiagramFoldCard } from './DiagramFoldCard';
 import {
   PullBrowserFrame,
   PullBrowserGrid,
@@ -18,7 +19,6 @@ import {
   usePullBrowserDialog,
   type PullBrowserList,
 } from './DiagramReferencesBrowser';
-import { DiagramPullCard, DiagramPullCardThumbnail } from './DiagramReferencesCard';
 import styles from './DiagramFoldBrowser.module.css';
 
 /**
@@ -29,15 +29,18 @@ import styles from './DiagramFoldBrowser.module.css';
  *
  * The browser itself: the shown sequence's active path as cards — each step
  * that folds, the turns between them, and Finished — each the step it would
- * become, its sentence Fold's own; under them what is selected and the one
- * verb, worded by where the browser was opened for. `provider` is the app's
- * Fold session, or a fake one in a test.
+ * become, drawn in the diagram's pens (`style`) with its marks, its sentence
+ * Fold's own; under them what is selected and the one verb, worded by where
+ * the browser was opened for. `provider` is the app's Fold session, or a
+ * fake one in a test.
  */
 export function DiagramFoldBrowser({
   state,
+  style,
   provider = APP_FOLD_PROVIDER,
 }: {
   state: DiagramFoldBrowserState;
+  style: DiagramStyle;
   provider?: FoldBrowserProvider;
 }) {
   const { t } = useTranslation();
@@ -77,7 +80,7 @@ export function DiagramFoldBrowser({
         </>
       }
     >
-      <FoldCards browser={browser} />
+      <FoldCards browser={browser} style={style} />
     </PullBrowserFrame>
   );
 }
@@ -110,7 +113,7 @@ function MergeToggle({ browser }: { browser: FoldBrowser }) {
 }
 
 /** The sequence's cards, or why there are none. */
-function FoldCards({ browser }: { browser: FoldBrowser }) {
+function FoldCards({ browser, style }: { browser: FoldBrowser; style: DiagramStyle }) {
   const { t } = useTranslation();
   const { cards } = browser;
   if (cards.status === 'empty') {
@@ -127,10 +130,10 @@ function FoldCards({ browser }: { browser: FoldBrowser }) {
   return (
     <PullBrowserGrid label={t('panels:diagram.fold.steps', 'Steps')}>
       {cards.cards.map((card) => (
-        <DiagramPullCard
+        <DiagramFoldCard
           key={card.index}
-          index={card.index}
-          kind={card.kind}
+          card={card}
+          style={style}
           title={
             card.kind === 'fold'
               ? card.through !== undefined
@@ -144,23 +147,12 @@ function FoldCards({ browser }: { browser: FoldBrowser }) {
                 ? t('panels:diagram.fold.turnCard', 'Turn')
                 : t('panels:diagram.references.finished', 'Finished')
           }
-          badge=""
-          picture={
-            <DiagramPullCardThumbnail>
-              <DiagramFoldPicture picture={card.picture} />
-            </DiagramPullCardThumbnail>
-          }
-          onPaper={false}
-          unreadable={card.step === null}
           why={
             card.step === null
               ? t('panels:diagram.fold.notLanded', 'Fold hasn’t folded this step, so it can’t be added yet.')
               : undefined
           }
-          sentence={card.sentence}
-          ways={null}
           inDiagram={browser.inDiagram.get(card.index) ?? null}
-          shownNow={false}
           selected={browser.selection.indices.has(card.index)}
           tabStop={card.index === tabStop}
           offered={offered === card.index}

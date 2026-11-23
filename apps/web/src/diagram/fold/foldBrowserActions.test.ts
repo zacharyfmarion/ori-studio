@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DiagramTurnKind, SentDiagramEntry, SentFoldStep } from '../document/diagramDocument';
 import { foldStepSource, scenePicture } from '../document/diagramSteps.fixtures';
 
@@ -46,6 +46,13 @@ const ROTATE: DiagramTurnKind = { kind: 'rotate', rotate: { amount: 'quarter', d
 /** Targets only say how many: the stubbed replay sends `entries` whatever is asked. */
 const TARGETS = [{ kind: 'step', step: 'fstep-1', moment: 'before' }] as const;
 
+// A pull lazily loads the whole Fold workspace: under a full run its cold transform alone can
+// take a test's five seconds, and a pull still running then counts into the next test.
+beforeAll(async () => {
+  const { loadFold } = await import('../../workspaces/foldGateway');
+  await loadFold();
+}, 30_000);
+
 beforeEach(() => {
   vi.clearAllMocks();
   sent.spreadFailed = 0;
@@ -77,6 +84,12 @@ describe('a pull from Fold, counted (plan D17)', () => {
       '2 steps’ layers couldn’t be spread by Default, so they show them unspread. Try Affine or Depth instead.'
     );
     expect(toasts.error).not.toHaveBeenCalled();
+  });
+
+  it('says nothing of spreads when every step was spread', async () => {
+    sent.entries = [foldStep('fstep-1')];
+    await pullFromFold(TARGETS, { kind: 'end' }, { via: 'fold' });
+    expect(toasts.message).not.toHaveBeenCalled();
   });
 
   it('does not count the empty step it fills: that step was there already', async () => {
