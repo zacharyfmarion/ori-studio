@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { cameraUniforms, cursorRay, fitExtent, projectVertices } from '../src/webgl/camera.js';
+import {
+  cameraUniforms,
+  cursorRay,
+  fitExtent,
+  projectVertices,
+  rasterizedDepth,
+} from '../src/webgl/camera.js';
 
 const CENTER: [number, number, number] = [0, 0, 0];
 const VIEW = { yaw: 0, pitch: 0, zoom: 1 };
@@ -202,5 +208,58 @@ describe('the line of sight through a pixel', () => {
     const far = projectVertices(new Float32Array(ray.origin.map((o, axis) => o + ray.direction[axis]! * 4)), camera);
     // Larger view depth is nearer the eye.
     expect(near.view[2]!).toBeGreaterThan(far.view[2]!);
+  });
+});
+
+describe('the depth the face pass rasterizes at a point of a triangle', () => {
+  // A triangle seen at a slant, so its corners lie at very different distances
+  // from the eye: the case where the rasterized surface and the true one part.
+  const camera = cameraUniforms({ yaw: 0.4, pitch: -1.1, zoom: 1 }, [0, 0, 0], 1.5, 640, 480);
+  const corners = new Float32Array([-1, 0, -1, 1.2, 0.3, -0.8, 0.1, -0.2, 1.3]);
+  const projected = projectVertices(corners, camera);
+  const depths = [0, 1, 2].map((k) => projected.view[k * 3 + 2]!) as [number, number, number];
+  const pointAt = (weights: readonly [number, number, number]): Float32Array =>
+    new Float32Array([0, 1, 2].map((axis) => weights.reduce((sum, w, k) => sum + w * corners[k * 3 + axis]!, 0)));
+
+  /** The rasterizer's own sum: the corners' depths mixed by the pixel's weights in the projected triangle. */
+  function interpolatedAtPixel(weights: readonly [number, number, number]): number {
+    const pixel = projectVertices(pointAt(weights), camera).screen;
+    const [x0, y0, x1, y1, x2, y2] = projected.screen;
+    const det = (x1! - x0!) * (y2! - y0!) - (x2! - x0!) * (y1! - y0!);
+    const b1 = ((pixel[0]! - x0!) * (y2! - y0!) - (x2! - x0!) * (pixel[1]! - y0!)) / det;
+    const b2 = ((x1! - x0!) * (pixel[1]! - y0!) - (pixel[0]! - x0!) * (y1! - y0!)) / det;
+    return (1 - b1 - b2) * depths[0] + b1 * depths[1] + b2 * depths[2];
+  }
+
+  const inside: Array<[number, number, number]> = [
+    [1 / 3, 1 / 3, 1 / 3],
+    [0.7, 0.2, 0.1],
+    [0.05, 0.15, 0.8],
+    [0.5, 0.5, 0],
+  ];
+
+  it('is the depth interpolated across the screen at the pixel the point lands on', () => {
+    for (const weights of inside) {
+      expect(rasterizedDepth(depths, weights, camera.camDist)).toBeCloseTo(interpolatedAtPixel(weights), 5);
+    }
+  });
+
+  it('lies behind the point itself, which is in front of the paper the depth test sees', () => {
+    for (const weights of inside) {
+      const own = weights[0] * depths[0] + weights[1] * depths[1] + weights[2] * depths[2];
+      // Larger view depth is nearer the eye.
+      expect(rasterizedDepth(depths, weights, camera.camDist)).toBeLessThan(own - 1e-4);
+    }
+  });
+
+  it('is the corner’s own depth at a corner', () => {
+    expect(rasterizedDepth(depths, [0, 1, 0], camera.camDist)).toBeCloseTo(depths[1], 12);
+  });
+
+  it('is the point’s own depth when the projection is orthographic', () => {
+    for (const weights of inside) {
+      const own = weights[0] * depths[0] + weights[1] * depths[1] + weights[2] * depths[2];
+      expect(rasterizedDepth(depths, weights, camera.camDist, false)).toBeCloseTo(own, 12);
+    }
   });
 });

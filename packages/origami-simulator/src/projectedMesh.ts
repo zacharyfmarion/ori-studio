@@ -4,9 +4,10 @@
 // the BSP cuts in. Kept apart from `paperScene.ts` so a second producer (the
 // 3D folded figure's mesh path) reads the same facts rather than restating
 // them — which is how two outputs would stop agreeing.
-import type { ProjectedVertices } from './webgl/camera.js';
+import { rasterizedDepth, type CameraUniforms, type ProjectedVertices } from './webgl/camera.js';
 import type { MeshTopology } from './webgl/meshRenderer.js';
 import type { Vec3 } from './bsp.js';
+import type { VirtualVertices } from './auxOverlay.js';
 import { EDGE_CODE } from './edgeCodes.js';
 
 /**
@@ -108,19 +109,46 @@ export function collectCreases(
 }
 
 /**
- * Screen position with view depth as the third axis — the space the BSP cuts in.
- * See the note in `meshToPaperScene`.
+ * Each vertex's depth in the space the BSP cuts in: its view depth, except that
+ * a drawn-on aux line's end (`virtual`) takes the depth its triangle is drawn
+ * at under it ({@link rasterizedDepth}). In that space a triangle is flat across
+ * the screen, as the GPU rasterizes it, while the end's own depth lies in front
+ * of it, by enough at a grazing view to carry a buried line over the paper
+ * folded onto it near the fold.
+ */
+export function screenDepths(
+  projected: ProjectedVertices,
+  virtual: VirtualVertices | undefined,
+  camera: Pick<CameraUniforms, 'camDist'>,
+  perspective: boolean
+): Float64Array {
+  const depths = new Float64Array(projected.count);
+  for (let vertex = 0; vertex < projected.count; vertex += 1) depths[vertex] = projected.view[vertex * 3 + 2]!;
+  if (!virtual) return depths;
+  const count = Math.min(Math.floor(virtual.weights.length / 3), projected.count - virtual.start);
+  const corner = (vertex: number, k: number) => projected.view[virtual.nodes[vertex * 3 + k]! * 3 + 2] ?? 0;
+  for (let vertex = 0; vertex < count; vertex += 1) {
+    depths[virtual.start + vertex] = rasterizedDepth(
+      [corner(vertex, 0), corner(vertex, 1), corner(vertex, 2)],
+      [virtual.weights[vertex * 3]!, virtual.weights[vertex * 3 + 1]!, virtual.weights[vertex * 3 + 2]!],
+      camera.camDist,
+      perspective
+    );
+  }
+  return depths;
+}
+
+/**
+ * Screen position with `depths` ({@link screenDepths}) as the third axis — the
+ * space the BSP cuts in. See the note in `meshToPaperScene`.
  */
 export function screenPoints(
   projected: ProjectedVertices,
+  depths: ArrayLike<number>,
   indices: readonly number[],
   depthBias = 0
 ): Vec3[] {
-  return indices.map((v) => [
-    projected.screen[v * 2]!,
-    projected.screen[v * 2 + 1]!,
-    projected.view[v * 3 + 2]! + depthBias,
-  ]);
+  return indices.map((v) => [projected.screen[v * 2]!, projected.screen[v * 2 + 1]!, depths[v]! + depthBias]);
 }
 
 /**
