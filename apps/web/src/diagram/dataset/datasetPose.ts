@@ -264,31 +264,6 @@ async function folded3dPose(pattern: LoadedPattern, diagram: DiagramDocument, st
 function pictureCheck(scene: PaperScene, size: number, creases: readonly PictureCrease[]): { check: OwnPaperRecord; png: Uint8Array } {
   const raster = pictureRaster(scene, size, size);
   const lines = pictureLines(scene, raster, creases);
-  if (process.env.ORI_DEBUG_POSE) {
-    const width = size;
-    const foreign = new Map<number, number>();
-    for (let at = 0; at < raster.ink.length; at += 1) {
-      const id = raster.ink[at]!;
-      if (id < 0) continue;
-      const line = lines[id]!;
-      if (line.role !== 'valley' || line.own.size === 0) continue;
-      const x = at % width;
-      const y = Math.floor(at / width);
-      let own = false;
-      for (let dy = -2; dy <= 2; dy += 1) for (let dx = -2; dx <= 2; dx += 1) {
-        const f = raster.face[(y + dy) * width + x + dx];
-        if (f !== undefined && line.own.has(f)) own = true;
-      }
-      if (!own) foreign.set(id, (foreign.get(id) ?? 0) + 1);
-    }
-    const worst = [...foreign].sort((a, b) => b[1] - a[1]).slice(0, 3);
-    console.log('DEBUG PIC', JSON.stringify(worst.map(([id, n]) => {
-      const line = lines[id]!;
-      const mx = Math.floor((line.from[0] + line.to[0]) / 2);
-      const my = Math.floor((line.from[1] + line.to[1]) / 2);
-      return { n, from: line.from, to: line.to, own: [...line.own], faceAtMid: raster.face[my * width + mx], item: raster.lineItems[id] };
-    })));
-  }
   return { check: ownPaperCheck(raster, lines), png: rasterPng(raster, (id) => lines[id]?.role) };
 }
 
