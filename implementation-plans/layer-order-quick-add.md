@@ -91,4 +91,4 @@ so we can tell whether people add by clicking or with Add.
 - [x] Browser check on a real figure (headless Chromium: Kabuto, Oriedita's
       `solution_sample_1`); `scripts/layer-order-dialog-check.mjs` now picks
       objects with Shift+click
-- [ ] Draft PR
+- [x] Draft PR: [#627](https://github.com/zacharyfmarion/ori-studio/pull/627)
