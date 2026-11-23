@@ -822,6 +822,17 @@ function ShortcutsTab() {
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return SHORTCUT_DEFINITIONS.filter((definition) => {
+      // A row is here to be set, so an action that cannot take a chord is not
+      // listed — clicking one only ever answered "cannot take a shortcut yet".
+      // Except while it still holds an override: capture once bound such
+      // actions, and hiding the row would leave that chord with no way to clear
+      // it short of Reset All.
+      if (
+        !isShortcutBindable(definition.id) &&
+        !Object.prototype.hasOwnProperty.call(resolution.overrides, definition.id)
+      ) {
+        return false;
+      }
       const currentLabel = shortcutLabelForAction(definition.id, resolution);
       if (assignedOnly && !currentLabel) return false;
       if (!query) return true;
