@@ -851,7 +851,7 @@ fn distance(a: Point, b: Point) -> f64 {
     (b[0] - a[0]).hypot(b[1] - a[1])
 }
 
-fn distance_to_segment(p: Point, a: Point, b: Point) -> f64 {
+pub(crate) fn distance_to_segment(p: Point, a: Point, b: Point) -> f64 {
     let d = [b[0] - a[0], b[1] - a[1]];
     let len2 = d[0] * d[0] + d[1] * d[1];
     if len2 == 0.0 {
