@@ -68,6 +68,8 @@ export interface ReportModel {
    * the reason the replay refused it.
    */
   pose: { steps: number; cameras: number; notReplayed: Record<string, number> };
+  /** Steps whose 3D window check was not compared, by the reason the replay refused one side's window. */
+  window: { notReplayed: Record<string, number> };
   /** Steps whose capture moved by no more than rounding: not listed. */
   rounding: number;
   changedSteps: ReportStep[];
@@ -99,6 +101,10 @@ export function summaryLine(model: ReportModel): string {
       `${model.pose.steps} Pose views at ${model.pose.cameras} cameras each` +
         (notReplayed > 0 ? ` (${notReplayed} not replayed live: shaders the replay does not read)` : '')
     );
+  }
+  const windowsNotReplayed = Object.values(model.window.notReplayed).reduce((sum, count) => sum + count, 0);
+  if (windowsNotReplayed > 0) {
+    parts.push(`3D window check not replayed on ${plural(windowsNotReplayed, 'step')}: shaders the replay does not read`);
   }
   if (files > 0) parts.push(`${files} file-level change${files === 1 ? '' : 's'}`);
   if (model.alreadyBroken.length > 0) parts.push(`${model.alreadyBroken.length} problems already broken before`);
@@ -186,6 +192,9 @@ function captureReasons(
   return reasons;
 }
 
+/** The window check's counts; null when it did not run, failed, or the replay refused the window. */
+const windowCounts = (record: StepResult['window']): WindowRecord | null =>
+  record && !('error' in record) && !('refused' in record) ? record : null;
 const AUX_PROBLEM = (record: WindowRecord) => record.strayInk.aux ?? 0;
 const OTHER_STRAY = (record: WindowRecord) =>
   Object.entries(record.strayInk).reduce((total, [role, px]) => (role === 'aux' ? total : total + (px ?? 0)), 0);
@@ -356,6 +365,8 @@ interface StepDiff {
   /** Which pictures say the most: the captures when they changed, else the repaints, else the Pose frames. */
   show: 'capture' | 'repaint' | 'pose';
   pose: PoseDiff;
+  /** Why the 3D window check was not compared: a side whose window the replay refused, and why. */
+  windowNotReplayed: string | null;
 }
 
 /**
@@ -426,23 +437,31 @@ function diffStep(before: StepResult, after: StepResult, dirs: { before: string;
   }
 
   const windowError = (record: StepResult['window']) => (record && 'error' in record ? record.error : null);
-  if (windowError(before.window) || windowError(after.window)) {
+  const windowRefused = (record: StepResult['window']) => (record && 'refused' in record ? record.refused : null);
+  let windowNotReplayed: string | null = null;
+  if (windowRefused(before.window) !== null || windowRefused(after.window) !== null) {
+    // A side whose window the replay refused has no counts: the check is not compared, for the reason it gave.
+    const refusedAfter = windowRefused(after.window);
+    windowNotReplayed = refusedAfter !== null ? `after: ${refusedAfter}` : `before: ${windowRefused(before.window)}`;
+  } else if (windowError(before.window) || windowError(after.window)) {
     if (windowError(before.window) !== windowError(after.window)) {
       reasons.push(`3D window check: ${windowError(before.window) ?? 'ran'} → ${windowError(after.window) ?? 'ran'}`);
     }
   } else if (before.window || after.window) {
-    if (!before.window || !after.window || 'error' in before.window || 'error' in after.window) {
+    const was = windowCounts(before.window);
+    const is = windowCounts(after.window);
+    if (!was || !is) {
       reasons.push(`3D window check ran ${before.window ? 'before only' : 'after only'}`);
     } else {
-      const wasAux = AUX_PROBLEM(before.window) > 0;
-      const isAux = AUX_PROBLEM(after.window) > 0;
-      if (isAux && wasAux) broken.push(windowProblem(after.window));
-      else if (isAux) reasons.push(`New problem: ${windowProblem(after.window)}`);
-      else if (wasAux) reasons.push(`Fixed: ${windowProblem(before.window)}`);
-      const more = OTHER_STRAY(after.window) - OTHER_STRAY(before.window);
+      const wasAux = AUX_PROBLEM(was) > 0;
+      const isAux = AUX_PROBLEM(is) > 0;
+      if (isAux && wasAux) broken.push(windowProblem(is));
+      else if (isAux) reasons.push(`New problem: ${windowProblem(is)}`);
+      else if (wasAux) reasons.push(`Fixed: ${windowProblem(was)}`);
+      const more = OTHER_STRAY(is) - OTHER_STRAY(was);
       if (more > 0) reasons.push(`3D window check: ${more} px more fold or edge ink over bare paper than before`);
-      if (after.window.missingInk > before.window.missingInk) {
-        reasons.push(`3D window check: ${after.window.missingInk - before.window.missingInk} px more window ink the picture leaves out`);
+      if (is.missingInk > was.missingInk) {
+        reasons.push(`3D window check: ${is.missingInk - was.missingInk} px more window ink the picture leaves out`);
       }
     }
   }
@@ -459,7 +478,7 @@ function diffStep(before: StepResult, after: StepResult, dirs: { before: string;
   reasons.push(...pose.reasons);
   broken.push(...pose.broken);
 
-  return { reasons, rounding, notCompared, broken, show, pose };
+  return { reasons, rounding, notCompared, broken, show, pose, windowNotReplayed };
 }
 
 function diffFile(before: CaseResult, after: CaseResult): { reasons: string[]; broken: string[] } {
@@ -515,6 +534,7 @@ export function diffResults(before: DatasetResults, after: DatasetResults, dirs:
     steps: 0,
     notCompared: {},
     pose: { steps: 0, cameras: 0, notReplayed: {} },
+    window: { notReplayed: {} },
     rounding: 0,
     changedSteps: [],
     fileChanges: [],
@@ -569,6 +589,8 @@ export function diffResults(before: DatasetResults, after: DatasetResults, dirs:
         const refused = diff.pose.liveNotReplayed;
         if (refused !== null) model.pose.notReplayed[refused] = (model.pose.notReplayed[refused] ?? 0) + 1;
       }
+      const windowRefused = diff.windowNotReplayed;
+      if (windowRefused !== null) model.window.notReplayed[windowRefused] = (model.window.notReplayed[windowRefused] ?? 0) + 1;
       for (const problem of diff.broken) model.alreadyBroken.push({ slug: kase.slug, step: { id: step.id, number: step.number }, problem });
       if (diff.reasons.length === 0) continue;
       model.changedSteps.push({
@@ -678,6 +700,9 @@ ${notCompared ? `<p>Not captured again, so not compared as captures (their files
 ${model.pose.steps > 0 ? `<p>Pose views checked on both sides: ${plural(model.pose.steps, 'step')}, at ${model.pose.cameras} cameras each (live and the picture leaving Pose saves).</p>` : ''}
 ${Object.entries(model.pose.notReplayed)
   .map(([why, count]) => `<p>Live views not compared, the pictures only: ${plural(count, 'step')}. The replay refused one side's shaders, ${escape(why)}.</p>`)
+  .join('\n')}
+${Object.entries(model.window.notReplayed)
+  .map(([why, count]) => `<p>3D window checks not compared: ${plural(count, 'step')}. The replay refused one side's window, ${escape(why)}.</p>`)
   .join('\n')}
 ${model.alreadyBroken.length > 0 ? `<p>${plural(model.alreadyBroken.length, 'problem')} found on both sides, listed at the end.</p>` : ''}
 </div>`);

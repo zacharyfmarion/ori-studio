@@ -135,6 +135,10 @@ describe('diffResults', () => {
       step('s8', { outcome: 'not-captured', status: 'needs-pose', ms: 1 }, { render: 'simulated', pose: pose(a, 's8', [0, 0]) }),
       step('s9', { outcome: 'not-captured', status: 'needs-pose', ms: 1 }, { render: 'simulated', pose: pose(a, 's9', [3, 0], { shape: 'mismatch' }) }),
       step('s10', { outcome: 'not-captured', status: 'needs-pose', ms: 1 }, { render: 'simulated', pose: pose(a, 's10', [0, 0]) }),
+      step('s11', captured(a, 's11', scene(line('valley', 1))), {
+        render: 'folded-3d',
+        window: { refused: 'its edge shader declares faceDepth, faceSlope, which the replay does not read' },
+      }),
     ]);
     const after = results('after', [
       // The same.
@@ -160,11 +164,13 @@ describe('diffResults', () => {
         render: 'simulated',
         pose: pose(b, 's10', [0, 900], { liveRefused: 'its edge shader declares faceDepth, which the replay does not read' }),
       }),
+      // The replay refused the before side's window: its 3D window check is not compared, so this is no new problem.
+      step('s11', captured(b, 's11', scene(line('valley', 1))), { render: 'folded-3d', window: window(40) }),
     ]);
 
     const model = diffResults(before, after, { before: beforeDir, after: afterDir });
 
-    expect(model.steps).toBe(10);
+    expect(model.steps).toBe(11);
     expect(model.changedSteps.map((change) => [change.id, change.reasons])).toEqual([
       ['s2', ['Draw order changed: the same lines and faces, drawn in another order']],
       ['s3', ['Status: current → stale', 'Refresh: not needed → refresh']],
@@ -184,6 +190,9 @@ describe('diffResults', () => {
       cameras: 2,
       notReplayed: { 'after: its edge shader declares faceDepth, which the replay does not read': 1 },
     });
+    expect(model.window).toEqual({
+      notReplayed: { 'before: its edge shader declares faceDepth, faceSlope, which the replay does not read': 1 },
+    });
     expect(model.alreadyBroken).toEqual([
       { slug: 'case', step: { id: 's5', number: 5 }, problem: 'Aux probe: still reads current' },
       {
@@ -193,13 +202,15 @@ describe('diffResults', () => {
       },
     ]);
     expect(summaryLine(model)).toBe(
-      'diagram corpus: 4 of 10 steps changed; 6 re-captured, 4 not; ' +
-        '3 Pose views at 2 cameras each (1 not replayed live: shaders the replay does not read); 2 problems already broken before'
+      'diagram corpus: 4 of 11 steps changed; 7 re-captured, 4 not; ' +
+        '3 Pose views at 2 cameras each (1 not replayed live: shaders the replay does not read); ' +
+        '3D window check not replayed on 1 step: shaders the replay does not read; 2 problems already broken before'
     );
 
     const out = tempDir();
     const page = readFileSync(writeReport(model, { before: beforeDir, after: afterDir }, out), 'utf8');
     expect(page).toContain('Already broken before');
+    expect(page).toContain('3D window checks not compared: 1 step.');
     // Both captures of a changed step painted on one projection: the same frame.
     const frameOf = (side: string) =>
       /viewBox="([^"]+)"/.exec(readFileSync(join(out, 'pictures', `case--s2--${side}.svg`), 'utf8'))?.[1];

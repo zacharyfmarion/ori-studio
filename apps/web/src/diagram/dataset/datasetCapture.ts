@@ -10,6 +10,7 @@
 import type { PaperScene } from '@treemaker/origami-simulator';
 import { folded3dPaperScene, folded3dSceneCamera } from '../../cp-workspace/folded/folded3dScene';
 import { WINDOW_PARITY_BOX, compareWithWindow } from '../../cp-workspace/folded/folded3dWindowParity.testSupport';
+import { UnmodeledShaderError } from '../../simulator/meshRendererReplay.testSupport';
 import { captureStep, type CaptureStepResult } from '../capture/captureFolded';
 import { knownCreasesOf } from '../capture/captureCreases';
 import { spreadStartsFor, type DiagramCpSource, type DiagramDocument, type DiagramStep } from '../document/diagramDocument';
@@ -136,9 +137,15 @@ export async function captureRecord(
 /**
  * The 3D window check on an unspread 3D step: its fold, its own aux lines and
  * camera, the scene built for the window's box and compared with the
- * window's draw passes. Null for a step that does not fold in 3D now.
+ * window's draw passes. Null for a step that does not fold in 3D now;
+ * `refused` when the window draws with shaders the replay does not read,
+ * which the window model takes its depth mode from.
  */
-export async function windowCheck(pattern: LoadedPattern, diagram: DiagramDocument, step: DiagramStep): Promise<WindowRecord | null> {
+export async function windowCheck(
+  pattern: LoadedPattern,
+  diagram: DiagramDocument,
+  step: DiagramStep
+): Promise<WindowRecord | { refused: string } | null> {
   const source = step.source;
   if (source?.kind !== 'cp' || source.render.mode !== 'folded-3d') return null;
   const savedCamera = source.render.camera;
@@ -150,7 +157,13 @@ export async function windowCheck(pattern: LoadedPattern, diagram: DiagramDocume
       tolerances,
       displayStyle: 'Paper5',
     });
-    const result = compareWithWindow(mesh, scene, camera);
+    let result: ReturnType<typeof compareWithWindow>;
+    try {
+      result = compareWithWindow(mesh, scene, camera);
+    } catch (error) {
+      if (error instanceof UnmodeledShaderError) return { refused: error.reason };
+      throw error;
+    }
     return {
       painted: result.painted,
       paper: result.paper,

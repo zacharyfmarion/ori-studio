@@ -77,8 +77,12 @@ export interface StepResult {
   repaint: RepaintRecord | { error: string };
   status: StatusRecord | null;
   capture: CaptureRecord;
-  /** Null for a step that does not fold in 3D unspread; `error` when the check itself failed. */
-  window: WindowRecord | { error: string } | null;
+  /**
+   * Null for a step that does not fold in 3D unspread; `error` when the check
+   * itself failed; `refused` when the window draws with shaders the replay
+   * does not read (not compared).
+   */
+  window: WindowRecord | { error: string } | { refused: string } | null;
   probe: ProbeRecord | null;
   /** Pose's live view of the step, checked at its cameras; null for a step Pose shows only as its picture. */
   pose: PoseRecord | { skipped: string } | { error: string } | null;
