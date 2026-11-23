@@ -77,6 +77,12 @@ export interface LayerOrderDialogFrameProps {
   /** A refusal's Keep trying, a loss's Try again. */
   readonly onRetry: () => void;
   readonly onCancel: () => void;
+  /**
+   * Escape: the inspector's to use (it clears the sentence being built). It
+   * never closes the dialog, so one stray key never throws away the
+   * constraints; with nothing to use it on, it does nothing.
+   */
+  readonly onEscape: () => void;
   readonly onApply: () => void;
   /**
    * Why Apply waits once the session is open, as a title (`applyWaitText`):
@@ -108,10 +114,11 @@ export interface LayerOrderDialogFrameProps {
  * as the whole screen (D6), one pane at a time, switched from the title row,
  * with the inspector under it, and the name gives way to the switch. While
  * the session opens the inspector says so; refused or lost, a notice stands
- * where the folded figure and the inspector would be. Cancel, Escape and the
- * close button close it; a press on the backdrop does not, so a stray press
- * never throws away the constraints. The frame is a shortcut barrier, so the
- * workspace's keys and its menus' Undo, Redo and view switches stay behind it.
+ * where the folded figure and the inspector would be. Cancel and the close
+ * button close it; Escape and a press on the backdrop do not, so a stray key
+ * or press never throws away the constraints: Escape is the inspector's
+ * (`onEscape`). The frame is a shortcut barrier, so the workspace's keys and
+ * its menus' Undo, Redo and view switches stay behind it.
  */
 export function LayerOrderDialogFrame({
   name,
@@ -127,6 +134,7 @@ export function LayerOrderDialogFrame({
   history,
   onRetry,
   onCancel,
+  onEscape,
   onApply,
   applyWaits = null,
   applying,
@@ -183,6 +191,7 @@ export function LayerOrderDialogFrame({
       }
       tools={tools}
       onClose={onCancel}
+      onEscape={onEscape}
       closeOnBackdrop={false}
       returnFocus={returnFocus}
       history={history}

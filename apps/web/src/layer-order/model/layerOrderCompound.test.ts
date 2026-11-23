@@ -655,7 +655,7 @@ describe('Add with several objects', () => {
     expect(landed.state.sentence).toMatchObject({ subject: null, objects: [] });
     // Once per Add, with the objects it named.
     expect(effectsOf(landed.effects, 'track').map((effect) => effect.fact)).toEqual([
-      constraintAddedFact('in_front_of', 'pattern', 'folded', 2),
+      constraintAddedFact('in_front_of', 'pattern', 'folded', 2, 'button'),
     ]);
   });
 
@@ -668,7 +668,7 @@ describe('Add with several objects', () => {
       { type: 'face_picked', face: 0, origin: 'menu' }
     );
     const landed = commits(play(fits(s).state, { type: 'add' }), Uint32Array.of(4, 5));
-    expect(lastOf(landed.effects, 'track').fact).toEqual(constraintAddedFact('in_front_of', 'pattern', 'folded', 1));
+    expect(lastOf(landed.effects, 'track').fact).toEqual(constraintAddedFact('in_front_of', 'pattern', 'folded', 1, 'button'));
   });
 
   it('undo takes the whole Add back in one step, and redo puts it back', () => {
@@ -1048,6 +1048,6 @@ describe('a one-object sentence behaves as it always did', () => {
     expect(lastOf(added.effects, 'commit')).toMatchObject({ constraints: [[2, 0, 1]], token: 7 });
     const landed = commits(added, Uint32Array.of(2, 3, 4, 5));
     expect(rowGroupsView(landed.state).map((row) => row.members.length)).toEqual([1]);
-    expect(lastOf(landed.effects, 'track').fact).toEqual(constraintAddedFact('in_front_of', 'pattern', 'folded', 1));
+    expect(lastOf(landed.effects, 'track').fact).toEqual(constraintAddedFact('in_front_of', 'pattern', 'folded', 1, 'button'));
   });
 });

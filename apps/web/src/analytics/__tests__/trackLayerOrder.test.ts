@@ -48,12 +48,13 @@ describe('trackLayerOrderFact', () => {
   });
 
   it('sends a constraint added, once per Add, with how many objects its sentence named (D21)', () => {
-    trackLayerOrderFact(constraintAddedFact('in_front_of', 'menu', 'folded', 2));
+    trackLayerOrderFact(constraintAddedFact('in_front_of', 'menu', 'folded', 2, 'button'));
     expect(runtime.track).toHaveBeenCalledWith('layer constraint added', {
       verb: 'in_front_of',
       subject_origin: 'menu',
       object_origin: 'folded',
       object_count_bucket: '<=2',
+      added_by: 'button',
     });
   });
 

@@ -26,7 +26,8 @@ export function listenForCommandDialogEscape(id: number): () => void {
 
 /**
  * A command dialog's Escape, standing down while it is `aside`: while the Layer
- * order dialog it opened is up, whose Escape it is to close.
+ * order dialog it opened is up, whose Escape it is (it clears that dialog's
+ * sentence, and closes nothing).
  */
 export function useCommandDialogEscape(id: number, aside: boolean): void {
   useEffect(() => (aside ? undefined : listenForCommandDialogEscape(id)), [id, aside]);

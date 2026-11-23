@@ -524,6 +524,10 @@ disagrees, the artboard wins):
   quietly otherwise (Round3:1021-1026).
 - A click on empty paper clears the object, then the subject.
 - Add commits and clears the whole sentence (Round3:1137, 1230).
+- **Added 2026-11-23** (`layer-order-quick-add.md`): once a subject is
+  picked, a plain click on one of its faces adds the sentence as soon as
+  its check fits, as Add would; Shift+click (and the face menus) only pick,
+  for a sentence of several objects.
 - A row click puts its subject in the builder; when it has nothing left to
   choose, the hint line says so in the quiet tone, and the subject slot stays
   active (Round3:1007-1008).
@@ -802,7 +806,9 @@ notice has no board of its own; U10 builds it from the approved copy.
     UI from the "A5 · Compound constraints" board.
 
 **Settled by the spec or the design** (no answer needed):
-- Escape closes an open menu first, then cancels (Round3).
+- Escape closes an open menu first, then cancels (Round3). **Changed
+  2026-11-23** (`layer-order-quick-add.md`): Escape clears the sentence and
+  never closes the dialog; Cancel and the close button are the ways out.
 - Front/Back is a lens: constraints are paper-relative, and Apply never turns
   the host over (spec §5, §6.2).
 

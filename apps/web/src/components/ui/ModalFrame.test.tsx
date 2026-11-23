@@ -73,6 +73,21 @@ describe('a modal frame', () => {
     expect(onClose).toHaveBeenCalledTimes(3);
   });
 
+  it('gives Escape to onEscape when given one, and still claims the key', () => {
+    const onEscape = vi.fn();
+    const { onClose } = render({ onEscape });
+    const key = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    act(() => {
+      window.dispatchEvent(key);
+    });
+    expect(onEscape).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(key.defaultPrevented).toBe(true);
+    // The close button still closes.
+    press(byRole(dialog(), 'button', 'Close Layer order'), 'click');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('is a form by default, and says its size and layout for its stylesheet', () => {
     render();
     expect(surface().dataset.size).toBe('form');
