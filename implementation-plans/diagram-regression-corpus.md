@@ -557,7 +557,7 @@ the harness itself.
       report lists such a side's live views, and its 3D window checks, as not
       compared, with the side and the reason, and still holds its pictures to
       the other side's. The window model takes its depth mode from the window's
-      draws, not from a copy. Run against #630's head (f3709dbb6) on the fan
+      draws, not from a copy. Run against #630's head (f8b58fc73) on the fan
       and the rose: `diagram corpus: 7 of 38 steps changed; 8 re-captured, 30
       not; 11 Pose views at 9 cameras each (11 not replayed live: shaders the
       replay does not read); 3D window check not replayed on 4 steps: shaders
