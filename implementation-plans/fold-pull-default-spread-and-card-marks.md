@@ -30,11 +30,22 @@ Two owner requests (2026-11-03) about steps taken from Fold into the Diagram:
   and marks the picture `spreadFailed`. The pull counts those pictures, and
   main's `someSpreadFailed` toast says so. This branch's own version is gone:
   `captureFoldTarget` captured again without the spread and counted
-  `flattened`, with a toast of its own. `captureFoldTarget` is now only the
-  capture request that the pull and the cards share.
-  - Left to the owner: a Default spread whose picture is too detailed to keep
-    as a drawing. This branch captured it again unspread. Main leaves it out
-    of a pull and counts it, which every import can now meet.
+  `flattened`, with a toast of its own.
+- **A spread picture too detailed to keep as a drawing is not a lost step
+  either.** A pull has no bitmap for such a picture, so main leaves the step
+  out. Every import is spread now, so without a fallback a dense step that
+  used to come in unspread would be dropped. `captureFoldTarget`, which the
+  pull and the cards share, handles it (owner's call, 2026-11-23):
+  - A Default spread whose capture comes back too detailed is captured again
+    unspread.
+  - If that is a drawing, the step is added unspread, its spread kept and the
+    picture marked `spreadFailed` (`spreadFailedRender`,
+    `spreadFailedPicture`). That is the same marking as a step whose layers
+    can't be spread, so it is counted the same way and main's toast says so.
+  - If it is too detailed unspread as well, the step is left out and counted
+    as not captured, as before.
+  - Fold's own Affine or Depth spreads are not retried: main marks only a
+    Default spread as failed, and this branch did not change those steps.
 - **A card is the step it would become.** The card's picture is the same
   capture the pull makes (`captureFoldTarget` with the card's render), turned
   into the same step a pull makes (`sentStep`, taken out of
@@ -53,8 +64,9 @@ Two owner requests (2026-11-03) about steps taken from Fold into the Diagram:
 
 ## Affected Areas
 
-- `apps/web/src/diagram/fold/foldPull.ts`: render rule, the capture request
-  the pull and the cards share, sent-step helper
+- `apps/web/src/diagram/fold/foldPull.ts`: render rule, the capture the pull
+  and the cards share (with its fallback for a picture too detailed to keep),
+  sent-step helper
 - `apps/web/src/diagram/fold/foldPullPreviews.ts` and
   `useFoldPullPreview.ts` (new): preview queue, cache and hook
 - `apps/web/src/diagram/document/diagramDocument.ts`: `sentStep` taken out of
@@ -79,6 +91,9 @@ Two owner requests (2026-11-03) about steps taken from Fold into the Diagram:
       matches the cards
 - [x] Merge main (2026-11-23): main's fallback and crease-piece fix kept, this
       branch's dropped; checks run again
+- [x] A Default spread too detailed to keep as a drawing: captured again
+      unspread and added as a failed spread, or left out when still too
+      detailed; tests for both
 
 ## Findings
 

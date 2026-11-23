@@ -26,16 +26,19 @@ import type { FoldSequenceView } from '../../fold/sequence/useFoldSequenceView';
 import type { FoldSession } from '../../fold/session/foldSession';
 import type { TurnKind } from '../../lib/steps/turn';
 import { turnName } from '../../lib/steps/turnWords';
+import { spreadFailedPicture } from '../capture/captureFolded';
 import {
   DEFAULT_LAYER_SPREAD,
   randomDiagramId,
   spreadFailedOf,
+  spreadFailedRender,
   type DiagramCpRender,
   type DiagramFoldMoment,
   type DiagramIdFactory,
   type SentDiagramEntry,
   type SentFoldStep,
 } from '../document/diagramDocument';
+import { storedFoldStepSource } from '../document/diagramFile';
 import type { PullCard } from '../references/referencesBrowserSelection';
 import { foldDiagramMergedSentence, foldDiagramSentence } from './foldDiagramSentence';
 import type { FoldPrecreaseMerge } from './foldPrecreaseMerge';
@@ -235,17 +238,29 @@ export interface FoldPulled {
   sent: SentDiagramEntry[];
   /** Steps that could not be captured (gone, no longer folding, the engine stopped), left out. */
   failed: number;
-  /** Steps spread by Default whose layers could not be spread here: added unspread, their spread kept to say so. */
+  /**
+   * Steps spread by Default added unspread, their spread kept to say so: their
+   * layers could not be spread, or the spread picture was too detailed to keep
+   * as a drawing ({@link captureFoldTarget}).
+   */
   spreadFailed: number;
 }
 
 /**
- * Capture a step target as a pull adds it, in `render`; a Default spread its
- * layers can't take is drawn unspread and marked so, its spread kept
- * (`captureFoldStep`). The browser's cards are captured here too
- * (`foldPullPreviews.ts`), so a card shows the step Add makes.
+ * Capture a step target as a pull adds it, in `render`. A Default spread its
+ * layers can't take is drawn unspread, its spread kept and the picture marked
+ * so (`captureFoldStep`).
+ *
+ * So is a Default spread whose picture is too detailed to keep as a drawing,
+ * which a pull has no bitmap for: it is captured again unspread, and the step
+ * is added rather than left out. Every pulled step is spread
+ * (`foldPullRender`), and a dense step came in unspread before that. A step
+ * too detailed unspread as well is left out, as before.
+ *
+ * The browser's cards are captured here too (`foldPullPreviews.ts`), so a
+ * card shows the step Add makes.
  */
-export function captureFoldTarget(
+export async function captureFoldTarget(
   session: FoldSession,
   sequence: string,
   target: FoldPullStepTarget,
@@ -253,11 +268,16 @@ export function captureFoldTarget(
   options: { t: TFunction; newId?: DiagramIdFactory }
 ): Promise<FoldStepCaptureResult> {
   const { through } = target;
-  return captureFoldStep(
-    session,
-    { sequence, step: target.step, ...(through !== undefined ? { through } : {}), moment: target.moment, render },
-    options
-  );
+  const request = { sequence, step: target.step, ...(through !== undefined ? { through } : {}), moment: target.moment };
+  const result = await captureFoldStep(session, { ...request, render }, options);
+  if (render.spread?.kind !== 'connected' || result.status !== 'captured' || result.captured.kind !== 'over-budget') return result;
+  const { spread: _spread, presentation: _presentation, ...unspread } = render;
+  const drawn = await captureFoldStep(session, { ...request, render: unspread }, options);
+  if (drawn.status !== 'captured' || drawn.captured.kind !== 'picture' || drawn.captured.picture.kind !== 'scene') return result;
+  // Kept as a step whose layers its Default spread can't take is (`captureFoldStep`).
+  const source = storedFoldStepSource({ ...drawn.source, render: spreadFailedRender(render) });
+  if (!source) throw new Error('The capture made a link the file cannot read');
+  return { ...drawn, source, captured: spreadFailedPicture(drawn.captured) };
 }
 
 /** A captured Fold step as a pull sends it: its picture, its marks lifted, its words. Null for one with no stored drawing. */
@@ -277,9 +297,10 @@ export function sentFoldStep(result: FoldStepCaptureResult): SentFoldStep | null
  * session's replay folded, as Fold shows it, spread as Fold spreads it or
  * else at the default ({@link foldPullRender}) — its marks lifted, its words
  * the Diagram's — and each turn as a turn. A step whose capture fails is left
- * out and counted; so is one too detailed to keep as a drawing, which a pull
- * has no bitmap for. One whose layers could not be spread is added unspread,
- * its spread kept, and counted ({@link captureFoldTarget}).
+ * out and counted; so is one too detailed to keep as a drawing even unspread,
+ * which a pull has no bitmap for. One whose layers could not be spread, or
+ * whose spread picture is too detailed, is added unspread, its spread kept,
+ * and counted ({@link captureFoldTarget}).
  */
 export async function pullFoldTargets(
   session: FoldSession,
