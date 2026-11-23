@@ -26,7 +26,8 @@
 //!   pattern of a plain fold of the whole tip — as two blocks per flap.
 //!   Carried: pairs that stay, kept; pairs in one block, reversed. Seeded:
 //!   pairs across blocks, kept in absolute terms except corresponding halves
-//!   of nested openings along one spine, which turn together as a packet;
+//!   of openings along one spine that nest or interleave (walls of several
+//!   plies, `Tip::packet_pairs`), which turn together as a packet;
 //!   each block against its own
 //!   body, inside putting T1 over B1 and T2 under B2, outside the reverse.
 //!   The completion decides the rest: with these seeds it is unique in
@@ -38,6 +39,9 @@
 //! - **The kind** is usually forced by the geometry: [`State::reverse_kinds`]
 //!   says which kinds land, so a tool can pre-select the only one, and a
 //!   refusal of one kind offers the other when it lands.
+//! - **Which ways land** ([`State::reverse_landings`], `landings`): a tool
+//!   offers only the openings that land, so it asks of every way the tip
+//!   opens which kinds do, and which flaps the tip cannot be folded without.
 
 use std::collections::BTreeSet;
 
@@ -59,6 +63,11 @@ use crate::refusal::{Fix, Flap, FoldRefusal, Refused, Side};
 use crate::state::State;
 use crate::view::Direction;
 use crate::witness::{Broken, BrokenWitness, WitnessOrder};
+
+mod landings;
+
+pub use landings::{MAX_WAYS, ReverseLandings, ReverseWay};
+pub(super) use landings::{Opens, landings_of};
 
 type Point = [f64; 2];
 
@@ -590,28 +599,64 @@ impl RawOpening {
 }
 
 impl Tip {
-    /// Two openings form a nested packet only along the same spine, with
-    /// one upper half above the other's and its lower half below the other's.
+    /// Two openings along the same spine turn as one packet — upper half
+    /// with upper half, lower with lower — when their halves nest or
+    /// interleave:
+    ///
+    /// - **Nested:** one upper half above the other's and its lower half
+    ///   below the other's.
+    /// - **Interleaved:** the two openings share one gap (each upper half
+    ///   above the other's lower half), and some face of one half lies
+    ///   between two faces of the other's at one point. The halves are then
+    ///   two walls of several plies, wraps of both flaps in each: a corner
+    ///   folded in half twice and then in half again, or flaps hinged on a
+    ///   centre fold inside one half of it. Keeping the absolute order there
+    ///   would contradict each block's own reversal at that point, so this
+    ///   reading only lands folds that no order fitted before.
+    ///
     /// Test the actual moving-side pieces, not overlap elsewhere in a face.
     /// Pairwise coupling avoids merging unrelated sibling pockets through a
     /// common enclosing flap. All opposite-half and body contacts remain.
     pub(super) fn packet_pairs(&self, state: &State, plan: &Plan) -> Vec<[usize; 2]> {
+        let piece = |f: usize| self.side.pieces[f].as_deref();
+        let id = |f: usize| state.faces()[f].id;
         let above = |upper: &[usize], lower: &[usize]| {
             let mut overlaps = false;
             for &a in upper {
                 for &b in lower {
-                    let (Some(p), Some(q)) = (&self.side.pieces[a], &self.side.pieces[b]) else {
+                    let (Some(p), Some(q)) = (piece(a), piece(b)) else {
                         continue;
                     };
                     if convex::penetration(p, q) > TOL {
                         overlaps = true;
-                        if state.above(state.faces()[a].id, state.faces()[b].id) != Some(true) {
+                        if state.above(id(a), id(b)) != Some(true) {
                             return false;
                         }
                     }
                 }
             }
             overlaps
+        };
+        // A face of `inner` between two faces of `outer` where all three
+        // overlap.
+        let between = |outer: &[usize], inner: &[usize]| {
+            inner.iter().any(|&b| {
+                outer.iter().any(|&a1| {
+                    outer.iter().any(|&a2| {
+                        let (Some(p), Some(q), Some(r)) = (piece(a1), piece(b), piece(a2)) else {
+                            return false;
+                        };
+                        if a1 == a2
+                            || state.above(id(a1), id(b)) != Some(true)
+                            || state.above(id(b), id(a2)) != Some(true)
+                        {
+                            return false;
+                        }
+                        let pq = convex::clip(p, q);
+                        pq.len() >= 3 && convex::penetration(&pq, r) > TOL
+                    })
+                })
+            })
         };
         let mut coupled = Vec::new();
         for (a, outer) in plan.openings.iter().enumerate() {
@@ -632,7 +677,19 @@ impl Tip {
                 let nested = (above(&outer.upper, &inner.upper)
                     && above(&inner.lower, &outer.lower))
                     || (above(&inner.upper, &outer.upper) && above(&outer.lower, &inner.lower));
-                if same_spine && nested {
+                let interleaved = || {
+                    above(&outer.upper, &inner.lower)
+                        && above(&inner.upper, &outer.lower)
+                        && [
+                            (&outer.upper, &inner.upper),
+                            (&inner.upper, &outer.upper),
+                            (&outer.lower, &inner.lower),
+                            (&inner.lower, &outer.lower),
+                        ]
+                        .iter()
+                        .any(|(a, b)| between(a, b))
+                };
+                if same_spine && (nested || interleaved()) {
                     coupled.push([2 * a, 2 * b]);
                     coupled.push([2 * a + 1, 2 * b + 1]);
                 }
@@ -749,33 +806,7 @@ impl Tip {
         state: &State,
         choices: &ReverseChoices,
     ) -> Result<Option<Plan>, CompoundRefused> {
-        let opens = |o: &FlapOpenings| !o.openings.is_empty();
-        let any_opens = self.openings.iter().any(opens);
-        // A flap with no spine moves whole beside one that opens.
-        let moves =
-            |o: &FlapOpenings| opens(o) || (any_opens && o.none == Some(NoOpening::NoSpine));
-        if let Some((k, flap)) = self.openings.iter().enumerate().find(|(_, o)| !moves(o)) {
-            let faces = self.side.flaps[self.flaps[k]].faces.clone();
-            let opening: Vec<Flap> = self
-                .flaps
-                .iter()
-                .zip(&self.openings)
-                .filter(|(_, o)| opens(o))
-                .map(|(&j, _)| self.side.flaps[j].clone())
-                .collect();
-            let fixes = if opening.is_empty() {
-                Vec::new()
-            } else {
-                vec![Fix::PickFlap { flaps: opening }]
-            };
-            return Err(CompoundRefused::Refused(Refused {
-                refusal: FoldRefusal::ReverseNoOpening {
-                    faces,
-                    cause: flap.none.unwrap_or(NoOpening::NoSpine),
-                },
-                fixes,
-            }));
-        }
+        self.movable().map_err(CompoundRefused::Refused)?;
         let mut picked: Vec<Option<usize>> = self
             .openings
             .iter()
@@ -804,29 +835,69 @@ impl Tip {
                 _ => return Err(CompoundRefused::Broken(Broken::Opening { opening: i })),
             }
         }
+        Ok(self.plan(state, &picked))
+    }
+
+    /// Every flap of the tip moves: it opens, or it has no spine to open
+    /// along and another flap opens, so it moves whole beside it. Refused
+    /// otherwise, offering the flaps that open.
+    fn movable(&self) -> Result<(), Refused> {
+        let opens = |o: &FlapOpenings| !o.openings.is_empty();
+        let any_opens = self.openings.iter().any(opens);
+        // A flap with no spine moves whole beside one that opens.
+        let moves =
+            |o: &FlapOpenings| opens(o) || (any_opens && o.none == Some(NoOpening::NoSpine));
+        let Some((k, flap)) = self.openings.iter().enumerate().find(|(_, o)| !moves(o)) else {
+            return Ok(());
+        };
+        let faces = self.side.flaps[self.flaps[k]].faces.clone();
+        let opening: Vec<Flap> = self
+            .flaps
+            .iter()
+            .zip(&self.openings)
+            .filter(|(_, o)| opens(o))
+            .map(|(&j, _)| self.side.flaps[j].clone())
+            .collect();
+        let fixes = if opening.is_empty() {
+            Vec::new()
+        } else {
+            vec![Fix::PickFlap { flaps: opening }]
+        };
+        Err(Refused {
+            refusal: FoldRefusal::ReverseNoOpening {
+                faces,
+                cause: flap.none.unwrap_or(NoOpening::NoSpine),
+            },
+            fixes,
+        })
+    }
+
+    /// The plan opening each flap of the tip at `picked[k]`, an index into
+    /// its openings, and moving each flap with none whole. None when a flap
+    /// that opens has no opening picked.
+    fn plan(&self, state: &State, picked: &[Option<usize>]) -> Option<Plan> {
         let mut plan = Plan {
             openings: Vec::new(),
             whole: Vec::new(),
             stored: Vec::new(),
         };
         for ((pick, o), &k) in picked.iter().zip(&self.openings).zip(&self.flaps) {
-            match pick {
-                Some(j) => {
-                    let opening = o.openings[*j].clone();
+            match pick.and_then(|j| o.openings.get(j)) {
+                Some(opening) => {
                     if o.openings.len() > 1 {
                         plan.stored.push(opening.public(state).stored);
                     }
-                    plan.openings.push(opening);
+                    plan.openings.push(opening.clone());
                 }
                 None if o.openings.is_empty() => plan.whole.push(
                     (0..state.faces().len())
                         .filter(|&f| self.side.flap_of[f] == Some(k))
                         .collect(),
                 ),
-                None => return Ok(None),
+                None => return None,
             }
         }
-        Ok(Some(plan))
+        Some(plan)
     }
 
     /// The opening, as (flap, opening), whose split the faces at a stored

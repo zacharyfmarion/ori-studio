@@ -25,6 +25,8 @@ import {
   storedLine,
   swivelDirectionsOf,
   swivelKindsLanding,
+  swivelLinesOf,
+  tryOtherFanAnchor,
   vertexAskedOp,
   vertexChosenOp,
   vertexStepFrom,
@@ -71,9 +73,12 @@ export interface FoldVertexPreview {
   /**
    * A squash of a flap whose walls are several plies: its layers at the flap
    * point, the openings that land (`squashOpenings`) — the only ones offered —
-   * and the one it folds. Absent for a two-layer flap and the other folds.
+   * and the one it folds — `deeper` when it is refused between the walls of
+   * the first flap at the click and opens deeper (a closed pocket), so the
+   * one opening is shown even when it is the only one that lands. Absent
+   * for a two-layer flap and the other folds.
    */
-  squash?: { layers: number; openings: readonly number[]; opening: number };
+  squash?: { layers: number; openings: readonly number[]; opening: number; deeper?: true };
   /**
    * A swivel's reach from where its creases meet (`useFoldSwivelReach`): the
    * edges that can swing and the lines each lands on. Absent or null for
@@ -119,19 +124,19 @@ const NONE: FoldVertexStepAnswer = { step: null, vertex: null, refused: null };
  * fold the engine has not described. The preview and the commit go through
  * the session as every step's do.
  *
- * A rabbit ear tries the other stationary anchor when the first cannot
- * support the selected hinge. Neither attempt changes the hinge region.
+ * A rabbit ear tries the other anchor when it would keep more connected paper
+ * still or the first cannot land with the selected hinge.
  */
 export function useFoldVertexStep(
   session: FoldSessionSurface,
   index: FoldPickIndex | null,
   tools: FoldToolState,
   enabled: boolean,
-  swivelMountain?: FoldLocatedLine
+  swivelLocated?: FoldLocatedLine
 ): FoldVertexStepAnswer {
   const state = session.cursor.state;
   const stateKey = state ? `${state.generation}:${state.id}` : null;
-  const { tool, petalHinge, swivelTarget, swivelInput, squashHinge, takenLine, picks, vertexDirection, compound } = tools;
+  const { tool, petalHinge, swivelTarget, swivelInput, squashHinge, takenLine, otherEnd, picks, vertexDirection, compound } = tools;
   const { squashTarget, fanLayers, emergent: chosenEmergent, order: chosenOrder } = compound;
   const squashOpening = compound.squashOpening ?? null;
 
@@ -144,6 +149,10 @@ export function useFoldVertexStep(
   const swivelKind = compound.swivelKind ?? 'open';
   // The line taken — a swivel's valley, a squash's drawn hinge — as the op stores it: its scene line is the canvas's.
   const line = useMemo(() => storedLine(takenLine), [takenLine]);
+  // A swivel by its valley and mountain's lines: its valley and the mountain
+  // located once the valley is taken; at its other end, the first swivel's,
+  // and the second's as they come in.
+  const swivelLines = useMemo(() => swivelLinesOf(otherEnd, line, swivelLocated), [otherEnd, line, swivelLocated]);
 
   const intent = useMemo<FoldVertexIntent | null>(
     () =>
@@ -153,8 +162,7 @@ export function useFoldVertexStep(
             petalHinge,
             swivelTarget,
             swivelInput,
-            swivelValley: tool === 'swivel' ? line : undefined,
-            swivelMountain,
+            ...(tool === 'swivel' ? swivelLines : {}),
             ...(tool === 'squash' ? { squashHinge: squashHinge ?? 'folded', hinge: squashHinge === 'line' ? line : undefined } : {}),
             picks,
             direction,
@@ -162,7 +170,7 @@ export function useFoldVertexStep(
             swivelKind,
           }
         : null,
-    [enabled, tool, petalHinge, swivelTarget, swivelInput, squashHinge, line, swivelMountain, picks, direction, fanLayers, swivelKind]
+    [enabled, tool, petalHinge, swivelTarget, swivelInput, squashHinge, line, swivelLines, picks, direction, fanLayers, swivelKind]
   );
   const taken = useMemo<FoldVertexTaken>(
     () => ({ squashTarget, squashOpening, emergent: chosenEmergent, order: chosenOrder }),
@@ -174,7 +182,7 @@ export function useFoldVertexStep(
   const initial = asked && 'kind' in asked ? asked : null;
   const told = asked && 'status' in asked ? asked : null;
   const first = useFoldCompoundAsk(session, stateKey, initial ? { op: initial } : null, 'vertex', 'fold:vertex');
-  const needsAnchor = initial?.kind === 'rabbit-ear' && (first?.refused != null || fanHasNoFourth(first?.asked ?? null));
+  const needsAnchor = initial?.kind === 'rabbit-ear' && (first?.refused != null || tryOtherFanAnchor(first?.asked ?? null));
   const alternative = useMemo(
     () => (needsAnchor && intent && index && initial ? fanAnchorAlternative(intent, index, initial) : null),
     [needsAnchor, intent, index, initial]
@@ -257,7 +265,12 @@ export function useFoldVertexStep(
   const squashAnalysis = firstAnswer?.analysis.kind === 'squash' ? firstAnswer.analysis : null;
   const squash =
     squashAnalysis && (squashAnalysis.layers ?? 2) > 2 && chosen?.opening !== undefined
-      ? { layers: squashAnalysis.layers ?? 2, openings, opening: chosen.opening }
+      ? {
+          layers: squashAnalysis.layers ?? 2,
+          openings,
+          opening: chosen.opening,
+          ...(firstAnswer?.deeper ? { deeper: true as const } : {}),
+        }
       : null;
   return {
     step: refused || !built ? null : built.step,

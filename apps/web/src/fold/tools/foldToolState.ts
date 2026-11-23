@@ -35,6 +35,7 @@ import {
   type SheetPoint,
 } from '../document/foldSequenceDocument';
 import type { FoldReverseKind } from '../engine/foldEngineReverseWire';
+import type { FoldSwivelShared } from '../engine/foldEngineSquashWire';
 import type { FoldFlap } from '../engine/foldEngineWire';
 import {
   isLineTool,
@@ -242,6 +243,15 @@ export interface FoldToolState {
    * drawn hinge, its pick then the flap's end.
    */
   takenLine?: FoldLocatedLine & { sceneLine: FoldModelLine };
+  /**
+   * A swivel by its valley and mountain whose other end is being located
+   * (`FoldSwivelOtherEnd`): the first swivel's two lines, taken, which of its
+   * creases the second shares, and that crease's line on the folded pane,
+   * where the second's lines meet. The shared valley is the other end's
+   * valley taken (`takenLine`); a shared mountain is its mountain, and only
+   * its valley is located.
+   */
+  otherEnd?: FoldSwivelOtherEndTaken;
   override: FoldToolOverride | null;
   divide: FoldDivideSettings;
   /** The flap the pointer is over in the layer picker or the chips, which the canvas lights. */
@@ -264,10 +274,16 @@ export interface FoldToolState {
   unfoldTarget: { id: string | null } | null;
   /**
    * Repeat's range start, by id; null for the step on screen, a range of one.
-   * The range always ends at the step on screen. Let go each time the tool is
-   * taken up.
+   * Let go each time the tool is taken up.
    */
   repeatFirst: string | null;
+  /**
+   * Repeat's range end, by id; null for the step on screen. The repeat is
+   * added after the step on screen wherever the range ends, so a range
+   * repeated once can be repeated again across another axis. Let go each
+   * time the tool is taken up.
+   */
+  repeatLast: string | null;
   /**
    * The symmetry axis the folder last chose or drew, by its sheet line:
    * Repeat's axis whenever it is one of the range's verified axes. Kept for
@@ -280,6 +296,18 @@ export interface FoldToolState {
   repeatIndividual: boolean;
   /** A saved step its tool is rebuilding in place; null while the tool adds a step. */
   rebuild: FoldToolRebuild | null;
+}
+
+/** A line a construction took: as a step stores it, and on the folded pane. */
+export type FoldTakenLine = FoldLocatedLine & { sceneLine: FoldModelLine };
+
+/** The first swivel of two made together, taken while the other end is located (`FoldToolState.otherEnd`). */
+export interface FoldSwivelOtherEndTaken {
+  valley: FoldTakenLine;
+  mountain: FoldTakenLine;
+  shared: FoldSwivelShared;
+  /** The shared crease's line on the folded pane. */
+  meetingLine: FoldModelLine;
 }
 
 /** The tools' state with the seed resolved (`useFoldLineSection`): what every step is built from. */
@@ -311,6 +339,7 @@ export const FOLD_TOOL_INITIAL: FoldToolState = {
   resume: 'valley',
   unfoldTarget: null,
   repeatFirst: null,
+  repeatLast: null,
   repeatAxis: null,
   repeatAxisSource: 'listed',
   repeatIndividual: false,
@@ -323,6 +352,7 @@ function located(state: FoldToolState): FoldToolState {
     ...state,
     picks: [],
     takenLine: undefined,
+    otherEnd: undefined,
     extentPicks: [],
     root: 0,
     secondRoot: 0,
@@ -387,6 +417,22 @@ export function locatesTakenLine(state: Pick<FoldToolState, 'tool' | 'swivelInpu
 }
 
 /**
+ * Whether the line the picks locate now is taken before more is located
+ * (Enter, or the window's button): a swivel's valley, or a squash's hinge,
+ * not yet taken — except the other end's valley when the mountain is the
+ * crease the two swivels share, which is the last line it takes.
+ */
+export function takesLocatedLine(state: Pick<FoldToolState, 'tool' | 'swivelInput' | 'squashHinge' | 'takenLine' | 'otherEnd'>): boolean {
+  return locatesTakenLine(state) && !state.takenLine && state.otherEnd?.shared !== 'mountain';
+}
+
+/** The line a swivel by its valley and mountain's lines meet on the folded pane: the valley taken, or at its other end, the crease the two share. */
+export function swivelMeetingLine(state: Pick<FoldToolState, 'tool' | 'takenLine' | 'otherEnd'>): FoldModelLine | undefined {
+  if (state.tool !== 'swivel') return undefined;
+  return state.otherEnd?.meetingLine ?? state.takenLine?.sceneLine;
+}
+
+/**
  * What the tools have been asked to fold, as a key: the tool, its line and
  * every pick and choice made along it — not the flap hovered, which asks for
  * nothing. Any change to it is another fold.
@@ -424,7 +470,13 @@ export function isLocated(state: FoldToolState): boolean {
 
 /** Whether anything is under way that Escape would let go. */
 export function hasToolInput(state: FoldToolState): boolean {
-  return state.picks.length > 0 || state.extentPicks.length > 0 || state.override !== null || state.takenLine !== undefined;
+  return (
+    state.picks.length > 0 ||
+    state.extentPicks.length > 0 ||
+    state.override !== null ||
+    state.takenLine !== undefined ||
+    state.otherEnd !== undefined
+  );
 }
 
 /**
@@ -491,8 +543,12 @@ export interface FoldTools {
   setDivide(divide: Partial<FoldDivideSettings>): void;
   setHoveredFlap(flap: number | null): void;
   // A compound fold's choices, one block per family.
-  /** The reverse fold's kind; null takes the one that lands. */
-  setReverseKind(kind: FoldReverseKind | null): void;
+  /**
+   * The reverse fold's kind; null takes the one that lands. The ways listed
+   * are the kind's (`reverseLandingWays`), so `opening`, when given, is where
+   * the way on screen is among them.
+   */
+  setReverseKind(kind: FoldReverseKind | null, opening?: number): void;
   /** Step through the ways the flaps open, of `count`. */
   stepOpening(delta: number, count: number): void;
   /** Step through the layer orders listed, of `count`. */
@@ -514,6 +570,12 @@ export interface FoldTools {
   setSwivelInput(mode: FoldSwivelInput): void;
   /** Take the line located (`locatesTakenLine`): a swivel's valley, or a squash's hinge. The picks start again, for what comes next. */
   takeLine(line: NonNullable<FoldToolState['takenLine']>): void;
+  /**
+   * Take a swivel by its valley and mountain as the first of two made
+   * together, and go on to locate the swivel at the other end of the crease
+   * they share: its valley taken already when that crease is the valley.
+   */
+  takeOtherEnd(first: FoldSwivelOtherEndTaken): void;
   /** Squash about the folded edge, or a drawn line: its picks start again. */
   setSquashHinge(hinge: FoldSquashHinge): void;
   /** Name a swivel's target by a crease or edge, or by two points: its pivot and edge stay, its target is clicked anew. */
@@ -544,12 +606,14 @@ export interface FoldTools {
   setUnfoldTarget(id: string | null): void;
   /** Start Repeat's range at this step. */
   setRepeatFirst(id: string): void;
+  /** End Repeat's range at this step. */
+  setRepeatLast(id: string): void;
   /** Mirror across this axis, by its sheet line: what Repeat remembers as the last axis chosen, and how it was (offered, by default). */
   setRepeatAxis(axis: FoldModelLine, source?: FoldToolState['repeatAxisSource']): void;
   setRepeatIndividual(individual: boolean): void;
   /**
    * Take up the tool that rebuilds `rebuild`'s step in place, its settings
-   * read from the step: an unfold's target, a repeat's range start and axis.
+   * read from the step: an unfold's target, a repeat's range and axis.
    * The step's parent must be on screen.
    */
   rebuildStep(rebuild: FoldToolRebuild): void;
@@ -637,7 +701,7 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
             resume: isOneStepTool(state.tool) ? state.resume : state.tool,
             rebuild: null,
             ...(tool === 'unfold-to' ? { unfoldTarget: null } : {}),
-            ...(tool === 'repeat' ? { repeatFirst: null } : {}),
+            ...(tool === 'repeat' ? { repeatFirst: null, repeatLast: null } : {}),
           };
         }
         return { ...restart(state), tool, rebuild: null };
@@ -663,7 +727,12 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
         // So does Repeat, whose axis may be drawn in any line mode.
         const tool = twoLines || state.tool === 'repeat' ? state.tool : locatesLine(state.tool) ? state.tool : 'valley';
         if (state.lineMode === lineMode && state.tool === tool) return state;
-        return { ...restart(state), tool, lineMode, ...(twoLines ? { takenLine: state.takenLine } : {}) };
+        return {
+          ...restart(state),
+          tool,
+          lineMode,
+          ...(twoLines ? { takenLine: state.takenLine, otherEnd: state.otherEnd } : {}),
+        };
       });
     },
 
@@ -791,12 +860,13 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
 
     // A compound fold's choices are made along its line: a fix's line in
     // place of the picks' (the override) is kept through them.
-    setReverseKind(reverseKind) {
-      set((state) =>
-        state.compound.reverseKind === reverseKind
+    setReverseKind(reverseKind, opening) {
+      set((state) => {
+        const at = opening ?? state.compound.opening;
+        return state.compound.reverseKind === reverseKind && state.compound.opening === at
           ? state
-          : { ...state, compound: { ...state.compound, reverseKind, order: 0 } }
-      );
+          : { ...state, compound: { ...state.compound, reverseKind, opening: at, order: 0 } };
+      });
     },
 
     stepOpening(delta, count) {
@@ -875,7 +945,11 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
     },
 
     takeLine(line) {
-      set(state => ({ ...restart(state), takenLine: line }));
+      // At a swivel's other end, its first swivel stays taken.
+      set(state => ({ ...restart(state), takenLine: line, otherEnd: state.otherEnd }));
+    },
+    takeOtherEnd(first) {
+      set(state => ({ ...restart(state), otherEnd: first, takenLine: first.shared === 'valley' ? first.valley : undefined }));
     },
     setSquashHinge(squashHinge) {
       set(state => (state.squashHinge ?? 'folded') === squashHinge ? state : { ...restart(state), squashHinge });
@@ -967,6 +1041,10 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
       set((state) => (state.repeatFirst === repeatFirst ? state : { ...state, repeatFirst }));
     },
 
+    setRepeatLast(repeatLast) {
+      set((state) => (state.repeatLast === repeatLast ? state : { ...state, repeatLast }));
+    },
+
     setRepeatAxis(repeatAxis, repeatAxisSource = 'listed') {
       set((state) =>
         state.repeatAxis &&
@@ -988,7 +1066,14 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
       set((state) =>
         rebuild.tool === 'unfold-to'
           ? { ...state, rebuild, unfoldTarget: { id: rebuild.expected.target } }
-          : { ...state, rebuild, repeatFirst: rebuild.expected.source.first, repeatAxis: rebuild.expected.axis, repeatAxisSource: 'listed' }
+          : {
+              ...state,
+              rebuild,
+              repeatFirst: rebuild.expected.source.first,
+              repeatLast: rebuild.expected.source.last,
+              repeatAxis: rebuild.expected.axis,
+              repeatAxisSource: 'listed',
+            }
       );
     },
 

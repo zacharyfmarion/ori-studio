@@ -5,6 +5,9 @@ import {
   SpreadComplexityError,
   barycentric,
   diagramPositions,
+  shiftedXY,
+  shiftScale,
+  spatialPositions,
   orderSide,
   pickSpread,
   visibility,
@@ -289,4 +292,55 @@ it('clips physical crossings consistently when a model is translated far across 
     }, 0);
     expect(area).toBeCloseTo(0.5, 8);
   }
+});
+
+describe('no-stretch shift', () => {
+  const shifts: [number[], number[]] = [
+    [0, 0, -0.1, 0, 0, 0.2],
+    [0.3, 0, 0, 0, 0, 0],
+  ];
+  const shifted = { ...solution, shifts } as SpreadSolution;
+  const close = (actual: readonly (readonly number[])[], expected: readonly (readonly number[])[]) =>
+    actual.forEach((p, v) => p.forEach((value, axis) => expect(value).toBeCloseTo(expected[v][axis], 12)));
+
+  it('grows with the square of the amount and holds past the nominal opening', () => {
+    expect([-1, 0, 0.5, 1, 1.5, 2].map(shiftScale)).toEqual([0, 0, 0.25, 1, 1, 1]);
+  });
+  it('moves each vertex by its own side\'s shift', () => {
+    close(shiftedXY(input, shifted, 0.5, false), [
+      [0, 0],
+      [0.975, 0],
+      [0, 1.05],
+    ]);
+    close(shiftedXY(input, shifted, 2, true), [
+      [0.3, 0],
+      [1, 0],
+      [0, 1],
+    ]);
+  });
+  it('draws unshifted when there is no usable shift', () => {
+    expect(shiftedXY(input, solution, 1, false)).toBe(input.xy);
+    expect(shiftedXY(input, { ...solution, shifts: [[], []] } as SpreadSolution, 1, false)).toBe(input.xy);
+    expect(shiftedXY(input, { ...solution, shifts: [[1, 2], []] } as SpreadSolution, 1, false)).toBe(input.xy);
+    expect(shiftedXY(input, shifted, 0, false)).toBe(input.xy);
+  });
+  it('adds to the reveal without changing the height it reveals', () => {
+    const spread = { kind: 'connected' as const, version: 1 as const, amount: 0.5, reveal: [1.2, -0.7] as [number, number] };
+    for (const back of [false, true]) {
+      const plain = diagramPositions(input, solution, spread, back);
+      const moved = diagramPositions(input, shifted, spread, back);
+      const shift = shifts[back ? 1 : 0];
+      close(
+        moved,
+        plain.map(([x, y, z], v) => [x + 0.25 * shift[2 * v], y + 0.25 * shift[2 * v + 1], z]),
+      );
+    }
+  });
+  it('shifts the unsheared 3D paper too', () => {
+    close(spatialPositions(input, shifted, 1), [
+      [0, 0, 1],
+      [0.9, 0, 3],
+      [0, 1.2, 2],
+    ]);
+  });
 });

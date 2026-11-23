@@ -177,6 +177,36 @@ describe('paintStepPicture', () => {
     expect(sceneMeasure(false)).toBe('figure');
   });
 
+  it('paints a simulated capture’s creases over the faces that only touch them, however it was stored', () => {
+    // As a capture stored before the simulator's scenes drew their lines last:
+    // the crease first, then the face along it, whose edge and seam paint over
+    // half its ink and more.
+    const touching = {
+      bounds: { minX: 0, minY: 0, maxX: 100, maxY: 100 },
+      sheet: 100,
+      items: [
+        { kind: 'line', role: 'valley', a: [0, 50], b: [100, 50], onBoundary: [false, false], hidden: false },
+        { kind: 'face', face: 0, side: 'front', rings: [[[0, 0], [100, 0], [100, 50], [0, 50]]], shade: 1, hidden: false },
+      ],
+    };
+    const picture = () => ({ ...scenePicture(), sceneJson: storedSceneJson(touching)! });
+    const simulated = stepPictureSource(
+      cpStep('step-1', { mode: 'simulated', foldPercent: 50, view: { yaw: 0, pitch: 0, zoom: 1 } }, picture()),
+      {}
+    )!;
+    expect(simulated).toMatchObject({ kind: 'scene', simulated: true });
+    const drawn = paintSource(simulated, DEFAULT_DIAGRAM_STYLE)!.svg;
+    expect(drawn.indexOf('<line')).toBeGreaterThan(drawn.indexOf('<path'));
+    // Any other fold keeps the order its own producer chose.
+    const spatial = stepPictureSource(
+      cpStep('step-1', { mode: 'folded-3d', camera: { yaw: 0, pitch: 0, zoom: 1 }, side: 'front' }, picture()),
+      {}
+    )!;
+    expect(spatial).toMatchObject({ kind: 'scene', simulated: false });
+    const kept = paintSource(spatial, DEFAULT_DIAGRAM_STYLE)!.svg;
+    expect(kept.indexOf('<line')).toBeLessThan(kept.indexOf('<path'));
+  });
+
   it('draws a folded model’s mountain and valley folds in the edge pen, and a crease pattern’s in the fold pens', () => {
     // A 3D or simulated capture names its folds mountain and valley (`paperScene.ts`): in the Diagram's
     // style the fold pens are half the edge pen, and such a step printed at half a flat one's weight.

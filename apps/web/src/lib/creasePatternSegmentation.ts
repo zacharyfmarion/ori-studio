@@ -1,4 +1,5 @@
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
+import { FOLD_MAGNITUDE_FULL, foldEdgeMagnitudeUnits } from './foldAngle';
 import { remapEdgeExtensionArrays } from './foldEdgeArrays';
 import type { Point } from './geometry';
 
@@ -552,6 +553,39 @@ export interface SegmentEdge {
   b: number;
   /** The effective assignment (see {@link assignmentByKeyOf}); `F` when the fold has none. */
   assignment: string;
+  /**
+   * `|ρ|` in kernel units of a crease that folds short of a full fold
+   * (`foldEdgeMagnitudeUnits`), which a picture of the pattern shades. Absent
+   * on everything else, a classic crease included.
+   */
+  foldMagnitude?: number;
+}
+
+const partialFoldMaps = new WeakMap<FoldDocument, ReadonlyMap<string, number>>();
+
+/**
+ * Each undirected edge's partial fold, for the creases that fold short of a
+ * full fold: the edge's own `edges_foldAngle` read by `foldEdgeMagnitudeUnits`,
+ * from the edge whose assignment is the effective one when several share
+ * endpoints. Built once per fold, as {@link assignmentByKeyOf} is.
+ */
+function partialFoldByKeyOf(fold: FoldDocument): ReadonlyMap<string, number> {
+  const cached = partialFoldMaps.get(fold);
+  if (cached) return cached;
+  const map = new Map<string, number>();
+  const angles = fold.edges_foldAngle;
+  if (angles) {
+    const assignmentByKey = assignmentByKeyOf(fold);
+    const assignments = fold.edges_assignment ?? [];
+    (fold.edges_vertices ?? []).forEach((edge, index) => {
+      const key = edgeKey(edge[0], edge[1]);
+      if (map.has(key) || assignmentByKey.get(key) !== assignments[index]) return;
+      const magnitude = foldEdgeMagnitudeUnits(assignments[index], angles[index]);
+      if (magnitude !== null && magnitude < FOLD_MAGNITUDE_FULL) map.set(key, magnitude);
+    });
+  }
+  partialFoldMaps.set(fold, map);
+  return map;
 }
 
 /**
@@ -564,6 +598,7 @@ export interface SegmentEdge {
 export function segmentEdges(fold: FoldDocument, segments: readonly CpSegment[]): SegmentEdge[] {
   const faces = fold.faces_vertices ?? [];
   const assignmentByKey = assignmentByKeyOf(fold);
+  const partialFoldByKey = partialFoldByKeyOf(fold);
   const seen = new Set<string>();
   const edges: SegmentEdge[] = [];
   for (const segment of segments) {
@@ -576,7 +611,9 @@ export function segmentEdges(fold: FoldDocument, segments: readonly CpSegment[])
         const key = edgeKey(a, b);
         if (seen.has(key)) continue;
         seen.add(key);
-        edges.push({ a, b, assignment: assignmentByKey.get(key) ?? 'F' });
+        const edge: SegmentEdge = { a, b, assignment: assignmentByKey.get(key) ?? 'F' };
+        const foldMagnitude = partialFoldByKey.get(key);
+        edges.push(foldMagnitude === undefined ? edge : { ...edge, foldMagnitude });
       }
     }
   }
@@ -595,6 +632,13 @@ export interface SegmentThumbnailOptions {
   strokes?: Record<string, string>;
   /** Thumbnail background. Transparent when omitted. */
   background?: string;
+  /**
+   * How a crease that folds short of a full fold is inked from its colour:
+   * the export's own fold-angle encoding (`foldAngleCssInks`), so a thumbnail
+   * shades a 3D crease as the exported image does. Without it every crease is
+   * drawn at its full colour.
+   */
+  foldAngleInk?: (ink: string, magnitudeUnits: number) => { stroke: string; opacity: number };
 }
 
 const THUMBNAIL_STROKES: Record<string, { color: string; width: number; dash?: string }> = {
@@ -653,14 +697,17 @@ export function cpThumbnailSvg(
   };
 
   const lines: string[] = [];
-  for (const { a, b, assignment } of segmentEdges(fold, segments)) {
+  for (const { a, b, assignment, foldMagnitude } of segmentEdges(fold, segments)) {
     const style = THUMBNAIL_STROKES[assignment] ?? THUMBNAIL_STROKES.F!;
     const color = options.strokes?.[assignment] ?? options.strokes?.F ?? style.color;
+    const ink =
+      foldMagnitude !== undefined && options.foldAngleInk ? options.foldAngleInk(color, foldMagnitude) : null;
     const [x1, y1] = project(a);
     const [x2, y2] = project(b);
     const dash = style.dash ? ` stroke-dasharray="${style.dash}"` : '';
+    const paint = ink ? `stroke="${ink.stroke}" stroke-opacity="${ink.opacity.toFixed(3)}"` : `stroke="${color}"`;
     lines.push(
-      `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="${style.width}"${dash} stroke-linecap="round"/>`
+      `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" ${paint} stroke-width="${style.width}"${dash} stroke-linecap="round"/>`
     );
   }
 

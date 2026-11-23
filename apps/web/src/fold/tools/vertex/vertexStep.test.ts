@@ -25,6 +25,7 @@ import {
   picksPetalRegion,
   picksSwivelPivot,
   PLACEHOLDER_RAY,
+  squashAimable,
   squashOpeningToFold,
   squashOpenings,
   squashTargetToward,
@@ -32,6 +33,7 @@ import {
   swivelDirectionsOf,
   swivelFoldPick,
   swivelKindsLanding,
+  swivelLinesOf,
   vertexAskedOp,
   vertexChosenOp,
   vertexStepFrom,
@@ -191,6 +193,43 @@ describe('a swivel by its valley and mountain', () => {
       mountain,
       swivel: 'inside',
     });
+  });
+
+  it('with its other end, is asked only once the second swivel’s lines are in too, of the one kind', () => {
+    const byLines = { tool: 'swivel' as const, swivelInput: 'valley-mountain' as const };
+    const otherEnd = { valley: mountain, mountain: valley };
+    const first = { ...byLines, swivelValley: valley, swivelMountain: mountain, swivelPairing: true };
+    expect(vertexAskedOp(intent(first), index)).toBeNull();
+    expect(vertexAskedOp(intent({ ...first, swivelOtherEnd: otherEnd, swivelKind: 'inside' }), index)).toEqual({
+      kind: 'swivel',
+      via: 'valley-mountain',
+      valley,
+      mountain,
+      otherEnd,
+      swivel: 'inside',
+    });
+  });
+
+  it('reads both swivels’ lines from the tools, by the crease they share', () => {
+    const scene = { sceneLine: { n: [1, 0] as [number, number], d: 0.5 } };
+    const taken = { ...valley, ...scene };
+    const held = (shared: 'valley' | 'mountain' | 'behind') => ({
+      valley: taken,
+      mountain: { ...mountain, ...scene },
+      shared,
+      meetingLine: scene.sceneLine,
+    });
+    const other = { line: { via: 'free' as const, through: [[0.6, 0.5], [0.9, 0.2]] as const } };
+    // One swivel: the valley taken, then the mountain located.
+    expect(swivelLinesOf(undefined, valley, undefined)).toEqual({ swivelValley: valley, swivelMountain: undefined });
+    expect(swivelLinesOf(undefined, valley, mountain)).toEqual({ swivelValley: valley, swivelMountain: mountain });
+    // At its other end: the first's two, and the second's once in.
+    const pairing = { swivelValley: valley, swivelMountain: mountain, swivelPairing: true };
+    expect(swivelLinesOf(held('behind'), undefined, other)).toEqual(pairing);
+    expect(swivelLinesOf(held('behind'), other, valley)).toEqual({ ...pairing, swivelOtherEnd: { valley: other, mountain: valley } });
+    expect(swivelLinesOf(held('valley'), valley, other)).toEqual({ ...pairing, swivelOtherEnd: { valley, mountain: other } });
+    // The shared mountain is the second's: its valley, located, is the last line in.
+    expect(swivelLinesOf(held('mountain'), undefined, other)).toEqual({ ...pairing, swivelOtherEnd: { valley: other, mountain } });
   });
 });
 
@@ -620,6 +659,11 @@ describe('the choices a vertex fold takes of what the engine lists', () => {
       opening: 1,
       again: true,
     });
+    // Pockets squashing together land on the hinge alone: a target is never taken, nor asked again.
+    const pockets: FoldVertexAnalysed = { ...analysed, analysis: { ...analysed.analysis, pockets: 2 } as FoldVertexAnalysed['analysis'] };
+    expect(squashAimable(analysed)).toBe(true);
+    expect(squashAimable(pockets)).toBe(false);
+    expect(vertexChosenOp(squash, pockets, { ...NONE, squashTarget: [0, 1] })).toMatchObject({ op: squash, again: false });
     // A two-layer flap opens one way: an opening asked of it is not offered, nor folded.
     expect(squashOpenings(analysed)).toEqual([]);
     expect(vertexChosenOp(squash, analysed, { ...NONE, squashOpening: 2 })).toMatchObject({ op: squash, opening: 1, again: false });
@@ -669,6 +713,23 @@ describe('the choices a vertex fold takes of what the engine lists', () => {
       ...squash,
       target: [0, 1],
       opening: 1,
+    });
+    // Refused between the walls, a closed pocket opens deeper: the opening the engine answered for is
+    // folded unless another that lands is stepped to, always stored, and asked again; no spine target.
+    const closed: FoldVertexAnalysed = {
+      ...walls,
+      analysis: { ...walls.analysis, opening: 3, closed: true } as FoldVertexAnalysed['analysis'],
+      openings: [false, true, true],
+      deeper: true,
+    };
+    expect(squashAimable(closed)).toBe(false);
+    expect(squashOpenings(closed)).toEqual([2, 3]);
+    expect(squashOpeningToFold(null, closed)).toBe(3);
+    expect(squashOpeningToFold(2, closed)).toBe(2);
+    expect(vertexChosenOp(squash, closed, { ...NONE, squashTarget: [0, 1] })).toMatchObject({
+      op: { ...squash, opening: 3 },
+      opening: 3,
+      again: true,
     });
     // An opening stored is replaced, or dropped between the walls.
     expect(withOpening({ ...squash, opening: 1 }, 2, 2)).toEqual(squash);

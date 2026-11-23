@@ -132,6 +132,12 @@ export interface FoldPreview {
    * the refusal offers.
    */
   narrowerSeed?: readonly number[];
+  /**
+   * The flaps (indices into the section's flaps) a reverse fold or crimp
+   * cannot land without, as the engine says: kept picked, their chips and
+   * rows not toggled off.
+   */
+  locked?: readonly number[];
   /** Tier 3 is in flight: nothing to commit yet. */
   landing: boolean;
   /**
@@ -166,6 +172,8 @@ export interface FoldToolWindowView extends FoldToolsView {
   // The crimp's and the tuck's (`tools/crimp/crimpToolWindow`, `tools/tuck/tuckToolWindow`).
   /** How a crimp's second line is located; absent for every other tool. */
   secondLineMode?: FoldSecondLineModeId;
+  /** A pleat whose mountain end moves (Swap, `FoldPleatOp.end`); absent for the valley's, and for every other tool. */
+  pleatEnd?: 'mountain';
   /** The crimp tool's kind and choices, while it previews: a reverse fold's, on both lines. */
   crimp?: FoldReverseWindowView;
   /** The tuck tool's direction, and its targets and orders while it previews. */
@@ -320,7 +328,8 @@ export interface FoldWindowButton {
 
 /**
  * A step of the path to choose, by its key: Unfold to step's step to return
- * to, Repeat's first step. Only the steps the tool can take are offered.
+ * to, Repeat's first step and its last. Only the steps the tool can take are
+ * offered.
  */
 export interface FoldStepChoice {
   label: string;
@@ -368,7 +377,7 @@ export interface FoldToolWindowModel {
   extent?: FoldKindChoice<FoldExtentMode> | null;
   /** Rotate's amount, exact angle and direction (`tools/rotate`); absent for every other tool. */
   rotate?: FoldRotateControls;
-  /** The step a sequence tool acts toward: Unfold to step's target, Repeat's first step. */
+  /** The step a sequence tool acts toward: Unfold to step's target, Repeat's first step (its last is Repeat's own, `repeat.end`). */
   steps?: FoldStepChoice | null;
   /** Repeat's axis, how it is saved, and a layer order to choose (`fold/repeat`); absent for every other tool. */
   repeat?: FoldRepeatControls;
@@ -597,6 +606,7 @@ export function layersSection(
     ),
     added: new Set(preview.added),
     needed: neededFlaps(preview.refused),
+    locked: new Set(preview.locked ?? []),
   };
   const picker = section ? foldSectionPicker(t, section, seed, { interval: preview.interval }) : null;
   const woven = section !== null && isWoven(section);

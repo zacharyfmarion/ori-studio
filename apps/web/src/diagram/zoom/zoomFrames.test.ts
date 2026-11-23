@@ -22,7 +22,7 @@ import { readDiagram, storedSceneJson, writeDiagram } from '../document/diagramF
 import { CAPTURE_PX_PER_UNIT } from '../capture/captureGeometry';
 import { face as sceneFace, sceneOf } from '../../lib/paper/paperScene.fixtures';
 import { cpStep, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { craneStep, imprintCase, turnedCapture } from './zoom.fixtures';
 import { imprintOn } from './zoomCapture';
 import { frameProblems, marksInPicture, marksMoved } from './zoomInvariant.fixtures';

@@ -31,7 +31,7 @@ import {
   scenePicture,
   stepsIn,
 } from '../document/diagramSteps.fixtures';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { face, sceneOf } from '../../lib/paper/paperScene.fixtures';
 import { poseMove } from './annotationCarry';
 import { rightAngleAt, rightAngleDiagonal } from './annotationModel';

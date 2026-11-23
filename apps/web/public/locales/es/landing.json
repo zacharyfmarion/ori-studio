@@ -29,6 +29,27 @@
       "title": "Empaquetado de círculos"
     }
   },
+  "diagram": {
+    "annotate": {
+      "body": "Flechas de valle, monte y doblar y desdoblar, líneas de plegado, divisiones iguales, llamadas, primeros planos y ventanas de rayos X, ajustados al papel mientras los dibujas.",
+      "figureAlt": "Un primer plano de la cabeza de una grulla abierto para anotar, con una flecha de doblar y desdoblar y su línea de plegado junto a las herramientas de anotación.",
+      "title": "Todas las anotaciones que necesitas"
+    },
+    "carouselLabel": "Funciones de Diagrama",
+    "eyebrow": "Diagrama",
+    "lead": "Importa desde los espacios de trabajo de edición, plegado y referencias para crear un diagrama completo de un modelo. La imagen de cada paso se dibuja a partir de tu patrón de pliegues o de un paso de Plegar, así que se mantiene fiel al modelo, y las páginas terminadas se exportan como un PDF listo para imprimir.",
+    "pages": {
+      "body": "Coloca los pasos en páginas A4, A5, B5 o Carta, en cuadrícula o en un flujo serpenteante, con un bloque de título en la primera página. Exporta un PDF o un ZIP con las imágenes de los pasos.",
+      "figureAlt": "Primera página del diagrama de una grulla: un bloque de título con el patrón de pliegues y el modelo terminado sobre los pasos numerados.",
+      "title": "Páginas listas para imprimir"
+    },
+    "pose": {
+      "body": "Muestra un paso como su patrón de pliegues, plegado en plano con las capas separadas o plegado en 3D y girado al ángulo que quieras. Un paso vinculado al modelo avisa cuando el modelo ha cambiado.",
+      "figureAlt": "Una caja plegada en 3D y girada para mostrar su interior, en la vista Pose del Diagrama.",
+      "title": "Imágenes sacadas del propio modelo"
+    },
+    "title": "Del modelo a las instrucciones impresas"
+  },
   "edit": {
     "angles": {
       "body": "Dibuja, simula y resuelve modelos de origami con pliegues que no quedan planos.",
@@ -56,6 +77,12 @@
     "title": "Un editor que te sigue el ritmo"
   },
   "figureMissing": "Aquí va una captura",
+  "fold": {
+    "eyebrow": "Plegar",
+    "figureAlt": "El espacio de trabajo Plegar: una tira de pasos de plegado sobre el papel plegado y su patrón de pliegues.",
+    "lead": "Pliega un modelo como lo harías a mano, paso a paso a partir de una hoja de papel plana. Importa desde el espacio de trabajo de edición y exporta a él los pasos que necesiten un colapso complicado. Cuando termines, ¡importa la secuencia completa al espacio de trabajo de diagrama para obtener diagramas completos y maquetados!",
+    "title": "Pliega una hoja como lo harías a mano"
+  },
   "formats": {
     "a11yBoth": "abre y exporta",
     "a11yExport": "solo exporta",
@@ -81,7 +108,7 @@
   "what": {
     "eyebrow": "Qué es",
     "figureAlt": "El espacio de trabajo de Ori Studio: un patrón de pliegues en el lienzo, con la barra de herramientas y los paneles del inspector alrededor.",
-    "lead": "Esboza una base, dibuja el patrón de pliegues y dóblalo para ver si funciona: todo en un mismo lugar y sin cuenta. Ábrelo en una pestaña del navegador o instala la aplicación de escritorio.",
+    "lead": "Esboza una base, dibuja el patrón de pliegues, dóblalo para ver si funciona y conviértelo en un diagrama para que otros lo plieguen: todo en un mismo lugar y sin cuenta. Ábrelo en una pestaña del navegador o instala la aplicación de escritorio.",
     "title": "Un espacio de trabajo libre y de código abierto para el diseño de origami"
   }
 }

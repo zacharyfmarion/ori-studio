@@ -177,6 +177,47 @@ async function startServer(port = 0) {
   };
 }
 
+/**
+ * Take api.github.com away from every page, the way a device with no network has it.
+ *
+ * Killing the server takes the app's own origin offline and nothing else, and the
+ * editor asks GitHub for the newest release on every load (`fetchDesktopRelease`,
+ * `apps/web/src/platform/desktopRelease.ts`). Shared CI runners exhaust GitHub's
+ * unauthenticated hourly limit, the API answers 403, WebKit logs that as a failed
+ * load, and `offline start loads every resource it asks for` fails over a request
+ * the worker never handles — it is cross-origin, so `routeRequest` bypasses it.
+ *
+ * Refused rather than stubbed. A stub would hand the offline relaunch a release it
+ * could not have fetched; refusing gives the app the rejection WebKit gives with no
+ * network (`TypeError: Load failed`), so offline runs the app's real fallback,
+ * which keeps the releases-page link. The rejection logs nothing, so the console
+ * check counts only what the cache owes: any same-origin miss still fails it.
+ *
+ * An init script, not `context.route`, because a route does not reach these
+ * requests. Measured: a route answering 403 saw the lookup on the uncontrolled cold
+ * load and never on a controlled one — the reload's lookup went to the real API and
+ * got a 200 — and every load after the cold one is controlled, the offline
+ * relaunch included. A route also turns off WebKit's resource caching for the page
+ * (`Network.setResourceCachingDisabled`), and this lane's checks are about caching.
+ */
+const GITHUB_API = 'https://api.github.com/';
+
+async function refuseGitHub(context) {
+  await context.addInitScript((prefix) => {
+    const fetchFromNetwork = window.fetch;
+    window.__githubRefused = 0;
+    window.fetch = function fetch(input, init) {
+      if (String(input instanceof Request ? input.url : input).startsWith(prefix)) {
+        window.__githubRefused += 1;
+        return Promise.reject(new TypeError('Load failed'));
+      }
+      return fetchFromNetwork(input, init);
+    };
+  }, GITHUB_API);
+}
+
+const githubRefused = (page) => page.evaluate(() => window.__githubRefused ?? 0).catch(() => 0);
+
 const results = [];
 function check(name, ok, detail = '') {
   results.push({ name, ok, detail });
@@ -284,6 +325,7 @@ async function main() {
   let server = await startServer();
   const browser = await webkit.launch();
   const context = await browser.newContext();
+  await refuseGitHub(context);
   const page = await context.newPage();
 
   try {
@@ -573,10 +615,12 @@ async function main() {
       'offline start runs the editor, not just the shell',
       await relaunch.evaluate(() => !!document.querySelector('canvas'))
     );
+    const refusedOffline = await githubRefused(relaunch);
     check(
       'offline start loads every resource it asks for',
       offlineErrors.length === 0,
-      offlineErrors.slice(0, 3).join(' | ')
+      offlineErrors.slice(0, 3).join(' | ') ||
+        `GitHub release lookup refused ${refusedOffline}×, as with no network`
     );
 
     // A share link inherently needs the KV read, so offline it has to fail.
@@ -596,6 +640,7 @@ async function main() {
     // nothing cached above carries over.
     server = await startServer(Number(port));
     const readerContext = await browser.newContext();
+    await refuseGitHub(readerContext);
     try {
       const reader = await readerContext.newPage();
       // `/`, not `/welcome`: this server has no directory indexes; the router redirects.

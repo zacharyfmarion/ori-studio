@@ -276,6 +276,16 @@ describe('a vertex fold’s window while it previews', () => {
     expect(aimed?.footer?.commit).toMatchObject({ label: 'Squash fold', disabled: false });
   });
 
+  it('offers no spine target for pockets squashing together, which never land one', () => {
+    const calls = verbs();
+    const model = foldToolWindow(t, view(vertex({ spineFixed: true }), { preview: preview() }), calls, mouse);
+    // The direction and the hinge only: nowhere else for the spine to land.
+    expect(model?.vertex?.target).toBeNull();
+    expect(model?.meta).toBe('2 settings');
+    expect(model?.instructions.items).toEqual(['Press Enter, or click Squash fold, to fold.']);
+    expect(model?.footer?.commit).toMatchObject({ label: 'Squash fold', disabled: false });
+  });
+
   it('offers where a squash of several plies opens, among the openings that land, named from the direction’s side', () => {
     const calls = verbs();
     const plies = vertex({ squash: { layers: 4, openings: [1, 2, 3], opening: 2 } });
@@ -303,6 +313,20 @@ describe('a vertex fold’s window while it previews', () => {
     expect(two?.vertex?.opening).toBeNull();
     const clicking = foldToolWindow(t, view(plies, { preview: null }), calls, mouse);
     expect(clicking?.vertex?.opening ?? null).toBeNull();
+    // Refused between the walls, a closed pocket opens deeper: shown even when one opening lands, nothing to step.
+    const deeper = foldToolWindow(
+      t,
+      view(vertex({ spineFixed: true, squash: { layers: 4, openings: [3], opening: 3, deeper: true } }), { preview: preview() }),
+      calls,
+      mouse
+    );
+    expect(deeper?.vertex?.opening).toMatchObject({
+      label: 'Opens under',
+      value: 'Top 3 of 4',
+      previous: { disabled: true },
+      next: { disabled: true },
+    });
+    expect(deeper?.vertex?.target).toBeNull();
   });
 
   it('offers layers but no separate fourth-crease selector for a rabbit ear', () => {
@@ -503,7 +527,9 @@ describe('a vertex fold’s window while it previews', () => {
     });
     expect(model?.footer?.commit.disabled).toBe(true);
     // A refusal with a fix to take says so first.
-    const unprecreased = refused({ code: 'petal_not_precreased', faces: [], missing: 'line' });
+    const unprecreased = refused({ code: 'petal_not_precreased', faces: [], missing: 'line' }, [
+      { fix: 'precrease_first', line: { n: [1, 0], d: 0.5 } },
+    ]);
     const petal = foldToolWindow(
       t,
       view(vertex({ tool: 'petal', described: false, known: false }), { preview: preview({ refused: unprecreased }) }),
@@ -669,15 +695,24 @@ describe('a vertex fold’s refusals', () => {
     target.actions[0]?.run();
     expect(calls.resetSquashTarget).toHaveBeenCalledTimes(1);
 
+    // A hinge the fold cannot crease: precreased first only where the engine says that lands.
     const line = { code: 'petal_not_precreased' as const, faces: [], missing: 'line' as const };
-    const crease = foldRefusalNotice(t, refused(line), vertexContext('petal'), calls);
+    const precreaseFirst = [{ fix: 'precrease_first' as const, line: { n: [1, 0] as const, d: 0.5 } }];
+    const crease = foldRefusalNotice(t, refused(line, precreaseFirst), vertexContext('petal'), calls);
     expect(crease.title).toBe('Precrease the hinge first');
     expect(crease.text).toMatch(/^The hinge crease does not run through every layer/);
     expect(crease.actions.map((action) => action.label)).toEqual(['Precrease the hinge first']);
-    const ends = foldRefusalNotice(t, refused(line), vertexContext('petal', { hinge: 'points' }), calls);
+    const ends = foldRefusalNotice(t, refused(line, precreaseFirst), vertexContext('petal', { hinge: 'points' }), calls);
     expect(ends.text).toMatch(/^The hinge crosses paper of the second layer/);
     ends.actions[0]?.run();
     expect(calls.precreaseLine).toHaveBeenCalledTimes(1);
+    // Where it would not land, the notice says so and offers no precrease.
+    for (const hinge of ['crease', 'points'] as const) {
+      const none = foldRefusalNotice(t, refused(line), vertexContext('petal', { hinge }), calls);
+      expect(none.title).toBe('The hinge cannot fold here');
+      expect(none.text).toMatch(/would not let it petal fold either/);
+      expect(none.actions).toEqual([]);
+    }
 
     const kiteBody = { code: 'petal_not_precreased' as const, faces: [1], missing: 'kite' as const };
     const kite = foldRefusalNotice(t, refused(kiteBody), vertexContext('petal', { hinge: 'crease' }), calls);
@@ -690,7 +725,8 @@ describe('a vertex fold’s refusals', () => {
     const byEnds = foldRefusalNotice(t, refused(kiteBody), vertexContext('petal', { hinge: 'points' }), calls);
     expect(byEnds.actions.map((action) => action.label)).toEqual(['Precrease the kite']);
     // Read-only: shown, none taken.
-    const locked = foldRefusalNotice(t, refused(line), { ...vertexContext('petal'), readOnly: true }, calls);
+    const locked = foldRefusalNotice(t, refused(line, precreaseFirst), { ...vertexContext('petal'), readOnly: true }, calls);
+    expect(locked.actions.length).toBeGreaterThan(0);
     expect(locked.actions.every((action) => action.disabled)).toBe(true);
   });
 
@@ -787,6 +823,59 @@ describe('a swivel by its valley and mountain', () => {
     expect(previewed.vertex?.direction).toBeNull();
     expect(previewed.vertex?.kind?.options.map((option) => option.disabled)).toEqual([false, false]);
     expect(previewed.vertex?.lineBy).toBeNull();
+  });
+
+  describe('and its other end', () => {
+    const previewed = { ...valleyStep, lineTaken: true, onFold: true, described: true, known: true, swivelKind: 'open' as const };
+
+    it('offers the other end once previewed, where a crease runs on to another folded edge', () => {
+      const actions = { ...verbs(), swivelOtherEnd: vi.fn() };
+      const window = foldToolWindow(t, view({ ...previewed, otherEnd: { locating: false, shared: 'behind' } }, { preview: preview() }), actions, mouse)!;
+      expect(window.vertex?.otherEnd).toMatchObject({
+        label: 'Other end',
+        action: 'Swivel there too',
+        note: 'The crease behind runs on to another folded edge.',
+        disabled: false,
+      });
+      window.vertex!.otherEnd!.run();
+      expect(actions.swivelOtherEnd).toHaveBeenCalledOnce();
+      // A single swivel with nothing running on, and every other fold: no row.
+      expect(foldToolWindow(t, view(previewed, { preview: preview() }), actions, mouse)!.vertex?.otherEnd).toBeNull();
+      // Not before it is previewed.
+      const locating = foldToolWindow(t, view({ ...valleyStep, otherEnd: { locating: false, shared: 'behind' } }, { lineMode: 'crease' }), actions, mouse)!;
+      expect(locating.vertex?.otherEnd ?? null).toBeNull();
+    });
+
+    it('locates the other end’s mountain from the shared valley, taken for it', () => {
+      const shared = { ...valleyStep, lineTaken: true, otherEnd: { locating: true, shared: 'valley' as const } };
+      const window = foldToolWindow(t, view(shared, { lineMode: 'axiom-1' }), verbs(), mouse)!;
+      expect(window.lineMode).toMatchObject({ label: 'Mountain line' });
+      expect(window.instructions.intro).toBe('The other end: pick its mountain line, from where the valley meets the other folded edge.');
+      expect(window.instructions.items.at(-1)).toBe('Press Enter to fold.');
+      expect(window.vertex?.otherEnd ?? null).toBeNull();
+    });
+
+    it('locates the other end’s valley, then its mountain, from the crease behind', () => {
+      const behind = { ...valleyStep, otherEnd: { locating: true, shared: 'behind' as const } };
+      const valley = foldToolWindow(t, view(behind, { picks: 2, lineMode: 'axiom-1', preview: preview() }), verbs(), mouse)!;
+      expect(valley.phase).toBe('locate');
+      expect(valley.lineMode).toMatchObject({ label: 'Valley line' });
+      expect(valley.instructions.intro).toBe(
+        'The other end: pick its valley line, on the layer you see, from where the crease behind meets the other folded edge.'
+      );
+      expect(valley.footer?.commit).toMatchObject({ label: 'Use as the valley' });
+      const mountain = foldToolWindow(t, view({ ...behind, lineTaken: true }, { lineMode: 'axiom-1' }), verbs(), mouse)!;
+      expect(mountain.instructions.intro).toBe('The other end: pick its mountain line, from the same point.');
+    });
+
+    it('takes the other end’s valley last where the mountain is the crease they share: it folds', () => {
+      const mountainShared = { ...valleyStep, described: true, known: true, otherEnd: { locating: true, shared: 'mountain' as const } };
+      const window = foldToolWindow(t, view(mountainShared, { picks: 2, lineMode: 'axiom-1', preview: preview() }), verbs(), mouse)!;
+      expect(window.phase).toBe('preview');
+      expect(window.lineMode).toMatchObject({ label: 'Valley line' });
+      expect(window.instructions.intro).toBe('The other end: pick its valley line, from where the mountain meets the other folded edge.');
+      expect(window.footer?.commit.label).toBe('Swivel fold');
+    });
   });
 });
 

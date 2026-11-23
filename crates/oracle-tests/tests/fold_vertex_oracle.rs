@@ -10,7 +10,8 @@
 //!   `tests/vertex/cases.rs`: the preliminary base by the diagonal route (and
 //!   in mirror image) and the waterbomb base by the midline route, each
 //!   squash; a flap whose walls are two plies each, opened between them and
-//!   off them; the bird base's two petal folds, both ways, over precreases and
+//!   off them; two pockets on one lower layer squashed together; the bird
+//!   base's two petal folds, both ways, over precreases and
 //!   with H named by its two ends and creased by the folds (the kites too,
 //!   or precreased), and each petal fold with H through two points along
 //!   the flap that lands; every rabbit ear's
@@ -123,6 +124,58 @@ fn named() -> Vec<Landed> {
                 format!("two-ply walls opening {opening:?} c{k}"),
                 folded.state,
             );
+        }
+    }
+    // Two pockets on one lower layer, squashed together from either door,
+    // and in mirror image.
+    for mirror in [false, true] {
+        let pockets = cases::two_pockets(mirror);
+        for at in cases::DOORS {
+            let op = cases::squash_op(&pockets, cases::m(mirror, at), None);
+            for (k, folded) in cases::every(pockets.squash(&op, &VertexChoices::default()))
+                .into_iter()
+                .enumerate()
+            {
+                push(
+                    format!("two pockets {at:?} mirrored {mirror} c{k}"),
+                    folded.state,
+                );
+            }
+        }
+    }
+    // A closed pocket: the paper hat opened between its walls from either
+    // half, each order; the triangle it then makes, valley and mountain.
+    let hat = cases::paper_hat();
+    for (name, at) in [("right", cases::HAT_RIGHT), ("left", cases::HAT_LEFT)] {
+        let op = oristudio_fold::Squash {
+            opening: Some(3),
+            ..cases::squash_op(&hat, at, None)
+        };
+        for (k, folded) in cases::every(hat.squash(&op, &VertexChoices::default()))
+            .into_iter()
+            .enumerate()
+        {
+            push(format!("closed hat {name} c{k}"), folded.state);
+        }
+    }
+    let triangle = cases::hat_triangle();
+    for direction in [Direction::Valley, Direction::Mountain] {
+        let flap = match direction {
+            Direction::Valley => cases::seen_top(&triangle, cases::TRIANGLE_HALF),
+            Direction::Mountain => cases::seen_bottom(&triangle, cases::TRIANGLE_HALF),
+        };
+        let op = oristudio_fold::Squash {
+            flap,
+            target: None,
+            direction,
+            hinge: None,
+            opening: Some(4),
+        };
+        for (k, folded) in cases::every(triangle.squash(&op, &VertexChoices::default()))
+            .into_iter()
+            .enumerate()
+        {
+            push(format!("closed triangle {direction:?} c{k}"), folded.state);
         }
     }
     // H through two points anywhere along the flap: each that lands.

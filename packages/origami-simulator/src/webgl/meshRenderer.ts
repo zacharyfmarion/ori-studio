@@ -20,6 +20,7 @@ import {
   auxEndsOnOutline,
   edgeBoundaryFlags,
 } from '../edgeBoundary.js';
+import type { AuxOverlay, VirtualVertices } from '../auxOverlay.js';
 
 export interface MeshTopology {
   /** Triangle vertex indices, 3 per face. */
@@ -38,6 +39,18 @@ export interface MeshTopology {
    * edge shares the vertex, for erode — see `EdgeBoundaryTopology.auxEnds`.
    */
   auxEnds?: Uint8Array;
+  /**
+   * Aux lines drawn on the paper (`auxOverlay`): their ends, placed in
+   * triangles. Edge indices at or past `virtual.start` name these rather than
+   * a node, so a renderer places them from the nodes' positions
+   * (`withVirtualVertices`). Absent on a mesh with none.
+   */
+  virtual?: VirtualVertices;
+  /**
+   * Per edge, the triangle a drawn-on aux line lies on — one of them, for a
+   * line across several of one face's; -1 for the mesh's own edges.
+   */
+  edgeTriangles?: Int32Array;
   /** Square texture edge length the solver packs vertices into. */
   textureDim: number;
 }
@@ -118,6 +131,8 @@ export function packCreaseDash(dash: CreaseDash | undefined): {
 }
 
 export interface RenderSettings {
+  /** Folded display deformation only; simulation displacements default to one. */
+  displacementScale?: number;
   frontColor: [number, number, number];
   backColor: [number, number, number];
   /** Crease colours by assignment; mountain/valley must differ to be legible. */
@@ -409,6 +424,10 @@ export function meshTopologyFor(
      * fold stated (`auxEndsOnOutline`), so erode finds them.
      */
     originalPositions?: Float32Array;
+    /** The mesh's node count: where the drawn-on lines' ends are numbered from. */
+    vertexCount?: number;
+    /** Aux lines drawn on the paper, appended as aux creases on ends of their own. */
+    auxOverlay?: AuxOverlay;
   },
   /**
    * The solver's texture edge, which only the GL path reads — it is how the
@@ -436,7 +455,37 @@ export function meshTopologyFor(
   const auxEnds =
     flat && auxEndsOnOutline(topology, flat, AUX_END_ON_OUTLINE_RELATIVE * sheetExtent(flat));
   if (auxEnds) topology.auxEnds = auxEnds;
-  return topology;
+  const start = prepared.vertexCount ?? (flat ? flat.length / 3 : 0);
+  return prepared.auxOverlay ? withAuxPieces(topology, prepared.auxOverlay, start) : topology;
+}
+
+/**
+ * The topology with each cut of the overlay appended as an aux crease between
+ * two virtual vertices, numbered from `start`, its erode ends stated and its
+ * triangle recorded.
+ */
+function withAuxPieces(topology: MeshTopology, overlay: AuxOverlay, start: number): MeshTopology {
+  const meshEdges = topology.edgeAssignments.length;
+  const pieces = overlay.triangles.length;
+  const edgeIndices = new Uint32Array((meshEdges + pieces) * 2);
+  edgeIndices.set(topology.edgeIndices);
+  for (let i = 0; i < pieces * 2; i += 1) edgeIndices[meshEdges * 2 + i] = start + overlay.pieces[i]!;
+  const edgeAssignments = new Uint8Array(meshEdges + pieces);
+  edgeAssignments.set(topology.edgeAssignments);
+  edgeAssignments.fill(EDGE_CODE.aux, meshEdges);
+  const auxEnds = new Uint8Array(meshEdges + pieces);
+  if (topology.auxEnds) auxEnds.set(topology.auxEnds);
+  auxEnds.set(overlay.ends, meshEdges);
+  const edgeTriangles = new Int32Array(meshEdges + pieces).fill(-1);
+  edgeTriangles.set(overlay.triangles, meshEdges);
+  return {
+    ...topology,
+    edgeIndices,
+    edgeAssignments,
+    auxEnds,
+    edgeTriangles,
+    virtual: { start, nodes: overlay.nodes, weights: overlay.weights },
+  };
 }
 
 // Interleaved edge-vertex layout: [this, a, b, side, assignment, shrink].
@@ -540,6 +589,8 @@ uniform float u_scale;
 uniform vec2 u_viewport;
 uniform float u_depthRange;
 uniform float u_camDist;
+uniform float u_perspectiveDepth;
+uniform float u_displacementScale;
 
 vec3 toView(vec3 world){
   return u_view * (world - u_center);
@@ -556,6 +607,11 @@ vec2 toNdc(vec3 view){
 }
 
 float toNdcDepth(float depth){
+  if (u_perspectiveDepth > 0.5) {
+    float near = u_camDist * 0.1;
+    float far = u_camDist + 2.0 * u_depthRange;
+    return (far + near) / (far - near) - 2.0 * far * near / ((far - near) * max(u_camDist - depth, 0.001));
+  }
   return clamp(-depth/u_depthRange, -1.0, 1.0);
 }
 `;
@@ -572,7 +628,7 @@ out float v_strain;
 
 vec3 fetchPosition(int index){
   ivec2 texel = ivec2(index % u_textureDim, index / u_textureDim);
-  return texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
+  return u_displacementScale * texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
 }
 
 void main(){
@@ -583,6 +639,12 @@ void main(){
   vec3 view = toView(fetchPosition(gl_VertexID));
   v_view = view;
   gl_Position = vec4(toNdc(view), toNdcDepth(view.z), 1.0);
+  if (u_perspectiveDepth > 0.5) {
+    float w = u_camDist - view.z;
+    float near = u_camDist * 0.1;
+    float far = u_camDist + 2.0 * u_depthRange;
+    gl_Position = vec4(view.xy * u_camDist * u_scale / (u_viewport * 0.5), (far + near) / (far - near) * w - 2.0 * far * near / (far - near), w);
+  }
 }`;
 
 const FACE_FRAG = `#version 300 es
@@ -650,6 +712,11 @@ in float a_shrink;     // erode flags: bit 1 = end A retreats, bit 2 = end B
 uniform sampler2D u_lastPosition;
 uniform sampler2D u_originalPosition;
 uniform int u_textureDim;
+// Vertices past the nodes: the ends of aux lines drawn on the paper. Two texels
+// each, the triangle's three nodes and then their weights.
+uniform sampler2D u_virtual;
+uniform int u_virtualStart;
+uniform int u_virtualDim;
 ${VIEW_GLSL}
 // Half of each kind's ribbon width, indexed by assignment code as the dash
 // arrays are: every line is drawn at its own pen's width.
@@ -682,9 +749,25 @@ float dashPhase(int kind, float len){
   return mod(u_dashRuns[base] * 0.5 - len * 0.5, total);
 }
 
-vec3 fetchPosition(int index){
+vec3 nodePosition(int index){
   ivec2 texel = ivec2(index % u_textureDim, index / u_textureDim);
-  return texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
+  return u_displacementScale * texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
+}
+
+ivec2 virtualTexel(int at){
+  return ivec2(at % u_virtualDim, at / u_virtualDim);
+}
+
+// A node, or a point of a triangle placed by its weights, which ride the
+// triangle wherever the solver moves its nodes.
+vec3 fetchPosition(int index){
+  if (index < u_virtualStart) return nodePosition(index);
+  int at = (index - u_virtualStart) * 2;
+  vec3 nodes = texelFetch(u_virtual, virtualTexel(at), 0).xyz;
+  vec3 weights = texelFetch(u_virtual, virtualTexel(at + 1), 0).xyz;
+  return weights.x * nodePosition(int(nodes.x + 0.5)) +
+    weights.y * nodePosition(int(nodes.y + 0.5)) +
+    weights.z * nodePosition(int(nodes.z + 0.5));
 }
 
 // Shares toNdc with the face pass rather than restating it, so creases cannot
@@ -709,11 +792,29 @@ void main(){
   int indexA = int(a_a + 0.5);
   int indexB = int(a_b + 0.5);
   bool atA = int(a_this + 0.5) == indexA;
+  vec3 viewA = toView(fetchPosition(indexA));
+  vec3 viewB = toView(fetchPosition(indexB));
+  if (u_perspectiveDepth > 0.5) {
+    float lo = 0.0;
+    float hi = 1.0;
+    float near = u_camDist * 0.1;
+    float far = u_camDist + 2.0 * u_depthRange;
+    for (int bound = 0; bound < 2; ++bound) {
+      float da = bound == 0 ? u_camDist - viewA.z - near : far - u_camDist + viewA.z;
+      float db = bound == 0 ? u_camDist - viewB.z - near : far - u_camDist + viewB.z;
+      if (da < 0.0 && db < 0.0) { gl_Position = vec4(0.0,0.0,2.0,1.0); v_alongPx = 0.0; return; }
+      if (da < 0.0) lo = max(lo, da / (da-db));
+      else if (db < 0.0) hi = min(hi, da / (da-db));
+    }
+    vec3 originalA = viewA;
+    viewA = mix(originalA, viewB, lo);
+    viewB = mix(originalA, viewB, hi);
+  }
   // Pixel space, so the ribbon has constant on-screen width regardless of
   // aspect ratio, and so the erode is measured as the painter measures it.
   vec2 halfViewport = u_viewport * 0.5;
-  vec2 pxA = projectNdc(indexA) * halfViewport;
-  vec2 pxB = projectNdc(indexB) * halfViewport;
+  vec2 pxA = toNdc(viewA) * halfViewport;
+  vec2 pxB = toNdc(viewB) * halfViewport;
   vec2 dirPx = pxB - pxA;
   float len = length(dirPx);
   // Erode (D8), as the vector painter's erodeSegment: a flagged end is pulled
@@ -751,7 +852,7 @@ void main(){
   // and, where the model has coplanar layers, on top of *that* face and nothing
   // behind it. See RenderSettings.creaseDepthBias. An eroded end takes the
   // depth of the point it moved to, interpolated as the rasterizer would.
-  float depth = mix(projectDepth(indexA), projectDepth(indexB), t) - u_depthBias;
+  float depth = mix(toNdcDepth(viewA.z), toNdcDepth(viewB.z), t) - u_depthBias;
   gl_Position = vec4((pxThis + offsetPx) / halfViewport, depth, 1.0);
 }`;
 
@@ -826,6 +927,8 @@ void main(){
  * `faceRange` the first would already have painted the faces the second wants.
  */
 export interface MeshDrawOptions {
+  /** Scoped coverage/mask pass. Applied after material state, reset after drawing. */
+  configureDrawState?: (gl: WebGL2RenderingContext) => void;
   /**
    * Clear colour and depth before drawing. Pass `false` for every pass after the
    * first of a multi-pass frame.
@@ -888,6 +991,8 @@ export const DEFAULT_HIGHLIGHT_COLOR: readonly [number, number, number] = [0.38,
 export const DEFAULT_HIGHLIGHT_MIX = 0.45;
 
 export interface MeshRendererOptions {
+  /** True perspective depth and interpolation for deformable spatial paper. */
+  perspectiveDepth?: boolean;
   /**
    * The unfolded sheet's extent in the mesh's world units (`sheetExtent`), the
    * unit {@link RenderSettings.erode} is a fraction of. Absent or 0, erode
@@ -908,9 +1013,12 @@ export class MeshRenderer {
   private readonly edgeVertexCount: number;
   /** Ribbon vertex offset per source edge — see {@link buildEdgeQuads}. */
   private readonly edgeVertexStart: Uint32Array;
+  /** The drawn-on aux lines' ends (`MeshTopology.virtual`), or null for none. */
+  private readonly virtual: { texture: WebGLTexture; start: number; width: number } | null;
   private readonly textureDim: number;
   /** See {@link MeshRendererOptions.sheet}. */
   private readonly sheet: number;
+  private readonly perspectiveDepth: boolean;
   private readonly faceUniforms: Map<string, WebGLUniformLocation | null> = new Map();
   private readonly edgeUniforms: Map<string, WebGLUniformLocation | null> = new Map();
   /** The mesh's triangles, kept to cut highlight subsets from. */
@@ -919,6 +1027,39 @@ export class MeshRenderer {
   private highlightVao: WebGLVertexArrayObject | null = null;
   /** Indices (three per triangle) in the highlight buffer. */
   private highlightCount = 0;
+  /** Scoped to one synchronous frame; nothing survives another context user. */
+  private drawBatch: {
+    bound?: 'face' | 'edge';
+    face?: { camera: CameraUniforms; settings: RenderSettings };
+    edge?: {
+      camera: CameraUniforms;
+      settings: RenderSettings;
+      inks: ReturnType<typeof rasterCreaseInk>[];
+    };
+  } | null = null;
+
+  /** Reuse pipeline uniforms across range draws of one immutable mesh/frame.
+   * The callback may call render and change fixed-function coverage/depth state,
+   * but must not change programs, VAOs or textures itself. Camera/settings
+   * objects must stay immutable within this scope. Ordinary renders never cache.
+   */
+  withDrawBatch(draw: () => void): void {
+    if (this.drawBatch) throw new Error('Nested mesh draw batch');
+    this.drawBatch = {};
+    try {
+      draw();
+    } finally {
+      this.drawBatch = null;
+      const gl = this.gl;
+      gl.bindVertexArray(null);
+      gl.colorMask(true, true, true, true);
+      gl.depthMask(true);
+      gl.enable(gl.DEPTH_TEST);
+      gl.disable(gl.STENCIL_TEST);
+      gl.stencilMask(0xff);
+      gl.disable(gl.BLEND);
+    }
+  }
 
   constructor(
     private readonly core: GlCore,
@@ -929,6 +1070,7 @@ export class MeshRenderer {
     this.gl = gl;
     this.textureDim = topology.textureDim;
     this.sheet = Math.max(0, options.sheet ?? 0);
+    this.perspectiveDepth = options.perspectiveDepth ?? false;
     this.faceCount = topology.faceIndices.length;
     this.faceIndices = topology.faceIndices;
 
@@ -962,6 +1104,7 @@ export class MeshRenderer {
     }
 
     gl.bindVertexArray(null);
+    this.virtual = uploadVirtualVertices(gl, topology.virtual);
   }
 
   /**
@@ -1008,6 +1151,10 @@ export class MeshRenderer {
     // simulation window and sized to the largest of them, so each one draws into
     // the corner it needs.
     gl.viewport(0, 0, camera.width, camera.height);
+    gl.colorMask(true, true, true, true);
+    gl.disable(gl.STENCIL_TEST);
+    gl.stencilMask(0xff);
+    gl.depthMask(true);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     if (options.clear ?? true) {
@@ -1061,33 +1208,43 @@ export class MeshRenderer {
         gl.disable(gl.BLEND);
         gl.depthMask(true);
       }
-      gl.bindVertexArray(this.faceVao);
-      gl.useProgram(this.faceProgram);
-      this.bindCommon(this.faceProgram, this.faceUniforms, camera);
-      this.setVec3(this.faceProgram, this.faceUniforms, 'u_frontColor', settings.frontColor);
-      this.setVec3(this.faceProgram, this.faceUniforms, 'u_backColor', settings.backColor);
-      this.setVec3(this.faceProgram, this.faceUniforms, 'u_lightDir', settings.lightDir);
-      this.setFloat(this.faceProgram, this.faceUniforms, 'u_lighting', settings.lighting ? 1 : 0);
-      this.setFloat(this.faceProgram, this.faceUniforms, 'u_alpha', settings.faceAlpha);
-      this.setFloat(
-        this.faceProgram,
-        this.faceUniforms,
-        'u_strainMode',
-        settings.colorMode === 'strain' ? 1 : 0
-      );
-      this.setFloat(
-        this.faceProgram,
-        this.faceUniforms,
-        'u_strainClip',
-        settings.strainClip ?? 5
-      );
-      this.setFloat(this.faceProgram, this.faceUniforms, 'u_tintMix', 0);
+      const batch = this.drawBatch;
+      if (batch?.bound !== 'face') {
+        gl.bindVertexArray(this.faceVao);
+        gl.useProgram(this.faceProgram);
+        if (batch) batch.bound = 'face';
+      }
+      if (batch?.face?.camera !== camera || batch.face.settings !== settings) {
+        this.bindCommon(this.faceProgram, this.faceUniforms, camera);
+        this.setFloat(this.faceProgram, this.faceUniforms, 'u_displacementScale', settings.displacementScale ?? 1);
+        this.setVec3(this.faceProgram, this.faceUniforms, 'u_frontColor', settings.frontColor);
+        this.setVec3(this.faceProgram, this.faceUniforms, 'u_backColor', settings.backColor);
+        this.setVec3(this.faceProgram, this.faceUniforms, 'u_lightDir', settings.lightDir);
+        this.setFloat(this.faceProgram, this.faceUniforms, 'u_lighting', settings.lighting ? 1 : 0);
+        this.setFloat(this.faceProgram, this.faceUniforms, 'u_alpha', settings.faceAlpha);
+        this.setFloat(
+          this.faceProgram,
+          this.faceUniforms,
+          'u_strainMode',
+          settings.colorMode === 'strain' ? 1 : 0
+        );
+        this.setFloat(
+          this.faceProgram,
+          this.faceUniforms,
+          'u_strainClip',
+          settings.strainClip ?? 5
+        );
+        this.setFloat(this.faceProgram, this.faceUniforms, 'u_tintMix', 0);
+        if (batch) batch.face = { camera, settings };
+      }
+
       const first = clampRange(options.faceRange?.start ?? 0, this.faceCount);
       const count = clampRange(
         options.faceRange?.count ?? this.faceCount - first,
         this.faceCount - first
       );
       // UNSIGNED_INT indices, so the byte offset is four per index.
+      options.configureDrawState?.(gl);
       if (count > 0) gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_INT, first * 4);
 
       // The same triangles through the same shader, so they land at the same
@@ -1095,6 +1252,11 @@ export class MeshRenderer {
       // hidden. Before the creases, which draw on top of the tint.
       if (options.highlight && this.highlightVao && this.highlightCount > 0) {
         gl.bindVertexArray(this.highlightVao);
+        // Highlight changes the bound VAO and tint uniforms.
+        if (batch) {
+          batch.bound = undefined;
+          batch.face = undefined;
+        }
         this.setVec3(
           this.faceProgram,
           this.faceUniforms,
@@ -1115,7 +1277,10 @@ export class MeshRenderer {
       // Each kind at its own pen's width in device pixels, by assignment code,
       // through the same frame shrink and raster floor, so an inline window
       // thins all four alike. camera.width is device px.
-      const inks = creaseWidthsPx(settings).map((widthPx) =>
+      const batch = this.drawBatch;
+      const cached = batch?.edge;
+      const reuse = cached?.camera === camera && cached.settings === settings;
+      const inks = reuse ? cached.inks : creaseWidthsPx(settings).map((widthPx) =>
         rasterCreaseInk(widthPx, settings, camera.width, camera.height)
       );
       const showAux = settings.showAux ?? false;
@@ -1135,61 +1300,74 @@ export class MeshRenderer {
         gl.disable(gl.BLEND);
         gl.depthMask(settings.creaseWritesDepth ?? true);
       }
-      gl.bindVertexArray(this.edgeVao);
-      gl.useProgram(this.edgeProgram);
-      this.bindCommon(this.edgeProgram, this.edgeUniforms, camera);
-      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
-      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
-      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
-      this.setVec3(
-        this.edgeProgram,
-        this.edgeUniforms,
-        'u_auxColor',
-        settings.auxColor ?? settings.borderColor
-      );
-      gl.uniform1fv(
-        this.location(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx'),
-        Float32Array.from(inks, (ink) => ink.widthPx * 0.5)
-      );
-      gl.uniform1fv(
-        this.location(this.edgeProgram, this.edgeUniforms, 'u_creaseAlpha'),
-        Float32Array.from(inks, (ink) => ink.alpha)
-      );
-      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_showAux', showAux ? 1 : 0);
-      // The painter's `erode × sheet` in this frame's pixels: the sheet at the
-      // camera's scale, which is why it is computed here rather than resolved
-      // into the settings once.
-      this.setFloat(
-        this.edgeProgram,
-        this.edgeUniforms,
-        'u_erodePx',
-        erodePx(settings, this.sheet, camera)
-      );
-      this.setFloat(
-        this.edgeProgram,
-        this.edgeUniforms,
-        'u_depthBias',
-        settings.creaseDepthBias ?? DEFAULT_CREASE_DEPTH_BIAS
-      );
-      // Dash runs are lengths along the crease in the same device pixels, so a
-      // shrinking crease has to take its pattern with it or a thumbnail reads as
-      // two long dashes rather than as a dashed line.
-      this.setDash(settings.creaseDash, creaseFrameScale(settings, camera.width, camera.height));
+      if (batch?.bound !== 'edge') {
+        gl.bindVertexArray(this.edgeVao);
+        gl.useProgram(this.edgeProgram);
+        if (batch) batch.bound = 'edge';
+      }
+      if (!reuse) {
+        this.bindCommon(this.edgeProgram, this.edgeUniforms, camera);
+        this.bindVirtual();
+        this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_displacementScale', settings.displacementScale ?? 1);
+        this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
+        this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
+        this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
+        this.setVec3(
+          this.edgeProgram,
+          this.edgeUniforms,
+          'u_auxColor',
+          settings.auxColor ?? settings.borderColor
+        );
+        gl.uniform1fv(
+          this.location(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx'),
+          Float32Array.from(inks, (ink) => ink.widthPx * 0.5)
+        );
+        gl.uniform1fv(
+          this.location(this.edgeProgram, this.edgeUniforms, 'u_creaseAlpha'),
+          Float32Array.from(inks, (ink) => ink.alpha)
+        );
+        this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_showAux', showAux ? 1 : 0);
+        // The painter's `erode × sheet` in this frame's pixels: the sheet at the
+        // camera's scale, which is why it is computed here rather than resolved
+        // into the settings once.
+        this.setFloat(
+          this.edgeProgram,
+          this.edgeUniforms,
+          'u_erodePx',
+          erodePx(settings, this.sheet, camera)
+        );
+        this.setFloat(
+          this.edgeProgram,
+          this.edgeUniforms,
+          'u_depthBias',
+          settings.creaseDepthBias ?? DEFAULT_CREASE_DEPTH_BIAS
+        );
+        // Dash runs are lengths along the crease in the same device pixels, so a
+        // shrinking crease has to take its pattern with it or a thumbnail reads as
+        // two long dashes rather than as a dashed line.
+        this.setDash(settings.creaseDash, creaseFrameScale(settings, camera.width, camera.height));
+        if (batch) batch.edge = { camera, settings, inks };
+      }
+
       const edges = this.edgeVertexStart.length - 1;
       const firstEdge = clampRange(options.edgeRange?.start ?? 0, edges);
       const edgeCount = clampRange(options.edgeRange?.count ?? edges - firstEdge, edges - firstEdge);
       const firstVertex = this.edgeVertexStart[firstEdge]!;
       const vertexCount = this.edgeVertexStart[firstEdge + edgeCount]! - firstVertex;
+      options.configureDrawState?.(gl);
       if (vertexCount > 0) gl.drawArrays(gl.TRIANGLES, firstVertex, vertexCount);
     }
 
     gl.depthMask(true);
+    gl.colorMask(true, true, true, true);
+    gl.disable(gl.STENCIL_TEST);
+    gl.stencilMask(0xff);
     // Back to the state GlCore established at context creation. The solver's
     // compute passes share this context and never set blending themselves, so a
     // pass left enabled here would silently blend the next solve step into the
     // last one instead of replacing it.
     gl.disable(gl.BLEND);
-    gl.bindVertexArray(null);
+    if (!this.drawBatch) gl.bindVertexArray(null);
   }
 
   dispose(): void {
@@ -1200,8 +1378,25 @@ export class MeshRenderer {
     gl.deleteBuffer(this.edgeBuffer);
     gl.deleteVertexArray(this.faceVao);
     gl.deleteVertexArray(this.edgeVao);
+    if (this.virtual) gl.deleteTexture(this.virtual.texture);
     if (this.highlightElements) gl.deleteBuffer(this.highlightElements);
     if (this.highlightVao) gl.deleteVertexArray(this.highlightVao);
+  }
+
+  /**
+   * The drawn-on aux lines' table on unit 3, past the three `bindCommon` fills.
+   * A mesh with none starts its virtual vertices past every index, so the
+   * shader never reads the sampler and it can stay on unit 0.
+   */
+  private bindVirtual(): void {
+    const gl = this.gl;
+    if (this.virtual) {
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, this.virtual.texture);
+    }
+    this.setInt(this.edgeProgram, this.edgeUniforms, 'u_virtual', this.virtual ? 3 : 0);
+    this.setInt(this.edgeProgram, this.edgeUniforms, 'u_virtualStart', this.virtual?.start ?? NO_VIRTUAL_VERTICES);
+    this.setInt(this.edgeProgram, this.edgeUniforms, 'u_virtualDim', this.virtual?.width ?? 1);
   }
 
   private bindCommon(
@@ -1230,6 +1425,7 @@ export class MeshRenderer {
     this.setVec2(program, cache, 'u_viewport', [camera.width, camera.height]);
     this.setFloat(program, cache, 'u_depthRange', camera.depthRange);
     this.setFloat(program, cache, 'u_camDist', camera.camDist);
+    this.setFloat(program, cache, 'u_perspectiveDepth', this.perspectiveDepth ? 1 : 0);
   }
 
   private setDash(dash: CreaseDash | undefined, scale: number): void {
@@ -1316,6 +1512,53 @@ function compileShader(gl: WebGL2RenderingContext, type: number, source: string)
     throw new Error(`Mesh shader failed to compile: ${info}`);
   }
   return shader;
+}
+
+/** Where a mesh with no drawn-on aux lines starts them: past every index. */
+const NO_VIRTUAL_VERTICES = 0x7fffffff;
+
+/**
+ * The virtual vertices as an RGBA32F table the edge shader reads with
+ * `texelFetch`: two texels each, the triangle's nodes and then their weights,
+ * row by row. Null when there are none.
+ */
+export function virtualVertexTexels(
+  virtual: VirtualVertices,
+  maxWidth: number
+): { data: Float32Array; width: number; height: number } | null {
+  const count = Math.floor(virtual.weights.length / 3);
+  if (count === 0) return null;
+  const texels = count * 2;
+  const width = Math.max(1, Math.min(texels, maxWidth));
+  const height = Math.ceil(texels / width);
+  const data = new Float32Array(width * height * 4);
+  for (let vertex = 0; vertex < count; vertex += 1) {
+    for (let k = 0; k < 3; k += 1) {
+      data[vertex * 8 + k] = virtual.nodes[vertex * 3 + k]!;
+      data[vertex * 8 + 4 + k] = virtual.weights[vertex * 3 + k]!;
+    }
+  }
+  return { data, width, height };
+}
+
+function uploadVirtualVertices(
+  gl: WebGL2RenderingContext,
+  virtual: VirtualVertices | undefined
+): { texture: WebGLTexture; start: number; width: number } | null {
+  const table = virtual && virtualVertexTexels(virtual, gl.getParameter(gl.MAX_TEXTURE_SIZE) as number);
+  if (!virtual || !table) return null;
+  const texture = gl.createTexture();
+  if (!texture) throw new Error('Unable to create the aux line texture');
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  // No mipmaps: with the default filter a float texture is incomplete, and
+  // texelFetch reads zeros from it.
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, table.width, table.height, 0, gl.RGBA, gl.FLOAT, table.data);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  return { texture, start: virtual.start, width: table.width };
 }
 
 function uploadElements(gl: WebGL2RenderingContext, data: Uint32Array): WebGLBuffer {

@@ -1,8 +1,8 @@
 import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
 import { useEffect, useId, useRef, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { clampReveal, DEFAULT_CONNECTED_SPREAD, REVEAL_RADIUS } from '../../cp-workspace/folded/layerSpreadSettings';
-import { spreadDirectionLabel, type LayerSpreadDrag } from '../../cp-workspace/folded/layerSpreadControls';
+import { clampReveal, DEFAULT_CONNECTED_SPREAD, REVEAL_RADIUS, snapRevealToCenter } from '../../cp-workspace/folded/layerSpreadSettings';
+import { spreadDirectionLabel, spreadValuesHold, type LayerSpreadDrag } from '../../cp-workspace/folded/layerSpreadControls';
 import type { SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
 import { FieldRow } from '../ui/fieldRows';
 import styles from './LayerRevealControl.module.css';
@@ -12,10 +12,12 @@ const DIRECTIONS: SpreadDirection[] = ['left', 'up-left', 'up', 'up-right', 'rig
 /** A Default spread's reveal, as the rows lay a spread out (`LayerSpreadRows`): its pad on the spread's drag. */
 export function LayerRevealControl({ spread }: { spread: LayerSpreadDrag }) {
   if (spread.spread.kind !== 'connected') return null;
+  const { disabled, hint } = spreadValuesHold(spread);
   return (
     <LayerRevealPad
       value={spread.spread.reveal}
-      disabled={spread.disabled}
+      disabled={disabled}
+      title={hint}
       begin={spread.start}
       update={spread.previewReveal}
       end={spread.commit}
@@ -67,7 +69,7 @@ export function LayerRevealPad({
     if (!g || g.id !== event.pointerId) return;
     const box = event.currentTarget.getBoundingClientRect();
     const unit = Math.min(box.width, box.height) * 0.42 / REVEAL_RADIUS.max;
-    g.shown = clampReveal([(event.clientX - box.left - box.width / 2) / unit, (event.clientY - box.top - box.height / 2) / unit], g.shown);
+    g.shown = snapRevealToCenter([(event.clientX - box.left - box.width / 2) / unit, (event.clientY - box.top - box.height / 2) / unit]);
     update(g.shown);
   };
   const finish = (event: PointerEvent<HTMLButtonElement>) => {
@@ -79,7 +81,8 @@ export function LayerRevealPad({
   };
   const edit = (next: [number, number]) => {
     if (!begin()) return;
-    update(clampReveal(next, value));
+    // Steps are tenths of the pad, so a key lands on zero rather than beside it.
+    update(clampReveal([Number(next[0].toFixed(6)), Number(next[1].toFixed(6))]));
     end();
   };
   return (
@@ -89,8 +92,8 @@ export function LayerRevealPad({
         {percent}
       </FieldRow>
       <button type="button" role="slider" className={styles.pad} disabled={disabled} title={title}
-        aria-label={label} aria-describedby={hintId} aria-valuemin={radius < REVEAL_RADIUS.min ? 0 : 5} aria-valuemax={100}
-        aria-valuenow={Math.round(radius / REVEAL_RADIUS.max * 100)} aria-valuetext={`${percent} · ${direction}`}
+        aria-label={label} aria-describedby={hintId} aria-valuemin={0} aria-valuemax={100}
+        aria-valuenow={Math.round(radius / REVEAL_RADIUS.max * 100)} aria-valuetext={radius > 0 ? `${percent} · ${direction}` : percent}
         onPointerDown={(event) => {
           if (event.button !== 0 || gesture.current || !begin()) return;
           event.preventDefault();
@@ -113,7 +116,7 @@ export function LayerRevealPad({
         <svg viewBox="0 0 100 100" aria-hidden="true" className={styles.drawing}>
           <circle cx="50" cy="50" r="49" className={styles.surface} />
           <path d="M 14 50 H 86 M 50 14 V 86" className={styles.axes} />
-          <circle cx="50" cy="50" r="2.1" className={styles.excluded} />
+          <circle cx="50" cy="50" r={REVEAL_RADIUS.snap * 21} className={styles.center} />
           <circle cx={50 + value[0] * 21} cy={50 + value[1] * 21} r="5" className={styles.handle} />
         </svg>
       </button>

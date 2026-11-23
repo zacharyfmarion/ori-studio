@@ -567,4 +567,37 @@ describe('a swivel by its valley and mountain', () => {
       expect((writeFoldSequence(held).steps as {op:unknown}[])[0]!.op).toEqual(bad);
     }
   });
+  describe('with its other end', () => {
+    const otherEnd = { valley: { line: { via:'free', through:[[0.25,0.75],[0.05,0.55]] } }, mountain: { line:{via:'crease',at:[0.1,0.9]} } };
+    const paired = { ...op, otherEnd };
+    it('preserves the other end’s two lines through save and open, after the kind', () => {
+      const held = readSteps([raw('a',null,{op:paired})]);
+      expect(isLockedStep(held.document.steps[0]!)).toBe(false);
+      const written = (writeFoldSequence(held).steps as {op:Record<string, unknown>}[])[0]!.op;
+      expect(written).toEqual(paired);
+      expect(Object.keys(written)).toEqual(['kind', 'via', 'valley', 'mountain', 'swivel', 'otherEnd']);
+      expect(readFoldSequence(writeFoldSequence(held))!.document).toEqual(held.document);
+    });
+    it('writes a single swivel exactly as before: no other end', () => {
+      const { swivel: _inside, ...open } = op;
+      const held = readSteps([raw('a',null,{op:open})]);
+      const written = (writeFoldSequence(held).steps as {op:Record<string, unknown>}[])[0]!.op;
+      expect(written).toEqual(open);
+      expect(written).not.toHaveProperty('otherEnd');
+    });
+    it('locks an other end that does not read, or that names a kind or a direction of its own', () => {
+      for (const bad of [
+        { ...op, otherEnd: { valley: otherEnd.valley } },
+        { ...op, otherEnd: { ...otherEnd, mountain: { line: { via:'free', through:[[0.1,0.9]] } } } },
+        { ...op, otherEnd: { ...otherEnd, swivel:'inside' } },
+        { ...op, otherEnd: { ...otherEnd, direction:'valley' } },
+        { ...op, otherEnd: [otherEnd] },
+        { ...op, otherEnd: null },
+      ]) {
+        const held = readSteps([raw('a',null,{op:bad})]);
+        expect(isLockedStep(held.document.steps[0]!)).toBe(true);
+        expect((writeFoldSequence(held).steps as {op:unknown}[])[0]!.op).toEqual(bad);
+      }
+    });
+  });
 });

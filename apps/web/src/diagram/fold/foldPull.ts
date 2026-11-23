@@ -26,10 +26,10 @@ import type { FoldSequenceView } from '../../fold/sequence/useFoldSequenceView';
 import type { FoldSession } from '../../fold/session/foldSession';
 import type { TurnKind } from '../../lib/steps/turn';
 import { turnName } from '../../lib/steps/turnWords';
-import { reportError } from '../../monitoring';
 import {
   DEFAULT_LAYER_SPREAD,
   randomDiagramId,
+  spreadFailedOf,
   type DiagramCpRender,
   type DiagramFoldMoment,
   type DiagramIdFactory,
@@ -235,43 +235,29 @@ export interface FoldPulled {
   sent: SentDiagramEntry[];
   /** Steps that could not be captured (gone, no longer folding, the engine stopped), left out. */
   failed: number;
-  /** Steps added unspread, their layers not spreadable ({@link captureFoldTarget}). */
-  flattened: number;
-}
-
-/** What capturing one step target came to: the capture, and whether it had to be made unspread. */
-export interface FoldTargetCapture {
-  result: FoldStepCaptureResult;
-  /** The render's spread could not be drawn, so this is the capture without it. */
-  flattened: boolean;
+  /** Steps spread by Default whose layers could not be spread here: added unspread, their spread kept to say so. */
+  spreadFailed: number;
 }
 
 /**
- * Capture a step target as a pull adds it, in `render`; and when its layers
- * cannot be spread — the spread refused or failed, or its picture too
- * detailed to keep as a drawing — again without the spread, so the step is
- * added unspread rather than left out. The browser's cards are captured
- * here too (`foldPullPreviews.ts`), so a card shows the step Add makes.
+ * Capture a step target as a pull adds it, in `render`; a Default spread its
+ * layers can't take is drawn unspread and marked so, its spread kept
+ * (`captureFoldStep`). The browser's cards are captured here too
+ * (`foldPullPreviews.ts`), so a card shows the step Add makes.
  */
-export async function captureFoldTarget(
+export function captureFoldTarget(
   session: FoldSession,
   sequence: string,
   target: FoldPullStepTarget,
   render: Extract<DiagramCpRender, { mode: 'folded-flat' }>,
   options: { t: TFunction; newId?: DiagramIdFactory }
-): Promise<FoldTargetCapture> {
+): Promise<FoldStepCaptureResult> {
   const { through } = target;
-  const request = { sequence, step: target.step, ...(through !== undefined ? { through } : {}), moment: target.moment };
-  if (!render.spread) return { result: await captureFoldStep(session, { ...request, render }, options), flattened: false };
-  try {
-    const result = await captureFoldStep(session, { ...request, render }, options);
-    if (result.status !== 'captured' || result.captured.kind !== 'over-budget') return { result, flattened: false };
-  } catch (error) {
-    // Swallowed on purpose: the step is still added, unspread, and the user is told so.
-    reportError(error, { surface: 'diagram:fold-pull-spread' });
-  }
-  const { spread: _spread, ...unspread } = render;
-  return { result: await captureFoldStep(session, { ...request, render: unspread }, options), flattened: true };
+  return captureFoldStep(
+    session,
+    { sequence, step: target.step, ...(through !== undefined ? { through } : {}), moment: target.moment, render },
+    options
+  );
 }
 
 /** A captured Fold step as a pull sends it: its picture, its marks lifted, its words. Null for one with no stored drawing. */
@@ -292,8 +278,8 @@ export function sentFoldStep(result: FoldStepCaptureResult): SentFoldStep | null
  * else at the default ({@link foldPullRender}) — its marks lifted, its words
  * the Diagram's — and each turn as a turn. A step whose capture fails is left
  * out and counted; so is one too detailed to keep as a drawing, which a pull
- * has no bitmap for. One that cannot be spread is added unspread, and
- * counted.
+ * has no bitmap for. One whose layers could not be spread is added unspread,
+ * its spread kept, and counted ({@link captureFoldTarget}).
  */
 export async function pullFoldTargets(
   session: FoldSession,
@@ -303,7 +289,7 @@ export async function pullFoldTargets(
 ): Promise<FoldPulled> {
   const sent: SentDiagramEntry[] = [];
   let failed = 0;
-  let flattened = 0;
+  let spreadFailed = 0;
   // Held across every capture, so the engine is not started and stopped once a step.
   const release = session.retain();
   try {
@@ -313,17 +299,16 @@ export async function pullFoldTargets(
         continue;
       }
       const render = foldPullRender(session.store.getState().sequence, sequence, target);
-      const captured = await captureFoldTarget(session, sequence, target, render, { t, newId });
-      const step = sentFoldStep(captured.result);
+      const step = sentFoldStep(await captureFoldTarget(session, sequence, target, render, { t, newId }));
       if (!step) {
         failed += 1;
         continue;
       }
-      if (captured.flattened) flattened += 1;
+      if (spreadFailedOf(step.picture)) spreadFailed += 1;
       sent.push(step);
     }
   } finally {
     release();
   }
-  return { sent, failed, flattened };
+  return { sent, failed, spreadFailed };
 }

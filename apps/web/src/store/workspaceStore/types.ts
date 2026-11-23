@@ -87,6 +87,7 @@ import type {
   DiagramCaptureOutcome,
   DiagramCaptureRequest,
   DiagramCaptureRun,
+  SpreadFailure,
   StepCaptureStart,
 } from './diagramCapture';
 import type { DiagramFoldCaptureOutcome, DiagramFoldCaptureRequest } from './diagramFoldCapture';
@@ -1122,6 +1123,12 @@ export interface CreasePatternSliceActions {
   markFoldSourceChanged: () => void;
   ensureFoldArtifacts: () => Promise<FoldArtifacts | null>;
   refreshFoldArtifacts: () => Promise<FoldArtifacts | null>;
+  /**
+   * Whether the open crease pattern's aux lines are built into the simulated
+   * paper as facets, rather than drawn on it — saved with the document, and
+   * every simulation of it rebuilt (`selectCpAuxLinesAreFacets`).
+   */
+  setCpAuxLinesAreFacets: (auxLinesAreFacets: boolean) => void;
   setCreaseColorMode: (mode: CreaseColorMode) => void;
   setSelectedSegment: (id: number | null) => void;
   /** Show this sheet in the Simulate workspace (see {@link CreasePatternSliceState.oristudioCpSimulateSheet}). */
@@ -2651,7 +2658,7 @@ export interface DiagramSliceActions {
     start: StepCaptureStart,
     captured: { source: DiagramCpSource; picture: CapturedPicture },
     label: string
-  ) => Promise<{ changed: boolean; tooDetailed: boolean } | null>;
+  ) => Promise<{ changed: boolean; tooDetailed: boolean; spreadFailed?: SpreadFailure } | null>;
   /**
    * Commit a linked step's layer order record, flagged, its picture kept, as
    * one undo step under the same guard (layer order D10): what a Pose verb

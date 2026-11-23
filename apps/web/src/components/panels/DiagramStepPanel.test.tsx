@@ -506,7 +506,7 @@ describe('DiagramStepPanel', () => {
           setSide: async () => true,
           setFlipCreases: async () => true,
           simulate: async () => {},
-          wantsRest: () => false,
+          wantsSave: () => false,
           spread: null,
           preview: null,
         });
@@ -562,7 +562,7 @@ describe('DiagramStepPanel', () => {
           setSide: async () => true,
           setFlipCreases: async () => true,
           simulate: async () => {},
-          wantsRest: () => false,
+          wantsSave: () => false,
           spread: controls && { ...controls, previewReveal: vi.fn(), preview: verbs.preview, commit: verbs.commit, start: () => true },
           preview: null,
         });

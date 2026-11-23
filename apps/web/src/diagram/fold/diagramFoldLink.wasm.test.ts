@@ -14,6 +14,7 @@ import {
   DEFAULT_LAYER_SPREAD,
   isStep,
   setTitleBlockContent,
+  spreadFailedOf,
   type DiagramFoldStepSource,
   type DiagramStep,
 } from '../document/diagramDocument';
@@ -277,8 +278,9 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     // Fold shows the sequence unspread: the step comes at the Diagram's default.
     expect(render.spread).toEqual(DEFAULT_LAYER_SPREAD);
     const card = await captureFoldTarget(held.session!, sequence.id, target, render, { t: i18n.t.bind(i18n) });
-    const shown = sentStep(sentFoldStep(card.result)!).step;
-    expect(card.flattened).toBe(false);
+    const shown = sentStep(sentFoldStep(card)!).step;
+    // Its layers spread: not the unspread picture a spread they can't take is drawn as.
+    expect(spreadFailedOf(shown.picture)).toBe(false);
     expect(await pullFromFold([target], { kind: 'end' }, { via: 'diagram_browser' })).toBe(1);
     const added = onlyStep();
     expect((shown.source as DiagramFoldStepSource).render).toEqual(render);

@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../../lib/foldAngle';
+import { applyFoldAngleOpacity } from '../foldAngle/foldAngleRamp';
 import { REFERENCES_PAPER_TOKENS } from '../references/usePaperStyleTokens';
 import { SheetGrid, type SheetGridItem } from './SheetGrid';
 import { fitSheetThumbnail, type SheetStroke } from './sheetThumbnail';
@@ -104,6 +106,30 @@ describe('SheetGrid', () => {
     expect(aux()).toBeNull();
     // The rest of the pattern is unchanged.
     expect(cards()[0]?.querySelectorAll('.sheet-card__stroke')).toHaveLength(5);
+  });
+
+  it('shades a crease folded short of 180° as Edit’s canvas does, and only that line', () => {
+    const root = document.documentElement.style;
+    root.setProperty('--sheet-thumb-valley', '#60a5fa');
+    root.setProperty('--sheet-thumb-mountain', '#ff4d5d');
+    try {
+      const folded: SheetStroke = { x1: 0, y1: 100, x2: 100, y2: 0, role: 'valley', foldDegrees: 90 };
+      const sheets: SheetGridItem[] = [{ id: 0, thumbnail: fitSheetThumbnail([...SQUARE, folded]), size: '6 creases' }];
+      render(null, () => {}, { sheets });
+      const shaded = [...(cards()[0]?.querySelectorAll<SVGLineElement>('.sheet-card__stroke') ?? [])].filter((line) =>
+        line.hasAttribute('style')
+      );
+      expect(shaded).toHaveLength(1);
+      expect(shaded[0]?.classList.contains('sheet-card__stroke--valley')).toBe(true);
+      // Edit's opacity for a 90° crease (the View panel's default style), in the valley's own ink.
+      expect(Number(shaded[0]?.style.strokeOpacity)).toBeCloseTo(
+        applyFoldAngleOpacity([0, 0, 0, 1], 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE)[3]
+      );
+      expect(shaded[0]?.style.stroke).toBe('rgb(96, 165, 250)');
+    } finally {
+      root.removeProperty('--sheet-thumb-valley');
+      root.removeProperty('--sheet-thumb-mountain');
+    }
   });
 
   it('reports a press by the sheet id, not its position', () => {

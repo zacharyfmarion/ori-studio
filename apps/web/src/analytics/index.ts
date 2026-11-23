@@ -157,6 +157,7 @@ export {
   trackDiagramMarkStyled,
   trackDiagramArrowShaped,
   trackDiagramPicturePosed,
+  trackDiagramSimulationResumed,
   trackDiagramPictureRemoved,
   trackDiagramSourceOpened,
   trackDiagramReferencesBrowserOpened,
@@ -177,6 +178,7 @@ export {
 } from './trackDiagram';
 export { trackDiagramEnlargementChanged, trackDiagramStepEnlarged } from './trackDiagramZoom';
 export { trackDesktopDownload } from './trackDesktopDownload';
+export { trackSpatialSpreadChanged } from './trackSpatialSpread';
 export { trackFoldChoiceOffered, trackFoldRefused, trackFoldSpreadChanged, trackFoldStepAdded } from './trackFold';
 export { trackLayerConstraintsDismissed, trackLayerConstraintsNeedAttention } from './trackLayerOrder';
 export {
@@ -193,6 +195,7 @@ export {
 } from './trackPaperExport';
 export { trackSymmetryPairChanged, type SymmetryPairAction } from './trackSymmetryPairChanged';
 export {
+  trackSimulatorAuxLinesChanged,
   trackSimulatorModelPulled,
   trackSimulatorPinnedFoldMoved,
   trackSimulatorPinsCleared,

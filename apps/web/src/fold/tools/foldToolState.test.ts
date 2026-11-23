@@ -13,6 +13,8 @@ import {
   isLocated,
   locatesTakenLine,
   picksAlongLine,
+  swivelMeetingLine,
+  takesLocatedLine,
   type FoldResolvedSeed,
   type FoldToolState,
 } from './foldToolState';
@@ -505,6 +507,39 @@ it('keeps a swivel’s valley taken while the mountain’s line mode changes, an
   expect(hasToolInput(tools.store.getState())).toBe(false);
 });
 
+it('holds a swivel taken as the first of two while its other end is located, the shared valley taken for it', () => {
+  const line = (n: [number, number], d: number) => ({
+    line: { via: 'free' as const, through: [[0, 0], [1, 1]] as [[number, number], [number, number]] },
+    sceneLine: { n, d },
+  });
+  const [valley, mountain, meetingLine] = [line([1, -1], 0), line([1, 1], 1), { n: [0, 1] as [number, number], d: 0.25 }];
+  for (const shared of ['valley', 'mountain', 'behind'] as const) {
+    const tools = createFoldTools();
+    tools.selectTool('swivel');
+    tools.setSwivelInput('valley-mountain');
+    tools.setSwivelKind('inside');
+    tools.takeLine(valley);
+    tools.takeOtherEnd({ valley, mountain, shared, meetingLine });
+    const state = tools.store.getState();
+    expect(state.otherEnd).toMatchObject({ shared, meetingLine });
+    // The shared valley is the other end's valley, taken; otherwise it is located next.
+    expect(state.takenLine).toEqual(shared === 'valley' ? valley : undefined);
+    expect(takesLocatedLine(state)).toBe(shared === 'behind');
+    expect(swivelMeetingLine(state)).toBe(meetingLine);
+    expect(state.compound.swivelKind).toBe('inside');
+    // Another line mode, and the other end's valley taken: the first swivel stays held.
+    tools.selectLineMode('crease');
+    expect(tools.store.getState().otherEnd?.shared).toBe(shared);
+    tools.takeLine(line([0, 1], 0.5));
+    expect(tools.store.getState().otherEnd?.shared).toBe(shared);
+    expect(hasToolInput(tools.store.getState())).toBe(true);
+    // Escape lets go of both.
+    tools.clear();
+    expect(tools.store.getState().otherEnd).toBeUndefined();
+    expect(hasToolInput(tools.store.getState())).toBe(false);
+  }
+});
+
 it('keeps the kind a swivel by its valley and mountain asks for across its locates, and asks anew by its edge', () => {
   const tools = createFoldTools();
   tools.selectTool('swivel');
@@ -549,17 +584,19 @@ describe('the sequence tools in hand', () => {
     expect(tools.store.getState().unfoldTarget).toEqual({ id: null });
     tools.selectTool('repeat');
     tools.setRepeatFirst('s1');
+    tools.setRepeatLast('s2');
     tools.setRepeatAxis({ n: [1, 0], d: 0.5 });
     tools.setRepeatIndividual(true);
     // Escape's rung lets the picks go, not the settings.
     tools.clear();
-    expect(tools.store.getState()).toMatchObject({ repeatFirst: 's1', repeatIndividual: true });
+    expect(tools.store.getState()).toMatchObject({ repeatFirst: 's1', repeatLast: 's2', repeatIndividual: true });
     tools.putDown();
     tools.selectTool('repeat');
     tools.selectTool('unfold-to');
     expect(tools.store.getState()).toMatchObject({
       unfoldTarget: null,
       repeatFirst: null,
+      repeatLast: null,
       repeatAxis: { n: [1, 0], d: 0.5 },
       repeatIndividual: true,
     });
@@ -573,7 +610,7 @@ describe('the sequence tools in hand', () => {
       parent: 's2',
       expected: { kind: 'repeat', source: { first: 's1', last: 's2', revision: 'fh1:x' }, parentState: 'p', axis: { n: [0, 1], d: 0.5 }, steps: [] },
     });
-    expect(tools.store.getState()).toMatchObject({ tool: 'repeat', repeatFirst: 's1', repeatAxis: { n: [0, 1], d: 0.5 }, rebuild: { id: 'r' } });
+    expect(tools.store.getState()).toMatchObject({ tool: 'repeat', repeatFirst: 's1', repeatLast: 's2', repeatAxis: { n: [0, 1], d: 0.5 }, rebuild: { id: 'r' } });
     // A rebuild's op is the store's to check, never part of what the tools are asked to fold.
     expect(foldToolInputKey(tools.store.getState())).toContain('"rebuild":"r"');
     tools.selectTool('valley');

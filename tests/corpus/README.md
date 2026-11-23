@@ -579,3 +579,83 @@ edge). Seven of the rendered group's `not solved` gates are one solver
 target: an already-exact pattern refused as `kawasaki_regressed_from_bar`
 with its answer 0.0 px from the truth, the crocodile finding of the curated
 group, now with seven reproductions.
+
+## Diagram corpus
+
+Real Ori Studio projects with Diagram workspaces, frozen copies kept with a
+manifest in a private folder outside the repository (by default
+`~/Documents/datasets/diagram-corpus`; its own README lists the files and the
+bugs each one exercises). They hold other designers' work, so nothing from the
+folder, the harness's results or its report goes into the repository or a PR.
+
+`npm run diagram-corpus` runs every file twice: on the commit the branch
+started from ("before", its merge-base with `origin/main`) and on the working
+copy ("after", uncommitted edits included). It then writes a local page that
+lists only the steps that changed, before and after side by side at one
+framing with nothing drawn on top, and one line on why each is listed.
+
+```sh
+export PATH="$HOME/.nvm/versions/node/v22.14.0/bin:$PATH"   # Node 22, as CI
+npm run diagram-corpus
+npm run diagram-corpus -- --base <ref>          # another "before"
+npm run diagram-corpus -- --case <slug>,<slug>  # some files only
+npm run diagram-corpus -- --with-big            # adds the files over 400 MB
+```
+
+Run it before opening a PR that changes how diagram pictures are captured,
+painted, laid out or marked out of date: `apps/web/src/diagram/{capture,
+pictures,pages,document,fold}`, `cp-workspace/{folded,regions,sheets}`,
+`lib/paper`, `lib/nativeProjectFile.ts`, `layer-spread`, `simulator`,
+`packages/{origami-simulator,layer-spread}`, and the CP, fold and layer-spread
+crates. Say its one-line summary in the PR (`diagram corpus: 0 of 420 steps
+changed`), never a file name, a picture or the page.
+
+How the two sides run (`scripts/diagram-dataset/run.mjs`):
+
+- **Before** is a detached checkout of the base commit under
+  `~/Library/Caches/ori-studio-diagram-corpus/checkouts/`, reused per commit,
+  with `node_modules` cloned from the working copy (copy-on-write) and the wasm
+  bridges copied from it when the Rust they are built from is the same on both
+  sides (built there otherwise). The working copy's harness is copied in, so
+  both sides run the same checks. Its results are kept in the corpus's
+  `results/` and reused while the commit, the harness and the corpus stay the
+  same. A commit older than the harness cannot be a "before".
+- **After** rebuilds the simulator and layer-spread packages, and any bridge
+  whose Rust changed since it was built, then runs.
+- The report goes to the corpus's `reports/`.
+
+The harness is the vitest suite in `apps/web/src/diagram/dataset/`. It skips
+when `ORI_DIAGRAM_DATASET_DIR` is unset, and `ORI_DIAGRAM_DATASET_REQUIRED=1`
+makes that a failure. It refuses any output path inside the checkout. Each
+side takes about two minutes for the 38 default files on an Apple Silicon Mac;
+"before" is reused while its commit, the harness and the corpus stay the same.
+
+What each side records, per file and per step:
+
+- **File check.** The file opened as the app opens it (`parseNativeProjectFile`,
+  then `readDiagram`): whether it opens writable, the steps that open locked
+  against the manifest, steps and assets the reader drops, every scene key the
+  digest of its scene and every scene in the form a read keeps, and what the
+  first save writes for the diagram, which a second save must not change.
+- **Repaint.** Every stored picture painted as Export picture writes it, and
+  an enlarged step's window. A change here is a painter change.
+- **Status.** Each link's status and Refresh kind, as the step cards and the
+  Refresh all count work them out, and a digest of the paper faces, marks and
+  zoom area as read.
+- **Re-capture.** Each crease-pattern-linked step captured as Refresh captures
+  it: crease patterns, flat folds with every spread (the Default spread's
+  workers run in-process) and unspread 3D. The report compares two sides by
+  picture key, paper faces and link record, then by items, so that the same
+  items in a new order read as "draw order changed".
+- **3D window check.** Each unspread 3D step's scene against the window's
+  depth-tested draw passes, with the step's own aux lines and camera. Aux ink
+  over paper the window shows bare is a problem on its own; other stray ink is
+  held to the "before" side's.
+- **Aux probe.** On a fresh copy, each sheet's steps refreshed, one aux line
+  drawn inside a face, and each step captured again: a step whose picture
+  changed must read out of date, and one whose picture did not must not.
+
+Not yet: Fold-linked steps, spatial spreads, Simulated steps above 0% (they
+need Pose) and layer-order records. They are listed as skipped, never passed.
+The workers' time limits are not run either; a capture over 10 s is marked
+timing-sensitive and not compared exactly.

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { CircleAlert } from 'lucide-react';
 import type { FoldFlapChip } from '../../fold/tools/crossSection';
 import { Chip } from '../ui/Chip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import styles from './FoldFlapChips.module.css';
 
 /**
@@ -10,6 +11,11 @@ import styles from './FoldFlapChips.module.css';
  * picker that shows where they lie. "Flap 2 · 2 layers", numbered as the
  * picker and the refusal's fixes number them. A flap a refusal says is in the
  * way carries the alert mark the notice explains.
+ *
+ * A flap the fold cannot land without stays pressed: its chip is
+ * `aria-disabled` rather than `disabled`, so it keeps its tab stop and its
+ * tooltip says why, and it carries a dot, not a dash (a dash is a valley
+ * fold here).
  *
  * Space presses a chip; Enter is the workspace's, which commits the fold
  * (`data-fold-layer-pick`, `focusLeavesEnterToFold`), as the picker leaves it.
@@ -34,24 +40,38 @@ export function FoldFlapChips({
       aria-label={t('tools:fold.flap.groupLabel', 'Flaps to fold')}
       data-fold-layer-pick=""
     >
-      {chips.map((chip) => (
-        <Chip
-          key={chip.flap}
-          aria-pressed={chip.pressed}
-          aria-label={chip.label}
-          disabled={disabled}
-          data-flap={chip.flap}
-          onClick={() => onToggle(chip.flap)}
-          onMouseEnter={() => onHover?.(chip.flap)}
-          onMouseLeave={() => onHover?.(null)}
-        >
-          <span className={styles.content}>
-            {chip.needed && <CircleAlert size={12} className={styles.needed} aria-hidden="true" />}
-            <span>{chip.name}</span>
-            <span className={styles.detail}>{chip.detail}</span>
-          </span>
-        </Chip>
-      ))}
+      {chips.map((chip) => {
+        const button = (
+          <Chip
+            key={chip.flap}
+            aria-pressed={chip.pressed}
+            aria-label={chip.label}
+            aria-disabled={chip.locked || undefined}
+            disabled={disabled}
+            data-flap={chip.flap}
+            data-locked={chip.locked || undefined}
+            onClick={() => {
+              if (!chip.locked) onToggle(chip.flap);
+            }}
+            onMouseEnter={() => onHover?.(chip.flap)}
+            onMouseLeave={() => onHover?.(null)}
+          >
+            <span className={styles.content}>
+              {chip.needed && <CircleAlert size={12} className={styles.needed} aria-hidden="true" />}
+              {chip.locked && <span className={styles.locked} aria-hidden="true" />}
+              <span>{chip.name}</span>
+              <span className={styles.detail}>{chip.detail}</span>
+            </span>
+          </Chip>
+        );
+        if (!chip.lockedReason) return button;
+        return (
+          <Tooltip key={chip.flap}>
+            <TooltipTrigger asChild>{button}</TooltipTrigger>
+            <TooltipContent>{chip.lockedReason}</TooltipContent>
+          </Tooltip>
+        );
+      })}
     </div>
   );
 }

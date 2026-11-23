@@ -192,3 +192,68 @@ export function formatFoldAngle(degrees: number): string {
 export function isClassicMagnitude(magnitudeUnits: number | undefined): boolean {
   return magnitudeUnits === undefined || magnitudeUnits === FOLD_MAGNITUDE_FULL;
 }
+
+/**
+ * `|ρ|` in degrees of a crease that folds short of a full fold — what a
+ * picture of the pattern shades — or `undefined` for a classic ±180 crease.
+ *
+ * Takes the magnitude as Edit's canvas reads it: absent, or the transport's
+ * classic sentinel, is a full fold (both are at least
+ * {@link FOLD_MAGNITUDE_FULL}, the bound `foldAngleInk` draws classic from).
+ * Only a crease carries a magnitude — the kernel writes none on a border or an
+ * aux line — so the magnitude alone answers.
+ */
+export function partialFoldDegrees(magnitudeUnits: number | undefined): number | undefined {
+  if (magnitudeUnits === undefined || !(magnitudeUnits < FOLD_MAGNITUDE_FULL)) return undefined;
+  return foldMagnitudeToDegrees(Math.max(0, magnitudeUnits));
+}
+
+/**
+ * Tolerance for calling a FOLD fold angle flat. Angles reach FOLD via degrees
+ * that have been through the kernel's own unit conversion, so exact equality
+ * would misreport a 180° crease that arrived as 179.9999999.
+ */
+export const FOLD_ANGLE_EPSILON = 1e-6;
+
+/**
+ * Whether a FOLD fold angle is a full ±180 fold — the kernel's classic crease.
+ *
+ * The epsilon is the whole point. A classic crease reaches FOLD through the
+ * kernel's unit conversion and can arrive as `179.9999999`; exact equality reads
+ * that as a 179.9999999° partial fold, which is the difference between "draw
+ * this crease normally" and "fade every crease in the document".
+ */
+export function isClassicFoldAngle(angle: number): boolean {
+  return Math.abs(Math.abs(angle) - 180) < FOLD_ANGLE_EPSILON;
+}
+
+/**
+ * `|ρ|` in kernel magnitude units for a FOLD edge that is a crease short of a
+ * full fold, or `null` for anything the fold-angle encoding must leave alone —
+ * the FOLD reading of a segment's `fold_magnitude`, for the export and every
+ * thumbnail read off a FOLD.
+ *
+ * Three rules, each of which is a bug if dropped:
+ *
+ * - **Only `M` and `V` are creases.** `B` and `F` carry a fold angle of `0` by
+ *   construction (`defaultFoldAngle`, and the kernel writes 0 for borders), so
+ *   reading the angle alone would fade every sheet outline in the document to
+ *   the opacity floor.
+ * - **An absent angle is classic**, matching {@link foldAngleFromParts}, which
+ *   reads an absent magnitude as a full ±180 fold.
+ * - **±180 needs an epsilon.** A classic crease reaches FOLD through the kernel's
+ *   unit conversion and can arrive as `179.9999999`; see
+ *   {@link isClassicFoldAngle}.
+ */
+export function foldEdgeMagnitudeUnits(
+  assignment: string | undefined,
+  angle: number | null | undefined
+): number | null {
+  if (assignment !== 'M' && assignment !== 'V') return null;
+  if (typeof angle !== 'number' || !Number.isFinite(angle)) return null;
+  if (isClassicFoldAngle(angle)) return null;
+  // Clamped rather than rejected: a hand-written file can carry |ρ| > 180, and a
+  // full fold is the safe reading of it. `degreesToFoldMagnitude` returns null
+  // outside 0..180, which would silently skip the crease instead.
+  return degreesToFoldMagnitude(Math.min(180, Math.abs(angle)));
+}

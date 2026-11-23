@@ -57,7 +57,12 @@ import { nextInlineSimulationId } from '../../../cp-workspace/inlineSimulation/i
 import { resolveInlineSimulationRegion } from '../../../cp-workspace/inlineSimulation/resolveSimulationRegion';
 import { regionReferenceFor } from '../../../cp-workspace/regions/regionReference';
 import { sheetRegions } from '../../../cp-workspace/sheets/cpSheetRegions';
-import { ensureCpSheetSimulationArtifacts } from '../../../cp-workspace/sheets/cpSheetArtifacts';
+import {
+  ensureCpSheetSimulationArtifacts,
+  simulationSourceFold,
+} from '../../../cp-workspace/sheets/cpSheetArtifacts';
+import { selectCpAuxLinesAreFacets } from '../cpSimulationAuxLines';
+import { withChosenAuxLinesAreFacets } from '../../../lib/simulationAuxLines';
 import type { CpSheetRegion } from '../../../cp-workspace/sheets/cpSheetRegions';
 import { ensureCpSheetIndex } from '../../../cp-workspace/sheets/cpSheetIndex';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
@@ -71,7 +76,7 @@ import {
 import { countCpDiagnosticErrors } from '../../../cp-workspace/diagnostics/severity';
 import { visibleCpDiagnosticEntries } from '../../../cp-workspace/diagnostics/visibleEntries';
 import { cpSelectionSize } from '../../../lib/creasePatternViewport';
-import { foldArtifactsFromFold, warnIfFacesWereInferred } from '../../../lib/creasePatternImport';
+import { foldArtifactsSimulating, warnIfFacesWereInferred } from '../../../lib/creasePatternImport';
 import {
   generatedCpLineage,
   markGeneratedCpLineageStale,
@@ -834,7 +839,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     document: OristudioCpDocumentSnapshot,
     sheet: CpSheetRegion
   ): Promise<FoldDocument | null> {
-    const artifacts = await ensureCpSheetSimulationArtifacts(document, sheet.id);
+    const artifacts = await ensureCpSheetSimulationArtifacts(
+      document,
+      sheet.id,
+      selectCpAuxLinesAreFacets(get())
+    );
     const [segment] = resolveCpSegments(artifacts);
     if (!artifacts || !segment) return null;
     const fold = buildSegmentSimulationFold(artifacts, segment);
@@ -1716,7 +1725,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // numerically untrustworthy rather than simply "not computed".
       const fold = parseFoldProjection(await exportOristudioCpDocumentAsFold());
       if (!fold) return null;
-      const artifacts = foldArtifactsFromFold(fold);
+      // Simulated from the fold lines alone, as each sheet is: the aux lines
+      // are drawn on the paper (`simulationSourceFold`).
+      const document = get().oristudioCpDocument!.document;
+      const lineIds = document.crease_pattern.line_segments.map((_, index) => index + 1);
+      const source = await simulationSourceFold(document, lineIds, fold, selectCpAuxLinesAreFacets(get()));
+      const artifacts = foldArtifactsSimulating(fold, source);
       warnIfFacesWereInferred(fold, artifacts.fold, 'simulate');
       return artifacts;
     }
@@ -2162,6 +2176,23 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     refreshFoldArtifacts: () => loadFoldArtifacts(true),
 
+    setCpAuxLinesAreFacets: (auxLinesAreFacets) => {
+      if (!get().oristudioCpDocument) return;
+      if (selectCpAuxLinesAreFacets(get()) === auxLinesAreFacets) return;
+      set({
+        oristudioCpDocumentExtensions: withChosenAuxLinesAreFacets(
+          get().oristudioCpDocumentExtensions,
+          auxLinesAreFacets
+        ),
+        // Every simulation of the document changes its paper: Simulate reads
+        // the setting into its key, the whole-canvas artifacts go stale here,
+        // and the inline windows are rebuilt on their sheets' new meshes.
+        ...staleFoldArtifactResourceState(get().foldArtifactRevision),
+        dirty: true,
+      });
+      void buildInlineSimulationSources(get().oristudioCpInlineSimulations);
+    },
+
     setCreaseColorMode: (creaseColorMode) => set({ creaseColorMode }),
 
     setSelectedSegment: (id) => {
@@ -2206,7 +2237,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // opened the wrong one.
       const sheet = (await ensureCpSheetIndex(document))?.sheetMadeBy(cpLineIds) ?? null;
       const artifacts =
-        (sheet !== null ? await ensureCpSheetSimulationArtifacts(document, sheet) : null) ??
+        (sheet !== null
+          ? await ensureCpSheetSimulationArtifacts(document, sheet, selectCpAuxLinesAreFacets(get()))
+          : null) ??
         get().foldArtifacts ??
         (await get().ensureFoldArtifacts());
       if (!artifacts) return 'unavailable';
@@ -2551,12 +2584,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const held = figure.spread ?? null;
       const same =
         held === spread ||
-        (held?.kind === 'record' && spread?.kind === 'record' && sameSpread(held.spread, spread.spread));
+        (held?.kind === 'record' && spread?.kind === 'record' && sameSpread(held.spread, spread.spread)) ||
+        (held?.kind === 'spatial' && spread?.kind === 'spatial' && held.amount === spread.amount && held.version === spread.version);
       if (same) return true;
       // Editing a figure's spread selects it, as editing its appearance does.
       takeCanvasSelection('folded-figure', {
         oristudioCpFoldedFigures: figures.map((candidate) =>
-          candidate.id === id ? { ...candidate, spread } : candidate
+          candidate.id === id ? { ...candidate, spread, scene: candidate.folded3d ? reproject3dScene({ ...candidate, spread }, candidate.displayStyle) ?? candidate.scene : candidate.scene } : candidate
         ),
         oristudioCpActiveFoldedFigureId: id,
         dirty: true,

@@ -174,6 +174,7 @@ export function mirrorOperation(
       // Its first line is the mountain and its second the valley, as the
       // viewer sees them: seen from the other side they trade places, which
       // a pleat cannot store without trading its lines and moving side.
+      // Which end moves (`end`) is the paper's, carried as it is.
       if (turned) throw new RepeatFailure('repeat_pleat_behind');
       next = { ...motion(op), line: line(op.line), second: line(op.second),
         ...(op.secondRoot ? { secondRoot: located({ line: op.second, root: op.secondRoot }).root } : {}),
@@ -230,7 +231,15 @@ export function mirrorOperation(
         // from the other side, its pair lies on the layer behind, which only
         // a turn over brings in front.
         if (turned) throw new RepeatFailure('repeat_swivel_behind');
-        next = { ...op, valley: located(op.valley), mountain: located(op.mountain) };
+        next = {
+          ...op,
+          valley: located(op.valley),
+          mountain: located(op.mountain),
+          // Its other end's two lines, carried as its own are.
+          ...(op.otherEnd
+            ? { otherEnd: { valley: located(op.otherEnd.valley), mountain: located(op.otherEnd.mountain) } }
+            : {}),
+        };
       }
       else if ('fold' in op)
         next = { ...op, fold: p(op.fold), edge: p(op.edge), target: line(op.target) as typeof op.target };

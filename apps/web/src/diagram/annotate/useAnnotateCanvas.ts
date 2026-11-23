@@ -36,10 +36,12 @@ import {
   type DiagramZoomOutline,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import { paintSource, stepPictureSource, type PictureBox } from '../pictures/paintDiagramStep';
+import { paintSource, sourceUnderMarks, stepPictureSource, type PictureBox } from '../pictures/paintDiagramStep';
 import { stepPictureFrame } from '../pictures/pictureFrame';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
-import { ZOOM_CARD_MARGIN, zoomedSource, type ZoomedSource } from '../zoom/paintZoomed';
+import { ZOOM_CARD_MARGIN, zoomedSource, zoomedUnderMarks, type ZoomedSource } from '../zoom/paintZoomed';
+import { hidesLinesUnder, markLineCover } from './linesUnderMarks';
+import { useLinesUnderMarks } from './useLinesUnderMarks';
 import { marksBox, marksInWindow } from '../zoom/stepView';
 import { useAnchorPick } from '../zoom/useAnchorPick';
 import { anchorFaceRing } from '../zoom/zoomAnchor';
@@ -472,8 +474,12 @@ export function useAnnotateCanvas({
   const [frameDraft, setFrameDraft] = useState<DiagramZoomOutline | null>(null);
   // The Anchor row's pick mode, while it is armed for this step.
   const anchorPick = useAnchorPick({ step, window: zoomWindow });
+  // Its lines under the line marks drawn along them are left out, as every surface prints it.
+  const covering = useLinesUnderMarks(step, assets, style);
+  const shownSource = useMemo(() => source && sourceUnderMarks(source, covering), [source, covering]);
+  const shownZoomed = useMemo(() => zoomedUnderMarks(zoomed, covering), [zoomed, covering]);
   // An enlarged step's picture is drawn under its frame's clip (`DiagramZoomView`), not as an image of the whole.
-  const url = useMemo(() => (source && !zoomed ? stepPictureUrl(source, style) : null), [source, zoomed, style]);
+  const url = useMemo(() => (shownSource && !zoomed ? stepPictureUrl(shownSource, style) : null), [shownSource, zoomed, style]);
   const layout = useMemo(() => (painted ? layoutFor(painted) : null), [painted]);
   // What a fit frames: the picture and the marks past it, or an enlarged step's window alone.
   const framed = useMemo(
@@ -1546,8 +1552,12 @@ export function useAnnotateCanvas({
         const snapped = target !== null || (!point && current.startTarget !== null);
         const eventKind = annotationEventKind(annotation);
         const how = snapOutcome(annotation.kind, { enabled: snap.enabled, free: free || current.free, snapped });
-        // A solid line's colour, by name (17a), and a label's options (17b); no other mark sends any.
-        const detail = annotationEventDetail(annotation);
+        // A solid line's colour, by name (17a), a label's options (17b), and how much of the picture's lines a line
+        // lies along, which it leaves out under it; no other mark sends any.
+        const detail = {
+          ...annotationEventDetail(annotation),
+          ...(hidesLinesUnder(annotation) ? { covers: markLineCover(annotation, step, assets, style) } : {}),
+        };
         if (Object.keys(detail).length > 0) trackDiagramAnnotationAdded(eventKind, how, detail);
         else trackDiagramAnnotationAdded(eventKind, how);
         if (carriesText(annotation.kind)) {
@@ -1600,7 +1610,9 @@ export function useAnnotateCanvas({
     [
       layout,
       toPicture,
-      step.id,
+      step,
+      assets,
+      style,
       release,
       landPath,
       landFrame,
@@ -1626,10 +1638,10 @@ export function useAnnotateCanvas({
     camera: { ...camera, onTransformed },
     overlay,
     url,
-    /** What the picture is painted from: a close-up paints it again, larger (15f). */
-    source,
+    /** What the picture is painted from, its lines under the marks left out: a close-up paints it again, larger (15f). */
+    source: shownSource,
     /** An enlarged step's window, and what it is painted from (Revision 2); null for a whole picture. */
-    zoomed,
+    zoomed: shownZoomed,
     /** An enlarged step's frame in the canvas's units — as a drag of it shows it — or null for a whole picture. */
     frameOutline: frameDraft ?? frameOutline,
     /** The frame is selected: the picture round it shows, dimmed, with its grips. */

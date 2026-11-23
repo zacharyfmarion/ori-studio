@@ -30,6 +30,7 @@ const REQUEST: LayerOrderRequest = {
     xray: false,
     lineStyle: 'color',
     lineWidth: 1,
+    foldAngleDisplay: 'opacity',
   },
 };
 

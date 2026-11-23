@@ -100,6 +100,18 @@ export interface FoldSquashAnalysis {
    */
   layers?: number;
   opening?: number;
+  /**
+   * How many pockets on one lower layer squash together: 1 for a flap alone.
+   * Several share one crease, so their spine lands on the hinge line only:
+   * no target is offered. Absent in a test double: one.
+   */
+  pockets?: number;
+  /**
+   * A closed pocket, its walls joined on the hinge too: opened deeper than
+   * the first flap at the click, it takes no spine target either. Absent in
+   * a test double: false.
+   */
+  closed?: boolean;
 }
 
 /**
@@ -146,6 +158,8 @@ export interface FoldFanAnalysis {
   candidates: FoldModelPoint[];
   /** The candidate the op's emergent ray names. */
   emergent: number | null;
+  /** The other rabbit-ear anchor would keep more connected sheet area stationary. */
+  prefers_other_anchor?: boolean;
   /** The layers the creases cut, the first nearest the side the direction names. */
   layers: number[];
 }
@@ -257,6 +271,21 @@ export interface FoldSwivelValleyMountainAnalysis {
   layers: number[];
   regions: FoldSwivelRegion[];
   fold: FoldSwivelFold;
+  /**
+   * A swivel's: where one of its creases runs on to another folded edge —
+   * the other end, where a second swivel can share it. Two swivels made
+   * together's (`otherEnd`): the second's vertex and the crease they share.
+   * Absent when there is none.
+   */
+  other_end?: FoldSwivelOtherEndAnalysis;
+}
+
+/** Which crease a second swivel shares (`SwivelOtherEnd`): the valley or the mountain on the layer in front, or the crease behind. */
+export type FoldSwivelShared = 'valley' | 'mountain' | 'behind';
+
+export interface FoldSwivelOtherEndAnalysis {
+  vertex: FoldModelPoint;
+  shared: FoldSwivelShared;
 }
 
 export type FoldVertexAnalysis =
@@ -311,6 +340,12 @@ export interface FoldVertexAnalysed {
   kinds?: [boolean, boolean][];
   /** Null when it lands with one order, or is refused (the preview says why). */
   orders: FoldVertexOrders | null;
+  /**
+   * A squash refused as asked that lands opened deeper (a closed pocket):
+   * the analysis and orders are for `analysis.opening`, which the step must
+   * store, and `openings` lists every depth that lands. Absent otherwise.
+   */
+  deeper?: true;
 }
 
 // ---------------------------------------------------------------------------

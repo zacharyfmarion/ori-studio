@@ -2754,6 +2754,21 @@ describe('a flat capture’s faces in the file (Revision 2)', () => {
     expect(plain.picture && 'paperFaces' in plain.picture).toBe(true);
   });
 
+  it('round-trips a picture whose layers could not be spread, its faces checked as the unspread fold’s', () => {
+    // A spread step whose scene draws a face in part, as an unspread fold does: kept, its layers drawn unspread.
+    const written = flatFaces(true, { rings: [[0, 1, 2, 3], [4, 5, 2]] });
+    written.steps[0].picture.spreadFailed = true;
+    const { read, step } = readFaces(written);
+    expect(step.unknown).toBeUndefined();
+    expect(step.picture).toMatchObject({ spreadFailed: true, paperFaces: written.steps[0].picture.paperFaces });
+    expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+    // Anything but true says nothing, and is not written back.
+    written.steps[0].picture.spreadFailed = 'yes';
+    const damaged = readFaces(written).step;
+    expect(damaged.unknown).toBeUndefined();
+    expect(damaged.picture && 'spreadFailed' in damaged.picture).toBe(false);
+  });
+
   it('checks them against the scene as the load read it, with no second parse of the scene', () => {
     const written = flatFaces(true);
     const sceneJson = written.steps[0].picture.sceneJson as string;
@@ -2783,6 +2798,10 @@ describe('uploaded pictures in the file', () => {
     const loaded = readDiagram(written)!;
     expect(loaded.document.steps[1]).toMatchObject({ picture: { sceneFrame: [-10, 20, 100, 80] } });
     expect(throughJson(writeDiagram(loaded.document)).steps[1].picture.sceneFrame).toEqual([-10, 20, 100, 80]);
+    // A bitmap of a fold whose layers could not be spread says so, as a scene does.
+    written.steps[1].picture.spreadFailed = true;
+    expect(readDiagram(written)!.document.steps[1]).toMatchObject({ picture: { spreadFailed: true } });
+    delete written.steps[1].picture.spreadFailed;
     for (const frame of [[0, 0, -1, 1], [0, 0, 1, 0], [0, 0, 1], [0, NaN, 1, 1], [0, 0, 1, 1, 1]]) {
       written.steps[1].picture.sceneFrame = frame;
       expect(readDiagram(written)!.document.steps[1]).toMatchObject({ picture: null });
@@ -3284,7 +3303,7 @@ describe('linked steps in the file', () => {
     expect(throughJson(writeDiagram(read.document))).toEqual(written);
   });
 
-  describe('a simulated step’s shape, as a build with Pose’s tools stores it (decision 5)', () => {
+  describe('a simulated step’s shape: Pose’s saved positions, or a build with Pose’s tools’ (decision 5)', () => {
     const shape = { id: 'shape-1', sheet: 'sheet-abc', pins: [[0.25, 0.5]], posed: true, state: 'v1:AAAA' };
 
     it('is carried as it came, and the step stays editable', () => {
@@ -3294,6 +3313,23 @@ describe('linked steps in the file', () => {
       const step = stepsIn(read.document)[6];
       expect(step.unknown).toBeUndefined();
       expect(step.source).toMatchObject({ render: { mode: 'simulated', foldPercent: 40.5, shape } });
+      expect(throughJson(writeDiagram(read.document))).toEqual(written);
+    });
+
+    it('as Pose saves it, unsettled, is written back as it came: what Pose opens on held', () => {
+      const saved = { sheet: 'sk1:sheet', state: 'ss1:AAAAPwAAgL8=', settled: false };
+      const written = throughJson(writeDiagram(linkedDiagram()));
+      written.steps[6].source.render.shape = saved;
+      const read = readDiagram(written)!;
+      expect(stepsIn(read.document)[6].source).toMatchObject({ render: { mode: 'simulated', foldPercent: 40.5, shape: saved } });
+      expect(throughJson(writeDiagram(read.document))).toEqual(written);
+    });
+
+    it('is absent on a step saved before Pose kept positions, which reads and writes as it did', () => {
+      const written = throughJson(writeDiagram(linkedDiagram()));
+      expect(written.steps[6].source.render).not.toHaveProperty('shape');
+      const read = readDiagram(written)!;
+      expect((stepsIn(read.document)[6].source as DiagramCpSource).render).not.toHaveProperty('shape');
       expect(throughJson(writeDiagram(read.document))).toEqual(written);
     });
 
@@ -3918,4 +3954,15 @@ describe('a linked step’s layer order', () => {
     expect(storedCpSource(source)?.layerOrder).toBe(RECORD);
     expect(storedCpSource({ ...source, layerOrder: '{"v":1}' })).not.toHaveProperty('layerOrder');
   });
+});
+
+
+it.each([2, 4])('round trips spatial amount %s and locks an unknown spatial version',(amount)=>{
+  const written=throughJson(writeDiagram(linkedDiagram()));
+  written.steps[2].source.render.spread={kind:'spatial',version:1,amount};
+  const read=readDiagram(written)!;
+  expect((stepsIn(read.document)[2]!.source as DiagramCpSource).render).toMatchObject({spread:{kind:'spatial',version:1,amount}});
+  expect(throughJson(writeDiagram(read.document)).steps[2].source.render.spread).toEqual(written.steps[2].source.render.spread);
+  written.steps[2].source.render.spread.version=2;
+  expect(stepsIn(readDiagram(written)!.document)[2]!.unknown).toBeDefined();
 });

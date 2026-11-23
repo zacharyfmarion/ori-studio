@@ -682,6 +682,102 @@ describe('a crease on the line where two planes meet', () => {
     // And the last thing drawn is a copy of the fold, over everything.
     expect(result.items.at(-1)!.kind).toBe('line');
   });
+
+  it.each([
+    ['above and in front', { yaw: 0.3, pitch: -1, zoom: 1 }],
+    ['below and behind', { yaw: 2.9, pitch: 1.2, zoom: 1 }],
+    ['from the side', { yaw: 1.4, pitch: -0.3, zoom: 1 }],
+  ])('draws the one copy the window draws over both planes, seen from %s', (_label, view) => {
+    // At a camera where the window draws the bend from one plane's side only,
+    // one face carries the fold. The other plane's face meets it along the
+    // bend without covering it, and drawn after it would paint over half its
+    // ink: the fold goes after both faces, as the GPU draws its creases.
+    const oneCopy: SvgMeshTopology = { ...HINGE_TOPOLOGY, edgeIndices: new Uint32Array([0, 1]), edgeAssignments: new Uint8Array([EDGE_CODE.mountain]) };
+    const camera = cameraUniforms(view, [0, 0, 0], 2, 400, 300);
+    const result = scene(
+      {
+        faceGroups: GROUPS,
+        layers: { coplanarEps: 1e-6 },
+        order: new Float32Array([0, 0]),
+        edgeOrder: new Float32Array([1]),
+      },
+      HINGE,
+      oneCopy,
+      camera
+    );
+    const lastFace = result.items.reduce((last, item, index) => (item.kind === 'face' ? index : last), -1);
+    const crease = result.items.findIndex((item) => item.kind === 'line');
+    expect(crease).toBeGreaterThan(lastFace);
+  });
+});
+
+describe('a crease under the layers of its own plane', () => {
+  /**
+   * Two layers of one plane with an edge in common, a fold along that edge on
+   * the lower layer only: the upper layer meets the fold along its own edge
+   * without covering it. Only the kernel's order says which is on top, and it
+   * puts the upper layer last.
+   */
+  const SHARED = new Float32Array([
+    // lower layer, face 7: a triangle with its long edge along x
+    -1, 0, 0, 1, 0, 0, 0, 0, -1,
+    // upper layer, face 9: the same edge, on the other side
+    -1, 0, 0, 1, 0, 0, 0, 0, 1,
+  ]);
+  const SHARED_TOPOLOGY: SvgMeshTopology = {
+    faceIndices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+    edgeIndices: new Uint32Array([0, 1]),
+    edgeAssignments: new Uint8Array([EDGE_CODE.mountain]),
+  };
+
+  it('keeps it where the kernel put it rather than moving it over the layer above', () => {
+    const result = scene(
+      {
+        faceGroups: new Uint32Array([7, 9]),
+        layers: { coplanarEps: 1e-6 },
+        order: new Float32Array([0, 2]),
+        edgeOrder: new Float32Array([1]),
+        markHidden: false,
+      },
+      SHARED,
+      SHARED_TOPOLOGY,
+      OVERHEAD
+    );
+    expect(result.items.map((item) => (item.kind === 'face' ? `face ${item.face}` : 'line'))).toEqual([
+      'face 7',
+      'line',
+      'face 9',
+    ]);
+  });
+
+  it('keeps an aux line on ends of its own there too, by the triangle recorded for it', () => {
+    // A 3D figure's aux cut, on two vertices no triangle shares, along the
+    // edge the upper layer meets the lower one by: only the lower layer's
+    // triangle, recorded for it, says which layer it is on.
+    const result = scene(
+      {
+        faceGroups: new Uint32Array([7, 9]),
+        layers: { coplanarEps: 1e-6 },
+        order: new Float32Array([0, 2]),
+        edgeOrder: new Float32Array([1]),
+        markHidden: false,
+      },
+      new Float32Array([...SHARED, -0.5, 0, 0, 0.5, 0, 0]),
+      {
+        faceIndices: SHARED_TOPOLOGY.faceIndices,
+        edgeIndices: new Uint32Array([6, 7]),
+        edgeAssignments: new Uint8Array([EDGE_CODE.aux]),
+        edgeTriangles: new Int32Array([0]),
+      },
+      OVERHEAD
+    );
+    expect(result.items.map((item) => (item.kind === 'face' ? `face ${item.face}` : 'line'))).toEqual([
+      'face 7',
+      'line',
+      'face 9',
+    ]);
+    expect(lines(result).map((line) => [line.role, line.face])).toEqual([['aux', 7]]);
+  });
 });
 
 describe('which endpoints lie on a boundary', () => {

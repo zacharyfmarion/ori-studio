@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-11-19
+
+Layer spread for 3D folded figures, a swivel on both sides of a model in one step, many more tutorial folds made directly in Fold, and a Default spread that keeps the paper its true size and reaches large models.
+
+### Added
+
+- Spread the layers of a 3D folded figure. In Edit, turn on **Spread layers** in the Spread section of Properties for a folded model shown in 3D; in the Diagram, a step shown folded in 3D has **Spread layers** and **Amount** in Pose. The layers lift apart along the folded shape while the paper stays joined at its creases, and each layer is drawn in front of or behind its neighbours as the layer order says, from whichever side you turn the model. It works in the Paper look.
+- Swivel both sides of a model in one step, as tutorials often draw it: fold a strip up and squash the corner out on each side. In the Swivel tool's **Valley and mountain**, once a swivel's crease runs on to another folded edge, click **Swivel there too** and pick the second swivel's lines at the other end; the two fold together. Earlier versions open a project with such a step but keep the step locked.
+
+### Improved
+
+- Swivel more of the folds tutorials draw, which had to be imported as crease patterns. The Swivel tool now starts on **Valley and mountain**, the creases tutorials draw, and still keeps your choice from fold to fold. It swivels a thick, already-folded flap: every layer hinged to the moving paper is creased or carried along, and folds nested in the folded edge open with it. It also turns a flap out or in about the corner where its two hinges end. When **Edge onto line** can't make a swivel, its notice says why and switches to Valley and mountain in one click.
+- Squash more pockets: a flap whose walls are several layers each, with **Opens under** and **Opens over** to choose how deep it opens; two pockets that share their lower layer, together in one click, as on a blintzed preliminary base; and a closed pocket opened deeper than its first flap, such as a paper hat pressed flat into a square. Earlier versions keep a squash opened at a chosen depth locked.
+- Reverse fold a point whose walls are several layers each, such as a corner folded in half three times. Petal fold a squashed flap, as on the frog base, including one whose lower layer runs on past the hinge. An open sink now rides over paper folded into its pocket.
+- Tuck a corner into a pocket against paper already inside it, or behind its own layers past layers that cross the fold. The Valley and Mountain tools' layer order now offers both landings.
+- Import CP and **Collapse from CP** onto any sheet Fold starts from: a regular hexagon or pentagon, or any convex sheet of 3 to 8 sides. They worked only on squares and rectangles.
+- Show the valley and mountain folds of a Fold step that imports a crease pattern (Import CP or a Collapse) as line marks in the Diagram, as rabbit ears, squashes and swivels already did. The step came in as the precreased sheet with every crease grey. The marks can be edited, and Refresh brings back the step's own marks and keeps yours.
+- Draw a Diagram valley or mountain line laid along a crease or an edge as a dashed line. The line under it showed through the gaps between the dashes, so the fold read as solid; now the stretch it covers is left out, on the Annotate canvas, step cards, pages, print and PDF. Export Picture… and Pose still draw the whole picture.
+- Keep lifted paper its true size in a Default spread: a lifted flap now draws back toward its hinge instead of stretching. The **Layer reveal** pad also reaches no reveal at its centre, since the paper now opens without one.
+- Spread large, deeply layered models by Default, where they were refused with "Spread resource limit exceeded". A 940-face model folded 86 layers deep now spreads in about 5 seconds.
+
+### Fixed
+
+- Add a folded step to the Diagram for a model whose layers can't be spread by Default. The capture failed with "The picture couldn't be captured"; the step now shows its layers unspread and says so, with Affine and Depth still on offer. In Edit, Export and Share, **Spread layers** stays on with the note "These layers couldn't be spread", where Edit held **Spread by** and Export and Share turned the spread off.
+- Show the nearer layer in a Default spread where the layer order doesn't relate two layers. A layer from deep in one stack could be drawn over the top of the stack beside it.
+- Draw the creases of lower layers on their own paper in a Default spread. Where lower layers showed through, their precreases drew as stray lines running out of the paper. A picture captured before keeps its lines until it is posed again.
+- Draw the fold lines of a Diagram step shown as Simulated cleanly on the page. They went thin and shifted sideways piece by piece, kinked where creases crossed them, and broke into gaps where creases met, though Pose's live simulation drew them cleanly. Simulated steps already in a diagram are redrawn the same way; a line an earlier capture left out comes back when the step is posed again.
+- In Fold, snap to a crease mark's end where it crosses a fold under the top layer. The folded view offered nothing to snap to there.
+- Swap a pleat's ends in Fold: **Swap** now moves the end beyond the mountain line. It was refused for every pleat.
+- In Fold, offer **Precrease the hinge first** on a refused petal fold only where precreasing the hinge lets the fold land, and precrease it through every layer. The button was offered where it didn't help, and it precreased only the top flap.
+
 ## [0.9.0] - 2026-11-01
 
 A new Default layer spread that keeps the paper joined at its creases, in Fold and the Diagram, and spread and layer order for Edit's folded figures and in the Export and Share dialogs.

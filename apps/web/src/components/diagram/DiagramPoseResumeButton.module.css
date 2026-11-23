@@ -1,0 +1,35 @@
+/*
+ * Pose's play button over a Simulated step saved before it settled
+ * (DiagramPoseResumeButton.tsx). On the stage's overlay pill, as its readout
+ * and hint are: the stage under it is white whatever the theme.
+ */
+.button {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--domain-overlay-bg);
+  box-shadow: 0 8px 24px var(--shadow-overlay);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.button:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.button:focus-visible {
+  border-color: var(--accent-primary);
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* A triangle's weight sits left of its box: nudged so it reads as centred. */
+.icon {
+  margin-left: 3px;
+  fill: currentColor;
+}

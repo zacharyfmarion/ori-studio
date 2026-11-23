@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { cpPatternStrokes, type CpPatternStrokes } from '../../cp-workspace/adapters/cpPatternStrokes';
 import { cpCreaseStrokeWidthPx } from '../../cp-workspace/cpSizingScales';
+import { useFoldAngleDisplay } from '../../cp-workspace/foldAngle/useFoldAngleDisplay';
 import { DEFAULT_ORISTUDIO_CP_LINE_STYLE } from '../../lib/creasePatternViewport';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { FoldLetter } from '../engine/foldEngineWire';
@@ -60,14 +61,20 @@ export function useFoldCreasePatternStrokes(
 ): FoldCreasePatternStrokes | null {
   const lineStyle = useWorkspaceStore((state) => state.oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE);
   const lineWidth = useWorkspaceStore((state) => state.oristudioCpViewport.lineWidth ?? 1);
+  const foldAngleDisplay = useFoldAngleDisplay();
   return useMemo(() => {
     if (!element || !lines) return null;
     const groups = LETTERS.map((letter) => ({
       color: foldLetterLineColor(letter),
       segments: lines.instruction.filter((line) => line.letter === letter),
     }));
-    return cpPatternStrokes(lines.creases, element, { lineStyle, lineWidth }, { groups, widthMul: FOLD_INSTRUCTION_WIDTH_MUL });
+    return cpPatternStrokes(
+      lines.creases,
+      element,
+      { lineStyle, lineWidth, foldAngleDisplay },
+      { groups, widthMul: FOLD_INSTRUCTION_WIDTH_MUL }
+    );
     // The theme is read off the element: its key is what says it changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, element, themeKey, lineStyle, lineWidth]);
+  }, [lines, element, themeKey, lineStyle, lineWidth, foldAngleDisplay]);
 }

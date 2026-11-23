@@ -40,6 +40,7 @@ import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PT_PER_CSS_PX, mmToCssPx, pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import type { DiagramStyle } from '../document/diagramDocument';
 import { diagramPaperStyle, diagramSurfaceStyle } from './diagramPaperStyle';
+import { sceneUnderMarks, type CoveringMarks } from './sceneUnderMarks';
 
 // The crease width a step's marks are inked against: `canvasInk.ts` owns it with the scale it is drawn at.
 export { STEP_DIAGRAM_LINE_WIDTH };
@@ -165,17 +166,44 @@ export function stepDiagramPaintStyle(style: DiagramStyle): PaperStyle {
 }
 
 /**
+ * A step's scene, its sheet `sheetMm` across ({@link stepDiagramScene}),
+ * with none of its lines' stretches the marks over it lie along
+ * (`sceneUnderMarks`): its frame is its sheet, wherever its letters reach.
+ * The scene itself where none is given or none covers a line.
+ */
+export function stepDiagramSceneUnderMarks(
+  scene: PaperScene,
+  model: StepDiagramModel,
+  mirrored: boolean,
+  sheetMm: number,
+  covering: CoveringMarks | null | undefined
+): PaperScene {
+  if (!covering || covering.lines.length === 0) return scene;
+  const box = stepDiagramSheetBox(model, mirrored, sheetMm);
+  const longer = Math.max(box.width, box.height);
+  if (!(longer > 0)) return scene;
+  return sceneUnderMarks(scene, covering, ([x, y]) => [box.x + x * longer, box.y + y * longer], longer);
+}
+
+/**
  * The step painted on `page`, its sheet's longer side `page.sheet.mm` across,
- * and where its sheet is on it. Sizes in CSS px, as every painted picture
- * reports them.
+ * and where its sheet is on it; none of its lines' stretches `covering`'s
+ * marks lie along. Sizes in CSS px, as every painted picture reports them.
  */
 export function paintStepDiagram(
   model: StepDiagramModel,
   mirrored: boolean,
   style: DiagramStyle,
-  page: PaperPage
+  page: PaperPage,
+  covering: CoveringMarks | null = null
 ): { svg: string; widthPx: number; heightPx: number; frame: { x: number; y: number; width: number; height: number } } {
-  const scene = stepDiagramScene(model, mirrored, style, page.sheet.mm);
+  const scene = stepDiagramSceneUnderMarks(
+    stepDiagramScene(model, mirrored, style, page.sheet.mm),
+    model,
+    mirrored,
+    page.sheet.mm,
+    covering
+  );
   const paintStyle = stepDiagramPaintStyle(style);
   const painted = paperSceneToSvg(scene, paintStyle, page, 'sheet');
   // Where the painter put the sheet: its box, shifted to the margin with the scene's bounds.

@@ -1,8 +1,11 @@
 //! Original display-only geometry. No fold or layer-order search is changed.
 //! Heights share material vertices; crossing penalties remain soft.
+mod inplane;
 mod prepare;
 mod qp;
+mod reach;
 mod reference;
+pub mod spatial;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -13,7 +16,8 @@ pub const WARP: f64 = 0.05;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Cell {
-    /// Top to bottom, as seen from the canonical front.
+    /// Top to bottom, as seen from the canonical front. Faces near each other
+    /// here are the pairs kept from crossing, so every overlap cell is listed.
     pub faces: Vec<usize>,
     pub point: [f64; 2],
     pub area: f64,
@@ -56,6 +60,9 @@ pub struct Diagnostics {
     pub variables: usize,
     pub constraints: usize,
     pub overlap_regions: usize,
+    /// How many places apart, in a stack, two layers may lie and still be kept
+    /// from crossing by a penalty of their own. 1 on a model too large for more.
+    pub reach: usize,
     pub crossing_weight: f64,
     pub opening_scale: f64,
     pub max_relative_warp: f64,
@@ -70,6 +77,11 @@ pub struct Solution {
     pub version: String,
     pub heights: Vec<f64>,
     pub references: [Reference; 2],
+    /// In-plane shift at amount 1 that keeps the lifted paper its true size:
+    /// `x, y` per vertex, for the front then the back reference. It scales
+    /// with the square of the amount. A side with no usable shift is empty.
+    #[serde(default)]
+    pub shifts: [Vec<f64>; 2],
     pub diagnostics: Diagnostics,
 }
 

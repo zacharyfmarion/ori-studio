@@ -382,9 +382,12 @@
       "chip_other": "Lasche {{number}}, {{count}} Lagen",
       "chipAdded_one": "Lasche {{number}}, {{count}} Lage, wird mitgefaltet",
       "chipAdded_other": "Lasche {{number}}, {{count}} Lagen, wird mitgefaltet",
+      "chipLocked_one": "Lasche {{number}}, {{count}} Lage, kann nicht weggelassen werden",
+      "chipLocked_other": "Lasche {{number}}, {{count}} Lagen, kann nicht weggelassen werden",
       "groupLabel": "Zu faltende Laschen",
       "layers_one": "{{count}} Lage",
       "layers_other": "{{count}} Lagen",
+      "locked": "{{flap}} kann nicht weggelassen werden: Ohne sie ist die Faltung nicht möglich.",
       "name": "Lasche {{number}}"
     },
     "group": {
@@ -503,8 +506,9 @@
       "blocked": "Beide Faltungen müssen in die ausgewählte Klappe passen, ohne anderes Papier zu bewegen. Prüfe die Linien und ausgewählten Lagen.",
       "intro": "Lege am noch ungefalteten Modell zuerst die Berglinie und dann die Tallinie fest.",
       "layers": "Wähle die zu faltende Klappe. Das Ende hinter der Tallinie wird zurückgefaltet.",
+      "layersMountainEnd": "Wähle die zu faltende Klappe. Das Ende hinter der Berglinie wird zurückgefaltet.",
       "limit": "Es gibt zu viele Lagenanordnungen für diese Zickzackfalte. Wähle eine kleinere Klappe.",
-      "lines": "Die Tallinie muss hinter der Berglinie zum bewegten Ende hin liegen. Prüfe die Linien oder drücke Tauschen.",
+      "linesApart": "Berg- und Tallinie müssen auseinanderliegen. Wähle zwei verschiedene Linien.",
       "mountainInstruction": "Berglinie: {{instruction}}",
       "mountainLine": "Berglinie",
       "refusedTitle": "Hier lässt sich die Zickzackfalte nicht falten",
@@ -787,6 +791,8 @@
       "rowAdded": "Lage {{layer}}, {{flap}}, wird mitgefaltet",
       "rowAddedBeside": "Lage {{layer}}, {{flap}}, wird mitgefaltet, neben Lage {{above}}",
       "rowBeside": "Lage {{layer}}, {{flap}}, neben Lage {{above}}",
+      "rowLocked": "Lage {{layer}}, {{flap}}, kann nicht weggelassen werden",
+      "rowLockedBeside": "Lage {{layer}}, {{flap}}, neben Lage {{above}}, kann nicht weggelassen werden",
       "top": "Oben"
     },
     "sink": {
@@ -870,7 +876,7 @@
       "repeatAxesTouch": "Tippe auf eine auf dem Papier gezeichnete Symmetrieachse oder bestimme eine mit „Linie bestimmen“, in einer der beiden Ansichten.",
       "repeatCommit": "Drücke die Eingabetaste, um die wiederholten Faltungen hinzuzufügen.",
       "repeatCommitTouch": "Tippe auf {{action}}, um die wiederholten Faltungen hinzuzufügen.",
-      "repeatStart": "Wähle den ersten Schritt, der wiederholt wird. Der Bereich endet beim angezeigten Schritt.",
+      "repeatRange": "Wähle den ersten und den letzten Schritt, die wiederholt werden. Die Wiederholung wird nach dem angezeigten Schritt eingefügt.",
       "reverseFinish": "Wähle die Laschen für den Gegenbruch, dann drücke die Eingabetaste.",
       "reverseFinishTouch": "Wähle die Laschen für den Gegenbruch, dann tippe auf {{action}}.",
       "rotateCommit": "Drücke die Eingabetaste, um die Drehung hinzuzufügen.",
@@ -994,6 +1000,17 @@
         "swivelPicture": "Die Faltlinien treffen sich am Punkt, die Kante landet auf der fetten Linie, und das hervorgehobene Papier bewegt sich.",
         "swivelValleyMountainPicture": "Die Faltlinien treffen sich am Punkt. Die gepunktete Faltlinie liegt auf der Lage dahinter und ergibt sich aus Tal und Berg; das hervorgehobene Papier bewegt sich."
       },
+      "otherEnd": {
+        "action": "Auch dort drehen",
+        "behindRunsOn": "Die Faltlinie dahinter läuft bis zu einer anderen gefalteten Kante weiter.",
+        "label": "Anderes Ende",
+        "mountainRunsOn": "Die Berglinie läuft bis zu einer anderen gefalteten Kante weiter.",
+        "pickMountainBehind": "Das andere Ende: Wähle seine Berglinie, vom selben Punkt aus.",
+        "pickMountainShared": "Das andere Ende: Wähle seine Berglinie, von dort, wo die Tallinie die andere gefaltete Kante trifft.",
+        "pickValleyBehind": "Das andere Ende: Wähle seine Tallinie auf der sichtbaren Lage, von dort, wo die Faltlinie dahinter die andere gefaltete Kante trifft.",
+        "pickValleyShared": "Das andere Ende: Wähle seine Tallinie, von dort, wo die Berglinie die andere gefaltete Kante trifft.",
+        "valleyRunsOn": "Die Tallinie läuft bis zu einer anderen gefalteten Kante weiter."
+      },
       "refusal": {
         "blocked": {
           "steppers": "Eine Faltlinie würde auf Papier treffen, das nicht mitfaltet, oder Papier würde zwei Teile der Faltung zusammenhalten. Blättere bei Lagen, um mehr Lagen zu falten, oder bei Vierte Faltlinie zu einer anderen.",
@@ -1026,8 +1043,11 @@
         },
         "line": {
           "crease": "Die Scharnierlinie läuft nicht durch jede Lage darunter, die mitfaltet. Falte das Scharnier durch alle Lagen vor, dann die Blütenblattfalte.",
+          "creaseNoRoute": "Die Scharnierlinie läuft nicht durch jede Lage darunter, die mitfaltet, und auch durch alle Lagen vorgefaltet würde sie die Blütenblattfalte nicht ermöglichen. Wähle ein anderes Scharnier oder gib dieses über seine beiden Enden an.",
           "ends": "Das Scharnier kreuzt Papier der zweiten Lage, das sich neben dem Drachen einfaltet, und die Faltung kann es beim Anheben der Lasche nicht falten. Falte das Scharnier durch alle Lagen vor, dann die Blütenblattfalte.",
-          "titleHinge": "Zuerst das Scharnier vorfalten"
+          "endsNoRoute": "Das Scharnier kreuzt Papier der zweiten Lage, das sich neben dem Drachen einfaltet, und die Faltung kann es beim Anheben der Lasche nicht falten. Auch ein Vorfalten des Scharniers durch alle Lagen würde die Blütenblattfalte nicht ermöglichen. Wähle ein anderes Scharnier.",
+          "titleHinge": "Zuerst das Scharnier vorfalten",
+          "titleNoRoute": "Das Scharnier lässt sich hier nicht falten"
         },
         "lineMeeting": {
           "textValleyMountain": "Tal und Berg treffen sich an einem Punkt einer sichtbaren gefalteten Kante, abseits ihrer Enden. Wähle zwei Linien, die sich dort kreuzen.",

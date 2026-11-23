@@ -8,10 +8,10 @@ import { foldStepSource, scenePicture } from '../document/diagramSteps.fixtures'
  * added`, `diagram turn added`), as a References pull is. The captures are
  * stubbed: what Fold's replay would send is given, so no engine runs.
  */
-const sent = vi.hoisted(() => ({ entries: [] as SentDiagramEntry[], flattened: 0 }));
+const sent = vi.hoisted(() => ({ entries: [] as SentDiagramEntry[], spreadFailed: 0 }));
 vi.mock('./foldPull', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./foldPull')>()),
-  pullFoldTargets: vi.fn(async () => ({ sent: sent.entries, failed: 0, flattened: sent.flattened })),
+  pullFoldTargets: vi.fn(async () => ({ sent: sent.entries, failed: 0, spreadFailed: sent.spreadFailed })),
 }));
 vi.mock('../../store/workspaceStore/foldSession', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../store/workspaceStore/foldSession')>()),
@@ -27,9 +27,9 @@ vi.mock('../../analytics/trackFoldIo', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics/trackFoldIo')>()),
   ...foldIo,
 }));
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() } }));
+const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), message: vi.fn() }));
+vi.mock('sonner', () => ({ toast: toasts }));
 
-const { toast } = await import('sonner');
 const { useWorkspaceStore } = await import('../../store/workspaceStore');
 const { useSettingsStore } = await import('../../store/settingsStore');
 const { pullFromFold } = await import('./foldBrowserActions');
@@ -55,7 +55,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  sent.flattened = 0;
+  sent.spreadFailed = 0;
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   useWorkspaceStore.setState({ foldSequences: [{ document: { id: 'fold-1', steps: [] } }] as never });
 });
@@ -74,6 +74,22 @@ describe('a pull from Fold, counted (plan D17)', () => {
       ['turn-over', 'fold'],
       ['rotate', 'fold'],
     ]);
+  });
+
+  it('adds steps whose layers couldn’t be spread, unspread, and says so', async () => {
+    sent.entries = [foldStep('fstep-1'), foldStep('fstep-2')];
+    sent.spreadFailed = 2;
+    expect(await pullFromFold(TARGETS, { kind: 'end' }, { via: 'fold' })).toBe(2);
+    expect(toasts.message).toHaveBeenCalledWith(
+      '2 steps’ layers couldn’t be spread by Default, so they show them unspread. Try Affine or Depth instead.'
+    );
+    expect(toasts.error).not.toHaveBeenCalled();
+  });
+
+  it('says nothing of spreads when every step was spread', async () => {
+    sent.entries = [foldStep('fstep-1')];
+    await pullFromFold(TARGETS, { kind: 'end' }, { via: 'fold' });
+    expect(toasts.message).not.toHaveBeenCalled();
   });
 
   it('does not count the empty step it fills: that step was there already', async () => {
@@ -106,20 +122,5 @@ describe('a pull from Fold, counted (plan D17)', () => {
     expect(analytics.trackDiagramStepAdded).not.toHaveBeenCalled();
     expect(analytics.trackDiagramTurnAdded).not.toHaveBeenCalled();
     expect(foldIo.trackFoldStepSentToDiagram).not.toHaveBeenCalled();
-  });
-});
-
-describe('a pull from Fold whose layers could not all be spread', () => {
-  it('says how many steps it added unspread, once they are in the diagram', async () => {
-    sent.entries = [foldStep('fstep-1'), foldStep('fstep-2')];
-    sent.flattened = 2;
-    expect(await pullFromFold(TARGETS, { kind: 'end' }, { via: 'fold' })).toBe(2);
-    expect(toast.message).toHaveBeenCalledWith('2 steps’ layers couldn’t be spread, so they were added unspread.');
-  });
-
-  it('says nothing when every step was spread', async () => {
-    sent.entries = [foldStep('fstep-1')];
-    await pullFromFold(TARGETS, { kind: 'end' }, { via: 'fold' });
-    expect(toast.message).not.toHaveBeenCalled();
   });
 });

@@ -19,9 +19,13 @@
  * - **Busy, not blank.** While a solve, a capture or a bitmap is being made,
  *   the last settled picture stays, and `busy` dims it (aria-busy). No status
  *   text.
- * - **Failures turn it off.** A spread that cannot be prepared, solved or
- *   drawn turns the setting off (`turnOff`), and `failed` says so beside the
- *   switch until it is turned on again, so the preview and the file agree.
+ * - **Failures stay on, drawn unspread.** A spread that cannot be prepared,
+ *   solved or drawn keeps its setting, and the figure is drawn unspread —
+ *   the preview and the file alike, since both paint `picture`. `failed` says
+ *   so beside the switch, and holds the spread's own values while Spread by
+ *   stays open: Affine and Depth need no solve, so a fold Default can never
+ *   spread can still be spread by another kind. A new setting or fold, or a
+ *   picture that lands, ends it.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
@@ -55,7 +59,7 @@ export interface ExportFoldedSpreadOptions {
   readonly preview: Pick<FoldedFigurePreview, 'figure' | 'scene' | 'ordered'>;
   /** The spread setting, committed: the dialog's, null for none. */
   readonly setting: LayerSpreadOptions | null;
-  /** Set the dialog's setting: its rows' commits, and off when its layers cannot be spread. */
+  /** Set the dialog's setting: its rows' commits. */
   readonly setSetting: (next: LayerSpreadOptions | null) => void;
   /** The figure's turn on the page, clockwise in degrees (the Layer order dialog's Rotate). */
   readonly turnDeg: number;
@@ -75,7 +79,7 @@ export interface ExportFoldedSpread {
   readonly busy: boolean;
   /** Whether this fold has layers to spread — a flat fold with a layer order — or null while no fold has landed to say. */
   readonly spreadable: boolean | null;
-  /** The last spread could not be spread, and was turned off. */
+  /** The setting's layers could not be spread: it stays on, and the figure is drawn unspread. */
   readonly failed: boolean;
   /** Its rows, as `LayerSpreadRows` lays them out. */
   readonly rows: ExportSpreadControls;
@@ -84,7 +88,8 @@ export interface ExportFoldedSpread {
 /**
  * Whether a dialog's figure is drawn with its layers spread: it is drawn, its
  * fold has layers to spread, and its spread is on. What the Layer order
- * dialog opens on X-ray for (D5), read before the spread is settled.
+ * dialog opens on X-ray for (D5), read before the spread is settled — so a
+ * spread on layers it could not spread, which stays on, counts as one.
  */
 export function exportFigureSpreads(
   enabled: boolean,
@@ -145,28 +150,23 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
   const connected = spread?.kind === 'connected';
   const frame = useMemo(() => (scene ? creaseExportSpreadFrame(scene, turnDeg) : null), [scene, turnDeg]);
 
-  // Read when a capture starts and when a failure lands, not followed: a new
-  // style redraws a bitmap below, and a new caller's arrow re-runs nothing.
+  // Read when a capture starts, not followed: a new style redraws a bitmap below.
   const styleRef = useRef(style);
   const heightRef = useRef(figureHeight);
-  const setSettingRef = useRef(setSetting);
   useEffect(() => {
     styleRef.current = style;
     heightRef.current = figureHeight;
-    setSettingRef.current = setSetting;
-  }, [style, figureHeight, setSetting]);
+  }, [style, figureHeight]);
 
-  // A spread that could not be spread turns itself off, and says so until it
-  // is turned on again. The clearing is declared first, so a setting that
-  // fails as it is made still says so.
+  // The fold whose layers the setting could not be spread on: drawn unspread
+  // and said so, until a new setting, or a picture that lands. The clearing
+  // is declared first, so a setting that fails as it is made still says so.
   const [failedOn, setFailedOn] = useState<OristudioCpFoldedPaperScene | null>(null);
   useEffect(() => {
-    if (setting) setFailedOn(null);
+    setFailedOn(null);
   }, [setting]);
-  const fail = useCallback((on: OristudioCpFoldedPaperScene) => {
-    setFailedOn(on);
-    setSettingRef.current(null);
-  }, []);
+  const fail = useCallback((on: OristudioCpFoldedPaperScene) => setFailedOn(on), []);
+  const failed = failedOn !== null && failedOn === scene;
 
   // The solve: one lease per fold, while it is spread by Default.
   const [solve, setSolve] = useState<Solve | null>(null);
@@ -209,7 +209,9 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
     }
   }, [scene, frame, spread]);
   useEffect(() => {
-    if (scene && immediate && immediate.picture === null) fail(scene);
+    if (!scene || !immediate) return;
+    if (immediate.picture === null) fail(scene);
+    else setFailedOn(null);
   }, [scene, immediate, fail]);
 
   // Default: one capture per committed setting, fold and frame.
@@ -226,8 +228,12 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
     }).then(
       (settled) => {
         const picture = creaseExportSpreadPicture(settled, spread, frame);
-        if (settled.kind === 'flat' || !picture) fail(scene);
-        else setCaptured({ scene, spread, frame, style: drawn, settled, picture });
+        if (settled.kind === 'flat' || !picture) {
+          fail(scene);
+          return;
+        }
+        setFailedOn(null);
+        setCaptured({ scene, spread, frame, style: drawn, settled, picture });
       },
       // Aborted: a newer setting, fold or frame took its place.
       () => {}
@@ -249,7 +255,9 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
       (settled) => {
         setRedrawing(false);
         const picture = creaseExportSpreadPicture(settled, kept.spread, kept.frame);
-        if (picture) setCaptured({ ...kept, style, settled, picture });
+        if (!picture) return;
+        setFailedOn(null);
+        setCaptured({ ...kept, style, settled, picture });
       },
       () => {
         if (controller.signal.aborted) return;
@@ -263,12 +271,14 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
     };
   }, [capturedNow, style, fail]);
 
-  // What the setting settled to now: null for none, undefined while it settles.
-  const current: CreaseExportSpreadPicture | null | undefined = !spread
-    ? null
-    : spread.kind !== 'connected'
-      ? (immediate?.picture ?? null)
-      : (capturedNow?.picture ?? undefined);
+  // What the setting settled to now: null for none, or for layers it could
+  // not spread; undefined while it settles.
+  const current: CreaseExportSpreadPicture | null | undefined =
+    !spread || failed
+      ? null
+      : spread.kind !== 'connected'
+        ? (immediate?.picture ?? null)
+        : (capturedNow?.picture ?? undefined);
 
   // The last picture settled, shown while the next is made.
   const [lastSettled, setLastSettled] = useState<CreaseExportSpreadPicture | null>(null);
@@ -277,7 +287,6 @@ export function useExportFoldedSpread(options: ExportFoldedSpreadOptions): Expor
   }, [current]);
 
   // The rows: a drag's value shown as it moves, the setting committed as it ends.
-  const failed = failedOn !== null && failedOn === scene;
   const [draft, setDraft] = useState<LayerSpreadOptions | null>(null);
   // The spreads set in this dialog, newest first: what a kind switched back to starts from.
   const [seen, setSeen] = useState<readonly LayerSpreadOptions[]>([]);

@@ -1,4 +1,4 @@
-import { edgeBoundaryFlags, type FoldAssignment } from '@treemaker/origami-simulator';
+import { edgeBoundaryFlags, type FoldAssignment, type VirtualVertices } from '@treemaker/origami-simulator';
 import {
   EDGE_ASSIGNMENT_CODES,
   type SimulatorModelInfo,
@@ -30,6 +30,14 @@ export interface SimulatorRenderModel {
   sheet: number;
   /** One per triangle: its crease-pattern face, the id pins and picks use. */
   faceGroups: Int32Array;
+  /**
+   * The ends of aux lines drawn on the paper, which edge indices from
+   * `virtual.start` name; a frame's node positions place them
+   * (`withVirtualVertices`). Undefined when the model draws none.
+   */
+  virtual?: VirtualVertices;
+  /** Per triangle, the drawn-on aux lines lying on it, as edge indices. */
+  trianglePieces?: ReadonlyMap<number, readonly number[]>;
 }
 
 /**
@@ -78,5 +86,26 @@ export function inflateRenderModel(info: SimulatorModelInfo): SimulatorRenderMod
     facesEdges,
     sheet: info.sheet,
     faceGroups: new Int32Array(info.faceGroups ?? new ArrayBuffer(0)),
+    ...(info.virtual
+      ? {
+          virtual: {
+            start: info.virtual.start,
+            nodes: new Uint32Array(info.virtual.nodes),
+            weights: new Float32Array(info.virtual.weights),
+          },
+        }
+      : {}),
+    trianglePieces: piecesByTriangle(new Int32Array(info.edgeTriangles ?? new ArrayBuffer(0))),
   };
+}
+
+function piecesByTriangle(edgeTriangles: Int32Array): Map<number, number[]> {
+  const pieces = new Map<number, number[]>();
+  edgeTriangles.forEach((triangle, edge) => {
+    if (triangle < 0) return;
+    const list = pieces.get(triangle);
+    if (list) list.push(edge);
+    else pieces.set(triangle, [edge]);
+  });
+  return pieces;
 }

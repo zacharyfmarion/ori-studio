@@ -5,7 +5,7 @@
  * approach §1, "The host"). Pure: `useExportLayerOrder` gathers the parts.
  */
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
-import type { OristudioCpLineStyle } from '../../lib/creasePatternViewport';
+import type { OristudioCpFoldAngleDisplay, OristudioCpLineStyle } from '../../lib/creasePatternViewport';
 import type { FoldedFigureSide } from '../../lib/foldedFigureSides';
 import type { LayerOrderRecord } from '../../lib/layerOrder/layerOrderRecord';
 import type {
@@ -39,6 +39,8 @@ export interface ExportLayerOrderRequestParts {
   /** Edit's view pen, which the crease-pattern pane draws in (D18). */
   readonly lineStyle: OristudioCpLineStyle;
   readonly lineWidth: number;
+  /** And its Fold angle style, which shades a crease folded short of 180° there. */
+  readonly foldAngleDisplay: OristudioCpFoldAngleDisplay;
   /** What the dialog's title row calls the figure, and quieter after it, its credit. */
   readonly name: string;
   readonly byline?: string | null;
@@ -66,6 +68,7 @@ export function exportLayerOrderRequest(parts: ExportLayerOrderRequestParts): La
       xray: parts.xray,
       lineStyle: parts.lineStyle,
       lineWidth: parts.lineWidth,
+      foldAngleDisplay: parts.foldAngleDisplay,
     },
     ...(parts.shown ? { shown: parts.shown } : {}),
     name: parts.name,

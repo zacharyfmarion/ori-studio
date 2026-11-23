@@ -9,8 +9,8 @@ user's model. Every step's `note` says what it folds.
 `apps/web/src/fold/document/foldRegressions.wasm.test.ts` opens each file as
 the app reads a project, replays every step to its stored fingerprint, and
 asserts the fixed behaviour on the replayed states.
-`apps/web/src/fold/canvas/foldRegressionFlows.wasm.test.tsx` makes the ghost
-precrease through the tools, clicks and all.
+`apps/web/src/fold/canvas/foldRegressionFlows.wasm.test.tsx` recreates the ghost
+precrease and the folded-corner rabbit ear through the canvas tools.
 
 - `ghost-precrease.osf`: a precrease of a flap's corner where the corner lies
   on the corner of the layer under it, which shows past the flap. Clicked on
@@ -20,6 +20,11 @@ precrease through the tools, clicks and all.
   paper on top. With it, f187366ad marks on the crease pattern the point a
   click would take, before the click, and 8f0f4488e has the refusal offer
   "Use the point on the moving flap" when that lands.
+- `rabbit-ear-folded-corner.osf` reproduces a rabbit ear on the top layer of a
+  corner folded to the center of a precreased square. The tool used to hold
+  the loose flap still and turn over the body. The canvas test picks the same
+  triangle and hinge, then checks the four panels of the ear land above the
+  backing and every uncut face keeps its position and facing.
 - `tuck-target-layer.osf`: a mountain fold of a book's top corner tucked into
   its pocket against the back layer, a precrease lying on the fold line and
   splitting that layer. Refused (as "More flaps would move" from the tool,

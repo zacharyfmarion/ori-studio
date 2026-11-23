@@ -203,7 +203,7 @@ export function FoldToolWindow({
           </p>
         ))}
       </div>
-      {/* The sequence tools: the step Unfold to step returns to, or the range Repeat starts with, then Repeat's axis. */}
+      {/* The sequence tools: the step Unfold to step returns to, or the steps Repeat starts and ends with, then Repeat's axis. */}
       {(steps || repeat) && (
         <div className={styles.section} data-fold-sequence="">
           {steps && (
@@ -214,6 +214,16 @@ export function FoldToolWindow({
               disabled={steps.disabled}
               divider={false}
               onChange={steps.set}
+            />
+          )}
+          {repeat?.end && (
+            <SelectRow
+              label={repeat.end.label}
+              value={repeat.end.value}
+              options={repeat.end.options}
+              disabled={repeat.end.disabled}
+              divider={false}
+              onChange={repeat.end.set}
             />
           )}
           {repeat && (

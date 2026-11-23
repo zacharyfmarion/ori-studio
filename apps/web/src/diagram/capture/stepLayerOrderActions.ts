@@ -33,6 +33,7 @@ import i18n from '../../i18n';
 import { openLayerOrderDialog } from '../../layer-order/dialog/layerOrderDialogGateway';
 import { lineContentFingerprint } from '../../lib/creaseFingerprint';
 import {
+  DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   type OristudioCpViewportOptions,
@@ -89,7 +90,7 @@ const TURN_STEP_LABEL = 'Adjust pose';
 export function diagramStepLayerOrderLook(
   style: DiagramStyle,
   render: FlatRender,
-  view: Pick<OristudioCpViewportOptions, 'lineStyle' | 'lineWidth'>
+  view: StepLayerOrderView
 ): LayerOrderLook {
   return {
     style: diagramScenePaintStyle(style, false),
@@ -99,8 +100,12 @@ export function diagramStepLayerOrderLook(
     xray: false,
     lineStyle: view.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE,
     lineWidth: view.lineWidth ?? DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+    foldAngleDisplay: view.foldAngleDisplay ?? DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   };
 }
+
+/** What a step's look takes from Edit's view: the crease pattern pane's pen. */
+type StepLayerOrderView = Pick<OristudioCpViewportOptions, 'lineStyle' | 'lineWidth' | 'foldAngleDisplay'>;
 
 /** A flat fold's pose, as a step keeps it. */
 export type FlatRender = Extract<DiagramCpRender, { mode: 'folded-flat' }>;
@@ -171,7 +176,7 @@ export function stepLayerOrderRequest(
   stepId: string,
   surface: Extract<LayerOrderRequestSurface, 'diagram_step' | 'pose'>,
   style: DiagramStyle,
-  view: Pick<OristudioCpViewportOptions, 'lineStyle' | 'lineWidth'>,
+  view: StepLayerOrderView,
   render: FlatRender,
   folded: StepFoldSource,
   saved: StepLayerOrder | null,

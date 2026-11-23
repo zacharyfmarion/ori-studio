@@ -17,7 +17,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { readDiagram, writeDiagram } from '../document/diagramFile';
-import { storedScene } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { cpDocument, fakeCaptureRuntime, movedLines, TWO_SQUARES, twoSquaresIndex } from './capture.fixtures';
 import { knownCreasesOf } from './captureCreases';
 import { captureStep } from './captureFolded';

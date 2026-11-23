@@ -369,8 +369,8 @@ export function DiagramStepDetail({
             render={linked.render}
             style={style}
             annotations={ghost}
-            onRest={linkedPose.simulate}
-            wantsRest={linkedPose.wantsRest}
+            onSave={linkedPose.simulate}
+            wantsSave={linkedPose.wantsSave}
             registerLiveView={linkedPose.registerLiveView}
             fallback={picture}
             toolbar={poseToolbar}
@@ -387,6 +387,7 @@ export function DiagramStepDetail({
               <DiagramPose3dView
                 view={linkedPose.spatial}
                 camera={linked.render.camera}
+                spread={linked.render.spread && linkedPose?.spatialAmount ? { ...linked.render.spread, amount: linkedPose.spatialAmount.amount } : linked.render.spread}
                 style={style}
                 onCamera={linkedPose.onCamera}
                 registerLiveView={linkedPose.registerLiveView}

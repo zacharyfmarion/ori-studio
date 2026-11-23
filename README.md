@@ -4,41 +4,144 @@
 [![Web](https://img.shields.io/badge/Web-oristudio.dev-brightgreen.svg)](https://oristudio.dev/)
 [![Latest Release](https://img.shields.io/github/v/release/zacharyfmarion/ori-studio?display_name=tag)](https://github.com/zacharyfmarion/ori-studio/releases)
 
-Ori Studio aims to be the ultimate workspace for origami design and analysis. It
-combines a modern web and desktop interface with a family of Rust and WebAssembly
-engines, and it leans heavily on ports of existing origami tools created by the
-community. The bulk of the functionality is dedicated to creating and editing origami
-crease patterns through a fork of [Oriedita](https://oriedita.github.io/). It also
-incorporates ports of [Treemaker](https://langorigami.com/article/treemaker/) and
-[Box Pleating Studio](https://bpstudio.abstreamace.com/).
+Ori Studio is a free, open-source workspace for origami design and analysis.
+Design a base, draw and check its crease pattern, simulate it, fold it step by
+step, and turn it into printed diagrams, all in one project. It runs in the
+browser at [oristudio.dev](https://oristudio.dev/) or as a desktop app for macOS,
+Windows and Linux.
 
-While the ports serve as the base for functionality, additional tools and functionality
-are being built on top of them - for example the edit workspace supports adding images next
-to crease patterns, which is useful as you are designing for references of the subject.
-Another is **Detect CP from Image** (File menu, in beta): a photo or render of a square
-crease pattern is cropped, run through a detection model, and solved into an
-exact, editable pattern — the model downloads once (45 MB) and is kept on the
-device; Settings ▸ Models shows what is installed. However, maintaining
-compatibility with existing tools is a priority - you will always be able to
-export to to a `.ori` file, which will just omit the images.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/overview-dark-1920w.webp">
+  <img alt="A non-flat crease pattern in the Edit workspace beside its folded 3D figure, which rises into a cluster of spikes." src="apps/web/public/landing/overview-light-1920w.webp">
+</picture>
 
-The **Diagram** workspace turns a pattern into printed folding instructions: each
-step links to a sheet of the crease pattern (shown as its crease pattern, folded, or
-in the simulator) or takes a card from References, gets fold arrows and symbols, and
-the steps are laid out on pages and exported as a PDF or a ZIP of pictures.
+Under a modern web and desktop interface sits a family of Rust and WebAssembly
+engines, built largely from ports of tools the origami community already made:
+[Oriedita](https://oriedita.github.io/) for crease-pattern editing,
+[TreeMaker](https://langorigami.com/article/treemaker/) and
+[Box Pleating Studio](https://bpstudio.abstreamace.com/) for design. Original
+tools are built on top of them, and compatibility with the upstream tools and
+their file formats stays a priority.
 
-The **Fold** workspace folds a sheet step by step, the way you would by hand:
-locate a line with the Huzita–Justin axioms or an existing crease, then make a
-valley, mountain or precrease fold, or a reverse, squash, petal, rabbit-ear,
-swivel, crimp, pleat or sink fold, through the layers you pick. After every step
-you see the flat folded form and its crease pattern. A sequence can start from a
-crease pattern, repeat a run of steps on the other side, unfold back to an
-earlier step, and send its steps to the Diagram as illustrated steps.
+## What you can do
 
-Try the hosted app at [oristudio.dev](https://oristudio.dev/).
-Signed Apple Silicon DMGs are published from local notarized builds on
-[GitHub Releases](https://github.com/zacharyfmarion/ori-studio/releases) (other platforms
-coming soon, community help would be appreciated!).
+### Draw and edit crease patterns
+
+The **Edit** workspace is the heart of the app: a crease-pattern editor ported
+from Oriedita, with its construction and transform tools snapped to the grid and
+to angles, and Kawasaki and Maekawa checked as you draw. Fold a sheet into a
+flat folded figure beside its crease pattern and choose its layer order, put
+reference photos and rich-text notes on the same canvas, and share a crease
+pattern as a link that opens in any browser.
+
+**Non-flat creases.** A crease can fold to any angle, not only a full valley or
+mountain, so models with 3D shape, such as boxes, tubes and spikes, can be
+drawn, checked, simulated and solved. The math behind it is
+**Brandon Wong**'s *3D Kawasaki's theorem with quaternions*: each vertex is
+checked for whether its creases close up in three dimensions, and up to three
+fold angles left open at a vertex can be solved from the rest.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/edit-foldability-dark-1920w.webp">
+  <img alt="Foldability diagnostics marking problem vertices on a crease pattern in the Edit workspace." src="apps/web/public/landing/edit-foldability-light-1920w.webp">
+</picture>
+
+### Design a base
+
+The **Design** workspace packs a model with whichever method suits it, with
+several designs open side by side in tabs. Each one builds a crease pattern you
+can send straight to Edit.
+
+- **Box pleating** — a port of Box Pleating Studio: lay flaps out on a grid,
+  with rivers, stretch devices and symmetry constraints.
+- **Circle packing** — a port of TreeMaker 5: sketch a tree, set edge lengths
+  and strain, and let the optimizer pack circles and rivers into a base.
+- **ExplOri** — send your tree to Brandon Wong's searchable archive of 22.5°
+  crease patterns and browse the closest matches.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/design-bp-dark-1920w.webp">
+  <img alt="Flaps packed onto a box-pleating grid with its crease pattern alongside." src="apps/web/public/landing/design-bp-light-1920w.webp">
+</picture>
+
+### Simulate
+
+Fold a crease pattern into 3D in a window beside the one you are drawing, or on
+its own in the **Simulate** workspace. Pin faces and fold or pull the rest of
+the paper around them, and export the fold as OBJ, ready for a texture in
+Blender.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/simulate-dark-1920w.webp">
+  <img alt="A folded 3D model simulating inline beside its crease pattern." src="apps/web/public/landing/simulate-light-1920w.webp">
+</picture>
+
+### Fold step by step
+
+The **Fold** workspace lets you fold a model as you would by hand, one step at a
+time from a flat sheet of paper: a square, a rectangle or another convex shape.
+Each step shows the folded paper beside its crease pattern. You can repeat a run
+of steps on the other side, or unfold back to any earlier step. For a step that
+needs a complicated collapse, bring the crease pattern in from the Edit
+workspace, or send a step to Edit and work on it there. When you are done,
+import the whole sequence into the Diagram workspace to turn it into finished
+diagrams.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/fold-dark-1920w.webp">
+  <img alt="The Fold workspace: a strip of folding steps above the folded paper and its crease pattern." src="apps/web/public/landing/fold-light-1920w.webp">
+</picture>
+
+### Make diagrams
+
+The **Diagram** workspace turns a model into printed folding instructions. Each
+step's picture comes from the project — a sheet of the crease pattern, shown as
+its crease pattern, folded (flat with its layers spread apart, or in 3D) or
+simulated; a Fold step; a References card — or from a picture of your own, and
+steps can be imported in batches from crease patterns, pictures or DEFOX
+projects. Annotate each step with fold arrows, fold lines, callouts and
+close-ups, lay the steps out on A4, A5, B5 or Letter pages with a title block,
+and export a PDF or a ZIP of the step pictures. An empty diagram offers an example crane to start from.
+
+<p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/diagram-pages-dark-1920w.webp">
+  <img alt="Page one of a crane diagram in the Diagram workspace: a title block with the crease pattern and the finished model above numbered steps." src="apps/web/public/landing/diagram-pages-light-1920w.webp" width="49%">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/landing/diagram-annotate-dark-1920w.webp">
+  <img alt="A close-up of a crane’s head open for annotation, with a fold-and-unfold arrow and its fold line beside the annotation tools." src="apps/web/public/landing/diagram-annotate-light-1920w.webp" width="49%">
+</picture>
+</p>
+
+### Find references
+
+The **References** workspace answers two questions about the crease pattern you
+have open: how to crease the whole pattern, as an ordered sequence of folds, and
+how to locate one vertex or crease, with ranked folding sequences and a diagram
+for each step. See [Finding references](docs/references-workspace.md).
+
+### Detect a crease pattern from an image (beta)
+
+**Detect CP from Image** (File menu): a photo or render of a square crease
+pattern is cropped, run through a detection model, and solved into an exact,
+editable crease pattern. The model downloads once (45 MB) and is kept on the
+device; Settings ▸ Models shows what is installed.
+
+### Open and save the formats you already use
+
+Ori Studio opens and saves Oriedita (`.ori`, `.orh`, `.cp`), Box Pleating
+Studio (`.bps`), TreeMaker (`.tmd5`, `.tmd4`) and FOLD files, and exports SVG
+and PNG. Its own `.osf` project keeps everything those formats have no room for
+— reference images, designs, fold sequences and diagrams — and you can always
+export the crease pattern to a format that simply leaves them out.
+
+## Download
+
+Use the hosted app at [oristudio.dev](https://oristudio.dev/), or install the
+desktop app from [GitHub Releases](https://github.com/zacharyfmarion/ori-studio/releases):
+DMGs for Apple Silicon and Intel Macs, a Windows installer, and an AppImage and
+a `.deb` for Linux.
 
 ## Applications
 

@@ -146,6 +146,7 @@ describe.skipIf(!existsSync(FOLD_WASM) || !existsSync(CP_WASM))('carried rows at
         xray: false,
         lineStyle: 'color',
         lineWidth: 1,
+        foldAngleDisplay: 'opacity',
       },
       shown: scene,
     };

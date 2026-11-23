@@ -32,7 +32,8 @@ import type {
   SimulatorExportSceneOptions,
   SimulatorPoseEnd,
   SimulatorPullEndResult,
-  SimulatorSessionSceneOptions,
+  SimulatorSessionCapture,
+  SimulatorSessionCaptureOptions,
   SimulatorShapeRead,
   SimulatorShapeRestore,
 } from './simulatorSession';
@@ -291,12 +292,13 @@ export interface SimulatorRuntime {
    */
   beginExport: () => Promise<SimulatorExportSnapshot | null>;
   /**
-   * The model where the solver holds it now, from a camera, framed in a
-   * square on its own shape with perspective: a Diagram step's picture (D19),
-   * as `flatScene` gives the same step at 0% with no session. Null when this
-   * runtime holds no model.
+   * The model where the solver holds it now, in one worker call: its picture
+   * from a camera, framed in a square on its own shape with perspective (a
+   * Diagram step's, D19, as `flatScene` gives the same step at 0% with no
+   * session), the shape it was drawn from, and whether the solver had
+   * settled, all of one moment. Null when this runtime holds no model.
    */
-  stillScene: (options: Omit<SimulatorSessionSceneOptions, 'token'>) => Promise<PaperScene | null>;
+  stillCapture: (options: Omit<SimulatorSessionCaptureOptions, 'token'>) => Promise<SimulatorSessionCapture | null>;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {
@@ -1034,12 +1036,15 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     };
   }, []);
 
-  const stillScene = useCallback(async (options: Omit<SimulatorSessionSceneOptions, 'token'>): Promise<PaperScene | null> => {
-    const client = clientRef.current;
-    const token = tokenRef.current;
-    if (!client || token === undefined) return null;
-    return client.sessionScene({ ...options, token });
-  }, []);
+  const stillCapture = useCallback(
+    async (options: Omit<SimulatorSessionCaptureOptions, 'token'>): Promise<SimulatorSessionCapture | null> => {
+      const client = clientRef.current;
+      const token = tokenRef.current;
+      if (!client || token === undefined) return null;
+      return client.sessionCapture({ ...options, token });
+    },
+    []
+  );
 
   // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then
   // reload. Shared with every other simulator surface — see
@@ -1071,7 +1076,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     readShape,
     restoreShape,
     beginExport,
-    stillScene,
+    stillCapture,
   };
 }
 

@@ -73,6 +73,12 @@ export type FoldStepVia = 'axiom' | 'crease' | 'free';
 /** How much of its line a Fold precrease creased: all of it, a segment between two points, or a pinch. */
 export type FoldStepExtent = 'whole' | 'segment' | 'pinch';
 
+/**
+ * Which end of a Fold pleat moved (`pleat_end`, since 2026-11-18): the end
+ * beyond its valley line, the default, or beyond its mountain line (Swap).
+ */
+export type FoldStepPleatEnd = 'valley' | 'mountain';
+
 /** How far a Fold rotation turned the model: its preset, or `other` for an exact angle (never the angle itself). */
 export type FoldStepRotationAmount = 'eighth' | 'quarter' | 'half' | 'other';
 
@@ -86,6 +92,9 @@ export type FoldStepRotationAmount = 'eighth' | 'quarter' | 'half' | 'other';
  * through two points (`target`); and on a folded edge its kind, open or
  * inside (`swivel_kind`, since 2026-10-12); and a squash's hinge, the
  * folded edge it infers or a line drawn (`squash_hinge`, since 2026-10-21).
+ * A swivel by its valley and mountain made with its other end says which
+ * crease the two share (`swivel_shared`, since 2026-11-03): the valley or
+ * the mountain in front, or the crease behind.
  */
 export type FoldStepVertexForm =
   | { hinge: 'crease' | 'points' }
@@ -93,7 +102,7 @@ export type FoldStepVertexForm =
   | { swivelForm: 'edge'; target: 'crease' | 'free' }
   | { swivelForm: 'fold'; target: 'crease' | 'free'; swivelKind: 'open' | 'inside' }
   | { swivelForm: 'rays' }
-  | { swivelForm: 'valley_mountain'; swivelKind: 'open' | 'inside' };
+  | { swivelForm: 'valley_mountain'; swivelKind: 'open' | 'inside'; swivelShared?: 'valley' | 'mountain' | 'behind' };
 
 /**
  * How the reader set a Fold step moving: Space, the Play button, or either on
@@ -259,6 +268,12 @@ export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' 
  * click, which divides it whole.
  */
 export type DiagramDivisionsPlaced = 'drag' | 'line';
+
+/**
+ * How much of the picture's lines a new line mark lies along, and so leaves
+ * out under it: all of one (`whole`), a stretch of one (`part`), or none.
+ */
+export type DiagramLineCover = 'whole' | 'part' | 'none';
 
 /**
  * A mark's colour, by name (17a): the style's ink (none stored), References'
@@ -499,12 +514,15 @@ export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d' | 'simulated' 
 
 /**
  * What became of a capture: kept (`rasterized` when too detailed to keep as
- * vector, `no_layer_order` when the fold could not be ordered), or not: the 3D
- * folder refused the creases, the user stopped it, or it failed.
+ * vector, `no_layer_order` when the fold could not be ordered, `spread_failed`
+ * when its layers could not be spread by Default and are drawn unspread, the
+ * spread kept), or not: the 3D folder refused the creases, the user stopped
+ * it, or it failed.
  */
 export type DiagramCaptureOutcome =
   | 'ok'
   | 'no_layer_order'
+  | 'spread_failed'
   | 'rasterized'
   | 'refused'
   | 'stopped'
@@ -690,6 +708,8 @@ export type LandingSectionId =
   | 'edit'
   | 'design'
   | 'simulate'
+  | 'fold'
+  | 'diagram'
   | 'compatibility'
   | 'get';
 
@@ -781,7 +801,10 @@ export type LandingFeatureId =
   | 'edit-share'
   | 'design-treemaker'
   | 'design-bp'
-  | 'design-explori';
+  | 'design-explori'
+  | 'diagram-pages'
+  | 'diagram-annotate'
+  | 'diagram-pose';
 
 /** Export target formats (the file's kind only — never its name or contents). */
 export type ExportFormat =
@@ -1741,6 +1764,14 @@ export const ANALYTICS_EVENTS = {
    */
   simulatorPullRefused: 'simulator pull refused',
   /**
+   * The user switched what the open crease pattern's aux lines are in its
+   * simulations. `aux_lines` is the new reading — `facets`, built into the
+   * paper as flat creases it can bend at, or `drawn`, drawn on it and left out
+   * of the simulation — and `file_says` what the file it came from implied,
+   * which tells overriding a file apart from restating it.
+   */
+  simulatorAuxLinesChanged: 'simulator aux lines changed',
+  /**
    * A pose ended, and what ended it: the fold control or a restart taking the
    * paper back, or Spring back asked for from the window, the menu or a key.
    * Whether people keep poses, or throw them away and how.
@@ -1827,6 +1858,7 @@ export const ANALYTICS_EVENTS = {
    * value itself. A slider's drag is one event, at its end.
    */
   foldSpreadChanged: 'fold spread changed',
+  spatialSpreadChanged: 'spatial spread changed',
   foldFreeLineSnapChanged: 'fold free line snapping changed',
   /**
    * The Fold engine crashed and the session restarted it, or gave up: how
@@ -1842,6 +1874,8 @@ export const ANALYTICS_EVENTS = {
   diagramStepOpened: 'diagram step opened',
   /** An uploaded picture turned or flipped from the step detail or the Step pane. */
   diagramPicturePosed: 'diagram picture posed',
+  /** Pose's play button over a Simulated step saved before it settled: the solver let go on from there. */
+  diagramSimulationResumed: 'diagram simulation resumed',
   /** An annotation drawn on a step's picture, by the tool that drew it. */
   diagramAnnotationAdded: 'diagram annotation added',
   /** A mark put behind a flap for the first time (15e): which ends, how deep. */

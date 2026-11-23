@@ -13,10 +13,11 @@ const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const preview = vi.fn(), amountPreview = vi.fn(), commit = vi.fn(), choose = vi.fn();
 let disabled = false;
-function Harness({ initial = DEFAULT_CONNECTED_SPREAD, busy = false, kindLayout }: { initial?: LayerSpreadOptions; busy?: boolean; kindLayout?: 'row' | 'stacked' }) {
+function Harness({ initial = DEFAULT_CONNECTED_SPREAD, busy = false, kindLayout, valuesHeld }: { initial?: LayerSpreadOptions; busy?: boolean; kindLayout?: 'row' | 'stacked'; valuesHeld?: string }) {
   const [spread, setSpread] = useState<LayerSpreadOptions>(initial);
   const controls = layerSpreadControls(spread, { t, busy, hint: disabled ? 'Read-only' : undefined, kind: choose, direction: vi.fn(), keep: vi.fn() });
-  return <TooltipProvider><LayerSpreadRows kindLayout={kindLayout} toggle={{ pressed: true, disabled, run: vi.fn() }} spread={{ ...controls,
+  return <TooltipProvider><LayerSpreadRows kindLayout={kindLayout} toggle={{ pressed: true, disabled, run: vi.fn(), ...(valuesHeld ? { note: valuesHeld } : {}) }} spread={{ ...controls,
+    ...(valuesHeld ? { valuesHeld } : {}),
     start: () => !disabled, commit,
     preview: (field, value) => {
       amountPreview(field, value);
@@ -74,6 +75,21 @@ it.each<{ initial: LayerSpreadOptions; shown: string; max: string }>([
   expect(commit).not.toHaveBeenCalled();
 });
 
+it('holds a Default spread’s own values, never its kind, while its layers can’t be spread', async () => {
+  const failed = 'These layers couldn’t be spread';
+  await act(async () => root.render(<Harness key="failed" valuesHeld={failed} />));
+  // Said under Spread layers, and on the values it holds.
+  expect(host.textContent).toContain(failed);
+  const amount = host.querySelector<HTMLInputElement>('input[aria-label="Spread amount"]')!;
+  expect(amount.disabled).toBe(true);
+  expect(pad().disabled).toBe(true);
+  expect(pad().title).toBe(failed);
+  const kinds = [...host.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Spread by"] button')];
+  expect(kinds.every((kind) => !kind.disabled && kind.getAttribute('aria-disabled') !== 'true')).toBe(true);
+  act(() => kinds.find((kind) => kind.textContent === 'Affine')!.click());
+  expect(choose).toHaveBeenCalledWith('affine');
+});
+
 it('offers Default, Affine and Depth without extra captions or a busy-state layout row', async () => {
   const group = host.querySelector('[role="group"][aria-label="Spread by"]')!;
   expect([...group.querySelectorAll('button')].map(b => [b.textContent, b.getAttribute('aria-pressed')]))
@@ -115,20 +131,31 @@ it('clicks and drags both coordinates, caps the rim, and commits only on release
   expect(preview).toHaveBeenLastCalledWith([2, 0]);
   pointer('pointermove', 50, 8);
   expect(preview).toHaveBeenLastCalledWith([0, -2]);
+  // The centre of the pad is no reveal at all.
   pointer('pointermove', 50, 50);
-  expect(preview).toHaveBeenLastCalledWith([0, -0.1]);
+  expect(preview).toHaveBeenLastCalledWith([0, 0]);
+  expect(pad().getAttribute('aria-valuenow')).toBe('0');
+  expect(pad().getAttribute('aria-valuetext')).toBe('0%');
   expect(commit).not.toHaveBeenCalled();
   pointer('pointerup', 50, 50);
   pointer('lostpointercapture', 50, 50);
   expect(commit).toHaveBeenCalledTimes(1);
 });
 
-it('supports arrow keys and reset without reaching zero', () => {
+it('supports arrow keys and reset, and steps onto zero', () => {
   act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, shiftKey: true })));
   expect(preview).toHaveBeenLastCalledWith([1, 0.6]);
   expect(commit).toHaveBeenCalledTimes(1);
   act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true })));
   expect(preview).toHaveBeenLastCalledWith([0.8, 0.6]);
+  // Five Shift steps left and three up: 0.8 and 0.6 in fifths, without float residue.
+  const press = (key: string) => act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, shiftKey: true })));
+  for (let i = 0; i < 4; i++) press('ArrowLeft');
+  for (let i = 0; i < 3; i++) press('ArrowUp');
+  expect(preview).toHaveBeenLastCalledWith([0, 0]);
+  // And off it again: a key is not caught by the centre the way a pointer is.
+  act(() => pad().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
+  expect(preview).toHaveBeenLastCalledWith([0.05, 0]);
 });
 
 it('keeps read-only gestures inert', async () => {

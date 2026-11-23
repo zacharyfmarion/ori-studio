@@ -10,7 +10,7 @@ mod support;
 use std::collections::BTreeMap;
 
 use oristudio_fold::{
-    AnchoredFold, AnchoredRefused, Axiom, AxiomCandidate, Direction, FoldLine, Landmarks,
+    AnchoredFold, AnchoredRefused, Axiom, AxiomCandidate, Direction, Extent, FoldLine, Landmarks,
     LineRefusal, PlainFold, Seed, Sheet, SheetSegment, Side, StartSide, State,
 };
 use oristudio_geometry::construct::line_residual;
@@ -229,8 +229,10 @@ fn expected_side(axiom: &Axiom, line: &Line) -> Option<Option<Side>> {
 }
 
 /// On a flat sheet — a square, a rectangle, a square with precreases — the
-/// model frame is the sheet frame, and every axiom's candidates are the
-/// rectangle's construction roots, less those who-moves drops.
+/// model frame is the sheet frame, and every axiom's roots are the
+/// rectangle's construction roots, less those who-moves drops. A step is
+/// offered all of them but an O3's that lay no run on run (the random
+/// segments here lie on no crease, so their runs are themselves).
 #[test]
 fn each_axiom_on_a_flat_sheet_is_the_construction_on_the_rectangle() {
     let precreased = {
@@ -265,7 +267,14 @@ fn each_axiom_on_a_flat_sheet_is_the_construction_on_the_rectangle() {
                 .axiom_construction(&axiom)
                 .unwrap_or_else(|e| panic!("{axiom:?}: {e}"));
             let roots = construction.lines(rectangle);
-            let got = candidates(state, &axiom);
+            let got = state
+                .axiom_roots(&axiom)
+                .unwrap_or_else(|e| panic!("{axiom:?}: {e}"));
+            let offered = candidates(state, &axiom);
+            assert!(offered.iter().all(|c| got.contains(c)), "{axiom:?}");
+            if number != 3 {
+                assert_eq!(offered.len(), got.len(), "{axiom:?}");
+            }
             for c in &got {
                 assert!(
                     roots
@@ -673,6 +682,129 @@ fn the_silhouette_filters_roots_the_flat_sheet_keeps() {
     assert!(candidates(&s, &o5).is_empty());
 }
 
+/// The root that lands the picked stretch on the picked stretch comes first,
+/// whichever way the picks run. O3 on two stretches meeting at the corner
+/// (1, 0.25): the inner bisector folds the edge's piece onto the crease's;
+/// the outer one carries the rest of the edge onto the crease and the
+/// picked piece off the paper. O5 through (0.5, 0.2) carrying (0.5, 0.6)
+/// onto y = 0.4: the circle meets the line on either half, and the half
+/// picked decides.
+#[test]
+fn the_root_landing_the_picked_stretch_comes_first() {
+    let s = flat(Sheet::square());
+    let inner = through([1.0, 0.25], [0.75, 0.0]);
+    let outer = through([1.0, 0.25], [0.25, 1.0]);
+    let edges = [seg([1.0, 0.0], [1.0, 0.25]), seg([1.0, 0.25], [1.0, 0.0])];
+    let creases = [seg([0.5, 0.25], [1.0, 0.25]), seg([1.0, 0.25], [0.5, 0.25])];
+    for edge in edges {
+        for crease in creases {
+            for axiom in [
+                Axiom::O3 {
+                    m1: edge,
+                    m2: crease,
+                },
+                Axiom::O3 {
+                    m1: crease,
+                    m2: edge,
+                },
+            ] {
+                let roots: Vec<Line> = candidates(&s, &axiom).iter().map(|c| c.line).collect();
+                assert_eq!(roots.len(), 2, "{axiom:?}: {roots:?}");
+                assert!(
+                    roots[0].approx_eq_within(&inner, 1e-9),
+                    "{axiom:?}: {roots:?}"
+                );
+                assert!(
+                    roots[1].approx_eq_within(&outer, 1e-9),
+                    "{axiom:?}: {roots:?}"
+                );
+            }
+        }
+    }
+
+    let reach = (0.4f64 * 0.4 - 0.2 * 0.2).sqrt();
+    for (m1, lands) in [
+        (seg([0.0, 0.4], [0.5, 0.4]), [0.5 - reach, 0.4]),
+        (seg([0.5, 0.4], [1.0, 0.4]), [0.5 + reach, 0.4]),
+    ] {
+        let o5 = Axiom::O5 {
+            pivot: [0.5, 0.2],
+            p: [0.5, 0.6],
+            m1,
+        };
+        let roots = candidates(&s, &o5);
+        assert_eq!(roots.len(), 2, "{roots:?}");
+        let landed = roots[0].line.reflect_point([0.5, 0.6]);
+        assert!(near(landed, lands), "{m1:?}: {landed:?}");
+    }
+}
+
+/// An O3 pick stands for its run, the edges and creases joined end to end
+/// along its line. Precreases crossing at the centre cut the right edge and
+/// y = 0.5 in two: picking the edge's lower piece and the crease's left one,
+/// both folds through (1, 0.5) lay the whole edge on the whole crease,
+/// though the picked pieces only meet at a point. The one that brings them
+/// together comes first.
+#[test]
+fn a_short_pick_stands_for_its_whole_crease() {
+    let half = precrease(&flat(Sheet::square()), &all(x_eq(0.5), [0.9, 0.5], Valley)).state;
+    let s = precrease(&half, &all(y_eq(0.5), [0.5, 0.9], Valley)).state;
+    let o3 = Axiom::O3 {
+        m1: seg([1.0, 0.0], [1.0, 0.5]),
+        m2: seg([0.0, 0.5], [0.5, 0.5]),
+    };
+    let roots = candidates(&s, &o3);
+    assert_eq!(roots.len(), 2, "{roots:?}");
+    let together = through([1.0, 0.5], [0.5, 0.0]);
+    assert!(roots[0].line.approx_eq_within(&together, 1e-9), "{roots:?}");
+    find(&roots, &through([1.0, 0.5], [0.5, 1.0]));
+}
+
+/// A gap along a line ends its run. With a crease mark on y = 0.5 from
+/// x = 0.9, the left edge folded onto that line lands within x ≤ 0.5 by
+/// either bisector: on paper, so the construction keeps both, but on no
+/// crease, so neither is offered, and replay still finds a stored one. A
+/// mark from x = 0.3 is under the landing, and a pick of its far end
+/// stands for all of it.
+#[test]
+fn a_gap_along_the_line_ends_the_run() {
+    let marked = |from: f64| {
+        flat(Sheet::square())
+            .precrease_extent(
+                &all(y_eq(0.5), [0.5, 0.9], Valley),
+                &Extent::Segment {
+                    from: [from, 0.5],
+                    to: [1.0, 0.5],
+                },
+            )
+            .unwrap_or_else(|e| panic!("{e}"))
+            .state
+    };
+    let o3 = Axiom::O3 {
+        m1: seg([0.0, 0.0], [0.0, 1.0]),
+        m2: seg([0.9, 0.5], [1.0, 0.5]),
+    };
+    let lower = through([0.0, 0.5], [0.5, 0.0]);
+    let upper = through([0.0, 0.5], [0.5, 1.0]);
+
+    let pinched = marked(0.9);
+    let construction = pinched
+        .axiom_construction(&o3)
+        .unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(construction.lines(&pinched.silhouette()).len(), 2);
+    assert!(candidates(&pinched, &o3).is_empty());
+    let replay = pinched
+        .axiom_root(&o3, &lower)
+        .unwrap_or_else(|e| panic!("{e}"));
+    assert!(replay.err < 1e-12, "{replay:?}");
+
+    let reaching = marked(0.3);
+    let roots = candidates(&reaching, &o3);
+    assert_eq!(roots.len(), 2, "{roots:?}");
+    find(&roots, &lower);
+    find(&roots, &upper);
+}
+
 /// A stored root replays to the nearest candidate. Inserting a precrease
 /// first renumbers every face and vertex the inputs touch and leaves the
 /// line exactly where it was; inserting a fold that takes the paper away
@@ -682,11 +814,12 @@ fn the_silhouette_filters_roots_the_flat_sheet_keeps() {
 /// tolerance would not.
 #[test]
 fn replay_takes_the_nearest_root_after_an_inserted_step() {
-    // About (0.5, 0.5), (0.5, 0.1) lands on y = 0.3 at x = 0.5 ± √0.12.
+    // About (0.5, 0.5), (0.5, 0.1) lands on y = 0.3 at x = 0.5 ± √0.12;
+    // the left landing is the nearer to the stretch picked, so it is first.
     let o5 = Axiom::O5 {
         pivot: [0.5, 0.5],
         p: [0.5, 0.1],
-        m1: seg([0.3, 0.3], [1.0, 0.3]),
+        m1: seg([0.3, 0.3], [0.6, 0.3]),
     };
     let s = flat(Sheet::square());
     let first = candidates(&s, &o5);

@@ -42,7 +42,8 @@ import {
   type KnownDiagramAnnotation,
   type QuarterTurns,
 } from '../document/diagramDocument';
-import { stepPictureFrame, storedScene } from '../pictures/pictureFrame';
+import { stepPictureFrame } from '../pictures/pictureFrame';
+import { storedScene } from '../pictures/storedScene';
 import { followOwnPicture, type OwnPictureChange } from '../zoom/zoomFrames';
 import { carryAnnotation, mirrorMove, type PictureMove, type PicturePoint } from './annotationModel';
 

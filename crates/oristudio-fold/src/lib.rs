@@ -129,8 +129,9 @@ pub use compound::petal::{
 };
 pub use compound::rabbit::{RabbitEar, incenter};
 pub use compound::reverse::{
-    NoOpening, Opening, ReverseAnalysis, ReverseChoice, ReverseChoices, ReverseFold, ReverseFolded,
-    ReverseKind, ReverseOutcome, ReverseReport, StoredOpening, TipFlap,
+    MAX_WAYS, NoOpening, Opening, ReverseAnalysis, ReverseChoice, ReverseChoices, ReverseFold,
+    ReverseFolded, ReverseKind, ReverseLandings, ReverseOutcome, ReverseReport, ReverseWay,
+    StoredOpening, TipFlap,
 };
 pub use compound::sink::{
     Pocket, SinkChoice, SinkChoices, SinkFold, SinkFolded, SinkKind, SinkOutcome, SinkPoint,
@@ -141,7 +142,10 @@ pub use compound::swivel::{
     Swivel, SwivelByEdge, SwivelCrease, SwivelEdgeAnalysis, SwivelFold, SwivelKind, SwivelRay,
     SwivelRegion, SwivelWedge,
 };
-pub use compound::swivel_valley_mountain::{SwivelValleyMountain, SwivelValleyMountainAnalysis};
+pub use compound::swivel_pair::SwivelPair;
+pub use compound::swivel_valley_mountain::{
+    SwivelOtherEnd, SwivelShared, SwivelValleyMountain, SwivelValleyMountainAnalysis,
+};
 pub use compound::tuck::{
     TuckAnalysis, TuckChoice, TuckChoices, TuckFold, TuckFolded, TuckOutcome, TuckReport, TuckSide,
     TuckTarget,

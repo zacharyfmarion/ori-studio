@@ -1,4 +1,14 @@
 export { prepareFoldModel, EDGES_FACET_KEY } from './prepare.js';
+export {
+  AUX_LINES_KEY,
+  auxLinesOf,
+  cutAuxLines,
+  withAuxLinesMapped,
+  withVirtualVertices,
+  type AuxLine,
+  type AuxOverlay,
+  type VirtualVertices,
+} from './auxOverlay.js';
 export { createOrigamiSimulator } from './simulator.js';
 export { ReferenceSolver } from './referenceSolver.js';
 export { SimulationClock } from './simulationClock.js';
@@ -52,6 +62,7 @@ export {
 export { type SvgMeshTopology } from './projectedMesh.js';
 export {
   meshToPaperScene,
+  withLinesDrawnLate,
   type MeshToPaperSceneOptions,
   type PaperFaceItem,
   type PaperItem,
@@ -64,6 +75,12 @@ export {
   type SceneBounds,
   type ScenePoint,
 } from './paperScene.js';
+export {
+  COVER_EPS,
+  coversLine,
+  linesAsLateAsUncovered,
+  type DrawShape,
+} from './lineDrawOrder.js';
 export { EDGE_CODE, type EdgeCode } from './edgeCodes.js';
 export {
   AUX_END_ON_OUTLINE_RELATIVE,

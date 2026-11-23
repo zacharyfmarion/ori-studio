@@ -23,6 +23,7 @@ import type {
   DiagramTextToggle,
   DiagramAnnotationTool,
   DiagramDivisionsPlaced,
+  DiagramLineCover,
   DiagramBehindEnds,
   DiagramBehindLayers,
   DiagramFlipAxis,
@@ -121,6 +122,14 @@ export function trackDiagramPictureUploaded(
   });
 }
 
+/**
+ * Pose's play button pressed over a step shown as Simulated that was saved
+ * before its solver settled: the simulation goes on from the positions saved.
+ */
+export function trackDiagramSimulationResumed(): void {
+  track(ANALYTICS_EVENTS.diagramSimulationResumed);
+}
+
 /** A step opened in detail, and in which half. */
 export function trackDiagramStepOpened(via: DiagramStepOpenedVia, detail: DiagramStepOpenedMode): void {
   track(ANALYTICS_EVENTS.diagramStepOpened, { via, detail });
@@ -128,11 +137,13 @@ export function trackDiagramStepOpened(via: DiagramStepOpenedVia, detail: Diagra
 
 /**
  * What `diagram annotation added` says about some marks alone: how equal
- * divisions were laid, a solid line's or a label's colour, and a label's
- * Bold, halo and size (17b).
+ * divisions were laid, a solid line's or a label's colour, a label's Bold,
+ * halo and size (17b), and how much of the picture's lines a line mark lies
+ * along, which it leaves out under it.
  */
 export interface DiagramAnnotationAddedDetail {
   placed?: DiagramDivisionsPlaced;
+  covers?: DiagramLineCover;
   color?: DiagramAnnotationColor;
   bold?: DiagramTextToggle;
   halo?: DiagramTextToggle;
@@ -145,21 +156,24 @@ export interface DiagramAnnotationAddedDetail {
  * An annotation drawn on a step's picture, by its tool, and how it was put
  * down: snapped, freely, or neither — and equal divisions, whether they were
  * dragged or put on a line with a click (`placed`), a solid line, the
- * colour it was drawn in, by name (`color`, 17a), and a label, its colour,
- * Bold, halo and size, as the rail's Text Style set them (17b). Which marks a diagram is
- * drawn with, whether Annotate is used at all, and whether snapping helps.
- * Never where it is, nor a label's words, nor a colour's value.
+ * colour it was drawn in, by name (`color`, 17a), a label, its colour,
+ * Bold, halo and size, as the rail's Text Style set them (17b), and a line,
+ * how much of the picture's lines it lies along (`covers_line`), which it
+ * leaves out under it. Which marks a diagram is drawn with, whether Annotate
+ * is used at all, and whether snapping helps. Never where it is, nor a
+ * label's words, nor a colour's value.
  */
 export function trackDiagramAnnotationAdded(
   tool: DiagramAnnotationTool,
   snap: DiagramAnnotationSnap,
-  { placed, size, ...detail }: DiagramAnnotationAddedDetail = {}
+  { placed, size, covers, ...detail }: DiagramAnnotationAddedDetail = {}
 ): void {
   track(ANALYTICS_EVENTS.diagramAnnotationAdded, {
     mark: tool,
     snap,
     ...(placed === undefined ? {} : { divisions: placed }),
     ...(size === undefined ? {} : { text_size: size }),
+    ...(covers === undefined ? {} : { covers_line: covers }),
     ...detail,
   });
 }

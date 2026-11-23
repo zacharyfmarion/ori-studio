@@ -63,7 +63,10 @@ import {
   type DiagramCpRender,
   type DiagramCpSource,
   type DiagramScenePicture,
+  type DiagramSavedShape,
+  type DiagramSimulatedView,
 } from '../document/diagramDocument';
+import type { PaperScene } from '../../lib/paper/paperScene';
 import { storedCpSource } from '../document/diagramFile';
 import { isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import {
@@ -264,8 +267,23 @@ export function poseCaptureBlocksViewport(verb: LinkedPoseRequest['verb']): bool
   return !SLIDE_VERBS.has(verb) && verb !== 'orbit' && verb !== 'simulate';
 }
 
-/** Where Pose's simulator came to rest, and the model there. */
-export type SimulatedRest = Omit<Extract<LinkedPoseRequest, { verb: 'simulate' }>, 'verb'>;
+/**
+ * What Pose's simulator saves (D19): the fold % and camera shown, and the
+ * worker's capture of the model there, asked for the moment it was saved, so
+ * a save is of its own moment however long it waits behind another.
+ */
+export interface SimulatedSave {
+  foldPercent: number;
+  view: DiagramSimulatedView;
+  capture: Promise<SimulatedCapture | null>;
+}
+
+/** The model as the simulator held it: its picture, and the positions it was drawn from. */
+export interface SimulatedCapture {
+  scene: PaperScene | null;
+  /** None when the simulator could not read them: the step is saved without, and Pose folds it from flat. */
+  shape?: DiagramSavedShape;
+}
 
 /**
  * A spread shown before it is committed — under a drag of one of its
@@ -348,19 +366,21 @@ export interface PoseController {
   /** The 3D view moved: capture it once it rests, if it is not where the step already is. */
   orbit: (camera: FoldedFigureCamera, stored: FoldedFigureCamera | null) => void;
   /**
-   * Pose's simulator came to rest (D19): capture the model where it is, if
-   * that is not the picture the step already has — another fold % or camera,
-   * creases changed since, or another light. Nothing for a step no longer
-   * shown Simulated: the rest was of a view it has left.
+   * Pose's simulator saved (D19) — Done, Pose left another way, or Refresh on
+   * the step open in Pose: commit the model as it was then, its picture and
+   * its positions, as one undo step, unless it is the very picture and
+   * positions the step already has. One at a time, the newest waiting. Nothing
+   * for a step no longer shown Simulated: the save was of a view it has left.
    */
-  simulate: (rest: SimulatedRest) => Promise<void>;
+  simulate: (save: SimulatedSave) => Promise<void>;
   /**
-   * Whether a rest at this pose would be captured now: the step is shown
-   * Simulated, and the pose is not the picture it has, or that picture is out
-   * of date. Asked before a rest's scene is drawn, so a rest that would be
-   * dropped costs the worker nothing.
+   * Whether a save now would commit anything: the step is shown Simulated,
+   * and, for a view `untouched` since it opened on the step's own positions —
+   * the step as it is — its picture is out of date (its pattern changed, or
+   * another light). Asked before the simulator is asked for a picture, so
+   * leaving Pose with nothing to save costs the worker nothing.
    */
-  wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
+  wantsSave: (untouched: boolean) => boolean;
   /** Fold a step shown in 3D for its live view. */
   prepareSpatial: () => Promise<void>;
   prepareConnected: () => Promise<void>;
@@ -416,9 +436,9 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   let nextOrbit: {camera:FoldedFigureCamera;loadId:number} | null = null;
   let orbiting: Promise<void> | null = null;
   let orbitGeneration = 0;
-  /** The simulator's rests: the one being captured, and the newest waiting for it. */
+  /** The simulator's saves: the one being committed, and the newest waiting for it. */
   let simulating: Promise<void> | null = null;
-  let nextRest: SimulatedRest | null = null;
+  let nextSave: SimulatedSave | null = null;
   /**
    * The creases, of which crease pattern, the session's flat fold was last
    * posed for: what a preview may be drawn from. The session checks its side,
@@ -564,6 +584,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       changed: committed.changed,
       render: result.render,
       noLayerOrder: result.noLayerOrder,
+      ...(committed.spreadFailed ? { spreadFailed: committed.spreadFailed } : {}),
       tooDetailed: committed.tooDetailed,
       flagged: attention,
     };
@@ -822,10 +843,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     if (session.releaseUnlessIn(currentLinkedSource(stepId)?.layerOrder ?? null)) heldFor = null;
   };
 
-  const wantsRest = (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>): boolean => {
+  const wantsSave = (untouched: boolean): boolean => {
     const linked = currentLinkedSource(stepId);
     if (linked?.render.mode !== 'simulated') return false;
-    return !sameSimulatedPose(linked.render, pose) || needsRecapture(stepId, linked);
+    return !untouched || needsRecapture(stepId, linked);
   };
 
   const cancelOrbit = () => {
@@ -946,23 +967,25 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       orbitTimer=setTimeout(()=>{orbitTimer=null;void drainOrbit();},ORBIT_SETTLE_MS);
     },
 
-    wantsRest,
+    wantsSave,
 
-    simulate(rest) {
-      // One rest at a time, the newest waiting: a rest that came after the
-      // one being captured is what the view shows, so it must not be refused
+    simulate(save) {
+      // One save at a time, the newest waiting: a save that came after the
+      // one being committed is what the view shows, so it must not be refused
       // as busy and lose to it.
-      nextRest = rest;
+      nextSave = save;
       simulating ??= (async () => {
-        // Held before the first rest is looked at, so a rest that needs no
-        // capture cannot finish — and let `simulating` go — before it is set.
+        // Held before the first save is looked at, so one whose capture is
+        // already in cannot finish — and let `simulating` go — before it is set.
         await null;
         try {
-          while (nextRest) {
-            const next = nextRest;
-            nextRest = null;
-            if (!wantsRest(next)) continue;
-            await run({ verb: 'simulate', ...next });
+          while (nextSave) {
+            const { foldPercent, view, capture } = nextSave;
+            nextSave = null;
+            const captured = await capture;
+            const scene = captured?.scene ?? null;
+            const shape = captured?.shape;
+            await run({ verb: 'simulate', foldPercent, view, still: async () => scene, ...(shape ? { shape } : {}) });
           }
         } finally {
           simulating = null;
@@ -1061,8 +1084,8 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
     historyMoved() {
       cancelOrbit();
-      // A rest still waiting is of the view before the undo.
-      nextRest = null;
+      // A save still waiting is of the view before the undo.
+      nextSave = null;
       useWorkspaceStore.getState().stopDiagramCapture(stepId);
       // Heard before the undo or redo runs, which may be of another step: the
       // slides waiting and the drag shown are of a pose it takes back only if
@@ -1078,7 +1101,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
     documentReplaced() {
       cancelOrbit();
-      nextRest = null;
+      nextSave = null;
       waiting.clear();
       heldFor = null;
       endPreview();
@@ -1090,7 +1113,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
     engineLost() {
       cancelOrbit();
-      nextRest = null;
+      nextSave = null;
       waiting.clear();
       heldFor = null;
       endPreview();
@@ -1100,9 +1123,15 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     },
 
     dispose(options) {
-      if(options?.flushOrbit&&(nextOrbit||orbiting)) {
-        if(orbitTimer)clearTimeout(orbitTimer);orbitTimer=null;
-        void drainOrbit().finally(dispose);
+      const orbitWaits = options?.flushOrbit === true && (nextOrbit !== null || orbiting !== null);
+      if (orbitWaits) {
+        if (orbitTimer) clearTimeout(orbitTimer);
+        orbitTimer = null;
+      }
+      // Pose left: its simulator's save, asked for as it closed — which is as
+      // the open step changes, when this controller goes — still lands.
+      if (orbitWaits || simulating) {
+        void Promise.all([orbitWaits ? drainOrbit() : null, simulating]).finally(dispose);
       } else dispose();
     },
   };
@@ -1132,17 +1161,6 @@ function isConstrainedFlat(stepId: string): boolean {
   const linked = currentLinkedSource(stepId);
   return linked?.render.mode === 'folded-flat' && stepLayerOrderOf(linked.layerOrder) !== null;
 }
-
-/** Whether a rest is where the step's simulated picture already is, to well under a slider's step. */
-function sameSimulatedPose(
-  render: Extract<DiagramCpSource['render'], { mode: 'simulated' }>,
-  rest: Pick<SimulatedRest, 'foldPercent' | 'view'>
-): boolean {
-  return Math.abs(render.foldPercent - rest.foldPercent) < SAME_FOLD_PERCENT && sameCamera(render.view, rest.view);
-}
-
-/** Fold % closer than this is one pose: the 0.1 a pose is stored to, halved. */
-const SAME_FOLD_PERCENT = 0.05;
 
 /**
  * Whether a step's picture is not of its pattern as it is now, or not in the

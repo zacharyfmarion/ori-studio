@@ -11763,10 +11763,16 @@ describe('a chosen layer order on an Edit folded figure (H3)', () => {
           placement: { ...IDENTITY_FOLDED_PLACEMENT, rotation: Math.PI / 2 },
           appearance: { 'paper.front': '#ff0000' },
         });
-        // The canvas turned an eighth more: the figure shows turned by both. Its creases in Edit's pen.
+        // The canvas turned an eighth more: the figure shows turned by both. Its creases in Edit's pen,
+        // partial folds shaded the way Edit shades them.
         useWorkspaceStore.setState({
           oristudioCpCamera: { centerX: 0, centerY: 0, zoom: 1, rotation: Math.PI / 4 },
-          oristudioCpViewport: { ...state().oristudioCpViewport, lineStyle: 'black-two-dot', lineWidth: 2 },
+          oristudioCpViewport: {
+            ...state().oristudioCpViewport,
+            lineStyle: 'black-two-dot',
+            lineWidth: 2,
+            foldAngleDisplay: 'color',
+          },
         });
         oristudioCpMocks.getOristudioCpFoldedFigurePaperScene.mockResolvedValueOnce(scene);
         dialogGatewayMocks.openLayerOrderDialog.mockResolvedValueOnce({ kind });
@@ -11787,6 +11793,7 @@ describe('a chosen layer order on an Edit folded figure (H3)', () => {
             xray: true,
             lineStyle: 'black-two-dot',
             lineWidth: 2,
+            foldAngleDisplay: 'color',
           },
           shown: scene,
           name: 'Folded model 1',

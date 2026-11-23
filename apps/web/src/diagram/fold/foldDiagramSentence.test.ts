@@ -60,6 +60,9 @@ const CASES: [FoldSentenceStep, string][] = [
   // Its mirror reversed the layers: the steps were folded on the back.
   [{ op: 'repeat', count: 1, behind: true }, 'Repeat behind.'],
   [{ op: 'repeat', count: 3, behind: true }, 'Repeat the last 3 steps behind.'],
+  // Its range ends before the step it is added after: no "last" steps of the Diagram's.
+  [{ op: 'repeat', count: 3, earlier: { first: 1, last: 3 } }, 'Repeat on the other side.'],
+  [{ op: 'repeat', count: 3, behind: true, earlier: { first: null, last: null } }, 'Repeat behind.'],
   [{ op: 'unfold-to', sheet: true }, 'Unfold completely.'],
   [{ op: 'unfold-to', sheet: false, number: 4 }, 'Unfold to step 4.'],
   [{ op: 'unfold-to', sheet: false }, 'Unfold.'],

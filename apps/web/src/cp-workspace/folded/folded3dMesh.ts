@@ -74,7 +74,8 @@
  * cannot see where a cut meets its layer's outline: the mesh states it
  * (`topology.auxEnds`) — an end on a ring segment this layer inks as paper
  * edge or fold is on the outline, as a crease's end is where such an edge
- * meets it.
+ * meets it. Nor do they share a triangle, which the scene's line order reads
+ * a crease's own paper from: `folded3dScene` records one (`edgeTriangles`).
  *
  * # Winding, which is easy to invert and was not guessed
  *
@@ -280,6 +281,8 @@ export interface Folded3dRange {
 }
 
 export interface Folded3dMesh {
+  spatial?: import('./folded3dMaterial').SpatialMeshOrder;
+  displacement?: Float32Array;
   /**
    * Tight `x, y, z` per vertex, in the **renderer's** basis and relative to the
    * model centroid.

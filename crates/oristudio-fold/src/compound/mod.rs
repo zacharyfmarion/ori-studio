@@ -66,9 +66,11 @@ pub mod petal;
 pub(crate) mod pieces;
 pub mod rabbit;
 pub mod squash;
+mod squash_closed;
 pub mod swivel;
 mod swivel_hinge_end;
 pub mod swivel_on_edge;
+pub mod swivel_pair;
 pub mod swivel_valley_mountain;
 pub mod vertex;
 
@@ -104,8 +106,9 @@ pub(crate) enum Across {
     /// its own strip, and orders nothing else of the tip against the strip
     /// afresh.
     Alike,
-    /// Corresponding halves of nested openings turn as one packet. Only
-    /// these explicit block pairs carry their order through the motion;
+    /// Corresponding halves of nested or interleaved openings turn as one
+    /// packet. Only these explicit block pairs carry their order through the
+    /// motion;
     /// other pairs keep their absolute order (or, for a crimp, do so only
     /// within the strip or tip). Pocket placements remain per opening.
     Packets {
@@ -343,11 +346,7 @@ impl Prepared {
     ) -> Option<bool> {
         let mut fixed = self.fixed[..self.placed].to_vec();
         fixed.extend(self.seeds(pairs));
-        match self.unordered.complete(&fixed, &first(limits)) {
-            Ok(_) => Some(true),
-            Err(CompletionRefusal::BudgetExceeded { .. }) => None,
-            Err(_) => Some(false),
-        }
+        decided(self.unordered.complete(&fixed, &first(limits)))
     }
 
     /// Pairs `[upper, lower]` as seeds, leaving out faces that do not
@@ -366,9 +365,15 @@ impl Prepared {
     }
 
     /// Whether some order fits: a search that stops at the first order of
-    /// each component.
+    /// each component. A budget run out is no order.
     pub(crate) fn lands(&self, limits: &CompletionLimits) -> bool {
-        self.unordered.complete(&self.fixed, &first(limits)).is_ok()
+        self.landing(limits) == Some(true)
+    }
+
+    /// [`Prepared::lands`], none when the budget ran out before it was
+    /// decided.
+    pub(crate) fn landing(&self, limits: &CompletionLimits) -> Option<bool> {
+        decided(self.unordered.complete(&self.fixed, &first(limits)))
     }
 
     /// [`Prepared::lands`] for the same fold with every placement the other
@@ -376,11 +381,17 @@ impl Prepared {
     /// geometry already landed rather than scored and gated again, since
     /// neither its carry nor its pairs across blocks depend on the kind.
     pub(crate) fn lands_flipped(&self, limits: &CompletionLimits) -> bool {
+        self.landing_flipped(limits) == Some(true)
+    }
+
+    /// [`Prepared::lands_flipped`], none when the budget ran out before it
+    /// was decided.
+    pub(crate) fn landing_flipped(&self, limits: &CompletionLimits) -> Option<bool> {
         let mut fixed = self.fixed.clone();
         for pair in &mut fixed[self.placed..] {
             std::mem::swap(&mut pair.upper, &mut pair.lower);
         }
-        self.unordered.complete(&fixed, &first(limits)).is_ok()
+        decided(self.unordered.complete(&fixed, &first(limits)))
     }
 
     /// The landed state's faces in block `b`, in id order.
@@ -628,6 +639,16 @@ pub(crate) fn first(limits: &CompletionLimits) -> CompletionLimits {
     CompletionLimits {
         per_component: 1,
         ..*limits
+    }
+}
+
+/// Whether a search for the first order found one: none when its budget ran
+/// out first, so the answer is undecided rather than no.
+fn decided(completed: Result<Completions, CompletionRefusal>) -> Option<bool> {
+    match completed {
+        Ok(_) => Some(true),
+        Err(CompletionRefusal::BudgetExceeded { .. }) => None,
+        Err(_) => Some(false),
     }
 }
 

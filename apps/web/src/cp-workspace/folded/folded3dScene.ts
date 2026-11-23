@@ -78,6 +78,7 @@ import { planeFrame } from './folded3dModelReader';
 import { folded3dStylePlan } from './folded3dStyle';
 import { folded3dFrameFillZoom, folded3dWindowView } from './folded3dWindow';
 import { folded3dCoplanarEpsilon, type FoldedFigureCamera } from './folded3dCamera';
+import { spatialPaperScene } from './folded3dSpatialScene';
 
 export interface Folded3dPaperSceneOptions {
   /**
@@ -112,6 +113,7 @@ export function folded3dPaperScene(
   options: Folded3dPaperSceneOptions
 ): PaperScene {
   const style = surfacePaperStyle(options.style, PAPER_STYLE_POLICIES['folded-3d']);
+  if (mesh.spatial) return spatialPaperScene(mesh, camera, style);
   const plan = folded3dStylePlan(options.displayStyle ?? 'Paper5');
   const layers = slotRanks(mesh, model, camera);
   const geometry = sceneTopology(mesh, model, layers, {
@@ -282,11 +284,13 @@ function sceneTopology(
   const edgeAssignments: number[] = [];
   const auxEnds: number[] = [];
   const edgeOrder: number[] = [];
-  const take = (edge: number, rank: number): void => {
+  const edgeTriangles: number[] = [];
+  const take = (edge: number, rank: number, triangle = -1): void => {
     edgeIndices.push(topology.edgeIndices[edge * 2]!, topology.edgeIndices[edge * 2 + 1]!);
     edgeAssignments.push(topology.edgeAssignments[edge]!);
     auxEnds.push(topology.auxEnds?.[edge] ?? 0);
     edgeOrder.push(creaseOrder(rank));
+    edgeTriangles.push(triangle);
   };
   if (include.creases) {
     // The fallback: model edges no layer inked, drawn plainly as the window
@@ -314,7 +318,7 @@ function sceneTopology(
         const partner = mesh.hinges.partnerPlane[edge]!;
         if (partner >= 0 && !planeShowsSide(partner, mesh.hinges.requiredSide[edge]!)) continue;
       }
-      take(edge, rank);
+      take(edge, rank, recordedTriangle(mesh, model, slot, edge, faceStart));
     }
   }
 
@@ -324,6 +328,7 @@ function sceneTopology(
       edgeIndices: Uint32Array.from(edgeIndices),
       edgeAssignments: Uint8Array.from(edgeAssignments),
       auxEnds: Uint8Array.from(auxEnds),
+      edgeTriangles: Int32Array.from(edgeTriangles),
     },
     faceGroups,
     order,
@@ -335,6 +340,45 @@ function determined(model: OristudioCpFolded3dRenderModel, cell: number): boolea
   return (
     (model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 5] ?? 0) !== FOLDED_3D_CELL_UNDETERMINED
   );
+}
+
+/**
+ * The triangle the scene records a slot's crease on (`edgeTriangles`), in its
+ * numbering from `faceStart`: `-1` for a crease of the slot's ring, whose
+ * vertices its triangles share; for an aux cut, which sits on two vertices of
+ * its own past the ring, the slot's largest triangle — any of them names the
+ * layer, and the largest is the last a camera drops as a sliver.
+ */
+function recordedTriangle(
+  mesh: Folded3dMesh,
+  model: OristudioCpFolded3dRenderModel,
+  slot: number,
+  edge: number,
+  faceStart: number
+): number {
+  const { positions, slots, topology } = mesh;
+  const ring = model.cell_attr[slots.cell[slot]! * FOLDED_3D_CELL_ATTR_STRIDE + 2] ?? 0;
+  if (topology.edgeIndices[edge * 2]! < slots.vertexStart[slot]! + ring) return -1;
+  const indices = topology.faceIndices;
+  let best = -1;
+  let bestArea = 0;
+  for (let at = slots.indexStart[slot]!; at + 2 < slots.indexStart[slot + 1]!; at += 3) {
+    const a = indices[at]! * 3;
+    const b = indices[at + 1]! * 3;
+    const c = indices[at + 2]! * 3;
+    const ux = positions[b]! - positions[a]!;
+    const uy = positions[b + 1]! - positions[a + 1]!;
+    const uz = positions[b + 2]! - positions[a + 2]!;
+    const vx = positions[c]! - positions[a]!;
+    const vy = positions[c + 1]! - positions[a + 1]!;
+    const vz = positions[c + 2]! - positions[a + 2]!;
+    const area = Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+    if (area > bestArea) {
+      bestArea = area;
+      best = (at - faceStart) / 3;
+    }
+  }
+  return best;
 }
 
 /**

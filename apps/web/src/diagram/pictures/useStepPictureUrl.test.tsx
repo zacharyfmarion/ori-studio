@@ -1,9 +1,12 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
-import { createStep, DEFAULT_DIAGRAM_STYLE, type DiagramStep } from '../document/diagramDocument';
+import { face, line, SQUARE } from '../../lib/paper/paperScene.fixtures';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { createStep, DEFAULT_DIAGRAM_STYLE, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
 import { scenePicture } from '../document/diagramSteps.fixtures';
 import { createAnnotation } from '../annotate/annotationModel';
+import { annotation, sceneStep } from '../annotate/pictureSnap.fixtures';
 import { viewGeometry } from '../zoom/stepView';
 import { xrayFacesOf } from '../xray/xrayScene';
 import { xrayCase } from '../xray/xray.cases';
@@ -39,6 +42,35 @@ it('paints immediately without building annotation or X-ray geometry until marks
     expect(xrayFacesOf).not.toHaveBeenCalled();
     act(() => root.render(<Card step={xrayCase('crane-edge')} />));
     expect(xrayFacesOf).toHaveBeenCalled();
+  } finally {
+    act(() => root.unmount());
+  }
+});
+
+it('leaves a picture’s line out of a card under a line mark drawn along it', () => {
+  // A precrease in a pen of its own colour, and a valley drawn along it.
+  const style: DiagramStyle = {
+    style: { ...DEFAULT_PAPER_STYLE, auxCreases: { visible: true, pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, color: '#00aa11' } } },
+  };
+  const precrease = sceneStep([face([SQUARE]), line('aux', [0, 50], [100, 50])]);
+  const marked = { ...precrease, annotations: [annotation({ kind: 'valley-line', from: [0, 0.5], to: [1, 0.5] })] };
+  const circled = { ...precrease, annotations: [annotation({ kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] })] };
+  function Styled({ step }: { step: DiagramStep }) {
+    const url = useStepPictureUrl(step, {}, style);
+    return <img src={url ?? undefined} alt="Step" />;
+  }
+  const precreases = (host: HTMLElement) => {
+    const base64 = host.querySelector('img')!.src.replace(/^data:image\/svg\+xml;base64,/, '');
+    const svg = new TextDecoder().decode(Uint8Array.from(atob(base64), (char) => char.charCodeAt(0)));
+    return (svg.match(/stroke="#00aa11"/g) ?? []).length;
+  };
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  try {
+    act(() => root.render(<Styled step={circled} />));
+    expect(precreases(host)).toBe(1);
+    act(() => root.render(<Styled step={marked} />));
+    expect(precreases(host)).toBe(0);
   } finally {
     act(() => root.unmount());
   }

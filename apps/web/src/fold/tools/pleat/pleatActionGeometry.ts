@@ -1,15 +1,20 @@
 /** Presentation of both pleat creases on the starting paper; no folding or order decisions. */
-import type { FoldModelLine } from '../../document/foldSequenceDocument';
+import type { FoldDirection, FoldModelLine } from '../../document/foldSequenceDocument';
 import type { FoldActionGeometry, FoldLineSpan, FoldScene } from '../../engine/foldEngineWire';
 import { chordOfConvex, clipConvex, pointOnLine, sideOf, transformLine } from '../../canvas/foldCanvasGeometry';
 
-/** The valley's stretches on selected material, classified by the starting pose's visible layers. */
-export function pleatValleySpans(
+/**
+ * The return line's stretches on selected material, classified by the
+ * starting pose's visible layers, in its letter: the valley's, or the
+ * mountain's when the mountain end moves.
+ */
+export function pleatReturnSpans(
   scene: FoldScene,
   moving: readonly number[],
   first: FoldModelLine,
   second: FoldModelLine,
   side: 1 | -1,
+  direction: FoldDirection = 'valley',
 ): FoldLineSpan[] {
   const a = transformLine(scene.view_transform, first);
   const b = transformLine(scene.view_transform, second);
@@ -35,10 +40,14 @@ export function pleatValleySpans(
     if (last && last.hidden === hidden && Math.abs(last.hi - lo) < 1e-9) last.hi = hi;
     else merged.push({ lo, hi, hidden });
   }
-  return merged.map(({ lo, hi, hidden }) => ({ from: pointOnLine(b, lo), to: pointOnLine(b, hi), hidden, direction: 'valley' }));
+  return merged.map(({ lo, hi, hidden }) => ({ from: pointOnLine(b, lo), to: pointOnLine(b, hi), hidden, direction }));
 }
 
-/** A local normal bisector, oriented from mountain to valley, independent of line endpoint order. */
+/**
+ * A local normal bisector, oriented from the line folded first to the one
+ * that returns it — from the paper that stays to the end that moves —
+ * independent of line endpoint order.
+ */
 export function pleatArrow(
   first: FoldModelLine,
   second: FoldModelLine,
@@ -49,7 +58,7 @@ export function pleatArrow(
   const span = [...(visible.length ? visible : spans)].sort((a, b) => length(b) - length(a))[0];
   if (!span) return undefined;
   // Off-centre keeps the arrow clear of a common central seam. Anchor on the
-  // narrower valley span so the annotation stays over the pleated flap.
+  // narrower return span so the annotation stays over the pleated flap.
   const at = { x: span.from.x * 0.38 + span.to.x * 0.62, y: span.from.y * 0.38 + span.to.y * 0.62 };
   const aligned = first.n[0] * second.n[0] + first.n[1] * second.n[1] < 0 ? -1 : 1;
   const nx = first.n[0] + aligned * second.n[0], ny = first.n[1] + aligned * second.n[1];

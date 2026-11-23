@@ -255,11 +255,10 @@ describe('inline simulation staleness', () => {
   });
 
   it('ignores an aux-coloured crease inside the region', () => {
-    // Deliberate, and shared with folded figures. An aux line does reach the
-    // simulation mesh — it splits faces and becomes a flat facet crease — but a
-    // flat crease across a facet changes the discretization, not the folded
-    // form. Construction lines are drawn constantly; marking a window stale for
-    // one would be noise.
+    // Deliberate, and shared with folded figures. An aux line is drawn on the
+    // simulated paper, not built into it, so it changes no folded form.
+    // Construction lines are drawn constantly; marking a window stale for one
+    // would be noise.
     const scribbled = documentOf([...SQUARE_LINES, line(2, 2, 8, 8, 'Cyan3')]);
     expect(isInlineSimulationStale(scribbled, created)).toBe(false);
   });

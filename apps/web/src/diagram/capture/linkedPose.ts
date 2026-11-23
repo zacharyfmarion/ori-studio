@@ -1,5 +1,7 @@
 import {withSpreadCamera} from '../../layer-spread/presentation';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
+import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
+import { clampSpatialSpreadAmount } from '../../cp-workspace/folded/spatialSpreadSettings';
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 /**
  * What a Pose verb does to a linked step's picture (D5): the new render, and
@@ -33,12 +35,15 @@ import {
   creasePatternSide,
   creasesFlipped,
   renderToShowAs,
+  spreadFailedRender,
   withCreasePatternSide,
   withCreasesFlipped,
   type DiagramCpRender,
   type DiagramCreasePatternRender,
   type DiagramCpSource,
+  type DiagramFlatRender,
   type DiagramLayerSpread,
+  type DiagramSavedShape,
   type DiagramSimulatedView,
   type DiagramSpreadStarts,
   type DiagramStyle,
@@ -47,6 +52,7 @@ import type { StepCreases } from './captureCreases';
 import {
   captureCreasePattern,
   captureSimulated,
+  capturedSpreadFailed,
   defaultCaptureCamera,
   flatStill,
   type CapturedPicture,
@@ -66,8 +72,9 @@ import { uprightTurn } from './mirrorAxes';
  * A verb, an orbit of the 3D view ending at a camera, a turn typed in degrees
  * (D5's angle field) for a crease pattern or a flat fold, a flat fold's spread
  * set to a kind, an amount or a direction, or an affine one's layer held
- * still, skew or axis (Phase 13), Pose's simulator come to rest (D19): its
- * model where the solver holds it, at a fold %, from a camera — or a crease
+ * still, skew or axis (Phase 13), Pose's simulator saved (D19): its model
+ * where the solver held it, at a fold %, from a camera, with the positions its
+ * picture was drawn from when the simulator could read them — or a crease
  * pattern's paper on the colour of one side (the Step pane's Front | Back),
  * or turned over on its back (the Step pane's Flip creases) — or a flat fold
  * drawn in the order the Layer order dialog applied (H8), in the flat pose
@@ -82,7 +89,14 @@ export type LinkedPoseRequest =
   | { verb: 'spread-kind'; kind: SpreadKind }
   // One value of the spread, as every flat picture's spread is set (`layerSpreadSettings.ts`).
   | LayerSpreadEdit
-  | { verb: 'simulate'; foldPercent: number; view: DiagramSimulatedView; still: StillScene }
+  | {
+      verb: 'simulate';
+      foldPercent: number;
+      view: DiagramSimulatedView;
+      still: StillScene;
+      /** The positions `still` was drawn from; none when the simulator could not read them. */
+      shape?: DiagramSavedShape;
+    }
   | { verb: 'paper-side'; side: 'front' | 'back' }
   | { verb: 'flip-creases'; on: boolean }
   | ({ verb: 'layer-order'; render: Extract<DiagramCpRender, { mode: 'folded-flat' }> } & AppliedLayerOrder);
@@ -216,16 +230,18 @@ export async function poseLinkedStep(
     const mirrorAxes = await session.flatMirrorAxes();
     const turn = upright ? (uprightTurn(mirrorAxes, rotationDeg) ?? rotationDeg) : rotationDeg;
     const picture = await session.flatPicture(turn, spread, presentation);
+    const drawn: DiagramFlatRender = {
+      mode: 'folded-flat',
+      side: state.side,
+      rotationDeg: turn,
+      foldCase: state.foldCase,
+      ...(spread ? { spread } : {}),
+      ...(presentation ? { presentation } : {}),
+    };
     return {
       status: 'posed',
-      render: {
-        mode: 'folded-flat',
-        side: state.side,
-        rotationDeg: turn,
-        foldCase: state.foldCase,
-        ...(spread ? { spread } : {}),
-        ...(presentation ? { presentation } : {}),
-      },
+      // Layers its Default spread could not take keep the spread, to say so (`spreadFailedPicture`).
+      render: capturedSpreadFailed(picture) ? spreadFailedRender(drawn) : drawn,
       picture,
       noLayerOrder: state.noLayerOrder,
       solutions: { discovered: state.discovered, hasNext: state.hasNext, none: state.noLayerOrder },
@@ -234,14 +250,15 @@ export async function poseLinkedStep(
     };
   };
 
-  const spatial = async (camera: FoldedFigureCamera, side: 'front' | 'back'): Promise<LinkedPoseResult> => {
+  const spatial = async (camera: FoldedFigureCamera, side: 'front' | 'back', spread: SpatialSpread | null | undefined = render.mode === 'folded-3d' ? render.spread : undefined): Promise<LinkedPoseResult> => {
     const held = await session.spatial(document, creases.foldLineIds);
     if (held.kind === 'refused') return { status: 'refused', refusal: held.refusal };
+    if (spread && held.fold.snapshot.verdict.verdict !== 'folded') return { status: 'unavailable' };
     return {
       status: 'posed',
-      render: { mode: 'folded-3d', camera, side },
-      picture: session.spatialPicture(camera, style),
-      noLayerOrder: false,
+      render: { mode: 'folded-3d', camera, side, ...(spread ? { spread } : {}) },
+      picture: await session.spatialPicture(camera, style, spread ?? undefined),
+      noLayerOrder: held.fold.snapshot.verdict.verdict !== 'folded',
       spatial: held,
     };
   };
@@ -270,22 +287,25 @@ export async function poseLinkedStep(
 
   /**
    * The simulator's model from a camera: flat, the one fold % a picture is
-   * taken at outside Pose, unless Pose's live solver is handed in (D19).
+   * taken at outside Pose, unless Pose's live solver is handed in (D19), with
+   * the positions it drew from.
    */
   const simulated = async (
     view: DiagramSimulatedView,
     foldPercent = 0,
-    still = flatStill(simulateFlat, creases)
+    still = flatStill(simulateFlat, creases),
+    shape?: DiagramSavedShape
   ): Promise<LinkedPoseResult> => {
     const picture = await captureSimulated(still, view, style);
     if (!picture) return { status: 'unavailable' };
-    return { status: 'posed', render: { mode: 'simulated', foldPercent, view }, picture, noLayerOrder: false };
+    const render: DiagramCpRender = { mode: 'simulated', foldPercent, view, ...(shape ? { shape } : {}) };
+    return { status: 'posed', render, picture, noLayerOrder: false };
   };
 
   if (request.verb === 'simulate') {
     // Nothing folded to keep: the simulator has its own model.
     session.dispose();
-    return simulated(request.view, request.foldPercent, request.still);
+    return simulated(request.view, request.foldPercent, request.still, request.shape);
   }
   if (request.verb === 'layer-order') {
     // A flat fold's, in the pose it was opened on: creases that fold in 3D now cannot take it.
@@ -423,6 +443,10 @@ export async function poseLinkedStep(
   const { camera, side } = render;
   const fromSide = (view: FoldedFigureCamera) => (side === 'back' ? antipodalCamera(view) : view);
   switch (verb) {
+    case 'spread-layers':
+      return spatial(camera, side, render.spread ? null : { kind: 'spatial', version: 1, amount: 1 });
+    case 'spread-amount':
+      return spatial(camera, side, render.spread && request.verb === 'spread-amount' ? { ...render.spread, amount: clampSpatialSpreadAmount(request.amount) } : undefined);
     case 'orbit':
       return spatial(request.verb === 'orbit' ? request.camera : camera, side);
     case 'turn-over':

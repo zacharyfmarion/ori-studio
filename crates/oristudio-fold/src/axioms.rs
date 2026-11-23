@@ -12,7 +12,8 @@
 //!    [`Silhouette`](crate::silhouette::Silhouette): every validity filter
 //!    asks the folded paper, so a fold that would land a point off the folded
 //!    form, or fold a line onto a stretch of another with no material there,
-//!    yields no root.
+//!    yields no root. An O3 is then held to the edges and creases its picks
+//!    name (below).
 //! 3. **Who moves.** An axiom names what it carries: `p` for O2, O5 and O7,
 //!    `m1` for O3, `p1` and `p2` for O6. A root's moving side is the side its
 //!    movers are on. Some roots leave the side to the step
@@ -45,15 +46,37 @@
 //! exist. ReferenceFinder keeps the opposite-side roots and records that one
 //! point and one line move (`refLineP2LP2L.cpp`, lines 217–243).
 //!
+//! # An O3 lays crease on crease
+//!
+//! The construction accepts a root when paper on `m1`'s line lands on paper
+//! on `m2`'s, anywhere along them. Folding a line onto a line by hand lays
+//! one edge or crease along another, so a step is offered an O3 root only
+//! when the fold lays `m1`'s **run** on `m2`'s by at least the minimum
+//! feature. A picked segment's run is the segment with every raw edge,
+//! crease and crease mark, on any layer, that lies on its line and joins it
+//! end to end (`State::run_of`): a short piece of a long crease stands for
+//! the whole crease, and a gap along the line ends the run.
+//!
+//! # Order
+//!
+//! A root can lay the runs together and still miss the pieces that were
+//! picked: folding the piece of the right edge below a corner onto the
+//! crease leaving that corner, the outer bisector lays the rest of the edge
+//! on the crease and the piece itself off the paper. The candidates come in
+//! order of how close what the axiom carries lands on the piece it was
+//! picked to land on (`State::landing_miss`), the construction's order
+//! between roots that land alike.
+//!
 //! # Replay
 //!
 //! A root number is only an enumeration index (the O5 chord end, the O6 cubic
 //! root in ascending order): when an earlier step changes the inputs or the
 //! paper the indices can swap, and a root can vanish from the list. A step
 //! therefore stores the chosen root's *line*, in its parent's model frame
-//! (plan D6), and [`State::axiom_root`] takes the candidate nearest it under
+//! (plan D6), and [`State::axiom_root`] takes the root nearest it under
 //! [`line_residual`] — `Construction::nearest_root` over the roots that
-//! survive who-moves, the same metric.
+//! survive who-moves, the same metric. It chooses before the run check, so
+//! a step saved when only the lines had to meet replays to the fold it made.
 
 use oristudio_geometry::construct::line_residual;
 use oristudio_geometry::{Construction, Line};
@@ -61,7 +84,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::anchor::SheetSegment;
 use crate::anchored::LineRefusal;
-use crate::numerics::MIN_FEATURE;
+use crate::landmarks::distance_to_segment;
+use crate::numerics::{EXACT, MIN_FEATURE, TOL};
 use crate::refusal::Side;
 use crate::remedy::Pin;
 use crate::state::State;
@@ -145,6 +169,20 @@ impl Axiom {
         }
     }
 
+    /// Each mover with the stretch it was picked to land on, which orders
+    /// the candidates (see the module docs). O1, O2 and O4 land nothing on a
+    /// stretch.
+    fn landings(&self) -> Vec<(Mover, SheetSegment)> {
+        match self {
+            Axiom::O1 { .. } | Axiom::O2 { .. } | Axiom::O4 { .. } => Vec::new(),
+            Axiom::O3 { m1, m2 } => vec![(Mover::Segment(*m1), *m2)],
+            Axiom::O5 { p, m1, .. } | Axiom::O7 { p, m1, .. } => vec![(Mover::Point(*p), *m1)],
+            Axiom::O6 { p1, m1, p2, m2 } => {
+                vec![(Mover::Point(*p1), *m1), (Mover::Point(*p2), *m2)]
+            }
+        }
+    }
+
     /// The constraints of its line a sliver remedy may keep, each leaving
     /// one degree of freedom ([`crate::remedy`]): the points the line passes
     /// through and the line it is perpendicular to. O2, O3 and O6 fix the line
@@ -222,9 +260,30 @@ impl State {
         })
     }
 
-    /// Every fold the axiom yields on this state's folded form, with the side
-    /// each moves (see the module docs); empty when there is none.
+    /// The folds a step is offered: every root the axiom yields on this
+    /// state's folded form, an O3's only where it lays run on run, nearest
+    /// what was picked first, each with the side it moves (see the module
+    /// docs); empty when there is none.
     pub fn axiom_candidates(&self, axiom: &Axiom) -> Result<Vec<AxiomCandidate>, LineRefusal> {
+        let runs = match axiom {
+            Axiom::O3 { m1, m2 } => Some([self.run_of(m1)?, self.run_of(m2)?]),
+            _ => None,
+        };
+        let mut ranked: Vec<(i64, AxiomCandidate)> = self
+            .axiom_roots(axiom)?
+            .into_iter()
+            .filter(|c| runs.is_none_or(|[from, onto]| lays_on(&c.line, from, onto)))
+            .map(|c| (self.landing_miss(axiom, &c.line), c))
+            .collect();
+        // Stable: roots that land alike keep the construction's order.
+        ranked.sort_by_key(|(miss, _)| *miss);
+        Ok(ranked.into_iter().map(|(_, candidate)| candidate).collect())
+    }
+
+    /// Every root the construction yields on this state's folded form, with
+    /// the side each moves, before an O3's run check and unordered: what
+    /// replay chooses among (see the module docs).
+    pub fn axiom_roots(&self, axiom: &Axiom) -> Result<Vec<AxiomCandidate>, LineRefusal> {
         let construction = self.axiom_construction(axiom)?;
         let images: Vec<Image> = self
             .mover_images(axiom)?
@@ -243,6 +302,63 @@ impl State {
                 })
             })
             .collect())
+    }
+
+    /// The run a picked segment stands for (see the module docs), by its two
+    /// ends in the model frame.
+    fn run_of(&self, segment: &SheetSegment) -> Result<[Point; 2], LineRefusal> {
+        let line = self.anchor_segment(segment)?;
+        let span = |a: Point, b: Point| {
+            let (s, t) = (line.parameter(a), line.parameter(b));
+            [s.min(t), s.max(t)]
+        };
+        let on_line = |a: Point, b: Point| {
+            (line.distance_to_point(a) <= TOL && line.distance_to_point(b) <= TOL)
+                .then(|| span(a, b))
+        };
+        let picked = span(self.anchor_point(segment.a)?, self.anchor_point(segment.b)?);
+        let geometry = self.geometry();
+        let creases = self
+            .creases()
+            .iter()
+            .zip(&self.topology().crease_faces)
+            .filter_map(|(crease, faces)| {
+                let t = geometry.isometries[*faces.first()?];
+                let [a, b] = crease.vertices.map(|v| t.apply(self.vertices()[v.index()]));
+                on_line(a, b)
+            });
+        let marks = self.mark_pieces().into_iter().filter_map(|piece| {
+            let mark = &self.crease_marks()[piece.mark];
+            let t = geometry.isometries[piece.face];
+            on_line(
+                t.apply(mark.at(piece.span[0])),
+                t.apply(mark.at(piece.span[1])),
+            )
+        });
+        let [lo, hi] = run_through(picked, creases.chain(marks).collect());
+        Ok([line.point_at(lo), line.point_at(hi)])
+    }
+
+    /// How far what a fold along `line` carries lands from the stretches it
+    /// was picked to land on, summed over the movers, in steps of [`EXACT`]
+    /// so that roots landing alike tie: a point's distance from its stretch,
+    /// and a segment's gap to its stretch along the line they share — less
+    /// than zero by the length they overlap. A stretch whose ends do not
+    /// resolve counts nothing.
+    fn landing_miss(&self, axiom: &Axiom, line: &Line) -> i64 {
+        let image = |p: Point| self.resolve_point(p).map(|q| line.reflect_point(q));
+        let miss: f64 = axiom
+            .landings()
+            .into_iter()
+            .filter_map(|(mover, onto)| {
+                let onto = [self.resolve_point(onto.a)?, self.resolve_point(onto.b)?];
+                Some(match mover {
+                    Mover::Point(p) => distance_to_segment(image(p)?, onto[0], onto[1]),
+                    Mover::Segment(s) => separation([image(s.a)?, image(s.b)?], onto),
+                })
+            })
+            .sum();
+        (miss / EXACT).round() as i64
     }
 
     /// What the axiom carries when `side` of its root `line` moves: its
@@ -278,9 +394,9 @@ impl State {
             .collect()
     }
 
-    /// Replay: the candidate nearest a stored line (see the module docs).
+    /// Replay: the root nearest a stored line (see the module docs).
     pub fn axiom_root(&self, axiom: &Axiom, stored: &Line) -> Result<AxiomReplay, LineRefusal> {
-        self.axiom_candidates(axiom)?
+        self.axiom_roots(axiom)?
             .into_iter()
             .map(|candidate| AxiomReplay {
                 err: line_residual(&candidate.line, stored),
@@ -322,6 +438,42 @@ fn moving_side(line: &Line, movers: &[Image]) -> Option<Option<Side>> {
         [a, b] if a == b => a,
         _ => None,
     })
+}
+
+/// Whether a fold along `fold` lays the run `from` on the run `onto` by at
+/// least the minimum feature.
+fn lays_on(fold: &Line, from: [Point; 2], onto: [Point; 2]) -> bool {
+    separation(from.map(|p| fold.reflect_point(p)), onto) <= -MIN_FEATURE
+}
+
+/// The run through `picked` along a line: the stretch it and `stretches`
+/// (spans along the line, as parameters) cover end to end.
+fn run_through(picked: [f64; 2], mut stretches: Vec<[f64; 2]>) -> [f64; 2] {
+    stretches.push(picked);
+    stretches.sort_by(|a, b| a[0].total_cmp(&b[0]));
+    let mut runs: Vec<[f64; 2]> = Vec::new();
+    for s in stretches {
+        match runs.last_mut() {
+            Some(run) if s[0] <= run[1] + TOL => run[1] = run[1].max(s[1]),
+            _ => runs.push(s),
+        }
+    }
+    runs.into_iter()
+        .find(|run| run[0] <= picked[0] && picked[1] <= run[1])
+        .unwrap_or(picked)
+}
+
+/// The gap between a segment and a stretch of the line it lies on, measured
+/// along the stretch: less than zero by the length they overlap.
+fn separation(segment: [Point; 2], stretch: [Point; 2]) -> f64 {
+    let [a, b] = stretch;
+    let length = (b[0] - a[0]).hypot(b[1] - a[1]);
+    if length == 0.0 {
+        return distance_to_segment(a, segment[0], segment[1]);
+    }
+    let along = |p: Point| ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / length;
+    let (s, t) = (along(segment[0]), along(segment[1]));
+    s.min(t).max(0.0) - s.max(t).min(length)
 }
 
 /// The side of `line` a mover's image is on: `None` on the line,

@@ -361,6 +361,110 @@ fn a_target_the_block_never_reaches_is_refused() {
     }
 }
 
+/// The square folded in half twice (`stack(2)`), four raw corners at (0, 0):
+/// from the top, P1 (sheet (0.95, 0.05) there), P2 (0.95, 0.95), P3
+/// (0.05, 0.95) and P4 (0.05, 0.05). P1 and P2 are the half that turned over
+/// last, P3 and P4 the other, and the pocket between them is joined at
+/// x = 0.5. P2's corner mountain-tucked over P3, into the pocket: the first
+/// block, and the state the next two tucks start from.
+fn first_block_inside() -> State {
+    let op = tuck(
+        corner(),
+        [0.02, 0.02],
+        Direction::Mountain,
+        Seed::Flaps {
+            at: vec![[0.95, 0.95]],
+        },
+        [0.4, 0.6],
+    );
+    landed(&stack(2), &op).state
+}
+
+/// The faces at the model point (0.2, 0.2), where the corners land, top to
+/// bottom, each named by a sheet point.
+fn landed_stack(state: &State, expected: &[Point]) {
+    let names: Vec<FaceId> = expected.iter().map(|&p| face(state, p)).collect();
+    assert_eq!(state.stack_at([0.2, 0.2]), Some(names));
+}
+
+/// The second block of a pocket (P3's corner) tucked against the first one
+/// (P2's, already inside). P1's corner lies over it on the moving side, but
+/// P1 lies beyond the first block where the two meet: the pocket opens
+/// against the first block with P1 on its far side, so P1 stays. Carried
+/// along, its corner would wrap around both blocks' hinges, which no order
+/// allows, so the tuck read by pieces lands nowhere.
+#[test]
+fn a_second_block_tucks_against_one_already_inside_the_pocket() {
+    let state = first_block_inside();
+    let first = face(&state, [0.9, 0.9]);
+    let op = tuck(
+        corner(),
+        [0.02, 0.02],
+        Direction::Valley,
+        Seed::Flaps {
+            at: vec![[0.05, 0.95]],
+        },
+        [0.9, 0.9],
+    );
+    let folded = landed(&state, &op);
+    assert_eq!(folded.report.target, first);
+    assert_eq!(
+        folded.report.fold.moving,
+        vec![face(&state, [0.05, 0.95])],
+        "only the selected corner moves"
+    );
+    landed_stack(
+        &folded.state,
+        &[
+            [0.8, 0.2],
+            [0.8, 0.8],
+            [0.9, 0.9],
+            [0.1, 0.9],
+            [0.2, 0.8],
+            [0.2, 0.2],
+        ],
+    );
+    // The listing offers the first block, and what moves reads the same.
+    assert_eq!(listed(&state, &op), Some(true));
+    let analysis = state
+        .analyse_tuck_fold(&op)
+        .unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(analysis.moving, folded.report.fold.moving);
+}
+
+/// The outer ply's corner (P1's) folded behind it, between it and P2, with
+/// the first block inside. P3 and P4 cross the fold under the corner, but
+/// both lie beyond P2 where they meet it, so they stay: the corner goes
+/// between its own ply and the layers under it, past them. Carried along,
+/// their corners would wrap around P2's hinge, which no order allows.
+#[test]
+fn a_corner_tucks_under_its_own_ply_past_layers_that_cross_the_fold() {
+    let state = first_block_inside();
+    let op = tuck(
+        corner(),
+        [0.02, 0.02],
+        Direction::Mountain,
+        Seed::Flaps {
+            at: vec![[0.95, 0.05]],
+        },
+        [0.6, 0.6],
+    );
+    let folded = landed(&state, &op);
+    assert_eq!(folded.report.fold.moving, vec![face(&state, [0.95, 0.05])]);
+    landed_stack(
+        &folded.state,
+        &[
+            [0.8, 0.2],
+            [0.9, 0.1],
+            [0.8, 0.8],
+            [0.9, 0.9],
+            [0.2, 0.8],
+            [0.2, 0.2],
+        ],
+    );
+    assert_eq!(listed(&state, &op), Some(true));
+}
+
 /// The square folded in half `folds` times, alternately across and down, each
 /// time a valley: a stack of 2^folds layers in its corner.
 fn stack(folds: usize) -> State {

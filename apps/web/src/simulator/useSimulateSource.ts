@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { creaseRoleOf } from '../cp-workspace/references/creaseRole';
 import { regionReferenceFor, resolveRegion } from '../cp-workspace/regions/regionReference';
 import { ensureCpSheetSimulationArtifacts } from '../cp-workspace/sheets/cpSheetArtifacts';
+import { selectCpAuxLinesAreFacets } from '../store/workspaceStore/cpSimulationAuxLines';
 import { sheetRegions, type CpSheetRegion } from '../cp-workspace/sheets/cpSheetRegions';
 import { linesSheetThumbnail } from '../cp-workspace/sheets/linesSheetThumbnail';
 import type { SheetGridItem } from '../cp-workspace/sheets/SheetGrid';
@@ -103,7 +104,12 @@ function useSheetsSource(document: OristudioCpDocumentSnapshot | null): Simulate
   // by the creases and the sheet, not the snapshot: a selection replaces the
   // snapshot, and a new fold object would reload the simulator for nothing.
   const activeSheet = active?.id ?? null;
-  const key = document && activeSheet !== null ? `${creaseFingerprint(document)}#${activeSheet}` : null;
+  // What the document's aux lines are changes the mesh, so it is part of the key.
+  const auxLinesAreFacets = useWorkspaceStore(selectCpAuxLinesAreFacets);
+  const key =
+    document && activeSheet !== null
+      ? `${creaseFingerprint(document)}#${activeSheet}#${auxLinesAreFacets ? 'facets' : 'drawn'}`
+      : null;
   const [attempt, setAttempt] = useState(0);
   const [built, setBuilt] = useState<{
     key: string;
@@ -115,7 +121,7 @@ function useSheetsSource(document: OristudioCpDocumentSnapshot | null): Simulate
     if (key === null || activeSheet === null) return undefined;
     const current = useWorkspaceStore.getState().oristudioCpDocument?.document ?? null;
     let live = true;
-    void ensureCpSheetSimulationArtifacts(current, activeSheet).then((artifacts) => {
+    void ensureCpSheetSimulationArtifacts(current, activeSheet, auxLinesAreFacets).then((artifacts) => {
       if (!live) return;
       const [segment] = resolveCpSegments(artifacts);
       const fold = artifacts && segment ? buildSegmentSimulationFold(artifacts, segment) : null;
@@ -129,7 +135,7 @@ function useSheetsSource(document: OristudioCpDocumentSnapshot | null): Simulate
     return () => {
       live = false;
     };
-  }, [key, activeSheet, attempt]);
+  }, [key, activeSheet, attempt, auxLinesAreFacets]);
   const rebuild = useCallback(() => setAttempt((count) => count + 1), []);
 
   if (!document) return null;

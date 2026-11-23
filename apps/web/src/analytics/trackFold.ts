@@ -12,6 +12,7 @@ import type {
   FoldStepAddedOpKind,
   FoldStepExtent,
   FoldStepLayerScope,
+  FoldStepPleatEnd,
   FoldStepRotationAmount,
   FoldStepVertexForm,
   FoldStepVia,
@@ -21,7 +22,7 @@ import { spreadProperties, spreadTracking } from './trackDiagram';
 
 /** What a committed step says beyond its kind: how its line was located, how far it turned, or how it named its lines. */
 type FoldStepAddedDetails =
-  | { layerScope: FoldStepLayerScope; via: FoldStepVia; extent?: FoldStepExtent; targetCount?: number }
+  | { layerScope: FoldStepLayerScope; via: FoldStepVia; extent?: FoldStepExtent; targetCount?: number; pleatEnd?: FoldStepPleatEnd }
   | { amount: FoldStepRotationAmount }
   | { vertex: FoldStepVertexForm }
   | {
@@ -32,6 +33,8 @@ type FoldStepAddedDetails =
         axisSource?: 'listed' | 'drawn_cp' | 'drawn_folded';
         /** Whether the mirror kept the layer order (the other side) or reversed it (behind). */
         side?: 'same' | 'behind';
+        /** Whether the range ended at the step it was added after, or at an earlier one (repeated again, across another axis). */
+        rangeEnd?: 'current' | 'earlier';
       };
     };
 
@@ -47,7 +50,8 @@ type FoldStepAddedDetails =
  * edge on a folded edge, or by its rays — and, by its edge, its target
  * (`swivel_form`, `target`), and on a folded edge whether it is the open
  * swivel or the inside one (`swivel_kind`); a squash its hinge, folded or
- * a drawn line (`squash_hinge`).
+ * a drawn line (`squash_hinge`). Two swivels made together say which crease
+ * they share (`swivel_shared`). A pleat says which end moved (`pleat_end`).
  */
 export function trackFoldStepAdded(opKind: FoldStepAddedOpKind, details?: FoldStepAddedDetails): void {
   track(ANALYTICS_EVENTS.foldStepAdded, { op_kind: opKind, ...detailProperties(details) });
@@ -56,12 +60,13 @@ export function trackFoldStepAdded(opKind: FoldStepAddedOpKind, details?: FoldSt
 function detailProperties(details: FoldStepAddedDetails | undefined): Record<string, string> {
   if (!details) return {};
   if ('repeat' in details) {
-    const { mode, count, axisSource, side } = details.repeat;
+    const { mode, count, axisSource, side, rangeEnd } = details.repeat;
     return {
       repeat_mode: mode,
       count_bucket: bucketCount(count, COUNT_BUCKETS),
       ...(axisSource ? { axis_source: axisSource } : {}),
       ...(side ? { side } : {}),
+      ...(rangeEnd ? { range_end: rangeEnd } : {}),
     };
   }
   if ('amount' in details) return { amount: details.amount };
@@ -71,6 +76,7 @@ function detailProperties(details: FoldStepAddedDetails | undefined): Record<str
     via: details.via,
     ...(details.extent ? { extent: details.extent } : {}),
     ...(details.targetCount !== undefined ? { target_count_bucket: bucketCount(details.targetCount, COUNT_BUCKETS) } : {}),
+    ...(details.pleatEnd ? { pleat_end: details.pleatEnd } : {}),
   };
 }
 
@@ -78,7 +84,13 @@ function detailProperties(details: FoldStepAddedDetails | undefined): Record<str
 function vertexFormProperties(form: FoldStepVertexForm): Record<string, string> {
   if ('hinge' in form) return { hinge: form.hinge };
   if ('squashHinge' in form) return { squash_hinge: form.squashHinge };
-  if (form.swivelForm === 'valley_mountain') return { swivel_form: 'valley_mountain', swivel_kind: form.swivelKind };
+  if (form.swivelForm === 'valley_mountain') {
+    return {
+      swivel_form: 'valley_mountain',
+      swivel_kind: form.swivelKind,
+      ...(form.swivelShared ? { swivel_shared: form.swivelShared } : {}),
+    };
+  }
   if (form.swivelForm === 'rays') return { swivel_form: 'rays' };
   if (form.swivelForm === 'fold') return { swivel_form: 'fold', target: form.target, swivel_kind: form.swivelKind };
   return { swivel_form: form.swivelForm, target: form.target };

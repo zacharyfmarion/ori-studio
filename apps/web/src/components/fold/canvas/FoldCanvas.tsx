@@ -299,6 +299,7 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
       divide: { settings: toolState.divide, marks: marksHere },
       ...(reverseView ? { reverse: reverseView } : {}),
       secondLineMode: toolState.secondLineMode,
+      ...(toolState.tool === 'pleat' && toolState.swapped ? { pleatEnd: 'mountain' as const } : {}),
       ...(crimpView ? { crimp: crimpView } : {}),
       ...(tuckView ? { tuck: tuckView } : {}),
       ...(vertexView ? { vertex: vertexView } : {}),

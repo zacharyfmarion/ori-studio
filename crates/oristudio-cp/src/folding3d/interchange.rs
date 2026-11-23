@@ -198,10 +198,10 @@ pub fn is_ours(frame: &FoldDocument) -> bool {
 }
 
 /// The welded vertex table: the dense remap, and one position per kept vertex.
-struct Weld {
+pub(super) struct Weld {
     /// Indexed by arrangement vertex; meaningless for vertices no ring uses.
-    dense: Vec<usize>,
-    coords: Vec<[f64; 3]>,
+    pub(super) dense: Vec<usize>,
+    pub(super) coords: Vec<[f64; 3]>,
 }
 
 /// One position per vertex, chosen from the lowest-indexed face that carries it.
@@ -215,7 +215,7 @@ struct Weld {
 /// way because the alternative on that branch is a ring naming `usize::MAX`, and
 /// `corpus_folded_form_frames_stay_under_the_cap` is what keeps the "never"
 /// honest.
-fn weld_vertices(placement: &Placement3d) -> Weld {
+pub(super) fn weld_vertices(placement: &Placement3d) -> Weld {
     let mut position: Vec<Option<Vec3>> = vec![None; placement.points.len()];
     for (face, ring) in placement.rings.iter().enumerate() {
         let placed = &placement.face_points[face];
@@ -267,11 +267,11 @@ pub fn weld_residual(placement: &Placement3d) -> f64 {
     worst
 }
 
-struct RingEdge {
+pub(super) struct RingEdge {
     /// Arrangement vertex indices, ascending.
-    ends: (usize, usize),
+    pub(super) ends: (usize, usize),
     assignment: Assignment,
-    fold_degrees: Option<f64>,
+    pub(super) fold_degrees: Option<f64>,
 }
 
 /// Every arrangement edge once, keyed on the vertex pair.
@@ -279,7 +279,7 @@ struct RingEdge {
 /// The same key [`crate::folding3d::model`] strokes edges on, so a crease drawn
 /// as two collinear pieces is two edges in both, and the two never disagree
 /// about how many edges the figure has.
-fn ring_edges(placement: &Placement3d) -> Vec<RingEdge> {
+pub(super) fn ring_edges(placement: &Placement3d) -> Vec<RingEdge> {
     let mut faces_on: BTreeMap<(usize, usize), BTreeSet<usize>> = BTreeMap::new();
     for (face, ring) in placement.rings.iter().enumerate() {
         for slot in 0..ring.len() {

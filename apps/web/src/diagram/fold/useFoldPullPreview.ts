@@ -8,7 +8,7 @@ import { foldPullPreviews, wantFoldPullPreview, type FoldPullPreview } from './f
 
 /** The app's capture: from the Fold session, as the pull captures (`captureFoldTarget`), made the step a pull makes. */
 async function captureFromFold(request: FoldPullPreviewRequest): Promise<FoldPullPreview> {
-  const { result } = await captureFoldTarget(foldSession(), request.sequence, request.target, request.render, {
+  const result = await captureFoldTarget(foldSession(), request.sequence, request.target, request.render, {
     t: i18n.t.bind(i18n),
   });
   const sent = sentFoldStep(result);

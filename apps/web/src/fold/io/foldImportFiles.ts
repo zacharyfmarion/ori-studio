@@ -12,6 +12,7 @@
  */
 
 import { droppedFileExtension } from '../../lib/fileDrop';
+import { foldEdgeMagnitudeUnits, partialFoldDegrees } from '../../lib/foldAngle';
 import type { ImportedCreasePatternFormat } from '../../lib/fileFormats';
 import { fitSheetThumbnail, type SheetStroke, type SheetStrokeRole, type SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import { FOLD_SAMPLES, foldSampleSource, type FoldSample, type FoldSampleId } from '../engine/foldEngineIoSamples';
@@ -87,16 +88,27 @@ export function foldCpSummary(text: string): FoldSampleSummary {
       vertices_coords?: unknown;
       edges_vertices?: unknown;
       edges_assignment?: unknown;
+      edges_foldAngle?: unknown;
     };
     const coords = Array.isArray(fold.vertices_coords) ? (fold.vertices_coords as number[][]) : [];
     const edges = Array.isArray(fold.edges_vertices) ? (fold.edges_vertices as number[][]) : [];
     const assignments = Array.isArray(fold.edges_assignment) ? (fold.edges_assignment as string[]) : [];
+    const angles = Array.isArray(fold.edges_foldAngle) ? (fold.edges_foldAngle as unknown[]) : [];
     const strokes: SheetStroke[] = [];
     edges.forEach(([a, b], index) => {
       const from = a === undefined ? undefined : coords[a];
       const to = b === undefined ? undefined : coords[b];
       if (!from || !to) return;
-      strokes.push({ x1: from[0] ?? 0, y1: from[1] ?? 0, x2: to[0] ?? 0, y2: to[1] ?? 0, role: strokeRole(assignments[index]) });
+      const angle = angles[index];
+      const magnitude = foldEdgeMagnitudeUnits(assignments[index], typeof angle === 'number' ? angle : null);
+      strokes.push({
+        x1: from[0] ?? 0,
+        y1: from[1] ?? 0,
+        x2: to[0] ?? 0,
+        y2: to[1] ?? 0,
+        role: strokeRole(assignments[index]),
+        foldDegrees: partialFoldDegrees(magnitude ?? undefined),
+      });
     });
     summary = {
       thumbnail: fitSheetThumbnail(strokes),

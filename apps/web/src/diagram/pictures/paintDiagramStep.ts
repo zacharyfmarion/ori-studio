@@ -17,12 +17,14 @@ export {STEP_CARD_PADDING_MM} from './pictureMetrics';
  * - a References step, its card's diagram built at the size it is painted at
  *   (`paintStepDiagram.ts`, D6).
  *
+ * A surface that draws the step's marks over a scene or a References step
+ * leaves out the lines its line marks lie along (`sourceUnderMarks`).
+ *
  * Pure: no DOM, no store.
  */
 import { DEFAULT_PAPER_SIZE_MM, type PaperPage, type PaperSizeMeasure } from '../../lib/paper/paperPage';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { PT_PER_CSS_PX, pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
-import { readPaperScene } from '../../lib/paper/paperSceneValidate';
 import {
   posedRenderOf,
   type DiagramAsset,
@@ -37,6 +39,8 @@ import {
 import { SVG_NS } from '../upload/svgSanitize';
 import { diagramScenePaintStyle } from './diagramPaperStyle';
 import { paintStepDiagram } from './paintStepDiagram';
+import { paintedScene } from './storedScene';
+import { storedSceneUnderMarks, type CoveringMarks } from './sceneUnderMarks';
 
 /** A box in a painted picture, in its CSS px. */
 export interface PictureBox {
@@ -123,6 +127,10 @@ export interface SceneSource {
   kind: 'scene';
   picture: DiagramScenePicture;
   pattern: boolean;
+  /** A simulated capture, painted with its lines as late as nothing covers them (`paintedScene`). */
+  simulated?: boolean;
+  /** The marks drawn over it along its lines, which those lines are left out under ({@link sourceUnderMarks}). */
+  covering?: CoveringMarks;
 }
 
 /** What a scene's page size measures: a crease pattern's sheet, a folded model's figure. */
@@ -141,7 +149,7 @@ export type StepPictureSource =
   | { kind: 'asset'; asset: KnownDiagramAsset; pose: PicturePose; sceneFrame?: [number, number, number, number] }
   | SceneSource
   | { kind: 'fixed'; picture: DiagramFixedPicture }
-  | { kind: 'step-diagram'; picture: DiagramStepDiagramPicture };
+  | { kind: 'step-diagram'; picture: DiagramStepDiagramPicture; covering?: CoveringMarks };
 
 export function stepPictureSource(
   step: DiagramStep,
@@ -165,12 +173,39 @@ export function stepPictureSource(
     case 'scene': {
       // Measured as a pattern sheet unless its pose folds it.
       const render = posedRenderOf(source);
-      return { kind: 'scene', picture, pattern: !(render && render.mode !== 'crease-pattern') };
+      return {
+        kind: 'scene',
+        picture,
+        pattern: !(render && render.mode !== 'crease-pattern'),
+        simulated: render?.mode === 'simulated',
+      };
     }
     case 'fixed':
       return { kind: 'fixed', picture };
     case 'step-diagram':
       return { kind: 'step-diagram', picture };
+  }
+}
+
+/**
+ * A source with the marks drawn over it that lie along its lines
+ * (`linesUnderMarks`), for a surface that draws a step's marks over its
+ * picture at full strength: its lines are left out under them
+ * (`sceneUnderMarks.ts`). The source itself with none, and for an upload or
+ * a fixed picture, whose lines are pixels or markup. Export Picture writes
+ * the picture with no marks over it, and Pose ghosts them over the picture
+ * being posed, so both paint {@link stepPictureSource}'s own.
+ */
+export function sourceUnderMarks(source: StepPictureSource, covering: CoveringMarks | null): StepPictureSource {
+  if (!covering) return source;
+  switch (source.kind) {
+    case 'scene':
+      return { ...source, covering };
+    case 'step-diagram':
+      return { ...source, covering };
+    case 'asset':
+    case 'fixed':
+      return source;
   }
 }
 
@@ -231,27 +266,22 @@ function itemExtent(item: PaperScene['items'][number]): { minX: number; minY: nu
 /**
  * A captured scene in the diagram's pens, `scale` times the size every
  * picture opens at, its pens at their print weight — only what lies over
- * `cull` (picture units) when given ({@link sceneCulledTo}). `null` for a
- * scene that does not read: the file's validator has already checked it, so
- * this is a guard, not a path.
+ * `cull` (picture units) when given ({@link sceneCulledTo}), and none of its
+ * lines' stretches the marks over it lie along (`storedSceneUnderMarks`).
+ * `null` for a scene that does not read: the file's validator has already
+ * checked it, so this is a guard, not a path.
  */
 export function paintScene(
-  { picture, pattern }: SceneSource,
+  { picture, pattern, simulated = false, covering }: SceneSource,
   style: DiagramStyle,
   paddingMm: number = STEP_CARD_PADDING_MM,
   scale = 1,
   cull: PictureBox | null = null
 ): PaintedPicture | null {
   const measure = sceneMeasure(pattern);
-  let raw: unknown;
-  try {
-    raw = JSON.parse(picture.sceneJson);
-  } catch {
-    return null;
-  }
-  const read = readPaperScene(raw);
+  const read = paintedScene(picture, simulated);
   if (!read) return null;
-  const scene = sceneCulledTo(read, cull);
+  const scene = storedSceneUnderMarks(sceneCulledTo(read, cull), covering);
   const surface = diagramScenePaintStyle(style, pattern);
   const page = stepScenePage(paddingMm, scale);
   const painted = paperSceneToSvg(scene, surface, page, measure);
@@ -302,7 +332,8 @@ export function paintSource(
         source.picture.model,
         source.picture.mirrored,
         style,
-        stepScenePage(paddingMm ?? STEP_CARD_PADDING_MM, scale)
+        stepScenePage(paddingMm ?? STEP_CARD_PADDING_MM, scale),
+        source.covering ?? null
       );
   }
 }

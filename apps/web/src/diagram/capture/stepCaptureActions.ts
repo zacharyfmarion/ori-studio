@@ -408,6 +408,8 @@ export function sayCaptureOutcome(outcome: DiagramCaptureOutcome): void {
             'Its layers couldn’t be put in order, so the step shows the folded paper see-through.'
           )
         );
+      } else if (outcome.spreadFailed === 'new') {
+        saySpreadFailed();
       } else if (outcome.tooDetailed) {
         toast.message(
           t(
@@ -469,6 +471,21 @@ export function sayCaptureOutcome(outcome: DiagramCaptureOutcome): void {
     case 'busy':
       return;
   }
+}
+
+/**
+ * A step asked spread by Default whose layers newly could not be spread —
+ * over a resource limit, out of time — drawn unspread, its spread kept: said,
+ * with the kinds that need no solve. Shared by every way a step is captured,
+ * a linked pattern's and a Fold step's.
+ */
+export function saySpreadFailed(): void {
+  toast.message(
+    i18n.t(
+      'toasts:diagram.capture.spreadFailed',
+      'Its layers couldn’t be spread by Default, so the step shows them unspread. Try Affine or Depth instead.'
+    )
+  );
 }
 
 /**
@@ -606,7 +623,9 @@ export function sayStepSolutionPress(press: LayerOrderSolutionPress, keepTrying:
 function trackedOutcome(outcome: DiagramCaptureOutcome): TrackedOutcome | null {
   switch (outcome.status) {
     case 'captured':
-      return outcome.noLayerOrder ? 'no_layer_order' : outcome.tooDetailed ? 'rasterized' : 'ok';
+      if (outcome.noLayerOrder) return 'no_layer_order';
+      if (outcome.spreadFailed) return 'spread_failed';
+      return outcome.tooDetailed ? 'rasterized' : 'ok';
     case 'refused':
       return 'refused';
     case 'stopped':
