@@ -26,6 +26,7 @@
     "layerOrderTooLarge": "Este orden de capas es demasiado grande para guardarlo con el modelo, así que no cambia.",
     "layerOrderTooLargeToFold": "Este orden de capas es demasiado grande para guardarlo con un modelo, así que no se plegó nada.",
     "layerOrderUndeterminedSelection": "No se pudo determinar el orden de capas de estos pliegues.",
+    "paperNeedsLayerOrder": "Este pliegue no tiene orden de capas, así que no se puede mostrar como papel",
     "pinnedVertex": "Ese pliegue empieza en un vértice fijado, así que no se puede alargar. Suelta primero el vértice o extiende otro pliegue."
   },
   "cpDetectImport": {

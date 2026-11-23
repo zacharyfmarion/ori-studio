@@ -26,6 +26,7 @@
     "layerOrderTooLarge": "この重なり順は大きすぎて図と一緒に保存できないため、変更されていません。",
     "layerOrderTooLargeToFold": "この重なり順は大きすぎて図と一緒に保存できないため、何も折られていません。",
     "layerOrderUndeterminedSelection": "これらの折り線の重なり順を決められませんでした。",
+    "paperNeedsLayerOrder": "この折りには重なり順がないため、「用紙」で表示できません",
     "pinnedVertex": "この折り線は固定された頂点から始まるため、延長できません。先に頂点の固定を解除するか、別の折り線を延長してください。"
   },
   "cpDetectImport": {

@@ -1,4 +1,5 @@
 import type {
+  OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureSnapshot,
@@ -103,7 +104,7 @@ export function foldedFigureCurrentCase(
  * outcome). A 3D figure's own verdict says it.
  */
 export function foldedFigureHasLayerOrder(
-  figure: OristudioCpFoldedFigureEntry | null | undefined
+  figure: Pick<OristudioCpFoldedFigureEntry, 'folded3d' | 'snapshot'> | null | undefined
 ): boolean | null {
   const spatial = figure?.folded3d;
   if (spatial) {
@@ -116,6 +117,52 @@ export function foldedFigureHasLayerOrder(
     displayStyle: snapshot.display_style,
     outcome: snapshot.outcome,
   });
+}
+
+/**
+ * Whether a flat figure can be drawn as Paper.
+ *
+ * Paper is the one style drawn from the layer order the fold found. A fold
+ * that found none — a layer-ordering contradiction, or no valid order — stopped
+ * at the stage it concluded at (`snapshot.display_style`, the see-through
+ * development), and that is the only picture it has. Asked for Paper anyway,
+ * the kernel searches for the order again and throws the contradiction the fold
+ * already concluded with. A 3D figure's picture is projected here from its
+ * render model, in any style, so it always can.
+ */
+export function foldedFigureDrawsPaper(
+  figure: Pick<OristudioCpFoldedFigureEntry, 'folded3d' | 'snapshot'>
+): boolean {
+  return (figure.folded3d ?? null) !== null || foldedFigureHasLayerOrder(figure) !== false;
+}
+
+/**
+ * The style a figure is drawn in once a flat refold lands on it, `next` being
+ * the new fold's snapshot.
+ *
+ * A refold keeps the style the figure was showing, with two exceptions, both
+ * landing where a fresh fold of the same creases would — at the style the new
+ * fold concluded at:
+ *
+ * - Paper, when the new fold found no layer order: it has only the see-through
+ *   development, which is where a contradiction's two faces are shown.
+ * - Any style, when the figure's own fold found no layer order and it shows
+ *   the style that fold stopped at. That style was the fold's and not a
+ *   choice, so a figure forced see-through by a contradiction comes back as
+ *   Paper once its creases fold again.
+ */
+export function foldedFigureRefoldStyle(
+  figure: Pick<OristudioCpFoldedFigureEntry, 'folded3d' | 'snapshot' | 'displayStyle'>,
+  next: OristudioCpFoldedFigureSnapshot
+): OristudioCpFoldedFigureDisplayStyle {
+  const stoppedAt = figure.snapshot?.display_style;
+  if (foldedFigureHasLayerOrder(figure) === false && figure.displayStyle === stoppedAt) {
+    return next.display_style;
+  }
+  if (figure.displayStyle === 'Paper5' && !foldedFigureDrawsPaper({ folded3d: null, snapshot: next })) {
+    return next.display_style;
+  }
+  return figure.displayStyle;
 }
 
 /**

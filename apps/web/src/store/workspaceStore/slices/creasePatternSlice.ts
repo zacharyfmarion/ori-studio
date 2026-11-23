@@ -19,7 +19,7 @@ import {
 } from '../../../analytics';
 import type { FoldMode, FoldVerdict } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
-import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
+import type { FoldArtifacts, FoldDocument, OptimizationReport, WasmErrorEnvelope } from '../../../engine/types';
 import {
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
   emptyOristudioCpSelection,
@@ -193,7 +193,9 @@ import type {
 import {
   foldedFigureCurrentCase,
   foldedFigureCycling,
+  foldedFigureDrawsPaper,
   foldedFigureModel,
+  foldedFigureRefoldStyle,
   foldedModelsEqual,
   foldedSnapshotCase,
   reportedSolutions,
@@ -1201,13 +1203,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    * Put a figure back exactly as it was and report why, for a refold that could
    * not produce a replacement. The figure itself was never invalid — the crease
    * pattern is — so destroying it would lose work over someone else's problem.
+   *
+   * A kernel error is reported with its own code, as a first fold's is:
+   * `humanizeError` picks the sentence by code, and under `invalid_operation`
+   * the toast shows the kernel's raw `Debug` text instead.
    */
   function restorePreviousFigure(
     previous: OristudioCpFoldedFigureEntry,
-    message: string
+    report: string | WasmErrorEnvelope
   ): boolean {
     restorePreviousFigureQuietly(previous);
-    set({ oristudioCpError: message, error: { code: 'invalid_operation', message } });
+    const error = typeof report === 'string' ? { code: 'invalid_operation', message: report } : report;
+    set({ oristudioCpError: error.message, error });
     return false;
   }
 
@@ -1567,7 +1574,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // Its figure moved on while it folded: the new fold is gone, and there is nothing to put back.
       if (error instanceof FoldMovedOn) return false;
       if (isFoldCancellation(error)) return restorePreviousFigureQuietly(figure);
-      return restorePreviousFigure(figure, engineError(error).message);
+      return restorePreviousFigure(figure, engineError(error));
     }
   }
 
@@ -3479,6 +3486,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return true;
       }
 
+      // Refused before the kernel is asked: it would search for the layer order
+      // the fold already found none of, throw, and the catch below would mark a
+      // perfectly good see-through figure failed.
+      if (displayStyle === 'Paper5' && !foldedFigureDrawsPaper(figure)) {
+        const message = i18n.t(
+          'errors:cp.paperNeedsLayerOrder',
+          'This fold has no layer order, so it can’t be drawn as paper'
+        );
+        set({ oristudioCpError: message, error: { code: 'invalid_operation', message } });
+        return false;
+      }
+
       try {
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
@@ -3802,7 +3821,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         } catch (error) {
           if (error instanceof FoldMovedOn) return await foldLandedOnNothing(error);
           if (isFoldCancellation(error)) return restorePreviousFigureQuietly(figure);
-          return restorePreviousFigure(figure, engineError(error).message);
+          return restorePreviousFigure(figure, engineError(error));
         } finally {
           atRest();
         }
@@ -3834,17 +3853,23 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             runId
           )
         );
+        // Paper needs the layer order a contradiction does not have: asked for
+        // it, the kernel would search for the order again and throw the
+        // contradiction, so such a fold lands see-through with its two faces red
+        // on the crease pattern, as a fresh fold of these creases does — and
+        // comes back as Paper once they fold again.
+        const displayStyle = foldedFigureRefoldStyle(figure, result.snapshot);
         const renderSnapshot = await landing.picture(
           result.handle,
-          figure.displayStyle,
+          displayStyle,
           foldedFigureIndex(figure.id),
           true
         );
-        // A fold that *returns* has not necessarily produced anything: a global
-        // flat-foldability contradiction concludes at the transparent
-        // development with no layer ordering and nothing to draw. Swapping that
-        // in would replace a perfectly good figure with an empty one, so treat
-        // it exactly like a throw and keep what the user is looking at.
+        // A fold that *returns* has not necessarily produced anything to draw:
+        // one whose faces the kernel could not trace has neither a wireframe nor
+        // a picture. Swapping that in would replace a perfectly good figure with
+        // an empty one, so treat it exactly like a throw and keep what the user
+        // is looking at.
         if (!isDrawableFoldResult(result.snapshot, renderSnapshot)) {
           await freeOristudioCpFoldedFigure(result.handle).catch(() => {});
           return restorePreviousFigure(
@@ -3863,6 +3888,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   handle: result.handle,
                   status: 'ready',
                   snapshot: result.snapshot,
+                  displayStyle,
                   // The other half of the kind swap: a figure whose creases have
                   // since been made classic refolds flat, and must stop claiming
                   // to be 3D.
@@ -3900,7 +3926,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // Stopping one is the same no-op with nothing to say about it.
         if (error instanceof FoldMovedOn) return await foldLandedOnNothing(error);
         if (isFoldCancellation(error)) return restorePreviousFigureQuietly(figure);
-        return restorePreviousFigure(figure, engineError(error).message);
+        return restorePreviousFigure(figure, engineError(error));
       } finally {
         atRest();
       }
@@ -4562,7 +4588,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // Its figure moved on while it folded: the new fold is gone, and there is nothing to put back.
         if (error instanceof FoldMovedOn) return false;
         if (isFoldCancellation(error)) return restorePreviousFigureQuietly(figure);
-        return restorePreviousFigure(figure, engineError(error).message);
+        return restorePreviousFigure(figure, engineError(error));
       } finally {
         atRest();
       }

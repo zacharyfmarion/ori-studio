@@ -26,6 +26,7 @@
     "layerOrderTooLarge": "此层叠顺序太大，无法随模型保存，因此模型未更改。",
     "layerOrderTooLargeToFold": "此层叠顺序太大，无法随模型保存，因此未折叠任何内容。",
     "layerOrderUndeterminedSelection": "无法确定这些折痕的层序。",
+    "paperNeedsLayerOrder": "此折叠没有层序，因此无法以纸张显示",
     "pinnedVertex": "该折痕起始于已固定的顶点，因此无法延长。请先取消该顶点的固定，或延长其他折痕。"
   },
   "cpDetectImport": {

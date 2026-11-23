@@ -26,6 +26,7 @@
     "layerOrderTooLarge": "Cet ordre des couches est trop volumineux pour être enregistré avec le modèle ; il reste inchangé.",
     "layerOrderTooLargeToFold": "Cet ordre des couches est trop volumineux pour être enregistré avec un modèle ; rien n’a été plié.",
     "layerOrderUndeterminedSelection": "L’ordre des couches de ces plis n’a pas pu être déterminé.",
+    "paperNeedsLayerOrder": "Ce pliage n’a pas d’ordre des couches, il ne peut donc pas être affiché en papier",
     "pinnedVertex": "Ce pli part d’un sommet épinglé, il ne peut donc pas être prolongé. Détachez d’abord le sommet ou prolongez un autre pli."
   },
   "cpDetectImport": {
