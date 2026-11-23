@@ -415,7 +415,7 @@ async function simulatedPose(
     const style = diagramPaperStyle(diagram.style);
     const settings = resolveRenderSettings(null, DEFAULT_SIMULATOR_SETTINGS, foldedModelPens(style), POSE_SURFACE);
     const { center, radius } = framingOf(positions);
-    const placed = typeof withVirtualVertices === 'function' ? withVirtualVertices(positions, topology.virtual) : positions;
+    const placed = withVirtualVertices(positions, topology.virtual);
 
     const cameras: Array<{ name: string; view: OrbitView }> = [
       { name: 'saved', view: render.view as OrbitView },

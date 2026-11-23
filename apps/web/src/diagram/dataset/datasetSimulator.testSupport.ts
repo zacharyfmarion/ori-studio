@@ -41,8 +41,13 @@ vi.mock('../../store/workspaceStore/oristudioCpRuntime', async (importOriginal) 
 
 vi.mock('@treemaker/origami-simulator', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@treemaker/origami-simulator')>();
+  // A mocked module throws on a name it lacks, and a commit before aux lines
+  // were drawn on the paper (5b2b40eab) has no `withVirtualVertices`: it has
+  // no virtual vertices to place either, so its positions are all there is.
+  const placeVirtual: typeof actual.withVirtualVertices | undefined = (actual as Partial<typeof actual>).withVirtualVertices;
   return {
     ...actual,
+    withVirtualVertices: placeVirtual ?? ((positions: Float32Array) => positions),
     prepareFoldModel: (...args: Parameters<typeof actual.prepareFoldModel>) => {
       const prepared = actual.prepareFoldModel(...args);
       routed.prepared = prepared;
