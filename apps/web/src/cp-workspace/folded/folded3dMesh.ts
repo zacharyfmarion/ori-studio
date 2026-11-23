@@ -938,11 +938,11 @@ export function folded3dHingeEnds(
   const edgeIndices = topology.edgeIndices.slice();
   const nodes: number[] = [];
   const weights: number[] = [];
-  const alongBend = bendLines(positions, topology.edgeIndices, hinges.bend, ON_BEND_RELATIVE * mesh.sheet);
+  const along = creasesAlongBends(positions, topology.edgeIndices, hinges.bend, ON_BEND_RELATIVE * mesh.sheet);
   for (let edge = 0; edge < hinges.bend.length; edge += 1) {
     const a = topology.edgeIndices[edge * 2]!;
     const b = topology.edgeIndices[edge * 2 + 1]!;
-    if (!hinges.bend[edge] && !alongBend(a, b)) continue;
+    if (!hinges.bend[edge] && !along[edge]) continue;
     const slot = slotOfVertex(slots.vertexStart, a);
     if (slot < 0) continue;
     const apex = farthestFromLine(positions, a, b, slots.vertexStart[slot]!, slots.vertexStart[slot + 1]!);
@@ -961,19 +961,68 @@ export function folded3dHingeEnds(
   };
 }
 
+/** A bend's segment, as a crease is measured against it. */
+interface BendLine {
+  origin: Vec3;
+  end: Vec3;
+  direction: Vec3;
+  length: number;
+}
+
+/** Most cells along an axis of the bend grid, so a sliver of a bend cannot ask for a grid the size of memory. */
+const BEND_GRID_MAX_CELLS = 1024;
+
 /**
- * Whether a segment, by its vertices, lies along one of the bends: both ends
- * within `tolerance` of the bend's line, and the two spans overlapping by more
- * than that.
+ * Per crease of `edgeIndices`, 1 where it lies along a bend: both ends within
+ * `tolerance` of a bend's line, and the two spans overlapping by more than
+ * that.
+ *
+ * Measuring every crease against every bend cost their product, and a large
+ * figure has thousands of each. A crease that passes either has an end beside
+ * the bend, within twice the tolerance of its segment, or reaches past both of
+ * the bend's ends, which then lie beside the crease. So a grid files each bend
+ * under the cells its segment passes near and under its two ends' cells
+ * (`bendGrid`), and a crease is measured only against the bends filed near its
+ * own ends and those with an end along it: the same test, on every bend that
+ * could pass it.
  */
-function bendLines(
+export function creasesAlongBends(
   positions: Float32Array,
-  edgeIndices: Uint32Array,
-  bend: Uint8Array,
+  edgeIndices: ArrayLike<number>,
+  bend: ArrayLike<number>,
   tolerance: number
-): (a: number, b: number) => boolean {
-  const at = (vertex: number): Vec3 => [positions[vertex * 3]!, positions[vertex * 3 + 1]!, positions[vertex * 3 + 2]!];
-  const lines: Array<{ origin: Vec3; direction: Vec3; length: number }> = [];
+): Uint8Array {
+  const count = bend.length;
+  const out = new Uint8Array(count);
+  const lines = bendLinesOf(positions, edgeIndices, bend, tolerance);
+  if (lines.length === 0) return out;
+  const grid = bendGrid(lines, tolerance);
+  // Each bend is measured once per crease, however many cells hold it.
+  const tried = new Int32Array(lines.length).fill(-1);
+  let crease = -1;
+  let pa: Vec3 = [0, 0, 0];
+  let pb: Vec3 = [0, 0, 0];
+  const passes = (line: number): boolean => {
+    if (tried[line] === crease) return false;
+    tried[line] = crease;
+    return liesAlong(lines[line]!, pa, pb, tolerance);
+  };
+  for (crease = 0; crease < count; crease += 1) {
+    pa = vertexAt(positions, edgeIndices[crease * 2]!);
+    pb = vertexAt(positions, edgeIndices[crease * 2 + 1]!);
+    if (grid.some(pa, pb, passes)) out[crease] = 1;
+  }
+  return out;
+}
+
+/** Each bend's segment once, longer than `tolerance`. */
+function bendLinesOf(
+  positions: Float32Array,
+  edgeIndices: ArrayLike<number>,
+  bend: ArrayLike<number>,
+  tolerance: number
+): BendLine[] {
+  const lines: BendLine[] = [];
   const seen = new Set<string>();
   for (let edge = 0; edge < bend.length; edge += 1) {
     if (!bend[edge]) continue;
@@ -982,29 +1031,193 @@ function bendLines(
     const key = a < b ? `${a}_${b}` : `${b}_${a}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const origin = at(a);
-    const end = at(b);
+    const origin = vertexAt(positions, a);
+    const end = vertexAt(positions, b);
     const d: Vec3 = [end[0] - origin[0], end[1] - origin[1], end[2] - origin[2]];
     const length = Math.hypot(d[0], d[1], d[2]);
-    if (length > tolerance) lines.push({ origin, direction: [d[0] / length, d[1] / length, d[2] / length], length });
+    if (length > tolerance) lines.push({ origin, end, direction: [d[0] / length, d[1] / length, d[2] / length], length });
   }
-  return (a, b) => {
-    if (lines.length === 0) return false;
-    const pa = at(a);
-    const pb = at(b);
-    return lines.some(({ origin, direction, length }) => {
-      const place = (p: Vec3) => {
-        const v: Vec3 = [p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]];
-        const along = v[0] * direction[0] + v[1] * direction[1] + v[2] * direction[2];
-        const off = Math.hypot(v[0] - along * direction[0], v[1] - along * direction[1], v[2] - along * direction[2]);
-        return { along, off };
-      };
-      const ea = place(pa);
-      const eb = place(pb);
-      if (ea.off > tolerance || eb.off > tolerance) return false;
-      return Math.max(ea.along, eb.along) > tolerance && Math.min(ea.along, eb.along) < length - tolerance;
-    });
+  return lines;
+}
+
+/** Whether the segment `pa`–`pb` lies along `line`: see {@link creasesAlongBends}. */
+function liesAlong({ origin, direction, length }: BendLine, pa: Vec3, pb: Vec3, tolerance: number): boolean {
+  const place = (p: Vec3) => {
+    const v: Vec3 = [p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]];
+    const along = v[0] * direction[0] + v[1] * direction[1] + v[2] * direction[2];
+    const off = Math.hypot(v[0] - along * direction[0], v[1] - along * direction[1], v[2] - along * direction[2]);
+    return { along, off };
   };
+  const ea = place(pa);
+  const eb = place(pb);
+  if (ea.off > tolerance || eb.off > tolerance) return false;
+  return Math.max(ea.along, eb.along) > tolerance && Math.min(ea.along, eb.along) < length - tolerance;
+}
+
+function vertexAt(positions: Float32Array, vertex: number): Vec3 {
+  return [positions[vertex * 3]!, positions[vertex * 3 + 1]!, positions[vertex * 3 + 2]!];
+}
+
+function isFiniteVec3(p: Vec3): boolean {
+  return Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2]);
+}
+
+/**
+ * The bends in a uniform grid of cells about as long as a bend: each under the
+ * cells that pieces of its segment no longer than a cell, grown by twice the
+ * tolerance, overlap (`near`), and under its two ends' cells (`ends`).
+ *
+ * `some(pa, pb, test)` asks `test` of the bends `near` the crease's two ends
+ * and of those with an end in a cell along the crease, grown the same way, and
+ * says whether one passed. What the grid cannot place is measured against
+ * everything instead: a bend that is not finite against every crease, and a
+ * crease that is not finite, or reaches so far past the bends that a walk
+ * along it would round by more than the pad, against every bend. The test's
+ * arithmetic on infinities is not the geometry's, so neither is skipped.
+ */
+function bendGrid(
+  lines: readonly BendLine[],
+  tolerance: number
+): { some: (pa: Vec3, pb: Vec3, test: (line: number) => boolean) => boolean } {
+  const everywhere: number[] = [];
+  const filed: number[] = [];
+  let scale = 0;
+  let total = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    if (!isFiniteVec3(line.origin) || !isFiniteVec3(line.end) || !Number.isFinite(line.length)) {
+      everywhere.push(index);
+      continue;
+    }
+    filed.push(index);
+    total += line.length;
+    for (let axis = 0; axis < 3; axis += 1) {
+      scale = Math.max(scale, Math.abs(line.origin[axis]!), Math.abs(line.end[axis]!));
+    }
+  }
+  // Twice the tolerance, past the rounding of the test's own arithmetic. None
+  // only for a negative tolerance with every bend a point at the origin, and a
+  // bend of no length passes nothing: its direction is not a number.
+  const pad = 2 * Math.max(0, tolerance) + 1e-9 * scale;
+  if (filed.length === 0 || !(pad > 0)) return { some: (_pa, _pb, test) => everywhere.some(test) };
+  // A walk along a crease rounds by about 1e-15 of its coordinates, which the
+  // pad's 1e-9 of the bends' covers while those are within this.
+  const reach = 1e4 * scale;
+  const placed = (p: Vec3): boolean => Math.abs(p[0]) <= reach && Math.abs(p[1]) <= reach && Math.abs(p[2]) <= reach;
+  const lo: Vec3 = [Infinity, Infinity, Infinity];
+  const hi: Vec3 = [-Infinity, -Infinity, -Infinity];
+  for (const index of filed) {
+    const { origin, end } = lines[index]!;
+    for (let axis = 0; axis < 3; axis += 1) {
+      lo[axis] = Math.min(lo[axis]!, origin[axis]! - pad, end[axis]! - pad);
+      hi[axis] = Math.max(hi[axis]!, origin[axis]! + pad, end[axis]! + pad);
+    }
+  }
+  // About a bend long, finer where many long bends share little room, and never
+  // so fine that the grid outgrows its cap or a cell is narrower than the pad.
+  const extent = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+  const size = Math.max(
+    Math.min(total / filed.length, extent / Math.cbrt(filed.length)),
+    extent / BEND_GRID_MAX_CELLS,
+    2 * pad
+  );
+  const dims = [0, 1, 2].map((axis) => Math.floor((hi[axis]! - lo[axis]!) / size) + 1) as [number, number, number];
+  // Clamped, not cut: an index past the grid maps onto its edge cell on both
+  // sides of a lookup, so a point just outside still finds what was filed there.
+  const cellOf = (value: number, axis: number): number =>
+    Math.min(dims[axis]! - 1, Math.max(0, Math.floor((value - lo[axis]!) / size)));
+  const keyOf = (x: number, y: number, z: number): number => (x * dims[1] + y) * dims[2] + z;
+  const pointKey = (p: Vec3): number => keyOf(cellOf(p[0], 0), cellOf(p[1], 1), cellOf(p[2], 2));
+  /** Each cell of the box `min`–`max` grown by `pad`, until `visit` says stop. */
+  const eachCell = (min: Vec3, max: Vec3, visit: (key: number) => boolean): boolean => {
+    const x1 = cellOf(max[0] + pad, 0);
+    const y1 = cellOf(max[1] + pad, 1);
+    const z1 = cellOf(max[2] + pad, 2);
+    for (let x = cellOf(min[0] - pad, 0); x <= x1; x += 1) {
+      for (let y = cellOf(min[1] - pad, 1); y <= y1; y += 1) {
+        for (let z = cellOf(min[2] - pad, 2); z <= z1; z += 1) {
+          if (visit(keyOf(x, y, z))) return true;
+        }
+      }
+    }
+    return false;
+  };
+  /** `a`–`b` from `t0` to `t1` in pieces no longer than a cell, each piece's box to `visit`, until it says stop. */
+  const eachPiece = (a: Vec3, b: Vec3, t0: number, t1: number, visit: (min: Vec3, max: Vec3) => boolean): boolean => {
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) * (t1 - t0);
+    const pieces = Math.max(1, Math.ceil(length / size));
+    const at = (t: number): Vec3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    let from = at(t0);
+    for (let piece = 1; piece <= pieces; piece += 1) {
+      const to = at(t0 + ((t1 - t0) * piece) / pieces);
+      const min: Vec3 = [Math.min(from[0], to[0]), Math.min(from[1], to[1]), Math.min(from[2], to[2])];
+      const max: Vec3 = [Math.max(from[0], to[0]), Math.max(from[1], to[1]), Math.max(from[2], to[2])];
+      if (visit(min, max)) return true;
+      from = to;
+    }
+    return false;
+  };
+
+  const near = new Map<number, number[]>();
+  const ends = new Map<number, number[]>();
+  const file = (cells: Map<number, number[]>, key: number, line: number): void => {
+    const list = cells.get(key);
+    if (!list) cells.set(key, [line]);
+    else if (list[list.length - 1] !== line) list.push(line);
+  };
+  for (const index of filed) {
+    const { origin, end } = lines[index]!;
+    eachPiece(origin, end, 0, 1, (min, max) =>
+      eachCell(min, max, (key) => {
+        file(near, key, index);
+        return false;
+      })
+    );
+    file(ends, pointKey(origin), index);
+    file(ends, pointKey(end), index);
+  }
+
+  const inGrid: [Vec3, Vec3] = [
+    [lo[0] - pad, lo[1] - pad, lo[2] - pad],
+    [hi[0] + pad, hi[1] + pad, hi[2] + pad],
+  ];
+  return {
+    some(pa, pb, test) {
+      if (everywhere.some(test)) return true;
+      // Not finite, or too far out to walk: every bend.
+      if (!placed(pa) || !placed(pb)) return filed.some(test);
+      // An end beside a bend.
+      for (const point of [pa, pb]) {
+        if (near.get(pointKey(point))?.some(test)) return true;
+      }
+      // A bend's end beside the crease: walked only where the grid is.
+      const span = clipToBox(pa, pb, inGrid[0], inGrid[1]);
+      if (!span) return false;
+      return eachPiece(pa, pb, span[0], span[1], (min, max) =>
+        eachCell(min, max, (key) => ends.get(key)?.some(test) ?? false)
+      );
+    },
+  };
+}
+
+/** The stretch `[t0, t1]` of `a + t·(b − a)`, `t ∈ [0, 1]`, inside the box `min`–`max`; null when none is. */
+function clipToBox(a: Vec3, b: Vec3, min: Vec3, max: Vec3): [number, number] | null {
+  let t0 = 0;
+  let t1 = 1;
+  for (let axis = 0; axis < 3; axis += 1) {
+    const from = a[axis]!;
+    const d = b[axis]! - from;
+    if (d === 0) {
+      if (from < min[axis]! || from > max[axis]!) return null;
+      continue;
+    }
+    const u = (min[axis]! - from) / d;
+    const v = (max[axis]! - from) / d;
+    t0 = Math.max(t0, Math.min(u, v));
+    t1 = Math.min(t1, Math.max(u, v));
+    if (t0 > t1) return null;
+  }
+  return [t0, t1];
 }
 
 /** The slot whose vertices hold `vertex`, by `vertexStart`; -1 for one past them all. */
