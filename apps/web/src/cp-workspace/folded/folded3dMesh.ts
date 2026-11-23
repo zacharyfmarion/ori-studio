@@ -102,6 +102,7 @@ import {
   textureSizeFor,
   type MeshTopology,
   type Vec3,
+  type VirtualVertices,
 } from '@treemaker/origami-simulator';
 import {
   FOLDED_3D_CELL_ATTR_STRIDE,
@@ -362,8 +363,12 @@ export interface Folded3dMesh {
    * unconditioned, and a consumer drawing a buried layer from it (the vector
    * export, which keeps buried paper) has to apply the same rule to that
    * layer's hinges or draw a bend the window hides.
+   *
+   * `bend` is 1 for every crease that is a bend between two planes, admitted
+   * on a condition or not — what the window lays on its own plane
+   * (`folded3dHingeEnds`).
    */
-  hinges: { partnerPlane: Int32Array; requiredSide: Int8Array };
+  hinges: { partnerPlane: Int32Array; requiredSide: Int8Array; bend: Uint8Array };
 }
 
 /**
@@ -483,6 +488,8 @@ interface SlotCrease {
    * which the skins draw unconditionally.
    */
   hingePlane: number;
+  /** Whether the crease is a bend between two planes at all, as {@link Folded3dMesh.hinges} reports it. */
+  bend: boolean;
   /**
    * {@link EDGE_BOUNDARY_A} / {@link EDGE_BOUNDARY_B} for the ends of an aux
    * cut that lie on its layer's outline; `0` for a ring crease, whose ends
@@ -638,6 +645,7 @@ export function folded3dMesh(
           requiredSide: conditional ? (hinge.exposedOnPlus ? 1 : -1) : 0,
           buried,
           hingePlane: conditional || buried ? hinge.partnerPlane : -1,
+          bend: hinge != null,
           auxEnds: 0,
         });
       }
@@ -670,6 +678,7 @@ export function folded3dMesh(
           requiredSide: 0,
           buried: false,
           hingePlane: -1,
+          bend: false,
           auxEnds:
             (onOutline(cut.onRing[0]) ? EDGE_BOUNDARY_A : 0) |
             (onOutline(cut.onRing[1]) ? EDGE_BOUNDARY_B : 0),
@@ -693,6 +702,7 @@ export function folded3dMesh(
   const auxEnds: number[] = [];
   const hingePartner: number[] = [];
   const hingeSide: number[] = [];
+  const hingeBend: number[] = [];
   const slotIndexStart: number[] = new Array<number>(slotCell.length).fill(0);
 
   const appendCrease = (crease: SlotCrease): void => {
@@ -701,6 +711,7 @@ export function folded3dMesh(
     auxEnds.push(crease.auxEnds);
     hingePartner.push(crease.hingePlane);
     hingeSide.push(crease.buried ? 0 : crease.requiredSide);
+    hingeBend.push(crease.bend ? 1 : 0);
   };
 
   /**
@@ -743,6 +754,7 @@ export function folded3dMesh(
     auxEnds.push(0);
     hingePartner.push(-1);
     hingeSide.push(0);
+    hingeBend.push(0);
   }
   const fallbackEdgeCount = edgeAssignments.length;
 
@@ -886,9 +898,154 @@ export function folded3dMesh(
       hinges: {
         partnerPlane: Int32Array.from(hingePartner),
         requiredSide: Int8Array.from(hingeSide),
+        bend: Uint8Array.from(hingeBend),
       },
     },
   };
+}
+
+/**
+ * How near a bend's line, as a share of the sheet, a crease's ends lie for it
+ * to lie along the bend: past the float rounding of the mesh's positions.
+ */
+const ON_BEND_RELATIVE = 1e-6;
+
+/**
+ * The crease buffer as the window's edge pass draws it, with every crease along
+ * a bend on two ends of its own: its two vertices, each named over a triangle
+ * of its own layer's plane — the two and the vertex of its slot farthest from
+ * their line. The edge shader reads that plane from the end (`faceSlope`) and
+ * lays the crease's ribbon on it across its width; null when there is nothing
+ * to name.
+ *
+ * A ribbon at one depth sinks into its paper on the side that rises toward
+ * the eye. Across a concave bend both planes rise from the fold, so the crease
+ * there drew nowhere, where the picture draws it over both faces. Each plane's
+ * copy of a hinge now lies on its own plane: it shows over its own paper and
+ * goes under the other plane's, whose copy shows there, and the two make the
+ * whole line. A crease that only lies along a bend — a layer's raw edge, or a
+ * flat crease, on the fold line, where the layer it covers ends exactly there —
+ * has no copy across the fold and shows over its own paper alone.
+ *
+ * For the window alone. The vector scene finds a crease's layer by the ring
+ * vertices it shares, which these ends do not.
+ */
+export function folded3dHingeEnds(
+  mesh: Pick<Folded3dMesh, 'positions' | 'topology' | 'slots' | 'hinges' | 'sheet'>
+): { edgeIndices: Uint32Array; virtual: VirtualVertices } | null {
+  const { positions, topology, slots, hinges } = mesh;
+  const start = Math.floor(positions.length / 3);
+  const edgeIndices = topology.edgeIndices.slice();
+  const nodes: number[] = [];
+  const weights: number[] = [];
+  const alongBend = bendLines(positions, topology.edgeIndices, hinges.bend, ON_BEND_RELATIVE * mesh.sheet);
+  for (let edge = 0; edge < hinges.bend.length; edge += 1) {
+    const a = topology.edgeIndices[edge * 2]!;
+    const b = topology.edgeIndices[edge * 2 + 1]!;
+    if (!hinges.bend[edge] && !alongBend(a, b)) continue;
+    const slot = slotOfVertex(slots.vertexStart, a);
+    if (slot < 0) continue;
+    const apex = farthestFromLine(positions, a, b, slots.vertexStart[slot]!, slots.vertexStart[slot + 1]!);
+    if (apex < 0) continue;
+    edgeIndices[edge * 2] = start + nodes.length / 3;
+    nodes.push(a, b, apex);
+    weights.push(1, 0, 0);
+    edgeIndices[edge * 2 + 1] = start + nodes.length / 3;
+    nodes.push(a, b, apex);
+    weights.push(0, 1, 0);
+  }
+  if (nodes.length === 0) return null;
+  return {
+    edgeIndices,
+    virtual: { start, nodes: Uint32Array.from(nodes), weights: Float32Array.from(weights) },
+  };
+}
+
+/**
+ * Whether a segment, by its vertices, lies along one of the bends: both ends
+ * within `tolerance` of the bend's line, and the two spans overlapping by more
+ * than that.
+ */
+function bendLines(
+  positions: Float32Array,
+  edgeIndices: Uint32Array,
+  bend: Uint8Array,
+  tolerance: number
+): (a: number, b: number) => boolean {
+  const at = (vertex: number): Vec3 => [positions[vertex * 3]!, positions[vertex * 3 + 1]!, positions[vertex * 3 + 2]!];
+  const lines: Array<{ origin: Vec3; direction: Vec3; length: number }> = [];
+  const seen = new Set<string>();
+  for (let edge = 0; edge < bend.length; edge += 1) {
+    if (!bend[edge]) continue;
+    const a = edgeIndices[edge * 2]!;
+    const b = edgeIndices[edge * 2 + 1]!;
+    const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const origin = at(a);
+    const end = at(b);
+    const d: Vec3 = [end[0] - origin[0], end[1] - origin[1], end[2] - origin[2]];
+    const length = Math.hypot(d[0], d[1], d[2]);
+    if (length > tolerance) lines.push({ origin, direction: [d[0] / length, d[1] / length, d[2] / length], length });
+  }
+  return (a, b) => {
+    if (lines.length === 0) return false;
+    const pa = at(a);
+    const pb = at(b);
+    return lines.some(({ origin, direction, length }) => {
+      const place = (p: Vec3) => {
+        const v: Vec3 = [p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]];
+        const along = v[0] * direction[0] + v[1] * direction[1] + v[2] * direction[2];
+        const off = Math.hypot(v[0] - along * direction[0], v[1] - along * direction[1], v[2] - along * direction[2]);
+        return { along, off };
+      };
+      const ea = place(pa);
+      const eb = place(pb);
+      if (ea.off > tolerance || eb.off > tolerance) return false;
+      return Math.max(ea.along, eb.along) > tolerance && Math.min(ea.along, eb.along) < length - tolerance;
+    });
+  };
+}
+
+/** The slot whose vertices hold `vertex`, by `vertexStart`; -1 for one past them all. */
+function slotOfVertex(vertexStart: Uint32Array, vertex: number): number {
+  let lo = 0;
+  let hi = vertexStart.length - 2;
+  if (hi < 0 || vertex < vertexStart[0]! || vertex >= vertexStart[hi + 1]!) return -1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (vertexStart[mid]! <= vertex) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+/**
+ * Of vertices `[from, to)`, the one farthest from the line through `a` and `b`;
+ * -1 when every one lies on it, to a millionth of the segment's length.
+ */
+function farthestFromLine(positions: Float32Array, a: number, b: number, from: number, to: number): number {
+  const ax = positions[a * 3]!;
+  const ay = positions[a * 3 + 1]!;
+  const az = positions[a * 3 + 2]!;
+  const ux = positions[b * 3]! - ax;
+  const uy = positions[b * 3 + 1]! - ay;
+  const uz = positions[b * 3 + 2]! - az;
+  const length = Math.hypot(ux, uy, uz);
+  if (!(length > 0)) return -1;
+  let best = -1;
+  let bestDistance = 1e-6 * length;
+  for (let vertex = from; vertex < to; vertex += 1) {
+    const dx = positions[vertex * 3]! - ax;
+    const dy = positions[vertex * 3 + 1]! - ay;
+    const dz = positions[vertex * 3 + 2]! - az;
+    const distance = Math.hypot(dy * uz - dz * uy, dz * ux - dx * uz, dx * uy - dy * ux) / length;
+    if (distance > bestDistance) {
+      best = vertex;
+      bestDistance = distance;
+    }
+  }
+  return best;
 }
 
 /**

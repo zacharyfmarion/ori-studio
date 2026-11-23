@@ -35,6 +35,7 @@ import {
 import {
   FOLDED_3D_MESH_VERTEX_BUDGET,
   folded3dEdgeAssignment,
+  folded3dHingeEnds,
   folded3dMesh,
   packFolded3dPositionTexture,
   type Folded3dMesh,
@@ -693,6 +694,8 @@ describe('folded3dMesh', () => {
         const cell = mesh.slots.cell[slot]!;
         const segment = segmentOfCrease(model, mesh, slot, crease, sources[nth]!, ink);
         const hinge = ink.hingeAt(cell, mesh.slots.depth[slot]!, segment);
+        // A bend whatever its condition, an unconditional one included.
+        expect(mesh.hinges.bend[crease], `${name} crease ${crease} bends`).toBe(hinge ? 1 : 0);
         if (!hinge || (hinge.exposedOnPlus && hinge.exposedOnMinus)) {
           expect(partnerPlane[crease]).toBe(-1);
         } else if (hinge.exposedOnPlus || hinge.exposedOnMinus) {
@@ -709,6 +712,104 @@ describe('folded3dMesh', () => {
         expect(conditional).toBeGreaterThan(0);
         expect(buried).toBeGreaterThan(0);
       }
+    });
+
+    it.each(NAMES)('%s names the ends of every crease along a bend over a triangle of its own plane', (name) => {
+      // The window lays such a crease's ribbon on its plane by reading that
+      // plane off the ends: its two vertices and the farthest of its slot's.
+      const model = fixture(name);
+      const mesh = meshOf(model);
+      const named = folded3dHingeEnds(mesh);
+      const bends = Array.from(mesh.hinges.bend).filter(Boolean).length;
+      if (bends === 0) {
+        expect(named).toBeNull();
+        return;
+      }
+      expect(named).not.toBeNull();
+      const { edgeIndices, virtual } = named!;
+      const start = mesh.positions.length / 3;
+      expect(virtual.start).toBe(start);
+      const at = (vertex: number): [number, number, number] => [
+        mesh.positions[vertex * 3]!,
+        mesh.positions[vertex * 3 + 1]!,
+        mesh.positions[vertex * 3 + 2]!,
+      ];
+      const ends = (crease: number) =>
+        [mesh.topology.edgeIndices[crease * 2]!, mesh.topology.edgeIndices[crease * 2 + 1]!] as const;
+      // On a bend's line: both ends within the tolerance of some bend's line.
+      const bendCreases = [...mesh.hinges.bend.keys()].filter((crease) => mesh.hinges.bend[crease]);
+      const offLine = (p: [number, number, number], a: [number, number, number], b: [number, number, number]) => {
+        const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+        const v = [p[0] - a[0], p[1] - a[1], p[2] - a[2]];
+        const c = [v[1] * d[2] - v[2] * d[1], v[2] * d[0] - v[0] * d[2], v[0] * d[1] - v[1] * d[0]];
+        return Math.hypot(c[0]!, c[1]!, c[2]!) / Math.hypot(d[0]!, d[1]!, d[2]!);
+      };
+      const alongABend = (crease: number) => {
+        const [a, b] = ends(crease);
+        return bendCreases.some((bend) => {
+          const [p, q] = ends(bend);
+          return offLine(at(a), at(p), at(q)) <= 1e-6 * model.span && offLine(at(b), at(p), at(q)) <= 1e-6 * model.span;
+        });
+      };
+      let renamed = 0;
+      for (let crease = 0; crease < mesh.hinges.bend.length; crease += 1) {
+        const [a, b] = ends(crease);
+        const kept = edgeIndices[crease * 2] === a && edgeIndices[crease * 2 + 1] === b;
+        if (kept) {
+          expect(mesh.hinges.bend[crease], `${name} crease ${crease} is a bend`).toBe(0);
+          continue;
+        }
+        renamed += 1;
+        // A bend, or a crease that lies along one.
+        if (!mesh.hinges.bend[crease]) expect(alongABend(crease), `${name} crease ${crease} lies along a bend`).toBe(true);
+        const slot = slotOfCrease(mesh, crease);
+        for (const end of [0, 1]) {
+          const entry = edgeIndices[crease * 2 + end]! - start;
+          const [na, nb, apex] = Array.from(virtual.nodes.subarray(entry * 3, entry * 3 + 3));
+          expect([na, nb]).toEqual([a, b]);
+          // The apex is a vertex of the same layer, off the crease's line.
+          expect(apex).toBeGreaterThanOrEqual(mesh.slots.vertexStart[slot]!);
+          expect(apex).toBeLessThan(mesh.slots.vertexStart[slot + 1]!);
+          expect(distanceToSegment(at(apex!), at(a), at(b))).toBeGreaterThan(1e-6 * model.span);
+          // And each end sits on its own vertex.
+          expect(Array.from(virtual.weights.subarray(entry * 3, entry * 3 + 3))).toEqual(
+            end === 0 ? [1, 0, 0] : [0, 1, 0]
+          );
+        }
+      }
+      expect(virtual.weights.length / 3).toBe(renamed * 2);
+      expect(renamed).toBeGreaterThanOrEqual(bends);
+    });
+
+    it('names a crease that lies along a bend without being one', () => {
+      // A layer's raw edge or flat crease on the fold line has no copy across
+      // the fold; named too, it still lies on its own plane.
+      const counts = NAMES.map((name) => {
+        const mesh = meshOf(fixture(name));
+        const named = folded3dHingeEnds(mesh);
+        if (!named) return 0;
+        let along = 0;
+        for (let crease = 0; crease < mesh.hinges.bend.length; crease += 1) {
+          if (mesh.hinges.bend[crease]) continue;
+          if (named.edgeIndices[crease * 2] !== mesh.topology.edgeIndices[crease * 2]) along += 1;
+        }
+        return along;
+      });
+      expect(counts.some((count) => count > 0), JSON.stringify(counts)).toBe(true);
+    });
+
+    it('names unconditional bends too, which the hinge table leaves at -1', () => {
+      // A bend whose partner cell has one layer is drawn whenever its layer
+      // is, so the table states no condition for it; it is still a bend.
+      const counts = NAMES.map((name) => {
+        const mesh = meshOf(fixture(name));
+        let unconditional = 0;
+        for (let crease = 0; crease < mesh.hinges.bend.length; crease += 1) {
+          if (mesh.hinges.bend[crease] && mesh.hinges.partnerPlane[crease]! < 0) unconditional += 1;
+        }
+        return unconditional;
+      });
+      expect(counts.some((count) => count > 0)).toBe(true);
     });
 
     it.each(NAMES)('%s erodes the same crease ends on screen as the export does', (name) => {

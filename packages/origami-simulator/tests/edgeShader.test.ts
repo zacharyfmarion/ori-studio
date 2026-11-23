@@ -41,9 +41,13 @@ describe('the edge shader source', () => {
     expect(EDGE_VERT).toContain('mix(faceDepth(indexA, viewA), faceDepth(indexB, viewB), t) - u_depthBias');
     // ...and the ribbon's corners on the triangle's plane across its width.
     expect(EDGE_VERT).toContain('depth += clamp(dot(faceSlope(indexA), offsetPx), -limit, limit);');
-    // Linear depth only: under perspective depth a point is where its face is drawn.
+    // The end's depth is the face's own under perspective depth, where a point
+    // is drawn where its face is...
     expect(EDGE_VERT).toMatch(/float faceDepth[^]*?u_perspectiveDepth > 0\.5\) return toNdcDepth\(view\.z\);/);
-    expect(EDGE_VERT).toMatch(/vec2 faceSlope[^]*?u_perspectiveDepth > 0\.5\) return vec2\(0\.0\);/);
+    // ...while the plane across the ribbon is read under both: a folded
+    // figure's bends, drawn with perspective depth, lie on their planes too.
+    expect(EDGE_VERT).toContain('if (index < u_virtualStart) return vec2(0.0);');
+    expect(EDGE_VERT).not.toMatch(/vec2 faceSlope\(int index\)\{\s*if \(index < u_virtualStart \|\| u_perspectiveDepth/);
   });
 
   it('reads the erode flags and distance the renderer uploads', () => {

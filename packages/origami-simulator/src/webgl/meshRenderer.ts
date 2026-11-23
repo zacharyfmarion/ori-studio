@@ -266,9 +266,12 @@ export interface RenderSettings {
    * mass-spring simulation has no coincident layers at all and wants the
    * default.
    *
-   * In world depth this is `bias · depthRange`, and `cameraUniforms` sets
-   * `depthRange = 2 · radius` — so a value chosen as a fraction of a model's
-   * layer gap is camera-independent.
+   * Under linear depth, in world depth this is `bias · depthRange`, and
+   * `cameraUniforms` sets `depthRange = 2 · radius` — so a value chosen as a
+   * fraction of a model's layer gap is camera-independent. Under
+   * {@link MeshRendererOptions.perspectiveDepth} it is a step of perspective
+   * depth, whose world size grows with distance from the eye: about 7.6× the
+   * linear one at the model's centre, with `cameraUniforms`' eye and range.
    */
   creaseDepthBias?: number;
   /**
@@ -873,12 +876,14 @@ float faceDepth(int index, vec3 view){
 }
 
 // How the face pass's depth changes per pixel across the screen on the
-// triangle a drawn-on aux line lies on, read from an end of it: the edge pass
-// names each end over its own piece's triangle (ribbonTopology). Zero for a
-// node, whose edge is the mesh's own, and for a triangle seen so nearly
-// edge-on that it has no steady plane on the screen.
+// triangle a line on ends of its own lies on, read from an end of it: the edge
+// pass names each end over its own piece's triangle (ribbonTopology), and a
+// folded figure names a hinge's over a triangle of its plane. A plane's depth
+// is linear across the screen under either depth mode. Zero for a node, whose
+// edge is the mesh's own, and for a triangle seen so nearly edge-on that it
+// has no steady plane on the screen.
 vec2 faceSlope(int index){
-  if (index < u_virtualStart || u_perspectiveDepth > 0.5) return vec2(0.0);
+  if (index < u_virtualStart) return vec2(0.0);
   vec3 nodes = texelFetch(u_virtual, virtualTexel((index - u_virtualStart) * 2), 0).xyz;
   vec3 v0 = toView(nodePosition(int(nodes.x + 0.5)));
   vec3 v1 = toView(nodePosition(int(nodes.y + 0.5)));
@@ -1117,7 +1122,11 @@ export const DEFAULT_HIGHLIGHT_COLOR: readonly [number, number, number] = [0.38,
 export const DEFAULT_HIGHLIGHT_MIX = 0.45;
 
 export interface MeshRendererOptions {
-  /** True perspective depth and interpolation for deformable spatial paper. */
+  /**
+   * True perspective depth and interpolation, so a plane's depth is exact
+   * across the screen rather than at its triangles' corners. Folded figures
+   * draw with it; a simulation does not.
+   */
   perspectiveDepth?: boolean;
   /**
    * The unfolded sheet's extent in the mesh's world units (`sheetExtent`), the
