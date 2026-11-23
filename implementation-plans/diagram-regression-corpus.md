@@ -529,9 +529,11 @@ the harness itself.
 - [x] The proof (2026-11-23; the revert lives on a local branch, never
       pushed):
   - Null run, before = merge-base with main: `diagram corpus: 0 of 420 steps
-    changed; 148 re-captured, 272 not; 23 Pose views at 9 cameras each; 114
+    changed; 149 re-captured, 271 not; 23 Pose views at 9 cameras each; 114
     problems already broken before` (113 are bug 2's aux probe; one is the
-    fish's saved shape, which Pose cannot put back since #621).
+    fish's saved shape, which Pose cannot put back since #621). A capture
+    over 10 s on either side is not compared, so a run on a busy machine can
+    re-capture one step fewer.
   - #621's stubs, before = 5b2b40eab (the last commit without them): `18 of
     420 steps changed`. The fan's step 14, where they were found: aux ink over
     paper not its own 0 → 3,271 px in the live view and 16 → 5,837 px in the
@@ -556,8 +558,12 @@ the harness itself.
       compared, with the side and the reason, and still holds its pictures to
       the other side's. The window model takes its depth mode from the window's
       draws, not from a copy. Run against #630's head (f3709dbb6) on the fan
-      and the rose: every live view and 3D window check on that side is
-      refused, and the pictures compare as before.
+      and the rose: `diagram corpus: 7 of 38 steps changed; 8 re-captured, 30
+      not; 11 Pose views at 9 cameras each (11 not replayed live: shaders the
+      replay does not read); 3D window check not replayed on 4 steps: shaders
+      the replay does not read; 2 problems already broken before`. The seven
+      are Pose pictures, which #628 changes too: the fan's step 14 has 3 px
+      of aux ink over paper not its own on #630's side and 5,837 px on main's.
 - [ ] Whichever of this and #628/#630 lands second teaches the replay their
       edge shader: its digest in `MODELED_PROGRAMS` and its new names in
       `MODELED_NAMES`; `faceDepth` and `faceSlope` on `ShaderView`, read from

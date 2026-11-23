@@ -613,7 +613,7 @@ captured again and how many were not (a step whose capture was not compared is
 not one that stayed the same), and how many Pose views were checked:
 
 ```text
-diagram corpus: 0 of 420 steps changed; 148 re-captured, 272 not; 23 Pose views at 9 cameras each; 114 problems already broken before
+diagram corpus: 0 of 420 steps changed; 149 re-captured, 271 not; 23 Pose views at 9 cameras each; 114 problems already broken before
 ```
 
 How the two sides run (`scripts/diagram-dataset/run.mjs`):
