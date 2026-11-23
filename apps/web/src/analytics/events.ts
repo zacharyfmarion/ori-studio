@@ -1876,6 +1876,10 @@ export const ANALYTICS_EVENTS = {
   diagramPicturePosed: 'diagram picture posed',
   /** Pose's play button over a Simulated step saved before it settled: the solver let go on from there. */
   diagramSimulationResumed: 'diagram simulation resumed',
+  /** Pose showed a Simulated step's picture because this build cannot put its saved shape back. */
+  diagramOutdatedShapeShown: 'diagram outdated shape shown',
+  /** Fold Again on such a step: folded from flat, its next save replacing the picture. */
+  diagramSimulationFoldedAgain: 'diagram simulation folded again',
   /** An annotation drawn on a step's picture, by the tool that drew it. */
   diagramAnnotationAdded: 'diagram annotation added',
   /** A mark put behind a flap for the first time (15e): which ends, how deep. */

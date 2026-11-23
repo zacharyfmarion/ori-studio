@@ -79,7 +79,9 @@ That is stricter than the step's fingerprint plus a vertex count: a changed
 crease pattern, a renumbered region or another triangulation gives another
 key, and the worker refuses the shape (`mismatch`), so the step falls back to
 today's behaviour (folded from flat at its fold % and camera). A region moved
-on the sheet keeps its key.
+on the sheet keeps its key. Since `diagram-outdated-simulated-shape.md`, a
+refused shape on an unchanged pattern (another build's mesh) keeps the step's
+picture until Fold Again instead.
 
 **Size.** 12 bytes a node and 4 a crease, ×4/3. `flapping_fan.osf` step 14
 (49 vertices) is about 1–2 KB beside a 53 KB picture; the worker refuses a

@@ -1,16 +1,18 @@
 /*
  * A step shown as Simulated, live in Pose (DiagramPoseSimulatedView.tsx): why
- * it cannot fold here, over the top of the stage, the play button in its
- * middle while the model is held, and the transport's slider and readout in
- * the Pose bar.
+ * it cannot fold here, over the top of the stage, with Fold Again beside it
+ * for a step another build meshed; the play button in its middle while the
+ * model is held; and the transport's slider and readout in the Pose bar.
  */
 .note {
   position: absolute;
   top: var(--space-3);
   left: 50%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   width: max-content;
   max-width: calc(100% - 2 * var(--space-3));
-  margin: 0;
   padding: 4px 10px;
   transform: translateX(-50%);
   border: 1px solid var(--border-subtle);
@@ -19,6 +21,14 @@
   color: var(--text-secondary);
   font-size: 0.74rem;
   text-align: center;
+}
+
+.noteText {
+  margin: 0;
+}
+
+.foldAgain {
+  flex: none;
 }
 
 /* In the middle of the view, over it: the view keeps every press around it. */

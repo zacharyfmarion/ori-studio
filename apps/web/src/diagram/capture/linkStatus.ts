@@ -99,9 +99,18 @@ export function linkStatus(
   document: OristudioCpDocumentSnapshot | null,
   sheets: CpSheetIndex | null
 ): DiagramLinkStatus {
-  if (!document) return 'unknown';
-  const known = knownCreasesOf(source);
   const scope = source.kind === 'references-step' ? sheetScope(source) : source.scope;
+  return stepLinkStatus(scope, knownCreasesOf(source), document, sheets);
+}
+
+/** {@link linkStatus} from a scope and what the step remembers of its creases, as Simulated Pose has them. */
+export function stepLinkStatus(
+  scope: DiagramCpScope,
+  known: KnownCreases,
+  document: OristudioCpDocumentSnapshot | null,
+  sheets: CpSheetIndex | null
+): DiagramLinkStatus {
+  if (!document) return 'unknown';
   const choice = cachedChoice(document, scope, sheets, known);
   if (choice.status !== 'found') return choice.status;
   // Sent while its sheet matched no region: there were no creases to keep,
