@@ -46,6 +46,16 @@
 //! under a stacked twin is not. A segment is visible over the parts where
 //! that holds; a visible part shorter than half the minimum feature (a gap
 //! between two covering faces, say) is no part.
+//!
+//! A point on the outline of the folded form is seen even where every
+//! feature at it is covered: the edge of the stack shows every layer's edge,
+//! so where a covered layer turns, or ends, at the side of the stack, the
+//! viewer sees where. A pleat folded behind is the case: its folds reach the
+//! sides under the front layer, and a diagram folds the stack along them.
+//! Where a feature at the point is seen by the probe, only that one is: a
+//! stacked twin is still under it.
+
+use std::f64::consts::TAU;
 
 use oristudio_geometry::convex::{self, HalfPlane};
 use oristudio_geometry::{Line, LineIndex, PointGrid};
@@ -166,7 +176,8 @@ pub struct PointLandmark {
     /// Every feature here: vertices first (by id), then crossings, then
     /// marks, then crease marks' ends and crossings.
     pub sources: Vec<PointSource>,
-    /// Whether the viewer sees one of them.
+    /// Whether the viewer sees one of them: always, on the outline of the
+    /// folded form (module notes).
     pub visible: bool,
 }
 
@@ -302,7 +313,7 @@ impl State {
         let crease_marks = self.crease_mark_landmarks(&cover, &segments, &mut points);
 
         Landmarks {
-            points: points.finish(),
+            points: points.finish(&cover),
             lines,
             segments,
             crease_marks,
@@ -551,15 +562,25 @@ impl Points {
         self.sources[id].push(source);
     }
 
-    fn finish(self) -> Vec<PointLandmark> {
+    /// The landmarks, each seen where one of its features is; one on the
+    /// outline where none is has every feature seen ([`Cover::on_outline`]).
+    fn finish(self, cover: &Cover<'_>) -> Vec<PointLandmark> {
         let grid = self.grid;
         self.sources
             .into_iter()
             .enumerate()
-            .map(|(id, sources)| PointLandmark {
-                at: grid.point(id),
-                visible: sources.iter().any(|s| s.visible),
-                sources,
+            .map(|(id, mut sources)| {
+                let at = grid.point(id);
+                if !sources.iter().any(|s| s.visible) && cover.on_outline(at) {
+                    for source in &mut sources {
+                        source.visible = true;
+                    }
+                }
+                PointLandmark {
+                    at,
+                    visible: sources.iter().any(|s| s.visible),
+                    sources,
+                }
             })
             .collect()
     }
@@ -609,6 +630,53 @@ impl<'s> Cover<'s> {
                         && convex::contains_point(&images[g], probe, TOL)
                         && self.seen_above(g, f)
                 })
+        })
+    }
+
+    /// Whether a model-frame point is on the outline of the folded form:
+    /// some way out of it leads straight off the paper, so the stack's edge
+    /// is there, and with it every layer's.
+    ///
+    /// The faces that hold the point fill wedges around it, each between two
+    /// of their edges' directions from it; so does a face it is inside, all
+    /// the way round. Between two neighbouring directions, every face holds
+    /// all of the wedge or none of it, so a wedge's middle, [`PROBE`] out,
+    /// says whether paper is there. One a face holds within the tolerance is
+    /// paper: a notch too narrow to tell is no way out.
+    fn on_outline(&self, at: Point) -> bool {
+        let images = &self.state.geometry().images;
+        let point = [at[0], at[1], at[0], at[1]];
+        let mut ways: Vec<f64> = Vec::new();
+        for g in self.index.query(&point, TOL) {
+            let image = &images[g];
+            if convex::contains_point(image, at, TOL) {
+                return false;
+            }
+            if !convex::contains_point(image, at, -TOL) {
+                continue;
+            }
+            for k in 0..image.len() {
+                let (a, b) = (image[k], image[(k + 1) % image.len()]);
+                if distance_to_segment(at, a, b) > TOL {
+                    continue;
+                }
+                for end in [a, b] {
+                    if distance(at, end) > TOL {
+                        ways.push((end[1] - at[1]).atan2(end[0] - at[0]));
+                    }
+                }
+            }
+        }
+        ways.sort_by(f64::total_cmp);
+        (0..ways.len()).any(|k| {
+            let next = ways.get(k + 1).copied().unwrap_or(ways[0] + TAU);
+            let middle = (ways[k] + next) / 2.0;
+            let probe = [at[0] + PROBE * middle.cos(), at[1] + PROBE * middle.sin()];
+            !self
+                .index
+                .query(&[probe[0], probe[1], probe[0], probe[1]], TOL)
+                .into_iter()
+                .any(|g| convex::contains_point(&images[g], probe, -TOL))
         })
     }
 
@@ -950,6 +1018,47 @@ mod tests {
             .map(|s| (s.sheet, s.visible))
             .collect();
         assert_eq!(seen, vec![([0.0, 0.0], false), ([1.0, 0.0], true)]);
+    }
+
+    /// The top quarter folded behind, a vertical precrease through it: the
+    /// flap's raw edge lies at y = 0.5 under the front layer, its corners on
+    /// the sides of the stack, where nothing on the front layer is. A
+    /// diagram folds to them (a pleat folded behind, then folded up along its
+    /// hidden folds); they were no landmark anyone could pick, because their
+    /// probes run in under the front layer.
+    #[test]
+    fn a_covered_layers_corner_on_the_outline_is_seen() {
+        let s = precrease(&square(), line([1.0, 0.0], 0.5), [0.9, 0.5]);
+        let behind = PlainFold::new(
+            line([0.0, 1.0], 0.75),
+            Side::of_point(&line([0.0, 1.0], 0.75), [0.5, 0.9]).unwrap_or_else(|| unreachable!()),
+            Direction::Mountain,
+        );
+        let s = s.fold(&behind).unwrap_or_else(|e| panic!("{e}")).state;
+        let l = s.landmarks(&[]);
+        for (at, sheet) in [([0.0, 0.5], [0.0, 1.0]), ([1.0, 0.5], [1.0, 1.0])] {
+            let p = l
+                .point_at(at)
+                .unwrap_or_else(|| panic!("no corner at {at:?}"));
+            assert!(p.visible, "{at:?}: {:?}", p.sources);
+            assert_eq!(vertices_at(&l, at), vec![sheet]);
+            assert!(p.sources.iter().all(|s| s.visible), "{:?}", p.sources);
+        }
+        // Where the precrease meets the flap's edge is inside the stack:
+        // still under the front layer.
+        let inside = l
+            .point_at([0.5, 0.5])
+            .unwrap_or_else(|| panic!("no vertex at the middle"));
+        assert!(!inside.visible, "{:?}", inside.sources);
+        // The bend's end, the front layer's own corner, is seen as it was.
+        let top = l
+            .point_at([0.0, 0.75])
+            .unwrap_or_else(|| panic!("no bend end"));
+        assert!(top.visible && top.sources.iter().all(|s| s.visible));
+        // Turned over, the flap is on top and its corners are seen as ever.
+        let l = s.turn_over().landmarks(&[]);
+        assert!(l.point_at([0.0, 0.5]).is_some_and(|p| p.visible));
+        assert!(l.point_at([0.5, 0.5]).is_some_and(|p| p.visible));
     }
 
     /// Two precreases crossing at (0.6, 0.5), then the right strip folded
