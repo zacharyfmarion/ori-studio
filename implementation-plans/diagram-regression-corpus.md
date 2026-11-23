@@ -523,9 +523,24 @@ the harness itself.
       re-solve, on by default because the flapping fan's simulated steps have
       no saved shapes and #621's stubs are on them. A shape Pose cannot put
       back is a problem on its own (the sheet-key check below).
-- [x] The proof, each against its last good commit (local, never pushed):
-      #621's stubs on the fan with `--base 5b2b40eab`, and 90591a0ca's buried
-      aux lines in the rose's 3D pictures with #624 reverted. See the PR.
+- [x] The proof (2026-11-23; the revert lives on a local branch, never
+      pushed):
+  - Null run, before = merge-base with main: `diagram corpus: 0 of 420 steps
+    changed; 148 re-captured, 272 not; 23 Pose views at 9 cameras each; 114
+    problems already broken before` (113 are bug 2's aux probe; one is the
+    fish's saved shape, which Pose cannot put back since #621).
+  - #621's stubs, before = 5b2b40eab (the last commit without them): `18 of
+    420 steps changed`. The fan's step 14, where they were found: aux ink over
+    paper not its own 0 → 3,271 px in the live view and 16 → 5,837 px in the
+    picture, at 8 and 9 of 9 cameras (0 at its saved camera). The heart's two
+    simulated steps show the same, 3 → 2,061 px live. Before #624, the same
+    run also shows the rose's 3D pictures losing their buried aux lines.
+  - 90591a0ca's buried aux lines, before = merge-base, after = this branch
+    with #624 reverted: `5 of 420 steps changed`. The rose's four unspread 3D
+    steps gain 1,084–1,663 px of aux ink over paper not their own in the
+    picture, at 5 of 9 cameras each; their live views do not change.
+  - Re-solves take a few seconds a step, except the fish (818 nodes), now
+    bounded by work; each side takes about four minutes.
 - [ ] A GPU lane (`--pose`) in headless Chromium for what only the GPU shows:
       GLSL, precision, the GPU solver's shape. Left out for now; the
       investigation's capture scripts are the starting point.

@@ -613,7 +613,7 @@ captured again and how many were not (a step whose capture was not compared is
 not one that stayed the same), and how many Pose views were checked:
 
 ```text
-diagram corpus: 0 of 420 steps changed; 149 re-captured, 271 not; 23 Pose views at 9 cameras each; 114 problems already broken before
+diagram corpus: 0 of 420 steps changed; 148 re-captured, 272 not; 23 Pose views at 9 cameras each; 114 problems already broken before
 ```
 
 How the two sides run (`scripts/diagram-dataset/run.mjs`):
@@ -637,8 +637,10 @@ How the two sides run (`scripts/diagram-dataset/run.mjs`):
 The harness is the vitest suite in `apps/web/src/diagram/dataset/`. It skips
 when `ORI_DIAGRAM_DATASET_DIR` is unset, and `ORI_DIAGRAM_DATASET_REQUIRED=1`
 makes that a failure. It refuses any output path inside the checkout. Each
-side takes about two minutes for the 38 default files on an Apple Silicon Mac;
-"before" is reused while its commit, the harness and the corpus stay the same.
+side takes about four minutes for the 38 default files on an Apple Silicon Mac,
+half of it the Pose views (most of that one simulated step whose saved shape
+Pose cannot put back, re-solved from flat); "before" is reused while its
+commit, the harness and the corpus stay the same.
 
 What each side records, per file and per step:
 
@@ -682,9 +684,10 @@ What each side records, per file and per step:
   shows and its ink does not (a line cut into pieces). Every count is held to
   the other side's. A simulated step is drawn from the shape it saved when
   Pose would put it back, else re-solved from flat by the CPU solver to its
-  fold %; a saved shape Pose cannot put back (another sheet's) is a problem on
-  its own. A changed step shows both sides' frames at the camera that moved
-  most, as the replay draws them.
+  fold %, for at most ten million node-steps (a count, so every run stops at
+  the same step); a saved shape Pose cannot put back (another sheet's) is a
+  problem on its own. A changed step shows both sides' frames at the camera
+  that moved most, as the replay draws them.
 
 Not captured again, and listed under "Not compared": Fold-linked steps,
 spatial spreads, layer-order records, and Simulated steps above 0% and Defox
@@ -696,5 +699,6 @@ What the Pose check cannot see: GLSL that no longer says what the replay
 reads it as (the record carries the shaders' digest, and a side whose shaders
 differ says so), the GPU solver's own shape, float32 precision, bitmap
 presentation and the stage, WebKit and Windows' ANGLE, cameras off the ring,
-and spatial spreads. It found #621's simulated stubs and 90591a0ca's buried
-aux lines in the 3D picture, each against its last good commit.
+and spatial spreads. On the corpus it shows #621's simulated stubs against
+5b2b40eab, the last commit without them, and 90591a0ca's buried aux lines in
+3D pictures with #624 reverted.
