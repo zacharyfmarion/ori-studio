@@ -271,6 +271,16 @@ Default spread runs in Node without the app's time limits. So:
   checklist). Fold and edge ink the window loses ran to 0–154 px, with or
   without aux lines.
 
+**Pose views** (needs no comparison to run; Phase 1b):
+
+- Every step Pose shows live, at its own camera and a fixed ring of eight.
+- The live view replayed on the CPU from the draws its own code makes on a
+  recording WebGL2 context, and the picture leaving Pose saves.
+- Each held to "a line shows only on its own paper": ink over paper not its
+  own, and points where a line's own paper shows without its ink.
+- The report holds every count to the other side's and shows both sides'
+  frames at the camera that moved most.
+
 **Edit probes** (Phase 1 is the aux probe). Each runs on a fresh copy:
 
 1. Refresh the sheet's steps, so each link carries this build's fingerprint.
@@ -360,8 +370,10 @@ that hides output. `--remove-checkouts` deletes the cached checkouts.
 Options are `--base <ref>`, `--case <slug>` and `--with-big`. They are passed
 to vitest as env vars, because vitest rejects unknown flags.
 
-"Before" can't run on a commit older than the harness. Until the harness is on
-main, the only before is the proof's: main with a revert.
+A "before" older than the harness has what the harness needs of the app
+applied to its checkout's working tree (`HARNESS_NEEDS`: 999c4ab26, which only
+moved the CP worker's API into its own module), so a run compares across #621
+and back to v0.10.0. Its label and its results' name say what was applied.
 
 **When to run it:** before opening a PR that changes how pictures are captured,
 painted, laid out or marked out of date. Each of these places has held a
@@ -481,13 +493,51 @@ spike first; several days in all)
       The bug-2 PR's run shows how many saved steps change status; the
       expected number is 0.
 
+Phase 1b — Pose's live views (2026-11-23, after the 2026-11-22 investigation)
+
+The investigation that followed found the harness drew neither Pose view, and
+that both regressions found that day showed only away from a step's saved
+camera: 0–47 px there, hundreds at grazing ones. It also found two faults in
+the harness itself.
+
+- [x] The report counted the 16 simulated steps as compared and unchanged: a
+      capture answering `needs-pose` on both sides read as equal. Such a step
+      (and a Defox render) is now listed under "Not compared", and the summary
+      line says how many steps were captured again and how many were not.
+- [x] The runner refused any base older than the harness. It now applies
+      999c4ab26 to such a base's working tree (`HARNESS_NEEDS`), so a run
+      compares across #621 and back to v0.10.0.
+- [x] A recording WebGL2 context and a CPU replay of the mesh renderer's
+      draws (`meshRendererReplay.testSupport.ts`). The live views' own code
+      draws on it, so the depth mode, crease bias, passes and pens are read
+      from what the view does, never restated: a fix that changes the depth
+      model (perspective-correct depth, another bias) reaches the check.
+- [x] The self-check, "a line shows only on its own paper", over two buffers
+      (paper on top, faces only; ink by line), in
+      `folded3dWindowParity.testSupport.ts`: foreign ink and gaps, by role.
+- [x] Every unspread 3D step and Simulated step above 0%, at its own camera
+      and a ring of eight (four azimuths from 21° above and below the paper),
+      live and as the picture leaving Pose saves (`datasetPose.ts`). Simulated
+      frames come from the saved shape when Pose would put it back (decision
+      6), else from a re-solve from flat by the CPU solver: the plan's opt-in
+      re-solve, on by default because the flapping fan's simulated steps have
+      no saved shapes and #621's stubs are on them. A shape Pose cannot put
+      back is a problem on its own (the sheet-key check below).
+- [x] The proof, each against its last good commit (local, never pushed):
+      #621's stubs on the fan with `--base 5b2b40eab`, and 90591a0ca's buried
+      aux lines in the rose's 3D pictures with #624 reverted. See the PR.
+- [ ] A GPU lane (`--pose`) in headless Chromium for what only the GPU shows:
+      GLSL, precision, the GPU solver's shape. Left out for now; the
+      investigation's capture scripts are the starting point.
+
 Phase 2 — decide what goes in once Phase 1 has been used on a few real changes
 
 - [ ] Fold-linked steps: status, and re-capture compared with imported marks
       and step text.
 - [ ] A Node stand-in for the spatial spread, so spatial 3D steps join
-      re-capture and the window check.
-- [ ] Simulated steps: the sheet-key check, and the redraw from saved shapes.
+      re-capture, the window check and the Pose check.
+- [x] Simulated steps: the sheet-key check, and the redraw from saved shapes
+      (Phase 1b).
 - [ ] Pages: the held-page rule, and a store test that opening a file captures
       nothing.
 - [ ] The rest of the edit probes and step actions.
@@ -501,4 +551,4 @@ Phase 3 — when a bug calls for it
 - [ ] Checks that need no comparison for flat pictures (from
       `foldedFlatScene.test.ts`) and for spreads (visibility, slivers, pieces
       on their lines).
-- [ ] An opt-in CPU re-solve for simulated steps, graded by strain and bend.
+- [ ] Grade the CPU re-solve (Phase 1b) by strain and bend.
