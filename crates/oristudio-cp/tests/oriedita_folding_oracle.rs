@@ -1061,6 +1061,47 @@ fn folding_estimate_first_solution_matches_oriedita_oracle() {
     );
 }
 
+/// A folded overlay that misses a junction folds as Oriedita folds the same
+/// pattern where no junction is missed.
+///
+/// At (2500, 1500) the kabuto's folded coordinates round so that
+/// `divide_intersections` leaves a junction unsplit, here and in Oriedita
+/// alike. Oriedita folds on through the broken arrangement (32 subfaces where
+/// there are 22) and draws every crease through the layers; we seal the
+/// junction, so our estimate there has to be the one Oriedita gives where the
+/// importer leaves the sheet and nothing is missed — stage, solution, subface
+/// total and relations alike. `tests/folding.rs`
+/// (`a_missed_overlay_junction_folds_and_draws_as_a_clean_overlay_does`)
+/// asserts the far placement still misses a junction and the near one does
+/// not, so this cannot quietly stop covering the path.
+#[test]
+fn a_missed_overlay_junction_folds_as_oriedita_folds_a_clean_placement() {
+    let Some(oracle) = folding_oracle() else {
+        eprintln!("skipping Oriedita folding oracle test: ORIEDITA_GEOMETRY_ORACLE is not set");
+        return;
+    };
+
+    let far = kabuto_at(2500.0, 1500.0);
+    let estimate =
+        folding_estimate_from_segments(&far, 1, oristudio_cp::folding::EstimationOrder::Order5)
+            .expect("folding estimate");
+
+    let home = kabuto_at(0.0, 0.0);
+    let mut args = vec![
+        "folding-estimate-summary".to_string(),
+        "1".to_string(),
+        "5".to_string(),
+        home.len().to_string(),
+    ];
+    push_segment_args(&mut args, &home);
+    let oracle_args = args.iter().map(String::as_str).collect::<Vec<_>>();
+
+    assert_eq!(
+        folding_estimate_summary(&estimate),
+        run_oracle(&oracle, &oracle_args)
+    );
+}
+
 #[test]
 fn folding_estimate_sequence_matches_oriedita_order6_oracle() {
     let Some(oracle) = folding_oracle() else {
@@ -2127,6 +2168,27 @@ fn solution_sample_segments() -> Vec<LineSegment> {
     ))
     .expect("solution sample cp")
     .line_segments
+}
+
+/// The kabuto as the FOLD importer reads it, moved by (`dx`, `dy`). Its twin
+/// in `tests/folding.rs` says what (2500, 1500) and (0, 0) are for.
+fn kabuto_at(dx: f64, dy: f64) -> Vec<LineSegment> {
+    oristudio_cp::io::fold::import_fold_json(include_str!(
+        "../../../tests/fixtures/flat-folder/kabuto.fold"
+    ))
+    .expect("kabuto fold fixture")
+    .line_segments
+    .into_iter()
+    .filter(|segment| segment.color.is_folding_line())
+    .map(|segment| {
+        let moved = |point: Point| Point::new(point.x + dx, point.y + dy);
+        LineSegment {
+            a: moved(segment.a),
+            b: moved(segment.b),
+            ..segment
+        }
+    })
+    .collect()
 }
 
 fn java_double_string(value: f64) -> String {
