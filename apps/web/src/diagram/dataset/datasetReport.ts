@@ -204,9 +204,14 @@ const SHAPE_PROBLEM = "Pose cannot put its saved shape back (it is another sheet
 
 /** What each count is called in a reason, by measure. */
 const POSE_MEASURES = [
-  { measure: 'foreign', name: (role: string) => `${ROLE_NAMES[role] ?? role} ink over paper not its own`, unit: ' px' },
-  { measure: 'gaps', name: (role: string) => `points where a ${ROLE_NAMES[role] ?? role} line is missing over its own paper`, unit: '' },
+  { measure: 'foreign', name: 'ink over paper not its own', unit: ' px' },
+  { measure: 'gaps', name: 'points where a line is missing over its own paper', unit: '' },
 ] as const;
+
+/** Aux lines first: the lines a buried layer pokes through with. */
+const ROLE_ORDER = ['aux', 'edge', 'mountain', 'valley'];
+const byRoleOrder = (a: string, b: string) =>
+  (ROLE_ORDER.indexOf(a) + 1 || ROLE_ORDER.length + 1) - (ROLE_ORDER.indexOf(b) + 1 || ROLE_ORDER.length + 1) || a.localeCompare(b);
 
 const POSE_PARTS = [
   { part: 'live', name: 'Pose view' },
@@ -286,20 +291,23 @@ function diffPose(before: StepResult['pose'] | undefined, after: StepResult['pos
   for (const { part, name: partName } of POSE_PARTS) {
     for (const { measure, name, unit } of POSE_MEASURES) {
       const roles = new Set(pairs.flatMap(([a, b]) => [...Object.keys(countsOf(a, part, measure)), ...Object.keys(countsOf(b, part, measure))]));
-      for (const role of [...roles].sort()) {
-        let total = [0, 0];
-        let differing = 0;
+      const changes: string[] = [];
+      for (const role of [...roles].sort(byRoleOrder)) {
+        let was = 0;
+        let is = 0;
         for (const [a, b] of pairs) {
-          const va = countsOf(a, part, measure)[role] ?? 0;
-          const vb = countsOf(b, part, measure)[role] ?? 0;
-          total = [total[0]! + va, total[1]! + vb];
-          if (va !== vb) differing += 1;
+          was += countsOf(a, part, measure)[role] ?? 0;
+          is += countsOf(b, part, measure)[role] ?? 0;
         }
-        if (total[0] === total[1] && differing === 0) continue;
-        diff.reasons.push(
-          `${partName}: ${name(role)} ${total[0]!.toLocaleString('en')} → ${total[1]!.toLocaleString('en')}${unit} (${differing} of ${pairs.length} cameras)`
-        );
+        if (was === is) continue;
+        changes.push(`${ROLE_NAMES[role] ?? role} ${was.toLocaleString('en')} → ${is.toLocaleString('en')}${unit}`);
       }
+      const differing = pairs.filter(([a, b]) => {
+        const ca = countsOf(a, part, measure);
+        const cb = countsOf(b, part, measure);
+        return [...new Set([...Object.keys(ca), ...Object.keys(cb)])].some((role) => (ca[role] ?? 0) !== (cb[role] ?? 0));
+      }).length;
+      if (changes.length > 0) diff.reasons.push(`${partName}: ${name}: ${changes.join(', ')} (${differing} of ${pairs.length} cameras)`);
     }
     for (const [a, b] of pairs) {
       let delta = 0;

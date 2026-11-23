@@ -162,7 +162,7 @@ describe('diffResults', () => {
       ['s2', ['Draw order changed: the same lines and faces, drawn in another order']],
       ['s3', ['Status: current → stale', 'Refresh: not needed → refresh']],
       ['s4', ['New problem: 3D window check: 40 px of aux lines drawn over the paper that covers them (1 line)']],
-      ['s8', ['Pose view: aux ink over paper not its own 0 → 500 px (1 of 2 cameras)']],
+      ['s8', ['Pose view: ink over paper not its own: aux 0 → 500 px (1 of 2 cameras)']],
     ]);
     expect(model.changedSteps.find((change) => change.id === 's8')?.pictures).toEqual({
       kind: 'image',
