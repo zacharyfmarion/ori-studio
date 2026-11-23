@@ -1061,6 +1061,44 @@ fn folding_estimate_first_solution_matches_oriedita_oracle() {
     );
 }
 
+/// Oriedita folds straight through a folded overlay that fails its Euler gate:
+/// `PointSet.calculateFaces` logs the error and keeps the faces,
+/// `WireFrame_Worker.setLineSegmentSet` ignores the verdict, and the subface
+/// stage runs on what was traced. So must we — the same stage, the same
+/// solution, and the same subface total, which is the traced faces' count.
+///
+/// The placement fails the gate by rounding; `tests/folding.rs`
+/// (`a_folded_overlay_that_fails_the_euler_gate_still_folds`) asserts that it
+/// still does, so this case cannot quietly stop covering the path.
+#[test]
+fn folding_estimate_through_a_failed_overlay_gate_matches_oriedita_oracle() {
+    let Some(oracle) = folding_oracle() else {
+        eprintln!("skipping Oriedita folding oracle test: ORIEDITA_GEOMETRY_ORACLE is not set");
+        return;
+    };
+
+    let segments = kabuto_far_from_the_origin();
+    let estimate = folding_estimate_from_segments(
+        &segments,
+        1,
+        oristudio_cp::folding::EstimationOrder::Order5,
+    )
+    .expect("folding estimate");
+    let mut args = vec![
+        "folding-estimate-summary".to_string(),
+        "1".to_string(),
+        "5".to_string(),
+        segments.len().to_string(),
+    ];
+    push_segment_args(&mut args, &segments);
+    let oracle_args = args.iter().map(String::as_str).collect::<Vec<_>>();
+
+    assert_eq!(
+        folding_estimate_summary(&estimate),
+        run_oracle(&oracle, &oracle_args)
+    );
+}
+
 #[test]
 fn folding_estimate_sequence_matches_oriedita_order6_oracle() {
     let Some(oracle) = folding_oracle() else {
@@ -2127,6 +2165,28 @@ fn solution_sample_segments() -> Vec<LineSegment> {
     ))
     .expect("solution sample cp")
     .line_segments
+}
+
+/// The kabuto as the FOLD importer reads it, moved to (2500, 1500): a placement
+/// whose folded overlay fails the Euler gate. Its twin in `tests/folding.rs`
+/// says why, and asserts that the gate still fails there.
+fn kabuto_far_from_the_origin() -> Vec<LineSegment> {
+    oristudio_cp::io::fold::import_fold_json(include_str!(
+        "../../../tests/fixtures/flat-folder/kabuto.fold"
+    ))
+    .expect("kabuto fold fixture")
+    .line_segments
+    .into_iter()
+    .filter(|segment| segment.color.is_folding_line())
+    .map(|segment| {
+        let moved = |point: Point| Point::new(point.x + 2500.0, point.y + 1500.0);
+        LineSegment {
+            a: moved(segment.a),
+            b: moved(segment.b),
+            ..segment
+        }
+    })
+    .collect()
 }
 
 fn java_double_string(value: f64) -> String {

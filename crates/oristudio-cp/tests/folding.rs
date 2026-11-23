@@ -11,9 +11,9 @@ use oristudio_cp::folding::{
     configure_subfaces_from_segments, duplicate_estimation_order_for_display,
     equivalence_condition_candidates_from_segments, estimate_wireframe_from_segments, fold_another,
     folded_figure_paper_scene_from_segments, folded_figure_render_snapshot_from_segments,
-    folded_figure_snapshot_from_segments, folding_estimate_case_filename,
-    folding_estimate_from_segments, folding_estimate_save_batch, folding_estimate_to_case,
-    initial_hierarchy_from_segments, overlap_search_from_segments,
+    folded_figure_snapshot_from_segments, folded_subface_figure_from_segments,
+    folding_estimate_case_filename, folding_estimate_from_segments, folding_estimate_save_batch,
+    folding_estimate_to_case, initial_hierarchy_from_segments, overlap_search_from_segments,
     overlap_search_from_segments_with_swap, parse_oriedita_render_primitives,
     possible_overlap_search_for_ordered_subfaces, possible_overlap_search_for_subfaces,
     possible_overlap_search_for_subfaces_with_swap, prepare_subface_segments, prioritize_subfaces,
@@ -1771,6 +1771,93 @@ fn sub_tolerance_creases_do_not_stop_a_fold() {
     match fold_all(&with_tail) {
         Ok(_) => {}
         Err(error) => panic!("sub-tolerance creases stopped the fold: {error}"),
+    }
+}
+
+/// The kabuto as the FOLD importer reads it — Oriedita's 400-unit sheet at
+/// (−200, −200) — moved to (2500, 1500), as a sheet sits on a large canvas.
+///
+/// There, the stacked layers' folded coordinates round so that
+/// `divide_intersections` misses a junction (it needs the end within 1e-12 of
+/// the crease), and the folded overlay traces with Euler 12, far outside its
+/// gate. Same pattern, same fold, other placements pass: it is rounding, which
+/// is why the two users who met this saw it as random. Mirrored by
+/// `tests/oriedita_folding_oracle.rs`, which checks the result against Oriedita.
+fn kabuto_far_from_the_origin() -> Vec<LineSegment> {
+    oristudio_cp::io::fold::import_fold_json(include_str!(
+        "../../../tests/fixtures/flat-folder/kabuto.fold"
+    ))
+    .expect("kabuto fold fixture")
+    .line_segments
+    .into_iter()
+    .filter(|segment| segment.color.is_folding_line())
+    .map(|segment| {
+        let moved = |point: Point| Point::new(point.x + 2500.0, point.y + 1500.0);
+        LineSegment {
+            a: moved(segment.a),
+            b: moved(segment.b),
+            ..segment
+        }
+    })
+    .collect()
+}
+
+/// A pattern whose folded overlay fails the Euler gate still folds, as it does
+/// in Oriedita, where `PointSet.calculateFaces` keeps the faces it warns about
+/// and the subface stage runs on them.
+///
+/// Before, the gate cleared every subface and the fold stopped at the
+/// wireframe — `Step2`, `NotAttempted`, nothing for Transparent3 or Paper5 to
+/// draw, and the panel's "Layer order couldn't be determined" — on patterns
+/// Oriedita folds. Session-level, because that is the verb the user pressed.
+#[test]
+fn a_folded_overlay_that_fails_the_euler_gate_still_folds() {
+    let segments = kabuto_far_from_the_origin();
+
+    // Whether this placement fails the gate turns on rounding. If a change to
+    // the folding arithmetic moves it, find another placement that does rather
+    // than deleting this check — without it the test passes and checks nothing.
+    let overlay = folded_subface_figure_from_segments(&segments, 1)
+        .expect("the fold graph is connected")
+        .expect("the overlay keeps the faces it traced");
+    let euler =
+        overlay.faces.len() as isize - overlay.lines.len() as isize + overlay.points.len() as isize;
+    assert!(
+        (euler - 1).abs() as f64 > 0.005 * overlay.faces.len() as f64,
+        "this placement no longer fails the overlay's Euler gate (euler {euler}); \
+         pick one that does"
+    );
+
+    let mut session = oristudio_cp::session::CpSession::default();
+    let handle = session.load_document(oristudio_cp::CreasePatternDocument {
+        crease_pattern: oristudio_cp::CreasePatternModel {
+            line_segments: segments.clone(),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let ids: Vec<usize> = (1..=segments.len()).collect();
+    let folded = session
+        .folded_figure_fold_selected(
+            handle,
+            &ids,
+            1,
+            EstimationOrder::Order5,
+            FoldedFigureModel::default(),
+        )
+        .expect("the pattern folds");
+    assert_eq!(folded.snapshot.estimation_step, EstimationStep::Step5);
+    assert_eq!(folded.snapshot.outcome, FoldOutcome::Solved);
+    assert_eq!(folded.snapshot.discovered_fold_cases, 1);
+    for style in [DisplayStyle::Transparent3, DisplayStyle::Paper5] {
+        let picture = session
+            .folded_figure_render_snapshot(
+                folded.handle,
+                Some(style),
+                FoldedFigureRenderOptions::default(),
+            )
+            .expect("render");
+        assert!(picture.is_some(), "{style:?} has something to draw");
     }
 }
 

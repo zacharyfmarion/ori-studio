@@ -28,7 +28,26 @@ pub(crate) struct FoldGraph {
     /// [`FoldGraph::calculate_faces`], which is the sole writer of `faces`
     /// (`:251`). Empty whenever `faces` is, so an uncalculated graph answers
     /// `None` for every line exactly as the scan it replaces did.
+    ///
+    /// Also empty after a failed Euler gate, even where the faces survive it —
+    /// the folded overlay keeps them ([`FoldGraph::from_subface_segments`]).
+    /// That is upstream's state too: `findLineInFaceBorder()` is the one step
+    /// `calculateFaces` skips on that path, so every lookup reads 0.
     line_face_borders: Vec<Option<(usize, usize)>>,
+}
+
+/// What [`FoldGraph::calculate_faces`] does with the faces it traced when the
+/// Euler gate fails.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FailedGate {
+    /// Clear them, which makes the gate a refusal. Every arrangement but the
+    /// folded overlay: the sheet, whose refusal a fold reports as unresolved
+    /// faces; the FOLD exporter, which writes faces only on a passed gate; and
+    /// `folding3d::cells`, which reads the verdict per component.
+    DiscardFaces,
+    /// Keep them, which makes the gate upstream's warning. The folded overlay
+    /// only; see [`FoldGraph::from_subface_segments`].
+    KeepFaces,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -257,6 +276,37 @@ impl FoldGraph {
         graph
     }
 
+    /// The folded figure's subdivided arrangement: every folded crease laid over
+    /// the others, whose faces are the subfaces the layer search, the
+    /// transparent view and the paper view are built on. Oriedita
+    /// `FoldedFigure.folding_estimated_03()` →
+    /// `wireFrameWorker_foldedSubdivided.setLineSegmentSet(bb_worker.get())`.
+    ///
+    /// **Keeps its faces when the Euler gate fails**, because upstream does:
+    /// `PointSet.calculateFaces` returns `false` with `faces[]` intact,
+    /// `WireFrame_Worker.setLineSegmentSet` (`:213`) drops the boolean, and
+    /// `folding_estimated_03` goes on to `configureSubFaces` regardless.
+    ///
+    /// The gate fails here on folds that are sound. These segments are folded
+    /// coordinates, where layers that should land on one point disagree by
+    /// rounding — measured 1e-10 to 1.7e-7 on user files — and
+    /// `divide_intersections` splits a crease where another ends on it only when
+    /// that end lies within [`Epsilon::SWEET_DISTANCE`] (1e-12). A junction it
+    /// misses leaves one crease unsplit and the trace a few faces off, and
+    /// clearing every face for that stalled the fold at the wireframe on
+    /// patterns Oriedita folds from these very faces: its subface total is
+    /// their count.
+    ///
+    /// `include_faces` still reports the verdict, and the border index stays
+    /// empty on a failed gate, as upstream's does. Its paper drawer reads that
+    /// as "draw every line, cast no shadow", which is how
+    /// `should_draw_paper_edge` and `shadow_regions` read `None`.
+    pub(crate) fn from_subface_segments(segments: &[LineSegment]) -> Self {
+        let mut graph = Self::from_segments(segments, false);
+        graph.include_faces = graph.calculate_faces(FailedGate::KeepFaces);
+        graph
+    }
+
     pub(crate) fn from_segments(segments: &[LineSegment], calculate_faces: bool) -> Self {
         let mut points = VertexIndex::with_capacity(segments.len() * 2);
         let mut lines = Vec::with_capacity(segments.len());
@@ -280,7 +330,7 @@ impl FoldGraph {
         };
 
         if calculate_faces {
-            graph.include_faces = graph.calculate_faces();
+            graph.include_faces = graph.calculate_faces(FailedGate::DiscardFaces);
         }
 
         graph
@@ -403,7 +453,7 @@ impl FoldGraph {
         })
     }
 
-    fn calculate_faces(&mut self) -> bool {
+    fn calculate_faces(&mut self, on_failure: FailedGate) -> bool {
         let point_linking = self.point_linking();
         let mut face_point_map = vec![Vec::<usize>::new(); self.points.len()];
         let mut faces = Vec::<Vec<usize>>::new();
@@ -457,14 +507,17 @@ impl FoldGraph {
         let edges = self.lines.len() - degenerate;
         let euler = faces.len() as isize - edges as isize + self.points.len() as isize;
         let include_faces = euler == 1 || (euler - 1).abs() as f64 <= 0.005 * faces.len() as f64;
-        // Divergence, predating this line's current form: upstream keeps the
-        // faces here. `PointSet.calculateFaces` returns early with `faces[]` and
-        // `numFaces` intact, skipping only `findLineInFaceBorder()`, so a caller
-        // that ignores the boolean — `WireFrame_Worker.setLineSegmentSet` does —
-        // still gets them. Clearing them makes the gate a refusal rather than the
-        // signal it is upstream. Left as-is because every current consumer treats
-        // a false verdict as "no faces" anyway, but it is not parity.
-        self.faces = if include_faces { faces } else { Vec::new() };
+        // Upstream keeps the faces here whatever the verdict.
+        // `PointSet.calculateFaces` returns early with `faces[]` and `numFaces`
+        // intact, skipping only `findLineInFaceBorder()`, so a caller that
+        // ignores the boolean — `WireFrame_Worker.setLineSegmentSet` does —
+        // still gets them. The folded overlay follows it. Every other
+        // arrangement clears them: parity for the FOLD exporter, which acts on
+        // the verdict upstream too, and for the sheet the gap PORTING.md records.
+        let keep_faces = include_faces || on_failure == FailedGate::KeepFaces;
+        self.faces = if keep_faces { faces } else { Vec::new() };
+        // On a passed gate only, whichever arrangement this is: the border index
+        // is the step upstream skips on a failed one.
         self.line_face_borders = if include_faces {
             self.line_face_borders_from_incidence(&face_point_map)
         } else {
@@ -1569,5 +1622,86 @@ mod tests {
                 "point {index} is listed as its own neighbour"
             );
         }
+    }
+
+    /// A square cut by a mountain and a valley that cross at its centre, as a
+    /// folded overlay arrives at [`FoldGraph::from_subface_segments`]: `sound`
+    /// splits both creases at the crossing; `near_miss` is what
+    /// `divide_intersections` leaves when it misses the junction — the valley's
+    /// halves meet 1e-9 off the mountain, so they weld into one vertex the
+    /// mountain passes without being split at.
+    fn crossing_overlay(near_miss: bool) -> Vec<LineSegment> {
+        let seg = |ax: f64, ay: f64, bx: f64, by: f64, color| {
+            LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), color)
+        };
+        let mut segments = vec![
+            seg(-200.0, -200.0, 0.0, -200.0, LineColor::Black0),
+            seg(0.0, -200.0, 200.0, -200.0, LineColor::Black0),
+            seg(200.0, -200.0, 200.0, 0.0, LineColor::Black0),
+            seg(200.0, 0.0, 200.0, 200.0, LineColor::Black0),
+            seg(200.0, 200.0, 0.0, 200.0, LineColor::Black0),
+            seg(0.0, 200.0, -200.0, 200.0, LineColor::Black0),
+            seg(-200.0, 200.0, -200.0, 0.0, LineColor::Black0),
+            seg(-200.0, 0.0, -200.0, -200.0, LineColor::Black0),
+        ];
+        if near_miss {
+            let junction = 1e-9;
+            segments.extend([
+                seg(-200.0, 0.0, 200.0, 0.0, LineColor::Red1),
+                seg(0.0, 200.0, 0.0, junction, LineColor::Blue2),
+                seg(0.0, junction, 0.0, -200.0, LineColor::Blue2),
+            ]);
+        } else {
+            segments.extend([
+                seg(-200.0, 0.0, 0.0, 0.0, LineColor::Red1),
+                seg(0.0, 0.0, 200.0, 0.0, LineColor::Red1),
+                seg(0.0, 200.0, 0.0, 0.0, LineColor::Blue2),
+                seg(0.0, 0.0, 0.0, -200.0, LineColor::Blue2),
+            ]);
+        }
+        segments
+    }
+
+    /// The folded overlay keeps what it traced when the Euler gate fails, as
+    /// upstream's `PointSet.calculateFaces` does, and leaves the border index
+    /// empty, as upstream skips `findLineInFaceBorder()`. Every other
+    /// arrangement still clears its faces on the same geometry.
+    #[test]
+    fn the_folded_overlay_keeps_its_faces_when_the_euler_gate_fails() {
+        let segments = crossing_overlay(true);
+
+        let refused = FoldGraph::from_segments(&segments, true);
+        assert!(
+            !refused.include_faces,
+            "the unsplit crossing fails the gate"
+        );
+        assert!(refused.faces.is_empty(), "and a refusing build clears it");
+
+        let overlay = FoldGraph::from_subface_segments(&segments);
+        assert!(
+            !overlay.include_faces,
+            "the overlay still reports the failed verdict"
+        );
+        assert!(
+            !overlay.faces.is_empty(),
+            "but keeps the faces it traced, which the subfaces are built from"
+        );
+        for line in 0..overlay.lines.len() {
+            assert_eq!(
+                overlay.line_face_border(line),
+                None,
+                "line {line}: the border index is built only on a passed gate"
+            );
+        }
+    }
+
+    /// On a passed gate the overlay is the arrangement every other build makes.
+    #[test]
+    fn the_folded_overlay_is_the_usual_arrangement_on_a_passed_gate() {
+        let segments = crossing_overlay(false);
+        let usual = FoldGraph::from_segments(&segments, true);
+        assert!(usual.include_faces);
+        assert_eq!(usual.faces.len(), 4);
+        assert_eq!(FoldGraph::from_subface_segments(&segments), usual);
     }
 }

@@ -215,17 +215,42 @@ are unchanged:
   without a sub-tolerance crease changes, so the folding and FOLD-export oracles
   see identical output.
 
-- **A failed Euler gate clears our faces; upstream keeps them.** *(Known gap, not
-  a decision — predates the per-component work above and is not relied on by it.)*
-  `FoldGraph::calculate_faces` sets `self.faces = Vec::new()` when the gate fails.
-  `PointSet.calculateFaces` instead returns early with `faces[]` and `numFaces`
-  populated, so a caller that ignores the boolean still has them, and
+- **A failed Euler gate keeps the folded overlay's faces, as upstream does, and
+  clears every other arrangement's.** `PointSet.calculateFaces` returns early
+  with `faces[]` and `numFaces` populated, skipping only `findLineInFaceBorder()`,
+  so a caller that ignores the boolean still has them — and
   `WireFrame_Worker.setLineSegmentSet` (`:213`) is exactly such a caller. Upstream
-  therefore treats a failed gate as a warning; we turn it into a refusal. Every
-  current consumer of `include_faces` reads a false verdict as "no faces", so
-  nothing observable depends on the difference today — but it is a real
-  divergence, it is not recorded anywhere else, and a future caller that wants
-  upstream's behaviour will not find the faces where upstream would.
+  therefore treats a failed gate as a warning.
+
+  *The folded overlay matches it.* `FoldGraph::from_subface_segments` builds the
+  subdivided arrangement every flat-fold stage after the wireframe reads
+  (Oriedita's `wireFrameWorker_foldedSubdivided`), and keeps the faces it traced
+  when the gate fails. It leaves the border index empty, as upstream does, and
+  upstream's paper drawer reads that as "draw the line, cast no shadow" — which
+  is how `should_draw_paper_edge` and `shadow_regions` read `None`.
+
+  This was not a latent difference. The overlay is built from folded
+  coordinates, where layers that should land on one point disagree by rounding
+  (1e-10 to 1.7e-7 measured on user files), and `divide_intersections` splits a
+  crease where another ends on it only when that end lies within
+  `Epsilon::SWEET_DISTANCE` (1e-12, upstream's own tolerance). A missed junction
+  leaves a crease unsplit and the trace a few faces off — Euler 12 and 25 on two
+  user reports — and clearing every face for that stopped the fold at the
+  wireframe (`Step2`, `NotAttempted`, no layer order, nothing for Transparent3 or
+  Paper5) on patterns Oriedita folds. Oriedita's subface totals for both were the
+  counts we had traced. Which placements fail is rounding: the same sheet fails
+  at one offset and passes at a neighbouring one. Pinned by
+  `the_folded_overlay_keeps_its_faces_when_the_euler_gate_fails` in
+  `fold_graph.rs`, `a_folded_overlay_that_fails_the_euler_gate_still_folds` in
+  `tests/folding.rs`, and
+  `folding_estimate_through_a_failed_overlay_gate_matches_oriedita_oracle`.
+
+  *Everything else still clears.* For the FOLD exporter that is parity —
+  `FoldExporter.toFoldSave` is the one upstream caller that acts on the verdict —
+  and `folding3d::cells` has no upstream counterpart. The sheet's own
+  arrangement is the remaining gap *(known, not a decision)*: a fold whose sheet
+  fails the gate reports `fold_faces_unresolved`, where upstream would fold the
+  faces it traced.
 
 - **A FOLD folded form is refused, not flattened.** `io::fold::import_fold_document`
   returns `IoError::FoldedForm` — engine code `fold_folded_form` — for a frame
