@@ -26,6 +26,7 @@
     "layerOrderTooLarge": "This layer order is too large to save with the figure, so it is unchanged.",
     "layerOrderTooLargeToFold": "This layer order is too large to save with a folded model, so nothing was folded.",
     "layerOrderUndeterminedSelection": "Layer order couldn’t be determined for these creases.",
+    "paperNeedsLayerOrder": "This fold has no layer order, so it can’t be drawn as paper",
     "pinnedVertex": "That crease starts at a pinned vertex, so it cannot be lengthened. Unpin the vertex first, or extend a different crease."
   },
   "cpDetectImport": {

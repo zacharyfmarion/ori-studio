@@ -26,6 +26,7 @@
     "layerOrderTooLarge": "Esta ordem das camadas é grande demais para salvar com o modelo, então ele não mudou.",
     "layerOrderTooLargeToFold": "Esta ordem das camadas é grande demais para salvar com um modelo, então nada foi dobrado.",
     "layerOrderUndeterminedSelection": "Não foi possível determinar a ordem de camadas destes vincos.",
+    "paperNeedsLayerOrder": "Esta dobra não tem ordem de camadas, então não pode ser exibida como papel",
     "pinnedVertex": "Esse vinco começa em um vértice fixado, então não pode ser estendido. Solte o vértice primeiro ou estenda outro vinco."
   },
   "cpDetectImport": {

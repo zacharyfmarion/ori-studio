@@ -26,6 +26,7 @@
     "layerOrderTooLarge": "이 겹침 순서는 모델과 함께 저장하기에 너무 커서 바뀌지 않았습니다.",
     "layerOrderTooLargeToFold": "이 겹침 순서는 모델과 함께 저장하기에 너무 커서 아무것도 접지 않았습니다.",
     "layerOrderUndeterminedSelection": "이 접는 선들의 층 순서를 정할 수 없습니다.",
+    "paperNeedsLayerOrder": "이 접기에는 층 순서가 없어 종이로 표시할 수 없습니다",
     "pinnedVertex": "이 접힘선은 고정된 정점에서 시작하므로 늘릴 수 없습니다. 먼저 정점 고정을 해제하거나 다른 접힘선을 늘리세요."
   },
   "cpDetectImport": {

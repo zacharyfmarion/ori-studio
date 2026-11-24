@@ -4832,9 +4832,10 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpError).toContain('same orientation');
   });
 
-  // The subtler half: a fold can *return* having found nothing. A global
-  // flat-foldability contradiction concludes at the transparent development with
-  // no layer ordering, so swapping the result in would blank the figure.
+  // The subtler half: a fold can *return* having found nothing — no faces
+  // traced, so no wireframe and no picture — and swapping the result in would
+  // blank the figure. (A contradiction is not this: it has a see-through
+  // picture, and lands; see the next test.)
   it('keeps the figure when a refold returns nothing drawable', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
@@ -4866,6 +4867,126 @@ describe('workspace store slices', () => {
     // The handle the failed fold allocated is freed rather than leaked.
     expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(21);
     expect(useWorkspaceStore.getState().oristudioCpError).toContain('folded flat');
+  });
+
+  describe('a refold into a layer-ordering contradiction', () => {
+    const contradictionSnapshot = (): OristudioCpFoldedFigureSnapshot => ({
+      ...foldedFigureSnapshot(),
+      estimation_step: 'Step3',
+      display_style: 'Transparent3',
+      discovered_fold_cases: 0,
+      outcome: 'Contradiction',
+      contradiction: { upper_face: 2, lower_face: 1 },
+      contradiction_faces: {
+        upper: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }],
+        lower: [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
+      },
+    });
+    // As the kernel answers: Paper is drawn from a layer order, and asked of the
+    // contradiction's fold (handle 41), which has none, it searches again and
+    // throws the contradiction.
+    const kernelRender = (handle: number, style: string) =>
+      handle === 41 && style === 'Paper5'
+        ? Promise.reject({
+            code: 'fold_contradiction',
+            message: 'WorkerOverlap(AdditionalEstimation(Contradiction { upper_face: 2, lower_face: 1 }))',
+          })
+        : Promise.resolve(foldedRenderSnapshot());
+
+    async function foldedPaperFigure() {
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        activePanelId: 'crease-pattern',
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+      });
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+      const figure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+      expect(figure.displayStyle).toBe('Paper5');
+      return figure;
+    }
+
+    async function refoldIntoContradiction(id: string) {
+      oristudioCpMocks.foldOristudioCpDocument.mockResolvedValueOnce({ handle: 41, snapshot: contradictionSnapshot() });
+      oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockImplementation(kernelRender);
+      await expect(useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(id)).resolves.toBe(true);
+    }
+
+    // The report: Refold asked the new fold for the figure's Paper picture, the
+    // kernel threw, and the toast showed its raw text — where a fresh fold of
+    // the same creases drew see-through, with the two faces red.
+    it('lands see-through with the two faces, as a fresh fold does', async () => {
+      const before = await foldedPaperFigure();
+      await refoldIntoContradiction(before.id);
+
+      const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+      expect(after.id).toBe(before.id);
+      expect(after.handle).toBe(41);
+      expect(after.status).toBe('ready');
+      expect(after.displayStyle).toBe('Transparent3');
+      expect(after.contradiction).toEqual({ upper_face: 2, lower_face: 1 });
+      expect(after.renderSnapshot?.primitives.length).toBeGreaterThan(0);
+      expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).not.toHaveBeenCalledWith(
+        41,
+        'Paper5',
+        expect.anything()
+      );
+      expect(useWorkspaceStore.getState().oristudioCpError).toBeNull();
+      expect(useWorkspaceStore.getState().error).toBeNull();
+    });
+
+    it('comes back as Paper once its creases fold again', async () => {
+      const before = await foldedPaperFigure();
+      await refoldIntoContradiction(before.id);
+
+      oristudioCpMocks.foldOristudioCpDocument.mockResolvedValueOnce({ handle: 42, snapshot: foldedFigureSnapshot() });
+      await expect(useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)).resolves.toBe(true);
+
+      const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+      expect(after.handle).toBe(42);
+      expect(after.displayStyle).toBe('Paper5');
+      expect(after.contradiction).toBeNull();
+    });
+
+    // The same kernel throw, by the Render as control: it used to be caught and
+    // written onto the figure as `status: 'error'`, breaking a figure that drew.
+    it('refuses Paper for the figure and keeps it as it is', async () => {
+      const before = await foldedPaperFigure();
+      await refoldIntoContradiction(before.id);
+      const landed = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+      oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockClear();
+
+      await expect(
+        useWorkspaceStore.getState().setOristudioCpFoldedFigureDisplayStyle(landed.id, 'Paper5')
+      ).resolves.toBe(false);
+
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toEqual(landed);
+      expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).not.toHaveBeenCalled();
+      expect(useWorkspaceStore.getState().oristudioCpError).toContain('no layer order');
+    });
+  });
+
+  // A refold's failure is reported with the kernel's own code, as a first
+  // fold's is, so the toast can say it in words rather than show the raw text.
+  it('reports a refold that throws with the kernel’s own error code', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    const kernel = {
+      code: 'fold_same_parity',
+      message: 'Setup(InitialHierarchy(SameParityAdjacentFaces { line: 3, first_face: 1, second_face: 2 }))',
+    };
+    oristudioCpMocks.foldOristudioCpDocument.mockRejectedValueOnce(kernel);
+    await expect(useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)).resolves.toBe(false);
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toEqual(before);
+    expect(useWorkspaceStore.getState().error).toEqual(kernel);
   });
 
   // The refold path has made this check since it shipped; the *first* fold never
