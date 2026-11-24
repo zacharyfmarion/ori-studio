@@ -488,10 +488,12 @@ export interface DiagramCpSource {
    * covers only the lines it folds. The sheet is still found by those
    * (`chooseStepCreases`); this says whether the picture is out of date. Absent
    * for a crease pattern, whose `fingerprint` already covers every line, and
-   * for a link saved before the field: it never said, so an aux edit cannot
-   * mark it out of date until its next capture writes one, and Refresh is
-   * offered on it meanwhile (`drawnLinesUntracked`). A build without the field
-   * carries the step locked, as any source field it has no name for.
+   * for a link saved before the field: it never said, so an aux edit made
+   * before its file was opened cannot mark it out of date until its next
+   * capture writes one, and Refresh is offered on it meanwhile
+   * (`drawnLinesUntracked`). One made since the open does (`openedLines.ts`).
+   * A build without the field carries the step locked, as any source field it
+   * has no name for.
    */
   drawnFingerprint?: string;
   /** The pattern as it was linked, for the picker and a step whose pattern is gone. */

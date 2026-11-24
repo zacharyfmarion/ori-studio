@@ -6,14 +6,16 @@
  * - `current`: the creases the scope chooses today are the ones captured —
  *   every line drawn, for a crease pattern; the lines folded, for a fold,
  *   and every line its sheet holds when the link kept them, since a folded
- *   picture draws the sheet's aux lines too (`drawnLinesMatch`).
+ *   picture draws the sheet's aux lines too (`drawnLinesMatch`). A folded
+ *   link from before links kept them is held to the lines its sheet had
+ *   when the pattern opened (`openedLines.ts`).
  * - `stale`: they changed; Refresh captures them again.
  * - `missing`: there is nothing to choose — the region is gone, or has no
  *   foldable crease; Relink picks another.
  * - `unknown`: there is no pattern to ask (none is open), or a sheet cannot
  *   be looked for until the sheet index is ready.
  *
- * Pure.
+ * Pure, but for the lines the pattern opened with.
  */
 import type { CpSheetRegion } from '../../cp-workspace/sheets/cpSheetRegions';
 import { documentHasAuxLines } from '../../cp-workspace/sheets/simulationLines';
@@ -39,7 +41,9 @@ import {
   knownCreasesOf,
   type KnownCreases,
   type StepCreaseChoice,
+  type StepCreases,
 } from './captureCreases';
+import { openedDrawnFingerprint } from './openedLines';
 
 export type DiagramLinkStatus = 'current' | 'stale' | 'missing' | 'unknown';
 
@@ -77,9 +81,10 @@ export interface DiagramLinkContext {
 /**
  * A folded step (flat, 3D or simulated) linked before its link kept the lines
  * its sheet draws (`drawnFingerprint`), on a pattern that holds aux lines: an
- * aux edit since then cannot be told from its link, which reads by its folds
- * alone. Refresh is offered on it all the same, and its capture writes the
- * field; its status, its chip and Refresh all are unchanged.
+ * aux edit made before its file was opened cannot be told from its link, which
+ * reads by its folds alone. Refresh is offered on it all the same, and its
+ * capture writes the field. One made since the open makes it stale like any
+ * other (`openedLines.ts`).
  */
 export function drawnLinesUntracked(step: DiagramStep, document: OristudioCpDocumentSnapshot | null): boolean {
   const source = step.source;
@@ -135,7 +140,28 @@ export function linkStatus(
   // Sent while its sheet matched no region: there were no creases to keep,
   // so nothing to say it changed from.
   if (known.fingerprint === null) return 'unknown';
-  return creasesMatch(choice.creases, known) && drawnLinesMatch(choice.creases, source) ? 'current' : 'stale';
+  if (!creasesMatch(choice.creases, known) || !drawnLinesMatch(choice.creases, source)) return 'stale';
+  return drawnSinceOpened(source, scope, known, choice.creases) ? 'stale' : 'current';
+}
+
+/**
+ * Whether a folded link that never kept its drawn lines finds its sheet
+ * drawing other lines than it did when the pattern opened: an aux edit made
+ * since, which its folds alone cannot show (`openedLines.ts`). Read by the
+ * sheet's relative fingerprint, so a sheet that only moved has not changed.
+ */
+function drawnSinceOpened(
+  source: Parameters<typeof linkStatus>[0],
+  scope: DiagramCpScope,
+  known: KnownCreases,
+  creases: StepCreases
+): boolean {
+  if (source.kind === 'references-step' || source.drawnFingerprint !== undefined) return false;
+  const { mode } = source.render;
+  // A crease pattern's fingerprint covers every line already; a Defox view draws none.
+  if (mode === 'crease-pattern' || mode === 'defox') return false;
+  const then = openedDrawnFingerprint(scope, known);
+  return then !== undefined && then !== creases.drawnFingerprint;
 }
 
 /**

@@ -59,6 +59,15 @@ aux lines it is offered Refresh all the same (`drawnLinesUntracked`), and that
 capture writes the field. A saved Defox view draws none of the pattern's lines
 and keeps none.
 
+*(Amended 2026-11-24.)* Read by its folds alone, such a link could not see an
+aux edit at all, so an old file's folded steps stayed current after one until
+their first Refresh — every file saved before the field. It is now also held
+to the lines its sheet had when the pattern was opened (`openedLines.ts`,
+taken by `installOpenedLinesSync` once the sheet index for those lines lands):
+an aux edit made since the open marks it out of date like any other step. One
+made before the open still cannot be told, and the baseline lives for the
+session; a save writes none.
+
 **Which sheet is it?** In order:
 
 1. The sheet still at its **old position** (the existing absolute rim match):

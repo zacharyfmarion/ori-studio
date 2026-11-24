@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { sheetRegions } from '../../cp-workspace/sheets/cpSheetRegions';
@@ -8,6 +8,7 @@ import { referencesStep } from '../document/diagramSteps.fixtures';
 import { cpDocument, movedLines, TWO_SQUARES, twoSquaresIndex, type FixtureLine } from './capture.fixtures';
 import { chooseStepCreases, creasesFingerprint, drawnLinesFingerprint } from './captureCreases';
 import { drawnLinesUntracked, linkStatus, refreshKind } from './linkStatus';
+import { forgetOpenedLines, rememberOpenedLines } from './openedLines';
 
 const sheets = twoSquaresIndex();
 const [left] = sheetRegions(sheets);
@@ -122,6 +123,61 @@ describe('linkStatus', () => {
   it('cannot say with no pattern open, or a sheet before the index is ready', () => {
     expect(linkStatus(linked(regionScope), null, sheets)).toBe('unknown');
     expect(linkStatus(linked(regionScope), cpDocument(), null)).toBe('unknown');
+  });
+});
+
+// The same saved links once their file is open (Zach, 2026-11-24: an aux line
+// drawn on an old file's sheet left its folded steps "up to date"). The lines
+// each sheet held as the pattern opened are what an aux edit since is told
+// against, so the first aux line drawn after opening an old file marks its
+// folded steps out of date, as it would a step captured today.
+describe('linkStatus of a folded link saved before it kept its drawn lines, once its pattern opened', () => {
+  const auxMoved = () => cpDocument(TWO_SQUARES.map((line, i): FixtureLine => (i === 9 ? [0, 60, 50, 60, 'Cyan3'] : line)));
+
+  afterEach(() => forgetOpenedLines());
+
+  it('reads it stale for an aux edit made since the pattern opened', () => {
+    for (const render of FOLDED_RENDERS) {
+      const saved = savedBefore(regionScope, cpDocument(), render);
+      rememberOpenedLines(cpDocument(), sheets, [saved]);
+      expect(linkStatus(saved, cpDocument(), sheets)).toBe('current');
+      expect(linkStatus(saved, auxMoved(), sheets)).toBe('stale');
+      expect(linkStatus(saved, edited(), sheets)).toBe('stale');
+    }
+  });
+
+  // What its picture showed before the open, nothing says.
+  it('reads it current for an aux edit made before the pattern opened', () => {
+    for (const render of FOLDED_RENDERS) {
+      const saved = savedBefore(regionScope, cpDocument(), render);
+      rememberOpenedLines(auxMoved(), sheets, [saved]);
+      expect(linkStatus(saved, auxMoved(), sheets)).toBe('current');
+    }
+  });
+
+  it('reads it current for an aux line drawn on another sheet, and for its sheet only moved', () => {
+    const otherAuxLines: FixtureLine[] = [...TWO_SQUARES, [170, 70, 190, 80, 'Cyan3']];
+    const dx = -503.7;
+    for (const render of FOLDED_RENDERS) {
+      const saved = savedBefore(regionScope, cpDocument(), render);
+      rememberOpenedLines(cpDocument(), sheets, [saved]);
+      expect(linkStatus(saved, cpDocument(otherAuxLines), twoSquaresIndex({ lines: otherAuxLines }))).toBe('current');
+      expect(linkStatus(saved, cpDocument(movedLines(TWO_SQUARES, dx, 0)), twoSquaresIndex({ dx }))).toBe('current');
+    }
+  });
+
+  // Each keeps its own fingerprint of every line it draws, which says more
+  // than the lines the pattern opened with.
+  it('holds a link that keeps its drawn lines, and a crease pattern, to their own fingerprints', () => {
+    for (const render of [...FOLDED_RENDERS, CREASE_PATTERN]) {
+      rememberOpenedLines(auxMoved(), sheets, [savedBefore(regionScope, cpDocument(), render)]);
+      expect(linkStatus(linked(regionScope, cpDocument(), render), cpDocument(), sheets)).toBe('current');
+    }
+  });
+
+  it('reads it as it was saved when no lines were taken as the pattern opened', () => {
+    const saved = savedBefore(regionScope);
+    expect(linkStatus(saved, auxMoved(), sheets)).toBe('current');
   });
 });
 

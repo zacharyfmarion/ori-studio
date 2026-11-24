@@ -22,6 +22,7 @@ import { createDiagramSlice } from './slices/diagramSlice';
 import { createFoldSlice } from './slices/foldSlice';
 import { resolveEditingContext } from '../../workspaces/editingContext';
 import { installFolded3dAuxLinesSync } from './folded3dAuxLinesSync';
+import { installOpenedLinesSync } from './openedLinesSync';
 import { installSpatialSpreadScenes } from './spatialSpreadScenes';
 import { installFoldedFigurePaperMirror } from './foldedFigurePaperMirror';
 import { hasProjectDocument } from './projectDocuments';
@@ -122,6 +123,11 @@ installSpatialSpreadScenes(useWorkspaceStore);
 // one — so they are asked for again when the document's change, and the stored
 // pictures rebuilt when they land.
 installFolded3dAuxLinesSync(useWorkspaceStore);
+
+// A diagram step saved before links kept the lines their sheet draws is held
+// to the lines the pattern opened with, so an aux edit made since — in Edit,
+// before the Diagram is ever shown — marks it out of date.
+installOpenedLinesSync(useWorkspaceStore);
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const debugWindow = window as Window & {
