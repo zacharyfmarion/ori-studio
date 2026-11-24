@@ -2,7 +2,7 @@ import type { StoreApi } from 'zustand';
 import { ensureCpSheetIndex } from '../../cp-workspace/sheets/cpSheetIndex';
 import { drawnLinesUntracked } from '../../diagram/capture/linkStatus';
 import { forgetOpenedLines, rememberOpenedLines, type OpenedLinkSource } from '../../diagram/capture/openedLines';
-import { isStep } from '../../diagram/document/diagramDocument';
+import { isStep, type DiagramEntry } from '../../diagram/document/diagramDocument';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import { lineContentFingerprint } from '../../lib/creaseFingerprint';
 import type { WorkspaceState } from './types';
@@ -29,10 +29,14 @@ type OpenedLinesState = Pick<WorkspaceState, 'oristudioCpDocument' | 'diagram'>;
 export function installOpenedLinesSync(store: StoreApi<OpenedLinesState>): () => void {
   /** The load a baseline is being taken, or was taken, for; undefined before the first look. */
   let serial: number | null | undefined;
-  /** That load's lines, until the diagram is there to take them for — or an edit gives them up. */
+  /** That load's lines, until there is a diagram to take them for. */
   let pending: OristudioCpDocumentSnapshot | null = null;
 
-  const run = (state: OpenedLinesState) => {
+  const run = (state: OpenedLinesState, previous?: OpenedLinesState) => {
+    // Called for every change to the store: only the pattern and the diagram concern it.
+    if (previous && state.oristudioCpDocument === previous.oristudioCpDocument && state.diagram === previous.diagram) {
+      return;
+    }
     const cp = state.oristudioCpDocument;
     const loadSerial = cp?.loadSerial ?? null;
     if (loadSerial !== serial) {
@@ -40,33 +44,50 @@ export function installOpenedLinesSync(store: StoreApi<OpenedLinesState>): () =>
       forgetOpenedLines();
       pending = cp?.document ?? null;
     }
-    if (!pending) return;
-    if (!cp || !sameLines(cp.document, pending)) {
-      pending = null;
-      return;
-    }
     const entries = state.diagram?.steps ?? [];
-    if (entries.length === 0) return;
+    if (!pending || !cp || entries.length === 0) return;
     const opened = pending;
     pending = null;
-    const sources: OpenedLinkSource[] = [];
-    for (const entry of entries) {
-      if (!isStep(entry)) continue;
-      const { source } = entry;
-      if (source?.kind === 'cp' && drawnLinesUntracked(entry, opened)) sources.push(source);
-    }
-    if (sources.length === 0) return;
     const forSerial = serial;
-    void ensureCpSheetIndex(opened).then((sheets) => {
-      const now = store.getState().oristudioCpDocument;
-      if (!sheets || serial !== forSerial || !now || !sameLines(now.document, opened)) return;
-      rememberOpenedLines(opened, sheets, sources);
-    });
+    // Best effort, and never a throw: a baseline it cannot take leaves old
+    // steps reading as they did, while a throw here would land in whatever
+    // unrelated update called it — a test's partial pattern included.
+    try {
+      // Lines edited before the diagram arrived would make the edit the baseline.
+      if (!sameLines(cp.document, opened)) return;
+      const sources = untrackedSources(entries, opened);
+      if (sources.length === 0) return;
+      void ensureCpSheetIndex(opened).then((sheets) => {
+        const now = store.getState().oristudioCpDocument;
+        if (!sheets || serial !== forSerial || !now) return;
+        try {
+          if (sameLines(now.document, opened)) rememberOpenedLines(opened, sheets, sources);
+        } catch {
+          // No baseline, as above.
+        }
+      });
+    } catch {
+      // No baseline, as above.
+    }
   };
 
   const unsubscribe = store.subscribe(run);
   run(store.getState());
   return unsubscribe;
+}
+
+/** The diagram's folded steps whose links never kept the lines they draw, on a pattern with aux lines. */
+function untrackedSources(
+  entries: readonly DiagramEntry[],
+  document: OristudioCpDocumentSnapshot
+): OpenedLinkSource[] {
+  const sources: OpenedLinkSource[] = [];
+  for (const entry of entries) {
+    if (!isStep(entry)) continue;
+    const { source } = entry;
+    if (source?.kind === 'cp' && drawnLinesUntracked(entry, document)) sources.push(source);
+  }
+  return sources;
 }
 
 /** The same lines: a selection, or an undo back to them, replaces the snapshot and none of them. */

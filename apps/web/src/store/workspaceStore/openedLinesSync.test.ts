@@ -118,6 +118,26 @@ describe('installOpenedLinesSync', () => {
     expect(linkStatus(step.source, auxMoved(), sheets)).toBe('current');
   });
 
+  it('takes nothing when the lines change before the diagram arrives', async () => {
+    const step = foldedStep('step-old');
+    store.setState({ oristudioCpDocument: pattern(cpDocument(), 1) });
+    store.setState({ oristudioCpDocument: pattern(auxMoved(), 1) });
+    store.setState({ diagram: diagram(step) });
+    await settle();
+    expect(ensureCpSheetIndex).not.toHaveBeenCalled();
+    expect(linkStatus(step.source, auxMoved(), sheets)).toBe('current');
+  });
+
+  // It hears every change to the store, so a pattern it cannot read — a
+  // test's partial one — must cost a baseline, never the update that called it.
+  it('never throws into an update, even for a pattern it cannot read', async () => {
+    const partial = {} as unknown as OristudioCpDocumentSnapshot;
+    expect(() => store.setState({ oristudioCpDocument: pattern(partial, 1), diagram: diagram(foldedStep('step-old')) })).not.toThrow();
+    expect(() => store.setState({ oristudioCpDocument: pattern({} as unknown as OristudioCpDocumentSnapshot, 1) })).not.toThrow();
+    await settle();
+    expect(ensureCpSheetIndex).not.toHaveBeenCalled();
+  });
+
   it('builds no index for a pattern without aux lines, or a diagram whose folded steps keep their drawn lines', async () => {
     const bare = cpDocument(TWO_SQUARES.filter((_, i) => i !== 9));
     store.setState({ oristudioCpDocument: pattern(bare, 1), diagram: diagram(foldedStep('step-old')) });
