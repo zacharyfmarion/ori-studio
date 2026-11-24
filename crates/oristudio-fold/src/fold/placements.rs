@@ -25,6 +25,10 @@ pub enum FoldLanding {
     InPlace {
         targets: Vec<[f64; 2]>,
         moves: InPlace,
+        /// A sheet point inside the fold that moves, when it is not the
+        /// seed's own (`TuckInPlace::fold`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        fold: Option<[f64; 2]>,
     },
 }
 
@@ -189,6 +193,7 @@ impl FoldPlacementSearch {
                 landing: FoldLanding::InPlace {
                     targets: vec![landing.op.target],
                     moves: landing.op.moves,
+                    fold: landing.op.fold,
                 },
                 completion: landing.order,
                 moving: landing.moving,

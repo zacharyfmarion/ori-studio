@@ -47,9 +47,11 @@ describe('explicit M/V landing migration', () => {
 describe('a fold landing in place', () => {
   const inPlace: FoldOp = { ...valleyAt(0.4), landing: { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'fold' } };
   it('reads and writes as it is stored, and keeps its own history key', () => {
-    const raw = { formatVersion: 2, id: 'in-place', paper: SQUARE_PAPER, steps: [step('a', null, inPlace)] };
+    const named: FoldOp = { ...valleyAt(0.4), landing: { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'fold', fold: [0.3, 0.1] } };
+    const raw = { formatVersion: 2, id: 'in-place', paper: SQUARE_PAPER, steps: [step('a', null, inPlace), step('b', 'a', named)] };
     const held = readFoldSequence(raw)!;
     expect(held.document.steps[0]!.op).toEqual(inPlace);
+    expect(held.document.steps[1]!.op).toEqual(named);
     expect(readFoldSequence(writeFoldSequence(held))?.document).toEqual(held.document);
     // Not an insertion: no tuck op names it, so its history key is its own.
     expect(foldHistoryOp(inPlace)).toEqual(inPlace);
@@ -59,6 +61,7 @@ describe('a fold landing in place', () => {
       { kind: 'in_place', targets: [], moves: 'fold' },
       { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'both' },
       { kind: 'in_place', targets: [[0.2, 0.2]] },
+      { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'fold', fold: [0.2, NaN] },
       { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'flap', future: true },
     ]) {
       const node = { ...step('a', null), op: { ...valleyAt(0.4), landing } };

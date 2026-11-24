@@ -65,6 +65,7 @@ fn in_place(
         direction,
         seed: Seed::Flaps { at: vec![seed] },
         moves,
+        fold: None,
         target,
         additional_targets: Vec::new(),
     }
@@ -334,6 +335,7 @@ fn the_landing_round_trips_through_its_serde_spelling() {
     let landing = FoldLanding::InPlace {
         targets: vec![[0.25, 0.5]],
         moves: InPlace::Fold,
+        fold: None,
     };
     let text = serde_json::to_string(&landing).unwrap_or_else(|e| panic!("{e}"));
     assert_eq!(
@@ -342,4 +344,76 @@ fn the_landing_round_trips_through_its_serde_spelling() {
     );
     let back: FoldLanding = serde_json::from_str(&text).unwrap_or_else(|e| panic!("{e}"));
     assert_eq!(back, landing);
+    let named = FoldLanding::InPlace {
+        targets: vec![[0.25, 0.5]],
+        moves: InPlace::Fold,
+        fold: Some([0.5, 0.15]),
+    };
+    let text = serde_json::to_string(&named).unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(
+        text,
+        r#"{"kind":"in_place","targets":[[0.25,0.5]],"moves":"fold","fold":[0.5,0.15]}"#
+    );
+    let back: FoldLanding = serde_json::from_str(&text).unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(back, named);
+}
+
+#[test]
+fn a_fold_inside_the_picked_flap_is_listed_by_a_point_in_it() {
+    // T picked: its flap reaches the strip and its corner, whose fold along
+    // the corner line is not T's own. The chooser lists it, named by a point
+    // inside it, and it lands as the fold read from the corner does.
+    let parent = cornered();
+    let op =
+        all(corner_line(), [0.5, 0.45], Direction::Valley).with_seed(Seed::Flaps { at: vec![T] });
+    let expected = landed(
+        &parent,
+        &in_place(
+            corner_line(),
+            [0.5, 0.45],
+            Direction::Valley,
+            C,
+            InPlace::Fold,
+            T,
+        ),
+    );
+    let found = search(&parent, &op);
+    let hit = found
+        .candidates()
+        .iter()
+        .find(|c| c.state.order() == expected.state.order())
+        .unwrap_or_else(|| {
+            panic!(
+                "{:?}",
+                found
+                    .candidates()
+                    .iter()
+                    .map(|c| &c.landing)
+                    .collect::<Vec<_>>()
+            )
+        });
+    let FoldLanding::InPlace {
+        moves: InPlace::Fold,
+        fold: Some(at),
+        ref targets,
+    } = hit.landing
+    else {
+        panic!("{:?}", hit.landing);
+    };
+    // The step it stores lands the same, from T's seed with the fold named.
+    let stored = TuckInPlace {
+        fold: Some(at),
+        ..in_place(
+            corner_line(),
+            [0.5, 0.45],
+            Direction::Valley,
+            T,
+            InPlace::Fold,
+            targets[0],
+        )
+    };
+    assert_eq!(
+        landed(&parent, &stored).state.order(),
+        expected.state.order()
+    );
 }

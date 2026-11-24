@@ -229,12 +229,14 @@ export type FoldInPlaceMoves = 'flap' | 'fold';
 /**
  * Where a valley or mountain fold's moving paper lands: on the outside, tucked
  * against the targets (`against`), or — the flap folded along the line
- * already — tucked in place against them with no new crease (`in_place`).
+ * already — tucked in place against them with no new crease (`in_place`). A
+ * fold tucked in place that is not the seed's own, but another along the line
+ * inside the picked flap, is named by a sheet point inside it (`fold`).
  */
 export type FoldLanding =
   | { kind: 'outer' }
   | { kind: 'against'; targets: readonly SheetPoint[] }
-  | { kind: 'in_place'; targets: readonly SheetPoint[]; moves: FoldInPlaceMoves };
+  | { kind: 'in_place'; targets: readonly SheetPoint[]; moves: FoldInPlaceMoves; fold?: SheetPoint };
 
 export interface FoldPlainOp extends FoldAlongLine {
   /** Absent only on legacy/in-memory outer folds. Writers make it explicit. */

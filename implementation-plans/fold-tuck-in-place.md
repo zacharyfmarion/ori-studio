@@ -43,12 +43,15 @@ So:
   the line. Its report is a tuck's; its motion turns the block out about the
   line and back in.
 - **Reached through Valley/Mountain.** A new landing,
-  `{ kind: 'in_place', targets, moves }`, beside `outer` and `against`. The
-  placement search lists the tucks in place once, after the outer landing and
-  before any insertion, when the fold's line runs along a folded edge of the
-  seed (`FoldPlacementSearch::in_place`), so the chooser offers them as more
-  layer orders ("These orders move different layers" where they do). A pleat's
-  legs never take one.
+  `{ kind: 'in_place', targets, moves, fold? }`, beside `outer` and
+  `against`. The placement search lists the tucks in place once, after the
+  outer landing and before any insertion, when the fold's line runs along a
+  folded edge of the seed (`FoldPlacementSearch::in_place`), so the chooser
+  offers them as more layer orders ("These orders move different layers"
+  where they do). The layer picker names whole flaps along the line, and a
+  corner folded in two at the edge lies inside one, so the search also lists
+  every other fold along the line within the seed's flaps, named by a sheet
+  point inside it (`fold`). A pleat's legs never take one.
 - **A tuck's local reading.** Where the strict reading lands in no order, a
   layer's side of T is read only where the block, the layer and T overlap
   together (`tuck::Reading::Local`). Strict first everywhere, and the closure a

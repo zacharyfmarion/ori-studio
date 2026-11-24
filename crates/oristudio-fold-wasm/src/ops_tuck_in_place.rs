@@ -33,6 +33,7 @@ pub fn resolve_in_place(
     direction: Direction,
     targets: &[Point],
     moves: InPlace,
+    fold_at: Option<Point>,
     choices: &Choices,
 ) -> Result<TuckInPlaceStep, Rejection> {
     let Some((&target, others)) = targets.split_first() else {
@@ -40,6 +41,9 @@ pub fn resolve_in_place(
     };
     for &point in targets {
         finite_point("landing.targets", point)?;
+    }
+    if let Some(point) = fold_at {
+        finite_point("landing.fold", point)?;
     }
     let fold = plain(
         parent,
@@ -57,6 +61,7 @@ pub fn resolve_in_place(
             direction,
             seed: fold.seed,
             moves,
+            fold: fold_at,
             target,
             additional_targets: others.to_vec(),
         },

@@ -192,8 +192,10 @@ Compound folds (plan D4, D15, Phases 9 and 11):
   identity, so its images, inner order, creases and hinges are kept, and only
   its order against the paper that stays is placed, as a tuck's. Reached as
   a valley or mountain fold's landing (`FoldLanding::InPlace`), which the
-  placement search lists when the line runs along a fold at the seed; a line
-  along no folded edge of the seed is `tuck_not_at_fold`.
+  placement search lists when the line runs along a fold at the seed — and,
+  for each other fold along the line inside the seed's flaps, named by a
+  sheet point in it (`fold`); a line along no folded edge of the seed is
+  `tuck_not_at_fold`.
 - **A pleat is two plain folds**, not an operation of its own: a valley and
   a mountain along parallel lines, each of which lands a flat state by
   itself (unlike a crimp's first reverse), so a tool makes a pleat as two

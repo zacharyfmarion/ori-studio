@@ -37,7 +37,7 @@ use crate::compound::tuck::{
     Context, Placed, TuckChoices, TuckOutcome, TuckSide, Unplaced, land_placed, lands_read,
 };
 use crate::compound::{Across, CompoundRefused, Prepared, first as first_of, no_order};
-use crate::fold::closure::{moving_side, resolve_seed};
+use crate::fold::closure::{MovingSide, moving_side, resolve_seed};
 use crate::fold::line::{self, Axis, Classified};
 use crate::fold::{
     ActionKind, FoldActionGeometry, FoldAnalysis, PlainFold, Push, ResolvedSeed, Seed,
@@ -45,7 +45,7 @@ use crate::fold::{
 use crate::isometry::Isometry;
 use crate::numerics::TOL;
 use crate::pattern::{CreaseKind, FaceId};
-use crate::refusal::{FoldRefusal, Refused, Side};
+use crate::refusal::{Flap, FoldRefusal, Refused, Side};
 use crate::scene::ScenePoint;
 use crate::state::State;
 use crate::view::Direction;
@@ -78,6 +78,12 @@ pub struct TuckInPlace {
     pub direction: Direction,
     pub seed: Seed,
     pub moves: InPlace,
+    /// For [`InPlace::Fold`], a sheet point inside a layer of the fold that
+    /// moves when it is not the seed's own: another fold along ℓ within the
+    /// seed's flaps, as the chooser lists them (a corner folded in two inside
+    /// a flap the layer picker names whole). None for the seed's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold: Option<Point>,
     /// A sheet point inside T, the layer the block lands against.
     pub target: Point,
     /// Other layers the block lands against as well.
@@ -125,6 +131,18 @@ fn picks(completions: &Completions) -> Vec<Vec<usize>> {
 /// The most choices [`picks`] lists.
 const MAX_PICKS: usize = 64;
 
+/// What a tuck in place reads along its line before it names a block: the
+/// line classified, the moving side, the direction in the model frame, the
+/// seed's faces, and per face position the faces joined to it by a folded
+/// crease along ℓ.
+struct Scope {
+    classified: Classified,
+    side: MovingSide,
+    direction: Direction,
+    seed: Vec<usize>,
+    along: Vec<Vec<usize>>,
+}
+
 /// A tuck in place's block on a state, before its target.
 struct Block {
     classified: Classified,
@@ -149,18 +167,15 @@ impl Block {
 }
 
 impl State {
-    /// The block a tuck in place moves: its line classified, its direction
-    /// in the model frame, and per face position whether it moves. Refused
-    /// when no seed layer is folded along ℓ ([`FoldRefusal::TuckNotAtFold`])
-    /// and when nothing would stay.
-    fn in_place_block(
+    /// What a tuck in place along `line` reads before it names a block (see
+    /// [`Scope`]).
+    fn in_place_scope(
         &self,
         line: &Line,
         side: Side,
         direction: Direction,
         seed: &Seed,
-        moves: InPlace,
-    ) -> Result<Block, Refused> {
+    ) -> Result<Scope, Refused> {
         let classified = line::classify(&self.geometry().vertex_images, Axis::new(line, side))?;
         let moving_side = moving_side(self, &classified)?;
         let direction = self.view().model_direction(direction);
@@ -171,10 +186,7 @@ impl State {
             &ResolvedSeed::from(seed),
             &classified.axis,
         )?;
-        let faces = self.faces();
-        // Per face position, the faces joined to it by a folded crease that
-        // lies along ℓ.
-        let mut along: Vec<Vec<usize>> = vec![Vec::new(); faces.len()];
+        let mut along: Vec<Vec<usize>> = vec![Vec::new(); self.faces().len()];
         let on_line = |v: usize| classified.classes[v] == 0;
         for (k, crease) in self.creases().iter().enumerate() {
             if !matches!(crease.kind, CreaseKind::Folded(_)) {
@@ -189,23 +201,43 @@ impl State {
                 along[g].push(f);
             }
         }
+        Ok(Scope {
+            classified,
+            side: moving_side,
+            direction,
+            seed,
+            along,
+        })
+    }
+
+    /// The block a tuck in place moves from the faces at positions `start`,
+    /// per face position. Refused when none of them is folded along ℓ
+    /// ([`FoldRefusal::TuckNotAtFold`]) and when nothing would stay.
+    fn in_place_block(
+        &self,
+        scope: &Scope,
+        moves: InPlace,
+        start: &[usize],
+    ) -> Result<Block, Refused> {
+        let faces = self.faces();
+        let along = &scope.along;
         let not_at_fold = || -> Refused {
             FoldRefusal::TuckNotAtFold {
-                faces: seed.iter().map(|&f| faces[f].id).collect(),
+                faces: start.iter().map(|&f| faces[f].id).collect(),
             }
             .into()
         };
-        if seed.iter().all(|&f| along[f].is_empty()) {
+        if start.iter().all(|&f| along[f].is_empty()) {
             return Err(not_at_fold());
         }
         let neighbours = |f: usize| -> &[usize] {
             match moves {
-                InPlace::Flap => &moving_side.adjacent[f],
+                InPlace::Flap => &scope.side.adjacent[f],
                 InPlace::Fold => &along[f],
             }
         };
         let mut moving = vec![false; faces.len()];
-        let mut queue: VecDeque<usize> = seed.iter().copied().collect();
+        let mut queue: VecDeque<usize> = start.iter().copied().collect();
         while let Some(f) = queue.pop_front() {
             if std::mem::replace(&mut moving[f], true) {
                 continue;
@@ -222,10 +254,28 @@ impl State {
             return Err(not_at_fold());
         }
         Ok(Block {
-            classified,
-            direction,
+            classified: scope.classified.clone(),
+            direction: scope.direction,
             moving,
         })
+    }
+
+    /// The block `op` names: from its seed, or for a fold read at
+    /// `op.fold`, from the layer there (which must lie on the moving side).
+    fn in_place_op_block(&self, op: &TuckInPlace) -> Result<Block, Refused> {
+        let scope = self.in_place_scope(&op.line, op.side, op.direction, &op.seed)?;
+        let start = match (op.moves, op.fold) {
+            (InPlace::Fold, Some(point)) => {
+                let at = self
+                    .face_at(point)
+                    .and_then(|id| self.face_position(id))
+                    .filter(|&f| scope.side.pieces[f].is_some())
+                    .ok_or(FoldRefusal::WitnessNotInFace { point })?;
+                vec![at]
+            }
+            _ => scope.seed.clone(),
+        };
+        self.in_place_block(&scope, op.moves, &start)
     }
 
     /// The block's faces kept where they are, and its hinges to the paper
@@ -322,9 +372,7 @@ impl State {
         limits: &CompletionLimits,
     ) -> Result<TuckOutcome, CompoundRefused> {
         let refused = |r: Refused| CompoundRefused::Refused(r);
-        let block = self
-            .in_place_block(&op.line, op.side, op.direction, &op.seed, op.moves)
-            .map_err(refused)?;
+        let block = self.in_place_op_block(op).map_err(refused)?;
         let targets = self.in_place_targets(op, &block).map_err(refused)?;
         let unplaced = self
             .in_place_prepared(&block)
@@ -361,13 +409,15 @@ impl State {
 
     /// Every way the flap the plain fold `fold` names, folded along its line
     /// already, can be tucked in place, as a valley or mountain fold's
-    /// layer-order chooser lists them (`crate::fold::placements`): for each
-    /// [`InPlace`] reading that names a block, against each layer that stays
-    /// and that the block overlaps, in id order, every order it lands in — at
-    /// most `per_target` of a choice's, and `most` in all. Each is the op
-    /// that lands it, its stored choice, what moves, and the landed state.
-    /// None where the seed is not at a fold along the line; nothing that
-    /// lands the parent's own order.
+    /// layer-order chooser lists them (`crate::fold::placements`): the seed's
+    /// flap ([`InPlace::Flap`]), the seed's own fold along the line, then
+    /// every other fold along it within the seed's flaps, by its first face
+    /// ([`InPlace::Fold`], named by `fold`) — each against each layer that
+    /// stays and that the block overlaps, in id order, in every order it
+    /// lands in: at most `per_target` of a choice's, and `most` in all. Each
+    /// is the op that lands it, its stored choice, what moves, and the landed
+    /// state. None where nothing the seed names is at a fold along the line;
+    /// nothing that lands the parent's own order.
     pub(crate) fn tuck_in_place_landings(
         &self,
         fold: &PlainFold,
@@ -376,10 +426,43 @@ impl State {
         most: usize,
     ) -> Vec<InPlaceLanding> {
         let (seed, direction) = (&fold.seed, fold.direction);
+        let Ok(scope) = self.in_place_scope(&fold.line, fold.side, direction, seed) else {
+            return Vec::new();
+        };
+        // The seed's own readings, then each other fold along ℓ in its flaps.
+        let mut starts: Vec<(InPlace, Vec<usize>, Option<Point>)> = vec![
+            (InPlace::Flap, scope.seed.clone(), None),
+            (InPlace::Fold, scope.seed.clone(), None),
+        ];
+        let flaps: Vec<usize> = scope
+            .seed
+            .iter()
+            .filter_map(|&f| scope.side.flap_of[f])
+            .collect();
+        let mut covered = vec![false; self.faces().len()];
+        let mut queue: VecDeque<usize> = scope.seed.iter().copied().collect();
+        let cover = |queue: &mut VecDeque<usize>, covered: &mut Vec<bool>| {
+            while let Some(f) = queue.pop_front() {
+                if !std::mem::replace(&mut covered[f], true) {
+                    queue.extend(scope.along[f].iter().copied());
+                }
+            }
+        };
+        cover(&mut queue, &mut covered);
+        for f in 0..self.faces().len() {
+            let in_flaps = scope.side.flap_of[f].is_some_and(|k| flaps.contains(&k));
+            if covered[f] || !in_flaps || scope.along[f].is_empty() {
+                continue;
+            }
+            queue.push_back(f);
+            cover(&mut queue, &mut covered);
+            if let Some(at) = self.face_witness(self.faces()[f].id) {
+                starts.push((InPlace::Fold, vec![f], Some(at)));
+            }
+        }
         let mut out: Vec<InPlaceLanding> = Vec::new();
-        for moves in [InPlace::Flap, InPlace::Fold] {
-            let Ok(block) = self.in_place_block(&fold.line, fold.side, direction, seed, moves)
-            else {
+        for (moves, start, fold_at) in starts {
+            let Ok(block) = self.in_place_block(&scope, moves, &start) else {
                 continue;
             };
             let Ok(unplaced) = self.in_place_prepared(&block) else {
@@ -409,6 +492,7 @@ impl State {
                     direction,
                     seed: seed.clone(),
                     moves,
+                    fold: fold_at,
                     target: at,
                     additional_targets: Vec::new(),
                 };
@@ -450,26 +534,27 @@ impl State {
         out
     }
 
-    /// What a tuck in place moves, as a plain fold's analysis reads it: the
-    /// moving side's flaps along ℓ, and the block's faces.
+    /// What a tuck in place moves, as a plain fold's analysis reads it: its
+    /// block, as the one flap it picks — not the moving side's flaps it lies
+    /// in, which reach paper that stays where it is.
     pub fn analyse_tuck_in_place(&self, op: &TuckInPlace) -> Result<FoldAnalysis, Refused> {
-        let block = self.in_place_block(&op.line, op.side, op.direction, &op.seed, op.moves)?;
+        let block = self.in_place_op_block(op)?;
         self.in_place_targets(op, &block)?;
         let (line, side) = block.classified.axis.line_and_side();
         let moving: Vec<FaceId> = (0..block.moving.len())
             .filter(|&f| block.moving[f])
             .map(|f| self.faces()[f].id)
             .collect();
-        let side_flaps = moving_side(self, &block.classified)?;
-        let flaps = side_flaps.flaps;
-        let picked: Vec<usize> = (0..flaps.len())
-            .filter(|&k| {
-                flaps[k]
-                    .faces
-                    .iter()
-                    .any(|f| moving.binary_search(f).is_ok())
+        let flaps: Vec<Flap> = moving
+            .first()
+            .and_then(|&id| self.face_witness(id))
+            .map(|witness| Flap {
+                faces: moving.clone(),
+                witness,
             })
+            .into_iter()
             .collect();
+        let picked: Vec<usize> = (0..flaps.len()).collect();
         Ok(FoldAnalysis {
             line,
             side,

@@ -1374,9 +1374,11 @@ function readLanding(value: unknown): import('./foldSequenceDocument').FoldLandi
   if (!isRecord(value)) return null;
   if (value.kind === 'outer' && !hasNewerKey(value, new Set(['kind']))) return { kind: 'outer' };
   if (value.kind === 'in_place') {
-    if (hasNewerKey(value, new Set(['kind', 'targets', 'moves'])) || (value.moves !== 'flap' && value.moves !== 'fold')) return null;
+    if (hasNewerKey(value, new Set(['kind', 'targets', 'moves', 'fold'])) || (value.moves !== 'flap' && value.moves !== 'fold')) return null;
     const targets = readLandingTargets(value.targets);
-    return targets && { kind: 'in_place', targets, moves: value.moves };
+    const fold = value.fold === undefined ? undefined : readPoint(value.fold);
+    if (!targets || fold === null) return null;
+    return { kind: 'in_place', targets, moves: value.moves, ...(fold ? { fold } : {}) };
   }
   if (value.kind !== 'against' || hasNewerKey(value, new Set(['kind', 'targets']))) return null;
   const targets = readLandingTargets(value.targets);
