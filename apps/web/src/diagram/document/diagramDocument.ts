@@ -481,6 +481,19 @@ export interface DiagramCpSource {
    * document snapshot the capture used: what link status compares against.
    */
   fingerprint: string;
+  /**
+   * A folded picture's other half of its link (flat, 3D or simulated): the
+   * relative fingerprint over every line its sheet holds, aux lines included,
+   * since each draws the sheet's aux lines on its paper while `fingerprint`
+   * covers only the lines it folds. The sheet is still found by those
+   * (`chooseStepCreases`); this says whether the picture is out of date. Absent
+   * for a crease pattern, whose `fingerprint` already covers every line, and
+   * for a link saved before the field: it never said, so an aux edit cannot
+   * mark it out of date until its next capture writes one, and Refresh is
+   * offered on it meanwhile (`drawnLinesUntracked`). A build without the field
+   * carries the step locked, as any source field it has no name for.
+   */
+  drawnFingerprint?: string;
   /** The pattern as it was linked, for the picker and a step whose pattern is gone. */
   thumbnail: SheetThumbnail;
   render: DiagramCpRender;

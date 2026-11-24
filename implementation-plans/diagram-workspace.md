@@ -425,6 +425,11 @@ established:
      Refresh asks first, naming the box, and Simulated is unavailable for it,
      with a tooltip, because it has no region.
 
+  *Amended 2026-11-22 (`pattern-identity.md`).* A folded picture (flat, 3D or
+  simulated) draws its sheet's aux lines, so its link also keeps
+  `drawnFingerprint` over every line of the sheet, and it is `stale` when
+  either fingerprint differs.
+
   Figure-sourced status needs only the store's document snapshot
   (synchronous). Segment-sourced and References status wait for segmentation.
 - **Shared code.** `RegionReference` is a new type carved out of

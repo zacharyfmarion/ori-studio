@@ -792,7 +792,7 @@ function writeAsset(asset: DiagramAsset): Record<string, unknown> {
  */
 const SOURCE_KEYS: Readonly<Record<DiagramStepSource['kind'], ReadonlySet<string>>> = {
   upload: new Set(['kind', 'assetId', 'rotationQuarterTurns', 'mirrored']),
-  cp: new Set(['kind', 'scope', 'fingerprint', 'thumbnail', 'render', 'remembered', 'layerOrder']),
+  cp: new Set(['kind', 'scope', 'fingerprint', 'drawnFingerprint', 'thumbnail', 'render', 'remembered', 'layerOrder']),
   'references-step': new Set([
     'kind',
     'region',
@@ -1333,7 +1333,9 @@ export function storedCpSource(source: DiagramCpSource): DiagramCpSource | null 
 /**
  * A crease-pattern source, every field checked; null when any does not read.
  * A layer order that does not read is dropped alone, and the step keeps its
- * picture; a newer build's locks the step ({@link isNewerCpSource}).
+ * picture; a newer build's locks the step ({@link isNewerCpSource}). So is a
+ * drawn-lines fingerprint that is not one: the link is compared by its folds
+ * alone, as one saved before the field is.
  */
 function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   const scope = readCpScope(value.scope);
@@ -1342,12 +1344,15 @@ function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   const fingerprint = value.fingerprint;
   if (!scope || !render || !thumbnail) return null;
   if (typeof fingerprint !== 'string' || fingerprint.length === 0) return null;
+  const drawnFingerprint =
+    typeof value.drawnFingerprint === 'string' && value.drawnFingerprint.length > 0 ? value.drawnFingerprint : null;
   const remembered = readRememberedPoses(value.remembered, render);
   const layerOrder = value.layerOrder === undefined ? null : readLayerOrderRecord(value.layerOrder);
   return {
     kind: 'cp',
     scope,
     fingerprint,
+    ...(drawnFingerprint ? { drawnFingerprint } : {}),
     thumbnail,
     render,
     ...(remembered ? { remembered } : {}),

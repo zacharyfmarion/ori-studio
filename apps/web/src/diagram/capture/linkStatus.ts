@@ -4,7 +4,9 @@
  * saying so, which a status written at save would hide.
  *
  * - `current`: the creases the scope chooses today are the ones captured —
- *   every line drawn, for a crease pattern; the lines folded, for a fold.
+ *   every line drawn, for a crease pattern; the lines folded, for a fold,
+ *   and every line its sheet holds when the link kept them, since a folded
+ *   picture draws the sheet's aux lines too (`drawnLinesMatch`).
  * - `stale`: they changed; Refresh captures them again.
  * - `missing`: there is nothing to choose — the region is gone, or has no
  *   foldable crease; Relink picks another.
@@ -14,6 +16,7 @@
  * Pure.
  */
 import type { CpSheetRegion } from '../../cp-workspace/sheets/cpSheetRegions';
+import { documentHasAuxLines } from '../../cp-workspace/sheets/simulationLines';
 import type { CpSheetIndex } from '../../engine/oristudioCpSheetIndex';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import { lineContentFingerprint } from '../../lib/creaseFingerprint';
@@ -29,7 +32,14 @@ import {
 } from '../document/diagramDocument';
 import type { FoldLinkContext } from '../fold/foldStepLink';
 import { lightingChanged } from '../pictures/lighting';
-import { chooseStepCreases, creasesMatch, knownCreasesOf, type KnownCreases, type StepCreaseChoice } from './captureCreases';
+import {
+  chooseStepCreases,
+  creasesMatch,
+  drawnLinesMatch,
+  knownCreasesOf,
+  type KnownCreases,
+  type StepCreaseChoice,
+} from './captureCreases';
 
 export type DiagramLinkStatus = 'current' | 'stale' | 'missing' | 'unknown';
 
@@ -64,6 +74,20 @@ export interface DiagramLinkContext {
  * fingerprinted on every line in it when it was sent (D6): its picture never
  * follows the pattern, so all its status can say is whether the sheet changed.
  */
+/**
+ * A folded step (flat, 3D or simulated) linked before its link kept the lines
+ * its sheet draws (`drawnFingerprint`), on a pattern that holds aux lines: an
+ * aux edit since then cannot be told from its link, which reads by its folds
+ * alone. Refresh is offered on it all the same, and its capture writes the
+ * field; its status, its chip and Refresh all are unchanged.
+ */
+export function drawnLinesUntracked(step: DiagramStep, document: OristudioCpDocumentSnapshot | null): boolean {
+  const source = step.source;
+  if (!document || step.unknown || source?.kind !== 'cp' || source.drawnFingerprint !== undefined) return false;
+  const { mode } = source.render;
+  return mode !== 'crease-pattern' && mode !== 'defox' && documentHasAuxLines(document);
+}
+
 /** Saved external views and partially simulated steps can only be replaced in Pose. */
 export function needsPose(step: DiagramStep): boolean {
   return step.source?.kind === 'cp' && (step.source.render.mode === 'defox' || (step.source.render.mode === 'simulated' && step.source.render.foldPercent > 0));
@@ -93,9 +117,13 @@ export function refreshKind(
  * A step's sheet is found by what it is, not where it sits
  * (`chooseStepCreases`): moved, it is still current; changed in place,
  * stale; moved and changed, missing — it cannot be told from a deleted one.
+ * A folded step's sheet is found by its folds, so one whose aux lines
+ * changed, moved or not, is stale.
  */
 export function linkStatus(
-  source: (Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'> & { kind?: 'cp' }) | DiagramReferencesSource,
+  source:
+    | (Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'> & Partial<Pick<DiagramCpSource, 'drawnFingerprint'>> & { kind?: 'cp' })
+    | DiagramReferencesSource,
   document: OristudioCpDocumentSnapshot | null,
   sheets: CpSheetIndex | null
 ): DiagramLinkStatus {
@@ -107,7 +135,7 @@ export function linkStatus(
   // Sent while its sheet matched no region: there were no creases to keep,
   // so nothing to say it changed from.
   if (known.fingerprint === null) return 'unknown';
-  return creasesMatch(choice.creases, known) ? 'current' : 'stale';
+  return creasesMatch(choice.creases, known) && drawnLinesMatch(choice.creases, source) ? 'current' : 'stale';
 }
 
 /**
