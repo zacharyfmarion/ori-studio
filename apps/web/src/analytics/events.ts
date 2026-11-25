@@ -43,6 +43,8 @@ export type FoldStepAddedOpKind =
   | 'refold'
   | 'turn'
   | 'rotate'
+  // Adjust order: the layer order alone, chosen in the Layer order dialog.
+  | 'adjust_order'
   // The reverse fold.
   | 'inside_reverse'
   | 'outside_reverse'

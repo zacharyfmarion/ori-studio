@@ -1156,6 +1156,7 @@
       "finishedSentence": "O modelo como os passos o deixam.",
       "fromFold": "De Dobrar…",
       "instruction": {
+        "adjustOrder": "Reorganize as camadas.",
         "closedSink": "Afundamento fechado.",
         "collapse": "Colapse.",
         "insideCrimp": "Crimp interno.",
@@ -2141,6 +2142,7 @@
       "viewTarget": "Ver destino: {{target}}"
     },
     "sentence": {
+      "adjustOrder": "Ajuste a ordem das camadas, sem nenhum vinco novo.",
       "behind": {
         "petal": "Faça uma dobra pétala com a aba, por trás.",
         "petalScores": "Faça uma dobra pétala com a aba, por trás, vincando a dobradiça enquanto ela sobe.",
@@ -3262,6 +3264,7 @@
       "addsPrecreases_one": "Adiciona {{count}} pré-dobra",
       "addsPrecreases_many": "Adiciona {{count}} pré-dobras",
       "addsPrecreases_other": "Adiciona {{count}} pré-dobras",
+      "adjustOrder": "Ajustar ordem",
       "axiomLine": "Axioma {{axiom}} · {{phrase}}",
       "badgeCrimp": "Crimp",
       "badgeImported": "Importado",

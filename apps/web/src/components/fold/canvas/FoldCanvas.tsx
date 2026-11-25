@@ -308,6 +308,7 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
       rotate: { rotation: toolState.rotation },
       ...(preview.unfold ? { unfold: preview.unfold.view } : {}),
       ...(preview.repeat ? { repeat: preview.repeat.view } : {}),
+      ...(preview.adjustOrder ? { adjustOrder: preview.adjustOrder.view } : {}),
     },
     {
       ...verbs,

@@ -6771,7 +6771,15 @@
     "landing:fold.lead": "fad0bc412cee",
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
-    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
+    "panels:diagram.fold.instruction.adjustOrder": "ef8ce515c409",
+    "panels:fold.sentence.adjustOrder": "a5defcec73a8",
+    "panels:fold.words.adjustOrder": "c8c3ef5132ec",
+    "tools:fold.adjustOrder.enter": "b283e7462965",
+    "tools:fold.adjustOrder.failed": "40f033a73c65",
+    "tools:fold.adjustOrder.open": "38e0cef17572",
+    "tools:fold.adjustOrder.unreadable": "b3ec731d4de3",
+    "tools:fold.tool.adjustOrderHelp": "2e48dbd3e782"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13545,7 +13553,15 @@
     "landing:fold.lead": "fad0bc412cee",
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
-    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
+    "panels:diagram.fold.instruction.adjustOrder": "ef8ce515c409",
+    "panels:fold.sentence.adjustOrder": "a5defcec73a8",
+    "panels:fold.words.adjustOrder": "c8c3ef5132ec",
+    "tools:fold.adjustOrder.enter": "b283e7462965",
+    "tools:fold.adjustOrder.failed": "40f033a73c65",
+    "tools:fold.adjustOrder.open": "38e0cef17572",
+    "tools:fold.adjustOrder.unreadable": "b3ec731d4de3",
+    "tools:fold.tool.adjustOrderHelp": "2e48dbd3e782"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20321,7 +20337,15 @@
     "landing:fold.lead": "fad0bc412cee",
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
-    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
+    "panels:diagram.fold.instruction.adjustOrder": "ef8ce515c409",
+    "panels:fold.sentence.adjustOrder": "a5defcec73a8",
+    "panels:fold.words.adjustOrder": "c8c3ef5132ec",
+    "tools:fold.adjustOrder.enter": "b283e7462965",
+    "tools:fold.adjustOrder.failed": "40f033a73c65",
+    "tools:fold.adjustOrder.open": "38e0cef17572",
+    "tools:fold.adjustOrder.unreadable": "b3ec731d4de3",
+    "tools:fold.tool.adjustOrderHelp": "2e48dbd3e782"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26714,7 +26738,15 @@
     "landing:fold.lead": "fad0bc412cee",
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
-    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
+    "panels:diagram.fold.instruction.adjustOrder": "ef8ce515c409",
+    "panels:fold.sentence.adjustOrder": "a5defcec73a8",
+    "panels:fold.words.adjustOrder": "c8c3ef5132ec",
+    "tools:fold.adjustOrder.enter": "b283e7462965",
+    "tools:fold.adjustOrder.failed": "40f033a73c65",
+    "tools:fold.adjustOrder.open": "38e0cef17572",
+    "tools:fold.adjustOrder.unreadable": "b3ec731d4de3",
+    "tools:fold.tool.adjustOrderHelp": "2e48dbd3e782"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -33107,7 +33139,15 @@
     "landing:fold.lead": "fad0bc412cee",
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
-    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
+    "panels:diagram.fold.instruction.adjustOrder": "ef8ce515c409",
+    "panels:fold.sentence.adjustOrder": "a5defcec73a8",
+    "panels:fold.words.adjustOrder": "c8c3ef5132ec",
+    "tools:fold.adjustOrder.enter": "b283e7462965",
+    "tools:fold.adjustOrder.failed": "40f033a73c65",
+    "tools:fold.adjustOrder.open": "38e0cef17572",
+    "tools:fold.adjustOrder.unreadable": "b3ec731d4de3",
+    "tools:fold.tool.adjustOrderHelp": "2e48dbd3e782"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39881,7 +39921,15 @@
     "landing:fold.lead": "fad0bc412cee",
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
-    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
+    "panels:diagram.fold.instruction.adjustOrder": "ef8ce515c409",
+    "panels:fold.sentence.adjustOrder": "a5defcec73a8",
+    "panels:fold.words.adjustOrder": "c8c3ef5132ec",
+    "tools:fold.adjustOrder.enter": "b283e7462965",
+    "tools:fold.adjustOrder.failed": "40f033a73c65",
+    "tools:fold.adjustOrder.open": "38e0cef17572",
+    "tools:fold.adjustOrder.unreadable": "b3ec731d4de3",
+    "tools:fold.tool.adjustOrderHelp": "2e48dbd3e782"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46655,7 +46703,15 @@
     "landing:fold.lead": "fad0bc412cee",
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
-    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
+    "panels:diagram.fold.instruction.adjustOrder": "ef8ce515c409",
+    "panels:fold.sentence.adjustOrder": "a5defcec73a8",
+    "panels:fold.words.adjustOrder": "c8c3ef5132ec",
+    "tools:fold.adjustOrder.enter": "b283e7462965",
+    "tools:fold.adjustOrder.failed": "40f033a73c65",
+    "tools:fold.adjustOrder.open": "38e0cef17572",
+    "tools:fold.adjustOrder.unreadable": "b3ec731d4de3",
+    "tools:fold.tool.adjustOrderHelp": "2e48dbd3e782"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -53048,6 +53104,14 @@
     "landing:fold.lead": "fad0bc412cee",
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
-    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856"
+    "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
+    "panels:diagram.fold.instruction.adjustOrder": "ef8ce515c409",
+    "panels:fold.sentence.adjustOrder": "a5defcec73a8",
+    "panels:fold.words.adjustOrder": "c8c3ef5132ec",
+    "tools:fold.adjustOrder.enter": "b283e7462965",
+    "tools:fold.adjustOrder.failed": "40f033a73c65",
+    "tools:fold.adjustOrder.open": "38e0cef17572",
+    "tools:fold.adjustOrder.unreadable": "b3ec731d4de3",
+    "tools:fold.tool.adjustOrderHelp": "2e48dbd3e782"
   }
 }

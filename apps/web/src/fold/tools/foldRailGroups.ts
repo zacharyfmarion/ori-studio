@@ -118,8 +118,9 @@ function groupLabel(t: TFunction, id: FoldRailGroupId): string {
 
 /**
  * The rail's groups, in order: the folds; the sinks; Reference points; Locate
- * line; the model — Turn over, done at once, and the Rotate tool; and the
- * sequence — Unfold to step and Repeat, which act on the steps folded so far.
+ * line; the model — Turn over, done at once, the Rotate tool, and Adjust
+ * order, which changes the layers' order and nothing else; and the sequence —
+ * Unfold to step and Repeat, which act on the steps folded so far.
  * Every surface that shows the Fold tools reads this list.
  */
 export function foldRailGroups(t: TFunction, view: FoldToolsView, verbs: FoldRailVerbs): FoldRailGroup[] {
@@ -135,7 +136,7 @@ export function foldRailGroups(t: TFunction, view: FoldToolsView, verbs: FoldRai
     available: reason === null,
     select: () => verbs.selectTool(id),
   });
-  // The flat sheet has no step to return from, nor one to repeat.
+  // The flat sheet has no step to return from, nor one to repeat, nor layers to order.
   const sequenceReason = locked ?? (view.atSheet ? t('panels:fold.return.empty', 'Fold a step first.') : null);
 
   const lineMode = (id: FoldLineModeId): FoldRailItem => ({
@@ -170,8 +171,9 @@ export function foldRailGroups(t: TFunction, view: FoldToolsView, verbs: FoldRai
     ['sink', FOLD_SINK_TOOLS.map((id) => tool(id))],
     ['reference', [tool('divide-line')]],
     ['locate', FOLD_LINE_MODES.map(lineMode)],
-    // Turn over at once; Rotate a tool, its amount and direction to choose.
-    ['model', [verb('turn-over'), tool('rotate')]],
+    // Turn over at once; Rotate a tool, its amount and direction to choose;
+    // Adjust order the layers' order alone, chosen in the Layer order dialog.
+    ['model', [verb('turn-over'), tool('rotate'), tool('adjust-order', sequenceReason)]],
     ['sequence', FOLD_SEQUENCE_TOOLS.map((id) => tool(id, sequenceReason))],
   ];
   return groups.map(([id, items]) => ({

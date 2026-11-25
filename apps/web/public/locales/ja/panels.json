@@ -1076,6 +1076,7 @@
       "finishedSentence": "ステップを終えたときのモデル。",
       "fromFold": "折りから…",
       "instruction": {
+        "adjustOrder": "層を並べ替える。",
         "closedSink": "閉じた沈め折り。",
         "collapse": "折りたたむ。",
         "insideCrimp": "段中割り折り。",
@@ -1985,6 +1986,7 @@
       "viewTarget": "戻り先を表示: {{target}}"
     },
     "sentence": {
+      "adjustOrder": "新しい折り筋をつけずに、重なり順を調整します。",
       "behind": {
         "petal": "フラップを裏側へ花弁折りします。",
         "petalScores": "フラップを裏側へ花弁折りし、持ち上げながら蝶番に折り筋をつけます。",
@@ -2690,6 +2692,7 @@
       "addsCreaseMarks_other": "折り筋の印を {{count}} 本追加",
       "addsPinchMarks_other": "つまみの印を {{count}} 本追加",
       "addsPrecreases_other": "下折りを {{count}} 本追加",
+      "adjustOrder": "順序を調整",
       "axiomLine": "公理 {{axiom}} · {{phrase}}",
       "badgeCrimp": "クリンプ",
       "badgeImported": "インポート",

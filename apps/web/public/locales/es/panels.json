@@ -1156,6 +1156,7 @@
       "finishedSentence": "El modelo tal como lo dejan los pasos.",
       "fromFold": "Desde Plegar…",
       "instruction": {
+        "adjustOrder": "Reordena las capas.",
         "closedSink": "Hundido cerrado.",
         "collapse": "Colapsa.",
         "insideCrimp": "Crimp interior.",
@@ -2141,6 +2142,7 @@
       "viewTarget": "Ver destino: {{target}}"
     },
     "sentence": {
+      "adjustOrder": "Ajusta el orden de capas, sin ningún pliegue nuevo.",
       "behind": {
         "petal": "Haz un pliegue de pétalo con la solapa por detrás.",
         "petalScores": "Haz un pliegue de pétalo con la solapa por detrás, marcando su bisagra mientras se levanta.",
@@ -3262,6 +3264,7 @@
       "addsPrecreases_one": "Añade {{count}} prepliegue",
       "addsPrecreases_many": "Añade {{count}} prepliegues",
       "addsPrecreases_other": "Añade {{count}} prepliegues",
+      "adjustOrder": "Ajustar orden",
       "axiomLine": "Axioma {{axiom}} · {{phrase}}",
       "badgeCrimp": "Crimp",
       "badgeImported": "Importado",

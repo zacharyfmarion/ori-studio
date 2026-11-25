@@ -106,10 +106,20 @@ export interface LayerOrderLook {
  * - `diagram_step`: a Diagram step's Layer order row;
  * - `pose`: the Pose toolbar;
  * - `fold_import`: Fold's Import CP, choosing an imported crease pattern's order (H10).
+ * - `fold_adjust_order`: Fold's Adjust order, choosing the step on screen's order again
+ *   (`implementation-plans/fold-adjust-order.md`);
  * - `crease_export`: the Export crease pattern dialog's folded figure;
  * - `share_card`: the Share modal's card figure.
  */
-export type LayerOrderRequestSurface = 'edit_figure' | 'edit_pattern' | 'diagram_step' | 'pose' | 'fold_import' | 'crease_export' | 'share_card';
+export type LayerOrderRequestSurface =
+  | 'edit_figure'
+  | 'edit_pattern'
+  | 'diagram_step'
+  | 'pose'
+  | 'fold_import'
+  | 'fold_adjust_order'
+  | 'crease_export'
+  | 'share_card';
 
 export interface LayerOrderRequest {
   /** Which host asked, for the dialog's analytics (`LayerOrderRequestSurface`). */
@@ -147,6 +157,13 @@ export interface LayerOrderRequest {
    * out for every other way in.
    */
   readonly review?: boolean;
+  /**
+   * Whether the folded pane offers Rotate Left and Right (H11). Left out for
+   * every host that takes the turn with Apply; `false` for one that never
+   * stores a turn (Fold's Adjust order, whose step keeps its parent's pose):
+   * the dialog then shows no Rotate and its answers carry no turn.
+   */
+  readonly rotate?: boolean;
   /** Quieter, after the name: the design's credit when there is one ("Traditional", "by Birb"). */
   readonly byline?: string;
 }

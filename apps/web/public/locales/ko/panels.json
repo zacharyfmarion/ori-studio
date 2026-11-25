@@ -1076,6 +1076,7 @@
       "finishedSentence": "단계를 마친 뒤의 모형.",
       "fromFold": "접기에서…",
       "instruction": {
+        "adjustOrder": "겹 순서 바꾸기.",
         "closedSink": "닫힌 가라앉혀 접기.",
         "collapse": "접어 모양 만들기.",
         "insideCrimp": "안으로 계단 뒤집어 접기.",
@@ -1985,6 +1986,7 @@
       "viewTarget": "대상 보기: {{target}}"
     },
     "sentence": {
+      "adjustOrder": "새 접는 선 없이 겹침 순서를 조정합니다.",
       "behind": {
         "petal": "플랩을 뒤쪽으로 꽃잎 접기로 접습니다.",
         "petalScores": "플랩을 뒤쪽으로 꽃잎 접기로 접으며, 들어 올리면서 경첩을 접습니다.",
@@ -2690,6 +2692,7 @@
       "addsCreaseMarks_other": "접는 선 자국 {{count}}개 추가",
       "addsPinchMarks_other": "집은 자국 {{count}}개 추가",
       "addsPrecreases_other": "사전 접기 {{count}}개 추가",
+      "adjustOrder": "순서 조정",
       "axiomLine": "공리 {{axiom}} · {{phrase}}",
       "badgeCrimp": "계단 접기",
       "badgeImported": "가져옴",

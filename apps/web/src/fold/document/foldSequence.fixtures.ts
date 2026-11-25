@@ -153,6 +153,8 @@ export function writtenSequence(): Record<string, unknown> {
         parent: 'fstep-7',
         op: { kind: 'cp-jump', cpJson: '{"vertices_coords":[]}', orderJson: '[]', origin: 'sample' },
       },
+      // A branch: the import's paper with its layers in another order.
+      { id: 'fstep-8b', parent: 'fstep-8', op: { kind: 'adjust-order', orderJson: '{"faces":[],"orders":[]}' } },
       {
         id: 'fstep-9',
         parent: 'fstep-8',

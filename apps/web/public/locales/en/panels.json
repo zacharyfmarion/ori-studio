@@ -1116,6 +1116,7 @@
       "finishedSentence": "The model as the steps leave it.",
       "fromFold": "From Fold…",
       "instruction": {
+        "adjustOrder": "Rearrange the layers.",
         "closedSink": "Closed sink.",
         "collapse": "Collapse.",
         "insideCrimp": "Inside crimp.",
@@ -2062,6 +2063,7 @@
       "viewTarget": "View target: {{target}}"
     },
     "sentence": {
+      "adjustOrder": "Adjust the layer order, with no new crease.",
       "behind": {
         "petal": "Petal-fold the flap behind.",
         "petalScores": "Petal-fold the flap behind, creasing its hinge as it lifts.",
@@ -2975,6 +2977,7 @@
       "addsPinchMarks_other": "Adds {{count}} pinch marks",
       "addsPrecreases_one": "Adds {{count}} precrease",
       "addsPrecreases_other": "Adds {{count}} precreases",
+      "adjustOrder": "Adjust order",
       "axiomLine": "Axiom {{axiom}} · {{phrase}}",
       "badgeCrimp": "Crimp",
       "badgeImported": "Imported",
