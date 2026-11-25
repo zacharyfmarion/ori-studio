@@ -183,6 +183,22 @@ describe('Fold’s hand-offs', () => {
     expect(target.pages?.current).toBe(0);
   });
 
+  it('gives each step’s page its folded state as a mesh, spread as its picture is', async () => {
+    // Step 2 spreads its picture by Affine: a picture-only spread, which no mesh can carry.
+    const affine = { kind: 'affine', amount: 0.3, keep: 'top', skew: 0, axisDeg: 0 } as const;
+    const document = sequenceOf([
+      step('a', null, valleyAt(0.5)),
+      step('b', 'a', { kind: 'turn', axis: 'vertical' }),
+      step('c', 'b', valleyAt(0.25), { spread: affine }),
+    ]);
+    const { deps } = setup(document, 'a');
+    await expect(openFoldStepsExport(deps, 'this')).resolves.toBe(true);
+    const [target] = vi.mocked(deps.openPaperExport).mock.calls[0]!;
+    expect(target.pages?.list.map((page) => page.obj?.unavailableReason)).toEqual([null, 'picture-only-spread']);
+    expect(target.obj).toBe(target.pages?.list[0]?.obj);
+    expect(target.objView?.sizeMeasures).toBe('figure');
+  });
+
   it('has no step to export with the flat sheet on screen, and says to go to one, but every step for all of them', async () => {
     const { deps } = setup(sequence(), null);
     await expect(openFoldStepsExport(deps, 'this')).resolves.toBe(false);

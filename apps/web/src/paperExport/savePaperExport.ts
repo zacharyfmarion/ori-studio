@@ -106,6 +106,20 @@ export async function savePaperExportZip({
     });
     onProgress?.(index + 1, pages.length);
   }
+  return saveZipEntries(entries, zipStem, fileService, signal);
+}
+
+/**
+ * Files as one ZIP, named `zipStem`: the saved name, or null when the save
+ * dialog was dismissed or `signal` aborted before it opened. Every export of
+ * several files ends here, the pages' and the meshes' alike.
+ */
+export async function saveZipEntries(
+  entries: readonly ZipEntry[],
+  zipStem: string,
+  fileService: FileService = getFileService(),
+  signal?: AbortSignal
+): Promise<string | null> {
   const bytes = await zipPages(entries);
   if (signal?.aborted) return null;
   const result = await fileService.saveBinaryFile({
@@ -139,7 +153,7 @@ export function paperExportedEvent(
   }
 ): PaperExportedEvent {
   if (options.format === 'obj') {
-    return { surface, format: 'obj', optionsChanged: details.changed, scope: 'this' };
+    return { surface, format: 'obj', optionsChanged: details.changed, scope: details.scope, pageCount: details.pageCount };
   }
   const shown = (mark: PaperExportMark): PaperExportMarkShown =>
     options.marks[mark] ? 'shown' : 'hidden';

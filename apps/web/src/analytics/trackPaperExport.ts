@@ -58,6 +58,8 @@ interface PaperExportedBase {
   /** Whether anything was touched in the dialog before saving. */
   optionsChanged: boolean;
   scope: PaperExportScope;
+  /** How many files the ZIP holds — pages, or a Fold step's meshes; read only for every page. */
+  pageCount: number;
 }
 
 export type PaperExportedEvent = PaperImageExportedEvent | (PaperExportedBase & { format: 'obj' });
@@ -69,8 +71,6 @@ interface PaperImageExportedEvent extends PaperExportedBase {
   background: PaperExportBackground;
   /** The PNG's density; read only for a PNG. */
   pngDpi: number;
-  /** How many pages the ZIP holds; read only for every page. */
-  pageCount: number;
   /**
    * Whether the page carried the step's letters and its reference lines; set
    * only for a surface that offers them (References), and sent only then.
@@ -105,14 +105,14 @@ export function trackPaperExported(event: PaperExportedEvent): void {
     format: event.format,
     options_changed: event.optionsChanged ? 'yes' : 'no',
     scope: event.scope,
+    ...(event.scope === 'all'
+      ? { page_count_bucket: bucketCount(event.pageCount, PAPER_EXPORT_PAGE_COUNT_BUCKETS) }
+      : {}),
     ...(event.format === 'obj' ? {} : {
       hidden_faces: event.hiddenFaces,
       style: event.style,
       background: event.background,
       resolution: paperExportResolution(event.format, event.pngDpi),
-      ...(event.scope === 'all'
-        ? { page_count_bucket: bucketCount(event.pageCount, PAPER_EXPORT_PAGE_COUNT_BUCKETS) }
-        : {}),
       ...(event.letters ? { letters: event.letters } : {}),
       ...(event.highlights ? { highlights: event.highlights } : {}),
     }),

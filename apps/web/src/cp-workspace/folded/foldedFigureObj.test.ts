@@ -165,6 +165,25 @@ function halfFold(flipped = false): OristudioCpFoldedPaperScene {
   };
 }
 
+/**
+ * The same paper with its y turned round, as a Fold state's scene has it: the
+ * Fold pane draws y up, so this is the picture `scene` is on a canvas that
+ * draws y down.
+ */
+function turnedUp(scene: OristudioCpFoldedPaperScene): OristudioCpFoldedPaperScene {
+  const up = ({ x, y }: { x: number; y: number }) => ({ x, y: -y });
+  return {
+    ...scene,
+    faces: scene.faces.map((face) => ({
+      ...face,
+      outline: face.outline.map(up),
+      edges: face.edges.map((edge) => ({ ...edge, from: up(edge.from), to: up(edge.to) })),
+    })),
+    subfaces: scene.subfaces.map((cell) => ({ ...cell, polygon: cell.polygon.map(up) })),
+    sheet_points: scene.sheet_points.map(up),
+  };
+}
+
 /** The top layer's free corners lifted 1, the crease half way, the bottom's corners on the ground. */
 const LIFT: SpreadSolution = {
   version: 'normalized-50-v1',
@@ -225,6 +244,17 @@ describe('foldedFlatObjMesh', () => {
     normals(lifted).forEach((normal, t) => {
       expect(Math.sign(normal[1])).toBe(Math.sign(normals(flat)[t]![1]));
     });
+  });
+
+  it('writes a y-up scene — a Fold state’s — as the paper its pane draws, never its mirror', () => {
+    const lift = { solution: LIFT, amount: 0.5 };
+    const down = foldedFlatObjMesh(kernel, connectedSpreadSource(kernel), lift);
+    const state = turnedUp(kernel);
+    const up = foldedFlatObjMesh(state, connectedSpreadSource(state, true), lift, true);
+    // The same positions, the same winding about the front, the texture the same way up.
+    up.positions.forEach((value, i) => expect(value).toBeCloseTo(down.positions[i]!, 6));
+    normals(up).forEach((normal, t) => expect(Math.sign(normal[1])).toBe(Math.sign(normals(down)[t]![1])));
+    up.uvs!.forEach((value, i) => expect(value).toBeCloseTo(down.uvs![i]!, 6));
   });
 
   it('writes the rear pass as the same paper turned over, never mirrored', () => {
@@ -345,8 +375,22 @@ describe('foldedFlatFigureObjExport', () => {
     mock.prepare.mockReturnValue({ promise: Promise.resolve({ source, solution: LIFT }), release });
     const obj = foldedFlatFigureObjExport(kernel, connected, new AbortController().signal);
     expect(await obj.build()).toBe(foldedFigureObj(foldedFlatObjMesh(kernel, source, { solution: LIFT, amount: 0.5 })));
-    expect(mock.prepare).toHaveBeenCalledWith(kernel);
+    expect(mock.prepare).toHaveBeenCalledWith(kernel, false);
     expect(release).toHaveBeenCalled();
+  });
+
+  it('solves a Fold state in the y-up frame its pane solves it in, and writes the paper the pane draws', async () => {
+    const state = turnedUp(kernel);
+    mock.prepare.mockReturnValue({
+      promise: Promise.resolve({ source: connectedSpreadSource(state, true), solution: LIFT }),
+      release: vi.fn(),
+    });
+    const obj = foldedFlatFigureObjExport(state, connected, new AbortController().signal, true);
+    const written = await obj.build();
+    expect(mock.prepare).toHaveBeenLastCalledWith(state, true);
+    expect(written).toBe(
+      foldedFigureObj(foldedFlatObjMesh(kernel, connectedSpreadSource(kernel), { solution: LIFT, amount: 0.5 }))
+    );
   });
 
   it('lets a solve still running go when the dialog closes', async () => {

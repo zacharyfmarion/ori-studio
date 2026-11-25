@@ -25,6 +25,32 @@ agree about the spread:
 | `spread`, Affine or Depth | Unavailable, with the reason: those spreads move only the picture and have no 3D form. Never a silent unspread file. |
 | `stored-3d`, `fixed` | No OBJ: no fold to read a mesh from. Their existing hints already say to fold again. |
 
+### Fold steps
+
+Zach, after the first push: "it should work for flat foldable steps too since
+spread makes them 3d". Fold's **Export steps…** (the paper export's `fold`
+surface) offers OBJ beside SVG and PNG:
+
+- **A step's mesh is the state it lands, folded**, read as the flat figure's
+  is (`foldedFlatObjMesh`) with the step's own spread (`foldStepSpread`): flat
+  with none, lifted by a Default spread, refused for Affine or Depth. A Fold
+  scene runs y up, as the Fold pane draws it, so it is solved y up
+  (`prepareConnected(scene, true)`) and written with its z turned round — the
+  same paper the pane shows, never its mirror — and its texture's top is the
+  sheet's largest y.
+- **This step** writes one `.obj`; **All steps** writes a ZIP with an OBJ per
+  numbered step, named as the pages are. One step whose spread has no 3D form
+  stands in the way of the set, and the reason names it ("Step 3: An Affine
+  or Depth spread …").
+- **The preview is the step folded.** A step's page is its crease pattern, so
+  while OBJ is chosen the dialog previews the target's `objView` instead: the
+  state as the folded pane draws it, a spread one settled as every exported
+  spread picture is (`spreadPictureExport`, the clip or the bitmap), never the
+  pane's live scene painted in item order — that one leans on the pane's depth
+  test, and drawn as SVG it showed the bottom layer on top.
+- **The step kind remembers OBJ** like the others; a References step, which
+  has no mesh, opens on SVG.
+
 ### Geometry contract
 
 - **Winding is the paper's front.** Every triangle's right-hand normal points
@@ -65,8 +91,15 @@ agree about the spread:
 - `folded3dMaterial.ts` / `folded3dSpread.ts`: the spread posing and the solve
   lease, shared with the window instead of copied.
 - `foldedFigureExportTarget.ts`: attaches `obj` per picture kind.
-- `lib/paperExportSettings.ts`: a folded figure remembers OBJ as its format.
-- `saveObjExport.ts` + catalogs: the Affine/Depth reason.
+- `fold/io/foldStepObj.ts`: a Fold step's mesh and its preview;
+  `foldStepPages.ts` / `foldHandOffs.ts` put them on the steps' pages.
+- `paperExportTarget.ts`: a page's own `obj`, and the target's `objView`.
+- `usePaperExportDialog.ts` + `saveObjExport.ts`: OBJ for the page on show or
+  every page (`paperObjExportPlan`), the ZIP of meshes, the preview's view.
+- `foldedFigureSpreadExport.ts`: the settled spread picture, shared by an Edit
+  figure's Export… and a Fold step's OBJ preview (`spreadPictureExport`).
+- `lib/paperExportSettings.ts`: every kind remembers OBJ as its format.
+- `saveObjExport.ts` + catalogs: the Affine/Depth reason, and the step it names.
 
 Analytics: `paper exported` already carries `format: obj` and the folded
 surfaces; `docs/analytics.md` is updated to say so.
@@ -74,9 +107,13 @@ surfaces; `docs/analytics.md` is updated to say so.
 ## Affected Areas
 
 - `apps/web/src/cp-workspace/folded/` (new `foldedFigureObj.ts`, export target,
-  spatial material and spread modules, tests)
+  spatial material and spread modules, spread picture export, tests)
+- `apps/web/src/fold/io/` (new `foldStepObj.ts`, the steps' pages and hand-off)
+- `apps/web/src/cp-workspace/references/referencesExportTarget.ts` (a step's mesh)
 - `apps/web/src/lib/foldedExport.ts`, `apps/web/src/lib/paperExportSettings.ts`
-- `apps/web/src/paperExport/saveObjExport.ts`
+- `apps/web/src/paperExport/` (target contract, OBJ plan and ZIP, dialog hook)
+- `apps/web/src/components/paperExport/` (the Steps switch beside OBJ, the caption)
+- `apps/web/src/analytics/trackPaperExport.ts` (an OBJ ZIP's page count)
 - `apps/web/public/locales/*/dialogs.json`
 - `docs/analytics.md`
 
@@ -91,4 +128,9 @@ surfaces; `docs/analytics.md` is updated to say so.
 - [x] Lint, typecheck, relevant tests, i18n check
 - [x] Browser check: export a spread 3D figure and a Default-spread flat figure
 - [x] Blender check: the files import, and are not mirrored against the app
-- [ ] Draft PR
+- [x] Draft PR
+- [x] Fold steps: a y-up flat mesh, each step's spread, with tests
+- [x] Fold steps: one OBJ for this step, a ZIP for all, the blocking step named
+- [x] Fold steps: the OBJ preview is the step folded, settled like every spread export
+- [x] Browser check on a lopsided two-step sequence: preview, file and Fold pane
+      agree in Blender; Affine on step 1 blocks the ZIP and names it

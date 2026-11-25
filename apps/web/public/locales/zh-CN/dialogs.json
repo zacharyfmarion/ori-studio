@@ -775,6 +775,7 @@
     "objExpired": "此模拟快照已不可用。请关闭此对话框并重新导出。",
     "objHint": "带有基于展开纸张的 UV 坐标的 3D 网格，可在您的 3D 软件中添加纹理。",
     "objMeshUnavailable": "此模拟没有可导出的有效网格。",
+    "objPageUnavailable": "{{page}}：{{reason}}",
     "objPreview": "捕获的形态 · OBJ 包含完整网格和 UV",
     "objPreviewEmpty": "无图像预览。仍可导出捕获的 3D 网格。",
     "objSheetUnavailable": "OBJ 需要在模拟器纸张平面内展开的纸张，才能生成纹理坐标。",

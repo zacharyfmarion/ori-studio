@@ -26,6 +26,7 @@
  * that paper (`fromKernelWorld`); a flat one out of the canvas's view space —
  * screen x, depth toward the viewer, screen y — which is right-handed, and
  * which turns a rear pass the canvas draws mirrored back into the paper it is.
+ * A Fold step is a flat one whose scene runs y up, as the Fold pane draws it.
  * Either way the unfolded sheet's longer side is 1, the mesh is centred on its
  * bounds, and the texture coordinates are the unfolded sheet's, as the
  * simulator's OBJ has them (`sheetUvs`).
@@ -99,9 +100,13 @@ function placed(points: readonly Point3[], span: number): Float32Array {
   return Float32Array.from(points.flatMap((p) => p.map((v, axis) => (v - center[axis]!) * scale)));
 }
 
-/** The sheet's texture coordinates, by the simulator's convention: its lift is `[x, 0, -y]`. */
-function sheetTexture(sheet: readonly Pair[]): Float32Array {
-  const lifted = sheetUvs(Float32Array.from(sheet.flatMap(([x, y]) => [x, 0, -y])));
+/**
+ * The sheet's texture coordinates, by the simulator's convention — its lift
+ * is `[x, 0, -y]` — so the texture's top is the pattern's top, which a y-up
+ * sheet (a Fold state's) has at its largest y.
+ */
+function sheetTexture(sheet: readonly Pair[], yUp = false): Float32Array {
+  const lifted = sheetUvs(Float32Array.from(sheet.flatMap(([x, y]) => [x, 0, yUp ? y : -y])));
   if (!lifted.uvs) throw new Error('The unfolded sheet has no area to map texture coordinates over');
   return lifted.uvs;
 }
@@ -152,25 +157,30 @@ export function folded3dObjMesh(
 
 /**
  * A flat figure's paper scene as `source` reads it (`connectedSpreadSource`),
- * lifted by a Default spread's solve, or flat with none.
+ * lifted by a Default spread's solve, or flat with none. `yUp` is the
+ * scene's, as `source` was read with it: an Edit figure's kernel scene runs
+ * down the screen, a Fold state's up it (`foldedPaneScene`).
  */
 export function foldedFlatObjMesh(
   kernel: OristudioCpFoldedPaperScene,
   source: ConnectedSpreadSource,
-  lift: FoldedFlatObjLift | null
+  lift: FoldedFlatObjLift | null,
+  yUp = false
 ): FoldedFigureObjMesh {
   const { input, back, frame, vertices } = source;
   // Kernel units per unit of the solve's frame, which its heights are in.
   const unit = Math.hypot(frame.ex[0], frame.ex[1]);
   // Toward the viewer of the pass the canvas shows: the front's heights point at the front's.
   const toward = back ? -1 : 1;
+  // Down the picture, whichever way the scene's y runs: the frame stays right-handed.
+  const down = yUp ? -1 : 1;
   const xy = lift ? shiftedXY(input, lift.solution, lift.amount, back) : input.xy;
   const [a, b, c] = lift ? lift.solution.references[back ? 1 : 0].plane : [0, 0, 0];
   const points = input.xy.map(([x, y], v): Point3 => {
     const at = scenePoint(source, xy[v]!);
     // Measured where the vertex lay flat, as the shift that keeps the paper its size is.
     const height = lift ? lift.amount * (lift.solution.heights[v]! - a * x - b * y - c) : 0;
-    return [at.x, toward * height * unit, at.y];
+    return [at.x, toward * height * unit, down * at.y];
   });
   const triangles: number[] = [];
   input.triangles.forEach((triangle, t) => {
@@ -184,7 +194,7 @@ export function foldedFlatObjMesh(
   return {
     positions: placed(points, kernel.sheet),
     triangles: Uint32Array.from(triangles),
-    uvs: sheet.every((point) => point !== undefined) ? sheetTexture(sheet.map((point) => [point.x, point.y])) : null,
+    uvs: sheet.every((point) => point !== undefined) ? sheetTexture(sheet.map((point) => [point.x, point.y]), yUp) : null,
   };
 }
 
@@ -221,27 +231,29 @@ export function folded3dFigureObjExport(
 
 /**
  * A flat figure's OBJ for the export dialog, from the paper scene its picture
- * is drawn from and the spread it is drawn with (null for none). A Default
- * spread is solved when the file is asked for; Affine and Depth have no 3D
+ * is drawn from and the spread it is drawn with (null for none) — an Edit
+ * figure's, or a Fold step's (`yUp`). A Default spread is solved when the
+ * file is asked for, as the picture solves it; Affine and Depth have no 3D
  * form, and say so.
  */
 export function foldedFlatFigureObjExport(
   kernel: OristudioCpFoldedPaperScene,
   spread: LayerSpreadOptions | null,
-  signal: AbortSignal
+  signal: AbortSignal,
+  yUp = false
 ): PaperObjExport {
   if (spread && spread.kind !== 'connected') return { unavailableReason: 'picture-only-spread', build: async () => null };
   const amount = spread?.amount ?? 0;
   return {
     unavailableReason: null,
     build: async () => {
-      if (amount <= 0) return foldedFigureObj(foldedFlatObjMesh(kernel, connectedSpreadSource(kernel), null));
-      const lease = prepareConnected(kernel);
+      if (amount <= 0) return foldedFigureObj(foldedFlatObjMesh(kernel, connectedSpreadSource(kernel, yUp), null, yUp));
+      const lease = prepareConnected(kernel, yUp);
       const release = () => lease.release();
       signal.addEventListener('abort', release, { once: true });
       try {
         const { source, solution } = await lease.promise;
-        return foldedFigureObj(foldedFlatObjMesh(kernel, source, { solution, amount }));
+        return foldedFigureObj(foldedFlatObjMesh(kernel, source, { solution, amount }, yUp));
       } finally {
         signal.removeEventListener('abort', release);
         release();

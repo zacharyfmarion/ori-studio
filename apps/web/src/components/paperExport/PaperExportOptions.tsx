@@ -29,8 +29,6 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
 import { PaperStylePicker } from './PaperStylePicker';
-import type { PaperObjExport } from '../../paperExport/paperExportTarget';
-import { objExportUnavailableMessage } from '../../paperExport/saveObjExport';
 
 /** The densities the Resolution menu names; anything else is Custom. */
 export const PAPER_EXPORT_DPI_PRESETS = [96, 192, 288, 384, 300, 600] as const;
@@ -67,7 +65,8 @@ export function PaperExportOptions({
   fixed: boolean;
   /** Under the style picker: what of the style the picture keeps of its own, or cannot take. */
   styleHint: string | null;
-  obj?: PaperObjExport;
+  /** OBJ, for a target that offers it (`PaperExportDialogBinding.obj`); absent offers SVG and PNG alone. */
+  obj?: PaperExportDialogBinding['obj'];
 }) {
   const { t } = useTranslation();
   const png = draft.format === 'png';
@@ -108,15 +107,32 @@ export function PaperExportOptions({
     </section>
   );
 
+  const scopeSection = scopes && (
+    <section className="export-modal__section">
+      <div className="export-modal__field-row">
+        <span className="export-modal__label">{t('dialogs:paperExport.scope', 'Steps')}</span>
+        <SegmentedControl<PaperExportScope>
+          aria-label={t('dialogs:paperExport.scope', 'Steps')}
+          value={scopes.scope}
+          onChange={scopes.setScope}
+          options={[
+            { value: 'this', label: t('dialogs:paperExport.scopeThis', 'This step') },
+            { value: 'all', label: t('dialogs:paperExport.scopeAll', 'All steps') },
+          ]}
+        />
+      </div>
+    </section>
+  );
+
   if (fixed || draft.format === 'obj') {
     return (
       <>
+        {scopeSection}
         {formatSection}
         <section className="export-modal__section">
           <small className="export-modal__hint">
-            {draft.format === 'obj' ? (obj?.unavailableReason
-              ? objExportUnavailableMessage(obj.unavailableReason, t)
-              : t('dialogs:paperExport.objHint', '3D mesh with UV coordinates from the unfolded paper, ready for texturing in your 3D software.')) : t(
+            {draft.format === 'obj' ? (obj?.unavailable
+              ?? t('dialogs:paperExport.objHint', '3D mesh with UV coordinates from the unfolded paper, ready for texturing in your 3D software.')) : t(
               'dialogs:paperExport.fixedHint',
               'This figure is exported as it was saved: its style and page are the ones it was drawn with. Fold it again to export it in a style, at a size and on a page of your choosing.'
             )}
@@ -128,22 +144,7 @@ export function PaperExportOptions({
 
   return (
     <>
-      {scopes && (
-        <section className="export-modal__section">
-          <div className="export-modal__field-row">
-            <span className="export-modal__label">{t('dialogs:paperExport.scope', 'Steps')}</span>
-            <SegmentedControl<PaperExportScope>
-              aria-label={t('dialogs:paperExport.scope', 'Steps')}
-              value={scopes.scope}
-              onChange={scopes.setScope}
-              options={[
-                { value: 'this', label: t('dialogs:paperExport.scopeThis', 'This step') },
-                { value: 'all', label: t('dialogs:paperExport.scopeAll', 'All steps') },
-              ]}
-            />
-          </div>
-        </section>
-      )}
+      {scopeSection}
       {formatSection}
 
       <section className="export-modal__section">

@@ -20,18 +20,18 @@ import {
 } from './paperExportSettings';
 
 describe('normalizePaperExportSettings', () => {
-  it('persists OBJ for simulations and folded figures, never steps, without losing image settings', () => {
+  it('persists OBJ for every kind, never for a seed, without losing image settings', () => {
     const options = { ...DEFAULT_PAPER_EXPORT_SETTINGS, format: 'obj', paddingMm: 7, pngDpi: 300 };
     expect(normalizePaperExportSettings(options, 'simulation')).toEqual(options);
     expect(normalizePaperExportSettings(options, 'folded-figure')).toEqual(options);
-    expect(normalizePaperExportSettings(options, 'step').format).toBe('svg');
+    expect(normalizePaperExportSettings(options, 'step')).toEqual(options);
     expect(normalizePaperExportSettings(options).format).toBe('svg');
     const memory = normalizePaperExportMemory({ version: 2, kinds: {
       simulation: options, 'folded-figure': options, step: options,
     } });
     expect(memory.simulation).toEqual(options);
     expect(memory['folded-figure']).toEqual(options);
-    expect(memory.step).toMatchObject({ format: 'svg', paddingMm: 7, pngDpi: 300 });
+    expect(memory.step).toEqual(options);
   });
   it('reads nothing as the defaults', () => {
     expect(normalizePaperExportSettings(null)).toBe(DEFAULT_PAPER_EXPORT_SETTINGS);

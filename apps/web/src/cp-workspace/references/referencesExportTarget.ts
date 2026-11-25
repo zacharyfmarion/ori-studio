@@ -24,7 +24,7 @@ import type { PaperStyle } from '../../lib/paper/paperStyle';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { DEFAULT_PAPER_EXPORT_MARKS, PAPER_EXPORT_MARKS } from '../../lib/paperExportSettings';
-import type { PaperExportTarget } from '../../paperExport/paperExportTarget';
+import type { PaperExportTarget, PaperExportView, PaperObjExport } from '../../paperExport/paperExportTarget';
 import { diagramScenePaintStyle } from './diagramToPaperScene';
 import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import {
@@ -45,6 +45,8 @@ export interface StepDiagramExportPage {
   label: string;
   /** Its file's stem inside the ZIP of every step. */
   entryStem: string;
+  /** Its 3D mesh, for a step that has one: a Fold step's folded state (`PaperExportPage.obj`). */
+  obj?: PaperObjExport;
 }
 
 /** One References step, as the target keeps it. */
@@ -87,6 +89,13 @@ export interface StepDiagramExportCapture extends StepDiagramExportPages {
    * page and `input` are all its key needs.
    */
   stepScene(diagram: StepDiagramModel, input: StepDiagramPageInput): PaperScene;
+  /**
+   * What the preview shows while OBJ is chosen, for steps that carry a mesh
+   * (`PaperExportTarget.objView`): the state a step's page is the pattern of.
+   */
+  objView?: PaperExportView;
+  /** Let go of what the meshes hold, when the dialog closes; a page holds nothing. */
+  release?: () => void;
 }
 
 export interface ReferencesExportCapture
@@ -94,18 +103,25 @@ export interface ReferencesExportCapture
     Pick<ReferencesStepSceneOptions, 'lineWidth' | 'showAux'> {}
 
 export function stepDiagramExportTarget(capture: StepDiagramExportCapture): PaperExportTarget {
-  const { surface, steps, stepScene } = capture;
+  const { surface, steps, stepScene, objView } = capture;
   const policy = PAPER_STYLE_POLICIES[surface];
+  const obj = steps[capture.current]?.obj;
   return {
     surface,
     title: capture.title,
     fileStem: capture.fileStem,
     pages: {
-      list: steps.map((step) => ({ label: step.label, fileStem: step.entryStem })),
+      list: steps.map((step) => ({
+        label: step.label,
+        fileStem: step.entryStem,
+        ...(step.obj ? { obj: step.obj } : {}),
+      })),
       current: capture.current,
       title: capture.allTitle,
       zipStem: capture.zipStem,
     },
+    ...(obj ? { obj } : {}),
+    ...(objView ? { objView } : {}),
     exportStyle: capture.exportStyle,
     // A step is drawn on its sheet, the frame a diagram's steps share.
     sizeMeasures: 'sheet',
@@ -139,7 +155,7 @@ export function stepDiagramExportTarget(capture: StepDiagramExportCapture): Pape
       });
     },
     paintStyle: (style) => diagramScenePaintStyle(style, surface),
-    release: () => {},
+    release: capture.release ?? (() => {}),
   };
 }
 

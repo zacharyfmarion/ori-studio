@@ -33,6 +33,7 @@ import { bytesToBase64 } from '../../lib/base64';
 import type { Point } from '../../lib/geometry';
 import type { PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
+import type { PaperSurface } from '../../lib/paper/paperStyleResolve';
 import { foldedFlatPaperScene } from './foldedFlatScene';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
 
@@ -87,21 +88,60 @@ function rasterScene(picture: SpreadRasterPicture, sheet: number): PaperScene {
   };
 }
 
+/**
+ * How a host draws the spread picture an export settles: its own live scene,
+ * in its own frame, and how its pens and its solve are read.
+ */
+export interface SpreadPictureSource {
+  /**
+   * The picture spread by the solve (null for Affine and Depth, which need
+   * none), or unspread (`spreads` false) for a spread that did not settle.
+   */
+  build(prepared: PreparedConnectedSpread | null, spreads: boolean): PaperScene;
+  /** The surface whose policy reads a bitmap's pens: the vector picture's, so the two agree. */
+  policy: PaperSurface;
+  /** The scene is the Fold engine's, y up, and is solved so (`prepareConnected`). */
+  yUp?: boolean;
+}
+
+/**
+ * An Edit figure's spread picture for its Export…, in the canvas's frame
+ * (`foldedFigureSpreadFrame`): {@link spreadPictureExport} of the figure's
+ * flat scene.
+ */
 export function foldedFigureSpreadExport(
   kernel: OristudioCpFoldedPaperScene,
   spread: LayerSpreadOptions,
   frame: FoldedFigureSpreadExportFrame
 ): FoldedFigureSpreadExport {
+  return spreadPictureExport(kernel, spread, {
+    build: (prepared, spreads) =>
+      foldedFlatPaperScene(kernel, {
+        // A covered layer can show an edge once the layers are apart: every face is kept.
+        markHidden: false,
+        toScenePx: frame.toScenePx,
+        scale: frame.scale,
+        ...(spreads ? { spread } : {}),
+        ...(prepared ? { connected: prepared, live: true } : {}),
+      }),
+    policy: 'folded-flat',
+  });
+}
+
+/**
+ * A spread picture for an export dialog, settled once and drawn for any page
+ * (`settledSpreadPicture`): the vector clip, a bitmap in the page's pens and
+ * size when it is too complex to clip, or — when the spread does not settle —
+ * the picture unspread. An Edit figure's own Export… and a Fold step's OBJ
+ * preview are its hosts, each with its own scene (`source`).
+ */
+export function spreadPictureExport(
+  kernel: OristudioCpFoldedPaperScene,
+  spread: LayerSpreadOptions,
+  source: SpreadPictureSource
+): FoldedFigureSpreadExport {
   const controller = new AbortController();
-  const build = (prepared: PreparedConnectedSpread | null, spreads = true) =>
-    foldedFlatPaperScene(kernel, {
-      // A covered layer can show an edge once the layers are apart: every face is kept.
-      markHidden: false,
-      toScenePx: frame.toScenePx,
-      scale: frame.scale,
-      ...(spreads ? { spread } : {}),
-      ...(prepared ? { connected: prepared, live: true } : {}),
-    });
+  const { build, policy } = source;
   let settling: Promise<SettledSpreadPicture> | null = null;
   // The page the settle drew its bitmap for, if it needed one; others are drawn again.
   let firstPage: string | null = null;
@@ -112,9 +152,10 @@ export function foldedFigureSpreadExport(
       if (!settling) {
         firstPage = page;
         settling = settledSpreadPicture(kernel, spread, {
-          live: (prepared) => build(prepared),
-          raster: { style, policy: 'folded-flat', mm },
+          live: (prepared) => build(prepared, true),
+          raster: { style, policy, mm },
           signal: controller.signal,
+          yUp: source.yUp ?? false,
         });
       }
       const settled = await settling;
@@ -129,7 +170,7 @@ export function foldedFigureSpreadExport(
       if (page === firstPage) return rasterScene(settled, settled.scene.sheet);
       let bitmap = bitmaps.get(page);
       if (!bitmap) {
-        const drawing = rasterSpreadScene(settled.scene, { style, policy: 'folded-flat', mm }, controller.signal);
+        const drawing = rasterSpreadScene(settled.scene, { style, policy, mm }, controller.signal);
         bitmap = drawing;
         bitmaps.set(page, drawing);
         // A bitmap that fails is not kept, so asking for its page again draws it again.

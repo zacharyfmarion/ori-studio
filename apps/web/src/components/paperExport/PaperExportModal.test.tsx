@@ -22,6 +22,7 @@ import type {
   PaperExportPages,
   PaperExportScope,
   PaperExportTarget,
+  PaperObjExport,
 } from '../../paperExport/paperExportTarget';
 import type { FileService } from '../../platform/fileService';
 import { usePaperExportUiStore } from '../../store/paperExportUiStore';
@@ -847,6 +848,85 @@ describe('PaperExportModal on a target with several pages', () => {
 
       await act(async () => settle({ name: 'Crane-steps.zip', path: null }));
       expect(dialog('Export all steps')).toBeNull();
+    });
+  });
+
+  describe('with a mesh for every step, as a Fold sequence has', () => {
+    const mesh = (contents: string): PaperObjExport => ({ unavailableReason: null, build: vi.fn(async () => contents) });
+    const AFFINE: PaperObjExport = { unavailableReason: 'picture-only-spread', build: async () => null };
+
+    /** Fold's steps: each page a crease pattern, each mesh the state folded, previewed by the view. */
+    function folded(objs: PaperObjExport[]) {
+      const pageScene = vi.fn(async () => SCENE);
+      const foldedScene = vi.fn(async () => SCENE);
+      const opened = steps({
+        surface: 'fold',
+        pages: { ...STEPS, list: STEPS.list.map((page, index) => ({ ...page, obj: objs[index]! })) },
+        obj: objs[STEPS.current],
+        buildScene: pageScene,
+        objView: {
+          buriesFaces: true,
+          sizeMeasures: 'figure',
+          sceneKey: ({ page }) => `folded ${page}`,
+          buildScene: foldedScene,
+          paintStyle: (style: PaperStyle) => style,
+        },
+      });
+      return { opened, pageScene, foldedScene };
+    }
+
+    it('previews the step folded while OBJ is chosen, its page otherwise, and keeps the Steps switch', async () => {
+      const { opened, pageScene, foldedScene } = folded([mesh('a'), mesh('b'), mesh('c')]);
+      await open(opened, null, 'obj');
+      await flush();
+      expect(foldedScene).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+      expect(pageScene).not.toHaveBeenCalled();
+      expect(scopeGroup()).not.toBeNull();
+      expect(button('Export OBJ')?.disabled).toBe(false);
+
+      await act(async () => button('SVG')?.click());
+      await flush();
+      expect(pageScene).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    });
+
+    it('writes the step on show as one OBJ, and remembers OBJ for steps', async () => {
+      const objs = [mesh('o 1'), mesh('o 2'), mesh('o 3')];
+      await open(folded(objs).opened, null, 'obj');
+      await flush();
+      await act(async () => button('Export OBJ')?.click());
+      expect(service.saveTextFile).toHaveBeenCalledWith(
+        expect.objectContaining({ contents: 'o 2', suggestedName: 'Crane-step-2.obj', extensions: ['obj'] })
+      );
+      expect(objs[0]!.build).not.toHaveBeenCalled();
+      expect(useSettingsStore.getState().paperExport.step.format).toBe('obj');
+    });
+
+    it('writes every step’s mesh into one ZIP, named as its pages are', async () => {
+      await open(folded([mesh('o 1'), mesh('o 2'), mesh('o 3')]).opened, null, 'obj', 'all');
+      await flush();
+      expect(caption()).toMatch(/ · 3 files · ZIP$/);
+      await act(async () => button('Export OBJs as ZIP')?.click());
+      await act(async () => {
+        await vi.waitFor(() => expect(service.saveBinaryFile).toHaveBeenCalled());
+      });
+      await flush();
+      const saved = (service.saveBinaryFile.mock.calls[0] as unknown[])[0] as { bytes: Uint8Array; suggestedName: string };
+      expect(saved.suggestedName).toBe('Crane-steps.zip');
+      const entries = unzipSync(saved.bytes);
+      expect(Object.keys(entries)).toEqual(['01-step-1.obj', '02-step-2.obj', '03-turn-over-after-step-2.obj']);
+      expect(Object.values(entries).map((entry) => new TextDecoder().decode(entry))).toEqual(['o 1', 'o 2', 'o 3']);
+      expect(dialog('Export all steps')).toBeNull();
+    });
+
+    it('names the step whose spread stands in the way of every step’s OBJ, and still writes the one on show', async () => {
+      await open(folded([mesh('a'), mesh('b'), AFFINE]).opened, null, 'obj', 'all');
+      await flush();
+      expect(dialog('Export all steps')?.textContent).toContain('Turn over: An Affine or Depth spread only moves the picture');
+      expect(button('Export OBJs as ZIP')?.disabled).toBe(true);
+
+      await act(async () => button('This step')?.click());
+      await flush();
+      expect(button('Export OBJ')?.disabled).toBe(false);
     });
   });
 });

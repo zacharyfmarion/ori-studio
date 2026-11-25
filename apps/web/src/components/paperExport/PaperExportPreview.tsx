@@ -89,14 +89,15 @@ export function PaperExportPreview({
         })
       );
     }
-    if (pager) {
-      parts.push(
-        t('dialogs:paperExport.zipFiles', '{{count}} files · ZIP', {
-          count: pager.count,
-          defaultValue_one: '{{count}} file · ZIP',
-        })
-      );
-    }
+  }
+  // Every page's file, a mesh's as well as a picture's.
+  if (pager && (format === 'obj' || page)) {
+    parts.push(
+      t('dialogs:paperExport.zipFiles', '{{count}} files · ZIP', {
+        count: pager.count,
+        defaultValue_one: '{{count}} file · ZIP',
+      })
+    );
   }
 
   return (
