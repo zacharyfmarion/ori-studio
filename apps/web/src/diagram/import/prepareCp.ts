@@ -12,7 +12,7 @@ import {
   createStep,
   type DiagramStep,
   type DiagramStyle,
-  type KnownDiagramAsset,
+  type DiagramPictureAsset,
 } from '../document/diagramDocument';
 import type { DefoxEntry } from './defoxRenderer.js';
 import { geometryBounds } from './batchPlacement';
@@ -20,7 +20,7 @@ import { geometryBounds } from './batchPlacement';
 export interface PreparedCp {
   geometry: CpGeometryTransport;
   steps: DiagramStep[];
-  assets: KnownDiagramAsset[];
+  assets: DiagramPictureAsset[];
   notices: string[];
 }
 /** One task session reused until cancellation/timeout; no handles escape it. */
@@ -44,7 +44,7 @@ export class CpImportPreparer {
     let api = session.client;
     let handle: number | undefined;
     const steps: DiagramStep[] = [],
-      assets: KnownDiagramAsset[] = [],
+      assets: DiagramPictureAsset[] = [],
       notices: string[] = [];
     try {
       const prepared = await session.run(

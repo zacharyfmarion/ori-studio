@@ -131,6 +131,7 @@
     "refreshAllMessage": "更新はまとめて1回で元に戻せますが、その前に元に戻した操作はやり直せなくなります。",
     "refreshAllTitle": "{{total}} 個のステップを更新しますか？",
     "replacePictureTitle": "図を差し替え",
+    "titleBlockPatternTitle": "展開図をアップロード",
     "uploadPicturesTitle": "図をアップロード",
     "uploadPictureTitle": "図をアップロード"
   },

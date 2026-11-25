@@ -89,6 +89,11 @@
     "refreshAllLayerOrderLostLoadOffline_other": "离线时无法加载层叠顺序，因此 {{count}} 个步骤未更改。请恢复网络连接，然后重新加载 Ori Studio 再试。",
     "refreshAllLayerOrderLostLoadReload_other": "无法加载层叠顺序，因此 {{count}} 个步骤未更改。请重新加载 Ori Studio 后重试。",
     "refreshedAll_other": "已刷新 {{count}} 个步骤",
+    "titleBlockPattern": {
+      "noFolds": "此折痕图没有可显示的山折或谷折。",
+      "trimmed": "此折痕图的线条多于图解能保存的数量，因此省略了最短的折痕。",
+      "unreadable": "无法将此文件读取为折痕图。"
+    },
     "uploadFailed_other": "{{count}} 张图片未能添加",
     "uploadFailureLine": "{{name}}：{{reason}}",
     "uploadFailureMore_other": "另有 {{count}} 张",

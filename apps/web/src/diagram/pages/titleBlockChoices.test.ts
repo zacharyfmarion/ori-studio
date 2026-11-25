@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { removeStepPicture, setTitleBlockContent } from '../document/diagramDocument';
+import {
+  removeStepPicture,
+  setTitleBlockContent,
+  setTitleBlockPatternUpload,
+  type DiagramCreasePatternAsset,
+} from '../document/diagramDocument';
 import { cpStep } from '../document/diagramSteps.fixtures';
 import {
   OTHER_PATTERN,
@@ -48,9 +53,10 @@ describe('titleBlockChoices', () => {
     expect(offered(titleBlockChoices(chosen).pattern)).toEqual(['step:s4', 2, ['1', '2', '4!']]);
   });
 
-  it('offers Fold steps for the pattern, one per state’s crease pattern, beside Edit’s links, and names Auto’s', () => {
+  it('offers Fold steps for the pattern, one per crease pattern, beside Edit’s links, and names Auto’s', () => {
     const later = [...OTHER_PATTERN, { x1: 0, y1: 100, x2: 100, y2: 0, role: 'mountain' as const }];
-    // f1 and f2 land one pattern, as a step that adds no crease does; f3 another; s4 is Edit's, with f3's lines, and is its own.
+    // f1 and f2 land one pattern, as a step that adds no crease does; f3 another; s4 is Edit's with f3's lines, so the
+    // same pattern as f3: the block draws every link's lines alike.
     const document = titleBlockDiagram([
       foldPatternStep('f1', OTHER_PATTERN, { step: 'fstep-1' }),
       foldPatternStep('f2'),
@@ -58,12 +64,13 @@ describe('titleBlockChoices', () => {
       patternStep('s4', later),
       foldPatternStep('f5', [], { step: 'fstep-5' }),
     ]);
-    expect(offered(titleBlockChoices(document).pattern)).toEqual(['auto', 4, ['2', '3', '4']]);
-    // Chosen, a Fold step is the part's value; one whose capture found no line is listed only as that, marked.
+    expect(offered(titleBlockChoices(document).pattern)).toEqual(['auto', 4, ['2', '4']]);
+    // Chosen, a Fold step is the part's value and names its pattern; one whose capture found no line is listed only as
+    // that, marked.
     const chosen = setTitleBlockContent(document, { pattern: { kind: 'step', stepId: 'f3' } });
-    expect(offered(titleBlockChoices(chosen).pattern)).toEqual(['step:f3', 4, ['2', '3', '4']]);
+    expect(offered(titleBlockChoices(chosen).pattern)).toEqual(['step:f3', 4, ['2', '3']]);
     const blank = setTitleBlockContent(document, { pattern: { kind: 'step', stepId: 'f5' } });
-    expect(offered(titleBlockChoices(blank).pattern)).toEqual(['step:f5', 4, ['2', '3', '4', '5!']]);
+    expect(offered(titleBlockChoices(blank).pattern)).toEqual(['step:f5', 4, ['2', '4', '5!']]);
   });
 
   it('names a pattern by the step chosen for it, where that step links it', () => {
@@ -101,6 +108,26 @@ describe('titleBlockChoices', () => {
     expect(offered(model)).toEqual(['auto', null, []]);
     expect(offered(pattern)).toEqual(['auto', null, []]);
   });
+
+  it('offers the crease pattern’s file, by its name, while the pattern is set to one, and marks one that draws nothing', () => {
+    const file: DiagramCreasePatternAsset = {
+      id: 'asset-cp',
+      kind: 'crease-pattern',
+      name: 'crane.cp',
+      pattern: { viewBox: '0 0 1000 1000', strokes: [{ x1: 0, y1: 0, x2: 1000, y2: 1000, role: 'valley' }] },
+      bytes: 1,
+    };
+    const steps = titleBlockDiagram([cpStep('s1'), patternStep('s2')]);
+    expect(titleBlockChoices(steps).pattern.file).toBeUndefined();
+    const uploaded = setTitleBlockPatternUpload(steps, file);
+    const { model, pattern } = titleBlockChoices(uploaded);
+    // The steps that link a pattern are still offered, and Auto still names its step.
+    expect(offered(pattern)).toEqual(['upload', 2, ['1', '2']]);
+    expect(pattern.file).toEqual({ name: 'crane.cp', gives: true });
+    expect(model.file).toBeUndefined();
+    const auxOnly = { ...file, id: 'asset-aux', pattern: { ...file.pattern, strokes: [{ ...file.pattern.strokes[0]!, role: 'aux' as const }] } };
+    expect(titleBlockChoices(setTitleBlockPatternUpload(steps, auxOnly)).pattern.file).toEqual({ name: 'crane.cp', gives: false });
+  });
 });
 
 describe('titleBlockChoiceSource', () => {
@@ -110,5 +137,9 @@ describe('titleBlockChoiceSource', () => {
     expect(titleBlockChoiceSource('step:s1')).toEqual({ kind: 'step', stepId: 's1' });
     // A step's id is whatever follows the prefix, a colon in it included.
     expect(titleBlockChoiceSource('step:a:b')).toEqual({ kind: 'step', stepId: 'a:b' });
+  });
+
+  it('changes nothing for the file the pattern is set to: a file is set by uploading one', () => {
+    expect(titleBlockChoiceSource('upload')).toBeNull();
   });
 });

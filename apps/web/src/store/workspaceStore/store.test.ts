@@ -61,7 +61,7 @@ import {
   stepIndex,
   type DiagramDocument,
   type KnownDiagramAnnotation,
-  type KnownDiagramAsset,
+  type DiagramPictureAsset,
 } from '../../diagram/document/diagramDocument';
 import { FIXTURE_FONTS } from '../../diagram/fonts/diagramFonts.fixtures';
 import { layoutDiagram } from '../../diagram/pages/diagramPages';
@@ -10958,7 +10958,7 @@ describe('the project diagram', () => {
   });
 
   describe('uploaded pictures', () => {
-    function svgAsset(id: string, side = 10): KnownDiagramAsset {
+    function svgAsset(id: string, side = 10): DiagramPictureAsset {
       const result = sanitizeSvg(
         `<svg xmlns="http://www.w3.org/2000/svg" width="${side}" height="${side}" viewBox="0 0 ${side} ${side}"><rect width="${side / 2}" height="${side / 2}"/></svg>`,
         { idPrefix: id, mode: 'import' }
@@ -11046,7 +11046,7 @@ describe('the project diagram', () => {
     it('lets go of a replaced picture once only history holds it, so the byte cap can trim it', () => {
       const { first } = authorTwoSteps();
       state().selectDiagramStep(first);
-      const big = (id: string): KnownDiagramAsset => {
+      const big = (id: string): DiagramPictureAsset => {
         const src = `data:image/png;base64,${id.padEnd(1024 * 1024, 'A')}`;
         return { id, kind: 'raster', src, widthPx: 1, heightPx: 1, bytes: src.length };
       };
@@ -11171,7 +11171,7 @@ describe('the project diagram', () => {
     it('warns about a heavy file by what it holds, not by what undo keeps', async () => {
       const { first } = authorTwoSteps();
       state().selectDiagramStep(first);
-      const heavy: KnownDiagramAsset = {
+      const heavy: DiagramPictureAsset = {
         id: 'asset-heavy',
         kind: 'raster',
         src: `data:image/png;base64,${'A'.repeat(26 * 1024 * 1024)}`,

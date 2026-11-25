@@ -50,6 +50,7 @@ export type {
   DiagramStyleChoiceName,
   DiagramTitleBlockBand,
   DiagramTitleBlockChoice,
+  DiagramTitleBlockPatternFormat,
   DiagramTitleBlockCreditChange,
   DiagramTitleBlockSize,
   DiagramTitleBlockTextShown,

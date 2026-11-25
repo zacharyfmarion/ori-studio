@@ -39,7 +39,7 @@ import {
   type DiagramPosedSource,
   type DiagramStyle,
   type KnownDiagramAnnotation,
-  type KnownDiagramAsset,
+  type DiagramPictureAsset,
   stepById,
 } from '../../diagram/document/diagramDocument';
 import { diagramScenePaintStyle, diagramStyleKey } from '../../diagram/pictures/diagramPaperStyle';
@@ -601,7 +601,7 @@ export async function keptPicture(
   captured: CapturedPicture,
   render: DiagramCpRender,
   style: DiagramStyle
-): Promise<{ picture: DiagramPicture; asset?: KnownDiagramAsset }> {
+): Promise<{ picture: DiagramPicture; asset?: DiagramPictureAsset }> {
   if (captured.kind === 'picture') return { picture: captured.picture };
   if (hasConnectedDrawing(captured.scene)) {
     const { raster } = await rasterSpreadScene(captured.scene, {

@@ -300,16 +300,16 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     const roles = (scene: PaperScene | null) =>
       (scene?.items ?? []).flatMap((item) => (item.kind === 'line' ? [item.role] : [])).filter((role) => role !== 'edge');
 
-    // Auto: the Finished step, the kite: both valleys folded, the diagonal lying flat in the aux pen.
+    // Auto: the Finished step, the kite: both valleys folded; the diagonal, lying flat, is no final fold and is left out.
     const auto = resolveTitleBlock(diagram).pattern;
     expect([auto.from, auto.step?.id]).toEqual(['auto', sent.at(-1)!.id]);
-    expect(roles(auto.scene).sort()).toEqual(['aux', 'valley', 'valley']);
+    expect(roles(auto.scene).sort()).toEqual(['valley', 'valley']);
 
-    // The second step's diagram step: the state it lands, the diagonal and one valley.
+    // The second step's diagram step: the state it lands, the diagonal (left out) and one valley.
     const step = sent.find((each) => (each.source as DiagramFoldStepSource).step === second!.id)!;
     const chosen = resolveTitleBlock(setTitleBlockContent(diagram, { pattern: { kind: 'step', stepId: step.id } })).pattern;
     expect(chosen.step?.id).toBe(step.id);
-    expect(roles(chosen.scene).sort()).toEqual(['aux', 'valley']);
+    expect(roles(chosen.scene).sort()).toEqual(['valley']);
   });
 
   it('goes back to its step in Fold, and is missing once the step is deleted there', async () => {

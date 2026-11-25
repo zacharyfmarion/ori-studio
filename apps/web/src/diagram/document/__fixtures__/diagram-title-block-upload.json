@@ -1,0 +1,239 @@
+{
+  "formatVersion": 1,
+  "id": "diagram-1",
+  "title": "Waterbomb",
+  "hanStyle": "sc",
+  "style": {
+    "preset": "diagram",
+    "style": {
+      "version": 1,
+      "paper": {
+        "front": "#ffffff",
+        "back": "#b3b3b3"
+      },
+      "edges": {
+        "width": 0.5,
+        "color": "#231f20",
+        "dash": null,
+        "cap": "butt"
+      },
+      "mountainFolds": {
+        "width": 0.25,
+        "color": "#231f20",
+        "dash": null,
+        "cap": "butt"
+      },
+      "valleyFolds": {
+        "width": 0.25,
+        "color": "#231f20",
+        "dash": null,
+        "cap": "butt"
+      },
+      "mountainDiagramCreases": {
+        "width": 0.75,
+        "color": "#231f20",
+        "dash": [
+          8,
+          2,
+          1,
+          2
+        ],
+        "cap": "butt"
+      },
+      "valleyDiagramCreases": {
+        "width": 0.75,
+        "color": "#231f20",
+        "dash": [
+          4,
+          2
+        ],
+        "cap": "butt"
+      },
+      "foldsAsEdges": false,
+      "auxCreases": {
+        "visible": true,
+        "pen": {
+          "width": 0.25,
+          "color": "#231f20",
+          "dash": null,
+          "cap": "butt"
+        }
+      },
+      "arrows": {
+        "width": 0.75,
+        "color": "#231f20",
+        "dash": null,
+        "cap": "round"
+      },
+      "erode": 0.005,
+      "light": {
+        "enabled": true,
+        "azimuth": 322.19347,
+        "elevation": 42.80915
+      }
+    }
+  },
+  "page": {
+    "size": "a4",
+    "orientation": "portrait",
+    "marginMm": 12,
+    "layout": "flow",
+    "columns": 3,
+    "rows": 3,
+    "stepsPerPage": 9,
+    "showPath": true,
+    "pathWidthMm": 20,
+    "pathColor": "#ecece8",
+    "firstPageSide": "left",
+    "showTitle": true,
+    "pageNumbers": {
+      "enabled": true,
+      "first": 1
+    },
+    "flowBands": "auto",
+    "flowPreferBands": 0.5,
+    "flowBendSteps": true,
+    "flowNesting": 0.8,
+    "flowSteadiness": 0.5,
+    "titleBlock": {
+      "enabled": true,
+      "heightShare": 0.23
+    }
+  },
+  "titleBlockContent": {
+    "pattern": {
+      "kind": "upload",
+      "assetId": "asset-final-cp"
+    },
+    "subtitle": "Traditional",
+    "note": "Final crease pattern from a file."
+  },
+  "steps": [
+    {
+      "id": "step-base",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "crease-pattern",
+          "rotationDeg": 0
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "step-model",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "folded-flat",
+          "side": "front",
+          "rotationDeg": 0,
+          "foldCase": 1
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    }
+  ],
+  "assets": {
+    "asset-final-cp": {
+      "id": "asset-final-cp",
+      "kind": "crease-pattern",
+      "name": "waterbomb.cp",
+      "pattern": "{\"viewBox\":\"0 0 1000 1000\",\"strokes\":[{\"x1\":0,\"y1\":250,\"x2\":1000,\"y2\":250,\"role\":\"aux\"},{\"x1\":0,\"y1\":0,\"x2\":1000,\"y2\":1000,\"role\":\"valley\"},{\"x1\":1000,\"y1\":0,\"x2\":0,\"y2\":1000,\"role\":\"valley\"},{\"x1\":500,\"y1\":0,\"x2\":500,\"y2\":1000,\"role\":\"mountain\"},{\"x1\":0,\"y1\":500,\"x2\":1000,\"y2\":500,\"role\":\"mountain\"},{\"x1\":0,\"y1\":0,\"x2\":1000,\"y2\":0,\"role\":\"edge\"},{\"x1\":1000,\"y1\":0,\"x2\":1000,\"y2\":1000,\"role\":\"edge\"},{\"x1\":1000,\"y1\":1000,\"x2\":0,\"y2\":1000,\"role\":\"edge\"},{\"x1\":0,\"y1\":1000,\"x2\":0,\"y2\":0,\"role\":\"edge\"}]}",
+      "bytes": 503
+    }
+  },
+  "thumbnails": {
+    "thumb-pxzlqcbzg4pr": "{\"viewBox\":\"0 0 100 100\",\"strokes\":[{\"x1\":0,\"y1\":0,\"x2\":100,\"y2\":0,\"role\":\"edge\"},{\"x1\":0,\"y1\":50,\"x2\":100,\"y2\":50,\"role\":\"mountain\"}]}"
+  }
+}

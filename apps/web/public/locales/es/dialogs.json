@@ -135,6 +135,7 @@
     "refreshAllMessage": "Actualizarlos es un cambio que puedes deshacer, pero lo que deshiciste antes ya no se podrá rehacer.",
     "refreshAllTitle": "¿Actualizar {{total}} pasos?",
     "replacePictureTitle": "Reemplazar imagen",
+    "titleBlockPatternTitle": "Subir patrón de pliegues",
     "uploadPicturesTitle": "Subir imágenes",
     "uploadPictureTitle": "Subir imagen"
   },

@@ -12,7 +12,7 @@ import { stepPictureSource } from '../pictures/paintDiagramStep';
 import {
   randomDiagramId,
   type DiagramIdFactory,
-  type KnownDiagramAsset,
+  type DiagramPictureAsset,
   stepById,
 } from '../document/diagramDocument';
 import {
@@ -85,7 +85,7 @@ export async function addStepPictures(
   const via: DiagramStepAddedVia =
     options.via === 'drop' ? 'drop' : ordered.length > 1 ? 'batch' : 'grid';
 
-  const assets: KnownDiagramAsset[] = [];
+  const assets: DiagramPictureAsset[] = [];
   const notices = new Map<string, SanitizeNotice[]>();
   const failures: StepPictureUploadResult['failures'] = [];
   const progress = showProgressLater(ordered.length);
@@ -154,7 +154,7 @@ export async function pickStepPictures(
 }
 
 /** The stored asset for an imported picture, as the upload pipeline and the step importer both keep it. */
-export function assetFrom(id: string, result: ImportedPicture & { ok: true }): KnownDiagramAsset {
+export function assetFrom(id: string, result: ImportedPicture & { ok: true }): DiagramPictureAsset {
   const { content, bytes } = result;
   return content.kind === 'svg'
     ? { id, kind: 'svg', svg: content.svg, widthPx: content.widthPx, heightPx: content.heightPx, bytes }
