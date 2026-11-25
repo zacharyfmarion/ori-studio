@@ -131,9 +131,11 @@ export {
   createAnalyticsApi,
   track,
   trackAnalyticsError,
+  trackCountedUse,
   useAnalytics,
 } from './runtime';
 export type { AnalyticsApi, AnalyticsErrorContext } from './runtime';
+export type { CountedUseEvent } from './countedUses';
 
 export {
   trackCpToolFavorited,

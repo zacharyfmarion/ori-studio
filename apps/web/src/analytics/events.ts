@@ -1272,14 +1272,22 @@ export type AnalyticsErrorDomain =
 
 /**
  * Hand-placed event names. The two chokepoint events (`command invoked`,
- * `cp tool used`) and `app opened` / `app error` also flow through `track`, but
- * these constants cover the Phase-4 domain events call sites reference by name.
+ * `cp tool used`) flow through `trackCountedUse` and `app opened` / `app error`
+ * through `track`, but these constants cover the Phase-4 domain events call
+ * sites reference by name.
  */
 export const ANALYTICS_EVENTS = {
   appOpened: 'app opened',
   appError: 'app error',
   analyticsPreferenceChanged: 'analytics preference changed',
+  /**
+   * A command's first use in a counting window (`countedUses.ts`), with
+   * `counting: 'first_in_window'`; `command uses counted` is its bucketed count
+   * when the window closes. Builds from before 2026-11-25 sent one per press,
+   * with no `counting`, and PostHog drops those at ingestion.
+   */
   commandInvoked: 'command invoked',
+  commandUsesCounted: 'command uses counted',
   /**
    * A context menu was raised on a canvas.
    *
@@ -1295,7 +1303,9 @@ export const ANALYTICS_EVENTS = {
    * keyboard / touch), and a bucketed `item_count`.
    */
   contextMenuOpened: 'context menu opened',
+  /** As `command invoked`, for the CP editor's operations: first use per window, then `cp tool uses counted`. */
   cpToolUsed: 'cp tool used',
+  cpToolUsesCounted: 'cp tool uses counted',
   workspaceViewed: 'workspace viewed',
   /**
    * A section of the Settings dialog was on show: the one it opened on, then

@@ -108,6 +108,20 @@ directly**:
   (`command invoked`) for menu/keyboard/palette actions, and the store
   `executeOristudioCpCommand` (`cp tool used`) for CP editor tools. Actions that
   flow through these do **not** get a second hand-placed event.
+- Those two are **counted, not sent per use** (`trackCountedUse`,
+  `analytics/countedUses.ts`). Sent once per use, they were three quarters of
+  all events and ran the project into PostHog's free allowance
+  (`implementation-plans/counted-tool-and-command-events.md`).
+  - A counting window opens at the first use. It closes after 30 minutes, or
+    when the page is hidden or unloads.
+  - Within it, each tool or command sends its first use at once, marked
+    `counting: 'first_in_window'`, and its bucketed count when the window
+    closes.
+  - Unique users and funnels read as before.
+  - A total counts windows, not uses: read how often from the `* uses counted`
+    events instead.
+  - A PostHog Drop events transformation drops these two events when
+    `counting` is missing, so builds that still send one per use cost nothing.
 
 **Folding is the documented exception**, and it is worth knowing why so nobody
 "deduplicates" it later: `G` reaches neither chokepoint. `handleCpShortcutAction`
@@ -253,8 +267,10 @@ React mounts does not carry them.
 | `app update relaunched` | `install_kind`, `pending_ms_bucket` | "Relaunch to update" was pressed; the bucket is how long the offer sat before anyone acted on it. **Undercounts**: the installer exits the process before the batched event has left, so read adoption off `app update downloaded` and the next launch's `app_version` instead |
 | `app update failed` | `stage` (`check`/`download`/`install`), `reason`, `install_kind`, `trigger` | A step failed. `reason` is a closed vocabulary: `dns`, `connect`, `tls`, `proxy` and `timeout` are transport causes the shell could name from the request's error chain, and `network` is a transport failure it could not; `http_status` (the endpoint answered but not with 2xx), `parse` (the body was not a manifest) and `no_platform_entry` (no entry for this build's platform) are the published manifest's fault and therefore fleet-wide; `signature` is a payload that did not verify — the one to alert on; `stale_manifest` is an offer below a version already seen; `unsupported` and `unknown` are the remainder. Never the error text |
 | `app update dismissed` | `scope` (`skipped`/`session`/`revoked`) | An offered update stopped being shown: skipped for good, snoozed for this run, or dropped because the release was un-armed while it sat downloaded |
-| `command invoked` | `command_id`, `command_group` | A menu / keyboard / palette action (recognized ids only; data suffixes stripped) |
-| `cp tool used` | `operation`, `group` | A CP editor operation executes |
+| `command invoked` | `command_id`, `command_group`, `counting` (`first_in_window`) | A menu / keyboard / palette action (recognized ids only; data suffixes stripped), once per command per counting window: its first use in the window. Builds from before 2026-11-25 sent one per press, without `counting`, and PostHog drops those at ingestion |
+| `command uses counted` | `command_id`, `command_group`, `use_count_bucket` (`<=1`/`<=5`/`<=10`/`<=20`/`<=50`/`<=100`/`<=200`/`<=500`/`>500`) | How many times a command ran in a counting window, sent when the window closes and dated to when it opened. To estimate total uses, add up a midpoint per bucket (1, 3.5, 8, 15.5, 35.5, 75.5, 150.5, 350.5, 650). On November 2026's per-use data that read about 11% high |
+| `cp tool used` | `operation`, `group`, `counting` (`first_in_window`) | A CP editor operation executes, once per operation per counting window: its first use in the window. Builds from before 2026-11-25 sent one per edit, and PostHog drops those |
+| `cp tool uses counted` | `operation`, `group`, `use_count_bucket` (as `command uses counted`'s) | How many times an operation ran in a counting window, as `command uses counted` |
 | `workspace viewed` | `workspace` (`design`/`edit`/`simulate`/`references`/`diagram`/`fold`) | The active workspace changes. Design carries no `variant`: it holds tabs, so it has no single method to name |
 | `settings section viewed` | `section` (`general`/`appearance`/`paper`/`shortcuts`/`workspace`) | A section of the Settings dialog is on show: the one it opens on, then each one picked. Fired from the dialog, so every way in counts — the toolbar's gear calls the store directly and never reaches `command invoked`, as File ▸ Settings and its shortcut do. Who saw Settings ▸ Paper is the denominator the `paper *` events are read against |
 | `site page viewed` | `page` (`download` / `oriedita` / `faq`) | A content page of the site — `/download/` and its siblings — is opened. The pages exist to be found from a search result; this is how we learn whether they are |
