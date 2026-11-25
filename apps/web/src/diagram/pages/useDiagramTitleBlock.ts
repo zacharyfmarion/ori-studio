@@ -1,10 +1,14 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { trackDiagramPageSetupChanged, type DiagramTitleBlockCreditChange } from '../../analytics';
+import i18n from '../../i18n';
+import { getFileService } from '../../platform/fileService';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   DEFAULT_PAGE_SETUP,
   defaultTitleBlockContent,
+  randomDiagramId,
   TITLE_BLOCK_ART_SIZE_DEFAULTS,
   titleBlockArtSizes,
   titleBlockStepCount,
@@ -16,6 +20,7 @@ import { titleBlockDefaultWords } from '../document/titleBlockWords';
 import { hasTitleBlock, titleBlockFits } from './pagePlan';
 import { titleBlockChoiceSource, titleBlockChoices, type TitleBlockChoices } from './titleBlockChoices';
 import { artSizeLimits, fittedArtSizes } from './titleBlockGeometry';
+import { PATTERN_FILE_EXTENSIONS, readPatternFile } from './titleBlockPatternFile';
 
 const NO_CHOICES: TitleBlockChoices = {
   model: { value: 'auto', autoNumber: null, steps: [] },
@@ -32,7 +37,8 @@ export type TitleBlockArtSize = keyof typeof TITLE_BLOCK_ART_SIZE_DEFAULTS;
  * footer (AGENTS.md › Panel components; `implementation-plans/diagram-title-block.md`,
  * section 7 and Phase 1c): the toggle, a page setting (`titleBlock`), and what
  * the block shows — its model and crease pattern, from the choices
- * `titleBlockChoices` offers, and their sizes; its subtitle, credits and note.
+ * `titleBlockChoices` offers or, for the pattern, a file uploaded for it, and
+ * their sizes; its subtitle, credits and note.
  * Each change is one undo step and one count of which setting changed, never
  * its words or its size; a text field's commits, at each pause in typing, are
  * one of each per sitting at it.
@@ -68,6 +74,8 @@ export function useDiagramTitleBlock() {
 
   const setModel = useCallback((choice: string) => choose('model', choice), []);
   const setPattern = useCallback((choice: string) => choose('pattern', choice), []);
+  /** Pick a crease-pattern file for the block's pattern: call it from the click itself, which the picker needs. */
+  const uploadPattern = useCallback(() => void uploadPatternFile(loadId), [loadId]);
   const setSubtitle = useCallback(
     (subtitle: string, session: number) =>
       typed({ subtitle }, session, () =>
@@ -127,6 +135,7 @@ export function useDiagramTitleBlock() {
     setEnabled,
     setModel,
     setPattern,
+    uploadPattern,
     setSize,
     setSubtitle,
     setNote,
@@ -144,13 +153,50 @@ function setEnabled(enabled: boolean) {
   if (useWorkspaceStore.getState().setDiagramTitleBlockShown(enabled)) trackDiagramPageSetupChanged('title_block');
 }
 
-/** Set where a part of the block comes from, from the choice the Page pane offered. */
+/** Set where a part of the block comes from, from the choice the Page pane offered: its file again changes nothing. */
 function choose(part: 'model' | 'pattern', choice: string) {
   const source = titleBlockChoiceSource(choice);
-  if (!useWorkspaceStore.getState().setDiagramTitleBlockContent({ [part]: source })) return;
+  if (source === null || !useWorkspaceStore.getState().setDiagramTitleBlockContent({ [part]: source })) return;
   trackDiagramPageSetupChanged(part === 'model' ? 'title_block_model' : 'title_block_pattern', {
     titleBlockChoice: source === 'auto' ? 'auto' : source.kind,
   });
+}
+
+/**
+ * Pick a crease-pattern file and make it the block's crease pattern
+ * (`implementation-plans/diagram-title-block-final-cp.md`), for the diagram
+ * `loadId` names. Called from the click itself: a browser opens a picker only
+ * inside a user gesture, so nothing is awaited before it. One undo step and
+ * one count where the file gives a pattern; a notice, and nothing changed,
+ * where it gives none.
+ */
+async function uploadPatternFile(loadId: number): Promise<void> {
+  const t = i18n.t;
+  const file = await getFileService().openBinaryFile({
+    title: t('dialogs:diagram.titleBlockPatternTitle', 'Upload crease pattern'),
+    extensions: [...PATTERN_FILE_EXTENSIONS],
+    // As Import CP offers them: none of these formats is registered with Apple, and iOS greys out a file it cannot
+    // match. The format is read from the name, and one no loader takes is refused.
+    mimeTypes: ['application/octet-stream'],
+    filterName: 'Ori Studio',
+  });
+  if (!file) return;
+  const read = await readPatternFile(file.bytes, file.name, randomDiagramId('asset'));
+  if (!read.ok) {
+    toast.error(
+      read.reason === 'no-folds'
+        ? t('toasts:diagram.titleBlockPattern.noFolds', 'This crease pattern has no mountain or valley folds to show.')
+        : t('toasts:diagram.titleBlockPattern.unreadable', 'This file couldn’t be read as a crease pattern.')
+    );
+    return;
+  }
+  if (!useWorkspaceStore.getState().setDiagramTitleBlockPatternUpload(read.asset, { loadId })) return;
+  if (read.trimmed) {
+    toast.message(
+      t('toasts:diagram.titleBlockPattern.trimmed', 'This crease pattern has more lines than a diagram keeps, so its shortest creases were left out.')
+    );
+  }
+  trackDiagramPageSetupChanged('title_block_pattern', { titleBlockChoice: 'upload', titleBlockPatternFormat: read.format });
 }
 
 /** Set a size of the block's art, as a share of its height, or put it back to the default. */

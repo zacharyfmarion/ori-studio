@@ -1449,7 +1449,7 @@
         "needsRows": "Necesita dos filas o más",
         "none": "Ninguno",
         "pattern": "Patrón de pliegues",
-        "patternHelp": "Se dibuja a partir del patrón de pliegues que vincula un paso. Auto usa el último paso vinculado; cada patrón aparece una sola vez, con el paso elegido para él o, si no hay, con el último paso que lo vincula.",
+        "patternHelp": "Sus pliegues de montaña y de valle, del patrón de pliegues que vincula un paso o de un archivo que subas. Auto usa el último paso vinculado; cada patrón aparece una sola vez, con el paso elegido para él o, si no hay, con el último paso que lo vincula.",
         "patternSize": "Tamaño del patrón de pliegues",
         "patternSizeHelp": "El lado del patrón de pliegues, como parte de la altura del bloque de título.",
         "removeCredit": "Quitar el crédito {{number}}",
@@ -1459,7 +1459,8 @@
         "stepCount": "Auto ({{number}})",
         "subtitle": "Subtítulo",
         "subtitleHelp": "La línea pequeña sobre el título. Déjala vacía para no imprimir ninguna.",
-        "typeValue": "Escribir un valor para el crédito {{number}} en su lugar"
+        "typeValue": "Escribir un valor para el crédito {{number}} en su lugar",
+        "uploadPattern": "Subir un archivo CP o FOLD…"
       },
       "titleHelp": "El título del diagrama, en una pestaña en la parte superior de cada página.",
       "titleHelpWithBlock": "El título del diagrama, en una pestaña en la parte superior de cada página. En la primera página lo lleva el bloque de título."
@@ -1479,6 +1480,7 @@
       "textCut": "El texto no cabe",
       "titleBlock": {
         "creditsCut": "Algunos créditos no caben",
+        "fileNoPattern": "El archivo subido no tiene pliegues",
         "noModel": "Ningún paso tiene imagen todavía",
         "noPattern": "Ningún paso está vinculado a un patrón de pliegues",
         "stepNoPattern": "El paso {{number}} no tiene patrón de pliegues",

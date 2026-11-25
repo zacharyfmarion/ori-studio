@@ -21,8 +21,9 @@
  *
  * The pattern is drawn from its step's stored thumbnail, as a scene for the
  * shared painter ({@link patternScene}): a linked region's, or a Fold step's
- * state's, every crease made so far; the model in front of it, or in
- * the pattern's place where none is drawn ({@link modelRoom}). The words
+ * state's, its mountain and valley folds and its edge, nothing else; the
+ * model in front of it, or in the pattern's place where none is drawn
+ * ({@link modelRoom}). The words
  * the block prints of its own are read here too ({@link titleBlockLook}).
  * What prints nothing where it would show, the Pages view marks
  * ({@link missingTitleBlockParts}). Pure.
@@ -38,12 +39,13 @@ import {
   stepNumbers,
   stepsOf,
   titleBlockArtSizes,
+  titleBlockPatternAsset,
   titleBlockStepCount,
   type DiagramCpSource,
   type DiagramDocument,
   type DiagramFoldStepSource,
   type DiagramStep,
-  type DiagramTitleBlockSource,
+  type DiagramTitleBlockPatternSource,
 } from '../document/diagramDocument';
 
 /**
@@ -54,13 +56,17 @@ import {
  */
 export type TitleBlockPatternSource = DiagramCpSource | DiagramFoldStepSource;
 
-/** Where a part of the title block comes from: Auto, the step chosen, or none. */
-export type TitleBlockPartFrom = 'auto' | 'step' | 'none';
+/**
+ * Where a part of the title block comes from: Auto, the step chosen, none, or
+ * — the crease pattern alone — a file uploaded for it
+ * (`diagram-title-block-final-cp.md`).
+ */
+export type TitleBlockPartFrom = 'auto' | 'step' | 'none' | 'upload';
 
 /** The step a part of the title block comes from. */
 export interface TitleBlockPart {
   from: TitleBlockPartFrom;
-  /** Auto's find or the step chosen; null for none, and where Auto finds no step. */
+  /** Auto's find or the step chosen; null for none, a file, and where Auto finds no step. */
   step: DiagramStep | null;
   /** That step's number, as the pages print it (`stepNumbers`); null with no step. */
   number: number | null;
@@ -71,9 +77,9 @@ export interface ResolvedTitleBlock {
   /** The step whose picture is the finished model. */
   model: TitleBlockPart;
   /**
-   * The step whose link gives the crease pattern, and the pattern as the
-   * painter draws it: its stored thumbnail's lines ({@link patternScene}),
-   * null where it gives none or has no line to draw.
+   * The step whose link gives the crease pattern — or the file uploaded for
+   * it — and the pattern as the painter draws it: its stored lines
+   * ({@link patternScene}), null where it gives none or has no line to draw.
    */
   pattern: TitleBlockPart & { scene: PaperScene | null };
   /** The band's colour its author chose (`DiagramTitleBlockContent.bandColor`); none, and it follows the paper's. */
@@ -114,20 +120,33 @@ function lastStep(document: DiagramDocument, gives: (step: DiagramStep) => boole
   return null;
 }
 
-/** What the first page's title block shows: each part's step, the pattern's lines, and the band's colour where chosen. */
+/**
+ * What the first page's title block shows: each part's step, the pattern's
+ * lines, and the band's colour where chosen. A pattern set to a file draws
+ * the file's lines (`titleBlockPatternAsset`), by the same rule as a link's;
+ * one whose asset is not there reads as Auto, as a chosen step that is gone
+ * does.
+ */
 export function resolveTitleBlock(document: DiagramDocument): ResolvedTitleBlock {
   const content = document.titleBlockContent;
   const numbers = stepNumbers(document);
   const model = resolvePart(document, numbers, content?.model, autoModelStep);
-  const pattern = resolvePart(document, numbers, content?.pattern, autoPatternStep);
-  const scene = pattern.step && givesPattern(pattern.step) ? patternScene(pattern.step.source) : null;
-  return { model, pattern: { ...pattern, scene }, ...(content?.bandColor ? { bandColor: content.bandColor } : {}) };
+  const file = titleBlockPatternAsset(document);
+  const pattern = file
+    ? { from: 'upload' as const, step: null, number: null, scene: patternScene({ thumbnail: file.pattern }) }
+    : linkedPattern(resolvePart(document, numbers, content?.pattern, autoPatternStep));
+  return { model, pattern, ...(content?.bandColor ? { bandColor: content.bandColor } : {}) };
+}
+
+/** A part from a step, with the step's pattern as the painter draws it: none where it gives none. */
+function linkedPattern(part: TitleBlockPart): ResolvedTitleBlock['pattern'] {
+  return { ...part, scene: part.step && givesPattern(part.step) ? patternScene(part.step.source) : null };
 }
 
 function resolvePart(
   document: DiagramDocument,
   numbers: ReadonlyMap<string, number>,
-  source: DiagramTitleBlockSource | undefined,
+  source: DiagramTitleBlockPatternSource | undefined,
   auto: (document: DiagramDocument) => DiagramStep | null
 ): TitleBlockPart {
   const part = (from: TitleBlockPartFrom, step: DiagramStep | null): TitleBlockPart => ({
@@ -141,49 +160,39 @@ function resolvePart(
   return part('auto', auto(document));
 }
 
-type PatternRoles = Readonly<Record<SheetStrokeRole, PaperLineRole | null>>;
-
 /**
- * The pen each of a linked region's thumbnail lines is drawn in (T-14 A): the
- * pattern's own — its folds in the fold pens, solid, its edge in the edge pen,
- * a crease with no direction yet in the aux pen where the style shows aux
- * lines — and an aux line, Edit's construction line, not at all.
+ * The pen each of a pattern's stored lines is drawn in (T-14 A): the final
+ * crease pattern's mountain and valley folds in the fold pens, solid, and its
+ * edge in the edge pen — nothing else, whatever the pattern comes from
+ * (`diagram-title-block-final-cp.md`, F-1). A crease with no direction yet
+ * is left out, and so is an aux line: Edit's construction line, or a Fold
+ * state's flat crease or crease mark, which that step's own Crease pattern
+ * picture still draws.
  */
-const PATTERN_ROLES: PatternRoles = {
+const PATTERN_ROLES: Readonly<Record<SheetStrokeRole, PaperLineRole | null>> = {
   edge: 'edge',
   mountain: 'mountain',
   valley: 'valley',
-  unassigned: 'aux',
+  unassigned: null,
   aux: null,
 };
 
-/**
- * A Fold step's thumbnail (`foldStateFrame`'s pattern) in the same pens, but
- * for its aux lines: there they are creases — a precrease, or a pinch's mark,
- * lying flat — which the step's Crease pattern picture draws in the aux pen
- * (`creasePatternPaperScene`), and so does the block.
- */
-const FOLD_PATTERN_ROLES: PatternRoles = { ...PATTERN_ROLES, aux: 'aux' };
-
-/** What a link's thumbnail is, line by line: an aux line is Edit's construction line, and a Fold state's flat crease. */
-function patternRoles(kind: TitleBlockPatternSource['kind']): PatternRoles {
-  return kind === 'fold-step' ? FOLD_PATTERN_ROLES : PATTERN_ROLES;
+/** A stored pattern, as the block reads it: a link's thumbnail, or a file's lines (`DiagramCreasePatternAsset`). */
+export interface TitleBlockPatternThumbnail {
+  readonly thumbnail: SheetThumbnail;
 }
 
-/** A link's stored pattern, as the block reads it: its thumbnail, and what kind of link it is. */
-export type TitleBlockPatternThumbnail = Pick<TitleBlockPatternSource, 'kind' | 'thumbnail'>;
-
 /**
- * A link's stored thumbnail as a scene for the shared painter
- * (`paperSceneSvgBody`): its lines in their roles, in its own units, its
- * bounds its box. No paper is filled, so the pattern sits on the page and the
- * model in front covers it with its own. Null where it has no line to draw.
+ * A stored pattern as a scene for the shared painter (`paperSceneSvgBody`):
+ * the lines the block draws ({@link PATTERN_ROLES}) in their roles, in the
+ * thumbnail's own units, its bounds its box. No paper is filled, so the
+ * pattern sits on the page and the model in front covers it with its own.
+ * Null where it has no line to draw.
  */
-export function patternScene({ kind, thumbnail }: TitleBlockPatternThumbnail): PaperScene | null {
-  const roles = patternRoles(kind);
+export function patternScene({ thumbnail }: TitleBlockPatternThumbnail): PaperScene | null {
   const box = thumbnailBox(thumbnail);
   const items = thumbnail.strokes.flatMap((stroke): PaperLineItem[] => {
-    const role = roles[stroke.role];
+    const role = PATTERN_ROLES[stroke.role];
     return role
       ? [{ kind: 'line', role, a: [stroke.x1, stroke.y1], b: [stroke.x2, stroke.y2], onBoundary: [false, false], hidden: false }]
       : [];
@@ -194,14 +203,13 @@ export function patternScene({ kind, thumbnail }: TitleBlockPatternThumbnail): P
 }
 
 /**
- * Whether a link's thumbnail has a line the block draws, as
+ * Whether a stored pattern has a line the block draws, as
  * {@link patternScene} would: the one answer to "is there a pattern" for the
  * page, the Pages view's overlay and the Page pane's choices. A capture that
- * found no line, or a region with only aux lines, has none.
+ * found no line, or one of aux lines only, has none; the edge alone counts.
  */
-export function drawsPattern({ kind, thumbnail }: TitleBlockPatternThumbnail): boolean {
-  const roles = patternRoles(kind);
-  return thumbnailBox(thumbnail) !== null && thumbnail.strokes.some((stroke) => roles[stroke.role] !== null);
+export function drawsPattern({ thumbnail }: TitleBlockPatternThumbnail): boolean {
+  return thumbnailBox(thumbnail) !== null && thumbnail.strokes.some((stroke) => PATTERN_ROLES[stroke.role] !== null);
 }
 
 /** A thumbnail's view box, null where it has no size to fit. */
@@ -267,6 +275,8 @@ export interface MissingTitleBlockPart {
   step: DiagramStep | null;
   /** That step's number, as the pages print it. */
   number: number | null;
+  /** The crease pattern is a file uploaded for it, with no line the block draws. */
+  file?: true;
 }
 
 /** A room of the block where what would print there prints nothing ({@link missingTitleBlockParts}). */
@@ -311,7 +321,12 @@ export function missingTitleBlockParts(
 ): TitleBlockPlaceholder[] {
   const { geometry } = block;
   const { model, pattern } = content;
-  const missing = ({ step, number }: TitleBlockPart, part: MissingTitleBlockPart['part']) => ({ part, step, number });
+  const missing = ({ from, step, number }: TitleBlockPart, part: MissingTitleBlockPart['part']): MissingTitleBlockPart => ({
+    part,
+    step,
+    number,
+    ...(from === 'upload' ? { file: true as const } : {}),
+  });
   const square: MissingTitleBlockPart[] = [];
   const front: MissingTitleBlockPart[] = [];
   if (pattern.from !== 'none' && !pattern.scene) square.push(missing(pattern, 'pattern'));
