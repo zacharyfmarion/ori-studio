@@ -141,6 +141,8 @@ describe('the step tree', () => {
       // The Layer order dialog's turn on an import: degrees, at most half a turn either way.
       { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'cp', turnDeg: 'a quarter' },
       { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'cp', turnDeg: 270 },
+      // Its Side: turned over or not, nothing else.
+      { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'cp', turnedOver: 'back' },
       // A crimp's second line has no root to replay with, and its kind is one of two.
       { ...valleyOp, kind: 'crimp', second: valleyOp.line, crimp: 'sideways' },
       { ...valleyOp, kind: 'crimp', crimp: 'inside' },
@@ -176,6 +178,17 @@ describe('the step tree', () => {
       expect(isLockedStep(held.document.steps[0]), JSON.stringify(op)).toBe(false);
       const written = (writeFoldSequence(held).steps as { op: Record<string, unknown> }[])[0]!.op;
       expect(written.turnDeg, JSON.stringify(op)).toBe(op.turnDeg ? op.turnDeg : undefined);
+    }
+  });
+
+  it('reads an import turned over, and writes it back only when it is', () => {
+    const jump = { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'cp', turnDeg: 30 };
+    for (const op of [{ ...jump, turnedOver: true }, jump, { ...jump, turnedOver: false }]) {
+      const held = readSteps([raw('a', null, { op })]);
+      expect(isLockedStep(held.document.steps[0]), JSON.stringify(op)).toBe(false);
+      const written = (writeFoldSequence(held).steps as { op: Record<string, unknown> }[])[0]!.op;
+      expect(written.turnedOver, JSON.stringify(op)).toBe('turnedOver' in op && op.turnedOver ? true : undefined);
+      expect(written.turnDeg).toBe(30);
     }
   });
 

@@ -46,6 +46,10 @@ describe('the analytics facts', () => {
     });
     // Rotate's turn, as a boolean: never the angle.
     expect(dialogClosedFact('unchanged', 0, '<=10', 42_000, null, true).properties).toMatchObject({ rotated: true });
+    // Side, only from a host that takes it (H12), as a boolean: left out for every other.
+    expect(dialogClosedFact('unchanged', 0, '<=10', 42_000, null, false).properties).not.toHaveProperty('turned_over');
+    expect(dialogClosedFact('unchanged', 0, '<=10', 42_000, null, false, true).properties).toMatchObject({ turned_over: true });
+    expect(dialogClosedFact('cancelled', 0, '<=10', 42_000, null, false, false).properties).toMatchObject({ turned_over: false });
     expect(needsAttentionFact('edit_figure', 2)).toEqual({
       event: 'layer constraints need attention',
       properties: { surface: 'edit_figure', broken_count_bucket: '<=2' },

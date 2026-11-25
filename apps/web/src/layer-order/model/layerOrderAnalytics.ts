@@ -109,6 +109,11 @@ export type LayerOrderFact =
         readonly elapsed_ms_bucket: string;
         /** Whether Rotate left the folded pane turned from the host's turn as it closed. Never the angle. */
         readonly rotated: boolean;
+        /**
+         * Only for a host that takes the side (Fold's Import CP, H12): whether
+         * Side left the folded pane on the other side from the host's as it closed.
+         */
+        readonly turned_over?: boolean;
       };
     }
   | {
@@ -176,7 +181,8 @@ export function dialogClosedFact(
   solutions: LayerOrderSolutionsBucket,
   elapsedMs: number,
   refusal: LayerOrderRefusalCode | null = null,
-  rotated = false
+  rotated = false,
+  turnedOver: boolean | null = null
 ): LayerOrderFact {
   return {
     event: 'layer order dialog closed',
@@ -187,6 +193,7 @@ export function dialogClosedFact(
       solutions_bucket: solutions,
       elapsed_ms_bucket: bucketCount(Math.max(0, elapsedMs), LAYER_ORDER_ELAPSED_MS_BUCKETS),
       rotated,
+      ...(turnedOver === null ? {} : { turned_over: turnedOver }),
     },
   };
 }

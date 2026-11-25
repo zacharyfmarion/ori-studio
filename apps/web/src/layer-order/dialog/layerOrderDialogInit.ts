@@ -13,7 +13,7 @@ import { untouchedApplyWrites } from '../model/layerOrderDecisions';
 import type { LayerOrderDialogInit } from '../model/layerOrderState';
 
 /** The init fields a request decides; the host's surface and the hook's clock are the caller's. */
-export type LayerOrderRequestInit = Pick<LayerOrderDialogInit, 'hasRecord' | 'recordNeedsAttention' | 'review' | 'xray'>;
+export type LayerOrderRequestInit = Pick<LayerOrderDialogInit, 'hasRecord' | 'recordNeedsAttention' | 'review' | 'xray' | 'takesSide'>;
 
 /**
  * The reducer's init, as far as the request decides it:
@@ -23,7 +23,8 @@ export type LayerOrderRequestInit = Pick<LayerOrderDialogInit, 'hasRecord' | 're
  *   (`untouchedApplyWrites`): the record was flagged after an edit, or the
  *   host's picture is of creases that changed since (`applyRefolds`);
  * - `review`: opened from the host's Review…, so on the flagged rows;
- * - `xray`: the host's look.
+ * - `xray`: the host's look;
+ * - `takesSide`: Apply hands back the side Side leaves the folded pane on (H12).
  */
 export function layerOrderRequestInit(request: LayerOrderRequest): LayerOrderRequestInit {
   return {
@@ -31,5 +32,6 @@ export function layerOrderRequestInit(request: LayerOrderRequest): LayerOrderReq
     recordNeedsAttention: untouchedApplyWrites(request.record, request.applyRefolds),
     review: request.review === true,
     xray: request.look.xray,
+    takesSide: request.takesSide === true,
   };
 }

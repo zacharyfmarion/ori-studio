@@ -430,6 +430,11 @@ const api = {
     return changing((calls) => calls.importTurn(importHandle, turnDeg));
   },
 
+  /** Turn an import opened onto the Layer order dialog over, after its turn (its Side): every step it lands stores it. */
+  async importTurnOver(importHandle: number, turnedOver: boolean): Promise<FoldImportLayerOpening['look']> {
+    return changing((calls) => calls.importTurnOver(importHandle, turnedOver));
+  },
+
   /** Start from Edit's folded figure: the kernel's paper scene of it. */
   async importEditFoldedFigure(
     scene: OristudioCpFoldedPaperScene,

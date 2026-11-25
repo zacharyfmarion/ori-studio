@@ -149,6 +149,13 @@ export interface LayerOrderRequest {
   readonly review?: boolean;
   /** Quieter, after the name: the design's credit when there is one ("Traditional", "by Birb"). */
   readonly byline?: string;
+  /**
+   * The host turns its picture over to the side Side leaves the folded pane
+   * on, with Apply (row H12): Fold's Import CP, which stores the imported
+   * step turned over. Left out, Side is a lens, as for every other host,
+   * and Apply never turns the host over.
+   */
+  readonly takesSide?: boolean;
 }
 
 /**

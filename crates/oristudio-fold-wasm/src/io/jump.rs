@@ -30,6 +30,10 @@ pub fn land(parent: &State, jump: &CpJump) -> Result<State, IoRefusal> {
     if jump.turn_deg != 0.0 {
         pattern.rotate_view(-jump.turn_deg.to_radians());
     }
+    // Then from the side its Side left it on, turned over after the turn.
+    if jump.turned_over {
+        pattern.turn_over_view();
+    }
     // Every pair is stored, so this is propagation, not a search.
     pattern
         .replay(&stored, &CompletionLimits::default())

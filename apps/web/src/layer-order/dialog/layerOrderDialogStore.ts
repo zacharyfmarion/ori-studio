@@ -19,7 +19,7 @@
  */
 import { create } from 'zustand';
 import { dialogOpener } from '../../components/ui/useModalDialog';
-import type { LayerOrderApplied, LayerOrderRequest } from '../../lib/layerOrder/layerOrderRequest';
+import type { LayerOrderApplied, LayerOrderLook, LayerOrderRequest } from '../../lib/layerOrder/layerOrderRequest';
 
 /**
  * How a Layer order dialog ended, as its host hears it. **Only `applied`
@@ -34,12 +34,18 @@ import type { LayerOrderApplied, LayerOrderRequest } from '../../lib/layerOrder/
  * can, or its own when Apply wrote no order). A turn writes no record: an
  * Apply that only turned is still `unchanged` (D16). Left out when the turn is
  * the request's; never on any other outcome.
+ *
+ * **The side.** For a host that takes it (`takesSide`, H12), `applied` and
+ * `unchanged` carry `side` when Side left the folded pane on the other side
+ * from `look.side`: the host turns its picture over to it, after the turn,
+ * about the display's vertical axis. Like the turn, it writes no record.
+ * Never for any other host: Side is a lens.
  */
 export type LayerOrderDialogOutcome =
   /** Apply, with something to write. */
-  | { readonly kind: 'applied'; readonly applied: LayerOrderApplied; readonly turnDeg?: number }
+  | { readonly kind: 'applied'; readonly applied: LayerOrderApplied; readonly turnDeg?: number; readonly side?: LayerOrderLook['side'] }
   /** Apply that changed no order: the host writes no layer order (D16), only the turn when there is one. */
-  | { readonly kind: 'unchanged'; readonly turnDeg?: number }
+  | { readonly kind: 'unchanged'; readonly turnDeg?: number; readonly side?: LayerOrderLook['side'] }
   /** Cancel, the close button, Escape, a press on the backdrop, or the app letting go of the dialog. */
   | { readonly kind: 'cancelled' }
   /** Another Layer order dialog is open; this ask never opened one. */

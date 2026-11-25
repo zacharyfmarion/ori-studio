@@ -77,6 +77,7 @@ fn round_trip(state: &State) -> State {
         order_json: jump::order_json(state).unwrap_or_else(|e| panic!("{e}")),
         origin: CpOrigin::Fold,
         turn_deg: 0.0,
+        turned_over: false,
     };
     land(state, &jump).unwrap_or_else(|e| panic!("{}: {e}", e.code()))
 }

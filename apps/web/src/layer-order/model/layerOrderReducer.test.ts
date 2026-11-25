@@ -1219,7 +1219,7 @@ describe('Rotate (the folded pane’s turn, 2026-10-27)', () => {
   it('a turn alone writes no record: Apply is unchanged, with the turn, and counted as rotated', () => {
     const turned = play(opened(undefined, { turnDeg: 90 }).state, { type: 'turned', direction: 'left' });
     const applied = play(turned.state, { type: 'apply', at: 5_000 });
-    expect(lastOf(applied.effects, 'apply')).toEqual({ type: 'apply', result: { kind: 'no_change' }, turnDeg: 75 });
+    expect(lastOf(applied.effects, 'apply')).toEqual({ type: 'apply', result: { kind: 'no_change' }, turnDeg: 75, side: null });
     expect(lastOf(applied.effects, 'track').fact).toEqual(dialogClosedFact('unchanged', 0, 'pending', 4_000, null, true));
   });
 
@@ -1309,5 +1309,44 @@ describe('Rotate (the folded pane’s turn, 2026-10-27)', () => {
     }).state;
     const applied = play(counted, { type: 'apply', at: 2_000 });
     expect(lastOf(applied.effects, 'track').fact).toMatchObject({ properties: { solutions_bucket: '<=10' } });
+  });
+});
+
+describe('Side, for a host that takes it (H12, 2026-11-20)', () => {
+  it('is a lens for every other host: Apply hands back no side, and the closed event says nothing of it', () => {
+    const back = play(opened(undefined, { side: 'front' }).state, { type: 'side_set', side: 'back' });
+    const applied = play(back.state, { type: 'apply', at: 5_000 });
+    expect(lastOf(applied.effects, 'apply')).toEqual({ type: 'apply', result: { kind: 'no_change' }, turnDeg: null, side: null });
+    expect(lastOf(applied.effects, 'track').fact.properties).not.toHaveProperty('turned_over');
+  });
+
+  it('hands a host that takes it the other side with Apply, as a turn alone: unchanged, and counted', () => {
+    const start = opened(undefined, { side: 'back', takesSide: true });
+    const front = play(start.state, { type: 'side_set', side: 'front' });
+    const applied = play(front.state, { type: 'apply', at: 5_000 });
+    expect(lastOf(applied.effects, 'apply')).toEqual({ type: 'apply', result: { kind: 'no_change' }, turnDeg: null, side: 'front' });
+    expect(lastOf(applied.effects, 'track').fact).toEqual(dialogClosedFact('unchanged', 0, 'pending', 4_000, null, false, true));
+    // Back on the host's side: no side, and not turned over.
+    const again = play(front.state, { type: 'side_set', side: 'back' }, { type: 'apply', at: 5_000 });
+    expect(lastOf(again.effects, 'apply').side).toBeNull();
+    expect(lastOf(again.effects, 'track').fact).toEqual(dialogClosedFact('unchanged', 0, 'pending', 4_000, null, false, false));
+  });
+
+  it('hands the side with the order and the turn, the turn in the host’s terms', () => {
+    const added = play(fits(picked(opened(undefined, { side: 'front', takesSide: true }).state, 2, 0)).state, { type: 'add' });
+    const one = commits(added, Uint32Array.of(2, 3, 4, 5), SPOTS_TWO_OVER_ZERO);
+    const back = play(one.state, { type: 'side_set', side: 'back' }, { type: 'turned', direction: 'right' });
+    expect(lastOf(play(back.state, { type: 'apply', at: 5_000 }).effects, 'apply')).toMatchObject({
+      result: { kind: 'changed' },
+      // Right as seen from the other side is the host's anticlockwise.
+      turnDeg: 345,
+      side: 'back',
+    });
+  });
+
+  it('Cancel hands back no side', () => {
+    const back = play(opened(undefined, { takesSide: true }).state, { type: 'side_set', side: 'back' });
+    const cancelled = play(back.state, { type: 'cancel', at: 4_000 });
+    expect(effectsOf(cancelled.effects, 'apply')).toEqual([]);
   });
 });

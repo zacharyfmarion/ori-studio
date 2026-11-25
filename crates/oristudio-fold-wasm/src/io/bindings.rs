@@ -26,6 +26,12 @@
 //!    *  every step it lands after stores the turn (`turnDeg` on its op). */
 //!   import_turn(import: number, turn_deg: number):
 //!     { side: 'front' | 'back'; turn_deg: number };
+//!   /** Turn an import opened onto the dialog over, or back, after its
+//!    *  turn (the dialog's Side, row H12): every step it lands after
+//!    *  stores it (`turnedOver` on its op). The turn stays in the terms of
+//!    *  the side it opened on. */
+//!   import_turn_over(import: number, turned_over: boolean):
+//!     { side: 'front' | 'back'; turn_deg: number };
 //!   /** Land the order the dialog's Apply chose: [upper, lower, …] over the
 //!    *  faces of the opening whose source digest is `digest`. */
 //!   import_pick_layer_order(import: number, digest: string, relations: Uint32Array):
@@ -126,6 +132,19 @@ impl FoldEngine {
     /// Answers its look now.
     pub fn import_turn(&mut self, import: u32, turn_deg: f64) -> Result<JsValue, JsValue> {
         to_js_value(&self.imports.turn(import, turn_deg).map_err(thrown)?)
+    }
+
+    /// Turn a held import opened onto the Layer order dialog over, or back,
+    /// after its turn, so Fold shows it from the side the dialog's Side left
+    /// it on (row H12); every step it lands after stores it. Answers its
+    /// look now.
+    pub fn import_turn_over(&mut self, import: u32, turned_over: bool) -> Result<JsValue, JsValue> {
+        to_js_value(
+            &self
+                .imports
+                .turn_over(import, turned_over)
+                .map_err(thrown)?,
+        )
     }
 
     /// Land the order the Layer order dialog's Apply chose: `relations`,

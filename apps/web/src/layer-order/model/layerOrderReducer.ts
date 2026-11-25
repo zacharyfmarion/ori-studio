@@ -63,6 +63,7 @@ import {
   type LayerOrderLimits,
   type LayerPosition,
   type LayerPreviewFacts,
+  type LayerSide,
   type LayerStacks,
   type LayerStepBy,
   type LayerVerb,
@@ -172,7 +173,7 @@ export function initLayerOrderDialog(init: LayerOrderDialogInit): LayerOrderStep
     solutions: freshSolutions(true, 0),
     hover: { face: null, slot: null, row: null, reason: false },
     view: { side: init.side ?? 'front', xray: init.xray, openSpots: false, turnDeg: wrapTurn(init.turnDeg ?? 0) },
-    hostTurn: { side: init.side ?? 'front', deg: wrapTurn(init.turnDeg ?? 0) },
+    hostTurn: { side: init.side ?? 'front', deg: wrapTurn(init.turnDeg ?? 0), takesSide: init.takesSide === true },
     flash: null,
     baseline: null,
   };
@@ -1374,11 +1375,12 @@ function apply(state: LayerOrderDialogState, at: number, effects: LayerOrderEffe
   const constraints = committedConstraints(state.rows);
   const keepCarried = state.rows.carried.map((row) => row.facts.index);
   const unchanged = applyChangedNothing(state.baseline, { constraints, carried: keepCarried, stacks: state.shown });
-  // A turn alone writes no record (D16): the host turns its picture, and that is all.
+  // A turn alone writes no record (D16): the host turns its picture, and that is all; so does a turn over (H12).
   effects.push({
     type: 'apply',
     result: unchanged ? { kind: 'no_change' } : { kind: 'changed', constraints, keepCarried },
     turnDeg: appliedTurn(state),
+    side: appliedSide(state),
   });
   effects.push({ type: 'track', fact: closedFact(state, unchanged ? 'unchanged' : 'applied', at) });
   return { ...state, phase: { kind: 'closed', outcome: 'applied' } };
@@ -1398,7 +1400,8 @@ function closedFact(
     solutionsBucket(count, solutions.runs),
     at - state.openedAt,
     refusal,
-    appliedTurn(state) !== null
+    appliedTurn(state) !== null,
+    state.hostTurn.takesSide ? appliedSide(state) !== null : null
   );
 }
 
@@ -1422,6 +1425,15 @@ function turnedBy(state: LayerOrderDialogState, direction: LayerTurnDirection): 
   const seen = direction === 'right' ? LAYER_TURN_STEP_DEG : -LAYER_TURN_STEP_DEG;
   const delta = state.view.side === state.hostTurn.side ? seen : -seen;
   return wrapTurn(state.view.turnDeg + delta);
+}
+
+/**
+ * The side the folded pane shows, when the host takes it (H12) and it is not
+ * the host's: the host turns its picture over to it. Null otherwise: for
+ * every other host Side is a lens.
+ */
+export function appliedSide(state: LayerOrderDialogState): LayerSide | null {
+  return state.hostTurn.takesSide && state.view.side !== state.hostTurn.side ? state.view.side : null;
 }
 
 /** The view's turn, in the host's terms, when Rotate moved it from the host's; null when it did not. */

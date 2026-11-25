@@ -48,12 +48,17 @@ function untouchedApply(asked: LayerOrderRequest, facts = RESTORED_WHOLE) {
 describe('the dialog’s init, read from the host’s request in one place', () => {
   it('makes an untouched Apply write on a stale host’s record (D12), as the shell’s Apply does', () => {
     const stale = request({ record: RECORD, applyRefolds: true });
-    expect(layerOrderRequestInit(stale)).toEqual({ hasRecord: true, recordNeedsAttention: true, review: false, xray: false });
+    expect(layerOrderRequestInit(stale)).toEqual({ hasRecord: true, recordNeedsAttention: true, review: false, xray: false, takesSide: false });
     expect(untouchedApply(stale)).toBe('changed');
     // The same record on a host that shows it: untouched, nothing to write (D16).
     expect(untouchedApply(request({ record: RECORD }))).toBe('no_change');
     // A flagged record writes too, so the host can clear its flag (D10).
     expect(untouchedApply(request({ record: { ...RECORD, attention: { reason: 'conflict', count: 1 } } }))).toBe('changed');
+  });
+
+  it('reads whether the host takes the side Side leaves the folded pane on (H12): only when it says so', () => {
+    expect(layerOrderRequestInit(request({})).takesSide).toBe(false);
+    expect(layerOrderRequestInit(request({ takesSide: true })).takesSide).toBe(true);
   });
 
   it('leaves an untouched Apply on a stale host with no record as nothing to write: the host’s plain Refold', () => {

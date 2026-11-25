@@ -42,6 +42,7 @@ export interface FoldWasmIoEngine {
   import_layer_opening(importHandle: number, choice: Uint32Array): unknown;
   import_pick_layer_order(importHandle: number, digest: string, relations: Uint32Array): unknown;
   import_turn(importHandle: number, turnDeg: number): unknown;
+  import_turn_over(importHandle: number, turnedOver: boolean): unknown;
   import_edit_folded_figure(scene: unknown, target: unknown, limits: unknown): unknown;
   release_imports(imports: Uint32Array): number;
   live_imports(): number;
@@ -129,6 +130,14 @@ export interface FoldEngineIoCalls {
    * after stores the turn (`FoldCpJumpOp.turnDeg`). Answers its look now.
    */
   importTurn(importHandle: number, turnDeg: number): FoldImportLayerOpening['look'];
+  /**
+   * Turn an import opened onto the Layer order dialog over, or back, after
+   * its turn (the dialog's Side, row H12), so Fold shows it from the side
+   * the dialog left it on. Every step it lands after stores it
+   * (`FoldCpJumpOp.turnedOver`). Its turn stays in the terms of the side it
+   * opened on. Answers its look now.
+   */
+  importTurnOver(importHandle: number, turnedOver: boolean): FoldImportLayerOpening['look'];
   /** Start from Edit's folded figure: the kernel's paper scene of it. */
   importEditFoldedFigure(
     scene: OristudioCpFoldedPaperScene,
@@ -196,6 +205,11 @@ export function createFoldEngineIoCalls(engine: FoldWasmIoEngine): FoldEngineIoC
     importTurn(importHandle, turnDeg) {
       if (typeof turnDeg !== 'number' || !Number.isFinite(turnDeg)) throw invalidInput('turnDeg must be a number');
       return engine.import_turn(requireHandle('import', importHandle), turnDeg) as FoldImportLayerOpening['look'];
+    },
+
+    importTurnOver(importHandle, turnedOver) {
+      if (typeof turnedOver !== 'boolean') throw invalidInput('turnedOver must be a boolean');
+      return engine.import_turn_over(requireHandle('import', importHandle), turnedOver) as FoldImportLayerOpening['look'];
     },
 
     importEditFoldedFigure(scene, to, within) {

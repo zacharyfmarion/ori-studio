@@ -22,8 +22,9 @@ const IDLE = createStore<FoldImportFlowState>(() => ({ phase: 'idle' }));
 
 /**
  * The import flow as the app runs it: the app's session, Edit's figures, the
- * analytics events, and the Layer order dialog to choose among several orders
- * (row H10), whose code starts loading only once an import reports several.
+ * analytics events, and the Layer order dialog to choose the order in, or to
+ * rotate a pattern with only one (row H10), whose code starts loading once an
+ * import opens.
  */
 export function createAppFoldImportFlow(): FoldImportFlow {
   return createFoldImportFlow({

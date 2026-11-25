@@ -68,6 +68,23 @@ pub struct ImportedLook {
     pub turn_deg: f64,
 }
 
+impl ImportedLook {
+    /// This look with the view turned over about the display's vertical
+    /// axis ([`crate::ImportedPattern::turn_over_view`]): the other side,
+    /// turned the other way, since the other side's picture is this one's
+    /// mirror image, x ↦ −x, and a mirrored turn clockwise is one
+    /// anticlockwise.
+    pub fn turned_over(self) -> ImportedLook {
+        ImportedLook {
+            side: match self.side {
+                ViewSide::Front => ViewSide::Back,
+                ViewSide::Back => ViewSide::Front,
+            },
+            turn_deg: wrap_degrees(-self.turn_deg),
+        }
+    }
+}
+
 /// See the module docs.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportedFaces {

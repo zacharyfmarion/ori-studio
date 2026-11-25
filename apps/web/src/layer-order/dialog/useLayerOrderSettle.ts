@@ -18,7 +18,7 @@
  *   with the reason, as it was.
  */
 import { useCallback, useState } from 'react';
-import type { LayerRefusal } from '../engine/layerOrderEngine';
+import type { LayerRefusal, LayerSide } from '../engine/layerOrderEngine';
 import type { LayerOrderApplyResult } from '../model/layerOrderState';
 import { settleLayerOrderDialog, type LayerOrderDialogOpening } from './layerOrderDialogStore';
 import type { LayerOrderSession } from './useLayerOrderSession';
@@ -33,8 +33,12 @@ export type LayerOrderApplyOutcome = 'applied' | 'unchanged' | 'refused' | 'skip
 
 export interface LayerOrderSettle {
   readonly cancel: () => void;
-  /** Apply what the model decided Apply writes, and the turn it hands back, if any. Resolves how it went. */
-  readonly apply: (result: LayerOrderApplyResult, turnDeg?: number | null) => Promise<LayerOrderApplyOutcome>;
+  /** Apply what the model decided Apply writes, and the turn and side it hands back, if any. Resolves how it went. */
+  readonly apply: (
+    result: LayerOrderApplyResult,
+    turnDeg?: number | null,
+    side?: LayerSide | null
+  ) => Promise<LayerOrderApplyOutcome>;
   /** An Apply is saving: Apply waits, Cancel still closes. */
   readonly applying: boolean;
   /** Why the last Apply could not save, until the next. */
@@ -52,9 +56,13 @@ export function useLayerOrderSettle(opening: LayerOrderDialogOpening, session: L
   }, [id]);
 
   const apply = useCallback(
-    async (result: LayerOrderApplyResult, turnDeg: number | null = null): Promise<LayerOrderApplyOutcome> => {
+    async (
+      result: LayerOrderApplyResult,
+      turnDeg: number | null = null,
+      side: LayerSide | null = null
+    ): Promise<LayerOrderApplyOutcome> => {
       if (applying || status.kind !== 'ready') return 'skipped';
-      const turn = turnDeg === null ? {} : { turnDeg };
+      const turn = { ...(turnDeg === null ? {} : { turnDeg }), ...(side === null ? {} : { side }) };
       if (result.kind === 'no_change') {
         settleLayerOrderDialog(id, { kind: 'unchanged', ...turn });
         return 'unchanged';
