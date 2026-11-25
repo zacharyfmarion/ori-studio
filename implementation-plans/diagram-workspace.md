@@ -1782,7 +1782,12 @@ on its next save.
   credits?, note?, modelSize?, patternSize? }`, written in that order. All
   its text is plain. `model` (the finished model: a step's picture) and
   `pattern` (the crease pattern: a linked step's thumbnail) are each `{
-  kind: 'step', stepId }` or `{ kind: 'none' }`. Unsaid is Auto: the last
+  kind: 'step', stepId }` or `{ kind: 'none' }`; since 2026-11-25
+  (`diagram-title-block-final-cp.md`) `pattern` may also be `{ kind:
+  'upload', assetId }`, a file uploaded for it, which reads only while it
+  names a `crease-pattern` asset (otherwise it is dropped and is Auto; one
+  naming a newer build's asset is carried), and a `model` of that kind is a
+  newer build's. Unsaid is Auto: the last
   step with a picture, and the last step linked to a crease pattern,
   whatever it is shown as (none when no step is linked), turns and locked
   steps skipped. A chosen step that is gone, or locked, reads as Auto, its
@@ -1821,8 +1826,15 @@ on its next save.
 - `assets`, by id: `{ id, kind: 'svg', svg, widthPx, heightPx, bytes }`,
   sanitized again on every load, or `{ id, kind: 'raster', src, widthPx,
   heightPx, bytes }`, a PNG or JPEG data URL whose header must agree with its
-  size, at most 2,048 px a side (D7). One nothing names, no step of this
-  build's and nothing a newer build wrote, is not written.
+  size, at most 2,048 px a side (D7); or, since 2026-11-25, `{ id, kind:
+  'crease-pattern', name, pattern, bytes }`, a crease pattern uploaded for
+  the title block: the file's name (one line), its lines as one JSON string
+  in a link thumbnail's shape fitted to a 1000-unit box, every role kept, and
+  the string's length. Lines with a role or field this build has no name
+  for, or past 20,000, make it a newer build's. A step whose source or
+  picture names one reads as no picture. One nothing names, no step of this
+  build's, not the title block's pattern and nothing a newer build wrote, is
+  not written.
 - `pageArrangements` (added 2026-10-12, `diagram-flow-packing.md`), only
   when one is stored: how each flow page was packed, by the id of the step
   it starts with — `{ signature, k, steps: { "<step id>": { box: [x, y, w,

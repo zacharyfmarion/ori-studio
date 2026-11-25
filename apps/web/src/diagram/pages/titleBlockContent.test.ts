@@ -198,7 +198,7 @@ describe('patternScene', () => {
   const folded = (thumbnail: SheetThumbnail) => ({ kind: 'fold-step' as const, thumbnail });
   const lines = (scene: PaperScene | null) => scene?.items.map((item) => (item.kind === 'line' ? [item.role, item.a, item.b] : item.kind));
 
-  it('draws a thumbnail’s lines in the pattern’s own pens, an unassigned one as aux, and leaves its aux lines out', () => {
+  it('draws a thumbnail’s folds in the fold pens and its edge in the edge pen, and leaves its unassigned and aux lines out', () => {
     const thumbnail: SheetThumbnail = {
       viewBox: '0 0 100 100',
       strokes: [stroke('aux', 10), stroke('unassigned', 20), stroke('mountain', 30), stroke('valley', 40), stroke('edge', 0)],
@@ -207,7 +207,6 @@ describe('patternScene', () => {
     expect(scene.bounds).toEqual({ minX: 0, minY: 0, maxX: 100, maxY: 100 });
     expect(scene.sheet).toBe(100);
     expect(lines(scene)).toEqual([
-      ['aux', [0, 20], [100, 20]],
       ['mountain', [0, 30], [100, 30]],
       ['valley', [0, 40], [100, 40]],
       ['edge', [0, 0], [100, 0]],
@@ -216,16 +215,17 @@ describe('patternScene', () => {
     expect(scene.items.some((item) => item.kind === 'face')).toBe(false);
   });
 
-  it('draws a Fold state’s flat creases in the aux pen, as its Crease pattern picture does: they are creases, not construction lines', () => {
+  it('leaves a Fold state’s flat creases out too: the block shows the final folds, not the precreases', () => {
     // A precrease lying flat, a valley folded, the sheet's edge: `foldStateFrame`'s pattern.
     const thumbnail: SheetThumbnail = { viewBox: '0 0 100 100', strokes: [stroke('aux', 10), stroke('valley', 40), stroke('edge', 0)] };
     expect(lines(patternScene(folded(thumbnail)))).toEqual([
-      ['aux', [0, 10], [100, 10]],
       ['valley', [0, 40], [100, 40]],
       ['edge', [0, 0], [100, 0]],
     ]);
-    // A state of precreases only draws them.
-    expect(patternScene(folded({ viewBox: '0 0 100 100', strokes: [stroke('aux', 50)] }))).not.toBeNull();
+    // A state of precreases only, with no edge, draws nothing.
+    expect(patternScene(folded({ viewBox: '0 0 100 100', strokes: [stroke('aux', 50)] }))).toBeNull();
+    // Edit's link and a Fold step's with one thumbnail are one drawing.
+    expect(patternScene(folded(thumbnail))).toEqual(patternScene(linked(thumbnail)));
   });
 
   it('is none for a thumbnail with no line to draw', () => {
@@ -247,7 +247,7 @@ describe('patternScene', () => {
       { viewBox: '-5 -5 110 110', strokes: [stroke('mountain', 0)] },
     ];
     const sources = [...thumbnails.map(linked), ...thumbnails.map(folded)];
-    expect(sources.map(drawsPattern)).toEqual([false, false, true, false, false, true, false, true, true, false, false, true]);
+    expect(sources.map(drawsPattern)).toEqual([false, false, false, false, false, true, false, false, false, false, false, true]);
     expect(sources.map((source) => patternScene(source) !== null)).toEqual(sources.map(drawsPattern));
   });
 });

@@ -1449,7 +1449,7 @@
         "needsRows": "Il faut au moins deux rangées",
         "none": "Aucun",
         "pattern": "Patron de plis",
-        "patternHelp": "Dessiné d’après le patron de plis qu’une étape lie. Auto prend la dernière étape liée ; chaque patron n’apparaît qu’une fois, sous l’étape choisie pour lui, ou à défaut sous la dernière étape qui le lie.",
+        "patternHelp": "Ses plis montagne et vallée, d’après le patron de plis qu’une étape lie ou un fichier que vous importez. Auto prend la dernière étape liée\u00a0; chaque patron n’apparaît qu’une fois, sous l’étape choisie pour lui, ou à défaut sous la dernière étape qui le lie.",
         "patternSize": "Taille du patron de plis",
         "patternSizeHelp": "Le côté du patron de plis, en part de la hauteur du bloc titre.",
         "removeCredit": "Retirer le crédit {{number}}",
@@ -1459,7 +1459,8 @@
         "stepCount": "Auto ({{number}})",
         "subtitle": "Sous-titre",
         "subtitleHelp": "La petite ligne au-dessus du titre. Videz-la pour n’en imprimer aucune.",
-        "typeValue": "Saisir une valeur pour le crédit {{number}} à la place"
+        "typeValue": "Saisir une valeur pour le crédit {{number}} à la place",
+        "uploadPattern": "Importer un fichier CP ou FOLD…"
       },
       "titleHelp": "Le titre du diagramme, dans un onglet en haut de chaque page.",
       "titleHelpWithBlock": "Le titre du diagramme, dans un onglet en haut de chaque page. Sur la première page, c’est le bloc titre qui le porte."
@@ -1479,6 +1480,7 @@
       "textCut": "Le texte ne tient pas",
       "titleBlock": {
         "creditsCut": "Certains crédits ne tiennent pas",
+        "fileNoPattern": "Le fichier importé n’a pas de plis",
         "noModel": "Aucune étape n’a encore d’image",
         "noPattern": "Aucune étape n’est liée à un patron de plis",
         "stepNoPattern": "L’étape {{number}} n’a pas de patron de plis",

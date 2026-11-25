@@ -36,7 +36,7 @@ import { trimDiagramHistory } from "./diagramState";
 import {
   placeImportedSteps,
   type DiagramStep,
-  type KnownDiagramAsset,
+  type DiagramPictureAsset,
 } from "../../diagram/document/diagramDocument";
 import { retainPageCounts } from "../../diagram/pages/pageCounts";
 import { followPageArrangements } from "../../diagram/pages/pageArrangements";
@@ -62,7 +62,7 @@ export interface ImportTarget {
 export interface ImportGroup {
   geometry?: CpGeometryTransport;
   steps: DiagramStep[];
-  assets?: KnownDiagramAsset[];
+  assets?: DiagramPictureAsset[];
 }
 /** Said when what the import was prepared against is no longer there to publish into. */
 const destinationChanged = () =>

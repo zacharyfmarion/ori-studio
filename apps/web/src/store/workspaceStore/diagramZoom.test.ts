@@ -12,7 +12,7 @@ import {
   type DiagramStep,
   type DiagramStepDiagramPicture,
   type KnownDiagramAnnotation,
-  type KnownDiagramAsset,
+  type DiagramPictureAsset,
 } from '../../diagram/document/diagramDocument';
 import { referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { craneStep, imprintCase, turnedCapture } from '../../diagram/zoom/zoom.fixtures';
@@ -512,7 +512,7 @@ describe('older flat captures’ faces', () => {
 });
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"/>';
-const svgAsset = (id: string): KnownDiagramAsset => ({ id, kind: 'svg', svg: SVG, widthPx: 400, heightPx: 300, bytes: SVG.length });
+const svgAsset = (id: string): DiagramPictureAsset => ({ id, kind: 'svg', svg: SVG, widthPx: 400, heightPx: 300, bytes: SVG.length });
 
 /** A capture of the step committed as Pose and Refresh commit one: its source and picture, against its revision now. */
 function commitCapture(stepId: string, captured: DiagramStep, label: string) {

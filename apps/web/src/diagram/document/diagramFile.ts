@@ -141,7 +141,9 @@ import {
   titleBlockLine,
   titleBlockSource,
   carriedJson,
+  isCreasePatternAsset,
   isKnownAsset,
+  isPictureAsset,
   normalizePageSetup,
   PAGE_SETTING_KEYS,
   readHexColor,
@@ -173,6 +175,7 @@ import {
   type DiagramHanStyle,
   type DiagramIdFactory,
   type DiagramPageSetup,
+  type DiagramCreasePatternAsset,
   type DiagramRasterAsset,
   type DiagramShowAs,
   type DiagramStep,
@@ -182,6 +185,7 @@ import {
   type DiagramTitleBlockContent,
   type DiagramTitleBlockCredit,
   type DiagramTitleBlockCreditValue,
+  type DiagramTitleBlockPatternSource,
   type DiagramTitleBlockSource,
   type DiagramTurn,
   type DiagramPaperFaces,
@@ -238,7 +242,7 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
     lockedTurn
   );
   const arranged = readPageArrangements(value.pageArrangements);
-  const titleBlock = readTitleBlockContent(value.titleBlockContent);
+  const titleBlock = readTitleBlockContent(value.titleBlockContent, assets);
   const newer = readNewerFields(value, arranged.newer, titleBlock.newer);
   const document: DiagramDocument = {
     formatVersion: DIAGRAM_FORMAT_VERSION,
@@ -386,23 +390,31 @@ const STEP_COUNT_KEYS: ReadonlySet<string> = new Set(['kind']);
  * it has no name for, are a newer build's: carried under its key, and shown
  * as the nearest here — a source as Auto, the credits as this build reads
  * them, a size held to its range. A part that does not read — the wrong type,
- * a step without its id — is dropped alone, and so is a blank subtitle or
- * note, a band colour that is no `#rrggbb` colour (the band then follows the
- * paper's), and a credit that is no object.
+ * a step without its id, a file whose asset is not there — is dropped alone,
+ * and so is a blank subtitle or note, a band colour that is no `#rrggbb`
+ * colour (the band then follows the paper's), and a credit that is no object.
+ * The crease pattern alone takes a file ({@link readTitleBlockPatternSource}).
  *
  * `byline` is retired: this branch's credits as one text, never released. It
  * reads as the note where the file says none, and is never written.
  */
-function readTitleBlockContent(value: unknown): { content: DiagramTitleBlockContent; newer: Record<string, unknown> } {
+function readTitleBlockContent(
+  value: unknown,
+  assets: Record<string, DiagramAsset>
+): { content: DiagramTitleBlockContent; newer: Record<string, unknown> } {
   const content: { -readonly [K in keyof DiagramTitleBlockContent]: DiagramTitleBlockContent[K] } = {};
   const newer: Record<string, unknown> = {};
   if (!isRecord(value)) return { content, newer };
   let byline: string | undefined;
   for (const [key, part] of Object.entries(value)) {
-    if (key === 'model' || key === 'pattern') {
+    if (key === 'model') {
       const source = readTitleBlockSource(part);
-      if (source === 'newer') newer[key] = part;
-      else if (source) content[key] = source;
+      if (source === 'newer') newer.model = part;
+      else if (source) content.model = source;
+    } else if (key === 'pattern') {
+      const source = readTitleBlockPatternSource(part, assets);
+      if (source === 'newer') newer.pattern = part;
+      else if (source) content.pattern = source;
     } else if (key === 'subtitle' || key === 'note') {
       // One of a kind this build has no name for — a richer text — is a newer build's: none here, and carried.
       if (isRecord(part) && typeof part.kind === 'string') newer[key] = part;
@@ -458,6 +470,29 @@ function readTitleBlockSource(value: unknown): DiagramTitleBlockSource | 'newer'
   const known = TITLE_BLOCK_SOURCE_KEYS.get(value.kind);
   if (!known || hasNewerKey(value, known)) return 'newer';
   return titleBlockSource(value);
+}
+
+/** The fields of a crease pattern uploaded from a file, as the title block's pattern names it. */
+const UPLOAD_PATTERN_KEYS: ReadonlySet<string> = new Set(['kind', 'assetId']);
+
+/**
+ * The crease pattern's source: any part's ({@link readTitleBlockSource}), or
+ * a file uploaded for it (`diagram-title-block-final-cp.md`), which reads
+ * only while the asset it names is there and is an uploaded crease pattern.
+ * One naming no such asset does not read, and is Auto. One naming an asset a
+ * newer build wrote is carried as that build's, since only it can draw it.
+ */
+function readTitleBlockPatternSource(
+  value: unknown,
+  assets: Record<string, DiagramAsset>
+): DiagramTitleBlockPatternSource | 'newer' | null {
+  if (!isRecord(value) || value.kind !== 'upload') return readTitleBlockSource(value);
+  if (hasNewerKey(value, UPLOAD_PATTERN_KEYS)) return 'newer';
+  const { assetId } = value;
+  if (typeof assetId !== 'string') return null;
+  const asset = Object.hasOwn(assets, assetId) ? assets[assetId] : undefined;
+  if (asset && !isKnownAsset(asset)) return 'newer';
+  return isCreasePatternAsset(asset) ? { kind: 'upload', assetId } : null;
 }
 
 /** A finite number outside `range`: a newer build's, which reads further. */
@@ -764,23 +799,17 @@ function writePathNode(node: DiagramPathNode): Record<string, unknown> {
 
 function writeAsset(asset: DiagramAsset): Record<string, unknown> {
   if (!isKnownAsset(asset)) return asset.unknown;
-  return asset.kind === 'svg'
-    ? {
-        id: asset.id,
-        kind: 'svg',
-        svg: asset.svg,
-        widthPx: asset.widthPx,
-        heightPx: asset.heightPx,
-        bytes: asset.bytes,
-      }
-    : {
-        id: asset.id,
-        kind: 'raster',
-        src: asset.src,
-        widthPx: asset.widthPx,
-        heightPx: asset.heightPx,
-        bytes: asset.bytes,
-      };
+  switch (asset.kind) {
+    case 'svg':
+      return { id: asset.id, kind: 'svg', svg: asset.svg, widthPx: asset.widthPx, heightPx: asset.heightPx, bytes: asset.bytes };
+    case 'raster':
+      return { id: asset.id, kind: 'raster', src: asset.src, widthPx: asset.widthPx, heightPx: asset.heightPx, bytes: asset.bytes };
+    case 'crease-pattern': {
+      // Its lines as one string, so the file is not a line per coordinate (decision 4 of the launch review).
+      const pattern = thumbnailJson(asset.pattern);
+      return { id: asset.id, kind: 'crease-pattern', name: asset.name, pattern, bytes: pattern.length };
+    }
+  }
 }
 
 /**
@@ -866,6 +895,7 @@ const PICTURE_KEYS: Readonly<Record<DiagramPicture['kind'], ReadonlySet<string>>
 const ASSET_KEYS: Readonly<Record<KnownDiagramAsset['kind'], ReadonlySet<string>>> = {
   svg: new Set(['id', 'kind', 'svg', 'widthPx', 'heightPx', 'bytes']),
   raster: new Set(['id', 'kind', 'src', 'widthPx', 'heightPx', 'bytes']),
+  'crease-pattern': new Set(['id', 'kind', 'name', 'pattern', 'bytes']),
 };
 
 /**
@@ -1307,7 +1337,7 @@ function readSource(
 /** An upload's source: the asset it shows, which must read, and how it is turned and flipped. */
 function readUploadSource(value: Record<string, unknown>, assets: Record<string, DiagramAsset>): DiagramStepSource | null {
   const assetId = value.assetId;
-  if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
+  if (typeof assetId !== 'string' || !hasPictureAsset(assets, assetId)) return null;
   return {
     kind: 'upload',
     assetId,
@@ -1652,7 +1682,7 @@ function readPictureOfKind(
   switch (kind) {
     case 'asset': {
       const assetId = value.assetId;
-      if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
+      if (typeof assetId !== 'string' || !hasPictureAsset(assets, assetId)) return null;
       const styleKey = typeof value.styleKey === 'string' && value.styleKey.length <= 512 ? value.styleKey : null;
       const frame = value.sceneFrame;
       if (frame !== undefined && (
@@ -1770,9 +1800,9 @@ function readFixedPicture(
   return { kind: 'fixed', svg: result.svg, widthPx: result.widthPx, heightPx: result.heightPx, key };
 }
 
-function hasKnownAsset(assets: Record<string, DiagramAsset>, id: string): boolean {
-  const asset = Object.hasOwn(assets, id) ? assets[id] : undefined;
-  return asset !== undefined && isKnownAsset(asset);
+/** Whether `id` names a picture this build reads: a crease pattern uploaded for the title block is never a step's. */
+function hasPictureAsset(assets: Record<string, DiagramAsset>, id: string): boolean {
+  return isPictureAsset(Object.hasOwn(assets, id) ? assets[id] : undefined);
 }
 
 /** The fields each kind is written with; any other makes the annotation a newer build's. */
@@ -2693,7 +2723,33 @@ function readAsset(
   if (!Object.hasOwn(ASSET_KEYS, entry.kind as string)) return NEWER;
   const kind = entry.kind as KnownDiagramAsset['kind'];
   if (hasNewerKey(entry, ASSET_KEYS[kind])) return NEWER;
-  return kind === 'svg' ? readSvgAsset(id, entry, env()) : readRasterAsset(id, entry);
+  switch (kind) {
+    case 'svg':
+      return readSvgAsset(id, entry, env());
+    case 'raster':
+      return readRasterAsset(id, entry);
+    case 'crease-pattern':
+      return readCreasePatternAsset(id, entry);
+  }
+}
+
+/**
+ * A crease pattern uploaded for the title block, as a file holds it
+ * (`diagram-title-block-final-cp.md`): its name, one line, and its lines as
+ * the JSON a link's thumbnail is (`readSheetThumbnail`), every one. Lines a
+ * newer build wrote — a role or field this build has no name for, or more
+ * than it keeps — make it a newer build's, carried as it came; anything else
+ * that does not read is dropped, and the title block's pattern naming it
+ * reads as Auto.
+ */
+function readCreasePatternAsset(id: string, entry: Record<string, unknown>): DiagramCreasePatternAsset | typeof NEWER | null {
+  const { name, pattern } = entry;
+  if (typeof name !== 'string' || typeof pattern !== 'string') return null;
+  const parsed = safeJson(pattern);
+  if (isNewerSheetThumbnail(parsed)) return NEWER;
+  const lines = readSheetThumbnail(parsed);
+  if (!lines) return null;
+  return { id, kind: 'crease-pattern', name: titleBlockLine(name), pattern: lines, bytes: pattern.length };
 }
 
 function readSvgAsset(
