@@ -47,6 +47,12 @@ describe('trackPaperExported', () => {
       surface, format: 'obj', options_changed: 'yes', scope: 'this',
     });
   });
+  it('says whether a folded figure’s OBJ was written spread or flat, as an enum', () => {
+    trackPaperExported({ surface: 'folded-flat', format: 'obj', optionsChanged: false, scope: 'this', objSpread: 'spread' });
+    expect(runtime.track).toHaveBeenCalledExactlyOnceWith('paper exported', {
+      surface: 'folded-flat', format: 'obj', options_changed: 'no', scope: 'this', obj_spread: 'spread',
+    });
+  });
   it('reports every option as an enum, and no resolution for an SVG', () => {
     trackPaperExported(SVG);
     expect(runtime.track).toHaveBeenCalledWith('paper exported', {

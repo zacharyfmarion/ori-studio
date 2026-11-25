@@ -20,12 +20,52 @@ import type { Hex, PaperStyle, PaperStyleOverrides } from '../lib/paper/paperSty
 import type { PaperSurface } from '../lib/paper/paperStyleResolve';
 import type { PaperExportMark, PaperExportMarks } from '../lib/paperExportSettings';
 import type { FoldedObjUnavailableReason } from '../lib/foldedExport';
+import type { OristudioCpFoldedPaperScene } from '../engine/oristudioCpTypes';
+import type { ConnectedSpreadView } from '../layer-spread/view';
+
+/**
+ * The layer spread an OBJ is written with, as the dialog sets it: Default's,
+ * the one spread with a 3D form, at an amount, or none.
+ */
+export interface PaperObjSpread {
+  /** Whether the layers are lifted apart; off, the file is the fold as it lies. */
+  on: boolean;
+  /** Default's Amount (`ConnectedSpread.amount`), kept while it is off. */
+  amount: number;
+}
+
+/**
+ * The fold behind an OBJ whose spread the dialog sets: what it opens on, and
+ * the paper scene with its spread solve, which the preview draws in 3D and
+ * the file lifts by.
+ */
+export interface PaperObjSpreadSource {
+  /** The figure's own Default spread, or none. */
+  initial: PaperObjSpread;
+  /**
+   * The paper scene and its solve: read, folded again or solved on the first
+   * ask, and held until the dialog closes. Rejects with a
+   * `FoldedObjUnavailableError` when the figure has no fold to give, and
+   * otherwise when its layers cannot be spread.
+   */
+  prepare(): Promise<ConnectedSpreadView>;
+  /** The paper scene alone, which a file with no spread needs and a spread one starts from. */
+  scene(): Promise<OristudioCpFoldedPaperScene>;
+}
 
 /** A captured 3D mesh, independent of the page's image and its options. */
 export interface PaperObjExport {
   unavailableReason: FoldedObjUnavailableReason | null;
-  /** Null when the capture expired; never substitute a different live model. */
-  build(): Promise<string | null>;
+  /**
+   * For a mesh whose layers can spread — a flat folded figure's — the spread
+   * the dialog sets for the file. Absent, the mesh is written as captured.
+   */
+  spread?: PaperObjSpreadSource;
+  /**
+   * The file: with `spread` the dialog's, for a mesh that has a spread source.
+   * Null when the capture expired; never substitute a different live model.
+   */
+  build(spread?: PaperObjSpread): Promise<string | null>;
 }
 
 /** What a scene is built from, beyond the capture itself. */

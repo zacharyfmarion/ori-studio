@@ -6,13 +6,15 @@
  *   vertex once, where the fold put it — and, with a spatial spread, each
  *   vertex moved by the spread's solve at the figure's amount: the field the
  *   window draws (`posedMaterialPositions`).
- * - **A flat figure** writes the kernel's paper scene, flat, or lifted by its
- *   Default spread's solve: the true-size shift in the plane, and each vertex's
- *   height above the shown side's reference plane, which is what that shift
- *   keeps the paper its size against. The reveal is the shear the canvas draws
- *   a lift with, not geometry, and is left out. An Affine or Depth spread moves
- *   only the picture and has no 3D form, so its figure's export says so rather
- *   than write it unspread.
+ * - **A flat figure** writes the kernel's paper scene, flat, or lifted by the
+ *   Default spread the export dialog sets — opening on the figure's own — as
+ *   Perspective 3D lifts it, which the dialog previews: the true-size shift in
+ *   the plane, and each vertex's height above the shown side's reference
+ *   plane, which is what that shift keeps the paper its size against. A reveal
+ *   is the shear a flat picture draws a lift with, not geometry, and is left
+ *   out. Affine and Depth move only a picture and have no 3D form. A figure
+ *   reopened from its file is folded again to give its paper scene
+ *   (`foldedFigureObjScene.ts`).
  *
  * Every triangle is wound so its right-hand normal leaves the paper's front,
  * the side drawn in the front colour. A 3D triangle is wound from its ring's
@@ -39,14 +41,17 @@ import type {
   OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
 import { prepareConnected } from '../../layer-spread/prepareConnected';
+import { perspectiveSpread } from '../../layer-spread/presentation';
+import type { ConnectedSpreadView } from '../../layer-spread/view';
 import { foldedObj } from '../../lib/foldedExport';
 import { sheetUvs } from '../../lib/sheetUvs';
-import type { PaperObjExport } from '../../paperExport/paperExportTarget';
+import type { PaperObjExport, PaperObjSpread } from '../../paperExport/paperExportTarget';
 import { connectedSpreadSource, scenePoint, type ConnectedSpreadSource } from './connectedSpreadSource';
 import { posedMaterialPositions } from './folded3dMaterial';
 import { toSimBasis } from './folded3dMesh';
 import { ensureSpatialSolution, spatialAmount, spatialSource } from './folded3dSpread';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
+import { DEFAULT_CONNECTED_SPREAD } from './layerSpreadSettings';
 import { triangulateSpreadFace } from './triangulateSpreadFace';
 
 /** A render model's material source: the sheet's vertices, where the fold put them, and its faces. */
@@ -220,32 +225,51 @@ export function folded3dFigureObjExport(
 }
 
 /**
- * A flat figure's OBJ for the export dialog, from the paper scene its picture
- * is drawn from and the spread it is drawn with (null for none). A Default
- * spread is solved when the file is asked for; Affine and Depth have no 3D
- * form, and say so.
+ * The spread a flat figure's OBJ opens on: its own Default spread, else none,
+ * at Default's starting amount, from which the dialog's Amount moves. An
+ * Affine or Depth spread moves the picture alone and has no 3D form.
+ */
+export function foldedFigureObjSpread(spread: LayerSpreadOptions | null): PaperObjSpread {
+  return spread?.kind === 'connected'
+    ? { on: spread.amount > 0, amount: spread.amount }
+    : { on: false, amount: DEFAULT_CONNECTED_SPREAD.amount };
+}
+
+/**
+ * A flat figure's OBJ for the export dialog, from the paper scene `scene`
+ * gives — the one its picture is drawn from, or one read or folded again on
+ * the first ask (`foldedFigureObjScene`) — written flat, or lifted by the
+ * Default spread the dialog sets as Perspective 3D lifts it
+ * (`perspectiveSpread`): what the dialog's preview draws is the file.
+ * `initial` is the figure's own spread. The scene and its solve are asked
+ * for once and held until `signal` aborts, as the dialog closes.
  */
 export function foldedFlatFigureObjExport(
-  kernel: OristudioCpFoldedPaperScene,
-  spread: LayerSpreadOptions | null,
+  scene: () => Promise<OristudioCpFoldedPaperScene>,
+  initial: PaperObjSpread,
   signal: AbortSignal
 ): PaperObjExport {
-  if (spread && spread.kind !== 'connected') return { unavailableReason: 'picture-only-spread', build: async () => null };
-  const amount = spread?.amount ?? 0;
+  let read: Promise<OristudioCpFoldedPaperScene> | null = null;
+  let solved: Promise<ConnectedSpreadView> | null = null;
+  const sceneOnce = () => (read ??= scene());
+  const prepare = () =>
+    (solved ??= sceneOnce().then((kernel) => {
+      if (signal.aborted) throw new DOMException('The export dialog closed', 'AbortError');
+      const lease = prepareConnected(kernel);
+      signal.addEventListener('abort', () => lease.release(), { once: true });
+      return lease.promise.then((prepared) => ({ scene: kernel, prepared }));
+    }));
   return {
     unavailableReason: null,
-    build: async () => {
-      if (amount <= 0) return foldedFigureObj(foldedFlatObjMesh(kernel, connectedSpreadSource(kernel), null));
-      const lease = prepareConnected(kernel);
-      const release = () => lease.release();
-      signal.addEventListener('abort', release, { once: true });
-      try {
-        const { source, solution } = await lease.promise;
-        return foldedFigureObj(foldedFlatObjMesh(kernel, source, { solution, amount }));
-      } finally {
-        signal.removeEventListener('abort', release);
-        release();
+    spread: { initial, prepare, scene: sceneOnce },
+    build: async (spread = initial) => {
+      const kernel = await sceneOnce();
+      if (!spread.on || spread.amount <= 0) {
+        return foldedFigureObj(foldedFlatObjMesh(kernel, connectedSpreadSource(kernel), null));
       }
+      const { prepared } = await prepare();
+      const { amount } = perspectiveSpread({ amount: spread.amount, reveal: [0, 0] });
+      return foldedFigureObj(foldedFlatObjMesh(kernel, prepared.source, { solution: prepared.solution, amount }));
     },
   };
 }

@@ -9,15 +9,18 @@ import type {
 import { connectedSpreadSource } from './connectedSpreadSource';
 import { posedMaterialPositions, prepareSpatialMaterial, type SpatialSpreadSolution } from './folded3dMaterial';
 import { toSimBasis } from './folded3dMesh';
+import { perspectiveSpread } from '../../layer-spread/presentation';
+import { FoldedObjUnavailableError } from '../../lib/foldedExport';
 import {
   folded3dFigureObjExport,
   folded3dObjMesh,
   foldedFigureObj,
+  foldedFigureObjSpread,
   foldedFlatFigureObjExport,
   foldedFlatObjMesh,
   type FoldedFigureObjMesh,
 } from './foldedFigureObj';
-import type { LayerSpreadOptions } from './foldedLayerSpread';
+import { DEFAULT_CONNECTED_SPREAD } from './layerSpreadSettings';
 
 const mock = vi.hoisted(() => ({ solve: vi.fn(), prepare: vi.fn() }));
 vi.mock('./folded3dSpread', async (importOriginal) => ({
@@ -316,52 +319,82 @@ describe('folded3dFigureObjExport', () => {
   });
 });
 
-describe('foldedFlatFigureObjExport', () => {
-  const kernel = halfFold();
-  const connected: LayerSpreadOptions = { kind: 'connected', version: 1, amount: 0.5, reveal: [0.3, 0.2] };
-
-  it('says an Affine or Depth spread has no 3D form', () => {
+describe('foldedFigureObjSpread', () => {
+  it('opens on the figure’s own Default spread, else on none at Default’s starting amount', () => {
+    expect(foldedFigureObjSpread({ kind: 'connected', version: 1, amount: 0.5, reveal: [0.3, 0.2] })).toEqual({
+      on: true,
+      amount: 0.5,
+    });
+    // Affine and Depth move a picture alone: a mesh has no form of them.
     for (const spread of [
       { kind: 'affine', amount: 0.3, keep: 'top', skew: 0, axisDeg: 0 } as const,
       { kind: 'depth', amount: 0.3, toward: 'down-right' } as const,
+      null,
     ]) {
-      expect(foldedFlatFigureObjExport(kernel, spread, new AbortController().signal).unavailableReason).toBe(
-        'picture-only-spread'
-      );
+      expect(foldedFigureObjSpread(spread)).toEqual({ on: false, amount: DEFAULT_CONNECTED_SPREAD.amount });
     }
   });
+});
 
-  it('writes a figure with no spread flat, preparing no solve', async () => {
+describe('foldedFlatFigureObjExport', () => {
+  const kernel = halfFold();
+  const off = { on: false, amount: 0.25 };
+  const lease = (release = vi.fn()) => {
+    mock.prepare.mockReturnValue({
+      promise: Promise.resolve({ source: connectedSpreadSource(kernel), solution: LIFT }),
+      release,
+    });
+    return release;
+  };
+
+  it('writes the fold flat while the spread is off, reading its scene once and solving nothing', async () => {
     mock.prepare.mockClear();
-    const obj = foldedFlatFigureObjExport(kernel, null, new AbortController().signal);
+    const scene = vi.fn(async () => kernel);
+    const obj = foldedFlatFigureObjExport(scene, off, new AbortController().signal);
     expect(obj.unavailableReason).toBeNull();
-    expect(await obj.build()).toBe(foldedFigureObj(foldedFlatObjMesh(kernel, connectedSpreadSource(kernel), null)));
+    expect(obj.spread?.initial).toEqual(off);
+    const flat = foldedFigureObj(foldedFlatObjMesh(kernel, connectedSpreadSource(kernel), null));
+    expect(await obj.build()).toBe(flat);
+    expect(await obj.build({ on: true, amount: 0 })).toBe(flat);
+    expect(scene).toHaveBeenCalledOnce();
     expect(mock.prepare).not.toHaveBeenCalled();
   });
 
-  it('lifts by the Default spread’s solve, without its reveal, and lets the solve go', async () => {
-    const source = connectedSpreadSource(kernel);
-    const release = vi.fn();
-    mock.prepare.mockReturnValue({ promise: Promise.resolve({ source, solution: LIFT }), release });
-    const obj = foldedFlatFigureObjExport(kernel, connected, new AbortController().signal);
-    expect(await obj.build()).toBe(foldedFigureObj(foldedFlatObjMesh(kernel, source, { solution: LIFT, amount: 0.5 })));
-    expect(mock.prepare).toHaveBeenCalledWith(kernel);
-    expect(release).toHaveBeenCalled();
+  it('lifts by the dialog’s spread as Perspective 3D lifts it, from the one solve its preview drew', async () => {
+    mock.prepare.mockClear();
+    lease();
+    const obj = foldedFlatFigureObjExport(async () => kernel, off, new AbortController().signal);
+    const view = await obj.spread!.prepare();
+    expect(view).toEqual({ scene: kernel, prepared: { source: connectedSpreadSource(kernel), solution: LIFT } });
+    // Perspective 3D lifts Default twice its stored amount, and has no reveal.
+    const amount = perspectiveSpread({ amount: 0.25, reveal: [0, 0] }).amount;
+    expect(amount).toBe(0.5);
+    expect(await obj.build({ on: true, amount: 0.25 })).toBe(
+      foldedFigureObj(foldedFlatObjMesh(kernel, connectedSpreadSource(kernel), { solution: LIFT, amount }))
+    );
+    expect(mock.prepare).toHaveBeenCalledExactlyOnceWith(kernel);
   });
 
-  it('lets a solve still running go when the dialog closes', async () => {
-    const release = vi.fn();
-    let fail: (error: Error) => void = () => {};
-    const promise = new Promise((_, reject) => {
-      fail = reject;
-    });
-    mock.prepare.mockReturnValue({ promise, release });
+  it('holds its solve until the dialog closes, then lets it go', async () => {
+    const release = lease();
     const controller = new AbortController();
-    const building = foldedFlatFigureObjExport(kernel, connected, controller.signal).build();
+    const obj = foldedFlatFigureObjExport(async () => kernel, off, controller.signal);
+    await obj.spread!.prepare();
+    expect(release).not.toHaveBeenCalled();
     controller.abort();
-    expect(release).toHaveBeenCalled();
-    fail(new DOMException('Layer spread released', 'AbortError'));
-    await expect(building).rejects.toThrow('released');
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it('carries why a figure has no fold to give, for the file and the preview alike', async () => {
+    const obj = foldedFlatFigureObjExport(
+      async () => {
+        throw new FoldedObjUnavailableError('needs-refold');
+      },
+      off,
+      new AbortController().signal
+    );
+    await expect(obj.build()).rejects.toMatchObject({ reason: 'needs-refold' });
+    await expect(obj.spread!.prepare()).rejects.toMatchObject({ reason: 'needs-refold' });
   });
 });
 

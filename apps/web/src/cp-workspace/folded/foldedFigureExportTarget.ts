@@ -26,9 +26,12 @@
  * What a figure pins of its own style is laid over the export style and over
  * any preset picked (`pins`), as the figure draws itself.
  *
- * A figure with a fold to read offers OBJ too — a live 3D figure, a flat one,
- * a spread one — with the spread its picture is drawn with
- * (`foldedFigureObj.ts`); a stored scene or a fixed picture has no mesh.
+ * OBJ is offered for a live 3D figure, with the spread its window draws, and
+ * for every flat figure with a fold to read: a flat or spread picture's paper
+ * scene, or — for a fixed picture — the scene its caller found for it
+ * (`objScene`, `foldedFigureObjScene.ts`). A flat figure's OBJ carries the
+ * spread the dialog sets, opening on the figure's own (`foldedFigureObj.ts`).
+ * A stored 3D scene has no mesh.
  */
 import type {
   OristudioCpFolded3dAuxLines,
@@ -45,7 +48,7 @@ import { foldedFigurePivot } from '../adapters/cpFoldedToScene';
 import { folded3dSceneStyleKey } from './folded3dScene';
 import { settledFolded3dFigureScene, folded3dStoredSceneInCssPx } from './folded3dStoredScene';
 import { foldedFigureExportDocument } from './foldedFigureExport';
-import { folded3dFigureObjExport, foldedFlatFigureObjExport } from './foldedFigureObj';
+import { folded3dFigureObjExport, foldedFigureObjSpread, foldedFlatFigureObjExport } from './foldedFigureObj';
 import { foldedFigureSpreadOptions } from './foldedFigureSpread';
 import { foldedFigureSpreadExport, scaledSpreadFrame } from './foldedFigureSpreadExport';
 import { foldedFigureSpreadFrame } from './foldedFigureSpreadFrame';
@@ -79,6 +82,11 @@ export interface FoldedFigureExportCapture {
   exportStyle: PaperStyle;
   /** The hint for a stored 3D scene, which keeps the light it was folded under. */
   storedSceneHint: string;
+  /**
+   * Where a flat figure with a fixed picture reads the paper scene its OBJ is
+   * written from (`foldedFigureObjScene`); absent or null, it offers no OBJ.
+   */
+  objScene?: (() => Promise<OristudioCpFoldedPaperScene>) | null;
 }
 
 /**
@@ -127,6 +135,7 @@ export function foldedFigureExportTarget({
   fileStem,
   exportStyle,
   storedSceneHint,
+  objScene = null,
 }: FoldedFigureExportCapture): PaperExportTarget {
   const surface = figure.folded3d ? 'folded-3d' : 'folded-flat';
   const policy = PAPER_STYLE_POLICIES[surface];
@@ -184,7 +193,11 @@ export function foldedFigureExportTarget({
       const controller = new AbortController();
       return {
         ...base,
-        obj: foldedFlatFigureObjExport(picture.kernel, null, controller.signal),
+        obj: foldedFlatFigureObjExport(
+          async () => picture.kernel,
+          foldedFigureObjSpread(foldedFigureSpreadOptions(figure)),
+          controller.signal
+        ),
         release: () => controller.abort(),
         buriesFaces: true,
         sceneKey: ({ markHidden }) => String(markHidden),
@@ -209,7 +222,7 @@ export function foldedFigureExportTarget({
       const controller = new AbortController();
       return {
         ...base,
-        obj: foldedFlatFigureObjExport(picture.kernel, picture.spread, controller.signal),
+        obj: foldedFlatFigureObjExport(async () => picture.kernel, foldedFigureObjSpread(picture.spread), controller.signal),
         // Spread apart, a buried layer shows what it shows: every face is kept, and none is hidden.
         buriesFaces: false,
         // A bitmap, if the spread needs one, is drawn in the page's pens and size.
@@ -221,13 +234,22 @@ export function foldedFigureExportTarget({
         },
       };
     }
-    case 'fixed':
+    case 'fixed': {
+      // The picture is as it was drawn; a mesh, where there is a fold to read, is not.
+      const controller = new AbortController();
       return {
         ...base,
+        ...(objScene && !figure.folded3d
+          ? {
+              obj: foldedFlatFigureObjExport(objScene, foldedFigureObjSpread(foldedFigureSpreadOptions(figure)), controller.signal),
+              release: () => controller.abort(),
+            }
+          : {}),
         buriesFaces: false,
         fixedPicture: { svg: picture.svg, widthPx: picture.widthPx, heightPx: picture.heightPx },
         sceneKey: () => 'fixed',
         buildScene: async () => null,
       };
+    }
   }
 }

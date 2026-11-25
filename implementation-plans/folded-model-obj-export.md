@@ -2,28 +2,52 @@
 
 ## Goal
 
-Offer **OBJ** next to SVG and PNG in a folded model's export dialog. The file
-is the folded paper in 3D with the figure's spread applied, so a model whose
-layers the canvas shows apart imports into Blender (or any 3D tool) apart too.
-The simulator's OBJ (`implementation-plans/simulator-obj-uv-export.md`) is the
-pattern: one `.obj` with vertices, unfolded-sheet UVs and triangles, written by
-the same serializer (`lib/foldedExport.ts::foldedObj`).
+Offer **OBJ** next to SVG and PNG in a folded model's export dialog — the one
+the floating toolbar's Export opens on a selected figure in Edit. The file is
+the folded paper in 3D, so a model whose layers are lifted apart imports into
+Blender (or any 3D tool) apart too. For a flat figure the dialog sets the
+spread itself, with a 3D preview: in Zach's words, "basically the 3d
+perspective spread option ... but we are exporting to obj". The simulator's
+OBJ (`implementation-plans/simulator-obj-uv-export.md`) is the pattern: one
+`.obj` with vertices, unfolded-sheet UVs and triangles, written by the same
+serializer (`lib/foldedExport.ts::foldedObj`).
+
+Fold's step export was given OBJ for a while and had it taken out again
+(Zach: "remove it from fold"); only folded figures offer it.
 
 ## Approach
 
 ### What the mesh is, per picture kind
 
-The figure's export capture (`foldedFigureExportPicture`) already decides how
-the figure draws. The OBJ follows that decision, so the file and the preview
-agree about the spread:
-
 | Picture | OBJ |
 | --- | --- |
-| `live-3d` | The render model's material source (`model.material`): welded sheet vertices, their folded positions, the faces. With a spatial spread (`spatialAmount(figure) > 0`), every vertex is moved by the solve's displacement at the figure's amount — the field the window draws, awaited as the picture awaits it. |
-| `flat` | The kernel's paper scene, flat: every layer in one plane. |
-| `spread`, Default (`connected`) | The paper scene lifted by the Default spread's solve: the true-size shift in plane and each vertex's height above the shown side's reference plane, times the amount. The reveal is a drawing shear, not geometry, and is left out. |
-| `spread`, Affine or Depth | Unavailable, with the reason: those spreads move only the picture and have no 3D form. Never a silent unspread file. |
-| `stored-3d`, `fixed` | No OBJ: no fold to read a mesh from. Their existing hints already say to fold again. |
+| `live-3d` | The render model's material source (`model.material`): welded sheet vertices, their folded positions, the faces. With a spatial spread (`spatialAmount(figure) > 0`), every vertex is moved by the solve's displacement at the figure's amount — the field the window draws. No spread control in the dialog yet. |
+| `flat`, `spread` | The kernel's paper scene, flat, or lifted by the Default spread the dialog sets (below). |
+| `fixed`, flat figure | The same, from the paper scene its opener finds (`foldedFigureObjScene.ts`): a live fold's own, the scene a spread figure's file carried, or — for a figure reopened from its file, the user's case — the figure folded again on a throwaway handle, checked against the picture it shows, read and let go. The SVG and PNG stay the saved picture. |
+| `stored-3d` | No OBJ: no fold to read a mesh from. |
+
+### The spread, in the dialog
+
+- **Rows.** With OBJ chosen, the options show Spread layers and, while on,
+  Default's Amount (`LayerSpreadRows` with `kindVisible={false}` and no
+  reveal pad): Default is the one spread with a 3D form, and the preview turns
+  the paper instead of shearing it. They open on the figure's own Default
+  spread, else off at Default's starting amount; an Affine or Depth figure no
+  longer blocks OBJ. Like every option of the dialog it is a draft: the
+  figure's own spread is never written.
+- **Preview.** The page image gives way to the paper in 3D: the Diagram's
+  Perspective 3D drawing (`useSpreadRenderer` with a `perspective`
+  presentation) in the simulator's viewport, turned by dragging, with a view
+  cube. The fold is prepared the first time OBJ is chosen — read, folded
+  again, solved — and says so while it is, and why when it cannot be.
+- **The file is what the preview draws.** Perspective 3D lifts a Default
+  spread at twice its stored amount, with no reveal (`perspectiveSpread`,
+  now shared by `foldedFlatScene.ts` and the OBJ), so the same Amount lifts
+  the file as far as the preview shows.
+- **Reasons.** A reopened figure that cannot be folded again as drawn — its
+  creases moved, its order set by hand, another solution — says
+  `needs-refold`; a spread the solver cannot make says what every spread
+  surface says, and the file can still be written flat.
 
 ### Geometry contract
 
@@ -46,10 +70,10 @@ agree about the spread:
   mirror symmetry: the reflected file matches, the unreflected one is its
   mirror.
 - **A Default spread's crossings stay.** The solve keeps joined paper apart
-  softly and reports what it could not (`max_crossing`); the canvas draws
-  through that by layer rank, the file carries the geometry. On the kabuto at
-  50%, 36 of 150 stacked pairs cross by at most 0.0002 of the sheet, the same
-  pairs the raw heights cross at.
+  softly and reports what it could not (`max_crossing`); the canvas and the 3D
+  preview draw through that by layer rank, the file carries the geometry. On
+  the kabuto, the two layers of a horn cross by 0.0002 of the sheet (0.2% at
+  64% Amount), so a 3D tool shows the lower one through the upper one there.
 - **Size and place.** The unfolded sheet's longer side is 1, and the mesh is
   centred on its bounding box.
 - **UVs** come from the unfolded sheet through `sheetUvs`, the simulator's
@@ -60,23 +84,34 @@ agree about the spread:
 ### Where it lives
 
 - `cp-workspace/folded/foldedFigureObj.ts`: the pure mesh builders and the
-  `PaperObjExport` captures for a 3D and a flat figure (the spread solves are
-  awaited in `build()`, aborted when the dialog closes).
+  `PaperObjExport` captures; a flat figure's carries a spread source
+  (`PaperObjExport.spread`: its starting spread, the scene, the solve).
+- `cp-workspace/folded/foldedFigureObjScene.ts`: a fixed picture's paper scene,
+  folding a reopened figure again.
 - `folded3dMaterial.ts` / `folded3dSpread.ts`: the spread posing and the solve
   lease, shared with the window instead of copied.
-- `foldedFigureExportTarget.ts`: attaches `obj` per picture kind.
+- `foldedFigureExportTarget.ts` / `openFoldedFigureExport.ts`: attach `obj` per
+  picture kind.
+- `paperExport/usePaperObjSpread.ts`, `objSpreadRows.ts`: the dialog's spread
+  draft, its preparation and its rows; `components/paperExport/ObjSpreadPreview`:
+  the 3D preview.
+- `layer-spread/presentation.ts`: `perspectiveSpread`.
 - `lib/paperExportSettings.ts`: a folded figure remembers OBJ as its format.
-- `saveObjExport.ts` + catalogs: the Affine/Depth reason.
+- `saveObjExport.ts` + catalogs: the reasons, the preview's caption.
 
-Analytics: `paper exported` already carries `format: obj` and the folded
-surfaces; `docs/analytics.md` is updated to say so.
+Analytics: `paper exported` carries `format: obj` and the folded surfaces, and
+`obj_spread` (`spread` / `flat`) for a figure whose spread the dialog set.
 
 ## Affected Areas
 
-- `apps/web/src/cp-workspace/folded/` (new `foldedFigureObj.ts`, export target,
-  spatial material and spread modules, tests)
+- `apps/web/src/cp-workspace/folded/` (OBJ builders and captures, the fixed
+  picture's scene, export target, spatial material and spread modules, tests)
+- `apps/web/src/paperExport/` (target contract, the spread draft and rows, save)
+- `apps/web/src/components/paperExport/` (3D preview, options, modal)
+- `apps/web/src/components/paper/LayerSpreadRows.tsx` (`kindVisible`)
+- `apps/web/src/layer-spread/presentation.ts`, `cp-workspace/folded/foldedFlatScene.ts`
 - `apps/web/src/lib/foldedExport.ts`, `apps/web/src/lib/paperExportSettings.ts`
-- `apps/web/src/paperExport/saveObjExport.ts`
+- `apps/web/src/analytics/trackPaperExport.ts`
 - `apps/web/public/locales/*/dialogs.json`
 - `docs/analytics.md`
 
@@ -86,9 +121,13 @@ surfaces; `docs/analytics.md` is updated to say so.
 - [x] Pure OBJ mesh builders for 3D and flat figures, with tests
 - [x] OBJ captures on the folded export target per picture kind, with tests
 - [x] Folded figures remember OBJ as their format
-- [x] Affine/Depth unavailable reason, translated
 - [x] Analytics doc
 - [x] Lint, typecheck, relevant tests, i18n check
 - [x] Browser check: export a spread 3D figure and a Default-spread flat figure
 - [x] Blender check: the files import, and are not mirrored against the app
-- [ ] Draft PR
+- [x] Draft PR
+- [x] OBJ taken out of Fold's step export again
+- [x] The dialog's spread for a flat figure: rows, draft, 3D preview, file lifted as previewed
+- [x] OBJ for a fixed picture: a reopened figure folded again as drawn, or a reason
+- [x] Browser check from the floating toolbar: live and reopened kabuto, byte-identical files
+- [ ] A spread control for 3D figures (spatial spread), if wanted

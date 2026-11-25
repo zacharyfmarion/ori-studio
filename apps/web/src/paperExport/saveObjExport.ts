@@ -1,8 +1,9 @@
 import type { TFunction } from 'i18next';
-import type { FoldedObjUnavailableReason } from '../lib/foldedExport';
+import { spreadFailedReason } from '../cp-workspace/folded/layerSpreadControls';
+import { FoldedObjUnavailableError, type FoldedObjUnavailableReason } from '../lib/foldedExport';
 import { exportFilename } from '../platform/exportFilename';
 import { getFileService } from '../platform/fileService';
-import type { PaperObjExport } from './paperExportTarget';
+import type { PaperObjExport, PaperObjSpread } from './paperExportTarget';
 
 /** Keep worker errors as enums until they reach the user's locale. */
 export function objExportUnavailableMessage(reason: FoldedObjUnavailableReason, t: TFunction): string {
@@ -14,22 +15,39 @@ export function objExportUnavailableMessage(reason: FoldedObjUnavailableReason, 
       return t('dialogs:paperExport.objMeshUnavailable', 'This simulation has no valid mesh to export.');
     case 'expired-snapshot':
       return t('dialogs:paperExport.objExpired', 'This captured simulation is no longer available. Close this dialog and export again.');
-    case 'picture-only-spread':
+    case 'needs-refold':
       return t(
-        'dialogs:paperExport.objSpreadUnavailable',
-        'An Affine or Depth spread only moves the picture, so a 3D mesh can’t carry it. Set Spread by to Default to lift the layers apart.'
+        'dialogs:paperExport.objNeedsRefold',
+        'This model can’t be rebuilt from its file as it’s drawn, so it has no mesh to export. Fold its creases again to export one.'
       );
   }
 }
 
+/**
+ * Why a mesh, or its spread, could not be made, in the reader's words: a
+ * folded figure with no fold to read says which, and a spread the solver
+ * could not make says what every spread surface says of one.
+ */
+export function objExportFailureMessage(cause: unknown, t: TFunction): string {
+  return cause instanceof FoldedObjUnavailableError ? objExportUnavailableMessage(cause.reason, t) : spreadFailedReason(t);
+}
+
+/** Write the mesh, with `spread` the dialog's for a mesh that has a spread source. */
 export async function saveObjExport(
   obj: PaperObjExport,
   fileStem: string,
   t: TFunction,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  spread?: PaperObjSpread
 ): Promise<string | null> {
   if (obj.unavailableReason) throw new Error(objExportUnavailableMessage(obj.unavailableReason, t));
-  const contents = await obj.build();
+  let contents: string | null;
+  try {
+    contents = await obj.build(spread);
+  } catch (cause) {
+    if (cause instanceof FoldedObjUnavailableError) throw new Error(objExportUnavailableMessage(cause.reason, t), { cause });
+    throw cause;
+  }
   if (signal?.aborted) return null;
   if (contents === null) throw new Error(objExportUnavailableMessage('expired-snapshot', t));
   const result = await getFileService().saveTextFile({
