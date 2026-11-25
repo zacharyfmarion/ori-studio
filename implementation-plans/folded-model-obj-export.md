@@ -21,7 +21,7 @@ Fold's step export was given OBJ for a while and had it taken out again
 
 | Picture | OBJ |
 | --- | --- |
-| `live-3d` | The render model's material source (`model.material`): welded sheet vertices, their folded positions, the faces. With a spatial spread (`spatialAmount(figure) > 0`), every vertex is moved by the solve's displacement at the figure's amount — the field the window draws. No spread control in the dialog yet. |
+| `live-3d` | The render model's material source (`model.material`): welded sheet vertices, their folded positions, the faces, moved by the spatial spread the dialog sets (below) — the solve's displacement at that amount, the field the window draws. A fold with no determined layer order has no layers to spread, so it offers no spread. |
 | `flat`, `spread` | The kernel's paper scene, flat, or lifted by the Default spread the dialog sets (below). |
 | `fixed`, flat figure | The same, from the paper scene its opener finds (`foldedFigureObjScene.ts`): a live fold's own, the scene a spread figure's file carried, or — for a figure reopened from its file, the user's case — the figure folded again on a throwaway handle, checked against the picture it shows, read and let go. The SVG and PNG stay the saved picture. |
 | `stored-3d` | No OBJ: no fold to read a mesh from. |
@@ -29,21 +29,28 @@ Fold's step export was given OBJ for a while and had it taken out again
 ### The spread, in the dialog
 
 - **Rows.** With OBJ chosen, the options show Spread layers and, while on,
-  Default's Amount (`LayerSpreadRows` with `kindVisible={false}` and no
-  reveal pad): Default is the one spread with a 3D form, and the preview turns
-  the paper instead of shearing it. They open on the figure's own Default
-  spread, else off at Default's starting amount; an Affine or Depth figure no
-  longer blocks OBJ. Like every option of the dialog it is a draft: the
-  figure's own spread is never written.
-- **Preview.** The page image gives way to the paper in 3D: the Diagram's
-  Perspective 3D drawing (`useSpreadRenderer` with a `perspective`
-  presentation) in the simulator's viewport, turned by dragging, with a view
-  cube. The fold is prepared the first time OBJ is chosen — read, folded
-  again, solved — and says so while it is, and why when it cannot be.
+  its Amount (`ObjSpreadRows`), named and scaled as the figure's own Spread
+  section names and scales them (`objSpreadSlider`): a flat figure's Default
+  spread over its height range, a 3D figure's spatial spread over its 0–4
+  field (25% turns it on, `DEFAULT_SPATIAL_SPREAD_AMOUNT`). Default is the one
+  flat spread with a 3D form, so there is no Spread by, and the preview turns
+  the paper instead of shearing it, so no reveal. They open on the figure's
+  own spread, else off; an Affine or Depth figure no longer blocks OBJ. Like
+  every option of the dialog it is a draft: the figure's own spread is never
+  written.
+- **Preview.** The page image gives way to the paper in 3D, turned by
+  dragging, with a view cube. A flat figure is the Diagram's Perspective 3D
+  drawing (`useSpreadRenderer` with a `perspective` presentation); a 3D
+  figure is its window's mesh, the spread a uniform on the solved
+  displacement, from the figure's own camera — as Pose draws a 3D step
+  (`DiagramPose3dView`). The fold is prepared the first time OBJ is chosen —
+  read, folded again, solved — and says so while it is, and why when it
+  cannot be.
 - **The file is what the preview draws.** Perspective 3D lifts a Default
   spread at twice its stored amount, with no reveal (`perspectiveSpread`,
   now shared by `foldedFlatScene.ts` and the OBJ), so the same Amount lifts
-  the file as far as the preview shows.
+  the file as far as the preview shows; a 3D figure's file is posed at the
+  amount itself, as its window poses it.
 - **Reasons.** A reopened figure that cannot be folded again as drawn — its
   creases moved, its order set by hand, another solution — says
   `needs-refold`; a spread the solver cannot make says what every spread
@@ -92,9 +99,9 @@ Fold's step export was given OBJ for a while and had it taken out again
   lease, shared with the window instead of copied.
 - `foldedFigureExportTarget.ts` / `openFoldedFigureExport.ts`: attach `obj` per
   picture kind.
-- `paperExport/usePaperObjSpread.ts`, `objSpreadRows.ts`: the dialog's spread
-  draft, its preparation and its rows; `components/paperExport/ObjSpreadPreview`:
-  the 3D preview.
+- `paperExport/usePaperObjSpread.ts`, `objSpreadSlider.ts`: the dialog's spread
+  draft, its preparation and its Amount; `components/paperExport/ObjSpreadRows`,
+  `ObjSpreadPreview`: the rows and the 3D preview, flat and 3D.
 - `layer-spread/presentation.ts`: `perspectiveSpread`.
 - `lib/paperExportSettings.ts`: a folded figure remembers OBJ as its format.
 - `saveObjExport.ts` + catalogs: the reasons, the preview's caption.
@@ -107,8 +114,9 @@ Analytics: `paper exported` carries `format: obj` and the folded surfaces, and
 - `apps/web/src/cp-workspace/folded/` (OBJ builders and captures, the fixed
   picture's scene, export target, spatial material and spread modules, tests)
 - `apps/web/src/paperExport/` (target contract, the spread draft and rows, save)
-- `apps/web/src/components/paperExport/` (3D preview, options, modal)
-- `apps/web/src/components/paper/LayerSpreadRows.tsx` (`kindVisible`)
+- `apps/web/src/components/paperExport/` (spread rows, 3D preview, options, modal)
+- `apps/web/src/cp-workspace/folded/spatialSpreadSettings.ts`,
+  `foldedFigureSpreadFields.ts` (the amount a 3D spread turns on at, shared)
 - `apps/web/src/layer-spread/presentation.ts`, `cp-workspace/folded/foldedFlatScene.ts`
 - `apps/web/src/lib/foldedExport.ts`, `apps/web/src/lib/paperExportSettings.ts`
 - `apps/web/src/analytics/trackPaperExport.ts`
@@ -130,4 +138,5 @@ Analytics: `paper exported` carries `format: obj` and the folded surfaces, and
 - [x] The dialog's spread for a flat figure: rows, draft, 3D preview, file lifted as previewed
 - [x] OBJ for a fixed picture: a reopened figure folded again as drawn, or a reason
 - [x] Browser check from the floating toolbar: live and reopened kabuto, byte-identical files
-- [ ] A spread control for 3D figures (spatial spread), if wanted
+- [x] A spread control for 3D figures (Zach: "Yes, 3D too"): spatial Amount, the window's mesh as preview
+- [x] Browser check on box_90 folded in 3D: rows at 25%/64%, preview matches Blender from the figure's camera

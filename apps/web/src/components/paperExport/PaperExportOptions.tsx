@@ -29,8 +29,7 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
 import { PaperStylePicker } from './PaperStylePicker';
-import { LayerSpreadRows } from '../paper/LayerSpreadRows';
-import { objSpreadRows } from '../../paperExport/objSpreadRows';
+import { ObjSpreadRows } from './ObjSpreadRows';
 import type { PaperObjSpreadBinding } from '../../paperExport/usePaperObjSpread';
 import type { PaperObjExport } from '../../paperExport/paperExportTarget';
 import { objExportUnavailableMessage } from '../../paperExport/saveObjExport';
@@ -120,8 +119,7 @@ export function PaperExportOptions({
         {formatSection}
         {draft.format === 'obj' && objSpread && (
           <section className="export-modal__section">
-            {/* Default alone has a 3D form, and the preview turns the paper rather than shearing it. */}
-            <LayerSpreadRows {...objSpreadRows(objSpread, t)} kindVisible={false} revealVisible={false} />
+            <ObjSpreadRows binding={objSpread} />
           </section>
         )}
         <section className="export-modal__section">

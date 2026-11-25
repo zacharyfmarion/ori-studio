@@ -15,12 +15,14 @@ import {
   folded3dFigureObjExport,
   folded3dObjMesh,
   foldedFigureObj,
+  folded3dFigureObjSpread,
   foldedFigureObjSpread,
   foldedFlatFigureObjExport,
   foldedFlatObjMesh,
   type FoldedFigureObjMesh,
 } from './foldedFigureObj';
 import { DEFAULT_CONNECTED_SPREAD } from './layerSpreadSettings';
+import { DEFAULT_SPATIAL_SPREAD_AMOUNT } from './spatialSpreadSettings';
 
 const mock = vi.hoisted(() => ({ solve: vi.fn(), prepare: vi.fn() }));
 vi.mock('./folded3dSpread', async (importOriginal) => ({
@@ -313,9 +315,45 @@ describe('folded3dFigureObjExport', () => {
     expect(mock.solve).toHaveBeenCalledWith(MODEL, signal);
   });
 
-  it('refuses a spread on a fold with no determined layer order, as its picture does', async () => {
+  it('offers no spread for a fold with no determined layer order, and writes it as folded', async () => {
     const obj = folded3dFigureObjExport(figure(1, 'no_layer_order'), MODEL, new AbortController().signal)!;
-    await expect(obj.build()).rejects.toThrow('determined, closed fold');
+    expect(obj.spread).toBeUndefined();
+    expect(await obj.build()).toBe(foldedFigureObj(folded3dObjMesh(MATERIAL, MATERIAL.positions, MODEL.span)));
+    await expect(obj.build({ on: true, amount: 1 })).rejects.toThrow('determined, closed fold');
+  });
+
+  it('opens the dialog on the spatial spread the window draws, else off at the amount Spread layers turns on at', () => {
+    expect(folded3dFigureObjSpread(figure(1.5))).toEqual({ on: true, amount: 1.5 });
+    expect(folded3dFigureObjSpread(figure(null))).toEqual({ on: false, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT });
+    // A spread the window does not draw — the X-ray look — is not the figure's own as shown.
+    expect(folded3dFigureObjSpread({ ...figure(1.5), displayStyle: 'Transparent3' })).toEqual({
+      on: false,
+      amount: DEFAULT_SPATIAL_SPREAD_AMOUNT,
+    });
+  });
+
+  it('previews from the figure’s camera, solves once, and writes the paper where the dialog’s amount puts it', async () => {
+    mock.solve.mockClear();
+    const solution: SpatialSpreadSolution = {
+      version: 'spatial-vector-v1',
+      status: 'Solved',
+      constraint_residual: 0,
+      mean_gap: 0.1,
+      max_order_violation: 0,
+      displacements: MATERIAL.positions.map((_, i) => [0, 0.02 * i, 0]),
+    };
+    mock.solve.mockResolvedValue(solution);
+    const camera = { yaw: 0.4, pitch: 0.2, zoom: 1 };
+    const obj = folded3dFigureObjExport({ ...figure(null), camera }, MODEL, new AbortController().signal)!;
+    expect(obj.spread?.kind).toBe('spatial');
+    await expect(obj.spread!.prepare()).resolves.toEqual({ kind: 'spatial', model: MODEL, camera });
+    await expect(obj.spread!.unspread()).resolves.toBe(true);
+    const posed = posedMaterialPositions(prepareSpatialMaterial(MODEL), solution, 2);
+    expect(await obj.build({ on: true, amount: 2 })).toBe(foldedFigureObj(folded3dObjMesh(MATERIAL, posed, MODEL.span)));
+    expect(await obj.build({ on: false, amount: 2 })).toBe(
+      foldedFigureObj(folded3dObjMesh(MATERIAL, MATERIAL.positions, MODEL.span))
+    );
+    expect(mock.solve).toHaveBeenCalledOnce();
   });
 });
 
@@ -365,7 +403,10 @@ describe('foldedFlatFigureObjExport', () => {
     lease();
     const obj = foldedFlatFigureObjExport(async () => kernel, off, new AbortController().signal);
     const view = await obj.spread!.prepare();
-    expect(view).toEqual({ scene: kernel, prepared: { source: connectedSpreadSource(kernel), solution: LIFT } });
+    expect(view).toEqual({
+      kind: 'connected',
+      view: { scene: kernel, prepared: { source: connectedSpreadSource(kernel), solution: LIFT } },
+    });
     // Perspective 3D lifts Default twice its stored amount, and has no reveal.
     const amount = perspectiveSpread({ amount: 0.25, reveal: [0, 0] }).amount;
     expect(amount).toBe(0.5);

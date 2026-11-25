@@ -2,27 +2,28 @@
  * The spread an OBJ is written with, as the export dialog holds it: the draft
  * Spread layers and Amount edit, opening on the figure's own spread, and the
  * fold it is previewed and written from (`PaperObjSpreadSource`), prepared the
- * first time OBJ is chosen — a reopened figure is folded again then, and the
- * spread solved.
+ * first time OBJ is chosen — a reopened flat figure is folded again then, and
+ * the spread solved, flat or in 3D.
  *
  * Like every option of the dialog it is a draft: closing the dialog changes
  * nothing of the figure's own spread.
  */
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ConnectedSpreadView } from '../layer-spread/view';
-import type { PaperObjSpread, PaperObjSpreadSource } from './paperExportTarget';
+import type { PaperObjSpread, PaperObjSpreadSource, PaperObjSpreadView } from './paperExportTarget';
 import { objExportFailureMessage } from './saveObjExport';
 
 /** Where the fold behind the file stands. */
 export type PaperObjSpreadPreparation =
   | { status: 'idle' }
   | { status: 'preparing' }
-  | { status: 'ready'; view: ConnectedSpreadView }
+  | { status: 'ready'; view: PaperObjSpreadView }
   /** The spread cannot be made, or the fold read at all; `flat` when the file can still be written unspread. */
   | { status: 'failed'; message: string; flat: boolean };
 
 export interface PaperObjSpreadBinding {
+  /** A flat figure's Default spread, or a 3D figure's spatial one: what Amount moves. */
+  kind: PaperObjSpreadSource['kind'];
   value: PaperObjSpread;
   set: (next: PaperObjSpread) => void;
   preparation: PaperObjSpreadPreparation;
@@ -46,10 +47,7 @@ export function usePaperObjSpread(source: PaperObjSpreadSource | undefined, acti
       },
       async (cause: unknown) => {
         // A spread the solver could not make leaves a fold that can still be written flat.
-        const flat = await source.scene().then(
-          () => true,
-          () => false
-        );
+        const flat = await source.unspread();
         if (current) setPreparation({ status: 'failed', message: objExportFailureMessage(cause, t), flat });
       }
     );
@@ -60,5 +58,5 @@ export function usePaperObjSpread(source: PaperObjSpreadSource | undefined, acti
   if (!source) return null;
   const writable =
     preparation.status === 'ready' || (preparation.status === 'failed' && preparation.flat && !value.on);
-  return { value, set, preparation, writable };
+  return { kind: source.kind, value, set, preparation, writable };
 }

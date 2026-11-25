@@ -24,8 +24,10 @@ import type {
   PaperExportTarget,
   PaperObjSpread,
   PaperObjSpreadSource,
+  PaperObjSpreadView,
 } from '../../paperExport/paperExportTarget';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
+import type { OristudioCpFolded3dRenderModel } from '../../engine/oristudioCpTypes';
 import { FoldedObjUnavailableError } from '../../lib/foldedExport';
 import type { FileService } from '../../platform/fileService';
 import { usePaperExportUiStore } from '../../store/paperExportUiStore';
@@ -237,13 +239,17 @@ describe('PaperExportModal', () => {
   });
 
   describe('an OBJ whose spread the dialog sets', () => {
-    const VIEW = { scene: { faces: [] }, prepared: {} } as unknown as ConnectedSpreadView;
+    const VIEW: PaperObjSpreadView = {
+      kind: 'connected',
+      view: { scene: { faces: [] }, prepared: {} } as unknown as ConnectedSpreadView,
+    };
     function spreading(overrides: Partial<PaperObjSpreadSource> = {}) {
       const build = vi.fn(async (spread?: PaperObjSpread) => `o ${spread?.on ? spread.amount : 'flat'}\n`);
       const spread: PaperObjSpreadSource = {
+        kind: 'connected',
         initial: { on: true, amount: 0.14 },
         prepare: vi.fn(async () => VIEW),
-        scene: vi.fn(async () => VIEW.scene),
+        unspread: vi.fn(async () => true),
         ...overrides,
       };
       return { build, spread, opened: target({ obj: { unavailableReason: null, spread, build } }) };
@@ -286,13 +292,29 @@ describe('PaperExportModal', () => {
       const refused = async () => {
         throw new FoldedObjUnavailableError('needs-refold');
       };
-      const { opened } = spreading({ prepare: vi.fn(refused), scene: vi.fn(refused) });
+      const { opened } = spreading({ prepare: vi.fn(refused), unspread: vi.fn(async () => false) });
       await open(opened, null, 'obj');
       await flush();
       expect(text()).toContain('can’t be rebuilt from its file');
       expect(button('Export OBJ')?.disabled).toBe(true);
       await act(async () => button('PNG')?.click());
       expect(button('Export PNG')?.disabled).toBe(false);
+    });
+
+    it('sets a 3D figure’s spatial spread over its whole field, and previews the figure’s own view', async () => {
+      const model = { span: 1 } as unknown as OristudioCpFolded3dRenderModel;
+      const { opened, build } = spreading({
+        kind: 'spatial',
+        initial: { on: true, amount: 1 },
+        prepare: vi.fn(async (): Promise<PaperObjSpreadView> => ({ kind: 'spatial', model, camera: null })),
+      });
+      await open(opened, null, 'obj');
+      await flush();
+      expect(stage()).toMatchObject({ dataset: { status: 'ready', on: 'true', amount: '1' } });
+      // A spatial spread of 1 is a quarter of its field, as the figure's own sheet reads it.
+      expect(text()).toContain('25%');
+      await submit();
+      expect(build).toHaveBeenCalledWith({ on: true, amount: 1 });
     });
 
     it('writes a fold whose layers could not be spread flat, once the spread is off', async () => {

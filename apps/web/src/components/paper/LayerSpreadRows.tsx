@@ -61,12 +61,9 @@ export function LayerSpreadRows({
   toggle,
   spread,
   revealVisible = true,
-  kindVisible = true,
   kindLayout = 'row',
 }: {
   revealVisible?: boolean;
-  /** Spread by; off for a surface that offers one kind (an OBJ, which only Default lifts). */
-  kindVisible?: boolean;
   /**
    * Spread by beside its label, or stacked under it with its choices across
    * the row, for a column too narrow for both (the Share modal's).
@@ -110,7 +107,7 @@ export function LayerSpreadRows({
       />
       {spread && shown && amount && (
         <>
-          {!kindVisible ? null : kindLayout === 'stacked' ? (
+          {kindLayout === 'stacked' ? (
             <StackedRow
               label={t('panels:diagram.pose.spreadKind', 'Spread by')}
               labelId={kindLabelId}

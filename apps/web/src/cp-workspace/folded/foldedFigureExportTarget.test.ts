@@ -594,6 +594,8 @@ describe('foldedFigureExportTarget’s OBJ', () => {
   it('writes a live 3D figure’s material, and offers nothing for a model without one', async () => {
     const live = targetOf(spatial(), pictureOf(spatial(), { model: MATERIAL_MODEL })!);
     expect(live.obj?.unavailableReason).toBeNull();
+    // A fold with no determined layer order (a snapshot from before verdicts) offers no spread.
+    expect(live.obj?.spread).toBeUndefined();
     const obj = await live.obj!.build();
     expect(obj).toMatch(/^# Ori Studio folded form/);
     expect(obj?.match(/^f /gm)).toHaveLength(8);

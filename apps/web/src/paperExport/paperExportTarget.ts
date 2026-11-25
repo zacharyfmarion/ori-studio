@@ -20,45 +20,62 @@ import type { Hex, PaperStyle, PaperStyleOverrides } from '../lib/paper/paperSty
 import type { PaperSurface } from '../lib/paper/paperStyleResolve';
 import type { PaperExportMark, PaperExportMarks } from '../lib/paperExportSettings';
 import type { FoldedObjUnavailableReason } from '../lib/foldedExport';
-import type { OristudioCpFoldedPaperScene } from '../engine/oristudioCpTypes';
+import type { OristudioCpFolded3dRenderModel } from '../engine/oristudioCpTypes';
+import type { FoldedFigureCamera } from '../cp-workspace/folded/folded3dCamera';
 import type { ConnectedSpreadView } from '../layer-spread/view';
 
 /**
- * The layer spread an OBJ is written with, as the dialog sets it: Default's,
- * the one spread with a 3D form, at an amount, or none.
+ * The layer spread an OBJ is written with, as the dialog sets it: a flat
+ * figure's Default spread — the one flat spread with a 3D form — or a 3D
+ * figure's spatial spread, at an amount, or none.
  */
 export interface PaperObjSpread {
   /** Whether the layers are lifted apart; off, the file is the fold as it lies. */
   on: boolean;
-  /** Default's Amount (`ConnectedSpread.amount`), kept while it is off. */
+  /**
+   * The spread's Amount as the figure stores it — Default's
+   * (`ConnectedSpread.amount`) or a spatial spread's — kept while it is off.
+   */
   amount: number;
 }
 
 /**
- * The fold behind an OBJ whose spread the dialog sets: what it opens on, and
- * the paper scene with its spread solve, which the preview draws in 3D and
- * the file lifts by.
+ * The fold an OBJ's spread is previewed from: a flat figure's paper scene
+ * with its solve, which Perspective 3D draws, or a 3D figure's render model,
+ * which its window draws, from the figure's own camera.
+ */
+export type PaperObjSpreadView =
+  | { kind: 'connected'; view: ConnectedSpreadView }
+  | { kind: 'spatial'; model: OristudioCpFolded3dRenderModel; camera: FoldedFigureCamera | null };
+
+/**
+ * The fold behind an OBJ whose spread the dialog sets: which spread it is,
+ * what the dialog opens on, and the fold the preview draws and the file
+ * lifts by.
  */
 export interface PaperObjSpreadSource {
-  /** The figure's own Default spread, or none. */
+  /** A flat figure's Default spread, or a 3D figure's spatial one: what Amount moves. */
+  kind: 'connected' | 'spatial';
+  /** The figure's own spread, or none. */
   initial: PaperObjSpread;
   /**
-   * The paper scene and its solve: read, folded again or solved on the first
+   * The fold and its spread solve: read, folded again or solved on the first
    * ask, and held until the dialog closes. Rejects with a
    * `FoldedObjUnavailableError` when the figure has no fold to give, and
    * otherwise when its layers cannot be spread.
    */
-  prepare(): Promise<ConnectedSpreadView>;
-  /** The paper scene alone, which a file with no spread needs and a spread one starts from. */
-  scene(): Promise<OristudioCpFoldedPaperScene>;
+  prepare(): Promise<PaperObjSpreadView>;
+  /** Whether the file can still be written with no spread when `prepare` cannot: the fold read, its spread not made. */
+  unspread(): Promise<boolean>;
 }
 
 /** A captured 3D mesh, independent of the page's image and its options. */
 export interface PaperObjExport {
   unavailableReason: FoldedObjUnavailableReason | null;
   /**
-   * For a mesh whose layers can spread — a flat folded figure's — the spread
-   * the dialog sets for the file. Absent, the mesh is written as captured.
+   * For a mesh whose layers can spread — a folded figure's, flat or folded in
+   * 3D — the spread the dialog sets for the file. Absent, the mesh is written
+   * as captured.
    */
   spread?: PaperObjSpreadSource;
   /**

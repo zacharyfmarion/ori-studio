@@ -3,9 +3,10 @@
  * figure shows it (`implementation-plans/folded-model-obj-export.md`).
  *
  * - **A 3D figure** writes its render model's material source — every sheet
- *   vertex once, where the fold put it — and, with a spatial spread, each
- *   vertex moved by the spread's solve at the figure's amount: the field the
- *   window draws (`posedMaterialPositions`).
+ *   vertex once, where the fold put it — and, with the spatial spread the
+ *   export dialog sets (opening on the figure's own), each vertex moved by the
+ *   spread's solve at that amount: the field the window draws
+ *   (`posedMaterialPositions`), and the dialog's preview with it.
  * - **A flat figure** writes the kernel's paper scene, flat, or lifted by the
  *   Default spread the export dialog sets — opening on the figure's own — as
  *   Perspective 3D lifts it, which the dialog previews: the true-size shift in
@@ -47,11 +48,12 @@ import { foldedObj } from '../../lib/foldedExport';
 import { sheetUvs } from '../../lib/sheetUvs';
 import type { PaperObjExport, PaperObjSpread } from '../../paperExport/paperExportTarget';
 import { connectedSpreadSource, scenePoint, type ConnectedSpreadSource } from './connectedSpreadSource';
-import { posedMaterialPositions } from './folded3dMaterial';
+import { posedMaterialPositions, type SpatialSpreadSolution } from './folded3dMaterial';
 import { toSimBasis } from './folded3dMesh';
 import { ensureSpatialSolution, spatialAmount, spatialSource } from './folded3dSpread';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
 import { DEFAULT_CONNECTED_SPREAD } from './layerSpreadSettings';
+import { DEFAULT_SPATIAL_SPREAD_AMOUNT } from './spatialSpreadSettings';
 import { triangulateSpreadFace } from './triangulateSpreadFace';
 
 /** A render model's material source: the sheet's vertices, where the fold put them, and its faces. */
@@ -199,25 +201,54 @@ export function foldedFigureObj(mesh: FoldedFigureObjMesh): string {
 }
 
 /**
- * A 3D figure's OBJ for the export dialog, its spread solved when it is asked
- * for: none for a model that carries no material source.
+ * The spread a 3D figure's OBJ opens on: the spatial spread its window draws,
+ * else none, at the amount Spread layers turns on at.
+ */
+export function folded3dFigureObjSpread(
+  figure: Pick<OristudioCpFoldedFigureEntry, 'spread' | 'displayStyle'>
+): PaperObjSpread {
+  const amount = spatialAmount(figure);
+  return amount !== null && amount > 0 ? { on: true, amount } : { on: false, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT };
+}
+
+/**
+ * A 3D figure's OBJ for the export dialog: its material, posed by the spatial
+ * spread the dialog sets — opening on the figure's own — as the window poses
+ * it (`posedMaterialPositions`), which the dialog's preview draws. A fold with
+ * no determined layer order has no layers to spread, so it offers no spread.
+ * The solve is asked for once and let go when it lands or `signal` aborts.
+ * None for a model that carries no material source.
  */
 export function folded3dFigureObjExport(
-  figure: Pick<OristudioCpFoldedFigureEntry, 'spread' | 'displayStyle' | 'folded3d'>,
+  figure: Pick<OristudioCpFoldedFigureEntry, 'spread' | 'displayStyle' | 'folded3d' | 'camera'>,
   model: OristudioCpFolded3dRenderModel,
   signal: AbortSignal
 ): PaperObjExport | undefined {
   const { material } = model;
   if (!material) return undefined;
-  const amount = spatialAmount(figure) ?? 0;
+  // Read with care: a snapshot written before verdicts has none, and no layer order to spread.
+  const spreads = figure.folded3d?.verdict?.verdict === 'folded';
+  const initial = folded3dFigureObjSpread(figure);
+  let solved: Promise<SpatialSpreadSolution> | null = null;
+  const solve = () => (solved ??= ensureSpatialSolution(model, signal));
   return {
     unavailableReason: null,
-    build: async () => {
+    ...(spreads
+      ? {
+          spread: {
+            kind: 'spatial',
+            initial,
+            prepare: () => solve().then(() => ({ kind: 'spatial', model, camera: figure.camera ?? null })),
+            // The fold is the material, whatever the solve does.
+            unspread: async () => true,
+          },
+        }
+      : {}),
+    build: async (spread = spreads ? initial : { on: false, amount: 0 }) => {
       let positions: readonly Point3[] = material.positions;
-      if (amount > 0) {
-        // As its picture is: a spread is drawn only on a determined, closed fold.
-        if (figure.folded3d?.verdict.verdict !== 'folded') throw new Error('Spatial spread requires a determined, closed fold');
-        positions = posedMaterialPositions(spatialSource(model), await ensureSpatialSolution(model, signal), amount);
+      if (spread.on && spread.amount > 0) {
+        if (!spreads) throw new Error('Spatial spread requires a determined, closed fold');
+        positions = posedMaterialPositions(spatialSource(model), await solve(), spread.amount);
       }
       return foldedFigureObj(folded3dObjMesh(material, positions, model.span));
     },
@@ -261,7 +292,16 @@ export function foldedFlatFigureObjExport(
     }));
   return {
     unavailableReason: null,
-    spread: { initial, prepare, scene: sceneOnce },
+    spread: {
+      kind: 'connected',
+      initial,
+      prepare: () => prepare().then((view) => ({ kind: 'connected', view })),
+      unspread: () =>
+        sceneOnce().then(
+          () => true,
+          () => false
+        ),
+    },
     build: async (spread = initial) => {
       const kernel = await sceneOnce();
       if (!spread.on || spread.amount <= 0) {
