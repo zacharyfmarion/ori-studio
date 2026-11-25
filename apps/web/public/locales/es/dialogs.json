@@ -842,6 +842,7 @@
     "objPreview": "Forma capturada · OBJ incluye la malla completa y las UV",
     "objPreviewEmpty": "Sin vista previa de imagen. La malla 3D capturada se puede exportar.",
     "objSheetUnavailable": "OBJ necesita una hoja desplegada en el plano del papel del simulador para crear las coordenadas de textura.",
+    "objSpreadUnavailable": "Una separación Afín o por Profundidad solo mueve la imagen, así que una malla 3D no puede incluirla. Elige Predeterminado en Separar por para levantar las capas.",
     "padding": "Margen",
     "page": "Página",
     "pageMm": "{{width}} × {{height}} mm",

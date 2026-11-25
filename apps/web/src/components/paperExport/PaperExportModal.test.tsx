@@ -215,6 +215,25 @@ describe('PaperExportModal', () => {
     expect(button('Export OBJ')?.disabled).toBe(false);
   });
 
+  it.each(['folded-3d', 'folded-flat'] as const)('saves a folded figure’s OBJ from %s and remembers it for figures alone', async (surface) => {
+    const build = vi.fn(async () => 'v 0 0 0\nvt 0 0\nf 1/1 1/1 1/1\n');
+    await open(target({ surface, obj: { unavailableReason: null, build } }));
+    await act(async () => button('OBJ')?.click());
+    expect(text()).toContain('ready for texturing in your 3D software');
+    await submit();
+    expect(service.saveTextFile).toHaveBeenCalledWith(expect.objectContaining({ suggestedName: 'Crane.obj' }));
+    expect(useSettingsStore.getState().paperExport['folded-figure'].format).toBe('obj');
+    expect(useSettingsStore.getState().paperExport.simulation.format).toBe('svg');
+  });
+
+  it('says why a figure whose spread only moves its picture has no OBJ, and keeps its images', async () => {
+    await open(target({ obj: { unavailableReason: 'picture-only-spread', build: async () => null } }), null, 'obj');
+    expect(button('Export OBJ')?.disabled).toBe(true);
+    expect(text()).toContain('Set Spread by to Default');
+    await act(async () => button('PNG')?.click());
+    expect(button('Export PNG')?.disabled).toBe(false);
+  });
+
   it('does not offer OBJ on image-only targets or honour an unsupported requested format', async () => {
     await open(target(), null, 'obj');
     expect(button('OBJ')).toBeUndefined();

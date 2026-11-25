@@ -25,6 +25,10 @@
  *
  * What a figure pins of its own style is laid over the export style and over
  * any preset picked (`pins`), as the figure draws itself.
+ *
+ * A figure with a fold to read offers OBJ too — a live 3D figure, a flat one,
+ * a spread one — with the spread its picture is drawn with
+ * (`foldedFigureObj.ts`); a stored scene or a fixed picture has no mesh.
  */
 import type {
   OristudioCpFolded3dAuxLines,
@@ -41,6 +45,7 @@ import { foldedFigurePivot } from '../adapters/cpFoldedToScene';
 import { folded3dSceneStyleKey } from './folded3dScene';
 import { settledFolded3dFigureScene, folded3dStoredSceneInCssPx } from './folded3dStoredScene';
 import { foldedFigureExportDocument } from './foldedFigureExport';
+import { folded3dFigureObjExport, foldedFlatFigureObjExport } from './foldedFigureObj';
 import { foldedFigureSpreadOptions } from './foldedFigureSpread';
 import { foldedFigureSpreadExport, scaledSpreadFrame } from './foldedFigureSpreadExport';
 import { foldedFigureSpreadFrame } from './foldedFigureSpreadFrame';
@@ -145,8 +150,10 @@ export function foldedFigureExportTarget({
   switch (picture.kind) {
     case 'live-3d': {
       const controller = new AbortController();
+      const obj = folded3dFigureObjExport(figure, picture.model, controller.signal);
       return {
         ...base,
+        ...(obj ? { obj } : {}),
         buriesFaces: true,
         sceneKey: ({ style, markHidden }) => `${folded3dSceneStyleKey(style)}|${markHidden}`,
         release: () => controller.abort(),
@@ -174,8 +181,11 @@ export function foldedFigureExportTarget({
       };
     case 'flat': {
       const scale = foldedFlatFigureScenePxPerUnit(figure, picture.cssPerUserUnit);
+      const controller = new AbortController();
       return {
         ...base,
+        obj: foldedFlatFigureObjExport(picture.kernel, null, controller.signal),
+        release: () => controller.abort(),
         buriesFaces: true,
         sceneKey: ({ markHidden }) => String(markHidden),
         buildScene: async ({ markHidden }) => {
@@ -196,14 +206,19 @@ export function foldedFigureExportTarget({
         figure.placement.scale * picture.cssPerUserUnit
       );
       const exported = foldedFigureSpreadExport(picture.kernel, picture.spread, frame);
+      const controller = new AbortController();
       return {
         ...base,
+        obj: foldedFlatFigureObjExport(picture.kernel, picture.spread, controller.signal),
         // Spread apart, a buried layer shows what it shows: every face is kept, and none is hidden.
         buriesFaces: false,
         // A bitmap, if the spread needs one, is drawn in the page's pens and size.
         sceneKey: ({ style, sheet }) => `spread|${sheet.mm}|${JSON.stringify(style)}`,
         buildScene: async ({ style, sheet }) => exported.scene({ style: base.paintStyle(style), mm: sheet.mm }),
-        release: () => exported.release(),
+        release: () => {
+          exported.release();
+          controller.abort();
+        },
       };
     }
     case 'fixed':

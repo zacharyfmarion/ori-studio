@@ -14,6 +14,11 @@ export function objExportUnavailableMessage(reason: FoldedObjUnavailableReason, 
       return t('dialogs:paperExport.objMeshUnavailable', 'This simulation has no valid mesh to export.');
     case 'expired-snapshot':
       return t('dialogs:paperExport.objExpired', 'This captured simulation is no longer available. Close this dialog and export again.');
+    case 'picture-only-spread':
+      return t(
+        'dialogs:paperExport.objSpreadUnavailable',
+        'An Affine or Depth spread only moves the picture, so a 3D mesh can’t carry it. Set Spread by to Default to lift the layers apart.'
+      );
   }
 }
 

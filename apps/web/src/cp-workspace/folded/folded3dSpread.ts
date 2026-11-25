@@ -88,6 +88,14 @@ export async function ensureSpatialSpread(
   aux: OristudioCpFolded3dAuxLines | null = null,
   signal?: AbortSignal
 ): Promise<Folded3dMesh> {
+  return spatialBaseMesh(model, aux, await ensureSpatialSolution(model, signal));
+}
+
+/** The model's spread solve, awaited on its own lease, let go when it lands or `signal` aborts. */
+export async function ensureSpatialSolution(
+  model: OristudioCpFolded3dRenderModel,
+  signal?: AbortSignal
+): Promise<SpatialSpreadSolution> {
   if (signal?.aborted)
     throw new DOMException('Capture cancelled', 'AbortError');
   const lease = spatialSpreadService().acquire(spatialSource(model).input);
@@ -104,7 +112,7 @@ export async function ensureSpatialSpread(
     const solution = await Promise.race([lease.promise, aborted]);
     if (signal?.aborted)
       throw new DOMException('Capture cancelled', 'AbortError');
-    return spatialBaseMesh(model, aux, solution);
+    return solution;
   } finally {
     signal?.removeEventListener('abort', cancel);
     lease.release();

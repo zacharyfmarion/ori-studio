@@ -810,6 +810,7 @@
     "objPreview": "Captured pose · OBJ includes the complete mesh and UVs",
     "objPreviewEmpty": "No image preview. The captured 3D mesh can still be exported.",
     "objSheetUnavailable": "OBJ needs an unfolded sheet in the simulator’s paper plane to create texture coordinates.",
+    "objSpreadUnavailable": "An Affine or Depth spread only moves the picture, so a 3D mesh can’t carry it. Set Spread by to Default to lift the layers apart.",
     "padding": "Margin",
     "page": "Page",
     "pageMm": "{{width}} × {{height}} mm",

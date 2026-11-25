@@ -30,7 +30,12 @@ export interface FoldedMesh {
   auxLines?: Float32Array;
 }
 
-export type FoldedObjUnavailableReason = SheetUvFailure | 'invalid-mesh' | 'expired-snapshot';
+/**
+ * Why a captured mesh cannot be written. `picture-only-spread` is a folded
+ * figure's: an Affine or Depth spread moves only its picture, so a mesh has
+ * no form of it.
+ */
+export type FoldedObjUnavailableReason = SheetUvFailure | 'invalid-mesh' | 'expired-snapshot' | 'picture-only-spread';
 
 /** No truncation or invented zero coordinates in an exported mesh. */
 export function validFoldedMesh(mesh: Pick<FoldedMesh, 'positions' | 'triangles'>): boolean {

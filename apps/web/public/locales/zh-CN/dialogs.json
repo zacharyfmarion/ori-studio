@@ -778,6 +778,7 @@
     "objPreview": "捕获的形态 · OBJ 包含完整网格和 UV",
     "objPreviewEmpty": "无图像预览。仍可导出捕获的 3D 网格。",
     "objSheetUnavailable": "OBJ 需要在模拟器纸张平面内展开的纸张，才能生成纹理坐标。",
+    "objSpreadUnavailable": "“仿射”或“深度”错开只移动图像，因此 3D 网格无法包含它。将“错开方式”设为“默认”即可把各层抬开。",
     "padding": "边距",
     "page": "页面",
     "pageMm": "{{width}} × {{height}} mm",

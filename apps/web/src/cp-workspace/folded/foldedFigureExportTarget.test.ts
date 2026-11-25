@@ -29,6 +29,7 @@ import {
 } from '../../paperExport/paperExportSession';
 import type { PaperSceneInput } from '../../paperExport/paperExportTarget';
 import { paperExportDraft } from '../../paperExport/usePaperExportDialog';
+import spreadStrip from '../../../../../tests/fixtures/fold-angle-3d/spread-strip.render.json';
 import golden from './__fixtures__/foldedFigureExportGolden.json';
 import { DEFAULT_FOLDED_3D_CAMERA, folded3dFrameRadius } from './folded3dCamera';
 import { FOLDED_3D_MESH_VERTEX_BUDGET } from './folded3dMesh';
@@ -40,6 +41,7 @@ import {
   type FoldedFigureExportPicture,
 } from './foldedFigureExportTarget';
 import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
+import type { LayerSpreadOptions } from './foldedLayerSpread';
 
 /**
  * The export dialog must write, for a folded figure, byte for byte the page
@@ -582,5 +584,46 @@ describe('foldedFigureExportTarget', () => {
       expect(style.mountainFolds).toEqual(style.edges);
       expect(style.valleyFolds).toEqual(style.edges);
     }
+  });
+});
+
+describe('foldedFigureExportTarget’s OBJ', () => {
+  const MATERIAL_MODEL = spreadStrip as OristudioCpFolded3dRenderModel;
+
+  it('writes a live 3D figure’s material, and offers nothing for a model without one', async () => {
+    const live = targetOf(spatial(), pictureOf(spatial(), { model: MATERIAL_MODEL })!);
+    expect(live.obj?.unavailableReason).toBeNull();
+    const obj = await live.obj!.build();
+    expect(obj).toMatch(/^# Ori Studio folded form/);
+    expect(obj?.match(/^f /gm)).toHaveLength(8);
+    // An older payload carries no material source.
+    expect(liveTarget().obj).toBeUndefined();
+  });
+
+  it('writes a flat figure flat', async () => {
+    const exported = targetOf(flat(), pictureOf(flat(), { kernel: kernelScene() })!);
+    expect(exported.obj?.unavailableReason).toBeNull();
+    const obj = (await exported.obj!.build())!;
+    const heights = obj.match(/^v .*$/gm)!.map((line) => Number(line.split(' ')[2]));
+    expect(heights.every((height) => height === 0)).toBe(true);
+  });
+
+  it('offers a Default spread, and says an Affine or Depth spread has no 3D form', () => {
+    const spreadTarget = (spread: LayerSpreadOptions) =>
+      targetOf(flat(), { kind: 'spread', kernel: kernelScene(), spread, cssPerUserUnit: 1 });
+    expect(spreadTarget({ kind: 'connected', version: 1, amount: 0.5, reveal: [0.3, 0.2] }).obj?.unavailableReason).toBeNull();
+    expect(spreadTarget({ kind: 'affine', amount: 0.3, keep: 'top', skew: 0, axisDeg: 0 }).obj?.unavailableReason).toBe(
+      'picture-only-spread'
+    );
+    expect(spreadTarget({ kind: 'depth', amount: 0.3, toward: 'down-right' }).obj?.unavailableReason).toBe(
+      'picture-only-spread'
+    );
+  });
+
+  it('has none for a picture with no fold to read: a stored 3D scene or a fixed picture', () => {
+    const stored = spatial({ handle: null });
+    const legacy = flat({ handle: null });
+    expect(targetOf(stored, pictureOf(stored)!).obj).toBeUndefined();
+    expect(targetOf(legacy, pictureOf(legacy)!).obj).toBeUndefined();
   });
 });

@@ -778,6 +778,7 @@
     "objPreview": "캡처한 형태 · OBJ에 전체 메시와 UV가 포함됩니다",
     "objPreviewEmpty": "이미지 미리보기가 없습니다. 캡처한 3D 메시는 내보낼 수 있습니다.",
     "objSheetUnavailable": "OBJ 텍스처 좌표를 만들려면 시뮬레이터의 종이 평면에 펼쳐진 종이가 필요합니다.",
+    "objSpreadUnavailable": "아핀 또는 깊이 벌림은 그림만 옮기므로 3D 메시에 담을 수 없습니다. 레이어를 들어 올려 벌리려면 벌림 방식을 기본값으로 설정하세요.",
     "padding": "여백",
     "page": "페이지",
     "pageMm": "{{width}} × {{height}} mm",

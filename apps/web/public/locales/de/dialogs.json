@@ -810,6 +810,7 @@
     "objPreview": "Erfasste Form · OBJ enthält das vollständige Netz und UVs",
     "objPreviewEmpty": "Keine Bildvorschau. Das erfasste 3D-Netz kann trotzdem exportiert werden.",
     "objSheetUnavailable": "OBJ benötigt ein entfaltetes Blatt in der Papierebene des Simulators, um Texturkoordinaten zu erstellen.",
+    "objSpreadUnavailable": "Eine Auffächerung Affin oder Tiefe verschiebt nur das Bild, deshalb kann ein 3D-Netz sie nicht übernehmen. Stelle Auffächern nach auf Standard, um die Lagen auseinanderzuheben.",
     "padding": "Rand",
     "page": "Seite",
     "pageMm": "{{width}} × {{height}} mm",

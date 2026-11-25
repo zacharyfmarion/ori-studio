@@ -223,6 +223,25 @@ export function prepareSpatialMaterial(
   };
 }
 
+/**
+ * Each material vertex where `amount` of the spread puts it, in the render
+ * model's own coordinates: what the window draws and the OBJ export writes.
+ */
+export function posedMaterialPositions(
+  prepared: SpatialMaterial,
+  solution: SpatialSpreadSolution,
+  amount: number
+): Point3[] {
+  const { source, scale } = prepared;
+  const spreadAmount = clampSpatialSpreadAmount(amount);
+  return source.positions.map(
+    (p, v) =>
+      p.map(
+        (x, a) => x + spreadAmount * scale * solution.displacements[v]![a]!
+      ) as Point3
+  );
+}
+
 /** All material, including buried paper. No cell/skin vertices become unknowns.
  * Auxiliary ink is split at material triangles and bound barycentrically. */
 export function spatialMaterialMesh(
@@ -232,19 +251,10 @@ export function spatialMaterialMesh(
   amount: number,
   aux?: OristudioCpFolded3dAuxLines | null
 ): Folded3dMesh {
-  const { source, input, scale } = prepared;
+  const { source, input } = prepared;
   const center = modelCentroid(model);
-  const spreadAmount = clampSpatialSpreadAmount(amount);
-  const posed = source.positions.map(
-    (p, v) =>
-      p.map(
-        (x, a) =>
-          x +
-          spreadAmount *
-            scale *
-            solution.displacements[v]![a]! -
-          center[a]!
-      ) as Point3
+  const posed = posedMaterialPositions(prepared, solution, amount).map(
+    (p) => p.map((x, a) => x - center[a]!) as Point3
   );
   const positions: number[] = posed.flatMap((p) => toSimBasis(p));
   const faceIndices: number[] = [],
