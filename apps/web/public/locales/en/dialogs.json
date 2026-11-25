@@ -807,7 +807,6 @@
     "objExpired": "This captured simulation is no longer available. Close this dialog and export again.",
     "objHint": "3D mesh with UV coordinates from the unfolded paper, ready for texturing in your 3D software.",
     "objMeshUnavailable": "This simulation has no valid mesh to export.",
-    "objPageUnavailable": "{{page}}: {{reason}}",
     "objPreview": "Captured pose · OBJ includes the complete mesh and UVs",
     "objPreviewEmpty": "No image preview. The captured 3D mesh can still be exported.",
     "objSheetUnavailable": "OBJ needs an unfolded sheet in the simulator’s paper plane to create texture coordinates.",

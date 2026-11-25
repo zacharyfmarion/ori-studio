@@ -42,15 +42,9 @@ describe('trackPaperExportOpened', () => {
 
 describe('trackPaperExported', () => {
   it.each(['simulator', 'inline-simulation'] as const)('reports OBJ from %s without fictitious image properties', (surface) => {
-    trackPaperExported({ surface, format: 'obj', optionsChanged: true, scope: 'this', pageCount: 1 });
+    trackPaperExported({ surface, format: 'obj', optionsChanged: true, scope: 'this' });
     expect(runtime.track).toHaveBeenCalledExactlyOnceWith('paper exported', {
       surface, format: 'obj', options_changed: 'yes', scope: 'this',
-    });
-  });
-  it('buckets how many meshes an OBJ export of every Fold step wrote', () => {
-    trackPaperExported({ surface: 'fold', format: 'obj', optionsChanged: false, scope: 'all', pageCount: 12 });
-    expect(runtime.track).toHaveBeenCalledExactlyOnceWith('paper exported', {
-      surface: 'fold', format: 'obj', options_changed: 'no', scope: 'all', page_count_bucket: '<=25',
     });
   });
   it('reports every option as an enum, and no resolution for an SVG', () => {

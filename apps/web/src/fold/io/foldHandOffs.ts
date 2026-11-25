@@ -25,9 +25,6 @@ import { foldSendToEditPayload } from '../engine/foldEngineIoSendToEdit';
 import type { FoldEngineRefused } from '../engine/foldEngineWire';
 import type { FoldSession, FoldSessionWorker } from '../session/foldSession';
 import { foldCursorReady, foldPathReady, type FoldPathReady } from './foldSessionWaits';
-import { foldPaneDisplay } from '../canvas/foldPaneDisplay';
-import { foldStepSpread } from '../document/foldStepSpread';
-import { foldStepsObj, type FoldStepFoldedState } from './foldStepObj';
 import {
   foldStepCreaseDiagram,
   foldStepIsNumbered,
@@ -176,16 +173,12 @@ function isTooLarge(refused: FoldEngineRefused): boolean {
 /**
  * The paper export of the steps (plan D11): one page per numbered step of
  * the active path, each its crease pattern with the step's creases the
- * instruction, opened on the step on screen (`this`) or on all of them. Each
- * page's OBJ is the state the step lands, folded, spread as its picture is.
+ * instruction, opened on the step on screen (`this`) or on all of them.
  */
 export async function openFoldStepsExport(deps: FoldHandOffDeps, scope: PaperExportScope): Promise<boolean> {
   const cursor = deps.session.store.getState().cursor;
   return withLandedPath(deps, async (path) => {
-    // The sequence the path landed for: each step's spread is read off it.
-    const { sequence } = deps.session.store.getState();
     const pages: FoldStepPage[] = [];
-    const states: FoldStepFoldedState[] = [];
     // The page on show: the step on screen, or the numbered one before it.
     let current = -1;
     for (const step of path.steps) {
@@ -193,12 +186,10 @@ export async function openFoldStepsExport(deps: FoldHandOffDeps, scope: PaperExp
         const drawn = await ask(deps, step.state, async (engine, id) => {
           const [scene, summary] = await Promise.all([engine.scene(id), engine.summary(id)]);
           // Every crease the step made: a Repeat's every operation's.
-          const diagram = foldStepCreaseDiagram(scene.creases, summary.sheet, summary.step, summary.step - foldOpSteps(step.op));
-          return { diagram, scene };
+          return foldStepCreaseDiagram(scene.creases, summary.sheet, summary.step, summary.step - foldOpSteps(step.op));
         });
         if (drawn === null) return false;
-        pages.push({ number: pages.length + 1, diagram: drawn.diagram });
-        states.push({ scene: drawn.scene, spread: sequence ? foldStepSpread(sequence, step.id) : null });
+        pages.push({ number: pages.length + 1, diagram: drawn });
       }
       if (step.id === cursor) current = pages.length - 1;
     }
@@ -211,8 +202,6 @@ export async function openFoldStepsExport(deps: FoldHandOffDeps, scope: PaperExp
       current: Math.max(current, 0),
       title: deps.title(),
       exportStyle: deps.exportStyle(),
-      // The pane's switches as they stand: the preview of a mesh is the pane's picture.
-      obj: foldStepsObj(states, foldPaneDisplay()),
       t: deps.t,
     });
     deps.openPaperExport(target, scope);

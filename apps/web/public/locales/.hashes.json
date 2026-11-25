@@ -6772,8 +6772,7 @@
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
     "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
-    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b",
-    "dialogs:paperExport.objPageUnavailable": "abcdca661645"
+    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13548,8 +13547,7 @@
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
     "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
-    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b",
-    "dialogs:paperExport.objPageUnavailable": "abcdca661645"
+    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20326,8 +20324,7 @@
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
     "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
-    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b",
-    "dialogs:paperExport.objPageUnavailable": "abcdca661645"
+    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26721,8 +26718,7 @@
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
     "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
-    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b",
-    "dialogs:paperExport.objPageUnavailable": "abcdca661645"
+    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -33116,8 +33112,7 @@
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
     "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
-    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b",
-    "dialogs:paperExport.objPageUnavailable": "abcdca661645"
+    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -39892,8 +39887,7 @@
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
     "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
-    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b",
-    "dialogs:paperExport.objPageUnavailable": "abcdca661645"
+    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46668,8 +46662,7 @@
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
     "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
-    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b",
-    "dialogs:paperExport.objPageUnavailable": "abcdca661645"
+    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -53063,7 +53056,6 @@
     "landing:fold.title": "b39b70e6dfd6",
     "dialogs:layerOrder.hint.adding": "618046d258d1",
     "dialogs:layerOrder.hint.shiftPicksSeveral": "7988fef85856",
-    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b",
-    "dialogs:paperExport.objPageUnavailable": "abcdca661645"
+    "dialogs:paperExport.objSpreadUnavailable": "a4eaf989d77b"
   }
 }

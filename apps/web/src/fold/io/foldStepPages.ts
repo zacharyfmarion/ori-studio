@@ -10,8 +10,7 @@
  * the crease pen, and this step's own creases in the diagram-crease pens — the
  * instruction. Letters are front-relative, so a page is read from the front
  * whatever the view. Turns and rotations change no crease and are not
- * numbered, so they get no page. A page's OBJ is not its pattern but the
- * state folded, its layers spread as its picture spreads them (`foldStepObj`).
+ * numbered, so they get no page.
  *
  * Pure: no React, no store, no engine.
  */
@@ -33,7 +32,6 @@ import type { DiagramLineStyleName, StepDiagramModel, StepDiagramPrimitive } fro
 import { madeByStep } from '../canvas/foldPaneScenes';
 import type { FoldOp } from '../document/foldSequenceDocument';
 import type { FoldSceneCrease } from '../engine/foldEngineWire';
-import type { FoldStepsObj } from './foldStepObj';
 
 /** A crease's role on its step's page: its letter when it is the step's own, its instruction. */
 function lineStyle(crease: FoldSceneCrease, own: boolean): DiagramLineStyleName | null {
@@ -116,11 +114,6 @@ export interface FoldStepsExportCapture {
   title: string;
   /** The Settings export style; a step pins nothing of its own. */
   exportStyle: PaperStyle;
-  /**
-   * Each page's folded state as a mesh, in the pages' order, and the preview
-   * of it (`foldStepsObj`): the steps offer OBJ beside SVG and PNG.
-   */
-  obj?: FoldStepsObj;
   t: TFunction;
 }
 
@@ -133,22 +126,17 @@ function stem(title: string): string {
  * The export dialog's target for the steps: one page per numbered step, the
  * step on show first in view, every page in one ZIP for "all". Named as
  * References names its step pages, so a reader's files from the two read
- * alike: `<title> step 3`, and inside the ZIP `03 step 3`. With `obj`, each
- * page carries its folded state as a mesh, named as the page is.
+ * alike: `<title> step 3`, and inside the ZIP `03 step 3`.
  */
-export function foldStepsExportTarget({ pages, current, title, exportStyle, obj, t }: FoldStepsExportCapture): PaperExportTarget {
+export function foldStepsExportTarget({ pages, current, title, exportStyle, t }: FoldStepsExportCapture): PaperExportTarget {
   const onShow = pages[current] ?? pages[0];
   const width = String(pages.length).length;
-  const steps: StepDiagramExportPage[] = pages.map((page, index) => {
-    const mesh = obj?.objs[index];
-    return {
-      diagram: page.diagram,
-      mirrored: false,
-      label: t('dialogs:paperExport.pageStep', 'Step {{number}}', { number: page.number }),
-      entryStem: `${String(index + 1).padStart(width, '0')} step ${page.number}`,
-      ...(mesh ? { obj: mesh } : {}),
-    };
-  });
+  const steps: StepDiagramExportPage[] = pages.map((page, index) => ({
+    diagram: page.diagram,
+    mirrored: false,
+    label: t('dialogs:paperExport.pageStep', 'Step {{number}}', { number: page.number }),
+    entryStem: `${String(index + 1).padStart(width, '0')} step ${page.number}`,
+  }));
   return stepDiagramExportTarget({
     surface: 'fold',
     // A page is the crease pattern: no letters, no reference lines to leave out.
@@ -168,6 +156,5 @@ export function foldStepsExportTarget({ pages, current, title, exportStyle, obj,
         lineWidth: DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
         showAux: null,
       }),
-    ...(obj ? { objView: obj.view, release: obj.release } : {}),
   });
 }

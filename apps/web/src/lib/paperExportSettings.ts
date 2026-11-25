@@ -99,9 +99,7 @@ export function normalizePaperExportSettings(source: unknown, kind?: PaperExport
   return {
     ...normalizePaperPage(source),
     pngDpi: typeof pngDpi === 'number' ? clampPaperPngDpi(pngDpi) : DEFAULT_PAPER_PNG_DPI,
-    // OBJ is a kind's own choice — a simulation's, a figure's, a Fold step's —
-    // never a seed's; a picture with no mesh opens on SVG (`paperExportDraft`).
-    format: format === 'svg' || format === 'png' || (format === 'obj' && kind !== undefined)
+    format: format === 'svg' || format === 'png' || (format === 'obj' && kind !== undefined && PAPER_EXPORT_OBJ_KINDS.includes(kind))
       ? format : DEFAULT_PAPER_EXPORT_SETTINGS.format,
     style: typeof style === 'string' && style.length > 0 ? style : DEFAULT_PAPER_EXPORT_SETTINGS.style,
     marks: normalizePaperExportMarks(marks),
@@ -135,6 +133,9 @@ export function paperExportFromSimulatorSettings(source: unknown): PaperExportSe
 export type PaperExportKind = 'simulation' | 'folded-figure' | 'step';
 
 export const PAPER_EXPORT_KINDS: readonly PaperExportKind[] = ['simulation', 'folded-figure', 'step'];
+
+/** The kinds whose pictures have a 3D mesh to write as OBJ, so remember it as their format: a step has none. */
+export const PAPER_EXPORT_OBJ_KINDS: readonly PaperExportKind[] = ['simulation', 'folded-figure'];
 
 /** What every kind last exported with. */
 export type PaperExportMemory = Readonly<Record<PaperExportKind, PaperExportSettings>>;

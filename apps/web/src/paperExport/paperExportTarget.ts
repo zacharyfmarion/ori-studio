@@ -62,11 +62,6 @@ export interface PaperExportPage {
   label: string;
   /** Its file's name inside the ZIP, before sanitising and without an extension. */
   fileStem: string;
-  /**
-   * Its 3D mesh, for a page that has one — a Fold step's folded state — on
-   * every page of a target that offers OBJ: the ZIP of every page holds each.
-   */
-  obj?: PaperObjExport;
 }
 
 /**
@@ -97,28 +92,9 @@ export interface PaperExportFixedPicture {
 /** Which of a target's pages an export writes: declared once, with the analytics enum that reports it. */
 export type { PaperExportScope };
 
-/**
- * How the preview is drawn: the target's own pictures, or the ones it shows
- * while OBJ is chosen ({@link PaperExportTarget.objView}).
- */
-export type PaperExportView = Pick<
-  PaperExportTarget,
-  'buriesFaces' | 'sizeMeasures' | 'sceneKey' | 'buildScene' | 'paintStyle'
->;
-
 export interface PaperExportTarget {
-  /**
-   * Only surfaces with a captured mesh offer OBJ. For a target with pages, the
-   * page on show's, as `title` and `fileStem` are; each page's own is on its
-   * entry (`PaperExportPage.obj`).
-   */
+  /** Only surfaces with a captured mesh offer OBJ. */
   obj?: PaperObjExport;
-  /**
-   * What the preview shows while OBJ is chosen, for a target whose pictures
-   * are not its mesh: a Fold step's page is its crease pattern, and its OBJ
-   * the folded state. Absent, the target's own picture is the mesh's already.
-   */
-  objView?: PaperExportView;
   /**
    * Which surface this is: the analytics enum, and the style policy
    * (`PAPER_STYLE_POLICIES[surface]`). Not the Diagram, which exports through

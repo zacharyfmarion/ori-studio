@@ -19,10 +19,6 @@
  * show or every page as one ZIP (X13). Every page is then painted on one crop,
  * so the set lines up; the pager shows any of them, and every page the ZIP
  * holds is painted from the same scenes and options as the one on screen.
- *
- * OBJ writes the target's mesh — for every page, each page's, in one ZIP — and
- * while it is chosen, a target whose pages are not that mesh (a Fold step's
- * crease pattern) previews the picture that is (`objView`): its folded state.
  */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -62,10 +58,10 @@ import {
   paperScenesOnOneCrop,
   resolvePaperExportStyleChoice,
 } from './paperExportSession';
-import type { PaperExportScope, PaperExportView } from './paperExportTarget';
+import type { PaperExportScope } from './paperExportTarget';
 import { paperExportedEvent, savePaperExport, savePaperExportZip } from './savePaperExport';
 import { usePaperExportScenes, type PaperExportStatus } from './usePaperExportScenes';
-import { paperObjExportPlan, paperObjExportUnavailable, savePaperObjExport } from './saveObjExport';
+import { saveObjExport } from './saveObjExport';
 import { ZipUnavailableError } from './zipPages';
 
 export type { PaperExportStatus };
@@ -118,8 +114,6 @@ export interface PaperExportDialogBinding {
   title: string;
   /** The picture is fixed: only the format can be chosen. */
   fixed: boolean;
-  /** OBJ, for a target that offers it: why it cannot be written as the options stand, or null when it can. */
-  obj: { unavailable: string | null } | null;
   draft: PaperExportSettings;
   /** Change some options; nothing is remembered until a file is saved. */
   patch: (next: Partial<PaperExportSettings>) => void;
@@ -218,9 +212,6 @@ export function usePaperExportDialog(
     [fixed, all, pages]
   );
   const shownAt = all ? pagerIndex : 0;
-  // What OBJ writes for the scope — the page on show's mesh, or every page's — and what stands in its way.
-  const objPlan = useMemo(() => paperObjExportPlan(target, all), [target, all]);
-  const objUnavailable = objPlan && paperObjExportUnavailable(objPlan, t);
 
   // Once per dialog: a ref rather than the effect's deps alone, since a
   // development StrictMode mount runs the effect twice.
@@ -232,28 +223,25 @@ export function usePaperExportDialog(
   }, [target, scope]);
 
   const { format, keepHiddenFaces, background, sheet, paddingMm, marks } = draft;
-  // While OBJ is chosen the preview is the mesh's picture: a Fold step's folded
-  // state, say, rather than the crease pattern its page draws.
-  const view: PaperExportView = format === 'obj' && target.objView ? target.objView : target;
-  const keepsHiddenFaces = paperExportKeepsHiddenFaces(view, { format, keepHiddenFaces });
+  const keepsHiddenFaces = paperExportKeepsHiddenFaces(target, { format, keepHiddenFaces });
   const session = useMemo(
-    () => createPaperExportSession(view, PAPER_EXPORT_SCENE_CACHE_SIZE * (pages?.list.length ?? 1)),
-    [view, pages]
+    () => createPaperExportSession(target, PAPER_EXPORT_SCENE_CACHE_SIZE * (pages?.list.length ?? 1)),
+    [target, pages]
   );
   const style = useMemo(() => paperExportStyle(target, draft.style, rows), [target, draft.style, rows]);
   const inputs = useMemo(
     () =>
       pageIndices.map((page) =>
         paperExportSceneInput(
-          view,
+          target,
           style,
           { format, keepHiddenFaces, background, marks, sheet },
           page
         )
       ),
-    [pageIndices, view, style, format, keepHiddenFaces, background, marks, sheet]
+    [pageIndices, target, style, format, keepHiddenFaces, background, marks, sheet]
   );
-  const key = inputs.map((input) => view.sceneKey(input)).join('\n');
+  const key = inputs.map((input) => target.sceneKey(input)).join('\n');
   const built = usePaperExportScenes(session, inputs, key);
   const { status } = built;
   const scenes = useMemo(
@@ -277,8 +265,8 @@ export function usePaperExportDialog(
   // another would show neither. While the next builds, the preview keeps its
   // image.
   const painted = useMemo(
-    () => fixedPage ?? (scene ? paintPaperExport(view, scene, deferredStyle, deferredPage) : null),
-    [fixedPage, scene, view, deferredStyle, deferredPage]
+    () => fixedPage ?? (scene ? paintPaperExport(target, scene, deferredStyle, deferredPage) : null),
+    [fixedPage, scene, target, deferredStyle, deferredPage]
   );
   const preview = usePreviewImage(painted, status === 'building');
 
@@ -295,7 +283,7 @@ export function usePaperExportDialog(
   const lastSave = useRef<Exclude<PaperExportLastSave, 'stopped'>>('none');
   const canExport =
     !saving && (format === 'obj'
-      ? objPlan !== null && !objUnavailable
+      ? target.obj !== undefined && target.obj.unavailableReason === null
       : status === 'ready' && caughtUp && shown !== null && shown === painted && !pngTooLarge);
 
   // Aborted when the dialog goes, so a PNG still encoding, or a ZIP's pages
@@ -312,17 +300,17 @@ export function usePaperExportDialog(
     const signal = aborter.current?.signal;
     setSaving(true);
     setSaveError(null);
-    if (all && pages) setProgress({ done: 0, total: pages.list.length });
+    if (all) setProgress({ done: 0, total: scenes.length });
     try {
       let name: string | null;
       if (draft.format === 'obj') {
-        if (!objPlan) return;
-        name = await savePaperObjExport(objPlan, t, signal, (done, total) => setProgress({ done, total }));
+        if (!target.obj) return;
+        name = await saveObjExport(target.obj, target.fileStem, t, signal);
       } else if (shown && all && pages) {
         name = await savePaperExportZip({
           // Every page from the same scenes and options as the preview.
           pages: scenes.map((each, index) => ({
-            page: index === shownAt ? shown : paintPaperExport(view, each, style, pageOptions),
+            page: index === shownAt ? shown : paintPaperExport(target, each, style, pageOptions),
             fileStem: pages.list[index]!.fileStem,
           })),
           format: draft.format,
@@ -356,7 +344,7 @@ export function usePaperExportDialog(
           rows,
           changed: !sameOptions(draft, seed),
           scope,
-          pageCount: all && pages ? pages.list.length : 1,
+          pageCount: scenes.length,
           marks: target.marks ?? [],
         })
       );
@@ -384,8 +372,6 @@ export function usePaperExportDialog(
     scenes,
     shownAt,
     target,
-    view,
-    objPlan,
     style,
     pageOptions,
     draft,
@@ -411,7 +397,6 @@ export function usePaperExportDialog(
   return {
     title: all ? pages.title : target.title,
     fixed: fixed !== null,
-    obj: objPlan && { unavailable: objUnavailable },
     draft,
     patch,
     scopes: choosable ? { scope, setScope } : null,

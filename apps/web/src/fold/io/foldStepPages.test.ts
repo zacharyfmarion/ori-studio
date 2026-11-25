@@ -1,11 +1,9 @@
 import type { TFunction } from 'i18next';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../../lib/paperExportSettings';
 import { paintPaperExport, paperExportPage, paperExportSceneInput } from '../../paperExport/paperExportSession';
-import type { PaperObjExport } from '../../paperExport/paperExportTarget';
 import type { FoldSceneCrease } from '../engine/foldEngineWire';
-import type { FoldStepsObj } from './foldStepObj';
 import { foldStepCreaseDiagram, foldStepIsNumbered, foldStepsExportTarget, type FoldStepPage } from './foldStepPages';
 
 const t = ((_key: string, english: string, values?: Record<string, unknown>) =>
@@ -114,25 +112,5 @@ describe('the steps’ export target', () => {
     const painted = paintPaperExport(target, scene!, DEFAULT_PAPER_STYLE, page);
     expect(painted.svg).toMatch(/^<\?xml/);
     expect(await target.buildScene({ ...input, page: 3 })).toBeNull();
-  });
-
-  it('offers no OBJ without the steps’ meshes, and holds nothing to let go', () => {
-    expect(target.obj).toBeUndefined();
-    expect(target.objView).toBeUndefined();
-    expect(target.pages!.list.every((page) => page.obj === undefined)).toBe(true);
-    expect(() => target.release()).not.toThrow();
-  });
-
-  it('carries each step’s mesh on its page, the one on show as the target’s, and their preview and release', () => {
-    const objs: PaperObjExport[] = pages.map(() => ({ unavailableReason: null, build: async () => '' }));
-    const obj: FoldStepsObj = { objs, view: { ...target, sizeMeasures: 'figure' }, release: vi.fn() };
-    const meshes = foldStepsExportTarget({ pages, current: 1, title: 'Crane', exportStyle: DEFAULT_PAPER_STYLE, obj, t });
-    expect(meshes.pages!.list.map((page) => page.obj)).toEqual(objs);
-    expect(meshes.obj).toBe(objs[1]);
-    expect(meshes.objView).toBe(obj.view);
-    // The pages are the crease patterns still: the mesh's picture is the view's.
-    expect(meshes.sizeMeasures).toBe('sheet');
-    meshes.release();
-    expect(obj.release).toHaveBeenCalledOnce();
   });
 });
