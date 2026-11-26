@@ -135,6 +135,7 @@
     "refreshAllMessage": "Les actualiser est une modification que vous pouvez annuler, mais ce que vous avez annulé avant ne pourra plus être rétabli.",
     "refreshAllTitle": "Actualiser {{total}} étapes\u00a0?",
     "replacePictureTitle": "Remplacer l’image",
+    "titleBlockPatternTitle": "Importer un patron de plis",
     "uploadPicturesTitle": "Importer des images",
     "uploadPictureTitle": "Importer une image"
   },
@@ -561,6 +562,7 @@
     "foldedLoading": "Chargement de la figure pliée",
     "foldedPane": "Figure pliée",
     "hint": {
+      "adding": "Ajout de {{sentence}}…",
       "addTimedOut": "Impossible de l’ajouter à temps. Rien n’a été modifié.",
       "allSettled": "Plus rien à choisir : chaque chevauchement est décidé",
       "attentionChecking": "Vérification des contraintes enregistrées…",
@@ -580,7 +582,7 @@
       "faceChoices_many": "{{face}} · {{count}} faces au choix",
       "faceChoices_other": "{{face}} · {{count}} faces au choix",
       "faceSettled": "{{face}} · plus rien à choisir : tout ce qu’elle chevauche est décidé",
-      "moreObjects": "Choisissez d’autres faces pour les ajouter, ou une face choisie pour la retirer.",
+      "moreObjects": "Cliquez avec Maj pour choisir d’autres faces ou en retirer une.",
       "onlyObject": "{{face}} est la seule face possible",
       "pickFace_one": "Choisissez une face · {{count}} face a des choix",
       "pickFace_many": "Choisissez une face · {{count}} faces ont des choix",
@@ -599,6 +601,7 @@
       "replaceSubject_one": "Choisissez une face pour remplacer {{face}} · {{count}} face a des choix",
       "replaceSubject_many": "Choisissez une face pour remplacer {{face}} · {{count}} faces ont des choix",
       "replaceSubject_other": "Choisissez une face pour remplacer {{face}} · {{count}} faces ont des choix",
+      "shiftPicksSeveral": "{{hint}} · Cliquez avec Maj pour en choisir plusieurs",
       "stepTimedOutNext": "Impossible de trouver la solution suivante à temps.",
       "stepTimedOutPrevious": "Impossible de trouver la solution précédente à temps.",
       "subjectAlone": "Rien à choisir pour {{face}} : elle ne chevauche aucune autre face. Choisissez une autre face.",

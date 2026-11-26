@@ -644,7 +644,11 @@ it is fitted. `cellPicture` centres a picture in its room, so the model's
 room is first shrunk to the picture's own extent (`pictureExtent`, as the
 layout measures cells) and set to the box's bottom right. It has no number
 and no caption. It is not on the ribbon,
-it is not numbered, and the Steps view does not show it.
+it is not numbered, and the Steps view does not show it. Since 2026-11-25
+(`diagram-title-block-final-cp.md`, F-1) it is drawn, and measured, with no
+aux lines whatever the style says, a crease pattern's included
+(`wholePicture`'s `WHOLE_PICTURE`): the finished model, not an instruction.
+A picture kept as a bitmap is drawn as it was captured.
 
 In the first cut, the special step is a step you choose (T-9 A). Its pose is
 that step's. To change how the model looks, you pose that step (Pose, Show
@@ -724,26 +728,33 @@ The block's pattern comes from `titleBlockContent.pattern`:
   steps linking one sheet are one entry. A step that is gone reads as Auto,
   as for the model. Locked steps are skipped, in Auto and in the list.
 - **`{ kind: 'none' }`**: no pattern.
+- **`{ kind: 'upload', assetId }`** (built 2026-11-25,
+  `diagram-title-block-final-cp.md`): a crease pattern uploaded from a
+  `.cp`, `.fold`, `.ori` or `.orh` file, its lines kept as a
+  `crease-pattern` asset. The Page pane's Crease pattern menu offers it by
+  its last entry, and lists the file by its name while it is set.
 - **`{ kind: 'own', scope, fingerprint, thumbnail }`** (after the release,
   and not in the release's format; T-17 B): a region of the open pattern,
   picked in the pattern picker (`components/diagram/DiagramPatternPicker.tsx`,
   with Show as hidden), with its own link status and Refresh. It is a
   `DiagramCpSource` without a render, so `linkStatus`
-  (`capture/linkStatus.ts:76-91`) checks it as is.
+  (`capture/linkStatus.ts:76-91`) checks it as is. Not built.
 
 It is drawn from the link's stored thumbnail (T-11 A), as vectors fitted
 into the square, through the shared painter: the strokes become the lines
 of a `PaperScene` and go through `paperSceneSvgBody`, so the pens, their pt
 widths and dashes are `penForRole`'s and nothing is drawn by new pen code
-(T-14 A). The roles map as:
+(T-14 A). The roles map as, from every source alike (since 2026-11-25,
+`diagram-title-block-final-cp.md`, F-1: the final mountain and valley folds
+and the edge, nothing else):
 
 - `mountain` and `valley` to the same roles: `mountainFolds` and
   `valleyFolds`;
 - `edge` to `edge`: the edge pen;
-- `unassigned` to `aux`: the aux pen, when the style shows aux lines;
-- `aux` strokes left out — but a Fold step's: there they are its flat
-  creases and crease marks, real creases, which its Crease pattern picture
-  draws in the aux pen, and so does the block.
+- `unassigned` and `aux` strokes left out: Edit's construction lines, and a
+  Fold step's flat creases and crease marks, which its own Crease pattern
+  picture still draws. (Until 2026-11-25 an `unassigned` stroke was drawn in
+  the aux pen, and so was a Fold step's `aux` stroke.)
 
 The paper is not filled, so the pattern sits on the page. The model, in
 front, covers it with its own paper. The thumbnail is in the pattern's own
@@ -989,7 +1000,10 @@ titleBlockContent?: {
 
 The after-release build adds `{ kind: 'own', … }` for the model and the
 pattern (sections 4 and 5). The release build carries such a part and shows
-Auto for it.
+Auto for it. The first such kind built is the pattern's `{ kind: 'upload',
+assetId }` (2026-11-25, `diagram-title-block-final-cp.md`), with an asset of
+a new kind, `crease-pattern`: the release build carries both and keeps the
+asset, as this section says of any newer part.
 
 **The contract** (`implementation-plans/diagram-workspace.md`, The v1 file)
 names both, and the rule for an unsaid or newer part. The frozen fixture

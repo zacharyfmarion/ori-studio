@@ -37,7 +37,7 @@ describe('foldRailGroups', () => {
       ['open-sink', 'closed-sink', 'unsink'],
       ['divide-line'],
       ['axiom-1', 'axiom-2', 'axiom-3', 'axiom-4', 'axiom-5', 'axiom-6', 'axiom-7', 'free', 'crease'],
-      ['turn-over', 'rotate'],
+      ['turn-over', 'rotate', 'adjust-order'],
       ['unfold-to', 'repeat'],
     ]);
     // Only usable tool groups are shown, all open initially.
@@ -70,6 +70,30 @@ describe('foldRailGroups', () => {
     // Every compound fold is a tool now: none is planned.
     for (const id of ['crimp', 'squash', 'swivel', 'unsink']) expect(item(groups, id).kind).toBe('tool');
     expect(groups.flatMap((group) => group.items.map((each) => each.id))).toContain('pleat');
+  });
+
+  it('takes Adjust order as a tool of the model, on Shift+T, refused at the flat sheet and while read-only', () => {
+    const calls = verbs();
+    const groups = foldRailGroups(t, view(), calls);
+    expect(item(groups, 'adjust-order')).toMatchObject({
+      kind: 'tool',
+      label: 'Adjust order',
+      description: 'Change which layers lie in front, with no new crease.',
+      shortcut: 'fold.toolAdjustOrder',
+      available: true,
+      reason: null,
+      active: false,
+    });
+    item(groups, 'adjust-order').select();
+    expect(calls.selectTool).toHaveBeenCalledWith('adjust-order');
+    expect(item(foldRailGroups(t, view({ tool: 'adjust-order' }), calls), 'adjust-order').active).toBe(true);
+    // The flat sheet has no layers to order.
+    expect(item(foldRailGroups(t, view({ atSheet: true }), calls), 'adjust-order')).toMatchObject({
+      available: false,
+      reason: 'Fold a step first.',
+    });
+    // A locked step refuses it as it refuses every tool.
+    expect(item(foldRailGroups(t, view({ readOnly: 'locked' }), calls), 'adjust-order').available).toBe(false);
   });
 
   it('takes Unfold to step and Repeat as tools, keyless, refused at the flat sheet and while read-only', () => {

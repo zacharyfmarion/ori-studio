@@ -534,16 +534,18 @@ export function FoldToolWindow({
           )}
           {footer && (
             <div className={styles.section} data-footer="">
-              <div className={styles.footer}>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  title={titled(footer.cancel.label, footer.cancel.shortcut)}
-                  disabled={footer.cancel.disabled}
-                  onClick={footer.cancel.run}
-                >
-                  {footer.cancel.label}
-                </Button>
+              <div className={styles.footer} data-single={footer.cancel ? undefined : ''}>
+                {footer.cancel && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    title={titled(footer.cancel.label, footer.cancel.shortcut)}
+                    disabled={footer.cancel.disabled}
+                    onClick={footer.cancel.run}
+                  >
+                    {footer.cancel.label}
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="primary"

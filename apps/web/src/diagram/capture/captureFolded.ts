@@ -81,6 +81,7 @@ import { sanitizeSvg, SVG_STORED_MAX_BYTES, type SanitizeEnv } from '../upload/s
 import {
   chooseStepCreases,
   creasesFingerprint,
+  drawnLinesFingerprint,
   followedScope,
   type KnownCreases,
   type StepCreases,
@@ -542,10 +543,12 @@ export async function captureStep(
   // The record the step keeps, carried on every source a capture makes; null for none.
   const kept = request.layerOrder?.kind === 'record' ? stepLayerOrderOf(request.layerOrder.json) : null;
   const source = (render: DiagramCpRender, layerOrder: StepLayerOrder | null = kept): DiagramCpSource => {
+    const drawnFingerprint = drawnLinesFingerprint(creases, render);
     const stored = storedCpSource({
       kind: 'cp',
       scope,
       fingerprint: creasesFingerprint(creases, render),
+      ...(drawnFingerprint ? { drawnFingerprint } : {}),
       thumbnail,
       render: withoutPoseMesh(render),
       ...(layerOrder ? { layerOrder: layerOrder.json } : {}),

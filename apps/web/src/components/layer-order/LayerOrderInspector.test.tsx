@@ -64,7 +64,7 @@ afterEach(() => {
 });
 
 /** Draw the inspector for `state`, sending what it dispatches to `sent` (and on to the reducer, when `live`). */
-function draw(state: LayerOrderDialogState, { unlettered = false, live = false } = {}) {
+function draw(state: LayerOrderDialogState, { unlettered = false, live = false, shiftPicks = false } = {}) {
   let now = state;
   const dispatch = (action: LayerOrderAction) => {
     sent.push(action);
@@ -81,7 +81,7 @@ function draw(state: LayerOrderDialogState, { unlettered = false, live = false }
             dispatch={dispatch}
             copy={layerOrderCopy(i18n.t, 'en', LETTERS)}
             letters={LETTERS}
-            hint={{ unlettered }}
+            hint={{ unlettered, shiftPicks }}
           />
         </TooltipProvider>
       )
@@ -277,7 +277,8 @@ describe('the sentence builder', () => {
     const two = play(opened(), { type: 'face_picked', face: 2, origin: 'pattern' }, { type: 'face_picked', face: 3, origin: 'folded' }, { type: 'face_picked', face: 0, origin: 'folded' });
     draw(fits(two, 7, SPOTS, changedSpots()).state);
     expect(button('Objects: A, D. Choose more from a list')).toBeDefined();
-    expect(hint().textContent).toBe('Pick more faces to add them, or a picked face to remove it.');
+    // Objects picked to keep, with Shift or from a menu: a plain click would add at once.
+    expect(hint().textContent).toBe('Shift-click to pick more faces or remove one.');
     expect(button('Add constraints').getAttribute('aria-disabled')).toBeNull();
     click(button('Remove D'));
     click(button('Clear the objects'));
@@ -322,6 +323,28 @@ describe('the sentence builder', () => {
     root = createRoot(host);
     draw(many.state, { unlettered: true });
     expect(hint().textContent).toBe('Pick one of the 60 tinted faces. Zoom in to see their letters.');
+  });
+
+  it('says Shift+click picks several where a pointer can hold Shift, and only with more than one face to pick', () => {
+    draw(play(opened(), { type: 'face_picked', face: 2, origin: 'pattern' }).state, { shiftPicks: true });
+    expect(hint().textContent).toBe('Pick one of the 2 labelled faces · Shift-click to pick several');
+    act(() => root.unmount());
+    root = createRoot(host);
+    // A finger has no Shift.
+    draw(play(opened(), { type: 'face_picked', face: 2, origin: 'pattern' }).state, { shiftPicks: false });
+    expect(hint().textContent).toBe('Pick one of the 2 labelled faces');
+    act(() => root.unmount());
+    root = createRoot(host);
+    // Face A's one open face: nothing to pick several of.
+    draw(play(opened(), { type: 'face_picked', face: 0, origin: 'pattern' }).state, { shiftPicks: true });
+    expect(hint().textContent).toBe('Pick the labelled face');
+  });
+
+  it('says what an Add in the worker adds, rather than how to build the sentence', () => {
+    const adding = play(fits(picked(opened().state, 2, 0)).state, { type: 'add' });
+    draw(adding.state);
+    expect(hint().textContent).toBe('Adding C in front of A…');
+    expect(button('Add constraint').getAttribute('aria-disabled')).toBe('true');
   });
 
   it('opens on the verb picked, previews the verb under the focus, and lets go as the pointer leaves or it closes (Round3:455-457, 893, 929)', async () => {

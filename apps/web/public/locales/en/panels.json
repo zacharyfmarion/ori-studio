@@ -1116,6 +1116,7 @@
       "finishedSentence": "The model as the steps leave it.",
       "fromFold": "From Fold…",
       "instruction": {
+        "adjustOrder": "Rearrange the layers.",
         "closedSink": "Closed sink.",
         "collapse": "Collapse.",
         "doAllPlaces_one": "{{sentence}} Do this in {{count}} place.",
@@ -1420,7 +1421,7 @@
         "needsRows": "Needs two rows or more",
         "none": "None",
         "pattern": "Crease pattern",
-        "patternHelp": "Drawn from the crease pattern a step links. Auto uses the last linked step; each pattern is listed once, by the step chosen for it or else the last step that links it.",
+        "patternHelp": "Its mountain and valley folds, from the crease pattern a step links or from a file you upload. Auto uses the last linked step; each pattern is listed once, by the step chosen for it or else the last step that links it.",
         "patternSize": "Crease pattern size",
         "patternSizeHelp": "The crease pattern’s side, as a share of the title block’s height.",
         "removeCredit": "Remove credit {{number}}",
@@ -1430,7 +1431,8 @@
         "stepCount": "Auto ({{number}})",
         "subtitle": "Subtitle",
         "subtitleHelp": "The small line over the title. Clear it to print none.",
-        "typeValue": "Type a value for credit {{number}} instead"
+        "typeValue": "Type a value for credit {{number}} instead",
+        "uploadPattern": "Upload a CP or FOLD file…"
       },
       "titleHelp": "The diagram’s title, in a tab at the top of every page.",
       "titleHelpWithBlock": "The diagram’s title, in a tab at the top of every page. On the first page the title block carries it instead."
@@ -1450,6 +1452,7 @@
       "textCut": "Text doesn’t fit",
       "titleBlock": {
         "creditsCut": "Some credits don’t fit",
+        "fileNoPattern": "The uploaded file has no folds",
         "noModel": "No step has a picture yet",
         "noPattern": "No step is linked to a crease pattern",
         "stepNoPattern": "Step {{number}} has no crease pattern",
@@ -2082,6 +2085,7 @@
       "viewTarget": "View target: {{target}}"
     },
     "sentence": {
+      "adjustOrder": "Adjust the layer order, with no new crease.",
       "behind": {
         "petal": "Petal-fold the flap behind.",
         "petalScores": "Petal-fold the flap behind, creasing its hinge as it lifts.",
@@ -2995,6 +2999,7 @@
       "addsPinchMarks_other": "Adds {{count}} pinch marks",
       "addsPrecreases_one": "Adds {{count}} precrease",
       "addsPrecreases_other": "Adds {{count}} precreases",
+      "adjustOrder": "Adjust order",
       "axiomLine": "Axiom {{axiom}} · {{phrase}}",
       "badgeCrimp": "Crimp",
       "badgeImported": "Imported",

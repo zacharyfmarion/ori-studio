@@ -92,6 +92,7 @@ import {
   type FoldRepeatWindowView,
 } from '../repeat/repeatToolWindow';
 import { unfoldToolWindow, type FoldUnfoldWindowVerbs, type FoldUnfoldWindowView } from '../return/unfoldToolWindow';
+import { adjustOrderToolWindow, type FoldAdjustOrderWindowView } from '../order/adjustOrderToolWindow';
 import type { TurnRotation } from '../../lib/steps/turn';
 import { tuckToolWindow, type FoldTuckControls, type FoldTuckWindowView } from './tuck/tuckToolWindow';
 import {
@@ -186,6 +187,8 @@ export interface FoldToolWindowView extends FoldToolsView {
   extent?: FoldExtentWindowView;
   /** The Rotate tool's rotation (`tools/rotate`); absent where the surface offers none. */
   rotate?: FoldRotateWindowView;
+  /** Adjust order's: whether the Layer order dialog can open on the step on screen (`fold/order`). */
+  adjustOrder?: FoldAdjustOrderWindowView;
   // The sequence tools' (`fold/return`, `fold/repeat`); absent where the surface offers none.
   /** Unfold to step's targets and the one taken. */
   unfold?: FoldUnfoldWindowView;
@@ -381,7 +384,8 @@ export interface FoldToolWindowModel {
   steps?: FoldStepChoice | null;
   /** Repeat's axis, how it is saved, and a layer order to choose (`fold/repeat`); absent for every other tool. */
   repeat?: FoldRepeatControls;
-  footer: { cancel: FoldWindowButton; commit: FoldWindowButton } | null;
+  /** Cancel and the commit; a window that offers one thing (Adjust order's) has no Cancel. */
+  footer: { cancel?: FoldWindowButton; commit: FoldWindowButton } | null;
   /** The layers and the refusal are the last seed's, until this one's are in (`FoldPreview.held`). */
   held?: boolean;
 }
@@ -712,6 +716,7 @@ function toolWindow(
   if (isVertexTool(view.tool)) return view.vertex ? vertexToolWindow(t, view, view.vertex, verbs, host) : null;
   if (isSinkTool(view.tool)) return sinkToolWindow(t, view, verbs, host);
   if (view.tool === 'rotate') return view.rotate ? rotateToolWindow(t, view, view.rotate, verbs, host) : null;
+  if (view.tool === 'adjust-order') return view.adjustOrder ? adjustOrderToolWindow(t, view, view.adjustOrder, verbs, host) : null;
   if (view.tool === 'unfold-to') return view.unfold ? unfoldToolWindow(t, view, view.unfold, verbs, host) : null;
   if (view.tool === 'repeat') return view.repeat ? repeatToolWindow(t, view, view.repeat, verbs, host) : null;
   if (!isFoldKind(view.tool)) return null;

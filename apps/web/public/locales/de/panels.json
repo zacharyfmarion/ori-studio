@@ -1116,6 +1116,7 @@
       "finishedSentence": "Das Modell, wie die Schritte es hinterlassen.",
       "fromFold": "Aus Falten…",
       "instruction": {
+        "adjustOrder": "Lagen umordnen.",
         "closedSink": "Geschlossenes Versenken.",
         "collapse": "Zusammenfalten.",
         "doAllPlaces_one": "{{sentence}} An {{count}} Stelle genauso.",
@@ -1420,7 +1421,7 @@
         "needsRows": "Braucht mindestens zwei Reihen",
         "none": "Keine",
         "pattern": "Faltmuster",
-        "patternHelp": "Gezeichnet nach dem Faltmuster, das ein Schritt verknüpft. Auto nimmt den letzten verknüpften Schritt; jedes Muster steht nur einmal in der Liste, unter dem dafür gewählten Schritt oder sonst unter dem letzten Schritt, der es verknüpft.",
+        "patternHelp": "Seine Berg- und Talfalten, aus dem Faltmuster, das ein Schritt verknüpft, oder aus einer hochgeladenen Datei. Auto nimmt den letzten verknüpften Schritt; jedes Muster steht nur einmal in der Liste, unter dem dafür gewählten Schritt oder sonst unter dem letzten Schritt, der es verknüpft.",
         "patternSize": "Faltmustergröße",
         "patternSizeHelp": "Die Seitenlänge des Faltmusters, als Anteil an der Höhe des Titelblocks.",
         "removeCredit": "Angabe {{number}} entfernen",
@@ -1430,7 +1431,8 @@
         "stepCount": "Auto ({{number}})",
         "subtitle": "Untertitel",
         "subtitleHelp": "Die kleine Zeile über dem Titel. Leeren Sie sie, damit keine gedruckt wird.",
-        "typeValue": "Für Angabe {{number}} stattdessen einen Wert eingeben"
+        "typeValue": "Für Angabe {{number}} stattdessen einen Wert eingeben",
+        "uploadPattern": "CP- oder FOLD-Datei hochladen…"
       },
       "titleHelp": "Der Titel des Diagramms, in einem Reiter oben auf jeder Seite.",
       "titleHelpWithBlock": "Der Titel des Diagramms, in einem Reiter oben auf jeder Seite. Auf der ersten Seite steht er stattdessen im Titelblock."
@@ -1450,6 +1452,7 @@
       "textCut": "Text passt nicht",
       "titleBlock": {
         "creditsCut": "Einige Angaben passen nicht",
+        "fileNoPattern": "Die hochgeladene Datei hat keine Falten",
         "noModel": "Noch hat kein Schritt ein Bild",
         "noPattern": "Kein Schritt ist mit einem Faltmuster verknüpft",
         "stepNoPattern": "Schritt {{number}} hat kein Faltmuster",
@@ -2082,6 +2085,7 @@
       "viewTarget": "Ziel anzeigen: {{target}}"
     },
     "sentence": {
+      "adjustOrder": "Passe die Lagenreihenfolge an, ohne neue Falte.",
       "behind": {
         "petal": "Falte die Klappe nach hinten als Blütenblattfalte.",
         "petalScores": "Falte die Klappe nach hinten als Blütenblattfalte und falte dabei ihr Scharnier, während sie sich hebt.",
@@ -2995,6 +2999,7 @@
       "addsPinchMarks_other": "Fügt {{count}} Kniffmarkierungen hinzu",
       "addsPrecreases_one": "Fügt {{count}} Vorfalte hinzu",
       "addsPrecreases_other": "Fügt {{count}} Vorfalten hinzu",
+      "adjustOrder": "Reihenfolge anpassen",
       "axiomLine": "Axiom {{axiom}} · {{phrase}}",
       "badgeCrimp": "Crimp",
       "badgeImported": "Importiert",

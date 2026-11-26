@@ -123,6 +123,11 @@
     "refreshedAll_one": "1 passo atualizado",
     "refreshedAll_many": "{{count}} passos atualizados",
     "refreshedAll_other": "{{count}} passos atualizados",
+    "titleBlockPattern": {
+      "noFolds": "Este padrão de vincos não tem dobras de montanha nem de vale para mostrar.",
+      "trimmed": "Este padrão de vincos tem mais linhas do que um diagrama guarda, então seus vincos mais curtos foram omitidos.",
+      "unreadable": "Não foi possível ler este arquivo como padrão de vincos."
+    },
     "uploadFailed_one": "Não foi possível adicionar uma imagem",
     "uploadFailed_many": "Não foi possível adicionar {{count}} imagens",
     "uploadFailed_other": "Não foi possível adicionar {{count}} imagens",

@@ -1076,6 +1076,7 @@
       "finishedSentence": "完成这些步骤后的模型。",
       "fromFold": "来自折叠…",
       "instruction": {
+        "adjustOrder": "重新排列各层。",
         "closedSink": "闭合沉折。",
         "collapse": "收拢。",
         "doAllPlaces_other": "{{sentence}}全部 {{count}} 处都这样做。",
@@ -1364,7 +1365,7 @@
         "needsRows": "需要两行或更多",
         "none": "无",
         "pattern": "折痕图",
-        "patternHelp": "取自步骤所链接的折痕图。自动时使用最后一个已链接的步骤；每个折痕图只列出一次，以为它选定的步骤命名，没有则以链接它的最后一步命名。",
+        "patternHelp": "取自步骤所链接的折痕图或你上传的文件，画出其山折与谷折。自动时使用最后一个已链接的步骤；每个折痕图只列出一次，以为它选定的步骤命名，没有则以链接它的最后一步命名。",
         "patternSize": "折痕图尺寸",
         "patternSizeHelp": "折痕图的边长，占标题栏高度的比例。",
         "removeCredit": "移除第 {{number}} 条信息",
@@ -1374,7 +1375,8 @@
         "stepCount": "自动（{{number}}）",
         "subtitle": "副标题",
         "subtitleHelp": "标题上方的一小行文字。清空则不打印。",
-        "typeValue": "改为手动输入第 {{number}} 条信息的内容"
+        "typeValue": "改为手动输入第 {{number}} 条信息的内容",
+        "uploadPattern": "上传 CP 或 FOLD 文件…"
       },
       "titleHelp": "在每页顶部的标签中显示图解标题。",
       "titleHelpWithBlock": "在每页顶部的标签中显示图解标题。首页则改由标题栏显示。"
@@ -1394,6 +1396,7 @@
       "textCut": "文字放不下",
       "titleBlock": {
         "creditsCut": "部分信息放不下",
+        "fileNoPattern": "上传的文件没有折线",
         "noModel": "还没有带图的步骤",
         "noPattern": "没有步骤链接到折痕图",
         "stepNoPattern": "第 {{number}} 步没有折痕图",
@@ -1998,6 +2001,7 @@
       "viewTarget": "查看目标：{{target}}"
     },
     "sentence": {
+      "adjustOrder": "调整层叠顺序，不添加新折痕。",
       "behind": {
         "petal": "将翼片向后做花瓣折。",
         "petalScores": "将翼片向后做花瓣折，抬起时压出铰链。",
@@ -2703,6 +2707,7 @@
       "addsCreaseMarks_other": "新增 {{count}} 条折痕印记",
       "addsPinchMarks_other": "新增 {{count}} 个捏痕",
       "addsPrecreases_other": "新增 {{count}} 条预折痕",
+      "adjustOrder": "调整顺序",
       "axiomLine": "公理 {{axiom}} · {{phrase}}",
       "badgeCrimp": "阶梯折",
       "badgeImported": "已导入",

@@ -1774,6 +1774,154 @@ fn sub_tolerance_creases_do_not_stop_a_fold() {
     }
 }
 
+/// The kabuto as the FOLD importer reads it — Oriedita's 400-unit sheet at
+/// (−200, −200) — moved by (`dx`, `dy`).
+///
+/// At (2500, 1500), as a sheet sits on a large canvas, the stacked layers'
+/// folded coordinates round so that `divide_intersections` misses a junction
+/// (it needs the end within 1e-12 of the crease); where the importer leaves
+/// it, they do not. Same pattern, same fold: it is rounding, which is why the
+/// two users who met this saw it as random. `tests/oriedita_folding_oracle.rs`
+/// holds the same two placements against Oriedita.
+fn kabuto_at(dx: f64, dy: f64) -> Vec<LineSegment> {
+    oristudio_cp::io::fold::import_fold_json(include_str!(
+        "../../../tests/fixtures/flat-folder/kabuto.fold"
+    ))
+    .expect("kabuto fold fixture")
+    .line_segments
+    .into_iter()
+    .filter(|segment| segment.color.is_folding_line())
+    .map(|segment| {
+        let moved = |point: Point| Point::new(point.x + dx, point.y + dy);
+        LineSegment {
+            a: moved(segment.a),
+            b: moved(segment.b),
+            ..segment
+        }
+    })
+    .collect()
+}
+
+/// Junctions the folded overlay's preparation left unsplit: an end of one
+/// prepared segment on another's interior — within `Epsilon::UNKNOWN_001` of
+/// it and clear of its ends by more than the weld. A count, not a set: one
+/// junction is counted once per segment end that sits there.
+fn missed_overlay_junctions(segments: &[LineSegment]) -> usize {
+    let folded = estimate_wireframe_from_segments(segments, 1)
+        .expect("the fold graph is connected")
+        .expect("a wireframe");
+    let lines: Vec<LineSegment> = folded
+        .lines
+        .iter()
+        .map(|line| {
+            LineSegment::with_color(
+                folded.points[line.begin],
+                folded.points[line.end],
+                line.color,
+            )
+        })
+        .collect();
+    let prepared = prepare_subface_segments(&lines).expect("not cancellable in a test");
+    let mut missed = 0;
+    for segment in &prepared {
+        let (dx, dy) = (segment.b.x - segment.a.x, segment.b.y - segment.a.y);
+        let length = (dx * dx + dy * dy).sqrt();
+        if length == 0.0 {
+            continue;
+        }
+        for point in prepared.iter().flat_map(|other| [other.a, other.b]) {
+            let along = ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / length;
+            let across =
+                ((point.x - segment.a.x) * dy - (point.y - segment.a.y) * dx).abs() / length;
+            if across < Epsilon::UNKNOWN_001
+                && along > Epsilon::POINT
+                && along < length - Epsilon::POINT
+            {
+                missed += 1;
+            }
+        }
+    }
+    missed
+}
+
+/// A folded overlay that misses a junction folds and draws as it does where
+/// none is missed.
+///
+/// Before, the missed junction failed the overlay's Euler gate, the gate
+/// cleared every subface, and the fold stopped at the wireframe — `Step2`,
+/// `NotAttempted`, nothing for Transparent3 or Paper5 to draw, and the panel's
+/// "Layer order couldn't be determined" — on patterns Oriedita folds. Keeping
+/// the faces, as upstream does, folded it but drew every crease through the
+/// layers, because a failed gate builds no border index. Sealing the junction
+/// gives back the overlay the clean placement traces, so the two pictures have
+/// the same parts. Session-level, because that is the verb the user pressed.
+#[test]
+fn a_missed_overlay_junction_folds_and_draws_as_a_clean_overlay_does() {
+    let far = kabuto_at(2500.0, 1500.0);
+    let home = kabuto_at(0.0, 0.0);
+
+    // Whether a placement misses a junction turns on rounding. If a change to
+    // the folding arithmetic moves it, find another placement that does rather
+    // than deleting this check: without it the test passes and checks nothing.
+    assert!(
+        missed_overlay_junctions(&far) > 0,
+        "this placement no longer misses an overlay junction; pick one that does"
+    );
+    assert_eq!(
+        missed_overlay_junctions(&home),
+        0,
+        "the comparison is clean"
+    );
+
+    let fold_and_draw = |segments: &[LineSegment]| {
+        let mut session = oristudio_cp::session::CpSession::default();
+        let handle = session.load_document(oristudio_cp::CreasePatternDocument {
+            crease_pattern: oristudio_cp::CreasePatternModel {
+                line_segments: segments.to_vec(),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let ids: Vec<usize> = (1..=segments.len()).collect();
+        let folded = session
+            .folded_figure_fold_selected(
+                handle,
+                &ids,
+                1,
+                EstimationOrder::Order5,
+                FoldedFigureModel::default(),
+            )
+            .expect("the pattern folds");
+        let mut parts = std::collections::BTreeMap::new();
+        for style in [DisplayStyle::Transparent3, DisplayStyle::Paper5] {
+            let picture = session
+                .folded_figure_render_snapshot(
+                    folded.handle,
+                    Some(style),
+                    FoldedFigureRenderOptions::default(),
+                )
+                .expect("render")
+                .unwrap_or_else(|| panic!("{style:?} has something to draw"));
+            for primitive in &picture.primitives {
+                *parts
+                    .entry(format!("{style:?} {:?}", primitive.kind))
+                    .or_insert(0) += 1;
+            }
+        }
+        (folded.snapshot, parts)
+    };
+
+    let (snapshot, far_parts) = fold_and_draw(&far);
+    assert_eq!(snapshot.estimation_step, EstimationStep::Step5);
+    assert_eq!(snapshot.outcome, FoldOutcome::Solved);
+    assert_eq!(snapshot.discovered_fold_cases, 1);
+    let (_, home_parts) = fold_and_draw(&home);
+    assert_eq!(
+        far_parts, home_parts,
+        "the same fills and the same edges, so the covered ones stay hidden"
+    );
+}
+
 /// A figure held by a session renders from inputs derived once at fold time
 /// (`FoldedRenderInputs`); the from-segments entry point derives them per
 /// call. The two must agree byte for byte in every style, and across a model

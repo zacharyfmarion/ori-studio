@@ -41,6 +41,16 @@
 //!   /** Start from Edit's folded figure: the kernel's folded paper scene. */
 //!   import_edit_folded_figure(scene: FoldedPaperScene, target: ImportTarget,
 //!     limits?: ImportLimits): Outcome<ImportLanded>;
+//!   /** Adjust order: the Layer order dialog's opening on a held state's
+//!    *  own paper, its order drawn over Edit's faces of its creases. */
+//!   adjust_order_opening(state: number):
+//!     Outcome<{ source: FoldSource; shown: FoldedPaperScene;
+//!       look: { side: 'front' | 'back'; turn_deg: number } }>;
+//!   /** Adjust order: land the dialog's Apply as an `adjust-order` step
+//!    *  after the held state. */
+//!   adjust_order_pick(state: number, digest: string, relations: Uint32Array):
+//!     Outcome<{ state: number; summary: StateSummary;
+//!       op: { kind: 'adjust-order'; orderJson: string } }>;
 //!   /** Let imports go; how many were held. */
 //!   release_imports(imports: Uint32Array): number;
 //!   live_imports(): number;
@@ -60,6 +70,7 @@ use oristudio_fold::FaceId;
 use super::export::{export_fold, send_to_edit};
 use super::figure::import_figure;
 use super::imports::starting_sheet;
+use super::reorder;
 use super::wire::{CheckWireLimits, CpFile, IoCallError, Limits, Target};
 use crate::{FoldEngine, js_error, parse, to_js_value};
 
@@ -199,6 +210,29 @@ impl FoldEngine {
         let target: Target = parse("target", target)?;
         let limits: Limits = optional("limits", limits)?;
         let landed = import_figure(&mut self.inner, &scene, target, &limits).map_err(thrown)?;
+        to_js_value(&landed)
+    }
+
+    /// Adjust order: open the Layer order dialog on the held state's own
+    /// paper — the fold it analyses, the state's order drawn over its faces
+    /// (the dialog opens on it) and how Fold shows the state. Nothing is
+    /// held.
+    pub fn adjust_order_opening(&self, state: u32) -> Result<JsValue, JsValue> {
+        let parent = self.inner.state(state).map_err(|e| thrown(e.into()))?;
+        to_js_value(&reorder::opening(parent))
+    }
+
+    /// Adjust order: land the order the dialog's Apply chose for the held
+    /// state, `relations` `[upper, lower, …]` over the faces of the opening
+    /// whose source digest is `digest`, as a step after it: its state and
+    /// its `adjust-order` op.
+    pub fn adjust_order_pick(
+        &mut self,
+        state: u32,
+        digest: &str,
+        relations: &[u32],
+    ) -> Result<JsValue, JsValue> {
+        let landed = reorder::pick(&mut self.inner, state, digest, relations).map_err(thrown)?;
         to_js_value(&landed)
     }
 

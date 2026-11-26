@@ -131,6 +131,7 @@
     "refreshAllMessage": "새로 고침은 한 번에 실행 취소할 수 있지만, 그 전에 실행 취소한 작업은 더 이상 다시 실행할 수 없습니다.",
     "refreshAllTitle": "{{total}}개 단계를 새로 고칠까요?",
     "replacePictureTitle": "그림 바꾸기",
+    "titleBlockPatternTitle": "전개도 업로드",
     "uploadPicturesTitle": "그림 업로드",
     "uploadPictureTitle": "그림 업로드"
   },
@@ -541,6 +542,7 @@
     "foldedLoading": "접힌 도형을 불러오는 중",
     "foldedPane": "접힌 도형",
     "hint": {
+      "adding": "{{sentence}} 추가 중…",
       "addTimedOut": "제시간에 추가하지 못했습니다. 아무것도 바뀌지 않았습니다.",
       "allSettled": "고를 것이 없습니다: 모든 겹침이 정해졌습니다",
       "attentionChecking": "저장된 제약을 검사하는 중…",
@@ -558,7 +560,7 @@
       "faceAlone": "{{face}} · 고를 것 없음: 다른 면과 겹치지 않습니다",
       "faceChoices_other": "{{face}} · 고를 수 있는 면 {{count}}개",
       "faceSettled": "{{face}} · 고를 것 없음: 겹치는 면이 모두 정해졌습니다",
-      "moreObjects": "면을 더 선택하면 추가되고, 선택한 면을 다시 고르면 빠집니다.",
+      "moreObjects": "Shift를 누른 채 클릭하면 면을 더 선택하거나 뺄 수 있습니다.",
       "onlyObject": "고를 수 있는 면은 {{face}}뿐입니다",
       "pickFace_other": "면을 선택하세요 · 선택지가 있는 면 {{count}}개",
       "pickObject_other": "라벨이 붙은 면 {{count}}개 중 하나를 선택하세요",
@@ -567,6 +569,7 @@
       "redoTimedOut": "제시간에 다시 실행하지 못했습니다. 아무것도 바뀌지 않았습니다.",
       "removeTimedOut": "제시간에 제거하지 못했습니다. 아무것도 바뀌지 않았습니다.",
       "replaceSubject_other": "{{face}} 대신 면을 선택하세요 · 선택지가 있는 면 {{count}}개",
+      "shiftPicksSeveral": "{{hint}} · Shift를 누른 채 클릭하면 여러 개를 선택할 수 있습니다",
       "stepTimedOutNext": "다음 해답을 제시간에 찾지 못했습니다.",
       "stepTimedOutPrevious": "이전 해답을 제시간에 찾지 못했습니다.",
       "subjectAlone": "{{face}}에 대해 고를 것이 없습니다: 다른 면과 겹치지 않습니다. 다른 면을 선택하세요.",

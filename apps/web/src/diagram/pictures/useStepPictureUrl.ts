@@ -4,7 +4,7 @@ import type {
   DiagramAsset,
   DiagramStep,
   DiagramStyle,
-  KnownDiagramAsset,
+  DiagramPictureAsset,
 } from '../document/diagramDocument';
 import { annotatedPicture, hasDrawnAnnotations } from '../annotate/paintAnnotations';
 import { useLinesUnderMarks } from '../annotate/useLinesUnderMarks';
@@ -346,7 +346,7 @@ export function closeUpPictureUrl(source: StepPictureSource, style: DiagramStyle
  * An asset in a pose as a URL an `<img>` can show, through the cache. An
  * upright bitmap is its own data URL: wrapping it would only encode it again.
  */
-export function posedAssetUrl(asset: KnownDiagramAsset, pose: PicturePose): string {
+export function posedAssetUrl(asset: DiagramPictureAsset, pose: PicturePose): string {
   const { rotationQuarterTurns: turns, mirrored } = pose;
   if (asset.kind === 'raster' && turns === 0 && !mirrored) return asset.src;
   const key = `${objectSerial(asset)}|${turns}|${mirrored ? 'm' : ''}`;

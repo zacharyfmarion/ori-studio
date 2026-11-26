@@ -16,9 +16,18 @@ import type { LayerTally, LayerVerb } from './layerOrderEngineFacts';
 
 /**
  * Where the dialog opened: an Edit figure, an Edit crease-pattern selection, a Diagram step,
- * Pose, Fold's Import CP, the Export crease pattern dialog's figure, the Share modal's card.
+ * Pose, Fold's Import CP, Fold's Adjust order, the Export crease pattern dialog's figure, the
+ * Share modal's card.
  */
-export type LayerOrderSurface = 'edit_figure' | 'edit_pattern' | 'diagram_step' | 'pose' | 'fold_import' | 'crease_export' | 'share_card';
+export type LayerOrderSurface =
+  | 'edit_figure'
+  | 'edit_pattern'
+  | 'diagram_step'
+  | 'pose'
+  | 'fold_import'
+  | 'fold_adjust_order'
+  | 'crease_export'
+  | 'share_card';
 
 export type LayerOrderOutcome = 'applied' | 'cancelled';
 
@@ -33,6 +42,9 @@ export type LayerOrderClosedOutcome = 'applied' | 'unchanged' | 'cancelled' | 'r
 
 /** A refused open's code: an enum, never its details. */
 export type LayerOrderRefusalCode = LayerRefusal['code'];
+
+/** What added a sentence: a plain click on one of the subject's faces, or the Add button. */
+export type LayerOrderAddedBy = 'click' | 'button';
 
 /** A figure's faces: a handful, a typical design, a large one, the iguana's class. */
 export const LAYER_ORDER_FACE_COUNT_BUCKETS = [20, 50, 100, 200, 500, 1000, 2000] as const;
@@ -87,6 +99,8 @@ export type LayerOrderFact =
         readonly object_origin: LayerPickOrigin;
         /** How many objects the sentence named: once per Add, however many constraints it made (D21). */
         readonly object_count_bucket: string;
+        /** Whether a plain click on a face added it, or the Add button. */
+        readonly added_by: LayerOrderAddedBy;
       };
     }
   | {
@@ -130,12 +144,13 @@ export function dialogOpenedFact(
   };
 }
 
-/** One Add: the sentence's verb, where its faces were picked, and how many objects it named. */
+/** One Add: the sentence's verb, where its faces were picked, how many objects it named, and what added it. */
 export function constraintAddedFact(
   verb: LayerVerb,
   subjectOrigin: LayerPickOrigin,
   objectOrigin: LayerPickOrigin,
-  objects: number
+  objects: number,
+  addedBy: LayerOrderAddedBy
 ): LayerOrderFact {
   return {
     event: 'layer constraint added',
@@ -144,6 +159,7 @@ export function constraintAddedFact(
       subject_origin: subjectOrigin,
       object_origin: objectOrigin,
       object_count_bucket: bucketCount(objects, LAYER_ORDER_OBJECT_COUNT_BUCKETS),
+      added_by: addedBy,
     },
   };
 }

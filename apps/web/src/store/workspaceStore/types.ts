@@ -75,7 +75,8 @@ import type {
   DiagramTitleBlockContentPatch,
   KnownDiagramAnnotation,
   DiagramStyle,
-  KnownDiagramAsset,
+  DiagramCreasePatternAsset,
+  DiagramPictureAsset,
   UploadPose,
   DiagramPlaceReset,
 } from '../../diagram/document/diagramDocument';
@@ -2527,13 +2528,13 @@ export interface DiagramSliceActions {
    * was added.
    */
   addDiagramPictures: (
-    assets: readonly KnownDiagramAsset[],
+    assets: readonly DiagramPictureAsset[],
     options?: { loadId?: number; anchorStepId?: string | null }
   ) => { stepIds: string[]; filled: boolean } | null;
   /** Give a step a picture in place of its own (Replace picture…, a drop on its card). */
   setDiagramStepPicture: (
     stepId: string,
-    asset: KnownDiagramAsset,
+    asset: DiagramPictureAsset,
     options?: { loadId?: number }
   ) => boolean;
   /** Take a step's picture away, keeping its instruction. */
@@ -2576,6 +2577,13 @@ export interface DiagramSliceActions {
     patch: DiagramTitleBlockContentPatch,
     options?: { loadId?: number; session?: number }
   ) => boolean;
+  /**
+   * Make a crease pattern read from a file the title block's crease pattern
+   * (`implementation-plans/diagram-title-block-final-cp.md`): the asset added
+   * and the pattern set to it, one undo step. `loadId` is the diagram's the
+   * file was picked in: a read that outlives it is dropped.
+   */
+  setDiagramTitleBlockPatternUpload: (asset: DiagramCreasePatternAsset, options?: { loadId?: number }) => boolean;
   /** Start a new page at the step, or stop doing so ("Start a new page here", D10). */
   setDiagramStepBreakBefore: (stepId: string, breakBefore: boolean) => boolean;
   /**

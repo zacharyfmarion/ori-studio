@@ -15,7 +15,7 @@ import {
   type DiagramFoldStepSource,
   type DiagramReferencesSource,
   type DiagramStep,
-  type KnownDiagramAsset,
+  type DiagramPictureAsset,
 } from '../../diagram/document/diagramDocument';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
@@ -76,7 +76,7 @@ export function DiagramStepPicture({
 }: {
   step: DiagramStep;
   /** The upload the step shows, or null for a step without one. */
-  asset: KnownDiagramAsset | null;
+  asset: DiagramPictureAsset | null;
   /** What sanitizing changed in this upload, when it was uploaded this session. */
   notices: readonly SanitizeNotice[];
   actions: readonly DiagramStepAction[];
@@ -335,7 +335,7 @@ function linkSentence(link: DiagramLinkStatus, patternOpen: boolean, t: TFunctio
   }
 }
 
-function describeAsset(asset: KnownDiagramAsset, t: TFunction): string {
+function describeAsset(asset: DiagramPictureAsset, t: TFunction): string {
   const size = { width: Math.round(asset.widthPx), height: Math.round(asset.heightPx) };
   return asset.kind === 'svg'
     ? t('panels:diagram.picture.svg', 'Uploaded SVG, {{width}} × {{height}} px', size)

@@ -164,6 +164,12 @@ export interface DiagramStepActionState {
    * the "Refresh step N to anchor the frame" notice points.
    */
   facesMissing: boolean;
+  /**
+   * A folded step linked before its link kept its sheet's drawn lines, on a
+   * pattern with aux lines (`drawnLinesUntracked`): an aux edit since cannot
+   * be told, so Refresh is offered while it reads current.
+   */
+  drawnLinesUntracked: boolean;
   /** A capture of this step is running. */
   capturing: boolean;
   /** A crease pattern is open to link to. */
@@ -773,11 +779,11 @@ export function tooManyMarksHint({ lifted, total }: CardMarksGate, t: TFunction)
 
 /**
  * A picture that shows its pattern as it is but still gains from a capture:
- * a 3D picture's light is not the diagram's, or a flat fold has no faces on
- * the paper.
+ * a 3D picture's light is not the diagram's, a flat fold has no faces on the
+ * paper, or a folded link cannot tell whether its aux lines changed.
  */
 function stillBehind(state: DiagramStepActionState): boolean {
-  return state.lightingChanged || state.facesMissing;
+  return state.lightingChanged || state.facesMissing || state.drawnLinesUntracked;
 }
 
 /**

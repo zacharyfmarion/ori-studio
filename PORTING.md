@@ -215,17 +215,57 @@ are unchanged:
   without a sub-tolerance crease changes, so the folding and FOLD-export oracles
   see identical output.
 
-- **A failed Euler gate clears our faces; upstream keeps them.** *(Known gap, not
-  a decision — predates the per-component work above and is not relied on by it.)*
-  `FoldGraph::calculate_faces` sets `self.faces = Vec::new()` when the gate fails.
-  `PointSet.calculateFaces` instead returns early with `faces[]` and `numFaces`
-  populated, so a caller that ignores the boolean still has them, and
-  `WireFrame_Worker.setLineSegmentSet` (`:213`) is exactly such a caller. Upstream
-  therefore treats a failed gate as a warning; we turn it into a refusal. Every
-  current consumer of `include_faces` reads a false verdict as "no faces", so
-  nothing observable depends on the difference today — but it is a real
-  divergence, it is not recorded anywhere else, and a future caller that wants
-  upstream's behaviour will not find the faces where upstream would.
+- **The folded overlay seals the junctions `divide_intersections` misses, and
+  keeps its faces if the Euler gate still fails; every other arrangement clears
+  them.** *(Seal: Ori Studio native. Keep: upstream parity.)*
+
+  The overlay is built from folded coordinates, where layers that should land on
+  one point disagree by rounding (1e-10 to 1.7e-7 measured on user files), and
+  `divide_intersections` splits a crease where another ends on it only when that
+  end lies within `Epsilon::SWEET_DISTANCE` (1e-12, upstream's own tolerance). A
+  missed junction leaves the crease unsplit with a vertex on it, and the trace
+  comes out a few faces off — Euler 12 and 25 on two user reports. Which
+  placements miss one is rounding: the same sheet misses at one offset, or one
+  starting face, and not the next. Oriedita misses the same junctions on the same
+  input (its subface totals were the counts we traced, 2780 and 133).
+
+  `FoldGraph::from_subface_segments` builds the subdivided arrangement every
+  flat-fold stage after the wireframe reads (Oriedita's
+  `wireFrameWorker_foldedSubdivided`). When its gate fails it:
+
+  1. *Seals the missed junctions* — splits each segment at every vertex within
+     `Epsilon::UNKNOWN_001` (the classifier's own T radius, `rhit`) of its
+     interior, drops duplicate edges, and traces again, keeping the result only
+     if it passes. That is the overlay upstream builds when the rounding falls
+     the other way: the unlucky kabuto placement folds to Oriedita's own
+     estimate at a clean placement, summary for summary. A passing arrangement
+     never gets here, so nothing that folded before can change.
+  2. Otherwise *keeps the faces*, as upstream does. `PointSet.calculateFaces`
+     returns early with `faces[]` and `numFaces` populated, skipping only
+     `findLineInFaceBorder()`, and `WireFrame_Worker.setLineSegmentSet` (`:213`)
+     ignores the verdict, so `folding_estimated_03` runs on them. The border index
+     stays empty, as upstream's does, and its paper drawer — like
+     `should_draw_paper_edge` and `shadow_regions` — then draws every line and
+     casts no shadow.
+
+  Neither step was there before: the gate cleared every face, and the fold
+  stopped at the wireframe (`Step2`, `NotAttempted`, nothing for Transparent3 or
+  Paper5) on patterns Oriedita folds. Keeping the faces alone folded them but drew
+  every crease through the layers, which is what upstream draws on the same input
+  and not what its users see when the rounding is kind; sealing is what makes the
+  paper view hide covered edges again. Pinned by
+  `the_folded_overlay_seals_a_missed_junction` and
+  `the_folded_overlay_keeps_its_faces_when_sealing_cannot_pass_the_gate` in
+  `fold_graph.rs`, `a_missed_overlay_junction_folds_and_draws_as_a_clean_overlay_does`
+  in `tests/folding.rs`, and
+  `a_missed_overlay_junction_folds_as_oriedita_folds_a_clean_placement`.
+
+  *Everything else still clears.* For the FOLD exporter that is parity —
+  `FoldExporter.toFoldSave` is the one upstream caller that acts on the verdict —
+  and `folding3d::cells` has no upstream counterpart. The sheet's own
+  arrangement is the remaining gap *(known, not a decision)*: a fold whose sheet
+  fails the gate reports `fold_faces_unresolved`, where upstream would fold the
+  faces it traced.
 
 - **A FOLD folded form is refused, not flattened.** `io::fold::import_fold_document`
   returns `IoError::FoldedForm` — engine code `fold_folded_form` — for a frame

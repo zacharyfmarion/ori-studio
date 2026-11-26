@@ -338,9 +338,11 @@ export function foldCanvasChoice(preview: FoldToolPreview, tools: FoldToolState)
 /** What a committed op is called in `fold step added`; null for Import CP, which the canvas does not commit. */
 function opKindOf(op: FoldOp): FoldStepAddedOpKind | null {
   switch (op.kind) {
+    // Adjust order's step is added from the Layer order dialog, which counts it (`useFoldAdjustOrderTool`).
     case 'repeat':
     case 'unfold-to':
     case 'cp-jump':
+    case 'adjust-order':
       return null;
     // Compound folds, snake_case as the event's enums are.
     case 'inside-reverse':
@@ -396,7 +398,7 @@ function trackCommitted(op: FoldOp, defaulted: boolean, shared: FoldSwivelShared
     trackFoldStepAdded(kind, vertex ? { vertex } : undefined);
     return;
   }
-  if (op.kind === 'turn' || op.kind === 'cp-jump' || op.kind === 'unfold-to' || op.kind === 'repeat') {
+  if (op.kind === 'turn' || op.kind === 'cp-jump' || op.kind === 'adjust-order' || op.kind === 'unfold-to' || op.kind === 'repeat') {
     trackFoldStepAdded(kind);
     return;
   }
@@ -521,7 +523,7 @@ export function useFoldCanvasVerbs(
       const { view: shown, preview: previewed, session: current } = live.current;
       const step = previewed.step;
       const index = shown.index;
-      if (!step || !index || step.op.kind === 'turn' || step.op.kind === 'rotate' || step.op.kind === 'cp-jump' || step.op.kind === 'unfold-to' || step.op.kind === 'repeat') return;
+      if (!step || !index || step.op.kind === 'turn' || step.op.kind === 'rotate' || step.op.kind === 'cp-jump' || step.op.kind === 'adjust-order' || step.op.kind === 'unfold-to' || step.op.kind === 'repeat') return;
       const sheet = topSheetPointAt(index, at);
       if (!sheet) return;
       const seed = state().seed;
@@ -1079,6 +1081,8 @@ export function useFoldCanvasVerbs(
         // and saves; Unfold to step adds its step, or rebuilds a saved one.
         if (current.tool === 'repeat') return live.current.preview.repeat?.primary() ?? false;
         if (current.tool === 'unfold-to') return live.current.preview.unfold?.commit() ?? false;
+        // Adjust order's commit opens the Layer order dialog, whose Apply adds the step.
+        if (current.tool === 'adjust-order') return live.current.preview.adjustOrder?.open() ?? false;
         // A swivel by its valley and mountain, or a squash about a drawn
         // hinge: Enter takes the line located — the valley, or the hinge —
         // and the picks go on to the mountain, or the flap's end.

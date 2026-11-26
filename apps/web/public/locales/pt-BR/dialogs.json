@@ -135,6 +135,7 @@
     "refreshAllMessage": "Atualizá-los é uma alteração que você pode desfazer, mas o que você desfez antes não poderá mais ser refeito.",
     "refreshAllTitle": "Atualizar {{total}} passos?",
     "replacePictureTitle": "Substituir imagem",
+    "titleBlockPatternTitle": "Enviar padrão de vincos",
     "uploadPicturesTitle": "Enviar imagens",
     "uploadPictureTitle": "Enviar imagem"
   },
@@ -561,6 +562,7 @@
     "foldedLoading": "Carregando a figura dobrada",
     "foldedPane": "Figura dobrada",
     "hint": {
+      "adding": "Adicionando {{sentence}}…",
       "addTimedOut": "Não foi possível adicionar a tempo. Nada foi alterado.",
       "allSettled": "Não há nada a escolher: toda sobreposição está decidida",
       "attentionChecking": "Verificando as restrições salvas…",
@@ -580,7 +582,7 @@
       "faceChoices_many": "{{face}} · {{count}} faces para escolher",
       "faceChoices_other": "{{face}} · {{count}} faces para escolher",
       "faceSettled": "{{face}} · nada a escolher: tudo o que ela sobrepõe está decidido",
-      "moreObjects": "Escolha mais faces para adicioná-las, ou uma escolhida para removê-la.",
+      "moreObjects": "Clique com Shift para escolher mais faces ou remover uma.",
       "onlyObject": "{{face}} é a única face que dá para escolher",
       "pickFace_one": "Escolha uma face · {{count}} face tem opções",
       "pickFace_many": "Escolha uma face · {{count}} faces têm opções",
@@ -599,6 +601,7 @@
       "replaceSubject_one": "Escolha uma face no lugar de {{face}} · {{count}} face tem opções",
       "replaceSubject_many": "Escolha uma face no lugar de {{face}} · {{count}} faces têm opções",
       "replaceSubject_other": "Escolha uma face no lugar de {{face}} · {{count}} faces têm opções",
+      "shiftPicksSeveral": "{{hint}} · Clique com Shift para escolher várias",
       "stepTimedOutNext": "Não foi possível encontrar a próxima solução a tempo.",
       "stepTimedOutPrevious": "Não foi possível encontrar a solução anterior a tempo.",
       "subjectAlone": "Não há nada a escolher para {{face}}: ela não se sobrepõe a nenhuma outra face. Escolha outra face.",

@@ -2,11 +2,13 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { TFunction } from 'i18next';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { OristudioCpDocumentState } from '../engine/oristudioCpTypes';
 import * as fileServiceModule from '../platform/fileService';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { DiagramPoseAction } from './actions/diagramPoseActions';
 import { diagramStepChoice, diagramStepCommand, type DiagramStepAction } from './actions/diagramActions';
-import { createDiagram, insertSteps } from './document/diagramDocument';
+import { cpDocument, TWO_SQUARES } from './capture/capture.fixtures';
+import { createDiagram, insertSteps, type DiagramStep } from './document/diagramDocument';
 import { cpStep, scenePicture } from './document/diagramSteps.fixtures';
 import {
   appendDiagramStep,
@@ -164,6 +166,54 @@ describe('Refresh on a flat fold captured before its faces on the paper were kep
     );
     expect(refresh(seen['step-older']!)?.disabled).toBe(false);
     expect(refresh(seen['step-kept']!)?.disabled).toBe(true);
+    act(() => root.unmount());
+    host.remove();
+  });
+});
+
+describe('Refresh on a folded step linked before its link kept its drawn lines', () => {
+  it('is offered on the card’s menu and in the Step pane while its pattern holds aux lines', () => {
+    links.current = true;
+    const FLAT = { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 } as const;
+    const faces = { ...scenePicture(), paperFaces: '{"points":[],"rings":[],"levels":[]}' };
+    const older = cpStep('step-older', FLAT, faces);
+    const kept = cpStep('step-kept', FLAT, faces);
+    const tracked = { ...kept, source: { ...kept.source!, drawnFingerprint: 'rc1:drawn' } } as DiagramStep;
+    const open = (lines = TWO_SQUARES) =>
+      useWorkspaceStore.setState({
+        oristudioCpDocument: { handle: 1, document: cpDocument(lines), geometry: null } as unknown as OristudioCpDocumentState,
+      });
+    useWorkspaceStore.setState({ diagram: insertSteps(createDiagram({ title: 'Aux' }), [older, tracked], 0) });
+    open();
+    const refresh = (actions: readonly DiagramStepAction[]) => diagramStepCommand(actions, 'refresh-picture');
+    expect(refresh(diagramStepActions('step-older', t))?.disabled).toBe(false);
+    expect(refresh(diagramStepActions('step-kept', t))).toMatchObject({
+      disabled: true,
+      hint: 'Already shows its pattern as it is',
+    });
+
+    const seen: Record<string, DiagramStepAction[]> = {};
+    function Pane({ stepId }: { stepId: string }) {
+      seen[stepId] = useDiagramStepActions(stepId);
+      return null;
+    }
+    const host = document.body.appendChild(document.createElement('div'));
+    const root = createRoot(host);
+    act(() =>
+      root.render(
+        <>
+          <Pane stepId="step-older" />
+          <Pane stepId="step-kept" />
+        </>
+      )
+    );
+    expect(refresh(seen['step-older']!)?.disabled).toBe(false);
+    expect(refresh(seen['step-kept']!)?.disabled).toBe(true);
+
+    // A pattern with no aux lines draws nothing a fold's link cannot tell.
+    act(() => open(TWO_SQUARES.filter((line) => line[4] !== 'Cyan3')));
+    expect(refresh(seen['step-older']!)?.disabled).toBe(true);
+    expect(refresh(diagramStepActions('step-older', t))?.disabled).toBe(true);
     act(() => root.unmount());
     host.remove();
   });

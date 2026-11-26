@@ -45,6 +45,20 @@ noise picked the side (found in review: a quarter of all drags of a
 not from the segmentation's traced rim, it does not depend on how the rim was
 traced.
 
+**Did what the picture draws change?** *(Added 2026-11-22.)* A fold's
+fingerprint is over the lines it folds, a crease pattern's over every line it
+draws (`creasesFingerprint`). But a folded picture (flat, 3D or simulated)
+draws its sheet's aux lines on its paper too, so adding or moving one changed
+the picture and left it current. A folded capture or pose now also keeps
+`drawnFingerprint`, the same `rc1:` fingerprint over every line of its sheet,
+and the step is current only when both match. The sheet is still found by its
+folds (below), so a moved sheet whose aux lines were edited reads out of date,
+not missing. A link saved before the field is read by its folds alone, as it
+was saved, so opening a file changes no step's status; while its pattern holds
+aux lines it is offered Refresh all the same (`drawnLinesUntracked`), and that
+capture writes the field. A saved Defox view draws none of the pattern's lines
+and keeps none.
+
 **Which sheet is it?** In order:
 
 1. The sheet still at its **old position** (the existing absolute rim match):
