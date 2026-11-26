@@ -1,11 +1,12 @@
 /**
  * What the Repeat tool repeats, and across which axis (plans
  * `fold-sequence-tools`, `repeat-range-end`): the range — from a step the
- * folder chooses through another, by default the step on screen — the state
- * before it, which its symmetry axes are found on, and which of those axes is
- * taken. Wherever the range ends, the repeat is added after the step on
- * screen: a range repeated once can be repeated again, across another axis.
- * A drawn axis is `repeatDrawn`'s.
+ * folder chooses through another, by default the step on screen, or the
+ * range a Repeat on screen repeated — the state before it, which its
+ * symmetry axes are found on, and which of those axes is taken. Wherever the
+ * range ends, the repeat is added after the step on screen: a range repeated
+ * once can be repeated again, across another axis. A drawn axis is
+ * `repeatDrawn`'s.
  *
  * Pure.
  */
@@ -29,7 +30,7 @@ export interface RepeatRange {
   first: FoldPathEntry;
   /** Its index in the path. */
   start: number;
-  /** The range's last step: the step on screen, unless an earlier one was chosen. */
+  /** The range's last step: by default the step on screen, or the last one a Repeat on screen repeated. */
   last: FoldPathEntry;
   /** Its index in the path. */
   end: number;
@@ -44,6 +45,11 @@ export interface RepeatRange {
  * the step on screen, through `chosenLast` — while it is one of the ends — or
  * else through the step on screen; null at the flat sheet, and while the step
  * on screen has not landed, which the repeat is added after.
+ *
+ * A Repeat in a range is refused (`repeat_unsupported`), so with a Repeat on
+ * screen and no start chosen, the range is the one it repeated, its first
+ * step through its last (`repeatedRange`): the same steps again, across
+ * another axis.
  */
 export function repeatRange(
   entries: readonly FoldPathEntry[],
@@ -55,16 +61,42 @@ export function repeatRange(
   const here = entries[cursor]!;
   if (here.session.state === null) return null;
   const starts = entries.slice(1, cursor + 1).filter((entry, k) => entry.session.state !== null && entries[k]!.session.state !== null);
-  const first = starts.find((entry) => entry.id === chosenFirst) ?? (starts.includes(here) ? here : null);
+  const chosen = starts.find((entry) => entry.id === chosenFirst);
+  const repeated = chosen ? null : repeatedRange(entries, cursor, starts);
+  const first = chosen ?? repeated?.first ?? (starts.includes(here) ? here : null);
   if (!first) return null;
   const start = entries.indexOf(first);
-  const ends: FoldPathEntry[] = [];
-  for (let at = start; at <= cursor && entries[at]!.session.state !== null; at++) ends.push(entries[at]!);
-  // A last step before the first, or off the path, gives way to the step on screen.
-  const last = ends.find((entry) => entry.id === chosenLast) ?? (ends.includes(here) ? here : null);
+  const ends = endsFrom(entries, start, cursor);
+  // A last step before the first, or off the path, gives way to the default: the Repeat's own, or the step on screen.
+  const last = ends.find((entry) => entry.id === chosenLast) ?? repeated?.last ?? (ends.includes(here) ? here : null);
   if (!last) return null;
   const end = entries.indexOf(last);
   return { starts, ends, first, start, last, end, baseline: entries[start - 1]!, count: end - start + 1 };
+}
+
+/** The steps a range from `start` may end with: it, and each after it through the step on screen while every step up to it has landed. */
+function endsFrom(entries: readonly FoldPathEntry[], start: number, cursor: number): FoldPathEntry[] {
+  const ends: FoldPathEntry[] = [];
+  for (let at = start; at <= cursor && entries[at]!.session.state !== null; at++) ends.push(entries[at]!);
+  return ends;
+}
+
+/**
+ * The range the Repeat on screen repeated, first step through last, while it
+ * is one Repeat could start now: its first among `starts`, its last among the
+ * ends from there. Null for any other step, and for a Repeat whose steps are
+ * gone from the path or have not landed.
+ */
+function repeatedRange(
+  entries: readonly FoldPathEntry[],
+  cursor: number,
+  starts: readonly FoldPathEntry[]
+): { first: FoldPathEntry; last: FoldPathEntry } | null {
+  const op = entries[cursor]!.node?.op;
+  if (op?.kind !== 'repeat') return null;
+  const first = starts.find((entry) => entry.id === op.source.first);
+  const last = first ? endsFrom(entries, entries.indexOf(first), cursor).find((entry) => entry.id === op.source.last) : undefined;
+  return first && last ? { first, last } : null;
 }
 
 /** Two lines alike, whichever way each is written: Repeat's tolerance on its normal and offset. */

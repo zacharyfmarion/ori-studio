@@ -3,7 +3,9 @@
  * second folding algorithm.
  *
  * Every sheet point maps through the sheet reflection, every model-frame
- * direction and root through the frame the mirror's paper is placed in. What
+ * direction and root through the frame the mirror's paper is placed in —
+ * except the points that name the paper a step moves, which are taken where
+ * the paper it folds holds them (`mirroredWitness`). What
  * the step says as the viewer sees it — a valley or a mountain, the layers on
  * top — turns where the viewer sees the mirrored paper from the other side:
  * behind, or after a turn-over between the source and the repeat, but not
@@ -23,7 +25,17 @@ import type {
   SheetPoint,
 } from '../document/foldSequenceDocument';
 import type { FoldIsometry, FoldScene } from '../engine/foldEngineWire';
-import { compose, correspondingFrame, mappedPoint, RepeatFailure, sheetRing, sideSign, type RepeatSide } from './repeatGeometry';
+import {
+  compose,
+  correspondingFrame,
+  mappedPoint,
+  mirroredWitness,
+  RepeatFailure,
+  sheetRing,
+  sideSign,
+  type RepeatMaterial,
+  type RepeatSide,
+} from './repeatGeometry';
 
 /** A mirrored step: its op and choices, as the engine is asked to fold them. */
 export interface RepeatMirrored {
@@ -62,13 +74,13 @@ export function mirrorOperation(
   target: FoldScene,
   map: FoldIsometry,
   side: RepeatSide,
-  material?: readonly SheetPoint[],
+  material?: readonly RepeatMaterial[],
 ): RepeatMirrored {
   const turned = flipsView(source, target, side);
   const p = (at: SheetPoint) => mappedPoint(map, at);
   const seed = (s: FoldSeed): FoldSeed =>
     material?.length
-      ? { scope: 'flaps', at: material.map(p) }
+      ? { scope: 'flaps', at: material.map((piece) => mirroredWitness(piece, target, map)) }
       : s.scope === 'flaps'
         ? { scope: 'flaps', at: s.at.map(p) }
         : s.scope === 'depth'

@@ -1,10 +1,11 @@
 # Fold regressions
 
 One small Ori Studio project per bug fixed in the Fold workspace for its
-launch (2026-10-21). Each is the shortest fold sequence that showed its bug,
-built from scratch: every op written by hand, each axiom's root and each
-step's fingerprint the engine's, saved as the app saves a project. None is a
-user's model. Every step's `note` says what it folds.
+launch (2026-10-21). Each is the shortest fold sequence that showed its bug.
+Most are built from scratch: every op written by hand, each axiom's root and
+each step's fingerprint the engine's, saved as the app saves a project. A few
+are bug reports folded in the app and saved from it, with a title and notes
+added. None is a user's model. Every step's `note` says what it folds.
 
 `apps/web/src/fold/document/foldRegressions.wasm.test.ts` opens each file as
 the app reads a project, replays every step to its stored fingerprint, and
@@ -59,6 +60,32 @@ precrease and the folded-corner rabbit ear through the canvas tools.
   `apps/web/src/fold/repeat/repeatVerification.ts`; more cases in
   `repeatHeldGauge.wasm.test.ts` beside it). Built by a script over the
   engine on 2026-10-25.
+- `repeat-diagonal-precrease.osf`: a precrease along the diagonal y = x,
+  folded in the app and saved as a bug report (2026-11-26). Repeated across
+  the vertical or horizontal center line, its mirror is the other diagonal,
+  which Repeat refused as "The spot the mirrored fold picks is not inside a
+  layer on the moving side" (`witness_not_in_face`). A mirrored step names
+  the layer it folds by the mirror of the source flap's witness, the middle
+  of the half the precrease folded. That middle lies on the other diagonal,
+  and the mirror takes the other diagonal onto the one just precreased: a
+  crease, where no one layer lies. Fixed by taking, when the mirrored
+  witness lands on a crease of the paper the mirror folds, the middle of the
+  largest part of the mirrored half that one face holds (`mirroredWitness`
+  in `apps/web/src/fold/repeat/repeatGeometry.ts`). A book fold repeated
+  across a diagonal failed the same way (`repeat.wasm.test.ts`).
+- `repeat-after-repeat.osf`: both diagonals precreased, the bottom right
+  corner folded onto the center along x − y = 1/2, and that fold repeated
+  across the diagonal y = x, to the top left corner. With the Repeat on
+  screen, Repeat took the Repeat itself as its range, which it never
+  mirrors (`repeat_unsupported`), so the corners left could not be folded
+  alike. With no start chosen, a Repeat on screen now ranges over the steps
+  it repeated (`repeatRange` in `apps/web/src/fold/repeat/repeatRange.ts`):
+  here the corner fold, which lands again across either center line, the
+  bottom left or the top right corner onto the center.
+  `apps/web/src/fold/repeat/repeatAfterRepeat.wasm.test.ts` prepares both
+  and refuses the diagonals; `useFoldRepeatTool.wasm.test.tsx` beside it
+  folds the two corners left through the tool. Folded in the app on
+  2026-11-26.
 - `unfold-to-after-import.osf`: a diagonal precrease and a fold in half,
   then an Import CP of the half fold alone, which drops the diagonal; a fold
   in half the other way; and Unfold to step back to the import. The unfold

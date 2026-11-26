@@ -273,15 +273,16 @@ export interface FoldToolState {
    */
   unfoldTarget: { id: string | null } | null;
   /**
-   * Repeat's range start, by id; null for the step on screen, a range of one.
-   * Let go each time the tool is taken up.
+   * Repeat's range start, by id; null for the default (`repeatRange`): the
+   * step on screen, a range of one, or the range a Repeat on screen
+   * repeated. Let go each time the tool is taken up.
    */
   repeatFirst: string | null;
   /**
-   * Repeat's range end, by id; null for the step on screen. The repeat is
-   * added after the step on screen wherever the range ends, so a range
-   * repeated once can be repeated again across another axis. Let go each
-   * time the tool is taken up.
+   * Repeat's range end, by id: the start, once one is chosen, until a later
+   * end is; null for the default. The repeat is added after the step on
+   * screen wherever the range ends, so a range repeated once can be repeated
+   * again across another axis. Let go each time the tool is taken up.
    */
   repeatLast: string | null;
   /**
@@ -604,7 +605,7 @@ export interface FoldTools {
   // The sequence tools' (`fold/return`, `fold/repeat`).
   /** Unfold to this entry of the path (null for the flat sheet). */
   setUnfoldTarget(id: string | null): void;
-  /** Start Repeat's range at this step. */
+  /** Start Repeat's range at this step, and end it there too: a range of one, until a later end is chosen. */
   setRepeatFirst(id: string): void;
   /** End Repeat's range at this step. */
   setRepeatLast(id: string): void;
@@ -1038,7 +1039,8 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
     },
 
     setRepeatFirst(repeatFirst) {
-      set((state) => (state.repeatFirst === repeatFirst ? state : { ...state, repeatFirst }));
+      // A new start is the end as well; the same one again keeps the end chosen for it.
+      set((state) => (state.repeatFirst === repeatFirst ? state : { ...state, repeatFirst, repeatLast: repeatFirst }));
     },
 
     setRepeatLast(repeatLast) {

@@ -20,6 +20,7 @@ import {
   sideSign,
   turnsOver,
   verifiedSymmetry,
+  type RepeatMaterial,
   type RepeatSide,
   type RepeatSymmetry,
 } from './repeatGeometry';
@@ -441,11 +442,12 @@ export function mirroredStepAxis(before: FoldScene, first: FoldScene, second: Fo
   return null;
 }
 
-/** Interior witnesses of material that moved, for compounds whose API has no plain analysis. */
-export function movingWitnesses(before: FoldScene, after: FoldScene) {
+/** The faces a step moved, each whole and named by its middle: for compounds whose API has no plain analysis. */
+export function movingMaterial(before: FoldScene, after: FoldScene): RepeatMaterial[] {
   return changedFaces(before, after).map((i) => {
-    const point = toPair(polygonCentroid(sheetRing(after, i)));
-    faceAt(before, point);
-    return point;
+    const ring = sheetRing(after, i);
+    const witness = toPair(polygonCentroid(ring));
+    faceAt(before, witness);
+    return { witness, pieces: [ring] };
   });
 }
