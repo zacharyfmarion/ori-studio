@@ -1,0 +1,35 @@
+/* The export preview's box is positioned and sized; the 3D view fills it. */
+.stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.canvas:active {
+  cursor: grabbing;
+}
+
+/* As the preview's other states read: a chip at the foot of the box. */
+.state {
+  position: absolute;
+  inset: auto var(--space-3) var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+.state[data-failed] {
+  color: var(--status-danger);
+}

@@ -7,7 +7,7 @@
  * image, through its transparent pixels — so the margin reads as part of the
  * page and the pane around it does not.
  */
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { TFunction } from 'i18next';
@@ -46,6 +46,7 @@ export function PaperExportPreview({
   pngTooLarge,
   hiddenFacesDropped,
   pager,
+  stage = null,
 }: {
   status: PaperExportStatus;
   error: string | null;
@@ -58,13 +59,22 @@ export function PaperExportPreview({
   hiddenFacesDropped: number;
   /** Every step's page, one at a time, while all of them are exported. */
   pager: PaperExportDialogBinding['pager'];
+  /**
+   * A live view standing in for the page: an OBJ's 3D preview, which draws
+   * the file itself. The caption still says what is written.
+   */
+  stage?: ReactNode;
 }) {
   const { t, i18n } = useTranslation();
   const number = (value: number) => value.toLocaleString(i18n.language);
   const parts: string[] = [];
   const page = image?.page ?? null;
   if (format === 'obj') {
-    parts.push(t('dialogs:paperExport.objPreview', 'Captured pose · OBJ includes the complete mesh and UVs'));
+    parts.push(
+      stage
+        ? t('dialogs:paperExport.objSpreadPreview', 'Drag to turn it · OBJ includes the complete mesh and UVs')
+        : t('dialogs:paperExport.objPreview', 'Captured pose · OBJ includes the complete mesh and UVs')
+    );
   } else if (page) {
     parts.push(
       t('dialogs:paperExport.pageMm', '{{width}} × {{height}} mm', {
@@ -106,7 +116,8 @@ export function PaperExportPreview({
         aria-label={t('dialogs:export.preview', 'Export preview')}
         aria-busy={status === 'building'}
       >
-        {image && (
+        {stage}
+        {!stage && image && (
           <div
             className={`paper-export__sheet${transparent ? ' paper-export__sheet--transparent' : ''}${status === 'building' ? ' paper-export__sheet--stale' : ''}`}
             style={
@@ -116,19 +127,19 @@ export function PaperExportPreview({
             <img src={image.url} alt="" />
           </div>
         )}
-        {status === 'building' && (
+        {!stage && status === 'building' && (
           <span className="paper-export__state">
             {t('dialogs:paperExport.preparing', 'Preparing preview…')}
           </span>
         )}
-        {status === 'empty' && (
+        {!stage && status === 'empty' && (
           <span className="paper-export__state">
             {format === 'obj'
               ? t('dialogs:paperExport.objPreviewEmpty', 'No image preview. The captured 3D mesh can still be exported.')
               : t('dialogs:paperExport.empty', 'Nothing to export: the view shows no paper.')}
           </span>
         )}
-        {status === 'error' && (
+        {!stage && status === 'error' && (
           <span className="paper-export__state paper-export__state--error">
             {t('dialogs:paperExport.previewFailed', 'Couldn’t draw the preview: {{message}}', {
               message: error ?? '',

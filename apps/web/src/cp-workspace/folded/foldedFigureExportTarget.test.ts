@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_CONNECTED_SPREAD } from './layerSpreadSettings';
 import type {
   OristudioCpFolded3dRenderModel,
   OristudioCpFoldedFigureEntry,
@@ -29,6 +30,7 @@ import {
 } from '../../paperExport/paperExportSession';
 import type { PaperSceneInput } from '../../paperExport/paperExportTarget';
 import { paperExportDraft } from '../../paperExport/usePaperExportDialog';
+import spreadStrip from '../../../../../tests/fixtures/fold-angle-3d/spread-strip.render.json';
 import golden from './__fixtures__/foldedFigureExportGolden.json';
 import { DEFAULT_FOLDED_3D_CAMERA, folded3dFrameRadius } from './folded3dCamera';
 import { FOLDED_3D_MESH_VERTEX_BUDGET } from './folded3dMesh';
@@ -40,6 +42,7 @@ import {
   type FoldedFigureExportPicture,
 } from './foldedFigureExportTarget';
 import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
+import type { LayerSpreadOptions } from './foldedLayerSpread';
 
 /**
  * The export dialog must write, for a folded figure, byte for byte the page
@@ -582,5 +585,84 @@ describe('foldedFigureExportTarget', () => {
       expect(style.mountainFolds).toEqual(style.edges);
       expect(style.valleyFolds).toEqual(style.edges);
     }
+  });
+});
+
+describe('foldedFigureExportTarget’s OBJ', () => {
+  const MATERIAL_MODEL = spreadStrip as OristudioCpFolded3dRenderModel;
+
+  it('writes a live 3D figure’s material, and offers nothing for a model without one', async () => {
+    const live = targetOf(spatial(), pictureOf(spatial(), { model: MATERIAL_MODEL })!);
+    expect(live.obj?.unavailableReason).toBeNull();
+    // A fold with no determined layer order (a snapshot from before verdicts) offers no spread.
+    expect(live.obj?.spread).toBeUndefined();
+    const obj = await live.obj!.build();
+    expect(obj).toMatch(/^# Ori Studio folded form/);
+    expect(obj?.match(/^f /gm)).toHaveLength(8);
+    // An older payload carries no material source.
+    expect(liveTarget().obj).toBeUndefined();
+  });
+
+  it('writes a flat figure flat', async () => {
+    const exported = targetOf(flat(), pictureOf(flat(), { kernel: kernelScene() })!);
+    expect(exported.obj?.unavailableReason).toBeNull();
+    const obj = (await exported.obj!.build())!;
+    const heights = obj.match(/^v .*$/gm)!.map((line) => Number(line.split(' ')[2]));
+    expect(heights.every((height) => height === 0)).toBe(true);
+  });
+
+  it('opens a flat figure’s OBJ on its own Default spread, and on none for a picture-only one', () => {
+    const spreadTarget = (spread: LayerSpreadOptions) =>
+      targetOf(flat(), { kind: 'spread', kernel: kernelScene(), spread, cssPerUserUnit: 1 });
+    const connected = spreadTarget({ kind: 'connected', version: 1, amount: 0.5, reveal: [0.3, 0.2] }).obj;
+    expect(connected?.unavailableReason).toBeNull();
+    expect(connected?.spread?.initial).toEqual({ on: true, amount: 0.5 });
+    // Affine and Depth move the picture alone: the dialog's spread starts off.
+    for (const spread of [
+      { kind: 'affine', amount: 0.3, keep: 'top', skew: 0, axisDeg: 0 } as const,
+      { kind: 'depth', amount: 0.3, toward: 'down-right' } as const,
+    ]) {
+      expect(spreadTarget(spread).obj?.spread?.initial).toEqual({ on: false, amount: DEFAULT_CONNECTED_SPREAD.amount });
+    }
+  });
+
+  it('has none for a stored 3D scene, nor a fixed picture with no fold to read', () => {
+    const stored = spatial({ handle: null });
+    const legacy = flat({ handle: null });
+    expect(targetOf(stored, pictureOf(stored)!).obj).toBeUndefined();
+    expect(targetOf(legacy, pictureOf(legacy)!).obj).toBeUndefined();
+  });
+
+  it('reads a fixed picture’s mesh where its caller found a fold, only once OBJ asks for it', async () => {
+    const legacy = flat({ handle: null });
+    const scene = vi.fn(async () => kernelScene());
+    const exported = foldedFigureExportTarget({
+      figure: legacy,
+      picture: pictureOf(legacy)!,
+      title: 'Export',
+      fileStem: 'Crane',
+      exportStyle: exportPaperStyle(DEFAULT_PAPER_STYLE_SETTINGS, legacy.appearance),
+      storedSceneHint: STORED_HINT,
+      objScene: scene,
+    });
+    // The picture is still the one it was drawn as.
+    expect(exported.fixedPicture).toBeTruthy();
+    expect(scene).not.toHaveBeenCalled();
+    const obj = (await exported.obj!.build({ on: false, amount: 0 }))!;
+    expect(scene).toHaveBeenCalledOnce();
+    expect(obj.match(/^v .*$/gm)!.every((line) => Number(line.split(' ')[2]) === 0)).toBe(true);
+    // And a 3D figure's stored picture never takes a flat scene.
+    const stored = spatial({ handle: null });
+    expect(
+      foldedFigureExportTarget({
+        figure: stored,
+        picture: { kind: 'fixed', svg: '<svg/>', widthPx: 1, heightPx: 1 },
+        title: 'Export',
+        fileStem: 'Crane',
+        exportStyle: exportPaperStyle(DEFAULT_PAPER_STYLE_SETTINGS, stored.appearance),
+        storedSceneHint: STORED_HINT,
+        objScene: scene,
+      }).obj
+    ).toBeUndefined();
   });
 });

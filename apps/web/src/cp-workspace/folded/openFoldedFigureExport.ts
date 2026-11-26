@@ -26,6 +26,7 @@ import { folded3dAuxLinesOf } from './folded3dAuxLines';
 import { folded3dRenderModel } from './folded3dRenderModels';
 import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
 import { foldedFigureExportPicture, foldedFigureExportTarget } from './foldedFigureExportTarget';
+import { foldedFigureObjScene } from './foldedFigureObjScene';
 import { foldedFigureWantsSpread, sameFoldedPaperScene } from './foldedFlatSpreadScene';
 
 /**
@@ -84,6 +85,8 @@ export async function openFoldedFigureExport(figureId: string, t: TFunction): Pr
         'dialogs:paperExport.storedSceneHint',
         'Shaded as it was when it was folded: fold it again to light it in another style.'
       ),
+      // A fixed picture's mesh, where it has a fold to read: asked for only if OBJ is.
+      objScene: picture.kind === 'fixed' ? foldedFigureObjScene(figure) : null,
     });
     usePaperExportUiStore.getState().open({ target, format: null, scope: 'this', returnFocus });
   } catch (cause) {

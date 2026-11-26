@@ -5,6 +5,9 @@ import type { SpatialSpread } from './foldedFigureSpread';
  * slider's 0–100% range. Raising the maximum leaves saved geometry unchanged. */
 export const MAX_SPATIAL_SPREAD_AMOUNT = 4;
 
+/** The amount Spread layers turns a 3D figure's spread on at, and its Amount's reset: 25%. */
+export const DEFAULT_SPATIAL_SPREAD_AMOUNT = 1;
+
 export const clampSpatialSpreadAmount = (amount: number): number =>
   Math.max(0, Math.min(MAX_SPATIAL_SPREAD_AMOUNT, amount));
 

@@ -1,5 +1,5 @@
 import { perspectiveDrawing } from '../../layer-spread/perspective';
-import type { SpreadPresentation } from '../../layer-spread/presentation';
+import { perspectiveSpread, type SpreadPresentation } from '../../layer-spread/presentation';
 /**
  * The flat folded figure's picture as a {@link PaperScene}: whole faces in
  * painter's order, every layer present, from the kernel's paper scene.
@@ -163,9 +163,7 @@ export function foldedFlatPaperScene(
     const spatial = options.presentation?.kind === 'perspective';
     // Perspective exaggerates height only; Diagram and the stored Amount stay unchanged.
     // Apply it before projection so live faces, ink, picking and captures agree.
-    const spread = spatial
-      ? { ...options.spread, amount: options.spread.amount * 2, reveal: [0, 0] as [number, number] }
-      : options.spread;
+    const spread = spatial ? perspectiveSpread(options.spread) : options.spread;
     let drawing = connectedDrawing(kernel, options.connected, spread, options.toScenePx, ink);
     if (spatial) drawing = perspectiveDrawing(drawing, options.connected, options.presentation!);
     return connectedPaperScene(drawing, kernel.sheet * options.scale, !options.live);

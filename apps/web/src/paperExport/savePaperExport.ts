@@ -18,6 +18,7 @@ import type {
 import { paperStyleChoiceName, type PaperPresetRow } from '../lib/paperPresetRows';
 import { exportFilename } from '../platform/exportFilename';
 import { getFileService, type FileService } from '../platform/fileService';
+import type { PaperObjSpread } from './paperExportTarget';
 import { zipPages, type ZipEntry } from './zipPages';
 
 export interface SavePaperExportOptions {
@@ -136,10 +137,19 @@ export function paperExportedEvent(
     scope: PaperExportScope;
     pageCount: number;
     marks: readonly PaperExportMark[];
+    /** The spread a folded figure's OBJ was written with; absent for a mesh with none to set. */
+    objSpread?: PaperObjSpread | null;
   }
 ): PaperExportedEvent {
   if (options.format === 'obj') {
-    return { surface, format: 'obj', optionsChanged: details.changed, scope: 'this' };
+    const spread = details.objSpread;
+    return {
+      surface,
+      format: 'obj',
+      optionsChanged: details.changed,
+      scope: 'this',
+      ...(spread ? { objSpread: spread.on && spread.amount > 0 ? 'spread' : 'flat' } : {}),
+    };
   }
   const shown = (mark: PaperExportMark): PaperExportMarkShown =>
     options.marks[mark] ? 'shown' : 'hidden';
