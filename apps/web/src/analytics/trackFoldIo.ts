@@ -48,14 +48,19 @@ export function trackFoldSequenceSentToEdit(): void {
 export type FoldSentToDiagramVia = 'fold' | 'diagram_browser';
 
 /**
- * How a pull from Fold treated precreases and their mirror images: whether
- * Merge symmetric precreases was on, and whether it made any of them one
- * step (`diagram/fold/foldPrecreaseMerge.ts`).
+ * How a pull from Fold treated steps a book draws as one: whether Merge
+ * symmetric steps was on, whether it made any run one step, and whether any
+ * such run folds paper rather than only creasing it
+ * (`diagram/fold/foldStepMerge.ts`).
  */
 export interface FoldSentToDiagramMerge {
   option: 'on' | 'off';
   merged: 'none' | 'some';
+  mergedFolds: 'none' | 'some';
 }
+
+/** What the Fold browser's Split or Join did, to which kind of run: a mirror image, a turned copy, precreases and their Repeat. */
+export type FoldMergeChange = { action: 'split' | 'join'; kind: 'mirror' | 'turn' | 'repeat' };
 
 /** Fold steps became Diagram steps (plan D17), from where, one or many, and what merged: enums only. */
 export function trackFoldStepSentToDiagram(
@@ -63,5 +68,16 @@ export function trackFoldStepSentToDiagram(
   scope: 'one' | 'many',
   merge: FoldSentToDiagramMerge
 ): void {
-  track(ANALYTICS_EVENTS.foldStepSentToDiagram, { via, scope, merge_precreases: merge.option, merged: merge.merged });
+  track(ANALYTICS_EVENTS.foldStepSentToDiagram, {
+    via,
+    scope,
+    merge_precreases: merge.option,
+    merged: merge.merged,
+    merged_folds: merge.mergedFolds,
+  });
+}
+
+/** The reader split a merged card in the Fold browser, or joined two: whether the offers are used, turned copies' especially. */
+export function trackDiagramFoldMergeChanged({ action, kind }: FoldMergeChange): void {
+  track(ANALYTICS_EVENTS.diagramFoldMergeChanged, { action, kind });
 }

@@ -41,13 +41,14 @@ import {
 import { storedFoldStepSource } from '../document/diagramFile';
 import type { PullCard } from '../references/referencesBrowserSelection';
 import { foldDiagramMergedSentence, foldDiagramSentence } from './foldDiagramSentence';
-import type { FoldPrecreaseMerge } from './foldPrecreaseMerge';
+import type { FoldJoinOffer, FoldMergeKind } from './foldMergeLayout';
 import { captureFoldStep, type FoldStepCaptureResult } from './foldStepCapture';
+import type { FoldMergedRun } from './foldStepMerge';
 
 /**
  * What pulling a Fold card adds: a step at a moment — or a run of steps drawn
  * as one, from `step` through `through`, before the first folds
- * (`foldPrecreaseMerge.ts`) — or a turn between steps.
+ * (`foldStepMerge.ts`, `foldPrecreaseMerge.ts`) — or a turn between steps.
  */
 export type FoldPullTarget =
   | { readonly kind: 'step'; readonly step: string; readonly through?: string; readonly moment: DiagramFoldMoment }
@@ -89,8 +90,14 @@ export type FoldBrowserPicture =
 export interface FoldBrowserCard extends PullCard<FoldPullTarget> {
   /** The step's number on the path, as Fold numbers it — a merged run's first; null for a turn or Finished. */
   readonly number: number | null;
+  /** What it shows of the path: its step's id, a merged run's every step, Finished's own mark — what a selection follows when cards merge or part. */
+  readonly ids: readonly string[];
   /** A merged run's last step's number; absent for one step. */
   readonly through?: number;
+  /** A merged run: how it is one step, and how many steps it draws. */
+  readonly merged?: { readonly kind: FoldMergeKind; readonly count: number };
+  /** The offer to join this card with the next one, where they would be one step. */
+  readonly join?: FoldJoinOffer;
   /** The step's words, or the turn's. */
   readonly sentence: string;
   readonly picture: FoldBrowserPicture;
@@ -143,6 +150,8 @@ export function foldPullRender(
   return { ...FOLD_PULL_RENDER, spread: spread ?? DEFAULT_LAYER_SPREAD };
 }
 
+const NO_OFFERS: ReadonlyMap<string, FoldJoinOffer> = new Map();
+
 /** Whether a path entry's state has landed, so a capture can be drawn from it. */
 function landed(entry: FoldSequenceView['entries'][number]): boolean {
   return entry.session.state !== null && (entry.status === 'ok' || entry.status === 'changed');
@@ -159,21 +168,28 @@ function landed(entry: FoldSequenceView['entries'][number]): boolean {
  * Each card's picture is the step it adds; a turn's, the state the turn
  * leaves, which it adds no step for.
  *
- * Each of `merges` — precreases and their mirror images, merged
- * (`foldPrecreaseMerge.ts`) — is one card, the step it becomes: numbered
- * from its first step to its last, every crease of it on the picture, its
- * sentence the merged step's, pictured and added once every step of it has
- * landed.
+ * Each of `merges` — precreases and their Repeat, or steps that mirror or
+ * turn each other (`foldStepMerge.ts`) — is one card, the step it becomes:
+ * numbered from its first step to its last, every step's line on the
+ * picture, its sentence the merged step's, pictured and added once every
+ * step of it has landed. A run that no longer matches the path is drawn step
+ * by step. `offers` names, by the last step of a card, the offer to join it
+ * with the next (`foldMergeLayout`).
  */
 export function foldBrowserCards(
   t: TFunction,
   { document, entries, words, failed }: Pick<FoldSequenceView, 'document' | 'entries' | 'words' | 'failed'>,
-  merges: readonly FoldPrecreaseMerge[] = []
+  merges: readonly FoldMergedRun[] = [],
+  offers: ReadonlyMap<string, FoldJoinOffer> = NO_OFFERS
 ): FoldBrowserCard[] {
   const cards: FoldBrowserCard[] = [];
   const mergeAt = new Map(merges.map((merge) => [merge.steps[0], merge]));
   // The words each card's step will take: the Diagram's (`foldDiagramSentence`), not the strip's lettered ones.
   const wordsAt = (index: number) => words[index] ?? { op: 'unknown' as const };
+  const joinAfter = (id: string) => {
+    const join = offers.get(id);
+    return join ? { join } : {};
+  };
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]!;
     const node = entry.node;
@@ -183,13 +199,20 @@ export function foldBrowserCards(
     if (merge && run.length === merge.steps.length && run.every((step, k) => step.id === merge.steps[k])) {
       const last = run.at(-1)!;
       const target: FoldPullStepTarget = { kind: 'step', step: entry.id, through: last.id!, moment: 'before' };
+      // A Repeat run's words are its steps' but the Repeat, for both sides; a merged run's, its first step's, for every place.
+      const said =
+        merge.kind === 'repeat'
+          ? foldDiagramMergedSentence(t, run.slice(0, -1).map((_, k) => wordsAt(index + k)))
+          : foldDiagramMergedSentence(t, [wordsAt(index)], run.length);
       cards.push({
         index: cards.length,
         kind: 'fold',
         number: entry.number,
+        ids: merge.steps,
         ...(last.number !== null ? { through: last.number } : {}),
-        // The steps it is made from, the mirror left out: its words are said once, for both sides.
-        sentence: foldDiagramMergedSentence(t, run.slice(0, -1).map((_, k) => wordsAt(index + k))),
+        merged: { kind: merge.kind, count: run.length },
+        ...joinAfter(last.id!),
+        sentence: said,
         picture: entryPicture(document, last, target, failed),
         step: run.every(landed) ? target : null,
       });
@@ -202,6 +225,7 @@ export function foldBrowserCards(
         index: cards.length,
         kind: 'turn-over',
         number: null,
+        ids: [entry.id],
         sentence: turnName(turn, t),
         picture: entryPicture(document, entry, { kind: 'step', step: entry.id, moment: 'after' }, failed),
         step: landed(entry) ? { kind: 'turn', turn } : null,
@@ -213,6 +237,8 @@ export function foldBrowserCards(
       index: cards.length,
       kind: 'fold',
       number: entry.number,
+      ids: [entry.id],
+      ...joinAfter(entry.id),
       sentence: foldDiagramSentence(t, wordsAt(index)),
       picture: entryPicture(document, entry, target, failed),
       step: landed(entry) ? target : null,
@@ -225,6 +251,7 @@ export function foldBrowserCards(
       index: cards.length,
       kind: 'done',
       number: null,
+      ids: [`${tip.id}:finished`],
       sentence: t('panels:diagram.fold.finishedSentence', 'The model as the steps leave it.'),
       picture: entryPicture(document, tip, target, failed),
       step: landed(tip) ? target : null,

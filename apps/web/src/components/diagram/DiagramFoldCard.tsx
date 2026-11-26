@@ -4,7 +4,12 @@ import type { FoldBrowserCard } from '../../diagram/fold/foldPull';
 import { useFoldPullPreview } from '../../diagram/fold/useFoldPullPreview';
 import { useNearView, useStepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { PictureLoading } from '../ui/PictureLoading';
-import { DiagramPullCard, DiagramPullCardCantDraw, DiagramPullCardPicture } from './DiagramReferencesCard';
+import {
+  DiagramPullCard,
+  DiagramPullCardCantDraw,
+  DiagramPullCardPicture,
+  type PullCardAction,
+} from './DiagramReferencesCard';
 
 const NO_ASSETS = Object.freeze({});
 
@@ -29,6 +34,7 @@ export function DiagramFoldCard({
   choosable,
   onPress,
   onFocus,
+  action,
 }: {
   card: FoldBrowserCard;
   /** The diagram's: the pens the step will be drawn in. */
@@ -44,6 +50,8 @@ export function DiagramFoldCard({
   choosable: boolean;
   onPress: (modifiers: { range: boolean }) => void;
   onFocus: () => void;
+  /** A merged card's Split. */
+  action?: PullCardAction;
 }) {
   const own = useRef<HTMLDivElement | null>(null);
   const near = useNearView(own);
@@ -79,6 +87,9 @@ export function DiagramFoldCard({
       choosable={choosable}
       onPress={onPress}
       onFocus={onFocus}
+      // A merged run is drawn as a stack: one card behind for two steps, two for more.
+      stack={card.merged ? (card.merged.count > 2 ? 2 : 1) : 0}
+      {...(action ? { action } : {})}
     />
   );
 }
