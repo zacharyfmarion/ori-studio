@@ -224,8 +224,11 @@ export function prepareSpatialMaterial(
 }
 
 /**
- * Each material vertex where `amount` of the spread puts it, in the render
- * model's own coordinates: what the window draws and the OBJ export writes.
+ * Each material vertex where the spread's field, drawn `amount` times over,
+ * puts it, in the render model's own coordinates: what the window draws and
+ * the OBJ export writes. `amount` is the drawn one (`spatialDrawAmount`) — a
+ * version 2 spread's Amount times its solve's gain — so it is not held to the
+ * stored Amount's range.
  */
 export function posedMaterialPositions(
   prepared: SpatialMaterial,
@@ -233,11 +236,10 @@ export function posedMaterialPositions(
   amount: number
 ): Point3[] {
   const { source, scale } = prepared;
-  const spreadAmount = clampSpatialSpreadAmount(amount);
   return source.positions.map(
     (p, v) =>
       p.map(
-        (x, a) => x + spreadAmount * scale * solution.displacements[v]![a]!
+        (x, a) => x + amount * scale * solution.displacements[v]![a]!
       ) as Point3
   );
 }
@@ -253,7 +255,7 @@ export function spatialMaterialMesh(
 ): Folded3dMesh {
   const { source, input } = prepared;
   const center = modelCentroid(model);
-  const posed = posedMaterialPositions(prepared, solution, amount).map(
+  const posed = posedMaterialPositions(prepared, solution, clampSpatialSpreadAmount(amount)).map(
     (p) => p.map((x, a) => x - center[a]!) as Point3
   );
   const positions: number[] = posed.flatMap((p) => toSimBasis(p));

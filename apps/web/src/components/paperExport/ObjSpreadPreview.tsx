@@ -4,27 +4,30 @@
  * with the view cube for the named views.
  *
  * - **A flat figure** is drawn as the Diagram's Perspective 3D draws a spread
- *   (`perspectiveSpread`), by Fold and Diagram's renderer
- *   (`useSpreadRenderer`) into the simulator's viewport.
+ *   at the figure's spread's version (`connectedDrawAmount`), by Fold and
+ *   Diagram's renderer (`useSpreadRenderer`) into the simulator's viewport.
  * - **A 3D figure** is drawn as its window draws it, the spread a uniform on
- *   the solved displacement field (`usePreparedSpatialMesh`), by the 3D
- *   window's runtime, from the figure's own camera — as Pose draws a step
- *   folded in 3D.
+ *   the solved displacement field (`usePreparedSpatialMesh`) at the figure's
+ *   spread's version (`spatialDrawAmount`), by the 3D window's runtime, from
+ *   the figure's own camera — as Pose draws a step folded in 3D.
  *
  * While the fold is read, folded again or solved it says so, and when it
  * cannot be, why.
  */
+import type { ConnectedSpread } from '@oristudio/layer-spread';
 import type { OrbitView } from '@treemaker/origami-simulator';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import { folded3dMesh } from '../../cp-workspace/folded/folded3dMesh';
+import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
 import {
   folded3dFrameFillZoom,
   folded3dWindowRenderSettings,
   folded3dWindowView,
 } from '../../cp-workspace/folded/folded3dWindow';
 import { useFolded3dMeshRuntime } from '../../cp-workspace/folded/useFolded3dMeshRuntime';
+import { spatialDrawAmount } from '../../cp-workspace/folded/spatialSpreadSettings';
 import { usePreparedSpatialMesh } from '../../cp-workspace/folded/useSpatialFoldedMesh';
 import type { OristudioCpFolded3dRenderModel } from '../../engine/oristudioCpTypes';
 import { spreadCameraSide, type SpreadPresentation } from '../../layer-spread/presentation';
@@ -54,9 +57,9 @@ export function ObjSpreadPreview({
   if (preparation.status === 'ready') {
     const { view } = preparation;
     return view.kind === 'connected' ? (
-      <ConnectedObjView view={view.view} spread={spread} style={style} />
+      <ConnectedObjView view={view.view} version={view.version} spread={spread} style={style} />
     ) : (
-      <SpatialObjView model={view.model} camera={view.camera} spread={spread} style={style} />
+      <SpatialObjView model={view.model} camera={view.camera} version={view.version} spread={spread} style={style} />
     );
   }
   return <ObjPreviewState failed={preparation.status === 'failed' ? preparation.message : null} />;
@@ -86,7 +89,17 @@ function ViewState({ status }: { status: 'preparing' | 'error' }) {
   );
 }
 
-function ConnectedObjView({ view, spread, style }: { view: ConnectedSpreadView; spread: PaperObjSpread; style: PaperStyle }) {
+function ConnectedObjView({
+  view,
+  version,
+  spread,
+  style,
+}: {
+  view: ConnectedSpreadView;
+  version: ConnectedSpread['version'];
+  spread: PaperObjSpread;
+  style: PaperStyle;
+}) {
   const { t } = useTranslation();
   const viewport = useRef<SimulatorViewportHandle | null>(null);
   const [size, setSize] = useState({ width: 1, height: 1 });
@@ -101,8 +114,8 @@ function ConnectedObjView({ view, spread, style }: { view: ConnectedSpreadView; 
   const pixelRatio = simulatorDevicePixelRatio();
   useEffect(() => {
     request({
-      // No reveal: the camera shows the depth. The amount is the stored one; Perspective 3D lifts it.
-      spread: { kind: 'connected', version: 1, amount: spread.on ? spread.amount : 0, reveal: [0, 0] },
+      // No reveal: the camera shows the depth. The amount is the stored one; Perspective 3D lifts it by its version.
+      spread: { kind: 'connected', version, amount: spread.on ? spread.amount : 0, reveal: [0, 0] },
       presentation: { kind: 'perspective', camera: withRollAbsorbed(orbit), orderSide },
       rotationDeg: 0,
       width: size.width,
@@ -111,7 +124,7 @@ function ConnectedObjView({ view, spread, style }: { view: ConnectedSpreadView; 
       pixelRatio,
       style,
     });
-  }, [request, spread, orbit, orderSide, size, pixelRatio, style]);
+  }, [request, version, spread, orbit, orderSide, size, pixelRatio, style]);
   const pushCamera = useCallback((camera: OrbitView, width: number, height: number) => {
     setSize((was) => (was.width === width && was.height === height ? was : { width, height }));
     setOrbit(camera);
@@ -146,11 +159,13 @@ function ConnectedObjView({ view, spread, style }: { view: ConnectedSpreadView; 
 function SpatialObjView({
   model,
   camera,
+  version,
   spread,
   style,
 }: {
   model: OristudioCpFolded3dRenderModel;
   camera: FoldedFigureCamera | null;
+  version: SpatialSpread['version'];
   spread: PaperObjSpread;
   style: PaperStyle;
 }) {
@@ -164,15 +179,16 @@ function SpatialObjView({
   }, [model]);
   const { mesh: spatial } = usePreparedSpatialMesh(model, null, true);
   const mesh = spreads ? spatial : folded;
+  const gain = spatial?.spreadGain;
   const present = useCallback((bitmap: ImageBitmap) => viewport.current?.presentBitmap(bitmap), []);
   const { status, setCamera, setRenderSettings } = useFolded3dMeshRuntime({ mesh, onFrame: present });
   const settings = useMemo(
     () => ({
       ...folded3dWindowRenderSettings({ style, displayStyle: 'Paper5', devicePixelRatio: simulatorDevicePixelRatio() }),
       // The spread is a uniform on the solved displacement, as the window lifts it.
-      displacementScale: spreads ? spread.amount : 0,
+      displacementScale: spreads ? spatialDrawAmount({ kind: 'spatial', version, amount: spread.amount }, gain) : 0,
     }),
-    [style, spreads, spread.amount]
+    [style, spreads, version, spread.amount, gain]
   );
   const initial = useMemo(() => folded3dWindowView(camera), [camera]);
   const pushCamera = useCallback(

@@ -1,4 +1,4 @@
-import { connectedHeightScale } from './equalOpening';
+import { connectedDrawAmount } from './equalOpening';
 import { preparedInk } from './preparedInk';
 import {
   interpolate,
@@ -92,7 +92,7 @@ export function connectedDrawing(
 ): ConnectedDrawing {
   const { source, solution } = prepared,
     { input, back } = source;
-  const amount = spread.amount * connectedHeightScale(spread, prepared, perspective);
+  const amount = connectedDrawAmount(spread, prepared, perspective);
   const [revealX, revealY] = perspective ? [0, 0] : spread.reveal;
   const reference = solution.references[back ? 1 : 0].plane;
   const unit = Math.hypot(...source.frame.ex);

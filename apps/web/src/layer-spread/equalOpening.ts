@@ -77,10 +77,20 @@ export function equalOpeningGain({ source, solution }: PreparedConnectedSpread):
 }
 
 /** Multiplier on the stored Amount. Versions 1 and 2 retain their saved policy. */
-export function connectedHeightScale(spread: ConnectedSpread, prepared: PreparedConnectedSpread, perspective: boolean): number {
+export function connectedHeightScale(spread: Pick<ConnectedSpread, 'version'>, prepared: PreparedConnectedSpread, perspective: boolean): number {
   if (spread.version === 3) return equalOpeningGain(prepared);
   if (!perspective) return 1;
   return spread.version === 1 ? DOUBLED : DOUBLED * equalOpeningGain(prepared);
+}
+
+/**
+ * How far a spread lifts its solve's unit heights in a view: the stored
+ * Amount by its version's multiplier. Every lift reads this one — the picture,
+ * its picking and captures (`connectedDrawing`), and a flat figure's OBJ,
+ * which is the paper as Perspective 3D lifts it.
+ */
+export function connectedDrawAmount(spread: Pick<ConnectedSpread, 'version' | 'amount'>, prepared: PreparedConnectedSpread, perspective: boolean): number {
+  return spread.amount * connectedHeightScale(spread, prepared, perspective);
 }
 
 /** Historical first visit to Perspective on a v1 flat pose. */
@@ -102,5 +112,5 @@ export function entersPerspective(from: SpreadPresentation | undefined, to: Spre
 /** Unclamped so the controls can disclose when preserving this view exceeds 100%. */
 export function sharedOpeningAmount(spread: ConnectedSpread, prepared: PreparedConnectedSpread, perspective: boolean): number {
   if (spread.version === 2 && perspective) return DOUBLED * spread.amount;
-  return spread.amount * connectedHeightScale(spread, prepared, perspective) / equalOpeningGain(prepared);
+  return connectedDrawAmount(spread, prepared, perspective) / equalOpeningGain(prepared);
 }

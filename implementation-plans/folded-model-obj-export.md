@@ -47,10 +47,15 @@ Fold's step export was given OBJ for a while and had it taken out again
   read, folded again, solved — and says so while it is, and why when it
   cannot be.
 - **The file is what the preview draws.** Perspective 3D lifts a Default
-  spread at twice its stored amount, with no reveal (`perspectiveSpread`,
-  now shared by `foldedFlatScene.ts` and the OBJ), so the same Amount lifts
-  the file as far as the preview shows; a 3D figure's file is posed at the
-  amount itself, as its window poses it.
+  spread by its stored amount times its version's multiplier, with no reveal
+  (`connectedDrawAmount`, shared by `connectedDrawing` and the OBJ), so the
+  same Amount lifts the file as far as the preview shows: twice the amount at
+  version 1, the model's gain at version 3
+  (`implementation-plans/equal-spacing-across-spread-views.md`). A 3D
+  figure's file is posed as its window poses it (`spatialDrawAmount`): the
+  amount itself at version 1, times the solve's gain at version 2. The dialog
+  reads its Amount by the figure's own spread's version, or, for a figure
+  with none, the version Spread layers would make.
 - **Reasons.** A reopened figure that cannot be folded again as drawn — its
   creases moved, its order set by hand, another solution — says
   `needs-refold`; a spread the solver cannot make says what every spread
@@ -102,7 +107,7 @@ Fold's step export was given OBJ for a while and had it taken out again
 - `paperExport/usePaperObjSpread.ts`, `objSpreadSlider.ts`: the dialog's spread
   draft, its preparation and its Amount; `components/paperExport/ObjSpreadRows`,
   `ObjSpreadPreview`: the rows and the 3D preview, flat and 3D.
-- `layer-spread/presentation.ts`: `perspectiveSpread`.
+- `layer-spread/equalOpening.ts`: `connectedDrawAmount`, the one lift.
 - `lib/paperExportSettings.ts`: a folded figure remembers OBJ as its format.
 - `saveObjExport.ts` + catalogs: the reasons, the preview's caption.
 
@@ -140,3 +145,4 @@ Analytics: `paper exported` carries `format: obj` and the folded surfaces, and
 - [x] Browser check from the floating toolbar: live and reopened kabuto, byte-identical files
 - [x] A spread control for 3D figures (Zach: "Yes, 3D too"): spatial Amount, the window's mesh as preview
 - [x] Browser check on box_90 folded in 3D: rows at 25%/64%, preview matches Blender from the figure's camera
+- [x] Merged with #616's spread versions: the file and preview lift by the figure's spread's version (2026-11-26)
