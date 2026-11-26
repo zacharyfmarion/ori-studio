@@ -75,6 +75,7 @@ pub mod anchored;
 pub mod axioms;
 pub mod complete;
 pub mod compound;
+mod conforming;
 pub mod crease_marks;
 mod flat_panels;
 pub mod fold;

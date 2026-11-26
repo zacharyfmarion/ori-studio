@@ -490,6 +490,8 @@ interface Owner {
  * The kernel's subfaces are one planar arrangement: two subfaces that share a
  * vertex give it the same coordinates, and no face has a corner partway along
  * a subface edge, so a subface edge lies wholly on any face edge it runs along.
+ * Fold's scene seals its overlay's cells to the same (`oristudio-fold`'s
+ * `conforming`); an edge whose ends match no other subface's is the rim.
  * A face with an edge along it lies on one side of it, so it is in the stack
  * of one of the two subfaces there, and those two stacks are all that is
  * searched for its owners.

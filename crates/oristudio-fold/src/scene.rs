@@ -16,7 +16,11 @@
 //! - `subfaces`: the cells of `oristudio-layer-order`'s overlay (the same
 //!   cells the checker derives transitivity from), each with every face
 //!   covering it, top first as the viewer sees it. Cells with equal stacks can
-//!   sit side by side: the overlay cuts along whole edge lines.
+//!   sit side by side: the overlay cuts along whole edge lines. Their outlines
+//!   are sealed into one planar arrangement, as the kernel's are and the
+//!   painters take them (`crate::conforming`): a corner two cells share has
+//!   one set of coordinates, and a corner partway along a cell's edge is a
+//!   corner of that edge too.
 //! - `sheet_points`: the crease-pattern vertices in sheet coordinates.
 //! - `sheet`: the sheet's longer side, 1 in the unit sheet frame.
 //! - `aux_lines`: the crease marks (partial creases, `crate::crease_marks`),
@@ -58,6 +62,7 @@ use oristudio_geometry::convex;
 use oristudio_layer_order::OrderTable;
 use serde::{Deserialize, Serialize};
 
+use crate::conforming::conforming;
 use crate::isometry::Isometry;
 use crate::pattern::{CreaseKind, EdgeId, FaceId, Letter, VertexId, opposite};
 use crate::state::{State, sort_top_first};
@@ -285,13 +290,18 @@ impl State {
         // Every cell's stack ranks each pair of its faces: through a table,
         // not the order's map (a fifty-deep stack is 2,500 lookups).
         let table = OrderTable::new(self.folded_view(), self.order());
-        let subfaces = self
-            .problem()
-            .overlay()
-            .cells()
+        let cells = self.problem().overlay().cells();
+        let corners = self
+            .folded_view()
+            .faces()
             .iter()
-            .map(|cell| {
-                let mut polygon: Vec<ScenePoint> = cell.polygon.iter().map(|&p| scene(p)).collect();
+            .flat_map(|face| face.polygon.iter().copied());
+        let outlines = conforming(corners, cells.iter().map(|cell| cell.polygon.as_slice()));
+        let subfaces = cells
+            .iter()
+            .zip(outlines)
+            .map(|(cell, outline)| {
+                let mut polygon: Vec<ScenePoint> = outline.into_iter().map(scene).collect();
                 let positions: Vec<usize> = cell
                     .faces
                     .iter()
@@ -438,6 +448,7 @@ pub(crate) fn top_first(state: &State, faces: &[FaceId]) -> Vec<FaceId> {
 mod tests {
     use super::*;
     use crate::fold::PlainFold;
+    use crate::numerics::TOL;
     use crate::refusal::Side;
     use crate::sheet::Sheet;
     use crate::view::{Direction, StartSide};
@@ -628,6 +639,191 @@ mod tests {
         assert_eq!(top_first_at(&table, &[3, 2, 1, 0]), vec![0, 1, 2, 3]);
         // Without 2: 0 above 1, 3 above 1, 0 and 3 unrelated.
         assert_eq!(top_first_at(&table, &[1, 3, 0]), vec![0, 3, 1]);
+    }
+
+    /// A strip folded into a square ring by four 45° valleys, its free end
+    /// tucked under its start and reaching into the first corner. The order
+    /// is cyclic: the start over the end, the end over the fourth side, each
+    /// side over the one before, the second over the start. The end's edge
+    /// line cuts the first corner's cell, which the second side's cell above
+    /// it does not have: a corner partway along that cell's edge, which is
+    /// where the start's buried edge runs.
+    fn tucked_ring() -> State {
+        use crate::compound::tuck::{TuckChoices, TuckFold, TuckOutcome};
+        let (h, start, side) = (0.08, 0.15, 0.2125);
+        let rectangle = Sheet::rectangle(1.0, h).unwrap_or_else(|e| panic!("{e}"));
+        let mut state = State::flat(rectangle, StartSide::Front).unwrap_or_else(|e| panic!("{e}"));
+        for k in 0..4 {
+            // The crease at `c` along the strip's middle, turning what lies
+            // beyond it a quarter counter-clockwise.
+            let c = start + side * f64::from(k);
+            let seed = [c + 0.01, h / 2.0];
+            let isometry = state
+                .face_at(seed)
+                .and_then(|f| state.isometry(f))
+                .unwrap_or_else(|| unreachable!());
+            let at = isometry.apply([c, h / 2.0]);
+            let ahead = isometry.apply([c + 1.0, h / 2.0]);
+            let d = [ahead[0] - at[0], ahead[1] - at[1]];
+            let line = Line::from_point_direction(at, [d[0] - d[1], d[1] + d[0]])
+                .unwrap_or_else(|| unreachable!());
+            let moving = Side::of_point(&line, [at[0] + 0.01 * d[0], at[1] + 0.01 * d[1]])
+                .unwrap_or_else(|| unreachable!());
+            let seed = crate::fold::Seed::Flaps { at: vec![seed] };
+            if k < 3 {
+                let op = PlainFold::new(line, moving, Direction::Valley).with_seed(seed);
+                state = state.fold(&op).unwrap_or_else(|e| panic!("{e}")).state;
+                continue;
+            }
+            let op = TuckFold {
+                line,
+                side: moving,
+                direction: Direction::Valley,
+                seed,
+                target: [0.02, h / 2.0],
+                additional_targets: Vec::new(),
+            };
+            // The end's corner with the fourth side goes either way; one
+            // way closes the cycle.
+            let TuckOutcome::ChooseOrder(choice) = state
+                .tuck_fold(&op, &TuckChoices::default())
+                .unwrap_or_else(|e| panic!("{e:?}"))
+            else {
+                panic!("the tuck left no choice");
+            };
+            let cyclic = (0..2).find_map(|pick| {
+                let landed = choice.pick(&[pick]).ok()?.state;
+                cyclic_stacks(&landed.scene()).then_some(landed)
+            });
+            state = cyclic.unwrap_or_else(|| panic!("no order closes the ring"));
+        }
+        state
+    }
+
+    /// Whether "over" in the scene's stacks has a cycle: no face can be
+    /// drawn first.
+    fn cyclic_stacks(scene: &FoldScene) -> bool {
+        let n = scene.faces.len();
+        let mut below = vec![std::collections::BTreeSet::new(); n];
+        for sub in &scene.subfaces {
+            for pair in sub.faces_top_to_bottom.windows(2) {
+                below[pair[0]].insert(pair[1]);
+            }
+        }
+        let mut drawn = vec![false; n];
+        for _ in 0..n {
+            let Some(next) = (0..n).find(|&f| !drawn[f] && below[f].iter().all(|&g| drawn[g]))
+            else {
+                return true;
+            };
+            drawn[next] = true;
+        }
+        false
+    }
+
+    /// Corners of other polygons within TOL of an edge and strictly between
+    /// its ends: (polygon, edge).
+    fn corners_partway(polygons: &[Vec<Point>]) -> Vec<(usize, usize)> {
+        let mut found = Vec::new();
+        for (i, polygon) in polygons.iter().enumerate() {
+            for (e, &a) in polygon.iter().enumerate() {
+                let b = polygon[(e + 1) % polygon.len()];
+                let d = [b[0] - a[0], b[1] - a[1]];
+                let length = d[0].hypot(d[1]);
+                let partway = polygons.iter().enumerate().any(|(j, other)| {
+                    j != i
+                        && other.iter().any(|&p| {
+                            let v = [p[0] - a[0], p[1] - a[1]];
+                            let along = (d[0] * v[0] + d[1] * v[1]) / length;
+                            (d[0] * v[1] - d[1] * v[0]).abs() / length <= TOL
+                                && along > TOL
+                                && along < length - TOL
+                        })
+                });
+                if partway {
+                    found.push((i, e));
+                }
+            }
+        }
+        found
+    }
+
+    /// The painters' contract on a scene's subfaces (`SubfaceEdges` in the
+    /// web app): just outside any edge that has a subface beyond it, that
+    /// subface has the same edge, its ends bit for bit.
+    fn unmatched_edges(polygons: &[Vec<Point>]) -> Vec<(usize, usize)> {
+        let mut found = Vec::new();
+        for (i, polygon) in polygons.iter().enumerate() {
+            for (e, &a) in polygon.iter().enumerate() {
+                let b = polygon[(e + 1) % polygon.len()];
+                let length = (b[0] - a[0]).hypot(b[1] - a[1]);
+                // Counter-clockwise: outward is to the right of a → b.
+                let out = [(b[1] - a[1]) / length, (a[0] - b[0]) / length];
+                let beyond = [
+                    (a[0] + b[0]) / 2.0 + 1e-4 * out[0],
+                    (a[1] + b[1]) / 2.0 + 1e-4 * out[1],
+                ];
+                for (j, other) in polygons.iter().enumerate() {
+                    if j == i || !convex::contains_point(other, beyond, 0.0) {
+                        continue;
+                    }
+                    let shared = other
+                        .iter()
+                        .enumerate()
+                        .any(|(k, &p)| p == b && other[(k + 1) % other.len()] == a);
+                    if !shared {
+                        found.push((i, e));
+                    }
+                }
+            }
+        }
+        found
+    }
+
+    /// The overlay leaves the tucked ring's cells meeting at corners partway
+    /// along their edges, and at corners a few bits apart; the scene's
+    /// subfaces meet edge to edge, so a painter finds the subface across
+    /// every edge, the start's buried edge included.
+    #[test]
+    fn a_tucked_ring_s_subfaces_meet_edge_to_edge() {
+        let state = tucked_ring();
+        for view in [state.clone(), state.turn_over()] {
+            let scene = view.scene();
+            assert!(cyclic_stacks(&scene), "the ring's order is cyclic");
+            let cells: Vec<Vec<Point>> = view
+                .problem()
+                .overlay()
+                .cells()
+                .iter()
+                .map(|cell| cell.polygon.clone())
+                .collect();
+            assert!(
+                !corners_partway(&cells).is_empty(),
+                "the overlay leaves a corner partway along an edge"
+            );
+            assert!(!unmatched_edges(&cells).is_empty());
+            let subfaces: Vec<Vec<Point>> = scene
+                .subfaces
+                .iter()
+                .map(|sub| sub.polygon.iter().map(|&p| xy(p)).collect())
+                .collect();
+            assert_eq!(corners_partway(&subfaces), vec![]);
+            assert_eq!(unmatched_edges(&subfaces), vec![]);
+            // Sealing moves nothing by more than the tolerance and keeps each
+            // cell's place: every subface is its cell, seen through the view.
+            let to_scene = view.view().transform();
+            for (sub, cell) in subfaces.iter().zip(&cells) {
+                assert!(sub.len() >= cell.len());
+                for &p in cell {
+                    let q = to_scene.apply(p);
+                    let nearest = sub
+                        .iter()
+                        .map(|s| (s[0] - q[0]).hypot(s[1] - q[1]))
+                        .fold(f64::INFINITY, f64::min);
+                    assert!(nearest <= TOL, "{p:?} moved by {nearest}");
+                }
+            }
+        }
     }
 
     #[test]

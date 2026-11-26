@@ -10,6 +10,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import { initialFoldReaderState, withFoldCursor } from '../document/foldReaderState';
 import { isLockedStep, type FoldSequenceDocument, type FoldStep } from '../document/foldSequenceDocument';
 import { readFoldSequences } from '../document/foldSequenceFile';
+import { drawnAgain } from '../document/foldSequence.fixtures';
 import { createFoldSession, type FoldSession } from '../session/foldSession';
 import { settle } from '../session/foldSession.fixtures';
 import { selectFoldCursorNode } from '../session/foldSessionState';
@@ -139,7 +140,7 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE || !existsSync(FIXTURE))('a reverse fold dr
     await draw('free');
     const preview = await landed();
     expect(chips(preview)).toEqual({ pressed: [expect.any(Number)], of: 2 });
-    expect(preview.step?.op).toEqual(reverse.op);
+    expect(preview.step?.op).toEqual(drawnAgain(reverse.op));
     const committed = await commitPreviewed(session, seen);
     expect(committed.fingerprint).toBe(reverse.expect);
   });
@@ -183,6 +184,6 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE || !existsSync(FIXTURE))('a reverse fold dr
       await settle();
     });
     const fixed = await landed();
-    expect(fixed.step?.op).toEqual(reverse.op);
+    expect(fixed.step?.op).toEqual(drawnAgain(reverse.op));
   });
 });
