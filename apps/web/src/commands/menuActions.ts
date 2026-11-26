@@ -1,7 +1,7 @@
 import { activeDesignTab } from '../store/workspaceStore/designTabs';
 import { designKindForContext } from '../designKinds';
 import type { DesignTab } from '../store/workspaceStore/designTabs';
-import { track } from '../analytics';
+import { trackCountedUse } from '../analytics';
 import { getFileService, type FileCommand, type FileService } from '../platform/fileService';
 import { useHelpStore } from '../store/helpStore';
 import { useLayoutStore } from '../store/layoutStore';
@@ -1034,8 +1034,9 @@ function analyticsCommandGroup(id: string): string {
   return id.split(/[.:]/, 1)[0] || 'other';
 }
 
+/** Counted per window, not sent per press: Undo alone was tens of thousands a week (`analytics/countedUses.ts`). */
 function trackCommandInvoked(id: string): void {
-  track('command invoked', {
+  trackCountedUse('command invoked', {
     command_id: analyticsCommandId(id),
     command_group: analyticsCommandGroup(id),
   });
