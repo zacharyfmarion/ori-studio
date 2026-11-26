@@ -296,6 +296,12 @@
     "ratioTitle": "Dividir a linha por uma proporção"
   },
   "fold": {
+    "adjustOrder": {
+      "enter": "Pressione Enter para abrir a caixa de diálogo Ordem das camadas.",
+      "failed": "Não foi possível adicionar essa ordem como passo. Abra a caixa de diálogo e tente novamente.",
+      "open": "Editar ordem das camadas…",
+      "unreadable": "A caixa de diálogo Ordem das camadas não consegue ler as camadas deste passo."
+    },
     "categoryLabel": "Espaço de dobra",
     "chooser": {
       "noKeys": {
@@ -919,6 +925,7 @@
       "unfoldTarget": "Escolha o passo para onde voltar."
     },
     "tool": {
+      "adjustOrderHelp": "Mudar quais camadas ficam na frente, sem nenhum vinco novo.",
       "closedSinkHelp": "Empurrar a extremidade de uma ponta fechada para dentro de um bolso, mantendo as camadas juntas.",
       "crimpHelp": "Dobrar uma aba para dentro ao longo de uma linha e de volta para fora ao longo de uma segunda, de modo que a ponta gire.",
       "divideLine": "Dividir linha",

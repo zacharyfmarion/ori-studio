@@ -339,6 +339,22 @@ export interface FoldCpJumpOp {
   turnDeg?: number;
 }
 
+/**
+ * Adjust order (`implementation-plans/fold-adjust-order.md`): the parent's
+ * paper exactly as it is — every crease, the shape and the pose — with its
+ * layers in another order, chosen in the Layer order dialog. Only the order
+ * is stored, as Import CP's `orderJson` stores one: every pair, faces named
+ * by interior sheet-point witnesses. No turn and no side: the dialog's
+ * Rotate is hidden for it, and its Front/Back only looks at the paper.
+ *
+ * A build from before it reads the kind as unknown and keeps the step
+ * locked, verbatim (`FoldLockedStep`), so it is never misread.
+ */
+export interface FoldAdjustOrderOp {
+  kind: 'adjust-order';
+  orderJson: string;
+}
+
 // --- Compound folds (plan D4), one block per family -------------------------
 
 /**
@@ -790,6 +806,7 @@ export type FoldOp =
   | FoldTurnOp
   | FoldRotateOp
   | FoldCpJumpOp
+  | FoldAdjustOrderOp
   | FoldReverseOp
   | FoldCrimpOp
   | FoldTuckOp
@@ -810,6 +827,7 @@ export const FOLD_OP_KINDS: readonly FoldOpKind[] = [
   'turn',
   'rotate',
   'cp-jump',
+  'adjust-order',
   'inside-reverse',
   'outside-reverse',
   'crimp',

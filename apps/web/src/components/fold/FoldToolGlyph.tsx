@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { CpToolGlyph } from '../../cp-workspace/toolCatalog/cpToolGlyph';
+import { LayerOrderIcon } from '../ui/LayerOrderIcon';
 import { cpActionByOperation } from '../../lib/oristudioCpActions';
 import type {
   FoldLineModeId,
@@ -180,6 +181,9 @@ export function FoldToolGlyph({ id, compact = false }: { id: FoldRailItemId; com
       return <RotateCcwSquare size={SIZE} strokeWidth={1.5} aria-hidden="true" />;
     case 'rotate':
       return <RotateCw size={SIZE} strokeWidth={1.5} aria-hidden="true" />;
+    // The layer order's own mark, the sheets Fold with layer order… wears in Edit.
+    case 'adjust-order':
+      return <LayerOrderIcon size={SIZE} strokeWidth={1.5} />;
     // The sequence tools, by the icons their header buttons and menu rows wear.
     case 'unfold-to':
       return <Undo2 size={SIZE} strokeWidth={1.5} aria-hidden="true" />;

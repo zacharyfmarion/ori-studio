@@ -152,6 +152,8 @@ export function foldSentenceStepOf(op: FoldEngineOp, context: FoldSentenceContex
       return { op: 'unfold-to', sheet: op.target === null, number: context.returnStep ?? undefined };
     case 'cp-jump':
       return { op: 'cp-jump', ...(op.source ? { collapse: true } : {}) };
+    case 'adjust-order':
+      return { op: 'adjust-order' };
     // Compound folds (plan D4), one block per family.
     case 'inside-reverse':
     case 'outside-reverse':

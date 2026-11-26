@@ -135,6 +135,7 @@
     "refreshAllMessage": "Les actualiser est une modification que vous pouvez annuler, mais ce que vous avez annulé avant ne pourra plus être rétabli.",
     "refreshAllTitle": "Actualiser {{total}} étapes\u00a0?",
     "replacePictureTitle": "Remplacer l’image",
+    "titleBlockPatternTitle": "Importer un patron de plis",
     "uploadPicturesTitle": "Importer des images",
     "uploadPictureTitle": "Importer une image"
   },

@@ -60,7 +60,7 @@ use thiserror::Error;
 
 use crate::complete::{
     BudgetLimit, ChoiceCount, CompletionLimits, CompletionRefusal, CompletionSession, Completions,
-    FixedKind, FixedPair,
+    FixedPair,
 };
 use crate::crease_marks::{self, CreaseMark};
 use crate::isometry::Isometry;
@@ -730,30 +730,16 @@ impl ImportedPattern {
         start: FaceId,
         relations: &[OrieditaRelation],
     ) -> Result<Vec<FixedPair>, ImportRefusal> {
-        let start_front_up = self.unordered.isometry(start).is_some_and(|t| t.front_up());
-        let order = LayerOrder::from_oriedita(relations, start_front_up).map_err(|e| match e {
-            LayerOrderError::ContradictoryOrder { pair } => {
-                self.refused_order(CompletionRefusal::FixedContradictory { pair })
-            }
-            other => ImportRefusal::Internal {
-                message: other.to_string(),
-            },
-        })?;
-        Ok(order
-            .pairs()
-            .filter_map(|(pair, lo_above)| {
-                let [upper, lower] = if lo_above? {
-                    [pair.lo(), pair.hi()]
-                } else {
-                    [pair.hi(), pair.lo()]
-                };
-                Some(FixedPair {
-                    upper,
-                    lower,
-                    kind: FixedKind::Seed,
-                })
+        self.unordered
+            .oriedita_seeds(start, relations)
+            .map_err(|e| match e {
+                LayerOrderError::ContradictoryOrder { pair } => {
+                    self.refused_order(CompletionRefusal::FixedContradictory { pair })
+                }
+                other => ImportRefusal::Internal {
+                    message: other.to_string(),
+                },
             })
-            .collect())
     }
 
     /// Edit's folded figure as a state: Oriedita's relations and the letters

@@ -44,6 +44,13 @@ describe('trackDiagramPageSetupChanged', () => {
     ]);
   });
 
+  it('sends a crease pattern uploaded for the title block by its format, never its name', () => {
+    trackDiagramPageSetupChanged('title_block_pattern', { titleBlockChoice: 'upload', titleBlockPatternFormat: 'fold' });
+    expect(runtime.track.mock.calls).toEqual([
+      ['diagram page setup changed', { setting: 'title_block_pattern', title_block_choice: 'upload', title_block_pattern_format: 'fold' }],
+    ]);
+  });
+
   it('sends whether the title block’s subtitle or note prints, never its words', () => {
     trackDiagramPageSetupChanged('title_block_subtitle', { titleBlockSubtitle: 'hidden' });
     trackDiagramPageSetupChanged('title_block_note', { titleBlockNote: 'shown' });

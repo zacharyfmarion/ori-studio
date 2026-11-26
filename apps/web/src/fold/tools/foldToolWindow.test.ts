@@ -193,11 +193,11 @@ describe('foldToolWindow with a fold under preview', () => {
     expect(calls.toggleFlap).toHaveBeenCalledWith(1);
     expect(calls.hoverFlap).toHaveBeenCalledWith(0);
 
-    expect(model?.footer?.cancel.label).toBe('Cancel');
-    expect(model?.footer?.cancel.shortcut).toBe('viewport.cancel');
+    expect(model?.footer?.cancel?.label).toBe('Cancel');
+    expect(model?.footer?.cancel?.shortcut).toBe('viewport.cancel');
     expect(model?.footer?.commit).toMatchObject({ label: 'Valley fold', shortcut: 'fold.commit', disabled: false });
     model?.footer?.commit.run();
-    model?.footer?.cancel.run();
+    model?.footer?.cancel?.run();
     expect(calls.commit).toHaveBeenCalledTimes(1);
     expect(calls.cancel).toHaveBeenCalledTimes(1);
     expect(model?.refusal).toBeNull();
@@ -261,7 +261,7 @@ describe('foldToolWindow with a fold under preview', () => {
     expect(model?.kind?.disabled).toBe(true);
     expect(model?.movingSide?.disabled).toBe(true);
     expect(model?.layers?.disabled).toBe(true);
-    expect(model?.footer?.cancel.disabled).toBe(false);
+    expect(model?.footer?.cancel?.disabled).toBe(false);
     expect(foldToolWindow(t, view({ readOnly: 'newer' }), verbs(), mouse)?.lineMode?.disabled).toBe(true);
   });
 });
@@ -472,5 +472,5 @@ it('says while a pleat’s layer orders are searched for, beside the Escape that
     'Working out how the pleat’s layers can stack…',
     'Folding as soon as the preview is ready…',
   ]);
-  expect(searching.footer?.cancel.shortcut).toBe('viewport.cancel');
+  expect(searching.footer?.cancel?.shortcut).toBe('viewport.cancel');
 });

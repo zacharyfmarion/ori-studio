@@ -7,10 +7,10 @@ const io = vi.hoisted(() => ({
 }));
 vi.mock('../fold/io/foldIoCommands', () => ({ runFoldIoCommand: io.runFoldIoCommand }));
 vi.mock('../diagram/fold/foldBrowserActions', () => ({ sendFoldStepsToDiagram: io.sendFoldStepsToDiagram }));
-const analytics = vi.hoisted(() => ({ track: vi.fn() }));
+const analytics = vi.hoisted(() => ({ trackCountedUse: vi.fn() }));
 vi.mock('../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../analytics')>()),
-  track: analytics.track,
+  trackCountedUse: analytics.trackCountedUse,
 }));
 // `handleMenuAction` asks the store's capabilities, which want Fold on screen
 // with a sequence to send. That gate is not what the modal tests below are about.
@@ -132,7 +132,7 @@ describe('Fold’s imports and hand-offs behind a modal dialog', () => {
   beforeEach(() => {
     io.runFoldIoCommand.mockClear();
     io.sendFoldStepsToDiagram.mockClear();
-    analytics.track.mockClear();
+    analytics.trackCountedUse.mockClear();
   });
 
   afterEach(() => {
@@ -146,14 +146,14 @@ describe('Fold’s imports and hand-offs behind a modal dialog', () => {
     await expect(handleMenuAction(id)).resolves.toBe(false);
 
     expect(runs()).toBe(0);
-    expect(analytics.track).not.toHaveBeenCalled();
+    expect(analytics.trackCountedUse).not.toHaveBeenCalled();
   });
 
   it.each(HELD)('runs %s as before with no dialog open', async (id) => {
     await expect(handleMenuAction(id)).resolves.toBe(true);
 
     expect(runs()).toBe(1);
-    expect(analytics.track).toHaveBeenCalledWith('command invoked', expect.objectContaining({ command_id: id }));
+    expect(analytics.trackCountedUse).toHaveBeenCalledWith('command invoked', expect.objectContaining({ command_id: id }));
   });
 
   it('still exports over a dialog, as the File menu’s exports do', async () => {

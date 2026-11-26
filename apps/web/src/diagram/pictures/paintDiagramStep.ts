@@ -24,16 +24,18 @@ export {STEP_CARD_PADDING_MM} from './pictureMetrics';
  */
 import { DEFAULT_PAPER_SIZE_MM, type PaperPage, type PaperSizeMeasure } from '../../lib/paper/paperPage';
 import type { PaperScene } from '../../lib/paper/paperScene';
+import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { PT_PER_CSS_PX, pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import {
+  isPictureAsset,
   posedRenderOf,
   type DiagramAsset,
   type DiagramFixedPicture,
   type DiagramScenePicture,
   type DiagramStep,
   type DiagramStepDiagramPicture,
+  type DiagramPictureAsset,
   type DiagramStyle,
-  type KnownDiagramAsset,
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { SVG_NS } from '../upload/svgSanitize';
@@ -98,13 +100,13 @@ export function poseTransform(
 }
 
 /** An asset as markup in its own box, at the origin. */
-function assetMarkup(asset: KnownDiagramAsset): string {
+function assetMarkup(asset: DiagramPictureAsset): string {
   if (asset.kind === 'svg') return asset.svg;
   return `<image width="${num(asset.widthPx)}" height="${num(asset.heightPx)}" preserveAspectRatio="none" href="${asset.src}"/>`;
 }
 
 /** An asset in a pose, as a standalone SVG document. The asset itself when upright. */
-export function paintAsset(asset: KnownDiagramAsset, pose: PicturePose = UPRIGHT): PaintedPicture {
+export function paintAsset(asset: DiagramPictureAsset, pose: PicturePose = UPRIGHT): PaintedPicture {
   const posed = poseTransform(asset.widthPx, asset.heightPx, pose);
   const frame = { x: 0, y: 0, width: posed.widthPx, height: posed.heightPx };
   if (asset.kind === 'svg' && posed.transform === '') {
@@ -131,6 +133,33 @@ export interface SceneSource {
   simulated?: boolean;
   /** The marks drawn over it along its lines, which those lines are left out under ({@link sourceUnderMarks}). */
   covering?: CoveringMarks;
+  /** False: drawn without its aux lines, whatever the style says, a crease pattern's included ({@link PictureDrawing}). */
+  auxLines?: false;
+}
+
+/**
+ * How a surface draws a step's picture beyond what the step itself says: the
+ * title block draws its finished model with no aux lines
+ * (`diagram-title-block-final-cp.md`, F-1). Unsaid, as the step says.
+ */
+export interface PictureDrawing {
+  /** False: a scene drawn without its aux lines. */
+  auxLines?: false;
+}
+
+/** `source` as `drawing` says to draw it: a scene's aux lines left out where it says so; anything else as it is. */
+export function drawnPictureSource(source: StepPictureSource | null, drawing: PictureDrawing): StepPictureSource | null {
+  return source?.kind === 'scene' && drawing.auxLines === false ? { ...source, auxLines: false } : source;
+}
+
+/**
+ * The style a scene is painted in (`diagramScenePaintStyle`), and measured by,
+ * since its ink reaches as far as its widest pen drawn: its aux pen off where
+ * the source draws no aux lines.
+ */
+export function sceneSourcePaintStyle(style: DiagramStyle, source: Pick<SceneSource, 'pattern' | 'auxLines'>): PaperStyle {
+  const paint = diagramScenePaintStyle(style, source.pattern);
+  return source.auxLines === false ? { ...paint, auxCreases: { ...paint.auxCreases, visible: false } } : paint;
 }
 
 /** What a scene's page size measures: a crease pattern's sheet, a folded model's figure. */
@@ -146,7 +175,7 @@ export function sceneMeasure(pattern: boolean): PaperSizeMeasure {
  * review): what can be done to it is the edit gates' to say.
  */
 export type StepPictureSource =
-  | { kind: 'asset'; asset: KnownDiagramAsset; pose: PicturePose; sceneFrame?: [number, number, number, number] }
+  | { kind: 'asset'; asset: DiagramPictureAsset; pose: PicturePose; sceneFrame?: [number, number, number, number] }
   | SceneSource
   | { kind: 'fixed'; picture: DiagramFixedPicture }
   | { kind: 'step-diagram'; picture: DiagramStepDiagramPicture; covering?: CoveringMarks };
@@ -160,7 +189,8 @@ export function stepPictureSource(
   switch (picture.kind) {
     case 'asset': {
       const asset = Object.hasOwn(assets, picture.assetId) ? assets[picture.assetId] : undefined;
-      if (!asset || 'unknown' in asset) return null;
+      // A newer build's asset, or one that is no picture (a crease pattern uploaded for the title block), draws nothing.
+      if (!isPictureAsset(asset)) return null;
       // A capture kept as a bitmap is drawn as it was captured.
       const pose = source?.kind === 'upload' ? source : UPRIGHT;
       return {

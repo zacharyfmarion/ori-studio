@@ -270,9 +270,13 @@ export function mirrorOperation(
       else throw new RepeatFailure('repeat_view_axis');
       break;
     }
+    // An Adjust order's order, chosen in the Layer order dialog, names faces
+    // by their own witnesses: the mirror's faces are other faces, with no
+    // order to map.
     case 'repeat':
     case 'cp-jump':
     case 'unfold-to':
+    case 'adjust-order':
       throw new RepeatFailure('repeat_unsupported');
   }
   // Directions are the viewer's: seen from the other side, a valley on the

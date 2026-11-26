@@ -24,7 +24,8 @@ use std::sync::Arc;
 
 use oristudio_geometry::convex;
 use oristudio_layer_order::{
-    ConstraintProblem, FoldedView, LayerOrder, MAX_STACKED_TRIPLES, derived_letter,
+    ConstraintProblem, FoldedView, LayerOrder, LayerOrderError, MAX_STACKED_TRIPLES,
+    OrieditaRelation, derived_letter,
 };
 
 use crate::complete::{
@@ -222,6 +223,38 @@ impl Unordered {
     /// [`complete::letter_seeds`], the rule every source of letters shares).
     pub fn letter_seeds(&self) -> Vec<FixedPair> {
         complete::letter_seeds(&self.view)
+    }
+
+    /// Oriedita's relations over these faces as seeds, every pair as they
+    /// state it: `start` is the face Oriedita's fold starts from, whose side
+    /// up gives the relations' sense (upper is nearer a viewer of its
+    /// front; layer order's `from_oriedita`). What the Layer order dialog's
+    /// Apply becomes, through Import CP's match of its faces
+    /// ([`crate::ImportedPattern::oriedita_face_seeds`]) or Adjust order's
+    /// (`steer::StateFaces`). Two relations that order one pair both ways
+    /// are refused.
+    pub fn oriedita_seeds(
+        &self,
+        start: FaceId,
+        relations: &[OrieditaRelation],
+    ) -> Result<Vec<FixedPair>, LayerOrderError> {
+        let start_front_up = self.isometry(start).is_some_and(|t| t.front_up());
+        let order = LayerOrder::from_oriedita(relations, start_front_up)?;
+        Ok(order
+            .pairs()
+            .filter_map(|(pair, lo_above)| {
+                let [upper, lower] = if lo_above? {
+                    [pair.lo(), pair.hi()]
+                } else {
+                    [pair.hi(), pair.lo()]
+                };
+                Some(FixedPair {
+                    upper,
+                    lower,
+                    kind: FixedKind::Seed,
+                })
+            })
+            .collect())
     }
 
     /// Every order `fixed` and the constraints allow. After an operation, the

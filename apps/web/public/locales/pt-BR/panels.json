@@ -1156,6 +1156,7 @@
       "finishedSentence": "O modelo como os passos o deixam.",
       "fromFold": "De Dobrar…",
       "instruction": {
+        "adjustOrder": "Reorganize as camadas.",
         "closedSink": "Afundamento fechado.",
         "collapse": "Colapse.",
         "insideCrimp": "Crimp interno.",
@@ -1449,7 +1450,7 @@
         "needsRows": "Precisa de duas linhas ou mais",
         "none": "Nenhum",
         "pattern": "Padrão de vincos",
-        "patternHelp": "Desenhado a partir do padrão de vincos que um passo vincula. Auto usa o último passo vinculado; cada padrão aparece uma só vez, pelo passo escolhido para ele ou, se não houver, pelo último passo que o vincula.",
+        "patternHelp": "Suas dobras de montanha e de vale, do padrão de vincos que um passo vincula ou de um arquivo que você enviar. Auto usa o último passo vinculado; cada padrão aparece uma só vez, pelo passo escolhido para ele ou, se não houver, pelo último passo que o vincula.",
         "patternSize": "Tamanho do padrão de vincos",
         "patternSizeHelp": "O lado do padrão de vincos, como fração da altura do bloco de título.",
         "removeCredit": "Remover o crédito {{number}}",
@@ -1459,7 +1460,8 @@
         "stepCount": "Auto ({{number}})",
         "subtitle": "Subtítulo",
         "subtitleHelp": "A linha pequena acima do título. Deixe-a vazia para não imprimir nenhuma.",
-        "typeValue": "Digitar um valor para o crédito {{number}} no lugar"
+        "typeValue": "Digitar um valor para o crédito {{number}} no lugar",
+        "uploadPattern": "Enviar um arquivo CP ou FOLD…"
       },
       "titleHelp": "O título do diagrama, numa aba no alto de cada página.",
       "titleHelpWithBlock": "O título do diagrama, numa aba no alto de cada página. Na primeira página, ele fica no bloco de título."
@@ -1479,6 +1481,7 @@
       "textCut": "O texto não cabe",
       "titleBlock": {
         "creditsCut": "Alguns créditos não cabem",
+        "fileNoPattern": "O arquivo enviado não tem dobras",
         "noModel": "Nenhum passo tem imagem ainda",
         "noPattern": "Nenhum passo está vinculado a um padrão de vincos",
         "stepNoPattern": "O passo {{number}} não tem padrão de vincos",
@@ -2141,6 +2144,7 @@
       "viewTarget": "Ver destino: {{target}}"
     },
     "sentence": {
+      "adjustOrder": "Ajuste a ordem das camadas, sem nenhum vinco novo.",
       "behind": {
         "petal": "Faça uma dobra pétala com a aba, por trás.",
         "petalScores": "Faça uma dobra pétala com a aba, por trás, vincando a dobradiça enquanto ela sobe.",
@@ -3264,6 +3268,7 @@
       "addsPrecreases_one": "Adiciona {{count}} pré-dobra",
       "addsPrecreases_many": "Adiciona {{count}} pré-dobras",
       "addsPrecreases_other": "Adiciona {{count}} pré-dobras",
+      "adjustOrder": "Ajustar ordem",
       "axiomLine": "Axioma {{axiom}} · {{phrase}}",
       "badgeCrimp": "Crimp",
       "badgeImported": "Importado",

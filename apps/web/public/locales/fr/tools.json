@@ -296,6 +296,12 @@
     "ratioTitle": "Diviser la ligne selon un rapport"
   },
   "fold": {
+    "adjustOrder": {
+      "enter": "Appuyez sur Entrée pour ouvrir la boîte de dialogue Ordre des couches.",
+      "failed": "Cet ordre n’a pas pu être ajouté comme étape. Ouvrez la boîte de dialogue et réessayez.",
+      "open": "Modifier l’ordre des couches…",
+      "unreadable": "La boîte de dialogue Ordre des couches ne peut pas lire les couches de cette étape."
+    },
     "categoryLabel": "Espace de pliage",
     "chooser": {
       "noKeys": {
@@ -919,6 +925,7 @@
       "unfoldTarget": "Choisissez l’étape à laquelle revenir."
     },
     "tool": {
+      "adjustOrderHelp": "Changer les couches qui se trouvent devant, sans nouveau pli.",
       "closedSinkHelp": "Enfoncer l’extrémité d’une pointe fermée dans une poche, ses couches restant ensemble.",
       "crimpHelp": "Plier un rabat vers l’intérieur le long d’une ligne et de nouveau vers l’extérieur le long d’une seconde, pour que son extrémité tourne.",
       "divideLine": "Diviser une ligne",

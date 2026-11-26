@@ -122,6 +122,12 @@ pub fn resolve(parent: &State, op: &Op, choices: &Choices) -> Result<Resolved, R
         Op::CpJump(jump) => crate::io::land(parent, jump)
             .map(Resolved::Jump)
             .map_err(Rejection::from),
+        // Adjust order: the parent's paper, ordered again. Held as a view
+        // change is, beside its parent, so its summary is the diff from the
+        // parent (no crease) and its step has no picture.
+        Op::AdjustOrder(reorder) => crate::io::reorder::land(parent, reorder)
+            .map(Resolved::View)
+            .map_err(Rejection::from),
         // Compound folds (`crate::compound`), one arm per family.
         Op::InsideReverse(r) => compound(crate::ops_reverse::resolve_reverse(
             parent,

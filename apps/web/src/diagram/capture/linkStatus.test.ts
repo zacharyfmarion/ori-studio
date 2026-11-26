@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { sheetRegions } from '../../cp-workspace/sheets/cpSheetRegions';
-import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender, type DiagramCpScope } from '../document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender, type DiagramCpScope, type DiagramStep } from '../document/diagramDocument';
 import { cpStep } from '../document/diagramSteps.fixtures';
 import { referencesStep } from '../document/diagramSteps.fixtures';
 import { cpDocument, movedLines, TWO_SQUARES, twoSquaresIndex, type FixtureLine } from './capture.fixtures';
-import { chooseStepCreases, creasesFingerprint } from './captureCreases';
-import { linkStatus, refreshKind } from './linkStatus';
+import { chooseStepCreases, creasesFingerprint, drawnLinesFingerprint } from './captureCreases';
+import { drawnLinesUntracked, linkStatus, refreshKind } from './linkStatus';
 
 const sheets = twoSquaresIndex();
 const [left] = sheetRegions(sheets);
@@ -14,12 +15,32 @@ const regionScope: DiagramCpScope = { kind: 'segment', region: regionReferenceFo
 
 const FOLDED: DiagramCpRender = { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 };
 const CREASE_PATTERN: DiagramCpRender = { mode: 'crease-pattern', rotationDeg: 0 };
+const VIEW = { yaw: 0.8, pitch: -0.9, zoom: 1.4 };
+/** Every way of showing a sheet folded: each draws the sheet's aux lines on its paper. */
+const FOLDED_RENDERS: DiagramCpRender[] = [
+  FOLDED,
+  { mode: 'folded-3d', side: 'front', camera: DEFAULT_FOLDED_3D_CAMERA },
+  { mode: 'simulated', foldPercent: 0, view: VIEW },
+  { mode: 'simulated', foldPercent: 60, view: VIEW },
+];
 
 /** The source a capture of `scope` from `document` would record. */
-function linked(scope: DiagramCpScope, document = cpDocument(), render: DiagramCpRender = FOLDED) {
-  const choice = chooseStepCreases(document, scope, sheets);
+function linked(scope: DiagramCpScope, document = cpDocument(), render: DiagramCpRender = FOLDED, index = sheets) {
+  const choice = chooseStepCreases(document, scope, index);
   if (choice.status !== 'found') throw new Error('the scope should be found');
-  return { scope, render, fingerprint: creasesFingerprint(choice.creases, render) };
+  const drawnFingerprint = drawnLinesFingerprint(choice.creases, render);
+  return {
+    scope,
+    render,
+    fingerprint: creasesFingerprint(choice.creases, render),
+    ...(drawnFingerprint ? { drawnFingerprint } : {}),
+  };
+}
+
+/** The same link as a build before folded pictures kept their drawn lines saved it. */
+function savedBefore(scope: DiagramCpScope, document = cpDocument(), render: DiagramCpRender = FOLDED, index = sheets) {
+  const { drawnFingerprint: _drawn, ...source } = linked(scope, document, render, index);
+  return source;
 }
 
 /** The left diagonal turned valley. */
@@ -33,16 +54,64 @@ describe('linkStatus', () => {
     expect(linkStatus(source, edited(), sheets)).toBe('stale');
   });
 
-  // The aux line in the left square (line 10) is drawn in a crease-pattern
-  // picture and folds nothing: moving it changed the picture Refresh would
-  // take, while the step read current with Refresh disabled.
-  it('reads a region shown as its crease pattern stale when an aux line it draws moves; a fold of it does not', () => {
+  // The aux line in the left square (line 10) folds nothing, but every
+  // picture of the square draws it: a crease pattern among its lines, a fold
+  // on its paper. Moving it changed the picture Refresh would take, while a
+  // folded step read current with Refresh disabled (bug 2, since 2026-10-03).
+  it('reads a region stale when an aux line it draws moves, shown as its crease pattern or folded', () => {
     const scope = regionScope;
     const movedAux = cpDocument(
       TWO_SQUARES.map((line, i): FixtureLine => (i === 9 ? [0, 60, 50, 60, 'Cyan3'] : line))
     );
     expect(linkStatus(linked(scope, cpDocument(), CREASE_PATTERN), movedAux, sheets)).toBe('stale');
-    expect(linkStatus(linked(scope, cpDocument(), FOLDED), movedAux, sheets)).toBe('current');
+    for (const render of FOLDED_RENDERS) {
+      expect(linkStatus(linked(scope, cpDocument(), render), cpDocument(), sheets)).toBe('current');
+      expect(linkStatus(linked(scope, cpDocument(), render), movedAux, sheets)).toBe('stale');
+    }
+  });
+
+  // The first aux line on a sheet that had none: the case a fingerprint of
+  // the folds alone can never see.
+  it('reads a fold stale when an aux line is drawn on a sheet that had none, and not for one drawn on another sheet', () => {
+    const bare = TWO_SQUARES.filter((_, i) => i !== 9);
+    const bareSheets = twoSquaresIndex({ lines: bare });
+    const withAux = (line: FixtureLine) => [...bare, line];
+    const ownAux = withAux([20, 70, 40, 80, 'Cyan3']);
+    const otherAux = withAux([170, 70, 190, 80, 'Cyan3']);
+    for (const render of FOLDED_RENDERS) {
+      const source = linked(regionScope, cpDocument(bare), render, bareSheets);
+      expect(linkStatus(source, cpDocument(bare), bareSheets)).toBe('current');
+      expect(linkStatus(source, cpDocument(ownAux), twoSquaresIndex({ lines: ownAux }))).toBe('stale');
+      expect(linkStatus(source, cpDocument(otherAux), twoSquaresIndex({ lines: otherAux }))).toBe('current');
+    }
+  });
+
+  // Saved links: a folded step saved before it kept its drawn lines never
+  // said which aux lines its picture drew. It reads as it did, so opening a
+  // file changes no step's status, and its next capture starts keeping them.
+  it('compares a folded link saved before it kept its drawn lines by its folds alone, as it was saved', () => {
+    const movedAux = cpDocument(
+      TWO_SQUARES.map((line, i): FixtureLine => (i === 9 ? [0, 60, 50, 60, 'Cyan3'] : line))
+    );
+    for (const render of FOLDED_RENDERS) {
+      const saved = savedBefore(regionScope, cpDocument(), render);
+      expect(saved).not.toHaveProperty('drawnFingerprint');
+      expect(linkStatus(saved, cpDocument(), sheets)).toBe('current');
+      expect(linkStatus(saved, movedAux, sheets)).toBe('current');
+      expect(linkStatus(saved, edited(), sheets)).toBe('stale');
+    }
+  });
+
+  // A saved Defox view draws none of the pattern's lines: it keeps no drawn
+  // lines, and an aux edit leaves it as it was.
+  it('keeps no drawn lines for a crease pattern or a saved Defox view', () => {
+    const movedAux = cpDocument(
+      TWO_SQUARES.map((line, i): FixtureLine => (i === 9 ? [0, 60, 50, 60, 'Cyan3'] : line))
+    );
+    const defox: DiagramCpRender = { mode: 'defox', snapshot: '{}' };
+    expect(linked(regionScope, cpDocument(), CREASE_PATTERN)).not.toHaveProperty('drawnFingerprint');
+    expect(linked(regionScope, cpDocument(), defox)).not.toHaveProperty('drawnFingerprint');
+    expect(linkStatus(linked(regionScope, cpDocument(), defox), movedAux, sheets)).toBe('current');
   });
 
   it('reads a sheet whose border is gone missing, before it reads it stale', () => {
@@ -75,6 +144,31 @@ describe('linkStatus after the pattern moved', () => {
     const step = referencesStep('step-r', { region: regionScope.region, fingerprint: choice.creases.drawnFingerprint });
     if (step.source?.kind !== 'references-step') throw new Error('a References step');
     expect(linkStatus(step.source, movedDocument(), movedSheets)).toBe('current');
+  });
+
+  // A folded step is found by its folds, so an aux edit to a moved sheet is
+  // an edit, not a lost sheet: Refresh rather than Relink.
+  it('reads a fold stale, not missing, when its sheet moved and an aux line on it moved too', () => {
+    const movedAux = movedDocument(TWO_SQUARES.map((line, i): FixtureLine => (i === 9 ? [0, 60, 50, 60, 'Cyan3'] : line)));
+    for (const render of FOLDED_RENDERS) {
+      expect(linkStatus(linked(regionScope, cpDocument(), render), movedDocument(), movedSheets)).toBe('current');
+      expect(linkStatus(linked(regionScope, cpDocument(), render), movedAux, movedSheets)).toBe('stale');
+    }
+    // A crease pattern is found by every line it draws: moved and changed, it cannot be told which.
+    expect(linkStatus(linked(regionScope, cpDocument(), CREASE_PATTERN), movedAux, movedSheets)).toBe('missing');
+  });
+
+  // D6: a card is fingerprinted on every line of its sheet when sent, and
+  // nothing about that changes.
+  it('reads a References step as before: stale for an aux edit in place, missing for one to a moved sheet', () => {
+    const choice = chooseStepCreases(cpDocument(), regionScope, sheets);
+    if (choice.status !== 'found') throw new Error('found');
+    const step = referencesStep('step-r', { region: regionScope.region, fingerprint: choice.creases.drawnFingerprint });
+    if (step.source?.kind !== 'references-step') throw new Error('a References step');
+    const auxLine = (lines: FixtureLine[]) => lines.map((line, i): FixtureLine => (i === 9 ? [0, 60, 50, 60, 'Cyan3'] : line));
+    expect(linkStatus(step.source, cpDocument(), sheets)).toBe('current');
+    expect(linkStatus(step.source, cpDocument(auxLine(TWO_SQUARES)), sheets)).toBe('stale');
+    expect(linkStatus(step.source, movedDocument(auxLine(TWO_SQUARES)), movedSheets)).toBe('missing');
   });
 
   it('reads it missing when it moved and changed beside a sheet of its shape, and stale when it changed in place', () => {
@@ -115,5 +209,25 @@ describe('refreshKind', () => {
     expect(refreshKind(flat, 'unknown', style)).toBeNull();
     expect(refreshKind(flat, 'missing', style)).toBeNull();
     expect(refreshKind({ ...flat, source: null }, 'stale', style)).toBeNull();
+  });
+});
+
+describe('drawnLinesUntracked', () => {
+  const withoutAux = () => cpDocument(TWO_SQUARES.filter((line) => line[4] !== 'Cyan3'));
+
+  // Such a link reads by its folds alone, so an aux edit since it was saved
+  // cannot be told: Refresh is offered on it all the same.
+  it('marks a folded step linked before its link kept its drawn lines, on a pattern with aux lines', () => {
+    for (const render of FOLDED_RENDERS) expect(drawnLinesUntracked(cpStep('step', render), cpDocument())).toBe(true);
+  });
+
+  it('leaves a link that keeps them, a crease pattern, a pattern without aux lines, a locked step and no pattern', () => {
+    const step = cpStep('step', FOLDED);
+    const tracked = { ...step, source: { ...step.source!, drawnFingerprint: 'rc1:drawn' } } as DiagramStep;
+    expect(drawnLinesUntracked(tracked, cpDocument())).toBe(false);
+    expect(drawnLinesUntracked(cpStep('step', CREASE_PATTERN), cpDocument())).toBe(false);
+    expect(drawnLinesUntracked(step, withoutAux())).toBe(false);
+    expect(drawnLinesUntracked({ ...step, unknown: {} }, cpDocument())).toBe(false);
+    expect(drawnLinesUntracked(step, null)).toBe(false);
   });
 });

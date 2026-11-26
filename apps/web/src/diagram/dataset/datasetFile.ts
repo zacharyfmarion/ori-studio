@@ -21,8 +21,8 @@ import { discardDiagramState } from '../../store/workspaceStore/diagramState';
 import { discardFoldState, settledFoldReader } from '../../store/workspaceStore/foldState';
 import { projectDocumentFileValues } from '../../store/workspaceStore/projectDocuments';
 import type { WorkspaceState } from '../../store/workspaceStore/types';
-import { isKnownAsset, isLockedStep, isLockedTurn, isTurn, type DiagramDocument } from '../document/diagramDocument';
-import { readDiagram, storedSceneJson, type ReadDiagram } from '../document/diagramFile';
+import { isKnownAsset, isLockedStep, isLockedTurn, isTurn, type DiagramDocument, type KnownDiagramAsset } from '../document/diagramDocument';
+import { readDiagram, storedSceneJson, thumbnailJson, type ReadDiagram } from '../document/diagramFile';
 import { digest } from '../pictures/pictureKey';
 import { sha256, type CorpusCase } from './datasetCorpus';
 import type { FileRecord } from './datasetResults';
@@ -138,13 +138,12 @@ export function checkFile(
     else {
       const same =
         got.kind === raw.kind &&
-        (got.kind === 'svg' ? got.svg === raw.svg : got.src === raw.src) &&
-        got.widthPx === raw.widthPx &&
-        got.heightPx === raw.heightPx &&
+        assetContent(got) === (got.kind === 'svg' ? raw.svg : got.kind === 'raster' ? raw.src : raw.pattern) &&
+        (got.kind === 'crease-pattern' || (got.widthPx === raw.widthPx && got.heightPx === raw.heightPx)) &&
         got.bytes === raw.bytes;
       fate = same ? 'kept' : 'changed';
     }
-    const content = got && isKnownAsset(got) ? (got.kind === 'svg' ? got.svg : got.src) : JSON.stringify(entry);
+    const content = got && isKnownAsset(got) ? assetContent(got) : JSON.stringify(entry);
     return {
       id,
       kind: typeof raw.kind === 'string' ? raw.kind : 'unknown',
@@ -216,4 +215,16 @@ export function checkFile(
     reader: { written, needed },
     problems,
   };
+}
+
+/** What an asset this build reads holds, as the file writes it: an SVG's markup, a bitmap's data URL, a crease pattern's lines. */
+function assetContent(asset: KnownDiagramAsset): string {
+  switch (asset.kind) {
+    case 'svg':
+      return asset.svg;
+    case 'raster':
+      return asset.src;
+    case 'crease-pattern':
+      return thumbnailJson(asset.pattern);
+  }
 }

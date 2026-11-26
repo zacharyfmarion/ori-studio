@@ -133,6 +133,7 @@
     "refreshAllMessage": "Das Aktualisieren lässt sich als eine Änderung rückgängig machen, aber was du davor rückgängig gemacht hast, kann nicht mehr wiederholt werden.",
     "refreshAllTitle": "{{total}} Schritte aktualisieren?",
     "replacePictureTitle": "Bild ersetzen",
+    "titleBlockPatternTitle": "Faltmuster hochladen",
     "uploadPicturesTitle": "Bilder hochladen",
     "uploadPictureTitle": "Bild hochladen"
   },

@@ -93,6 +93,9 @@ pub enum Op {
     /// Import CP (plan D16): a stored crease pattern and its order, landed
     /// as a new model (`io::jump`).
     CpJump(crate::io::CpJump),
+    /// Adjust order: the parent's paper as it is, with a stored order
+    /// (`io::reorder`).
+    AdjustOrder(crate::io::AdjustOrder),
     // --- Compound folds (`crate::compound`), one block per family -----------
     /// A reverse fold (plan Phase 9): the tip on the moving side of the
     /// line, pushed inside its flaps or wrapped round them (`ops_reverse`).
@@ -124,6 +127,7 @@ impl Op {
             Op::Turn { .. } => "turn",
             Op::Rotate { .. } => "rotate",
             Op::CpJump(_) => "cp-jump",
+            Op::AdjustOrder(_) => "adjust-order",
             Op::InsideReverse(_) => "inside-reverse",
             Op::OutsideReverse(_) => "outside-reverse",
             Op::Crimp(_) => "crimp",
@@ -180,9 +184,12 @@ impl Op {
                 root: p.along.line.is_axiom(),
                 ..Takes::default()
             },
-            Op::Unfold(_) | Op::Refold(_) | Op::Turn { .. } | Op::Rotate { .. } | Op::CpJump(_) => {
-                Takes::default()
-            }
+            Op::Unfold(_)
+            | Op::Refold(_)
+            | Op::Turn { .. }
+            | Op::Rotate { .. }
+            | Op::CpJump(_)
+            | Op::AdjustOrder(_) => Takes::default(),
             Op::InsideReverse(r) | Op::OutsideReverse(r) => Takes {
                 opening: true,
                 ..compound(Some(&r.line))

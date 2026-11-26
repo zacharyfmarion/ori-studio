@@ -288,6 +288,12 @@
     "ratioTitle": "Die Linie nach einem Verhältnis teilen"
   },
   "fold": {
+    "adjustOrder": {
+      "enter": "Drücke die Eingabetaste, um den Dialog „Lagenreihenfolge“ zu öffnen.",
+      "failed": "Diese Reihenfolge konnte nicht als Schritt hinzugefügt werden. Öffne den Dialog und versuche es erneut.",
+      "open": "Lagenreihenfolge bearbeiten…",
+      "unreadable": "Der Dialog „Lagenreihenfolge“ kann die Lagen dieses Schritts nicht lesen."
+    },
     "categoryLabel": "Falt-Arbeitsbereich",
     "chooser": {
       "noKeys": {
@@ -900,6 +906,7 @@
       "unfoldTarget": "Wähle den Schritt, zu dem zurückgekehrt wird."
     },
     "tool": {
+      "adjustOrderHelp": "Ändern, welche Lagen vorne liegen, ohne neue Falte.",
       "closedSinkHelp": "Das Ende einer geschlossenen Spitze in eine Tasche drücken, ihre Lagen bleiben zusammen.",
       "crimpHelp": "Eine Lasche entlang einer Linie hinein- und entlang einer zweiten wieder herausfalten, sodass sich ihr Ende dreht.",
       "divideLine": "Linie teilen",

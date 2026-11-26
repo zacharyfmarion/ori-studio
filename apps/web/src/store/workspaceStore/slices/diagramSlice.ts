@@ -18,6 +18,7 @@ import {
   setHanStyle,
   setPageSetup,
   setTitleBlockContent,
+  setTitleBlockPatternUpload,
   setTitleBlockShown,
   setStepBreakBefore,
   setReferencesSide,
@@ -584,6 +585,11 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (!next) return false;
       remember();
       return true;
+    },
+
+    setDiagramTitleBlockPatternUpload: (asset, { loadId } = {}) => {
+      if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
+      return commit('Change title block', (document) => setTitleBlockPatternUpload(document, asset)) !== null;
     },
 
     setDiagramStepBreakBefore: (stepId, breakBefore) =>

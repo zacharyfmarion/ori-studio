@@ -55,13 +55,16 @@ import type {
   DiagramStepDiagramPicture,
   DiagramStyle,
 } from '../document/diagramDocument';
-import { diagramScenePaintStyle, diagramStyleKey } from '../pictures/diagramPaperStyle';
+import { diagramStyleKey } from '../pictures/diagramPaperStyle';
 import {
+  drawnPictureSource,
   paintSource,
   poseTransform,
   sceneCulledTo,
+  sceneSourcePaintStyle,
   sourceUnderMarks,
   stepPictureSource,
+  type PictureDrawing,
   type StepPictureSource,
 } from '../pictures/paintDiagramStep';
 import {
@@ -378,11 +381,12 @@ export function layoutPicture(
   whole: DiagramStep,
   assets: Readonly<Record<string, DiagramAsset>>,
   style: DiagramStyle,
-  measure: PictureMeasure = null
+  measure: PictureMeasure = null,
+  drawing: PictureDrawing = {}
 ): LayoutStep['picture'] {
   // An enlarged step's marks far off its window are neither drawn nor measured.
   const step = stepAsDrawn(whole);
-  const source = stepPictureSource(step, assets);
+  const source = drawnPictureSource(stepPictureSource(step, assets), drawing);
   if (!source) return null;
   /** The frame's longer side in mm, `units` pattern units across when it knows its paper. */
   const frameMm = (units: number | null): number =>
@@ -514,7 +518,7 @@ export function layoutPicture(
       const scene = storedScene(source.picture);
       if (!scene) return UNSIZED;
       const { minX, minY, maxX, maxY } = scene.bounds;
-      return framed(unitsAcross(source, step), maxX - minX, maxY - minY, inkPt(diagramScenePaintStyle(style, source.pattern)) / PT_PER_CSS_PX);
+      return framed(unitsAcross(source, step), maxX - minX, maxY - minY, inkPt(sceneSourcePaintStyle(style, source)) / PT_PER_CSS_PX);
     }
     case 'asset': {
       const posed = poseTransform(source.asset.widthPx, source.asset.heightPx, source.pose);
@@ -547,11 +551,12 @@ export function cellPicture(
   style: DiagramStyle,
   cell: Pick<LayoutCell, 'pictureMm' | 'mmPerUnit' | 'frameMm'> & Partial<Pick<LayoutCell, 'drawMm'>>,
   idPrefix: string,
-  text: PictureText
+  text: PictureText,
+  drawing: PictureDrawing = {}
 ): CellPicture | null {
   // An enlarged step's marks far off its window are neither drawn nor measured.
   const step = stepAsDrawn(whole);
-  const bare = stepPictureSource(step, assets);
+  const bare = drawnPictureSource(stepPictureSource(step, assets), drawing);
   if (!bare) return null;
   // Its lines under the line marks drawn along them are left out, a close-up's inside included.
   const covering = linesUnderMarks(step, assets, style);
@@ -670,11 +675,12 @@ export function cellPicture(
 
 /**
  * A step's picture alone, as the first page's title block shows the finished
- * model (`diagram-title-block.md`, T-10 A): with none of its marks, and an
- * enlarged step's whole picture rather than its window; as large as fits
- * `boxMm`, and set to its bottom right — {@link cellPicture} centres a
- * picture in its room, so the room is first cut to the picture's own extent
- * there. Null for a step with nothing to draw.
+ * model (`diagram-title-block.md`, T-10 A): with none of its marks, an
+ * enlarged step's whole picture rather than its window, and no aux lines
+ * ({@link WHOLE_PICTURE}); as large as fits `boxMm`, and set to its bottom
+ * right — {@link cellPicture} centres a picture in its room, so the room is
+ * first cut to the picture's own extent there. Null for a step with nothing
+ * to draw.
  */
 export function wholePicture(
   step: DiagramStep,
@@ -696,7 +702,7 @@ export function wholePicture(
     mmPerUnit: paper ? scale : null,
     frameMm: paper ? null : scale,
   };
-  return cellPicture(bare, assets, style, cell, idPrefix, text);
+  return cellPicture(bare, assets, style, cell, idPrefix, text, WHOLE_PICTURE);
 }
 
 /** Where {@link wholePicture} draws a step's picture in `boxMm`, in mm; null for a step with nothing to draw. */
@@ -714,6 +720,15 @@ export function wholePictureRoom(
 const BOTTOM_RIGHT: PictureAlign = { x: 1, y: 1 };
 
 /**
+ * How a whole picture is drawn, and measured: with no aux lines, whatever the
+ * style says, a crease pattern's included. The finished model, not an
+ * instruction: its construction lines, precreases and crease marks are the
+ * steps' to show (`diagram-title-block-final-cp.md`, F-1). A picture kept as
+ * a bitmap is drawn as it was captured.
+ */
+const WHOLE_PICTURE: PictureDrawing = { auxLines: false };
+
+/**
  * A step's picture with none of its marks and no window, the scale that fits it to `boxMm`, and its room there: its
  * extent, standing at `align` in the box.
  */
@@ -726,7 +741,7 @@ function fittedWhole(
 ) {
   const { zoom: _window, ...unzoomed } = step;
   const bare: DiagramStep = { ...unzoomed, annotations: [] };
-  const picture = layoutPicture(bare, assets, style);
+  const picture = layoutPicture(bare, assets, style, null, WHOLE_PICTURE);
   const scale = picture ? pictureFit(picture, boxMm.w, boxMm.h) : null;
   if (!picture || scale === null || !(scale > 0)) return null;
   const { width, height } = pictureExtent(picture, scale);
@@ -831,11 +846,12 @@ function draw(
             ? fitScale(box, maxX - minX, maxY - minY, framePt)
             : PT_PER_CSS_PX;
       const drawn = storedSceneUnderMarks(sceneCulledTo(scene, cull), source.covering);
-      const placed = placedScene(drawn, diagramScenePaintStyle(style, source.pattern), box, ptPerPx);
+      const paint = sceneSourcePaintStyle(style, source);
+      const placed = placedScene(drawn, paint, box, ptPerPx);
       // A scene's frame is its bounds; its ink reaches past them.
       return {
         ...placed,
-        boundsPt: grown(placed.boundsPt, inkPt(diagramScenePaintStyle(style, source.pattern))),
+        boundsPt: grown(placed.boundsPt, inkPt(paint)),
         framePt: placed.boundsPt,
         text: [],
         fitted: !(mmPerUnit !== null && scale) && framePt === null,

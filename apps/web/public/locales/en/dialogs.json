@@ -133,6 +133,7 @@
     "refreshAllMessage": "Refreshing them is one change you can undo, but what you undid before it can no longer be redone.",
     "refreshAllTitle": "Refresh {{total}} steps?",
     "replacePictureTitle": "Replace picture",
+    "titleBlockPatternTitle": "Upload crease pattern",
     "uploadPicturesTitle": "Upload pictures",
     "uploadPictureTitle": "Upload picture"
   },

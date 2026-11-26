@@ -79,6 +79,8 @@ import type { FoldVertexFingerprinted, FoldVertexTried } from '../fold/engine/fo
 import type { FoldVertexOp } from '../fold/document/foldSequenceDocument';
 import { swivelReach, type FoldSwivelReach, type FoldSwivelReachAsk } from '../fold/tools/vertex/swivelReach';
 import type {
+  FoldAdjustOrderFingerprinted,
+  FoldAdjustOrderOpening,
   FoldExported,
   FoldImportFingerprinted,
   FoldImportLayerOpening,
@@ -428,6 +430,20 @@ const api = {
   /** Turn an import opened onto the Layer order dialog (its Rotate): every step it lands stores the turn. */
   async importTurn(importHandle: number, turnDeg: number): Promise<FoldImportLayerOpening['look']> {
     return changing((calls) => calls.importTurn(importHandle, turnDeg));
+  },
+
+  /** Adjust order: the Layer order dialog's opening on a held state's own paper, its order drawn over Edit's faces. */
+  async adjustOrderOpening(state: number): Promise<FoldEngineOutcome<FoldAdjustOrderOpening>> {
+    return call((calls) => calls.adjustOrderOpening(state));
+  },
+
+  /** Adjust order: land the dialog's Apply as an `adjust-order` step after a held state, with its fingerprint and op. */
+  async adjustOrderPick(
+    state: number,
+    digest: string,
+    relations: Uint32Array
+  ): Promise<FoldEngineOutcome<FoldAdjustOrderFingerprinted>> {
+    return changing((calls) => calls.adjustOrderPick(state, digest, relations));
   },
 
   /** Start from Edit's folded figure: the kernel's paper scene of it. */
