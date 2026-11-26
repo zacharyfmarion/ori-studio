@@ -30,9 +30,9 @@ import type { Point } from '../../lib/geometry';
  * The steps that are not one move of paper the reader could make beside
  * another: a turn or rotation of the whole model, a collapse into a crease
  * pattern, an unfold back to an earlier step, a Repeat (its own steps are
- * the moves).
+ * the moves), a new order of the layers (no crease, so nothing to mirror).
  */
-const ENDS_A_GROUP = new Set(['turn', 'rotate', 'cp-jump', 'unfold-to', 'repeat']);
+const ENDS_A_GROUP = new Set(['turn', 'rotate', 'cp-jump', 'unfold-to', 'repeat', 'adjust-order']);
 
 /** Whether a path step may be drawn with others: a fold, precrease, unfold or compound move, in this build's terms. */
 export function isMergeableStep(node: FoldStepNode | null | undefined): boolean {

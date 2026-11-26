@@ -56,11 +56,13 @@ describe('startingRuns', () => {
 describe('isMergeableStep', () => {
   const step = (kind: string) => ({ id: 's', parent: null, op: { kind } }) as unknown as FoldStepNode;
 
-  it('takes any move of paper; a turn, a rotation, a collapse, an unfold to a step or a Repeat ends a group', () => {
+  it('takes any move of paper; a turn, a rotation, a collapse, an unfold to a step, a Repeat or a new layer order ends a group', () => {
     for (const kind of ['valley', 'mountain', 'precrease', 'unfold', 'inside-reverse', 'squash', 'swivel']) {
       expect(isMergeableStep(step(kind))).toBe(true);
     }
-    for (const kind of ['turn', 'rotate', 'cp-jump', 'unfold-to', 'repeat']) expect(isMergeableStep(step(kind))).toBe(false);
+    for (const kind of ['turn', 'rotate', 'cp-jump', 'unfold-to', 'repeat', 'adjust-order']) {
+      expect(isMergeableStep(step(kind))).toBe(false);
+    }
   });
 
   it('takes no step a newer build wrote, and nothing', () => {
