@@ -21,6 +21,9 @@ import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes'
 import { foldStateFingerprint } from '../document/foldDigest';
 import { invalidInput, requireHandle, requireObject } from './foldEngineCalls';
 import type {
+  FoldAdjustOrderFingerprinted,
+  FoldAdjustOrderLanded,
+  FoldAdjustOrderOpening,
   FoldExported,
   FoldImportFingerprinted,
   FoldImportLanded,
@@ -42,6 +45,8 @@ export interface FoldWasmIoEngine {
   import_layer_opening(importHandle: number, choice: Uint32Array): unknown;
   import_pick_layer_order(importHandle: number, digest: string, relations: Uint32Array): unknown;
   import_turn(importHandle: number, turnDeg: number): unknown;
+  adjust_order_opening(state: number): unknown;
+  adjust_order_pick(state: number, digest: string, relations: Uint32Array): unknown;
   import_edit_folded_figure(scene: unknown, target: unknown, limits: unknown): unknown;
   release_imports(imports: Uint32Array): number;
   live_imports(): number;
@@ -129,6 +134,21 @@ export interface FoldEngineIoCalls {
    * after stores the turn (`FoldCpJumpOp.turnDeg`). Answers its look now.
    */
   importTurn(importHandle: number, turnDeg: number): FoldImportLayerOpening['look'];
+  /**
+   * Adjust order (`implementation-plans/fold-adjust-order.md`): open the
+   * Layer order dialog on a held state's own paper — the fold the dialog
+   * analyses, the state's order drawn over its faces, and how Fold shows
+   * it. Refused as `import_layer_unavailable` when the dialog cannot work on
+   * it. Nothing is held.
+   */
+  adjustOrderOpening(state: number): FoldEngineOutcome<FoldAdjustOrderOpening>;
+  /**
+   * Adjust order: land the order the dialog's Apply chose for the held
+   * state, `relations` `[upper, lower, …]` over the faces of the opening
+   * whose source has `digest`, as a step after it: its state, fingerprint
+   * and `adjust-order` op.
+   */
+  adjustOrderPick(state: number, digest: string, relations: Uint32Array): FoldEngineOutcome<FoldAdjustOrderFingerprinted>;
   /** Start from Edit's folded figure: the kernel's paper scene of it. */
   importEditFoldedFigure(
     scene: OristudioCpFoldedPaperScene,
@@ -196,6 +216,23 @@ export function createFoldEngineIoCalls(engine: FoldWasmIoEngine): FoldEngineIoC
     importTurn(importHandle, turnDeg) {
       if (typeof turnDeg !== 'number' || !Number.isFinite(turnDeg)) throw invalidInput('turnDeg must be a number');
       return engine.import_turn(requireHandle('import', importHandle), turnDeg) as FoldImportLayerOpening['look'];
+    },
+
+    adjustOrderOpening(state) {
+      return engine.adjust_order_opening(requireHandle('state', state)) as FoldEngineOutcome<FoldAdjustOrderOpening>;
+    },
+
+    adjustOrderPick(state, digest, relations) {
+      if (typeof digest !== 'string') throw invalidInput('digest must be a string');
+      if (Object.prototype.toString.call(relations) !== '[object Uint32Array]') {
+        throw invalidInput('relations must be a Uint32Array');
+      }
+      const landed = engine.adjust_order_pick(requireHandle('state', state), digest, relations) as FoldEngineOutcome<
+        FoldAdjustOrderLanded
+      >;
+      return landed.status === 'ok'
+        ? { ...landed, fingerprint: foldStateFingerprint({ keys: engine.canonical_keys(landed.state) }) }
+        : landed;
     },
 
     importEditFoldedFigure(scene, to, within) {

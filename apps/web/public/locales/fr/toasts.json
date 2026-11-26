@@ -123,6 +123,11 @@
     "refreshedAll_one": "{{count}} étape actualisée",
     "refreshedAll_many": "{{count}} étapes actualisées",
     "refreshedAll_other": "{{count}} étapes actualisées",
+    "titleBlockPattern": {
+      "noFolds": "Ce patron de plis n’a aucun pli montagne ni vallée à montrer.",
+      "trimmed": "Ce patron de plis a plus de lignes qu’un diagramme n’en garde\u00a0; ses plis les plus courts ont donc été omis.",
+      "unreadable": "Impossible de lire ce fichier comme un patron de plis."
+    },
     "uploadFailed_one": "Une image n’a pas pu être ajoutée",
     "uploadFailed_many": "{{count}} images n’ont pas pu être ajoutées",
     "uploadFailed_other": "{{count}} images n’ont pas pu être ajoutées",

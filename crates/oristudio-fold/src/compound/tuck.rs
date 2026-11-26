@@ -54,7 +54,7 @@ use oristudio_geometry::{Line, convex};
 use oristudio_layer_order::{EdgeKind, FacePair, Violation};
 use serde::{Deserialize, Serialize};
 
-use crate::complete::{ChoiceCount, CompletionLimits, Completions};
+use crate::complete::{ChoiceCount, CompletionLimits, CompletionRefusal, Completions};
 use crate::compound::motion::{MotionKind, StepMotion};
 use crate::compound::{
     Across, CompoundFolded, CompoundRefused, CompoundReport, Macro, Pending, Prepared, no_order,
@@ -72,6 +72,7 @@ use crate::pattern::FaceId;
 use crate::refusal::{Fix, FoldRefusal, Refused, Side};
 use crate::state::State;
 use crate::view::Direction;
+use crate::witness::Broken;
 use crate::witness::WitnessOrder;
 
 type Point = [f64; 2];
@@ -494,16 +495,46 @@ impl Tuck {
     }
 }
 
-/// The strict placements of a tuck against `target` (see the module docs),
-/// each as `[upper, lower]` over the landed faces of `prepared`: the block
-/// against T, and against every layer that meets T, by which side of T it
-/// is on.
-fn placements(state: &State, prepared: &Prepared, target: FaceId, under: bool) -> Vec<[FaceId; 2]> {
+/// Where a tuck's placements read a layer's side of T.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Reading {
+    /// Against every layer that meets T anywhere, by which side of T it is
+    /// on (the module docs): every tuck read it this way first.
+    Strict,
+    /// Only where the block, the layer and T overlap together. A layer that
+    /// meets T away from the block is the completion's: a side flap that
+    /// lies over T at the bottom but folds into the block's own fold at its
+    /// hinge. Read only when the strict reading lands in no order, so a
+    /// tuck that landed before lands as it did.
+    Local,
+}
+
+/// The placements of a tuck against `target` (see the module docs), each as
+/// `[upper, lower]` over the landed faces of `prepared`: the block against
+/// T, and against every layer that meets T, by which side of T it is on, as
+/// `reading` reads where they meet.
+fn placements(
+    state: &State,
+    prepared: &Prepared,
+    target: FaceId,
+    under: bool,
+    reading: Reading,
+) -> Vec<[FaceId; 2]> {
     let unordered = prepared.unordered();
     let landed = &unordered.parts().faces;
+    let images = &unordered.geometry().images;
     let blocks = prepared.blocks_of();
     let problem = unordered.problem();
     let position = |id: FaceId| landed.binary_search_by_key(&id, |f| f.id).ok();
+    let at_target = position(target);
+    // Whether the block's face at `a` and the layer at `b` overlap over T.
+    let meet_over_target = |a: usize, b: usize| {
+        let Some(t) = at_target else {
+            return false;
+        };
+        let both = convex::clip(&images[a], &images[b]);
+        both.len() >= 3 && convex::penetration(&both, &images[t]) > TOL
+    };
     // A stationary landed face is a parent face or the piece of one the
     // score split; either way it stands where that parent face stood.
     let parent_of = |at: usize| {
@@ -528,6 +559,9 @@ fn placements(state: &State, prepared: &Prepared, target: FaceId, under: bool) -
         let beyond = if g == target {
             false
         } else if problem.is_variable(g, target) {
+            if reading == Reading::Local && !meet_over_target(block, other) {
+                continue;
+            }
             match state.above(parent_of(other), target) {
                 Some(above) => above != under,
                 None => continue,
@@ -542,6 +576,132 @@ fn placements(state: &State, prepared: &Prepared, target: FaceId, under: bool) -
         out.push(if block_above { [block, g] } else { [g, block] });
     }
     out
+}
+
+/// The placements of a tuck against every one of `targets`, as `reading`
+/// reads them.
+fn placements_all(
+    state: &State,
+    prepared: &Prepared,
+    targets: &[FaceId],
+    under: bool,
+    reading: Reading,
+) -> Vec<[FaceId; 2]> {
+    targets
+        .iter()
+        .flat_map(|&t| placements(state, prepared, t, under, reading))
+        .collect()
+}
+
+/// Whether the block of `prepared` lands against every one of `targets` in
+/// some order, read strictly or, where that lands in none, locally; none
+/// when the budget ran out first.
+fn lands_read(
+    state: &State,
+    prepared: &Prepared,
+    targets: &[FaceId],
+    under: bool,
+    limits: &CompletionLimits,
+) -> Option<bool> {
+    let strict = placements_all(state, prepared, targets, under, Reading::Strict);
+    match prepared.lands_placed(strict, limits) {
+        Some(false) => {
+            let local = placements_all(state, prepared, targets, under, Reading::Local);
+            prepared.lands_placed(local, limits)
+        }
+        decided => decided,
+    }
+}
+
+/// A tuck placed against its targets: replayed, unique, or a choice.
+enum Placed {
+    Replayed(CompoundFolded, WitnessOrder),
+    Unique(CompoundFolded),
+    Choose(Box<Pending>),
+}
+
+impl Placed {
+    fn outcome(self, context: Context) -> Result<TuckOutcome, CompoundRefused> {
+        Ok(match self {
+            Placed::Replayed(folded, stored) => {
+                TuckOutcome::Landed(Box::new(context.report(folded, Some(stored))))
+            }
+            Placed::Unique(folded) => TuckOutcome::Landed(Box::new(context.report(folded, None))),
+            Placed::Choose(pending) => TuckOutcome::ChooseOrder(Box::new(TuckChoice {
+                pending: *pending,
+                context,
+            })),
+        })
+    }
+}
+
+/// Why a tuck placed against its targets did not land.
+enum Unplaced {
+    /// Its stored choice no longer resolves.
+    Broken(Broken),
+    /// No order fits either reading.
+    NoOrder(CompletionRefusal),
+    /// The order chosen did not land.
+    Fold(FoldRefusal),
+}
+
+/// The tuck `unplaced` placed against `targets` and landed: its stored
+/// choice replayed, or every order it can land in. The placements are read
+/// strictly first; only where that reading has no order at all are they read
+/// locally ([`Reading::Local`]), so every tuck that landed before lands as
+/// it did, and a stored choice a strict reading breaks stays broken.
+fn land_placed(
+    state: &State,
+    unplaced: &Prepared,
+    targets: &[FaceId],
+    under: bool,
+    choices: &TuckChoices,
+    limits: &CompletionLimits,
+) -> Result<Placed, Unplaced> {
+    let place = |reading: Reading| {
+        let mut prepared = unplaced.clone();
+        prepared.place(placements_all(state, unplaced, targets, under, reading));
+        prepared
+    };
+    let strict = place(Reading::Strict);
+    if let Some(stored) = &choices.order {
+        return match strict.replay(stored, limits) {
+            Ok(folded) => Ok(Placed::Replayed(folded, stored.clone())),
+            Err(broken) if strict.landing(limits) == Some(false) => place(Reading::Local)
+                .replay(stored, limits)
+                .map(|folded| Placed::Replayed(folded, stored.clone()))
+                .map_err(|_| Unplaced::Broken(broken)),
+            Err(broken) => Err(Unplaced::Broken(broken)),
+        };
+    }
+    let (prepared, completions) = match strict.complete(&[], limits) {
+        Ok(completions) => (strict, completions),
+        Err(refusal @ CompletionRefusal::BudgetExceeded { .. }) => {
+            return Err(Unplaced::NoOrder(refusal));
+        }
+        Err(refusal) => {
+            let local = place(Reading::Local);
+            match local.complete(&[], limits) {
+                Ok(completions) => (local, completions),
+                Err(_) => return Err(Unplaced::NoOrder(refusal)),
+            }
+        }
+    };
+    if completions.is_unique() {
+        let order = completions
+            .order(&vec![0; completions.components().len()])
+            .ok_or_else(|| {
+                Unplaced::Fold(FoldRefusal::Internal {
+                    message: "a unique completion has no order".to_string(),
+                })
+            })?;
+        let folded = prepared.land(order).map_err(Unplaced::Fold)?;
+        return Ok(Placed::Unique(folded));
+    }
+    Ok(Placed::Choose(Box::new(Pending {
+        prepared,
+        completions,
+    })))
 }
 
 impl State {
@@ -615,9 +775,7 @@ impl State {
                 None
             } else {
                 match prepared[set].get_or_insert_with(|| tuck.prepare(self, &sets[set]).ok()) {
-                    Some(prepared) => {
-                        prepared.lands_placed(placements(self, prepared, id, under), limits)
-                    }
+                    Some(prepared) => lands_read(self, prepared, &[id], under, limits),
                     None => Some(false),
                 }
             };
@@ -713,13 +871,7 @@ impl State {
             }
         }
         let under = tuck.under();
-        let mut prepared = tuck.prepare(self, &moving).map_err(|r| refused(r.into()))?;
-        let unplaced = prepared.clone();
-        let constraints: Vec<_> = targets
-            .iter()
-            .flat_map(|&t| placements(self, &prepared, self.faces()[t].id, under))
-            .collect();
-        prepared.place(constraints);
+        let unplaced = tuck.prepare(self, &moving).map_err(|r| refused(r.into()))?;
         let context = Context {
             line: tuck.line(),
             side: tuck.side(),
@@ -728,17 +880,12 @@ impl State {
             placement: tuck.placement(),
             target: target_id,
         };
-        if let Some(stored) = &choices.order {
-            let folded = prepared
-                .replay(stored, limits)
-                .map_err(CompoundRefused::Broken)?;
-            return Ok(TuckOutcome::Landed(Box::new(
-                context.report(folded, Some(stored.clone())),
-            )));
-        }
-        let completions = match prepared.complete(&[], limits) {
-            Ok(completions) => completions,
-            Err(refusal) => {
+        let ids: Vec<FaceId> = targets.iter().map(|&t| self.faces()[t].id).collect();
+        match land_placed(self, &unplaced, &ids, under, choices, limits) {
+            Ok(placed) => placed.outcome(context),
+            Err(Unplaced::Broken(broken)) => Err(CompoundRefused::Broken(broken)),
+            Err(Unplaced::Fold(refusal)) => Err(refused(refusal.into())),
+            Err(Unplaced::NoOrder(refusal)) => {
                 if !diagnose {
                     return Err(refused(no_order(refusal).into()));
                 }
@@ -753,30 +900,9 @@ impl State {
                 if targets.len() > 1 {
                     problem.fixes.clear();
                 }
-                return Err(refused(problem));
+                Err(refused(problem))
             }
-        };
-        if completions.is_unique() {
-            let order = completions
-                .order(&vec![0; completions.components().len()])
-                .ok_or_else(|| {
-                    refused(
-                        FoldRefusal::Internal {
-                            message: "a unique completion has no order".to_string(),
-                        }
-                        .into(),
-                    )
-                })?;
-            let folded = prepared.land(order).map_err(|r| refused(r.into()))?;
-            return Ok(TuckOutcome::Landed(Box::new(context.report(folded, None))));
         }
-        Ok(TuckOutcome::ChooseOrder(Box::new(TuckChoice {
-            pending: Pending {
-                prepared,
-                completions,
-            },
-            context,
-        })))
     }
 
     /// The faces a tuck against the faces at positions `targets` moves, per
@@ -835,11 +961,10 @@ impl State {
         let Ok(prepared) = tuck.prepare(self, moving) else {
             return Some(false);
         };
-        let under = tuck.under();
-        let pairs: Vec<[FaceId; 2]> = targets
-            .iter()
-            .flat_map(|&t| placements(self, &prepared, self.faces()[t].id, under))
-            .collect();
+        // Strict only: which closure a tuck moves is decided as it always
+        // was, so every tuck that landed before moves what it did.
+        let ids: Vec<FaceId> = targets.iter().map(|&t| self.faces()[t].id).collect();
+        let pairs = placements_all(self, &prepared, &ids, tuck.under(), Reading::Strict);
         prepared.lands_placed(pairs, limits)
     }
 
@@ -1026,8 +1151,7 @@ impl State {
         near.into_iter()
             .take(MAX_FIX_TARGETS_TRIED)
             .filter(|&f| {
-                let id = self.faces()[f].id;
-                unplaced.lands_placed(placements(self, unplaced, id, under), limits) == Some(true)
+                lands_read(self, unplaced, &[self.faces()[f].id], under, limits) == Some(true)
             })
             .take(MAX_FIX_TARGETS)
             .filter_map(|f| {

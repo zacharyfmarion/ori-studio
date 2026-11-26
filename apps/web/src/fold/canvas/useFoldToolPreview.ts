@@ -4,6 +4,7 @@ import type { FoldCrimpLines } from '../tools/crimp/crimpStep';
 import { useFoldRepeatTool, type FoldRepeatTool } from '../repeat/useFoldRepeatTool';
 import { useFoldOrderResolution, type FoldOrderResolution } from '../orders/useFoldOrderResolution';
 import { useFoldUnfoldTool, type FoldUnfoldTool } from '../return/useFoldUnfoldTool';
+import { useFoldAdjustOrderTool, type FoldAdjustOrderTool } from '../order/useFoldAdjustOrderTool';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { trackFoldRefused } from '../../analytics';
 import { reportError } from '../../monitoring';
@@ -173,6 +174,12 @@ export interface FoldToolPreview {
    * one it previews, so its landed state is read here as any tool's is.
    */
   repeat?: FoldRepeatTool | null;
+  /**
+   * Adjust order's, while it is in hand (`fold/order/useFoldAdjustOrderTool`):
+   * whether the Layer order dialog can open on the step on screen, and its
+   * opening. It previews nothing.
+   */
+  adjustOrder?: FoldAdjustOrderTool | null;
 }
 
 const sectionKey = (analysis: FoldAnalysis) => `${analysis.line.n[0]},${analysis.line.n[1]},${analysis.line.d}:${analysis.side}`;
@@ -329,6 +336,8 @@ export function useFoldToolPreview(
   // drawn on the folded pane read on the top layer of the state on screen).
   const unfold = useFoldUnfoldTool(session, tools);
   const repeat = useFoldRepeatTool(session, tools, index);
+  // Adjust order previews nothing: its step is chosen in the Layer order dialog.
+  const adjustOrder = useFoldAdjustOrderTool(session, tools);
   const unfolding = tools.tool === 'unfold-to';
   const repeating = tools.tool === 'repeat';
   const unfoldStep = unfold?.step ?? null;
@@ -633,6 +642,7 @@ export function useFoldToolPreview(
     extent,
     unfold,
     repeat,
+    adjustOrder,
   };
 }
 

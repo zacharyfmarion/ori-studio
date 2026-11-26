@@ -20,6 +20,7 @@ const BASE: DiagramStepActionState = {
   breakBefore: false,
   lightingChanged: false,
   facesMissing: false,
+  drawnLinesUntracked: false,
   capturing: false,
   patternOpen: true,
   showAs: null,

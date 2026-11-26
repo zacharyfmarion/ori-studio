@@ -89,6 +89,11 @@
     "refreshAllLayerOrderLostLoadOffline_other": "오프라인 상태라 겹침 순서를 불러오지 못해 {{count}}개 단계를 바꾸지 않았습니다. 다시 연결한 뒤 Ori Studio를 새로 고쳐 다시 시도하세요.",
     "refreshAllLayerOrderLostLoadReload_other": "겹침 순서를 불러오지 못해 {{count}}개 단계를 바꾸지 않았습니다. Ori Studio를 새로 고쳐 다시 시도하세요.",
     "refreshedAll_other": "{{count}}개 단계를 새로 고쳤습니다",
+    "titleBlockPattern": {
+      "noFolds": "이 전개도에는 보여 줄 산접기나 골접기가 없습니다.",
+      "trimmed": "이 전개도는 도해에 저장할 수 있는 선보다 많아서 가장 짧은 접는 선을 뺐습니다.",
+      "unreadable": "이 파일을 전개도로 읽지 못했습니다."
+    },
     "uploadFailed_other": "그림 {{count}}개를 추가하지 못했습니다",
     "uploadFailureLine": "{{name}}: {{reason}}",
     "uploadFailureMore_other": "외 {{count}}개",

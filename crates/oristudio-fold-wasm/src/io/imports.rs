@@ -600,7 +600,7 @@ pub(crate) fn import(
 /// from Edit's first face, through the CP kernel's own reading of a selection
 /// (`CpSession::fold_source_of_selection`), so the Layer order dialog
 /// analyses exactly what Edit would fold. Refused with the kernel's code.
-fn edit_fold_source(cp_json: &str) -> Result<FoldSource, &'static str> {
+pub(crate) fn edit_fold_source(cp_json: &str) -> Result<FoldSource, &'static str> {
     let model = model_of_cp_json(cp_json).map_err(|refusal| refusal.code())?;
     let lines: Vec<usize> = (1..=model.line_segments.len()).collect();
     let mut kernel = CpSession::new();

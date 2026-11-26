@@ -98,24 +98,28 @@ export function cpDocument(
  * The sheet index the kernel builds for {@link TWO_SQUARES}: the left square,
  * then the right, each holding its lines. `dx`, `dy` is the pattern moved as
  * {@link movedLines} moves its lines; `left: false` is the index once the left
- * square stopped being closed by its border, its lines in no sheet.
+ * square stopped being closed by its border, its lines in no sheet. `lines`
+ * is the pattern before any move, when it is not {@link TWO_SQUARES}: a line
+ * whose midpoint is left of the gap is the left square's, as the kernel
+ * places lines by their midpoints.
  */
 export function twoSquaresIndex({
   left = true,
   dx = 0,
   dy = 0,
-}: { left?: boolean; dx?: number; dy?: number } = {}): CpSheetIndex {
+  lines = TWO_SQUARES,
+}: { left?: boolean; dx?: number; dy?: number; lines?: FixtureLine[] } = {}): CpSheetIndex {
   const square = (x: number) => [x + dx, dy, x + 100 + dx, dy, x + 100 + dx, 100 + dy, x + dx, 100 + dy];
   const box = (x: number) => [x + dx, dy, x + 100 + dx, 100 + dy];
   const sheets = left ? [0, 150] : [150];
-  const lineSheet = TWO_SQUARES.map((_, index) =>
-    LEFT_LINE_IDS.includes(index + 1) ? (left ? 0 : -1) : left ? 1 : 0
-  );
+  const inLeft = lines.map(([ax, , bx]) => (ax + bx) / 2 < 125);
+  const lineSheet = inLeft.map((isLeft) => (isLeft ? (left ? 0 : -1) : left ? 1 : 0));
+  const leftCount = inLeft.filter(Boolean).length;
   return new CpSheetIndex({
     bounds: new Float64Array(sheets.flatMap(box)),
     outlineOffsets: new Uint32Array(sheets.map((_, index) => index * 4).concat(sheets.length * 4)),
     outlineCoords: new Float64Array(sheets.flatMap(square)),
-    lineCounts: new Uint32Array(left ? [LEFT_LINE_IDS.length, RIGHT_LINE_IDS.length] : [RIGHT_LINE_IDS.length]),
+    lineCounts: new Uint32Array(left ? [leftCount, lines.length - leftCount] : [lines.length - leftCount]),
     lineSheet: new Int32Array(lineSheet),
   });
 }

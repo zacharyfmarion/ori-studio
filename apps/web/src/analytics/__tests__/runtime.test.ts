@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLocaleStore } from '../../store/localeStore';
 import type { PostHogClientLike } from '../bootstrap';
-import { AnalyticsRuntimeProvider, createAnalyticsApi } from '../runtime';
+import { AnalyticsRuntimeProvider, createAnalyticsApi, trackCountedUse } from '../runtime';
 import { peekStableId } from '../stableId';
 
 function makeFakeClient() {
@@ -36,6 +36,39 @@ describe('createAnalyticsApi', () => {
       api.trackError({ error: new Error('x') });
       api.setAnalyticsEnabled(true);
     }).not.toThrow();
+  });
+
+  it('sends a counted use’s first use at once and its count on a flush', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 10, 25, 9, 0, 0));
+    const client = makeFakeClient();
+    const api = createAnalyticsApi(client);
+
+    api.trackCountedUse('command invoked', { command_id: 'edit.undo', command_group: 'edit' });
+    api.trackCountedUse('command invoked', { command_id: 'edit.undo', command_group: 'edit' });
+    expect(client.capture.mock.calls).toEqual([
+      ['command invoked', { command_id: 'edit.undo', command_group: 'edit', counting: 'first_in_window' }],
+    ]);
+
+    api.flushCountedUses({ beacon: true });
+    expect(client.capture).toHaveBeenLastCalledWith(
+      'command uses counted',
+      { command_id: 'edit.undo', command_group: 'edit', use_count_bucket: '<=5' },
+      { timestamp: new Date(2026, 10, 25, 9, 0, 0), transport: 'sendBeacon' }
+    );
+  });
+
+  it('does not send uses counted before an opt-out', () => {
+    vi.useFakeTimers();
+    const client = makeFakeClient();
+    const api = createAnalyticsApi(client);
+    api.trackCountedUse('cp tool used', { operation: 'DrawCreaseFree', group: 'draw' });
+    api.trackCountedUse('cp tool used', { operation: 'DrawCreaseFree', group: 'draw' });
+
+    api.setAnalyticsEnabled(false);
+    api.flushCountedUses();
+
+    expect(client.capture.mock.calls.map(([eventName]) => eventName)).toEqual(['cp tool used']);
   });
 
   it('forwards track to capture verbatim', () => {
@@ -183,5 +216,53 @@ describe('AnalyticsRuntimeProvider locale sync', () => {
         useLocaleStore.setState({ locale: 'de', preference: 'de' });
       });
     }).not.toThrow();
+  });
+});
+
+describe('AnalyticsRuntimeProvider counting window', () => {
+  let container: HTMLElement;
+  let root: ReturnType<typeof createRoot>;
+  let client: ReturnType<typeof makeFakeClient>;
+
+  const countsSent = () =>
+    client.capture.mock.calls.filter(([eventName]) => eventName === 'cp tool uses counted');
+
+  function setVisibility(state: DocumentVisibilityState) {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    client = makeFakeClient();
+    act(() => {
+      root.render(createElement(AnalyticsRuntimeProvider, { client, children: null }));
+    });
+    trackCountedUse('cp tool used', { operation: 'DrawCreaseFree', group: 'draw' });
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    Reflect.deleteProperty(document, 'visibilityState');
+  });
+
+  it('closes the window by beacon when the page is hidden', () => {
+    setVisibility('visible');
+    expect(countsSent()).toHaveLength(0);
+
+    setVisibility('hidden');
+
+    expect(countsSent()).toHaveLength(1);
+    expect(countsSent()[0][2]).toEqual(expect.objectContaining({ transport: 'sendBeacon' }));
+  });
+
+  it('closes the window by beacon when the page is torn down', () => {
+    window.dispatchEvent(new Event('pagehide'));
+
+    expect(countsSent()).toHaveLength(1);
+    expect(countsSent()[0][2]).toEqual(expect.objectContaining({ transport: 'sendBeacon' }));
   });
 });

@@ -73,6 +73,7 @@ import {
   chooseStepCreases,
   creasesFingerprint,
   creasesMatch,
+  drawnLinesFingerprint,
   followedScope,
   knownCreasesOf,
   type StepCreases,
@@ -1197,10 +1198,13 @@ function linkedSource(
   const sameLines = (previous.render.mode === 'crease-pattern') === (render.mode === 'crease-pattern');
   const keep = !isRelativeFingerprint(previous.fingerprint) && sameLines && creasesMatch(creases, knownCreasesOf(previous));
   const layerOrder = layerOrderAfterPose(previous, render, shown);
+  // The pose is drawn from the sheet as it is now, its aux lines included.
+  const drawnFingerprint = drawnLinesFingerprint(creases, render);
   const stored = storedCpSource({
     kind: 'cp',
     scope: followedScope(previous.scope, creases),
     fingerprint: keep ? previous.fingerprint : creasesFingerprint(creases, render),
+    ...(drawnFingerprint ? { drawnFingerprint } : {}),
     thumbnail: creasesThumbnail(document, creases),
     render,
     ...(layerOrder !== undefined ? { layerOrder } : {}),

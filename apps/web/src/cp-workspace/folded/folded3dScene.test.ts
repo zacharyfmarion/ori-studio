@@ -48,7 +48,6 @@ vi.mock('@treemaker/origami-simulator', async (importOriginal) => {
   };
 });
 
-import { folded3dDrawPasses } from '../../simulator/foldedMeshSource';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
 import {
@@ -70,7 +69,8 @@ import {
   folded3dSceneCamera,
   type Folded3dPaperSceneOptions,
 } from './folded3dScene';
-import { FOLDED_3D_CREASE_DEPTH_BIAS, folded3dFrameFillZoom } from './folded3dWindow';
+import { folded3dFrameFillZoom } from './folded3dWindow';
+import { WINDOW_PARITY_BOX, compareWithWindow } from './folded3dWindowParity.testSupport';
 import {
   DEFAULT_FOLDED_3D_CAMERA,
   antipodalCamera,
@@ -113,7 +113,7 @@ const TOLERANCES: OristudioCpFold3dTolerances = {
 };
 
 /** The window's box in the tests, in CSS px. */
-const BOX = 300;
+const BOX = WINDOW_PARITY_BOX;
 
 const CAMERAS: ReadonlyArray<readonly [string, FoldedFigureCamera]> = [
   ['default', DEFAULT_FOLDED_3D_CAMERA],
@@ -189,267 +189,6 @@ function buriedEverywhere(
     for (const face of cellStack(model, cell)) if (!near.has(face)) buried.add(face);
   }
   return buried;
-}
-
-/* --------------------------------------------------------------------------
- * Two rasterisers: the window's draw passes, and the scene in painter's order
- * ----------------------------------------------------------------------- */
-
-const BACKGROUND = -1;
-const INK = 1_000_000;
-
-interface Picture {
-  /** The kernel face painted at each pixel, `INK + n` for a crease, `-1` for none. */
-  id: Int32Array;
-  side: Int8Array;
-}
-
-function blank(): Picture {
-  return { id: new Int32Array(BOX * BOX).fill(BACKGROUND), side: new Int8Array(BOX * BOX) };
-}
-
-/** Even-odd scanline fill of a set of rings, in px; `depth` per ring vertex when depth-tested. */
-function fillRings(
-  pic: Picture,
-  rings: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
-  id: number,
-  side: number
-): void {
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (const ring of rings) for (const [, y] of ring) {
-    minY = Math.min(minY, y);
-    maxY = Math.max(maxY, y);
-  }
-  const crossings: number[] = [];
-  for (let row = Math.max(0, Math.ceil(minY - 0.5)); row <= Math.min(BOX - 1, Math.floor(maxY - 0.5)); row += 1) {
-    const y = row + 0.5;
-    crossings.length = 0;
-    for (const ring of rings) {
-      for (let i = 0; i < ring.length; i += 1) {
-        const [x1, y1] = ring[i]!;
-        const [x2, y2] = ring[(i + 1) % ring.length]!;
-        if (y1 <= y === y2 <= y) continue;
-        crossings.push(x1 + ((y - y1) / (y2 - y1)) * (x2 - x1));
-      }
-    }
-    crossings.sort((l, r) => l - r);
-    for (let i = 0; i + 1 < crossings.length; i += 2) {
-      const first = Math.max(0, Math.ceil(crossings[i]! - 0.5));
-      const last = Math.min(BOX - 1, Math.floor(crossings[i + 1]! - 0.5));
-      for (let col = first; col <= last; col += 1) {
-        pic.id[row * BOX + col] = id;
-        pic.side[row * BOX + col] = side;
-      }
-    }
-  }
-}
-
-/** A depth-tested triangle, depth interpolated across the screen as the GPU's is. */
-function fillTriangle(
-  pic: Picture,
-  depth: Float32Array,
-  p: ReadonlyArray<readonly [number, number, number]>,
-  id: number,
-  side: number
-): void {
-  const [[ax, ay, az], [bx, by, bz], [cx, cy, cz]] = p as [
-    readonly [number, number, number],
-    readonly [number, number, number],
-    readonly [number, number, number],
-  ];
-  const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
-  if (Math.abs(area) < 1e-12) return;
-  const minY = Math.max(0, Math.floor(Math.min(ay, by, cy)));
-  const maxY = Math.min(BOX - 1, Math.ceil(Math.max(ay, by, cy)));
-  const minX = Math.max(0, Math.floor(Math.min(ax, bx, cx)));
-  const maxX = Math.min(BOX - 1, Math.ceil(Math.max(ax, bx, cx)));
-  for (let py = minY; py <= maxY; py += 1) {
-    for (let px = minX; px <= maxX; px += 1) {
-      const sx = px + 0.5;
-      const sy = py + 0.5;
-      const w0 = ((bx - ax) * (sy - ay) - (by - ay) * (sx - ax)) / area;
-      const w1 = ((sx - ax) * (cy - ay) - (sy - ay) * (cx - ax)) / area;
-      if (w0 < 0 || w1 < 0 || w0 + w1 > 1) continue;
-      const at = py * BOX + px;
-      const z = az + w1 * (bz - az) + w0 * (cz - az);
-      if (z > depth[at]!) continue;
-      depth[at] = z;
-      pic.id[at] = id;
-      pic.side[at] = side;
-    }
-  }
-}
-
-/** A crease as a ribbon of half-width `half`, depth-tested with a bias when `depth` is given. */
-function stampSegment(
-  pic: Picture,
-  a: readonly [number, number],
-  b: readonly [number, number],
-  id: number,
-  half: number,
-  depth: Float32Array | null,
-  az = 0,
-  bz = 0,
-  bias = 0
-): void {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const length = Math.hypot(dx, dy);
-  if (length < 1e-9) return;
-  const steps = Math.max(1, Math.ceil(length * 2));
-  for (let s = 0; s <= steps; s += 1) {
-    const u = s / steps;
-    const x = a[0] + dx * u;
-    const y = a[1] + dy * u;
-    const z = az + (bz - az) * u;
-    for (let oy = -Math.ceil(half); oy <= Math.ceil(half); oy += 1) {
-      for (let ox = -Math.ceil(half); ox <= Math.ceil(half); ox += 1) {
-        if (ox * ox + oy * oy > half * half + 0.5) continue;
-        const px = Math.floor(x + ox);
-        const py = Math.floor(y + oy);
-        if (px < 0 || py < 0 || px >= BOX || py >= BOX) continue;
-        const at = py * BOX + px;
-        // Creases test but do not write depth, exactly like the real pass.
-        if (depth && z - bias > depth[at]!) continue;
-        pic.id[at] = id;
-      }
-    }
-  }
-}
-
-/**
- * The window's frame: `folded3dDrawPasses` at the scene's own camera, under
- * the mesh renderer's perspective, with a depth buffer. What the GPU would
- * show, decided in the same arithmetic several steps before a canvas.
- */
-function windowPicture(mesh: Folded3dMesh, camera: CameraUniforms, half: number): Picture {
-  const projected = projectVertices(mesh.positions, camera);
-  const ndcZ = (v: number): number =>
-    Math.max(-1, Math.min(1, -(projected.view[v * 3 + 2] ?? 0) / camera.depthRange));
-  const screen = (v: number): [number, number] => [
-    projected.screen[v * 2]!,
-    projected.screen[v * 2 + 1]!,
-  ];
-  const faceOfTriangle = new Int32Array(mesh.topology.faceIndices.length / 3).fill(-1);
-  for (let slot = 0; slot < mesh.slots.count; slot += 1) {
-    for (let i = mesh.slots.indexStart[slot]!; i < mesh.slots.indexStart[slot + 1]!; i += 3) {
-      faceOfTriangle[i / 3] = mesh.slots.face[slot]!;
-    }
-  }
-  // Skins repeat slot triangles at their own offsets; look a triangle's face
-  // up by its first vertex, which every copy shares.
-  const faceOfVertex = new Int32Array(Math.floor(mesh.positions.length / 3)).fill(-1);
-  for (let slot = 0; slot < mesh.slots.count; slot += 1) {
-    for (let v = mesh.slots.vertexStart[slot]!; v < mesh.slots.vertexStart[slot + 1]!; v += 1) {
-      faceOfVertex[v] = mesh.slots.face[slot]!;
-    }
-  }
-
-  const pic = blank();
-  const depth = new Float32Array(BOX * BOX).fill(Infinity);
-  const passes = folded3dDrawPasses(
-    { ...mesh, undeterminedFaceAlpha: 0.45 },
-    { showFaces: true, showEdges: true, faceAlpha: 1 },
-    camera
-  );
-  const idx = mesh.topology.faceIndices;
-  for (const pass of passes) {
-    if (pass.faceRange) {
-      const end = pass.faceRange.start + pass.faceRange.count;
-      for (let t = pass.faceRange.start; t + 2 < end; t += 3) {
-        const [ia, ib, ic] = [idx[t]!, idx[t + 1]!, idx[t + 2]!];
-        const [ax, ay] = screen(ia);
-        const [bx, by] = screen(ib);
-        const [cx, cy] = screen(ic);
-        // `gl_FrontFacing` from the screen winding, negated for y-down.
-        const winding = -((bx - ax) * (cy - ay) - (by - ay) * (cx - ax));
-        fillTriangle(
-          pic,
-          depth,
-          [
-            [ax, ay, ndcZ(ia)],
-            [bx, by, ndcZ(ib)],
-            [cx, cy, ndcZ(ic)],
-          ],
-          faceOfVertex[ia]!,
-          winding >= 0 ? 1 : -1
-        );
-      }
-    }
-    if (pass.edgeRange) {
-      const end = pass.edgeRange.start + pass.edgeRange.count;
-      for (let e = pass.edgeRange.start; e < end; e += 1) {
-        const ia = mesh.topology.edgeIndices[e * 2]!;
-        const ib = mesh.topology.edgeIndices[e * 2 + 1]!;
-        stampSegment(pic, screen(ia), screen(ib), INK + e, half, depth, ndcZ(ia), ndcZ(ib), FOLDED_3D_CREASE_DEPTH_BIAS);
-      }
-    }
-  }
-  return pic;
-}
-
-/** The page: every item in order, hidden ones included — they change nothing if marked right. */
-function scenePicture(scene: PaperScene, half: number): Picture {
-  const pic = blank();
-  scene.items.forEach((item, index) => {
-    if (item.kind === 'face') fillRings(pic, item.rings, item.face, item.side === 'front' ? 1 : -1);
-    else if (item.kind === 'line') stampSegment(pic, item.a, item.b, INK + index, half, null);
-  });
-  return pic;
-}
-
-/** Ink pixels of `pic`, dilated by `r`. */
-function inkMask(pic: Picture, r: number): Uint8Array {
-  const mask = new Uint8Array(BOX * BOX);
-  for (let y = 0; y < BOX; y += 1) {
-    for (let x = 0; x < BOX; x += 1) {
-      if (pic.id[y * BOX + x]! < INK) continue;
-      for (let oy = -r; oy <= r; oy += 1) {
-        for (let ox = -r; ox <= r; ox += 1) {
-          const px = x + ox;
-          const py = y + oy;
-          if (px >= 0 && py >= 0 && px < BOX && py < BOX) mask[py * BOX + px] = 1;
-        }
-      }
-    }
-  }
-  return mask;
-}
-
-interface Disagreement {
-  /** Pixels either picture paints. */
-  painted: number;
-  /** Pixels where the two show a different face or side, over paper in both. */
-  paper: number;
-  /** Scene ink over paper the window draws no ink near. */
-  spuriousInk: number;
-  /** Window ink over paper the scene draws no ink near. */
-  missingInk: number;
-}
-
-function compare(mesh: Folded3dMesh, scene: PaperScene, camera: CameraUniforms): Disagreement {
-  const half = 1.5;
-  const window = windowPicture(mesh, camera, half);
-  const page = scenePicture(scene, half);
-  const windowInk = inkMask(window, 3);
-  const pageInk = inkMask(page, 3);
-  let painted = 0;
-  let paper = 0;
-  let spuriousInk = 0;
-  let missingInk = 0;
-  for (let i = 0; i < BOX * BOX; i += 1) {
-    const w = window.id[i]!;
-    const p = page.id[i]!;
-    if (w === BACKGROUND && p === BACKGROUND) continue;
-    painted += 1;
-    const wPaper = w >= 0 && w < INK;
-    const pPaper = p >= 0 && p < INK;
-    if (wPaper && pPaper && (w !== p || window.side[i] !== page.side[i])) paper += 1;
-    if (p >= INK && !windowInk[i] && (wPaper || w === BACKGROUND)) spuriousInk += 1;
-    if (w >= INK && !pageInk[i]) missingInk += 1;
-  }
-  return { painted, paper, spuriousInk, missingInk };
 }
 
 /* --------------------------------------------------------------------------
@@ -550,7 +289,7 @@ describe('the scene the 3D figure exports', () => {
           zoom: 1,
         };
         const uniforms = folded3dSceneCamera(camera, mesh, BOX);
-        const result = compare(mesh, sceneOf(model, mesh, camera), uniforms);
+        const result = compareWithWindow(mesh, sceneOf(model, mesh, camera), uniforms);
         const label = `${name} yaw ${yawStep} tilt ${tiltDeg}`;
         expect(result.painted, label).toBeGreaterThan(0);
         // Two rasterisers of the same polygons: exact, save for a pixel whose
@@ -581,6 +320,46 @@ describe('the scene the 3D figure exports', () => {
         expect(near.has(line.face), `${name} @ ${label}, a crease of face ${line.face} shows`).toBe(true);
       }
     }
+  });
+
+  it('keeps a buried layer’s aux line under the layers that cover it, where it only touches them', () => {
+    // The pinwheel's base (face 1), with an aux line along the free edge of
+    // the left arm (face 0, x = 25) where the top arm (face 2) covers both:
+    // from above, the window shows face 2 there and no ink. The line runs
+    // along the edge of the cells either side, so the layers over it touch it
+    // and none covers it — only its layer's place in the stack keeps it under
+    // them. From below, the base is the layer the window shows.
+    const model = fixture('pinwheel');
+    const mesh = meshOf(model, { faces: [1], points: [25, 0, 0, 25, -25, 0] });
+    let buried = 0;
+    let shown = 0;
+    for (let yawStep = 0; yawStep < 4; yawStep += 1) {
+      for (const tiltDeg of [0, 30, 60, 100, 140, 200, 250, 300]) {
+        const camera: FoldedFigureCamera = {
+          yaw: (yawStep / 4) * Math.PI * 2 + 0.2,
+          pitch: -Math.PI / 2 + (tiltDeg / 180) * Math.PI,
+          zoom: 1,
+        };
+        const label = `yaw ${yawStep} tilt ${tiltDeg}`;
+        const scene = sceneOf(model, mesh, camera);
+        const result = compareWithWindow(mesh, scene, folded3dSceneCamera(camera, mesh, BOX));
+        expect(result.spuriousInkByRole.aux ?? 0, `${label}: aux ink over the paper that covers it`).toBe(0);
+        expect(result.missingInk, `${label}: ink the window draws`).toBe(0);
+        const aux = lines(scene).filter((line) => line.role === 'aux');
+        expect(aux.length, label).toBeGreaterThan(0);
+        // Cells 2 and 5 are the two the line runs between.
+        const onTop = [2, 5].map((cell) => cellFarToNear(model, cell, camera).at(-1) === 1);
+        if (onTop.every((top) => !top)) {
+          buried += 1;
+          expect(aux.every((line) => line.hidden), `${label}: the buried line is hidden`).toBe(true);
+        } else if (onTop.every((top) => top)) {
+          shown += 1;
+          expect(aux.some((line) => !line.hidden), `${label}: the line shows`).toBe(true);
+        }
+      }
+    }
+    expect(buried).toBeGreaterThan(0);
+    expect(shown).toBeGreaterThan(0);
   });
 });
 

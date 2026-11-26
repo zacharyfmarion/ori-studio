@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { FoldVertical } from 'lucide-react';
+import { FoldVertical, Link2, Unlink2 } from 'lucide-react';
+import type { DiagramStyle } from '../../diagram/document/diagramDocument';
+import type { FoldBrowserCard } from '../../diagram/fold/foldPull';
 import { selectable } from '../../diagram/references/referencesBrowserSelection';
 import {
   APP_FOLD_PROVIDER,
@@ -10,7 +12,8 @@ import {
 } from '../../diagram/fold/useFoldBrowser';
 import type { DiagramFoldBrowserState } from '../../store/workspaceStore/types';
 import { Button } from '../ui/Button';
-import { DiagramFoldPicture } from './DiagramFoldPicture';
+import { IconButton } from '../ui/IconButton';
+import { DiagramFoldCard } from './DiagramFoldCard';
 import {
   PullBrowserFrame,
   PullBrowserGrid,
@@ -18,7 +21,6 @@ import {
   usePullBrowserDialog,
   type PullBrowserList,
 } from './DiagramReferencesBrowser';
-import { DiagramPullCard, DiagramPullCardThumbnail } from './DiagramReferencesCard';
 import styles from './DiagramFoldBrowser.module.css';
 
 /**
@@ -29,15 +31,18 @@ import styles from './DiagramFoldBrowser.module.css';
  *
  * The browser itself: the shown sequence's active path as cards — each step
  * that folds, the turns between them, and Finished — each the step it would
- * become, its sentence Fold's own; under them what is selected and the one
- * verb, worded by where the browser was opened for. `provider` is the app's
- * Fold session, or a fake one in a test.
+ * become, drawn in the diagram's pens (`style`) with its marks, its sentence
+ * Fold's own; under them what is selected and the one verb, worded by where
+ * the browser was opened for. `provider` is the app's Fold session, or a
+ * fake one in a test.
  */
 export function DiagramFoldBrowser({
   state,
+  style,
   provider = APP_FOLD_PROVIDER,
 }: {
   state: DiagramFoldBrowserState;
+  style: DiagramStyle;
   provider?: FoldBrowserProvider;
 }) {
   const { t } = useTranslation();
@@ -77,25 +82,27 @@ export function DiagramFoldBrowser({
         </>
       }
     >
-      <FoldCards browser={browser} />
+      <FoldCards browser={browser} style={style} />
     </PullBrowserFrame>
   );
 }
 
 /**
- * Merge symmetric precreases: a precrease and its mirror image become one
- * step, both creases on the picture before them, as a book draws them — the
- * list shows each such run as one card. Remembered, and followed by Fold's
- * Send steps to Diagram; offered only while some run on the path would merge.
+ * Merge symmetric steps: steps that are mirror images of each other, on
+ * paper of their own, become one step, every line on the picture before
+ * them, as a book draws them — the list shows each such run as one card.
+ * Turned copies are offered with Join, never merged by it. Remembered, and
+ * followed by Fold's Send steps to Diagram; offered only while something on
+ * the path would merge.
  */
 function MergeToggle({ browser }: { browser: FoldBrowser }) {
   const { t } = useTranslation();
   const hint = browser.mergeable
     ? t(
-        'panels:diagram.fold.mergePrecreasesHint',
-        'A precrease and its mirror image become one step, both creases on one picture, as a book draws them.'
+        'panels:diagram.fold.mergeStepsHint',
+        'Steps that mirror each other become one step, every fold on one picture, as a book draws them. Steps that are turned copies get a Join button instead.'
       )
-    : t('panels:diagram.fold.mergePrecreasesNone', 'No precrease on this path has a mirror image to merge with.');
+    : t('panels:diagram.fold.mergeStepsNone', 'No steps on this path mirror or repeat each other.');
   return (
     <label className={styles.merge} title={hint} data-disabled={!browser.mergeable || undefined}>
       <input
@@ -104,13 +111,13 @@ function MergeToggle({ browser }: { browser: FoldBrowser }) {
         disabled={!browser.mergeable}
         onChange={(event) => browser.setMerge(event.currentTarget.checked)}
       />
-      {t('panels:diagram.fold.mergePrecreases', 'Merge symmetric precreases')}
+      {t('panels:diagram.fold.mergeSteps', 'Merge symmetric steps')}
     </label>
   );
 }
 
 /** The sequence's cards, or why there are none. */
-function FoldCards({ browser }: { browser: FoldBrowser }) {
+function FoldCards({ browser, style }: { browser: FoldBrowser; style: DiagramStyle }) {
   const { t } = useTranslation();
   const { cards } = browser;
   if (cards.status === 'empty') {
@@ -126,51 +133,96 @@ function FoldCards({ browser }: { browser: FoldBrowser }) {
   const tabStop = browser.selection.focus ?? cards.cards.find((card) => card.step)?.index ?? null;
   return (
     <PullBrowserGrid label={t('panels:diagram.fold.steps', 'Steps')}>
-      {cards.cards.map((card) => (
-        <DiagramPullCard
-          key={card.index}
-          index={card.index}
-          kind={card.kind}
-          title={
-            card.kind === 'fold'
-              ? card.through !== undefined
-                ? // A merged run: the steps it joins, which become one.
-                  t('panels:diagram.fold.mergedCard', 'Steps {{first}}–{{last}}', {
-                    first: card.number ?? '',
-                    last: card.through,
-                  })
-                : t('panels:diagram.fold.card', 'Step {{number}}', { number: card.number ?? '' })
-              : card.kind === 'turn-over'
-                ? t('panels:diagram.fold.turnCard', 'Turn')
-                : t('panels:diagram.references.finished', 'Finished')
-          }
-          badge=""
-          picture={
-            <DiagramPullCardThumbnail>
-              <DiagramFoldPicture picture={card.picture} />
-            </DiagramPullCardThumbnail>
-          }
-          onPaper={false}
-          unreadable={card.step === null}
-          why={
-            card.step === null
-              ? t('panels:diagram.fold.notLanded', 'Fold hasn’t folded this step, so it can’t be added yet.')
-              : undefined
-          }
-          sentence={card.sentence}
-          ways={null}
-          inDiagram={browser.inDiagram.get(card.index) ?? null}
-          shownNow={false}
-          selected={browser.selection.indices.has(card.index)}
-          tabStop={card.index === tabStop}
-          offered={offered === card.index}
-          choosable={selectable(card, true)}
-          onPress={(modifiers) => browser.press(card.index, modifiers)}
-          onFocus={() => browser.focusOn(card.index)}
-        />
-      ))}
+      {cards.cards.map((card) => {
+        const next = cards.cards[card.index + 1];
+        return (
+          // The card, and the offer to join it with the next one, in the gap between them.
+          <div key={card.index} className={styles.slot}>
+            <DiagramFoldCard
+              card={card}
+              style={style}
+              title={
+                card.kind === 'fold'
+                  ? card.through !== undefined
+                    ? // A merged run: the steps it joins, which become one.
+                      t('panels:diagram.fold.mergedCard', 'Steps {{first}}–{{last}}', {
+                        first: card.number ?? '',
+                        last: card.through,
+                      })
+                    : t('panels:diagram.fold.card', 'Step {{number}}', { number: card.number ?? '' })
+                  : card.kind === 'turn-over'
+                    ? t('panels:diagram.fold.turnCard', 'Turn')
+                    : t('panels:diagram.references.finished', 'Finished')
+              }
+              why={
+                card.step === null
+                  ? t('panels:diagram.fold.notLanded', 'Fold hasn’t folded this step, so it can’t be added yet.')
+                  : undefined
+              }
+              inDiagram={browser.inDiagram.get(card.index) ?? null}
+              selected={browser.selection.indices.has(card.index)}
+              tabStop={card.index === tabStop}
+              offered={offered === card.index}
+              choosable={selectable(card, true)}
+              onPress={(modifiers) => browser.press(card.index, modifiers)}
+              onFocus={() => browser.focusOn(card.index)}
+              {...(card.merged
+                ? {
+                    action: {
+                      label: t('panels:diagram.fold.split', 'Split'),
+                      title: t('panels:diagram.fold.splitHint', {
+                        count: card.merged.count,
+                        defaultValue_one: 'Split into {{count}} step',
+                        defaultValue_other: 'Split into {{count}} steps',
+                      }),
+                      icon: <Unlink2 size={12} aria-hidden="true" />,
+                      onPress: () => browser.split(card),
+                    },
+                  }
+                : {})}
+            />
+            {card.join && next && (
+              <IconButton
+                className={styles.join}
+                variant="toolbar"
+                size="sm"
+                aria-label={t('panels:diagram.fold.join', 'Join step {{first}} and step {{next}}', {
+                  first: card.through ?? card.number ?? '',
+                  next: next.number ?? '',
+                })}
+                title={joinHint(card, next, t)}
+                onClick={() => browser.join(card)}
+              >
+                <Link2 size={14} aria-hidden="true" />
+              </IconButton>
+            )}
+          </div>
+        );
+      })}
     </PullBrowserGrid>
   );
+}
+
+/** What joining a card with the next makes, as the Join button's tooltip says it. */
+function joinHint(card: FoldBrowserCard, next: FoldBrowserCard, t: TFunction): string {
+  const first = card.through ?? card.number ?? '';
+  const after = next.number ?? '';
+  switch (card.join?.kind) {
+    case 'turn':
+      return t(
+        'panels:diagram.fold.joinTurn',
+        'Join steps {{first}} and {{next}} into one step: the same fold, turned.',
+        { first, next: after }
+      );
+    case 'repeat':
+      return t('panels:diagram.fold.joinRepeat', 'Join the Repeat with the steps it repeats, into one step.');
+    default:
+      return t(
+        'panels:diagram.fold.joinMirror',
+        'Join steps {{first}} and {{next}} into one step: they mirror each other.',
+        { first, next: after }
+      );
+  }
 }
 
 /** The browser's title: where what it adds goes. */

@@ -29,6 +29,27 @@
       "title": "Circle Packing"
     }
   },
+  "diagram": {
+    "annotate": {
+      "body": "Valley, mountain and fold-and-unfold arrows, fold lines, equal divisions, callouts, close-ups and X-ray windows, snapped to the paper as you draw them.",
+      "figureAlt": "A close-up of a crane’s head open for annotation, with a fold-and-unfold arrow and its fold line beside the annotation tools.",
+      "title": "All the annotations you need"
+    },
+    "carouselLabel": "Diagram features",
+    "eyebrow": "Diagram",
+    "lead": "Import from the Edit, Fold and References workspaces to create a complete diagram of a model. Each step’s picture is drawn from your crease pattern or a Fold step, so it stays true to the model, and the finished pages export as a PDF ready to print.",
+    "pages": {
+      "body": "Lay the steps out on A4, A5, B5 or Letter pages, in a grid or a winding flow, with a title block on page one. Export a PDF, or a ZIP of the step pictures.",
+      "figureAlt": "Page one of a crane diagram: a title block with the crease pattern and the finished model above numbered steps.",
+      "title": "Pages ready to print"
+    },
+    "pose": {
+      "body": "Show a step as its crease pattern, folded flat with its layers spread apart, or folded in 3D and turned to any angle. A step linked to the model says when the model has changed.",
+      "figureAlt": "A box folded in 3D and turned to show its inside, in the Diagram’s Pose view.",
+      "title": "Pictures from the model itself"
+    },
+    "title": "From model to printed instructions"
+  },
   "edit": {
     "angles": {
       "body": "Draw, simulate, and solve origami models with non-flat creases.",
@@ -56,6 +77,12 @@
     "title": "An editor that keeps up"
   },
   "figureMissing": "Screenshot goes here",
+  "fold": {
+    "eyebrow": "Fold",
+    "figureAlt": "The Fold workspace: a strip of folding steps above the folded paper and its crease pattern.",
+    "lead": "Fold a model as you would by hand, one step at a time from a flat sheet of paper. Import from and export to the Edit workspace for steps that need a complicated collapse. When you are done, import the entire sequence into the Diagram workspace for complete, formatted diagrams!",
+    "title": "Fold a sheet the way you would by hand"
+  },
   "formats": {
     "a11yBoth": "opens and exports",
     "a11yExport": "exports only",
@@ -81,7 +108,7 @@
   "what": {
     "eyebrow": "What it is",
     "figureAlt": "The Ori Studio workspace: a crease pattern on the canvas with the tool rail and inspector panels around it.",
-    "lead": "Sketch a base, draw the crease pattern, and fold it to see whether it works — all in one place, with no account. Open it in a browser tab, or install the desktop app.",
+    "lead": "Sketch a base, draw the crease pattern, fold it to see whether it works, and diagram it for others to fold — all in one place, with no account. Open it in a browser tab, or install the desktop app.",
     "title": "A free, open-source workspace for origami design"
   }
 }

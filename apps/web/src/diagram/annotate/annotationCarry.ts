@@ -30,6 +30,7 @@ import {
   creasePatternSide,
   creasesFlipped,
   isKnownAnnotation,
+  isPictureAsset,
   isPosedSource,
   sameSpread,
   type DiagramAnnotation,
@@ -281,7 +282,7 @@ function pictureMove(
   const [from, to] = [before.source, after.source];
   if (from?.kind === 'upload' && to?.kind === 'upload' && from.assetId === to.assetId) {
     const asset = assets[from.assetId];
-    if (!asset || 'unknown' in asset) return null;
+    if (!isPictureAsset(asset)) return null;
     return poseMove(asset.widthPx, asset.heightPx, from, to);
   }
   if (

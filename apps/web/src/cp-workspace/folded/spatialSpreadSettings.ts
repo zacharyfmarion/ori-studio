@@ -4,7 +4,10 @@ import type { SpatialSpread } from './foldedFigureSpread';
 /** Stored amounts multiply the unit displacement field, independently of the
  * slider's 0–100% range. Raising the maximum leaves saved geometry unchanged. */
 export const MAX_SPATIAL_SPREAD_AMOUNT = 4;
-export const DEFAULT_SPATIAL_SPREAD: SpatialSpread = { kind: 'spatial', version: 2, amount: 1 };
+
+/** The amount Spread layers turns a 3D figure's spread on at, and its Amount's reset: 25%. */
+export const DEFAULT_SPATIAL_SPREAD_AMOUNT = 1;
+export const DEFAULT_SPATIAL_SPREAD: SpatialSpread = { kind: 'spatial', version: 2, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT };
 
 /** The stored amount is always in slider units. Only a v2 picture applies the mesh gain. */
 export function spatialDrawAmount(spread: SpatialSpread | null | undefined, gain = 1): number {

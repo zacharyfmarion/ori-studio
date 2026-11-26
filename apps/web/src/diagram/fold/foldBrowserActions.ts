@@ -15,17 +15,29 @@
 import { toast } from 'sonner';
 import { trackDiagramStepAdded, trackDiagramTurnAdded } from '../../analytics';
 import { trackFoldStepSentToDiagram, type FoldSentToDiagramVia } from '../../analytics/trackFoldIo';
-import { foldStepTree, pathTo } from '../../fold/document/foldStepTree';
-import { isLockedStep, turnKindOf, type FoldStepNode } from '../../fold/document/foldSequenceDocument';
+import { foldStepTree, pathBetween, pathTo } from '../../fold/document/foldStepTree';
+import {
+  isLockedStep,
+  turnKindOf,
+  type FoldSequenceDocument,
+  type FoldStepNode,
+} from '../../fold/document/foldSequenceDocument';
 import i18n from '../../i18n';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { shownFoldSequence } from '../../store/workspaceStore/foldState';
 import { loadFold } from '../../workspaces/foldGateway';
-import { anchorTakesCard, isTurn, stepIndex, type DiagramPullAnchor } from '../document/diagramDocument';
-import { mergedPullTargets, type FoldPrecreaseMerge } from './foldPrecreaseMerge';
+import {
+  anchorTakesCard,
+  isTurn,
+  stepIndex,
+  type DiagramPullAnchor,
+  type SentDiagramEntry,
+} from '../document/diagramDocument';
+import { mergedPullTargets } from './foldPrecreaseMerge';
 import type { FoldPullTarget } from './foldPull';
+import type { FoldMergedRun } from './foldStepMerge';
 
 /** From Fold… for the diagram, by the insertion rule: an empty selected step takes the first step, the rest after it. */
 export function openFoldBrowser(): void {
@@ -99,6 +111,11 @@ export async function pullFromFold(
     merged: sent.some((entry) => !('kind' in entry) && entry.source.kind === 'fold-step' && entry.source.through !== undefined)
       ? 'some'
       : 'none',
+    mergedFolds: mergedRunsOf(shown.document, sent).some((run) =>
+      run.some((node) => isLockedStep(node) || !UNFOLDING.has(node.op.kind))
+    )
+      ? 'some'
+      : 'none',
   });
   trackPulledEntries(pulled, anchor);
   return added;
@@ -148,13 +165,26 @@ export function foldSendTargets(path: readonly FoldStepNode[], scope: FoldSendTo
     : targets;
 }
 
-/** The precreases and mirror images that merge along `path`, told by the Fold session while it is held. */
-async function pathMerges(sequence: string, path: readonly FoldStepNode[]): Promise<FoldPrecreaseMerge[]> {
+/** The steps a merged run is made of that only crease: precreases, and a Repeat of them. */
+const UNFOLDING = new Set(['precrease', 'repeat']);
+
+/** The runs of Fold steps `sent` draws as one step each, as `document`'s steps. */
+function mergedRunsOf(document: FoldSequenceDocument, sent: readonly SentDiagramEntry[]): FoldStepNode[][] {
+  const tree = foldStepTree(document.steps);
+  return sent.flatMap((entry) => {
+    if ('kind' in entry || entry.source.kind !== 'fold-step' || entry.source.through === undefined) return [];
+    const run = pathBetween(tree, entry.source.step, entry.source.through);
+    return run ? [run] : [];
+  });
+}
+
+/** The runs Merge symmetric steps draws as one along `path`, told by the Fold session while it is held. */
+async function pathMerges(sequence: string, path: readonly FoldStepNode[]): Promise<FoldMergedRun[]> {
   const fold = await loadFold();
   const session = fold.foldSession();
   const release = session.retain();
   try {
-    return await fold.foldPrecreaseMerges(session, sequence, path);
+    return await fold.foldPathMerges(session, sequence, path);
   } finally {
     release();
   }
@@ -181,7 +211,8 @@ export async function sendFoldStepsToDiagram(scope: FoldSendToDiagramScope): Pro
     toast.error(t('common:capability.foldNoSteps', 'Fold a step first'));
     return false;
   }
-  // The path, with Merge symmetric precreases as the From Fold… browser last left it: one step sends that step alone.
+  // The path, with Merge symmetric steps as the From Fold… browser last left it: mirror images and Repeats merged,
+  // turned copies apart. One step sends that step alone.
   const merging = scope === 'path' && useSettingsStore.getState().diagramFoldMergePrecreases;
   const sent = merging ? mergedPullTargets(targets, await pathMerges(shown.document.id, path)) : targets;
   const added = await pullFromFold(sent, { kind: 'end' }, { via: 'fold' });

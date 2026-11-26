@@ -1,8 +1,28 @@
 /*
  * What the Fold browser (DiagramFoldBrowser.tsx) adds to the pull browser's
- * frame: Merge symmetric precreases in the bar, a checkbox and its words as
- * the footer's turn offer is, so the two options read alike.
+ * frame: Merge symmetric steps in the bar, a checkbox and its words as the
+ * footer's turn offer is, so the two options read alike; and each card's
+ * place in the list, with the offer to join it with the next.
  */
+
+/* A card's place in the grid: the card fills it, so a row's cards keep one height. */
+.slot {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+/*
+ * Join: on the card's right edge, part way down its picture, reaching into
+ * the gap. Centred on the edge, not the gap, so at a row's end it stays
+ * inside the grid's padding and the list never scrolls sideways.
+ */
+.join {
+  position: absolute;
+  z-index: 1;
+  top: 38%;
+  right: calc(-1 * var(--space-3));
+}
 .merge {
   display: inline-flex;
   align-items: center;

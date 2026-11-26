@@ -76,6 +76,11 @@ export interface LayerOrderDialogBinding {
   readonly history: ModalHistory;
   readonly apply: () => void;
   readonly cancel: () => void;
+  /**
+   * Escape: the builder's Clear, when there is a sentence to clear; else
+   * nothing. It never closes the dialog.
+   */
+  readonly escape: () => void;
   /** The notice's Try again or Keep trying. */
   readonly retry: () => void;
   readonly view: LayerPanesView;
@@ -307,6 +312,10 @@ export function useLayerOrderDialog(
     latest.current.settle.cancel();
   }, [dispatch]);
 
+  const escape = useCallback(() => {
+    if (listControls(stateRef.current).clearSentence) dispatch({ type: 'sentence_cleared' });
+  }, [dispatch]);
+
   const retry = useCallback(() => {
     const phase = stateRef.current.phase.kind;
     if (phase === 'failed') dispatch({ type: 'retry_open' });
@@ -323,10 +332,13 @@ export function useLayerOrderDialog(
     [dispatch]
   );
 
+  // A host that never stores a turn asks for no Rotate (`LayerOrderRequest.rotate`): no listener, no buttons.
+  const rotates = request.rotate !== false;
   const events = useMemo<LayerPanesEvents>(
     () => ({
-      onFacePicked: ({ face, origin, input }) => {
-        dispatch({ type: 'face_picked', face, origin });
+      onFacePicked: ({ face, origin, input, shift }) => {
+        // A plain click on one of the subject's faces adds the sentence; Shift+click only picks.
+        dispatch({ type: 'face_picked', face, origin, adds: !shift });
         // A tap has no hover: the face it picked stays pointed at, so its hint shows (D6).
         if (input === 'tap') dispatch({ type: 'face_hovered', face });
       },
@@ -340,9 +352,9 @@ export function useLayerOrderDialog(
         if (input === 'tap') dispatch({ type: 'face_hovered', face: null });
       },
       onFlashEnded: (n) => dispatch({ type: 'flash_ended', n }),
-      onTurn: (direction) => dispatch({ type: 'turned', direction }),
+      ...(rotates ? { onTurn: (direction: 'left' | 'right') => dispatch({ type: 'turned', direction }) } : {}),
     }),
-    [dispatch]
+    [dispatch, rotates]
   );
 
   const [unlettered, setUnlettered] = useState<LayerOrderUnlettered>(NO_UNLETTERED);
@@ -362,6 +374,7 @@ export function useLayerOrderDialog(
     history,
     apply,
     cancel,
+    escape,
     retry,
     view,
     setView,

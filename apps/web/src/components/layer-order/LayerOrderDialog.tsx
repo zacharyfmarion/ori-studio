@@ -6,6 +6,7 @@ import { lettersHidden, useLayerOrderDialog } from '../../layer-order/dialog/use
 import { useLayerOrderSession } from '../../layer-order/dialog/useLayerOrderSession';
 import { useLayerOrderSettle } from '../../layer-order/dialog/useLayerOrderSettle';
 import { applyState, openNotice } from '../../layer-order/model/layerOrderSelectors';
+import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useModalFullScreen } from '../ui/ModalFrame';
 import { LayerOrderDialogFrame, type LayerOrderPhonePane } from './LayerOrderDialogFrame';
 import { layerOrderCopy } from './layerOrderInspectorCopy';
@@ -33,6 +34,7 @@ export function LayerOrderDialog({ opening }: { opening: LayerOrderDialogOpening
   const settle = useLayerOrderSettle(opening, session);
   const dialog = useLayerOrderDialog(opening, session, settle);
   const fullScreen = useModalFullScreen();
+  const coarse = useIsCoarsePointerSurface();
   const [pane, setPane] = useState<LayerOrderPhonePane>('folded');
   const phonePane = fullScreen ? pane : null;
   const { status, state } = dialog;
@@ -76,12 +78,13 @@ export function LayerOrderDialog({ opening }: { opening: LayerOrderDialogOpening
           dispatch={dialog.dispatch}
           copy={copy}
           letters={letters}
-          hint={{ unlettered: hidden }}
+          hint={{ unlettered: hidden, shiftPicks: !coarse }}
         />
       }
       history={dialog.history}
       onRetry={dialog.retry}
       onCancel={dialog.cancel}
+      onEscape={dialog.escape}
       onApply={dialog.apply}
       applyWaits={apply.enabled ? null : applyWaitText(t, apply.why)}
       applying={settle.applying}

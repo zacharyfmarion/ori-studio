@@ -1,7 +1,7 @@
 mod additional_estimation;
 mod combination;
 pub mod permutation;
-mod quad_tree;
+pub(crate) mod quad_tree;
 
 use crate::fold_graph::{FacePositions, FoldGraph, FoldGraphError};
 use crate::geometry::{
@@ -1675,7 +1675,7 @@ pub fn folded_subface_figure_from_segments(
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments)?;
-    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    let subface_graph = FoldGraph::from_subface_segments(&prepared_segments);
     if subface_graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1766,7 +1766,7 @@ pub fn configure_subfaces_from_segments(
     };
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments)?;
-    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    let subface_graph = FoldGraph::from_subface_segments(&prepared_segments);
     if subface_graph.faces.is_empty() {
         return Ok(None);
     }
@@ -1814,7 +1814,7 @@ pub fn equivalence_condition_candidates_from_segments(
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments)?;
-    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    let subface_graph = FoldGraph::from_subface_segments(&prepared_segments);
     let subfaces = if subface_graph.faces.is_empty() {
         SubFaceConfiguration {
             subfaces: Vec::new(),
@@ -1911,7 +1911,7 @@ pub fn additional_estimation_from_segments(
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments)?;
-    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    let subface_graph = FoldGraph::from_subface_segments(&prepared_segments);
     if subface_graph.faces.is_empty() {
         return Ok(Some(AdditionalEstimation {
             hierarchy: initial,
@@ -3633,7 +3633,7 @@ fn overlap_enumerator_from_segments_seeded(
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments)?;
-    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    let subface_graph = FoldGraph::from_subface_segments(&prepared_segments);
     if subface_graph.faces.is_empty() {
         return WorkerOverlapEnumerator::from_ordered_subfaces(&[], &[], 0, &initial, None)
             .map(|enumerator| Some(budgeted(enumerator)));
@@ -3706,7 +3706,7 @@ fn two_colored_overlap_enumerator_from_segments(
     let folded = wireframe_from_graph(&graph, &positions, graph.points.clone());
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments)?;
-    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    let subface_graph = FoldGraph::from_subface_segments(&prepared_segments);
     if subface_graph.faces.is_empty() {
         return WorkerOverlapEnumerator::from_ordered_subfaces(&[], &[], 0, &initial, None)
             .map(Some);
@@ -3757,7 +3757,7 @@ fn folded_subface_graph_and_config(
 ) -> Result<Option<(FoldGraph, SubFaceConfiguration)>, crate::cancel::Cancelled> {
     let folded_segments = folded_wireframe_segments(folded);
     let prepared_segments = prepare_subface_segments(&folded_segments)?;
-    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    let subface_graph = FoldGraph::from_subface_segments(&prepared_segments);
     if subface_graph.faces.is_empty() {
         return Ok(None);
     }

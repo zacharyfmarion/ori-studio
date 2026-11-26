@@ -482,6 +482,19 @@ export interface DiagramCpSource {
    * document snapshot the capture used: what link status compares against.
    */
   fingerprint: string;
+  /**
+   * A folded picture's other half of its link (flat, 3D or simulated): the
+   * relative fingerprint over every line its sheet holds, aux lines included,
+   * since each draws the sheet's aux lines on its paper while `fingerprint`
+   * covers only the lines it folds. The sheet is still found by those
+   * (`chooseStepCreases`); this says whether the picture is out of date. Absent
+   * for a crease pattern, whose `fingerprint` already covers every line, and
+   * for a link saved before the field: it never said, so an aux edit cannot
+   * mark it out of date until its next capture writes one, and Refresh is
+   * offered on it meanwhile (`drawnLinesUntracked`). A build without the field
+   * carries the step locked, as any source field it has no name for.
+   */
+  drawnFingerprint?: string;
   /** The pattern as it was linked, for the picker and a step whose pattern is gone. */
   thumbnail: SheetThumbnail;
   render: DiagramCpRender;
@@ -1332,7 +1345,37 @@ export interface DiagramRasterAsset {
   bytes: number;
 }
 
-export type KnownDiagramAsset = DiagramSvgAsset | DiagramRasterAsset;
+/** Uploaded art a step shows as its picture: vector or bitmap. */
+export type DiagramPictureAsset = DiagramSvgAsset | DiagramRasterAsset;
+
+/**
+ * A crease pattern uploaded from a file (`.cp`, `.fold`, `.ori`, `.orh`) for
+ * the title block to draw as the final crease pattern
+ * (`implementation-plans/diagram-title-block-final-cp.md`): the file's lines
+ * as read, every role kept — what the block draws of them is its own rule
+ * (`pages/titleBlockContent.ts`) — fitted to a {@link CREASE_PATTERN_ASSET_BOX}
+ * box. The original file is not kept. Never a step's picture.
+ */
+export interface DiagramCreasePatternAsset {
+  id: string;
+  kind: 'crease-pattern';
+  /** The file's name, one plain line: shown in the Page pane, and never sent anywhere. */
+  name: string;
+  /** The lines, in the shape a link's thumbnail has, written as one JSON string. */
+  pattern: SheetThumbnail;
+  /** What it costs in the file: its lines' JSON's length. */
+  bytes: number;
+}
+
+/**
+ * The side of the box an uploaded crease pattern's lines are fitted to: ten
+ * times a link's thumbnail (100), since a link can be captured again and an
+ * upload is the only copy the diagram has (F-4).
+ */
+export const CREASE_PATTERN_ASSET_BOX = 1000;
+
+/** An asset this build reads: a picture, or an uploaded crease pattern. */
+export type KnownDiagramAsset = DiagramPictureAsset | DiagramCreasePatternAsset;
 
 /** An asset this build cannot read, kept verbatim like an unknown annotation. */
 export interface UnknownDiagramAsset {
@@ -1344,6 +1387,16 @@ export type DiagramAsset = KnownDiagramAsset | UnknownDiagramAsset;
 
 export function isKnownAsset(asset: DiagramAsset): asset is KnownDiagramAsset {
   return !('unknown' in asset);
+}
+
+/** Whether an asset is a picture a step can show: this build's SVG or bitmap. */
+export function isPictureAsset(asset: DiagramAsset | undefined): asset is DiagramPictureAsset {
+  return asset !== undefined && isKnownAsset(asset) && asset.kind !== 'crease-pattern';
+}
+
+/** Whether an asset is an uploaded crease pattern this build reads. */
+export function isCreasePatternAsset(asset: DiagramAsset | undefined): asset is DiagramCreasePatternAsset {
+  return asset !== undefined && isKnownAsset(asset) && asset.kind === 'crease-pattern';
 }
 
 export interface DiagramStep {
@@ -1487,6 +1540,14 @@ export interface DiagramDocument {
 export type DiagramTitleBlockSource = { kind: 'step'; stepId: string } | { kind: 'none' };
 
 /**
+ * Where the title block's crease pattern comes from, set by hand: what any
+ * part takes, or a file uploaded for it — the crease-pattern asset it names
+ * ({@link DiagramCreasePatternAsset}; `implementation-plans/
+ * diagram-title-block-final-cp.md`). The model takes no file.
+ */
+export type DiagramTitleBlockPatternSource = DiagramTitleBlockSource | { kind: 'upload'; assetId: string };
+
+/**
  * The parts of the first page's title block set by hand ({@link DiagramDocument.titleBlockContent};
  * `implementation-plans/diagram-title-block.md`, Phase 1c). Plain text throughout. An unsaid subtitle,
  * credits or note is none, for good; an unsaid size is the app's ({@link TITLE_BLOCK_ART_SIZE_DEFAULTS}).
@@ -1494,8 +1555,8 @@ export type DiagramTitleBlockSource = { kind: 'step'; stepId: string } | { kind:
 export interface DiagramTitleBlockContent {
   /** The finished model: a step's picture. */
   model?: DiagramTitleBlockSource;
-  /** The crease pattern: a linked step's pattern. */
-  pattern?: DiagramTitleBlockSource;
+  /** The crease pattern: a linked step's pattern, or a file's ({@link DiagramTitleBlockPatternSource}). */
+  pattern?: DiagramTitleBlockPatternSource;
   /** The small line over the title's band ("Subtitle" in a new diagram, for its author to type over): one line, never blank. */
   subtitle?: string;
   /** The credits under the band, in order; never empty. */
@@ -2275,6 +2336,28 @@ export type SentReferencesEntry = SentReferencesStep | DiagramTurnKind;
 export type SentDiagramEntry = SentDiagramStep | DiagramTurnKind;
 
 /**
+ * A card as the new step a pull makes of it: its marks lifted, in step with
+ * its sheet, when they fit (17d); `baked` when they did not, and the card's
+ * whole picture shows them. The Fold browser draws its cards so
+ * (`foldPullPreviews.ts`), as the step Add makes.
+ */
+export function sentStep(card: SentDiagramStep, newId: DiagramIdFactory = randomDiagramId): { step: DiagramStep; baked: boolean } {
+  const step = createStep(newId);
+  const lifted = card.lifted && card.lifted.annotations.length <= MAX_STEP_ANNOTATIONS ? card.lifted : null;
+  const picture = lifted?.picture ?? card.picture;
+  return {
+    step: {
+      ...step,
+      source: card.source,
+      picture,
+      ...(lifted ? { annotations: [...lifted.annotations], annotatedPictureKey: picture.key } : {}),
+      text: xmlText(card.text),
+    },
+    baked: !lifted && card.lifted !== undefined,
+  };
+}
+
+/**
  * Cards pulled from References — or steps from Fold (plan D17), which pull
  * the same way — placed by `anchor`, in order: each a step, a turn-over card
  * (a Fold turn or rotation) a turn (D22). An anchor whose step is gone, or
@@ -2292,20 +2375,11 @@ export function pullReferencesSteps(
 ): { document: DiagramDocument; stepIds: string[]; turnIds: string[] } & PulledMarks {
   const baked: string[] = [];
   if (sent.length === 0) return { document, stepIds: [], turnIds: [], baked, replaced: 0 };
-  /** The card as a new step: its marks lifted, in step with its sheet, when they fit (17d). */
   const make = (card: SentDiagramEntry): DiagramEntry => {
     if ('kind' in card) return createTurn(card, newId);
-    const step = createStep(newId);
-    const lifted = card.lifted && card.lifted.annotations.length <= MAX_STEP_ANNOTATIONS ? card.lifted : null;
-    if (!lifted && card.lifted !== undefined) baked.push(step.id);
-    const picture = lifted?.picture ?? card.picture;
-    return {
-      ...step,
-      source: card.source,
-      picture,
-      ...(lifted ? { annotations: [...lifted.annotations], annotatedPictureKey: picture.key } : {}),
-      text: xmlText(card.text),
-    };
+    const made = sentStep(card, newId);
+    if (made.baked) baked.push(made.step.id);
+    return made.step;
   };
   const insertAt = (index: number, cards: readonly SentDiagramEntry[], into = document) => {
     const entries = cards.map(make);
@@ -2711,10 +2785,10 @@ export function removeStepPicture(document: DiagramDocument, stepId: string): Di
  * The asset a step's picture is drawn from, when it is one this build can
  * draw — a newer build's step's too, which is drawn as far as it reads.
  */
-export function stepAsset(document: DiagramDocument, step: DiagramStep): KnownDiagramAsset | null {
+export function stepAsset(document: DiagramDocument, step: DiagramStep): DiagramPictureAsset | null {
   if (step.picture?.kind !== 'asset') return null;
   const asset = document.assets[step.picture.assetId];
-  return asset && isKnownAsset(asset) ? asset : null;
+  return isPictureAsset(asset) ? asset : null;
 }
 
 /** Each carried value's JSON, made once: what a newer build wrote never changes here. */
@@ -2762,8 +2836,9 @@ export function carriedJson(document: Pick<DiagramDocument, 'steps' | 'assets' |
  *
  * The store prunes as every edit lands, since each undo snapshot keeps its own
  * table, and the writer prunes again for a document from anywhere else (one
- * read from a hand-edited file). Three things keep an asset: a step's source
- * or picture naming it; its id anywhere a newer build wrote ({@link carriedJson}),
+ * read from a hand-edited file). Four things keep an asset: a step's source
+ * or picture naming it; the title block's crease pattern naming it (a file
+ * uploaded for it); its id anywhere a newer build wrote ({@link carriedJson}),
  * which this build cannot read but must not break; and being of a kind this
  * build does not know, since only that newer build knows what refers to it.
  * The same document comes back when nothing is dropped.
@@ -2775,6 +2850,8 @@ export function withReferencedAssets(document: DiagramDocument): DiagramDocument
     if (step.source?.kind === 'upload') kept.add(step.source.assetId);
     if (step.picture?.kind === 'asset') kept.add(step.picture.assetId);
   }
+  const pattern = document.titleBlockContent?.pattern;
+  if (pattern?.kind === 'upload') kept.add(pattern.assetId);
   // Read only for an asset no step of this build's names, which is rare.
   let carried: string[] | undefined;
   let dropped = false;
@@ -2861,10 +2938,7 @@ export function setDiagramTitle(document: DiagramDocument, title: string): Diagr
  */
 export function setTitleBlockContent(document: DiagramDocument, patch: DiagramTitleBlockContentPatch): DiagramDocument {
   const was = document.titleBlockContent ?? {};
-  const source = (key: 'model' | 'pattern') => {
-    const asked = patch[key];
-    return asked === undefined ? was[key] : asked === 'auto' ? undefined : (titleBlockSource(asked) ?? undefined);
-  };
+  const source = (asked: DiagramTitleBlockSource | 'auto') => (asked === 'auto' ? undefined : (titleBlockSource(asked) ?? undefined));
   const text = (key: 'subtitle' | 'note', clean: (text: string) => string) => {
     const asked = patch[key];
     if (asked === undefined) return was[key];
@@ -2879,8 +2953,8 @@ export function setTitleBlockContent(document: DiagramDocument, patch: DiagramTi
   const credits = patch.credits ? editedCredits(was.credits ?? [], patch.credits) : was.credits;
   const bandColor = patch.bandColor === 'paper' ? undefined : (readHexColor(patch.bandColor) ?? was.bandColor);
   const next = titleBlockContentOf({
-    model: source('model'),
-    pattern: source('pattern'),
+    model: patch.model === undefined ? was.model : source(patch.model),
+    pattern: patch.pattern === undefined ? was.pattern : source(patch.pattern),
     subtitle: text('subtitle', titleBlockLine),
     credits: credits && credits.length > 0 ? credits : undefined,
     note: text('note', xmlText),
@@ -2897,6 +2971,31 @@ export function setTitleBlockContent(document: DiagramDocument, patch: DiagramTi
   const { titleBlockContent: _was, ...rest } = document;
   const content = Object.keys(next).length > 0 ? { ...rest, titleBlockContent: next } : rest;
   return withNewer(content, { ...document.newer, titleBlockContent: newer });
+}
+
+/**
+ * `document` with `asset`, a crease pattern read from a file, as its title
+ * block's crease pattern (`implementation-plans/diagram-title-block-final-cp.md`):
+ * the asset added and the pattern set to it in one edit, so one undo takes
+ * both back. Setting the pattern lets go of a newer build's value for it, as
+ * any setting of it does. An asset an earlier upload named goes when the edit
+ * lands, as every asset nothing names (`withReferencedAssets`).
+ */
+export function setTitleBlockPatternUpload(document: DiagramDocument, asset: DiagramCreasePatternAsset): DiagramDocument {
+  const content = titleBlockContentOf({ ...document.titleBlockContent, pattern: { kind: 'upload', assetId: asset.id } });
+  const added: DiagramDocument = { ...document, assets: { ...document.assets, [asset.id]: asset }, titleBlockContent: content };
+  return withNewer(added, { ...document.newer, titleBlockContent: withoutKeys(document.newer?.titleBlockContent, ['pattern']) });
+}
+
+/**
+ * The crease-pattern asset the title block's pattern names, where it is set
+ * to a file and the asset is this build's; null for any other pattern.
+ */
+export function titleBlockPatternAsset(document: Pick<DiagramDocument, 'titleBlockContent' | 'assets'>): DiagramCreasePatternAsset | null {
+  const pattern = document.titleBlockContent?.pattern;
+  if (pattern?.kind !== 'upload') return null;
+  const asset = Object.hasOwn(document.assets, pattern.assetId) ? document.assets[pattern.assetId] : undefined;
+  return isCreasePatternAsset(asset) ? asset : null;
 }
 
 /**
@@ -3028,8 +3127,9 @@ function sameCredit(a: DiagramTitleBlockCredit, b: DiagramTitleBlockCredit): boo
   return a.label === b.label && (typeof a.value === 'string' ? a.value === b.value : typeof b.value !== 'string');
 }
 
-function sameSource(a: DiagramTitleBlockSource | undefined, b: DiagramTitleBlockSource | undefined): boolean {
+function sameSource(a: DiagramTitleBlockPatternSource | undefined, b: DiagramTitleBlockPatternSource | undefined): boolean {
   if (a?.kind === 'step' || b?.kind === 'step') return a?.kind === 'step' && b?.kind === 'step' && a.stepId === b.stepId;
+  if (a?.kind === 'upload' || b?.kind === 'upload') return a?.kind === 'upload' && b?.kind === 'upload' && a.assetId === b.assetId;
   return a?.kind === b?.kind;
 }
 

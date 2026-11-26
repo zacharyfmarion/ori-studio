@@ -82,6 +82,7 @@ import {
   creasePatternSpreadProperties,
   DESIGN_TAB_COUNT_BUCKETS,
   track,
+  trackCountedUse,
   trackCreasePatternExported,
   type CreasePatternFoldedFigure,
   type DesignTabSource,
@@ -2693,8 +2694,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // The CP editor's own dispatch seam — invisible to handleMenuAction, so
         // instrumented here. The resolved operation id already encodes merged-tool
         // variants (e.g. LengthenCrease vs LengthenCreaseSameColor), so no separate
-        // mode property is needed. No-op when analytics is disabled/absent.
-        track('cp tool used', {
+        // mode property is needed. Counted per window rather than sent per edit
+        // (`analytics/countedUses.ts`). No-op when analytics is disabled/absent.
+        trackCountedUse('cp tool used', {
           operation: operationId,
           group: cpCommandByOperation(operationId)?.group ?? 'other',
         });

@@ -5,9 +5,9 @@
  * each saying which pane it came from and whether a pointer or a finger made
  * it, and a double tap turned into Fit.
  *
- * How a press came is read off the pane's own pointer events in the capture
- * phase, before the canvas under it handles them, so a pick knows its input
- * by the time the surface reports it.
+ * How a press came, and whether Shift was held as it ended, is read off the
+ * pane's own pointer events in the capture phase, before the canvas under it
+ * handles them, so a pick knows both by the time the surface reports it.
  *
  * - **A pointer's pick** goes out at once.
  * - **A tap's pick** goes out once the double-tap window has passed with no
@@ -60,11 +60,13 @@ export function useLayerPanePointer(
   onDoubleTap: () => void
 ): LayerPanePointer {
   const input = useRef<LayerPaneInput>('pointer');
+  /** Shift, as the last press began and then as it ended: the pick goes out with the end's. */
+  const shift = useRef(false);
   const press = useRef<{ x: number; y: number } | null>(null);
   const lastTap = useRef<LayerPaneTap | null>(null);
   const dropPick = useRef(false);
-  /** A tap's pick, waiting out the double-tap window. */
-  const pending = useRef<{ timer: ReturnType<typeof setTimeout>; hit: LayerPaneHit | null } | null>(null);
+  /** A tap's pick, waiting out the double-tap window, with the Shift it was made with. */
+  const pending = useRef<{ timer: ReturnType<typeof setTimeout>; hit: LayerPaneHit | null; shift: boolean } | null>(null);
   const hovered = useRef<LayerFace | null>(null);
   /** A hover the surface told while a tap's pick waited: told once it no longer does. */
   const heldHover = useRef<{ face: LayerFace | null; by: LayerPaneInput } | null>(null);
@@ -95,6 +97,7 @@ export function useLayerPanePointer(
 
   const onPointerDownCapture = useEventCallback((event: PointerEvent) => {
     input.current = paneInputOf(event.pointerType);
+    shift.current = event.shiftKey;
     press.current = { x: event.clientX, y: event.clientY };
     dropPick.current = false;
   });
@@ -102,6 +105,8 @@ export function useLayerPanePointer(
     input.current = paneInputOf(event.pointerType);
   });
   const onPointerUpCapture = useEventCallback((event: PointerEvent) => {
+    // The click is the release, as a browser's `click` reads its modifiers then.
+    shift.current = event.shiftKey;
     if (event.pointerType !== 'touch') return;
     const from = press.current;
     press.current = null;
@@ -122,8 +127,8 @@ export function useLayerPanePointer(
     }
   });
 
-  const report = useEventCallback((hit: LayerPaneHit | null, by: LayerPaneInput) => {
-    if (hit) events.onFacePicked?.({ face: hit.face, origin: pane, input: by });
+  const report = useEventCallback((hit: LayerPaneHit | null, by: LayerPaneInput, held: boolean) => {
+    if (hit) events.onFacePicked?.({ face: hit.face, origin: pane, input: by, shift: held });
     else events.onEmptyPaper?.({ origin: pane, input: by });
   });
 
@@ -133,20 +138,21 @@ export function useLayerPanePointer(
       return;
     }
     const by = input.current;
+    const held = shift.current;
     if (by !== 'tap') {
-      report(hit, by);
+      report(hit, by, held);
       return;
     }
     // A tap that made no double tap with the one before it: that one's pick goes now.
     const waiting = pending.current;
     cancelPending();
-    if (waiting) report(waiting.hit, 'tap');
+    if (waiting) report(waiting.hit, 'tap', waiting.shift);
     const timer = setTimeout(() => {
       pending.current = null;
-      report(hit, 'tap');
+      report(hit, 'tap', held);
       releaseHover();
     }, DOUBLE_TAP_MS);
-    pending.current = { timer, hit };
+    pending.current = { timer, hit, shift: held };
   });
 
   const onHover = useEventCallback((hit: LayerPaneHit | null) => {

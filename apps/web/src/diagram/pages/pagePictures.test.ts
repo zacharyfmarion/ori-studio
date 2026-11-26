@@ -8,14 +8,17 @@ import {
   createStep,
   DEFAULT_DIAGRAM_STYLE,
   insertSteps,
+  type DiagramCpRender,
   type DiagramStep,
   type DiagramStyle,
   type KnownDiagramAsset,
 } from '../document/diagramDocument';
+import { storedSceneJson } from '../document/diagramFile';
 import { cpStep, fixedPicture, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
 import type { FontMetrics } from '../fonts/fontMetrics';
 import { sanitizeSvg, SVG_NS } from '../upload/svgSanitize';
-import { diagramScenePaintStyle } from '../pictures/diagramPaperStyle';
+import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
+import { diagramPaperStyle, diagramScenePaintStyle } from '../pictures/diagramPaperStyle';
 import { stepDiagramScene } from '../pictures/paintStepDiagram';
 import { pictureExtent } from './diagramPageLayout';
 import { layoutDiagram } from './diagramPages';
@@ -161,6 +164,25 @@ describe('wholePicture', () => {
     const cell = { pictureMm: { x: 10, y: 20, size: 40 }, drawMm: box, mmPerUnit: null, frameMm: null };
     expect(cellPicture(marked, {}, style, cell, 't-', TEXT)!.markup).not.toBe(cellPicture(plain, {}, style, cell, 't-', TEXT)!.markup);
     expect(cellPicture(enlarged, {}, style, cell, 't-', TEXT)!.markup).not.toBe(cellPicture(plain, {}, style, cell, 't-', TEXT)!.markup);
+  });
+
+  it('draws no aux lines, a crease pattern’s included, where its cell draws them: the finished model, not an instruction', () => {
+    const paper = diagramPaperStyle(style);
+    // An aux pen no other pen shares, so its lines can be found in the markup.
+    const marked: DiagramStyle = { style: { ...paper, auxCreases: { visible: true, pen: { ...paper.auxCreases.pen, color: '#00ff00' } } } };
+    const auxPicture = { ...scenePicture('scene-aux'), sceneJson: storedSceneJson(sheetWithCrease('aux'))! };
+    const box = { x: 10, y: 20, w: 60, h: 40 };
+    const cell = { pictureMm: { x: 10, y: 20, size: 40 }, drawMm: box, mmPerUnit: null, frameMm: null };
+    const renders: DiagramCpRender[] = [
+      { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 },
+      // A crease pattern draws its aux lines whatever the style says: they are the paper's creases.
+      { mode: 'crease-pattern', rotationDeg: 0 },
+    ];
+    for (const render of renders) {
+      const step = cpStep('step-aux', render, auxPicture);
+      expect(cellPicture(step, {}, marked, cell, 't-', TEXT)!.markup).toContain('#00ff00');
+      expect(wholePicture(step, {}, marked, box, 't-', TEXT)!.markup).not.toContain('#00ff00');
+    }
   });
 
   it('draws nothing for a step with no picture', () => {

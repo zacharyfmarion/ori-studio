@@ -89,6 +89,11 @@
     "refreshAllLayerOrderLostLoadOffline_other": "オフラインのため重なり順を読み込めず、{{count}} 個のステップは変更されていません。接続を回復してから Ori Studio を再読み込みし、もう一度お試しください。",
     "refreshAllLayerOrderLostLoadReload_other": "重なり順を読み込めなかったため、{{count}} 個のステップは変更されていません。Ori Studio を再読み込みして、もう一度お試しください。",
     "refreshedAll_other": "{{count}} 個のステップを更新しました",
+    "titleBlockPattern": {
+      "noFolds": "この展開図には表示できる山折りも谷折りもありません。",
+      "trimmed": "この展開図は折り図に保存できる線の数を超えているため、最も短い折り線を省きました。",
+      "unreadable": "このファイルを展開図として読み込めませんでした。"
+    },
     "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",
     "uploadFailureLine": "{{name}}：{{reason}}",
     "uploadFailureMore_other": "ほか {{count}} 件",

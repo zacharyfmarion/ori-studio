@@ -26,9 +26,9 @@ describe('the analytics facts', () => {
       event: 'layer order dialog opened',
       properties: { surface: 'diagram_step', face_count_bucket: '<=500', solutions_bucket: 'pending' },
     });
-    expect(constraintAddedFact('behind', 'folded', 'list', 1)).toEqual({
+    expect(constraintAddedFact('behind', 'folded', 'list', 1, 'click')).toEqual({
       event: 'layer constraint added',
-      properties: { verb: 'behind', subject_origin: 'folded', object_origin: 'list', object_count_bucket: '<=1' },
+      properties: { verb: 'behind', subject_origin: 'folded', object_origin: 'list', object_count_bucket: '<=1', added_by: 'click' },
     });
     expect(constraintBlockedFact(3, 2)).toEqual({
       event: 'layer constraint blocked',
@@ -61,7 +61,7 @@ describe('the analytics facts', () => {
     [40, '>5'],
   ])('object_count_bucket buckets %i objects as %s: one, two, a few, many (D21)', (objects, bucket) => {
     const property = { properties: { object_count_bucket: bucket } };
-    expect(constraintAddedFact('in_front_of', 'pattern', 'pattern', objects)).toMatchObject(property);
+    expect(constraintAddedFact('in_front_of', 'pattern', 'pattern', objects, 'button')).toMatchObject(property);
     expect(constraintBlockedFact(0, objects)).toMatchObject(property);
   });
 

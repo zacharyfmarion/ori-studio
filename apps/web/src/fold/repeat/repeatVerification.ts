@@ -25,6 +25,16 @@ import {
 } from './repeatGeometry';
 
 const AREA = 1e-12;
+
+/**
+ * How a repeated step's creases must match its source's (`verifyCreases`):
+ * `exact`, each crease it changes held the source's value before the step —
+ * Repeat's own test; `angles`, held as far folded, so an old flat crease and
+ * fresh paper are alike — for steps folded by hand, one along a crease an
+ * earlier step left and its mirror across fresh paper.
+ */
+export type RepeatCreaseTest = 'exact' | 'angles';
+
 /** The native operations refine faces; import/history operations need their own adapter. */
 export function changedFaces(before: FoldScene, after: FoldScene): number[] {
   return after.faces.flatMap((_, i) => {
@@ -55,6 +65,10 @@ export function changedFaces(before: FoldScene, after: FoldScene): number[] {
  * A mirrored step that lands any other way is refused — unless, refused for
  * where its paper lies, it lands as the mirror says measured against other
  * paper the source moved alike (`heldGauge`). Which it passed is returned.
+ *
+ * `map` may be any isometry of the sheet, a turn as well as a reflection;
+ * only a reflection has an axis to hold paper on one side of, so only it is
+ * measured again against held paper.
  */
 export function verifyMaterial(
   before: FoldScene,
@@ -63,16 +77,17 @@ export function verifyMaterial(
   ta: FoldScene,
   map: FoldIsometry,
   side: RepeatSide = 'same',
+  creases: RepeatCreaseTest = 'exact',
 ): RepeatMeasure {
   try {
-    verifyMirrored(before, after, tb, ta, map, side, null);
+    verifyMirrored(before, after, tb, ta, map, side, null, creases);
     return 'unmoved';
   } catch (error) {
-    if (!(error instanceof RepeatFailure) || !MISPLACED.has(error.code)) throw error;
+    if (!(error instanceof RepeatFailure) || !MISPLACED.has(error.code) || !turnsOver(map)) throw error;
     const gauge = heldGauge(before, after, tb, ta, map);
     if (!gauge) throw error;
     try {
-      verifyMirrored(before, after, tb, ta, map, side, gauge);
+      verifyMirrored(before, after, tb, ta, map, side, gauge, creases);
     } catch (again) {
       // Refused again, the step is refused as it first was.
       throw again instanceof RepeatFailure ? error : again;
@@ -111,9 +126,12 @@ function verifyMirrored(
   map: FoldIsometry,
   side: RepeatSide,
   gauge: HeldGauge | null,
+  creases: RepeatCreaseTest,
 ): void {
   // A gauge changes only where each face lies: its pose and what moved.
   const [moved, landed] = gauge ? [gauge.after, gauge.ta] : [after, ta];
+  // The target's paper back to the source's: a reflection's own map, a turn's the other way round.
+  const back = invertIsometry(map);
   const changed = new Set(changedFaces(before, moved));
   for (const i of changed) {
     const ring = sheetRing(after, i);
@@ -124,8 +142,8 @@ function verifyMirrored(
       for (let t = 0; t < tb.faces.length; t++) {
         const targetPart = overlap(mapped, sheetRing(tb, t));
         if (polygonArea(targetPart) < AREA) continue;
-        const at = mappedPoint(map, toPair(polygonCentroid(targetPart)));
-        const expected = compose(correspondingFrame(before, tb, map, at), compose(modelMap(moved, i), map));
+        const at = mappedPoint(back, toPair(polygonCentroid(targetPart)));
+        const expected = compose(correspondingFrame(before, tb, map, at), compose(modelMap(moved, i), back));
         for (let j = 0; j < ta.faces.length; j++) {
           const part = overlap(targetPart, sheetRing(ta, j));
           if (polygonArea(part) > AREA && !sameImages(expected, modelMap(landed, j), part))
@@ -135,7 +153,7 @@ function verifyMirrored(
     }
   }
   for (const j of changedFaces(tb, landed)) {
-    const inverse = sheetRing(ta, j).map((p) => applyIsometry(map, p));
+    const inverse = sheetRing(ta, j).map((p) => applyIsometry(back, p));
     for (let i = 0; i < after.faces.length; i++) {
       if (!changed.has(i) && polygonArea(overlap(inverse, sheetRing(after, i))) > AREA)
         throw new RepeatFailure('repeat_extra_material');
@@ -158,7 +176,7 @@ function verifyMirrored(
           throw new RepeatFailure('repeat_order');
       }
   }
-  verifyCreases(before, after, tb, ta, map);
+  verifyCreases(before, after, tb, ta, map, creases);
 }
 
 /**
@@ -248,25 +266,26 @@ function overliesItsMirror(scene: FoldScene, faces: readonly number[], map: Fold
   });
 }
 
-interface Segment {
+/** A crease of a scene as a sheet segment, with its value (`kind:letter`). */
+export interface CreaseSegment {
   a: Point;
   b: Point;
   value: string;
 }
-function segments(s: FoldScene): Segment[] {
+function segments(s: FoldScene): CreaseSegment[] {
   return [
     ...s.creases.map((c) => ({ a: c.from, b: c.to, value: `${c.kind}:${c.letter}` })),
     ...(s.crease_marks ?? []).map((c) => ({ a: c.from, b: c.to, value: `flat:${c.letter}` })),
   ];
 }
-function parameter(s: Segment, p: Point): number | null {
+function parameter(s: CreaseSegment, p: Point): number | null {
   const x = s.b.x - s.a.x,
     y = s.b.y - s.a.y,
     length = Math.hypot(x, y);
   if (length < 1e-10 || Math.abs(x * (p.y - s.a.y) - y * (p.x - s.a.x)) > 1e-7 * length) return null;
   return ((p.x - s.a.x) * x + (p.y - s.a.y) * y) / (length * length);
 }
-function valueAt(all: Segment[], p: Point): string {
+function valueAt(all: CreaseSegment[], p: Point): string {
   return [
     ...new Set(
       all
@@ -292,7 +311,17 @@ function foldAngle(value: string): number | null {
   return null;
 }
 
-function verifyCreases(before: FoldScene, after: FoldScene, tb: FoldScene, ta: FoldScene, map: FoldIsometry) {
+function verifyCreases(
+  before: FoldScene,
+  after: FoldScene,
+  tb: FoldScene,
+  ta: FoldScene,
+  map: FoldIsometry,
+  creases: RepeatCreaseTest,
+) {
+  // What a crease the step changes held before it, alike on both sides: the same value, or with `angles` as far folded.
+  const heldAlike = (was: string, old: string) =>
+    was === old || (creases === 'angles' && foldAngle(was) !== null && foldAngle(was) === foldAngle(old));
   const mapped = (scene: FoldScene) =>
     segments(scene).map((s) => ({ ...s, a: applyIsometry(map, s.a), b: applyIsometry(map, s.b) }));
   const sb = mapped(before),
@@ -303,7 +332,7 @@ function verifyCreases(before: FoldScene, after: FoldScene, tb: FoldScene, ta: F
   if (all.length > 2400) throw new RepeatFailure('repeat_limit');
   // Refine each supporting line once. Rechecking every overlapping segment
   // independently makes a dense precrease history cubic in its subdivisions.
-  const groups: { basis: Segment; sets: Segment[][] }[] = [];
+  const groups: { basis: CreaseSegment; sets: CreaseSegment[][] }[] = [];
   for (const [setIndex, set] of [sb, sa, b, a].entries())
     for (const segment of set) {
       let group = groups.find(
@@ -346,13 +375,13 @@ function verifyCreases(before: FoldScene, after: FoldScene, tb: FoldScene, ta: F
         if (n === o ? now !== was : a - w !== n - o) throw new RepeatFailure('repeat_creases');
         continue;
       }
-      if (old !== next ? was !== old || now !== next : was !== now) throw new RepeatFailure('repeat_creases');
+      if (old !== next ? !heldAlike(was, old) || now !== next : was !== now) throw new RepeatFailure('repeat_creases');
     }
   }
 }
 
 /** The creases the step that landed `scene` made — the newest — as sheet segments. */
-function newestCreases(scene: FoldScene): Segment[] {
+function newestCreases(scene: FoldScene): CreaseSegment[] {
   const all = [...scene.creases.filter((crease) => crease.kind !== 'border'), ...(scene.crease_marks ?? [])];
   const newest = all.reduce((latest, crease) => Math.max(latest, crease.made_at), 0);
   return newest > 0
@@ -366,8 +395,8 @@ function newestCreases(scene: FoldScene): Segment[] {
  * midway between them where they are parallel; across the perpendicular
  * midway between the two where they are one line (two pinches on it).
  */
-function axesBetween(a: Segment, b: Segment): FoldModelLine[] {
-  const unit = (s: Segment): Point => {
+function axesBetween(a: CreaseSegment, b: CreaseSegment): FoldModelLine[] {
+  const unit = (s: CreaseSegment): Point => {
     const x = s.b.x - s.a.x,
       y = s.b.y - s.a.y,
       l = Math.hypot(x, y);
@@ -382,7 +411,7 @@ function axesBetween(a: Segment, b: Segment): FoldModelLine[] {
     const da = n.x * a.a.x + n.y * a.a.y,
       db = n.x * b.a.x + n.y * b.a.y;
     if (Math.abs(da - db) > REPEAT_TOL) return [{ n: [n.x, n.y], d: (da + db) / 2 }];
-    const mid = (s: Segment): Point => ({ x: (s.a.x + s.b.x) / 2, y: (s.a.y + s.b.y) / 2 });
+    const mid = (s: CreaseSegment): Point => ({ x: (s.a.x + s.b.x) / 2, y: (s.a.y + s.b.y) / 2 });
     const [ma, mb] = [mid(a), mid(b)];
     return [through(u, { x: (ma.x + mb.x) / 2, y: (ma.y + mb.y) / 2 })];
   }
@@ -399,7 +428,7 @@ function axesBetween(a: Segment, b: Segment): FoldModelLine[] {
 }
 
 /** Whether every segment of `from`, reflected by `map`, lies along `onto`'s: its middle on one of them. */
-function liesAlong(from: readonly Segment[], onto: readonly Segment[], map: FoldIsometry): boolean {
+function liesAlong(from: readonly CreaseSegment[], onto: readonly CreaseSegment[], map: FoldIsometry): boolean {
   return from.every((segment) => {
     const middle = applyIsometry(map, { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 });
     return onto.some((target) => {
@@ -407,6 +436,123 @@ function liesAlong(from: readonly Segment[], onto: readonly Segment[], map: Fold
       return t !== null && t > -1e-7 && t < 1 + 1e-7;
     });
   });
+}
+
+const middleOf = (s: CreaseSegment): Point => ({ x: (s.a.x + s.b.x) / 2, y: (s.a.y + s.b.y) / 2 });
+
+/** `pieces`, each line's run together: pieces on one line that touch or overlap become one segment. */
+function joined(pieces: readonly CreaseSegment[]): CreaseSegment[] {
+  const out: CreaseSegment[] = [];
+  const left = [...pieces];
+  while (left.length) {
+    const basis = left.shift()!;
+    const along = [basis];
+    for (let k = left.length - 1; k >= 0; k -= 1) {
+      const piece = left[k]!;
+      if (parameter(basis, piece.a) !== null && parameter(basis, piece.b) !== null) along.push(...left.splice(k, 1));
+    }
+    const spans = along
+      .map((piece) => [parameter(basis, piece.a)!, parameter(basis, piece.b)!].sort((x, y) => x - y) as [number, number])
+      .sort((x, y) => x[0] - y[0]);
+    const at = (t: number): Point => ({ x: basis.a.x + t * (basis.b.x - basis.a.x), y: basis.a.y + t * (basis.b.y - basis.a.y) });
+    let [start, end] = spans[0]!;
+    for (const [from, to] of spans.slice(1)) {
+      if (from <= end + 1e-7) {
+        end = Math.max(end, to);
+        continue;
+      }
+      out.push({ a: at(start), b: at(end), value: basis.value });
+      [start, end] = [from, to];
+    }
+    out.push({ a: at(start), b: at(end), value: basis.value });
+  }
+  return out;
+}
+
+/**
+ * The creases the step from `before` to `after` changed — made, refolded or
+ * unfolded — as sheet segments, each line's pieces run together: the lines a
+ * step folds along, made by it or not. A fold along a crease an earlier step
+ * left makes none, so the newest `made_at` would name that step's.
+ */
+export function changedCreases(before: FoldScene, after: FoldScene): CreaseSegment[] {
+  const creased = (scene: FoldScene) =>
+    segments(scene).filter(
+      (s) => !s.value.startsWith('border:') && Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y) > REPEAT_TOL,
+    );
+  const [was, now] = [creased(before), creased(after)];
+  return joined(now.filter((segment) => valueAt(was, middleOf(segment)) !== valueAt(now, middleOf(segment))));
+}
+
+/**
+ * The turns of the sheet that take segment `a` onto `b`, end for end either
+ * way, its middle onto the other's; none where the two only slide, which no
+ * sheet repeats onto itself.
+ */
+function turnsBetween(a: CreaseSegment, b: CreaseSegment): FoldIsometry[] {
+  const turns: FoldIsometry[] = [];
+  const from = middleOf(a),
+    to = middleOf(b);
+  for (const [p, q] of [
+    [b.a, b.b],
+    [b.b, b.a],
+  ] as const) {
+    const angle = Math.atan2(q.y - p.y, q.x - p.x) - Math.atan2(a.b.y - a.a.y, a.b.x - a.a.x);
+    const [c, s] = [Math.cos(angle), Math.sin(angle)];
+    if (1 - c < REPEAT_TOL) continue;
+    turns.push([c, -s, to.x - (c * from.x - s * from.y), s, c, to.y - (s * from.x + c * from.y)]);
+  }
+  return turns;
+}
+
+/** How one step repeats another: its mirror image, or the same fold turned. */
+export type StepRelation = 'mirror' | 'turn';
+
+/**
+ * How the step that landed `ta` from `tb` repeats the step that landed
+ * `after` from `before`, the two folded by hand and measured each on its own
+ * state: its mirror image across some line of the sheet, or the same fold
+ * turned about some point — the paper it moves, where that paper lands, its
+ * layers and its creases, by Repeat's own test (`verifyMaterial`), creases
+ * held alike as far as they were folded (`angles`). The paper elsewhere need
+ * not be symmetric: two flaps folded alike are alike wherever they are.
+ *
+ * The maps tried take the source's first changed line (`changedCreases`)
+ * onto one of the target's, kept only where each step's lines, so mapped,
+ * lie along the other's — cheap, so a pair that plainly does not repeat
+ * costs next to nothing. Mirrors are tried first. Null when neither, or the
+ * states are past what Repeat checks.
+ */
+export function stepRelation(before: FoldScene, after: FoldScene, tb: FoldScene, ta: FoldScene): StepRelation | null {
+  const [source, target] = [changedCreases(before, after), changedCreases(tb, ta)];
+  if (source.length === 0 || target.length === 0) return null;
+  const repeats = (map: FoldIsometry) => {
+    if (!liesAlong(source, target, map) || !liesAlong(target, source, map)) return false;
+    try {
+      verifyMaterial(before, after, tb, ta, map, 'same', 'angles');
+      return true;
+    } catch (error) {
+      if (error instanceof RepeatFailure) return false;
+      throw error;
+    }
+  };
+  const first = source[0]!;
+  for (const other of target) {
+    for (const axis of axesBetween(first, other)) {
+      let mirror: FoldIsometry;
+      try {
+        mirror = reflection(axis);
+      } catch (error) {
+        if (error instanceof RepeatFailure) continue;
+        throw error;
+      }
+      if (repeats(mirror)) return 'mirror';
+    }
+  }
+  for (const other of target) {
+    for (const turn of turnsBetween(first, other)) if (repeats(turn)) return 'turn';
+  }
+  return null;
 }
 
 /**

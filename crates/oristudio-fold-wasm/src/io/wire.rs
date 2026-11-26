@@ -112,6 +112,17 @@ fn is_unturned(turn_deg: &f64) -> bool {
     *turn_deg == 0.0
 }
 
+/// Adjust order's step (`FoldAdjustOrderOp` without its `kind`,
+/// `implementation-plans/fold-adjust-order.md`): the parent's paper as it
+/// is, with this order ([`crate::io::reorder`]).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdjustOrder {
+    /// The order, as a [`oristudio_fold::WitnessOrder`]: every pair, by
+    /// witnesses, as a `cp-jump`'s `orderJson` stores one.
+    pub order_json: String,
+}
+
 /// Where an import lands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -320,6 +331,24 @@ impl AdoptedPaper {
 pub enum JumpOp {
     #[serde(rename = "cp-jump")]
     CpJump(CpJump),
+}
+
+/// An `adjust-order` op as the document stores it:
+/// `{ kind: 'adjust-order', orderJson }`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind")]
+pub enum ReorderOp {
+    #[serde(rename = "adjust-order")]
+    AdjustOrder(AdjustOrder),
+}
+
+/// An Adjust order landed: the state, held like any step's, and the op that
+/// lands it, to store as the step.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Reordered {
+    pub state: u32,
+    pub summary: Summary,
+    pub op: ReorderOp,
 }
 
 /// An import landed: the state, held like any step's, and the op that lands

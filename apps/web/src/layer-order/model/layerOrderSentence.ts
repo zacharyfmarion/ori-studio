@@ -15,6 +15,12 @@
  * then the subject. Which faces are offered as objects never depends on what
  * else is picked.
  *
+ * **A plain click adds.** On a pane, a plain click on one of the subject's
+ * faces adds the sentence at once with that face among its objects
+ * ({@link clickFace}); Shift+click and the face menus pick as above, so a
+ * sentence of several objects is built with Shift and added with Add, or with
+ * a plain click on one more face.
+ *
  * Which faces are open comes from deduction (the engine's open pairs), not a
  * search, so an offered object can still fail its preview: that is the
  * preview's to catch, not the sentence's.
@@ -44,10 +50,16 @@ export type LayerPickOrigin = 'pattern' | 'folded' | 'menu' | 'list';
  */
 export type LayerLetterRanks = ArrayLike<number>;
 
-/** One object, and where it was picked. */
+/** One object, and where and how it was picked. */
 export interface LayerObjectPick {
   readonly face: LayerFace;
   readonly origin: LayerPickOrigin;
+  /**
+   * Picked to keep (Shift+click, a face menu): it stays in the sentence for
+   * the add to come. A plain click's own object is not kept: when its add
+   * does not go through, the next plain click replaces it ({@link clickFace}).
+   */
+  readonly kept: boolean;
 }
 
 export interface LayerSentence {
@@ -216,7 +228,42 @@ export function toggleObject(
   ranks?: LayerLetterRanks
 ): LayerSentence {
   if (sentence.objects.includes(face)) return { ...removeObject(sentence, face), active: 'object' };
-  return { ...withObjects(sentence, inLetterOrder([...sentence.objects, face], ranks), { face, origin }), active: 'object' };
+  const pick: LayerObjectPick = { face, origin, kept: true };
+  return { ...withObjects(sentence, inLetterOrder([...sentence.objects, face], ranks), pick), active: 'object' };
+}
+
+/** What a plain click did: the sentence after it, and whether it asks for that sentence to be added. */
+export interface LayerClick {
+  readonly sentence: LayerSentence;
+  readonly adds: boolean;
+}
+
+/**
+ * A plain click on a pane (Shift+click and the face menus pick with
+ * {@link pickFace}). In the subject step it picks as a pick does, and adds
+ * nothing. In the object step, on a face the subject can take, the face goes
+ * in among the objects and the click `adds`: the reducer adds the sentence as
+ * soon as its check fits, as Add would (`clickAdd`). Objects picked to keep
+ * stay with it; a plain click's own earlier object, whose add did not go
+ * through (it couldn't fit, or ran out of time), goes, so the click tries its
+ * face instead of both. A face already among the objects stays as it was. Any
+ * other face is inert: the click does nothing.
+ */
+export function clickFace(
+  sentence: LayerSentence,
+  open: LayerOpenIndex,
+  face: LayerFace,
+  origin: LayerPickOrigin,
+  ranks?: LayerLetterRanks
+): LayerClick {
+  if (slotNow(sentence, open) === 'subject') return { sentence: pickFace(sentence, open, face, origin, ranks), adds: false };
+  if (!isOpenWith(open, sentence.subject, face)) return { sentence, adds: false };
+  const staying = sentence.objectPicks.filter((pick) => pick.kept || pick.face === face);
+  const already = staying.some((pick) => pick.face === face);
+  if (already && staying.length === sentence.objectPicks.length) return { sentence, adds: true };
+  const faces = staying.map((pick) => pick.face);
+  const objects = inLetterOrder(already ? faces : [...faces, face], ranks);
+  return { sentence: withObjects(sentence, objects, already ? undefined : { face, origin, kept: false }), adds: true };
 }
 
 /**

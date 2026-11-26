@@ -92,6 +92,7 @@ pub mod pattern;
 pub mod random;
 pub mod refusal;
 pub mod remedy;
+pub mod reorder;
 pub mod reversal;
 pub mod scene;
 pub mod sheet;
@@ -173,6 +174,7 @@ pub use landmarks::{
 pub use pattern::{Crease, CreaseKind, EdgeId, Face, FaceId, Letter, VertexId};
 pub use refusal::{Fix, Flap, FoldRefusal, NearMissCause, Refused, Side};
 pub use remedy::{Pin, SliverRemedy};
+pub use reorder::{Reordering, reorder};
 pub use scene::{FoldScene, ScenePoint};
 pub use sheet::{Sheet, SheetShape};
 pub use silhouette::Silhouette;

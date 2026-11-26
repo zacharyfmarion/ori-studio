@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { DEFAULT_DIAGRAM_STYLE } from '../../diagram/document/diagramDocument';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { FoldGate } from '../fold/FoldGate';
@@ -15,6 +16,7 @@ import { FoldGate } from '../fold/FoldGate';
 export function DiagramFoldModal() {
   const { t } = useTranslation();
   const state = useWorkspaceStore((store) => store.diagramFoldBrowser);
+  const style = useWorkspaceStore((store) => store.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
   const shown = useLayoutStore((store) => store.activeWorkspace === 'diagram');
   if (!state || !shown) return null;
   const failed = () => {
@@ -23,7 +25,7 @@ export function DiagramFoldModal() {
   };
   return (
     <FoldGate key={state.opening} pending="none" onFailed={failed}>
-      {({ DiagramFoldBrowser }) => <DiagramFoldBrowser state={state} />}
+      {({ DiagramFoldBrowser }) => <DiagramFoldBrowser state={state} style={style} />}
     </FoldGate>
   );
 }

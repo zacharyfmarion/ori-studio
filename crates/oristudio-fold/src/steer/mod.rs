@@ -39,6 +39,10 @@
 //! - [`ImportedFaces`] (H10): an imported crease pattern's faces matched one
 //!   for one with the faces Edit folds of it, so Fold's Import CP can open the
 //!   dialog on them and import the order its Apply chose, exactly.
+//! - [`StateFaces`] (Adjust order): a Fold state's faces matched many to one
+//!   with the faces Edit folds of its crease pattern, joined across its flat
+//!   creases, so Fold's Adjust order can open the dialog on the paper on
+//!   screen and take its Apply back as seeds over that paper.
 //!
 //! The wasm bindings are `oristudio-fold-wasm`'s `steer` (E7) and, for the
 //! import, its `io`.
@@ -52,6 +56,7 @@ mod showing;
 mod solutions;
 mod source;
 mod stacks;
+mod state_faces;
 
 pub use explain::{Clash, Explanation};
 pub use imported::{FacesDiffer, ImportedFaces, ImportedLook};
@@ -77,3 +82,4 @@ pub use source::{
     LAYER_ORDER_MAX_STACKED_TRIPLES, LayerSource, PaperFrame, SourceRefusal, ToleranceCause,
 };
 pub use stacks::{ChangedSpots, Stacks, ViewSide};
+pub use state_faces::StateFaces;

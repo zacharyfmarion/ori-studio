@@ -43,7 +43,7 @@ import {
   spreadValuesHold,
   type LayerSpreadChoice,
 } from './layerSpreadControls';
-import { DEFAULT_SPATIAL_SPREAD, spatialSpreadFromPercent, spatialSpreadPercent } from './spatialSpreadSettings';
+import { DEFAULT_SPATIAL_SPREAD, DEFAULT_SPATIAL_SPREAD_AMOUNT, spatialSpreadFromPercent, spatialSpreadPercent } from './spatialSpreadSettings';
 import {
   DEFAULT_CONNECTED_SPREAD,
   SPREAD_AXIS_RANGE,
@@ -161,7 +161,7 @@ export function foldedFigureSpreadSection(
         protocol: 'continuous', begin: () => deps.begin('spread-amount'),
         update: amount => deps.writeSpread({ verb: 'spread-amount', amount: spatialSpreadFromPercent(amount) }),
         end: () => deps.end(undoLabel), held: deps.held,
-        reset: () => deps.setSpread({ ...spatial, amount: DEFAULT_SPATIAL_SPREAD.amount }),
+        reset: () => deps.setSpread({ ...spatial, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT }),
       }],
     };
   }

@@ -16,6 +16,10 @@
  * commits that list as one undo step; a one-object sentence is the same
  * check it always was.
  *
+ * A plain click on one of the subject's faces adds without Add (`clickAdd`):
+ * the click completes the sentence, and the sentence is added the moment its
+ * check fits, exactly as Add would add it.
+ *
  * **Every action is one undo step** (plan, "The inspector's behaviour";
  * `LayerUndoEntry`): each edit to the sentence, Add, a row's trash, Clear all
  * and a solution step. Undo of a sentence edit brings the sentence back with
@@ -79,6 +83,7 @@ import {
   candidatesOf,
   clearSentence,
   clearSlot,
+  clickFace,
   constraintKey,
   groundClick,
   keepOpenObjects,
@@ -160,6 +165,7 @@ export function initLayerOrderDialog(init: LayerOrderDialogInit): LayerOrderStep
     settle: { kind: 'settled' },
     reviewRows: null,
     sentence: EMPTY_SENTENCE,
+    clickAdd: null,
     pointedVerb: null,
     ...NO_PREVIEWS,
     blocked: null,
@@ -335,19 +341,23 @@ function reduce(state: LayerOrderDialogState, action: LayerOrderAction, effects:
     case 'engine_lost': {
       // Try again opens as the session last did (Keep trying's limits included), not the defaults.
       const limits = state.phase.kind === 'opening' ? state.phase.limits : (state.openedLimits ?? openLimits(state.how));
-      return { ...state, phase: { kind: 'failed', limits, unavailable: action.unavailable === true } };
+      return { ...state, phase: { kind: 'failed', limits, unavailable: action.unavailable === true }, clickAdd: null };
     }
 
     case 'face_hovered':
       return state.hover.face === action.face ? state : { ...state, hover: { ...state.hover, face: action.face } };
-    case 'face_picked':
-      if (!builderLive(state)) return state;
-      return edited(
-        state,
-        withSentence(state, pickFace(state.sentence, state.open, action.face, action.origin, state.figure?.letterRank))
-      );
+    case 'face_picked': {
+      // A plain click's add in flight takes no picks: its sentence is about to clear.
+      if (!builderLive(state) || state.clickAdd !== null) return state;
+      const { face, origin } = action;
+      const ranks = state.figure?.letterRank;
+      if (!action.adds) return edited(state, withSentence(state, pickFace(state.sentence, state.open, face, origin, ranks)));
+      const click = clickFace(state.sentence, state.open, face, origin, ranks);
+      const next = edited(state, withSentence(state, click.sentence));
+      return click.adds ? { ...next, clickAdd: 'checking' } : next;
+    }
     case 'ground_clicked':
-      if (!builderLive(state)) return state;
+      if (!builderLive(state) || state.clickAdd !== null) return state;
       return edited(state, withSentence(state, groundClick(state.sentence)));
     case 'slot_activated':
       // Which slot the next pick fills is no edit: it changes no word of the sentence.
@@ -367,12 +377,13 @@ function reduce(state: LayerOrderDialogState, action: LayerOrderAction, effects:
       return { ...withoutStepRanOut(edited(state, withSentence(state, clearSentence(state.sentence)))), blocked: null };
     case 'verb_pointed':
       return state.pointedVerb === action.verb ? state : { ...state, pointedVerb: action.verb };
-    case 'verb_set':
+    case 'verb_set': {
       if (!builderLive(state)) return state;
       // An edit like a pick: the line is the sentence's check now, a step's running out let go.
-      return withoutStepRanOut(
-        edited(state, { ...state, sentence: setVerb(state.sentence, action.verb), pointedVerb: null })
-      );
+      const sentence = setVerb(state.sentence, action.verb);
+      const next = { ...state, sentence, pointedVerb: null };
+      return withoutStepRanOut(edited(state, sentence === state.sentence ? next : letGoOfClick(next)));
+    }
     case 'reason_hovered':
       return state.hover.reason === action.on ? state : { ...state, hover: { ...state.hover, reason: action.on } };
     case 'add':
@@ -396,13 +407,14 @@ function reduce(state: LayerOrderDialogState, action: LayerOrderAction, effects:
     case 'side_set': {
       if (state.view.side === action.side) return state;
       // Round3 `setSide`: the flash and the hovered spot go; the sentence stays, and reads from the new side.
-      const next: LayerOrderDialogState = {
+      // So it says something else now, which a plain click waiting on its check did not ask to add.
+      const next: LayerOrderDialogState = letGoOfClick({
         ...state,
         view: { ...state.view, side: action.side },
         flash: null,
         pointedVerb: null,
         hover: { ...state.hover, face: null },
-      };
+      });
       return repositioned(state, next, effects);
     }
     case 'xray_set':
@@ -446,7 +458,16 @@ function withSentence(state: LayerOrderDialogState, sentence: LayerSentence): La
   if (sentence === state.sentence) return state;
   // A pick closes the verb menu and lets go of the reason (Round3 `setSubject`, `setObject`), and of a
   // step's running out: the line is the sentence's now, and the message never comes back stale.
-  return withoutStepRanOut({ ...state, sentence, pointedVerb: null, hover: { ...state.hover, reason: false } });
+  return letGoOfClick(withoutStepRanOut({ ...state, sentence, pointedVerb: null, hover: { ...state.hover, reason: false } }));
+}
+
+/**
+ * Another edit of the sentence lets go of a plain click's add still waiting
+ * on its check: what it asked to add is no longer the sentence. One already
+ * committing lands whatever happens (`committed`).
+ */
+function letGoOfClick(state: LayerOrderDialogState): LayerOrderDialogState {
+  return state.clickAdd === 'checking' ? { ...state, clickAdd: null } : state;
 }
 
 /** The solutions of a new generation: nothing counted, read or proved yet. */
@@ -566,7 +587,7 @@ function repositioned(
 function reopen(state: LayerOrderDialogState, limits: LayerOrderLimits, effects: LayerOrderEffect[]): LayerOrderDialogState {
   const [id, next] = request(state);
   effects.push({ type: 'open', request: id, how: state.how, limits });
-  return { ...next, phase: { kind: 'opening', request: id, limits }, lastPreview: null };
+  return { ...next, phase: { kind: 'opening', request: id, limits }, lastPreview: null, clickAdd: null };
 }
 
 function opened(
@@ -632,6 +653,7 @@ function opened(
     settle,
     reviewRows: reviewRowsFor(state.review, carried.map((row) => row.id)),
     sentence: EMPTY_SENTENCE,
+    clickAdd: null,
     pointedVerb: null,
     ...NO_PREVIEWS,
     solutions: freshSolutions(runs, generation),
@@ -729,8 +751,8 @@ function reportBlocked(state: LayerOrderDialogState, effects: LayerOrderEffect[]
 /**
  * After every action: a complete sentence the order on screen has no preview
  * for gets one (the one the folded pane shows, with the menu's pointed verb),
- * a can't-fit on display is explained, and the sentence's block is reported
- * once.
+ * a can't-fit on display is explained, a plain click's add moves on, and the
+ * sentence's block is reported once.
  */
 function reconcile(state: LayerOrderDialogState, effects: LayerOrderEffect[]): LayerOrderStep {
   let next = state;
@@ -741,7 +763,29 @@ function reconcile(state: LayerOrderDialogState, effects: LayerOrderEffect[]): L
     }
     next = askExplain(next, effects);
   }
+  next = clickAdded(next, effects);
   return { state: reportBlocked(next, effects), effects };
+}
+
+/**
+ * A plain click's add waiting on its check (`clickAdd`), once nothing else is
+ * in flight: the sentence's check with its own verb is asked if it has none;
+ * a fit is added as Add adds it, with the check's token, and the add is then
+ * committing until it lands; a can't-fit or a check that ran out lets go, and
+ * the hint line says why, as it does for a sentence built for Add.
+ */
+function clickAdded(state: LayerOrderDialogState, effects: LayerOrderEffect[]): LayerOrderDialogState {
+  if (state.clickAdd !== 'checking') return state;
+  if (!builderLive(state)) return { ...state, clickAdd: null };
+  if (!quiet(state)) return state;
+  const candidates = sentenceCandidates(state);
+  if (!candidates) return { ...state, clickAdd: null };
+  const entry = state.previews[candidatesKey(candidates)];
+  if (!entry) return askPreview(state, candidates, LAYER_ORDER_LIMITS.preview, effects);
+  if (entry.kind === 'pending') return state;
+  if (entry.kind !== 'fits') return { ...state, clickAdd: null };
+  const added = add(state, effects);
+  return added.commit.kind === 'pending' ? { ...added, clickAdd: 'adding' } : { ...added, clickAdd: null };
 }
 
 function previewKeyFor(state: LayerOrderDialogState, match: (entry: LayerPreviewEntry) => boolean): string | null {
@@ -904,12 +948,15 @@ function newEntry(state: LayerOrderDialogState, entry: LayerUndoEntry): { move: 
 }
 
 function committed(
-  state: LayerOrderDialogState,
+  before: LayerOrderDialogState,
   action: Extract<LayerOrderAction, { type: 'committed' }>,
   effects: LayerOrderEffect[]
 ): LayerOrderDialogState {
-  const { commit } = state;
-  if (commit.kind !== 'pending' || commit.request !== action.request) return state;
+  const { commit } = before;
+  if (commit.kind !== 'pending' || commit.request !== action.request) return before;
+  // A plain click's add is over once its commit answers, whatever it answers.
+  const byClick = commit.via === 'add' && before.clickAdd === 'adding';
+  const state: LayerOrderDialogState = byClick ? { ...before, clickAdd: null } : before;
   const { facts } = action;
   const { request: _request, kind: _kind, ...commitAsk } = commit;
 
@@ -967,7 +1014,8 @@ function committed(
   if (commit.via === 'add') {
     const { verb, subjectOrigin, objects } = commit.sentence;
     const objectOrigin = objectOriginOf(commit.sentence);
-    const fact = constraintAddedFact(verb, subjectOrigin ?? 'pattern', objectOrigin ?? 'pattern', objects.length);
+    const addedBy = byClick ? 'click' : 'button';
+    const fact = constraintAddedFact(verb, subjectOrigin ?? 'pattern', objectOrigin ?? 'pattern', objects.length, addedBy);
     effects.push({ type: 'track', fact });
   }
   return next;

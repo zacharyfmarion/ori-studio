@@ -29,6 +29,8 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
 import { PaperStylePicker } from './PaperStylePicker';
+import { ObjSpreadRows } from './ObjSpreadRows';
+import type { PaperObjSpreadBinding } from '../../paperExport/usePaperObjSpread';
 import type { PaperObjExport } from '../../paperExport/paperExportTarget';
 import { objExportUnavailableMessage } from '../../paperExport/saveObjExport';
 
@@ -52,6 +54,7 @@ export function PaperExportOptions({
   fixed,
   styleHint,
   obj,
+  objSpread = null,
 }: {
   draft: PaperExportSettings;
   patch: (next: Partial<PaperExportSettings>) => void;
@@ -68,6 +71,8 @@ export function PaperExportOptions({
   /** Under the style picker: what of the style the picture keeps of its own, or cannot take. */
   styleHint: string | null;
   obj?: PaperObjExport;
+  /** The spread an OBJ is written with, for a mesh whose layers can spread (`PaperExportDialogBinding.objSpread`). */
+  objSpread?: PaperObjSpreadBinding | null;
 }) {
   const { t } = useTranslation();
   const png = draft.format === 'png';
@@ -112,6 +117,11 @@ export function PaperExportOptions({
     return (
       <>
         {formatSection}
+        {draft.format === 'obj' && objSpread && (
+          <section className="export-modal__section">
+            <ObjSpreadRows binding={objSpread} />
+          </section>
+        )}
         <section className="export-modal__section">
           <small className="export-modal__hint">
             {draft.format === 'obj' ? (obj?.unavailableReason

@@ -2084,12 +2084,21 @@ async function ringPoint(dialog, pane, face) {
   return { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length };
 }
 
-/** Pick the objects `letters` on `pane`, each by a click on its chip there: a real pick, through the pane's hit test. */
+/**
+ * Pick the objects `letters` on `pane`, each by a Shift+click on its chip
+ * there: a real pick, through the pane's hit test, that adds nothing (a plain
+ * click would add the sentence at once).
+ */
 async function pickObjectsOnPane(page, dialog, pane, letters) {
   for (const letter of letters) {
     const at = await letterPoint(dialog, pane, letter);
     if (!at) throw new Error(`${letter} has no letter to click on the ${pane} pane`);
-    await page.mouse.click(at.x, at.y);
+    await page.keyboard.down('Shift');
+    try {
+      await page.mouse.click(at.x, at.y);
+    } finally {
+      await page.keyboard.up('Shift');
+    }
     // The pick shows as its chip in the object field.
     await dialog.getByRole('button', { name: `Remove ${letter}`, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   }
@@ -2881,7 +2890,7 @@ function inspectorCases(theme) {
         else await pickObjectsFromMenu(page, dialog, [second]);
         const compoundHint = await previewKeptTrying(page, dialog);
         check((await addButton(dialog).innerText()) === 'Add constraints', 'two objects: “Add constraints”');
-        check(compoundHint.includes('Pick more faces to add them'), `the hint says more can be added: “${compoundHint}”`);
+        check(compoundHint.includes('Shift-click to pick more faces'), `the hint says more can be picked: “${compoundHint}”`);
         await record(shot('compound'), await dialogShot(page));
       }
       const objects = [first, second].filter(Boolean).sort();

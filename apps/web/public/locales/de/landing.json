@@ -29,6 +29,27 @@
       "title": "Kreispackung"
     }
   },
+  "diagram": {
+    "annotate": {
+      "body": "Tal-, Berg- und Falten-und-Öffnen-Pfeile, Faltlinien, gleiche Teilungen, Hinweise, Nahaufnahmen und Röntgenfenster, beim Zeichnen am Papier ausgerichtet.",
+      "figureAlt": "Eine Nahaufnahme vom Kopf eines Kranichs beim Annotieren, mit einem Falten-und-Öffnen-Pfeil und seiner Faltlinie neben den Anmerkungswerkzeugen.",
+      "title": "Alle Anmerkungen, die du brauchst"
+    },
+    "carouselLabel": "Funktionen des Diagramms",
+    "eyebrow": "Diagramm",
+    "lead": "Importiere aus den Arbeitsbereichen Bearbeiten, Falten und Referenzen, um ein vollständiges Diagramm eines Modells zu erstellen. Das Bild jedes Schritts wird aus deinem Faltmuster oder einem Faltschritt gezeichnet und bleibt so dem Modell treu, und die fertigen Seiten lassen sich als druckfertiges PDF exportieren.",
+    "pages": {
+      "body": "Ordne die Schritte auf A4-, A5-, B5- oder Letter-Seiten an, im Raster oder in einem geschwungenen Fluss, mit einem Titelblock auf Seite eins. Exportiere ein PDF oder ein ZIP mit den Schrittbildern.",
+      "figureAlt": "Seite eins eines Kranich-Diagramms: ein Titelblock mit Faltmuster und fertigem Modell über nummerierten Schritten.",
+      "title": "Druckfertige Seiten"
+    },
+    "pose": {
+      "body": "Zeige einen Schritt als Faltmuster, flach gefaltet mit aufgefächerten Lagen oder in 3D gefaltet und in jeden Winkel gedreht. Ein mit dem Modell verknüpfter Schritt meldet, wenn sich das Modell geändert hat.",
+      "figureAlt": "Eine in 3D gefaltete Schachtel, so gedreht, dass ihr Inneres zu sehen ist, in der Pose-Ansicht des Diagramms.",
+      "title": "Bilder direkt aus dem Modell"
+    },
+    "title": "Vom Modell zur gedruckten Anleitung"
+  },
   "edit": {
     "angles": {
       "body": "Zeichne, simuliere und löse Origami-Modelle mit nicht flachen Falten.",
@@ -56,6 +77,12 @@
     "title": "Ein Editor, der mitkommt"
   },
   "figureMissing": "Hier kommt ein Screenshot hin",
+  "fold": {
+    "eyebrow": "Falten",
+    "figureAlt": "Der Arbeitsbereich Falten: eine Leiste mit Faltschritten über dem gefalteten Papier und seinem Faltmuster.",
+    "lead": "Falte ein Modell wie von Hand, Schritt für Schritt aus einem flachen Blatt Papier. Schritte, die ein kompliziertes Zusammenlegen brauchen, importierst du aus dem Bearbeiten-Arbeitsbereich und exportierst sie dorthin. Wenn du fertig bist, importiere die ganze Folge in den Diagramm-Arbeitsbereich und erhalte vollständige, gesetzte Diagramme!",
+    "title": "Ein Blatt falten wie von Hand"
+  },
   "formats": {
     "a11yBoth": "öffnet und exportiert",
     "a11yExport": "exportiert nur",
@@ -81,7 +108,7 @@
   "what": {
     "eyebrow": "Was es ist",
     "figureAlt": "Der Ori-Studio-Arbeitsbereich: ein Faltmuster auf der Fläche, darum herum die Werkzeugleiste und die Inspektor-Panels.",
-    "lead": "Skizzieren Sie eine Basis, zeichnen Sie das Faltmuster und falten Sie es, um zu sehen, ob es funktioniert — alles an einem Ort, ohne Konto. Im Browser-Tab öffnen oder die Desktop-App installieren.",
+    "lead": "Skizzieren Sie eine Basis, zeichnen Sie das Faltmuster, falten Sie es, um zu sehen, ob es funktioniert, und machen Sie daraus ein Diagramm, nach dem andere falten können — alles an einem Ort, ohne Konto. Im Browser-Tab öffnen oder die Desktop-App installieren.",
     "title": "Ein freier, quelloffener Arbeitsbereich für Origami-Entwurf"
   }
 }

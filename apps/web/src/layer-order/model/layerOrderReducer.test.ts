@@ -358,7 +358,7 @@ describe('Add (Round3 add, commit)', () => {
       by: { picture: 'front' },
       count: true,
     });
-    expect(lastOf(landed.effects, 'track').fact).toEqual(constraintAddedFact('in_front_of', 'pattern', 'folded', 1));
+    expect(lastOf(landed.effects, 'track').fact).toEqual(constraintAddedFact('in_front_of', 'pattern', 'folded', 1, 'button'));
     expect(listControls(landed.state)).toMatchObject({ undo: true, redo: false, clearAll: true });
   });
 

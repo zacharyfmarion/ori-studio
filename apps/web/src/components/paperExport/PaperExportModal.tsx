@@ -17,6 +17,7 @@ import {
 import { usePaperExportUiStore, type PaperExportRequest } from '../../store/paperExportUiStore';
 import { Button } from '../ui/Button';
 import { ExportModalFrame } from './ExportModalFrame';
+import { ObjSpreadPreview } from './ObjSpreadPreview';
 import { PaperExportOptions } from './PaperExportOptions';
 import { PaperExportPreview } from './PaperExportPreview';
 import { paperExportPinsHint } from './PaperStylePicker';
@@ -69,11 +70,21 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
           pngTooLarge={dialog.pngTooLarge}
           hiddenFacesDropped={dialog.hiddenFacesDropped}
           pager={dialog.pager}
+          stage={
+            draft.format === 'obj' && dialog.objSpread ? (
+              <ObjSpreadPreview
+                preparation={dialog.objSpread.preparation}
+                spread={dialog.objSpread.value}
+                style={dialog.paintedStyle}
+              />
+            ) : null
+          }
         />
       }
       options={
         <PaperExportOptions
           obj={request.target.obj}
+          objSpread={dialog.objSpread}
           draft={draft}
           patch={patch}
           buriesFaces={request.target.buriesFaces}

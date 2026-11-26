@@ -30,7 +30,20 @@ export interface FoldedMesh {
   auxLines?: Float32Array;
 }
 
-export type FoldedObjUnavailableReason = SheetUvFailure | 'invalid-mesh' | 'expired-snapshot';
+/**
+ * Why a captured mesh cannot be written. `needs-refold` is a folded figure's
+ * reopened from its file with no fold to read, which cannot be folded again as
+ * it is drawn: its creases moved, or its layer order was set by hand.
+ */
+export type FoldedObjUnavailableReason = SheetUvFailure | 'invalid-mesh' | 'expired-snapshot' | 'needs-refold';
+
+/** A mesh that cannot be written, found only once it was asked for: the reason, for the reader's locale. */
+export class FoldedObjUnavailableError extends Error {
+  constructor(readonly reason: FoldedObjUnavailableReason) {
+    super(`The folded mesh cannot be written: ${reason}`);
+    this.name = 'FoldedObjUnavailableError';
+  }
+}
 
 /** No truncation or invented zero coordinates in an exported mesh. */
 export function validFoldedMesh(mesh: Pick<FoldedMesh, 'positions' | 'triangles'>): boolean {

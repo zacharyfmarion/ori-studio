@@ -49,6 +49,7 @@ function render(status: LayerOrderSessionStatus) {
           panes={<div />}
           onRetry={() => {}}
           onCancel={onCancel}
+          onEscape={() => {}}
           onApply={() => {}}
           applying={false}
           applyRefusal={null}
