@@ -97,9 +97,12 @@ precrease and the folded-corner rabbit ear through the canvas tools.
   Folding the bottom-right corner up along x - y = 9/16 lands across both
   sides, three ways each (under both of a side's flaps, between them, or on
   top): nine orders. The chooser builds its list from tuck recipes, each of
-  which pins one side, so it lists six and never both sides between. A
+  which pins one side, so it listed six and never both sides between. Since
+  2026-11-23 a tuck whose strict reading has no order reads a layer's side of
+  its target only where they meet together, and the recipe against a layer
+  between each side's flaps lands: seven, both sides between among them. A
   listing of every flat stacking (fold-launch/solved-orders) was reverted for
   the launch: it also offered stackings a fold cannot reach by moving.
-  `apps/web/src/fold/orders/independentSidesOrders.wasm.test.ts` checks the six
+  `apps/web/src/fold/orders/independentSidesOrders.wasm.test.ts` checks the seven
   today and holds the nine as an expected failure until each side's reachable
   orders are combined. Built by a script over the engine on 2026-10-21.

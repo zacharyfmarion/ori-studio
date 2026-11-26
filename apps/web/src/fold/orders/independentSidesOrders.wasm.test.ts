@@ -16,8 +16,12 @@ import { createFoldEnginePort, type FoldEngineSource } from '../engine/foldEngin
  * right. Folding the bottom-right corner up along x - y = 9/16 lands across
  * both sides, and each side can take the corner three ways (under both of its
  * flaps, between them, or on top): nine orders. The chooser builds its list
- * from tuck recipes, each of which pins one side, so it lists six and never
- * both sides between. A listing of every flat stacking was tried and
+ * from tuck recipes, each of which pins one side, so it listed six and never
+ * both sides between. Since a tuck reads a layer's side of its target where
+ * they meet together when its strict reading has no order, the recipe with a
+ * target between each side's flaps lands too: seven, both sides between
+ * among them; under or between on the left with the corner on top on the
+ * right are still missing. A listing of every flat stacking was tried and
  * reverted: it also offered stackings a fold cannot reach by moving. The fix
  * is to combine, side by side, the orders the motion reaches.
  *
@@ -72,8 +76,8 @@ async function ordersListed(): Promise<{ orders: number; exact: boolean }> {
 }
 
 describe.skipIf(!available)('a fold over two independent sides (known gap)', () => {
-  it('lists the six orders the tuck recipes reach, today', async () => {
-    expect(await ordersListed()).toEqual({ orders: 6, exact: true });
+  it('lists the seven orders the tuck recipes reach, today', async () => {
+    expect(await ordersListed()).toEqual({ orders: 7, exact: true });
   });
 
   // Fails until the chooser combines each side's reachable orders; then flip it to `it`.
