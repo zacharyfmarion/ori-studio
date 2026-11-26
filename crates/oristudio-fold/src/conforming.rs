@@ -27,7 +27,11 @@
 //! in the list. A cell that welding would leave with fewer than three
 //! corners keeps its own.
 
+use std::collections::HashMap;
+use std::hash::BuildHasherDefault;
+
 use oristudio_geometry::PointGrid;
+use oristudio_geometry::pointgrid::CellHasher;
 
 use crate::numerics::TOL;
 
@@ -71,13 +75,12 @@ pub(crate) fn conforming<'a>(
         .collect()
 }
 
-/// The welded cell corners, bucketed coarsely enough that an edge is looked
-/// up through a few buckets per edge length.
+/// The welded cell corners in square buckets about a mean edge wide, so an
+/// edge is looked up through the few buckets its band crosses.
 struct Corners<'a> {
     points: &'a [Point],
-    grid: PointGrid,
-    /// Per point in `grid`, its index in `points`.
-    ids: Vec<usize>,
+    pitch: f64,
+    buckets: HashMap<(i64, i64), Vec<usize>, BuildHasherDefault<CellHasher>>,
 }
 
 impl<'a> Corners<'a> {
@@ -91,21 +94,30 @@ impl<'a> Corners<'a> {
                 used[a] = true;
             }
         }
-        // The mean edge: an edge's lookup probes about two buckets per mean
-        // edge along it. Never under a few TOL, so a probe's reach (the pitch)
-        // always covers a corner TOL off the edge between two probes.
         let pitch = if edges == 0 {
             1.0
         } else {
             length / edges as f64
         }
         .max(4.0 * TOL);
-        let mut grid = PointGrid::new(pitch);
-        let ids: Vec<usize> = (0..points.len()).filter(|&k| used[k]).collect();
-        for &k in &ids {
-            grid.insert(points[k]);
+        let mut corners = Corners {
+            points,
+            pitch,
+            buckets: HashMap::default(),
+        };
+        for (k, &p) in points.iter().enumerate() {
+            if used[k] {
+                let key = (corners.bucket(p[0]), corners.bucket(p[1]));
+                corners.buckets.entry(key).or_default().push(k);
+            }
         }
-        Corners { points, grid, ids }
+        corners
+    }
+
+    fn bucket(&self, c: f64) -> i64 {
+        // Saturates for a coordinate too large for the cast; the walks below
+        // step with saturating ranges, so nothing traps.
+        (c / self.pitch).floor() as i64
     }
 
     /// The ring's corners with every other corner on each of its edges put
@@ -132,33 +144,39 @@ impl<'a> Corners<'a> {
         if length <= TOL {
             return;
         }
-        // Probes no more than a pitch apart, each reaching a pitch: a corner
-        // TOL off the edge is within a pitch of the probe nearest it.
-        let pitch = self.grid.cell();
-        let probes = (length / pitch).ceil() as usize;
-        for s in 0..=probes {
-            let t = s as f64 / probes.max(1) as f64;
-            let probe = [pa[0] + d[0] * t, pa[1] + d[1] * t];
-            for k in self
-                .grid
-                .within(probe, pitch)
-                .into_iter()
-                .map(|g| self.ids[g])
-            {
-                if k == a || k == b {
-                    continue;
-                }
-                let p = self.points[k];
-                let v = [p[0] - pa[0], p[1] - pa[1]];
-                let off = (d[0] * v[1] - d[1] * v[0]).abs() / length;
-                let along = (d[0] * v[0] + d[1] * v[1]) / length;
-                if off <= TOL && along > 0.0 && along < length {
-                    on.push((along, k));
+        // A corner within TOL of the edge lies within TOL, along each axis,
+        // of a point of it. So walk the columns the edge's x span reaches,
+        // TOL wider, and in each the rows its y span over that column (TOL
+        // wider again on both axes) reaches. Each bucket is visited once.
+        let (x0, x1) = (pa[0].min(pb[0]) - TOL, pa[0].max(pb[0]) + TOL);
+        for column in self.bucket(x0)..=self.bucket(x1) {
+            let from = column as f64 * self.pitch - TOL;
+            let to = (column as f64 + 1.0) * self.pitch + TOL;
+            let (t0, t1) = if d[0].abs() <= TOL {
+                (0.0, 1.0)
+            } else {
+                let at = |x: f64| ((x - pa[0]) / d[0]).clamp(0.0, 1.0);
+                let (s, e) = (at(from), at(to));
+                (s.min(e), s.max(e))
+            };
+            let (y0, y1) = (pa[1] + d[1] * t0, pa[1] + d[1] * t1);
+            let rows = self.bucket(y0.min(y1) - TOL)..=self.bucket(y0.max(y1) + TOL);
+            for row in rows {
+                for &k in self.buckets.get(&(column, row)).into_iter().flatten() {
+                    if k == a || k == b {
+                        continue;
+                    }
+                    let p = self.points[k];
+                    let v = [p[0] - pa[0], p[1] - pa[1]];
+                    let off = (d[0] * v[1] - d[1] * v[0]).abs() / length;
+                    let along = (d[0] * v[0] + d[1] * v[1]) / length;
+                    if off <= TOL && along > 0.0 && along < length {
+                        on.push((along, k));
+                    }
                 }
             }
         }
         on.sort_unstable_by(|x, y| x.0.total_cmp(&y.0).then(x.1.cmp(&y.1)));
-        on.dedup_by_key(|&mut (_, k)| k);
     }
 }
 
