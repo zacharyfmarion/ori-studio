@@ -174,6 +174,8 @@ export type FoldSentenceStep =
   | { op: 'turn'; turn: TurnKind }
   /** Import CP: the state jumps to an imported crease pattern's (plan D16). */
   | { op: 'cp-jump'; collapse?: boolean }
+  /** Adjust order: the same paper, its layers in another order, with no new crease. */
+  | { op: 'adjust-order' }
   /** A reverse fold along a line (plan Phase 9), its layers the tip's anchor, counted from the top. */
   | { op: 'reverse'; kind: 'inside' | 'outside'; line: FoldSentenceLine; scope: FoldLayerScope }
   /**
@@ -379,6 +381,8 @@ export function foldStepSentence(t: TFunction, step: FoldSentenceStep): string {
         : t('panels:fold.return.sentence', 'Return to the earlier folded pose, keeping all creases.');
     case 'cp-jump':
       return step.collapse ? t('panels:fold.sentence.collapse', 'Collapse along the saved crease pattern.') : t('panels:fold.sentence.cpJump', 'Collapse into the imported crease pattern.');
+    case 'adjust-order':
+      return t('panels:fold.sentence.adjustOrder', 'Adjust the layer order, with no new crease.');
     case 'reverse':
       return reverseFoldSentence(t, step.kind, lineClause(t, step.line), step.scope);
     case 'pleat':

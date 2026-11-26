@@ -22,6 +22,11 @@
 //! - **Start from Edit's folded figure** ([`figure`]): the kernel's folded
 //!   paper scene — what Edit's folded figure exposes on the web — gives the
 //!   faces on the sheet and Oriedita's stacking, which decide the order.
+//! - **Adjust order** ([`reorder`]): the Layer order dialog opened on a
+//!   held state's own crease pattern, its faces matched with the state's
+//!   across its flat creases, and the `adjust-order` step Apply lands — the
+//!   state's paper as it is, with the order chosen — replayed as it is
+//!   stored (`implementation-plans/fold-adjust-order.md`).
 //! - **Send to Edit and the FOLD export** ([`export`]): `fold_cp_to_model`
 //!   through the kernel's FOLD writer, as Edit opens it; and a path's states
 //!   as one FOLD file (`oristudio_fold::fold_file`).
@@ -57,6 +62,7 @@ pub mod figure;
 pub mod imports;
 pub mod jump;
 pub mod kernel;
+pub mod reorder;
 pub mod wire;
 
 pub use export::{export_fold, send_to_edit, send_to_edit_text};
@@ -64,7 +70,7 @@ pub use figure::{EditFigure, import_figure, read_figure};
 pub use imports::{Imports, starting_sheet};
 pub use jump::land;
 pub use wire::{
-    AdoptedPaper, ComponentCount, CpFile, CpFormat, CpJump, CpOrigin, Exported, FigureGap,
-    IoCallError, IoRefusal, JumpOp, Landed, LayerOpening, Limits, Opened, SheetFound, StoredField,
-    Target,
+    AdjustOrder, AdoptedPaper, ComponentCount, CpFile, CpFormat, CpJump, CpOrigin, Exported,
+    FigureGap, IoCallError, IoRefusal, JumpOp, Landed, LayerOpening, Limits, Opened, ReorderOp,
+    Reordered, SheetFound, StoredField, Target,
 };

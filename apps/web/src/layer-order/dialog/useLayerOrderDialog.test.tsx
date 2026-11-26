@@ -135,6 +135,19 @@ describe('useLayerOrderDialog', () => {
     );
   });
 
+  it('a host that never stores a turn asks for no Rotate: the panes get no listener, and no answer carries a turn', async () => {
+    const still = { ...REQUEST, record: null, rotate: false, look: { ...REQUEST.look, turnDeg: 90 } };
+    const h = await mount(still, () => createFakeLayerOrderBackend());
+    await vi.waitFor(() => expect(h.out.current?.state.phase.kind).toBe('open'));
+    expect(h.out.current!.events.onTurn).toBeUndefined();
+    // Side stays a way to look at the paper.
+    expect(h.out.current!.events.onFacePicked).toBeTypeOf('function');
+    await act(async () => h.out.current!.cancel());
+    const outcome = await h.outcome;
+    await h.done();
+    expect(outcome).toEqual({ kind: 'cancelled' });
+  });
+
   it('a carried row removed, an Apply refused, the removal undone: the next Apply writes the row back', async () => {
     let refuse = true;
     const saves: (readonly number[] | undefined)[] = [];

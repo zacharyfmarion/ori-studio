@@ -296,6 +296,12 @@
     "ratioTitle": "Dividir la línea según una proporción"
   },
   "fold": {
+    "adjustOrder": {
+      "enter": "Pulsa Intro para abrir el cuadro de diálogo Orden de capas.",
+      "failed": "No se pudo añadir ese orden como paso. Abre el cuadro de diálogo e inténtalo de nuevo.",
+      "open": "Editar orden de capas…",
+      "unreadable": "El cuadro de diálogo Orden de capas no puede leer las capas de este paso."
+    },
     "categoryLabel": "Espacio de plegado",
     "chooser": {
       "noKeys": {
@@ -915,6 +921,7 @@
       "unfoldTarget": "Elige el paso al que volver."
     },
     "tool": {
+      "adjustOrderHelp": "Cambiar qué capas quedan delante, sin ningún pliegue nuevo.",
       "closedSinkHelp": "Empujar el extremo de una punta cerrada dentro de un bolsillo, con sus capas juntas.",
       "crimpHelp": "Plegar una solapa hacia dentro por una línea y de vuelta hacia fuera por una segunda, de modo que su extremo gira.",
       "divideLine": "Dividir línea",

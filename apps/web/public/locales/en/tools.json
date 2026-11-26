@@ -288,6 +288,12 @@
     "ratioTitle": "Divide the line at a ratio"
   },
   "fold": {
+    "adjustOrder": {
+      "enter": "Enter opens the Layer order dialog.",
+      "failed": "That order could not be added as a step. Open the dialog and try again.",
+      "open": "Edit layer order…",
+      "unreadable": "The Layer order dialog can’t read this step’s layers."
+    },
     "categoryLabel": "Fold workspace",
     "chooser": {
       "noKeys": {
@@ -896,6 +902,7 @@
       "unfoldTarget": "Choose the step to return to."
     },
     "tool": {
+      "adjustOrderHelp": "Change which layers lie in front, with no new crease.",
       "closedSinkHelp": "Push a closed point’s tip into a pocket, its layers kept together.",
       "crimpHelp": "Fold a flap in along one line and back out along a second, so its end turns.",
       "divideLine": "Divide line",

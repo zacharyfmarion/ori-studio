@@ -62,6 +62,8 @@ export type FoldToolId =
   | FoldSinkToolId
   // The model turned round, by a preset or an exact angle (`tools/rotate`).
   | 'rotate'
+  // The layer order chosen again in the Layer order dialog, with no new crease (`fold/order`).
+  | 'adjust-order'
   | FoldSequenceToolId;
 
 /**
@@ -81,10 +83,11 @@ export function isSequenceTool(id: FoldToolId): id is FoldSequenceToolId {
 
 /**
  * The tools held for one step and put down once it is added, the tool they
- * were taken up from back in hand: Rotate, and the sequence tools.
+ * were taken up from back in hand: Rotate, Adjust order, and the sequence
+ * tools.
  */
-export function isOneStepTool(id: FoldToolId): id is 'rotate' | FoldSequenceToolId {
-  return id === 'rotate' || isSequenceTool(id);
+export function isOneStepTool(id: FoldToolId): id is 'rotate' | 'adjust-order' | FoldSequenceToolId {
+  return id === 'rotate' || id === 'adjust-order' || isSequenceTool(id);
 }
 
 /** The compound folds along a located line that are tools of their own, beside inside reverse. */
@@ -267,6 +270,8 @@ export const FOLD_TOOL_SHORTCUTS: Readonly<Partial<Record<FoldToolId, FoldShortc
   unsink: 'fold.toolUnsink',
   // Rotate, on R as the rotation was when it was done at once.
   rotate: 'fold.rotate',
+  // Adjust order, on Shift+T beside Turn over: the other model step that folds nothing.
+  'adjust-order': 'fold.toolAdjustOrder',
   // The sequence tools, on Shift+E and Shift+R.
   'unfold-to': 'fold.toolUnfoldTo',
   repeat: 'fold.toolRepeat',
@@ -337,6 +342,9 @@ export function foldToolLabel(t: TFunction, id: FoldToolId): string {
     case 'rotate':
       // The turn's own word, so the tool, its step and the Diagram it is linked to name it alike.
       return turnCardWords({ kind: 'rotate', rotate: FOLD_ROTATION_DEFAULT }, t).title;
+    // By its step's name, so the tool and the step it adds are named alike.
+    case 'adjust-order':
+      return t('panels:fold.words.adjustOrder', 'Adjust order');
     // The sequence tools by their steps' names, so a tool and the step it adds are named alike.
     case 'unfold-to':
       return t('panels:fold.return.label', 'Unfold to step');
@@ -388,6 +396,8 @@ export function foldToolDescription(t: TFunction, id: FoldToolId): string {
         'tools:fold.tool.rotateHelp',
         'Turn the model round by a part of a turn or an exact angle, previewed, then applied as a step of its own.'
       );
+    case 'adjust-order':
+      return t('tools:fold.tool.adjustOrderHelp', 'Change which layers lie in front, with no new crease.');
     case 'unfold-to':
       return t(
         'tools:fold.tool.unfoldToHelp',

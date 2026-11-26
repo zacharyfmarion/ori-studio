@@ -1156,6 +1156,7 @@
       "finishedSentence": "Le modèle tel que les étapes le laissent.",
       "fromFold": "Depuis Plier…",
       "instruction": {
+        "adjustOrder": "Réorganisez les couches.",
         "closedSink": "Enfoncement fermé.",
         "collapse": "Mettez en forme.",
         "insideCrimp": "Crimp intérieur.",
@@ -2143,6 +2144,7 @@
       "viewTarget": "Voir la cible : {{target}}"
     },
     "sentence": {
+      "adjustOrder": "Ajustez l’ordre des couches, sans nouveau pli.",
       "behind": {
         "petal": "Faites un pli pétale avec le rabat, vers l’arrière.",
         "petalScores": "Faites un pli pétale avec le rabat, vers l’arrière, en marquant sa charnière pendant qu’il se soulève.",
@@ -3264,6 +3266,7 @@
       "addsPrecreases_one": "Ajoute {{count}} prépliage",
       "addsPrecreases_many": "Ajoute {{count}} prépliages",
       "addsPrecreases_other": "Ajoute {{count}} prépliages",
+      "adjustOrder": "Ajuster l’ordre",
       "axiomLine": "Axiome {{axiom}} · {{phrase}}",
       "badgeCrimp": "Crimp",
       "badgeImported": "Importé",

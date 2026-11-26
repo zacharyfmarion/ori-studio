@@ -27,7 +27,7 @@
 
 import type { OristudioCpFoldedPaperScene, OristudioCpFoldSource } from '../../engine/oristudioCpTypes';
 import type { FoldStateFingerprint } from '../document/foldDigest';
-import type { FoldCpJumpOp, SheetPoint } from '../document/foldSequenceDocument';
+import type { FoldAdjustOrderOp, FoldCpJumpOp, SheetPoint } from '../document/foldSequenceDocument';
 import type { ImportedCreasePatternFormat } from '../../lib/fileFormats';
 import type { FoldStateSummary } from './foldEngineWire';
 
@@ -183,6 +183,27 @@ export interface FoldImportLayerOpening {
   source: OristudioCpFoldSource;
   shown: OristudioCpFoldedPaperScene;
   look: { side: 'front' | 'back'; turn_deg: number };
+}
+
+/**
+ * Adjust order's opening on a held state (`adjust_order_opening`,
+ * `implementation-plans/fold-adjust-order.md`): an import's shape, over the
+ * state's own crease pattern as Edit folds it whole, with the state's order
+ * as `shown`. Nothing is held between it and the pick, which finds the match
+ * again from the state and checks the digest.
+ */
+export type FoldAdjustOrderOpening = FoldImportLayerOpening;
+
+/** An Adjust order landed after a held state: its state, held like any step's, and the op it stores. */
+export interface FoldAdjustOrderLanded {
+  state: number;
+  summary: FoldStateSummary;
+  op: FoldAdjustOrderOp;
+}
+
+/** A landed Adjust order with its state's `fs1` fingerprint: what a commit takes. */
+export interface FoldAdjustOrderFingerprinted extends FoldAdjustOrderLanded {
+  fingerprint: FoldStateFingerprint;
 }
 
 /**

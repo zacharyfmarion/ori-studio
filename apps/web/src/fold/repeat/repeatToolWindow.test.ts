@@ -98,7 +98,7 @@ describe("Repeat's window", () => {
     expect(model.instructions.current).toBe(2);
     expect(model.instructions.notes).toEqual(['The canvas shows the repeated folds and the creases they add.']);
     expect(model.footer?.commit).toMatchObject({ label: 'Repeat on the other side', disabled: false });
-    expect(model.footer?.cancel.label).toBe('Cancel');
+    expect(model.footer?.cancel?.label).toBe('Cancel');
     model.repeat?.axis.set('1');
     model.steps?.set('s2');
     model.repeat?.end?.set('s1');
@@ -177,7 +177,7 @@ describe("Repeat's window", () => {
 
   it('turns its cancel into Stop while the preview prepares, the range and axis still free to change', () => {
     const preparing = windowOf(repeat({ kind: 'preparing' }), verbs(), 'free');
-    expect(preparing.footer?.cancel.label).toBe('Stop');
+    expect(preparing.footer?.cancel?.label).toBe('Stop');
     expect(preparing.footer?.commit).toMatchObject({ label: 'Repeat on the other side', disabled: true });
     expect(preparing.instructions.notes).toEqual(['Preparing repeated folds…']);
     expect(preparing.steps?.disabled).toBe(false);

@@ -332,6 +332,8 @@ export function useLayerOrderDialog(
     [dispatch]
   );
 
+  // A host that never stores a turn asks for no Rotate (`LayerOrderRequest.rotate`): no listener, no buttons.
+  const rotates = request.rotate !== false;
   const events = useMemo<LayerPanesEvents>(
     () => ({
       onFacePicked: ({ face, origin, input, shift }) => {
@@ -350,9 +352,9 @@ export function useLayerOrderDialog(
         if (input === 'tap') dispatch({ type: 'face_hovered', face: null });
       },
       onFlashEnded: (n) => dispatch({ type: 'flash_ended', n }),
-      onTurn: (direction) => dispatch({ type: 'turned', direction }),
+      ...(rotates ? { onTurn: (direction: 'left' | 'right') => dispatch({ type: 'turned', direction }) } : {}),
     }),
-    [dispatch]
+    [dispatch, rotates]
   );
 
   const [unlettered, setUnlettered] = useState<LayerOrderUnlettered>(NO_UNLETTERED);
