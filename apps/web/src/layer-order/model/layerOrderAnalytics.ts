@@ -16,9 +16,18 @@ import type { LayerTally, LayerVerb } from './layerOrderEngineFacts';
 
 /**
  * Where the dialog opened: an Edit figure, an Edit crease-pattern selection, a Diagram step,
- * Pose, Fold's Import CP, the Export crease pattern dialog's figure, the Share modal's card.
+ * Pose, Fold's Import CP, Fold's Adjust order, the Export crease pattern dialog's figure, the
+ * Share modal's card.
  */
-export type LayerOrderSurface = 'edit_figure' | 'edit_pattern' | 'diagram_step' | 'pose' | 'fold_import' | 'crease_export' | 'share_card';
+export type LayerOrderSurface =
+  | 'edit_figure'
+  | 'edit_pattern'
+  | 'diagram_step'
+  | 'pose'
+  | 'fold_import'
+  | 'fold_adjust_order'
+  | 'crease_export'
+  | 'share_card';
 
 export type LayerOrderOutcome = 'applied' | 'cancelled';
 

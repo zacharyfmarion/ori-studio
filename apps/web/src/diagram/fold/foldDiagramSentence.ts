@@ -124,6 +124,9 @@ export function foldDiagramSentence(t: TFunction, step: FoldSentenceStep): strin
           : t('panels:diagram.fold.instruction.unfold', 'Unfold.');
     case 'cp-jump':
       return t('panels:diagram.fold.instruction.collapse', 'Collapse.');
+    // Only the layer order changes: no crease, so no arrow, and the diagrammer's words for it.
+    case 'adjust-order':
+      return t('panels:diagram.fold.instruction.adjustOrder', 'Rearrange the layers.');
     case 'reverse':
       return step.kind === 'inside'
         ? t('panels:diagram.fold.instruction.insideReverse', 'Inside reverse fold.')

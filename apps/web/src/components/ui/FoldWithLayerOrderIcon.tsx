@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { LucideProps } from 'lucide-react';
+import { LAYER_ORDER_SHEETS } from './LayerOrderIcon';
 
 /**
  * Fold with layer order…: Fold's own glyph (lucide's Origami), shrunk into
@@ -43,8 +44,9 @@ export function FoldWithLayerOrderIcon({ size = 24, ...props }: LucideProps) {
           <path d="m12.214 3.381 8.414 14.966a1 1 0 0 1-.167 1.199l-1.168 1.163a1 1 0 0 1-.706.291H6.351a1 1 0 0 1-.625-.219L3.25 18.8a1 1 0 0 1 .631-1.781l4.165.027" />
         </g>
       </g>
-      <path d="m18 13.6 4 2.1-4 2.1-4-2.1z" strokeWidth={1.6} />
-      <path d="m14 19.3 4 2.1 4-2.1" strokeWidth={1.6} />
+      {LAYER_ORDER_SHEETS.map((d) => (
+        <path key={d} d={d} strokeWidth={1.6} />
+      ))}
     </svg>
   );
 }

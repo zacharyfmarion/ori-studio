@@ -1076,6 +1076,7 @@
       "finishedSentence": "完成这些步骤后的模型。",
       "fromFold": "来自折叠…",
       "instruction": {
+        "adjustOrder": "重新排列各层。",
         "closedSink": "闭合沉折。",
         "collapse": "收拢。",
         "insideCrimp": "内翻阶梯折。",
@@ -1987,6 +1988,7 @@
       "viewTarget": "查看目标：{{target}}"
     },
     "sentence": {
+      "adjustOrder": "调整层叠顺序，不添加新折痕。",
       "behind": {
         "petal": "将翼片向后做花瓣折。",
         "petalScores": "将翼片向后做花瓣折，抬起时压出铰链。",
@@ -2692,6 +2694,7 @@
       "addsCreaseMarks_other": "新增 {{count}} 条折痕印记",
       "addsPinchMarks_other": "新增 {{count}} 个捏痕",
       "addsPrecreases_other": "新增 {{count}} 条预折痕",
+      "adjustOrder": "调整顺序",
       "axiomLine": "公理 {{axiom}} · {{phrase}}",
       "badgeCrimp": "阶梯折",
       "badgeImported": "已导入",

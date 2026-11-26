@@ -36,7 +36,8 @@ import {
   type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
 } from '../../lib/creasePatternViewport';
-import type { LayerOrderRequest } from '../../lib/layerOrder/layerOrderRequest';
+import type { LayerOrderLook, LayerOrderRequest } from '../../lib/layerOrder/layerOrderRequest';
+import type { FoldImportLayerOpening } from '../engine/foldEngineIoWire';
 import { layerOrderSourceOf } from '../../lib/layerOrder/layerOrderSource';
 import { DEFAULT_FOLDED_MODEL } from '../../lib/orieditaNativeMetadata';
 import { documentPaperStyleOf } from '../../lib/paper/documentPaperStyle';
@@ -87,18 +88,28 @@ export function foldImportLayerOrderRequest(ask: FoldImportLayerOrderAsk, view: 
     surface: 'fold_import',
     source: layerOrderSourceOf(opening.source, DEFAULT_FOLDED_MODEL),
     record: null,
-    look: {
-      style: view.style,
-      policy: PAPER_STYLE_POLICIES.fold,
-      turnDeg: opening.look.turn_deg,
-      side: opening.look.side,
-      xray: false,
-      lineStyle: view.lineStyle,
-      lineWidth: view.lineWidth,
-      foldAngleDisplay: view.foldAngleDisplay,
-    },
+    look: foldLayerOrderLook(opening.look, view),
     shown: opening.shown,
     ...(request.kind === 'file' ? { name: request.name } : {}),
+  };
+}
+
+/**
+ * The dialog's look for a Fold state the engine opened onto its faces
+ * (an import, or Adjust order's step on screen): Fold's paper through Fold's
+ * policy, from the side Fold shows it and turned as Fold turns it, in Edit's
+ * crease pen.
+ */
+export function foldLayerOrderLook(look: FoldImportLayerOpening['look'], view: FoldImportView): LayerOrderLook {
+  return {
+    style: view.style,
+    policy: PAPER_STYLE_POLICIES.fold,
+    turnDeg: look.turn_deg,
+    side: look.side,
+    xray: false,
+    lineStyle: view.lineStyle,
+    lineWidth: view.lineWidth,
+    foldAngleDisplay: view.foldAngleDisplay,
   };
 }
 
