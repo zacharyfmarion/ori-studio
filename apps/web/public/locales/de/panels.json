@@ -1401,7 +1401,7 @@
         "needsRows": "Braucht mindestens zwei Reihen",
         "none": "Keine",
         "pattern": "Faltmuster",
-        "patternHelp": "Gezeichnet nach dem Faltmuster, das ein Schritt verknüpft. Auto nimmt den letzten verknüpften Schritt; jedes Muster steht nur einmal in der Liste, unter dem dafür gewählten Schritt oder sonst unter dem letzten Schritt, der es verknüpft.",
+        "patternHelp": "Seine Berg- und Talfalten, aus dem Faltmuster, das ein Schritt verknüpft, oder aus einer hochgeladenen Datei. Auto nimmt den letzten verknüpften Schritt; jedes Muster steht nur einmal in der Liste, unter dem dafür gewählten Schritt oder sonst unter dem letzten Schritt, der es verknüpft.",
         "patternSize": "Faltmustergröße",
         "patternSizeHelp": "Die Seitenlänge des Faltmusters, als Anteil an der Höhe des Titelblocks.",
         "removeCredit": "Angabe {{number}} entfernen",
@@ -1411,7 +1411,8 @@
         "stepCount": "Auto ({{number}})",
         "subtitle": "Untertitel",
         "subtitleHelp": "Die kleine Zeile über dem Titel. Leeren Sie sie, damit keine gedruckt wird.",
-        "typeValue": "Für Angabe {{number}} stattdessen einen Wert eingeben"
+        "typeValue": "Für Angabe {{number}} stattdessen einen Wert eingeben",
+        "uploadPattern": "CP- oder FOLD-Datei hochladen…"
       },
       "titleHelp": "Der Titel des Diagramms, in einem Reiter oben auf jeder Seite.",
       "titleHelpWithBlock": "Der Titel des Diagramms, in einem Reiter oben auf jeder Seite. Auf der ersten Seite steht er stattdessen im Titelblock."
@@ -1431,6 +1432,7 @@
       "textCut": "Text passt nicht",
       "titleBlock": {
         "creditsCut": "Einige Angaben passen nicht",
+        "fileNoPattern": "Die hochgeladene Datei hat keine Falten",
         "noModel": "Noch hat kein Schritt ein Bild",
         "noPattern": "Kein Schritt ist mit einem Faltmuster verknüpft",
         "stepNoPattern": "Schritt {{number}} hat kein Faltmuster",

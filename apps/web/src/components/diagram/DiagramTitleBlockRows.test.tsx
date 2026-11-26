@@ -5,6 +5,7 @@ import {
   PAGE_SETTINGS,
   defaultTitleBlockContent,
   setPageSetup,
+  type DiagramCreasePatternAsset,
   type DiagramPageSetup,
   type DiagramTitleBlockContent,
 } from '../../diagram/document/diagramDocument';
@@ -21,6 +22,18 @@ vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   ...analytics,
 }));
+/** The picker, and the file's reading, which runs the CP kernel. */
+const files = vi.hoisted(() => ({ openBinaryFile: vi.fn(), readPatternFile: vi.fn() }));
+vi.mock('../../platform/fileService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../platform/fileService')>()),
+  getFileService: () => ({ openBinaryFile: files.openBinaryFile }),
+}));
+vi.mock('../../diagram/pages/titleBlockPatternFile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../diagram/pages/titleBlockPatternFile')>()),
+  readPatternFile: files.readPatternFile,
+}));
+const toasts = vi.hoisted(() => ({ error: vi.fn(), message: vi.fn() }));
+vi.mock('sonner', async (importOriginal) => ({ ...(await importOriginal<typeof import('sonner')>()), toast: toasts }));
 /** What the selects offer, as built, watched for when it is worked out. */
 const choices = vi.hoisted(() => ({ titleBlockChoices: vi.fn() }));
 vi.mock('../../diagram/pages/titleBlockChoices', async (importOriginal) => {
@@ -259,7 +272,7 @@ describe('DiagramTitleBlockRows', () => {
       select(label)!.closest('[data-field-row]')!.querySelector('[data-field-help]')?.getAttribute('aria-label');
     expect(helpOf('Model')).toBe('The finished model, drawn from a step’s picture. Auto uses the last step with one.');
     expect(helpOf('Crease pattern')).toBe(
-      'Drawn from the crease pattern a step links. Auto uses the last linked step; each pattern is listed once, by the step chosen for it or else the last step that links it.'
+      'Its mountain and valley folds, from the crease pattern a step links or from a file you upload. Auto uses the last linked step; each pattern is listed once, by the step chosen for it or else the last step that links it.'
     );
   });
 
@@ -304,7 +317,7 @@ describe('DiagramTitleBlockRows', () => {
     render();
     expect(optionsOf('Model')).toEqual(['Auto (step 3)', 'Step 1', 'Step 2', 'Step 3', 'None']);
     // Steps 1 and 2 link one pattern: offered once, by the last of them.
-    expect(optionsOf('Crease pattern')).toEqual(['Auto (step 3)', 'Step 2', 'Step 3', 'None']);
+    expect(optionsOf('Crease pattern')).toEqual(['Auto (step 3)', 'Step 2', 'Step 3', 'None', 'Upload a CP or FOLD file…']);
     expect(select('Model')!.textContent).toBe('Auto (step 3)');
   });
 
@@ -312,7 +325,7 @@ describe('DiagramTitleBlockRows', () => {
     install({ titleBlock: ON }, false, [emptyStep('s1'), emptyStep('s2')]);
     render();
     expect(optionsOf('Model')).toEqual(['Auto (no pictures)', 'None']);
-    expect(optionsOf('Crease pattern')).toEqual(['Auto (none linked)', 'None']);
+    expect(optionsOf('Crease pattern')).toEqual(['Auto (none linked)', 'None', 'Upload a CP or FOLD file…']);
   });
 
   it('sets where each part comes from, one undo step and one count of the kind each, never which step', () => {
@@ -358,10 +371,64 @@ describe('DiagramTitleBlockRows', () => {
     const blank = patternStep('s2', []);
     install({ titleBlock: ON }, false, [cpStep('s1'), blank]);
     render();
-    expect(optionsOf('Crease pattern')).toEqual(['Auto (step 1)', 'Step 1', 'None']);
+    expect(optionsOf('Crease pattern')).toEqual(['Auto (step 1)', 'Step 1', 'None', 'Upload a CP or FOLD file…']);
     act(() => state().setDiagramTitleBlockContent({ pattern: { kind: 'step', stepId: 's2' } }));
     expect(select('Crease pattern')!.textContent).toBe('Step 2');
     expect(noteOf('Crease pattern')).toEqual({ text: 'Step 2 has no crease pattern', reason: true });
+  });
+
+  it('uploads a crease pattern file from the menu’s last entry: the picker inside the press, one undo step and one count by format', async () => {
+    const asset: DiagramCreasePatternAsset = {
+      id: 'asset-cp',
+      kind: 'crease-pattern',
+      name: 'crane.cp',
+      pattern: { viewBox: '0 0 1000 1000', strokes: [{ x1: 0, y1: 0, x2: 1000, y2: 1000, role: 'valley' }] },
+      bytes: 1,
+    };
+    files.openBinaryFile.mockResolvedValue({ bytes: new Uint8Array([1]), name: 'crane.cp', path: null, mimeType: '' });
+    files.readPatternFile.mockResolvedValue({ ok: true, asset, format: 'cp', trimmed: false });
+    install({ titleBlock: ON });
+    render();
+    choose('Crease pattern', 'Upload a CP or FOLD file…');
+    // Opened in the press itself, before anything is awaited: a browser allows a picker only from a gesture.
+    expect(files.openBinaryFile).toHaveBeenCalledOnce();
+    expect(files.openBinaryFile.mock.calls[0]![0]).toMatchObject({ extensions: ['cp', 'fold', 'ori', 'orh'] });
+    await act(async () => {});
+    expect(state().diagram!.titleBlockContent).toEqual({ pattern: { kind: 'upload', assetId: 'asset-cp' } });
+    expect(state().diagram!.assets).toEqual({ 'asset-cp': asset });
+    expect(select('Crease pattern')!.textContent).toBe('crane.cp');
+    expect(optionsOf('Crease pattern')).toEqual(['Auto (step 3)', 'Step 2', 'Step 3', 'crane.cp', 'None', 'Upload a CP or FOLD file…']);
+    expect(undoSteps()).toBe(1);
+    expect(calls()).toEqual([['title_block_pattern', { titleBlockChoice: 'upload', titleBlockPatternFormat: 'cp' }]]);
+    // Choosing the file again changes nothing; choosing a step lets it go, and its asset with it.
+    choose('Crease pattern', 'crane.cp');
+    expect(undoSteps()).toBe(1);
+    choose('Crease pattern', 'Step 2');
+    expect(state().diagram!.assets).toEqual({});
+    expect(optionsOf('Crease pattern')).toEqual(['Auto (step 3)', 'Step 2', 'Step 3', 'None', 'Upload a CP or FOLD file…']);
+    expect(toasts.error).not.toHaveBeenCalled();
+  });
+
+  it('changes nothing for a file that gives no pattern, and says why; nor for a picker dismissed', async () => {
+    install({ titleBlock: ON });
+    render();
+    files.openBinaryFile.mockResolvedValue(null);
+    choose('Crease pattern', 'Upload a CP or FOLD file…');
+    await act(async () => {});
+    expect(files.readPatternFile).not.toHaveBeenCalled();
+    files.openBinaryFile.mockResolvedValue({ bytes: new Uint8Array([1]), name: 'square.fold', path: null, mimeType: '' });
+    for (const [reason, said] of [
+      ['no-folds', 'This crease pattern has no mountain or valley folds to show.'],
+      ['unreadable', 'This file couldn’t be read as a crease pattern.'],
+    ] as const) {
+      files.readPatternFile.mockResolvedValueOnce({ ok: false, reason });
+      choose('Crease pattern', 'Upload a CP or FOLD file…');
+      await act(async () => {});
+      expect(toasts.error).toHaveBeenLastCalledWith(said);
+    }
+    expect(state().diagram!.titleBlockContent).toBeUndefined();
+    expect(undoSteps()).toBe(0);
+    expect(calls()).toEqual([]);
   });
 
   it('commits the description as it is typed: a sitting at the field one undo step and one count, never its words', () => {

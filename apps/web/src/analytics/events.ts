@@ -648,8 +648,14 @@ export type DiagramPageSetting =
   | 'title_block_note'
   | 'title_block_band_color';
 
-/** Where the title block's model or crease pattern was set to come from: what Auto finds, a step chosen, or none. */
-export type DiagramTitleBlockChoice = 'auto' | 'step' | 'none';
+/**
+ * Where the title block's model or crease pattern was set to come from: what Auto finds, a step chosen, none, or —
+ * the crease pattern alone, since 2026-11-25 — a file uploaded for it.
+ */
+export type DiagramTitleBlockChoice = 'auto' | 'step' | 'none' | 'upload';
+
+/** The format of a crease-pattern file uploaded for the title block (`title_block_pattern_format`), from its extension. */
+export type DiagramTitleBlockPatternFormat = 'cp' | 'fold' | 'ori' | 'orh';
 
 /**
  * What changed in the title block's credits (`title_block_credits`): a credit added or removed, its

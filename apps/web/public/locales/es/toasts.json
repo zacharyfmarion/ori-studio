@@ -123,6 +123,11 @@
     "refreshedAll_one": "Se actualizó 1 paso",
     "refreshedAll_many": "Se actualizaron {{count}} pasos",
     "refreshedAll_other": "Se actualizaron {{count}} pasos",
+    "titleBlockPattern": {
+      "noFolds": "Este patrón de pliegues no tiene pliegues de montaña ni de valle que mostrar.",
+      "trimmed": "Este patrón de pliegues tiene más líneas de las que guarda un diagrama, así que se omitieron sus pliegues más cortos.",
+      "unreadable": "No se pudo leer este archivo como patrón de pliegues."
+    },
     "uploadFailed_one": "No se pudo añadir una imagen",
     "uploadFailed_many": "No se pudieron añadir {{count}} imágenes",
     "uploadFailed_other": "No se pudieron añadir {{count}} imágenes",

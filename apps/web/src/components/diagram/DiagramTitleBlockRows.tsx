@@ -7,6 +7,9 @@ import { SelectRow, SliderRow, TextAreaRow, ToggleRow, type SelectRowOption } fr
 import { DiagramTitleBlockBandColorRow } from './DiagramTitleBlockBandColorRow';
 import { DiagramTitleBlockCredits } from './DiagramTitleBlockCredits';
 
+/** The crease pattern's last entry: not a choice but the way to one, opening a file picker. */
+const UPLOAD_PATTERN = 'upload-file';
+
 /** The sizes move by whole percents, so the defaults (59% and 79%) are stops. */
 const SIZE_STEP = 1;
 const SIZE_MIN = Math.round(TITLE_BLOCK_ART_SIZE_RANGE.min * 100);
@@ -20,9 +23,9 @@ const SIZE_MAX = Math.round(TITLE_BLOCK_ART_SIZE_RANGE.max * 100);
  * top to bottom as the block reads: the subtitle, the band's colour
  * (`DiagramTitleBlockBandColorRow`), the credits and the description (the
  * file's `note`), then the finished model and the crease pattern, each Auto
- * (named by the step it finds), a step, or None, with its size while it is
- * shown. Bound by `useDiagramTitleBlock`, which offers only what the block can
- * show.
+ * (named by the step it finds), a step, or None — the pattern a file uploaded
+ * for it too, by the menu's last entry — with its size while it is shown.
+ * Bound by `useDiagramTitleBlock`, which offers only what the block can show.
  */
 export function DiagramTitleBlockRows() {
   const { t, i18n } = useTranslation();
@@ -31,10 +34,11 @@ export function DiagramTitleBlockRows() {
   const step = (number: number) => t('panels:diagram.pagePane.titleBlock.step', 'Step {{number}}', { number });
   const auto = (number: number) => t('panels:diagram.pagePane.titleBlock.auto', 'Auto (step {{number}})', { number });
   const none = t('panels:diagram.pagePane.titleBlock.none', 'None');
-  /** Auto, each step offered, and None. */
-  const options = (part: TitleBlockPartChoices, autoNone: string): SelectRowOption[] => [
+  /** Auto, each step offered, `more` (the pattern's file), and None. */
+  const options = (part: TitleBlockPartChoices, autoNone: string, more: SelectRowOption[] = []): SelectRowOption[] => [
     { id: 'auto', label: part.autoNumber === null ? autoNone : auto(part.autoNumber) },
     ...part.steps.map((each) => ({ id: each.choice, label: step(each.number) })),
+    ...more,
     { id: 'none', label: none },
   ];
   /** Why the step a part is set to shows nothing, as `cannot` says it for its number: on the row's note line, whole. */
@@ -42,6 +46,15 @@ export function DiagramTitleBlockRows() {
     const chosen = part.steps.find((each) => each.choice === part.value);
     return chosen && !chosen.gives ? cannot(chosen.number) : undefined;
   };
+  /** The crease pattern's entries: its file by name while it is set to one, and last, the way to upload one. */
+  const patternOptions = (part: TitleBlockPartChoices): SelectRowOption[] => [
+    ...options(
+      part,
+      t('panels:diagram.pagePane.titleBlock.autoNoneLinked', 'Auto (none linked)'),
+      part.file ? [{ id: 'upload', label: part.file.name }] : []
+    ),
+    { id: UPLOAD_PATTERN, label: t('panels:diagram.pagePane.titleBlock.uploadPattern', 'Upload a CP or FOLD file…') },
+  ];
   const percent = (value: number) => new Intl.NumberFormat(i18n.language, { style: 'percent' }).format(value / 100);
   /**
    * A size's slider, in percent of the block's height, handed over where it is let go: only as far as keeps the
@@ -147,16 +160,21 @@ export function DiagramTitleBlockRows() {
             label={t('panels:diagram.pagePane.titleBlock.pattern', 'Crease pattern')}
             help={t(
               'panels:diagram.pagePane.titleBlock.patternHelp',
-              'Drawn from the crease pattern a step links. Auto uses the last linked step; each pattern is listed once, by the step chosen for it or else the last step that links it.'
+              'Its mountain and valley folds, from the crease pattern a step links or from a file you upload. Auto uses the last linked step; each pattern is listed once, by the step chosen for it or else the last step that links it.'
             )}
-            note={reason(block.pattern, (number) =>
-              t('panels:diagram.pages.titleBlock.stepNoPattern', 'Step {{number}} has no crease pattern', { number })
-            )}
+            note={
+              block.pattern.file && !block.pattern.file.gives
+                ? t('panels:diagram.pages.titleBlock.fileNoPattern', 'The uploaded file has no folds')
+                : reason(block.pattern, (number) =>
+                    t('panels:diagram.pages.titleBlock.stepNoPattern', 'Step {{number}} has no crease pattern', { number })
+                  )
+            }
             nested
             value={block.pattern.value}
             disabled={readOnly}
-            options={options(block.pattern, t('panels:diagram.pagePane.titleBlock.autoNoneLinked', 'Auto (none linked)'))}
-            onChange={block.setPattern}
+            options={patternOptions(block.pattern)}
+            // The upload entry opens the picker inside this very event: a browser allows one only from a gesture.
+            onChange={(choice) => (choice === UPLOAD_PATTERN ? block.uploadPattern() : block.setPattern(choice))}
           />
           {block.pattern.value !== 'none' &&
             sizeRow(

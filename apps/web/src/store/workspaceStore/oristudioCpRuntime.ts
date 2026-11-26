@@ -1,5 +1,6 @@
 import { extraVertexCleanupLineIds } from '../../lib/cpGraphCleanup';
 import { connectEngine, isEngineConnected } from '../../engines/engineHost';
+import { loadCpFile, titleFromFilename } from '../../engine/loadCpFile';
 import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
 import type { Remote } from 'comlink';
 import type { FlatText } from '../../cp-workspace/annotations/annotation';
@@ -178,14 +179,10 @@ export async function loadOristudioCpDocumentFromText(
   }
 ): Promise<OristudioCpDocumentState> {
   const api = await getOristudioCpClient();
-  const nextHandle =
-    source.format === 'cp'
-      ? await api.loadCp(text, source.title ?? titleFromFilename(source.filename))
-      : source.format === 'ori'
-        ? await api.loadOri(text, source.acceptUnknownVersion ?? false)
-        : source.format === 'orh'
-          ? await api.loadOrh(text)
-          : await api.loadFoldFile(text);
+  const nextHandle = await loadCpFile(api, source.format, text, {
+    title: source.title ?? titleFromFilename(source.filename),
+    acceptUnknownVersion: source.acceptUnknownVersion,
+  });
 
   documentLoadSerial += 1;
   try {
@@ -597,14 +594,10 @@ export async function importAddOristudioCpDocumentFromText(
   lastImportAddPlacement = null;
 
   const target = await readImportAddTarget(api, targetHandle);
-  const importedHandle =
-    source.format === 'cp'
-      ? await api.loadCp(text, titleFromFilename(source.filename))
-      : source.format === 'ori'
-        ? await api.loadOri(text, source.acceptUnknownVersion ?? false)
-        : source.format === 'orh'
-          ? await api.loadOrh(text)
-          : await api.loadFoldFile(text);
+  const importedHandle = await loadCpFile(api, source.format, text, {
+    title: titleFromFilename(source.filename),
+    acceptUnknownVersion: source.acceptUnknownVersion,
+  });
 
   try {
     if (source.circles?.length && source.circleSourceBounds) {
@@ -1298,10 +1291,6 @@ async function buildDocumentState(
     operationDescriptors,
     lastCommandResult,
   };
-}
-
-function titleFromFilename(filename: string): string {
-  return filename.replace(/\.(cp|fold|ori|orh|osf)$/i, '') || 'Untitled';
 }
 
 export type { OristudioCpDocumentSnapshot, OristudioCpDocumentSummary };

@@ -137,6 +137,7 @@
     "refreshAllMessage": "Обновление можно отменить одним действием, но то, что вы отменили до него, больше нельзя будет вернуть.",
     "refreshAllTitle": "Обновить шагов: {{total}}?",
     "replacePictureTitle": "Замена изображения",
+    "titleBlockPatternTitle": "Загрузка паттерна складок",
     "uploadPicturesTitle": "Загрузка изображений",
     "uploadPictureTitle": "Загрузка изображения"
   },
