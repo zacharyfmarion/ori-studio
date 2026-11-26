@@ -30,27 +30,32 @@ export interface PullSelection {
 /**
  * The selection of a pull browser's list (`browserSelection`), whatever it
  * pulls from: References' plans or a Fold sequence (fold-workspace plan D17).
- * A list of another key starts afresh, and until the first press in a list
- * the selection is what it opens with (`initial` — a replaced step's card).
- * `finished` says whether the list's ending can be chosen.
+ * A list of another key starts afresh — unless `carry` takes the selection
+ * from the list before it, as the Fold browser does when its cards merge or
+ * part — and until the first press in a list the selection is what it opens
+ * with (`initial` — a replaced step's card). `finished` says whether the
+ * list's ending can be chosen.
  */
 export function usePullSelection(
   cards: readonly PullCard[],
   listKey: string,
   initial: number | null,
-  finished: boolean
+  finished: boolean,
+  carry?: (from: string, selection: BrowserSelection) => BrowserSelection | null
 ): PullSelection {
   const [picked, setPicked] = useState<{ list: string | null; selection: BrowserSelection }>({
     list: null,
     selection: browserSelection.empty(),
   });
-  const selection = picked.list === listKey ? picked.selection : browserSelection.initial(initial);
+  const opened = (prev: { list: string | null; selection: BrowserSelection }) =>
+    (prev.list !== null && carry?.(prev.list, prev.selection)) || browserSelection.initial(initial);
+  const selection = picked.list === listKey ? picked.selection : opened(picked);
   // A change to the selection as it stands by then: a Shift+arrow extends it
   // and focuses the card it lands on, whose onFocus asks again in the same
   // event — and must see the extension, not this render's selection.
   const select = (change: (current: BrowserSelection) => BrowserSelection) =>
     setPicked((prev) => {
-      const current = prev.list === listKey ? prev.selection : browserSelection.initial(initial);
+      const current = prev.list === listKey ? prev.selection : opened(prev);
       const next = change(current);
       return next === current && prev.list === listKey ? prev : { list: listKey, selection: next };
     });

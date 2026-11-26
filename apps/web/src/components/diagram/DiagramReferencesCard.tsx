@@ -99,6 +99,14 @@ export function DiagramReferencesCard({
   );
 }
 
+/** A verb a pull card offers in its header: its words, its tooltip and accessible name, its icon, and what it does. */
+export interface PullCardAction {
+  label: string;
+  title: string;
+  icon: ReactNode;
+  onPress: () => void;
+}
+
 /**
  * One card of a pull browser (D20; fold-workspace plan D17), as it looks:
  * its title and badge, its picture, its sentence, and what the reader needs
@@ -146,6 +154,13 @@ export const DiagramPullCard = forwardRef<
     choosable: boolean;
     onPress: (modifiers: { range: boolean }) => void;
     onFocus: () => void;
+    /**
+     * The steps behind it, drawn as card edges: a card that is several steps
+     * drawn as one — one edge for two steps, two for more. None by default.
+     */
+    stack?: 0 | 1 | 2;
+    /** A verb of the card's own, at its header's end — a merged card's Split: pressing it chooses nothing. */
+    action?: PullCardAction;
   }
 >(function DiagramPullCard(
   {
@@ -167,6 +182,8 @@ export const DiagramPullCard = forwardRef<
     choosable,
     onPress,
     onFocus,
+    stack = 0,
+    action,
   },
   ref
 ) {
@@ -183,6 +200,7 @@ export const DiagramPullCard = forwardRef<
       data-selected={selected || undefined}
       data-offered={offered || undefined}
       data-kind={kind}
+      data-stack={stack || undefined}
       title={why}
       onFocus={onFocus}
       onClick={(event) => {
@@ -196,6 +214,23 @@ export const DiagramPullCard = forwardRef<
         </span>
         <span className={styles.title}>{title}</span>
         {badge && <span className={styles.badge}>{badge}</span>}
+        {action && (
+          <button
+            type="button"
+            className={styles.action}
+            title={action.title}
+            aria-label={action.title}
+            onClick={(event) => {
+              event.stopPropagation();
+              action.onPress();
+            }}
+            // Its own keys: Enter and Space press it, not the card.
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            {action.icon}
+            <span className={styles.actionLabel}>{action.label}</span>
+          </button>
+        )}
       </div>
       <div className={styles.well} data-picture={(picture !== null && onPaper) || undefined}>
         {picture ?? (unreadable ? <DiagramPullCardCantDraw /> : null)}

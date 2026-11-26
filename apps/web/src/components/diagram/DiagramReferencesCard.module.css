@@ -5,6 +5,9 @@
  * like what it becomes.
  */
 .card {
+  /* The steps behind a card that is several drawn as one (`data-stack`): none, or their edges. */
+  --stack: 0 0 0 0 transparent;
+
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   min-width: 0;
@@ -13,11 +16,27 @@
   border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
+  box-shadow: var(--stack);
   cursor: pointer;
   user-select: none;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+/* A card behind it for two steps; two behind for more. Each a card's ground inside its edge, offset into the gap. */
+.card[data-stack='1'] {
+  --stack:
+    4px 4px 0 -1px var(--bg-primary),
+    4px 4px 0 0 var(--border-strong);
+}
+
+.card[data-stack='2'] {
+  --stack:
+    4px 4px 0 -1px var(--bg-primary),
+    4px 4px 0 0 var(--border-strong),
+    8px 8px 0 -1px var(--bg-primary),
+    8px 8px 0 0 var(--border-default);
 }
 
 .card:hover {
@@ -30,18 +49,23 @@
 }
 
 .card:focus-visible {
-  box-shadow: 0 0 0 2px var(--accent-primary);
+  box-shadow:
+    0 0 0 2px var(--accent-primary),
+    var(--stack);
 }
 
 .card[data-selected] {
   border-color: var(--accent-primary);
-  box-shadow: inset 0 0 0 1px var(--accent-primary);
+  box-shadow:
+    inset 0 0 0 1px var(--accent-primary),
+    var(--stack);
 }
 
 .card[data-selected]:focus-visible {
   box-shadow:
     inset 0 0 0 1px var(--accent-primary),
-    0 0 0 2px var(--accent-primary);
+    0 0 0 2px var(--accent-primary),
+    var(--stack);
 }
 
 /*
@@ -60,6 +84,9 @@
 }
 
 .header {
+  /* Its width decides whether its verb has room for a word (`.actionLabel`). */
+  container: pull-card-header / inline-size;
+
   display: flex;
   align-items: center;
   gap: 6px;
@@ -100,6 +127,74 @@
   color: var(--status-warning);
   font-size: 0.68rem;
   font-weight: 600;
+}
+
+/*
+ * A verb of the card's own at its header's end — a merged card's Split.
+ * Compact, its margins eaten into the header's padding, so the header keeps
+ * the height every card's has and a row's pictures line up.
+ */
+.action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  margin: -3px 0 -3px auto;
+  padding: 2px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.action:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+/*
+ * Too narrow for its word beside the title (a phone's two columns, the
+ * narrowest desktop column): the icon alone, so the title keeps its room. Its
+ * name stays in its label and tooltip. Measured inside the header's padding:
+ * the mark, a two-digit range like "Steps 11–12" and the worded chip need 155px.
+ */
+@container pull-card-header (max-width: 154.98px) {
+  .actionLabel {
+    display: none;
+  }
+}
+
+/*
+ * A finger's size where a finger is the pointer, without growing the header:
+ * the chip keeps its size and its hit area reaches past it, so the header is
+ * as tall as every other card's and a row's pictures still line up. The card
+ * clips what reaches above it.
+ */
+@media (pointer: coarse) {
+  .action {
+    position: relative;
+  }
+
+  .action::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, var(--touch-target));
+    height: var(--touch-target);
+    transform: translate(-50%, -50%);
+    content: '';
+  }
 }
 
 /* Square, whatever the column width, so a row of cards lines up. */

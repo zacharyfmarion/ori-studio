@@ -305,11 +305,18 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     expect([auto.from, auto.step?.id]).toEqual(['auto', sent.at(-1)!.id]);
     expect(roles(auto.scene).sort()).toEqual(['valley', 'valley']);
 
-    // The second step's diagram step: the state it lands, the diagonal (left out) and one valley.
+    // The kite's two flaps mirror each other on paper of their own: sent as one step, both lines and arrows on
+    // the state before them, said once. Its crease pattern is the state its run lands: both valleys, and the
+    // diagonal (left out).
     const step = sent.find((each) => (each.source as DiagramFoldStepSource).step === second!.id)!;
+    expect((step.source as DiagramFoldStepSource).through).toBe(third!.id);
+    const kinds = step.annotations.map((mark) => (mark.unknown ? 'unknown' : mark.kind));
+    expect(kinds.filter((kind) => kind === 'valley-line')).toHaveLength(2);
+    expect(kinds.filter((kind) => kind === 'valley-arrow')).toHaveLength(2);
+    expect(step.text).toBe('Valley fold on both sides.');
     const chosen = resolveTitleBlock(setTitleBlockContent(diagram, { pattern: { kind: 'step', stepId: step.id } })).pattern;
     expect(chosen.step?.id).toBe(step.id);
-    expect(roles(chosen.scene).sort()).toEqual(['valley']);
+    expect(roles(chosen.scene).sort()).toEqual(['valley', 'valley']);
   });
 
   it('goes back to its step in Fold, and is missing once the step is deleted there', async () => {

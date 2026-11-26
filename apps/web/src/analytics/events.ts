@@ -2032,6 +2032,13 @@ export const ANALYTICS_EVENTS = {
    * sequence ends up, and from which side the link is made.
    */
   foldStepSentToDiagram: 'fold step sent to diagram',
+  /**
+   * The Diagram's Fold browser split a merged card into its steps, or joined
+   * two cards into one step (implementation-plans/diagram-merge-symmetric-folds.md),
+   * by the kind of run: whether the reader changes what Merge symmetric steps
+   * starts with, and whether turned copies, offered apart, get joined.
+   */
+  diagramFoldMergeChanged: 'diagram fold merge changed',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
   landingViewed: 'landing viewed',
