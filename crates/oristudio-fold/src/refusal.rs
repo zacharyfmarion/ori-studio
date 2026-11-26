@@ -209,12 +209,6 @@ pub enum FoldRefusal {
         placement: TuckSide,
         faces: Vec<FaceId>,
     },
-    /// A tuck in place names no flap folded along its line: no layer the
-    /// seed picks has a folded crease on it (or, for the flap that folds
-    /// there, that flap is joined to nothing that stays along it). The
-    /// seed's faces, in the parent.
-    #[error("faces {faces:?} are not folded along the line to tuck in place")]
-    TuckNotAtFold { faces: Vec<FaceId> },
     /// A crimp's second line meets its first over the paper it moves, or
     /// within the minimum feature of it: the tip's faces there, in the
     /// parent.
@@ -493,7 +487,6 @@ impl FoldRefusal {
             FoldRefusal::ReverseTipNotFree { .. } => "reverse_tip_not_free",
             FoldRefusal::ReverseKindInfeasible { .. } => "reverse_kind_infeasible",
             FoldRefusal::TuckInfeasible { .. } => "tuck_infeasible",
-            FoldRefusal::TuckNotAtFold { .. } => "tuck_not_at_fold",
             FoldRefusal::CrimpLinesMeet { .. } => "crimp_lines_meet",
             FoldRefusal::CrimpMissesTip => "crimp_misses_tip",
             FoldRefusal::CrimpNoOpening { .. } => "crimp_no_opening",
@@ -586,7 +579,6 @@ impl FoldRefusal {
             | FoldRefusal::SinkNoAxis { faces }
             | FoldRefusal::SinkLineTilted { faces, .. }
             | FoldRefusal::SinkNoPocket { faces }
-            | FoldRefusal::TuckNotAtFold { faces }
             | FoldRefusal::UnsinkNotSunk { faces } => faces.clone(),
             FoldRefusal::ReverseTipNotFree { blocking, .. }
             | FoldRefusal::CrimpTipNotFree { blocking, .. } => blocking.clone(),

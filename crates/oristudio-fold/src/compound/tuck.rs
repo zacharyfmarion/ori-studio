@@ -54,9 +54,8 @@ use oristudio_geometry::{Line, convex};
 use oristudio_layer_order::{EdgeKind, FacePair, Violation};
 use serde::{Deserialize, Serialize};
 
-use crate::complete::CompletionRefusal;
-use crate::complete::{ChoiceCount, CompletionLimits, Completions};
-use crate::compound::motion::{MotionKind, StagedBlock, StepMotion};
+use crate::complete::{ChoiceCount, CompletionLimits, CompletionRefusal, Completions};
+use crate::compound::motion::{MotionKind, StepMotion};
 use crate::compound::{
     Across, CompoundFolded, CompoundRefused, CompoundReport, Macro, Pending, Prepared, no_order,
     prepare,
@@ -230,45 +229,24 @@ pub enum TuckOutcome {
 
 /// What turns a landed compound fold into a tuck's report.
 #[derive(Debug, Clone)]
-pub(crate) struct Context {
-    pub(crate) line: Line,
-    pub(crate) side: Side,
-    pub(crate) snap: Snap,
-    pub(crate) direction: Direction,
-    pub(crate) placement: TuckSide,
-    pub(crate) target: FaceId,
-    /// A tuck in place (`super::tuck_in_place`): its block keeps its place,
-    /// so its motion turns it out about ℓ and back in.
-    pub(crate) in_place: bool,
+struct Context {
+    line: Line,
+    side: Side,
+    snap: Snap,
+    direction: Direction,
+    placement: TuckSide,
+    target: FaceId,
 }
 
 impl Context {
     fn report(&self, folded: CompoundFolded, order: Option<WitnessOrder>) -> TuckFolded {
-        let up = self.direction == Direction::Valley;
         let groups: Vec<(Vec<FaceId>, bool)> = folded
             .report
             .blocks
             .iter()
-            .map(|faces| (faces.clone(), up))
+            .map(|faces| (faces.clone(), self.direction == Direction::Valley))
             .collect();
-        let motion = if self.in_place {
-            let blocks: Vec<StagedBlock> = folded
-                .report
-                .blocks
-                .iter()
-                .filter_map(|faces| {
-                    let image = folded.state.face_image(*faces.first()?)?;
-                    Some(StagedBlock {
-                        faces: faces.clone(),
-                        turns: vec![(0, self.line), (1, self.line)],
-                        at: convex::centroid(image)?,
-                    })
-                })
-                .collect();
-            StepMotion::staged(&blocks, up, MotionKind::Visual)
-        } else {
-            StepMotion::half_turns(self.line, self.side, &groups, MotionKind::Visual)
-        };
+        let motion = StepMotion::half_turns(self.line, self.side, &groups, MotionKind::Visual);
         TuckFolded {
             state: folded.state,
             report: TuckReport {
@@ -519,7 +497,7 @@ impl Tuck {
 
 /// Where a tuck's placements read a layer's side of T.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Reading {
+enum Reading {
     /// Against every layer that meets T anywhere, by which side of T it is
     /// on (the module docs): every tuck read it this way first.
     Strict,
@@ -535,7 +513,7 @@ pub(crate) enum Reading {
 /// `[upper, lower]` over the landed faces of `prepared`: the block against
 /// T, and against every layer that meets T, by which side of T it is on, as
 /// `reading` reads where they meet.
-pub(crate) fn placements(
+fn placements(
     state: &State,
     prepared: &Prepared,
     target: FaceId,
@@ -618,7 +596,7 @@ fn placements_all(
 /// Whether the block of `prepared` lands against every one of `targets` in
 /// some order, read strictly or, where that lands in none, locally; none
 /// when the budget ran out first.
-pub(crate) fn lands_read(
+fn lands_read(
     state: &State,
     prepared: &Prepared,
     targets: &[FaceId],
@@ -636,14 +614,14 @@ pub(crate) fn lands_read(
 }
 
 /// A tuck placed against its targets: replayed, unique, or a choice.
-pub(crate) enum Placed {
+enum Placed {
     Replayed(CompoundFolded, WitnessOrder),
     Unique(CompoundFolded),
     Choose(Box<Pending>),
 }
 
 impl Placed {
-    pub(crate) fn outcome(self, context: Context) -> Result<TuckOutcome, CompoundRefused> {
+    fn outcome(self, context: Context) -> Result<TuckOutcome, CompoundRefused> {
         Ok(match self {
             Placed::Replayed(folded, stored) => {
                 TuckOutcome::Landed(Box::new(context.report(folded, Some(stored))))
@@ -658,7 +636,7 @@ impl Placed {
 }
 
 /// Why a tuck placed against its targets did not land.
-pub(crate) enum Unplaced {
+enum Unplaced {
     /// Its stored choice no longer resolves.
     Broken(Broken),
     /// No order fits either reading.
@@ -672,7 +650,7 @@ pub(crate) enum Unplaced {
 /// strictly first; only where that reading has no order at all are they read
 /// locally ([`Reading::Local`]), so every tuck that landed before lands as
 /// it did, and a stored choice a strict reading breaks stays broken.
-pub(crate) fn land_placed(
+fn land_placed(
     state: &State,
     unplaced: &Prepared,
     targets: &[FaceId],
@@ -901,7 +879,6 @@ impl State {
             direction: tuck.direction,
             placement: tuck.placement(),
             target: target_id,
-            in_place: false,
         };
         let ids: Vec<FaceId> = targets.iter().map(|&t| self.faces()[t].id).collect();
         match land_placed(self, &unplaced, &ids, under, choices, limits) {

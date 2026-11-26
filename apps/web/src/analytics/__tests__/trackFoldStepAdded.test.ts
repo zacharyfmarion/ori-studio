@@ -57,15 +57,6 @@ it('counts tuck targets only in buckets, distinguishing a single target from mul
   }
 });
 
-it('says what a fold tucked in place moved, an enum, beside its bucketed targets', () => {
-  for (const inPlace of ['flap', 'fold'] as const) {
-    trackFoldStepAdded('valley', { layerScope: 'flaps', via: 'free', targetCount: 1, inPlace });
-    expect(runtime.track).toHaveBeenLastCalledWith('fold step added', {
-      op_kind: 'valley', layer_scope: 'flaps', via: 'free', target_count_bucket: '<=1', in_place: inPlace,
-    });
-  }
-});
-
 describe('trackFoldStepAdded for a swivel', () => {
   it('sends its form, an edge form’s target, and on a folded edge its kind', () => {
     trackFoldStepAdded('swivel', { vertex: { swivelForm: 'fold', target: 'crease', swivelKind: 'open' } });

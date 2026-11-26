@@ -237,7 +237,7 @@ pub struct TuckAnalysed {
 
 /// A stored order, none when it is empty: as the document reads it, an
 /// empty one is no choice.
-pub(crate) fn order(choices: &Choices) -> Option<WitnessOrder> {
+fn order(choices: &Choices) -> Option<WitnessOrder> {
     choices
         .completion
         .clone()
@@ -270,7 +270,7 @@ fn tuck_stored(choices: &TuckChoices) -> StoredChoices {
 
 /// The plain fold a line, a side and a seed name in `parent`: the line, its
 /// moving side and the seed resolved as a valley or mountain step's.
-pub(crate) fn plain(
+fn plain(
     parent: &State,
     line: &LineInput,
     direction: Direction,
@@ -557,30 +557,13 @@ impl CompoundOp for TuckStep {
 /// when it landed, so its parent need not stay held for that. Its picture is
 /// drawn on its parent from its report, so that one does.
 #[derive(Debug)]
-pub(crate) struct Kept {
+struct Kept {
     state: State,
     report: CompoundStepReport,
     step: StepSummary,
 }
 
 impl Kept {
-    /// A tuck in place, landed: its report is a tuck's, its layers along
-    /// the line it is tucked along.
-    pub(crate) fn tuck_in_place(
-        parent: &State,
-        line: &Line,
-        side: Side,
-        folded: TuckFolded,
-    ) -> Kept {
-        let layers = layers(parent, line, side);
-        let step = StepSummary::new(parent, &folded.state, layers);
-        Kept {
-            state: folded.state,
-            report: CompoundStepReport::Tuck(Box::new(folded.report)),
-            step,
-        }
-    }
-
     fn crimp(parent: &State, fold: &CrimpFold, folded: CrimpFolded) -> Kept {
         let layers = layers(parent, &fold.first, fold.side);
         let step = StepSummary::new(parent, &folded.state, layers);
@@ -734,7 +717,7 @@ impl Bridge {
 
 /// "Layers" for a compound step (plan D14): the display layers along its
 /// (first) line on the side that moves.
-pub(crate) fn layers(parent: &State, line: &Line, side: Side) -> Option<usize> {
+fn layers(parent: &State, line: &Line, side: Side) -> Option<usize> {
     parent
         .cross_section(line, side)
         .ok()

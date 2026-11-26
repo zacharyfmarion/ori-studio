@@ -769,10 +769,6 @@
         "title": "Nenhuma camada recebe o encaixe aqui",
         "under": "Nenhuma camada que fica parada recebe a aba por baixo aqui. Dobre no outro sentido, troque o lado que se move ou posicione outra linha."
       },
-      "tuckNotAtFold": {
-        "text": "Para encaixar uma aba no lugar, ponha a linha sobre uma de suas bordas dobradas e escolha a aba.",
-        "title": "A aba não está dobrada ao longo desta linha"
-      },
       "tuckTarget": {
         "text": "Escolha uma camada que fique parada para encaixar a aba nela.",
         "title": "A camada onde encaixar se moveria"

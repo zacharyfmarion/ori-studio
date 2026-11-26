@@ -412,10 +412,6 @@ function trackCommitted(op: FoldOp, defaulted: boolean, shared: FoldSwivelShared
     ...(extent ? { extent } : {}),
     ...(op.kind === 'tuck' ? { targetCount: 1 + (op.additionalTargets?.length ?? 0) } : {}),
     ...((op.kind === 'valley' || op.kind === 'mountain') && op.landing?.kind === 'against' ? { targetCount: op.landing.targets.length } : {}),
-    // A flap folded along the line already, tucked in place: what moved.
-    ...((op.kind === 'valley' || op.kind === 'mountain') && op.landing?.kind === 'in_place'
-      ? { targetCount: op.landing.targets.length, inPlace: op.landing.moves }
-      : {}),
     // A pleat says which end moved: the valley's by default, the mountain's with Swap.
     ...(op.kind === 'pleat' ? { pleatEnd: op.end ?? 'valley' } : {}),
   });

@@ -288,8 +288,6 @@ function* placements(
               batch: 8,
             }) as FoldEngineOutcome<FoldOrderSelection>,
           );
-    // A pleat's legs fold: a flap tucked in place along a leg's line folds nothing.
-    if (item.landing?.kind === 'in_place') continue;
     entries.push({
       landing: item.landing ?? { kind: 'outer' },
       ...(item.completion ? { completion: item.completion } : {}),

@@ -387,16 +387,6 @@ function words(t: TFunction, refused: FoldRefused, context: FoldRefusalContext):
           'Other layers lie where the tip would turn. Include their flaps in the fold, or reverse it somewhere else.'
         ),
       };
-    // A tuck in place: a valley or mountain whose flap, folded along its line
-    // already, is tucked against a layer with no new crease.
-    case 'tuck_not_at_fold':
-      return {
-        title: t('tools:fold.refusal.tuckNotAtFold.title', 'The flap is not folded along this line'),
-        text: t(
-          'tools:fold.refusal.tuckNotAtFold.text',
-          'To tuck a flap in place, draw the line along one of its folded edges and pick the flap.'
-        ),
-      };
     // The crimp's (its tip at ℓ1 is a reverse fold's, whose refusals above
     // it shares).
     case 'crimp_lines_meet':

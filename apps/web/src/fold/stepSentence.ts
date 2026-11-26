@@ -160,8 +160,7 @@ export type FoldSentenceStep =
    */
   | { op: 'repeat'; count: number; behind?: true; earlier?: RepeatEarlierRange }
   | { op: 'unfold-to'; sheet: boolean; number?: number }
-  /** `inserted`: tucked against a layer; `inPlace`: a flap folded along the line already, tucked with no new crease. */
-  | { op: 'fold'; direction: FoldDirection; line: FoldSentenceLine; scope: FoldLayerScope; inserted?: boolean; inPlace?: boolean }
+  | { op: 'fold'; direction: FoldDirection; line: FoldSentenceLine; scope: FoldLayerScope; inserted?: boolean }
   /**
    * Fold and unfold: the creases stay, flat, remembering their letters — or,
    * with an extent, only part of the line is creased.
@@ -189,11 +188,9 @@ export type FoldSentenceStep =
   | { op: 'crimp'; crimp: 'inside' | 'outside'; line: FoldSentenceLine; second: CrimpSecondLine; scope: FoldLayerScope }
   /**
    * A fold slid under the chosen layer (a valley) or over it (a mountain), as
-   * the viewer sees it, along its line (which its Step pane row names). In
-   * place (`inPlace`), the flap is folded along the line already and slides
-   * there with no new crease.
+   * the viewer sees it, along its line (which its Step pane row names).
    */
-  | { op: 'tuck'; direction: FoldDirection; line: FoldSentenceLine; inPlace?: boolean }
+  | { op: 'tuck'; direction: FoldDirection; line: FoldSentenceLine }
   /**
    * A vertex fold (plan Phase 11): its creases are its own, so it names no
    * line (`stepSentenceVertex`) — but a petal fold says how its hinge was
@@ -352,7 +349,7 @@ function plainOp(op: 'fold' | 'precrease', direction: FoldDirection): PlainFoldS
 export function foldStepSentence(t: TFunction, step: FoldSentenceStep): string {
   switch (step.op) {
     case 'fold':
-      if (step.inserted) return foldStepSentence(t, { op: 'tuck', direction: step.direction, line: step.line, ...(step.inPlace ? { inPlace: true } : {}) });
+      if (step.inserted) return foldStepSentence(t, { op: 'tuck', direction: step.direction, line: step.line });
       return plainFoldSentence(t, plainOp(step.op, step.direction), lineClause(t, step.line), step.scope);
     case 'precrease': {
       const sentence = plainFoldSentence(t, plainOp(step.op, step.direction), lineClause(t, step.line), step.scope);
@@ -395,11 +392,6 @@ export function foldStepSentence(t: TFunction, step: FoldSentenceStep): string {
     case 'crimp':
       return crimpSentence(t, step.crimp, lineClause(t, step.line), step.second, step.scope);
     case 'tuck':
-      if (step.inPlace) {
-        return step.direction === 'valley'
-          ? t('panels:fold.sentence.tuckInPlaceValley', 'Tuck the folded flap in, under the chosen layer, with no new crease.')
-          : t('panels:fold.sentence.tuckInPlaceMountain', 'Tuck the folded flap in at the back, over the chosen layer, with no new crease.');
-      }
       return step.direction === 'valley'
         ? t('panels:fold.sentence.tuckValley', 'Valley fold and tuck the flap in, under the chosen layer.')
         : t('panels:fold.sentence.tuckMountain', 'Mountain fold and tuck the flap in at the back, over the chosen layer.');

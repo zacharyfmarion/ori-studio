@@ -750,10 +750,6 @@
         "title": "Keine Lage nimmt die Lasche hier auf",
         "under": "Keine liegen bleibende Lage kann die Lasche hier unter sich aufnehmen. Falte andersherum, tausche die bewegte Seite oder bestimme eine andere Linie."
       },
-      "tuckNotAtFold": {
-        "text": "Um eine Lasche an Ort und Stelle einzustecken, lege die Linie auf eine ihrer gefalteten Kanten und wähle die Lasche.",
-        "title": "Die Lasche ist an dieser Linie nicht gefaltet"
-      },
       "tuckTarget": {
         "text": "Wähle eine Lage, die liegen bleibt, an der die Lasche eingesteckt werden soll.",
         "title": "Die Lage zum Einstecken würde sich bewegen"

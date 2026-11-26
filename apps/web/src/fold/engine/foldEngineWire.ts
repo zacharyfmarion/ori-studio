@@ -175,7 +175,6 @@ export const FOLD_ENGINE_REFUSAL_CODES = [
   'reverse_kind_infeasible',
   // The tuck and the crimp (plan Phase 11).
   'tuck_infeasible',
-  'tuck_not_at_fold',
   'crimp_lines_meet',
   'crimp_misses_tip',
   'crimp_no_opening',

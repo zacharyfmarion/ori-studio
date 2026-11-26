@@ -534,8 +534,6 @@ function readOp(value: unknown, depth = 0, budget = { remaining: 256 }): FoldOp 
         if (!isRecord(entry) || entry.landing === undefined || Object.keys(entry).some((k) => k !== 'landing' && k !== 'completion')) return null;
         const landing = readLanding(entry.landing);
         const completion = entry.completion === undefined ? undefined : readCompletion(entry.completion);
-        // A pleat's legs fold: one never lands in place.
-        if (landing?.kind === 'in_place') return null;
         return landing && completion !== null ? { landing, ...(completion ? { completion } : {}) } : null;
       });
       const secondRoot = value.secondRoot === undefined ? undefined : readModelLine(value.secondRoot);
@@ -1380,20 +1378,8 @@ function readLanding(value: unknown): import('./foldSequenceDocument').FoldLandi
   if (value === undefined) return { kind: 'outer' };
   if (!isRecord(value)) return null;
   if (value.kind === 'outer' && !hasNewerKey(value, new Set(['kind']))) return { kind: 'outer' };
-  if (value.kind === 'in_place') {
-    if (hasNewerKey(value, new Set(['kind', 'targets', 'moves', 'fold'])) || (value.moves !== 'flap' && value.moves !== 'fold')) return null;
-    const targets = readLandingTargets(value.targets);
-    const fold = value.fold === undefined ? undefined : readPoint(value.fold);
-    if (!targets || fold === null) return null;
-    return { kind: 'in_place', targets, moves: value.moves, ...(fold ? { fold } : {}) };
-  }
-  if (value.kind !== 'against' || hasNewerKey(value, new Set(['kind', 'targets']))) return null;
-  const targets = readLandingTargets(value.targets);
-  return targets && { kind: 'against', targets };
-}
-
-function readLandingTargets(value: unknown): SheetPoint[] | null {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 65) return null;
-  const targets = value.map(readPoint);
-  return targets.every((p): p is SheetPoint => p !== null) ? targets : null;
+  if (value.kind !== 'against' || hasNewerKey(value, new Set(['kind', 'targets'])) || !Array.isArray(value.targets)
+    || value.targets.length < 1 || value.targets.length > 65) return null;
+  const targets = value.targets.map(readPoint);
+  return targets.every((p): p is SheetPoint => p !== null) ? { kind: 'against', targets } : null;
 }

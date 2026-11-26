@@ -151,7 +151,6 @@ pub use compound::tuck::{
     TuckAnalysis, TuckChoice, TuckChoices, TuckFold, TuckFolded, TuckOutcome, TuckReport, TuckSide,
     TuckTarget,
 };
-pub use compound::tuck_in_place::{InPlace, TuckInPlace};
 pub use compound::vertex::{
     VertexChoice, VertexChoices, VertexFoldKind, VertexFolded, VertexOutcome, VertexReport,
 };

@@ -43,34 +43,3 @@ describe('explicit M/V landing migration', () => {
     expect(sentence).toMatchObject({ op: 'fold', direction: 'mountain', inserted: true });
   });
 });
-
-describe('a fold landing in place', () => {
-  const inPlace: FoldOp = { ...valleyAt(0.4), landing: { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'fold' } };
-  it('reads and writes as it is stored, and keeps its own history key', () => {
-    const named: FoldOp = { ...valleyAt(0.4), landing: { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'fold', fold: [0.3, 0.1] } };
-    const raw = { formatVersion: 2, id: 'in-place', paper: SQUARE_PAPER, steps: [step('a', null, inPlace), step('b', 'a', named)] };
-    const held = readFoldSequence(raw)!;
-    expect(held.document.steps[0]!.op).toEqual(inPlace);
-    expect(held.document.steps[1]!.op).toEqual(named);
-    expect(readFoldSequence(writeFoldSequence(held))?.document).toEqual(held.document);
-    // Not an insertion: no tuck op names it, so its history key is its own.
-    expect(foldHistoryOp(inPlace)).toEqual(inPlace);
-  });
-  it('locks one that names no targets, another reading or a newer key', () => {
-    for (const landing of [
-      { kind: 'in_place', targets: [], moves: 'fold' },
-      { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'both' },
-      { kind: 'in_place', targets: [[0.2, 0.2]] },
-      { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'fold', fold: [0.2, NaN] },
-      { kind: 'in_place', targets: [[0.2, 0.2]], moves: 'flap', future: true },
-    ]) {
-      const node = { ...step('a', null), op: { ...valleyAt(0.4), landing } };
-      const held = readFoldSequence({ formatVersion: 2, id: 'bad', paper: SQUARE_PAPER, steps: [node] })!;
-      expect(held.document.steps[0]).toHaveProperty('unknown');
-    }
-  });
-  it('reads as a tuck in place, under its own name', () => {
-    const sentence = foldSentenceStepOf(inPlace, { parent: null, child: null, report: null });
-    expect(sentence).toMatchObject({ op: 'fold', direction: 'valley', inserted: true, inPlace: true });
-  });
-});

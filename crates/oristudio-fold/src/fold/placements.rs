@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ChoiceCount, ClosurePolicy, CompletionLimits, Completions, CompoundRefused, CreaseKind,
-    Direction, FaceId, FoldRefusal, InPlace, PlainFold, Refused, State, TuckChoice, TuckFold,
-    TuckOutcome, WitnessOrder,
+    Direction, FaceId, FoldRefusal, PlainFold, Refused, State, TuckChoice, TuckFold, TuckOutcome,
+    WitnessOrder,
 };
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -19,30 +19,7 @@ pub enum FoldLanding {
     Against {
         targets: Vec<[f64; 2]>,
     },
-    /// The flap is folded along the line already: it keeps its place and
-    /// its creases, and is tucked in place against the targets
-    /// ([`crate::TuckInPlace`]), the paper `moves` names moving.
-    InPlace {
-        targets: Vec<[f64; 2]>,
-        moves: InPlace,
-        /// A sheet point inside the fold that moves, when it is not the
-        /// seed's own (`TuckInPlace::fold`).
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        fold: Option<[f64; 2]>,
-    },
 }
-
-/// What a placement search spends finding a fold's tucks in place, once,
-/// as it starts: nodes only, so every machine lists the same.
-const IN_PLACE_LIMITS: CompletionLimits = CompletionLimits {
-    per_component: 64,
-    max_nodes: Some(20_000),
-    deadline: None,
-};
-
-/// The most orders a tuck in place lists against one target, and in all.
-const IN_PLACE_PER_TARGET: usize = 8;
-const IN_PLACE_MOST: usize = 32;
 
 #[derive(Debug, Clone)]
 pub struct FoldPlacement {
@@ -147,7 +124,6 @@ impl FoldPlacementSearch {
             }
             Err(refused) => {
                 search.refusal = Some(refused);
-                search.in_place();
                 return search;
             }
         }
@@ -162,44 +138,10 @@ impl FoldPlacementSearch {
             }),
             Err(refused) => search.refusal = Some(refused),
         }
-        search.in_place();
         if !search.pool.is_empty() {
             search.combination = Some(vec![0]);
         }
         search
-    }
-
-    /// Where the line runs along a fold the seed's flap is folded at, every
-    /// way to tuck that flap in place (`crate::compound::tuck_in_place`),
-    /// listed once, after the outer landing and before any insertion is
-    /// searched, so no index moves. Each moves other paper than the fold
-    /// does; one that lands what a candidate already does is left out.
-    fn in_place(&mut self) {
-        let landings = self.parent.tuck_in_place_landings(
-            &self.op,
-            &IN_PLACE_LIMITS,
-            IN_PLACE_PER_TARGET,
-            IN_PLACE_MOST,
-        );
-        for landing in landings {
-            if self
-                .candidates
-                .iter()
-                .any(|old| old.state.parts() == landing.state.parts())
-            {
-                continue;
-            }
-            self.candidates.push(FoldPlacement {
-                landing: FoldLanding::InPlace {
-                    targets: vec![landing.op.target],
-                    moves: landing.op.moves,
-                    fold: landing.op.fold,
-                },
-                completion: landing.order,
-                moving: landing.moving,
-                state: landing.state,
-            });
-        }
     }
 
     pub fn candidates(&self) -> &[FoldPlacement] {

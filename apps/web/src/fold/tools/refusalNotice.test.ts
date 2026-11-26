@@ -390,7 +390,6 @@ describe('foldRefusalNotice', () => {
       crimp_tip_not_free: 'Layers are in the way',
       tuck_infeasible: 'It cannot be tucked over that layer',
       tuck_target_moves: 'The layer to tuck under would move',
-      tuck_not_at_fold: 'The flap is not folded along this line',
     };
     for (const [code, title] of Object.entries(titles)) {
       const refusal = { code, faces: [1], kind: 'outside', target: 3, placement: 'over', blocking: [2] } as unknown as FoldRefusalBody;
