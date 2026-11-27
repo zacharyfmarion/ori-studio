@@ -451,17 +451,28 @@ export function diagramLabelTexts(document: DiagramDocument): UploadTextRun[] {
   return stepsOf(document).flatMap((step) => annotationTextRuns(step.annotations, document.hanStyle));
 }
 
-/** The runs of text in the uploads the diagram's steps show, each upload once. */
+/**
+ * The runs of text in the uploads the diagram's steps show, and in the
+ * pictures they keep as SVG (a Defox view's repeat labels), each once: both
+ * are sanitized alike, and set as an upload's text is (`pagePictures.ts`).
+ */
 export function diagramUploadTexts(document: DiagramDocument): UploadTextRun[] {
   const seen = new Set<string>();
   const runs: UploadTextRun[] = [];
   for (const step of stepsOf(document)) {
-    const asset = stepAsset(document, step);
-    if (asset?.kind !== 'svg' || seen.has(asset.id)) continue;
-    seen.add(asset.id);
-    runs.push(...uploadTextRuns(asset.svg, document.hanStyle));
+    const drawing = stepSvg(document, step);
+    if (!drawing || seen.has(drawing.id)) continue;
+    seen.add(drawing.id);
+    runs.push(...uploadTextRuns(drawing.svg, document.hanStyle));
   }
   return runs;
+}
+
+/** A step's picture as sanitized SVG — an uploaded SVG, by its asset, or a kept picture, by its key — or null. */
+function stepSvg(document: DiagramDocument, step: DiagramStep): { id: string; svg: string } | null {
+  if (step.picture?.kind === 'fixed') return { id: `fixed:${step.picture.key}`, svg: step.picture.svg };
+  const asset = stepAsset(document, step);
+  return asset?.kind === 'svg' ? { id: `asset:${asset.id}`, svg: asset.svg } : null;
 }
 
 export async function prepareDiagramPages(

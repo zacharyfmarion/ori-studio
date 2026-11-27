@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDiagramPrintUiStore } from '../../store/diagramPrintUiStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { DiagramFontDownloadError } from '../fonts/diagramFonts';
 import type { PreparedDiagramPages } from '../pages/diagramPages';
 import { printDiagram, type DiagramPrintDependencies } from './printDiagram';
 
@@ -68,5 +69,15 @@ describe('printDiagram', () => {
       description: 'webview.print not allowed',
     });
     expect(useDiagramPrintUiStore.getState().preparing).toBe(false);
+  });
+
+  it('says fonts the network would not give are why, and reports nothing (ORI-STUDIO-16)', async () => {
+    withSteps();
+    const prepare = () => Promise.reject(new DiagramFontDownloadError('/assets/NotoSans-Regular.ttf could not be downloaded'));
+    await expect(printDiagram({ prepare, print: vi.fn() })).resolves.toBe(false);
+    expect(mocks.reportError).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith('The diagram couldn’t be printed', {
+      description: 'The diagram’s fonts couldn’t be loaded. Check your connection and try again.',
+    });
   });
 });

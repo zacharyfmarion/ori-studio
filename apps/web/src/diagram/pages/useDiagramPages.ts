@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { reportError } from '../../monitoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramDocument } from '../document/diagramDocument';
 import { browserFontSource } from '../fonts/browserFontSource';
+import { DiagramFontDownloadError } from '../fonts/diagramFonts';
 import { browserFontSubsetter } from '../fonts/browserFontSubsetter';
 import { svgDataUrl } from '../pictures/stepPictureCache';
 import type { PageComposeOptions } from './composeDiagramPage';
@@ -15,6 +16,12 @@ export interface DiagramPagesState {
   of: DiagramDocument | null;
   /** The last layout failed: the fonts or the subsetter could not be had. */
   failed: boolean;
+}
+
+/** The pages, and a way to lay them out again after a layout failed. */
+export interface DiagramPagesBinding extends DiagramPagesState {
+  /** Lay the diagram out again: what the Pages view's Try again does, and coming back online. */
+  retry: () => void;
 }
 
 const EMPTY: DiagramPagesState = { pages: null, of: null, failed: false };
@@ -40,9 +47,18 @@ const adoptedPages = new WeakMap<DiagramDocument, PreparedDiagramPages>();
  * (`PreparedDiagramPages.unavailableFonts`, offline on the desktop): its
  * captions were measured with another face's advances, and boxes cut for
  * those would be held, and saved, once the face is had.
+ *
+ * A layout that failed is laid out again by `retry` (the view's Try again),
+ * and when the browser comes back online, as one that went without a CJK
+ * face is. One that failed for a font the network would not give
+ * (`DiagramFontDownloadError`) is not reported: being offline is not a
+ * defect.
  */
-export function useDiagramPages(document: DiagramDocument | null): DiagramPagesState {
+export function useDiagramPages(document: DiagramDocument | null): DiagramPagesBinding {
   const [state, setState] = useState<DiagramPagesState>(EMPTY);
+  // Bumped to lay the same diagram out again.
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((count) => count + 1), []);
   useEffect(() => {
     if (!document) return;
     const ready = adoptedPages.get(document);
@@ -61,7 +77,8 @@ export function useDiagramPages(document: DiagramDocument | null): DiagramPagesS
           if (pages.unavailableFonts.length === 0) adoptPacked(pages, document);
         })
         .catch((error: unknown) => {
-          reportError(error, { surface: 'diagram:pages' });
+          // Offline, or a connection that dropped (ORI-STUDIO-16): the view says so and offers to try again.
+          if (!(error instanceof DiagramFontDownloadError)) reportError(error, { surface: 'diagram:pages' });
           if (current) setState((previous) => ({ ...previous, failed: true }));
         });
     });
@@ -69,8 +86,15 @@ export function useDiagramPages(document: DiagramDocument | null): DiagramPagesS
       current = false;
       clearTimeout(start);
     };
-  }, [document]);
-  return document ? state : EMPTY;
+  }, [document, attempt]);
+  // A layout that failed, or went without a CJK face, is tried again once the browser is back online.
+  const wanting = document !== null && (state.failed || (state.pages?.unavailableFonts.length ?? 0) > 0);
+  useEffect(() => {
+    if (!wanting) return;
+    window.addEventListener('online', retry);
+    return () => window.removeEventListener('online', retry);
+  }, [wanting, retry]);
+  return { ...(document ? state : EMPTY), retry };
 }
 
 /**

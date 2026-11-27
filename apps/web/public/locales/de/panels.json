@@ -1449,6 +1449,7 @@
       "noPicture": "Noch kein Bild",
       "pageOf": "Seite {{number}} von {{total}}",
       "previousPage": "Vorherige Seite",
+      "retry": "Erneut versuchen",
       "step": "Schritt {{number}}",
       "stepCut": "Schritt {{number}}, Text passt nicht",
       "textCut": "Text passt nicht",

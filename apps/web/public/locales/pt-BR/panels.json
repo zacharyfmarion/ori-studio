@@ -1505,6 +1505,7 @@
       "noPicture": "Ainda sem imagem",
       "pageOf": "Página {{number}} de {{total}}",
       "previousPage": "Página anterior",
+      "retry": "Tentar de novo",
       "step": "Passo {{number}}",
       "stepCut": "Passo {{number}}, o texto não cabe",
       "textCut": "O texto não cabe",

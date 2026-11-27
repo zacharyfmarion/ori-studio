@@ -39,8 +39,12 @@ export function textCjkKey(text: string, hanStyle: DiagramHanStyle): CjkFontKey 
 }
 
 // Joiners and variation selectors draw as nothing; a tab or a line break, as
-// a space or nothing (a page's text and an upload's alike).
-const NO_GLYPH = /^[\t\n\r]$|\p{Default_Ignorable_Code_Point}/u;
+// a space or nothing (a page's text and an upload's alike). Not every
+// Default_Ignorable_Code_Point: HarfBuzz draws the Hangul fillers and the
+// shorthand format controls like any other character, and the PDF writer's
+// shaper (rustybuzz 0.20) the fourth Mongolian variation selector too, so
+// each needs a glyph of a font, or is missing.
+const NO_GLYPH = /^[\t\n\r]$|(?!\u{115F}|\u{1160}|\u{180F}|\u{3164}|\u{FFA0}|[\u{1BCA0}-\u{1BCA3}])\p{Default_Ignorable_Code_Point}/u;
 
 /**
  * Whether a character needs no glyph of its own: the one answer the font

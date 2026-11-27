@@ -39,7 +39,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import type { DiagramDocument } from '../document/diagramDocument';
 import { browserFontSource } from '../fonts/browserFontSource';
 import { browserFontSubsetter } from '../fonts/browserFontSubsetter';
-import { loadDiagramFonts, type DiagramFonts } from '../fonts/diagramFonts';
+import { DiagramFontDownloadError, loadDiagramFonts, type DiagramFonts } from '../fonts/diagramFonts';
 import type { FontSubsetter } from '../fonts/fontSubset';
 import { diagramFontTexts, enlargeArrowCount, preparedPages, type PreparedDiagramPages } from '../pages/diagramPages';
 import { unfitPages } from '../pages/pageOverflow';
@@ -207,7 +207,8 @@ export function useDiagramExport(
         if (live) setLoaded(next);
       })
       .catch((error: unknown) => {
-        reportError(error, { surface: 'diagram:export' });
+        // Offline, or a connection that dropped (ORI-STUDIO-16): the dialog says so and offers Try again.
+        if (!(error instanceof DiagramFontDownloadError)) reportError(error, { surface: 'diagram:export' });
         if (live) setLoaded('failed');
       });
     return () => {

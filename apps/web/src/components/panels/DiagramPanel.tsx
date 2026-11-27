@@ -254,6 +254,7 @@ export function DiagramPanel() {
           <DiagramPagesView
             pages={pages.pages}
             failed={pages.failed}
+            onRetry={pages.retry}
             steps={steps}
             selectedStepId={selectedStepId}
             pathColor={page.pathColor}

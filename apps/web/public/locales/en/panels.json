@@ -1449,6 +1449,7 @@
       "noPicture": "No picture yet",
       "pageOf": "Page {{number}} of {{total}}",
       "previousPage": "Previous Page",
+      "retry": "Try again",
       "step": "Step {{number}}",
       "stepCut": "Step {{number}}, text doesn’t fit",
       "textCut": "Text doesn’t fit",

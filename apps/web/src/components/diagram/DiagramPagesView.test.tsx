@@ -132,6 +132,32 @@ const cells = () => [...host.querySelectorAll<HTMLElement>('[role="option"][data
 const svgOf = (image: HTMLImageElement) => Buffer.from(image.src.split(',')[1]!, 'base64').toString('utf8');
 
 describe('DiagramPagesView', () => {
+  it('says when the pages could not be laid out, and lays them out again on Try again (ORI-STUDIO-16)', () => {
+    const onRetry = vi.fn();
+    const document = diagram();
+    act(() =>
+      root.render(
+        <TooltipProvider>
+          <DiagramPagesView
+            pages={null}
+            failed
+            onRetry={onRetry}
+            steps={stepsIn(document)}
+            selectedStepId={null}
+            pathColor="#000000"
+            fitKey="test"
+            onSelect={vi.fn()}
+            onPageClick={vi.fn()}
+          />
+        </TooltipProvider>
+      )
+    );
+    expect(host.querySelector('[role="status"]')?.textContent).toContain('Check your connection and try again.');
+    const retry = [...host.querySelectorAll('button')].find((button) => button.textContent === 'Try again')!;
+    act(() => retry.click());
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
   it('shows each page as its composed image, named and captioned, and says which page is in view', () => {
     render(preparedPages(diagram(), FONTS, subsetter));
     const page = host.querySelector<HTMLElement>('[role="group"][data-page="0"]')!;

@@ -15,6 +15,7 @@ import { cpStep } from '../../diagram/document/diagramSteps.fixtures';
 import { DEFAULT_DIAGRAM_EXPORT_SETTINGS } from '../../diagram/export/diagramExportSettings';
 import type { PdfWriter } from '../../diagram/export/diagramPdf';
 import type { DiagramExportDependencies } from '../../diagram/export/useDiagramExport';
+import { DiagramFontDownloadError } from '../../diagram/fonts/diagramFonts';
 import { FIXTURE_FONTS, fixtureSubsetter } from '../../diagram/fonts/diagramFonts.fixtures';
 import type { FontSubsetter } from '../../diagram/fonts/fontSubset';
 import { overflowingDiagram } from '../../diagram/pages/pageOverflow.fixtures';
@@ -357,6 +358,23 @@ describe('DiagramExportDialog', () => {
     await act(async () => {});
     expect(notice()).not.toContain('couldn’t be downloaded');
     expect(notice()).toContain('Change the text');
+  });
+
+  it('says so when the fonts could not be downloaded at all, reports nothing, and loads them on Try again (ORI-STUDIO-16)', async () => {
+    let offline = true;
+    dependencies.load = async () => {
+      if (offline) throw new DiagramFontDownloadError('/assets/NotoSans-Regular.ttf could not be downloaded');
+      return { fonts: FIXTURE_FONTS, subsetter };
+    };
+    await open();
+    expect(host.textContent).toContain('The diagram’s fonts couldn’t be loaded. Check your connection and try again.');
+    expect(exportButton().disabled).toBe(true);
+    expect(reportError).not.toHaveBeenCalled();
+    offline = false;
+    await click(button('Try again'));
+    await act(async () => {});
+    expect(host.textContent).not.toContain('couldn’t be loaded');
+    expect(exportButton().disabled).toBe(false);
   });
 
   it('refuses a step file too large for a PNG here by saying which, and reports nothing', async () => {

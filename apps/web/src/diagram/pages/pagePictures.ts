@@ -902,12 +902,12 @@ function draw(
       const x = box.x + (box.width - width) / 2;
       const y = box.y + (box.height - height) / 2;
       const usage = new Map<string, string>();
-      const body =
-        source.kind === 'asset'
-          ? setUploadText(withoutDeclaration(painted.svg), text.hanStyle, text.runs, (face, characters) =>
-              usage.set(face, (usage.get(face) ?? '') + characters)
-            )
-          : withoutDeclaration(painted.svg);
+      // A kept picture is sanitized as an upload is, so its words — a Defox
+      // view's repeat labels — are set and counted as an upload's: the page's
+      // fonts are cut to them, or the PDF meets a character its subset lacks.
+      const body = setUploadText(withoutDeclaration(painted.svg), text.hanStyle, text.runs, (face, characters) =>
+        usage.set(face, (usage.get(face) ?? '') + characters)
+      );
       return {
         markup:
           `<svg x="${num(x)}" y="${num(y)}" width="${num(width)}" height="${num(height)}" ` +
