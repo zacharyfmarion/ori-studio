@@ -637,15 +637,18 @@ export function useFoldCanvasVerbs(
       },
 
       hitTest: (pane, at, radii) => {
+        const tool = state();
+        // Collapse: the crease under the pointer, on either pane, whatever the
+        // line mode. Its pieces are its own, not the pick index, which is
+        // prepared again for each landing it previews: a click while that
+        // runs still sets a crease.
+        if (tool.tool === 'collapse') return live.current.preview.creaseCollapse?.hitTest(pane, at, radii.line) ?? null;
         const { view: shown, picking: drawn } = live.current;
         const index = drawn === undefined ? shown.index : drawn;
         if (!index) return null;
-        const tool = state();
         // Repeat: its axes, drawn on both panes, and an axis of the folder's
         // own located with the line modes, while one may be taken.
         if (tool.tool === 'repeat') return repeatHit(index, pane, at, radii, tool, live.current.preview.repeat ?? null, freePointHeld());
-        // Collapse: the crease under the pointer, on either pane, whatever the line mode.
-        if (tool.tool === 'collapse') return live.current.preview.creaseCollapse?.hitTest(pane, at, radii.line) ?? null;
         // A fan's hinge region, or a petal fold's flap, picked or picked
         // again: the paper under the pointer, whose region the panes light —
         // off it, nothing.
