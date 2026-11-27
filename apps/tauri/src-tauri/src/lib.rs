@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 
 mod cp_detect;
 mod cp_engine;
+mod file_write;
 mod updater;
 
 #[derive(Default)]
@@ -125,13 +126,24 @@ fn read_binary_file(path: String, max_bytes: Option<u64>) -> Result<tauri::ipc::
 }
 
 #[tauri::command]
-fn write_text_file(path: String, contents: String) -> Result<(), String> {
-    fs::write(path, contents).map_err(|error| error.to_string())
+async fn write_text_file(path: String, contents: String) -> Result<(), String> {
+    write_off_main_thread(path, contents.into_bytes()).await
 }
 
 #[tauri::command]
-fn write_binary_file(path: String, bytes: Vec<u8>) -> Result<(), String> {
-    fs::write(path, bytes).map_err(|error| error.to_string())
+async fn write_binary_file(path: String, bytes: Vec<u8>) -> Result<(), String> {
+    write_off_main_thread(path, bytes).await
+}
+
+/// A save waits for a program holding the file to let go (`file_write.rs`), and a
+/// command that is not async runs on the main thread, where waiting freezes the window.
+async fn write_off_main_thread(path: String, bytes: Vec<u8>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        file_write::write_file(std::path::Path::new(&path), &bytes)
+            .map_err(file_write::WriteError::into_command_error)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

@@ -42,6 +42,9 @@
   "explori": {
     "unrouted": "Diese Version kann den Suchdienst nicht erreichen."
   },
+  "file": {
+    "inUse": "Ein anderes Programm verwendet diese Datei. Schließen Sie sie dort oder wählen Sie einen anderen Namen, und versuchen Sie es erneut."
+  },
   "fileDrop": {
     "dialogOpen": "Schließen Sie den geöffneten Dialog ab, bevor Sie eine Datei ablegen.",
     "imageNotHere": "Legen Sie {{name}} auf dem Faltmuster ab, um es als Referenzbild hinzuzufügen.",

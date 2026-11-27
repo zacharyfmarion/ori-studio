@@ -29,7 +29,7 @@ import type {
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import type { OristudioCpFolded3dRenderModel } from '../../engine/oristudioCpTypes';
 import { FoldedObjUnavailableError } from '../../lib/foldedExport';
-import type { FileService } from '../../platform/fileService';
+import { FileInUseError, type FileService } from '../../platform/fileService';
 import { usePaperExportUiStore } from '../../store/paperExportUiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -55,12 +55,17 @@ vi.mock('../../analytics/runtime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics/runtime')>()),
   track: () => {},
 }));
-const { service, paperSvgToPng } = vi.hoisted(() => ({
+const { service, paperSvgToPng, reportError } = vi.hoisted(() => ({
   service: {
     saveTextFile: vi.fn(async () => ({ name: 'Crane.svg', path: null })),
     saveBinaryFile: vi.fn(async () => ({ name: 'Crane.png', path: null })),
   },
   paperSvgToPng: vi.fn(async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
+  reportError: vi.fn(),
+}));
+vi.mock('../../monitoring', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../monitoring')>()),
+  reportError,
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 // The 3D preview needs WebGL and a worker: the dialog's tests read what it is handed.
@@ -948,6 +953,42 @@ describe('PaperExportModal on a target with several pages', () => {
       await act(async () => settle({ name: 'Crane-steps.zip', path: null }));
       expect(dialog('Export all steps')).toBeNull();
     });
+  });
+});
+
+describe('PaperExportModal when the file cannot be written', () => {
+  const alert = () => dialog()?.querySelector('[role="alert"]')?.textContent ?? '';
+
+  beforeEach(() => reportError.mockClear());
+
+  async function exportPngFailingWith(cause: unknown) {
+    service.saveBinaryFile.mockRejectedValueOnce(cause);
+    await open(target(), null, 'png');
+    await flush();
+    expect(button('Export PNG')?.disabled).toBe(false);
+    await submit();
+    await flush();
+  }
+
+  // ORI-STUDIO-1G: exported again over a PNG another program had open, and
+  // shown Windows' words for a mapped section.
+  it('says another program has the file, stays open, and reports no error', async () => {
+    await exportPngFailingWith(new FileInUseError());
+    expect(alert()).toBe(
+      'Couldn’t export: Another program is using this file. Close it there, or choose another name, and try again.'
+    );
+    expect(dialog()).not.toBeNull();
+    expect(button('Export PNG')?.disabled).toBe(false);
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('still reports, and repeats, a failure it has no words for', async () => {
+    await exportPngFailingWith(new Error('The device is not ready. (os error 21)'));
+    expect(alert()).toBe('Couldn’t export: The device is not ready. (os error 21)');
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ surface: 'paper-export' })
+    );
   });
 });
 

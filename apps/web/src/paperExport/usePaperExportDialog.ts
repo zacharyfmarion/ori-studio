@@ -43,7 +43,9 @@ import {
   type PaperExportSettings,
 } from '../lib/paperExportSettings';
 import { paperPresetRows } from '../lib/paperPresetRows';
+import { humanizeError } from '../lib/toastMessages';
 import { reportError } from '../monitoring';
+import { isFileInUseError } from '../platform/fileService';
 import { isAppleMobilePlatform } from '../platform/runtime';
 import { useSettingsStore } from '../store/settingsStore';
 import type { PaperExportRequest } from '../store/paperExportUiStore';
@@ -99,7 +101,8 @@ function sameOptions(a: PaperExportSettings, b: PaperExportSettings): boolean {
  * What went wrong, for the dialog's footer. The ZIP writer failing to load is
  * said in the reader's language, because its remedy is theirs to take: reload.
  * Pressing Export again never helps — the browser remembers a module that
- * failed. Anything else reads as it was thrown.
+ * failed. So is a file another program holds, and any other coded failure
+ * `humanizeError` knows; anything else reads as it was thrown.
  */
 function saveErrorMessage(cause: unknown, t: ReturnType<typeof useTranslation>['t']): string {
   if (cause instanceof ZipUnavailableError) {
@@ -108,7 +111,7 @@ function saveErrorMessage(cause: unknown, t: ReturnType<typeof useTranslation>['
       'The ZIP writer could not be loaded. Reload Ori Studio and try again.'
     );
   }
-  return cause instanceof Error ? cause.message : String(cause);
+  return humanizeError(cause, t);
 }
 
 export interface PaperExportDialogBinding {
@@ -368,10 +371,13 @@ export function usePaperExportDialog(
       lastSave.current = 'failed';
       const counted = { surface: target.surface, format: draft.format, scope };
       trackPaperExportFailed(counted);
-      reportError(cause, {
-        surface: 'paper-export',
-        tags: { paper_surface: counted.surface, format: counted.format, scope },
-      });
+      // A file another program holds is the reader's to free, not a defect.
+      if (!isFileInUseError(cause)) {
+        reportError(cause, {
+          surface: 'paper-export',
+          tags: { paper_surface: counted.surface, format: counted.format, scope },
+        });
+      }
       setSaveError(saveErrorMessage(cause, t));
     } finally {
       setSaving(false);

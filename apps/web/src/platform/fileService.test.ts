@@ -4,6 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 /** The desktop dialogs, answered "cancelled": what a test reads is what they were asked. */
 const dialog = vi.hoisted(() => ({ open: vi.fn(async (_options: unknown) => null) }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: dialog.open }));
+/** The desktop shell's commands, answered "done" unless a test says otherwise. */
+const shell = vi.hoisted(() => ({
+  invoke: vi.fn(async (_command: string, _args?: unknown): Promise<unknown> => undefined),
+}));
+vi.mock('@tauri-apps/api/core', () => ({ invoke: shell.invoke }));
+const analytics = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../analytics')>()),
+  track: analytics.track,
+}));
 
 import {
   createDroppedFileService,
@@ -11,6 +21,7 @@ import {
   createOpenedPathFileService,
   createPickedFileService,
   ensureExtension,
+  FileInUseError,
   filenameFromPath,
   filesystemPathOrNull,
   resetWebSaveTargets,
@@ -423,6 +434,70 @@ describe('what a browser open picker accepts', () => {
     });
 
     expect(accept.split(',')).toEqual(['.png', 'image/png']);
+  });
+});
+
+describe('desktop saves', () => {
+  beforeEach(() => {
+    shell.invoke.mockReset();
+    shell.invoke.mockResolvedValue(undefined);
+    analytics.track.mockClear();
+  });
+
+  const png = {
+    title: 'Export PNG',
+    bytes: new Uint8Array([0x89, 0x50]),
+    suggestedName: 'Crane.png',
+    path: '/tmp/Crane.png',
+    extensions: ['png'],
+    mimeType: 'image/png',
+  };
+  const failures = () =>
+    analytics.track.mock.calls
+      .filter(([event]) => event === 'file save failed')
+      .map(([, properties]) => properties);
+
+  it('writes through the shell and counts no failure', async () => {
+    const service = createFileService('desktop');
+    await expect(service.saveBinaryFile(png)).resolves.toEqual({
+      name: 'Crane.png',
+      path: '/tmp/Crane.png',
+    });
+    expect(shell.invoke).toHaveBeenCalledWith('write_binary_file', {
+      path: '/tmp/Crane.png',
+      bytes: [0x89, 0x50],
+    });
+    expect(failures()).toEqual([]);
+  });
+
+  // ORI-STUDIO-1G: a PNG exported over one another program had open. The shell
+  // waits and tries replacing the file; past that it answers with a code.
+  it('reads the shell’s in-use code as a file another program holds', async () => {
+    shell.invoke.mockRejectedValueOnce('FILE_IN_USE');
+    const service = createFileService('desktop');
+    const saving = service.saveBinaryFile(png);
+    await expect(saving).rejects.toBeInstanceOf(FileInUseError);
+    await expect(saving).rejects.toMatchObject({ code: 'file_in_use' });
+    expect(failures()).toEqual([{ format: 'png', reason: 'in_use' }]);
+  });
+
+  it('passes any other refusal through as the shell worded it', async () => {
+    shell.invoke.mockRejectedValueOnce('Access is denied. (os error 5)');
+    const service = createFileService('desktop');
+    await expect(
+      service.saveTextFile({
+        title: 'Save',
+        contents: 'osf',
+        suggestedName: 'Crane.osf',
+        path: '/tmp/Crane.osf',
+        extensions: ['osf'],
+      })
+    ).rejects.toBe('Access is denied. (os error 5)');
+    expect(shell.invoke).toHaveBeenCalledWith('write_text_file', {
+      path: '/tmp/Crane.osf',
+      contents: 'osf',
+    });
+    expect(failures()).toEqual([{ format: 'osf', reason: 'other' }]);
   });
 });
 

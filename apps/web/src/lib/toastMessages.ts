@@ -180,6 +180,14 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:projectFile.damaged',
         "This Ori Studio project can't be read. It may be damaged, or saved by a version this app doesn't support."
       );
+    // A desktop save another program kept the file from (`platform/fileService.ts`).
+    // The system's own words name a "user-mapped section"; what the person can
+    // do is close the file in that program, or write to another name.
+    case 'file_in_use':
+      return t(
+        'errors:file.inUse',
+        'Another program is using this file. Close it there, or choose another name, and try again.'
+      );
     case 'fold_same_parity':
       return t(
         'errors:fold.sameParity',
