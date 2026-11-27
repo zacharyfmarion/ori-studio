@@ -47,7 +47,7 @@ export async function measureRegionSourceImage(
       context.drawImage(bitmap, 0, 0);
       pixels = context.getImageData(0, 0, bitmap.width, bitmap.height);
     } finally { bitmap.close(); }
-    const { getCpDetectClient } = await import('../../store/workspaceStore/cpDetectRuntime');
+    const { getCpDetectClient, whileCpDetectClientAlive } = await import('../../store/workspaceStore/cpDetectRuntime');
     const client = await getCpDetectClient();
     const previous = region.solveInput ? {
       input: region.solveInput,
@@ -57,7 +57,9 @@ export async function measureRegionSourceImage(
         bottom_right: { x: image.naturalWidth - 32, y: image.naturalHeight - 32 },
         bottom_left: { x: 32, y: image.naturalHeight - 32 } },
     } : undefined;
-    return { input: await client.measureSourceImage(input, pixels, quad, previous), seconds: (performance.now() - started) / 1000 };
+    // Raced with the worker's loss, which otherwise leaves the solve waiting forever.
+    const measured = await whileCpDetectClientAlive(client.measureSourceImage(input, pixels, quad, previous));
+    return { input: measured, seconds: (performance.now() - started) / 1000 };
   } catch (error) {
     // An unavailable reference image must not disable ordinary graph solving.
     reportError(error, { surface: 'cp_region_source_image' });

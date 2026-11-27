@@ -1137,6 +1137,15 @@ export type CpDetectImageSource = 'picker' | 'drop' | 'canvas-suggestion';
 export type CpDetectLikelihoodVerdict = 'likely' | 'unlikely';
 
 /**
+ * Why the likelihood gate could not score an image added to the canvas.
+ * `unloaded` is the detect worker never running because its code did not
+ * load (offline, a dropped connection), which is not reported to Sentry;
+ * `worker_lost` is the worker going away under the call, and `error` is the
+ * gate itself failing. The first of those two in a session is reported.
+ */
+export type CpDetectScoreFailureReason = 'unloaded' | 'worker_lost' | 'error';
+
+/**
  * The gate's probability, bucketed. The operating threshold is 0.8, so the
  * `0.8-0.9` and `0.9+` buckets are the offers and the two below are the
  * near-misses worth knowing the size of.
@@ -1525,6 +1534,12 @@ export const ANALYTICS_EVENTS = {
    * is read off the acceptance rate per bucket, never off the image.
    */
   cpDetectImageScored: 'cp detect image scored',
+  /**
+   * The gate could not score an added image, so no offer could follow. With
+   * `scored` it is every image the gate was asked about. The one count of a
+   * worker that did not load on a user's connection, which Sentry never sees.
+   */
+  cpDetectImageScoreFailed: 'cp detect image score failed',
   cpDetectSuggested: 'cp detect suggested',
   cpDetectSuggestionAccepted: 'cp detect suggestion accepted',
   cpDetectSuggestionDismissed: 'cp detect suggestion dismissed',

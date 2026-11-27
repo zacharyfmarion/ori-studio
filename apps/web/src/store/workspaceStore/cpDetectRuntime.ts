@@ -17,6 +17,12 @@
  *   what {@link onCpDetectClientLost} is for, and {@link whileCpDetectClientAlive}
  *   is how a caller consumes it: a promise that will never settle becomes a
  *   rejection the UI can report.
+ *
+ * And who tells the user is **whoever was waiting**. A loss rejects every call
+ * in flight, and each caller says what it means where the user acted: the
+ * import dialog shows it, background work keeps quiet. The app's error toast
+ * speaks only when a call the user started was waiting
+ * ({@link CpDetectCallOptions.background} marks the ones they did not).
  */
 import { isDesktopRuntime } from '../../platform/runtime';
 import { nativeCpDetectClient } from '../../engine/cpDetectNativeClient';
@@ -37,6 +43,44 @@ let live: LiveCpDetectClient | null = null;
 
 /** Absent when the client was released deliberately rather than lost. */
 export type CpDetectClientLoss = { failure?: WorkerFailure };
+
+/** What a call in flight rejects with when the worker goes away. */
+export interface CpDetectClientLostError extends WasmErrorEnvelope {
+  code: 'cp_detect_client_lost';
+  /**
+   * The worker never ran: its script, or a module it imports, did not load
+   * (`WorkerFailure.loadFailed`), because the browser was offline or the
+   * connection dropped. The browser failing to fetch the detector, not the
+   * detector failing.
+   */
+  loadFailed?: true;
+}
+
+/** Whether `error` is a call's rejection because the worker never loaded. */
+export function isCpDetectClientUnloaded(error: unknown): boolean {
+  return (
+    !!error &&
+    typeof error === 'object' &&
+    (error as { code?: unknown }).code === 'cp_detect_client_lost' &&
+    (error as { loadFailed?: unknown }).loadFailed === true
+  );
+}
+
+export interface CpDetectCallOptions {
+  /**
+   * Work the user did not ask for: the likelihood gate on an image added to
+   * the canvas. A loss under it still rejects the call; it is just not the
+   * app's error toast's to announce.
+   */
+  background?: boolean;
+}
+
+/**
+ * Calls in flight that the user started: every {@link whileCpDetectClientAlive}
+ * without `background`. Read when the worker goes away, to decide whether the
+ * app's error toast says so.
+ */
+let foregroundCalls = 0;
 
 type LossListener = (loss: CpDetectClientLoss) => void;
 
@@ -69,21 +113,31 @@ export function onCpDetectClientLost(listener: LossListener): () => void {
  * a `pending` that rejects after the loss has already won does not surface as an
  * unhandled rejection.
  */
-export function whileCpDetectClientAlive<T>(pending: Promise<T>): Promise<T> {
+export function whileCpDetectClientAlive<T>(
+  pending: Promise<T>,
+  options: CpDetectCallOptions = {}
+): Promise<T> {
+  const foreground = !options.background;
+  if (foreground) foregroundCalls += 1;
   let unsubscribe: (() => void) | null = null;
   const lost = new Promise<never>((_resolve, reject) => {
-    unsubscribe = onCpDetectClientLost((loss) => {
-      reject({
-        // Its own code, so a surface can tell a runtime that died from a model
-        // that failed: the funnel's `worker_lost` reason reads it.
-        code: 'cp_detect_client_lost',
-        message:
-          loss.failure?.message ??
-          'The crease-pattern detection worker stopped while it was running.',
-      } satisfies WasmErrorEnvelope);
-    });
+    unsubscribe = onCpDetectClientLost((loss) => reject(clientLostError(loss)));
   });
-  return Promise.race([pending, lost]).finally(() => unsubscribe?.());
+  return Promise.race([pending, lost]).finally(() => {
+    unsubscribe?.();
+    if (foreground) foregroundCalls -= 1;
+  });
+}
+
+function clientLostError(loss: CpDetectClientLoss): CpDetectClientLostError {
+  return {
+    // Its own code, so a surface can tell a runtime that died from a model
+    // that failed: the funnel's `worker_lost` reason reads it.
+    code: 'cp_detect_client_lost',
+    message:
+      loss.failure?.message ?? 'The crease-pattern detection worker stopped while it was running.',
+    ...(loss.failure?.loadFailed ? { loadFailed: true } : {}),
+  };
 }
 
 function announceLoss(loss: CpDetectClientLoss): void {
@@ -141,7 +195,15 @@ export async function getCpDetectClient(): Promise<CpDetectClient> {
     // Guarded on identity: a failure event from a worker that has already been
     // replaced must not drop the replacement.
     if (live?.worker !== worker) return;
+    // Read before the loss is announced, which is what settles those calls.
+    const userWaiting = foregroundCalls > 0;
     loseClient(failure);
+    // The app's error toast is for a call the user started, whose own surface
+    // says it too. Nothing else needs telling, and the next call spawns a fresh
+    // worker either way: an idle worker, the warm-up on a drag, the gate on an
+    // added image (ORI-STUDIO-1E: a worker that never loaded raised the toast
+    // while the user was placing a reference image).
+    return userWaiting ? undefined : 'handled';
   });
   const client = wrap<CpDetectWorkerApi>(worker);
   // Desktop keeps the worker for rectification and runs the model and the
