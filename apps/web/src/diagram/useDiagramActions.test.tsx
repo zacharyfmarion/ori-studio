@@ -1,8 +1,10 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { TFunction } from 'i18next';
+import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioCpDocumentState } from '../engine/oristudioCpTypes';
+import i18n from '../i18n';
 import * as fileServiceModule from '../platform/fileService';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { DiagramPoseAction } from './actions/diagramPoseActions';
@@ -30,6 +32,11 @@ const analytics = vi.hoisted(() => ({
 vi.mock('../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../analytics')>()),
   ...analytics,
+}));
+const monitoring = vi.hoisted(() => ({ reportError: vi.fn() }));
+vi.mock('../monitoring', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../monitoring')>()),
+  ...monitoring,
 }));
 const capture = vi.hoisted(() => ({ showLinkedStepAs: vi.fn(async () => true) }));
 vi.mock('./capture/stepCaptureActions', async (importOriginal) => ({
@@ -256,6 +263,39 @@ describe('the Diagram’s analytics', () => {
     } as unknown as ReturnType<typeof fileServiceModule.getFileService>);
     diagramStepCommand(diagramStepActions(stepId, t), 'export-picture')?.run();
     await vi.waitFor(() => expect(analytics.trackDiagramPictureExported).toHaveBeenCalledWith('svg'));
+  });
+
+  describe('an export whose save fails', () => {
+    function failingSave(failure: unknown) {
+      vi.spyOn(fileServiceModule, 'getFileService').mockReturnValue({
+        saveTextFile: vi.fn(async () => {
+          throw failure;
+        }),
+      } as unknown as ReturnType<typeof fileServiceModule.getFileService>);
+      return vi.spyOn(toast, 'error').mockImplementation(() => 1);
+    }
+
+    it('says a file another program holds in plain words, and reports nothing', async () => {
+      const stepId = pictureStep();
+      const said = failingSave(new fileServiceModule.FileInUseError());
+      diagramStepCommand(diagramStepActions(stepId, i18n.t), 'export-picture')?.run();
+      await vi.waitFor(() => expect(said).toHaveBeenCalledOnce());
+      expect(said).toHaveBeenCalledWith(
+        'Couldn’t export: Another program is using this file. Close it there, or choose another name, and try again.'
+      );
+      expect(monitoring.reportError).not.toHaveBeenCalled();
+      expect(analytics.trackDiagramPictureExported).not.toHaveBeenCalled();
+    });
+
+    it('says any other failure as it was thrown, and reports it', async () => {
+      const stepId = pictureStep();
+      const failure = new Error('The disk is full.');
+      const said = failingSave(failure);
+      diagramStepCommand(diagramStepActions(stepId, i18n.t), 'export-picture')?.run();
+      await vi.waitFor(() => expect(said).toHaveBeenCalledOnce());
+      expect(said).toHaveBeenCalledWith('Couldn’t export: The disk is full.');
+      expect(monitoring.reportError).toHaveBeenCalledExactlyOnceWith(failure, { surface: 'diagram:export-picture' });
+    });
   });
 
   it('counts a pose verb by its action and the picture’s kind', () => {
