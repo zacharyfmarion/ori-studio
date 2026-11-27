@@ -31,10 +31,13 @@ import {
   type CameraUniforms,
   type OrbitView,
   type ProjectedVertices,
+  type Vec3,
 } from '@treemaker/origami-simulator';
 import {
   FOLDED_3D_MESH_VERTEX_BUDGET,
+  creasesAlongBends,
   folded3dEdgeAssignment,
+  folded3dHingeEnds,
   folded3dMesh,
   packFolded3dPositionTexture,
   type Folded3dMesh,
@@ -693,6 +696,8 @@ describe('folded3dMesh', () => {
         const cell = mesh.slots.cell[slot]!;
         const segment = segmentOfCrease(model, mesh, slot, crease, sources[nth]!, ink);
         const hinge = ink.hingeAt(cell, mesh.slots.depth[slot]!, segment);
+        // A bend whatever its condition, an unconditional one included.
+        expect(mesh.hinges.bend[crease], `${name} crease ${crease} bends`).toBe(hinge ? 1 : 0);
         if (!hinge || (hinge.exposedOnPlus && hinge.exposedOnMinus)) {
           expect(partnerPlane[crease]).toBe(-1);
         } else if (hinge.exposedOnPlus || hinge.exposedOnMinus) {
@@ -709,6 +714,104 @@ describe('folded3dMesh', () => {
         expect(conditional).toBeGreaterThan(0);
         expect(buried).toBeGreaterThan(0);
       }
+    });
+
+    it.each(NAMES)('%s names the ends of every crease along a bend over a triangle of its own plane', (name) => {
+      // The window lays such a crease's ribbon on its plane by reading that
+      // plane off the ends: its two vertices and the farthest of its slot's.
+      const model = fixture(name);
+      const mesh = meshOf(model);
+      const named = folded3dHingeEnds(mesh);
+      const bends = Array.from(mesh.hinges.bend).filter(Boolean).length;
+      if (bends === 0) {
+        expect(named).toBeNull();
+        return;
+      }
+      expect(named).not.toBeNull();
+      const { edgeIndices, virtual } = named!;
+      const start = mesh.positions.length / 3;
+      expect(virtual.start).toBe(start);
+      const at = (vertex: number): [number, number, number] => [
+        mesh.positions[vertex * 3]!,
+        mesh.positions[vertex * 3 + 1]!,
+        mesh.positions[vertex * 3 + 2]!,
+      ];
+      const ends = (crease: number) =>
+        [mesh.topology.edgeIndices[crease * 2]!, mesh.topology.edgeIndices[crease * 2 + 1]!] as const;
+      // On a bend's line: both ends within the tolerance of some bend's line.
+      const bendCreases = [...mesh.hinges.bend.keys()].filter((crease) => mesh.hinges.bend[crease]);
+      const offLine = (p: [number, number, number], a: [number, number, number], b: [number, number, number]) => {
+        const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+        const v = [p[0] - a[0], p[1] - a[1], p[2] - a[2]];
+        const c = [v[1] * d[2] - v[2] * d[1], v[2] * d[0] - v[0] * d[2], v[0] * d[1] - v[1] * d[0]];
+        return Math.hypot(c[0]!, c[1]!, c[2]!) / Math.hypot(d[0]!, d[1]!, d[2]!);
+      };
+      const alongABend = (crease: number) => {
+        const [a, b] = ends(crease);
+        return bendCreases.some((bend) => {
+          const [p, q] = ends(bend);
+          return offLine(at(a), at(p), at(q)) <= 1e-6 * model.span && offLine(at(b), at(p), at(q)) <= 1e-6 * model.span;
+        });
+      };
+      let renamed = 0;
+      for (let crease = 0; crease < mesh.hinges.bend.length; crease += 1) {
+        const [a, b] = ends(crease);
+        const kept = edgeIndices[crease * 2] === a && edgeIndices[crease * 2 + 1] === b;
+        if (kept) {
+          expect(mesh.hinges.bend[crease], `${name} crease ${crease} is a bend`).toBe(0);
+          continue;
+        }
+        renamed += 1;
+        // A bend, or a crease that lies along one.
+        if (!mesh.hinges.bend[crease]) expect(alongABend(crease), `${name} crease ${crease} lies along a bend`).toBe(true);
+        const slot = slotOfCrease(mesh, crease);
+        for (const end of [0, 1]) {
+          const entry = edgeIndices[crease * 2 + end]! - start;
+          const [na, nb, apex] = Array.from(virtual.nodes.subarray(entry * 3, entry * 3 + 3));
+          expect([na, nb]).toEqual([a, b]);
+          // The apex is a vertex of the same layer, off the crease's line.
+          expect(apex).toBeGreaterThanOrEqual(mesh.slots.vertexStart[slot]!);
+          expect(apex).toBeLessThan(mesh.slots.vertexStart[slot + 1]!);
+          expect(distanceToSegment(at(apex!), at(a), at(b))).toBeGreaterThan(1e-6 * model.span);
+          // And each end sits on its own vertex.
+          expect(Array.from(virtual.weights.subarray(entry * 3, entry * 3 + 3))).toEqual(
+            end === 0 ? [1, 0, 0] : [0, 1, 0]
+          );
+        }
+      }
+      expect(virtual.weights.length / 3).toBe(renamed * 2);
+      expect(renamed).toBeGreaterThanOrEqual(bends);
+    });
+
+    it('names a crease that lies along a bend without being one', () => {
+      // A layer's raw edge or flat crease on the fold line has no copy across
+      // the fold; named too, it still lies on its own plane.
+      const counts = NAMES.map((name) => {
+        const mesh = meshOf(fixture(name));
+        const named = folded3dHingeEnds(mesh);
+        if (!named) return 0;
+        let along = 0;
+        for (let crease = 0; crease < mesh.hinges.bend.length; crease += 1) {
+          if (mesh.hinges.bend[crease]) continue;
+          if (named.edgeIndices[crease * 2] !== mesh.topology.edgeIndices[crease * 2]) along += 1;
+        }
+        return along;
+      });
+      expect(counts.some((count) => count > 0), JSON.stringify(counts)).toBe(true);
+    });
+
+    it('names unconditional bends too, which the hinge table leaves at -1', () => {
+      // A bend whose partner cell has one layer is drawn whenever its layer
+      // is, so the table states no condition for it; it is still a bend.
+      const counts = NAMES.map((name) => {
+        const mesh = meshOf(fixture(name));
+        let unconditional = 0;
+        for (let crease = 0; crease < mesh.hinges.bend.length; crease += 1) {
+          if (mesh.hinges.bend[crease] && mesh.hinges.partnerPlane[crease]! < 0) unconditional += 1;
+        }
+        return unconditional;
+      });
+      expect(counts.some((count) => count > 0)).toBe(true);
     });
 
     it.each(NAMES)('%s erodes the same crease ends on screen as the export does', (name) => {
@@ -803,5 +906,180 @@ describe('folded3dMesh', () => {
         expect(result.vertexCount).toBeGreaterThan(FOLDED_3D_MESH_VERTEX_BUDGET);
       }
     });
+  });
+});
+
+/**
+ * Every crease measured against every bend: the scan `creasesAlongBends`
+ * replaced, kept here word for word as its oracle.
+ */
+function alongBendsByScan(
+  positions: Float32Array,
+  edgeIndices: Uint32Array,
+  bend: Uint8Array,
+  tolerance: number
+): Uint8Array {
+  const at = (vertex: number): Vec3 => [positions[vertex * 3]!, positions[vertex * 3 + 1]!, positions[vertex * 3 + 2]!];
+  const lines: Array<{ origin: Vec3; direction: Vec3; length: number }> = [];
+  const seen = new Set<string>();
+  for (let edge = 0; edge < bend.length; edge += 1) {
+    if (!bend[edge]) continue;
+    const a = edgeIndices[edge * 2]!;
+    const b = edgeIndices[edge * 2 + 1]!;
+    const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const origin = at(a);
+    const end = at(b);
+    const d: Vec3 = [end[0] - origin[0], end[1] - origin[1], end[2] - origin[2]];
+    const length = Math.hypot(d[0], d[1], d[2]);
+    if (length > tolerance) lines.push({ origin, direction: [d[0] / length, d[1] / length, d[2] / length], length });
+  }
+  const alongBend = (a: number, b: number): boolean => {
+    if (lines.length === 0) return false;
+    const pa = at(a);
+    const pb = at(b);
+    return lines.some(({ origin, direction, length }) => {
+      const place = (p: Vec3) => {
+        const v: Vec3 = [p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]];
+        const along = v[0] * direction[0] + v[1] * direction[1] + v[2] * direction[2];
+        const off = Math.hypot(v[0] - along * direction[0], v[1] - along * direction[1], v[2] - along * direction[2]);
+        return { along, off };
+      };
+      const ea = place(pa);
+      const eb = place(pb);
+      if (ea.off > tolerance || eb.off > tolerance) return false;
+      return Math.max(ea.along, eb.along) > tolerance && Math.min(ea.along, eb.along) < length - tolerance;
+    });
+  };
+  const out = new Uint8Array(bend.length);
+  for (let edge = 0; edge < bend.length; edge += 1) {
+    out[edge] = alongBend(edgeIndices[edge * 2]!, edgeIndices[edge * 2 + 1]!) ? 1 : 0;
+  }
+  return out;
+}
+
+describe('creases along a bend', () => {
+  it.each(NAMES)('%s finds what measuring every crease against every bend finds', (name) => {
+    const mesh = meshOf(fixture(name));
+    const { positions, topology, hinges } = mesh;
+    // The window's tolerance, then wider ones that let more creases through.
+    for (const relative of [1e-6, 1e-3, 3e-2]) {
+      const tolerance = relative * mesh.sheet;
+      const scanned = alongBendsByScan(positions, topology.edgeIndices, hinges.bend, tolerance);
+      const indexed = creasesAlongBends(positions, topology.edgeIndices, hinges.bend, tolerance);
+      expect([...indexed], `${name} at ${relative}`).toEqual([...scanned]);
+    }
+  });
+
+  it('finds what the scan finds among many bends, at and around the tolerance', () => {
+    // Bends of every length through a box, each with creases placed against
+    // it: along it, past both its ends, over one end, a hair off it on either
+    // side of the tolerance, touching its end, and beyond it.
+    let seed = 0x2f6e2b1;
+    const random = (): number => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const tolerance = 1e-3;
+    const points: number[] = [];
+    const edges: number[] = [];
+    const bends: number[] = [];
+    const expected: Array<{ edge: number; along: boolean }> = [];
+    const vertex = (p: Vec3): number => {
+      points.push(p[0], p[1], p[2]);
+      return points.length / 3 - 1;
+    };
+    const segment = (a: Vec3, b: Vec3, isBend: boolean): number => {
+      edges.push(vertex(a), vertex(b));
+      bends.push(isBend ? 1 : 0);
+      return bends.length - 1;
+    };
+    const unit = (): Vec3 => {
+      const v: Vec3 = [random() * 2 - 1, random() * 2 - 1, random() * 2 - 1];
+      const length = Math.hypot(v[0], v[1], v[2]) || 1;
+      return [v[0] / length, v[1] / length, v[2] / length];
+    };
+    for (let line = 0; line < 400; line += 1) {
+      const origin: Vec3 = [random() * 100 - 50, random() * 100 - 50, random() * 100 - 50];
+      const direction = unit();
+      // Mostly short, as a mesh's segments are, with some long ones.
+      const length = random() < 0.1 ? 20 + random() * 60 : 0.5 + random() * 5;
+      // Any unit vector across the bend.
+      const across = unit();
+      const dot = across[0] * direction[0] + across[1] * direction[1] + across[2] * direction[2];
+      const raw: Vec3 = [across[0] - dot * direction[0], across[1] - dot * direction[1], across[2] - dot * direction[2]];
+      const rawLength = Math.hypot(raw[0], raw[1], raw[2]);
+      const normal: Vec3 = [raw[0] / rawLength, raw[1] / rawLength, raw[2] / rawLength];
+      const point = (t: number, off = 0): Vec3 => [
+        origin[0] + direction[0] * length * t + normal[0] * off,
+        origin[1] + direction[1] * length * t + normal[1] * off,
+        origin[2] + direction[2] * length * t + normal[2] * off,
+      ];
+      segment(point(0), point(1), true);
+      const crease = (from: number, to: number, along: boolean, off = 0): void => {
+        expected.push({ edge: segment(point(from, off), point(to, off), false), along });
+      };
+      const hair = tolerance / length;
+      crease(0.2, 0.7, true);
+      crease(-0.3, 1.3, true);
+      crease(0.9, 1.5, true);
+      crease(1.5, 0.9, true);
+      crease(0.2, 0.7, true, 0.9 * tolerance);
+      crease(0.2, 0.7, false, 1.1 * tolerance);
+      crease(-0.3, 1.3, false, 1.1 * tolerance);
+      crease(1, 1.6, false);
+      crease(1 - 0.5 * hair, 1.6, false);
+      crease(1 - 1.5 * hair, 1.6, true);
+      crease(1.2, 1.8, false);
+      crease(-0.5, -0.1, false);
+    }
+    // Unrelated creases across the box, and a bend twice over and one too short to measure against.
+    for (let other = 0; other < 1500; other += 1) {
+      const a: Vec3 = [random() * 100 - 50, random() * 100 - 50, random() * 100 - 50];
+      const d = unit();
+      const length = random() * 10;
+      segment(a, [a[0] + d[0] * length, a[1] + d[1] * length, a[2] + d[2] * length], false);
+    }
+    edges.push(edges[0]!, edges[1]!);
+    bends.push(1);
+    segment([1, 1, 1], [1 + 0.2 * tolerance, 1, 1], true);
+
+    const positions = Float32Array.from(points);
+    const edgeIndices = Uint32Array.from(edges);
+    const bend = Uint8Array.from(bends);
+    const scanned = alongBendsByScan(positions, edgeIndices, bend, tolerance);
+    const indexed = creasesAlongBends(positions, edgeIndices, bend, tolerance);
+    expect([...indexed]).toEqual([...scanned]);
+    // The cases are the ones intended: both answers occur, as placed.
+    for (const { edge, along } of expected) expect(scanned[edge], `crease ${edge}`).toBe(along ? 1 : 0);
+  });
+
+  it('finds what the scan finds where the grid cannot place a crease', () => {
+    // Bends either side of one at the origin, so the grid has cells past it.
+    const segments: Array<[Vec3, Vec3, boolean]> = [];
+    for (let x = -10; x < 10; x += 2) segments.push([[x, 5, 0], [x + 1, 5, 0], true]);
+    segments.push([[0, 0, 0], [1, 0, 0], true], [[0, 1, 0], [-Infinity, 1, 0], true]);
+    const first = segments.length;
+    segments.push(
+      // Out to infinity and from one to the other, which the scan's arithmetic
+      // passes, and from NaN, which it does not.
+      [[0.5, 0, 0], [Infinity, 0, 0], false],
+      [[-Infinity, 0, 0], [Infinity, 0, 0], false],
+      [[NaN, 0, 0], [0.5, 0, 0], false],
+      // Over the bend at the origin from so far out that a walk along it rounds past the grid.
+      [[-3.3e38, 0, 0], [1e38, 0, 0], false],
+      [[0.25, 0, 0], [0.75, 0, 0], false]
+    );
+    const positions = Float32Array.from(segments.flatMap(([a, b]) => [...a, ...b]));
+    const edgeIndices = Uint32Array.from(segments.flatMap((_, index) => [index * 2, index * 2 + 1]));
+    const bend = Uint8Array.from(segments.map(([, , isBend]) => (isBend ? 1 : 0)));
+    for (const tolerance of [0, 1e-3]) {
+      const scanned = alongBendsByScan(positions, edgeIndices, bend, tolerance);
+      expect([...scanned.subarray(first)], `${tolerance}`).toEqual([1, 1, 0, 1, 1]);
+      expect([...creasesAlongBends(positions, edgeIndices, bend, tolerance)], `${tolerance}`).toEqual([...scanned]);
+    }
   });
 });

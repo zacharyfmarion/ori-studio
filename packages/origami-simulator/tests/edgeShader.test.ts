@@ -34,6 +34,22 @@ describe('the edge shader source', () => {
     expect(EDGE_VERT).toContain('texelFetch(u_virtual, virtualTexel(at + 1), 0)');
   });
 
+  it("lays a drawn-on aux line on its triangle as the face pass rasterizes it", () => {
+    // The ends at the face's depth under them — the corners' depths mixed by
+    // screen weights, as `rasterizedDepth` mixes them — not their own...
+    expect(EDGE_VERT).toContain('vec3 screen = weights * max(vec3(u_camDist) - depths, vec3(0.001));');
+    expect(EDGE_VERT).toContain('mix(faceDepth(indexA, viewA), faceDepth(indexB, viewB), t) - u_depthBias');
+    // ...and the ribbon's corners on the triangle's plane across its width.
+    expect(EDGE_VERT).toContain('depth += clamp(dot(faceSlope(indexA), offsetPx), -limit, limit);');
+    // The end's depth is the face's own under perspective depth, where a point
+    // is drawn where its face is...
+    expect(EDGE_VERT).toMatch(/float faceDepth[^]*?u_perspectiveDepth > 0\.5\) return toNdcDepth\(view\.z\);/);
+    // ...while the plane across the ribbon is read under both: a folded
+    // figure's bends, drawn with perspective depth, lie on their planes too.
+    expect(EDGE_VERT).toContain('if (index < u_virtualStart) return vec2(0.0);');
+    expect(EDGE_VERT).not.toMatch(/vec2 faceSlope\(int index\)\{\s*if \(index < u_virtualStart \|\| u_perspectiveDepth/);
+  });
+
   it('reads the erode flags and distance the renderer uploads', () => {
     expect(EDGE_VERT).toContain('in float a_shrink;');
     expect(EDGE_VERT).toContain('uniform float u_erodePx;');

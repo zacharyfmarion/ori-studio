@@ -17,6 +17,7 @@
  */
 
 import {
+  edgeBoundaryFlags,
   fitExtent,
   type OrbitView,
   type RenderSettings,
@@ -34,6 +35,7 @@ import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { folded3dRenderModel } from './folded3dRenderModels';
 import {
   FOLDED_3D_MESH_VERTEX_BUDGET,
+  folded3dHingeEnds,
   folded3dMeshExtent,
   packFolded3dPositionTexture,
   type Folded3dMesh,
@@ -158,9 +160,11 @@ export function folded3dWindowView(camera: FoldedFigureCamera | null | undefined
  * paper cover the farther one's linework — see `folded3dDrawPasses`.
  *
  * So all this has left to beat is the *slope* of its own face across the width of
- * the crease ribbon, which is why it can be this small: `2e-5 · radius` of world
- * depth, still 84 units of a 24-bit depth buffer. On a 16-bit one it is a third
- * of a unit, which is what `Folded3dMeshRuntime.shallowDepthBuffer` reports.
+ * the crease ribbon, which is why it can be this small: about `1.5e-4 · radius`
+ * of world depth at the model's centre under the window's perspective depth,
+ * still 84 units of a 24-bit depth buffer. On a 16-bit one it is a third of a
+ * unit, which is what `Folded3dMeshRuntime.shallowDepthBuffer` reports. A bend
+ * goes further and lies on its plane across its width (`folded3dHingeEnds`).
  */
 export const FOLDED_3D_CREASE_DEPTH_BIAS = 1e-5;
 
@@ -220,9 +224,17 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
 } {
   const positions = packFolded3dPositionTexture(mesh.positions, mesh.topology.textureDim);
   const faceIndices = mesh.topology.faceIndices.slice();
-  const edgeIndices = mesh.topology.edgeIndices.slice();
+  // Each hinge on ends of its own, which lay its ribbon on its plane. Not for
+  // a spatial spread, whose ink plan reads the creases' ring vertices.
+  const hinges = mesh.spatial ? null : folded3dHingeEnds(mesh);
+  const edgeIndices = hinges?.edgeIndices ?? mesh.topology.edgeIndices.slice();
   const edgeAssignments = mesh.topology.edgeAssignments.slice();
-  const auxEnds = mesh.topology.auxEnds?.slice() ?? new Uint8Array(edgeAssignments.length);
+  // Erode finds where a fold or the paper's edge meets an aux crease's end by
+  // the vertices they share, and a renamed crease shares none: every end is
+  // stated from the ring vertices instead, as the mesh has them.
+  const auxEnds = hinges
+    ? edgeBoundaryFlags(mesh.topology)
+    : (mesh.topology.auxEnds?.slice() ?? new Uint8Array(edgeAssignments.length));
   const payload: Folded3dMeshPayload = {
     positions: positions.buffer as ArrayBuffer,
     textureDim: mesh.topology.textureDim,
@@ -240,6 +252,15 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
     translucent: mesh.translucent,
     undetermined: mesh.undetermined,
     undeterminedFaceAlpha: UNDETERMINED_FACE_ALPHA,
+    ...(hinges
+      ? {
+          hingeEnds: {
+            start: hinges.virtual.start,
+            nodes: hinges.virtual.nodes.buffer as ArrayBuffer,
+            weights: hinges.virtual.weights.buffer as ArrayBuffer,
+          },
+        }
+      : {}),
   };
   return {
     payload,
@@ -250,6 +271,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
       payload.edgeAssignments,
       payload.auxEnds,
       ...(payload.displacement ? [payload.displacement] : []),
+      ...(payload.hingeEnds ? [payload.hingeEnds.nodes, payload.hingeEnds.weights] : []),
     ],
   };
 }

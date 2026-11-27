@@ -64,6 +64,12 @@ export interface Folded3dMeshPayload {
   undetermined: Folded3dRange;
   /** Face opacity for that second pass. */
   undeterminedFaceAlpha: number;
+  /**
+   * The hinges' ends, past the vertices, each named over a triangle of its own
+   * plane (`folded3dHingeEnds`): `MeshTopology.virtual`, as buffers. Absent
+   * when the figure has no hinge, and for a spatial spread.
+   */
+  hingeEnds?: { start: number; nodes: ArrayBuffer; weights: ArrayBuffer };
 }
 
 export class FoldedMeshSource {
@@ -117,6 +123,12 @@ export class FoldedMeshSource {
       });
       core.createTexture('u_lastPosition', { width: dim, height: dim, data: payload.displacement ? new Float32Array(payload.displacement) : null });
       core.createTexture('u_lastVelocity', { width: dim, height: dim, data: null });
+      // Perspective depth for every figure, so each plane's depth is exact
+      // across the screen. Linear in view z, it was right only at the corners
+      // of the triangles a face is cut into, while an aux cut mixed its own
+      // two ends: where a cut crossed several triangles the paper came in
+      // front of it by more than the crease bias and the line stopped
+      // mid-face.
       const mesh = new MeshRenderer(
         core,
         {
@@ -124,9 +136,18 @@ export class FoldedMeshSource {
           edgeIndices: new Uint32Array(payload.edgeIndices),
           edgeAssignments: new Uint8Array(payload.edgeAssignments),
           auxEnds: new Uint8Array(payload.auxEnds),
+          ...(payload.hingeEnds
+            ? {
+                virtual: {
+                  start: payload.hingeEnds.start,
+                  nodes: new Uint32Array(payload.hingeEnds.nodes),
+                  weights: new Float32Array(payload.hingeEnds.weights),
+                },
+              }
+            : {}),
           textureDim: dim,
         },
-        { sheet: payload.sheet, perspectiveDepth: !!payload.spatial }
+        { sheet: payload.sheet, perspectiveDepth: true }
       );
       return new FoldedMeshSource(
         core,

@@ -432,6 +432,7 @@ export function spatialMaterialMesh(
     hinges: {
       partnerPlane: new Int32Array(assignments.length).fill(-1),
       requiredSide: new Int8Array(assignments.length),
+      bend: new Uint8Array(assignments.length),
     },
     spatial: { planes, ranges, triangleFaces, edgeFaces },
   };

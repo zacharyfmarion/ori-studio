@@ -33,6 +33,7 @@ import {
   collectCreases,
   collectFaces,
   pointBounds,
+  screenDepths,
   screenPoints,
   viewNormal,
   viewPoints,
@@ -307,11 +308,13 @@ export function meshToPaperScene(
   });
   // Where the tree cuts: see the note above. Under `layers` a crease has no
   // nudge — it belongs to a layer of the plane it lies in, and its order there
-  // says which.
+  // says which — and a drawn-on line's end lies in its triangle's plane as it
+  // is. In screen space it is placed on its triangle as the GPU draws it.
+  const depths = layers ? null : screenDepths(projected, topology.virtual, camera, perspective);
   const cutPoints = (indices: readonly number[], crease: boolean): Vec3[] =>
-    layers
-      ? viewPoints(projected, indices)
-      : screenPoints(projected, indices, crease ? CREASE_DEPTH_BIAS_NDC * camera.depthRange : 0);
+    depths
+      ? screenPoints(projected, depths, indices, crease ? CREASE_DEPTH_BIAS_NDC * camera.depthRange : 0)
+      : viewPoints(projected, indices);
   const toScreen = (point: Vec3): ScenePoint =>
     layers ? projectViewPoint(point, camera, perspective) : [point[0], point[1]];
   // Collected even when faces are not drawn: they are what tells a line which

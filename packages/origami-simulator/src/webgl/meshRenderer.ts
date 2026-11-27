@@ -266,9 +266,12 @@ export interface RenderSettings {
    * mass-spring simulation has no coincident layers at all and wants the
    * default.
    *
-   * In world depth this is `bias · depthRange`, and `cameraUniforms` sets
-   * `depthRange = 2 · radius` — so a value chosen as a fraction of a model's
-   * layer gap is camera-independent.
+   * Under linear depth, in world depth this is `bias · depthRange`, and
+   * `cameraUniforms` sets `depthRange = 2 · radius` — so a value chosen as a
+   * fraction of a model's layer gap is camera-independent. Under
+   * {@link MeshRendererOptions.perspectiveDepth} it is a step of perspective
+   * depth, whose world size grows with distance from the eye: about 7.6× the
+   * linear one at the model's centre, with `cameraUniforms`' eye and range.
    */
   creaseDepthBias?: number;
   /**
@@ -298,6 +301,16 @@ export interface RenderSettings {
  * {@link RenderSettings.creaseDepthBias}.
  */
 export const DEFAULT_CREASE_DEPTH_BIAS = 0.0008;
+
+/**
+ * How far, in NDC z, a drawn-on aux line's ribbon corner may leave the depth
+ * of the line under it to lie on its triangle's plane: a dozen crease biases.
+ * A 3 px ribbon on a frame 1000 device px tall reaches it on a face about 80°
+ * from the screen, and past that thins on the side that rises as a mesh edge
+ * does; a triangle seen nearly edge-on, whose plane on the screen is no plane
+ * at all, cannot throw a corner further.
+ */
+const RIBBON_PLANE_DEPTH_LIMIT = 0.01;
 
 /** Full lockstep with the frame — see {@link RenderSettings.creaseWidthShrinkExponent}. */
 const DEFAULT_CREASE_SHRINK_EXPONENT = 1;
@@ -486,6 +499,70 @@ function withAuxPieces(topology: MeshTopology, overlay: AuxOverlay, start: numbe
     edgeTriangles,
     virtual: { start, nodes: overlay.nodes, weights: overlay.weights },
   };
+}
+
+/**
+ * The topology the edge pass draws: every end of a drawn-on aux piece on an
+ * entry of its own, placed over the corners of the triangle the piece lies on
+ * (`edgeTriangles`) — so the shader reads that triangle's plane from the end
+ * (`faceSlope`) and lays the piece's ribbon on it across its width. A piece
+ * cut on a side two triangles share has its end placed by whichever came
+ * first; the place is the same over the other triangle, and only the corners
+ * it is named by change. An end that cannot be named over its piece's
+ * triangle keeps its own.
+ *
+ * The edge pass alone: the vector scene keeps the shared ends, whose sharing
+ * is what joins a line's pieces, where the GPU draws every ribbon on its own.
+ */
+export function ribbonTopology(topology: MeshTopology): MeshTopology {
+  const virtual = topology.virtual;
+  if (!virtual) return topology;
+  const edgeIndices = topology.edgeIndices.slice();
+  const nodes: number[] = [];
+  const weights: number[] = [];
+  const faceCount = Math.floor(topology.faceIndices.length / 3);
+  for (let i = 0; i < edgeIndices.length; i += 1) {
+    const vertex = edgeIndices[i]!;
+    if (vertex < virtual.start) continue;
+    const entry = (vertex - virtual.start) * 3;
+    const own = [0, 1, 2].map((k) => virtual.nodes[entry + k] ?? 0);
+    const weight = [0, 1, 2].map((k) => virtual.weights[entry + k] ?? 0);
+    const triangle = topology.edgeTriangles?.[i >> 1] ?? -1;
+    const corners =
+      triangle >= 0 && triangle < faceCount
+        ? [0, 1, 2].map((k) => topology.faceIndices[triangle * 3 + k]!)
+        : null;
+    const over = corners ? weightsOverCorners(own, weight, corners) : null;
+    edgeIndices[i] = virtual.start + nodes.length / 3;
+    if (corners && over) {
+      nodes.push(...corners);
+      weights.push(...over);
+    } else {
+      nodes.push(...own);
+      weights.push(...weight);
+    }
+  }
+  return {
+    ...topology,
+    edgeIndices,
+    virtual: { start: virtual.start, nodes: Uint32Array.from(nodes), weights: Float32Array.from(weights) },
+  };
+}
+
+/** A point's weights over `nodes`, as weights over `corners`; null if it weighs a node that is not one. */
+function weightsOverCorners(
+  nodes: readonly number[],
+  weights: readonly number[],
+  corners: readonly number[]
+): number[] | null {
+  const over = [0, 0, 0];
+  for (let k = 0; k < 3; k += 1) {
+    if (weights[k] === 0) continue;
+    const corner = corners.indexOf(nodes[k]!);
+    if (corner < 0) return null;
+    over[corner] += weights[k]!;
+  }
+  return over;
 }
 
 // Interleaved edge-vertex layout: [this, a, b, side, assignment, shrink].
@@ -776,8 +853,50 @@ vec2 projectNdc(int index){
   return toNdc(toView(fetchPosition(index)));
 }
 
-float projectDepth(int index){
-  return toNdcDepth(toView(fetchPosition(index)).z);
+// The depth the face pass gives the paper under an end, view being where the
+// end itself is. A node is a corner of every triangle it bounds, so that is
+// its own depth. A drawn-on aux line's end lies inside a triangle, and
+// under linear depth the face pass leaves w at 1: the rasterizer mixes the
+// corners' depths by the end's weights *on the screen*, which are its
+// triangle weights each scaled by that corner's distance from the eye, as
+// toNdc divides by it. rasterizedDepth (camera.ts) is the same sum on the CPU.
+float faceDepth(int index, vec3 view){
+  if (index < u_virtualStart || u_perspectiveDepth > 0.5) return toNdcDepth(view.z);
+  int at = (index - u_virtualStart) * 2;
+  vec3 nodes = texelFetch(u_virtual, virtualTexel(at), 0).xyz;
+  vec3 weights = texelFetch(u_virtual, virtualTexel(at + 1), 0).xyz;
+  vec3 depths = vec3(
+    toView(nodePosition(int(nodes.x + 0.5))).z,
+    toView(nodePosition(int(nodes.y + 0.5))).z,
+    toView(nodePosition(int(nodes.z + 0.5))).z
+  );
+  vec3 screen = weights * max(vec3(u_camDist) - depths, vec3(0.001));
+  float total = screen.x + screen.y + screen.z;
+  return total > 0.0 ? toNdcDepth(dot(screen, depths) / total) : toNdcDepth(view.z);
+}
+
+// How the face pass's depth changes per pixel across the screen on the
+// triangle a line on ends of its own lies on, read from an end of it: the edge
+// pass names each end over its own piece's triangle (ribbonTopology), and a
+// folded figure names a hinge's over a triangle of its plane. A plane's depth
+// is linear across the screen under either depth mode. Zero for a node, whose
+// edge is the mesh's own, and for a triangle seen so nearly edge-on that it
+// has no steady plane on the screen.
+vec2 faceSlope(int index){
+  if (index < u_virtualStart) return vec2(0.0);
+  vec3 nodes = texelFetch(u_virtual, virtualTexel((index - u_virtualStart) * 2), 0).xyz;
+  vec3 v0 = toView(nodePosition(int(nodes.x + 0.5)));
+  vec3 v1 = toView(nodePosition(int(nodes.y + 0.5)));
+  vec3 v2 = toView(nodePosition(int(nodes.z + 0.5)));
+  vec2 halfViewport = u_viewport * 0.5;
+  vec2 p0 = toNdc(v0) * halfViewport;
+  vec2 e1 = toNdc(v1) * halfViewport - p0;
+  vec2 e2 = toNdc(v2) * halfViewport - p0;
+  float det = e1.x * e2.y - e1.y * e2.x;
+  if (abs(det) <= 0.01 * max(dot(e1, e1), dot(e2, e2))) return vec2(0.0);
+  float d1 = toNdcDepth(v1.z) - toNdcDepth(v0.z);
+  float d2 = toNdcDepth(v2.z) - toNdcDepth(v0.z);
+  return vec2(d1 * e2.y - d2 * e1.y, d2 * e1.x - d1 * e2.x) / det;
 }
 
 void main(){
@@ -850,9 +969,21 @@ void main(){
   vec2 offsetPx = perpPx * u_halfWidthPx[v_assignment] * a_side;
   // Bias toward the viewer so a crease sits on top of the face it lies on —
   // and, where the model has coplanar layers, on top of *that* face and nothing
-  // behind it. See RenderSettings.creaseDepthBias. An eroded end takes the
-  // depth of the point it moved to, interpolated as the rasterizer would.
-  float depth = mix(toNdcDepth(viewA.z), toNdcDepth(viewB.z), t) - u_depthBias;
+  // behind it. See RenderSettings.creaseDepthBias. Measured from the face's
+  // own depth under each end (faceDepth), not the end's: a drawn-on aux
+  // line's end at its own depth floated in front of its triangle's raster,
+  // and at a grazing view cleared the paper folded over it near the fold. An
+  // eroded end takes the depth of the point it moved to, interpolated as the
+  // rasterizer would.
+  //
+  // A drawn-on line's ribbon then lies on its triangle across its width too,
+  // each corner where the face's depth is under it (faceSlope): on a steep face
+  // a ribbon of one depth sinks into the paper on the side that rises toward
+  // the eye and drew at half its width. Bounded, so a triangle seen almost
+  // edge-on cannot throw a corner across the scene.
+  float depth = mix(faceDepth(indexA, viewA), faceDepth(indexB, viewB), t) - u_depthBias;
+  float limit = ${RIBBON_PLANE_DEPTH_LIMIT.toFixed(4)};
+  depth += clamp(dot(faceSlope(indexA), offsetPx), -limit, limit);
   gl_Position = vec4((pxThis + offsetPx) / halfViewport, depth, 1.0);
 }`;
 
@@ -991,7 +1122,11 @@ export const DEFAULT_HIGHLIGHT_COLOR: readonly [number, number, number] = [0.38,
 export const DEFAULT_HIGHLIGHT_MIX = 0.45;
 
 export interface MeshRendererOptions {
-  /** True perspective depth and interpolation for deformable spatial paper. */
+  /**
+   * True perspective depth and interpolation, so a plane's depth is exact
+   * across the screen rather than at its triangles' corners. Folded figures
+   * draw with it; a simulation does not.
+   */
   perspectiveDepth?: boolean;
   /**
    * The unfolded sheet's extent in the mesh's world units (`sheetExtent`), the
@@ -1089,7 +1224,8 @@ export class MeshRenderer {
     // edges (the triangulation diagonals, 4) are skipped — they are not lines
     // anyone drew; auxiliary creases (3) are built and clipped away by the
     // shader unless the settings show them.
-    const { interleaved, vertexStart } = buildEdgeQuads(topology);
+    const ribbons = ribbonTopology(topology);
+    const { interleaved, vertexStart } = buildEdgeQuads(ribbons);
     this.edgeVertexCount = interleaved.length / EDGE_STRIDE;
     this.edgeVertexStart = vertexStart;
     this.edgeVao = createVao(gl);
@@ -1104,7 +1240,7 @@ export class MeshRenderer {
     }
 
     gl.bindVertexArray(null);
-    this.virtual = uploadVirtualVertices(gl, topology.virtual);
+    this.virtual = uploadVirtualVertices(gl, ribbons.virtual);
   }
 
   /**

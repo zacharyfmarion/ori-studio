@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { cameraUniforms, fitExtent } from '@treemaker/origami-simulator';
+import { EDGE_CODE, cameraUniforms, edgeBoundaryFlags, fitExtent } from '@treemaker/origami-simulator';
 import {
   DEFAULT_PAPER_STYLE,
   ORIEDITA_PAPER_BACK,
@@ -29,7 +29,7 @@ import {
   folded3dWindowRenderSettings,
   folded3dWindowView,
 } from './folded3dWindow';
-import { folded3dMesh, type Folded3dMesh } from './folded3dMesh';
+import { folded3dHingeEnds, folded3dMesh, type Folded3dMesh } from './folded3dMesh';
 import {
   FOLDED_3D_CAMERA_DISTANCE_FACTOR,
   FOLDED_3D_SILHOUETTE_FACTOR,
@@ -414,6 +414,69 @@ describe('handing a mesh to the worker', () => {
     expect(payload.translucent).toBe(mesh.translucent);
     expect(payload.undetermined).toBe(mesh.undetermined);
     expect(payload.undeterminedFaceAlpha).toBe(UNDETERMINED_FACE_ALPHA);
+  });
+
+  it('names a bent figure’s hinges for the edge pass, and leaves the mesh’s own creases alone', () => {
+    // The worker lays each bend's ribbon on its own plane by reading the plane
+    // off the bend's ends (`folded3dHingeEnds`); the mesh keeps its ring
+    // vertices for the vector scene.
+    const mesh = meshOf('box_90');
+    const before = mesh.topology.edgeIndices.slice();
+    const { payload, transferables } = folded3dMeshPayload(mesh);
+    const named = folded3dHingeEnds(mesh)!;
+    expect(payload.hingeEnds).toBeDefined();
+    expect(payload.hingeEnds!.start).toBe(mesh.positions.length / 3);
+    expect([...new Uint32Array(payload.edgeIndices)]).toEqual([...named.edgeIndices]);
+    expect([...new Uint32Array(payload.hingeEnds!.nodes)]).toEqual([...named.virtual.nodes]);
+    expect([...new Float32Array(payload.hingeEnds!.weights)]).toEqual([...named.virtual.weights]);
+    expect(transferables).toContain(payload.hingeEnds!.nodes);
+    expect(transferables).toContain(payload.hingeEnds!.weights);
+    expect([...mesh.topology.edgeIndices]).toEqual([...before]);
+  });
+
+  it('erodes the same aux ends once the bends are renamed', () => {
+    // Erode finds a fold meeting an aux crease's end by the vertex they share.
+    // A flat crease in the aux pen beside a bend, sharing its ring vertex, has
+    // to keep retreating there when the bend's own ends are renamed.
+    const mesh = meshOf('box_90');
+    const bendAt = new Set<number>();
+    mesh.hinges.bend.forEach((bend, crease) => {
+      if (!bend) return;
+      bendAt.add(mesh.topology.edgeIndices[crease * 2]!);
+      bendAt.add(mesh.topology.edgeIndices[crease * 2 + 1]!);
+    });
+    const assignments = mesh.topology.edgeAssignments.slice();
+    let flat = -1;
+    for (let crease = 0; crease < assignments.length && flat < 0; crease += 1) {
+      if (mesh.hinges.bend[crease]) continue;
+      const a = mesh.topology.edgeIndices[crease * 2]!;
+      const b = mesh.topology.edgeIndices[crease * 2 + 1]!;
+      if (bendAt.has(a) !== bendAt.has(b)) flat = crease;
+    }
+    expect(flat).toBeGreaterThanOrEqual(0);
+    // Every copy of it: the buffer carries a crease once per run that draws it.
+    const pair = [mesh.topology.edgeIndices[flat * 2]!, mesh.topology.edgeIndices[flat * 2 + 1]!].sort().join();
+    for (let crease = 0; crease < assignments.length; crease += 1) {
+      const ends = [mesh.topology.edgeIndices[crease * 2]!, mesh.topology.edgeIndices[crease * 2 + 1]!];
+      if (ends.sort().join() === pair) assignments[crease] = EDGE_CODE.aux;
+    }
+    const withFlat: Folded3dMesh = { ...mesh, topology: { ...mesh.topology, edgeAssignments: assignments } };
+    const { payload } = folded3dMeshPayload(withFlat);
+    const drawn = edgeBoundaryFlags({
+      edgeIndices: new Uint32Array(payload.edgeIndices),
+      edgeAssignments: new Uint8Array(payload.edgeAssignments),
+      auxEnds: new Uint8Array(payload.auxEnds),
+    });
+    const stated = edgeBoundaryFlags(withFlat.topology);
+    expect(stated[flat]).not.toBe(0);
+    expect([...drawn]).toEqual([...stated]);
+  });
+
+  it('sends a spatial spread’s creases on their ring vertices, which its ink plan reads', () => {
+    const mesh = meshOf('box_90');
+    const { payload } = folded3dMeshPayload({ ...mesh, spatial: {} as never });
+    expect(payload.hingeEnds).toBeUndefined();
+    expect([...new Uint32Array(payload.edgeIndices)]).toEqual([...mesh.topology.edgeIndices]);
   });
 
   it('reports the fit the figure’s own frame was sized from', () => {
