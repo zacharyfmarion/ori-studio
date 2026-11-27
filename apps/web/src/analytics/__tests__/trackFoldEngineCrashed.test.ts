@@ -9,7 +9,7 @@ vi.mock('../runtime', async (importOriginal) => {
   return { ...actual, track: runtime.track };
 });
 
-const { trackFoldEngineCrashed } = await import('../trackFoldEngine');
+const { trackFoldEngineCrashed, trackFoldEngineLoadFailed } = await import('../trackFoldEngine');
 
 beforeEach(() => {
   runtime.track.mockClear();
@@ -23,5 +23,19 @@ it('sends the reason, the outcome and the crash count, bucketed', () => {
     ['fold engine crashed', { reason: 'wasm_trap', outcome: 'recovered', restart_count_bucket: '<=1' }],
     ['fold engine crashed', { reason: 'worker_error', outcome: 'gave_up', restart_count_bucket: '<=3' }],
     ['fold engine crashed', { reason: 'engine_poisoned', outcome: 'gave_up', restart_count_bucket: '>3' }],
+  ]);
+});
+
+it('counts a worker that did not load apart from a crash, with whether the browser was offline', () => {
+  trackFoldEngineLoadFailed();
+  vi.stubGlobal('navigator', { onLine: false });
+  try {
+    trackFoldEngineLoadFailed();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+  expect(runtime.track.mock.calls).toEqual([
+    ['fold engine load failed', { offline: 'no' }],
+    ['fold engine load failed', { offline: 'yes' }],
   ]);
 });

@@ -355,6 +355,17 @@ export const FOLD_ENGINE_KEPT_STOPPING: WasmErrorEnvelope = Object.freeze({
   message: 'The fold engine kept stopping.',
 });
 
+/**
+ * Why the session stopped without restarting: the engine's worker did not
+ * load (the runtime's `unloaded`). A browser that failed to load a module
+ * keeps that failure until the page reloads, so a restart fails the same way
+ * at once; only a retry or a reload tries again.
+ */
+export const FOLD_ENGINE_UNLOADED: WasmErrorEnvelope = Object.freeze({
+  code: 'fold_engine_unloaded',
+  message: 'The fold engine did not load.',
+});
+
 /** The engine went away under a call, or a handle outlived it: a replay recovers. */
 function isEngineLoss(error: unknown): boolean {
   const code = errorCode(error);
@@ -720,6 +731,18 @@ export function createFoldSession({
     if (!told) reportError?.(FOLD_ENGINE_KEPT_STOPPING);
   };
 
+  /**
+   * The engine's worker did not load: stop, without a restart, and say so
+   * once — a change that tries again and fails the same way is not news. A
+   * crash's restart that met it ends there.
+   */
+  const unloaded = () => {
+    settleRestart('failed');
+    const told = error?.code === FOLD_ENGINE_UNLOADED.code;
+    halt(FOLD_ENGINE_UNLOADED);
+    if (!told) reportError?.(FOLD_ENGINE_UNLOADED);
+  };
+
   const stop = () => {
     if (lingering !== null) clearTimeout(lingering);
     lingering = null;
@@ -800,6 +823,7 @@ export function createFoldSession({
     replayer?.clear();
     engine?.clear();
     if (holders > 0 && reason === 'crashed') crashed(cause ?? 'worker_error');
+    else if (holders > 0 && reason === 'unloaded') unloaded();
     else if (holders > 0 && reason === 'stopped') start();
     else if (lingering !== null) {
       // Nothing is left to keep, and no surface to restart it for: the next hold starts afresh.

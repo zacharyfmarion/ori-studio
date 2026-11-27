@@ -21,6 +21,7 @@ import type { FoldEngineOp } from '../../fold/engine/foldEngineWire';
 import {
   createFoldSession,
   FOLD_ENGINE_KEPT_STOPPING,
+  FOLD_ENGINE_UNLOADED,
   MAX_RESTARTS,
   type FoldEngineRestart,
   type FoldSession,
@@ -46,6 +47,8 @@ const harness = vi.hoisted(() => ({
   engines: [] as { afterTrap: string[] }[],
   /** What a call throws, by its name and arguments and the engine's index; undefined to answer. */
   trap: (() => undefined) as (call: string, args: unknown[], engine: number) => unknown,
+  /** Whether the browser fails to load the worker with this spawn index: its script never arrives. */
+  unloadable: (() => false) as (worker: number) => boolean,
   reportError: vi.fn(),
 }));
 
@@ -129,7 +132,14 @@ class FakeWorker extends EventTarget {
 
   constructor() {
     super();
-    FakeWorker.instances.push(this);
+    const index = FakeWorker.instances.push(this) - 1;
+    if (harness.unloadable(index)) {
+      // As a browser does for a script it could not fetch or parse: a plain
+      // `error` event, after the constructor returned, and no module at all.
+      this.api = new Promise(() => {});
+      setTimeout(() => this.dispatchEvent(new Event('error')), 0);
+      return;
+    }
     this.api = new Promise((resolve) => harness.starting.push(resolve));
     vi.resetModules();
     void import('../../workers/foldSequenceWorker');
@@ -170,8 +180,11 @@ beforeEach(() => {
   harness.starting = [];
   harness.engines = [];
   harness.trap = () => undefined;
+  harness.unloadable = () => false;
   harness.reportError.mockReset();
   vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker);
+  // Node has no `ErrorEvent`, which `lib/workerDiagnostics.ts` tells a load failure from.
+  vi.stubGlobal('ErrorEvent', class ErrorEvent extends Event {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -322,5 +335,64 @@ describe('a Fold engine that traps', () => {
     });
     await settle();
     expect(FakeWorker.instances).toHaveLength(MAX_RESTARTS + 1);
+  });
+});
+
+// ORI-STUDIO-18: the browser did not load the worker's script — offline, or a
+// tab older than the deploys the site still carries. It was reported as a
+// crash and restarted twice into the same failure, then the user was told the
+// engine "kept stopping" and to undo their last change.
+describe('a Fold engine whose worker does not load', () => {
+  it('stops at once, without a restart or a report, says so once, and folds again after a retry', async () => {
+    harness.unloadable = () => true;
+    const { session, source, toasts, crashes, snapshot, statuses } = setup();
+    const held = source.read().held;
+    session.retain();
+    await vi.waitFor(() => expect(snapshot().error).toBe(FOLD_ENGINE_UNLOADED));
+    await settle();
+
+    // One worker, which never ran: no restart into the same failure.
+    expect(FakeWorker.instances).toHaveLength(1);
+    expect(FakeWorker.instances[0]!.terminated).toBe(true);
+    expect(sentryReports()).toEqual([]);
+    expect(crashes).toEqual([]);
+    expect(toasts).toEqual([FOLD_ENGINE_UNLOADED]);
+    expect(statuses()).toEqual({ a: 'pending', b: 'pending', c: 'pending' });
+    expect(source.read().held).toBe(held);
+
+    // A change tries again; failing the same way, it is not news.
+    const undone = sequenceOf([step('a', null, valleyAt(0.5)), step('b', 'a', valleyAt(0.25))]);
+    source.set({
+      held: { document: undone, readOnlyRaw: null },
+      reader: withFoldCursor(initialFoldReaderState(undone.id), undone, 'b'),
+    });
+    await vi.waitFor(() => expect(FakeWorker.instances).toHaveLength(2));
+    await settle();
+    expect(snapshot().error).toBe(FOLD_ENGINE_UNLOADED);
+    expect(toasts).toEqual([FOLD_ENGINE_UNLOADED]);
+
+    // Back online, Try again folds every step in a fresh worker.
+    harness.unloadable = () => false;
+    session.retry();
+    await vi.waitFor(() => expect(statuses()).toEqual({ a: 'ok', b: 'ok' }));
+    expect(snapshot().error).toBeNull();
+    expect(FakeWorker.instances).toHaveLength(3);
+    expect(sentryReports()).toEqual([]);
+    expect(crashes).toEqual([]);
+  });
+
+  it('ends a crash’s restart whose fresh worker does not load, without counting it as another crash', async () => {
+    // The first engine traps folding c; the worker that replaces it does not load.
+    harness.trap = trapsOn('apply', 'valley@0.75', 0);
+    harness.unloadable = (worker) => worker > 0;
+    const { session, toasts, crashes, snapshot } = setup();
+    session.retain();
+    await vi.waitFor(() => expect(snapshot().error).toBe(FOLD_ENGINE_UNLOADED));
+    await settle();
+
+    expect(FakeWorker.instances).toHaveLength(2);
+    expect(sentryReports()).toEqual([['wasm_trap: unreachable', { surface: 'fold:engine', tags: { reason: 'wasm_trap' } }]]);
+    expect(crashes).toEqual([{ cause: 'wasm_trap', attempt: 1, outcome: 'failed' }]);
+    expect(toasts).toEqual([FOLD_ENGINE_UNLOADED]);
   });
 });

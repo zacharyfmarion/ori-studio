@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
 import { formatUnknownError, humanizeError } from './toastMessages';
 
@@ -33,6 +33,22 @@ describe('toast message helpers', () => {
     const message = humanizeError({ code: 'fold_engine_kept_stopping', message: 'The fold engine kept stopping.' }, t);
     expect(message).toContain('undo your last change');
     expect(message).toContain('reload Ori Studio');
+  });
+
+  // A worker that never loaded (ORI-STUDIO-18): nothing the user changed is
+  // to blame, so no undo; a reload is the way back, after reconnecting.
+  it('tells the user to reload, reconnecting first when offline, when the fold engine did not load', () => {
+    const unloaded = { code: 'fold_engine_unloaded', message: 'The fold engine did not load.' };
+    const online = humanizeError(unloaded, t);
+    expect(online).toContain('didn’t load');
+    expect(online).toContain('reload Ori Studio');
+    expect(online).not.toContain('undo');
+    vi.stubGlobal('navigator', { onLine: false });
+    try {
+      expect(humanizeError(unloaded, t)).toContain('reconnect, then reload Ori Studio');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('humanizes structural fold error codes', () => {

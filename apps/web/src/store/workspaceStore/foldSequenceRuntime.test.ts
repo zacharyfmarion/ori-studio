@@ -12,8 +12,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const monitoring = vi.hoisted(() => ({ reportError: vi.fn() }));
+const analytics = vi.hoisted(() => ({ loadFailed: vi.fn() }));
 
 vi.mock('../../monitoring', () => ({ reportError: monitoring.reportError }));
+vi.mock('../../analytics/trackFoldEngine', () => ({ trackFoldEngineLoadFailed: analytics.loadFailed }));
+
+/** What a worker that ran and then died fires: an `ErrorEvent`, with the exception's message. */
+const died = () => new ErrorEvent('error', { message: 'Uncaught RangeError: Maximum call stack size exceeded' });
 
 async function freshRuntime() {
   vi.resetModules();
@@ -36,6 +41,7 @@ class FakeWorker extends EventTarget {
 beforeEach(() => {
   FakeWorker.instances = [];
   monitoring.reportError.mockClear();
+  analytics.loadFailed.mockClear();
   vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker);
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -82,7 +88,7 @@ describe('fold engine client lifetime', () => {
       .whileFoldSequenceClientAlive(new Promise<string>(() => {}))
       .catch((e: unknown) => e);
 
-    FakeWorker.instances[0].dispatchEvent(new Event('error'));
+    FakeWorker.instances[0].dispatchEvent(died());
 
     await expect(guarded).resolves.toMatchObject({
       code: 'fold_sequence_client_lost',
@@ -212,15 +218,48 @@ describe('a fold engine that crashed', () => {
     const heard: unknown[][] = [];
     runtime.onFoldSequenceClientLost((...args) => heard.push(args));
 
-    FakeWorker.instances[0].dispatchEvent(new Event('error'));
+    FakeWorker.instances[0].dispatchEvent(died());
 
     expect(heard).toEqual([['crashed', 'worker_error']]);
     expect(monitoring.reportError).toHaveBeenCalledTimes(1);
     expect(monitoring.reportError.mock.calls[0]![0]).toMatchObject({
       name: 'FoldEngineCrash',
-      message: 'worker_error: The worker stopped unexpectedly.',
+      message: 'worker_error: Uncaught RangeError: Maximum call stack size exceeded',
     });
     expect(monitoring.reportError.mock.calls[0]![1]).toEqual({ surface: 'fold:engine', tags: { reason: 'worker_error' } });
+    expect(analytics.loadFailed).not.toHaveBeenCalled();
+  });
+
+  // ORI-STUDIO-18: every report was this — a plain `error` event, the worker's
+  // script never fetched or parsed (offline, or a tab older than the deploys
+  // the site still carries) — reported as a crash and restarted into the same
+  // failure until the session gave up.
+  it('drops a worker that never loaded as unloaded: no crash, nothing to Sentry, counted, and left to the session to tell', async () => {
+    const runtime = await freshRuntime();
+    const diagnostics = await import('../../lib/workerDiagnostics');
+    const sink = vi.fn();
+    diagnostics.registerWorkerFailureSink(sink);
+    runtime.retainFoldSequenceClient();
+    const heard: unknown[][] = [];
+    runtime.onFoldSequenceClientLost((...args) => heard.push(args));
+    const guarded = runtime.askFoldSequenceClient(() => new Promise<number>(() => {})).catch((e: unknown) => e);
+
+    FakeWorker.instances[0].dispatchEvent(new Event('error'));
+
+    await expect(guarded).resolves.toEqual({ code: 'fold_sequence_client_lost', message: 'The fold engine did not load.' });
+    expect(heard).toEqual([['unloaded', undefined]]);
+    expect(FakeWorker.instances[0].terminated).toBe(true);
+    expect(runtime.peekFoldSequenceClient()).toBeNull();
+    expect(runtime.foldSequenceClientGeneration()).toBe(1);
+    expect(monitoring.reportError).not.toHaveBeenCalled();
+    expect(analytics.loadFailed).toHaveBeenCalledTimes(1);
+    // Not the app's "stopped unexpectedly" toast: the session says what happened.
+    expect(sink).not.toHaveBeenCalled();
+    diagnostics.registerWorkerFailureSink(null);
+
+    // The next request tries a fresh worker.
+    runtime.getFoldSequenceClient();
+    expect(FakeWorker.instances).toHaveLength(2);
   });
 
   it('passes an engine’s own error through, keeping the worker', async () => {
