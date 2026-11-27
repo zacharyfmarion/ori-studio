@@ -175,8 +175,8 @@ pub fn relations_of(flat: &[u32]) -> Result<Vec<HierarchyRelation>, LayerCallErr
 /// How far a solution count goes before it reads "at least" (E6's
 /// `SolutionCaps`), and whether a step counts on (E9). Every field may be
 /// left out, for the defaults (100,000 orders per component, 1,000,000
-/// combinations per look group, 4 MiB of stored orders, steps that count);
-/// every cap is a count, never a time.
+/// combinations per look group, 32 MiB of distinct pictures a side, 4 MiB
+/// of stored orders, steps that count); every cap is a count, never a time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct LayerSolutionCaps {
@@ -185,15 +185,18 @@ pub struct LayerSolutionCaps {
     #[serde(default)]
     pub combinations_per_group: Option<u64>,
     #[serde(default)]
+    pub key_bits: Option<u64>,
+    #[serde(default)]
     pub stored_bits: Option<u64>,
     #[serde(default)]
     pub count_in_steps: Option<bool>,
 }
 
 /// [`LayerSolutionCaps`]' fields as the web app spells them.
-pub const LAYER_SOLUTION_CAPS_FIELDS: [&str; 4] = [
+pub const LAYER_SOLUTION_CAPS_FIELDS: [&str; 5] = [
     "ordersPerComponent",
     "combinationsPerGroup",
+    "keyBits",
     "storedBits",
     "countInSteps",
 ];
@@ -208,6 +211,7 @@ impl LayerSolutionCaps {
             combinations_per_group: self
                 .combinations_per_group
                 .unwrap_or(defaults.combinations_per_group),
+            key_bits: self.key_bits.unwrap_or(defaults.key_bits),
             stored_bits: self.stored_bits.unwrap_or(defaults.stored_bits),
             count_in_steps: self.count_in_steps.unwrap_or(defaults.count_in_steps),
         }
@@ -1176,6 +1180,39 @@ mod tests {
             SolutionCaps {
                 count_in_steps: false,
                 ..defaults
+            }
+        );
+        let keys: LayerSolutionCaps =
+            serde_json::from_value(json!({ "keyBits": 1024 })).unwrap_or_default();
+        assert_eq!(
+            keys.caps(),
+            SolutionCaps {
+                key_bits: 1024,
+                ..defaults
+            }
+        );
+        // The fields the bindings let through set every cap.
+        let every: serde_json::Map<String, Value> = LAYER_SOLUTION_CAPS_FIELDS
+            .iter()
+            .map(|&field| {
+                let value = if field == "countInSteps" {
+                    json!(false)
+                } else {
+                    json!(7)
+                };
+                (field.to_owned(), value)
+            })
+            .collect();
+        let every: LayerSolutionCaps =
+            serde_json::from_value(Value::Object(every)).unwrap_or_default();
+        assert_eq!(
+            every.caps(),
+            SolutionCaps {
+                orders_per_component: 7,
+                combinations_per_group: 7,
+                key_bits: 7,
+                stored_bits: 7,
+                count_in_steps: false,
             }
         );
         assert!(serde_json::from_value::<LayerSolutionCaps>(json!({ "orders": 1 })).is_err());
