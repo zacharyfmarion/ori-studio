@@ -573,6 +573,9 @@ export default defineConfig({
     // comment, so the reference would only produce 404s in devtools for files
     // we are about to delete anyway.
     sourcemap: profiling ? true : uploadSourcemaps ? 'hidden' : false,
+    // Vite's polyfill leaves a failed preload's rejection unhandled (ORI-STUDIO-N);
+    // `src/lib/modulePreloadPolyfill.ts` does the same work and drops the failure.
+    modulePreload: { polyfill: false },
   },
   esbuild: {
     // esbuild strips function/class names during minify; keep them when
