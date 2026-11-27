@@ -11,8 +11,13 @@
  * disagreeing means a replan: nothing here is ever migrated
  * (`implementation-plans/references-persistence.md`).
  *
- * Pure, apart from loading `fflate` on demand: no React, no store.
+ * Pure: no React, no store. `fflate` is imported with the module, not on
+ * demand: a chunk fetched as a plan landed could fail with the project open,
+ * and a browser keeps a module that failed to load as failed for the page's
+ * life, so no later plan was kept either (ORI-STUDIO-5). The ZIP writer
+ * imports it the same way (`paperExport/zipPages.ts`).
  */
+import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { keyDigest } from '../../lib/keyDigest';
 import { segmentOverlapsBounds } from '../folded/foldedFigureStaleness';
 import type { PrecreasePlanResult } from './precreasePlan';
@@ -306,22 +311,6 @@ export function cachedPlanOf(
   };
 }
 
-type Fflate = typeof import('fflate');
-let fflate: Promise<Fflate> | null = null;
-
-/**
- * `fflate`, loaded on first use: nothing else on the way to a plan needs it.
- * A failed load is forgotten, so the next save tries again — after a deploy an
- * old tab's chunk is gone, and that is no reason to never cache again.
- */
-function loadFflate(): Promise<Fflate> {
-  fflate ??= import('fflate').catch((error: unknown) => {
-    fflate = null;
-    throw error;
-  });
-  return fflate;
-}
-
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   const chunk = 0x8000;
@@ -344,7 +333,6 @@ function base64ToBytes(text: string): Uint8Array {
  * plan always packs to the same text and re-saving a file changes nothing.
  */
 export async function encodeCachedPlan(plan: ReferencesCachedPlan): Promise<string> {
-  const { gzipSync, strToU8 } = await loadFflate();
   return bytesToBase64(gzipSync(strToU8(JSON.stringify(plan)), { mtime: 0 }));
 }
 
@@ -458,7 +446,6 @@ function isResult(value: unknown): boolean {
  */
 export async function decodeCachedPlan(payload: string): Promise<ReferencesCachedPlan | null> {
   try {
-    const { gunzipSync, strFromU8 } = await loadFflate();
     const value: unknown = JSON.parse(strFromU8(gunzipSync(base64ToBytes(payload))));
     if (!isRecord(value) || !isResult(value.result) || !isNumber(value.durationMs)) return null;
     if (!isSequence(value.plain) || !isSequence(value.hoisted)) return null;

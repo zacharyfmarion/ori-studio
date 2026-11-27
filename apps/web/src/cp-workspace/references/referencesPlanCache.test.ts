@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { plannerSequenceFixture } from './__fixtures__/plannerSequence';
 import type { PrecreasePlanResult } from './precreasePlan';
 import type { PrecreaseStep, PrecreaseWitness } from './precreaseSequence';
@@ -246,6 +246,23 @@ describe('the payload', () => {
     const packed = await encodeCachedPlan(plan);
     expect(packed).toMatch(/^[A-Za-z0-9+/]+=*$/);
     expect(await decodeCachedPlan(packed)).toEqual(plan);
+  });
+
+  it('packs and reads a plan with nothing left to fetch once it has loaded (ORI-STUDIO-5)', async () => {
+    // A fresh copy of the module, loaded while the network is fine.
+    vi.resetModules();
+    const fresh = await import('./referencesPlanCache');
+    // Then every module asked for from here on fails, as on a connection that dropped after the
+    // workspace arrived: the packer's own chunk failed like that, and the plan was not kept.
+    vi.doMock('fflate', () => {
+      throw new TypeError('Failed to fetch dynamically imported module');
+    });
+    try {
+      const plan = fresh.cachedPlanOf(result(), plannerSequenceFixture(), 900);
+      expect(await fresh.decodeCachedPlan(await fresh.encodeCachedPlan(plan))).toEqual(plan);
+    } finally {
+      vi.doUnmock('fflate');
+    }
   });
 
   // Re-saving a file must not change it: the same plan packs to the same text.
