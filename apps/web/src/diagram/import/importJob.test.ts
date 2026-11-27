@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { createStep } from '../document/diagramDocument';
 import type { PickedFile } from '../../platform/fileService';
 import type { ImportTarget } from '../../store/workspaceStore/diagramBatchImport';
-import { orderedImportFiles, runImportJob } from './importJob';
+import { runImportJob } from './importJob';
 import { useImportDialogStore } from './importDialogStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
@@ -49,10 +49,6 @@ beforeEach(() => {
   mocks.commit.mockImplementation(async (groups) =>
     groups.reduce((count: number, g: { steps: unknown[] }) => count + g.steps.length, 0),
   );
-});
-it('sorts numeric names while preserving repeated files', () => {
-  const files = [file('10.cp'), file('2.cp'), file('2.cp'), file('1.cp')];
-  expect(orderedImportFiles(files)).toEqual([files[3], files[1], files[2], files[0]]);
 });
 it('prepares duplicate CP contents once but publishes distinct ordered steps in one batch', async () => {
   const result = await runImportJob(

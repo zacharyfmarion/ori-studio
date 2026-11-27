@@ -15,9 +15,9 @@ import {
   type DiagramPictureAsset,
   stepById,
 } from '../document/diagramDocument';
+import { naturalFileOrder } from '../../lib/naturalFileOrder';
 import {
   importStepPicture,
-  naturalFileOrder,
   type ImportDependencies,
   type ImportedPicture,
 } from './importStepPicture';

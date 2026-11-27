@@ -6,7 +6,6 @@ import { FileTooLargeError, pickedFileFromFile } from '../../platform/fileServic
 import {
   importStepPicture,
   isStepPictureFile,
-  naturalFileOrder,
   pictureFormat,
   type ImportDependencies,
   type PictureFile,
@@ -180,16 +179,5 @@ describe('pickedFileFromFile', () => {
     const picture = pickedFileFromFile(new File(['abcd'], 'a.png', { type: 'image/png' }));
     await expect(picture.read(2)).rejects.toBeInstanceOf(FileTooLargeError);
     expect(await picture.read(10)).toHaveLength(4);
-  });
-});
-
-describe('naturalFileOrder', () => {
-  it('puts step-2 before step-10', () => {
-    const names = ['step-10.svg', 'step-2.svg', 'Step-1.svg'].map((name) => ({ name }));
-    expect(naturalFileOrder(names).map((entry) => entry.name)).toEqual([
-      'Step-1.svg',
-      'step-2.svg',
-      'step-10.svg',
-    ]);
   });
 });

@@ -15,10 +15,10 @@ import {
   pickImportFolder,
   type PickedFile,
 } from '../../platform/fileService';
+import { naturalFileOrder } from '../../lib/naturalFileOrder';
 import { ensureDiagramImportTarget, importTarget } from '../../store/workspaceStore/diagramBatchImport';
 import { useImportDialogStore } from './importDialogStore';
 import {
-  orderedImportFiles,
   runImportJob,
   STEP_IMPORT_EXTENSIONS,
   supportsStepImport,
@@ -68,7 +68,7 @@ function DiagramImportDialog() {
   );
   const picked = (next: PickedFile[] | null) => {
     if (!next) return;
-    const selected = orderedImportFiles(next.filter((f) => supportsStepImport(f.name)));
+    const selected = naturalFileOrder(next.filter((f) => supportsStepImport(f.name)));
     setFiles(selected);
     setColumns(0);
     setError(
@@ -82,7 +82,7 @@ function DiagramImportDialog() {
     void folder(recursive)
       .then((next) => {
         if (live) {
-          setFiles(orderedImportFiles(next.filter((f) => supportsStepImport(f.name))));
+          setFiles(naturalFileOrder(next.filter((f) => supportsStepImport(f.name))));
           setColumns(0);
         }
       })
