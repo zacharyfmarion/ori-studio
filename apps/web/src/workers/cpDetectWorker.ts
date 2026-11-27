@@ -108,8 +108,20 @@ interface CpDetectSessionRuntime {
   runtime: CpDetectRuntimeInfo;
 }
 
+/**
+ * The detector's wasm, started once. A start that failed is forgotten, so the
+ * next call fetches it again: a download cut off on a dropped connection
+ * (ORI-STUDIO-15) rejects the call but leaves this worker alive, and nothing
+ * replaces a live worker.
+ */
 async function ensureWasmReady() {
-  wasmReady ??= init().then(() => undefined);
+  wasmReady ??= init().then(
+    () => undefined,
+    (error: unknown) => {
+      wasmReady = null;
+      throw error;
+    }
+  );
   await wasmReady;
 }
 

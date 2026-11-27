@@ -38,14 +38,17 @@ const stubs = vi.hoisted(() => {
     mapping: { promise: Promise<Float64Array>; resolve: (v: Float64Array) => void; reject: (e: unknown) => void } | null;
     released: number;
     reported: unknown[];
+    surfaces: unknown[];
+    tracked: unknown[][];
     framesCalls: number;
-  } = { solve: null, frames: null, mapping: null, released: 0, reported: [], framesCalls: 0 };
+  } = { solve: null, frames: null, mapping: null, released: 0, reported: [], surfaces: [], tracked: [], framesCalls: 0 };
   return state;
 });
 
 vi.mock('../../monitoring', () => ({
-  reportError: (error: unknown) => {
+  reportError: (error: unknown, context?: { surface?: string }) => {
     stubs.reported.push(error);
+    stubs.surfaces.push(context?.surface);
   },
 }));
 
@@ -53,7 +56,9 @@ vi.mock('../../analytics', () => ({
   ANALYTICS_EVENTS: new Proxy({}, { get: (_t, key) => String(key) }),
   DURATION_MS_BUCKETS: [1000],
   bucketCount: () => '0',
-  track: () => undefined,
+  track: (...args: unknown[]) => {
+    stubs.tracked.push(args);
+  },
 }));
 
 vi.mock('../../store/workspaceStore/referenceFinderRuntime', () => ({
@@ -204,6 +209,8 @@ beforeEach(() => {
   stubs.mapping = deferred<Float64Array>();
   stubs.released = 0;
   stubs.reported = [];
+  stubs.surfaces = [];
+  stubs.tracked = [];
   stubs.framesCalls = 0;
   container = document.createElement('div');
   document.body.appendChild(container);
@@ -377,6 +384,82 @@ describe('useReferencesTarget: the frames effect', () => {
     mount(sameContent);
     await settle();
     expect(stubs.framesCalls).toBe(1);
+  });
+});
+
+/**
+ * ORI-STUDIO-1B: the planner's wasm did not arrive as the workspace opened, so
+ * the sheets could not be listed. The browser's bare "Load failed" went to
+ * Sentry and onto the overlay, and nothing asked for the sheets again.
+ */
+describe('useReferencesTarget: a planner that did not load', () => {
+  const DID_NOT_LOAD = 'References couldn’t load. Check your connection, then try again.';
+  /** What the precrease worker answers when its wasm did not arrive. */
+  const unloaded = { code: 'precrease_unavailable', message: 'Load failed' };
+
+  it('says so plainly and counts it, without reporting it', async () => {
+    mount();
+    act(() => stubs.frames!.reject(unloaded));
+    await settle();
+
+    expect(stubs.reported).toEqual([]);
+    expect(useWorkspaceStore.getState().referencesRun).toEqual({ status: 'error', message: DID_NOT_LOAD });
+    expect(stubs.tracked).toContainEqual(['references load failed', { surface: 'frames', offline: 'no' }]);
+    expect(controller!.retryFrames).not.toBeNull();
+  });
+
+  it('asks for the sheets again on Try again, and lists them once they load', async () => {
+    mount();
+    act(() => stubs.frames!.reject(unloaded));
+    await settle();
+
+    stubs.frames = deferred();
+    act(() => controller!.retryFrames!());
+    await settle();
+    expect(stubs.framesCalls).toBe(2);
+    expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
+
+    act(() => stubs.frames!.resolve(ANALYSIS));
+    await settle();
+    expect(controller!.frames).toEqual(ANALYSIS);
+    expect(controller!.retryFrames).toBeNull();
+  });
+
+  it('asks for them again on a pick too, and counts a second failure there', async () => {
+    mount();
+    act(() => stubs.frames!.reject(unloaded));
+    await settle();
+
+    stubs.frames = deferred();
+    act(() => controller!.pick({ kind: 'line', id: 1 }));
+    act(() => stubs.frames!.reject(unloaded));
+    await settle();
+
+    expect(stubs.framesCalls).toBe(2);
+    expect(stubs.reported).toEqual([]);
+    expect(stubs.tracked).toContainEqual(['references load failed', { surface: 'resolve', offline: 'no' }]);
+    expect(useWorkspaceStore.getState().referencesRun).toEqual({ status: 'error', message: DID_NOT_LOAD });
+  });
+
+  it('still reports sheets that could not be read, and offers no Try again for them', async () => {
+    mount();
+    act(() => stubs.frames!.reject(new Error('The crease pattern’s sheets could not be read.')));
+    await settle();
+
+    expect(stubs.surfaces).toEqual(['references:frames']);
+    expect(controller!.retryFrames).toBeNull();
+    expect(stubs.tracked.some(([name]) => name === 'references load failed')).toBe(false);
+  });
+
+  it('still reports a planner that did not start for another reason', async () => {
+    mount();
+    act(() =>
+      stubs.frames!.reject({ code: 'precrease_unavailable', message: 'WebAssembly.Memory(): could not allocate memory' })
+    );
+    await settle();
+
+    expect(stubs.surfaces).toEqual(['references:frames']);
+    expect(controller!.retryFrames).toBeNull();
   });
 });
 

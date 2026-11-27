@@ -71,6 +71,7 @@
     "crop": "裁剪",
     "detect": "检测",
     "detected": "已检测",
+    "didNotLoad": "检测器未能加载。请检查网络连接，然后重试。",
     "dropImageHere": "将图像拖放到此处",
     "editCrop": "编辑裁剪",
     "inferred": "已推断",
@@ -103,6 +104,7 @@
     "stopping": "正在停止…",
     "stopSolve": "停止",
     "title": "从图像检测 CP",
+    "tryAgain": "重试",
     "verdict": {
       "afterFailure": "“检查并修复”会添加候选图案及其背景源图像，并保留求解器数据，便于你修复后再次求解。",
       "blocked": "求解器无法读取该候选图，因此没有可手动修复的内容。你仍然可以直接添加它。",

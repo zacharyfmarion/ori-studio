@@ -8,11 +8,8 @@ import {
 import { reportError } from '../../monitoring';
 import { cpDetectAvailableHere } from '../../lib/workspaceCapabilities';
 import { useSettingsStore } from '../../store/settingsStore';
-import {
-  getCpDetectClient,
-  isCpDetectClientUnloaded,
-  whileCpDetectClientAlive,
-} from '../../store/workspaceStore/cpDetectRuntime';
+import { getCpDetectClient, whileCpDetectClientAlive } from '../../store/workspaceStore/cpDetectRuntime';
+import { isCpDetectLoadFailure } from './cpDetectLoadFailure';
 import { useCpDetectSuggestionStore } from './cpDetectSuggestionStore';
 
 /**
@@ -54,7 +51,9 @@ const defaultDeps: SuggestionDeps = {
 let reportedFailure = false;
 
 function scoreFailureReason(error: unknown): CpDetectScoreFailureReason {
-  if (isCpDetectClientUnloaded(error)) return 'unloaded';
+  // The worker never ran, or the wasm it fetched on the way to the gate did
+  // not arrive (ORI-STUDIO-15).
+  if (isCpDetectLoadFailure(error)) return 'unloaded';
   const code = error && typeof error === 'object' ? (error as { code?: unknown }).code : undefined;
   return code === 'cp_detect_client_lost' ? 'worker_lost' : 'error';
 }
@@ -66,9 +65,9 @@ function scoreFailureReason(error: unknown): CpDetectScoreFailureReason {
  * Never throws and never surfaces anything to the user: a reference image must
  * not produce an error because a *suggestion* failed. Every failure is
  * counted; the first one of a session that is a defect is reported to
- * monitoring. A worker whose code did not load is not one: that is the
- * browser failing to fetch it, and the next image, or Detect, spawns a fresh
- * worker that fetches it again.
+ * monitoring. A detector that did not load is not one (`cpDetectLoadFailure.ts`):
+ * that is the browser failing to fetch its code, and the next image, or
+ * Detect, fetches it again.
  */
 export async function noteAddedCanvasImage(
   image: AddedCanvasImage,

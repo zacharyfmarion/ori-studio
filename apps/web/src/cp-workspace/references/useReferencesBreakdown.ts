@@ -85,6 +85,7 @@ import type {
 } from './sheetFrames';
 import { precreaseInputFromTransport } from './sheetFrames';
 import { referencesSheetLines, type ReferencesSheetLines } from './referencesFrames';
+import { handleReferencesFailure, isReferencesLoadFailure } from './referencesLoadFailure';
 
 /**
  * The whole-pattern breakdown and the CP-wide analysis: the two runs the
@@ -750,8 +751,7 @@ export function useReferencesBreakdown(
         endReferencesRun(runId);
         setReferencesProgress(null);
         if (latest.current.revision !== forRevision) return;
-        reportError(error, { surface: 'references:plan' });
-        setReferencesRun({ status: 'error', message: humanizeError(error, t) });
+        setReferencesRun({ status: 'error', message: handleReferencesFailure(error, 'plan', t) });
         track(ANALYTICS_EVENTS.foldingStepsRefused, {
           target_kind: 'whole_cp',
           refusal_reason: 'error',
@@ -893,7 +893,9 @@ export function useReferencesBreakdown(
     (cached: CachedSheetPlan): Promise<boolean> =>
       showCached(cached).catch((error: unknown) => {
         if (error instanceof CachedPlanUnreadable) forgetReferencesPlan(cached.loadSerial, cached.key);
-        reportError(error, { surface: 'references:plan-restore' });
+        // A planner that did not load is the run's to say and count, which
+        // comes next.
+        if (!isReferencesLoadFailure(error)) reportError(error, { surface: 'references:plan-restore' });
         return false;
       }),
     [showCached]
@@ -991,8 +993,7 @@ export function useReferencesBreakdown(
         endReferencesRun(runId);
         setReferencesProgress(null);
         if (latest.current.revision !== forRevision) return;
-        reportError(error, { surface: 'references:analysis' });
-        setReferencesRun({ status: 'error', message: humanizeError(error, t) });
+        setReferencesRun({ status: 'error', message: handleReferencesFailure(error, 'analysis', t) });
       } finally {
         await client.plannerDispose().catch(() => undefined);
       }

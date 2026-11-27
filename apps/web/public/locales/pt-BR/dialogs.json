@@ -71,6 +71,7 @@
     "crop": "Recortar",
     "detect": "Detectar",
     "detected": "Detectado",
+    "didNotLoad": "O detector não carregou. Verifique sua conexão e tente de novo.",
     "dropImageHere": "Solte a imagem aqui",
     "editCrop": "Editar recorte",
     "inferred": "Inferido",
@@ -103,6 +104,7 @@
     "stopping": "Parando…",
     "stopSolve": "Parar",
     "title": "Detectar CP a partir de imagem",
+    "tryAgain": "Tentar de novo",
     "verdict": {
       "afterFailure": "“Revisar e corrigir” adiciona o candidato com a imagem de origem atrás e mantém os dados do solucionador, para você corrigir e resolver de novo.",
       "blocked": "O solucionador não conseguiu ler este grafo candidato, portanto não há nada para corrigir à mão. Você ainda pode adicioná-lo como está.",

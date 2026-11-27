@@ -3223,6 +3223,7 @@
       "folds_one": "{{count}} fold",
       "folds_other": "{{count}} folds"
     },
+    "didNotLoad": "References couldn’t load. Check your connection, then try again.",
     "direction": {
       "angle": "at {{deg}}°",
       "diagonalDown": "on the falling diagonal",
@@ -3395,6 +3396,7 @@
     "stop": "Stop",
     "stopping": "Cancelling…",
     "targetGone": "The picked crease is no longer in the pattern.",
+    "tryAgain": "Try again",
     "viewportControls": "References viewport controls",
     "warning": {
       "degenerateBorderSegments": "{{n}} border crease(s) have coincident ends and were ignored.",

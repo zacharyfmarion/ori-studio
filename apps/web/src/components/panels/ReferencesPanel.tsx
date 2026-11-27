@@ -834,10 +834,16 @@ export function ReferencesPanel() {
                 <span>{t('panels:references.errorTitle', 'References unavailable')}</span>
                 <small>{run.message}</small>
                 <div className="references-panel__overlay-actions">
-                  {canRecompute && (
-                    <Button variant="primary" size="sm" onClick={recompute}>
-                      {t('panels:references.recompute', 'Recompute')}
+                  {controller.retryFrames ? (
+                    <Button variant="primary" size="sm" onClick={controller.retryFrames}>
+                      {t('panels:references.tryAgain', 'Try again')}
                     </Button>
+                  ) : (
+                    canRecompute && (
+                      <Button variant="primary" size="sm" onClick={recompute}>
+                        {t('panels:references.recompute', 'Recompute')}
+                      </Button>
+                    )
                   )}
                   <Button variant="secondary" size="sm" onClick={controller.clear}>
                     {t('panels:references.dismiss', 'Dismiss')}

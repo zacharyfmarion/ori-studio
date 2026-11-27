@@ -3524,6 +3524,7 @@
       "folds_many": "{{count}} dobras",
       "folds_other": "{{count}} dobras"
     },
+    "didNotLoad": "Não foi possível carregar Referências. Verifique sua conexão e tente de novo.",
     "direction": {
       "angle": "a {{deg}}°",
       "diagonalDown": "na diagonal descendente",
@@ -3695,6 +3696,7 @@
     "stop": "Parar",
     "stopping": "Cancelando…",
     "targetGone": "A dobra escolhida não está mais no padrão.",
+    "tryAgain": "Tentar de novo",
     "viewportControls": "Controles da viewport de referências",
     "warning": {
       "degenerateBorderSegments": "{{n}} vinco(s) de borda têm extremidades coincidentes e foram ignorados.",

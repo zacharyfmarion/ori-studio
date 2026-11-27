@@ -71,6 +71,7 @@
     "crop": "Crop",
     "detect": "Detect",
     "detected": "Detected",
+    "didNotLoad": "The detector couldn’t load. Check your connection, then try again.",
     "dropImageHere": "Drop image here",
     "editCrop": "Edit Crop",
     "inferred": "Inferred",
@@ -103,6 +104,7 @@
     "stopping": "Stopping…",
     "stopSolve": "Stop",
     "title": "Detect CP from Image",
+    "tryAgain": "Try again",
     "verdict": {
       "afterFailure": "Review & Fix adds the candidate with the source image behind it and keeps the solver data, so you can repair it and solve again.",
       "blocked": "The solver could not read this candidate graph, so there is nothing to repair by hand. You can still add it as-is.",

@@ -3524,6 +3524,7 @@
       "folds_many": "{{count}} plis",
       "folds_other": "{{count}} plis"
     },
+    "didNotLoad": "Impossible de charger Références. Vérifiez votre connexion, puis réessayez.",
     "direction": {
       "angle": "à {{deg}}°",
       "diagonalDown": "sur la diagonale descendante",
@@ -3697,6 +3698,7 @@
     "stop": "Arrêter",
     "stopping": "Annulation…",
     "targetGone": "Le pli choisi n’est plus dans le patron.",
+    "tryAgain": "Réessayer",
     "viewportControls": "Commandes d'affichage des références",
     "warning": {
       "degenerateBorderSegments": "{{n}} pli(s) de bord ont des extrémités confondues et ont été ignorés.",

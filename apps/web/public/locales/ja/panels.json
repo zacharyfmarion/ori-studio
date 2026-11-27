@@ -2926,6 +2926,7 @@
       "error": "誤差 {{value}}",
       "folds_other": "{{count}} 回の折り"
     },
+    "didNotLoad": "リファレンスを読み込めませんでした。接続を確認してから、もう一度お試しください。",
     "direction": {
       "angle": "{{deg}}° の向きで",
       "diagonalDown": "右下がりの対角線で",
@@ -3087,6 +3088,7 @@
     "stop": "停止",
     "stopping": "キャンセル中…",
     "targetGone": "選んだ折り線は展開図にもうありません。",
+    "tryAgain": "再試行",
     "viewportControls": "リファレンスのビューポート操作",
     "warning": {
       "degenerateBorderSegments": "{{n}} 本の端の線は両端が一致しているため、無視しました。",
