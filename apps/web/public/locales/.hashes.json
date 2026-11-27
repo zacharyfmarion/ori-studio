@@ -6809,6 +6809,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:worker.foldSequenceUnloaded": "7cb3fdb921fd",
     "errors:worker.foldSequenceUnloadedOffline": "7bfccf5471f2"
   },
@@ -13622,6 +13624,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:worker.foldSequenceUnloaded": "7cb3fdb921fd",
     "errors:worker.foldSequenceUnloadedOffline": "7bfccf5471f2"
   },
@@ -20437,6 +20441,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:worker.foldSequenceUnloaded": "7cb3fdb921fd",
     "errors:worker.foldSequenceUnloadedOffline": "7bfccf5471f2"
   },
@@ -26862,6 +26868,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:worker.foldSequenceUnloaded": "7cb3fdb921fd",
     "errors:worker.foldSequenceUnloadedOffline": "7bfccf5471f2"
   },
@@ -33287,6 +33295,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:worker.foldSequenceUnloaded": "7cb3fdb921fd",
     "errors:worker.foldSequenceUnloadedOffline": "7bfccf5471f2"
   },
@@ -40100,6 +40110,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:worker.foldSequenceUnloaded": "7cb3fdb921fd",
     "errors:worker.foldSequenceUnloadedOffline": "7bfccf5471f2"
   },
@@ -46913,6 +46925,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:worker.foldSequenceUnloaded": "7cb3fdb921fd",
     "errors:worker.foldSequenceUnloadedOffline": "7bfccf5471f2"
   },
@@ -53338,6 +53352,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:worker.foldSequenceUnloaded": "7cb3fdb921fd",
     "errors:worker.foldSequenceUnloadedOffline": "7bfccf5471f2"
   }

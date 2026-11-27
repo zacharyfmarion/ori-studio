@@ -26,7 +26,7 @@ import {
 } from '../../cp-workspace/sheets/sheetThumbnail';
 import type { Point } from '../../lib/geometry';
 import type { SheetPoint } from '../document/foldSequenceDocument';
-import type { FoldIsometry, FoldModelPoint, FoldScene, FoldSceneCrease } from '../engine/foldEngineWire';
+import type { FoldIsometry, FoldModelPoint, FoldScene, FoldSceneCrease, FoldSceneCreaseMark } from '../engine/foldEngineWire';
 
 /** A face: its ring on the sheet, and its map from the sheet to the scene. */
 export interface FoldFrameFace {
@@ -56,6 +56,8 @@ export interface FoldStateFrame {
   readonly rectangular: boolean;
   /** The crease pattern by Fold's edge id: what a step's diff is counted from. */
   readonly creases: ReadonlyMap<number, FoldSceneCrease>;
+  /** Partial creases in sheet coordinates, without their per-face rendering data. */
+  readonly crease_marks?: readonly Pick<FoldSceneCreaseMark, 'from' | 'to' | 'made_at'>[];
   /** The folded form as the viewer sees it: its visible edges. Null for nothing drawable. */
   readonly form: SheetThumbnail | null;
   /** The crease pattern, front-relative: the paper's edge, M, V and flat creases. */
@@ -176,6 +178,7 @@ export function foldStateFrame(scene: FoldScene): FoldStateFrame {
     area,
     rectangular: boxArea > 0 && Math.abs(area - boxArea) <= AREA_TOLERANCE * boxArea,
     creases: new Map(scene.creases.map((crease) => [crease.id, crease])),
+    crease_marks: scene.crease_marks?.map(({ from, to, made_at }) => ({ from, to, made_at })),
     form: storedThumbnail(visibleEdges(scene)),
     pattern: storedThumbnail(patternStrokes(scene)),
   };
