@@ -26,6 +26,24 @@ with these clicks and checks each against the step the file stores.
 way the app reads a project and replays every step through the real engine.
 Every step must come back `ok`: none broken, locked or changed.
 
+## Generated technique examples
+
+Eight more projects, each a few folds chosen to reach what one check needs.
+They are generated rather than folded by hand:
+`apps/web/src/fold/document/foldTechniqueFixtures.wasm.test.ts` builds each
+from its ops through the real engine and checks the committed file is
+exactly what it builds (`FOLD_FIXTURES_WRITE=1` writes them again). Every
+step's note says what it folds.
+
+- `rabbit-ear-precreased.osf`: the diagonal and four corner bisectors precreased, then the two rabbit ears along them (the fish base), for a rabbit ear made through existing precreases and its Diagram marks.
+- `squash-precreased-flap.osf`: a four-layer triangle precreased across its top flap, then that flap squashed twice from the same parent, once from each side of the precrease, for a squash that lands the same from either subdivision.
+- `kite-outside-reverse.osf`: a kite folded in half, its point outside-reversed at the even opening (where the inside kind is infeasible), then outside-reversed again near its tip.
+- `tuck-under-two-flaps.osf`: two bottom corners folded in on steep lines, then the top folded down and tucked under both corner flaps.
+- `inside-reverse-nested-pairs.osf`: a square folded in half twice into two nested pairs, an inside reverse of the corner through both, and beside it a branch with an Import CP of the crease pattern written by hand: the control the reverse is checked against.
+- `crimp-lines-meet-on-fold.osf`: a square folded in half, an inside crimp whose two lines meet on the folded edge, and its Import CP control as a branch beside it.
+- `chain-fish-base-outside-reverse.osf`: the fish base of `rabbit-ear-precreased.osf`, folded in half, a point outside-reversed: a longer sequence chaining two techniques, replayed for identical results.
+- `chain-tuck-turn-fold.osf`: the tuck of `tuck-under-two-flaps.osf`, turned over and folded in half, replayed the same way.
+
 Positions are as seen on the folded pane when the click is made. "Enter"
 commits the fold the window previews; the window's own button does the same.
 

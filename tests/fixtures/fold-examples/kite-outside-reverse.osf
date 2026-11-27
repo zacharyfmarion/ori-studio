@@ -1,0 +1,343 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "A kite folded in half, its point outside-reversed twice",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-kite-outside-reverse",
+        "title": "A kite folded in half, its point outside-reversed twice",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-kite-outside-reverse-1",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    1
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.9,
+                0.1
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:90e1e44c76b3127f",
+            "note": "Precrease the diagonal from the bottom left corner to the top right."
+          },
+          {
+            "id": "fstep-kite-outside-reverse-2",
+            "parent": "fstep-kite-outside-reverse-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    0.41421356237309515
+                  ]
+                ]
+              },
+              "moving": [
+                0.9,
+                0.05
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:168126c21a399a6b",
+            "note": "Valley fold the bottom edge onto the diagonal."
+          },
+          {
+            "id": "fstep-kite-outside-reverse-3",
+            "parent": "fstep-kite-outside-reverse-2",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.41421356237309515,
+                    1
+                  ]
+                ]
+              },
+              "moving": [
+                0.05,
+                0.9
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:3cc28b6f17a453be",
+            "note": "Valley fold the left edge onto the diagonal: the kite."
+          },
+          {
+            "id": "fstep-kite-outside-reverse-4",
+            "parent": "fstep-kite-outside-reverse-3",
+            "op": {
+              "kind": "mountain",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    1
+                  ]
+                ]
+              },
+              "moving": [
+                0.1,
+                0.9
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:319dbfae14a1dee5",
+            "note": "Mountain fold the kite in half along the diagonal, its flaps outside."
+          },
+          {
+            "id": "fstep-kite-outside-reverse-5",
+            "parent": "fstep-kite-outside-reverse-4",
+            "op": {
+              "kind": "outside-reverse",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.42921455880945036,
+                    0.019377632667442635
+                  ],
+                  [
+                    0.466343234540864,
+                    0.16470987767326217
+                  ]
+                ]
+              },
+              "moving": [
+                0.05656854249492381,
+                0.01414213562373096
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.05656854249492381,
+                  0.01414213562373096
+                ],
+                "layers": 1
+              }
+            },
+            "choices": {
+              "opening": [
+                {
+                  "upper": [
+                    [
+                      0.6666666666666666,
+                      0.1380711874576984
+                    ],
+                    [
+                      0.6666666666666667,
+                      0.47140452079103173
+                    ]
+                  ]
+                }
+              ]
+            },
+            "expect": "fs1:4d0a2e7153e0929a",
+            "note": "Outside reverse fold the point at the even opening, along a shallow line from the spine."
+          },
+          {
+            "id": "fstep-kite-outside-reverse-6",
+            "parent": "fstep-kite-outside-reverse-5",
+            "op": {
+              "kind": "outside-reverse",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.11084505501020991,
+                    0.0740518924594904
+                  ],
+                  [
+                    0.09035494498978996,
+                    0.08654810754050946
+                  ]
+                ]
+              },
+              "moving": [
+                0.010000000000000009,
+                0.006000000000000005
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.010000000000000009,
+                  0.006000000000000005
+                ],
+                "layers": 1
+              }
+            },
+            "choices": {
+              "opening": [
+                {
+                  "upper": [
+                    [
+                      0.29957912281709725,
+                      0.06551109191198631
+                    ],
+                    [
+                      0.2581577665797878,
+                      0.16551109191198635
+                    ]
+                  ]
+                }
+              ]
+            },
+            "expect": "fs1:4be039df6010668c",
+            "note": "Outside reverse fold the end of the point again, along a line across it near its tip."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-kite-outside-reverse",
+        "cursor": "fstep-kite-outside-reverse-6"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

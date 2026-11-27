@@ -1,0 +1,227 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "An inside reverse of two nested pairs of layers",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-inside-reverse-nested-pairs",
+        "title": "An inside reverse of two nested pairs of layers",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-inside-reverse-nested-pairs-1",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.5
+                  ],
+                  [
+                    1,
+                    0.5
+                  ]
+                ]
+              },
+              "moving": [
+                0.5,
+                0.9
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:c98c1a53f96922f8",
+            "note": "Valley fold the square in half, the top edge onto the bottom."
+          },
+          {
+            "id": "fstep-inside-reverse-nested-pairs-2",
+            "parent": "fstep-inside-reverse-nested-pairs-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.55,
+                    0
+                  ],
+                  [
+                    0.55,
+                    0.4
+                  ]
+                ]
+              },
+              "moving": [
+                0.9,
+                0.25
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:87e8edb8f76f84f5",
+            "note": "Valley fold the right part over along x = 0.55: two pairs of layers, one inside the other, joined along the right edge."
+          },
+          {
+            "id": "fstep-inside-reverse-nested-pairs-3",
+            "parent": "fstep-inside-reverse-nested-pairs-2",
+            "op": {
+              "kind": "inside-reverse",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.6000000000000001,
+                    0.15
+                  ],
+                  [
+                    0.7000000000000001,
+                    0.05
+                  ]
+                ]
+              },
+              "moving": [
+                0.5700000000000001,
+                0.02
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.5700000000000001,
+                  0.02
+                ],
+                "layers": 2
+              }
+            },
+            "expect": "fs1:6f8b598fa9f58bd2",
+            "note": "Inside reverse fold the bottom right corner through both pairs, along the line from (0.55, 0.2) to (0.35, 0) as folded."
+          },
+          {
+            "id": "fstep-inside-reverse-nested-pairs-4",
+            "parent": "fstep-inside-reverse-nested-pairs-2",
+            "op": {
+              "kind": "cp-jump",
+              "cpJson": "{\"file_spec\":1.1,\"file_creator\":\"Ori Studio (Fold)\",\"vertices_coords\":[[-200.0,200.0],[-60.0,200.0],[20.00000000000003,200.0],[100.0,200.0],[200.0,200.0],[200.0,0.0],[200.0,-200.0],[100.0,-200.0],[20.00000000000003,-200.0],[-60.0,-200.0],[-200.0,-200.0],[-200.0,0.0],[20.00000000000003,0.0],[20.00000000000003,120.0],[20.00000000000003,-120.00000000000001]],\"edges_vertices\":[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,0],[11,12],[12,5],[2,13],[13,12],[12,14],[14,8],[1,13],[3,13],[9,14],[7,14]],\"edges_assignment\":[\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"V\",\"V\",\"M\",\"V\",\"M\",\"V\",\"V\",\"V\",\"M\",\"M\"]}",
+              "orderJson": "{\"faces\":[[0.48333333333333334,0.06666666666666667],[0.2586601307189543,0.26437908496732027],[0.6166666666666667,0.06666666666666664],[0.7904471544715448,0.2678861788617886],[0.7904471544715448,0.7321138211382113],[0.6166666666666665,0.9333333333333332],[0.4833333333333333,0.9333333333333333],[0.2586601307189543,0.7356209150326797]],\"orders\":[[0,1,1],[2,1,1],[3,1,1],[4,1,1],[5,1,1],[6,1,1],[7,1,1],[2,0,-1],[3,0,-1],[4,0,-1],[5,0,-1],[0,6,1],[0,7,-1],[3,2,1],[4,2,1],[5,2,1],[2,6,1],[2,7,-1],[3,4,1],[3,5,-1],[3,6,1],[3,7,-1],[4,5,-1],[4,6,1],[4,7,-1],[5,6,1],[5,7,-1],[6,7,-1]]}",
+              "origin": "fold"
+            },
+            "expect": "fs1:6f8b598fa9f58bd2",
+            "note": "Control, beside the reverse: Import CP of the crease pattern the reverse makes, written by hand. Each pair reversed inside its own walls, so the pairs nest the other way round at the tip."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-inside-reverse-nested-pairs",
+        "cursor": "fstep-inside-reverse-nested-pairs-4"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}
