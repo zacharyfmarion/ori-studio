@@ -97,13 +97,14 @@ function spanOf(sheet: readonly (readonly [number, number])[] | undefined): numb
 /**
  * Repeat, the tool (plans `fold-sequence-tools`, `repeat-axis`,
  * `repeat-range-end`): the range from the first step chosen through the last
- * — by default the step on screen — added after the step on screen
- * (`repeatRange`), the verified symmetry axes of the state before it — asked of the worker once
- * per state, each a line on the sheet that repeats on the other side or
- * behind — each prepared up front, one after another (`repeatPrepared`), and
- * the one taken: the axis last chosen or drawn while its repeat lands, else
- * the first that lands. An axis whose repeat is refused is offered disabled,
- * with why; with none landing, the first is taken and its refusal said.
+ * — by default the step on screen, or the range a Repeat on screen repeated —
+ * added after the step on screen (`repeatRange`), the verified symmetry axes
+ * of the state before it — asked of the worker once per state, each a line
+ * on the sheet that repeats on the other side or behind — each prepared up
+ * front, one after another (`repeatPrepared`), and the one taken: the axis
+ * last chosen or drawn while its repeat lands, else the first that lands. An
+ * axis whose repeat is refused is offered disabled, with why; with none
+ * landing, the first is taken and its refusal said.
  *
  * It previews as every tool does, from the moment it is in hand: once the
  * range and the axis settle (`REPEAT_PREPARE_DELAY_MS`) it prepares the

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { FoldRepeatOp } from '../document/foldSequenceDocument';
 import { FOLD_PENDING_NODE, type FoldSessionNode } from '../session/foldSessionState';
 import type { FoldPathEntry } from '../sequence/foldSequencePath';
 import type { RepeatSymmetry } from './repeatGeometry';
@@ -10,6 +11,12 @@ function entry(id: string | null, pending = false): FoldPathEntry {
     ? FOLD_PENDING_NODE
     : { ...FOLD_PENDING_NODE, status: 'ok', state: { generation: 1, id: id === null ? 0 : Number(id.slice(1)) }, fingerprint: `fs1:${id}`, path: `fh1:${id}` };
   return { id, key: id ?? 'sheet', node: null, kind: id === null ? 'sheet' : 'fold', number: null, status: session.status, session, branches: null };
+}
+
+/** A landed Repeat step `id`, after `parent`, of the range `first` through `last`. */
+function repeatOf(id: string, parent: string, first: string, last: string): FoldPathEntry {
+  const op: FoldRepeatOp = { kind: 'repeat', source: { first, last, revision: `fh1:${last}` }, parentState: `fs1:${parent}`, axis: { n: [1, 0], d: 0.5 }, steps: [] };
+  return { ...entry(id), node: { id, parent, op } };
 }
 
 const vertical: RepeatSymmetry = { sheet: { n: [1, 0], d: 0.5 }, side: 'same' };
@@ -61,6 +68,34 @@ describe('repeatRange', () => {
     expect(repeatRange(folding, 3, 's1', 's1')?.ends.map((each) => each.id)).toEqual(['s1']);
     // Through the step on screen, the range waits for the step between to land.
     expect(repeatRange(folding, 3, 's1', null)).toBeNull();
+  });
+
+  it('runs, with a Repeat on screen and no start chosen, over the range it repeated', () => {
+    // s3 repeats s2 alone, s4 repeats s1 through s2: each range again, across another axis.
+    const repeated = [entry(null), entry('s1'), entry('s2'), repeatOf('s3', 's2', 's2', 's2'), repeatOf('s4', 's3', 's1', 's2')];
+    expect(repeatRange(repeated, 3, null, null)).toMatchObject({ first: { id: 's2' }, last: { id: 's2' }, end: 2, baseline: { id: 's1' }, count: 1 });
+    expect(repeatRange(repeated, 4, null, null)).toMatchObject({ first: { id: 's1' }, last: { id: 's2' }, baseline: { id: null }, count: 2 });
+    // It may still end anywhere from its first step through the step on screen, the Repeat itself among them.
+    expect(repeatRange(repeated, 4, null, null)?.ends.map((each) => each.id)).toEqual(['s1', 's2', 's3', 's4']);
+    expect(repeatRange(repeated, 4, null, 's3')).toMatchObject({ first: { id: 's1' }, last: { id: 's3' }, count: 3 });
+    // A start chosen wins, the Repeat on screen among the starts.
+    expect(repeatRange(repeated, 3, 's1', 's1')).toMatchObject({ first: { id: 's1' }, last: { id: 's1' }, count: 1 });
+    expect(repeatRange(repeated, 3, 's3', 's3')).toMatchObject({ first: { id: 's3' }, last: { id: 's3' }, count: 1 });
+    // A start off the path is none chosen.
+    expect(repeatRange(repeated, 3, 'elsewhere', null)).toMatchObject({ first: { id: 's2' }, last: { id: 's2' } });
+  });
+
+  it('runs from a Repeat on screen alone when the range it repeated cannot start now', () => {
+    // Its first step gone from the path.
+    expect(repeatRange([entry(null), entry('s1'), repeatOf('s2', 's1', 'gone', 's1')], 2, null, null)).toMatchObject({ first: { id: 's2' }, last: { id: 's2' } });
+    // Its last step gone, or before its first.
+    expect(repeatRange([entry(null), entry('s1'), entry('s2'), repeatOf('s3', 's2', 's2', 'gone')], 3, null, null)).toMatchObject({ first: { id: 's3' }, count: 1 });
+    expect(repeatRange([entry(null), entry('s1'), entry('s2'), repeatOf('s3', 's2', 's2', 's1')], 3, null, null)).toMatchObject({ first: { id: 's3' }, count: 1 });
+    // Its first step's parent still folding: no start there.
+    expect(repeatRange([entry(null), entry('s1', true), entry('s2'), repeatOf('s3', 's2', 's2', 's2')], 3, null, null)).toMatchObject({ first: { id: 's3' }, count: 1 });
+    // A step of it still folding: no end there.
+    const folding = [entry(null), entry('s1'), entry('s2', true), entry('s3'), repeatOf('s4', 's3', 's1', 's2')];
+    expect(repeatRange(folding, 4, null, null)).toMatchObject({ first: { id: 's4' }, count: 1 });
   });
 });
 

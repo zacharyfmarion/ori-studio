@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import { foldSessionDocumentSource } from '../../store/workspaceStore/foldSession';
 import { sceneLineOf } from '../canvas/foldCanvasGeometry';
-import { foldPickIndex, type FoldPick, type FoldPickIndex } from '../canvas/foldPicking';
+import { foldPickIndex, sheetToScene, type FoldPick, type FoldPickIndex } from '../canvas/foldPicking';
 import { initialFoldReaderState, withFoldCursor } from '../document/foldReaderState';
 import type { FoldModelLine, FoldOp, FoldSequenceDocument } from '../document/foldSequenceDocument';
 import { createFoldEngineCalls, type FoldEngineCalls } from '../engine/foldEngineCalls';
@@ -168,9 +168,13 @@ async function taken(remembered: FoldModelLine | null = null): Promise<readonly 
     foldTools().selectTool('repeat');
   });
   await act(async () => root.render(<Probe />));
-  act(() => foldTools().setRepeatFirst('s0'));
+  // A start chosen is the end too, until a later end is chosen.
+  act(() => {
+    foldTools().setRepeatFirst('s0');
+    foldTools().setRepeatLast('s1');
+  });
   // The sheet before the range, whose axes are asked.
-  await until(() => seen && seen.view.range?.first === 's0' && seen.view.axes !== null, 'the axes');
+  await until(() => seen && seen.view.range?.first === 's0' && seen.view.range.last === 's1' && seen.view.axes !== null, 'the axes');
   const axes = engine.axes();
   expect(axes?.length).toBeGreaterThan(1);
   return axes!;
@@ -288,8 +292,11 @@ describe('the Repeat tool', () => {
     await until(() => seen?.view.range?.first === 's1' && seen.view.axes !== null, 'the axes of the range of one');
     // Whether or not that range has the axis, it stays the one remembered.
     expect(foldTools().store.getState().repeatAxis).toEqual(chosen);
-    act(() => foldTools().setRepeatFirst('s0'));
-    await until(() => seen?.view.range?.first === 's0' && seen.view.axes !== null, 'the axes again');
+    act(() => {
+      foldTools().setRepeatFirst('s0');
+      foldTools().setRepeatLast('s1');
+    });
+    await until(() => seen?.view.range?.first === 's0' && seen.view.range.last === 's1' && seen.view.axes !== null, 'the axes again');
     expect(seen!.view.axis).toBe(other);
   });
 
@@ -445,7 +452,10 @@ describe('the Repeat tool', () => {
       foldTools().selectTool('repeat');
     });
     await act(async () => root.render(<Probe />));
-    act(() => foldTools().setRepeatFirst(bird.steps.at(-3)!.id));
+    act(() => {
+      foldTools().setRepeatFirst(bird.steps.at(-3)!.id);
+      foldTools().setRepeatLast(petal);
+    });
     await until(() => seen?.view.range?.count === 3 && seen.view.states?.length === 2 && seen.view.states.every((state) => state.kind !== 'unknown'), 'both axes prepared');
     const behind = seen!.view.axes!.findIndex((axis) => axis.side === 'behind');
     const same = 1 - behind;
@@ -484,17 +494,16 @@ describe('the Repeat tool', () => {
     await until(() => steps().length === 3, 'the first repeat added');
     const first = steps()[2]!;
     await until(() => session.store.getState().cursor === first.id && selectFoldCursorNode(session.store.getState()).status === 'ok', 'the first repeat on screen');
-    // Repeat again: the corner fold alone — the range s1 through s1, two steps before the one on screen — across
-    // the horizontal middle, to the bottom right corner.
+    // Repeat again: with a Repeat on screen, the range is the one it repeated, s0 through s1 — never the Repeat itself.
     const horizontal: FoldModelLine = { n: [0, 1], d: 0.5 };
     act(() => {
       foldTools().setRepeatAxis(horizontal);
       foldTools().selectTool('repeat');
     });
-    act(() => {
-      foldTools().setRepeatFirst('s1');
-      foldTools().setRepeatLast('s1');
-    });
+    await until(() => seen?.view.range?.first === 's0' && seen.view.range.last === 's1', 'the range the repeat on screen repeated');
+    // The corner fold alone — the range s1 through s1, two steps before the one on screen — across the horizontal
+    // middle, to the bottom right corner: the start chosen, which is the end too.
+    act(() => foldTools().setRepeatFirst('s1'));
     await until(() => seen?.view.range?.first === 's1' && seen.view.range.last === 's1' && seen.view.axes !== null, 'the range s1 through s1');
     // It may end at its first step, or at any after it through the step on screen.
     expect(seen!.view.range!.ends.map((entry) => entry.id)).toEqual(['s1', first.id]);
@@ -511,5 +520,66 @@ describe('the Repeat tool', () => {
     });
     await until(() => steps().length === 4, 'the second repeat added');
     expect(steps()[3]).toMatchObject({ parent: first.id, op: { kind: 'repeat', source: { first: 's1', last: 's1' } } });
+  });
+
+  it('on a Repeat, repeats the range it repeated across an axis that lands, and again on the Repeat that adds', async () => {
+    // The repeat-after-repeat regression: the diagonals precreased, the bottom right corner folded onto the center,
+    // and that fold repeated across the diagonal y = x, to the top left corner. On that Repeat, Repeat took the
+    // Repeat itself as its range, which it never mirrors, so the corners left could not be folded alike.
+    const project = parseNativeProjectFile(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-regressions/repeat-after-repeat.osf'), 'utf8'));
+    const blintz = readFoldSequences(project.workspace.foldSequences)[0]!.document;
+    const [, , corner, repeated] = blintz.steps.map((step) => step.id);
+    act(() => {
+      useWorkspaceStore.getState().installFoldSequences([{ document: blintz, readOnlyRaw: null }], withFoldCursor(initialFoldReaderState(blintz.id), blintz, repeated!));
+    });
+    const onScreen = async (id: string, what: string) => {
+      await until(() => session.store.getState().cursor === id && selectFoldCursorNode(session.store.getState()).status === 'ok', what);
+      return selectFoldCursorNode(session.store.getState()).state!.id;
+    };
+    await onScreen(repeated!, 'the replay');
+    const steps = () => useWorkspaceStore.getState().foldSequences[0]!.document.steps;
+    const vertical = MIDDLE;
+    const horizontal: FoldModelLine = { n: [0, 1], d: 0.5 };
+    const axisOf = (line: FoldModelLine) => seen!.view.axes!.findIndex((axis) => sameRepeatLine(axis.sheet, line));
+    const prepared = () => seen?.view.range && seen.view.states?.length === 4 && seen.view.states.every((state) => state.kind !== 'unknown');
+    // The diagonal the corner fold was just repeated across, remembered: its repeat lands nowhere now.
+    act(() => {
+      foldTools().setRepeatAxis({ n: [-Math.SQRT1_2, Math.SQRT1_2], d: 0 });
+      foldTools().selectTool('repeat');
+    });
+    await act(async () => root.render(<Probe />));
+    await until(prepared, 'every axis prepared');
+    // The corner fold alone, from the precreased square. Across a center line it folds a corner still flat onto the
+    // center; across a diagonal, a corner already folded, refused. The one taken lands: the vertical middle, listed first.
+    expect(seen!.view.range).toMatchObject({ first: corner, last: corner, count: 1 });
+    const lands = seen!.view.states!.flatMap((state, k) => (state.kind === 'lands' ? [k] : []));
+    expect(lands).toEqual([axisOf(vertical), axisOf(horizontal)].sort((a, b) => a - b));
+    expect(seen!.view.axis).toBe(axisOf(vertical));
+    const across = await until(() => seen?.view.phase.kind === 'ready' && previewed(), 'the repeat across the vertical middle');
+    expect(across.source).toMatchObject({ first: corner, last: corner });
+    expect(sameRepeatLine(across.axis, vertical)).toBe(true);
+    act(() => {
+      expect(seen!.primary()).toBe(true);
+    });
+    await until(() => steps().length === 5, 'the repeat across the vertical middle added');
+    await onScreen(steps()[4]!.id, 'that repeat on screen');
+    // On the Repeat just added: the corner fold again, and the one corner left, across the horizontal middle.
+    act(() => foldTools().selectTool('repeat'));
+    await until(() => prepared() && seen!.view.range!.first === corner, 'every axis prepared again');
+    expect(seen!.view.range).toMatchObject({ first: corner, last: corner, count: 1 });
+    expect(seen!.view.axis).toBe(axisOf(horizontal));
+    await until(() => seen?.view.phase.kind === 'ready' && previewed(), 'the repeat across the horizontal middle');
+    act(() => {
+      expect(seen!.primary()).toBe(true);
+    });
+    await until(() => steps().length === 6, 'the repeat across the horizontal middle added');
+    const last = await onScreen(steps()[5]!.id, 'the last repeat on screen');
+    // Every corner on the center.
+    const scene = engine.scene(last);
+    const center = sheetToScene(scene, [0.5, 0.5])!;
+    for (const at of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+      const folded = sheetToScene(scene, at)!;
+      expect(Math.hypot(folded.x - center.x, folded.y - center.y), `${at.join(', ')} on the center`).toBeLessThan(1e-9);
+    }
   });
 });

@@ -15,9 +15,18 @@ import { FoldSearchStopped, runFoldSearch, type FoldSearch } from '../engine/fol
 import { insideConvex, toPoint } from '../canvas/foldCanvasGeometry';
 import type { FoldEngineCompoundOp } from '../engine/foldEngineCompoundWire';
 import type { FoldScene } from '../engine/foldEngineWire';
-import { reflection, REPEAT_TOL, RepeatFailure, sheetRing, verifiedSymmetry, type RepeatSide } from './repeatGeometry';
+import {
+  flapMaterial,
+  reflection,
+  REPEAT_TOL,
+  RepeatFailure,
+  sheetRing,
+  verifiedSymmetry,
+  type RepeatMaterial,
+  type RepeatSide,
+} from './repeatGeometry';
 import { mirrorOperation, otherDirection, type RepeatMirrored } from './repeatOperation';
-import { movingWitnesses, verifyMaterial } from './repeatVerification';
+import { movingMaterial, verifyMaterial } from './repeatVerification';
 
 export interface RepeatSourceStep {
   id: string;
@@ -140,7 +149,7 @@ export function* prepareRepeatSearch(
         preparedStates.push(current);
         continue;
       }
-      let material: SheetPoint[] = movingWitnesses(before, after);
+      let material: RepeatMaterial[] = movingMaterial(before, after);
       if (
         item.op.kind === 'valley' ||
         item.op.kind === 'mountain' ||
@@ -150,9 +159,7 @@ export function* prepareRepeatSearch(
       ) {
         const analysis = engine.analyse(item.before, item.op, item.choices);
         if (analysis.status !== 'ok') throw RepeatFailure.refused(analysis.refusal);
-        material = [...new Set([...analysis.analysis.picked, ...analysis.analysis.added])].map(
-          (f) => analysis.analysis.flaps[f]!.witness,
-        );
+        material = flapMaterial(before, analysis.analysis);
       }
       // The mirror as predicted, then the ways it could turn as the viewer
       // sees it: each is folded and tested (`verifyMaterial`), and only one

@@ -3,14 +3,16 @@
  * (`components/fold/FoldToolWindow`).
  *
  * Repeat folds a range of steps — from the one chosen through another, by
- * default the step on screen — again across a symmetry axis, on the other
- * side or behind as the folded state says, after the step on screen, and
- * previews it as every tool previews its step, from the moment the range and
- * the axis are set (`useFoldRepeatTool`). Its window:
+ * default the step on screen, or the range a Repeat on screen repeated —
+ * again across a symmetry axis, on the other side or behind as the folded
+ * state says, after the step on screen, and previews it as every tool
+ * previews its step, from the moment the range and the axis are set
+ * (`useFoldRepeatTool`). Its window:
  *
  * - **Start with** and **End with**: the range's first and last steps, among
  *   the ones it can start and end with — a range ending before the step on
- *   screen is one already repeated, repeated again across another axis;
+ *   screen is one already repeated, repeated again across another axis. A
+ *   start chosen is the end too, until a later end is chosen;
  * - **Symmetry axis**: the verified symmetry axes of the range's starting
  *   state, by where they run as the folded pane shows them — the canvas
  *   draws them too, to hover and click; or one located on either pane with

@@ -11,7 +11,7 @@ import {
   topSheetPointAt,
   type FoldPickIndex,
 } from '../canvas/foldPicking';
-import { toPoint } from '../canvas/foldCanvasGeometry';
+import { insideConvex, toPoint } from '../canvas/foldCanvasGeometry';
 import { createFoldEngineCalls, type FoldEngineCalls } from '../engine/foldEngineCalls';
 import { createFoldEngineCompoundCalls, type FoldEngineCompoundCalls } from '../engine/foldEngineCompoundCalls';
 import { createFoldEnginePort } from '../engine/foldEnginePort';
@@ -24,7 +24,7 @@ import { reverseDrawnSegment, reverseSegmentSeed } from '../tools/reverse/revers
 import { buildReverseStep } from '../tools/reverse/reverseStep';
 import { lineSectionProbe } from '../tools/topFlapSeed';
 import { prepareRepeat } from '../repeat/repeatPreparation';
-import { reflection, verifiedSymmetry } from '../repeat/repeatGeometry';
+import { reflection, sheetRing, verifiedSymmetry } from '../repeat/repeatGeometry';
 import { verifyMaterial } from '../repeat/repeatVerification';
 import { createFoldReplayer, type FoldReplayProgress } from './foldReplay';
 import { drawnAgain } from './foldSequence.fixtures';
@@ -52,7 +52,9 @@ const NAMES = [
   'edge-crossing.osf',
   'ghost-precrease.osf',
   'rabbit-ear-folded-corner.osf',
+  'repeat-after-repeat.osf',
   'repeat-big-side-pleat.osf',
+  'repeat-diagonal-precrease.osf',
   'reverse-seed-segment.osf',
   'squash-covered.osf',
   'squash-drawn-hinge.osf',
@@ -408,6 +410,48 @@ describe.skipIf(!available)('the fold-regression fixtures', () => {
     if (mirrored.status !== 'ok') throw new Error(JSON.stringify(mirrored.refusal));
     expect(verifyMaterial(calls.scene(before), calls.scene(after), calls.scene(after), calls.scene(mirrored.state), reflection(saved.axis))).toBe('held');
     expect(verifiedSymmetry(calls.scene(stateOf(repeat)), saved.axis)?.side).toBe('same');
+  });
+
+  it.each([
+    ['the vertical center line', { n: [1, 0], d: 0.5 }],
+    ['the horizontal center line', { n: [0, 1], d: 0.5 }],
+  ] as const)('repeat-diagonal-precrease: the diagonal precrease repeats across %s onto the other diagonal', async (_label, axis) => {
+    const { calls, steps: all, parentOf, stateOf } = await replayed('repeat-diagonal-precrease.osf');
+    const [precrease] = all;
+    if (precrease?.op.kind !== 'precrease') throw new Error('a precrease');
+    const [before, after] = [parentOf(precrease), stateOf(precrease)];
+    // The mirror named the layer it folds by the mirror of the precreased
+    // half's middle, which lies on the other diagonal: mirrored, on the
+    // diagonal just precreased, where no one layer lies. It was refused
+    // (`witness_not_in_face`, "The spot the mirrored fold picks is not
+    // inside a layer"), though the other diagonal is its mirror.
+    const prepared = prepareRepeat(calls, {
+      parent: after,
+      axis,
+      steps: [{ id: precrease.id, op: precrease.op, choices: precrease.choices, before, after }],
+      source: { first: precrease.id, last: precrease.id, revision: 'fh1:test' },
+    });
+    if (prepared.status !== 'ready') throw new Error(JSON.stringify(prepared));
+    expect(prepared.matched).toEqual([0]);
+    const [mirrored] = prepared.op.steps;
+    if (mirrored?.op.kind !== 'precrease' || mirrored.op.seed.scope !== 'flaps') throw new Error(JSON.stringify(mirrored));
+    // It names the layer at a point inside one face of the paper it folds.
+    const faces = calls.scene(after);
+    for (const at of mirrored.op.seed.at)
+      expect(faces.faces.filter((_, i) => insideConvex(sheetRing(faces, i), toPoint(at), 1e-6)), `${at.join(', ')}`).toHaveLength(1);
+    // And it lands what the other diagonal precreased by hand lands.
+    const byHand = calls.step(
+      after,
+      {
+        kind: 'precrease',
+        line: { via: 'axiom', axiom: 2, inputs: [{ kind: 'point', at: [0, 0] }, { kind: 'point', at: [1, 1] }] },
+        direction: 'valley',
+        seed: { scope: 'all' },
+      },
+      { root: { n: [Math.SQRT1_2, Math.SQRT1_2], d: Math.SQRT1_2 } },
+    );
+    if (byHand.status !== 'ok') throw new Error(JSON.stringify(byHand.refusal));
+    expect(mirrored.expect).toBe(byHand.fingerprint);
   });
 
   it('unfold-to-after-import: unfolding to an Import CP brings back no crease from before it, and opens only the fold made since', async () => {
