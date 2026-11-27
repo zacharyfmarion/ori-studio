@@ -1,6 +1,7 @@
 import type { PaperStyle } from '../lib/paper/paperStyle';
 import type { PaperSurface } from '../lib/paper/paperStyleResolve';
 import type { ConnectedPaperScene } from './connectedScene';
+import { SpreadRefusal } from './spreadRefusal';
 export interface SpreadRaster {
   png: ArrayBuffer;
   width: number;
@@ -44,7 +45,10 @@ export function rasterConnected(
       else if (result) resolve(result);
     };
     const abort = () => finish(new DOMException('Spread capture cancelled', 'AbortError'));
-    const timer = setTimeout(() => finish(new Error('Spread raster exceeded its time budget')), 12_000);
+    const timer = setTimeout(
+      () => finish(new SpreadRefusal('time_budget', 'Spread raster exceeded its time budget')),
+      12_000
+    );
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) {
       abort();

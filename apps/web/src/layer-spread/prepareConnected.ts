@@ -1,6 +1,7 @@
 import type { OristudioCpFoldedPaperScene } from '../engine/oristudioCpTypes';
 import type { ConnectedSpreadSource } from '../cp-workspace/folded/connectedSpreadSource';
 import type { PreparedConnectedSpread } from './connectedScene';
+import { SpreadRefusal, spreadUnavailableError, type SpreadUnavailable } from './spreadRefusal';
 import { layerSpreadService, type SpreadLease } from './spreadService';
 
 export interface ConnectedLease {
@@ -49,14 +50,17 @@ function pump() {
     try {
       const worker = new Worker(new URL('./prepare.worker.ts', import.meta.url), { type: 'module' });
       task.worker = worker;
-      task.timer = setTimeout(() => finish(task, new Error('Spread preparation exceeded its time budget')), 12_000);
+      task.timer = setTimeout(
+        () => finish(task, new SpreadRefusal('time_budget', 'Spread preparation exceeded its time budget')),
+        12_000
+      );
       worker.onmessage = ({
         data,
       }: {
-        data: { kind: 'ready'; source: ConnectedSpreadSource } | { kind: 'unavailable'; message: string };
+        data: { kind: 'ready'; source: ConnectedSpreadSource } | ({ kind: 'unavailable' } & SpreadUnavailable);
       }) => {
         if (data.kind === 'ready') finish(task, null, data.source);
-        else finish(task, new Error(data.message));
+        else finish(task, spreadUnavailableError(data));
       };
       worker.onerror = () => finish(task, new Error('Spread preparation worker failed'));
       worker.postMessage({ scene: task.scene, yUp: task.yUp });

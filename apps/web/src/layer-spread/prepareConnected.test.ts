@@ -4,6 +4,7 @@ import type { ConnectedSpreadSource } from '../cp-workspace/folded/connectedSpre
 const solver = vi.hoisted(() => ({ acquire: vi.fn() }));
 vi.mock('./spreadService', () => ({ layerSpreadService: () => solver }));
 import { prepareConnected } from './prepareConnected';
+import { spreadRefusalOf } from './spreadRefusal';
 class WorkerMock {
   static all: WorkerMock[] = [];
   onmessage: ((event: { data: unknown }) => void) | null = null;
@@ -50,4 +51,32 @@ it('cancels unneeded preparation before a numerical solve and ignores late resul
   expect(worker.terminate).toHaveBeenCalledOnce();
   worker.onmessage!({ data: { kind: 'ready', source } });
   expect(solver.acquire).not.toHaveBeenCalled();
+});
+it('keeps a refusal from the preparation worker a refusal, and refuses a preparation past its time budget', async () => {
+  vi.stubGlobal('Worker', WorkerMock);
+  const failure = (promise: Promise<unknown>) => promise.then(() => null, (error: unknown) => error);
+  const large = prepareConnected({} as OristudioCpFoldedPaperScene);
+  const refused = failure(large.promise);
+  WorkerMock.all[0]!.onmessage!({
+    data: { kind: 'unavailable', message: 'Layer spread model exceeds its preparation budget', refusal: 'preparation_budget' },
+  });
+  expect(spreadRefusalOf(await refused)).toBe('preparation_budget');
+  large.release();
+
+  const unnamed = prepareConnected({} as OristudioCpFoldedPaperScene);
+  const failed = failure(unnamed.promise);
+  WorkerMock.all[1]!.onmessage!({ data: { kind: 'unavailable', message: 'Layer spread requires named material faces' } });
+  expect(spreadRefusalOf(await failed)).toBeNull();
+  unnamed.release();
+
+  vi.useFakeTimers();
+  try {
+    const slow = prepareConnected({} as OristudioCpFoldedPaperScene);
+    const timedOut = failure(slow.promise);
+    await vi.advanceTimersByTimeAsync(12_000);
+    expect(spreadRefusalOf(await timedOut)).toBe('time_budget');
+    slow.release();
+  } finally {
+    vi.useRealTimers();
+  }
 });

@@ -75,7 +75,8 @@ export function foldStatePictureUrl(
  * (`settledSpreadPicture`): a low-priority solve and an interruptible vector
  * capture, which a card scrolled away lets go of at once, and a bitmap of a
  * state too complex to clip, in the pane's pens. A spread that cannot be
- * drawn fails the card, as it always has.
+ * drawn throws why: the queue paints a state the spread refuses by design
+ * (`SpreadRefusal`) unspread, and fails the card for anything else.
  */
 export async function connectedFoldStatePictureUrl(scene: FoldScene, style: PaperStyle,
   display: FoldPaneDisplay, spread: LayerSpreadOptions, signal: AbortSignal): Promise<string | null> {

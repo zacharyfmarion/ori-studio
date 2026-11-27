@@ -3,6 +3,7 @@ import init, { solve_layer_spread } from '../generated/oristudio-layer-spread-wa
 import type { SpreadRequest, SpreadResponse } from './protocol';
 import type { SpreadSolution } from '@oristudio/layer-spread';
 import { validSolution } from './protocol';
+import { spreadUnavailable } from './spreadRefusal';
 
 const ready = init();
 self.onmessage = async ({ data }: MessageEvent<SpreadRequest>) => {
@@ -14,7 +15,7 @@ self.onmessage = async ({ data }: MessageEvent<SpreadRequest>) => {
     if (!validSolution(solution, input)) throw new Error('Invalid layer spread result');
     response = { generation, kind: 'ready', solution };
   } catch (error) {
-    response = { generation, kind: 'unavailable', message: error instanceof Error ? error.message : String(error) };
+    response = { generation, kind: 'unavailable', ...spreadUnavailable(error) };
   }
   self.postMessage(response);
 };

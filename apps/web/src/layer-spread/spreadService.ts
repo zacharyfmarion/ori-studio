@@ -1,7 +1,8 @@
 import type { SpreadInput, SpreadSolution } from '@oristudio/layer-spread';
 type Request<I> = { generation: number; input: I };
-type Response<S> = { generation: number; kind: 'ready'; solution: S } | { generation: number; kind: 'unavailable'; message: string };
+type Response<S> = { generation: number; kind: 'ready'; solution: S } | ({ generation: number; kind: 'unavailable' } & SpreadUnavailable);
 import { validSolution } from './protocol';
+import { SpreadRefusal, spreadUnavailableError, type SpreadUnavailable } from './spreadRefusal';
 
 export interface SpreadWorker<I = SpreadInput, S = SpreadSolution> {
   postMessage(request: Request<I>): void;
@@ -134,7 +135,7 @@ export class SpreadService<I = SpreadInput, S = SpreadSolution> {
       this.worker ??= this.factory();
       this.worker.onmessage = ({ data }) => {
         if (data.generation !== generation || this.active !== next) return;
-        if (data.kind === 'unavailable') this.finish(next, new Error(data.message));
+        if (data.kind === 'unavailable') this.finish(next, spreadUnavailableError(data));
         else if (!this.validate(data.solution, next.input)) this.finish(next, new Error('Invalid layer spread result'));
         else this.finish(next, null, data.solution);
       };
@@ -142,7 +143,7 @@ export class SpreadService<I = SpreadInput, S = SpreadSolution> {
         if (this.active === next) this.finish(next, new Error('Layer spread worker failed'));
       };
       this.timer = setTimeout(() => {
-        if (this.active === next) this.finish(next, new Error('Layer spread exceeded its time budget'));
+        if (this.active === next) this.finish(next, new SpreadRefusal('time_budget', 'Layer spread exceeded its time budget'));
       }, this.timeoutMs);
       this.worker.postMessage({ generation, input: next.input });
     } catch (error) {
