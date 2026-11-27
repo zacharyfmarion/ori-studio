@@ -552,7 +552,8 @@ describe('engine loss', () => {
     const pairs = runtime.engine.openPairs().catch((e: unknown) => e);
     await settle();
 
-    worker().crash();
+    // Cancelled, so the page does not report it again beside the runtime's own report.
+    expect(worker().crash()).toBe(false);
 
     await expect(commit).resolves.toEqual({
       code: 'layer_order_engine_lost',

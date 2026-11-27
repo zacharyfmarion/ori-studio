@@ -232,6 +232,22 @@ describe('a fold engine that crashed', () => {
     expect(runtime.foldSequenceClientGeneration()).toBe(0);
     expect(monitoring.reportError).not.toHaveBeenCalled();
   });
+
+  // A worker that threw is an error the browser reports again at `window`
+  // unless it is cancelled, and Sentry's global handler files it there.
+  it('keeps a worker that threw from the page: cancelled, and reported once, as the engine’s crash', async () => {
+    const runtime = await freshRuntime();
+    runtime.retainFoldSequenceClient();
+
+    const thrown = new ErrorEvent('error', { message: 'Uncaught RuntimeError: unreachable', cancelable: true });
+    expect(FakeWorker.instances[0].dispatchEvent(thrown)).toBe(false);
+
+    expect(monitoring.reportError).toHaveBeenCalledTimes(1);
+    expect(monitoring.reportError.mock.calls[0]![0]).toMatchObject({
+      name: 'FoldEngineCrash',
+      message: 'worker_error: Uncaught RuntimeError: unreachable',
+    });
+  });
 });
 
 describe('the preview channel: latest request wins', () => {

@@ -297,6 +297,7 @@ export function createLayerOrderRuntime(options: LayerOrderRuntimeOptions): Laye
       worker,
       client: wrap<LayerOrderEngine>(worker),
       // Guarded on identity, so a late event from a worker already replaced cannot drop its replacement.
+      // `drop` reports a crash itself, as a `LayerOrderEngineCrash`.
       detach: attachWorkerDiagnostics(worker, 'layer-order', (failure) => {
         // A worker that never ran is the browser failing to load it: dropped, never reported, and
         // said by its owner (the dialog's lost state, a host's toast), not by the app's error toast.
@@ -306,7 +307,7 @@ export function createLayerOrderRuntime(options: LayerOrderRuntimeOptions): Laye
           else drop('crashed', { cause: 'worker_error', message: failure.message });
         }
         return unloaded ? 'handled' : undefined;
-      }),
+      }, { reportsCrashes: true }),
       waiting: new Set(),
     };
     live = started;

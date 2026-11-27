@@ -855,9 +855,13 @@ export class InProcessLayerOrderWorker extends FakePort {
     this.inside.closed = true;
   }
 
-  /** Die as a worker does: its `error` event. */
-  crash(message = 'The worker stopped unexpectedly.'): void {
-    this.dispatchEvent(new ErrorEvent('error', { message }));
+  /**
+   * Die as a worker does: its `error` event, cancelable as a browser's is.
+   * Whether no listener cancelled it, which is when the browser would report
+   * it again in the page.
+   */
+  crash(message = 'The worker stopped unexpectedly.'): boolean {
+    return this.dispatchEvent(new ErrorEvent('error', { message, cancelable: true }));
   }
 
   /** Never run, as a worker whose script did not load (offline): a plain `error` event, not an `ErrorEvent`. */
