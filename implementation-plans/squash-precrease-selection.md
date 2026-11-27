@@ -31,7 +31,8 @@ subdivisions, both viewing sides, asymmetric targets and later squashes.
 Validation: 2,838 workspace tests and 20 focused real-WASM tests pass. All 568
 states in the 42 saved models retain their recorded canonical hashes. Browser
 selection and commit from Bird's previously failing pocket subdivision passed.
-See [batch evidence](../research/origami-me-flat-catalog/batches/squash-precreases-2026-10-14.md).
+See the private Fold corpus batch evidence
+(`squash-precreases-2026-10-14.md`, outside the repository).
 
 The CP-linked Collapse step is a separate design discussion. Preserve the
 user-edited Witch Hat file unchanged. No PR, push or schedule.

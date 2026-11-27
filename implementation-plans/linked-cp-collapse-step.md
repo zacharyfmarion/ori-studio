@@ -93,4 +93,5 @@ The original Witch Hat is preserved in models/archive/checkpoints/witch-hat-befo
 is `393e372da04d78201012f0dec2d436b61505c2f390ce608c682fe8d803fecce9`.
 No required cuts, multiple sheets, non-flat behavior, PR, push or schedule.
 
-See [implementation and validation](../research/origami-me-flat-catalog/batches/linked-cp-collapse-2026-10-14.md).
+See the private Fold corpus implementation and validation notes
+(`linked-cp-collapse-2026-10-14.md`, outside the repository).

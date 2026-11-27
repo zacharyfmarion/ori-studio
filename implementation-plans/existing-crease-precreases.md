@@ -36,4 +36,5 @@ F014 is resolved. Witch Hat is saved through source 7 / Fold step 10; source 8
 is a separate compound-authoring investigation (F031). The next confirmed tool
 improvement is F019, squash pocket selection across flat subdivisions. Full
 workspace tests passed (2,837 tests); see
-[verification report](../research/origami-me-flat-catalog/batches/existing-crease-2026-10-14.md).
+the private Fold corpus verification report
+(`existing-crease-2026-10-14.md`, outside the repository).

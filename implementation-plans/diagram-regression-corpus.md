@@ -99,7 +99,7 @@ been shown yet.
 ### Decisions (each can be overruled)
 
 1. **The harness lives in the repo; the data lives outside it.**
-   - The origami.me corpus reaches the app through a `repo` symlink. That
+   - The private Fold corpus reaches the app through a `repo` symlink. That
      tested whichever checkout the link named, with stale wasm and no
      typecheck.
    - In the repo, the harness is typechecked against the code it calls and
@@ -125,7 +125,7 @@ been shown yet.
    become a check only once there is a re-solve, because a saved shape's
    numbers can't change with the code.
 7. **Fold-linked steps join in Phase 2.** Bugs 1 and 2 are both on
-   crease-pattern links. The origami.me corpus already replays Fold landings.
+   crease-pattern links. The private Fold corpus already replays Fold landings.
 
 ### Where things live
 
@@ -147,7 +147,7 @@ The harness is a vitest suite under `apps/web/src/diagram/dataset/`.
   with the app's own default. Without a DOM, Node's `readDiagram` silently
   drops them.
 
-Privacy follows the origami.me and cpoogle corpora:
+Privacy follows the private Fold corpus and the cpoogle corpus:
 
 - Nothing the harness writes goes into the repo or a PR.
 - It never uses vitest snapshots, which write beside the test.

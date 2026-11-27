@@ -31,4 +31,4 @@ The compound operations are original Ori Studio behavior, not an upstream port. 
 - [x] Preserve or migrate existing native examples and update findings.
 - [x] Run final diff/format validation and report local testing links.
 
-Validation and handoff: [implementation report](../research/origami-me-flat-catalog/batches/direct-compound-priorities-2026-10-14.md). F030/F039 are resolved locally; new diagram authoring remains paused.
+Validation and handoff: the private Fold corpus implementation report (`direct-compound-priorities-2026-10-14.md`, outside the repository). F030/F039 are resolved locally; new diagram authoring remains paused.
