@@ -900,8 +900,7 @@
     "transparent": "Fundo transparente",
     "zipFiles_one": "{{count}} arquivo · ZIP",
     "zipFiles_many": "{{count}} arquivos · ZIP",
-    "zipFiles_other": "{{count}} arquivos · ZIP",
-    "zipUnavailable": "Não foi possível carregar o gerador de ZIP. Recarregue o Ori Studio e tente novamente."
+    "zipFiles_other": "{{count}} arquivos · ZIP"
   },
   "referencesApproximationWarning": {
     "close": "Fechar o aviso de dobras aproximadas",

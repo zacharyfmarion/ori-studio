@@ -1,15 +1,18 @@
 /**
  * Several painted pages as one ZIP, for an export of every step at once.
  *
- * `fflate` is loaded on demand: nothing else in the app writes a ZIP, so it
- * costs nothing until someone exports all the steps. The import is guarded —
- * a tab older than the deploys that carry its build forward
- * (`scripts/carry-forward-assets.mjs`) finds its chunk gone, and a bare
- * `await import()` becomes an unhandled rejection with no stack (as
- * `StartFigure` learned) — and a failed load comes back as an ordinary error
- * the dialog puts in the reader's words. It does not reload for them, as
- * `importOrReload` would: a reload closes the project they are exporting from.
+ * `fflate` is imported with this module rather than on demand. Fetched the
+ * first time someone exported every step, it saved about 4 KB (brotli) until
+ * then, and cost an export that could not work: a fetch in the middle of a
+ * session can fail with the project open, on a connection that drops or in a
+ * tab older than the deploys that carry its build forward
+ * (`scripts/carry-forward-assets.mjs`), and a browser keeps a module that
+ * failed to load as failed for the page's life. Every later press of Export
+ * failed the same way, and the only remedy was a reload, which on the web
+ * closes the project being exported (ORI-STUDIO-X). Imported here, the writer
+ * arrives with the code that calls it.
  */
+import { zipSync } from 'fflate';
 
 export interface ZipEntry {
   /** The file's name inside the archive. */
@@ -22,34 +25,8 @@ export interface ZipEntry {
   compress: boolean;
 }
 
-/** A load that failed, so the dialog can say the export could not start rather than show a raw module error. */
-export class ZipUnavailableError extends Error {
-  constructor(cause: unknown) {
-    super('The ZIP writer could not be loaded. Reload Ori Studio and try again.');
-    this.name = 'ZipUnavailableError';
-    this.cause = cause;
-  }
-}
-
-type Fflate = typeof import('fflate');
-
-/** `fflate`, or a {@link ZipUnavailableError} when its chunk cannot be fetched. */
-export async function loadFflate(
-  importer: () => Promise<Fflate> = () => import('fflate')
-): Promise<Fflate> {
-  try {
-    return await importer();
-  } catch (cause) {
-    throw new ZipUnavailableError(cause);
-  }
-}
-
 /** The entries as one archive, in the order given. */
-export async function zipPages(
-  entries: readonly ZipEntry[],
-  load: () => Promise<Fflate> = loadFflate
-): Promise<Uint8Array> {
-  const { zipSync } = await load();
+export function zipPages(entries: readonly ZipEntry[]): Uint8Array {
   const files: Record<string, [Uint8Array, { level: 0 | 6 }]> = {};
   for (const entry of entries) files[entry.name] = [entry.data, { level: entry.compress ? 6 : 0 }];
   return zipSync(files);
