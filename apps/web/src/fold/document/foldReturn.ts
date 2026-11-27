@@ -51,7 +51,8 @@ export function resolveFoldReturn<S>(
   const onPath = [sheet, ...path.map((n) => nodes.get(n.id))];
   const at = op.target === null ? 0 : path.findIndex((n) => n.id === op.target) + 1;
   const history: S[] = [];
-  for (const node of foldReturnHistory(onPath, at, (i) => path[i - 1]?.op?.kind === 'cp-jump')) {
+  // A Collapse lands as an import does — every crease of its parent, numbered anew — so it starts the history too.
+  for (const node of foldReturnHistory(onPath, at, (i) => path[i - 1]?.op?.kind === 'cp-jump' || path[i - 1]?.op?.kind === 'collapse')) {
     if (node?.state === null || node?.state === undefined) return { code: 'return_state_unavailable' };
     history.push(node.state);
   }

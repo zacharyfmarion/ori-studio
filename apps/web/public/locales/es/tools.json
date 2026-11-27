@@ -323,6 +323,29 @@
         "target": "Más de una capa admite el remetido: la más brillante es la elegida. Recórrelas o pulsa {{keys}}."
       }
     },
+    "collapse": {
+      "cannot": "Estos pliegues no se pueden colapsar así.",
+      "click": "Haz clic en un pliegue para asignarle el tipo elegido abajo.",
+      "count_one": "{{count}} pliegue asignado",
+      "count_many": "{{count}} pliegues asignados",
+      "count_other": "{{count}} pliegues asignados",
+      "enter": "Intro colapsa; Esc descarta los pliegues asignados.",
+      "failed": "No se pudo calcular el plegado. Cambia un pliegue e inténtalo de nuevo.",
+      "folds": "Queda plano.",
+      "letter": "Asignar",
+      "missing": "Un pliegue de este colapso ya no está en el papel como estaba.",
+      "missingTitle": "Falta un pliegue",
+      "mountain": "Monte",
+      "noOrder": "Ningún orden de capas encaja con estos tipos.",
+      "notFlat": "Los pliegues del punto marcado no pueden quedar planos con estos tipos.",
+      "notFlatTitle": "Estos pliegues no quedan planos",
+      "open": "Abierto",
+      "orders_one": "Queda plano.",
+      "orders_many": "Queda plano, {{count}} órdenes de capas.",
+      "orders_other": "Queda plano, {{count}} órdenes de capas.",
+      "valley": "Valle",
+      "working": "Calculando el plegado…"
+    },
     "crimp": {
       "bothFit": "Aquí caben los dos tipos de crimp: elige hacia dónde va la punta.",
       "firstLine": "Primera línea",
@@ -923,6 +946,7 @@
     "tool": {
       "adjustOrderHelp": "Cambiar qué capas quedan delante, sin ningún pliegue nuevo.",
       "closedSinkHelp": "Empujar el extremo de una punta cerrada dentro de un bolsillo, con sus capas juntas.",
+      "collapseHelp": "Pliega el modelo por los pliegues que ya tiene: asigna a cada uno valle, monte o abierto.",
       "crimpHelp": "Plegar una solapa hacia dentro por una línea y de vuelta hacia fuera por una segunda, de modo que su extremo gira.",
       "divideLine": "Dividir línea",
       "divideLineHelp": "Marcar puntos que dividen un borde o un pliegue en partes iguales.",

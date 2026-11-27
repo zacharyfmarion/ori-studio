@@ -33,6 +33,8 @@ export interface FoldInstructionLine {
   a: Point;
   b: Point;
   letter: FoldLetter;
+  /** A crease to be left open (flat), as Collapse sets one: Edit's auxiliary line, at the instruction's width. */
+  open?: true;
 }
 
 export interface FoldCreasePatternLines {

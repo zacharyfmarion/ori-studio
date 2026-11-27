@@ -323,6 +323,29 @@
         "target": "Plus d’une couche peut recevoir le rabat : la plus claire est celle retenue. Parcourez-les, ou appuyez sur {{keys}}."
       }
     },
+    "collapse": {
+      "cannot": "Ces plis ne peuvent pas être mis en forme ainsi.",
+      "click": "Cliquez sur un pli pour lui donner le type choisi ci-dessous.",
+      "count_one": "{{count}} pli défini",
+      "count_many": "{{count}} plis définis",
+      "count_other": "{{count}} plis définis",
+      "enter": "Entrée met en forme ; Échap abandonne les plis définis.",
+      "failed": "Le pliage n’a pas pu être calculé. Changez un pli et réessayez.",
+      "folds": "Se plie à plat.",
+      "letter": "Définir",
+      "missing": "Un pli de cette mise en forme n’est plus sur le papier tel qu’il était.",
+      "missingTitle": "Un pli manque",
+      "mountain": "Montagne",
+      "noOrder": "Aucun ordre des couches ne convient à ces types.",
+      "notFlat": "Les plis au point marqué ne peuvent pas se plier à plat avec ces types.",
+      "notFlatTitle": "Ces plis ne se plient pas à plat",
+      "open": "Ouvert",
+      "orders_one": "Se plie à plat.",
+      "orders_many": "Se plie à plat, {{count}} ordres des couches.",
+      "orders_other": "Se plie à plat, {{count}} ordres des couches.",
+      "valley": "Vallée",
+      "working": "Calcul du pliage…"
+    },
     "crimp": {
       "bothFit": "Les deux types de crimp conviennent ici : choisissez de quel côté va la pointe.",
       "firstLine": "Première ligne",
@@ -923,6 +946,7 @@
     "tool": {
       "adjustOrderHelp": "Changer les couches qui se trouvent devant, sans nouveau pli.",
       "closedSinkHelp": "Enfoncer l’extrémité d’une pointe fermée dans une poche, ses couches restant ensemble.",
+      "collapseHelp": "Pliez le modèle selon les plis qu’il a déjà : donnez à chacun vallée, montagne ou ouvert.",
       "crimpHelp": "Plier un rabat vers l’intérieur le long d’une ligne et de nouveau vers l’extérieur le long d’une seconde, pour que son extrémité tourne.",
       "divideLine": "Diviser une ligne",
       "divideLineHelp": "Marquer des points qui divisent un bord ou un pli en parties égales.",

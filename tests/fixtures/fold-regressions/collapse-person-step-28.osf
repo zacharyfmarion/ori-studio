@@ -1,0 +1,1316 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-26T15:41:48.078Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-26T15:41:48.078Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Untitled CP",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-cute-origami-person",
+        "title": "Cute origami person (origami.guide), steps 1-33",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "back"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "defaultSpread": "off",
+        "steps": [
+          {
+            "id": "fstep-person-01",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 0.7071067811865475
+              }
+            },
+            "expect": "fs1:9be09526f9e51eeb",
+            "note": "Fold the bottom right corner to the top left corner, and unfold"
+          },
+          {
+            "id": "fstep-person-02",
+            "parent": "fstep-person-01",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": 0
+              }
+            },
+            "expect": "fs1:234920903f12f877",
+            "note": "Fold the bottom left corner to the top right corner, and unfold"
+          },
+          {
+            "id": "fstep-person-03",
+            "parent": "fstep-person-02",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0,
+                  1
+                ],
+                "d": 0.5
+              }
+            },
+            "expect": "fs1:3aebec8d58472048",
+            "note": "Fold the bottom edge to the top edge, and unfold"
+          },
+          {
+            "id": "fstep-person-04",
+            "parent": "fstep-person-03",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0.5
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  1,
+                  0
+                ],
+                "d": 0.5
+              }
+            },
+            "expect": "fs1:914b83500fed279f",
+            "note": "Fold the right edge to the left edge, and unfold"
+          },
+          {
+            "id": "fstep-person-05",
+            "parent": "fstep-person-04",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0,
+                  1
+                ],
+                "d": 0.25
+              }
+            },
+            "expect": "fs1:68ad05c18108726a",
+            "note": "Fold the bottom edge to the centre crease, and unfold"
+          },
+          {
+            "id": "fstep-person-06",
+            "parent": "fstep-person-05",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.25
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0,
+                  1
+                ],
+                "d": 0.125
+              }
+            },
+            "expect": "fs1:abf6ab4271162edb",
+            "note": "Fold the bottom edge up to the crease you just made"
+          },
+          {
+            "id": "fstep-person-07",
+            "parent": "fstep-person-06",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.25
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0,
+                  1
+                ],
+                "d": 0.625
+              }
+            },
+            "expect": "fs1:e2528261d2439100",
+            "note": "Fold the top edge down to the top of that flap, and unfold"
+          },
+          {
+            "id": "fstep-person-08",
+            "parent": "fstep-person-07",
+            "op": {
+              "kind": "unfold",
+              "crease": [
+                0.7,
+                0.125
+              ],
+              "direction": "valley",
+              "moving": [
+                0.7,
+                0.06
+              ],
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.7,
+                    0.06
+                  ]
+                ]
+              }
+            },
+            "expect": "fs1:f143ca7f87dad148",
+            "note": "Unfold the bottom strip"
+          },
+          {
+            "id": "fstep-person-09",
+            "parent": "fstep-person-08",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 1.0606601717798212
+              }
+            },
+            "expect": "fs1:14ec07b0ce1c54e3",
+            "note": "Fold the top left corner down to the centre"
+          },
+          {
+            "id": "fstep-person-10",
+            "parent": "fstep-person-09",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": -0.35355339059327373
+              }
+            },
+            "expect": "fs1:9e8359393b5e9582",
+            "note": "Fold the top right corner down to the centre"
+          },
+          {
+            "id": "fstep-person-11",
+            "parent": "fstep-person-10",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0.25
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.25
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  1,
+                  0
+                ],
+                "d": 0.75
+              }
+            },
+            "expect": "fs1:10baf353b96c2cf0",
+            "note": "Fold the left edge to the centre, and unfold"
+          },
+          {
+            "id": "fstep-person-12",
+            "parent": "fstep-person-11",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0.25
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.25
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  1,
+                  0
+                ],
+                "d": 0.25
+              }
+            },
+            "expect": "fs1:69b82aa44f5c58b1",
+            "note": "Fold the right edge to the centre, and unfold"
+          },
+          {
+            "id": "fstep-person-13",
+            "parent": "fstep-person-12",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0.25
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.75,
+                      0.25
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  1,
+                  0
+                ],
+                "d": 0.375
+              }
+            },
+            "expect": "fs1:053f628d5b81a3ca",
+            "note": "Fold the right edge over to the left quarter crease"
+          },
+          {
+            "id": "fstep-person-14",
+            "parent": "fstep-person-13",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.48,
+                    0.02
+                  ],
+                  [
+                    0.4,
+                    0.1
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.4,
+                0.01
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:fb1d4e3690f09ef5",
+            "note": "Fold the lower right corner up, and unfold"
+          },
+          {
+            "id": "fstep-person-15",
+            "parent": "fstep-person-14",
+            "op": {
+              "kind": "unfold",
+              "crease": [
+                0.375,
+                0.3
+              ],
+              "direction": "valley",
+              "moving": [
+                0.19999999999999996,
+                0.3
+              ],
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.19999999999999996,
+                    0.3
+                  ]
+                ]
+              }
+            },
+            "expect": "fs1:f4c4a9116b57f6c4",
+            "note": "Unfold the right side"
+          },
+          {
+            "id": "fstep-person-16",
+            "parent": "fstep-person-15",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0.25
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.25,
+                      0.25
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  1,
+                  0
+                ],
+                "d": 0.625
+              }
+            },
+            "expect": "fs1:7c10143eeeb5126f",
+            "note": "Fold the left edge over to the right quarter crease"
+          },
+          {
+            "id": "fstep-person-17",
+            "parent": "fstep-person-16",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.52,
+                    0.02
+                  ],
+                  [
+                    0.6,
+                    0.1
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.6,
+                0.01
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:461b5b6c6c656375",
+            "note": "Fold the lower left corner up, and unfold"
+          },
+          {
+            "id": "fstep-person-18",
+            "parent": "fstep-person-17",
+            "op": {
+              "kind": "unfold",
+              "crease": [
+                0.625,
+                0.3
+              ],
+              "direction": "valley",
+              "moving": [
+                0.8,
+                0.3
+              ],
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.8,
+                    0.3
+                  ]
+                ]
+              }
+            },
+            "expect": "fs1:840f24a691669b87",
+            "note": "Unfold the left side"
+          },
+          {
+            "id": "fstep-person-19",
+            "parent": "fstep-person-18",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.625,
+                      0.375
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865476,
+                  -0.7071067811865476
+                ],
+                "d": 0.4419417382415922
+              }
+            },
+            "expect": "fs1:166af0bb14b67c62",
+            "note": "Fold the lower left corner up"
+          },
+          {
+            "id": "fstep-person-20",
+            "parent": "fstep-person-19",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.375,
+                      0.375
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865476,
+                  0.7071067811865476
+                ],
+                "d": 0.26516504294495535
+              }
+            },
+            "expect": "fs1:0e791c7e2d69494d",
+            "note": "Fold the lower right corner up"
+          },
+          {
+            "id": "fstep-person-21",
+            "parent": "fstep-person-20",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.25
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0,
+                  1
+                ],
+                "d": 0.125
+              }
+            },
+            "expect": "fs1:0ce09cbeaf1fa63d",
+            "note": "Fold the bottom edge up to the crease"
+          },
+          {
+            "id": "fstep-person-22",
+            "parent": "fstep-person-21",
+            "op": {
+              "kind": "swivel",
+              "via": "valley-mountain",
+              "valley": {
+                "line": {
+                  "via": "crease",
+                  "at": [
+                    0.4,
+                    0.1
+                  ]
+                }
+              },
+              "mountain": {
+                "line": {
+                  "via": "crease",
+                  "at": [
+                    0.35,
+                    0.1
+                  ]
+                }
+              }
+            },
+            "choices": {
+              "completion": {
+                "faces": [
+                  [
+                    0.9583333333333334,
+                    0.08333333333333334
+                  ],
+                  [
+                    0.041666666666666664,
+                    0.2916666666666667
+                  ],
+                  [
+                    0.13690476190476192,
+                    0.3869047619047619
+                  ],
+                  [
+                    0.8472222222222222,
+                    0.05555555555555555
+                  ],
+                  [
+                    0.9027777777777778,
+                    0.8055555555555556
+                  ],
+                  [
+                    0.04166666666666667,
+                    0.5833333333333334
+                  ],
+                  [
+                    0.1527777777777778,
+                    0.5555555555555556
+                  ],
+                  [
+                    0.9583333333333335,
+                    0.9166666666666666
+                  ],
+                  [
+                    0.09722222222222222,
+                    0.6944444444444444
+                  ],
+                  [
+                    0.75,
+                    0.9444444444444444
+                  ],
+                  [
+                    0.20833333333333334,
+                    0.6666666666666666
+                  ]
+                ],
+                "orders": [
+                  [
+                    0,
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    2,
+                    -1
+                  ],
+                  [
+                    3,
+                    1,
+                    1
+                  ],
+                  [
+                    3,
+                    2,
+                    -1
+                  ],
+                  [
+                    4,
+                    5,
+                    1
+                  ],
+                  [
+                    4,
+                    6,
+                    -1
+                  ],
+                  [
+                    7,
+                    8,
+                    1
+                  ],
+                  [
+                    7,
+                    6,
+                    -1
+                  ],
+                  [
+                    9,
+                    8,
+                    1
+                  ],
+                  [
+                    9,
+                    6,
+                    -1
+                  ],
+                  [
+                    9,
+                    10,
+                    -1
+                  ]
+                ]
+              }
+            },
+            "expect": "fs1:e6b0a40a000e9f6d",
+            "note": "Pull out the corner and flatten the right side over to the left, forming a foot"
+          },
+          {
+            "id": "fstep-person-23",
+            "parent": "fstep-person-22",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "crease",
+                "at": [
+                  0.25,
+                  0.3
+                ]
+              },
+              "moving": [
+                0.15000000000000002,
+                0.3
+              ],
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.15000000000000002,
+                    0.3
+                  ]
+                ]
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:da0e21a6b27d3b2b",
+            "note": "Fold the flap back to the right along the centre line"
+          },
+          {
+            "id": "fstep-person-24",
+            "parent": "fstep-person-23",
+            "op": {
+              "kind": "swivel",
+              "via": "valley-mountain",
+              "valley": {
+                "line": {
+                  "via": "crease",
+                  "at": [
+                    0.6,
+                    0.1
+                  ]
+                }
+              },
+              "mountain": {
+                "line": {
+                  "via": "crease",
+                  "at": [
+                    0.65,
+                    0.1
+                  ]
+                }
+              }
+            },
+            "expect": "fs1:ecfd1849630a29ea",
+            "note": "Repeat on the left: pull out the corner and flatten the left side over, forming a foot"
+          },
+          {
+            "id": "fstep-person-25",
+            "parent": "fstep-person-24",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "crease",
+                "at": [
+                  0.75,
+                  0.3
+                ]
+              },
+              "moving": [
+                0.85,
+                0.3
+              ],
+              "seed": {
+                "scope": "flaps",
+                "at": [
+                  [
+                    0.85,
+                    0.3
+                  ]
+                ]
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:95fb1525d3fc8802",
+            "note": "Fold the flap back to the left along the centre line"
+          },
+          {
+            "id": "fstep-person-26",
+            "parent": "fstep-person-25",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.55,
+                    0.55
+                  ],
+                  [
+                    0.44999999999999996,
+                    0.45
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.52,
+                0.9
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:917a11118d914de8",
+            "note": "Fold the top diagonally down to the left, and unfold"
+          },
+          {
+            "id": "fstep-person-27",
+            "parent": "fstep-person-26",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.55,
+                    0.45
+                  ],
+                  [
+                    0.44999999999999996,
+                    0.55
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.48,
+                0.9
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:ff670a4c17379d19",
+            "note": "Fold the top diagonally down to the right, and unfold",
+            "spread": {
+              "kind": "affine",
+              "amount": 0.03,
+              "keep": "top",
+              "skew": 0.2,
+              "axisDeg": 90
+            }
+          },
+          {
+            "id": "fstep-1ddbe9df-e7cc-4ed7-b084-0f937b407df1",
+            "parent": "fstep-person-27",
+            "op": {
+              "kind": "cp-jump",
+              "cpJson": "{\"file_spec\":1.1,\"file_creator\":\"Ori Studio (Fold)\",\"vertices_coords\":[[200.0,-200.0],[150.0,-200.0],[0.0,-200.0],[-150.0,-200.0],[0.0,0.0],[0.0,100.0],[150.0,150.0],[200.0,200.0],[-200.0,200.0],[-150.0,150.0],[200.0,150.0],[200.0,100.0],[-200.0,100.0],[-200.0,150.0],[0.0,150.0],[0.0,200.0],[-50.0,-50.0],[50.0,-50.0],[200.0,0.0],[200.0,-50.0],[-200.0,-50.0],[-200.0,0.0],[0.0,-50.0],[150.0,-50.0],[100.0,-100.0],[-150.0,-50.0],[-100.0,-100.0],[100.0,200.0],[100.0,150.0],[200.0,-100.00000000000006],[100.0,-50.0],[100.0,100.0],[100.0,0.0],[-100.0,200.0],[-100.0,150.0],[-200.0,-100.0],[-100.0,-50.0],[-100.0,0.0],[-100.0,100.0],[-50.0,50.0],[-50.0,100.0],[-200.0,-200.0],[-150.00000000000003,-150.0],[-50.0,-150.0],[-50.0,200.0],[-50.0,150.0],[-200.0,-150.00000000000006],[-50.0,0.0],[50.0,50.0],[50.0,100.0],[150.00000000000006,-150.00000000000006],[50.0,-150.0],[50.0,200.0],[50.0,150.0],[200.0,-150.0000000000001],[50.0,0.0],[200.0,50.0],[150.0,100.0],[125.0,125.0],[75.0,175.0],[-200.0,50.0],[-150.0,100.0],[-125.0,125.0],[-75.0,175.0],[-174.99999999999997,75.0],[174.99999999999994,75.0]],\"edges_vertices\":[[0,1],[2,3],[4,5],[6,7],[8,9],[7,10],[10,11],[12,13],[13,8],[5,14],[14,15],[13,9],[6,10],[16,4],[4,17],[18,19],[20,21],[2,22],[22,4],[19,23],[23,24],[18,23],[25,20],[26,25],[25,21],[27,7],[28,6],[19,29],[23,30],[30,17],[31,32],[27,28],[28,31],[8,33],[9,34],[35,20],[16,36],[36,25],[37,38],[34,33],[38,34],[38,39],[39,4],[38,40],[40,5],[41,42],[2,43],[43,26],[33,44],[44,15],[34,45],[45,14],[41,46],[46,35],[39,40],[47,39],[45,44],[40,45],[46,42],[16,47],[45,15],[4,48],[48,31],[5,49],[49,31],[50,0],[24,51],[51,2],[15,52],[52,27],[14,53],[53,28],[29,54],[54,0],[49,48],[48,55],[52,53],[53,49],[50,54],[55,17],[15,53],[11,56],[56,18],[31,57],[57,11],[31,58],[58,6],[53,59],[59,27],[58,57],[28,58],[52,59],[59,28],[21,60],[60,12],[12,61],[61,38],[9,62],[62,38],[33,63],[63,45],[61,62],[62,34],[63,44],[34,63],[60,64],[64,61],[29,23],[23,32],[39,37],[57,65],[65,56],[25,35],[37,25],[32,48],[64,12],[37,64],[32,18],[21,37],[11,65],[65,32],[42,43],[43,16],[51,50],[17,51],[42,3],[3,41],[50,1],[1,2],[50,29],[35,42],[42,26],[24,50],[22,16],[17,22],[17,24],[26,16],[37,47],[47,4],[4,55],[55,32],[30,24],[32,30],[26,36],[36,37],[35,26],[24,29],[32,17],[16,37]],\"edges_assignment\":[\"B\",\"B\",\"F\",\"F\",\"F\",\"B\",\"B\",\"B\",\"B\",\"F\",\"F\",\"M\",\"M\",\"F\",\"F\",\"B\",\"B\",\"F\",\"F\",\"F\",\"M\",\"M\",\"F\",\"M\",\"M\",\"B\",\"M\",\"B\",\"F\",\"F\",\"V\",\"F\",\"V\",\"B\",\"M\",\"B\",\"F\",\"F\",\"V\",\"F\",\"V\",\"F\",\"F\",\"F\",\"F\",\"F\",\"M\",\"M\",\"B\",\"B\",\"F\",\"M\",\"B\",\"B\",\"M\",\"M\",\"F\",\"M\",\"V\",\"M\",\"V\",\"F\",\"F\",\"F\",\"F\",\"F\",\"M\",\"M\",\"B\",\"B\",\"M\",\"F\",\"B\",\"B\",\"M\",\"M\",\"F\",\"M\",\"V\",\"M\",\"V\",\"B\",\"B\",\"F\",\"F\",\"F\",\"F\",\"M\",\"V\",\"M\",\"M\",\"M\",\"M\",\"B\",\"B\",\"F\",\"F\",\"F\",\"F\",\"V\",\"M\",\"M\",\"M\",\"M\",\"M\",\"M\",\"M\",\"F\",\"F\",\"F\",\"M\",\"M\",\"F\",\"F\",\"F\",\"V\",\"M\",\"V\",\"V\",\"V\",\"M\",\"F\",\"F\",\"F\",\"F\",\"V\",\"B\",\"V\",\"B\",\"M\",\"M\",\"V\",\"V\",\"M\",\"M\",\"M\",\"M\",\"F\",\"F\",\"F\",\"F\",\"F\",\"F\",\"F\",\"F\",\"F\",\"F\",\"V\",\"V\"]}",
+              "orderJson": "{\"faces\":[[0.9375000000000001,0.9375000000000002],[0.7261904761904762,0.9107142857142857],[0.5,0.7738095238095238],[0.6847222222222222,0.32916666666666666],[0.9027777777777778,0.7083333333333335],[0.7916666666666666,0.5972222222222222],[0.9583333333333334,0.8333333333333336],[0.5,0.375],[0.8587962962962963,0.0625],[0.9077380952380952,0.19345238095238093],[0.8125,0.31250000000000006],[0.9077380952380952,0.431547619047619],[0.27380952380952384,0.9107142857142857],[0.062499999999999986,0.9375],[0.09226190476190478,0.19345238095238096],[0.1412037037037037,0.0625],[0.31527777777777777,0.32916666666666666],[0.18750000000000003,0.3125],[0.0922619047619048,0.431547619047619],[0.20833333333333334,0.5972222222222222],[0.09722222222222221,0.7083333333333334],[0.041666666666666616,0.8333333333333333],[0.6875,0.020833333333333332],[0.6041666666666666,0.04861111111111111],[0.5,0.08333333333333333],[0.9791666666666666,0.3124999999999999],[0.020833333333333353,0.3125],[0.3958333333333333,0.04861111111111111],[0.3125,0.020833333333333332]],\"orders\":[[0,1,1],[0,2,-1],[0,3,-1],[0,4,-1],[0,5,1],[0,6,1],[7,0,-1],[1,2,-1],[8,1,1],[9,1,1],[10,1,1],[3,1,1],[4,1,1],[5,1,1],[11,1,1],[6,1,1],[7,1,1],[12,2,-1],[13,2,-1],[8,2,-1],[9,2,-1],[14,2,-1],[15,2,-1],[16,2,-1],[17,2,-1],[10,2,-1],[3,2,-1],[4,2,-1],[5,2,-1],[11,2,-1],[6,2,-1],[18,2,-1],[19,2,-1],[20,2,-1],[21,2,-1],[7,2,-1],[13,12,1],[14,12,1],[15,12,1],[16,12,1],[17,12,1],[18,12,1],[19,12,1],[20,12,1],[21,12,1],[7,12,1],[13,16,-1],[13,19,1],[13,20,-1],[13,21,1],[7,13,-1],[8,9,-1],[8,10,1],[8,3,-1],[8,4,-1],[8,5,1],[8,11,-1],[22,8,1],[23,8,1],[24,8,1],[7,8,1],[9,25,1],[10,9,-1],[3,9,-1],[9,4,-1],[9,5,1],[9,11,-1],[23,9,-1],[24,9,-1],[7,9,-1],[10,25,1],[25,11,-1],[14,26,1],[15,14,-1],[16,14,-1],[17,14,-1],[14,18,-1],[14,19,1],[14,20,-1],[27,14,-1],[24,14,-1],[7,14,-1],[17,26,1],[26,18,-1],[15,16,-1],[15,17,1],[15,18,-1],[15,19,1],[15,20,-1],[28,15,1],[27,15,1],[24,15,1],[7,15,1],[16,17,1],[16,18,-1],[16,19,1],[16,20,-1],[21,16,-1],[28,16,-1],[27,16,-1],[24,16,-1],[7,16,-1],[17,18,-1],[17,19,1],[17,20,-1],[27,17,1],[24,17,1],[7,17,1],[3,10,1],[10,4,-1],[10,5,1],[10,11,-1],[23,10,1],[24,10,1],[7,10,1],[3,4,-1],[3,5,1],[3,11,-1],[6,3,-1],[22,3,-1],[23,3,-1],[24,3,-1],[7,3,-1],[5,4,-1],[11,4,-1],[6,4,-1],[7,4,-1],[11,5,1],[6,5,1],[7,5,1],[7,11,-1],[7,6,1],[18,19,1],[18,20,-1],[7,18,-1],[19,20,-1],[21,19,1],[7,19,1],[21,20,-1],[7,20,-1],[7,21,1],[23,22,-1],[27,28,-1],[24,27,1],[7,27,1],[24,23,1],[7,23,1],[7,24,-1]]}",
+              "origin": "project_cp",
+              "source": {
+                "documentId": "crease-pattern",
+                "revision": "rc1:71bb3e3acfd43e19",
+                "region": {
+                  "boundary": [
+                    [
+                      {
+                        "x": 200,
+                        "y": 700
+                      },
+                      {
+                        "x": -200,
+                        "y": 700
+                      },
+                      {
+                        "x": -200,
+                        "y": 300
+                      },
+                      {
+                        "x": 200,
+                        "y": 300
+                      }
+                    ]
+                  ],
+                  "bounds": {
+                    "minX": -200,
+                    "minY": 300,
+                    "maxX": 200,
+                    "maxY": 700
+                  },
+                  "segmentIdHint": 1
+                }
+              }
+            },
+            "expect": "fs1:1be1b1548fbaf23f",
+            "spread": "off"
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-cute-origami-person",
+        "cursor": "fstep-1ddbe9df-e7cc-4ed7-b084-0f937b407df1",
+        "activeChild": {
+          "": "fstep-person-01",
+          "fstep-person-01": "fstep-person-02",
+          "fstep-person-02": "fstep-person-03",
+          "fstep-person-03": "fstep-person-04",
+          "fstep-person-04": "fstep-person-05",
+          "fstep-person-05": "fstep-person-06",
+          "fstep-person-06": "fstep-person-07",
+          "fstep-person-07": "fstep-person-08",
+          "fstep-person-08": "fstep-person-09",
+          "fstep-person-09": "fstep-person-10",
+          "fstep-person-10": "fstep-person-11",
+          "fstep-person-11": "fstep-person-12",
+          "fstep-person-12": "fstep-person-13",
+          "fstep-person-13": "fstep-person-14",
+          "fstep-person-14": "fstep-person-15",
+          "fstep-person-15": "fstep-person-16",
+          "fstep-person-16": "fstep-person-17",
+          "fstep-person-17": "fstep-person-18",
+          "fstep-person-18": "fstep-person-19",
+          "fstep-person-19": "fstep-person-20",
+          "fstep-person-20": "fstep-person-21",
+          "fstep-person-21": "fstep-person-22",
+          "fstep-person-22": "fstep-person-23",
+          "fstep-person-23": "fstep-person-24",
+          "fstep-person-24": "fstep-person-25",
+          "fstep-person-25": "fstep-person-26",
+          "fstep-person-26": "fstep-person-27",
+          "fstep-person-27": "fstep-1ddbe9df-e7cc-4ed7-b084-0f937b407df1"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

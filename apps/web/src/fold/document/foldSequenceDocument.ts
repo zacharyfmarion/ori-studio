@@ -340,6 +340,39 @@ export interface FoldAdjustOrderOp {
   orderJson: string;
 }
 
+/** What a Collapse makes of a crease: folded with a letter, or open (flat, remembering the letter it had). */
+export type FoldCollapseTo = 'mountain' | 'valley' | 'open';
+
+export const FOLD_COLLAPSE_TO: readonly FoldCollapseTo[] = ['valley', 'mountain', 'open'];
+
+/** One stretch of the parent's creases, by its sheet ends, and what it becomes. */
+export interface FoldCollapseCrease {
+  a: SheetPoint;
+  b: SheetPoint;
+  to: FoldCollapseTo;
+}
+
+/**
+ * Collapse (`implementation-plans/fold-collapse-existing-creases.md`): the
+ * parent collapsed along creases it already has. Only what changes is
+ * stored — each stretch of the parent's creases by its sheet ends (never an
+ * id, which renumbers), and what it becomes — with the order chosen, stored
+ * as the order itself (`orderJson`, every pair by witnesses, as
+ * `adjust-order` stores one). Every replay derives the crease pattern from
+ * the parent again, so an earlier step that changes is followed.
+ *
+ * Not the linked Import CP from Edit's document (`fold/collapse`), which is
+ * a `cp-jump` with a `source` and a snapshot of its pattern.
+ *
+ * A build from before it reads the kind as unknown and keeps the step
+ * locked, verbatim (`FoldLockedStep`), so it is never misread.
+ */
+export interface FoldCollapseOp {
+  kind: 'collapse';
+  creases: readonly FoldCollapseCrease[];
+  orderJson: string;
+}
+
 // --- Compound folds (plan D4), one block per family -------------------------
 
 /**
@@ -792,6 +825,7 @@ export type FoldOp =
   | FoldRotateOp
   | FoldCpJumpOp
   | FoldAdjustOrderOp
+  | FoldCollapseOp
   | FoldReverseOp
   | FoldCrimpOp
   | FoldTuckOp
@@ -813,6 +847,7 @@ export const FOLD_OP_KINDS: readonly FoldOpKind[] = [
   'rotate',
   'cp-jump',
   'adjust-order',
+  'collapse',
   'inside-reverse',
   'outside-reverse',
   'crimp',

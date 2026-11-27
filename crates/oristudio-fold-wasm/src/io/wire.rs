@@ -12,7 +12,8 @@ use oristudio_cp::session::FoldSource;
 use oristudio_fold::complete::{BudgetLimit, CheckLimits, CompletionLimits, ConstraintFamily};
 use oristudio_fold::steer::ImportedLook;
 use oristudio_fold::{
-    Broken, CheckStage, ChoiceCount, FaceId, ImportRefusal, ImportSummary, SheetShape, StartSide,
+    Broken, CheckStage, ChoiceCount, CollapseError, CollapseRefusal, FaceId, ImportRefusal,
+    ImportSummary, SheetShape, StartSide,
 };
 use serde::ser::Error as _;
 use serde::{Deserialize, Serialize, Serializer};
@@ -118,6 +119,21 @@ fn is_unturned(turn_deg: &f64) -> bool {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdjustOrder {
+    /// The order, as a [`oristudio_fold::WitnessOrder`]: every pair, by
+    /// witnesses, as a `cp-jump`'s `orderJson` stores one.
+    pub order_json: String,
+}
+
+/// Collapse's step (`FoldCollapseOp` without its `kind`,
+/// `implementation-plans/fold-collapse-existing-creases.md`): the parent's
+/// own crease pattern with these stretches changed, landed with this order
+/// ([`crate::io::collapse`]).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Collapse {
+    /// What changes: each stretch of the parent's creases by its sheet ends,
+    /// and what it becomes.
+    pub creases: Vec<oristudio_fold::CollapseCrease>,
     /// The order, as a [`oristudio_fold::WitnessOrder`]: every pair, by
     /// witnesses, as a `cp-jump`'s `orderJson` stores one.
     pub order_json: String,
@@ -331,6 +347,9 @@ impl AdoptedPaper {
 pub enum JumpOp {
     #[serde(rename = "cp-jump")]
     CpJump(CpJump),
+    /// A held Collapse's: `{ kind: 'collapse', creases, orderJson }`.
+    #[serde(rename = "collapse")]
+    Collapse(Collapse),
 }
 
 /// An `adjust-order` op as the document stores it:
@@ -349,6 +368,13 @@ pub struct Reordered {
     pub state: u32,
     pub summary: Summary,
     pub op: ReorderOp,
+}
+
+/// A held Collapse's order as the op its step stores, landed nowhere
+/// (`collapse_op`): the tool previews and commits it as any step's.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CollapseStep {
+    pub op: JumpOp,
 }
 
 /// An import landed: the state, held like any step's, and the op that lands
@@ -438,6 +464,20 @@ pub enum IoRefusal {
     /// (`faces_differ`). The import keeps its own chooser.
     #[error("the Layer order dialog cannot open on this import: {reason}")]
     LayerUnavailable { reason: &'static str },
+    /// A Collapse's own (`collapse_*`): its stretches name no creases of the
+    /// parent, or its folded creases do not fold flat at a vertex. Points
+    /// are sheet points.
+    #[error(transparent)]
+    Collapse(CollapseRefusal),
+}
+
+impl From<CollapseError> for IoRefusal {
+    fn from(error: CollapseError) -> IoRefusal {
+        match error {
+            CollapseError::Refused(refusal) => IoRefusal::Collapse(refusal),
+            CollapseError::Import(refusal) => IoRefusal::Import(refusal),
+        }
+    }
 }
 
 impl IoRefusal {
@@ -452,6 +492,7 @@ impl IoRefusal {
             IoRefusal::FigureIncomplete { .. } => "import_figure_incomplete",
             IoRefusal::ExportTooLarge { .. } => "fold_export_too_large",
             IoRefusal::LayerUnavailable { .. } => "import_layer_unavailable",
+            IoRefusal::Collapse(refusal) => refusal.code(),
         }
     }
 
@@ -474,6 +515,7 @@ impl IoRefusal {
                 json!({ "code": code, "elements": elements, "cap": cap })
             }
             IoRefusal::LayerUnavailable { reason } => json!({ "code": code, "reason": reason }),
+            IoRefusal::Collapse(refusal) => serde_json::to_value(refusal)?,
         })
     }
 }
@@ -613,10 +655,11 @@ mod tests {
             })
         );
         // A turned one says how far; one from before the turn reads as none.
-        let JumpOp::CpJump(jump) = &op;
         let turned = JumpOp::CpJump(CpJump {
+            cp_json: "{}".to_string(),
+            order_json: "[]".to_string(),
+            origin: CpOrigin::EditFoldedFigure,
             turn_deg: -15.0,
-            ..jump.clone()
         });
         assert_eq!(
             serde_json::to_value(&turned).unwrap_or_default()["turnDeg"],

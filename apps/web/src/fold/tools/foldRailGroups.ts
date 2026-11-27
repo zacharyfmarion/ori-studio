@@ -118,8 +118,9 @@ function groupLabel(t: TFunction, id: FoldRailGroupId): string {
 
 /**
  * The rail's groups, in order: the folds; the sinks; Reference points; Locate
- * line; the model — Turn over, done at once, the Rotate tool, and Adjust
- * order, which changes the layers' order and nothing else; and the sequence —
+ * line; the model — Turn over, done at once, the Rotate tool, Adjust
+ * order, which changes the layers' order and nothing else, and Collapse,
+ * which folds the model along creases it has; and the sequence —
  * Unfold to step and Repeat, which act on the steps folded so far.
  * Every surface that shows the Fold tools reads this list.
  */
@@ -172,8 +173,9 @@ export function foldRailGroups(t: TFunction, view: FoldToolsView, verbs: FoldRai
     ['reference', [tool('divide-line')]],
     ['locate', FOLD_LINE_MODES.map(lineMode)],
     // Turn over at once; Rotate a tool, its amount and direction to choose;
-    // Adjust order the layers' order alone, chosen in the Layer order dialog.
-    ['model', [verb('turn-over'), tool('rotate'), tool('adjust-order', sequenceReason)]],
+    // Adjust order the layers' order alone, chosen in the Layer order dialog;
+    // Collapse the whole model along creases it has (the flat sheet has none).
+    ['model', [verb('turn-over'), tool('rotate'), tool('adjust-order', sequenceReason), tool('collapse', sequenceReason)]],
     ['sequence', FOLD_SEQUENCE_TOOLS.map((id) => tool(id, sequenceReason))],
   ];
   return groups.map(([id, items]) => ({

@@ -24,10 +24,13 @@ describe('the Import CP contracts', () => {
   it('list exactly the refusal codes the engine and the bridge give, in their order', () => {
     const engine = codes('oristudio-fold/src/import/mod.rs', 'pub fn code(&self)', 'fn map_points');
     const bridge = codes('oristudio-fold-wasm/src/io/wire.rs', 'pub fn code(&self)', 'fn to_value');
+    // A Collapse's own, which the bridge hands through (`IoRefusal::Collapse`).
+    const collapse = codes('oristudio-fold/src/collapse.rs', 'pub fn code(&self)', 'pub enum CollapseError');
     // Guard against passing vacuously on a moved file or a renamed function.
     expect(engine.length).toBeGreaterThan(15);
     expect(bridge.length).toBeGreaterThan(5);
-    expect(FOLD_IMPORT_REFUSAL_CODES).toEqual([...engine, ...bridge]);
+    expect(collapse.length).toBe(5);
+    expect(FOLD_IMPORT_REFUSAL_CODES).toEqual([...engine, ...bridge, ...collapse]);
   });
 
   it('are refusals a replay can meet, beside the step codes', () => {

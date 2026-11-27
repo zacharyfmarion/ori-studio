@@ -1,0 +1,30 @@
+/* Collapse's letter, then what is set and where it stands. */
+.root {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.count {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Two lines' room, always: the longest message wraps once, and one that
+ * comes or goes never moves the letter control or the buttons.
+ */
+.status {
+  --status-line: 1.35;
+  margin: 0;
+  min-height: calc(2em * var(--status-line));
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: var(--status-line);
+}
+
+.status[data-refused] {
+  color: var(--status-danger);
+}

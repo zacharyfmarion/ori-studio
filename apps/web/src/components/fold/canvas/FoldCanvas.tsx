@@ -63,6 +63,7 @@ import { useFoldWindowInset } from '../../../fold/canvas/useFoldWindowInset';
 import { useFoldWovenInterval } from '../../../fold/canvas/useFoldWovenInterval';
 import { useFoldRepeatCreases } from '../../../fold/repeat/useFoldRepeatCreases';
 import { useFoldRepeatMarks } from '../../../fold/repeat/useFoldRepeatMarks';
+import { useFoldCreaseCollapseMarks } from '../../../fold/creaseCollapse/useFoldCreaseCollapseMarks';
 import { isSequenceTool } from '../../../fold/tools/foldToolCatalog';
 import { useWorkspaceStore } from '../../../store/workspaceStore';
 import { shownFoldSequence } from '../../../store/workspaceStore/foldState';
@@ -108,7 +109,7 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
   // the bar — at rest: flat once a tool picks, or locates a fold, and while a
   // sequence tool shows another state than the step's. Spread, the paper is
   // picked, hovered and lettered where it is drawn.
-  const picking = toolState.picks.length > 0 || isSequenceTool(toolState.tool);
+  const picking = toolState.picks.length > 0 || isSequenceTool(toolState.tool) || toolState.tool === 'collapse';
   const stepSpread = useFoldStepSpreadShown(view.cursorId);
   const importChoice = useFoldImportOrderUi((s) => s.choosing);
   const importPreview = importChoice?.previews.get(foldOrderChoiceKey(importChoice.choice));
@@ -180,7 +181,9 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
   );
   // A squash's flap under the pointer, before it is clicked.
   const squashMarks = useFoldSquashMarks(session, view.index, toolState);
-  const pending = fanMarks?.pending ?? petalMarks.pending ?? swivelMarks.pending ?? takenLines ?? repeatCreases;
+  // Collapse's creases set on both panes, and a point they do not fold at.
+  const collapseMarks = useFoldCreaseCollapseMarks(preview.creaseCollapse, view.scene, inks);
+  const pending = collapseMarks.pending ?? fanMarks?.pending ?? petalMarks.pending ?? swivelMarks.pending ?? takenLines ?? repeatCreases;
   const regions = fanMarks?.regions ?? petalMarks.regions ?? squashMarks.regions;
   const paint = useFoldCanvasPaint(view, preview, display, toolState.hoveredFlap, inks, shownSpread, pending, orderScene, paneSpread.connected ?? undefined, shownSpread?.kind === 'connected');
   const componentPairs = importChoice?.opened.components[importChoice.component]?.pairs ?? [];
@@ -213,7 +216,8 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
     () => swivelMeetingMarks(paneSpread.index, toolState, inks?.overlay ?? null),
     [paneSpread.index, toolState, inks]
   );
-  const vertexMarks = drawnMarks?.folded ?? previewMarks ?? swivelMarks.marks ?? meetingMarks;
+  const vertexMarks = collapseMarks.folded ?? drawnMarks?.folded ?? previewMarks ?? swivelMarks.marks ?? meetingMarks;
+  const creasePatternMarks = collapseMarks.creasePattern ?? drawnMarks?.creasePattern ?? null;
   const swivelOffered = swivelMarks.offered;
   // A partial precrease's line on each pane, and its points along it.
   const along = useMemo(
@@ -237,14 +241,14 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
             located,
             marks: view.marks,
             inks: inks.overlay,
-            tool: pane === 'folded' ? vertexMarks : (drawnMarks?.creasePattern ?? null),
+            tool: pane === 'folded' ? vertexMarks : creasePatternMarks,
             spread: paneSpread.map,
             along: along?.[pane] ?? null,
             regions: regions?.[pane] ?? null,
             offered: swivelOffered?.[pane] ?? null,
           })
         : { points: null, strokes: null },
-    [inks, view.scene, view.marks, shownPicks, freeFrom, located, vertexMarks, drawnMarks, paneSpread.map, along, regions, swivelOffered]
+    [inks, view.scene, view.marks, shownPicks, freeFrom, located, vertexMarks, creasePatternMarks, paneSpread.map, along, regions, swivelOffered]
   );
   const foldedOverlay = useMemo(() => overlayFor('folded'), [overlayFor]);
   const creaseOverlay = useMemo(() => overlayFor('crease-pattern', foldedEcho), [overlayFor, foldedEcho]);
@@ -309,6 +313,7 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
       ...(preview.unfold ? { unfold: preview.unfold.view } : {}),
       ...(preview.repeat ? { repeat: preview.repeat.view } : {}),
       ...(preview.adjustOrder ? { adjustOrder: preview.adjustOrder.view } : {}),
+      ...(preview.creaseCollapse ? { creaseCollapse: preview.creaseCollapse.view } : {}),
     },
     {
       ...verbs,
@@ -318,6 +323,7 @@ export function FoldCanvas({ sendToEdit }: { sendToEdit?: ReactNode }) {
       setRotation: tools.setRotation,
       ...(preview.unfold ? { unfold: preview.unfold.verbs } : {}),
       ...(preview.repeat ? { repeat: preview.repeat.verbs } : {}),
+      ...(preview.creaseCollapse ? { creaseCollapse: preview.creaseCollapse.verbs } : {}),
     },
     { coarse, alt: altModifierLabel(), keyLabel }
   );

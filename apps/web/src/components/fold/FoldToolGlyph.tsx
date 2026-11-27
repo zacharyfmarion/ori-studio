@@ -184,6 +184,16 @@ export function FoldToolGlyph({ id, compact = false }: { id: FoldRailItemId; com
     // The layer order's own mark, the sheets Fold with layer order… wears in Edit.
     case 'adjust-order':
       return <LayerOrderIcon size={SIZE} strokeWidth={1.5} />;
+    // Collapse: a sheet and the creases it already has, solid as an existing
+    // crease is drawn (`FoldKindMark`'s `crease`), that it folds along at once.
+    // No other icon in the app means collapse.
+    case 'collapse':
+      return (
+        <Glyph>
+          <path d="M3.5 3.5h13v13h-13z" />
+          <path d="M3.5 3.5 16.5 16.5M16.5 3.5 3.5 16.5M10 3.5v13" />
+        </Glyph>
+      );
     // The sequence tools, by the icons their header buttons and menu rows wear.
     case 'unfold-to':
       return <Undo2 size={SIZE} strokeWidth={1.5} aria-hidden="true" />;

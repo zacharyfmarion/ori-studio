@@ -27,7 +27,7 @@
 
 import type { OristudioCpFoldedPaperScene, OristudioCpFoldSource } from '../../engine/oristudioCpTypes';
 import type { FoldStateFingerprint } from '../document/foldDigest';
-import type { FoldAdjustOrderOp, FoldCpJumpOp, SheetPoint } from '../document/foldSequenceDocument';
+import type { FoldAdjustOrderOp, FoldCollapseOp, FoldCpJumpOp, SheetPoint } from '../document/foldSequenceDocument';
 import type { ImportedCreasePatternFormat } from '../../lib/fileFormats';
 import type { FoldStateSummary } from './foldEngineWire';
 
@@ -201,6 +201,15 @@ export interface FoldAdjustOrderLanded {
   op: FoldAdjustOrderOp;
 }
 
+/**
+ * A Collapse's order as the op its step stores (`collapse_op`,
+ * `implementation-plans/fold-collapse-existing-creases.md`): nothing lands;
+ * the tool previews and commits it as any step.
+ */
+export interface FoldCollapseStep {
+  op: FoldCollapseOp;
+}
+
 /** A landed Adjust order with its state's `fs1` fingerprint: what a commit takes. */
 export interface FoldAdjustOrderFingerprinted extends FoldAdjustOrderLanded {
   fingerprint: FoldStateFingerprint;
@@ -244,6 +253,14 @@ export const FOLD_IMPORT_REFUSAL_CODES = [
   // The Layer order dialog cannot open on a held import (row H10): the
   // import keeps its own chooser, so no one is shown this.
   'import_layer_unavailable',
+  // A Collapse's own (`CollapseRefusal::code` in `crates/oristudio-fold/src/collapse.rs`):
+  // nothing picked, a stretch that is not the state's creases, a crease named
+  // two ways, and folded creases that cannot fold flat at a vertex.
+  'collapse_empty',
+  'collapse_not_finite',
+  'collapse_crease_missing',
+  'collapse_crease_twice',
+  'collapse_not_flat_at_vertex',
 ] as const;
 
 export type FoldImportRefusalCode = (typeof FOLD_IMPORT_REFUSAL_CODES)[number];

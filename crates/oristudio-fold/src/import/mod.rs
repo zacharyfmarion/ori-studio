@@ -632,6 +632,13 @@ impl ImportedPattern {
         self.unordered.rotate_view(angle);
     }
 
+    /// Set the step each crease of the pattern was made at, by its sheet
+    /// ends and kind, in place of the import's own step: Collapse keeps its
+    /// parent's dates for the creases it leaves alone ([`crate::collapse`]).
+    pub(crate) fn retime(&mut self, made_at: impl Fn(Point, Point, CreaseKind) -> u32) {
+        self.unordered.retime(made_at);
+    }
+
     /// An input point in sheet coordinates.
     pub fn to_sheet(&self, p: Point) -> Point {
         self.placement.to_sheet(p)

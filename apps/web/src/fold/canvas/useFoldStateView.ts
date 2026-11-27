@@ -102,9 +102,11 @@ export function useFoldStateView(): FoldStateView {
   const sequence = useFoldSessionState((snapshot) => snapshot.sequence);
   // The sequence tools show another state than the step on screen once their
   // preview lands: the pose Unfold to step returns to, or Repeat's result.
+  // So does Collapse: the paper collapsed, where its creases are set again.
   const tool = useFoldTools((state) => state.tool);
   const pending = useFoldSessionState((s) => s.pending);
-  const returned = isSequenceTool(tool) && pending.status === 'landed' && pending.request.op.kind === tool ? pending : null;
+  const showsLanding = isSequenceTool(tool) || tool === 'collapse';
+  const returned = showsLanding && pending.status === 'landed' && pending.request.op.kind === tool ? pending : null;
   const marks = useMemo(() => foldMarksAt(sequence, cursorId), [sequence, cursorId]);
   const candidatePoints = useMemo(() => foldMarkPoints(marks), [marks]);
   // View-only sequence edits recreate the marks array. Picking is keyed by

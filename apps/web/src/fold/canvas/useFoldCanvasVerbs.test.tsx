@@ -845,3 +845,22 @@ describe('a vertex fold’s choices on the canvas', () => {
     expect(tools.store.getState()).toMatchObject({ extent: 'whole', extentPicks: [] });
   });
 });
+
+describe('Collapse on the canvas', () => {
+  it('finds the crease under the pointer while the pick index is prepared again for the landing it previews', () => {
+    const tools = createFoldTools();
+    const hit = { pane: 'crease-pattern', at: { x: 0.25, y: 0.25 }, pick: { kind: 'segment', edge: -1_000_000, segment: 'crease', sheet: [[0, 0], [0.5, 0.5]], scene: [{ x: 0, y: 0 }, { x: 0.5, y: 0.5 }] } } as const;
+    const hitTest = vi.fn(() => hit);
+    const pick = vi.fn();
+    const creaseCollapse = { hitTest, pick } as unknown as NonNullable<FoldToolPreview['creaseCollapse']>;
+    // The pick index is null while it is prepared for the scene the Collapse's landing shows.
+    const view = { index: null } as unknown as FoldStateView;
+    act(() => root.render(<Harness session={session(vi.fn())} tools={tools} preview={preview({ step: null, creaseCollapse })} view={view} />));
+    act(() => tools.selectTool('collapse'));
+    const found = bound!.verbs.hitTest('crease-pattern', { x: 0.25, y: 0.25 }, { point: 0.02, line: 0.02 });
+    expect(found).toBe(hit);
+    expect(hitTest).toHaveBeenCalledWith('crease-pattern', { x: 0.25, y: 0.25 }, 0.02);
+    act(() => bound!.verbs.pick(found));
+    expect(pick).toHaveBeenCalledWith(hit);
+  });
+});

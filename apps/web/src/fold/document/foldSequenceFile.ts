@@ -61,6 +61,7 @@ import { isNewerDocumentPaperStyle, readDocumentPaperStyle } from '../../lib/pap
 import {
   AXIOM_SLOTS,
   FOLD_DEFAULT_PAPER_STYLE,
+  FOLD_COLLAPSE_TO,
   FOLD_CP_ORIGINS,
   FOLD_CRIMP_KINDS,
   FOLD_DIRECTIONS,
@@ -78,6 +79,7 @@ import {
   randomFoldId,
   rectangleShape,
   type FoldChoices,
+  type FoldCollapseCrease,
   type FoldCompletionChoice,
   type FoldDirection,
   type FoldDivide,
@@ -367,6 +369,7 @@ const OP_KEYS = new Map<string, ReadonlySet<string>>([
   ['rotate', new Set(['kind', 'rotate'])],
   ['cp-jump', new Set(['kind', 'cpJson', 'orderJson', 'origin', 'source', 'turnDeg'])],
   ['adjust-order', new Set(['kind', 'orderJson'])],
+  ['collapse', new Set(['kind', 'creases', 'orderJson'])],
   // Compound folds (plan D4), one block per family.
   ['inside-reverse', ALONG_LINE_KEYS],
   ['outside-reverse', ALONG_LINE_KEYS],
@@ -520,6 +523,12 @@ function readOp(value: unknown, depth = 0, budget = { remaining: 256 }): FoldOp 
     case 'adjust-order': {
       const { orderJson } = value;
       return typeof orderJson === 'string' ? { kind, orderJson } : null;
+    }
+    // A Collapse: at least one stretch, each by its two sheet ends and what it becomes, and its order.
+    case 'collapse': {
+      const { orderJson } = value;
+      const creases = readList(value.creases, readCollapseCrease);
+      return typeof orderJson === 'string' && creases && creases.length > 0 ? { kind, creases, orderJson } : null;
     }
     // Compound folds (plan D4), one block per family.
     case 'inside-reverse':
@@ -1060,6 +1069,15 @@ function readPoints(value: unknown): SheetPoint[] | null {
   return readList(value, readPoint);
 }
 
+/** A Collapse's stretch: `{ a, b, to }` and nothing more, its ends two finite sheet points. */
+function readCollapseCrease(value: unknown): FoldCollapseCrease | null {
+  if (!isRecord(value) || Object.keys(value).some((key) => key !== 'a' && key !== 'b' && key !== 'to')) return null;
+  const a = readPoint(value.a);
+  const b = readPoint(value.b);
+  const to = FOLD_COLLAPSE_TO.find((known) => known === value.to);
+  return a && b && to ? { a, b, to } : null;
+}
+
 /** Every entry of a list read by `read`, or null when the value is not a list or any entry does not read. */
 function readList<T>(value: unknown, read: (entry: unknown) => T | null): T[] | null {
   if (!Array.isArray(value)) return null;
@@ -1170,6 +1188,12 @@ export function writeFoldOp(op: FoldOp): Record<string, unknown> {
       };
     case 'adjust-order':
       return { kind: op.kind, orderJson: op.orderJson };
+    case 'collapse':
+      return {
+        kind: op.kind,
+        creases: op.creases.map(({ a, b, to }) => ({ a: writePoint(a), b: writePoint(b), to })),
+        orderJson: op.orderJson,
+      };
     // Compound folds (plan D4), one block per family.
     case 'inside-reverse':
     case 'outside-reverse':

@@ -307,6 +307,25 @@
         "target": "不止一个层可以接受塞入：最亮的那层就是选中的。逐个查看，或按 {{keys}}。"
       }
     },
+    "collapse": {
+      "cannot": "这些折痕按此设置无法收拢。",
+      "click": "点击一条折痕，将其设为下方所选类型。",
+      "count_other": "已设置 {{count}} 条折痕",
+      "enter": "Enter 收拢；Esc 放弃已设置的折痕。",
+      "failed": "无法计算折叠。请更改一条折痕后重试。",
+      "folds": "可以折平。",
+      "letter": "设为",
+      "missing": "此次收拢所用的一条折痕已不在纸上原处。",
+      "missingTitle": "缺少折痕",
+      "mountain": "山",
+      "noOrder": "没有符合这些类型的层叠顺序。",
+      "notFlat": "标记点处的折痕按这些类型无法折平。",
+      "notFlatTitle": "这些折痕无法折平",
+      "open": "展开",
+      "orders_other": "可以折平，共 {{count}} 种层叠顺序。",
+      "valley": "谷",
+      "working": "正在计算折叠…"
+    },
     "crimp": {
       "bothFit": "两种压褶都可以：请选择尖端的朝向。",
       "firstLine": "第一条折线",
@@ -885,6 +904,7 @@
     "tool": {
       "adjustOrderHelp": "改变哪些层位于前面，不添加新折痕。",
       "closedSinkHelp": "把闭合角的尖端推入夹层，各层保持在一起。",
+      "collapseHelp": "沿模型已有的折痕折叠：将每条设为谷、山或展开。",
       "crimpHelp": "沿一条线把翼片向内折，再沿第二条线向外折回，使它的末端转向。",
       "divideLine": "等分线",
       "divideLineHelp": "标出把边或折痕等分的点。",

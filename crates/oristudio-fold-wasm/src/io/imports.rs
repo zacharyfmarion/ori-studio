@@ -24,16 +24,18 @@ use oristudio_cp::session::{CpSession, EngineError, FoldSource};
 use oristudio_fold::complete::Completions;
 use oristudio_fold::steer::{ImportedFaces, ImportedLook, LayerSource};
 use oristudio_fold::{
-    Check, CompletionRefusal, CompletionSession, CreasePatternInput, FaceId, FixedKind, FixedPair,
-    ImportRefusal, ImportTarget, ImportedPattern, Sheet, StartSide, State,
+    Check, CollapseCrease, Collapsing, CompletionRefusal, CompletionSession, CreasePatternInput,
+    FaceId, FixedKind, FixedPair, ImportRefusal, ImportTarget, ImportedPattern, Sheet, StartSide,
+    State,
 };
 use oristudio_layer_order::LayerOrder;
 
 use super::jump;
 use super::kernel::{cp_json, input_of_cp_json, load, model_of_cp_json};
 use super::wire::{
-    AdoptedPaper, CheckWireLimits, Checked, ComponentCount, CpFile, CpJump, CpOrigin, IoCallError,
-    IoRefusal, JumpOp, Landed, LayerOpening, Limits, Opened, SessionOpened, SheetFound, Target,
+    AdoptedPaper, CheckWireLimits, Checked, Collapse, ComponentCount, CpFile, CpJump, CpOrigin,
+    IoCallError, IoRefusal, JumpOp, Landed, LayerOpening, Limits, Opened, SessionOpened,
+    SheetFound, Target,
 };
 use crate::bridge::Bridge;
 use crate::wire::{Choices, Op, Outcome, Paper};
@@ -49,8 +51,7 @@ pub struct Imports {
 #[derive(Debug)]
 struct Held {
     placed: Placed,
-    cp_json: String,
-    origin: CpOrigin,
+    source: Source,
     pattern: ImportedPattern,
     completions: Completions,
     /// What the completion may spend: the open's, or the last search's.
@@ -63,6 +64,40 @@ struct Held {
     /// clockwise on screen from the target's, in (−180, 180]: what every
     /// step it lands stores (`CpJump::turn_deg`).
     turn_deg: f64,
+}
+
+/// Where a held pattern came from, which is what its step stores: a crease
+/// pattern file's text (a `cp-jump`), or the stretches a Collapse changed in
+/// its parent's own pattern (a `collapse`, [`super::collapse`]).
+#[derive(Debug)]
+enum Source {
+    File { cp_json: String, origin: CpOrigin },
+    Collapse { creases: Vec<CollapseCrease> },
+}
+
+impl Source {
+    /// The op that lands the pattern with `order_json`, as the step stores
+    /// it, and as `Bridge::apply` takes it.
+    fn op(&self, order_json: String, turn_deg: f64) -> (Op, JumpOp) {
+        match self {
+            Source::File { cp_json, origin } => {
+                let jump = CpJump {
+                    cp_json: cp_json.clone(),
+                    order_json,
+                    origin: *origin,
+                    turn_deg,
+                };
+                (Op::CpJump(jump.clone()), JumpOp::CpJump(jump))
+            }
+            Source::Collapse { creases } => {
+                let collapse = Collapse {
+                    creases: creases.clone(),
+                    order_json,
+                };
+                (Op::Collapse(collapse.clone()), JumpOp::Collapse(collapse))
+            }
+        }
+    }
 }
 
 /// A held import opened onto the Layer order dialog's faces (row H10): the
@@ -147,6 +182,103 @@ impl Imports {
             Ok(opened) => opened,
             Err(refusal) => return Ok(Outcome::Refused(refusal.into())),
         };
+        let source = Source::File {
+            cp_json,
+            origin: file.origin(),
+        };
+        Ok(Outcome::Ok(self.hold_opened(
+            placed,
+            source,
+            pattern,
+            completions,
+            limits,
+        )))
+    }
+
+    /// Collapse (`implementation-plans/fold-collapse-existing-creases.md`):
+    /// the held state's own crease pattern with `creases` changed, imported
+    /// after it and its order completed within `limits`, held as an import
+    /// is. Its picks land `collapse` steps, which store the stretches and the
+    /// order and nothing else ([`super::collapse`]).
+    pub fn open_collapse(
+        &mut self,
+        bridge: &Bridge,
+        state: u32,
+        creases: &[CollapseCrease],
+        limits: &Limits,
+    ) -> Result<Outcome<Opened>, IoCallError> {
+        let parent = bridge.state(state)?;
+        let opened = (|| -> Result<_, IoRefusal> {
+            let collapsing = Collapsing::new(parent, creases)?;
+            let completions = collapsing.pattern().complete(&limits.completion())?;
+            Ok((collapsing, completions))
+        })();
+        let (collapsing, completions) = match opened {
+            Ok(opened) => opened,
+            Err(refusal) => return Ok(Outcome::Refused(refusal.into())),
+        };
+        let source = Source::Collapse {
+            creases: collapsing.creases().to_vec(),
+        };
+        Ok(Outcome::Ok(self.hold_opened(
+            Placed::After(state),
+            source,
+            collapsing.pattern().clone(),
+            completions,
+            limits,
+        )))
+    }
+
+    /// The op that lands the order `choice` picks of a held Collapse, as its
+    /// step stores it, landing nothing: the tool previews and commits it as
+    /// it does any step. Not a Collapse, or a choice that names no order, is
+    /// the caller's mistake.
+    pub fn collapse_op(
+        &self,
+        import: u32,
+        choice: &[usize],
+    ) -> Result<Outcome<Collapse>, IoCallError> {
+        let held = self
+            .held
+            .get(&import)
+            .ok_or(IoCallError::UnknownImport(import))?;
+        if !matches!(held.source, Source::Collapse { .. }) {
+            return Err(IoCallError::invalid(format!(
+                "import {import} is no Collapse"
+            )));
+        }
+        let order = held
+            .completions
+            .order(choice)
+            .ok_or_else(|| IoCallError::invalid(format!("choice {choice:?} names no order")))?;
+        let stored = held
+            .pattern
+            .state(order)
+            .map_err(IoRefusal::from)
+            .and_then(|state| jump::order_json(&state));
+        Ok(match stored {
+            Ok(order_json) => match held.source.op(order_json, 0.0).1 {
+                JumpOp::Collapse(collapse) => Outcome::Ok(collapse),
+                JumpOp::CpJump(_) => {
+                    return Err(IoCallError::invalid(format!(
+                        "import {import} is no Collapse"
+                    )));
+                }
+            },
+            Err(refusal) => Outcome::Refused(refusal.into()),
+        })
+    }
+
+    /// Hold an opened pattern and say what it is: its handle, summary and
+    /// ‹ n of m ›.
+    fn hold_opened(
+        &mut self,
+        placed: Placed,
+        source: Source,
+        pattern: ImportedPattern,
+        completions: Completions,
+        limits: &Limits,
+    ) -> Opened {
         let summary = pattern.summary().clone();
         let count = completions.count();
         let components = completions
@@ -162,8 +294,7 @@ impl Imports {
         let paper = placed.adopted();
         let import = self.hold(Held {
             placed,
-            cp_json,
-            origin: file.origin(),
+            source,
             pattern,
             completions,
             limits: *limits,
@@ -171,14 +302,14 @@ impl Imports {
             layer: None,
             turn_deg: 0.0,
         });
-        Ok(Outcome::Ok(Opened {
+        Opened {
             import,
             summary,
             paper,
             count,
             components,
             nodes,
-        }))
+        }
     }
 
     /// Expand a held search and locate the previously displayed local order by
@@ -255,16 +386,10 @@ impl Imports {
             .map_err(IoRefusal::from)
             .and_then(|state| jump::order_json(&state));
         match jump {
-            Ok(order_json) => land_op(
-                bridge,
-                held.placed.clone(),
-                CpJump {
-                    cp_json: held.cp_json.clone(),
-                    order_json,
-                    origin: held.origin,
-                    turn_deg: held.turn_deg,
-                },
-            ),
+            Ok(order_json) => {
+                let (op, stored) = held.source.op(order_json, held.turn_deg);
+                land_held_op(bridge, held.placed.clone(), op, stored)
+            }
             Err(refusal) => Ok(Outcome::Refused(refusal.into())),
         }
     }
@@ -320,8 +445,16 @@ impl Imports {
             .order(choice)
             .ok_or_else(|| IoCallError::invalid(format!("choice {choice:?} names no order")))?;
         held.layer = None;
+        // A Collapse keeps its parent's flat creases, which Edit folds into
+        // other faces than the pattern's: its order is chosen in its own
+        // ‹ n of m ›, and its step never turns.
+        let Source::File { cp_json, .. } = &held.source else {
+            return Ok(Outcome::Refused(
+                IoRefusal::LayerUnavailable { reason: "collapse" }.into(),
+            ));
+        };
         let opened = (|| -> Result<_, &'static str> {
-            let source = edit_fold_source(&held.cp_json)?;
+            let source = edit_fold_source(cp_json)?;
             let layer = LayerSource::from_oriedita(&source).map_err(|refusal| refusal.code())?;
             let faces = ImportedFaces::of(&layer, &held.pattern).map_err(|_| "faces_differ")?;
             let relations = faces.oriedita_relations(&layer, &held.pattern, &order);
@@ -402,16 +535,10 @@ impl Imports {
             .map_err(IoRefusal::from)
             .and_then(|state| jump::order_json(&state));
         match jump {
-            Ok(order_json) => land_op(
-                bridge,
-                held.placed.clone(),
-                CpJump {
-                    cp_json: held.cp_json.clone(),
-                    order_json,
-                    origin: held.origin,
-                    turn_deg: held.turn_deg,
-                },
-            ),
+            Ok(order_json) => {
+                let (op, stored) = held.source.op(order_json, held.turn_deg);
+                land_held_op(bridge, held.placed.clone(), op, stored)
+            }
             Err(refusal) => Ok(Outcome::Refused(refusal.into())),
         }
     }
@@ -641,6 +768,18 @@ pub(crate) fn land_op(
     placed: Placed,
     jump: CpJump,
 ) -> Result<Outcome<Landed>, IoCallError> {
+    let op = Op::CpJump(jump.clone());
+    land_held_op(bridge, placed, op, JumpOp::CpJump(jump))
+}
+
+/// Land `op` where its pattern was made, through `Bridge::apply`, and return
+/// it with the state as `stored`, the step's own spelling of it.
+fn land_held_op(
+    bridge: &mut Bridge,
+    placed: Placed,
+    op: Op,
+    stored: JumpOp,
+) -> Result<Outcome<Landed>, IoCallError> {
     let (parent, sheet) = match placed {
         Placed::After(state) => (state, None),
         Placed::Sheet { ref paper, start } => {
@@ -654,7 +793,6 @@ pub(crate) fn land_op(
             }
         }
     };
-    let op = Op::CpJump(jump.clone());
     let applied = bridge.apply(parent, &op, &Choices::default());
     if let Some(sheet) = sheet {
         bridge.release(sheet);
@@ -663,7 +801,7 @@ pub(crate) fn land_op(
         Outcome::Ok(applied) => Outcome::Ok(Landed {
             state: applied.state,
             summary: applied.summary,
-            op: JumpOp::CpJump(jump),
+            op: stored,
         }),
         Outcome::Refused(refusal) => Outcome::Refused(refusal),
     })

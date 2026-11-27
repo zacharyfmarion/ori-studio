@@ -150,6 +150,7 @@ export function useFoldCanvasPaint(
   const secondLine = preview.action ? (preview.crimp?.lines.second ?? preview.pleatLines?.second ?? null) : null;
   const pendingFolded = pending?.folded ?? null;
   const pendingSheet = pending?.creasePattern;
+  const pendingOverLanded = pending?.overLanded === true;
   const vertexCreases = useFoldVertexCreases(index, preview.vertex);
   const foldedScene = useMemo(() => {
     if (!scene || workerPaper) return null;
@@ -226,7 +227,8 @@ export function useFoldCanvasPaint(
   // An Import CP step's own creases are the whole pattern: there is nothing
   // for them to stand out of, so they are drawn as the pattern is, at Edit's
   // width, rather than as an instruction over it.
-  const pattern = !landed && view.imported;
+  // Collapse's creases set are the only instruction while it is in hand: the step's own would cover them.
+  const pattern = (!landed && view.imported) || pendingOverLanded;
   const cpLines = useMemo(() => {
     if (!cpSource || !cpSummary) return null;
     const lines = creasePatternPaneLines(cpSource, {
@@ -237,9 +239,10 @@ export function useFoldCanvasPaint(
     });
     // Until a fold lands and draws its own, a vertex tool's pending creases
     // are the instruction: on each layer, by the letter each has from the front.
-    if (landed || !pendingSheet || pendingSheet.length === 0) return lines;
+    // Collapse's creases set stay over its landing: they are what it changes.
+    if ((landed && !pendingOverLanded) || !pendingSheet || pendingSheet.length === 0) return lines;
     return { ...lines, instruction: [...lines.instruction, ...pendingSheet] };
-  }, [cpSource, cpSummary, since, display, pattern, landed, pendingSheet]);
+  }, [cpSource, cpSummary, since, display, pattern, landed, pendingSheet, pendingOverLanded]);
   const cpBounds = useMemo(() => (sheetBounds ? boundsToUser(sheetBounds) : null), [sheetBounds]);
 
   // A turned preview is another form: the pane keeps it in view as it keeps a new step's.

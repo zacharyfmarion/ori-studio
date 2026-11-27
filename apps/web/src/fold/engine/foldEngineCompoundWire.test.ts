@@ -108,6 +108,7 @@ describe('the compound folds’ one wire', () => {
       'rotate',
       'cp-jump',
       'adjust-order',
+      'collapse',
     ]);
     expect(compoundFamilyOf({ kind: 'rabbit-ear' })).toBe('vertex');
     expect(compoundFamilyOf({ kind: 'unsink' })).toBe('sink');

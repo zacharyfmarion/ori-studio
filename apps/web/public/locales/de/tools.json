@@ -315,6 +315,27 @@
         "target": "Mehr als eine Lage nimmt die Lasche auf: Die hellste ist die gewählte. Blättere durch sie oder drücke {{keys}}."
       }
     },
+    "collapse": {
+      "cannot": "Diese Falzlinien lassen sich so nicht zusammenfalten.",
+      "click": "Klicke auf eine Falzlinie, um ihr die unten gewählte Art zu geben.",
+      "count_one": "{{count}} Falzlinie gesetzt",
+      "count_other": "{{count}} Falzlinien gesetzt",
+      "enter": "Eingabetaste faltet zusammen; Esc verwirft die gesetzten Falzlinien.",
+      "failed": "Die Faltung konnte nicht berechnet werden. Ändere eine Falzlinie und versuche es erneut.",
+      "folds": "Liegt flach.",
+      "letter": "Setzen auf",
+      "missing": "Eine Falzlinie dieses Zusammenfaltens ist nicht mehr so auf dem Papier.",
+      "missingTitle": "Eine Falzlinie fehlt",
+      "mountain": "Berg",
+      "noOrder": "Keine Lagenreihenfolge passt zu diesen Faltarten.",
+      "notFlat": "Die Falzlinien am markierten Punkt lassen sich mit diesen Faltarten nicht flach falten.",
+      "notFlatTitle": "Diese Falzlinien falten nicht flach",
+      "open": "Offen",
+      "orders_one": "Liegt flach.",
+      "orders_other": "Liegt flach, {{count}} Lagenreihenfolgen.",
+      "valley": "Tal",
+      "working": "Faltung wird berechnet …"
+    },
     "crimp": {
       "bothFit": "Hier passen beide Arten von Crimp: Wähle, wohin die Spitze geht.",
       "firstLine": "Erste Linie",
@@ -904,6 +925,7 @@
     "tool": {
       "adjustOrderHelp": "Ändern, welche Lagen vorne liegen, ohne neue Falte.",
       "closedSinkHelp": "Das Ende einer geschlossenen Spitze in eine Tasche drücken, ihre Lagen bleiben zusammen.",
+      "collapseHelp": "Falte das Modell entlang vorhandener Falzlinien: setze jede auf Tal, Berg oder offen.",
       "crimpHelp": "Eine Lasche entlang einer Linie hinein- und entlang einer zweiten wieder herausfalten, sodass sich ihr Ende dreht.",
       "divideLine": "Linie teilen",
       "divideLineHelp": "Punkte markieren, die eine Kante oder Faltlinie in gleiche Teile teilen.",

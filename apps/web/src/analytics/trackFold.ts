@@ -25,6 +25,8 @@ type FoldStepAddedDetails =
   | { layerScope: FoldStepLayerScope; via: FoldStepVia; extent?: FoldStepExtent; targetCount?: number; pleatEnd?: FoldStepPleatEnd }
   | { amount: FoldStepRotationAmount }
   | { vertex: FoldStepVertexForm }
+  /** A Collapse: how many stretches it changed, and how many orders it had to choose among. */
+  | { collapse: { creases: number; orders: number } }
   | {
       repeat: {
         mode: 'grouped' | 'individual';
@@ -71,6 +73,12 @@ function detailProperties(details: FoldStepAddedDetails | undefined): Record<str
   }
   if ('amount' in details) return { amount: details.amount };
   if ('vertex' in details) return vertexFormProperties(details.vertex);
+  if ('collapse' in details) {
+    return {
+      crease_count_bucket: bucketCount(details.collapse.creases, COUNT_BUCKETS),
+      order_count_bucket: bucketCount(details.collapse.orders, FOLD_CHOICE_COUNT_BUCKETS),
+    };
+  }
   return {
     layer_scope: details.layerScope,
     via: details.via,

@@ -236,6 +236,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return foldToolLabel(t, 'rotate');
     case 'fold.toolAdjustOrder':
       return foldToolLabel(t, 'adjust-order');
+    case 'fold.toolCollapse':
+      return foldToolLabel(t, 'collapse');
     case 'fold.toolUnfoldTo':
       return foldToolLabel(t, 'unfold-to');
     case 'fold.toolRepeat':

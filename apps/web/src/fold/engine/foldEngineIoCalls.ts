@@ -19,11 +19,13 @@
 
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import { foldStateFingerprint } from '../document/foldDigest';
+import type { FoldCollapseCrease } from '../document/foldSequenceDocument';
 import { invalidInput, requireHandle, requireObject } from './foldEngineCalls';
 import type {
   FoldAdjustOrderFingerprinted,
   FoldAdjustOrderLanded,
   FoldAdjustOrderOpening,
+  FoldCollapseStep,
   FoldExported,
   FoldImportFingerprinted,
   FoldImportLanded,
@@ -47,6 +49,8 @@ export interface FoldWasmIoEngine {
   import_turn(importHandle: number, turnDeg: number): unknown;
   adjust_order_opening(state: number): unknown;
   adjust_order_pick(state: number, digest: string, relations: Uint32Array): unknown;
+  collapse_open(state: number, creases: unknown, limits: unknown): unknown;
+  collapse_op(importHandle: number, choice: Uint32Array): unknown;
   import_edit_folded_figure(scene: unknown, target: unknown, limits: unknown): unknown;
   release_imports(imports: Uint32Array): number;
   live_imports(): number;
@@ -149,6 +153,15 @@ export interface FoldEngineIoCalls {
    * and `adjust-order` op.
    */
   adjustOrderPick(state: number, digest: string, relations: Uint32Array): FoldEngineOutcome<FoldAdjustOrderFingerprinted>;
+  /**
+   * Collapse (`implementation-plans/fold-collapse-existing-creases.md`): the
+   * held state's own crease pattern with `creases` changed, imported after it
+   * and its orders completed, held under an import handle (`releaseImports`
+   * lets it go). Refused with the Collapse's own codes or an import's.
+   */
+  collapseOpen(state: number, creases: readonly FoldCollapseCrease[], limits?: FoldImportLimits): FoldEngineOutcome<FoldImportOpened>;
+  /** Collapse: the `collapse` op one listed order per component of a held Collapse lands, as its step stores it. Nothing lands. */
+  collapseOp(importHandle: number, choice: readonly number[]): FoldEngineOutcome<FoldCollapseStep>;
   /** Start from Edit's folded figure: the kernel's paper scene of it. */
   importEditFoldedFigure(
     scene: OristudioCpFoldedPaperScene,
@@ -233,6 +246,16 @@ export function createFoldEngineIoCalls(engine: FoldWasmIoEngine): FoldEngineIoC
       return landed.status === 'ok'
         ? { ...landed, fingerprint: foldStateFingerprint({ keys: engine.canonical_keys(landed.state) }) }
         : landed;
+    },
+
+    collapseOpen(state, creases, within) {
+      if (!Array.isArray(creases)) throw invalidInput('creases must be a list');
+      const asked = creases.map(({ a, b, to }) => ({ a: [a[0], a[1]], b: [b[0], b[1]], to }));
+      return engine.collapse_open(requireHandle('state', state), asked, limits(within)) as FoldEngineOutcome<FoldImportOpened>;
+    },
+
+    collapseOp(importHandle, choice) {
+      return engine.collapse_op(requireHandle('import', importHandle), requireChoice(choice)) as FoldEngineOutcome<FoldCollapseStep>;
     },
 
     importEditFoldedFigure(scene, to, within) {

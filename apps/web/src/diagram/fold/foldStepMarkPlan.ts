@@ -108,7 +108,9 @@ const DRAWN_BY_FOLDED_CREASES: ReadonlySet<FoldOp['kind']> = new Set(['rabbit-ea
  */
 export function foldStepMarkAction(action: FoldActionGeometry | null, context: FoldStepMarkContext): FoldStepAction | null {
   if (action) return foldStepAction(action, context);
-  if (context.op?.kind === 'cp-jump' && context.child) return collapseAction(context.parent, context.child);
+  if ((context.op?.kind === 'cp-jump' || context.op?.kind === 'collapse') && context.child) {
+    return collapseAction(context.parent, context.child);
+  }
   return null;
 }
 

@@ -169,6 +169,12 @@ export function writtenSequence(): Record<string, unknown> {
       },
       // A branch: the import's paper with its layers in another order.
       { id: 'fstep-8b', parent: 'fstep-8', op: { kind: 'adjust-order', orderJson: '{"faces":[],"orders":[]}' } },
+      // Another: the import's paper collapsed again along a crease it has.
+      {
+        id: 'fstep-8c',
+        parent: 'fstep-8',
+        op: { kind: 'collapse', creases: [{ a: [0, 0], b: [1, 1], to: 'valley' }], orderJson: '{"faces":[],"orders":[]}' },
+      },
       {
         id: 'fstep-9',
         parent: 'fstep-8',

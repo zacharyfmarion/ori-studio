@@ -78,9 +78,11 @@ import { foldEngineTrapOf, type FoldEngineTrapped } from '../fold/engine/foldEng
 import type { FoldVertexFingerprinted, FoldVertexTried } from '../fold/engine/foldEngineSquashWire';
 import type { FoldVertexOp } from '../fold/document/foldSequenceDocument';
 import { swivelReach, type FoldSwivelReach, type FoldSwivelReachAsk } from '../fold/tools/vertex/swivelReach';
+import type { FoldCollapseCrease } from '../fold/document/foldSequenceDocument';
 import type {
   FoldAdjustOrderFingerprinted,
   FoldAdjustOrderOpening,
+  FoldCollapseStep,
   FoldExported,
   FoldImportFingerprinted,
   FoldImportLayerOpening,
@@ -444,6 +446,20 @@ const api = {
     relations: Uint32Array
   ): Promise<FoldEngineOutcome<FoldAdjustOrderFingerprinted>> {
     return changing((calls) => calls.adjustOrderPick(state, digest, relations));
+  },
+
+  /** Collapse: a held state's own crease pattern with `creases` changed, imported after it and held under an import handle. */
+  async collapseOpen(
+    state: number,
+    creases: readonly FoldCollapseCrease[],
+    limits?: import('../fold/engine/foldEngineIoWire').FoldImportLimits
+  ): Promise<FoldEngineOutcome<FoldImportOpened>> {
+    return changing((calls) => calls.collapseOpen(state, creases, limits));
+  },
+
+  /** Collapse: the `collapse` op an order of a held Collapse lands, as its step stores it. Nothing lands. */
+  async collapseOp(importHandle: number, choice: readonly number[]): Promise<FoldEngineOutcome<FoldCollapseStep>> {
+    return call((calls) => calls.collapseOp(importHandle, choice));
   },
 
   /** Start from Edit's folded figure: the kernel's paper scene of it. */
