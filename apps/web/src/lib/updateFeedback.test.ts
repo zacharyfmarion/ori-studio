@@ -41,6 +41,14 @@ describe('announceUpdateCheck', () => {
     expect(error).toHaveBeenCalledWith("Couldn't check for updates", expect.anything());
   });
 
+  it('says the update server is down, not the connection, when the host failed', () => {
+    announceUpdateCheck('server_unavailable', t);
+    expect(error).toHaveBeenCalledWith("Couldn't check for updates", {
+      id: 'oristudio-update-check',
+      description: "The update server isn't responding right now. Try again in a few minutes.",
+    });
+  });
+
   it('says nothing when the check never ran', () => {
     // `skipped` means delivery is off or a download is in flight. Claiming the
     // app is up to date here would be a statement made from no evidence.

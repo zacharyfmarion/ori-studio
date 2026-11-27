@@ -10,13 +10,17 @@
 //! rejected certificate and a failed proxy tunnel all read the same. The cause
 //! is in the error's `source()` chain, which only Rust can walk. So the check
 //! runs here, its failure is classified into a bounded kind, and the frontend
-//! gets a reason it can count instead of a string it cannot read.
+//! gets a reason it can count instead of a string it cannot read. A check the
+//! endpoint answered outside 2xx is named by its status code, which the plugin
+//! does not report — see [`endpoint`].
 //!
 //! A verified download is also armed to install when the app quits — see
 //! [`quit`] — so an update nobody relaunched into still lands.
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 mod download;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+mod endpoint;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 mod quit;
 
@@ -133,8 +137,13 @@ pub enum UpdateCheckErrorKind {
     Timeout,
     /// A transport failure the error chain did not name.
     Network,
-    /// The endpoint answered, but not with 2xx.
+    /// The endpoint answered, but not with 2xx — and not with a status that
+    /// says the host is failing. A 404 is a release with no manifest.
     HttpStatus,
+    /// The release host is failing or shedding load: it answered 5xx, 408 or
+    /// 429, or failed once and answered the next request. Not the manifest's
+    /// fault and not this machine's, and it passes on its own.
+    ServerError,
     /// The body was not a manifest.
     Parse,
     /// The manifest has no entry for this build's platform.
@@ -251,7 +260,7 @@ mod desktop {
     use tauri::Manager;
     use tauri_plugin_updater::{Error as PluginError, Update, UpdaterExt};
 
-    use super::{QuitInstall, download, quit};
+    use super::{QuitInstall, download, endpoint, quit};
     use super::{UpdateCheckError, UpdateCheckErrorKind as Kind, UpdateCheckMetadata};
 
     /// A verified payload, waiting for [`run_install`] or for the app to quit.
@@ -423,6 +432,24 @@ mod desktop {
             .map(str::to_owned)
     }
 
+    /// The endpoints `tauri.conf.json` gives the plugin, as written.
+    fn updater_endpoints(webview: &tauri::Webview) -> Vec<String> {
+        webview
+            .config()
+            .plugins
+            .0
+            .get("updater")
+            .and_then(|updater| updater.get("endpoints"))
+            .and_then(|endpoints| endpoints.as_array())
+            .map(|endpoints| {
+                endpoints
+                    .iter()
+                    .filter_map(|endpoint| endpoint.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     impl From<download::DownloadError> for UpdateCheckError {
         fn from(error: download::DownloadError) -> Self {
             Self {
@@ -436,8 +463,18 @@ mod desktop {
         webview: &tauri::Webview,
         timeout_ms: Option<u64>,
     ) -> Result<Option<UpdateCheckMetadata>, UpdateCheckError> {
-        let update = match check(webview, timeout_ms).await {
+        let timeout = timeout_ms.map(Duration::from_millis);
+        let update = match check(webview, timeout).await {
             Ok(update) => update,
+            Err(PluginError::ReleaseNotFound) => {
+                return Err(match download::client() {
+                    Ok(client) => {
+                        endpoint::release_not_found(&client, &updater_endpoints(webview), timeout)
+                            .await
+                    }
+                    Err(_) => UpdateCheckError::from_plugin(&PluginError::ReleaseNotFound),
+                });
+            }
             Err(error) => return Err(UpdateCheckError::from_plugin(&error)),
         };
         let Some(update) = update else {
@@ -465,11 +502,11 @@ mod desktop {
 
     async fn check(
         webview: &tauri::Webview,
-        timeout_ms: Option<u64>,
+        timeout: Option<Duration>,
     ) -> Result<Option<Update>, PluginError> {
         let mut builder = webview.updater_builder();
-        if let Some(ms) = timeout_ms {
-            builder = builder.timeout(Duration::from_millis(ms));
+        if let Some(timeout) = timeout {
+            builder = builder.timeout(timeout);
         }
         builder.build()?.check().await
     }
@@ -488,6 +525,8 @@ mod desktop {
         match error {
             PluginError::Reqwest(inner) => classify_reqwest(inner),
             // The plugin drops the status code on the way here; it only logs it.
+            // A check names this from the endpoint's status instead (see
+            // `endpoint`); this is the reading when it cannot ask.
             PluginError::ReleaseNotFound => Kind::HttpStatus,
             PluginError::TargetNotFound(_) | PluginError::TargetsNotFound(_) => {
                 Kind::NoPlatformEntry
@@ -511,7 +550,7 @@ mod desktop {
         }
     }
 
-    fn classify_reqwest(error: &reqwest::Error) -> Kind {
+    pub(super) fn classify_reqwest(error: &reqwest::Error) -> Kind {
         if error.is_timeout() {
             return Kind::Timeout;
         }
@@ -698,6 +737,10 @@ mod desktop {
             assert_eq!(
                 serde_json::to_string(&Kind::HttpStatus).unwrap(),
                 "\"http_status\""
+            );
+            assert_eq!(
+                serde_json::to_string(&Kind::ServerError).unwrap(),
+                "\"server_error\""
             );
             // The metadata keys are what the plugin's JS `Update` constructor reads.
             let metadata = serde_json::to_value(UpdateCheckMetadata {

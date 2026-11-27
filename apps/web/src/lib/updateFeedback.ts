@@ -38,6 +38,19 @@ export function announceUpdateCheck(outcome: UpdateCheckOutcome, t: TFunction): 
     return;
   }
 
+  // The server answered with its own failure, so the connection is fine and
+  // there is nothing on this machine to check.
+  if (outcome === 'server_unavailable') {
+    toast.error(t('toasts:update.checkFailed', "Couldn't check for updates"), {
+      id: UPDATE_CHECK_TOAST_ID,
+      description: t(
+        'toasts:update.serverUnavailableHint',
+        "The update server isn't responding right now. Try again in a few minutes."
+      ),
+    });
+    return;
+  }
+
   if (outcome === 'none') {
     toast.success(t('toasts:update.upToDate', 'Ori Studio is up to date'), {
       id: UPDATE_CHECK_TOAST_ID,

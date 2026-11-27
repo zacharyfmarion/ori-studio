@@ -163,6 +163,7 @@
     "available": "Version {{version}} is available",
     "checkFailed": "Couldn't check for updates",
     "checkFailedHint": "Ori Studio could not reach the update server. Check your connection and try again.",
+    "serverUnavailableHint": "The update server isn't responding right now. Try again in a few minutes.",
     "upToDate": "Ori Studio is up to date"
   },
   "upright": {

@@ -155,6 +155,21 @@ describe('checkForUpdate', () => {
     expect((failure as Error).message).toContain('tunnel error');
   });
 
+  it('carries a failing release host as its own kind', async () => {
+    // ORI-STUDIO-1F. Read as a plain Error, this message classifies as
+    // `http_status` — a broken release — and goes to Sentry.
+    core.invoke.mockRejectedValue({
+      kind: 'server_error',
+      message:
+        'Could not fetch a valid release JSON from the remote; asked again, the endpoint answered 504 Gateway Timeout',
+    });
+
+    const failure = await checkForUpdate().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(UpdateCheckError);
+    expect(failure).toMatchObject({ kind: 'server_error' });
+  });
+
   it('does not believe a kind from outside the enum', async () => {
     core.invoke.mockRejectedValue({ kind: 'brand_new', message: 'something' });
 

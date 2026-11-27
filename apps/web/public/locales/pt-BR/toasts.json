@@ -176,6 +176,7 @@
     "available": "A versão {{version}} está disponível",
     "checkFailed": "Não foi possível verificar atualizações",
     "checkFailedHint": "O Ori Studio não conseguiu acessar o servidor de atualizações. Verifique sua conexão e tente novamente.",
+    "serverUnavailableHint": "O servidor de atualizações não está respondendo no momento. Tente novamente em alguns minutos.",
     "upToDate": "O Ori Studio está atualizado"
   },
   "upright": {

@@ -2338,8 +2338,10 @@ export type UpdateFailureStage = 'check' | 'download' | 'install';
  * `proxy` and `timeout` are the causes it could name; `network` is a transport
  * failure it could not. `http_status`, `parse` and `no_platform_entry` are the
  * manifest's fault, and therefore fleet-wide; `unsupported` is this build's.
- * Mirrors `UpdateCheckErrorKind` in `platform/updateService.ts` plus the two
- * reasons only the frontend can raise.
+ * `server_error` is the release host failing or shedding load (5xx, 408, 429,
+ * or a failure the next request did not repeat): neither the manifest's fault
+ * nor the machine's, and it passes. Mirrors `UpdateCheckErrorKind` in
+ * `platform/updateService.ts` plus the two reasons only the frontend can raise.
  */
 export type UpdateFailureReason =
   | 'network'
@@ -2349,6 +2351,7 @@ export type UpdateFailureReason =
   | 'proxy'
   | 'timeout'
   | 'http_status'
+  | 'server_error'
   | 'parse'
   | 'no_platform_entry'
   | 'signature'

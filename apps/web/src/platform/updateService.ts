@@ -32,7 +32,10 @@ export type AvailableUpdate = {
  * Named in the shell because only it can: the updater plugin reports every
  * transport failure as the same "error sending request" string, and the cause
  * — a DNS miss, a refused connection, a rejected certificate, a proxy that
- * would not carry the request — lives in the Rust error's source chain.
+ * would not carry the request — lives in the Rust error's source chain. It
+ * reports every answer outside 2xx as one message too, so the shell reads the
+ * status itself: `server_error` is the release host failing or shedding load,
+ * `http_status` anything else, such as a release with no manifest.
  */
 export type UpdateCheckErrorKind =
   | 'dns'
@@ -42,6 +45,7 @@ export type UpdateCheckErrorKind =
   | 'timeout'
   | 'network'
   | 'http_status'
+  | 'server_error'
   | 'parse'
   | 'no_platform_entry'
   | 'signature'
@@ -56,6 +60,7 @@ const UPDATE_CHECK_ERROR_KINDS: ReadonlySet<string> = new Set<UpdateCheckErrorKi
   'timeout',
   'network',
   'http_status',
+  'server_error',
   'parse',
   'no_platform_entry',
   'signature',

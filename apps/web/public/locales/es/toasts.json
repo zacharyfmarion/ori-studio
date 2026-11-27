@@ -176,6 +176,7 @@
     "available": "La versión {{version}} está disponible",
     "checkFailed": "No se pudo buscar actualizaciones",
     "checkFailedHint": "Ori Studio no pudo conectarse al servidor de actualizaciones. Comprueba tu conexión e inténtalo de nuevo.",
+    "serverUnavailableHint": "El servidor de actualizaciones no responde en este momento. Inténtalo de nuevo en unos minutos.",
     "upToDate": "Ori Studio está actualizado"
   },
   "upright": {
