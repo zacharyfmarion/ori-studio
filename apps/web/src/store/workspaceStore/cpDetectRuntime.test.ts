@@ -178,3 +178,103 @@ describe('cp-detect worker lifetime', () => {
     expect(second).toHaveBeenCalledOnce();
   });
 });
+
+/**
+ * ORI-STUDIO-1E: the worker spawned for the likelihood gate on an added image
+ * never loaded, and the app's error toast said "Crease-pattern detection
+ * stopped unexpectedly" to someone who had only placed a reference image.
+ */
+describe('cp-detect worker loss: who is told', () => {
+  // The runtime and the sink registry it reports to, from one module graph.
+  async function withToast() {
+    vi.resetModules();
+    const diagnostics = await import('../../lib/workerDiagnostics');
+    const runtime = await import('./cpDetectRuntime');
+    // Stands in for the app's error toast, which App.tsx registers.
+    const toast = vi.fn();
+    diagnostics.registerWorkerFailureSink(toast);
+    return { runtime, toast };
+  }
+
+  const settled = (promise: Promise<unknown>) => promise.catch((error: unknown) => error);
+
+  it('says in the rejection when the worker never loaded', async () => {
+    // A plain `error` event is the browser's word for a worker whose script, or
+    // a module it imports, did not load. An exception while it runs is an
+    // `ErrorEvent`, and that is a crash.
+    const { runtime } = await withToast();
+    await runtime.getCpDetectClient();
+    const unloaded = settled(runtime.whileCpDetectClientAlive(new Promise(() => {})));
+    FakeWorker.instances[0].dispatchEvent(new Event('error'));
+
+    const error = await unloaded;
+    expect(error).toEqual({
+      code: 'cp_detect_client_lost',
+      message: 'The worker stopped unexpectedly.',
+      loadFailed: true,
+    });
+    expect(runtime.isCpDetectClientUnloaded(error)).toBe(true);
+
+    await runtime.getCpDetectClient();
+    const crashed = settled(runtime.whileCpDetectClientAlive(new Promise(() => {})));
+    FakeWorker.instances[1].dispatchEvent(
+      new ErrorEvent('error', { message: 'Uncaught RuntimeError: unreachable' })
+    );
+
+    const crash = await crashed;
+    expect(crash).toEqual({
+      code: 'cp_detect_client_lost',
+      message: 'Uncaught RuntimeError: unreachable',
+    });
+    expect(runtime.isCpDetectClientUnloaded(crash)).toBe(false);
+  });
+
+  it('keeps the app toast out of a loss nobody asked about', async () => {
+    const { runtime, toast } = await withToast();
+
+    // An idle worker, or the warm-up on a drag: nothing is waiting.
+    await runtime.getCpDetectClient();
+    FakeWorker.instances[0].dispatchEvent(new Event('error'));
+
+    // Background work waiting: the gate on an added image.
+    await runtime.getCpDetectClient();
+    const gate = settled(
+      runtime.whileCpDetectClientAlive(new Promise(() => {}), { background: true })
+    );
+    FakeWorker.instances[1].dispatchEvent(new ErrorEvent('error', { message: 'trap' }));
+
+    await expect(gate).resolves.toMatchObject({ code: 'cp_detect_client_lost' });
+    expect(toast).not.toHaveBeenCalled();
+    // Either way the dead worker is gone, and the next call gets a fresh one.
+    await runtime.getCpDetectClient();
+    expect(FakeWorker.instances).toHaveLength(3);
+    expect(FakeWorker.instances[1].terminated).toBe(true);
+  });
+
+  it('still raises it for a call the user started, as before', async () => {
+    const { runtime, toast } = await withToast();
+    await runtime.getCpDetectClient();
+    const detect = settled(runtime.whileCpDetectClientAlive(new Promise(() => {})));
+    const gate = settled(
+      runtime.whileCpDetectClientAlive(new Promise(() => {}), { background: true })
+    );
+    FakeWorker.instances[0].dispatchEvent(new Event('error'));
+
+    await Promise.all([detect, gate]);
+    expect(toast).toHaveBeenCalledOnce();
+    expect(toast.mock.calls[0][0]).toMatchObject({ worker: 'cp-detect', loadFailed: true });
+  });
+
+  it('stops counting a call the user started once it settles', async () => {
+    const { runtime, toast } = await withToast();
+    await runtime.getCpDetectClient();
+    await runtime.whileCpDetectClientAlive(Promise.resolve('done'));
+    await expect(
+      runtime.whileCpDetectClientAlive(Promise.reject(new Error('model failed')))
+    ).rejects.toThrow('model failed');
+
+    FakeWorker.instances[0].dispatchEvent(new Event('error'));
+
+    expect(toast).not.toHaveBeenCalled();
+  });
+});

@@ -1,9 +1,18 @@
 import { track } from '../../analytics';
-import { ANALYTICS_EVENTS, bucketCount, cpDetectScoreBucket } from '../../analytics/events';
+import {
+  ANALYTICS_EVENTS,
+  bucketCount,
+  cpDetectScoreBucket,
+  type CpDetectScoreFailureReason,
+} from '../../analytics/events';
 import { reportError } from '../../monitoring';
 import { cpDetectAvailableHere } from '../../lib/workspaceCapabilities';
 import { useSettingsStore } from '../../store/settingsStore';
-import { getCpDetectClient, whileCpDetectClientAlive } from '../../store/workspaceStore/cpDetectRuntime';
+import {
+  getCpDetectClient,
+  isCpDetectClientUnloaded,
+  whileCpDetectClientAlive,
+} from '../../store/workspaceStore/cpDetectRuntime';
 import { useCpDetectSuggestionStore } from './cpDetectSuggestionStore';
 
 /**
@@ -35,20 +44,31 @@ const defaultDeps: SuggestionDeps = {
   enabled: () => useSettingsStore.getState().cpDetectSuggestions,
   score: async (preview) => {
     const client = await getCpDetectClient();
-    return whileCpDetectClientAlive(client.creasePatternLikelihood(preview));
+    // Background: nobody asked for this, so a worker lost under it is not the
+    // app's error toast's to announce.
+    return whileCpDetectClientAlive(client.creasePatternLikelihood(preview), { background: true });
   },
   now: () => performance.now(),
 };
 
 let reportedFailure = false;
 
+function scoreFailureReason(error: unknown): CpDetectScoreFailureReason {
+  if (isCpDetectClientUnloaded(error)) return 'unloaded';
+  const code = error && typeof error === 'object' ? (error as { code?: unknown }).code : undefined;
+  return code === 'cp_detect_client_lost' ? 'worker_lost' : 'error';
+}
+
 /**
  * Score an image just added to the canvas and, if it looks like a crease
  * pattern, record the offer the pill will show.
  *
  * Never throws and never surfaces anything to the user: a reference image must
- * not produce an error because a *suggestion* failed. The first failure of a
- * session is reported to monitoring, the rest are dropped.
+ * not produce an error because a *suggestion* failed. Every failure is
+ * counted; the first one of a session that is a defect is reported to
+ * monitoring. A worker whose code did not load is not one: that is the
+ * browser failing to fetch it, and the next image, or Detect, spawns a fresh
+ * worker that fetches it again.
  */
 export async function noteAddedCanvasImage(
   image: AddedCanvasImage,
@@ -61,7 +81,9 @@ export async function noteAddedCanvasImage(
   try {
     verdict = await deps.score(image.preview);
   } catch (error) {
-    if (!reportedFailure) {
+    const reason = scoreFailureReason(error);
+    track(ANALYTICS_EVENTS.cpDetectImageScoreFailed, { reason });
+    if (reason !== 'unloaded' && !reportedFailure) {
       reportedFailure = true;
       // As caught: the worker rejects with a `{ code, message }` envelope, which
       // `reportError` names by its code. Wrapped in `new Error(String(error))`

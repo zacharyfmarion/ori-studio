@@ -4,7 +4,8 @@ const track = vi.fn();
 const reportError = vi.fn();
 vi.mock('../../analytics', () => ({ track: (...args: unknown[]) => track(...args) }));
 vi.mock('../../monitoring', () => ({ reportError: (...args: unknown[]) => reportError(...args) }));
-vi.mock('../../store/workspaceStore/cpDetectRuntime', () => ({
+vi.mock('../../store/workspaceStore/cpDetectRuntime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../store/workspaceStore/cpDetectRuntime')>()),
   getCpDetectClient: async () => ({ creasePatternLikelihood: async () => ({ score: 0, likely: false }) }),
   whileCpDetectClientAlive: <T,>(pending: Promise<T>) => pending,
 }));
@@ -87,13 +88,42 @@ describe('noteAddedCanvasImage', () => {
     expect(d.score).not.toHaveBeenCalled();
   });
 
-  it('is silent on failure and reports only the first one', async () => {
-    const d = deps({ score: vi.fn(async () => Promise.reject(new Error('worker lost'))) });
+  it('is silent on failure, counts each one and reports only the first', async () => {
+    const d = deps({ score: vi.fn(async () => Promise.reject(new Error('gate failed'))) });
     await expect(noteAddedCanvasImage(image, d)).resolves.toBeUndefined();
     await expect(noteAddedCanvasImage({ ...image, id: 'image-2' }, d)).resolves.toBeUndefined();
     expect(reportError).toHaveBeenCalledTimes(1);
-    expect(track).not.toHaveBeenCalled();
+    expect(track.mock.calls).toEqual([
+      ['cp detect image score failed', { reason: 'error' }],
+      ['cp detect image score failed', { reason: 'error' }],
+    ]);
     expect(useCpDetectSuggestionStore.getState().suggestions).toEqual({});
+  });
+
+  // ORI-STUDIO-1E: the browser did not load the worker's code (offline, a
+  // connection that dropped), which is not a defect of the gate.
+  it('counts a worker that never loaded without reporting it', async () => {
+    const unloaded = {
+      code: 'cp_detect_client_lost',
+      message: 'The worker stopped unexpectedly.',
+      loadFailed: true,
+    };
+    await noteAddedCanvasImage(image, deps({ score: vi.fn(async () => Promise.reject(unloaded)) }));
+    expect(reportError).not.toHaveBeenCalled();
+    expect(track).toHaveBeenCalledWith('cp detect image score failed', { reason: 'unloaded' });
+
+    // And it does not use up the session's one report: a later crash still gets it.
+    const crashed = { code: 'cp_detect_client_lost', message: 'Uncaught RuntimeError: unreachable' };
+    await noteAddedCanvasImage(
+      { ...image, id: 'image-2' },
+      deps({ score: vi.fn(async () => Promise.reject(crashed)) })
+    );
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError).toHaveBeenCalledWith(crashed, {
+      surface: 'cp-detect-suggestion',
+      handled: true,
+    });
+    expect(track).toHaveBeenLastCalledWith('cp detect image score failed', { reason: 'worker_lost' });
   });
 
   // The worker rejects with `{ code, message }`, not an `Error`. Wrapped as
