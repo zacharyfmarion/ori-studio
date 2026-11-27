@@ -19,13 +19,10 @@ import { foldScenePattern } from './foldStepPicture';
  */
 
 import type { TFunction } from 'i18next';
-import { isLockedStep, type FoldStepNode } from '../../fold/document/foldSequenceDocument';
-import type { FoldScene } from '../../fold/engine/foldEngineWire';
 import { foldStepReady, type FoldStepReady, type FoldStepWaitRefusal } from '../../fold/io/foldSessionWaits';
 import { foldNodeSentenceStep } from '../../fold/sequence/foldSentenceStep';
 import { foldStateFrame } from '../../fold/sequence/foldStateFrame';
 import type { FoldSession } from '../../fold/session/foldSession';
-import type { FoldSentenceStep } from '../../fold/stepSentence';
 import { xmlText } from '../../lib/xmlEscape';
 import type { CapturedPicture } from '../capture/captureFolded';
 import {
@@ -38,7 +35,8 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { storedFoldStepSource } from '../document/diagramFile';
-import { foldDiagramSentence } from './foldDiagramSentence';
+import { diagramCreaseWords, foldDiagramSentence } from './foldDiagramSentence';
+import { diagramFoldConstruction } from './foldCreaseConstruction';
 import { foldStepMarkAction } from './foldStepMarkPlan';
 import { foldStepPicture, type FoldStepPictureInput } from './foldStepPicture';
 import { foldRepeatCallout } from './foldRepeatCallout';
@@ -73,16 +71,6 @@ export type FoldStepCaptureResult =
   | { status: 'unknown'; why: 'not-shown' | 'locked' | 'unavailable' };
 
 /**
- * The step's instruction, as the Diagram words it (`foldDiagramSentence`):
- * the fold's kind, read from the states either side of it and what the fold
- * did. Absent for the state after the step, whose words are the author's
- * (the Finished step a pull ends with).
- */
-function sentenceOf(t: TFunction, moment: DiagramFoldMoment, words: FoldSentenceStep): string | undefined {
-  return moment === 'before' ? xmlText(foldDiagramSentence(t, words)) : undefined;
-}
-
-/**
  * What a Fold step's picture is made from, as the session's replay has it:
  * the states either side of the step, what the step does, and the step
  * itself — everything `foldStepPicture` draws from, so a pose drawn again
@@ -93,16 +81,14 @@ export interface FoldStepCaptureInput {
   picture: FoldStepPictureInput;
   /** The step's replay — a run's first's. */
   ready: FoldStepReady;
-  /** The state the step folds from. */
-  parent: FoldScene;
-  node: FoldStepNode;
+  /** Generated words for the before picture. The Finished step has no instruction. */
+  sentence?: string;
   engineVersion: number;
   /**
    * A run of steps drawn as one (`foldRunCapture.ts`): its last step's
-   * replay, whose path names every step of the run, and the merged step's
-   * sentence. Absent for one step.
+   * replay, whose path names every step of the run. Absent for one step.
    */
-  run?: { last: FoldStepReady; sentence: string };
+  last?: FoldStepReady;
 }
 
 /** Why a capture cannot be made from a step, as one that is not ready says. */
@@ -149,9 +135,19 @@ export async function readFoldStepCapture(
   });
   if (own.status !== 'answered' || parent.status !== 'answered') return { status: 'unknown', why: 'unavailable' };
   const { scene, summary, action, engineVersion } = own.value;
-  const node = session.store.getState().sequence?.steps.find((step) => step.id === request.step);
-  if (!node) return { status: 'missing' };
-  const op = isLockedStep(node) ? null : node.op;
+  const steps = session.store.getState().sequence?.steps;
+  const stored = steps?.find((step) => step.id === request.step);
+  if (!steps || !stored) return { status: 'missing' };
+  let node = stored;
+  let sentence: string | undefined;
+  if (request.moment === 'before') {
+    const parentFrame = foldStateFrame(parent.value.scene);
+    const childFrame = foldStateFrame(scene);
+    node = diagramFoldConstruction(steps, stored, parentFrame, childFrame);
+    const words = foldNodeSentenceStep(node, { parent: parentFrame, child: childFrame, report: ready.folded, pockets: ready.pockets });
+    sentence = foldDiagramSentence(t, diagramCreaseWords(words, parentFrame, childFrame));
+  }
+  const op = node.op ?? null;
   let repeat: FoldStepPictureInput['repeat'];
   if (request.moment === 'before' && op?.kind === 'repeat') {
     repeat = foldRepeatCallout(parent.value.scene, scene, parent.value.step, op.axis, t);
@@ -169,8 +165,7 @@ export async function readFoldStepCapture(
         ...(repeat ? { repeat } : {}),
       },
       ready,
-      parent: parent.value.scene,
-      node,
+      sentence,
       engineVersion,
     },
   };
@@ -186,7 +181,7 @@ export async function captureFoldStep(
   try {
     const read = await readFoldStepCapture(session, request, t);
     if (read.status !== 'ready') return read;
-    const { picture: input, ready, parent, node, engineVersion, run } = read.input;
+    const { picture: input, ready, sentence, engineVersion, last } = read.input;
     const asked = request.render;
     let render = asked;
     let picture: ReturnType<typeof foldStepPicture>;
@@ -209,31 +204,19 @@ export async function captureFoldStep(
     } else {
       picture = foldStepPicture(input, asked, newId);
     }
-    const sentence = run
-      ? xmlText(run.sentence)
-      : sentenceOf(
-          t,
-          request.moment,
-          foldNodeSentenceStep(node, {
-            parent: foldStateFrame(parent),
-            child: foldStateFrame(input.own.scene),
-            report: ready.folded,
-            pockets: ready.pockets,
-          })
-        );
     const source = storedFoldStepSource({
       kind: 'fold-step',
       sequence: request.sequence,
       step: request.step,
-      ...(run && request.through !== undefined ? { through: request.through } : {}),
+      ...(last && request.through !== undefined ? { through: request.through } : {}),
       moment: request.moment,
       // A run's last step's path, which names every step of it.
-      path: (run?.last ?? ready).path,
+      path: (last ?? ready).path,
       state: request.moment === 'after' ? ready.fingerprint : ready.parentFingerprint,
       engine: engineVersion,
       thumbnail: picture.thumbnail,
       render,
-      ...(sentence !== undefined ? { sentence } : {}),
+      ...(sentence !== undefined ? { sentence: xmlText(sentence) } : {}),
     });
     if (!source) throw new Error('The capture made a link the file cannot read');
     return { status: 'captured', source, captured: picture.captured, marks: picture.marks };

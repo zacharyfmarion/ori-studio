@@ -78,7 +78,7 @@ function useAppFoldCards(choice: FoldMergeChoice): FoldBrowserCardsState {
   const { t } = useTranslation();
   useEffect(() => foldSession().retain(), []);
   const view = useFoldSequenceView();
-  const { entries, words, exists, document, failed } = view;
+  const { entries, words, frames, exists, document, failed } = view;
   const merges = useFoldStepGroups(foldSession(), document.id, entries);
   return useMemo(() => {
     if (!exists || document.steps.length === 0) return { status: 'empty' };
@@ -95,11 +95,11 @@ function useAppFoldCards(choice: FoldMergeChoice): FoldBrowserCardsState {
     return {
       status: 'ready',
       sequence: document.id,
-      cards: foldBrowserCards(t, { document, entries, words, failed }, layout?.runs, layout?.offers),
+      cards: foldBrowserCards(t, { document, entries, words, frames, failed }, layout?.runs, layout?.offers),
       mergeable: !!merges && merges.groups.length + merges.repeats.length > 0,
       places: merges ? mergePlaces(merges) : NO_PLACES,
     };
-  }, [t, exists, document, entries, words, failed, merges, choice]);
+  }, [t, exists, document, entries, words, frames, failed, merges, choice]);
 }
 
 /** The app's Fold browser: the Fold session, and a pull that captures from it into the diagram. */

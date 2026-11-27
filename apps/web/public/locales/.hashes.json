@@ -6812,7 +6812,9 @@
     "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
     "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
     "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
-    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13627,7 +13629,9 @@
     "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
     "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
     "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
-    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20444,7 +20448,9 @@
     "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
     "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
     "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
-    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26871,7 +26877,9 @@
     "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
     "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
     "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
-    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -33298,7 +33306,9 @@
     "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
     "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
     "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
-    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -40113,7 +40123,9 @@
     "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
     "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
     "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
-    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46928,7 +46940,9 @@
     "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
     "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
     "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
-    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -53355,6 +53369,8 @@
     "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
     "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
     "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
-    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89"
   }
 }
