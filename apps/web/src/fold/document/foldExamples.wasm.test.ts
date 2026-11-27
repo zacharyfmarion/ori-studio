@@ -34,6 +34,26 @@ const EXAMPLES = resolve(ROOT, '../../tests/fixtures/fold-examples');
 const available = existsSync(WASM) && existsSync(EXAMPLES);
 
 /**
+ * The five folded through the tools, then the techniques
+ * `foldTechniqueFixtures.wasm.test.ts` generates.
+ */
+const EXAMPLE_FILES = [
+  'petal-fold.osf',
+  'swivel-fold.osf',
+  'swivel-on-edge.osf',
+  'swivel-inside.osf',
+  'crimp.osf',
+  'rabbit-ear-precreased.osf',
+  'squash-precreased-flap.osf',
+  'kite-outside-reverse.osf',
+  'tuck-under-two-flaps.osf',
+  'inside-reverse-nested-pairs.osf',
+  'crimp-lines-meet-on-fold.osf',
+  'chain-fish-base-outside-reverse.osf',
+  'chain-tuck-turn-fold.osf',
+];
+
+/**
  * The bird base's faces: 20, each petal fold's hinge creased through the top
  * layer it lifts alone — four fewer than with the hinge precreased through
  * every layer first, which split the layers below it too.
@@ -74,15 +94,15 @@ function steps(document: FoldSequenceDocument): FoldStep[] {
 }
 
 describe.skipIf(!available)('the Fold example projects', () => {
-  it('holds the five examples the README names, and nothing else', () => {
+  it('holds the examples the README names, and nothing else', () => {
     expect(
       readdirSync(EXAMPLES)
         .filter((name) => name.endsWith('.osf'))
         .sort()
-    ).toEqual(['crimp.osf', 'petal-fold.osf', 'swivel-fold.osf', 'swivel-inside.osf', 'swivel-on-edge.osf']);
+    ).toEqual([...EXAMPLE_FILES].sort());
   });
 
-  it.each(['petal-fold.osf', 'swivel-fold.osf', 'swivel-on-edge.osf', 'swivel-inside.osf', 'crimp.osf'])(
+  it.each(EXAMPLE_FILES)(
     'opens %s and replays every step to ok, each with the note that says how it was made',
     async (name) => {
       const document = opened(name);

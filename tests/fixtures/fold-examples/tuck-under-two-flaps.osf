@@ -1,0 +1,224 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "A flap tucked under two separate flaps",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-tuck-under-two-flaps",
+        "title": "A flap tucked under two separate flaps",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-tuck-under-two-flaps-1",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.2
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ]
+              },
+              "moving": [
+                0.02,
+                0.02
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:0d163b1491d8f9a5",
+            "note": "Valley fold the bottom left corner in, along the line from (0, 0.2) to (0.5, 0)."
+          },
+          {
+            "id": "fstep-tuck-under-two-flaps-2",
+            "parent": "fstep-tuck-under-two-flaps-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    1,
+                    0.2
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ]
+              },
+              "moving": [
+                0.98,
+                0.02
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:25035ac01b234419",
+            "note": "Valley fold the bottom right corner in, along the line from (1, 0.2) to (0.5, 0)."
+          },
+          {
+            "id": "fstep-tuck-under-two-flaps-3",
+            "parent": "fstep-tuck-under-two-flaps-2",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.64
+                  ],
+                  [
+                    1,
+                    0.64
+                  ]
+                ]
+              },
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.5,
+                  0.95
+                ],
+                "layers": 1
+              },
+              "landing": {
+                "kind": "against",
+                "targets": [
+                  [
+                    0.05,
+                    0.05
+                  ],
+                  [
+                    0.95,
+                    0.05
+                  ]
+                ]
+              }
+            },
+            "expect": "fs1:eb90368e6aff8441",
+            "note": "Valley fold the top down along y = 0.64 and tuck it under both corner flaps, above the sheet."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-tuck-under-two-flaps",
+        "cursor": "fstep-tuck-under-two-flaps-3"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

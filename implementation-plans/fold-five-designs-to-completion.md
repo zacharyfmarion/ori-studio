@@ -13,7 +13,8 @@ changes will be added. Preserve the deferred design below as future research.
 `codex/fold-origami-trials` and rebuilt the matching Fold WASM bridge.
 
 Make it possible to author, save, reopen, inspect, and continue all five
-Origami.me designs in **Fold**: cicada, swan, heart, masu box, and crane. The
+designs from the private Fold corpus in **Fold**: cicada, swan, heart, masu box,
+and crane. The
 finished models must match the intended paper construction and layer order,
 not merely have a recognizable outline or return an engine success code.
 
@@ -57,10 +58,8 @@ implementation, integrate the then-current Fold source through the normal Git
 workflow, preserve the trial files, rebuild the bridge, and reproduce each
 finding. Do not implement a UI fix already present there.
 
-The source tutorials, checked on 2026-10-13, are
-[cicada](https://origami.me/cicada/), [swan](https://origami.me/swan/),
-[heart](https://origami.me/heart/), [box](https://origami.me/box/), and
-[crane](https://origami.me/crane/). Use the body of each tutorial rather than its
+The source tutorials, checked on 2026-10-13, are the cicada, swan, heart, box
+and crane in the private Fold corpus. Use the body of each tutorial rather than its
 sometimes inconsistent headline step count. The swan page describes lifting and
 flattening the neck/head; the user's correction identifies the desired outward
 neck result. Establish the intended layer arrangement from the reference and a

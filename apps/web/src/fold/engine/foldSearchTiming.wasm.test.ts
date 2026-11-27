@@ -5,10 +5,14 @@
  * (a directory) or stderr. Every search runs with no budget, so what it times
  * is what the counts alone allow.
  *
- * - Pleat: every state of every design fixture with eight faces or more, a
- *   pleat of every layer across the folded model at seven places on each axis.
- * - Repeat: every range of every fixture from a state with a verified axis,
+ * - Pleat: every state of every example project (`tests/fixtures/fold-examples`,
+ *   those with one branch) with eight faces or more, a pleat of every layer
+ *   across the folded model at seven places on each axis.
+ * - Repeat: every range of every example from a state with a verified axis,
  *   on every axis; then long synthetic ranges, the longest the caps allow.
+ *
+ * The budgets were chosen on a larger set of models since removed from the
+ * repository, so today's rows are not those numbers.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -56,7 +60,7 @@ async function engine() {
 type Engine = Awaited<ReturnType<typeof engine>>;
 
 function replay(e: Engine['calls'], name: string) {
-  const file = parseNativeProjectFile(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-design-completion', `${name}.osf`), 'utf8'));
+  const file = parseNativeProjectFile(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-examples', `${name}.osf`), 'utf8'));
   const document = readFoldSequences(file.workspace.foldSequences)[0]!.document;
   const sheet = e.sheet(document.paper);
   if (sheet.status !== 'ok') throw new Error('sheet');
@@ -74,7 +78,8 @@ function replay(e: Engine['calls'], name: string) {
 }
 
 const fmt = (ms: number) => `${ms.toFixed(0)} ms`;
-const FIXTURES = ['crane', 'heart', 'cicada', 'swan', 'box'];
+/** The examples whose sequence is one branch: `replay` folds each step on the last. */
+const FIXTURES = ['petal-fold', 'swivel-on-edge', 'swivel-inside'];
 
 function report(name: string, lines: string[]) {
   const out = process.env.FOLD_SEARCH_TIMING_OUT;
@@ -174,7 +179,7 @@ describe.skipIf(!ON)('Fold search timing', () => {
     report('repeat', ['REPEAT', ...rows, `WORST ${fmt(worst.ms)} ${worst.label}`, `RANGES ${rows.length}`]);
   });
 
-  // No fixture has a repeatable range of more than two operations, and the
+  // No example has a repeatable range of more than four operations, and the
   // caps allow 128. A grid of horizontal precreases is the baseline (folded
   // in half first, or not); V vertical precreases on the left half are the
   // range, mirrored across x = 1/2. Faces grow as H × V on each side.

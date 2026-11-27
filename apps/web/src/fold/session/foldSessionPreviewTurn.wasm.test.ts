@@ -1,11 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { parseNativeProjectFile } from '../../lib/nativeProjectFile';
 import { foldPickIndex, type FoldPick } from '../canvas/foldPicking';
 import { initialFoldReaderState, withFoldCursor } from '../document/foldReaderState';
+import { sequenceOf, step, valleyAt } from '../document/foldSequence.fixtures';
 import { isLockedStep, type FoldOp, type FoldSequenceDocument } from '../document/foldSequenceDocument';
-import { readFoldSequences } from '../document/foldSequenceFile';
 import { createFoldEngineCalls, type FoldEngineCalls } from '../engine/foldEngineCalls';
 import { createFoldEngineCompoundCalls } from '../engine/foldEngineCompoundCalls';
 import { orderResolvedStep } from '../engine/foldEnginePreview';
@@ -19,8 +18,7 @@ import { FOLD_SCENE_QUERY, FOLD_STEP_SUMMARY_QUERY, foldCrossSectionQuery } from
 
 /**
  * A tool's preview in as few round trips as its questions allow, over the
- * real bridge on the crane (`tests/fixtures/fold-design-completion`): the
- * step landed with what the panes show of it in one turn; the step a fold's
+ * real bridge on a square folded in half and turned over: the step landed with what the panes show of it in one turn; the step a fold's
  * orders resolve landed in the orders' own turn and taken by the preview
  * that asks for it next; an axiom's roots brought with the layers at the
  * root taken, under the very line the tool asks them at. Each answer is the
@@ -32,8 +30,7 @@ import { FOLD_SCENE_QUERY, FOLD_STEP_SUMMARY_QUERY, foldCrossSectionQuery } from
  */
 const ROOT = process.cwd();
 const WASM = resolve(ROOT, 'src/generated/oristudio-fold-wasm/oristudio_fold_wasm_bg.wasm');
-const CRANE = resolve(ROOT, '../../tests/fixtures/fold-design-completion/crane.osf');
-const available = existsSync(WASM) && existsSync(CRANE);
+const available = existsSync(WASM);
 
 /** Calls made of the engine, by name. */
 const asked = new Map<string, number>();
@@ -59,11 +56,21 @@ async function bridge() {
   }, wasm.fold_engine_version());
 }
 
-function crane(): FoldSequenceDocument {
-  const project = parseNativeProjectFile(readFileSync(CRANE, 'utf8'));
-  const [held] = readFoldSequences(project.workspace.foldSequences);
-  if (!held) throw new Error('no sequence');
-  return held.document;
+/**
+ * The square folded in half, turned over, then the top layer's corner folded
+ * in: two layers, so the corner's fold has orders to resolve.
+ */
+function turnedOver(): FoldSequenceDocument {
+  return sequenceOf([
+    step('fstep-1', null, valleyAt(0.5)),
+    step('fstep-2', 'fstep-1', { kind: 'turn', axis: 'vertical' }),
+    step('fstep-3', 'fstep-2', {
+      kind: 'valley',
+      line: { via: 'free', through: [[0, 0.25], [0.25, 0]] },
+      moving: [0.05, 0.05],
+      seed: { scope: 'depth', at: [0.05, 0.05], layers: 1 },
+    }),
+  ]);
 }
 
 function stepOp(document: FoldSequenceDocument, id: string): FoldOp {
@@ -95,9 +102,9 @@ describe.skipIf(!available)('a preview in one turn, over the bridge', () => {
   beforeEach(async () => {
     asked.clear();
     runtime = await bridge();
-    document = crane();
-    // On the crane's step 23: turned over, so its scene is the model seen through a reflection.
-    source = memoryFoldDocument({ held: { document, readOnlyRaw: null }, reader: withFoldCursor(initialFoldReaderState(document.id), document, 'fstep-crane-23') });
+    document = turnedOver();
+    // On the turn: its scene is the model seen through a reflection.
+    source = memoryFoldDocument({ held: { document, readOnlyRaw: null }, reader: withFoldCursor(initialFoldReaderState(document.id), document, 'fstep-2') });
     session = createFoldSession({ document: source, runtime });
     session.retain();
     for (let round = 0; round < 20 && selectFoldCursorNode(session.store.getState()).status !== 'ok'; round += 1) await settle();
@@ -108,7 +115,7 @@ describe.skipIf(!available)('a preview in one turn, over the bridge', () => {
   afterEach(() => session.dispose());
 
   it('lands a step with its scene and summary in hand, and commits it asking nothing, at the fingerprint the file’s step has', async () => {
-    const op = stepOp(document, 'fstep-crane-24');
+    const op = stepOp(document, 'fstep-3');
     const preview = await session.preview(op);
     if (preview.status !== 'landed') throw new Error(preview.status);
     expect(count('apply')).toBe(1);
@@ -130,11 +137,11 @@ describe.skipIf(!available)('a preview in one turn, over the bridge', () => {
     expect(count('fingerprint')).toBe(fingerprints);
     expect(count('apply')).toBe(1);
     // The same state the file's own step lands.
-    expect(committed.fingerprint).toBe(session.store.getState().nodes.get('fstep-crane-24')?.fingerprint);
+    expect(committed.fingerprint).toBe(session.store.getState().nodes.get('fstep-3')?.fingerprint);
   });
 
   it('lands the step a fold’s orders resolve in their turn, which the preview then takes without asking', async () => {
-    const base = stepOp(document, 'fstep-crane-24');
+    const base = stepOp(document, 'fstep-3');
     const query = { index: 0, batch: 0, perComponent: 1000, maxNodes: 200_000 };
     const reply = await session.resolveOrders(base, {}, query);
     if (reply.status !== 'answered' || reply.value.status !== 'ok') throw new Error('no orders');
@@ -162,7 +169,7 @@ describe.skipIf(!available)('a preview in one turn, over the bridge', () => {
   });
 
   it('lets the step the orders folded go when the tool lets go before previewing it', async () => {
-    const base = stepOp(document, 'fstep-crane-24');
+    const base = stepOp(document, 'fstep-3');
     const live = await alone((engine) => engine.live());
     await session.resolveOrders(base, {}, { index: 0, batch: 0 });
     expect(await alone((engine) => engine.live())).toBe(live + 1);

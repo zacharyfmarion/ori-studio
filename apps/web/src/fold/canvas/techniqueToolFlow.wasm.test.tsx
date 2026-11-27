@@ -26,7 +26,7 @@ let root: Root;
 const cursor = () => selectFoldCursorNode(session.store.getState());
 
 async function setup(name: string, count: number, tool: 'valley' | 'inside-reverse') {
-  const file = parseNativeProjectFile(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-design-completion', `${name}.osf`), 'utf8'));
+  const file = parseNativeProjectFile(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-examples', `${name}.osf`), 'utf8'));
   const full = readFoldSequences(file.workspace.foldSequences)[0]!.document;
   const stored = exampleStep(full, count);
   const document = { ...full, steps: full.steps.slice(0, count) };
@@ -53,7 +53,12 @@ async function setup(name: string, count: number, tool: 'valley' | 'inside-rever
   return { tools, seen, stored, index, expected: expected.value };
 }
 
-describe.skipIf(!FOLD_FLOW_AVAILABLE)('flat design completion through the canvas tool pipeline', () => {
+/**
+ * A multi-target tuck and two outside reverses made again through the canvas
+ * tool pipeline, on the generated example projects
+ * (`tests/fixtures/fold-examples`), each to the fingerprint its file stores.
+ */
+describe.skipIf(!FOLD_FLOW_AVAILABLE)('folding techniques through the canvas tool pipeline', () => {
   beforeEach(async () => {
     useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
     session = createFoldSession({ document: foldSessionDocumentSource(useWorkspaceStore), runtime: await foldFlowBridge() });
@@ -63,13 +68,13 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE)('flat design completion through the canvas
   });
   afterEach(() => { act(() => root.unmount()); host.remove(); session.dispose(); });
 
-  it('reaches the multi-target Heart insertion through Valley and the unified order chooser', async () => {
-    const { tools, seen, stored, expected } = await setup('heart', 9, 'valley');
-    if (stored.op.kind !== 'valley' || stored.op.seed.scope !== 'depth') throw new Error('not a migrated tuck');
-    await clickPane(seen, { x: 0.15, y: 0.625 });
-    await clickPane(seen, { x: 0.85, y: 0.625 });
+  it('reaches the tuck under two flaps through Valley and the unified order chooser', async () => {
+    const { tools, seen, stored, expected } = await setup('tuck-under-two-flaps', 2, 'valley');
+    if (stored.op.kind !== 'valley' || stored.op.seed.scope !== 'depth') throw new Error('not a tuck');
+    await clickPane(seen, { x: 0.15, y: 0.64 });
+    await clickPane(seen, { x: 0.85, y: 0.64 });
     const seed = stored.op.seed;
-    await act(async () => { tools.setSeed({ scope: 'depth', at: seed.at, scene: { x: 0.48, y: 0.9 }, choice: 1 }); await settle(); });
+    await act(async () => { tools.setSeed({ scope: 'depth', at: seed.at, scene: { x: seed.at[0], y: seed.at[1] }, choice: 1 }); await settle(); });
     await untilFlow(() => seen.current?.preview.landed && !seen.current.preview.orderResolution?.waiting, 'the unified placements');
     expect(seen.current!.preview.orderResolution).toMatchObject({ required: true, active: false });
     await act(async () => { seen.current!.verbs.commit(); await settle(); });
@@ -98,15 +103,19 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE)('flat design completion through the canvas
     }
     expect(await matches()).toBe(true);
     expect(seen.current!.preview.analysis?.moving).toBeDefined();
+    const previewed = seen.current!.preview.step;
     const landed = await commitPreviewed(session, seen);
     expect(landed.op).toMatchObject({ kind: 'valley', landing: { kind: 'against' } });
     if (landed.op.kind !== 'valley' || landed.op.landing?.kind !== 'against') throw new Error('no insertion');
-    expect(landed.op.landing.targets.length).toBeGreaterThanOrEqual(2);
+    // The chooser names the fewest targets that reach the order: here one
+    // flap, the other's side held by the step's stored completion.
+    expect(landed.op.landing.targets.length).toBeGreaterThanOrEqual(1);
+    expect(landed.op.landing.targets.length >= 2 || previewed?.choices?.completion !== undefined).toBe(true);
     expect(landed.fingerprint).toBe(expected);
   }, 30_000);
 
-  it.each([8, 9])('commits swan reverse node %i with explicit Outside intent through the shared builder', async (count) => {
-    const { tools, seen, stored, index, expected } = await setup('swan', count, 'inside-reverse');
+  it.each([4, 5])('commits the kite’s outside reverse at step %i with explicit Outside intent through the shared builder', async (count) => {
+    const { tools, seen, stored, index, expected } = await setup('kite-outside-reverse', count, 'inside-reverse');
     if (stored.op.kind !== 'outside-reverse' || stored.op.line.via !== 'free' || stored.op.seed.scope !== 'depth') throw new Error('not an outside reverse');
     const op = stored.op;
     await act(async () => {
@@ -124,16 +133,24 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE)('flat design completion through the canvas
       tools.setSeed({ scope: 'depth', at: op.seed.at, scene, choice: 1 });
       await settle();
     });
-    const reverse = await untilFlow(() => !!seen.current?.preview.reverse?.ways.length && seen.current.preview.reverse, 'the openings');
-    let central = -1;
-    for (let k = 0; k < reverse.ways.length; k++) {
-      if (reverse.ways.at(k)?.openings.every((o) => o.upper.length === o.lower.length)) { central = k; break; }
+    const reverse = await untilFlow(
+      () => (!!seen.current?.preview.reverse?.ways.length || (count === 5 && seen.current?.preview.landed)) && seen.current?.preview.reverse,
+      'the openings'
+    );
+    if (count === 4) {
+      let central = -1;
+      for (let k = 0; k < reverse.ways.length; k++) {
+        if (reverse.ways.at(k)?.openings.every((o) => o.upper.length === o.lower.length)) { central = k; break; }
+      }
+      expect(central).toBeGreaterThanOrEqual(0);
+      await act(async () => { tools.stepOpening(central, reverse.ways.length); await settle(); });
+    } else {
+      // The reversed point's end opens one way only, between its two halves: nothing to step.
+      expect(reverse.ways).toHaveLength(0);
     }
-    expect(central).toBeGreaterThanOrEqual(0);
-    await act(async () => { tools.stepOpening(central, reverse.ways.length); await settle(); });
     await untilFlow(() => seen.current?.preview.landed, 'the outside preview');
     expect(seen.current!.preview.step?.op.kind).toBe('outside-reverse');
-    if (count === 8) {
+    if (count === 4) {
       // Inside asked for: the stepper lists only the openings Inside lands at (owner feedback,
       // 2026-11-04), so the tool moves to one of those rather than refusing the central opening.
       await act(async () => { seen.current!.verbs.setReverseKind('inside'); await settle(); });

@@ -1,0 +1,204 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "A crimp whose two lines meet on the folded edge",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-crimp-lines-meet-on-fold",
+        "title": "A crimp whose two lines meet on the folded edge",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-crimp-lines-meet-on-fold-1",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0.5
+                  ],
+                  [
+                    1,
+                    0.5
+                  ]
+                ]
+              },
+              "moving": [
+                0.5,
+                0.9
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:c98c1a53f96922f8",
+            "note": "Valley fold the square in half, the top edge onto the bottom."
+          },
+          {
+            "id": "fstep-crimp-lines-meet-on-fold-2",
+            "parent": "fstep-crimp-lines-meet-on-fold-1",
+            "op": {
+              "kind": "crimp",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.58,
+                    0.6
+                  ],
+                  [
+                    0.52,
+                    0.9
+                  ]
+                ]
+              },
+              "second": {
+                "via": "free",
+                "through": [
+                  [
+                    0.62,
+                    0.6
+                  ],
+                  [
+                    0.68,
+                    0.9
+                  ]
+                ]
+              },
+              "crimp": "inside",
+              "moving": [
+                0.9,
+                0.75
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:5e22306ffbeac238",
+            "note": "Crimp inside along two lines that meet on the folded edge at x = 0.6: from it to (0.5, 0) and to (0.7, 0) as folded."
+          },
+          {
+            "id": "fstep-crimp-lines-meet-on-fold-3",
+            "parent": "fstep-crimp-lines-meet-on-fold-1",
+            "op": {
+              "kind": "cp-jump",
+              "cpJson": "{\"file_spec\":1.1,\"file_creator\":\"Ori Studio (Fold)\",\"vertices_coords\":[[-200.0,200.0],[0.0,200.0],[80.0,200.0],[200.0,200.0],[200.0,0.0],[200.0,-200.0],[80.0,-200.0],[0.0,-200.0],[-200.0,-200.0],[-200.0,0.0],[40.0,0.0]],\"edges_vertices\":[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,0],[9,10],[10,4],[10,1],[10,2],[10,7],[10,6]],\"edges_assignment\":[\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"B\",\"V\",\"V\",\"V\",\"M\",\"V\",\"M\"]}",
+              "orderJson": "{\"faces\":[[0.6,0.16666666666666666],[0.27575757575757576,0.25757575757575757],[0.8238095238095238,0.261904761904762],[0.8238095238095238,0.7380952380952381],[0.6,0.8333333333333334],[0.27575757575757576,0.7424242424242424]],\"orders\":[[0,1,1],[2,1,1],[3,1,1],[4,1,1],[5,1,1],[2,0,-1],[3,0,-1],[4,0,-1],[5,0,-1],[3,2,1],[4,2,1],[5,2,1],[4,3,-1],[5,3,-1],[5,4,1]]}",
+              "origin": "fold"
+            },
+            "expect": "fs1:5e22306ffbeac238",
+            "note": "Control, beside the crimp: Import CP of the crease pattern the crimp makes, written by hand. Its letters allow one order."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-crimp-lines-meet-on-fold",
+        "cursor": "fstep-crimp-lines-meet-on-fold-3"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

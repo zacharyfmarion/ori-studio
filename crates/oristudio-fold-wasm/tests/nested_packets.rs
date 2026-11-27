@@ -1,12 +1,13 @@
-//! Tutorial regressions through the same public operations and saved choices
-//! used by Fold. The controls were independently checked CP collapses.
+//! Compound folds through the same public operations and saved choices used
+//! by Fold, each against a control: an Import CP of the crease pattern the
+//! fold makes, written by hand (`tests/fixtures/fold-examples`, built by
+//! `apps/web/src/fold/document/foldTechniqueFixtures.wasm.test.ts`).
 #![cfg(not(target_arch = "wasm32"))]
 
 use oristudio_fold::State;
 use oristudio_fold_wasm::bridge::Bridge;
 use oristudio_fold_wasm::wire::{Choices, Op, Outcome, Paper};
 use serde_json::{Value, json};
-
 fn apply(bridge: &mut Bridge, state: u32, op: &Value, choices: &Value) -> u32 {
     let op: Op = serde_json::from_value(op.clone()).unwrap();
     let choices: Choices = serde_json::from_value(choices.clone()).unwrap();
@@ -121,11 +122,40 @@ fn verify(fixture: &str) {
     );
 }
 
+/// An example project as `verify` takes a case: the steps before the fold
+/// (`steps`), the fold (`op`, `choices`) and the Import CP beside it, the
+/// step's sibling (`control`).
+fn case(name: &str) -> String {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/fold-examples")
+        .join(name);
+    let file: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let doc = &file["workspace"]["foldSequences"][0];
+    let steps = doc["steps"].as_array().unwrap();
+    let control = steps
+        .iter()
+        .position(|s| s["op"]["kind"] == "cp-jump")
+        .unwrap();
+    let fold = &steps[control - 1];
+    assert_eq!(
+        steps[control]["parent"], fold["parent"],
+        "the control is the fold's sibling"
+    );
+    json!({
+        "paper": doc["paper"],
+        "steps": steps[..control - 1],
+        "op": fold["op"],
+        "choices": fold.get("choices").cloned().unwrap_or(json!({})),
+        "control": steps[control]["op"],
+    })
+    .to_string()
+}
+
 #[test]
-fn dove_reverses_both_nested_pairs_with_their_own_pocket_walls() {
-    let source = include_str!("../../../tests/fixtures/fold-examples/reverse-nested-dove.json");
-    verify(source);
-    let mut fixture: Value = serde_json::from_str(source).unwrap();
+fn nested_pairs_reverse_inside_their_own_pocket_walls() {
+    let source = case("inside-reverse-nested-pairs.osf");
+    verify(&source);
+    let mut fixture: Value = serde_json::from_str(&source).unwrap();
     let mut bridge = Bridge::new();
     let before = prefix(&mut bridge, &fixture);
     let op: Op = serde_json::from_value(fixture["op"].clone()).unwrap();
@@ -151,8 +181,6 @@ fn dove_reverses_both_nested_pairs_with_their_own_pocket_walls() {
 }
 
 #[test]
-fn squirrel_crimps_at_the_shared_boundary_endpoint() {
-    verify(include_str!(
-        "../../../tests/fixtures/fold-examples/crimp-boundary-squirrel.json"
-    ));
+fn a_crimp_whose_lines_meet_on_the_folded_edge_lands_its_control() {
+    verify(&case("crimp-lines-meet-on-fold.osf"));
 }

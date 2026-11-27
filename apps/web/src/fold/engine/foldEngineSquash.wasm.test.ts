@@ -117,17 +117,18 @@ describe.skipIf(!available)('the vertex folds over the bridge', () => {
     return landed(engine.calls.step(sheet, valley([[1, 0], [0, 1]], [1, 1]))).state;
   }
 
-  it('squashes the exact Bird pocket from either precreased subdivision and freshly replays both saved branches', async () => {
-    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-examples/squash-precreased-bird.json'), 'utf8')) as {
-      paper: FoldPaper; steps: FoldStep[]; picks: FoldSquashOp[];
-    };
+  it('squashes a precreased flap from either side of its precrease and freshly replays both saved branches', async () => {
+    // Its last two steps are the two squashes, each a branch from the precrease.
+    const sequence = JSON.parse(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-examples/squash-precreased-flap.osf'), 'utf8'))
+      .workspace.foldSequences[0] as { paper: FoldPaper; steps: (FoldStep & { op: FoldSquashOp })[] };
+    const fixture = { paper: sequence.paper, steps: sequence.steps.slice(0, 3), picks: sequence.steps.slice(3).map((node) => node.op) };
     let state = landed(engine.calls.sheet(fixture.paper)).state;
     const nodes: FoldStep[] = fixture.steps.map(node => {
       const result = landed(engine.calls.step(state, node.op, node.choices));
       state = result.state;
       return { ...node, expect: result.fingerprint };
     });
-    const baseline = analysed(state, fixture.picks[0]);
+    const baseline = analysed(state, fixture.picks[0]!);
     const outcomes = fixture.picks.map((op, i) => {
       expect(analysed(state, op)).toEqual(baseline);
       const preview = landed(engine.vertex.vertexFold(state, op));
@@ -137,10 +138,10 @@ describe.skipIf(!available)('the vertex folds over the bridge', () => {
       nodes.push(step(`fstep-pocket-${i}`, fixture.steps.at(-1)!.id, op, { expect: result.fingerprint }));
       return result;
     });
-    expect(outcomes[1].fingerprint).toBe(outcomes[0].fingerprint);
+    expect(outcomes[1]!.fingerprint).toBe(outcomes[0]!.fingerprint);
     // Includes exposed sides, per-face transforms and the full layer order,
     // not just the outline of the landed pocket.
-    expect(engine.calls.scene(outcomes[1].state)).toEqual(engine.calls.scene(outcomes[0].state));
+    expect(engine.calls.scene(outcomes[1]!.state)).toEqual(engine.calls.scene(outcomes[0]!.state));
     const document = sequenceOf(nodes, fixture.paper);
     const saved = readFoldSequence(JSON.parse(JSON.stringify(writeFoldSequence({ document, readOnlyRaw: null }))))!;
     const fresh = await makeEngine();

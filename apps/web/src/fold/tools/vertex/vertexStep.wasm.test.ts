@@ -510,8 +510,11 @@ describe.skipIf(!available)('the vertex folds over the real bridge, as their too
     }
   });
 
-  it('rabbit-ears the saved Whale prefix through its existing precreases via the same four UI picks', async () => {
-    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-examples/rabbit-ear-precreased-whale.json'), 'utf8'));
+  it('rabbit-ears the precreased square through its existing precreases via the same four UI picks', async () => {
+    // The fish base: the diagonal and four corner bisectors precreased, then its two rabbit ears.
+    const sequence = JSON.parse(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-examples/rabbit-ear-precreased.osf'), 'utf8'))
+      .workspace.foldSequences[0];
+    const fixture = { paper: sequence.paper, steps: sequence.steps.slice(0, 5), op: sequence.steps[5].op, second: sequence.steps[6].op };
     const engined = await engine();
     const { calls } = engined;
     let state = landed(calls.sheet(fixture.paper)).state;
@@ -540,16 +543,16 @@ describe.skipIf(!available)('the vertex folds over the real bridge, as their too
     const reopened = land(engined, state, JSON.parse(JSON.stringify(ear.built.step)));
     expect(reopened.fingerprint).toBe(folded.fingerprint);
     const fish = landed(calls.step(folded.state, fixture.second));
-    // Both ears must match the control that omitted the preparation marks,
+    // Both ears must match the control that omitted the bisector precreases,
     // including which original sheet points and paper sides appear in each layer.
     let control = landed(calls.sheet(fixture.paper)).state;
-    for (const step of fixture.steps.slice(0, 2)) control = landed(calls.step(control, step.op)).state;
+    for (const step of fixture.steps.slice(0, 1)) control = landed(calls.step(control, step.op)).state;
     control = landed(calls.step(control, fixture.op)).state;
     control = landed(calls.step(control, fixture.second)).state;
     const actualIndex = indexOf(calls, fish.state);
     const controlIndex = indexOf(calls, control);
     let compared = 0;
-    for (let x = -12; x <= 12; x += 1) for (let y = 0; y <= 28; y += 1) {
+    for (let x = 0; x <= 20; x += 1) for (let y = 0; y <= 20; y += 1) {
       const point = p(x / 20 + 0.00131, y / 20 + 0.00217);
       const stack = (index: FoldPickIndex) => foldStackAt(index, point).map(f => ({
         material: applyIsometry(invertIsometry(index.scene.face_transforms[f]!), point),

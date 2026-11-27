@@ -9,7 +9,8 @@ crease made along the history. Earlier steps and branches remain intact.
 The user can continue folding from the new state.
 
 Status: **implemented and verified locally**, 2026-10-14. See the
-[validation and local test instructions](../research/origami-me-flat-catalog/batches/unfold-to-step-2026-10-14.md).
+private Fold corpus validation and local test instructions
+(`unfold-to-step-2026-10-14.md`, outside the repository).
 Decisions confirmed 2026-10-14:
 
 - Append an unfold step and retain the intervening creases.
@@ -18,8 +19,8 @@ Decisions confirmed 2026-10-14:
   without implementing recognition or reverse authoring now.
 - Flat endpoints, one sheet, no cuts or assembly. Local work only.
 
-Dove is [complete through source 16 / Fold 17](../research/origami-me-flat-catalog/batches/dove-completion-2026-10-14.md),
-with 24 replayed states. Further diagram work is paused for this plan.
+Dove is complete through source 16 / Fold 17 (`dove-completion-2026-10-14.md`
+in the private Fold corpus notes, outside the repository), with 24 replayed states. Further diagram work is paused for this plan.
 
 ## Approach
 

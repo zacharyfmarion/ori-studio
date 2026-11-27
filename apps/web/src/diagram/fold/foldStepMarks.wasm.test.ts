@@ -95,19 +95,21 @@ const length = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 describe.skipIf(!available)('a Fold step’s marks in the Diagram, from the real engine', () => {
   it('draws every crease of a rabbit ear — three valley folds to the corners, the mountain fold to the edge — and the ear swung over', async () => {
     const calls = await engine();
-    const whale = JSON.parse(readFileSync(resolve(FIXTURES, 'rabbit-ear-precreased-whale.json'), 'utf8'));
-    let state = landed(calls.sheet(whale.paper)).state;
-    for (const step of whale.steps) state = landed(calls.step(state, step.op, step.choices)).state;
-    const ear = stepOf(calls, state, whale.op);
+    // The fish base's first ear, on its precreased square.
+    const sequence = JSON.parse(readFileSync(resolve(FIXTURES, 'rabbit-ear-precreased.osf'), 'utf8')).workspace.foldSequences[0];
+    let state = landed(calls.sheet(sequence.paper)).state;
+    for (const step of sequence.steps.slice(0, 5)) state = landed(calls.step(state, step.op, step.choices)).state;
+    const op = sequence.steps[5].op;
+    const ear = stepOf(calls, state, op);
     // The engine draws one crease of it.
     expect(ear.action.spans).toHaveLength(1);
-    const placed = foldStepAction(ear.action, { op: whale.op, parent: ear.parent, child: ear.child });
+    const placed = foldStepAction(ear.action, { op, parent: ear.parent, child: ear.child });
     const directions = placed.spans.map((span) => span.direction);
     expect(directions.filter((direction) => direction === 'valley')).toHaveLength(3);
     expect(directions.filter((direction) => direction === 'mountain')).toHaveLength(1);
     expect(placed.spans.every((span) => !span.hidden)).toBe(true);
     // Every one meets the others at the incenter; each valley runs on to a corner of the triangle.
-    const corners = (whale.op.corners as [number, number][]).map(([x, y]) => at(ear.parent, x, y));
+    const corners = (op.corners as [number, number][]).map(([x, y]) => at(ear.parent, x, y));
     const ends = placed.spans.flatMap((span) => [span.from, span.to]);
     const centre = ends.find((end) => ends.filter((other) => near(other, end)).length === 4)!;
     expect(centre).toBeDefined();
@@ -115,15 +117,17 @@ describe.skipIf(!available)('a Fold step’s marks in the Diagram, from the real
       const far = near(span.from, centre) ? span.to : span.from;
       expect(corners.some((corner) => near(corner, far))).toBe(true);
     }
-    // The arrow: from the corner that moves — the ear's tip, which its valley ridge runs to — to where it lands.
+    // The arrow: from the corner that moves — the ear's tip, which its valley ridge runs to — to where it lands,
+    // longer than half the triangle's shortest side.
     const tip = corners.find((corner) => near(corner, placed.grip!.at));
     expect(tip).toBeDefined();
-    expect(length(placed.grip!.at, placed.grip!.image)).toBeGreaterThan(0.5);
+    const shortest = Math.min(...corners.map((corner, k) => length(corner, corners[(k + 1) % 3]!)));
+    expect(length(placed.grip!.at, placed.grip!.image)).toBeGreaterThan(shortest / 2);
     const marks = foldStepPicture(
       { shown: ear.parent, own: { scene: ear.child, step: ear.summary.step, sheet: ear.summary.sheet }, moment: 'before', action: placed },
       FOLD_PULL_RENDER
     ).marks;
-    // Seen from the back of the paper, as the whale starts: valleys and the mountain, as Lang draws a rabbit ear.
+    // Valleys and the mountain, as Lang draws a rabbit ear.
     expect(marks.map((mark) => mark.kind).sort()).toEqual(['mountain-line', 'valley-arrow', 'valley-line', 'valley-line', 'valley-line']);
   });
 

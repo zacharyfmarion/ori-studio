@@ -24,12 +24,23 @@ function landed<T>(result: FoldEngineOutcome<T>): T {
   return result;
 }
 
+/**
+ * An example project's fold and the steps before it: the step beside its
+ * control, the Import CP the Rust tests check it against
+ * (`crates/oristudio-fold-wasm/tests/nested_packets.rs`).
+ */
+function caseOf(name: string): { paper: FoldPaper; steps: FoldStep[]; op: FoldReverseOp | FoldCrimpOp; choices: FoldChoices } {
+  const sequence = JSON.parse(readFileSync(resolve(process.cwd(), `../../tests/fixtures/fold-examples/${name}.osf`), 'utf8'))
+    .workspace.foldSequences[0] as { paper: FoldPaper; steps: (FoldStep & { op: FoldReverseOp | FoldCrimpOp })[] };
+  const control = sequence.steps.findIndex((node) => (node.op.kind as string) === 'cp-jump');
+  const fold = sequence.steps[control - 1]!;
+  return { paper: sequence.paper, steps: sequence.steps.slice(0, control - 1), op: fold.op, choices: fold.choices ?? {} };
+}
+
 describe.skipIf(!existsSync(wasmPath))('nested reverse and boundary crimp saved through Fold', () => {
-  for (const name of ['reverse-nested-dove', 'crimp-boundary-squirrel']) {
+  for (const name of ['inside-reverse-nested-pairs', 'crimp-lines-meet-on-fold']) {
     it(`${name}: tool analysis offers inside, saved choices and every state replay`, async () => {
-      const fixture = JSON.parse(readFileSync(resolve(process.cwd(), `../../tests/fixtures/fold-examples/${name}.json`), 'utf8')) as {
-        paper: FoldPaper; steps: FoldStep[]; op: FoldReverseOp | FoldCrimpOp; choices: FoldChoices;
-      };
+      const fixture = caseOf(name);
       const current = await engine();
       expect(current.version).toBeGreaterThanOrEqual(2);
       let state = landed(current.calls.sheet(fixture.paper)).state;

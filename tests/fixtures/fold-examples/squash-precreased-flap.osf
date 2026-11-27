@@ -1,0 +1,239 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "A precreased flap squashed from either side of its precrease",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-squash-precreased-flap",
+        "title": "A precreased flap squashed from either side of its precrease",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-squash-precreased-flap-1",
+            "parent": null,
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    1,
+                    0
+                  ],
+                  [
+                    0,
+                    1
+                  ]
+                ]
+              },
+              "moving": [
+                1,
+                1
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:e0afaec7d6c7cfa6",
+            "note": "Valley fold the square in half along the diagonal from the top left corner to the bottom right."
+          },
+          {
+            "id": "fstep-squash-precreased-flap-2",
+            "parent": "fstep-squash-precreased-flap-1",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.5,
+                    0.5
+                  ]
+                ]
+              },
+              "moving": [
+                0.9,
+                0.1
+              ],
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "expect": "fs1:fafa43c84fe12609",
+            "note": "Valley fold the triangle in half, its right corner onto its left: four layers."
+          },
+          {
+            "id": "fstep-squash-precreased-flap-3",
+            "parent": "fstep-squash-precreased-flap-2",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0.05,
+                    0.85
+                  ],
+                  [
+                    0.2,
+                    0.4
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.03,
+                0.5
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:650bce0d76517ff0",
+            "note": "Precrease every layer along the line from the top corner to the middle of the folded edge."
+          },
+          {
+            "id": "fstep-squash-precreased-flap-4",
+            "parent": "fstep-squash-precreased-flap-3",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.5000000000000001,
+                0.09999999999999992
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:fa7196d259b03429",
+            "note": "Squash the top flap, picked left of the precrease."
+          },
+          {
+            "id": "fstep-squash-precreased-flap-5",
+            "parent": "fstep-squash-precreased-flap-3",
+            "op": {
+              "kind": "squash",
+              "flap": [
+                0.45000000000000007,
+                0.29999999999999993
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:fa7196d259b03429",
+            "note": "Squash the top flap again from the same parent, picked right of the precrease: the same squash."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-squash-precreased-flap",
+        "cursor": "fstep-squash-precreased-flap-5"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

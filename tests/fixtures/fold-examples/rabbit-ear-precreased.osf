@@ -1,0 +1,347 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-27T00:00:00.000Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Rabbit ears along their precreases: the fish base",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": null,
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-rabbit-ear-precreased",
+        "title": "Rabbit ears along their precreases: the fish base",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "steps": [
+          {
+            "id": "fstep-rabbit-ear-precreased-1",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    1
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.9,
+                0.1
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:90e1e44c76b3127f",
+            "note": "Precrease the diagonal from the bottom left corner to the top right."
+          },
+          {
+            "id": "fstep-rabbit-ear-precreased-2",
+            "parent": "fstep-rabbit-ear-precreased-1",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    0.41421356237309515
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.9,
+                0.05
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:7bcb10af689754f8",
+            "note": "Precrease the bisector of the bottom left corner below the diagonal."
+          },
+          {
+            "id": "fstep-rabbit-ear-precreased-3",
+            "parent": "fstep-rabbit-ear-precreased-2",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0.5857864376269049,
+                    0
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.95,
+                0.1
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:3a81cc7d9b74a558",
+            "note": "Precrease the bisector of the top right corner below the diagonal."
+          },
+          {
+            "id": "fstep-rabbit-ear-precreased-4",
+            "parent": "fstep-rabbit-ear-precreased-3",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.41421356237309515,
+                    1
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.05,
+                0.9
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:2762330ca34d052d",
+            "note": "Precrease the bisector of the bottom left corner above the diagonal."
+          },
+          {
+            "id": "fstep-rabbit-ear-precreased-5",
+            "parent": "fstep-rabbit-ear-precreased-4",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "free",
+                "through": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0.5857864376269049
+                  ]
+                ]
+              },
+              "direction": "valley",
+              "moving": [
+                0.1,
+                0.95
+              ],
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "expect": "fs1:d958039e2c19d6dd",
+            "note": "Precrease the bisector of the top right corner above the diagonal."
+          },
+          {
+            "id": "fstep-rabbit-ear-precreased-6",
+            "parent": "fstep-rabbit-ear-precreased-5",
+            "op": {
+              "kind": "rabbit-ear",
+              "corners": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "emergent": [
+                1,
+                0
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.8,
+                  0.12
+                ],
+                "layers": 1
+              },
+              "stayer": [
+                0.2,
+                0.8
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:572a02daa3199c7b",
+            "note": "Rabbit-ear the triangle below the diagonal along its precreases, its ear toward the right edge."
+          },
+          {
+            "id": "fstep-rabbit-ear-precreased-7",
+            "parent": "fstep-rabbit-ear-precreased-6",
+            "op": {
+              "kind": "rabbit-ear",
+              "corners": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "emergent": [
+                0,
+                1
+              ],
+              "seed": {
+                "scope": "depth",
+                "at": [
+                  0.12,
+                  0.8
+                ],
+                "layers": 1
+              },
+              "stayer": [
+                0.95,
+                0.5
+              ],
+              "direction": "valley"
+            },
+            "expect": "fs1:8a066ab52c1c39c4",
+            "note": "Rabbit-ear the triangle above the diagonal the same way, its ear toward the top edge: the fish base."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-rabbit-ear-precreased",
+        "cursor": "fstep-rabbit-ear-precreased-7"
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}
