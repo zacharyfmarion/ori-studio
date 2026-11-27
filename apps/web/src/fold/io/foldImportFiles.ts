@@ -6,17 +6,21 @@
  * A file is named by its extension and sent as bytes, whatever its encoding
  * (`.orh` is binary); the engine's loader decides whether it reads. A file's
  * name is shown to the user and never leaves the dialog: the step records a
- * closed `origin`, the analytics event the same.
+ * closed `origin`, the analytics event the same. Several files at once — a
+ * drop or a pick of many — import in the order of the numbers in their names.
  *
- * Pure: no React, no store, no engine.
+ * Pure but for reading a picked file: no React, no store, no engine.
  */
 
 import { droppedFileExtension } from '../../lib/fileDrop';
+import { naturalFileOrder } from '../../lib/naturalFileOrder';
+import { FileTooLargeError, type PickedFile } from '../../platform/fileService';
 import { foldEdgeMagnitudeUnits, partialFoldDegrees } from '../../lib/foldAngle';
 import type { ImportedCreasePatternFormat } from '../../lib/fileFormats';
 import { fitSheetThumbnail, type SheetStroke, type SheetStrokeRole, type SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import { FOLD_SAMPLES, foldSampleSource, type FoldSample, type FoldSampleId } from '../engine/foldEngineIoSamples';
 import type { FoldImportSource } from '../engine/foldEngineIoWire';
+import type { FoldImportRequest } from './foldImportFlow';
 
 /** The extensions the import's picker offers, in the order its filter lists them. */
 export const FOLD_IMPORT_EXTENSIONS: readonly ImportedCreasePatternFormat[] = ['cp', 'fold', 'ori', 'orh'];
@@ -33,6 +37,42 @@ export function foldImportFormatOf(name: string): ImportedCreasePatternFormat | 
 export function foldImportFileSource(name: string, bytes: Uint8Array): FoldImportSource | null {
   const format = foldImportFormatOf(name);
   return format ? { format, bytes } : null;
+}
+
+/**
+ * The most of one file Import CP reads: 64 MiB. A pattern Fold can fold, at
+ * most `FOLD_MAX_FACES` faces, is a few megabytes in any of the four formats,
+ * so a file past this is refused unread rather than parsed only to be refused
+ * for its faces.
+ */
+export const FOLD_IMPORT_MAX_BYTES = 64 * 1024 * 1024;
+
+/**
+ * The files of a drop or a pick that Import CP imports, in the order it
+ * imports them: the crease patterns among them, by the numbers in their names
+ * (`naturalFileOrder`), anything else left out. When none is a crease pattern,
+ * the first file alone, so the dialog says what it is not.
+ */
+export function foldImportFileOrder<T extends { name: string }>(files: readonly T[]): T[] {
+  const patterns = files.filter((file) => foldImportFormatOf(file.name) !== null);
+  return patterns.length > 0 ? naturalFileOrder(patterns) : files.slice(0, 1);
+}
+
+/**
+ * A dropped or picked file as the flow imports it, read whole when its turn
+ * comes. One with no crease-pattern extension is not read; one that cannot be
+ * read, or is past {@link FOLD_IMPORT_MAX_BYTES}, says so.
+ */
+export async function foldImportFileRequest(file: PickedFile): Promise<FoldImportRequest> {
+  const { name } = file;
+  if (foldImportFormatOf(name) === null) return { kind: 'file', name, source: null };
+  try {
+    return { kind: 'file', name, source: foldImportFileSource(name, await file.read(FOLD_IMPORT_MAX_BYTES)) };
+  } catch (error) {
+    return error instanceof FileTooLargeError
+      ? { kind: 'file', name, source: null, tooLarge: true }
+      : { kind: 'file', name, source: null, unreadable: true };
+  }
 }
 
 /** The sample with `id`; null only for an id a newer build named. */

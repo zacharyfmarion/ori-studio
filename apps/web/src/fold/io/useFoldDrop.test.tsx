@@ -65,8 +65,26 @@ describe('the Fold workspace’s drop policy', () => {
     });
     expect(workspace.drop).not.toHaveBeenCalled();
     const opening = useFoldImportUiStore.getState().opening;
-    expect(opening?.request).toMatchObject({ kind: 'file', name: 'crane.cp', source: { format: 'cp' } });
+    expect(opening).toMatchObject({ mode: 'step', request: null });
+    // The queue keeps the crease patterns, each read when its turn comes.
+    expect(opening?.files.map((file) => file.name)).toEqual(['notes.txt', 'crane.cp']);
+    expect(Array.from((await opening?.files[1]?.read(64)) ?? [])).toEqual(Array.from(new TextEncoder().encode('1 0 0 1 1')));
     expect(target().dataset.active).toBeUndefined();
+  });
+
+  it('opens Import CP once on several crease patterns dropped together', async () => {
+    const files = ['10.cp', '9.cp', '8.fold'].map((name) => new File(['1 0 0 1 1'], name));
+    const opened = vi.fn();
+    const unsubscribe = useFoldImportUiStore.subscribe((state, before) => {
+      if (state.opening !== before.opening && state.opening) opened(state.opening);
+    });
+    act(() => {
+      target().dispatchEvent(drag('drop', files));
+    });
+    unsubscribe();
+    expect(opened).toHaveBeenCalledOnce();
+    expect(useFoldImportUiStore.getState().opening?.files.map((file) => file.name)).toEqual(['10.cp', '9.cp', '8.fold']);
+    expect(workspace.drop).not.toHaveBeenCalled();
   });
 
   it('leaves a drop with no crease pattern to the workspace, which opens it', () => {

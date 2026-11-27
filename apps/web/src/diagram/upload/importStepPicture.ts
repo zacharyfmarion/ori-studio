@@ -202,12 +202,3 @@ async function reencodeEmbedded(
     return null;
   }
 }
-
-/**
- * Order files as a person numbering steps would: `step-2` before `step-10`,
- * whatever the platform's picker returned them in.
- */
-export function naturalFileOrder<T extends { name: string }>(files: readonly T[]): T[] {
-  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-  return [...files].sort((a, b) => collator.compare(a.name, b.name));
-}

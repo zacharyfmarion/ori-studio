@@ -42,7 +42,7 @@ export function foldSessionDocumentSource(store: StoreApi<WorkspaceState>): Fold
           listener();
         }
       }),
-    commit: (draft, loadId) => store.getState().commitFoldStep(draft, { loadId }),
+    commit: (draft, loadId, batch) => store.getState().commitFoldStep(draft, { loadId, batch }),
   };
 }
 

@@ -349,7 +349,7 @@
     "overridden": "上書き済み"
   },
   "fileDrop": {
-    "importCreasePattern": "展開図をドロップしてインポート",
+    "importCreasePattern": "展開図をドロップしてインポート（複数可）",
     "open": "ドロップして開く",
     "openOrImport": "ドロップして開く／インポート"
   },

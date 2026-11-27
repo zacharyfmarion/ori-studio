@@ -349,7 +349,7 @@
     "overridden": "재정의됨"
   },
   "fileDrop": {
-    "importCreasePattern": "전개도를 끌어다 놓아 가져오기",
+    "importCreasePattern": "전개도를 끌어다 놓아 가져오기 (여러 개 가능)",
     "open": "놓아서 열기",
     "openOrImport": "놓아서 열거나 가져오기"
   },

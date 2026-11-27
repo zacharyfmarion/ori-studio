@@ -16,6 +16,7 @@
 import type { TFunction } from 'i18next';
 import type { NoticeAction } from '../../components/ui/Notice';
 import type { FoldImportRefusalCode } from '../engine/foldEngineIoWire';
+import type { FoldImportRequest } from './foldImportFlow';
 import type { FoldEngineRefused } from '../engine/foldEngineWire';
 import { foldCapOf, foldCapWords } from '../foldCaps';
 
@@ -24,6 +25,8 @@ import { foldCapOf, foldCapWords } from '../foldCaps';
  *
  * - `unsupported_file`: the file's extension names no format the kernel reads;
  * - `unreadable_file`: the platform could not read the file;
+ * - `file_too_large`: the file is past what Import CP reads
+ *   (`FOLD_IMPORT_MAX_BYTES`), so it was never read;
  * - `no_folded_figure`: Edit has no solved flat folded figure to start from;
  * - `no_state`: the step on screen has no state to add a step after (it is
  *   broken, locked, or the replay stopped);
@@ -38,6 +41,7 @@ import { foldCapOf, foldCapWords } from '../foldCaps';
 export type FoldImportLocalCode =
   | 'unsupported_file'
   | 'unreadable_file'
+  | 'file_too_large'
   | 'no_folded_figure'
   | 'no_project_cp'
   | 'no_state'
@@ -63,6 +67,11 @@ export interface FoldImportNoticeModel {
   title: string;
   text: string;
   actions: readonly NoticeAction[];
+}
+
+/** Why a file request carries no source: too large to read, unreadable, or no crease pattern at all. */
+export function unreadFileCode(request: Extract<FoldImportRequest, { kind: 'file' }>): FoldImportLocalCode {
+  return request.tooLarge ? 'file_too_large' : request.unreadable ? 'unreadable_file' : 'unsupported_file';
 }
 
 /** The calls a notice's fixes make. */
@@ -274,6 +283,13 @@ function localWords(
       return {
         title: t('dialogs:foldImport.refusal.unreadableFile.title', 'Could not read the file'),
         text: t('dialogs:foldImport.refusal.unreadableFile.text', '{{name}} could not be read.', { name: name ?? '' }),
+      };
+    case 'file_too_large':
+      return {
+        title: t('dialogs:foldImport.refusal.fileTooLarge.title', 'File too large'),
+        text: t('dialogs:foldImport.refusal.fileTooLarge.text', '{{name}} is over 64 MiB, too large to import.', {
+          name: name ?? '',
+        }),
       };
     case 'no_project_cp':
       return {

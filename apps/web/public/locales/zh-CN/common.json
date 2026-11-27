@@ -349,7 +349,7 @@
     "overridden": "已覆盖"
   },
   "fileDrop": {
-    "importCreasePattern": "拖放折痕图以导入",
+    "importCreasePattern": "拖放一个或多个折痕图以导入",
     "open": "拖放以打开",
     "openOrImport": "拖放以打开或导入"
   },

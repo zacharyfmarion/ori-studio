@@ -155,6 +155,41 @@ describe('the Fold slice', () => {
     expect(state().foldHistory.past).toHaveLength(past + 3);
   });
 
+  it('makes the steps of one batch one undo step, each moving the cursor on', () => {
+    const { b } = foldTwo();
+    const past = state().foldHistory.past.length;
+
+    // A drop of three crease patterns: each step after the one before.
+    const c = state().commitFoldStep(valley(b, 0.6), { batch: 41 })!;
+    const d = state().commitFoldStep(valley(c, 0.7), { batch: 41 })!;
+    const e = state().commitFoldStep(valley(d, 0.8), { batch: 41 })!;
+    expect(cursor()).toBe(e);
+    expect(state().foldHistory.past).toHaveLength(past + 1);
+    expect(state().foldHistory.past.at(-1)?.label).toBe('Valley fold');
+
+    // One undo takes the whole batch back, and one redo brings it again.
+    expect(state().undoFold()).toBe(true);
+    expect(stepIds()).not.toContain(c);
+    expect(cursor()).toBe(b);
+    expect(state().redoFold()).toBe(true);
+    expect(stepIds()).toEqual(expect.arrayContaining([c, d, e]));
+
+    // Another batch, or a step of none, is an entry of its own.
+    const f = state().commitFoldStep(valley(e, 0.9), { batch: 42 })!;
+    const g = state().commitFoldStep(valley(f, 0.95))!;
+    state().commitFoldStep(valley(g, 0.1), { batch: 42 });
+    expect(state().foldHistory.past).toHaveLength(past + 4);
+  });
+
+  it('starts a new undo step for a batch once something else was recorded between its steps', () => {
+    const { b } = foldTwo();
+    const past = state().foldHistory.past.length;
+    const c = state().commitFoldStep(valley(b, 0.6), { batch: 9 })!;
+    expect(state().setFoldSequenceTitle('Crane')).toBe(true);
+    state().commitFoldStep(valley(c, 0.7), { batch: 9 });
+    expect(state().foldHistory.past).toHaveLength(past + 3);
+  });
+
   it('makes a drag of a step’s spread one undo step, and a toggle another', () => {
     const { a, b } = foldTwo();
     const past = state().foldHistory.past.length;

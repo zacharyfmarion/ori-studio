@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
 import { dragCarriesFiles, isImageOnlyDrag, type DropTargetPolicy } from '../../lib/fileDrop';
-import { foldImportFileSource, foldImportFormatOf } from './foldImportFiles';
+import { pickedFileFromFile } from '../../platform/fileService';
+import { foldImportFormatOf } from './foldImportFiles';
 import { useFoldImportUiStore } from './foldImportUiStore';
 
 /** The Fold workspace's drop policy: a crease pattern becomes a step; anything else is the app's. */
@@ -20,19 +21,20 @@ export interface FoldDrop {
 
 /**
  * Crease patterns dropped anywhere on the Fold workspace (plan D14, D16) —
- * its panes, its step strip or its header: Import CP, as a
- * step after the step on screen, through the import dialog — which reads the
- * file, offers its layer orders and says why one is refused. One target for
- * the whole panel, so a file means the same a few pixels either side of the
- * strip's edge.
+ * its panes, its step strip or its header: Import CP, each a step after the
+ * one before, starting after the step on screen, in the order of the numbers
+ * in their names, through the import dialog — which reads each file, offers
+ * its layer orders and says why one is refused (`foldImportQueue`). One
+ * target for the whole panel, so a file means the same a few pixels either
+ * side of the strip's edge.
  *
  * It claims every file drag that is not only pictures, and keeps its enter,
  * over and leave to itself, so the app's own target never shows its "open or
  * import" overlay over Fold: during a drag the browser withholds the files,
  * and a crease pattern has no MIME type to tell it by. On the drop the files
- * are known. The first crease pattern among them is imported and the drop
- * consumed; a drop with none — a project, a tree — goes on to the app's
- * target, which opens it as it would anywhere.
+ * are known. The crease patterns among them are imported, anything else left
+ * out, and the drop consumed; a drop with none — a project, a tree — goes on
+ * to the app's target, which opens it as it would anywhere.
  */
 export function useFoldDrop(): FoldDrop {
   const [isDragActive, setDragActive] = useState(false);
@@ -80,12 +82,13 @@ export function useFoldDrop(): FoldDrop {
   const onDrop = useCallback((event: ReactDragEvent<HTMLElement>) => {
     depth.current = 0;
     setDragActive(false);
-    const file = Array.from(event.dataTransfer.files).find((each) => foldImportFormatOf(each.name) !== null);
-    // Not a crease pattern: the workspace's target, further up, opens it.
-    if (!file) return;
+    const files = Array.from(event.dataTransfer.files);
+    // No crease pattern among them: the workspace's target, further up, opens it.
+    if (!files.some((each) => foldImportFormatOf(each.name) !== null)) return;
     event.preventDefault();
     event.stopPropagation();
-    void importDroppedFile(file);
+    // Each read when its turn comes; the queue keeps the crease patterns, by name.
+    useFoldImportUiStore.getState().openFiles(files.map(pickedFileFromFile));
   }, []);
 
   return { dropTargetProps: { onDragEnter, onDragOver, onDragLeave, onDrop }, isDragActive };
@@ -98,18 +101,4 @@ function claims(event: ReactDragEvent<HTMLElement>): boolean {
     dragCarriesFiles({ types: Array.from(transfer.types), items: transfer.items }) &&
     !isImageOnlyDrag(transfer.items)
   );
-}
-
-/** Open Import CP on a dropped file, read whole: the engine's loader takes its bytes. */
-async function importDroppedFile(file: File): Promise<void> {
-  const open = useFoldImportUiStore.getState().open;
-  let bytes: Uint8Array;
-  try {
-    bytes = new Uint8Array(await file.arrayBuffer());
-  } catch {
-    // Unread, it is no source; the dialog says the file could not be read.
-    open({ kind: 'file', name: file.name, source: null, unreadable: true });
-    return;
-  }
-  open({ kind: 'file', name: file.name, source: foldImportFileSource(file.name, bytes) });
 }

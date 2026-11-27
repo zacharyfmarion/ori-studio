@@ -37,21 +37,6 @@ const PICTURE_FILE = new RegExp(`\\.(?:${STEP_PICTURE_EXTENSIONS.join("|")})$`, 
 export const STEP_IMPORT_EXTENSIONS = ["cp", "defox", ...STEP_PICTURE_EXTENSIONS];
 export const supportsStepImport = (name: string) =>
   CP_FILE.test(name) || DEFOX_FILE.test(name) || PICTURE_FILE.test(name);
-export function orderedImportFiles(files: readonly PickedFile[]): PickedFile[] {
-  const order = new Intl.Collator(undefined, {
-    numeric: true,
-    sensitivity: "base",
-  });
-  return files
-    .map((file, index) => ({ file, index }))
-    .sort(
-      (a, b) =>
-        order.compare(a.file.name, b.file.name) ||
-        a.file.name.localeCompare(b.file.name) ||
-        a.index - b.index,
-    )
-    .map((v) => v.file);
-}
 class ImportBudgetError extends Error {}
 const errorText = (e: unknown) =>
   e instanceof Error

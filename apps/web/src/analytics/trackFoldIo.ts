@@ -1,7 +1,14 @@
 import type { FoldCpOrigin } from '../fold/document/foldSequenceDocument';
 import { foldCapOf, type FoldCap } from '../fold/foldCaps';
 import type { FoldImportRefusal } from '../fold/io/foldImportRefusal';
-import { ANALYTICS_EVENTS, bucketCount, FOLD_FACE_COUNT_BUCKETS, FOLD_STACK_DEPTH_BUCKETS } from './events';
+import type { FoldImportBatchEnd } from '../fold/io/foldImportQueue';
+import {
+  ANALYTICS_EVENTS,
+  bucketCount,
+  COUNT_BUCKETS,
+  FOLD_FACE_COUNT_BUCKETS,
+  FOLD_STACK_DEPTH_BUCKETS,
+} from './events';
 import { track } from './runtime';
 
 /**
@@ -37,6 +44,21 @@ function capBucket(cap: FoldCap): Record<string, string> {
  */
 export function trackFoldCpImported(origin: FoldCpOrigin, action: 'insert' | 'update' = 'insert'): void {
   track(ANALYTICS_EVENTS.foldCpImported, { origin, action });
+}
+
+/**
+ * Import CP of several files ended (`foldImportQueue`), once per batch of two
+ * or more: how many files it held and how many became steps, bucketed;
+ * `finished` when every file was imported or skipped, `stopped` when it ended
+ * part way; and whether the files were dropped or picked. Never a file name.
+ */
+export function trackFoldCpBatchEnded({ files, imported, outcome, via }: FoldImportBatchEnd): void {
+  track(ANALYTICS_EVENTS.foldCpBatchEnded, {
+    files: bucketCount(files, COUNT_BUCKETS),
+    imported: bucketCount(imported, COUNT_BUCKETS),
+    outcome,
+    via,
+  });
 }
 
 /** A Fold sequence was sent to Edit (plan D10, D18): there is one Send to Edit, so no property. */
