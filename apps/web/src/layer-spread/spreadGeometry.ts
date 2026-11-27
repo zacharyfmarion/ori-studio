@@ -173,6 +173,9 @@ export function meshSpreadGeometry(scene: ConnectedPaperScene, effective: PaperS
   };
   const fillCount = new Int32Array(faceCount + 1);
   const strokeCount = new Int32Array(faceCount + 1);
+  // Each line's ends once eroded, in item order: a line that erodes away takes
+  // no slot, so every face's run is exactly its lines.
+  const ends: ReturnType<typeof erodeLine>[] = [];
   let next = 0;
   for (let i = 0; i < items.length; i++) {
     const item = items[i]!;
@@ -190,7 +193,9 @@ export function meshSpreadGeometry(scene: ConnectedPaperScene, effective: PaperS
       fillCount[item.face + 1] += 3;
     } else if (item.kind === 'line' && penOf(item.role)) {
       source[i] = drawnLine(item);
-      strokeCount[item.face + 1] += 1;
+      const eroded = erodeLine(item, erodePx);
+      ends.push(eroded);
+      if (eroded) strokeCount[item.face + 1] += 1;
     }
   }
   if (crowded) return null;
@@ -216,6 +221,7 @@ export function meshSpreadGeometry(scene: ConnectedPaperScene, effective: PaperS
     strokeAt = strokeCount.slice(0, faceCount);
   const dashed = new Uint8Array(faceCount);
   let search: ReturnType<typeof depthSearch> | null = null;
+  let endsAt = 0;
   for (let i = 0; i < items.length; i++) {
     const item = items[i]!;
     if (item.kind === 'face' && source[i]! >= 0) {
@@ -226,21 +232,30 @@ export function meshSpreadGeometry(scene: ConnectedPaperScene, effective: PaperS
         const v = fillAt[item.face]!++;
         fillPos[2 * v] = ring[k]![0];
         fillPos[2 * v + 1] = ring[k]![1];
-        fillColor.set(fill, 4 * v);
+        // Four writes: `set` costs more than they do for a colour.
+        fillColor[4 * v] = fill[0];
+        fillColor[4 * v + 1] = fill[1];
+        fillColor[4 * v + 2] = fill[2];
+        fillColor[4 * v + 3] = fill[3];
         fillDepth[v] = (positions[ids[k]!]![2] - lo) / span;
       }
     } else if (item.kind === 'line' && item.face !== undefined && !item.hidden) {
       const pen = penOf(item.role);
       if (!pen) continue;
-      const eroded = erodeLine(item, erodePx);
+      const eroded = ends[endsAt++];
       if (!eroded) continue;
-      const [from, to] = eroded;
+      // Read by index: WebKit runs a destructuring through the iterator, which left its optimized code every frame.
+      const from = eroded[0],
+        to = eroded[1];
       const s = strokeAt[item.face]!++;
       a[2 * s] = from[0];
       a[2 * s + 1] = from[1];
       b[2 * s] = to[0];
       b[2 * s + 1] = to[1];
-      color.set(pen.color, 4 * s);
+      color[4 * s] = pen.color[0];
+      color[4 * s + 1] = pen.color[1];
+      color[4 * s + 2] = pen.color[2];
+      color[4 * s + 3] = pen.color[3];
       widthMul[s] = pen.width;
       dashSlot[s] = pen.slot;
       // A centred pattern starts half the line's length before it: its first run's middle on the midpoint.

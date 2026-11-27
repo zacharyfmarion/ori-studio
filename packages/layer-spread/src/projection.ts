@@ -65,7 +65,10 @@ export function barycentric(
 }
 
 export function interpolate(ids: Triangle, weights: Point3, positions: readonly Point3[]): Point3 {
-  return [0, 1, 2].map((axis) => weights.reduce((s, w, k) => s + w * positions[ids[k]][axis], 0)) as Point3;
+  const a = positions[ids[0]], b = positions[ids[1]], c = positions[ids[2]];
+  const u = weights[0], v = weights[1], w = weights[2];
+  // Summed from zero in corner order, so a zero keeps the sign it always had.
+  return [0 + u * a[0] + v * b[0] + w * c[0], 0 + u * a[1] + v * b[1] + w * c[1], 0 + u * a[2] + v * b[2] + w * c[2]];
 }
 
 export function faceWeights(input: SpreadInput, face: number, point: Point): { ids: Triangle; weights: Point3 } | null {
