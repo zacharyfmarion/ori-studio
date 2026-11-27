@@ -73,6 +73,7 @@
     "detected": "Erkannt",
     "dropImageHere": "Bild hier ablegen",
     "editCrop": "Zuschnitt bearbeiten",
+    "gridSize": "{{cells}} × {{cells}}",
     "inferred": "Abgeleitet",
     "model": {
       "deviceGpu": "Dieses Gerät hat eine GPU, die Erkennung dauert daher nur Sekunden.",
@@ -100,6 +101,7 @@
       "lead": "Faltmuster sind das Werk ihrer Designer. Erkennen Sie nur ein Muster, das Sie verwenden dürfen: eines, das Sie selbst entworfen haben, eines, das zum Nachfalten veröffentlicht wurde, oder eines, dessen Designer Ihnen die Erlaubnis gegeben hat. Das Bild wird auf diesem Gerät verarbeitet und nie hochgeladen."
     },
     "runningModel": "Modell wird ausgeführt",
+    "snapToGrid": "Am Raster einrasten",
     "stopping": "Wird gestoppt…",
     "stopSolve": "Stoppen",
     "title": "CP aus Bild erkennen",
@@ -109,6 +111,8 @@
       "cancelled": "Sie haben das Lösen gestoppt, daher wurde nichts geändert – das ist das Muster genau so, wie es erkannt wurde. „Prüfen und korrigieren“ fügt es mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie es im Dokument erneut lösen können.",
       "exact": "Wird es neben Ihrer Arbeit eingefügt, bleibt der Rest des Dokuments unverändert.",
       "exactReview": "„Prüfen und korrigieren“ fügt stattdessen das Muster so ein, wie es erkannt wurde, mit dem Quellbild dahinter und den Solver-Daten, damit Sie Knoten fixieren oder verschieben können, bevor Sie es selbst erneut lösen.",
+      "gridSnapOutOfTime": "Die Zeit reichte nicht, um es am {{cells}} × {{cells}}-Raster einzurasten.",
+      "gridSnapRefused": "Es ist nicht am {{cells}} × {{cells}}-Raster eingerastet: Auf dem Raster ließe es sich nicht mehr flach falten.",
       "improved": "„Prüfen und korrigieren“ fügt es mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie den Rest korrigieren und erneut lösen können – oder Sie fügen das verbesserte Ergebnis so hinzu, wie es ist.",
       "improvedNoFold": "„Prüfen und korrigieren“ fügt es mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie den Rest korrigieren und erneut lösen können.",
       "repairable_one": "Erkannt, mit einer zu reparierenden Stelle – das Lösen wurde deshalb nicht ausgeführt: Es hätte sein ganzes Zeitbudget für Geometrie verbraucht, die Sie gleich ändern. „Prüfen und korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie ihn korrigieren und lösen können.",

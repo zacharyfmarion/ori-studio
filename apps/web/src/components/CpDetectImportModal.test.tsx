@@ -968,6 +968,8 @@ describe('CpDetectImportModal add', () => {
       mode: 'reviewAndFix',
       outcome: 'solved',
       repair_sites: '0',
+      // Not box-pleated, so there was no grid to snap to.
+      grid_snap: 'none',
     });
   });
 
@@ -1065,6 +1067,8 @@ describe('CpDetectImportModal add', () => {
       mode: 'reviewAndFix',
       outcome: 'recognized',
       repair_sites: '5-8',
+      // Not box-pleated, so there was no grid to snap to.
+      grid_snap: 'none',
     });
   });
 
@@ -1078,6 +1082,8 @@ describe('CpDetectImportModal add', () => {
       mode: 'add',
       outcome: 'solved',
       repair_sites: '0',
+      // Not box-pleated, so there was no grid to snap to.
+      grid_snap: 'none',
     });
   });
 });
@@ -1620,5 +1626,163 @@ describe('CpDetectImportModal canvas image entry', () => {
     await settle();
     expect(detectClient.autoRectifyImage).not.toHaveBeenCalled();
     expect(bodyText()).toContain('unreadable');
+  });
+});
+
+/**
+ * "Snap to grid", for a detection that reads as box-pleated.
+ *
+ * What these hold: the option exists only where there is a grid to snap to; it
+ * is on by default; what is added is what is shown — the candidate snapped, or
+ * the solver's answer snapped where it still folds flat — and the flip costs a
+ * solve only where the two positions can disagree, which is an exact answer.
+ */
+describe('CpDetectImportModal snap to grid', () => {
+  /** A candidate whose vertex 7 sits 1.4 px off its grid point (0.5, 0.5). */
+  function boxPleatFold() {
+    return JSON.stringify({
+      vertices_coords: [
+        [0, 0],
+        [0.4985, 0.5],
+      ],
+      edges_vertices: [[0, 1]],
+      edges_assignment: ['M'],
+      cp_detector: { source: 'exact_solve_candidate', vertex_original_ids: [4, 7] },
+    });
+  }
+
+  function boxPleatRecognition(sites: number) {
+    return {
+      ...(recognition(diagnostics(sites), undefined, boxPleatFold()) as object),
+      boxPleatGrid: { cells: 16, snappedVertices: [{ vertex_id: 7, after: { x: 0.5, y: 0.5 } }] },
+    } as never;
+  }
+
+  function toggle(): HTMLButtonElement | null {
+    return document.querySelector('[data-cp-detect-grid-snap]');
+  }
+
+  function flipSnap(): void {
+    const target = toggle();
+    if (!target) throw new Error('no Snap to grid toggle on screen');
+    act(() => target.click());
+  }
+
+  function addedCoordinates(call = 0): number[][] {
+    const [{ text }] = storeActions.importAddOristudioCpText.mock.calls[call] as unknown as [{ text: string }];
+    return JSON.parse(text).vertices_coords;
+  }
+
+  function exactOutcome(stopReason: string, adopted: boolean): CpExactSolveOutcome {
+    return { ...solvedOutcome(), gridSnap: { adopted, stopReason, cells: 16 } } as CpExactSolveOutcome;
+  }
+
+  it('is offered only for a pattern that reads as box-pleated', async () => {
+    await reachReviewStage();
+    expect(toggle()).toBeNull();
+  });
+
+  it('is on by default and names the grid it snaps to', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(boxPleatRecognition(2));
+    await reachReviewStage();
+    expect(toggle()?.getAttribute('aria-pressed')).toBe('true');
+    expect(toggle()?.textContent).toContain('Snap to grid');
+    expect(toggle()?.textContent).toContain('16 × 16');
+  });
+
+  it('adds the unsolved candidate on its grid, and as recognized once the snap is off', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(boxPleatRecognition(2));
+    await reachReviewStage();
+    expect(runCpExactSolve).not.toHaveBeenCalled();
+    click('Add as-is');
+    await settle();
+    expect(addedCoordinates()).toEqual([
+      [0, 0],
+      [0.5, 0.5],
+    ]);
+    expect(track).toHaveBeenCalledWith('cp detect imported', expect.objectContaining({ grid_snap: 'on' }));
+
+    await reachReviewStage();
+    flipSnap();
+    expect(toggle()?.getAttribute('aria-pressed')).toBe('false');
+    // Flipping a candidate the solver never saw is free: nothing to solve.
+    expect(runCpExactSolve).not.toHaveBeenCalled();
+    click('Review & Fix');
+    await settle();
+    expect(addedCoordinates(1)).toEqual([
+      [0, 0],
+      [0.4985, 0.5],
+    ]);
+    expect(track).toHaveBeenCalledWith('cp detect imported', expect.objectContaining({ grid_snap: 'off' }));
+  });
+
+  it('draws the grid behind the preview while it snaps, and not otherwise', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(boxPleatRecognition(2));
+    await reachReviewStage();
+    const grid = document.querySelector('[data-cp-detect-grid-cells="16"]');
+    expect(grid).not.toBeNull();
+    // Interior lines only, both ways: the paper edge is the pattern's border.
+    expect(grid?.querySelectorAll('line')).toHaveLength(2 * 15);
+    flipSnap();
+    expect(document.querySelector('[data-cp-detect-grid-cells]')).toBeNull();
+  });
+
+  it('asks the solver to snap an exact answer, and only for a box-pleated pattern', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(boxPleatRecognition(0));
+    await reachReviewStage();
+    expect(runCpExactSolve).toHaveBeenCalledTimes(1);
+    expect(runCpExactSolve.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ gridSnap: true }));
+
+    runCpExactSolve.mockClear();
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    click('Detect');
+    await settle();
+    expect(runCpExactSolve.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ gridSnap: false }));
+  });
+
+  it('solves again when flipped on an exact answer it snapped, and flips back without solving', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(boxPleatRecognition(0));
+    runCpExactSolve.mockResolvedValue(solveResult(exactOutcome('adopted', true), solvedFold()));
+    await reachReviewStage();
+    expect(runCpExactSolve).toHaveBeenCalledTimes(1);
+
+    runCpExactSolve.mockResolvedValue(solveResult(solvedOutcome(), solvedFold()));
+    flipSnap();
+    await settle();
+    expect(runCpExactSolve).toHaveBeenCalledTimes(2);
+    expect(runCpExactSolve.mock.calls[1]?.[1]).toEqual(expect.objectContaining({ gridSnap: false }));
+
+    flipSnap();
+    await settle();
+    expect(runCpExactSolve).toHaveBeenCalledTimes(2);
+    expect(button('Add')).not.toBeNull();
+  });
+
+  it('does not solve again for an answer it left where it was', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(boxPleatRecognition(0));
+    runCpExactSolve.mockResolvedValue(solveResult(exactOutcome('already_on_grid', false), solvedFold()));
+    await reachReviewStage();
+    flipSnap();
+    await settle();
+    expect(runCpExactSolve).toHaveBeenCalledTimes(1);
+  });
+
+  it('says so when an exact answer would not fold flat on the grid', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(boxPleatRecognition(0));
+    runCpExactSolve.mockResolvedValue(solveResult(exactOutcome('not_exact_on_grid', false), solvedFold()));
+    await reachReviewStage();
+    expect(bodyText()).toMatch(/It is not snapped to the 16 × 16 grid: on the grid it would no longer fold flat/);
+
+    // Off, there is nothing to explain.
+    flipSnap();
+    await settle();
+    expect(bodyText()).not.toMatch(/not snapped to the/);
+  });
+
+  it('is not offered to flip while the solve runs', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(boxPleatRecognition(0));
+    runCpExactSolve.mockImplementation(() => new Promise(() => undefined));
+    await reachReviewStage();
+    expect(toggle()?.disabled).toBe(true);
   });
 });

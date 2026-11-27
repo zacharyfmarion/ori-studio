@@ -6808,7 +6808,11 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
+    "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
+    "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13619,7 +13623,11 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
+    "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
+    "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20432,7 +20440,11 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
+    "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
+    "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26855,7 +26867,11 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
+    "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
+    "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -33278,7 +33294,11 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
+    "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
+    "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -40089,7 +40109,11 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
+    "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
+    "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46900,7 +46924,11 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
+    "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
+    "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -53323,6 +53351,10 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "dialogs:cpDetectImport.gridSize": "43205c3c2ce8",
+    "dialogs:cpDetectImport.snapToGrid": "ce43cef987f3",
+    "dialogs:cpDetectImport.verdict.gridSnapOutOfTime": "1732cf04eeb0",
+    "dialogs:cpDetectImport.verdict.gridSnapRefused": "1b8e8c564faa"
   }
 }

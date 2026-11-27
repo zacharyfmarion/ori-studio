@@ -39,6 +39,7 @@ import {
   cpDetectCandidateSourceFromFold,
   cpDetectSolveInput,
   cpDetectSolveState,
+  cpDetectBoxPleatGrid,
   cpDetectTopologyDiagnostics,
 } from '../engine/cpDetectTypes';
 import type {
@@ -491,6 +492,7 @@ const api = {
         solve,
         solveInput: cpDetectSolveInput(decoded.report),
         topologyDiagnostics: cpDetectTopologyDiagnostics(decoded.report),
+        boxPleatGrid: cpDetectBoxPleatGrid(decoded.report),
       };
     });
   },

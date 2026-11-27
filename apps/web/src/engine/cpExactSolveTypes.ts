@@ -77,7 +77,23 @@ export interface CpExactSolveMovementReport {
    */
   attempted_moved_vertices?: CpExactSolveMovedVertex[];
   polish?: CpExactSolvePolishReport;
+  /** What "Snap to grid" did with the answer; absent when it was not asked for. */
+  grid_snap?: CpExactSolveGridSnapReport;
   [key: string]: unknown;
+}
+
+/**
+ * `movement_report.grid_snap` — the solver's box-pleat grid snap
+ * (`crates/oristudio-cp-compiler/src/exact_solve/grid_snap.rs`), present only
+ * when the request asked for it (`grid_snap: "box_pleat"`).
+ */
+export interface CpExactSolveGridSnapReport {
+  adopted?: boolean;
+  stop_reason?: string;
+  /** The grid read from the detection, in cells per edge. */
+  cells?: number;
+  /** The multiple of it the adopted snap landed on. */
+  snapped_cells?: number;
 }
 
 /**
@@ -490,6 +506,11 @@ interface CpExactSolveAcceptedFields {
    */
   pleats?: CpSolvePleats | null;
   /**
+   * What "Snap to grid" did with the answer, or null when it was not asked
+   * for. See {@link cpExactSolveGridSnap}.
+   */
+  gridSnap?: CpSolveGridSnap | null;
+  /**
    * Whether the refinement stage's polish loop kept any of its rounds.
    *
    * Read from `movement_report.polish.rounds_adopted`, which the solver reports
@@ -761,6 +782,46 @@ export interface CpSolvePleats {
   refusals: string[];
 }
 
+/**
+ * What the box-pleat grid snap did, in the fields a sentence needs.
+ *
+ * The snap runs only on an exact answer and is kept only when the answer stays
+ * exact, so the one ending a surface has to explain is the refusal: the
+ * pattern folds flat as solved and would not on the grid.
+ */
+export interface CpSolveGridSnap {
+  adopted: boolean;
+  /**
+   * `adopted` | `already_on_grid` | `not_exact_on_grid` (refused: on the grid
+   * it would not fold flat) | `out_of_time` | `not_exact` | `merged_vertices` |
+   * `answer_shape` | `no_grid`.
+   */
+  stopReason: string;
+  /** The grid read from the detection; null when none was. */
+  cells: number | null;
+}
+
+export function cpExactSolveGridSnap(
+  solved: CpExactSolvedGraph,
+): CpSolveGridSnap | null {
+  const round = solved.movement_report?.grid_snap;
+  if (!round || typeof round !== "object") return null;
+  const adopted = round.adopted === true;
+  return {
+    adopted,
+    stopReason:
+      typeof round.stop_reason === "string"
+        ? round.stop_reason
+        : adopted
+          ? "adopted"
+          : "not_exact_on_grid",
+    cells:
+      typeof round.cells === "number" && Number.isInteger(round.cells) && round.cells > 0
+        ? round.cells
+        : null,
+  };
+}
+
 export function cpExactSolvePleats(
   solved: CpExactSolvedGraph,
 ): CpSolvePleats | null {
@@ -896,6 +957,7 @@ export function classifyCpExactSolve(
       residuals: cpExactSolveResiduals(solved),
       angleFamily: cpExactSolveAngleFamily(solved),
       pleats: cpExactSolvePleats(solved),
+      gridSnap: cpExactSolveGridSnap(solved),
       polishAdopted: polishWasAdopted(report),
     };
   }

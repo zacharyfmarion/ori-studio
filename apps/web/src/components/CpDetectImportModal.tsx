@@ -10,6 +10,9 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Crop, ImagePlus, Loader2, Play, Square, Upload, Wrench, X } from 'lucide-react';
 import { CpDetectCropEditor } from './CpDetectCropEditor';
+import { CpDetectGridLines } from './CpDetectGridLines';
+import { CpDetectGridSnapToggle } from './CpDetectGridSnapToggle';
+import { activeBoxPleatGrid, candidateFoldJson, foldJsonWithMovedVertices } from './cpDetectCandidateFold';
 import { CpDetectRightsConfirmation } from './CpDetectRightsConfirmation';
 import { sourceSizeForRectification } from './cpDetectCropLoupe';
 import { track } from '../analytics';
@@ -41,7 +44,6 @@ import { useCpExactSolveRun } from '../hooks/useCpExactSolveRun';
 import {
   isCpExactSolveAccepted,
   primaryCpExactSolveReason,
-  type CpExactSolveMovedVertex,
   type CpExactSolveOutcome,
   type CpExactSolveStage,
 } from '../engine/cpExactSolveTypes';
@@ -285,6 +287,18 @@ type SolvePhase =
   | { kind: 'errored' };
 
 const NOT_ATTEMPTED: SolvePhase = { kind: 'not_attempted' };
+
+/**
+ * The two results a box-pleated detection has, one per position of "Snap to
+ * grid". They differ only where the solver snapped an exact answer, so only
+ * there does flipping the toggle cost a solve.
+ */
+type SnapMode = 'snapped' | 'raw';
+
+function snapModeOf(snapping: boolean): SnapMode {
+  return snapping ? 'snapped' : 'raw';
+}
+
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const DEFAULT_PREVIEW_OVERLAYS: PreviewOverlayState = {
@@ -300,6 +314,19 @@ export function CpDetectImportModal() {
   const [rectified, setRectified] = useState<CpDetectRectifiedImage | null>(null);
   const [recognition, setRecognition] = useState<CpDetectRecognizeResult | null>(null);
   const [phase, setPhase] = useState<SolvePhase>(NOT_ATTEMPTED);
+  /**
+   * "Snap to grid", for a detection that reads as box-pleated. On by default:
+   * a box-pleated design is drawn on its grid, and on the archive's real
+   * detections the snap puts 98% of their vertices exactly where the designer
+   * drew them against 3% as recognized. Per image, like the rights answer.
+   */
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  /**
+   * The settled solve for each position of the toggle, so flipping it back
+   * shows what was already computed. Cleared whenever the recognition it was
+   * solved from goes.
+   */
+  const settledByModeRef = useRef<Partial<Record<SnapMode, SolvePhase>>>({});
   /**
    * Whether the user has said they are entitled to `source`.
    *
@@ -448,6 +475,8 @@ export function CpDetectImportModal() {
     setRectified(null);
     setRecognition(null);
     setPhase(NOT_ATTEMPTED);
+    settledByModeRef.current = {};
+    setSnapToGrid(true);
     setRightsConfirmed(false);
     setSolveTargetId(null);
     setError(null);
@@ -502,6 +531,8 @@ export function CpDetectImportModal() {
     setRectified(null);
     setRecognition(null);
     setPhase(NOT_ATTEMPTED);
+    settledByModeRef.current = {};
+    setSnapToGrid(true);
     setRightsConfirmed(false);
     setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
 
@@ -640,6 +671,7 @@ export function CpDetectImportModal() {
       setError(null);
       setRecognition(null);
       setPhase(NOT_ATTEMPTED);
+      settledByModeRef.current = {};
       setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
       try {
         const client = await getCpDetectClient();
@@ -656,9 +688,17 @@ export function CpDetectImportModal() {
     [quad, source]
   );
 
-  /** Compact recognition and automatic refinement share a one-minute budget. */
+  /**
+   * Compact recognition and automatic refinement share a one-minute budget.
+   *
+   * `snapping` asks the solver to put an exact answer on the detection's grid
+   * where it still folds flat; the candidate it falls back to is snapped here,
+   * from what recognition reported.
+   */
   const solveRecognized = useCallback(
-    async (recognized: CpDetectRecognizeResult, startedAt: number) => {
+    async (recognized: CpDetectRecognizeResult, startedAt: number, snapping: boolean) => {
+      const grid = activeBoxPleatGrid(recognized, snapping);
+      const candidate = candidateFoldJson(recognized, grid);
       setBusy('solving');
       setPhase({ kind: 'solving', stage: 'geometry' });
       solveCountRef.current += 1;
@@ -670,23 +710,31 @@ export function CpDetectImportModal() {
             ? Math.min(25, Math.max(0, 60 - (performance.now() - startedAt) / 1000))
             : 25,
           recognitionFallback: true,
+          gridSnap: grid !== null,
           run: { kind: 'detect-import', targetId },
           onStage: (stage) => setPhase({ kind: 'solving', stage }),
         });
-        setPhase({ kind: 'settled', outcome: result.outcome, fold: result.fold, previewFold: result.previewFold });
-        publishDetectionResult(source, recognized, foldJsonOf(result.fold) ?? recognized.foldJson);
+        const settled: SolvePhase = {
+          kind: 'settled',
+          outcome: result.outcome,
+          fold: result.fold,
+          previewFold: result.previewFold,
+        };
+        setPhase(settled);
+        rememberSettled(settledByModeRef.current, snapModeOf(grid !== null), settled);
+        publishDetectionResult(source, recognized, foldJsonOf(result.fold) ?? candidate);
       } catch (caught) {
         // Stop is not a failure, and must not leave an error line behind saying
         // it was. The candidate is exactly what it was before the solve started
         // — nothing here writes — so the screen goes back to offering it.
         if (isCpExactSolveCancelledError(caught)) {
           setPhase({ kind: 'cancelled' });
-          publishDetectionResult(source, recognized, recognized.foldJson);
+          publishDetectionResult(source, recognized, candidate);
           return;
         }
         setError(cpDetectError(caught).message);
         setPhase({ kind: 'errored' });
-        publishDetectionResult(source, recognized, recognized.foldJson);
+        publishDetectionResult(source, recognized, candidate);
       } finally {
         setBusy(null);
       }
@@ -711,6 +759,7 @@ export function CpDetectImportModal() {
     setError(null);
     setRecognition(null);
     setPhase(NOT_ATTEMPTED);
+    settledByModeRef.current = {};
     setModelProgress(null);
     // Image→CP funnel start. No image data or filename is ever sent.
     track('cp detect started');
@@ -755,16 +804,51 @@ export function CpDetectImportModal() {
     }
     const topology = candidateTopology(recognized);
     if (topology.blocked || topology.repairSites > 0) {
-      publishDetectionResult(source, recognized, recognized.foldJson);
+      publishDetectionResult(
+        source,
+        recognized,
+        candidateFoldJson(recognized, activeBoxPleatGrid(recognized, snapToGrid))
+      );
       setBusy(null);
       return;
     }
-    await solveRecognized(recognized, startedAt);
-  }, [model, rectified, solveRecognized, source]);
+    await solveRecognized(recognized, startedAt, snapToGrid);
+  }, [model, rectified, snapToGrid, solveRecognized, source]);
 
   const topology = useMemo(
     () => (recognition ? candidateTopology(recognition) : null),
     [recognition]
+  );
+
+  /** The grid the pattern on screen is snapped to; null when it is not. */
+  const snapGrid = activeBoxPleatGrid(recognition, snapToGrid);
+  /** The candidate as the dialog shows and adds it: snapped, or as recognized. */
+  const candidateFold = useMemo(
+    () => (recognition ? candidateFoldJson(recognition, snapGrid) : null),
+    [recognition, snapGrid]
+  );
+
+  /**
+   * Flip "Snap to grid".
+   *
+   * The candidate follows at once — its snap came with the recognition. A
+   * solve follows only where the two positions can disagree, which is an exact
+   * answer: the solver snaps nothing else, so a rejected or timed-out solve,
+   * a candidate whose topology kept it from the solver and a solve the user
+   * stopped are the same result either way.
+   */
+  const changeSnapToGrid = useCallback(
+    (next: boolean) => {
+      setSnapToGrid(next);
+      if (!recognition?.boxPleatGrid || phase.kind !== 'settled' || phase.outcome.kind !== 'solved') return;
+      const settled = settledByModeRef.current[snapModeOf(next)];
+      if (settled) {
+        setPhase(settled);
+        return;
+      }
+      void solveRecognized(recognition, performance.now(), next);
+    },
+    [phase, recognition, solveRecognized]
   );
 
   /**
@@ -825,7 +909,7 @@ export function CpDetectImportModal() {
       if (!recognition || !source) return;
       const foldJson = importFoldJson(
         mode,
-        recognition,
+        candidateFold ?? recognition.foldJson,
         phase,
         partialFoldJson,
         improvedFoldJson
@@ -934,6 +1018,10 @@ export function CpDetectImportModal() {
           mode,
           outcome: importOutcome(topology, phase),
           repair_sites: repairSiteBucket(topology),
+          // Whether the pattern read as box-pleated, and if so whether it was
+          // added on its grid: how often the snap is turned off is the
+          // number that says whether its default is right.
+          grid_snap: recognition.boxPleatGrid ? (snapToGrid ? 'on' : 'off') : 'none',
         });
         if (canvasImage) {
           useCpDetectSuggestionStore.getState().setSuggestionState(canvasImage.annotationId, 'accepted');
@@ -949,6 +1037,7 @@ export function CpDetectImportModal() {
       }
     },
     [
+      candidateFold,
       canvasImage,
       improvedFoldJson,
       partialFoldJson,
@@ -956,6 +1045,7 @@ export function CpDetectImportModal() {
       recognition,
       rectified,
       resetSession,
+      snapToGrid,
       source,
       t,
       topology,
@@ -985,8 +1075,8 @@ export function CpDetectImportModal() {
   const foldPreview = useMemo(() => {
     if (!recognition) return null;
     const solved = phase.kind === 'settled' ? phase.fold : null;
-    return solved ? foldPreviewOf(solved) : parseFoldPreview(recognition.foldJson);
-  }, [phase, recognition]);
+    return solved ? foldPreviewOf(solved) : parseFoldPreview(candidateFold ?? recognition.foldJson);
+  }, [candidateFold, phase, recognition]);
   const stage = modalStage(busy, recognition, source, rightsConfirmed);
   const canChooseImage = model !== null && busy === null && !modelUpdating;
   // The solve has its own row, which names the stage rather than saying "busy".
@@ -1156,6 +1246,18 @@ export function CpDetectImportModal() {
                 <Play size={14} />
                 {t('dialogs:cpDetectImport.detect', 'Detect')}
               </Button>
+              {/* Before the buttons that add, which come and go with the solve,
+                  and above the verdict that changes when it is flipped, so
+                  nothing it causes moves it. Only for a pattern that reads as
+                  box-pleated. */}
+              {recognition?.boxPleatGrid && (
+                <CpDetectGridSnapToggle
+                  cells={recognition.boxPleatGrid.cells}
+                  snapping={snapToGrid}
+                  disabled={busy !== null}
+                  onChange={changeSnapToGrid}
+                />
+              )}
               {/* No terminal button while the solve runs: there is no decision to
                   offer yet, and a button that adds an about-to-change pattern is
                   the same trap as a "Solve & Add" that does not solve. */}
@@ -1196,6 +1298,7 @@ export function CpDetectImportModal() {
                 topology,
                 phase,
                 partialVertices: partialVertexCount(phase, partialFoldJson),
+                snapCells: snapGrid?.cells ?? null,
                 // So the sentence never offers a button that is not on the row
                 // above it: the improved result needs a solved FOLD, and a solve
                 // that produced none has nothing to add.
@@ -1252,7 +1355,12 @@ export function CpDetectImportModal() {
                   />
                 </div>
                 {foldPreview ? (
-                  <FoldPreview preview={foldPreview} overlay={previewOverlays} compilerOverlay={compilerOverlay} />
+                  <FoldPreview
+                    preview={foldPreview}
+                    overlay={previewOverlays}
+                    compilerOverlay={compilerOverlay}
+                    gridCells={snapGrid?.cells ?? null}
+                  />
                 ) : (
                   <div className="cp-detect-modal__empty" />
                 )}
@@ -1361,13 +1469,17 @@ function FoldPreview({
   preview,
   overlay,
   compilerOverlay,
+  gridCells,
 }: {
   preview: FoldPreviewData;
   overlay: PreviewOverlayState;
   compilerOverlay: CompilerPreviewOverlay;
+  /** The grid the pattern is snapped to, drawn behind it; null for none. */
+  gridCells: number | null;
 }) {
   return (
     <svg className="cp-detect-modal__fold" viewBox="0 0 1 1">
+      {gridCells !== null && <CpDetectGridLines cells={gridCells} />}
       {preview.edges.map(([a, b], index) => {
         const start = preview.vertices[a];
         const end = preview.vertices[b];
@@ -1755,10 +1867,16 @@ function importModeLabel(t: TFunction, mode: ImportMode): string {
   }
 }
 
-/** The FOLD a mode adds, or null when the state cannot produce one. */
+/**
+ * The FOLD a mode adds, or null when the state cannot produce one.
+ *
+ * `candidate` is the candidate as the dialog shows it — snapped to its grid
+ * when "Snap to grid" is on — so the two modes that add the candidate add the
+ * pattern on screen.
+ */
 function importFoldJson(
   mode: ImportMode,
-  recognition: CpDetectRecognizeResult,
+  candidate: string,
   phase: SolvePhase,
   partialFoldJson: string | null,
   improvedFoldJson: string | null
@@ -1774,67 +1892,31 @@ function importFoldJson(
       return partialFoldJson;
     case 'reviewAndFix':
     case 'addAsIs':
-      return recognition.foldJson;
+      return candidate;
   }
+}
+
+/**
+ * Keep a settled solve for the toggle position it was solved at, and for the
+ * other position too when the two cannot differ: the solver snaps only an
+ * exact answer, so every other ending — and an exact answer it left where it
+ * was — is the same result with the toggle either way.
+ */
+function rememberSettled(
+  cache: Partial<Record<SnapMode, SolvePhase>>,
+  mode: SnapMode,
+  settled: SolvePhase
+): void {
+  cache[mode] = settled;
+  if (settled.kind !== 'settled') return;
+  const { outcome } = settled;
+  const differs =
+    outcome.kind === 'solved' && (mode === 'raw' || outcome.gridSnap?.adopted === true);
+  if (!differs) cache[mode === 'snapped' ? 'raw' : 'snapped'] = settled;
 }
 
 function foldJsonOf(fold: Record<string, unknown> | null): string | null {
   return fold ? JSON.stringify(fold) : null;
-}
-
-/**
- * The candidate FOLD with a run's coordinates written into it.
- *
- * One construction, two callers, because they are the same situation: geometry a
- * real run produced that the modal cannot get as a solved FOLD.
- *
- * - **A timeout** returns the coordinates it was *given* and reports the work it
- *   did in `attempted_moved_vertices` — a median of ~448 entries — so this is
- *   the only place that partial solution exists.
- * - **An ambiguous acceptance** is withheld by `runCpExactSolve` on purpose: its
- *   `fold` is the *exactly* solved document, and improved-but-not-foldable
- *   geometry returned through that field is how it gets applied as the answer.
- *
- * Either way the coordinates are real and what did not happen is a claim about
- * them, which is why the buttons that add these say "partial" and "improved".
- *
- * The mapping is exact rather than positional. `cp_detector.vertex_original_ids`
- * is written by the same exporter that renumbered the vertices
- * (`fold_export.rs`), and the ids in the movement report index
- * `ExactSolveInput.vertices` — the same space. Null when the export carries no
- * such list or the arrays disagree, so a shape change drops the offer instead of
- * scattering coordinates onto the wrong vertices.
- */
-function foldJsonWithMovedVertices(
-  foldJson: string,
-  partial: readonly CpExactSolveMovedVertex[]
-): string | null {
-  if (partial.length === 0) return null;
-  let fold: { vertices_coords?: unknown; cp_detector?: { vertex_original_ids?: unknown } } | null;
-  try {
-    fold = JSON.parse(foldJson) as typeof fold;
-  } catch {
-    return null;
-  }
-  const coords = fold?.vertices_coords;
-  const originalIds = fold?.cp_detector?.vertex_original_ids;
-  if (!Array.isArray(coords) || !Array.isArray(originalIds)) return null;
-  if (coords.length !== originalIds.length) return null;
-
-  const indexOfVertex = new Map<number, number>();
-  originalIds.forEach((id, index) => {
-    if (typeof id === 'number') indexOfVertex.set(id, index);
-  });
-  const moved = coords.map((point) => (Array.isArray(point) ? [...point] : point));
-  let applied = 0;
-  for (const vertex of partial) {
-    const index = indexOfVertex.get(vertex.vertex_id);
-    if (index === undefined) continue;
-    moved[index] = [vertex.after.x, vertex.after.y];
-    applied += 1;
-  }
-  if (applied === 0) return null;
-  return JSON.stringify({ ...fold, vertices_coords: moved });
 }
 
 /** How many of the partial's vertices the offer actually carries, or null. */
@@ -1881,11 +1963,14 @@ function verdictMessage(
     topology,
     phase,
     partialVertices,
+    snapCells,
     canAddImproved,
   }: {
     topology: CandidateTopology | null;
     phase: SolvePhase;
     partialVertices: number | null;
+    /** The grid "Snap to grid" snaps to, while it is on; null otherwise. */
+    snapCells: number | null;
     canAddImproved: boolean;
   }
 ): string {
@@ -1902,7 +1987,9 @@ function verdictMessage(
     // how they drift apart. Only the closing clause is this modal's own — it
     // names buttons that exist here and nowhere else.
     const facts = cpSolveCompletionFacts(phase.outcome);
-    const detail = cpSolveCompletionDetail(t, facts);
+    const detail = [cpSolveCompletionDetail(t, facts), gridSnapRefusal(t, phase.outcome, snapCells)]
+      .filter((part): part is string => part !== null)
+      .join(' ');
     // The closing clause names buttons, so it follows the *solver's* verdict —
     // the same thing `availableImportModes` branches on. Following the check
     // instead would send a user to a Review & Fix that is not on the screen.
@@ -1968,6 +2055,37 @@ function verdictMessage(
     defaultValue_other:
       'Recognized, with {{count}} places to repair — so the solve was not run: it would have spent its whole budget on geometry you are about to change. Review & Fix adds the candidate with the source image behind it, so you can fix them and solve. Adding it as-is instead leaves every angle approximate.',
   });
+}
+
+/**
+ * Why an exact solve is not on the grid "Snap to grid" asked for, or null when
+ * there is nothing to explain: the snap was not asked for, it was kept, or the
+ * answer was already on the grid. The one ending a user would otherwise be
+ * left to discover is the refusal — the pattern folds flat as solved and would
+ * not on the grid — so that is the one that is said.
+ */
+function gridSnapRefusal(
+  t: TFunction,
+  outcome: CpExactSolveOutcome,
+  snapCells: number | null
+): string | null {
+  if (snapCells === null || outcome.kind !== 'solved') return null;
+  switch (outcome.gridSnap?.stopReason) {
+    case 'not_exact_on_grid':
+      return t(
+        'dialogs:cpDetectImport.verdict.gridSnapRefused',
+        'It is not snapped to the {{cells}} × {{cells}} grid: on the grid it would no longer fold flat.',
+        { cells: snapCells }
+      );
+    case 'out_of_time':
+      return t(
+        'dialogs:cpDetectImport.verdict.gridSnapOutOfTime',
+        'It ran out of time before it could be snapped to the {{cells}} × {{cells}} grid.',
+        { cells: snapCells }
+      );
+    default:
+      return null;
+  }
 }
 
 /**

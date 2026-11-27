@@ -74,6 +74,18 @@ it('runs recognition fallback once with construction recovery and the remaining 
   expect(result.fold).toEqual(FOLD);
 });
 
+it('asks the bridge for the box-pleat grid snap only when the caller does', async () => {
+  const snapping = solver(ACCEPTED);
+  await runCpExactSolve({}, { recognitionFallback: true, gridSnap: true, solver: async () => snapping });
+  expect(JSON.parse(snapping.solveExactToFold.mock.calls[0][1] as string)).toMatchObject({
+    grid_snap: 'box_pleat',
+  });
+  // Omitted rather than "off", so an ordinary solve's options are unchanged.
+  const plain = solver(ACCEPTED);
+  await runCpExactSolve({}, { recognitionFallback: true, gridSnap: false, solver: async () => plain });
+  expect(JSON.parse(plain.solveExactToFold.mock.calls[0][1] as string)).not.toHaveProperty('grid_snap');
+});
+
 it('keeps a connected AUX timeout preview separate from an accepted fold', async () => {
   const bridge = solver(REJECTED);
   const partial = { vertices_coords: [[0.45, 0.5]], edges_vertices: [], edges_assignment: ['F'] };

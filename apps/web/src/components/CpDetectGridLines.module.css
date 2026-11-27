@@ -1,0 +1,14 @@
+/*
+ * The preview draws on fixed white paper with fixed crease inks, in either
+ * theme, so the grid is a fixed light gray too: under every crease ink and
+ * clear of all of them. Half a crease's width, in viewBox units (0..1).
+ */
+.grid {
+  pointer-events: none;
+}
+
+.grid line {
+  stroke: #d3d8dc;
+  stroke-width: 0.0018;
+  shape-rendering: crispEdges;
+}

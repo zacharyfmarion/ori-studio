@@ -73,6 +73,7 @@
     "detected": "Detectado",
     "dropImageHere": "Solte a imagem aqui",
     "editCrop": "Editar recorte",
+    "gridSize": "{{cells}} × {{cells}}",
     "inferred": "Inferido",
     "model": {
       "deviceGpu": "Este dispositivo tem GPU, então a detecção leva segundos.",
@@ -100,6 +101,7 @@
       "lead": "Padrões de vincos são obra de seus designers. Detecte apenas um padrão que você tenha o direito de usar: um que você mesmo criou, um que foi publicado para que outros dobrem, ou um cujo designer lhe deu permissão. A imagem é processada neste dispositivo e nunca é enviada."
     },
     "runningModel": "Executando o modelo",
+    "snapToGrid": "Encaixar na grade",
     "stopping": "Parando…",
     "stopSolve": "Parar",
     "title": "Detectar CP a partir de imagem",
@@ -109,6 +111,8 @@
       "cancelled": "Você parou a resolução, então nada foi alterado — este é o padrão exatamente como foi reconhecido. “Revisar e corrigir” o adiciona com a imagem de origem atrás e mantém os dados do solucionador, para você resolvê-lo de novo no documento.",
       "exact": "Adicioná-lo ao lado do seu trabalho deixa o resto do documento intacto.",
       "exactReview": "“Revisar e corrigir” adiciona em vez disso o padrão como foi reconhecido, com a imagem de origem atrás e mantendo os dados do solucionador, para você fixar ou mover vértices antes de resolvê-lo de novo por conta própria.",
+      "gridSnapOutOfTime": "O tempo acabou antes que pudesse ser encaixado na grade de {{cells}} × {{cells}}.",
+      "gridSnapRefused": "Não foi encaixado na grade de {{cells}} × {{cells}}: sobre a grade, deixaria de dobrar plano.",
       "improved": "“Revisar e corrigir” o adiciona com a imagem de origem atrás e mantém os dados do solucionador, para você reparar o que sobrou e resolver de novo — ou adicionar o resultado melhorado como ele está.",
       "improvedNoFold": "“Revisar e corrigir” o adiciona com a imagem de origem atrás e mantém os dados do solucionador, para você reparar o que sobrou e resolver de novo.",
       "repairable_one": "Reconhecido, com 1 local para reparar — por isso a resolução não foi executada: ela gastaria todo o tempo disponível em uma geometria que você vai mudar. “Revisar e corrigir” adiciona o candidato com a imagem de origem atrás, para você corrigir e resolver.",

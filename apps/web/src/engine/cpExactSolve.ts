@@ -104,6 +104,14 @@ export interface CpExactSolveRunOptions {
    */
   pinnedVertexIds?: readonly number[];
   /**
+   * Snap a box-pleated answer to the grid its detection reads: every
+   * coordinate of an exact answer within a pixel and a half of a grid line is
+   * put on it, and that is kept only if the answer still folds flat
+   * (`GridSnapMode::BoxPleat`). What it did is the outcome's `gridSnap`.
+   * Omitted or false, the answer is left where the solve put it.
+   */
+  gridSnap?: boolean;
+  /**
    * Register this solve under a run id, so a second one for the same target is
    * refused rather than queued invisibly behind it.
    *
@@ -445,6 +453,8 @@ function stageOptionsJson(
   if (exempt.length > 0) overrides.exempt_vertex_ids = exempt;
   const pinned = normalizedVertexIds(options.pinnedVertexIds);
   if (pinned.length > 0) overrides.pinned_vertex_ids = pinned;
+  // Omitted rather than sent as "off", for the same reason as the id sets.
+  if (options.gridSnap) overrides.grid_snap = 'box_pleat';
   return JSON.stringify(overrides);
 }
 
